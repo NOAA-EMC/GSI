@@ -88,14 +88,15 @@
   use lag_interp,only : lag_accur
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
-                         n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
-                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters
+                         n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
+                         beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
+                         readin_localization
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
-  use tcv_mod, only: init_tcps_errvals,tcp_oberr,tcp_innmax,tcp_oedelt
+  use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
   use chemmod, only : init_chem,berror_chem,oneobtest_chem,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
@@ -513,13 +514,15 @@
 !     c_varqc - constant number to control var. qc turnning on speed
 !     blacklst - logical for reading in raob blacklist (if set to true)
 !     use_poq7 - logical flag to accept (.true.) sbuv profile quality flag 7
-!     tcp_oberr  - observation error (without inflation) for tcps obs in mb
-!     tcp_innmax - parameter for tcps oberr inflation (max innovation for inflation) in mb
-!     tcp_oedelt - parameter for tcps oberr inflation (delta oberr over tcp_oberr) in mb
+!     tcp_refps  - reference pressure for tcps oberr calculation (mb)
+!     tcp_width  - parameter for tcps oberr inflation (width, mb)
+!     tcp_ermin  - parameter for tcps oberr inflation (minimum oberr, mb)
+!     tcp_ermax  - parameter for tcps oberr inflation (maximum oberr, mb)
 !     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
 
   namelist/obsqc/ repe_dw,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_oberr,tcp_innmax,tcp_oedelt,qc_noirjaco3
+       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
+       qc_noirjaco3
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -584,6 +587,7 @@
 !     l_hyb_ens     - if true, then turn on hybrid ensemble option
 !     uv_hyb_ens    - if true, then ensemble perturbation wind variables are u,v,
 !                       otherwise, ensemble perturbation wind variables are stream, pot. functions.
+!     oz_univ_static- if true, decouple ozone from other variables and defaults to static B (ozone only)
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
 !     n_ens        - number of ensemble members.
@@ -599,8 +603,9 @@
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
 !                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
+!     readin_localization - flag to read (.true.)external localization information file
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v
+                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,oz_univ_static
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):

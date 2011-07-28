@@ -33,7 +33,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use guess_grids, only: nfldsig, hrdifsig,ges_ps,ges_lnprsl,ges_tv,ges_q,&
        ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll
 
-  use constants, only: zero, one, four,t0c,rd_over_cp
+  use constants, only: zero, one, four,t0c,rd_over_cp,three
   use constants, only: tiny_r_kind,half,two,cg_term
   use constants, only: huge_single,r1000,wgtlim,r10
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
@@ -119,6 +119,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2010-06-10  Hu      - add call for terrain match for surface T obs    
+!   2011-05-06  Su      - modify the observation gross check error    
 !
 ! !REMARKS:
 !   language: f90
@@ -132,6 +133,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
+  real(r_kind),parameter:: r0_7=0.7_r_kind
   real(r_kind),parameter:: r8 = 8.0_r_kind
 
   character(len=*),parameter :: myname='setupt'
@@ -156,7 +158,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) val,valqc,dlon,dlat,dtime,dpres,error,prest,rwgt
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,tfact
-  real(r_kind) cg_t,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
+  real(r_kind) cg_t,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind),dimension(nobs)::dup
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nele,nobs):: data
@@ -448,7 +450,16 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
-     if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
+
+ ! modify gross check limit for quality mark=3 
+     if(data(iqc,i) == three ) then
+        qcgross=r0_7*cgross(ikx)
+     else
+        qcgross=cgross(ikx)
+     endif
+
+
+     if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one
         error = zero
         ratio_errors = zero

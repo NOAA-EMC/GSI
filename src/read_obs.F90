@@ -230,6 +230,18 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
            end do
           end do 
          end do fileloop
+       else if(trim(filename) == 'satwnd')then
+         lexist = .false.
+         loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or.&
+               trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071' .or.&
+               trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or.&
+               trim(subset) == 'NC005046' .or. trim(subset) == 'NC005064' .or.&
+               trim(subset) == 'NC005065' .or. trim(subset) == 'NC005066') then 
+               lexist = .true.
+               exit loop
+            endif
+         end do loop
     else if(trim(dtype) == 'pm2_5')then
        if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
           lexist=.true.
@@ -432,9 +444,10 @@ subroutine read_obs(ndata,mype)
     npem1=npe-1
     nprof_gps1=0
 
-    if(oberrflg .or. perturb_obs) then
+!    if(oberrflg .or. perturb_obs) then
        call converr_read(mype)
-    endif
+!    endif
+
 
 !   Optionally set random seed to perturb observations
     if (perturb_obs) then
@@ -794,14 +807,26 @@ subroutine read_obs(ndata,mype)
 
 !         Process conventional (prepbufr) data
           if(ditype(i) == 'conv')then
-             if (obstype == 't'  .or. obstype == 'uv' .or. &
+!             if (obstype == 't'  .or. obstype == 'uv' .or. &
+             if (obstype == 't'  .or. &
                  obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                 string='READ_PREPBUFR'
-
+!            Process winds in the prepbufr
+             else if(obstype == 'uv') then
+!             Process satellite winds which seperate from prepbufr
+                if ( trim(infile) == 'satwnd') then
+                  call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                     prsl_full)
+                  string='READ_SATWND'
+                else
+                  call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                     prsl_full)
+                  string='READ_PREPBUFR'
+                endif
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'mods') then

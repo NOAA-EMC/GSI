@@ -235,7 +235,8 @@
   real(r_single),allocatable,dimension(:,:):: diagbufex
   real(r_single),allocatable,dimension(:,:):: diagbufchan
 
-  real(r_kind),dimension(npred+2,nchanl)::predterms,predbias
+  real(r_kind),dimension(npred+2):: predterms
+  real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
@@ -1503,7 +1504,7 @@
               errinv = sqrt(varinv(ich_diag(i)))
               diagbufchan(4,i)=errinv                    ! inverse observation error
               useflag=one
-              if (iuse_rad(ich(i)) < 1) useflag=-one
+              if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
               diagbufchan(5,i)= id_qc(ich_diag(i))*useflag            ! quality control mark or event indicator
 
               if (amsua .and. sea .and. icw4crtm>10) then
@@ -1517,12 +1518,12 @@
               if (lwrite_predterms) then
                  predterms=zero
                  do j = 1,npred
-                    predterms(j,i) = pred(j,ich_diag(i))
+                    predterms(j) = pred(j,ich_diag(i))
                  end do
-                 predterms(npred+1,i) = cbias(nadir,ich(ich_diag(i)))
+                 predterms(npred+1) = cbias(nadir,ich(ich_diag(i)))
 
                  do j=1,npred+2
-                    diagbufchan(ipchan_radiag+j,i)=predterms(j,ich_diag(i)) ! Tb bias correction terms (K)
+                    diagbufchan(ipchan_radiag+j,i)=predterms(j) ! Tb bias correction terms (K)
                  end do
               else   ! Default to write out predicted bias
                  do j=1,npred+2

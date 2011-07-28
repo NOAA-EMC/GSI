@@ -49,7 +49,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,xai,tmix,xb,omeps,eps,xbi,one,zero,&
+  use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
        xa,psat,ttp,half,one_tenth
   use jfunc, only:  qgues,dqdt,dqdrh,dqdp
   use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional,cmaq_regional
@@ -75,10 +75,10 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 
   onep3 = 1.e3_r_kind
 
-  lmint=ione
   do j=1,lon2
      do i=1,lat2
         mint(i,j)=340._r_kind
+        lmint(i,j)=1
      end do
   end do
   do k=1,nsig
@@ -129,6 +129,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
     end if
   end if
 
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,tdry,tr,es,esw,esi,w) &
+!$omp private(pw,esmax,es2,idpupdate,idtupdate,desdt,dwdt,deswdt,desidt)
   do k = 1,nsig
      do j = 1,lon2
         do i = 1,lat2

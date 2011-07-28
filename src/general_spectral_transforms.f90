@@ -28,7 +28,7 @@ subroutine general_g2s0(grd,sp,spectral_out,grid_in)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
   type(spec_vars),intent(in   ) :: sp
@@ -36,21 +36,20 @@ subroutine general_g2s0(grd,sp,spectral_out,grid_in)
   real(r_kind)   ,intent(  out) :: spectral_out(sp%nc)
   real(r_kind)   ,intent(in   ) :: grid_in(grd%nlat,grd%nlon)
 
-  real(r_kind) work(grd%nlon,grd%nlat-2_i_kind),spec_work(sp%nc)
+  real(r_kind) work(grd%nlon,grd%nlat-2)
   integer(i_kind) i,j,jj
 
 !  Transfer contents of input grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         work(i,jj)=grid_in(j,i)
      end do
   end do
-  call general_sptez_s(sp,spec_work,work,-ione)
+  call general_sptez_s(sp,spectral_out,work,-1)
 
   do i=1,sp%nc
-     spectral_out(i)=spec_work(i)
      if(sp%factsml(i))spectral_out(i)=zero
   end do
  
@@ -88,7 +87,7 @@ subroutine general_g2s0_ad(grd,sp,spectral_in,grid_out)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,half,two
+  use constants, only: zero,half,two
   implicit none
 
   type(spec_vars),intent(in   ) :: sp
@@ -96,32 +95,32 @@ subroutine general_g2s0_ad(grd,sp,spectral_in,grid_out)
   real(r_kind),intent(in   ) :: spectral_in(sp%nc)
   real(r_kind),intent(  out) :: grid_out(grd%nlat,grd%nlon)
 
-  real(r_kind) work(grd%nlon,grd%nlat-2_i_kind),spec_work(sp%nc)
+  real(r_kind) work(grd%nlon,grd%nlat-2),spec_work(sp%nc)
   integer(i_kind) i,j,jj
 
   do i=1,sp%nc
      spec_work(i)=spectral_in(i)/float(grd%nlon)
      if(sp%factsml(i))spec_work(i)=zero
   end do
-  do i=2*sp%jcap+3_i_kind,sp%nc
+  do i=2*sp%jcap+3,sp%nc
      spec_work(i)=half*spec_work(i)
   end do
  
-  call general_sptez_s(sp,spec_work,work,ione)
+  call general_sptez_s(sp,spec_work,work,1)
 
 !
 ! If nlat odd, then j=je is the equator.  The factor of 2 is because, 
 ! je is referenced only once, not twice as in the spectral transform 
 ! routines where half of the equator is considered in each hemisphere,
 ! separately. 
-  do j=sp%jb,sp%je-mod(grd%nlat,2_i_kind)
+  do j=sp%jb,sp%je-mod(grd%nlat,2)
      do i=1,grd%nlon
         work(i,j)=work(i,j)*sp%wlat(j)
-        work(i,grd%nlat-ione-j)=work(i,grd%nlat-ione-j)*sp%wlat(j)
+        work(i,grd%nlat-1-j)=work(i,grd%nlat-1-j)*sp%wlat(j)
      end do
   end do
   
-  if (mod(grd%nlat,2_i_kind) /= izero) then
+  if (mod(grd%nlat,2) /= 0) then
      do i=1,grd%nlon
         work(i,sp%je)=work(i,sp%je)*two*sp%wlat(sp%je)
      end do
@@ -129,7 +128,7 @@ subroutine general_g2s0_ad(grd,sp,spectral_in,grid_out)
 
 !  Transfer contents of output grid to local work array
 !  Reverse ordering in j direction from n-->s to s-->n
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         grid_out(j,i)=work(i,jj)
@@ -176,7 +175,7 @@ subroutine general_s2g0(grd,sp,spectral_in,grid_out)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
   type(spec_vars),intent(in   ) :: sp
@@ -184,7 +183,7 @@ subroutine general_s2g0(grd,sp,spectral_in,grid_out)
   real(r_kind),intent(in   ) :: spectral_in(sp%nc)
   real(r_kind),intent(  out) :: grid_out(grd%nlat,grd%nlon)
 
-  real(r_kind) work(grd%nlon,grd%nlat-2_i_kind),spec_work(sp%nc)
+  real(r_kind) work(grd%nlon,grd%nlat-2),spec_work(sp%nc)
   integer(i_kind) i,j,jj
 
   do i=1,sp%nc
@@ -192,11 +191,11 @@ subroutine general_s2g0(grd,sp,spectral_in,grid_out)
      if(sp%factsml(i))spec_work(i)=zero
   end do
  
-  call general_sptez_s(sp,spec_work,work,ione)
+  call general_sptez_s(sp,spec_work,work,1)
 
 !  Reverse ordering in j direction from n-->s to s-->n
 !  And account for work array excluding pole points
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         grid_out(j,i)=work(i,jj)
@@ -241,7 +240,7 @@ subroutine general_s2g0_ad(grd,sp,spectral_out,grid_in)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,two
+  use constants, only: zero,two
   implicit none
 
   type(spec_vars),intent(in   ) :: sp
@@ -249,38 +248,38 @@ subroutine general_s2g0_ad(grd,sp,spectral_out,grid_in)
   real(r_kind),intent(  out) :: spectral_out(sp%nc)
   real(r_kind),intent(in   ) :: grid_in(grd%nlat,grd%nlon)
 
-  real(r_kind) work(grd%nlon,grd%nlat-2_i_kind),spec_work(sp%nc)
+  real(r_kind) work(grd%nlon,grd%nlat-2),spec_work(sp%nc)
   integer(i_kind) i,j,jj
 
 
 !  Reverse ordering in j direction from n-->s to s-->n
 !  And account for work array excluding pole points
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         work(i,jj)=grid_in(j,i)
      end do
   end do
 
-  do j=sp%jb,sp%je-mod(grd%nlat,2_i_kind)
+  do j=sp%jb,sp%je-mod(grd%nlat,2)
      do i=1,grd%nlon
         work(i,j)=work(i,j)/sp%wlat(j)
-        work(i,grd%nlat-ione-j)=work(i,grd%nlat-ione-j)/sp%wlat(j)
+        work(i,grd%nlat-1-j)=work(i,grd%nlat-1-j)/sp%wlat(j)
      end do
   end do
 
-  if (mod(grd%nlat,2_i_kind) /= izero) then
+  if (mod(grd%nlat,2) /= 0) then
      do i=1,grd%nlon
         work(i,sp%je)=work(i,sp%je)/(two*sp%wlat(sp%je))
      end do
   endif
 
-  call general_sptez_s(sp,spec_work,work,-ione)
+  call general_sptez_s(sp,spec_work,work,-1)
 
   do i=1,sp%nc
      spec_work(i)=spec_work(i)*float(grd%nlon)
   end do
-  do i=2*sp%jcap+3_i_kind,sp%nc
+  do i=2*sp%jcap+3,sp%nc
      spec_work(i)=two*spec_work(i)
   end do
 
@@ -327,7 +326,7 @@ subroutine general_uvg2zds(grd,sp,zsp,dsp,ugrd,vgrd)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Passed variables
@@ -337,13 +336,13 @@ subroutine general_uvg2zds(grd,sp,zsp,dsp,ugrd,vgrd)
   real(r_kind),dimension(sp%nc)       ,intent(  out) :: zsp,dsp
 
 ! Local variables
-  real(r_kind),dimension(grd%nlon,grd%nlat-2_i_kind):: grdwrk1,grdwrk2 
+  real(r_kind),dimension(grd%nlon,grd%nlat-2):: grdwrk1,grdwrk2 
   real(r_kind),dimension(sp%nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
 ! Transfer contents of input grid to local work array
 ! Reverse ordering in j direction from n-->s to s-->n
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         grdwrk1(i,jj)=ugrd(j,i)
@@ -351,7 +350,7 @@ subroutine general_uvg2zds(grd,sp,zsp,dsp,ugrd,vgrd)
      end do
   end do
 
-  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,-ione)
+  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,-1)
 
   do i=1,sp%nc
      zsp(i)=spcwrk2(i)
@@ -400,7 +399,7 @@ subroutine general_uvg2zds_ad(grd,sp,zsp,dsp,ugrd,vgrd)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,half,two
+  use constants, only: zero,half,two
   implicit none
 
 ! Passed variables
@@ -410,7 +409,7 @@ subroutine general_uvg2zds_ad(grd,sp,zsp,dsp,ugrd,vgrd)
   real(r_kind),dimension(sp%nc)       ,intent(in   ) :: zsp,dsp
 
 ! Local variables
-  real(r_kind),dimension(grd%nlon,grd%nlat-2_i_kind):: grdwrk1,grdwrk2
+  real(r_kind),dimension(grd%nlon,grd%nlat-2):: grdwrk1,grdwrk2
   real(r_kind),dimension(sp%nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
@@ -423,30 +422,30 @@ subroutine general_uvg2zds_ad(grd,sp,zsp,dsp,ugrd,vgrd)
      end if
   end do
 
-  do i=2*sp%jcap+3_i_kind,sp%nc
+  do i=2*sp%jcap+3,sp%nc
      spcwrk1(i)=half*spcwrk1(i)
      spcwrk2(i)=half*spcwrk2(i)
   end do
 
   do i=2,sp%ncd2
-     spcwrk1(2*i-ione)=spcwrk1(2*i-ione)*sp%enn1(i)
-     spcwrk1(2*i     )=spcwrk1(2*i     )*sp%enn1(i)
-     spcwrk2(2*i-ione)=spcwrk2(2*i-ione)*sp%enn1(i)
-     spcwrk2(2*i     )=spcwrk2(2*i     )*sp%enn1(i)
+     spcwrk1(2*i-1)=spcwrk1(2*i-1)*sp%enn1(i)
+     spcwrk1(2*i  )=spcwrk1(2*i  )*sp%enn1(i)
+     spcwrk2(2*i-1)=spcwrk2(2*i-1)*sp%enn1(i)
+     spcwrk2(2*i  )=spcwrk2(2*i  )*sp%enn1(i)
   end do
 
-  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,ione)
+  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,1)
 
-  do j=sp%jb,sp%je-mod(grd%nlat,2_i_kind)
+  do j=sp%jb,sp%je-mod(grd%nlat,2)
      do i=1,grd%nlon
         grdwrk1(i,j)=grdwrk1(i,j)*sp%wlat(j)
-        grdwrk1(i,grd%nlat-ione-j)=grdwrk1(i,grd%nlat-ione-j)*sp%wlat(j)
+        grdwrk1(i,grd%nlat-1-j)=grdwrk1(i,grd%nlat-1-j)*sp%wlat(j)
         grdwrk2(i,j)=grdwrk2(i,j)*sp%wlat(j)
-        grdwrk2(i,grd%nlat-ione-j)=grdwrk2(i,grd%nlat-ione-j)*sp%wlat(j)
+        grdwrk2(i,grd%nlat-1-j)=grdwrk2(i,grd%nlat-1-j)*sp%wlat(j)
      end do
   end do
 
-  if (mod(grd%nlat,2_i_kind) /= izero) then
+  if (mod(grd%nlat,2) /= 0) then
      do i=1,grd%nlon
         grdwrk1(i,sp%je)=grdwrk1(i,sp%je)*two*sp%wlat(sp%je)
         grdwrk2(i,sp%je)=grdwrk2(i,sp%je)*two*sp%wlat(sp%je)
@@ -456,7 +455,7 @@ subroutine general_uvg2zds_ad(grd,sp,zsp,dsp,ugrd,vgrd)
 
 ! Transfer contents of input grid to local work array
 ! Reverse ordering in j direction from n-->s to s-->n
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         ugrd(j,i)=grdwrk1(i,jj)
@@ -505,7 +504,7 @@ subroutine general_zds2pcg(grd,sp,zsp,dsp,pgrd,cgrd)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Passed variables
@@ -524,10 +523,10 @@ subroutine general_zds2pcg(grd,sp,zsp,dsp,pgrd,cgrd)
   spc2(1)=zero
   spc2(2)=zero
   do i=2,sp%ncd2
-     spc1(2*i-ione)=zsp(2*i-ione)/(-sp%enn1(i))
-     spc1(2*i     )=zsp(2*i     )/(-sp%enn1(i))
-     spc2(2*i-ione)=dsp(2*i-ione)/(-sp%enn1(i))
-     spc2(2*i     )=dsp(2*i     )/(-sp%enn1(i))
+     spc1(2*i-1)=zsp(2*i-1)/(-sp%enn1(i))
+     spc1(2*i  )=zsp(2*i  )/(-sp%enn1(i))
+     spc2(2*i-1)=dsp(2*i-1)/(-sp%enn1(i))
+     spc2(2*i  )=dsp(2*i  )/(-sp%enn1(i))
   end do
   call general_s2g0(grd,sp,spc1,pgrd)
   call general_s2g0(grd,sp,spc2,cgrd)
@@ -566,7 +565,7 @@ subroutine general_zds2pcg_ad(grd,sp,zsp,dsp,pgrd,cgrd)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Passed variables
@@ -589,10 +588,10 @@ subroutine general_zds2pcg_ad(grd,sp,zsp,dsp,pgrd,cgrd)
   spc2(1)=zero
   spc2(2)=zero
   do i=2,sp%ncd2
-     zsp(2*i-ione)=spc1(2*i-ione)/(-sp%enn1(i))
-     zsp(2*i     )=spc1(2*i     )/(-sp%enn1(i))
-     dsp(2*i-ione)=spc2(2*i-ione)/(-sp%enn1(i))
-     dsp(2*i     )=spc2(2*i     )/(-sp%enn1(i))
+     zsp(2*i-1)=spc1(2*i-1)/(-sp%enn1(i))
+     zsp(2*i  )=spc1(2*i  )/(-sp%enn1(i))
+     dsp(2*i-1)=spc2(2*i-1)/(-sp%enn1(i))
+     dsp(2*i  )=spc2(2*i  )/(-sp%enn1(i))
   end do
 
   return
@@ -630,7 +629,7 @@ subroutine general_zds2uvg(grd,sp,zsp,dsp,ugrd,vgrd)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Passed variables
@@ -640,7 +639,7 @@ subroutine general_zds2uvg(grd,sp,zsp,dsp,ugrd,vgrd)
   real(r_kind),dimension(grd%nlat,grd%nlon),intent(  out) :: ugrd,vgrd
 
 ! Local variables
-  real(r_kind),dimension(grd%nlon,grd%nlat-2_i_kind):: grdwrk1,grdwrk2
+  real(r_kind),dimension(grd%nlon,grd%nlat-2):: grdwrk1,grdwrk2
   real(r_kind),dimension(sp%nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
@@ -653,11 +652,11 @@ subroutine general_zds2uvg(grd,sp,zsp,dsp,ugrd,vgrd)
      end if
   end do
 
-  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,ione)
+  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,1)
 
 ! Reverse ordering in j direction from n-->s to s-->n
 ! and copy to array that includes pole points
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         ugrd(j,i)=grdwrk1(i,jj)
@@ -709,7 +708,7 @@ subroutine general_zds2uvg_ad(grd,sp,zsp,dsp,ugrd,vgrd)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,two
+  use constants, only: zero,two
   implicit none
 
 ! Passed variables
@@ -719,13 +718,13 @@ subroutine general_zds2uvg_ad(grd,sp,zsp,dsp,ugrd,vgrd)
   real(r_kind),dimension(sp%nc)       ,intent(inout) :: zsp,dsp
 
 ! Local variables
-  real(r_kind),dimension(grd%nlon,grd%nlat-2_i_kind):: grdwrk1,grdwrk2
+  real(r_kind),dimension(grd%nlon,grd%nlat-2):: grdwrk1,grdwrk2
   real(r_kind),dimension(sp%nc):: spcwrk1,spcwrk2
   integer(i_kind) i,j,jj
 
 ! Transfer contents of input grid to local work array
 ! Reverse ordering in j direction from n-->s to s-->n
-  do j=2,grd%nlat-ione
+  do j=2,grd%nlat-1
      jj=grd%nlat-j
      do i=1,grd%nlon
         grdwrk1(i,jj)=ugrd(j,i)
@@ -733,29 +732,29 @@ subroutine general_zds2uvg_ad(grd,sp,zsp,dsp,ugrd,vgrd)
      end do
   end do
 
-  do j=sp%jb,sp%je-mod(grd%nlat,2_i_kind)
+  do j=sp%jb,sp%je-mod(grd%nlat,2)
      do i=1,grd%nlon
         grdwrk1(i,j)=grdwrk1(i,j)/sp%wlat(j)
-        grdwrk1(i,grd%nlat-ione-j)=grdwrk1(i,grd%nlat-ione-j)/sp%wlat(j)
+        grdwrk1(i,grd%nlat-1-j)=grdwrk1(i,grd%nlat-1-j)/sp%wlat(j)
         grdwrk2(i,j)=grdwrk2(i,j)/sp%wlat(j)
-        grdwrk2(i,grd%nlat-ione-j)=grdwrk2(i,grd%nlat-ione-j)/sp%wlat(j)
+        grdwrk2(i,grd%nlat-1-j)=grdwrk2(i,grd%nlat-1-j)/sp%wlat(j)
      end do
   end do
 
-  if (mod(grd%nlat,2_i_kind) /= izero) then
+  if (mod(grd%nlat,2) /= 0) then
      do i=1,grd%nlon
         grdwrk1(i,sp%je)=grdwrk1(i,sp%je)/(two*sp%wlat(sp%je))
         grdwrk2(i,sp%je)=grdwrk2(i,sp%je)/(two*sp%wlat(sp%je))
      end do
   endif 
 
-  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,-ione)
+  call general_sptez_v(sp,spcwrk1,spcwrk2,grdwrk1,grdwrk2,-1)
 
   do i=2,sp%ncd2
-     spcwrk1(2*i-ione)=spcwrk1(2*i-ione)/sp%enn1(i)
-     spcwrk1(2*i     )=spcwrk1(2*i     )/sp%enn1(i)
-     spcwrk2(2*i-ione)=spcwrk2(2*i-ione)/sp%enn1(i)
-     spcwrk2(2*i     )=spcwrk2(2*i     )/sp%enn1(i)
+     spcwrk1(2*i-1)=spcwrk1(2*i-1)/sp%enn1(i)
+     spcwrk1(2*i  )=spcwrk1(2*i  )/sp%enn1(i)
+     spcwrk2(2*i-1)=spcwrk2(2*i-1)/sp%enn1(i)
+     spcwrk2(2*i  )=spcwrk2(2*i  )/sp%enn1(i)
   end do
 
   do i=1,sp%nc
@@ -763,7 +762,7 @@ subroutine general_zds2uvg_ad(grd,sp,zsp,dsp,ugrd,vgrd)
      spcwrk2(i)=spcwrk2(i)*float(grd%nlon)
   end do
 
-  do i=2*sp%jcap+3_i_kind,sp%nc
+  do i=2*sp%jcap+3,sp%nc
      spcwrk1(i)=two*spcwrk1(i)
      spcwrk2(i)=two*spcwrk2(i)
   end do
@@ -815,7 +814,7 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
  use kinds, only: r_kind,i_kind
- use constants, only: ione,zero,half,three
+ use constants, only: zero,half,three
   
       implicit none      
 
@@ -847,7 +846,7 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
       epsi0(0)=zero  
       do n=1,sp%jcap
          fnum=real(n**2)
-         fden=real(4*n**2-ione)
+         fden=real(4*n**2-1)
          epsi0(n)=dsqrt(fnum/fden)
       enddo
 !
@@ -855,15 +854,15 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
       alp0(0)=dsqrt(half)
       alp0(1)=dsqrt(three)*alp0(0)
       do n=2,sp%jcap
-         alp0(n)=(alp0(n-ione)-epsi0(n-ione)*alp0(n-2_i_kind))/epsi0(n)
+         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
       enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this
       fpole_n=zero
       fpole_s=zero
-      n1=ione
+      n1=1
       do n=0,sp%jcap 
-         if (mod(n,2_i_kind)==ione) then
+         if (mod(n,2)==1) then
             afac=-alp0(n)
          else 
             afac= alp0(n)
@@ -915,7 +914,7 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
  use kinds, only: r_kind,i_kind
- use constants, only: ione,zero,half,three
+ use constants, only: zero,half,three
   
       implicit none      
 
@@ -949,7 +948,7 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
       epsi0(0)=zero  
       do n=1,sp%jcap
          fnum=real(n**2, r_kind)
-         fden=real(4*n**2-ione, r_kind)
+         fden=real(4*n**2-1, r_kind)
          epsi0(n)=dsqrt(fnum/fden)
       enddo
 !
@@ -957,7 +956,7 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
       alp0(0)=dsqrt(half)
       alp0(1)=dsqrt(three)*alp0(0)
       do n=2,sp%jcap
-         alp0(n)=(alp0(n-ione)-epsi0(n-ione)*alp0(n-2_i_kind))/epsi0(n)
+         alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
       enddo
 !
 !  Compute projection of wavenumber 0 (only real values for this)
@@ -968,9 +967,9 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
          fpole_s=fpole_s+field(   1,j)
       enddo
        
-      n1=ione
+      n1=1
       do n=0,sp%jcap 
-         if (mod(n,2_i_kind)==ione) then
+         if (mod(n,2)==1) then
             afac=-alp0(n)
          else 
             afac= alp0(n)
@@ -1015,7 +1014,7 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
  use kinds, only: r_kind,i_kind
- use constants, only: izero,ione,zero,two,three,rearth,pi
+ use constants, only: zero,two,three,rearth,pi
      
       implicit none  
   
@@ -1078,20 +1077,20 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
 !  The phases of the spectra are assumed to be with respect
 !  to the first longitude being 0.
 !
-      n1=2*(sp%jcap+ione)
+      n1=2*(sp%jcap+1)
 !
 !  Specify cosine and sines of longitudes assuming that 
 !  the phases of spectral coefs are with repect to the 
 !  origin being the first longitude.
       fac=two*pi/grd%nlon
       do j=1,grd%nlon
-         coslon(j)=cos(fac*(j-ione))
-         sinlon(j)=sin(fac*(j-ione))
+         coslon(j)=cos(fac*(j-1))
+         sinlon(j)=sin(fac*(j-1))
       enddo
 
       do n=1,sp%jcap
-        fnum=real(n**2-ione, r_kind)
-        fden=real(4*n**2-ione, r_kind)
+        fnum=real(n**2-1, r_kind)
+        fden=real(4*n**2-1, r_kind)
         epsi1(n)=dsqrt(fnum/fden)
       enddo
 !
@@ -1100,7 +1099,7 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
       alp1(1)=sqrt(three)/two
       alp1(2)=dsqrt(two+three)*alp1(1)
       do n=3,sp%jcap
-         alp1(n)=(alp1(n-ione)-epsi1(n-ione)*alp1(n-2_i_kind))/epsi1(n)
+         alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
       enddo
 !
 !  Replace Legendre polynomials by P/(n*n+n)
@@ -1119,19 +1118,19 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
       s_divg_I_s=zero
       
       do n=1,sp%jcap 
-         if (mod(n,2_i_kind)==izero) then
+         if (mod(n,2)==0) then
             afac=-alp1(n)
          else 
             afac= alp1(n)
          endif  
-         s_vort_R_n = s_vort_R_n + alp1(n)*vort(2*n-ione+n1)
-         s_vort_I_n = s_vort_I_n + alp1(n)*vort(2*n     +n1)        
-         s_divg_R_n = s_divg_R_n + alp1(n)*divg(2*n-ione+n1)
-         s_divg_I_n = s_divg_I_n + alp1(n)*divg(2*n     +n1) 
-         s_vort_R_s = s_vort_R_s + afac*vort(2*n-ione+n1)
-         s_vort_I_s = s_vort_I_s + afac*vort(2*n     +n1)        
-         s_divg_R_s = s_divg_R_s + afac*divg(2*n-ione+n1)
-         s_divg_I_s = s_divg_I_s + afac*divg(2*n     +n1) 
+         s_vort_R_n = s_vort_R_n + alp1(n)*vort(2*n-1+n1)
+         s_vort_I_n = s_vort_I_n + alp1(n)*vort(2*n  +n1)        
+         s_divg_R_n = s_divg_R_n + alp1(n)*divg(2*n-1+n1)
+         s_divg_I_n = s_divg_I_n + alp1(n)*divg(2*n  +n1) 
+         s_vort_R_s = s_vort_R_s + afac*vort(2*n-1+n1)
+         s_vort_I_s = s_vort_I_s + afac*vort(2*n  +n1)        
+         s_divg_R_s = s_divg_R_s + afac*divg(2*n-1+n1)
+         s_divg_I_s = s_divg_I_s + afac*divg(2*n  +n1) 
       enddo
       s_vort_R_s = -s_vort_R_s
       s_vort_I_s = -s_vort_I_s
@@ -1197,7 +1196,7 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
  use kinds, only: r_kind,i_kind
- use constants, only: izero,ione,zero,two,three,rearth,pi
+ use constants, only: zero,two,three,rearth,pi
      
       implicit none  
   
@@ -1234,20 +1233,20 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
 !  The phases of the spectra are assumed to be with respect
 !  to the first longitude being 0.
 !
-      n1=2*(sp%jcap+ione)
+      n1=2*(sp%jcap+1)
 !
 !  Specify cosine and sines of longitudes assuming that 
 !  the phases of spectral coefs are with repect to the 
 !  origin being the first longitude.
       fac=two*pi/grd%nlon
       do j=1,grd%nlon
-         coslon(j)=cos(fac*(j-ione))
-         sinlon(j)=sin(fac*(j-ione))
+         coslon(j)=cos(fac*(j-1))
+         sinlon(j)=sin(fac*(j-1))
       enddo
 
       do n=1,sp%jcap
-         fnum=real(n**2-ione, r_kind)
-         fden=real(4*n**2-ione, r_kind)
+         fnum=real(n**2-1, r_kind)
+         fden=real(4*n**2-1, r_kind)
          epsi1(n)=dsqrt(fnum/fden)
       enddo
 !
@@ -1256,7 +1255,7 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
       alp1(1)=sqrt(three)/two
       alp1(2)=dsqrt(two+three)*alp1(1)
       do n=3,sp%jcap
-         alp1(n)=(alp1(n-ione)-epsi1(n-ione)*alp1(n-2_i_kind))/epsi1(n)
+         alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
       enddo
 !
 !  Replace Legendre polynomials by P/(n*n+n)
@@ -1300,19 +1299,19 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
       s_divg_I_s= tworearth*uR_s
 !
       do n=1,sp%jcap 
-         if (mod(n,2_i_kind)==izero) then
+         if (mod(n,2)==0) then
             afac=-alp1(n)
          else 
             afac= alp1(n)
          endif  
-         vort(2*n-ione+n1)=vort(2*n-ione+n1)+alp1(n)*s_vort_R_n  &
-                                      +   afac*s_vort_R_s
-         vort(2*n     +n1)=vort(2*n     +n1)+alp1(n)*s_vort_I_n  &
-                                      +   afac*s_vort_I_s
-         divg(2*n-ione+n1)=divg(2*n-ione+n1)+alp1(n)*s_divg_R_n  &
-                                      +   afac*s_divg_R_s
-         divg(2*n     +n1)=divg(2*n     +n1)+alp1(n)*s_divg_I_n  &
-                                      +   afac*s_divg_I_s
+         vort(2*n-1+n1)=vort(2*n-1+n1)+alp1(n)*s_vort_R_n  &
+                                   +   afac*s_vort_R_s
+         vort(2*n  +n1)=vort(2*n  +n1)+alp1(n)*s_vort_I_n  &
+                                   +   afac*s_vort_I_s
+         divg(2*n-1+n1)=divg(2*n-1+n1)+alp1(n)*s_divg_R_n  &
+                                   +   afac*s_divg_R_s
+         divg(2*n  +n1)=divg(2*n  +n1)+alp1(n)*s_divg_I_n  &
+                                   +   afac*s_divg_I_s
       enddo
 !
       end subroutine general_spectra_pole_wind_ad 
@@ -1371,7 +1370,7 @@ subroutine general_test_inverses(grd,sp,mype)
   use guess_grids, only: ges_tv,ntguessig
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   implicit none
 
   type(spec_vars),intent(in   ) :: sp
@@ -1391,10 +1390,10 @@ subroutine general_test_inverses(grd,sp,mype)
   t1=zero ; t2=zero ; v1=zero
 
 ! use the following field to create a test field t1
-  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,mype,izero)
+  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,mype,0)
 
 ! only perform the test on one processor.
-  if (mype==izero) then
+  if (mype==0) then
 
 ! load S1 with something
      write(777,*) ' *********************************************************'
@@ -1533,7 +1532,7 @@ subroutine general_test_inverses(grd,sp,mype)
      absmax=zero
      diffmax=zero
      do i=1,sp%nc
-        if (d1(i)/=izero  .and. abs((d1(i)-d2(i))/d1(i)) > smallfrac) then
+        if (d1(i)/=0  .and. abs((d1(i)-d2(i))/d1(i)) > smallfrac) then
            write(777,'(a,i6,1p3e18.10)') 'i,d1,d2,fracdiff = ' &
                                         ,i,d1(i),d2(i),(d1(i)-d2(i))/d1(i)
         end if
@@ -1557,21 +1556,21 @@ subroutine general_test_inverses(grd,sp,mype)
      diffmax=zero
 !
 ! So only 5 lats tested to cut down on computation
-     index(1)=ione            ! S. pole
-     index(2)=2_i_kind        ! 1st Lat next to S. pole
-     index(3)=(grd%nlat+ione)/2   ! equator or ist N. of equator if no equator
-     index(4)=grd%nlat-ione       ! 1st lat next to N. pole 
+     index(1)=1                   ! S. pole
+     index(2)=2                   ! 1st Lat next to S. pole
+     index(3)=(grd%nlat+1)/2      ! equator or ist N. of equator if no equator
+     index(4)=grd%nlat-1          ! 1st lat next to N. pole 
      index(5)=grd%nlat            ! N. pole
 !
 ! Only check a subset of spectral coefs to reduce computation
      ncstep=4*sp%jcap/3
-     if (mod(ncstep,2_i_kind) == izero) ncstep=ncstep+ione ! then both real and imag parts tested
+     if (mod(ncstep,2) == 0) ncstep=ncstep+1 ! then both real and imag parts tested
    
      do n=1,sp%nc,ncstep
-        if (mod(n,2_i_kind) ==izero .and. n <= 2*sp%jcap+2_i_kind ) then
+        if (mod(n,2) ==0 .and. n <= 2*sp%jcap+2) then
            d1(n)=zero   ! these are imag parts of coefs for zonal wave number 0
         else
-           i=3_i_kind   ! only one longitude tested 
+           i=3         ! only one longitude tested 
 !
            do ig=1,5     !loop over selected lats to test
               d1=zero; d2=zero

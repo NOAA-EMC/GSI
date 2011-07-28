@@ -49,7 +49,7 @@ module general_sub2grid_mod
 !
 !$$$ end documentation block
 
-   use kinds, only: r_kind,i_kind
+   use kinds, only: r_double,i_kind,i_long,r_single
 
    implicit none
 
@@ -168,7 +168,6 @@ module general_sub2grid_mod
 !
 !$$$
       use kinds, only: r_single
-      use constants, only: izero,ione
       use mpimod, only: mpi_comm_world
       implicit none
 
@@ -216,8 +215,8 @@ module general_sub2grid_mod
       allocate(isc_g(s%npe),isd_g(s%npe),s%displs_g(s%npe),s%displs_s(s%npe),s%ird_s(s%npe),s%irc_s(s%npe))
  
       s%ijn=s%ilat1*s%jlon1
-      s%ijn_s=(s%ilat1+2_i_kind)*(s%jlon1+2_i_kind)
-      mm1=s%mype+ione
+      s%ijn_s=(s%ilat1+2)*(s%jlon1+2)
+      mm1=s%mype+1
       do i=1,s%npe
          s%irc_s(i)=s%ijn_s(mm1)
          isc_g(i)=s%ijn(mm1)
@@ -226,34 +225,34 @@ module general_sub2grid_mod
 !        obtain ltosi,ltosj
       allocate(s%ltosi(s%nlat*s%nlon),s%ltosj(s%nlat*s%nlon))
       do i=1,s%nlat*s%nlon
-         s%ltosi(i)=izero
-         s%ltosj(i)=izero
+         s%ltosi(i)=0
+         s%ltosj(i)=0
       end do
 !                       load arrays dealing with global grids
-      isd_g(1)=izero
-      s%displs_g(1)=izero
+      isd_g(1)=0
+      s%displs_g(1)=0
       do n=1,s%npe
-         if(n/=ione) then
-            isd_g(n)=isd_g(n-ione)+isc_g(n-ione)
-            s%displs_g(n)=s%displs_g(n-ione)+s%ijn(n-ione)
+         if(n/=1) then
+            isd_g(n)=isd_g(n-1)+isc_g(n-1)
+            s%displs_g(n)=s%displs_g(n-1)+s%ijn(n-1)
          end if
          do j=1,s%jlon1(n)
-            ns=s%displs_g(n)+(j-ione)*s%ilat1(n)
+            ns=s%displs_g(n)+(j-1)*s%ilat1(n)
             do i=1,s%ilat1(n)
-               ns=ns+ione
-               s%ltosi(ns)=s%istart(n)+i-ione
-               s%ltosj(ns)=s%jstart(n)+j-ione
+               ns=ns+1
+               s%ltosi(ns)=s%istart(n)+i-1
+               s%ltosj(ns)=s%jstart(n)+j-1
             end do
          end do
       end do
 
 ! Load arrays dealing with subdomain grids
-      s%ird_s(1)=izero
-      s%displs_s(1)=izero
+      s%ird_s(1)=0
+      s%displs_s(1)=0
       do n=1,s%npe
-         if(n/=ione) then
-            s%ird_s(n)=s%ird_s(n-ione)+s%irc_s(n-ione)
-            s%displs_s(n)=s%displs_s(n-ione)+s%ijn_s(n-ione)
+         if(n/=1) then
+            s%ird_s(n)=s%ird_s(n-1)+s%irc_s(n-1)
+            s%displs_s(n)=s%displs_s(n-1)+s%ijn_s(n-1)
          end if
       end do
 ! set total number of points from all subdomain grids
@@ -262,38 +261,38 @@ module general_sub2grid_mod
 !        obtain ltosi_s,ltosj_s
       allocate(s%ltosi_s(s%itotsub),s%ltosj_s(s%itotsub))
       do i=1,s%itotsub
-         s%ltosi_s(i)=izero
-         s%ltosj_s(i)=izero
+         s%ltosi_s(i)=0
+         s%ltosj_s(i)=0
       end do
 
       if(regional)then
 
          do n=1,s%npe
-            do j=1,s%jlon1(n)+2_i_kind
-               ns=s%displs_s(n)+(j-ione)*(s%ilat1(n)+2_i_kind)
-               do i=1,s%ilat1(n)+2_i_kind
-                  ns=ns+ione
-                  s%ltosi_s(ns)=s%istart(n)+i-2_i_kind
-                  s%ltosj_s(ns)=s%jstart(n)+j-2_i_kind
-                  if(s%ltosi_s(ns)==izero) s%ltosi_s(ns)=ione
-                  if(s%ltosi_s(ns)==nlat+ione) s%ltosi_s(ns)=s%nlat
-                  if(s%ltosj_s(ns)==izero) s%ltosj_s(ns)=ione
-                  if(s%ltosj_s(ns)==nlon+ione) s%ltosj_s(ns)=s%nlon
+            do j=1,s%jlon1(n)+2
+               ns=s%displs_s(n)+(j-1)*(s%ilat1(n)+2)
+               do i=1,s%ilat1(n)+2
+                  ns=ns+1
+                  s%ltosi_s(ns)=s%istart(n)+i-2
+                  s%ltosj_s(ns)=s%jstart(n)+j-2
+                  if(s%ltosi_s(ns)==0) s%ltosi_s(ns)=1
+                  if(s%ltosi_s(ns)==nlat+1) s%ltosi_s(ns)=s%nlat
+                  if(s%ltosj_s(ns)==0) s%ltosj_s(ns)=1
+                  if(s%ltosj_s(ns)==nlon+1) s%ltosj_s(ns)=s%nlon
                end do
             end do
          end do  ! end do over npe
       else
          do n=1,s%npe
-            do j=1,s%jlon1(n)+2_i_kind
-               ns=s%displs_s(n)+(j-ione)*(s%ilat1(n)+2_i_kind)
-               do i=1,s%ilat1(n)+2_i_kind
-                  ns=ns+ione
-                  s%ltosi_s(ns)=s%istart(n)+i-2_i_kind
-                  s%ltosj_s(ns)=s%jstart(n)+j-2_i_kind
-                  if(s%ltosi_s(ns)==izero) s%ltosi_s(ns)=ione
-                  if(s%ltosi_s(ns)==nlat+ione) s%ltosi_s(ns)=nlat
-                  if(s%ltosj_s(ns)==izero) s%ltosj_s(ns)=nlon
-                  if(s%ltosj_s(ns)==nlon+ione) s%ltosj_s(ns)=ione
+            do j=1,s%jlon1(n)+2
+               ns=s%displs_s(n)+(j-1)*(s%ilat1(n)+2)
+               do i=1,s%ilat1(n)+2
+                  ns=ns+1
+                  s%ltosi_s(ns)=s%istart(n)+i-2
+                  s%ltosj_s(ns)=s%jstart(n)+j-2
+                  if(s%ltosi_s(ns)==0) s%ltosi_s(ns)=1
+                  if(s%ltosi_s(ns)==nlat+1) s%ltosi_s(ns)=nlat
+                  if(s%ltosj_s(ns)==0) s%ltosj_s(ns)=nlon
+                  if(s%ltosj_s(ns)==nlon+1) s%ltosj_s(ns)=1
                end do
             end do
          end do  ! end do over npe
@@ -302,22 +301,22 @@ module general_sub2grid_mod
       deallocate(isc_g,isd_g)
 
 !      next, determine vertical layout:
-      allocate(s%kbegin(0:s%npe),s%kend(0:s%npe-ione))
+      allocate(s%kbegin(0:s%npe),s%kend(0:s%npe-1))
       num_loc_groups=s%num_fields/s%npe
       nextra=s%num_fields-num_loc_groups*s%npe
-      s%kbegin(0)=ione
-      if(nextra > izero) then
+      s%kbegin(0)=1
+      if(nextra > 0) then
          do k=1,nextra
-            s%kbegin(k)=s%kbegin(k-ione)+ione+num_loc_groups
+            s%kbegin(k)=s%kbegin(k-1)+1+num_loc_groups
          end do
       end if
-      do k=nextra+ione,s%npe
-         s%kbegin(k)=s%kbegin(k-ione)+num_loc_groups
+      do k=nextra+1,s%npe
+         s%kbegin(k)=s%kbegin(k-1)+num_loc_groups
       end do
-      do k=0,s%npe-ione
-         s%kend(k)=s%kbegin(k+ione)-ione
+      do k=0,s%npe-1
+         s%kend(k)=s%kbegin(k+1)-1
       end do
-      if(s%mype == izero) then
+      if(s%mype == 0) then
          write(6,*)' in general_sub2grid_create_info, kbegin=',s%kbegin
          write(6,*)' in general_sub2grid_create_info, kend= ',s%kend
       end if
@@ -326,31 +325,31 @@ module general_sub2grid_mod
       s%kend_alloc=max(s%kend_loc,s%kbegin_loc)
 
 !         get alltoallv indices for sub2grid
-      allocate(s%sendcounts(0:s%npe-ione),s%sdispls(0:s%npe))
-      allocate(s%recvcounts(0:s%npe-ione),s%rdispls(0:s%npe))
-      s%sdispls(0)=izero
-      do k=0,s%npe-ione
-         s%sendcounts(k)=s%ijn(k+ione)*(s%kend_loc-s%kbegin_loc+ione)
-         s%sdispls(k+ione)=s%sdispls(k)+s%sendcounts(k)
+      allocate(s%sendcounts(0:s%npe-1),s%sdispls(0:s%npe))
+      allocate(s%recvcounts(0:s%npe-1),s%rdispls(0:s%npe))
+      s%sdispls(0)=0
+      do k=0,s%npe-1
+         s%sendcounts(k)=s%ijn(k+1)*(s%kend_loc-s%kbegin_loc+1)
+         s%sdispls(k+1)=s%sdispls(k)+s%sendcounts(k)
       end do
-      s%rdispls(0)=izero
-      do k=0,s%npe-ione
-         s%recvcounts(k)=s%ijn(s%mype+ione)*(s%kend(k)-s%kbegin(k)+ione)
-         s%rdispls(k+ione)=s%rdispls(k)+s%recvcounts(k)
+      s%rdispls(0)=0
+      do k=0,s%npe-1
+         s%recvcounts(k)=s%ijn(s%mype+1)*(s%kend(k)-s%kbegin(k)+1)
+         s%rdispls(k+1)=s%rdispls(k)+s%recvcounts(k)
       end do
 
 !         get alltoallv indices for grid2sub
-      allocate(s%sendcounts_s(0:s%npe-ione),s%sdispls_s(0:s%npe))
-      allocate(s%recvcounts_s(0:s%npe-ione),s%rdispls_s(0:s%npe))
-      s%sdispls_s(0)=izero
-      do k=0,s%npe-ione
-         s%sendcounts_s(k)=s%ijn_s(k+ione)*(s%kend_loc-s%kbegin_loc+ione)
-         s%sdispls_s(k+ione)=s%sdispls_s(k)+s%sendcounts_s(k)
+      allocate(s%sendcounts_s(0:s%npe-1),s%sdispls_s(0:s%npe))
+      allocate(s%recvcounts_s(0:s%npe-1),s%rdispls_s(0:s%npe))
+      s%sdispls_s(0)=0
+      do k=0,s%npe-1
+         s%sendcounts_s(k)=s%ijn_s(k+1)*(s%kend_loc-s%kbegin_loc+1)
+         s%sdispls_s(k+1)=s%sdispls_s(k)+s%sendcounts_s(k)
       end do
-      s%rdispls_s(0)=izero
-      do k=0,s%npe-ione
-         s%recvcounts_s(k)=s%ijn_s(s%mype+ione)*(s%kend(k)-s%kbegin(k)+ione)
-         s%rdispls_s(k+ione)=s%rdispls_s(k)+s%recvcounts_s(k)
+      s%rdispls_s(0)=0
+      do k=0,s%npe-1
+         s%recvcounts_s(k)=s%ijn_s(s%mype+1)*(s%kend(k)-s%kbegin(k)+1)
+         s%rdispls_s(k+1)=s%rdispls_s(k)+s%recvcounts_s(k)
       end do
 
       s%lallocated=.true.
@@ -643,7 +642,6 @@ module general_sub2grid_mod
 !
 !$$$
       use kinds, only: r_kind,i_kind
-      use constants, only: izero,ione
       implicit none
 
 !     Declare passed variables
@@ -656,7 +654,7 @@ module general_sub2grid_mod
 !     Declare local variables
       integer(i_kind) npts,nrnc,iinum,iileft,jrows,jleft,k,i,jjnum
       integer(i_kind) j,mm1,iicnt,ipts,jjleft
-      integer(i_kind),dimension(npe+ione):: iiend,jjend,iistart
+      integer(i_kind),dimension(npe+1):: iiend,jjend,iistart
       real(r_kind):: anperpe
 
 !************************************************************************
@@ -670,51 +668,51 @@ module general_sub2grid_mod
 !     Start with square subdomains
       nrnc=sqrt(anperpe)
       iinum=nlon/nrnc
-      if(iinum==izero) iinum=ione
+      if(iinum==0) iinum=1
       iicnt=nlon/iinum
       iileft=nlon-iicnt*iinum
       jrows=npe/iinum
       jleft=npe-jrows*iinum
 
 !     Adjust subdomain boundaries
-      k=izero
-      istart=ione
-      jstart=ione
-      iistart(1)=ione
+      k=0
+      istart=1
+      jstart=1
+      iistart(1)=1
       do i=1,iinum
          ipts = iicnt
-         if(i <= iileft)ipts=ipts+ione
-         iiend(i)=iistart(i)+ipts-ione
-         iistart(i+ione)=iiend(i)+ione
+         if(i <= iileft)ipts=ipts+1
+         iiend(i)=iistart(i)+ipts-1
+         iistart(i+1)=iiend(i)+1
          jjnum=jrows
-         if(i <= jleft)jjnum=jrows+ione
+         if(i <= jleft)jjnum=jrows+1
          do j=1,jjnum
-            k=k+ione
+            k=k+1
             jlon1(k)=ipts
             jstart(k)= iistart(i)
             ilat1(k)=nlat/jjnum
             jjleft=nlat-ilat1(k)*jjnum
-            if(j <= jjleft)ilat1(k)=ilat1(k)+ione
-            if(j > ione)istart(k)=jjend(j-1)+ione
-            jjend(j)=istart(k)+ilat1(k)-ione
+            if(j <= jjleft)ilat1(k)=ilat1(k)+1
+            if(j > 1)istart(k)=jjend(j-1)+1
+            jjend(j)=istart(k)+ilat1(k)-1
 
             if (jlon1(k)==nlon.and..not.regional) then
                periodic=.true.
                periodic_s(k)=.true.
             endif
-            if(mype == izero) &
-                 write(6,100) k-ione,istart(k),jstart(k),ilat1(k),jlon1(k)
+            if(mype == 0) &
+                 write(6,100) k-1,istart(k),jstart(k),ilat1(k),jlon1(k)
          end do
       end do
     100 format('general_DETER_SUBDOMAIN:  task,istart,jstart,ilat1,jlon1=',6(i6,1x))
 
 
 ! Set number of latitude and longitude for given subdomain
-      mm1=mype+ione
+      mm1=mype+1
       lat1=ilat1(mm1)
       lon1=jlon1(mm1)
-      lat2=lat1+2_i_kind
-      lon2=lon1+2_i_kind
+      lat2=lat1+2
+      lon2=lon1+2
   
       return
 
@@ -756,8 +754,6 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_single,i_kind,i_long
-      use constants, only: izero,ione
       use mpimod, only: mpi_comm_world,mpi_real4
       implicit none
 
@@ -766,7 +762,7 @@ module general_sub2grid_mod
       real(r_single),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
 
       real(r_single) :: sub_vars0(s%inner_vars,s%lat1,s%lon1,s%num_fields)
-      real(r_single) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)) 
+      real(r_single) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+1)) 
       integer(i_kind) iloc,iskip,i,i0,ii,j,j0,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
 
@@ -790,19 +786,19 @@ module general_sub2grid_mod
 
       call mpi_type_free(mpi_string,ierror)
 
-      k_in=s%kend_loc-s%kbegin_loc+ione
+      k_in=s%kend_loc-s%kbegin_loc+1
 
 
 ! Load temp array in desired order
       do k=s%kbegin_loc,s%kend_loc
-         iskip=izero
-         iloc=izero
+         iskip=0
+         iloc=0
          do n=1,s%npe
-            if (n/=ione) then
-               iskip=iskip+s%ijn(n-ione)*k_in
+            if (n/=1) then
+               iskip=iskip+s%ijn(n-1)*k_in
             end if
             do i=1,s%ijn(n)
-               iloc=iloc+ione
+               iloc=iloc+1
                ilat=s%ltosi(iloc)
                jlon=s%ltosj(iloc)
                do ii=1,s%inner_vars
@@ -851,8 +847,7 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_single,i_kind,i_long
-      use constants, only: izero,ione,zero
+      use constants, only: zero
       use mpimod, only: mpi_comm_world,mpi_real4
       implicit none
 
@@ -864,10 +859,9 @@ module general_sub2grid_mod
       integer(i_kind) iloc,iskip,i,ii,j,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
 
-      allocate(temp(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)))
+      allocate(temp(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+1)))
       allocate(work(s%inner_vars,s%itotsub,s%kbegin_loc:s%kend_alloc))
 !     reorganize for eventual distribution to local domains
-      work=zero    !????????????not needed??
       do k=s%kbegin_loc,s%kend_loc
          do i=1,s%itotsub
             ilat=s%ltosi_s(i)
@@ -879,17 +873,16 @@ module general_sub2grid_mod
       end do
 
 !     load temp array in order of subdomains
-      temp=zero
-      iloc=izero
-      iskip=izero
+      iloc=0
+      iskip=0
       do n=1,s%npe
-         if (n/=ione) then
-            iskip=iskip+s%ijn_s(n-ione)
+         if (n/=1) then
+            iskip=iskip+s%ijn_s(n-1)
          end if
 
          do k=s%kbegin_loc,s%kend_loc
             do i=1,s%ijn_s(n)
-               iloc=iloc+ione
+               iloc=iloc+1
                do ii=1,s%inner_vars
                   temp(ii,iloc)=work(ii,iskip+i,k)
                end do
@@ -898,10 +891,10 @@ module general_sub2grid_mod
       end do
 
 !     Now load the temp array back into work
-      iloc=izero
+      iloc=0
       do k=s%kbegin_loc,s%kend_loc
          do i=1,s%itotsub
-            iloc=iloc+ione
+            iloc=iloc+1
             do ii=1,s%inner_vars
                work(ii,i,k)=temp(ii,iloc)
             end do
@@ -955,8 +948,6 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_double,i_kind,i_long
-      use constants, only: izero,ione
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
 
@@ -965,11 +956,12 @@ module general_sub2grid_mod
       real(r_double),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
 
       real(r_double) :: sub_vars0(s%inner_vars,s%lat1,s%lon1,s%num_fields)
-      real(r_double) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)) 
-      integer(i_kind) iloc,iskip,i,i0,ii,j,j0,k,n,k_in,ilat,jlon,ierror
+      real(r_double) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+1)) 
+      integer(i_kind) iloc,iskip,i,i0,ii,j,j0,k,n,k_in,ilat,jlon,ierror,ioffset
       integer(i_long) mpi_string
 
 !    remove halo row
+!$omp parallel do  schedule(dynamic,1) private(k,j,j0,i0,i,ii)
       do k=1,s%num_fields
          do j=2,s%lon2-1
             j0=j-1
@@ -989,25 +981,25 @@ module general_sub2grid_mod
 
       call mpi_type_free(mpi_string,ierror)
 
-      k_in=s%kend_loc-s%kbegin_loc+ione
+      k_in=s%kend_loc-s%kbegin_loc+1
 
 
 ! Load temp array in desired order
+!$omp parallel do  schedule(dynamic,1) private(k,iskip,iloc,n,i,ilat,jlon,ii)
       do k=s%kbegin_loc,s%kend_loc
-         iskip=izero
-         iloc=izero
+         iskip=0
+         iloc=0
          do n=1,s%npe
-            if (n/=ione) then
-               iskip=iskip+s%ijn(n-ione)*k_in
-            end if
+            ioffset=iskip+(k-s%kbegin_loc)*s%ijn(n)
             do i=1,s%ijn(n)
-               iloc=iloc+ione
+               iloc=iloc+1
                ilat=s%ltosi(iloc)
                jlon=s%ltosj(iloc)
                do ii=1,s%inner_vars
-               grid_vars(ii,ilat,jlon,k)=work(ii,i + iskip + (k-s%kbegin_loc)*s%ijn(n))
+                grid_vars(ii,ilat,jlon,k)=work(ii,i + ioffset)
                end do
             end do
+            iskip=iskip+s%ijn(n)*k_in
          end do
       end do
 
@@ -1050,8 +1042,7 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_double,i_kind,i_long
-      use constants, only: izero,ione,zero
+      use constants, only: zero
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
 
@@ -1059,61 +1050,38 @@ module general_sub2grid_mod
       real(r_double), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
       real(r_double),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
 
-      real(r_double),allocatable :: temp(:,:),work(:,:,:)
-      integer(i_kind) iloc,iskip,i,ii,j,k,n,k_in,ilat,jlon,ierror
+      real(r_double) :: temp(s%inner_vars,s%itotsub*(s%kend_loc-s%kbegin_loc+1))
+      integer(i_kind) iloc,icount,i,ii,j,k,n,k_in,ilat,jlon,ierror
       integer(i_long) mpi_string
+      integer(i_kind),dimension(s%npe)::iskip
 
-      allocate(temp(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+ione)))
-      allocate(work(s%inner_vars,s%itotsub,s%kbegin_loc:s%kend_alloc))
 !     reorganize for eventual distribution to local domains
-      work=zero
-      do k=s%kbegin_loc,s%kend_loc
-         do i=1,s%itotsub
-            ilat=s%ltosi_s(i)
-            jlon=s%ltosj_s(i)
-            do ii=1,s%inner_vars
-               work(ii,i,k)=grid_vars(ii,ilat,jlon,k)
-            end do
-         end do
+      iskip(1)=0
+      do n=2,s%npe
+        iskip(n)=iskip(n-1)+s%ijn_s(n-1)*(s%kend_loc-s%kbegin_loc+1)
       end do
-
-!     load temp array in order of subdomains
-      temp=zero
-      iloc=izero
-      iskip=izero
-      do n=1,s%npe
-         if (n/=ione) then
-            iskip=iskip+s%ijn_s(n-ione)
-         end if
-
-         do k=s%kbegin_loc,s%kend_loc
+!$omp parallel do  schedule(dynamic,1) private(n,k,i,jlon,ii,ilat,iloc,icount)
+      do k=s%kbegin_loc,s%kend_loc
+         icount=0
+         do n=1,s%npe
+            iloc=iskip(n)+(k-s%kbegin_loc)*s%ijn_s(n)
             do i=1,s%ijn_s(n)
-               iloc=iloc+ione
+               iloc=iloc+1
+               icount=icount+1
+               ilat=s%ltosi_s(icount)
+               jlon=s%ltosj_s(icount)
                do ii=1,s%inner_vars
-                  temp(ii,iloc)=work(ii,iskip+i,k)
+                  temp(ii,iloc)=grid_vars(ii,ilat,jlon,k)
                end do
             end do
          end do
       end do
 
-!     Now load the temp array back into work
-      iloc=izero
-      do k=s%kbegin_loc,s%kend_loc
-         do i=1,s%itotsub
-            iloc=iloc+ione
-            do ii=1,s%inner_vars
-               work(ii,i,k)=temp(ii,iloc)
-            end do
-         end do
-      end do
-      deallocate(temp)
-
       call mpi_type_contiguous(s%inner_vars,mpi_real8,mpi_string,ierror)
       call mpi_type_commit(mpi_string,ierror)
 
-      call mpi_alltoallv(work,s%sendcounts_s,s%sdispls_s,mpi_string, &
+      call mpi_alltoallv(temp,s%sendcounts_s,s%sdispls_s,mpi_string, &
                         sub_vars,s%recvcounts_s,s%rdispls_s,mpi_string,mpi_comm_world,ierror)
-      deallocate(work)
       call mpi_type_free(mpi_string,ierror)
 
    end subroutine general_grid2sub_r_double
@@ -1147,8 +1115,6 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_double,i_kind,i_long
-      use constants, only: izero,ione
       use egrid2agrid_mod, only: g_egrid2agrid,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
@@ -1160,21 +1126,24 @@ module general_sub2grid_mod
       logical,               intent(in   ) :: regional
 
       real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
+      logical,allocatable :: vectorx(:)
       integer(i_kind) k
 
       allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
       call general_sub2grid_r_double(se,sube_vars,gride_vars)
       allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
          call mpi_finalize(k)
          stop
       else
          do k=se%kbegin_loc,se%kend_loc
-            call g_egrid2agrid(p_e2a,gride_vars(:,k),grida_vars(:,k),se%vector(k))
+           vectorx(k)=se%vector(k)
          end do
+         call g_egrid2agrid(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc,vectorx)
       end if
-      deallocate(gride_vars)
+      deallocate(gride_vars,vectorx)
       call general_grid2sub_r_double(sa,grida_vars,suba_vars)
       deallocate(grida_vars)
 
@@ -1207,8 +1176,6 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_double,i_kind,i_long
-      use constants, only: izero,ione
       use egrid2agrid_mod, only: g_egrid2agrid_ad,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
@@ -1220,21 +1187,24 @@ module general_sub2grid_mod
       logical,               intent(in   ) :: regional
 
       real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
+      logical,allocatable :: vectorx(:)
       integer(i_kind) k
 
       allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       call general_sub2grid_r_double(sa,suba_vars,grida_vars)
       allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
+      allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
          call mpi_finalize(k)
          stop
       else
          do k=se%kbegin_loc,se%kend_loc
-            call g_egrid2agrid_ad(p_e2a,gride_vars(:,k),grida_vars(:,k),se%vector(k))
+           vectorx(k)=se%vector(k)
          end do
+         call g_egrid2agrid_ad(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc,vectorx)
       end if
-      deallocate(grida_vars)
+      deallocate(grida_vars,vectorx)
       call general_grid2sub_r_double(se,gride_vars,sube_vars)
       deallocate(gride_vars)
 
@@ -1268,8 +1238,6 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use kinds, only: r_double,i_kind,i_long
-      use constants, only: izero,ione
       use egrid2agrid_mod, only: g_agrid2egrid,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
@@ -1281,21 +1249,24 @@ module general_sub2grid_mod
       logical,               intent(in   ) :: regional
 
       real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
+      logical,allocatable :: vectorx(:)
       integer(i_kind) k
 
       allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       call general_sub2grid_r_double(sa,suba_vars,grida_vars)
       allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
+      allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
          call mpi_finalize(k)
          stop
       else
          do k=se%kbegin_loc,se%kend_loc
-            call g_agrid2egrid(p_e2a,grida_vars(:,k),gride_vars(:,k),se%vector(k))
+           vectorx(k)=se%vector(k)
          end do
+         call g_agrid2egrid(p_e2a,grida_vars,gride_vars,se%kbegin_loc,se%kend_loc,vectorx)
       end if
-      deallocate(grida_vars)
+      deallocate(grida_vars,vectorx)
       call general_grid2sub_r_double(se,gride_vars,sube_vars)
       deallocate(gride_vars)
 

@@ -146,7 +146,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione,zero,half,one,two,pi
+    use constants, only: zero,half,one,two,pi
     implicit none
 
 !   Declare passed variables
@@ -162,24 +162,24 @@ contains
 
 !   Set constants used in transforms for analysis grid
     sp%jcap=jcap
-    sp%nc=(jcap+ione)*(jcap+2_i_kind)
+    sp%nc=(jcap+1)*(jcap+2)
     sp%jcap_trunc=jcap
-    sp%nc_trunc=(sp%jcap_trunc+ione)*(sp%jcap_trunc+2_i_kind)
+    sp%nc_trunc=(sp%jcap_trunc+1)*(sp%jcap_trunc+2_i_kind)
     sp%ncd2=sp%nc/2
-    sp%iromb=izero
-    sp%idrt=4_i_kind
+    sp%iromb=0
+    sp%idrt=4
     if(present(eqspace)) then
-       if(eqspace) sp%idrt=256_i_kind
+       if(eqspace) sp%idrt=256
     endif
     sp%imax=nlon_a
-    sp%jmax=nlat_a-2_i_kind
+    sp%jmax=nlat_a-2
     sp%ijmax=sp%imax*sp%jmax
-    sp%ioffset=sp%imax*(sp%jmax-ione)
+    sp%ioffset=sp%imax*(sp%jmax-1)
     sp%jn=sp%imax
     sp%js=-sp%jn
     sp%kw=2*sp%ncd2
-    sp%jb=ione
-    sp%je=(sp%jmax+ione)/2
+    sp%jb=1
+    sp%je=(sp%jmax+1)/2
 
 
 
@@ -194,14 +194,16 @@ contains
     sp%factsml=.false.
     sp%factvml=.false.
     sp%test_mask=one
-    ii1=izero
-    do l=izero,sp%jcap
-       do m=izero,sp%jcap-l
-          ii1=ii1+2_i_kind
-          if(l == izero)sp%factsml(ii1)=.true.
-          if(l == izero)sp%factvml(ii1)=.true.
+    ii1=0
+    do l=0,sp%jcap
+       do m=0,sp%jcap-l
+          ii1=ii1+2
+          if(l == 0)then
+            sp%factsml(ii1)=.true.
+            sp%factvml(ii1)=.true.
+          end if
           if(l+m.gt.jcap_test) then
-             sp%test_mask(ii1-ione)=zero
+             sp%test_mask(ii1-1)=zero
              sp%test_mask(ii1)=zero
           end if
        end do
@@ -210,18 +212,18 @@ contains
 
 !   Allocate and initialize arrays used in transforms
     allocate( sp%eps(sp%ncd2) )
-    allocate( sp%epstop(sp%jcap+ione) )
+    allocate( sp%epstop(sp%jcap+1) )
     allocate( sp%enn1(sp%ncd2) )
     allocate( sp%elonn1(sp%ncd2) )
     allocate( sp%eon(sp%ncd2) )
-    allocate( sp%eontop(sp%jcap+ione) )
-    ldafft=50000_i_kind+4*sp%imax ! ldafft=256+imax would be sufficient at GMAO.
+    allocate( sp%eontop(sp%jcap+1) )
+    ldafft=50000+4*sp%imax ! ldafft=256+imax would be sufficient at GMAO.
     allocate( sp%afft(ldafft))
     allocate( sp%clat(sp%jb:sp%je) )
     allocate( sp%slat(sp%jb:sp%je) ) 
     allocate( sp%wlat(sp%jb:sp%je) ) 
     allocate( sp%pln(sp%ncd2,sp%jb:sp%je) )
-    allocate( sp%plntop(sp%jcap+ione,sp%jb:sp%je) )
+    allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
     call sptranf0(sp%iromb,sp%jcap,sp%idrt,sp%imax,sp%jmax,sp%jb,sp%je, &
        sp%eps,sp%epstop,sp%enn1,sp%elonn1,sp%eon,sp%eontop, &
        sp%afft,sp%clat,sp%slat,sp%wlat,sp%pln,sp%plntop)
@@ -237,13 +239,13 @@ contains
     sp%rlats(nlat_a)=half_pi
     sp%clats(nlat_a)=zero
     sp%slats(nlat_a)=one
-    do i=1,(nlat_a-2_i_kind)/2_i_kind
+    do i=1,(nlat_a-2)/2
        sp%rlats(nlat_a-i)= asin(sp%slat(i))
        sp%clats(nlat_a-i)=      sp%clat(i)
        sp%slats(nlat_a-i)=      sp%slat(i)
-       sp%rlats(ione+i  )=-asin(sp%slat(i))
-       sp%clats(ione+i  )=      sp%clat(i)
-       sp%slats(ione+i  )=     -sp%slat(i)
+       sp%rlats(1+i  )=-asin(sp%slat(i))
+       sp%clats(1+i  )=      sp%clat(i)
+       sp%slats(1+i  )=     -sp%slat(i)
     end do
     dlon_a=two_pi/nlon_a
     do j=1,nlon_a

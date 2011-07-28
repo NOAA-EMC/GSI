@@ -285,9 +285,12 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 
         if(.not. uv_hyb_ens)then
            do n=m,sp_a%jcap
-              del2inv=zero
-              rn=real(n,r_kind)
-              if(n >  0) del2inv=-rearth**2/(rn*(rn+one))
+              if(n >  0) then
+                 rn=real(n,r_kind)
+                 del2inv=-rearth**2/(rn*(rn+one))
+              else
+                 del2inv=zero
+              end if
               delvorthat(1,n)=delvorthat(1,n)*del2inv
               delvorthat(2,n)=delvorthat(2,n)*del2inv
               deldivhat(1,n)=deldivhat(1,n)*del2inv
@@ -482,10 +485,11 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
         end do
         if(.not. uv_hyb_ens) then
            do n=m,sp_a%jcap
-              del2inv=zero
               if(n >  0) then
                  rn=real(n,r_kind) 
                  del2inv=-rearth**2/(rn*(rn+one))
+              else
+                 del2inv=zero
               end if
               delvorthat(1,n)=delvorthat(1,n)*del2inv
               delvorthat(2,n)=delvorthat(2,n)*del2inv

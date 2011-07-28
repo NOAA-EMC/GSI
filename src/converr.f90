@@ -1,7 +1,7 @@
 module converr
 !$$$   module documentation block
 !                .      .    .                                       .
-! module:    convinfo
+! module:    converr
 !   prgmmr: su          org: np2                date: 2007-03-15
 ! abstract:  This module contains variables and routines related
 !            to the assimilation of conventional observations error
@@ -83,20 +83,20 @@ contains
      lcount=izero
      loopd : do 
         read(ietabl,100,IOSTAT=iflag) itypex
-        if( iflag /= izero ) exit loopd
+        if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
-        lcount=lcount+ione
+        lcount=lcount+1
         do k=1,33
            read(ietabl,110)(etabl(itypex,k,m),m=1,6)
 110        format(1x,6e12.5)
         end do
      end do   loopd
 
-     if(lcount<=izero .and. mype==izero) then
+     if(lcount<=0 .and. mype==izero) then
         write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'
         oberrflg=.false.
      else
-        if(mype == izero) write(6,*)'CONVERR:  using observation errors from user provided table'
+        if(mype == 0) write(6,*)'CONVERR:  using observation errors from user provided table'
         allocate(ptabl(34))
         ptabl=zero
         ptabl(1)=etabl(120,1,1)

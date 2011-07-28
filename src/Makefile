@@ -512,6 +512,7 @@ clean:
 	read_ozone.F90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
+	read_satwnd.f90 \
 	read_radar.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \

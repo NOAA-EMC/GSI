@@ -72,7 +72,6 @@ LIBsys          = $(MYLIBsys)
 # ------------
 
   OBJS	= \
-	abor1.o \
         adjtest.o \
         aeroinfo.o \
 	anberror.o \
@@ -86,6 +85,8 @@ LIBsys          = $(MYLIBsys)
 	balmod.o \
 	berror.o \
         bias_predictors.o \
+	bicg.o \
+	bicglanczos.o \
 	bkerror.o \
 	bkgcov.o \
 	bkgvar.o \
@@ -102,6 +103,7 @@ LIBsys          = $(MYLIBsys)
         chemmod.o \
         clw_mod.o \
         cmaq_routines.o \
+	co_mop_ak.o \
         coinfo.o \
 	combine_radobs.o \
 	compact_diffs.o \
@@ -191,7 +193,6 @@ LIBsys          = $(MYLIBsys)
 	intq.o \
 	intrad.o \
 	intrp2a.o \
-	intrp3co.o \
 	intrp3oz.o \
 	intrw.o \
 	intspd.o \
@@ -202,6 +203,7 @@ LIBsys          = $(MYLIBsys)
 	intw.o \
 	jcmod.o \
 	jfunc.o \
+	jgrad.o \
 	kinds.o \
         lag_fields.o \
         lag_interp.o \
@@ -305,6 +307,7 @@ LIBsys          = $(MYLIBsys)
 	read_prepbufr.o \
 	read_radar.o \
         read_RadarRef_mosaic.o \
+	read_satwnd.o \
 	read_seviri.o \
 	read_ssmi.o \
 	read_ssmis.o \

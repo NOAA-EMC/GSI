@@ -29,11 +29,11 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 !$$$
   use kinds, only: r_kind,i_kind,r_double
   use gridmod, only: nlat,nlon,rlats,rlons,regional,tll2xy
-  use constants, only: deg2rad,rad2deg,zero,one_tenth
+  use constants, only: deg2rad,rad2deg,zero,one_tenth,one
   use convinfo, only: nconvtype,ictype,icuse
   use obsmod, only: ianldate
   use tcv_mod, only: get_storminfo,numstorms,stormlat,stormlon,stormpsmin,stormdattim,&
-       centerid,stormid,destroy_tcv_card,tcp_oberr
+       centerid,stormid,destroy_tcv_card,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
   use gsi_4dvar, only: time_4dvar
   implicit none
 
@@ -56,6 +56,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   real(r_kind) dlat,dlon,dlat_earth,dlon_earth
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
+  real(r_kind) psdif,alpha
 
   integer(i_kind) i,k,iret,lunin,nc
   integer(i_kind) ilat,ilon,ikx,nreal,nchanl,noutside,nmrecs
@@ -115,8 +116,10 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
      ohr=toff
      olat=stormlat(i)
      olon=stormlon(i)
-     psob=stormpsmin(i)
-     oberr=tcp_oberr
+     psob=stormpsmin(i)      ! in mb
+     psdif=tcp_refps-psob    ! in mb
+     alpha=max(min(psdif/tcp_width,one),zero)
+     oberr=tcp_ermin+(tcp_ermax-tcp_ermin)*alpha
 
 ! Make sure the psob is reasonable
      if ( (psob<850._r_kind) .or. (psob>1025._r_kind) )then

@@ -95,8 +95,6 @@ subroutine compute_derived(mype,init_pass)
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag
   use gsi_4dvar, only: l4dvar
-  use hybrid_ensemble_parameters, only: l_hyb_ens,generate_ens
-  use hybrid_ensemble_isotropic, only: rescale_ensemble_rh_perturbations
 
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

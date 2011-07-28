@@ -112,8 +112,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2010-11-25  su      - data items to hold quality mark for satellite wind 
 !   2011-03-08  parrish - for regional=.true., convert wind components in rdiagbuf from grid relative
 !                           to earth relative, using subroutine rotate_wind_xy2ll.
+!   2011-05-05  su      - ome quality control for satellite satellite winds 
 !
 ! REMARKS:
 !   language: f90
@@ -125,6 +127,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !-------------------------------------------------------------------------
 
 ! Declare local parameters
+  real(r_kind),parameter:: r0_7=0.7_r_kind
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_kind),parameter:: r7=7.0_r_kind
   real(r_kind),parameter:: r15=15.0_r_kind
@@ -148,7 +151,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) scale,ratio,obserror,obserrlm
   real(r_kind) residual,ressw,ress,val,val2,valqc2,dudiff,dvdiff
   real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc
-  real(r_kind) cg_w,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
+  real(r_kind) cg_w,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind) presw,factw,dpres,ugesin,vgesin,rwgt,dpressave
   real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty,rsigp
   real(r_kind) ratio_errors,goverrd,spdges,spdob,ten,psges,zsges
@@ -164,10 +167,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
-  integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj
+  integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,kk,iptrbu_sat,iptrbv_sat
   integer(i_kind) k1,k2,ikxx,nn,isli,ibin,ioff
   integer(i_kind) ier,ilon,ilat,ipres,iuob,ivob,id,itime,ikx,ielev,iqc
-  integer(i_kind) ihgt,ier2,iuse,ilate,ilone,istat
+  integer(i_kind) ihgt,ier2,iuse,ilate,ilone,istat,isatqc,iuob1,ivob1,isatang
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
   character(8) station_id
@@ -189,6 +192,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !******************************************************************************
 ! Read and reformat observations in work arrays.
   spdb=zero
+
   read(lunin)data,luse
 
 !    index information for data array (see reading routine)
@@ -201,8 +205,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ivob=7      ! index of v observation
   id=8        ! index of station id
   itime=9     ! index of observation time in data array
-  ikxx=10     ! index of ob type
+  ikxx=10     ! index of ndex ob type in convinfo file
   ielev=11    ! index of station elevation
+  isatqc=11  !  for satellite winds
   iqc=12      ! index of quality mark
   ier2=13     ! index of original-original obs error ratio
   iuse=14     ! index of use parameter
@@ -236,6 +241,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+100 format(10f8.2)
 
   dup=one
   do k=1,nobs
@@ -577,12 +583,52 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      dvdiff=vob-vgesin
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
 
+!    VADWND and aircraft winds quality control
+     if( itype ==224 .and. presw < 226.0_r_kind) then
+        error=zero
+     endif
+     if(itype >=230 .and. itype <=239 .and.  presw <126.0_r_kind ) then
+        error=zero
+     endif
+
+!    Quality control for satellite winds
+
+     if (itype >240 .and. itype <260) then
+        call intrp2a(tropprs,trop5,dlat,dlon,1,1,mype)
+        if(presw < trop5-r50) error=zero            ! tropopose check for all satellite winds 
+     endif  
+
+     if(itype >=242 .and. itype <=256) then
+        if( presw >950.0_r_kind) error =zero    !  screen data beloww 950mb
+     endif
+     if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
+        if(presw <700.0_r_kind) error=zero    !  no visible winds above 700mb
+     endif
+     if(itype ==245 ) then
+        if( presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
+           error=zero                          !  no data between 400-800mb
+        endif
+     endif
+     if(itype == 252 .and. presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
+        error=zero
+     endif
+     if(itype == 253 )  then
+        if(presw >401.0_r_kind .and. presw <801.0_r_kind) then  ! EUMET IR winds
+           error=zero
+        endif
+     endif
+     if( itype == 246 .or. itype == 250 .or. itype == 254 )   then     ! water vapor cloud top
+        if(presw >399.0_r_kind) error=zero
+     endif
+     if(itype ==257 .and. presw <249.0_r_kind) error=zero
+     if(itype ==258 .and. presw >600.0_r_kind) error=zero
+     if(itype ==259 .and. presw >600.0_r_kind) error=zero
+     if(itype ==259 .and. presw <249.0_r_kind) error=zero
+   
 !    QC MODIS winds
      if (itype==257 .or. itype==258 .or. itype==259) then
-
 !       Get guess values of tropopause pressure and sea/land/ice
 !       mask at observation location
-        call intrp2a(tropprs,trop5,dlat,dlon,1,1,mype)
         prsfc = r10*prsfc       ! surface pressure in hPa
 
 !       Compute observed and guess wind speeds (m/s).  
@@ -592,23 +638,22 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcu = r7
         qcv = r7
         qc_spd = (spdges+r15)/three
-
         qc_prs=zero
         if (itype==257) qc_prs = prsfc - r200
         if (itype==258 .or. itype==259) qc_prs = r400
-
         if ( presw > qc_prs .and. qc_spd < qcu ) then
            qcu = (spdob + r15)/three
            qcv = (qcv*qcu)/r7
         endif
 
-        if (presw < trop5-r50 .or. &                      !  tropopause check
-            abs(dudiff) > qcu .or. &                      !  u component check
+!       if (presw < trop5-r50 .or. &                      !  tropopause check
+        if(abs(dudiff) > qcu .or. &                      !  u component check
             abs(dvdiff) > qcv .or. &                      !  v component check
             (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
            error = zero
         endif
-     endif
+     endif                                                  ! end if all satellite winds
+     
 
 !    QC WindSAT winds
      if (itype==289) then
@@ -657,7 +702,26 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = sqrt(dudiff**2+dvdiff**2)
      ratio    = residual/obserrlm
-     if (ratio>cgross(ikx) .or. ratio_errors < tiny_r_kind) then
+!!   modify cgross depending on the quality mark, qcmark=3, cgross=0.7*cgross
+!!   apply asymetric gross check for satellite winds
+     qcgross=cgross(ikx)
+     if(data(iqc,i) == three  ) then
+        qcgross=r0_7*cgross(ikx)
+     endif
+
+     if(spdb <0 )then
+        if( itype == 245 .or. itype ==246) then
+           if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
+        endif
+        if(itype == 253 ) then
+           if( presw <400.0_r_kind .and. presw >200.0_r_kind) qcgross=r0_7*cgross(ikx)
+        endif
+        if(itype >=257 .and. itype <=259 ) then
+          qcgross=r0_7*cgross(ikx)
+        endif
+     endif
+
+     if (ratio>qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one
         error = zero
         ratio_errors = zero
@@ -705,6 +769,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
         valqc = -two*rat_err2*term
 
+
 !       Accumulate statistics for obs belonging to this task
         if (muse(i)) then
            if(rwgt < one) awork(21) = awork(21)+one
@@ -738,6 +803,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            end if
         end do
      end if
+
 
 !    Fill obs to diagnostics structure
 !    U
@@ -844,13 +910,13 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rdiagbuf(3,ii)  = data(ilate,i)      ! observation latitude (degrees)
         rdiagbuf(4,ii)  = data(ilone,i)      ! observation longitude (degrees)
-        rdiagbuf(5,ii)  = data(ielev,i)      ! station elevation (meters)
+        rdiagbuf(5,ii)  = data(ielev,i)      ! station elevation (meters) 
         rdiagbuf(6,ii)  = presw              ! observation pressure (hPa)
         rdiagbuf(7,ii)  = data(ihgt,i)       ! observation height (meters)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
+        rdiagbuf(10,ii) = data(isatqc,i)       ! setup qc or event mark
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
@@ -940,7 +1006,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               rdiagbuf(ioff,ii) = obsdiags(i_w_ob_type,ibin)%tail%obssen(jj)
            enddo
         endif
- 
+
      endif
 ! End of loop over observations
   end do
@@ -953,6 +1019,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
   end if
+
 
 ! End of routine
 end subroutine setupw

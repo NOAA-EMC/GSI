@@ -184,8 +184,11 @@ contains
 !   2005-10-14  treadon - variable name change (dlat0,dlon0) --> d*_earth
 !   2006-01-25  kistler - extend 2d to 3d 
 !   2008-06-04  safford - rm unused vars
+!   2010-08-23  tong - add flg as an input argument of map3grids, so that the order of values 
+!                      of the vertical cooridnate can either increase or decrease 
 !
 !   input argument list:
+!     flg        - marks order of values in vertical dirction (1=increasing, -1=decreasing)
 !     pflag - type of pressure-type levels; 0 : sigma level, 1 : determined by convinfo file
 !     pcoord     - veritical coordinate values
 !     nlevp       - number of vertical levels

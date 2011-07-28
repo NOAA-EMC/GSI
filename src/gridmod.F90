@@ -3262,24 +3262,22 @@ end subroutine init_general_transform
     real(r_kind),dimension(max(iglobal,itotsub),k_use):: temp
 
 ! Zero out temp array
-    do k=1,k_use
-       do i=1,itotsub
-          temp(i,k)=zero
-       end do
-    end do
+!   do k=1,k_use
+!      do i=1,itotsub
+!         temp(i,k)=zero
+!      end do
+!   end do
  
 ! Load temp array in desired order
     do k=1,k_use
        iskip=0
        iloc=0
        do n=1,npe
-          if (n/=1) then
-             iskip=iskip+ijn(n-1)*k_in
-          end if
           do i=1,ijn(n)
              iloc=iloc+1
              temp(iloc,k)=work(i + iskip + (k-1)*ijn(n))
           end do
+          iskip=iskip+ijn(n)*k_in
        end do
     end do
 

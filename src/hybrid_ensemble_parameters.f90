@@ -87,6 +87,9 @@ module hybrid_ensemble_parameters
 !                  if .false., ensemble perturbation wind stored as psi,chi.
 !                   (this is useful for regional application, where there is ambiguity in how to
 !                      define psi,chi from u,v)
+!      readin_localization:  if .true., then read in localization information from external file
+!      oz_univ_static:  if .true., ozone perturbations are zeroed out to make the ozone analysis
+!                       univariate, and defaults back to static B (no ensemble component)
 !=====================================================================================================
 !
 !
@@ -125,6 +128,7 @@ module hybrid_ensemble_parameters
 !                              beta2_inv = 1 - beta1_inv is weight given to ensemble derived covariance
 !   def s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !   def s_ens_v             - vertical localization scale (grid units for now)
+!   def readin_localization - flag to read (.true.)external localization information file
 !   def grd_ens             - structure variable which is initialized by general_sub2grid_create_info in
 !                              module general_sub2grid_mod.f90.  the information stored in grd_ens is
 !                              used for subroutines general_grid2sub, general_sub2grid.  this has
@@ -158,8 +162,10 @@ module hybrid_ensemble_parameters
   public :: init_hybrid_ensemble_parameters,create_hybens_localization_parameters,&
        destroy_hybens_localization_parameters
 ! set passed variables to public
-  public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,s_ens_h
+  public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
+       s_ens_h,oz_univ_static
   public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
+  public :: readin_localization
   public :: grd_ens
   public :: grd_e1
   public :: grd_loc
@@ -171,11 +177,12 @@ module hybrid_ensemble_parameters
   public :: dual_res
   public :: write_ens_sprd
 
-  logical l_hyb_ens,uv_hyb_ens
+  logical l_hyb_ens,uv_hyb_ens,oz_univ_static
   logical aniso_a_en
   logical generate_ens
   logical dual_res
   logical write_ens_sprd
+  logical readin_localization
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_anl,grd_e1,grd_a1
@@ -206,19 +213,21 @@ subroutine init_hybrid_ensemble_parameters
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: izero,one
+  use constants, only: one
   implicit none
 
   l_hyb_ens=.false.
   uv_hyb_ens=.false.
+  oz_univ_static=.false.
   aniso_a_en=.false.
   generate_ens=.true.
   write_ens_sprd=.false.
-  n_ens=izero
-  nlat_ens=izero
-  jcap_ens=izero
-  jcap_ens_test=izero
-  nlon_ens=izero
+  readin_localization=.false.
+  n_ens=0
+  nlat_ens=0
+  jcap_ens=0
+  jcap_ens_test=0
+  nlon_ens=0
   beta1_inv=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid

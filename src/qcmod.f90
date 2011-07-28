@@ -30,6 +30,7 @@ module qcmod
 !                       - (3) Modify QC subroutines by adding a few dummy variables for Tz retrieval
 !   2011-02-17  todling - add parameter to control O3 Jacobian from IR instruments
 !   2011-05-20  mccarty - add qc_atms routine
+!   2011-07-08  collard - reverse relaxation of AMSU-A Ch 5 QC introduced at revision 5986.
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -1873,7 +1874,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      if(varinv(i) > tiny_r_kind)then
         dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
         term=dtbf*dtbf
-        if(i <= ich528 .or. i == ich890)then
+        if(i <= ich536 .or. i == ich890)then
 
 !          Adjust observation error based on magnitude of liquid
 !          water correction.  0.2 is empirical factor

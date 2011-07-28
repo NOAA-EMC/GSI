@@ -55,6 +55,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-05-06  Su      - modify the observation gross check error 
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -84,7 +85,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl
   use gridmod, only: lat2,lon2,nsig,get_ijk
   use constants, only: zero,one,r1000,r10,r100
-  use constants, only: huge_single,wgtlim
+  use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
   use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1
   use jfunc, only: jiter,last,jiterstart,miter
@@ -104,6 +105,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local parameters
   real(r_kind),parameter:: small1=0.0001_r_kind
   real(r_kind),parameter:: small2=0.0002_r_kind
+  real(r_kind),parameter:: r0_7=0.7_r_kind
   real(r_kind),parameter:: r8=8.0_r_kind
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r1e16=1.e16_r_kind
@@ -123,7 +125,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact
   real(r_kind) psges,sfcchk,ddiff,errorx
-  real(r_kind) cg_q,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
+  real(r_kind) cg_q,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind) grsmlt,ratio,val2,obserror
   real(r_kind) obserrlm,residual,ressw2,scale,ress,huge_error
   real(r_kind) val,valqc,rwgt
@@ -394,6 +396,14 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      obserrlm=max(cermin(ikx),min(cermax(ikx),obserror))
      residual=abs(ddiff*r100/qsges)
      ratio=residual/obserrlm
+
+! modify gross check limit for quality mark=3
+     if(data(iqc,i) == three ) then
+        qcgross=r0_7*cgross(ikx)
+     else
+        qcgross=cgross(ikx)
+     endif
+
      if(ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
         if(luse(i))awork(4)=awork(4)+one
         error=zero

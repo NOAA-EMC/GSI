@@ -28,9 +28,10 @@ module tcv_mod
 !   def stormdattim  - storm dat/time 
 !   def centerid     - organization (center) id
 !   def stormid      - storm id with basin identifier
-!   def tcp_oberr    - lowest oberr for tcps data in mb (inflated as function of O-F)
-!   def tcp_innmax   - parameter for tcps oberr inflation (max O-F inflating error in mb)
-!   def tcp_oedelt   - parameter for tcps oberr inflation (range of oberror above tcp_oberr in mb)
+!   def tcp_refps    - reference pressure for tcps oberr calculation (mb)
+!   def tcp_width    - parameter for tcps oberr inflation (width, mb)
+!   def tcp_ermin    - parameter for tcps oberr inflation (minimum oberr, mb)
+!   def tcp_ermax    - parameter for tcps oberr inflation (maximum oberr, mb)
 !
 ! attributes:
 !   language: f90
@@ -50,7 +51,7 @@ module tcv_mod
 ! set passed variables to public
   public :: stormpsmin,stormdattim,stormlon,numstorms,stormlat,centerid,stormid
   public :: tcvcard
-  public :: tcp_oberr,tcp_innmax,tcp_oedelt
+  public :: tcp_refps,tcp_width,tcp_ermin,tcp_ermax
 
   integer(i_kind) numstorms
   integer(i_kind),dimension(:),allocatable:: stormswitch
@@ -58,7 +59,7 @@ module tcv_mod
   character(len=4),dimension(:),allocatable:: centerid
   real(r_kind),dimension(:),allocatable:: stormlat,stormlon,stormpsmin
   integer(i_kind),dimension(:),allocatable:: stormdattim
-  real(r_kind) tcp_oberr,tcp_innmax,tcp_oedelt
+  real(r_kind) tcp_refps,tcp_width,tcp_ermin,tcp_ermax
 
   type:: tcvcard ! Define a new type for a TC Vitals card
      character*4    :: tcv_center      ! Hurricane Center Acronym
@@ -320,9 +321,11 @@ contains
 !$$$
     implicit none
 
-    tcp_oberr=0.75_r_kind
-    tcp_innmax=20.0_r_kind
-    tcp_oedelt=1.5_r_kind
+!   note:  all values in mb
+    tcp_refps=1000.0_r_kind
+    tcp_width=50.0_r_kind
+    tcp_ermin=0.75_r_kind  
+    tcp_ermax=5.0_r_kind
 
   end subroutine init_tcps_errvals
 

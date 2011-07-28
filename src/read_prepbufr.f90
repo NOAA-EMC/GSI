@@ -80,7 +80,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         to the new module sfcobsqc
 !   2010-03-29  hu - add code to read cloud observation from METAR and NESDIS cloud products
 !   2010-05-15  kokron - safety measure: initialize cdata_all to zero
-!   2010-08-23  tong - modify map3grids, so that it can be used for height level
+!   2010-08-23  tong - add flg as an input argument of map3grids, so that the subroutine can be used for 
+!                      thinning grid with either pressure or height as the vertical coordinate. 
+!                      flg=-1 for prepbufr data thinning grid (pressure as the vertical coordinate). 
 !   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
 !                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
 !                           had a discontinuity at the date line (180E), which resulted in erroneous wind
@@ -88,6 +90,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !   2010-10-19  wu - add code to limit regional use of MAP winds with P less than 400 mb
+!   2010-11-13  su - skip satellite winds from prepbufr 
 !   2010-11-18  treadon - add check for small POB (if POB<tiny_r_kind then POB=bmiss)
 !   2011-07-13  wu     - not use mesonet Psfc when 8th character of sid is "x"
 !
@@ -340,15 +343,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ntxall=0
   do nc=1,nconvtype
      if(trim(ioctype(nc)) == trim(obstype))then
-        ntmatch=ntmatch+1
-        ntxall(ntmatch)=nc
+       if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
+          .and. ictype(nc) <260) then 
+          cycle
+       else
+           ntmatch=ntmatch+1
+           ntxall(ntmatch)=nc
+       endif
      end if
      if(trim(ioctype(nc)) == trim(obstype) .and. abs(icuse(nc)) <= 1)then
-        ithin=ithin_conv(nc)
-        if(ithin > 0)then
-           ntread=ntread+1
-           ntx(ntread)=nc
-        end if
+        if( trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
+            .and. ictype(nc) <260) then
+            cycle
+        else
+           ithin=ithin_conv(nc)
+           if(ithin > 0)then
+              ntread=ntread+1
+              ntx(ntread)=nc
+           end if
+        endif
      end if
   end do
   if(ntmatch == 0)then
@@ -364,6 +377,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   nrep=0
   ntb = 0
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
+     if(trim(subset) == 'SATWND') cycle msg_report
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
@@ -394,14 +408,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! temporary specify iobsub until put in bufr file
        iobsub = 0                                                  
        if(kx == 280) iobsub=hdr(3)                                            
-       if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(2)  
+!       if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(2)  
 
 !      For the satellite wind to get quality information and check if it will be used
-       if( kx ==243 .or. kx == 253 .or. kx ==254 ) then
-          call ufbint(lunin,satqc,1,1,iret,satqcstr)
-          if(satqc(1) <  85.0_r_double) cycle loop_report   ! QI w/o fcst (su's setup
+!       if( kx ==243 .or. kx == 253 .or. kx ==254 ) then
+!          call ufbint(lunin,satqc,1,1,iret,satqcstr)
+!          if(satqc(1) <  85.0_r_double) cycle loop_report   ! QI w/o fcst (su's setup
 !!        if(satqc(2) <= 80.0_r_double) cycle loop_report   ! QI w/ fcst (old prepdata)
-       endif
+!       endif
 
 !      Check for blacklisting of station ID
        if (blacklst .and. ibcnt > 0) then
@@ -464,6 +478,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
 
 
+
   if(tob) write(6,*)'READ_PREPBUFR: time offset is ',toff,' hours.'
 !------------------------------------------------------------------------
 
@@ -518,6 +533,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh
         endif
      endif
+       
 
      call closbf(lunin)
      open(lunin,file=infile,form='unformatted')
@@ -531,6 +547,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      icntpnt=0
      icntpnt2=0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
+       if(trim(subset) =='SATWND') cycle loop_msg
        nmsg = nmsg+1
        if(.not.lmsg(nmsg,nx)) then
           do i=ntb+1,ntb+nrep(nmsg)
@@ -921,12 +938,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else
                  timedif=abs(t4dv-toff)
               endif
-              if(kx == 243 .or. kx == 253 .or. kx ==254) then
-                 call ufbint(lunin,satqc,1,1,iret,satqcstr)
-                 crit1 = timedif/r6+half + four*(one-satqc(1)/r100)*r3_33
-              else
+!              if(kx == 243 .or. kx == 253 .or. kx ==254) then
+!                 call ufbint(lunin,satqc,1,1,iret,satqcstr)
+!                 crit1 = timedif/r6+half + four*(one-satqc(1)/r100)*r3_33
+!              else
                  crit1 = timedif/r6+half
-              endif
+!              endif
 
               if (pflag==0) then
                  do kk=1,nsig
@@ -1383,6 +1400,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   close(lunin)
 
+  close(55)
 
 ! End of routine
   return

@@ -46,6 +46,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-02-17  tong - modifed to use airborne radar data
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-03-28  s.liu     - add subtype to radial wind
+!   2011-05-25  s.liu/parrish     - correct error in height assigned to radial wind
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -72,7 +73,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use qcmod, only: npres_print,ptop,pbot
   use guess_grids, only: ges_ps,hrdifsig,geop_hgtl,nfldsig,&
-       ges_lnprsl,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10
+       ges_lnprsl,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10,ges_z
   use gridmod, only: nsig,get_ijk
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad
@@ -108,7 +109,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) dz,factelv,factdif
   real(r_kind) dlnp,pobl,zob
   real(r_kind) sin2,termg,termr,termrg
-  real(r_kind) psges,zsges
+  real(r_kind) psges,zsges,zsges0
   real(r_kind),dimension(nsig):: zges,hges,ugesprofile,vgesprofile
   real(r_kind) prsltmp(nsig)
   real(r_kind) sfcchk  
@@ -222,7 +223,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         error=data(ier2,i)
         slat=data(ilate,i)*deg2rad
         wrange=data(irange,i)
-        zsges=data(izsges,i)
+        zsges0=data(izsges,i)
      endif
 
 !    Link observation to appropriate observation bin
@@ -295,6 +296,9 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
      end if
 
+     call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+          1,1,mype,nfldsig)
+     dpres=dpres-zsges
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
           1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
@@ -404,15 +408,15 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Increase error if model and observation topography too different
      factdif=one
      if (data(iobs_type,i) <= three) then
-        if (abs(zsges-data(ielev,i)) > r200) then
-           factdif= (r200/(abs(zsges-data(ielev,i))))**2
+        if (abs(zsges0-data(ielev,i)) > r200) then
+           factdif= (r200/(abs(zsges0-data(ielev,i))))**2
            if(luse(i))awork(6) = awork(6) + one
         endif
      endif
      
 !    Obtain estimated beam spread in vertical
      if (data(iobs_type,i) <= three) then
-         addelev=max(half*abs(zsges-data(ielev,i)),ten*wrange)
+         addelev=max(half*abs(zsges0-data(ielev,i)),ten*wrange)
      else
          addelev=17.4*wrange   ! TDR radar beam width is 1.9 to 2.0 degree
      endif

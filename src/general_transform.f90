@@ -61,7 +61,7 @@ subroutine general_sptez_s(sp,wave,grid,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,zero
+  use constants, only: zero
   use general_specmod, only: spec_vars
   implicit none
 
@@ -75,11 +75,11 @@ subroutine general_sptez_s(sp,wave,grid,idir)
   integer(i_kind) i
 
 ! Zero appropriate output array based on direction of transform
-  if (idir<izero) then
+  if (idir<0) then
      do i=1,sp%nc
         wave(i)=zero
      end do
-  elseif (idir>izero) then
+  elseif (idir>0) then
      do i=1,sp%ijmax
         grid(i)=zero
      end do
@@ -165,7 +165,7 @@ subroutine general_sptranf_s(sp_a,sp_b,wave,grid,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
+  use constants, only: zero
   use general_specmod, only: spec_vars
   implicit none
 
@@ -178,13 +178,13 @@ subroutine general_sptranf_s(sp_a,sp_b,wave,grid,idir)
 
 ! Declare local variables
   integer(i_kind) i,j,ii,jj,ijn,ijs,mp
-  real(r_kind),dimension(2*(sp_b%jcap+ione)):: wtop
-  real(r_kind),dimension(sp_b%imax,2_i_kind):: g
+  real(r_kind),dimension(2*(sp_b%jcap+1)):: wtop
+  real(r_kind),dimension(sp_b%imax,2):: g
 
 ! Initialize local variables
-  mp=izero
+  mp=0
 
-  do i=1,2*(sp_b%jcap+ione)
+  do i=1,2*(sp_b%jcap+1)
      wtop(i)=zero
   end do
 
@@ -201,7 +201,7 @@ subroutine general_sptranf_s(sp_a,sp_b,wave,grid,idir)
 !     in the FFT and using every other point in the output grid.   
 !     Mark Iredell coded up Joe's idea below.
 
-  if(idir>izero) then
+  if(idir>0) then
 !$omp parallel do private(j,i,ii,jj,ijn,ijs,g)
      do j=sp_a%jb,sp_a%je
         call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -332,7 +332,7 @@ subroutine general_sptez_v(sp,waved,wavez,gridu,gridv,idir)
 !$$$
   use kinds, only: r_kind,i_kind
   use general_specmod, only: spec_vars
-  use constants, only: izero,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
@@ -345,12 +345,12 @@ subroutine general_sptez_v(sp,waved,wavez,gridu,gridv,idir)
   integer(i_kind) i
 
 ! Zero appropriate output array based on direction of transform
-  if (idir<izero) then
+  if (idir<0) then
      do i=1,sp%nc
         waved(i)=zero
         wavez(i)=zero
      end do
-  elseif (idir>izero) then
+  elseif (idir>0) then
      do i=1,sp%ijmax
         gridu(i)=zero
         gridv(i)=zero
@@ -444,7 +444,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
+  use constants, only: zero
   use general_specmod, only: spec_vars
   implicit none
 
@@ -460,12 +460,12 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
   integer(i_kind) i,j,ii,jj,ijn,ijs
   integer(i_kind),dimension(2):: mp
   real(r_kind),dimension(sp_b%ncd2*2,2):: w
-  real(r_kind),dimension(2*(sp_b%jcap+ione),2):: wtop
+  real(r_kind),dimension(2*(sp_b%jcap+1),2):: wtop
   real(r_kind),dimension(sp_b%imax,2,2):: g
   real(r_kind),dimension(sp_b%ncd2*2,2):: winc
 
 ! Set parameters
-  mp=ione
+  mp=1
 
 ! Transform wave to grid
 !  ***NOTE***
@@ -480,10 +480,11 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 !     in the FFT and using every other point in the output grid.
 !     Mark Iredell coded up Joe's idea below.
 
-  if(idir>izero) then
+  if(idir>0) then
      call spdz2uv(sp_b%iromb,sp_b%jcap,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
           waved,wavez, &
           w(1,1),w(1,2),wtop(1,1),wtop(1,2))
+!$omp parallel do private(j,i,ii,jj,ijn,ijs,g)
      do j=sp_a%jb,sp_a%je
         call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -623,7 +624,7 @@ subroutine general_sptez_s_b(sp_a,sp_b,wave,grid,idir)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,zero
+  use constants, only: zero
   use general_specmod, only: spec_vars
   implicit none
 
@@ -637,11 +638,11 @@ subroutine general_sptez_s_b(sp_a,sp_b,wave,grid,idir)
   integer(i_kind) i
 
 ! Zero appropriate output array based on direction of transform
-  if (idir<izero) then
+  if (idir<0) then
      do i=1,sp_b%nc
         wave(i)=zero
      end do
-  elseif (idir>izero) then
+  elseif (idir>0) then
      do i=1,sp_a%ijmax
         grid(i)=zero
      end do
@@ -725,7 +726,7 @@ subroutine general_sptez_v_b(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 !$$$
   use kinds, only: r_kind,i_kind
   use general_specmod, only: spec_vars
-  use constants, only: izero,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
@@ -738,12 +739,12 @@ subroutine general_sptez_v_b(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
   integer(i_kind) i
 
 ! Zero appropriate output array based on direction of transform
-  if (idir<izero) then
+  if (idir<0) then
      do i=1,sp_b%nc
         waved(i)=zero
         wavez(i)=zero
      end do
-  elseif (idir>izero) then
+  elseif (idir>0) then
      do i=1,sp_a%ijmax
         gridu(i)=zero
         gridv(i)=zero

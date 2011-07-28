@@ -27,34 +27,37 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use gridmod, only: idsl5
-  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd
+  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static
   use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
-  use constants,only: zero,ione,izero,half,fv,rd_over_cp,one
-  use mpimod, only: mpi_comm_world,ierror,mype
+  use constants,only: zero,half,fv,rd_over_cp,one
+  use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens
   implicit none
 
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) :: pri
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs,rh,tsen,prsl
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
   real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
   real(r_kind),dimension(grd_ens%latlon1n):: stbar,vpbar,tbar,rhbar,ozbar,cwbar
   real(r_kind),dimension(grd_ens%latlon11):: pbar,sstbar
-  real(r_kind) bar_norm,sig_norm,kapr,kap1
+  real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
+  real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri
 
   integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) iret,i,j,k,m,n,il,jl,mm1,iderivative
+  integer(i_kind) iret,i,j,k,m,n,il,jl,mm1,iderivative,im,jm,km
   character(24) filename
   logical ice
 
   stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
   pbar=zero ; sstbar =zero
 
-  mm1=mype+ione
+  mm1=mype+1
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
 
+  im=grd_ens%lat2
+  jm=grd_ens%lon2
+  km=grd_ens%nsig
   do n=1,n_ens
     write(filename,100) n
 100        format('sigf06_ens_mem',i3.3)
@@ -73,80 +76,76 @@ subroutine get_gefs_ensperts_dualres
 !      SF/VP on subdomain (I can't believe this doesn't exist yet!)
   
 ! Compute RH
-! First step is go get sensible temperature and 3d pressure
-    do k=1,grd_ens%nsig
-      do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-          tsen(i,j,k)= tv(i,j,k)/(one+fv*max(zero,q(i,j,k)))
-        end do
-      end do
-    end do
 ! Get 3d pressure field now on interfaces
+    allocate(pri(im,jm,km+1))
     call general_getprs_glb(ps,tv,pri)
-    if (idsl5/=2_i_kind) then
-      do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-          do k=1,grd_ens%nsig
-            prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+ione)**kap1)/&
-                           (kap1*(pri(i,j,k)-pri(i,j,k+ione))))**kapr
+    allocate(prsl(im,jm,km),tsen(im,jm,km))
+! Get sensible temperature and 3d layer pressure
+    if (idsl5 /= 2) then
+!$omp parallel do schedule(dynamic,1) private(k,j,i)
+      do k=1,km
+        do j=1,jm
+          do i=1,im
+            prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
+                           (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
+            tsen(i,j,k)= tv(i,j,k)/(one+fv*max(zero,q(i,j,k)))
           end do
         end do
       end do
     else 
-      do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-          do k=1,grd_ens%nsig
-            prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+ione))*half
+!$omp parallel do schedule(dynamic,1) private(k,j,i)
+      do k=1,km
+        do j=1,jm
+          do i=1,im
+            prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
+            tsen(i,j,k)= tv(i,j,k)/(one+fv*max(zero,q(i,j,k)))
           end do
         end do
       end do
     end if
+    deallocate(pri)
 
     ice=.true.
     iderivative=0
     call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+    deallocate(tsen,prsl)
 
-    do k=1,grd_ens%nsig
-      do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-          rh(i,j,k) = q(i,j,k)/qs(i,j,k)
-        end do
-      end do
-    end do
-
-    m=izero
-    do k=1,grd_ens%nsig
-      do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-          m=m+ione
+!$omp parallel do schedule(dynamic,1) private(m,i,j,k,rh)
+    do k=1,km
+      do j=1,jm
+        do i=1,im
+          m=(k-1)*im*jm+(j-1)*im+i
+          rh=q(i,j,k)/qs(i,j,k)
           st_en(m,n) = u(i,j,k)
           vp_en(m,n) = v(i,j,k)
           t_en(m,n)  = tv(i,j,k)
-          rh_en(m,n) = rh(i,j,k)
+          rh_en(m,n) = rh
           oz_en(m,n) = oz(i,j,k)
           cw_en(m,n) = cwmr(i,j,k)
 
-          stbar(m)=stbar(m)+u(i,j,k)
-          vpbar(m)=vpbar(m)+v(i,j,k)
-           tbar(m)= tbar(m)+ tv(i,j,k)
-          rhbar(m)=rhbar(m)+rh(i,j,k)
-          ozbar(m)=ozbar(m)+oz(i,j,k)
+          stbar(m)=stbar(m)+u(i,j,k)  
+          vpbar(m)=vpbar(m)+v(i,j,k)  
+           tbar(m)= tbar(m)+tv(i,j,k)
+          rhbar(m)=rhbar(m)+rh
+          ozbar(m)=ozbar(m)+oz(i,j,k) 
           cwbar(m)=cwbar(m)+cwmr(i,j,k)
         end do
       end do
-    end do
-    m=izero
-    do j=1,grd_ens%lon2
-      do i=1,grd_ens%lat2
-        m=m+ione
-        p_en(m,n) = ps(i,j)
-        pbar(m)=pbar(m)+ ps(i,j)
-      end do
+      if(k == 1)then
+        do j=1,jm
+          do i=1,im
+            m=(j-1)*im+i
+            p_en(m,n) = ps(i,j)
+            pbar(m)=pbar(m)+ ps(i,j)
+          end do
+        end do
+      end if
     end do
   end do ! end do over ensemble
 
 ! Convert to mean
   bar_norm = one/float(n_ens)
+!$omp parallel do schedule(dynamic,1) private(i)
   do i=1,grd_ens%latlon1n
     stbar(i)=stbar(i)*bar_norm
     vpbar(i)=vpbar(i)*bar_norm
@@ -155,33 +154,44 @@ subroutine get_gefs_ensperts_dualres
     ozbar(i)=ozbar(i)*bar_norm
     cwbar(i)=cwbar(i)*bar_norm
   end do
-  do i=1,grd_ens%latlon11
-    pbar(i)=pbar(i)*bar_norm
-  end do
-
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
 ! in terms of scale heights/normalized p/p 
-  ps_bar(:)=pbar(:)
+  do i=1,grd_ens%latlon11
+    pbar(i)=pbar(i)*bar_norm
+    ps_bar(i)=pbar(i)
+  end do
 
-  call mpi_barrier(mpi_comm_world,ierror)
 ! Before converting to perturbations, get ensemble spread
   if (write_ens_sprd) call ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
-! call mpi_barrier(mpi_comm_world,ierror)
 
 ! Convert ensemble members to perturbations
-   sig_norm=sqrt(one/max(one,n_ens-one))
+  sig_norm=sqrt(one/max(one,n_ens-one))
 
+!$omp parallel do schedule(dynamic,1) private(n,i)
   do n=1,n_ens
     do i=1,grd_ens%latlon1n
       st_en(i,n)=(st_en(i,n)-stbar(i))*sig_norm
       vp_en(i,n)=(vp_en(i,n)-vpbar(i))*sig_norm
       t_en(i,n) =( t_en(i,n)- tbar(i))*sig_norm
       rh_en(i,n)=(rh_en(i,n)-rhbar(i))*sig_norm
-      oz_en(i,n)=(oz_en(i,n)-ozbar(i))*sig_norm
       cw_en(i,n)=(cw_en(i,n)-cwbar(i))*sig_norm
     end do
+
+! If request, zero out ozone perturbations for hybrid
+    if (.not. oz_univ_static) then
+       do i=1,grd_ens%latlon1n
+          oz_en(i,n)=(oz_en(i,n)-ozbar(i))*sig_norm  
+       end do
+    else
+       do i=1,grd_ens%latlon1n
+          oz_en(i,n)=zero
+       end do
+    end if
+
     do i=1,grd_ens%latlon11
       p_en(i,n)=(p_en(i,n)- pbar(i))*sig_norm
+! Ignore sst perturbations in hybrid
+      sst_en(i,n)=zero
     end do
   end do
 
@@ -201,20 +211,20 @@ subroutine get_gefs_ensperts_dualres
 !    call mpi_barrier(mpi_comm_world,ierror)
 !
 !! mpi barrier here?
-!    do j=1,grd_ens%lon2
+!    do j=1,jm
 !      jl=j+grd_ens%jstart(mm1)-2
 !      jl=min0(max0(1,jl),grd_ens%nlon)
-!      do i=1,grd_ens%lat2
+!      do i=1,im
 !        il=i+grd_ens%istart(mm1)-2
 !        il=min0(max0(1,il),grd_ens%nlat)
 !        sst2(i,j)=sst_full(il,jl)
 !      end do
 !    end do
 !  
-!    m=izero
-!    do j=1,grd_ens%lon2
-!      do i=1,grd_ens%lat2
-!        m=m+ione
+!    m=0
+!    do j=1,jm
+!      do i=im
+!        m=m+1
 !        sst_en(m,n) = sst2(i,j)
 !        sstbar(m)=sstbar(m)+ sst2(i,j)
 !      end do
@@ -227,12 +237,6 @@ subroutine get_gefs_ensperts_dualres
 !    end do
 !  end do
 
-! dtk: temporarily ignore sst perturbations in hybrid
-  do n=1,n_ens
-    do i=1,grd_ens%latlon11
-      sst_en(i,n)=zero
-    end do
-  end do
 
   return
 end subroutine get_gefs_ensperts_dualres
@@ -413,7 +417,7 @@ subroutine write_spread_dualres(a,b,c,d,e,f,g2in,mype)
 ! Initial memory used by 2d and 3d grids
   mem2d = 4*grd_anl%nlat*grd_anl%nlon
   mem3d = 4*grd_anl%nlat*grd_anl%nlon*grd_anl%nsig
-  num3d=6_i_kind
+  num3d=6
 
 ! transfer 2d arrays to generic work aray
   do k=1,grd_anl%nsig
@@ -509,7 +513,7 @@ subroutine general_getprs_glb(ps,tv,prs)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero,half,one_tenth,rd_over_cp,one
+  use constants,only: zero,half,one_tenth,rd_over_cp,one
   use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,twodvar_regional
@@ -519,9 +523,9 @@ subroutine general_getprs_glb(ps,tv,prs)
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2)          ,intent(in   ) :: ps
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig)     ,intent(in   ) :: tv
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig+ione),intent(  out) :: prs
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2)       ,intent(in   ) :: ps
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig)  ,intent(in   ) :: tv
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig+1),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,trk
@@ -532,12 +536,10 @@ subroutine general_getprs_glb(ps,tv,prs)
 
                                      
   kapr=one/rd_over_cp
-  prs=zero 
-! it=ntguessig
 
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
                  prs(i,j,k)=one_tenth* &
@@ -548,7 +550,7 @@ subroutine general_getprs_glb(ps,tv,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
                  prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
@@ -557,15 +559,16 @@ subroutine general_getprs_glb(ps,tv,prs)
         end do
      endif
   else
-     k=ione
-     k2=nsig+ione
+     k=1
+     k2=nsig+1
      do j=1,grd_ens%lon2
         do i=1,grd_ens%lat2
            prs(i,j,k)=ps(i,j)
            prs(i,j,k2)=zero
         end do
      end do
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
+!$omp parallel do schedule(dynamic,1) private(k,j,i)
         do k=2,nsig
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
@@ -574,10 +577,11 @@ subroutine general_getprs_glb(ps,tv,prs)
            end do
         end do
      else
+!$omp parallel do schedule(dynamic,1) private(k,j,i,trk)
         do k=2,nsig
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
-                 trk=(half*(tv(i,j,k-ione)+tv(i,j,k))/tref5(k))**kapr
+                 trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
                  prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
               end do
            end do

@@ -163,7 +163,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) isolz,ifovn,itoqf
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq
   integer(i_kind),dimension(iint,nobs):: idiagbuf
-  integer(i_kind),dimension(nlevs):: ipos,iouse
+  integer(i_kind),dimension(nlevs):: ipos,iouse,ikeepk
 
   real(r_kind),dimension(4):: tempwij
   integer(i_kind) nlevp
@@ -231,7 +231,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
              .not.ozone_diagsave)) then
            tnoise(jc)=1.e10_r_kind
            gross(jc) =1.e10_r_kind
-           pobs(jc)  = zero
         endif
         if (iouse(jc)>-1) l_may_be_passive=.true.
         if (tnoise(jc)<1.e4_r_kind) itoss=0
@@ -328,7 +327,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         call intrp3oz(ges_oz,ozges,dlat,dlon,ozp,dtime,&
              1,nlevs,mype)
 
-        if(ozone_diagsave)then
+        if(ozone_diagsave .and. luse(i))then
            ii=ii+1
            idiagbuf(1,ii)=mype                  ! mpi task number
            diagbuf(1,ii) = data(ilate,i)        ! lat (degree)
@@ -408,10 +407,11 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               stats_oz(7,j) = stats_oz(7,j) + one
 
 !          Optionally save data for diagnostics
-           if (ozone_diagsave) then
+           if (ozone_diagsave .and. luse(i)) then
               rdiagbuf(1,k,ii) = ozobs
               rdiagbuf(2,k,ii) = ozone_inv(k)           ! obs-ges
-              rdiagbuf(3,k,ii) = varinv3(k)*rat_err2    ! inverse (obs error )**2
+              errorinv = sqrt(varinv3(k)*rat_err2)
+              rdiagbuf(3,k,ii) = errorinv               ! inverse observation error
               if (obstype == 'gome' .or. obstype == 'omi' ) then
                  rdiagbuf(4,k,ii) = data(isolz,i)       ! solar zenith angle
                  rdiagbuf(5,k,ii) = data(ifovn,i)       ! field of view number
@@ -429,10 +429,11 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         end do
 !       Check all information for obs.  If there is at least one piece of
 !       information that passed quality control, use this observation.
-        ikeep=0
+        ikeepk=0
         do k=1,nlevs
-           if ((ratio_errors(k)**2)*varinv3(k)>1.e-10_r_kind) ikeep=1
+           if ((ratio_errors(k)**2)*varinv3(k)>1.e-10_r_kind) ikeepk(k)=1
         end do
+        ikeep=maxval(ikeepk)
      endif ! (in_curbin)
 
 !    In principle, we want ALL obs in the diagnostics structure but for
@@ -558,7 +559,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
            if(in_curbin) then
               obsdiags(i_oz_ob_type,ibin)%tail%luse=luse(i)
-              obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeep==1)
+              obsdiags(i_oz_ob_type,ibin)%tail%muse(jiter)= (ikeepk(k)==1)
               obsdiags(i_oz_ob_type,ibin)%tail%nldepart(jiter)=ozone_inv(k)
               obsdiags(i_oz_ob_type,ibin)%tail%wgtjo= varinv3(k)*ratio_errors(k)**2
  
@@ -940,7 +941,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      sfcchk=log(psges)
      call grdcrd(sfcchk,1,prsltmp,nsig,-1)
 
-     if(ozone_diagsave)then
+     if(ozone_diagsave .and. luse(i))then
         ii=ii+1
         idiagbuf(1,ii)=mype                  ! mpi task number
         diagbuf(1,ii) = data(ilate,i)        ! lat (degree)
@@ -1102,10 +1103,11 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      endif
 
 !    Optionally save data for diagnostics
-     if (ozone_diagsave) then
+     if (ozone_diagsave .and. luse(i)) then
         rdiagbuf(1,1,ii) = ozlv                ! obs
         rdiagbuf(2,1,ii) = ozone_inv           ! obs-ges
-        rdiagbuf(3,1,ii) = varinv3*rat_err2    ! inverse (obs error )**2
+        errorinv = sqrt(varinv3*rat_err2)
+        rdiagbuf(3,1,ii) = errorinv            ! inverse observation error
         rdiagbuf(4,1,ii) = data(isolz,i)       ! solar zenith angle
         rdiagbuf(5,1,ii) = rmiss               ! fovn
         rdiagbuf(6,1,ii) = obserror               ! ozone mixing ratio precision

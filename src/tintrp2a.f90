@@ -41,7 +41,7 @@ subroutine tintrp2a(f,g,dx,dy,obstime,gridtime, &
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: istart,jstart,nlon,nlat,lon1,lon2,lat2
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
 ! Declare passed variables
@@ -57,40 +57,40 @@ subroutine tintrp2a(f,g,dx,dy,obstime,gridtime, &
   real(r_kind) delx,delyp,delxp
   real(r_kind) dely,delt,deltp
 
-  m1=mype+ione
+  m1=mype+1
 
-  do i=ione,n
+  do i=1,n
      ix1=int(dx(i))
      iy1=int(dy(i))
-     ix1=max(ione,min(ix1,nlat))  
+     ix1=max(1,min(ix1,nlat))  
      delx=dx(i)-float(ix1)
      dely=dy(i)-float(iy1)
      delx=max(zero,min(delx,one))
      ix=ix1-istart(m1)+2_i_kind
      iy=iy1-jstart(m1)+2_i_kind
-     if(iy<ione) then
+     if(iy<1) then
         iy1=iy1+nlon
         iy=iy1-jstart(m1)+2_i_kind
      end if
-     if(iy>lon1+ione) then
+     if(iy>lon1+1) then
         iy1=iy1-nlon
         iy=iy1-jstart(m1)+2_i_kind
      end if
-     ixp=ix+ione; iyp=iy+ione
+     ixp=ix+1; iyp=iy+1
      if(ix1==nlat) then
         ixp=ix
      end if
      if(obstime(i) > gridtime(1) .and. obstime(i) < gridtime(nflds))then
-        do j=1,nflds-ione
-           if(obstime(i) > gridtime(j) .and. obstime(i) <= gridtime(j+ione))then
+        do j=1,nflds-1
+           if(obstime(i) > gridtime(j) .and. obstime(i) <= gridtime(j+1))then
               itime=j
-              itimep=j+ione
-              delt=((gridtime(j+ione)-obstime(i))/(gridtime(j+ione)-gridtime(j)))
+              itimep=j+1
+              delt=((gridtime(j+1)-obstime(i))/(gridtime(j+1)-gridtime(j)))
            end if
         end do
      else if(obstime(i) <=gridtime(1))then
-        itime=ione
-        itimep=ione
+        itime=1
+        itimep=1
         delt=one
      else
         itime=nflds
@@ -99,7 +99,7 @@ subroutine tintrp2a(f,g,dx,dy,obstime,gridtime, &
      end if
      deltp=one-delt
      delxp=one-delx; delyp=one-dely
-     do k=ione,nlevs
+     do k=1,nlevs
         g(k,i)=(f(ix,iy,k,itime)*delxp*delyp+f(ixp,iy,k,itime)*delx*delyp &
               +  f(ix,iyp,k,itime)*delxp*dely+f(ixp,iyp,k,itime)*delx*dely)*delt &
               +(f(ix,iy,k,itimep)*delxp*delyp+f(ixp,iy,k,itimep)*delx*delyp &

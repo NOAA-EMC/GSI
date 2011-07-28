@@ -39,7 +39,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           icsubtype
   use jfunc, only: jiter,last,jiterstart,miter
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
-  use tcv_mod, only: tcp_innmax,tcp_oedelt
   implicit none
 
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
@@ -265,20 +264,11 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
      endif
 
-! Redefine observation error basied on residual
-! inflate the ob error linearly as residual increases (max of O-F of 'tcp_innmax' mb), 
-     error_orig = error
-     alpha = min((abs(r10*ddiff)/tcp_innmax),one)
-
-! Here is the error factor added, much like 'drdp'
-! It varies from 0 to tcp_oedelt (so ob error varies from tcp_oberr to 'tcp_oberr+tcp_oedelt' with this)
-     resfct = alpha*tcp_oedelt/r10
-
 ! observational error adjustment
      drdp = pges*(g_over_rd*abs(rdelz)*drbx/(tges**2))
 
 !  find adjustment to observational error (in terms of ratio)
-     ratio_errors=error/(error+drdp+resfct)
+     ratio_errors=error/(error+drdp)
      error=one/error
 
 !    Gross error checks
