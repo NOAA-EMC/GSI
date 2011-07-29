@@ -341,19 +341,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   loop_convinfo: do nx=1,ntread 
      use_all = .true.
      ithin=0
-     nc=ntx(nx)
-     ithin=ithin_conv(nc)
-     if (ithin > 0 ) then
-        rmesh=rmesh_conv(nc)
-        pmesh=pmesh_conv(nc)
-        use_all = .false.
-        if(pmesh > zero) then
-           pflag=1
-           nlevp=r1200/pmesh
-        else
-           pflag=0
-           nlevp=nsig
-        endif
+     if (nx>1) then
+        nc=ntx(nx)
+        ithin=ithin_conv(nc)
+        if (ithin > 0 ) then
+           rmesh=rmesh_conv(nc)
+           pmesh=pmesh_conv(nc)
+           use_all = .false.
+           if(pmesh > zero) then
+              pflag=1
+              nlevp=r1200/pmesh
+           else
+              pflag=0
+              nlevp=nsig
+           endif
            xmesh=rmesh
            call make3grids(xmesh,nlevp)
            if (.not.use_all) then
@@ -365,7 +366,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
            endif
            write(6,*)'READ_SATWND: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
-                 ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
+                ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
+        endif
      endif
      call closbf(lunin)
      open(lunin,file=infile,form='unformatted')
