@@ -74,6 +74,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
 !   2011-06-17 treadon  - remove call tell at end of routine
 !   2011-08-16 cucurull - fix bug in statistics qc
+!   2011-08-17 cucurull - add METOP-B GRAS
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -378,7 +379,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! UKMET-type processing
 
      if((data(isatid,i)==41).or.(data(isatid,i)==722).or.&
-      (data(isatid,i)==723).or.(data(isatid,i)==4).or.(data(isatid,i)==42)) then
+      (data(isatid,i)==723).or.(data(isatid,i)==4).or.(data(isatid,i)==42).or.&
+      (data(isatid,i)==3)) then
                     
         if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
            if(alt>r12) then
@@ -649,7 +651,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !          Remove data below
                  if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
                     if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
-                       (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786)) then
+                       (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786).or.&
+                       (rdiagbuf(1,i)==3)) then
                        if(r1em3*rdiagbuf(7,i)<= ten) then
                           qcfail(j) = .true.
                           qcfail_stats_2(j)=one
@@ -675,7 +678,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            ratio_errors(i) = zero
            muse(i) = .false.
            if ( (rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
-                (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786)) then
+                (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786).or.&
+                (rdiagbuf(1,i)==3)) then
               if(alt<=ten) then
                  toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
               endif
