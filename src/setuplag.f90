@@ -10,6 +10,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! program history log:
 !   2009-03-12  lmeunier
 !   2010-07-14  todling - use die to abort
+!   2011-08-01  lueken  - replaced F90 with f90 (no machine logic) and removed double &
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -29,8 +30,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: laghead,lagtail,i_lag_ob_type,obsdiags,&
-                    obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-                    time_offset
+      obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
+      time_offset
   use obsmod, only: lag_ob_type
   use obsmod, only: obs_diag
 
@@ -39,8 +40,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: nsig
   use qcmod, only: npres_print,ptop,pbot
   use constants, only: wgtlim,&
-       zero,two,one,deg2rad,r3600,&
-       tiny_r_kind,half,cg_term,huge_single,rearth,pi,rad2deg
+      zero,two,one,deg2rad,r3600,&
+      tiny_r_kind,half,cg_term,huge_single,rearth,pi,rad2deg
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype,icuse
@@ -102,8 +103,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   logical,dimension(nobs):: luse,muse
   logical:: in_curbin, in_anybin
-  integer,dimension(nobs_bins) :: n_alloc
-  integer,dimension(nobs_bins) :: m_alloc
+  integer(i_kind),dimension(nobs_bins) :: n_alloc
+  integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(lag_ob_type),pointer :: my_head
   type(obs_diag),pointer :: my_diag
 
@@ -171,7 +172,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         print '(A,I2.2,A,I4.4,A,I4.4,A)'  ,'mype ',mype,' data ',i,' on ',nobs,' read'
         print '(A,I2.2,A,I4.4,A,I4)'      ,'mype ',mype,' data ',i,' dnum ',dnum
         print '(A,I2.2,A,I4.4,A,F12.6,F12.6,F12.6)','mype ',mype,' data ',i,&
-          &' lon/lat/pres ',dlon,dlat,dpres
+           ' lon/lat/pres ',dlon,dlat,dpres
         print '(A,I2.2,A,I4.4,A,F12.6)'   ,'mype ',mype,' data ',i,' time ',dtime
         print '(A,I2.2,A,I4.4,A,I4,F12.6)','mype ',mype,' data ',i,' ikx,error ',ikx,error
         print '(A,I2.2,A,I4.4,A,I4)'      ,'mype ',mype,' data ',i,' obsbin ',ibin
@@ -279,8 +280,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      call lag_rk2iter_nl(lonfcst,latfcst,pfcst,&
-       &lag_u_full(:,:,fieldindex),lag_v_full(:,:,fieldindex),&
-       &hsteptime,tlspeci,tlspecr)
+        lag_u_full(:,:,fieldindex),lag_v_full(:,:,fieldindex),&
+        hsteptime,tlspeci,tlspecr)
 
 !    Calculate the residuals (distance between observation and guess)
      if (lonfcst==lag_trajfail .or. latfcst==lag_trajfail) then
@@ -331,12 +332,12 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ! Gross error checks
      obserror_lon=one/max(ratio_errors*error_lon,tiny_r_kind)
      obserrlm_lon=max(&
-       &cermin(ikx)*1e3_r_kind/(rearth*cos(dlat)),&
-       &min(cermax(ikx)*1e3_r_kind/(rearth*cos(dlat)),obserror_lon))
+        cermin(ikx)*1e3_r_kind/(rearth*cos(dlat)),&
+        min(cermax(ikx)*1e3_r_kind/(rearth*cos(dlat)),obserror_lon))
      obserror_lat=one/max(ratio_errors*error_lat,tiny_r_kind)
      obserrlm_lat=max(&
-       &cermin(ikx)*1e3_r_kind/rearth,&
-       &min(cermax(ikx)*1e3_r_kind/rearth,obserror_lat))
+        cermin(ikx)*1e3_r_kind/rearth,&
+        min(cermax(ikx)*1e3_r_kind/rearth,obserror_lat))
      ratio_lon=abs(reslon/obserrlm_lon)
      ratio_lat=abs(reslat/obserrlm_lat)
      if ((ratio_lon > cgross(ikx) .or. ratio_errors < tiny_r_kind) .or. &
@@ -431,9 +432,9 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
      if (iv_debug>=1) then
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' jo lon ',&
-          &reslon*reslon* (error_lon*ratio_errors)**2
+           reslon*reslon* (error_lon*ratio_errors)**2
         print '(A,I2.2,A,I4.4,A,F12.6)','mype ',mype,' data ',i,' jo lat ',&
-          &reslat*reslat* (error_lat*ratio_errors)**2
+           reslat*reslat* (error_lat*ratio_errors)**2
      end if
 
 !    If obs is "acceptable", load array with obs info for use
@@ -483,7 +484,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         my_diag => lagtail(ibin)%head%diag_lon
         if(my_head%idv /= my_diag%idv .or. &
            my_head%iob /= my_diag%iob .or. &
-                  1 /= my_diag%ich ) then
+                     1 /= my_diag%ich ) then
            call perr(myname,'mismatching %[head,diags]%(idv,iob,ich,ibin) =', &
                  (/is,i,1,ibin/))
            call perr(myname,'my_head%(idv,iob,ich) =',(/my_head%idv,my_head%iob,1/))

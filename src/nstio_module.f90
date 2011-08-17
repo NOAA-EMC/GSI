@@ -2,11 +2,11 @@
 module nstio_module
 !$$$  Module Documentation Block
 !
-! Module:    nstio_module    API for global spectral oceanic file I/O
+! Module:    nstio_module    API for global spectral nst file I/O
 !   Prgmmr: Xu Li (modified from sfcio_modul)         Org: w/nx23     date: 2007-10-26
 !
 ! Abstract: This module provides an Application Program Interface
-!   for performing I/O on the ocean restart file of the global oceanic diurnal warming and sub-layer cooling models.
+!   for performing I/O on the nst restart file of the global nst diurnal warming and sub-layer cooling models.
 !   Functions include opening, reading, writing, and closing as well as
 !   allocating and deallocating data buffers sed in the transfers.
 !   The I/O performed here is sequential.
@@ -26,7 +26,7 @@ module nstio_module
 !   nstio_dblefill    Real(nstio_dblekind) fill value (=-9999.)
 !
 ! Public Defined Types:
-!   nstio_head        Ocean file header information
+!   nstio_head        nst file header information
 !     clabnst           Character(nstio_lhead1) ON85 label
 !     fhour             Real(nstio_realkind) forecast hour
 !     idate             Integer(nstio_intkind)(4) initial date
@@ -40,7 +40,7 @@ module nstio_module
 !     lpl               Integer(nstio_intkind)(latb/2) lons per lat
 !     zsea              Real(nstio_realkind) sea depths (meter)
 !
-!   nstio_data        Ocean file data fields
+!   nstio_data        nst file data fields
 !     slmsk             Real(nstio_realkind)(:,:) pointer to lonb*latb
 !                       surface mask: 0 = water; 1 = land; 2 = ice
 !     xt                Real(nstio_realkind)(:,:) pointer to lonb*latb
@@ -80,20 +80,20 @@ module nstio_module
 !     Qrain             Real(nstio_realkind)(:,:) pointer to lonb*latb
 !                       sensible heat flux due to rainfall                     (W*M^-2)
 !                       
-!   nstio_dbta        Ocean file longreal data fields
+!   nstio_dbta        nst file longreal data fields
 !                       
 ! Public Subprograms:
-!   nstio_sropen      Open ocean file for sequential reading
+!   nstio_sropen      Open nst file for sequential reading
 !     lu                Integer(nstio_intkind) input logical unit
 !     cfname            Character(*) input filename
 !     iret              Integer(nstio_intkind) output return code
 !
-!   nstio_swopen      Open ocean file for sequential writing
+!   nstio_swopen      Open nst file for sequential writing
 !     lu                Integer(nstio_intkind) input logical unit
 !     cfname            Character(*) input filename
 !     iret              Integer(nstio_intkind) output return code
 !
-!   nstio_srclose     Close ocean file for sequential I/O
+!   nstio_srclose      Close nst file for sequential I/O
 !     lu                Integer(nstio_intkind) input logical unit
 !     iret              Integer(nstio_intkind) output return code
 !
@@ -170,7 +170,7 @@ module nstio_module
 !     iret              Integer(nstio_intkind) output return code
 !
 ! Remarks:
-!   (1) Here's the supported ocean file formats.
+!   (1) Here's the supported nst file formats.
 !       For ivo=200907 
 !         Label containing
 !           'GFS ','NST ',ivo,nhead,ndata,reserved(3) (8 4-byte words)
@@ -210,8 +210,8 @@ module nstio_module
 !         -5   Insufficient data dimensions allocated
 !
 ! Examples:
-!   (1) Read the entire ocean file 'nstf24' and
-!       print out the northernmost ocean temperature at greenwich.
+!   (1) Read the entire nst file 'nstf24' and
+!       print out the northernmost nst temperature at greenwich.
 !
 !     use nstio_module
 !     type(nstio_head):: head
@@ -224,14 +224,13 @@ module nstio_module
 !   Language: Fortran 90
 !
 !$$$
-! use resol_def, only: ngrids_nst
   implicit none
   private
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Public Variables
+  integer,parameter,public:: ngrids_nst=19
   integer,parameter,public:: nstio_lhead1=32
   integer,parameter,public:: nstio_intkind=4,nstio_realkind=4,nstio_dblekind=8
-  integer,parameter,public:: ngrids_nst = 19
   real(nstio_realkind),parameter,public:: nstio_realfill=-9999.
   real(nstio_dblekind),parameter,public:: nstio_dblefill=nstio_realfill
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -309,7 +308,7 @@ contains
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     open(lu,file=cfname,form='unformatted',&
          status='old',action='read',iostat=ios)
-!   write(*,*) ' successfully opened : ',cfname, ios
+    write(*,*) ' successfully opened : ',cfname, ios
     iret=ios
     if(iret.ne.0) iret=-1
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -353,19 +352,19 @@ contains
     iret=-2
     rewind lu
     read(lu,iostat=ios) head%clabnst(1:8)
-!   write(*,*) ' head%clabnst done, ios : ',head%clabnst(1:8), ios
+    write(*,*) ' head%clabnst done, ios : ',head%clabnst(1:8), ios
     if(ios.ne.0) return
-    if(head%clabnst(1:8).eq.'GFS NST ') then  ! modern ocean file
+    if(head%clabnst(1:8).eq.'GFS NST ') then  ! modern nst file
       rewind lu
       read(lu,iostat=ios) cgfs,cnst,head%ivo,nhead,nresv
-!     write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivo,nhead
+      write(*,*) ' cgfs,cnst done, ios : ',cgfs,cnst, ios,head%ivo,nhead
       if(ios.ne.0) return
       if(head%ivo.eq.200907) then
         read(lu,iostat=ios)
         if(ios.ne.0) return
         read(lu,iostat=ios) head%fhour,head%idate,head%lonb,head%latb,&
                             head%lsea,head%irealf
-!       write(*,*) ' head%fhour, ios : ',head%fhour, ios
+        write(*,*) ' head%fhour, ios : ',head%fhour, ios
         if(ios.ne.0) return
         call nstio_alhead(head,ios)
         if(ios.ne.0) return
@@ -452,6 +451,7 @@ contains
     dim1=head%lonb
     dim2=head%latb
     dim3=head%lsea
+    write(*,*) 'in nstio_aldata, dim1, dim2, dim3 : ', dim1, dim2, dim3
     allocate(&
       data%slmsk(dim1,dim2),&
       data%xt(dim1,dim2),&
@@ -1072,45 +1072,45 @@ contains
     dim2=head%latb
     dim3=head%lsea
     mdim1=min(&
-      size(data%slmsk,1),&
-      size(data%xt,1),&
-      size(data%xs,1),&
-      size(data%xu,1),&
-      size(data%xv,1),&
-      size(data%xz,1),&
-      size(data%zm,1),&
-      size(data%xtts,1),&
-      size(data%xzts,1),&
-      size(data%dt_cool,1),&
-      size(data%z_c,1),&
-      size(data%c_0,1),&
-      size(data%c_d,1),&
-      size(data%w_0,1),&
-      size(data%w_d,1),&
-      size(data%d_conv,1),&
-      size(data%ifd,1),&
-      size(data%tref,1),&
-      size(data%Qrain,1))
+      size(dbta%slmsk,1),&
+      size(dbta%xt,1),&
+      size(dbta%xs,1),&
+      size(dbta%xu,1),&
+      size(dbta%xv,1),&
+      size(dbta%xz,1),&
+      size(dbta%zm,1),&
+      size(dbta%xtts,1),&
+      size(dbta%xzts,1),&
+      size(dbta%dt_cool,1),&
+      size(dbta%z_c,1),&
+      size(dbta%c_0,1),&
+      size(dbta%c_d,1),&
+      size(dbta%w_0,1),&
+      size(dbta%w_d,1),&
+      size(dbta%d_conv,1),&
+      size(dbta%ifd,1),&
+      size(dbta%tref,1),&
+      size(dbta%Qrain,1))
     mdim2=min(&
-      size(data%slmsk,2),&
-      size(data%xt,2),&
-      size(data%xs,2),&
-      size(data%xu,2),&
-      size(data%xv,2),&
-      size(data%xz,2),&
-      size(data%zm,2),&
-      size(data%xtts,2),&
-      size(data%xzts,2),&
-      size(data%dt_cool,2),&
-      size(data%z_c,2),&
-      size(data%c_0,2),&
-      size(data%c_d,2),&
-      size(data%w_0,2),&
-      size(data%w_d,2),&
-      size(data%d_conv,2),&
-      size(data%ifd,2),&
-      size(data%tref,2),&
-      size(data%Qrain,2))
+      size(dbta%slmsk,2),&
+      size(dbta%xt,2),&
+      size(dbta%xs,2),&
+      size(dbta%xu,2),&
+      size(dbta%xv,2),&
+      size(dbta%xz,2),&
+      size(dbta%zm,2),&
+      size(dbta%xtts,2),&
+      size(dbta%xzts,2),&
+      size(dbta%dt_cool,2),&
+      size(dbta%z_c,2),&
+      size(dbta%c_0,2),&
+      size(dbta%c_d,2),&
+      size(dbta%w_0,2),&
+      size(dbta%w_d,2),&
+      size(dbta%d_conv,2),&
+      size(dbta%ifd,2),&
+      size(dbta%tref,2),&
+      size(dbta%Qrain,2))
     mdim3=0
     iret=-5
     if(mdim1.lt.dim1.or.&

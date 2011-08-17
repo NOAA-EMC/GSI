@@ -74,7 +74,7 @@ ifeq ("$(MAPL_MOD)", "")
    INC_ESMF   =
    INC_GEOS   =
    GSIGC_SRCS =
-   SRCSX      = crtm_cloud.F90 stub_set_crtm_cloud.F90
+   SRCSX      = crtm_cloud.f90 stub_set_crtm_cloud.f90
    BIN       += #gsi.x
    LIB_GMAO   =
 else
@@ -221,7 +221,7 @@ SRCS_UTIL =	$(wildcard \
 	grid2sub.f90 \
 	gridmod.F90 \
 	gscond_ad.f90 \
-        gsi_4dcouplermod.F90 \
+        gsi_4dcouplermod.f90 \
 	gsi_io.f90 \
 	gsi_nemsio_mod.f90 \
 	half_nmm_grid2.f90 \
@@ -233,8 +233,8 @@ SRCS_UTIL =	$(wildcard \
 	kinds.f90 \
         looplimits.f90 \
 	m_dgeevx.F90 \
-	m_rerank.F90 \
-	m_stats.F90 \
+	m_rerank.f90 \
+	m_stats.f90 \
 	m_tick.F90 \
 	mpeu_mpif.F90 \
 	mpeu_util.F90 \
@@ -272,12 +272,12 @@ SRCS_UTIL =	$(wildcard \
 	smoothwwrf.f90 \
 	state_vectors.f90 \
         stop1.f90 \
-        stub_set_crtm_aerosol.F90 \
+        stub_set_crtm_aerosol.f90 \
         stub_pertmod.F90 \
-        stub_timermod.F90 \
+        stub_timermod.f90 \
 	sub2grid.f90 \
 	tendsmod.f90 \
-	timermod.F90 \
+	timermod.f90 \
 	tintrp2a.f90 \
 	tintrp3.f90 \
 	turbl.f90 \
@@ -338,18 +338,18 @@ SRCS_SOLVER =	$(wildcard \
 	cvsection.f90 \
 	dtast.f90 \
 	deter_nst.f90 \
-        enorm_state.F90 \
+        enorm_state.f90 \
         evaljgrad.f90 \
-        evaljcdfi.F90 \
+        evaljcdfi.f90 \
         evaljo.f90 \
         evalqlim.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
-	gesinfo.F90 \
+	gesinfo.f90 \
 	getprs.f90 \
         getsiga.f90 \
 	getvvel.f90 \
-	glbsoi.F90 \
+	glbsoi.f90 \
 	grtest.f90 \
         gsd_terrain_match_surfTobs.f90 \
         gsdcloudanalysis.F90 \
@@ -358,7 +358,7 @@ SRCS_SOLVER =	$(wildcard \
 	gsisub.F90 \
 	guess_grids.F90 \
 	inc2guess.f90 \
-	init_jcdfi.F90 \
+	init_jcdfi.f90 \
 	int3dvar.f90 \
 	intall.f90 \
 	intco.f90 \
@@ -366,7 +366,7 @@ SRCS_SOLVER =	$(wildcard \
 	intgps.f90 \
 	intjcpdry.f90 \
 	intjo.f90 \
-	intlag.F90 \
+	intlag.f90 \
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
@@ -388,13 +388,13 @@ SRCS_SOLVER =	$(wildcard \
 	jfunc.f90 \
         jgrad.f90 \
 	lag_fields.f90 \
-	lag_interp.F90 \
-	lag_traj.F90 \
+	lag_interp.f90 \
+	lag_traj.f90 \
 	lagmod.f90 \
         lanczos.F90 \
-	m_berror_stats.F90 \
+	m_berror_stats.f90 \
         m_berror_stats_reg.f90 \
-	m_gsiBiases.F90 \
+	m_gsiBiases.f90 \
 	m_dtime.F90 \
 	m_gpsrhs.F90 \
 	m_obdiag.F90 \
@@ -427,14 +427,14 @@ SRCS_SOLVER =	$(wildcard \
 	qnewton.f90 \
 	qnewton3.f90 \
 	radinfo.f90 \
-        read_aerosol.F90 \
+        read_aerosol.f90 \
 	read_airs.f90 \
 	read_amsre.f90 \
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
-	read_co.F90 \
+	read_co.f90 \
 	read_diag.f90 \
 	read_files.f90 \
         read_gfs_ozone_for_regional.f90 \
@@ -445,14 +445,14 @@ SRCS_SOLVER =	$(wildcard \
 	read_iasi.f90 \
         read_cris.f90 \
 	read_l2bufr_mod.f90 \
-	read_lag.F90 \
+	read_lag.f90 \
 	read_lidar.f90 \
         read_Lightning.f90 \
 	read_modsbufr.f90 \
         read_NASA_LaRC.f90 \
 	read_obs.F90 \
 	read_obsdiags.F90 \
-	read_ozone.F90 \
+	read_ozone.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
@@ -472,7 +472,7 @@ SRCS_SOLVER =	$(wildcard \
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
-	setuplag.F90 \
+	setuplag.f90 \
 	setupoz.f90 \
 	setuppcp.f90 \
         setuppm2_5.f90 \
@@ -539,7 +539,7 @@ SRCS_SOLVER =	$(wildcard \
 	update_guess.f90 \
 	update_geswtend.f90 \
 	wrf_binary_interface.F90 \
-	wrf_mass_guess_mod.F90 \
+	wrf_mass_guess_mod.f90 \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
 	write_bkgvars_grid.f90 \
@@ -551,7 +551,7 @@ SRCS_SOLVER =	$(wildcard \
 
 
 SRCS = $(SRCS_UTIL) $(SRCS_SOLVER) $(GSIGC_SRCS)
-ALLSRCS = $(SRCS) gsimain.F90 prepbykx.f
+ALLSRCS = $(SRCS) gsimain.f90 prepbykx.f
 
 OBJS_UTIL   := $(addsuffix .o, $(basename $(SRCS_UTIL)))
 OBJS_SOLVER := $(addsuffix .o, $(basename $(SRCS_SOLVER)))

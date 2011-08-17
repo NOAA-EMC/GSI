@@ -14,6 +14,7 @@ module m_stats
 !   2008-12-12  todling - remove dependence on mpeu
 !   2008-04-02  todling - mpi_allreduce cannot alias buffer
 !   2010-03-24  j guo   - updated this document block
+!   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -39,11 +40,11 @@ public :: stats_sum
 public :: stats_allreduce
 
 interface stats_sum
-  module procedure sum_
+   module procedure sum_
 end interface
 
 interface stats_allreduce
-  module procedure allreduce_
+   module procedure allreduce_
 end interface
 
 character(len=*),parameter :: myname="m_stats"

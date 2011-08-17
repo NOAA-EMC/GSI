@@ -124,6 +124,7 @@
 !   2011-03-14  guo     - Moved gsi_4dcoupler calls into here, to split
 !			  gsi_4dcoupler_init_traj() from gsimain_initialize(),
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
+!   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !
 ! usage:
 !   input files:
@@ -603,16 +604,16 @@
 
 ! Initialize atmospheric AD and TL model trajectory
 !  if(l4dvar) then
-!    call gsi_4dcoupler_init_traj(idmodel,rc=ier)
-!    	if(ier/=0) call die(myname,'gsi_4dcoupler_init_traj(), rc =',ier)
+!     call gsi_4dcoupler_init_traj(idmodel,rc=ier)
+!     if(ier/=0) call die(myname,'gsi_4dcoupler_init_traj(), rc =',ier)
 !  endif
 
    call gsimain_run(init_pass=.true.,last_pass=.true.)
 
 ! Finalize atmospheric AD and TL model trajectory
    if(l4dvar) then
-     call gsi_4dcoupler_final_traj(rc=ier)
-     	if(ier/=0) call die(myname,'gsi_4dcoupler_final_traj(), rc =',ier)
+      call gsi_4dcoupler_final_traj(rc=ier)
+      if(ier/=0) call die(myname,'gsi_4dcoupler_final_traj(), rc =',ier)
    endif
 
    call gsimain_finalize

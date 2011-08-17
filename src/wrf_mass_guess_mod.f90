@@ -1,6 +1,27 @@
+!-------------------------------------------------------------------------
+!    NOAA/GSD, GSI                                                       !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !MODULE: wrf_mass_guess_mod
+!
+! !INTERFACE:
+
 module wrf_mass_guess_mod
+!
+! !DESCRIPTION: allocate/deallocate guess grids for clouds
+!
+! !USES:
+
 use kinds, only: i_kind,r_kind
 implicit none
+
+! !REVISION HISTORY:
+!    2011-04-29  Todling
+!    2011-08-01  Lueken  - add module protext, replace F90 with f90 (no machine logic)
+
+!EOP
+
 private
 
 public :: ges_xlon,ges_xlat,soil_temp_cld,isli_cld,ges_tten
@@ -51,12 +72,12 @@ CONTAINS
 
 !   Allocate and zero guess grids
     allocate (&
-         ges_xlon(lat2,lon2,nfldsig),ges_xlat(lat2,lon2,nfldsig),&
-         soil_temp_cld(lat2,lon2,nfldsig),isli_cld(lat2,lon2,nfldsig),&
-         ges_tten(lat2,lon2,nsig,nfldsig), &
-         stat=istatus)
+       ges_xlon(lat2,lon2,nfldsig),ges_xlat(lat2,lon2,nfldsig),&
+       soil_temp_cld(lat2,lon2,nfldsig),isli_cld(lat2,lon2,nfldsig),&
+       ges_tten(lat2,lon2,nsig,nfldsig), &
+       stat=istatus)
     if (istatus/=0) write(6,*)'CREATE_CLD_GRIDS:  allocate error1, istatus=',&
-         istatus,lat2,lon2,nsig,nfldsig
+       istatus,lat2,lon2,nsig,nfldsig
 
 !  Default for cloud 
     do n=1,nfldsig
@@ -119,8 +140,8 @@ CONTAINS
     deallocate (ges_xlon,ges_xlat,&
                 soil_temp_cld,isli_cld,ges_tten,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_CLD_GRIDS:  deallocate error1, istatus=',&
-         istatus
+       write(6,*)'DESTROY_CLD_GRIDS:  deallocate error1, istatus=',&
+       istatus
 
     return
   end subroutine destroy_cld_grids

@@ -30,6 +30,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !                           rotation angles for a small number of winds whose rotation angle was interpolated
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
+!   2011-08-01  lueken  - add module use deter_sfc_mod, remove _i_kind, replace izero/ione with 0/1
 !
 !   input argument list:
 !     nread    - counter for all data on this pe
@@ -80,12 +81,13 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: deg2rad,rad2deg,izero,ione,zero,one,r60inv
+  use constants, only: deg2rad,rad2deg,zero,one,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ioctype
+      ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,winlen,time_4dvar
+  use deter_sfc_mod, only: deter_sfc2
   implicit none
 
 ! Declare passed variables
@@ -121,18 +123,18 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr=10_i_kind
-  maxobs=2e6_i_kind
-  nreal=21_i_kind
-  nchanl=izero
-  ilon=ione
-  ilat=2_i_kind
+  lnbufr=10
+  maxobs=2e6
+  nreal=21
+  nchanl=0
+  ilon=1
+  ilat=2
 
-  ikx = izero
+  ikx = 0
   do i=1,nconvtype
      if(trim(obstype) == trim(ioctype(i)))ikx=i
   end do
-  if(ikx == izero)then
+  if(ikx == 0)then
      write(6,*) ' READSUPERWIND: NO DATA REQUESTED'
      return
   end if
@@ -152,7 +154,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      idate5(2)=imref
      idate5(3)=idref
      idate5(4)=ihref
-     idate5(5)=izero
+     idate5(5)=0
      call w3fs21(idate5,minobs)          !  obs ref time in minutes relative to historic date
      call w3fs21(iadate,minan)           !  analysis ref time in minutes relative to historic date
 
@@ -168,7 +170,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   rstation_id=999._r_kind
   write(6,*)'READ_SUPERWINDS:  ndata_in,iord_in,iuvw_in,nbar_in =', &
        ndata_in,iord_in,iuvw_in,nbar_in
-  if(iord_in/=izero.or.iuvw_in/=2_i_kind.or.nbar_in/=2_i_kind) then
+  if(iord_in/=0.or.iuvw_in/=2.or.nbar_in/=2) then
      write(6,*)'READ_SUPERWINDS:  ***ERROR*** iord =',iord_in,' iuvw=',iuvw_in,' nbar=',nbar_in
      write(6,*)'  currently only able to do iord=0 (traditional superob), iuvw=2 (u,v only), and nbar=2'
      call stop2(97)
@@ -177,7 +179,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   
 ! Loop to read in data
   do icount=1,ndata_in
-     nread=nread+2_i_kind
+     nread=nread+2
      read(lnbufr)suplon0,suplat0,suphgt,suptime0,supyhat,suprhat,supbigu,supid
 
      t4dv = toff + suptime0
@@ -199,12 +201,12 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,ione,rlats,nlat,ione)
-        call grdcrd(dlon,ione,rlons,nlon,ione)
+        call grdcrd(dlat,1,rlats,nlat,1)
+        call grdcrd(dlon,1,rlons,nlon,1)
      endif
 
-     ndata=min(ndata+ione,maxobs)
-     nodata=min(nodata+ione,maxobs)
+     ndata=min(ndata+1,maxobs)
+     nodata=min(nodata+1,maxobs)
 
 !  rotate forward matrix to account for input u,v being in regional coordinate
 !
@@ -243,9 +245,9 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      if(suprhat(2)<1.e-20_r_single)superrinv(2)=zero
      superrinv(1)=one
      usage = zero
-     if(icuse(ikx) < izero)usage=100._r_kind
-     if(ncnumgrp(ikx) > izero )then                     ! cross validation on
-        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-ione)usage=ncmiter(ikx)
+     if(icuse(ikx) < 0)usage=100._r_kind
+     if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
+        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
      end if
 
      call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)

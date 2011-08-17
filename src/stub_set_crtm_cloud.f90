@@ -13,7 +13,7 @@ subroutine Set_CRTM_Cloud ( km, nac, cloud_name, icmask, nc, cloud_cont, dp, tp,
   use CRTM_Cloud_Define, only: CRTM_Cloud_type
   use crtm_cloud, only: SetCloud
 
-implicit none
+  implicit none
 
 ! !ARGUMENTS:
 
@@ -35,6 +35,7 @@ implicit none
 ! !REVISION HISTORY:
 !
 ! 14May2011  Todling  Initial version, FORTRAN-77 interface for GSI.
+! 01Aug2011  Lueken   Replaced F90 with f90 (no machine logic)
 !
 !EOP
 !-----------------------------------------------------------------------------

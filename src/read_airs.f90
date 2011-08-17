@@ -62,6 +62,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -96,15 +97,16 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Use modules
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-               finalcheck,checkob,score_crit
+      finalcheck,checkob,score_crit
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
-               air_rad,predx,adp_anglebc,use_edges,find_edges, &
-               radstep,radstart,newpc4pred
+      air_rad,predx,adp_anglebc,use_edges,find_edges, &
+      radstep,radstart,newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
-       tll2xy,txy2ll,rlats,rlons
+      tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,one,three,five,rad2deg,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
+  use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
 
   implicit none
 
@@ -190,7 +192,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: i, l, ll, iskip
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
-  integer(i_kind):: idomsfc
+  integer(i_kind):: idomsfc(1)
 
 
 
@@ -225,7 +227,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+     call skindepth(obstype,zob)
   endif
 
   do i=1,jpch_rad
@@ -260,7 +262,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         expansion=one ! use one for ir sensors
      endif
      if (mype_sub==mype_root) &
-          write(6,*)'READ_AIRS:  airs offset ',ioff,ichansst,ichsst
+        write(6,*)'READ_AIRS:  airs offset ',ioff,ichansst,ichsst
   else if(amsua)then
      ix=2
      senname = 'AMSU'
@@ -342,7 +344,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   inquire(file=table_file,exist=airstab)
   if (airstab) then
      if (mype_sub==mype_root) &
-          write(6,*)'READ_AIRS:  Reading BUFR Table A file: ',trim(table_file)
+        write(6,*)'READ_AIRS:  Reading BUFR Table A file: ',trim(table_file)
      open(lnbufrtab,file=trim(table_file))
      call openbf(lnbufr,'IN',lnbufrtab)
   else
@@ -374,7 +376,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         if( abs(dlat_earth) > R90  .or. abs(dlon_earth) > R360 .or. &
            (abs(dlat_earth) == R90 .and. dlon_earth /= ZERO) )then
 !          write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-!               ' STRANGE OBS POINT (LAT,LON):', dlat_earth, dlon_earth
+!             ' STRANGE OBS POINT (LAT,LON):', dlat_earth, dlon_earth
            cycle read_loop
         endif
 
@@ -437,7 +439,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
             idate5(5) <0     .or. idate5(5) >   60 )then
 
             write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
+               ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
             cycle read_loop
 
         endif
@@ -470,7 +472,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         if( ifov < 0 .or. ifov > 100 .or. abs(sat_zenang) > 360._r_kind ) then
 
            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                ' STRANGE OBS INFO(FOV,SAZA):', allspot(12,ix), allspot(10,ix)
+              ' STRANGE OBS INFO(FOV,SAZA):', allspot(12,ix), allspot(10,ix)
            cycle read_loop
 
         endif
@@ -504,11 +506,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg, &
-                             dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                             sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
+              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else
            call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
-                 idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+              idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
         endif
 
         crit1=crit1 + rlndsea(isflg)
@@ -518,121 +520,121 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Check that number of airs channel equals n_airschan
 !       only done until they match for one record and ndata is updated
 
-!        Read AIRSCHAN or AMSUCHAN or HSBCHAN
+!       Read AIRSCHAN or AMSUCHAN or HSBCHAN
 
-         call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
+        call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
 
-         if( iret /= n_totchan)then
-            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                 iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
-            cycle read_loop
-         endif
-
-
-!        check for missing channels (if key channel reject)
-         iskip = 0
-         do l=1+ioffset,nchanl+ioffset
-            ll=(l-ioffset)+ioff
-            lluse = iuse_rad(ll) >= 0
-            if( lluse .and. (allchan(l)<tbmin .or. allchan(l)>tbmax) ) then
-               iskip = iskip + 1
-               if(airs) then
-                  if(l == ichsst) cycle read_loop
-               else if(amsua)then
-                  ll=l-ioffset
-                  if (ll == 1 .or. ll == 2 .or. ll == 3 .or. ll == 4 .or. &
-                      ll == 6 .or. ll == 15)cycle read_loop
-               else
-                  ll=l-ioffset
-                  if(ll == 1 .or. ll == 2)cycle read_loop
-               end if
-            endif
-         end do
-
-         if( iskip >= nchanl )cycle read_loop
+        if( iret /= n_totchan)then
+           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+              iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
+           cycle read_loop
+        endif
 
 
-!        Set common predictor parameters
+!       check for missing channels (if key channel reject)
+        iskip = 0
+        do l=1+ioffset,nchanl+ioffset
+           ll=(l-ioffset)+ioff
+           lluse = iuse_rad(ll) >= 0
+           if( lluse .and. (allchan(l)<tbmin .or. allchan(l)>tbmax) ) then
+              iskip = iskip + 1
+              if(airs) then
+                 if(l == ichsst) cycle read_loop
+              else if(amsua)then
+                 ll=l-ioffset
+                 if (ll == 1 .or. ll == 2 .or. ll == 3 .or. ll == 4 .or. &
+                     ll == 6 .or. ll == 15)cycle read_loop
+              else
+                 ll=l-ioffset
+                 if(ll == 1 .or. ll == 2)cycle read_loop
+              end if
+           endif
+        end do
 
-         sat_zenang  = sat_zenang  * deg2rad
-         sat_aziang  = allspot(11,ix)  
-
-!        Read AQUASPOT
-         call ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
-         sol_zenang = aquaspot(1)
+        if( iskip >= nchanl )cycle read_loop
 
 
-         if(amsua)then
+!       Set common predictor parameters
 
-             if(ifov <= 15)sat_zenang = -sat_zenang
-             if (adp_anglebc .and. newpc4pred) then
-                ch1 = allchan(ichsst)-ang_rad(ichansst)*cbias(ifov,ichansst) 
-                ch2 = allchan(ichsst+1)-ang_rad(ichansst+1)*cbias(ifov,ichansst+1) 
-                ch3 = allchan(ichsst+2)-ang_rad(ichansst+2)*cbias(ifov,ichansst+2) 
-                ch15= allchan(ichsst+14)-ang_rad(ichansst+14)*cbias(ifov,ichansst+14) 
-             else
-                ch1    = allchan(ichsst  )-ang_rad(ichansst    )* &
-                                      (cbias(ifov,ichansst   )-cbias(15,ichansst   ))
-                ch2    = allchan(ichsst+1)-ang_rad(ichansst+1  )* &
-                                      (cbias(ifov,ichansst+1 )-cbias(15,ichansst+1 ))
-                ch3    = allchan(ichsst+2)-ang_rad(ichansst+2  )* &
-                                      (cbias(ifov,ichansst+2 )-cbias(15,ichansst+2 ))
-                ch15   = allchan(ichsst+14)-ang_rad(ichansst+14)* &
-                                      (cbias(ifov,ichansst+14)-cbias(15,ichansst+14))
-             end if
-             if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
-                cosza = cos(sat_zenang)
-                d0  =8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                pred=max(zero,qval)*100.0_r_kind
-             else
-                tt=168._r_kind-0.49_r_kind*ch15
-                df2 = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
-                pred=zero
-                if(ch1-ch15 >= three)then
-                   if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
-                      (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
-                      pred=100._r_kind
-                   end if
-                end if
-             endif
+        sat_zenang  = sat_zenang  * deg2rad
+        sat_aziang  = allspot(11,ix)  
 
-         else
+!       Read AQUASPOT
+        call ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
+        sol_zenang = aquaspot(1)
 
-             chsst_all=zero  ! value weighted according to surface type
-             if ( sfcpct(0) > zero ) then
+
+        if(amsua)then
+
+           if(ifov <= 15)sat_zenang = -sat_zenang
+           if (adp_anglebc .and. newpc4pred) then
+              ch1 = allchan(ichsst)-ang_rad(ichansst)*cbias(ifov,ichansst) 
+              ch2 = allchan(ichsst+1)-ang_rad(ichansst+1)*cbias(ifov,ichansst+1) 
+              ch3 = allchan(ichsst+2)-ang_rad(ichansst+2)*cbias(ifov,ichansst+2) 
+              ch15= allchan(ichsst+14)-ang_rad(ichansst+14)*cbias(ifov,ichansst+14) 
+           else
+              ch1    = allchan(ichsst  )-ang_rad(ichansst    )* &
+                 (cbias(ifov,ichansst   )-cbias(15,ichansst   ))
+              ch2    = allchan(ichsst+1)-ang_rad(ichansst+1  )* &
+                 (cbias(ifov,ichansst+1 )-cbias(15,ichansst+1 ))
+              ch3    = allchan(ichsst+2)-ang_rad(ichansst+2  )* &
+                 (cbias(ifov,ichansst+2 )-cbias(15,ichansst+2 ))
+              ch15   = allchan(ichsst+14)-ang_rad(ichansst+14)* &
+                 (cbias(ifov,ichansst+14)-cbias(15,ichansst+14))
+           end if
+           if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+              cosza = cos(sat_zenang)
+              d0  =8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+              qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+              pred=max(zero,qval)*100.0_r_kind
+           else
+              tt=168._r_kind-0.49_r_kind*ch15
+              df2 = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
+              pred=zero
+              if(ch1-ch15 >= three)then
+                 if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
+                   (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
+                    pred=100._r_kind
+                 end if
+              end if
+           endif
+
+        else
+
+           chsst_all=zero  ! value weighted according to surface type
+           if ( sfcpct(0) > zero ) then
 ! cloud checks over ocean
-                chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126+ioffset) + 0.60529_r_kind * &  ! AIRS science team
-                   allchan(129+ioffset) + 1.74444_r_kind * allchan(165+ioffset) &                    ! SST calculation for
-                   - .40379_r_kind * allchan(166+ioffset)                                            ! AIRS data
+              chsst = 8.28206_r_kind - 0.97957_r_kind * allchan(126+ioffset) + 0.60529_r_kind * &  ! AIRS science team
+                 allchan(129+ioffset) + 1.74444_r_kind * allchan(165+ioffset) &                    ! SST calculation for
+                 - .40379_r_kind * allchan(166+ioffset)                                            ! AIRS data
 ! 917 cm-1 minus 2500 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus (ice), positive >> stratus (water)
 ! 917 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! beyond threshold, negative >> cirrus ( ice), positive >> stratus (water)
 ! 2500 cm-1 minus 2664 cm-1 cloud test valid at night for land/ocean:
 ! sensitivity test li, Jun et al. (2000) JAM
-                ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .10_r_kind)
-                ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .39_r_kind)
-                ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .49_r_kind)
-                if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .55_r_kind .and. &
-                    ch18ch19 < .50_r_kind .and. (chsst-tsavg) > -6.0_r_kind) then
-                    chsst = tsavg
-                endif
-                chsst_all=chsst_all + chsst*sfcpct(0)
-             endif ! water
-             if ( sfcpct(1) > zero ) then
+              ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .10_r_kind)
+              ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .39_r_kind)
+              ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .49_r_kind)
+              if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .55_r_kind .and. &
+                 ch18ch19 < .50_r_kind .and. (chsst-tsavg) > -6.0_r_kind) then
+                 chsst = tsavg
+              endif
+              chsst_all=chsst_all + chsst*sfcpct(0)
+           endif ! water
+           if ( sfcpct(1) > zero ) then
 ! cloud checks over land
-                chsst = allchan(123+ioffset)
-                ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .39_r_kind)
-                ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .13_r_kind)
-                ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .52_r_kind)
-                if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .70_r_kind .and. &
-                    ch18ch19 < .55_r_kind .and. (chsst-tsavg) > -10.0_r_kind) then
-                    chsst = tsavg
-                endif
-                chsst_all=chsst_all+ sfcpct(1)*chsst
-             endif  ! bare land
-             if ( sfcpct(2) > zero .or. sfcpct(3) > zero ) then
+              chsst = allchan(123+ioffset)
+              ch8ch18 = abs(allchan(125+ioffset) - allchan(263+ioffset) - .39_r_kind)
+              ch8ch19 = abs(allchan(125+ioffset) - allchan(281+ioffset) + .13_r_kind)
+              ch18ch19 = abs(allchan(263+ioffset) - allchan(281+ioffset) + .52_r_kind)
+              if (sol_zenang > 89.0_r_kind .and. ch8ch18 < .75_r_kind .and. ch8ch19 < .70_r_kind .and. &
+                 ch18ch19 < .55_r_kind .and. (chsst-tsavg) > -10.0_r_kind) then
+                 chsst = tsavg
+              endif
+              chsst_all=chsst_all+ sfcpct(1)*chsst
+           endif  ! bare land
+           if ( sfcpct(2) > zero .or. sfcpct(3) > zero ) then
 
 ! cloud checks over snow and ice
 ! 801 cm-1 minus 1103 cm-1 test:
@@ -642,109 +644,109 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! these tests should not be solar zenigh angle dependent.
 ! Holz and Ackerman 2006 AMS Sat Conf.
 
-                chsst = allchan(128+ioffset)
-                ch8ch18 = allchan(119+ioffset) - allchan(157+ioffset)
-                ch8ch19 = allchan(129+ioffset) - allchan(157+ioffset)
-                if (ch8ch18 > -.05_r_kind .and. ch8ch18 < one .and. &
-                    ch8ch19 > -.05_r_kind .and. ch8ch19 < one .and. &
-                    chsst < 263.0_r_kind) then
+              chsst = allchan(128+ioffset)
+              ch8ch18 = allchan(119+ioffset) - allchan(157+ioffset)
+              ch8ch19 = allchan(129+ioffset) - allchan(157+ioffset)
+              if (ch8ch18 > -.05_r_kind .and. ch8ch18 < one .and. &
+                  ch8ch19 > -.05_r_kind .and. ch8ch19 < one .and. &
+                 chsst < 263.0_r_kind) then
+                 chsst = tsavg
+              endif
+              if ( allchan(108+ioffset) > allchan(107+ioffset) .and. &
+                   allchan(115+ioffset) > allchan(114+ioffset) .and. &
+                   allchan(181+ioffset) > allchan(180+ioffset) .and. &
+                   allchan(194+ioffset) > allchan(195+ioffset)) then
+                 tmpinv = allchan(87+ioffset)
+                 l = 88+ioffset
+                 do k = 88+ioffset,125+ioffset
+                    if ( allchan(k) > tmpinv ) then
+                       tmpinv = allchan(k)
+                       l = k
+                    endif
+                 end do
+                 if ( tmpinv > allchan(125+ioffset) + five) then
                     chsst = tsavg
-                endif
-                if ( allchan(108+ioffset) > allchan(107+ioffset) .and. &
-                     allchan(115+ioffset) > allchan(114+ioffset) .and. &
-                     allchan(181+ioffset) > allchan(180+ioffset) .and. &
-                     allchan(194+ioffset) > allchan(195+ioffset)) then
-                   tmpinv = allchan(87+ioffset)
-                   l = 88+ioffset
-                   do k = 88+ioffset,125+ioffset
-                      if ( allchan(k) > tmpinv ) then
-                           tmpinv = allchan(k)
-                           l = k
-                      endif
-                   end do
-                   if ( tmpinv > allchan(125+ioffset) + five) then
-                      chsst = tsavg
-                   endif
-                endif
-                chsst_all = chsst_all + (sfcpct(2)+sfcpct(3))*chsst
-             endif  ! snow or sea ice
-             chsstf = tsavg-chsst_all
-             chsstf = max(zero,chsstf)
-             pred = 15._r_kind*chsstf
+                 endif
+              endif
+              chsst_all = chsst_all + (sfcpct(2)+sfcpct(3))*chsst
+           endif  ! snow or sea ice
+           chsstf = tsavg-chsst_all
+           chsstf = max(zero,chsstf)
+           pred = 15._r_kind*chsstf
 
-             if(ifov <= 45)sat_zenang = -sat_zenang
+           if(ifov <= 45)sat_zenang = -sat_zenang
 
-         end if
+        end if
 
      
-!        Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-         crit1 = crit1+pred 
+!       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+        crit1 = crit1+pred 
 
-!        Map obs to grids
-         call finalcheck(dist1,crit1,itx,iuse)
+!       Map obs to grids
+        call finalcheck(dist1,crit1,itx,iuse)
 
-         if(.not. iuse)cycle read_loop
+        if(.not. iuse)cycle read_loop
 
-         sol_aziang = aquaspot(2)
-         lza = (start + float(ifov-1)*step)*deg2rad
+        sol_aziang = aquaspot(2)
+        lza = (start + float(ifov-1)*step)*deg2rad
 !
-!        interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
-         if ( nst_gsi > 0 ) then
+        if ( nst_gsi > 0 ) then
            tref  = ts(0)
            dtw   = zero
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-             call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
-         endif
+        endif
 
-         data_all(1,itx) = 49                     ! satellite ID (temp. 49)
-         data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
-         data_all(3,itx) = dlon                   ! grid relative longitude
-         data_all(4,itx) = dlat                   ! grid relative latitude
-         data_all(5,itx) = sat_zenang             ! satellite zenith angle (rad)
-         data_all(6,itx) = sat_aziang             ! satellite azimuth angle (deg)
-         data_all(7,itx) = lza                    ! look angle (rad)
-         data_all(8,itx) = ifov                   ! fov number
-         data_all(9,itx) = sol_zenang             ! solar zenith angle (deg)
-         data_all(10,itx)= sol_aziang             ! solar azimuth angle (deg)
-         data_all(11,itx) = sfcpct(0)             ! sea percentage of
-         data_all(12,itx) = sfcpct(1)             ! land percentage
-         data_all(13,itx) = sfcpct(2)             ! sea ice percentage
-         data_all(14,itx) = sfcpct(3)             ! snow percentage
-         data_all(15,itx)= ts(0)                  ! ocean temperature at zob
-         data_all(16,itx)= ts(1)                  ! land skin temperature
-         data_all(17,itx)= ts(2)                  ! ice skin temperature
-         data_all(18,itx)= ts(3)                  ! snow skin temperature
-         data_all(19,itx)= tsavg                  ! average skin temperature
-         data_all(20,itx)= vty                    ! vegetation type
-         data_all(21,itx)= vfr                    ! vegetation fraction
-         data_all(22,itx)= sty                    ! soil type
-         data_all(23,itx)= stp                    ! soil temperature
-         data_all(24,itx)= sm                     ! soil moisture
-         data_all(25,itx)= sn                     ! snow depth
-         data_all(26,itx)= zz                     ! surface height
-         data_all(27,itx)= idomsfc + 0.001_r_kind ! dominate surface type
-         data_all(28,itx)= sfcr                   ! surface roughness
-         data_all(29,itx)= ff10                   ! ten meter wind factor
-         data_all(30,itx)= dlon_earth_deg         ! earth relative longitude (degrees)
-         data_all(31,itx)= dlat_earth_deg         ! earth relative latitude (degrees)
+        data_all(1,itx) = 49                        ! satellite ID (temp. 49)
+        data_all(2,itx) = t4dv                      ! time diff (obs-anal) (hrs)
+        data_all(3,itx) = dlon                      ! grid relative longitude
+        data_all(4,itx) = dlat                      ! grid relative latitude
+        data_all(5,itx) = sat_zenang                ! satellite zenith angle (rad)
+        data_all(6,itx) = sat_aziang                ! satellite azimuth angle (deg)
+        data_all(7,itx) = lza                       ! look angle (rad)
+        data_all(8,itx) = ifov                      ! fov number
+        data_all(9,itx) = sol_zenang                ! solar zenith angle (deg)
+        data_all(10,itx)= sol_aziang                ! solar azimuth angle (deg)
+        data_all(11,itx) = sfcpct(0)                ! sea percentage of
+        data_all(12,itx) = sfcpct(1)                ! land percentage
+        data_all(13,itx) = sfcpct(2)                ! sea ice percentage
+        data_all(14,itx) = sfcpct(3)                ! snow percentage
+        data_all(15,itx)= ts(0)                     ! ocean temperature at zob
+        data_all(16,itx)= ts(1)                     ! land skin temperature
+        data_all(17,itx)= ts(2)                     ! ice skin temperature
+        data_all(18,itx)= ts(3)                     ! snow skin temperature
+        data_all(19,itx)= tsavg                     ! average skin temperature
+        data_all(20,itx)= vty                       ! vegetation type
+        data_all(21,itx)= vfr                       ! vegetation fraction
+        data_all(22,itx)= sty                       ! soil type
+        data_all(23,itx)= stp                       ! soil temperature
+        data_all(24,itx)= sm                        ! soil moisture
+        data_all(25,itx)= sn                        ! snow depth
+        data_all(26,itx)= zz                        ! surface height
+        data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+        data_all(28,itx)= sfcr                      ! surface roughness
+        data_all(29,itx)= ff10                      ! ten meter wind factor
+        data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
-         data_all(32,itx)= val_airs
-         data_all(33,itx)= itt
+        data_all(32,itx)= val_airs
+        data_all(33,itx)= itt
 
-         if ( nst_gsi > 0 ) then
-           data_all(maxinfo+1,itx) = tref         ! foundation temperature
-           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
-         endif
+        if ( nst_gsi > 0 ) then
+           data_all(maxinfo+1,itx) = tref            ! foundation temperature
+           data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
+           data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob
+           data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
+        endif
 
-         do l=1,nchanl
-            data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
-         end do
+        do l=1,nchanl
+           data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
+        end do
 
 
      enddo read_loop
@@ -754,7 +756,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -767,7 +769,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-                data_all(i+nreal,n) < tbmax)nodata=nodata+1
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_airs
@@ -787,12 +789,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! deallocate arrays and nullify pointers.
   if (isfcalc == 1) then
-    call fov_cleanup
+     call fov_cleanup
   endif
 
   if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
-       write(6,*)'READ_AIRS:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+     write(6,*)'READ_AIRS:  mype,ntest,disterrmax=',&
+     mype,ntest,disterrmax
 
   return
 end subroutine read_airs

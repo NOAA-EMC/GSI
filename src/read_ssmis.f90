@@ -46,6 +46,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod and remove _i_kind
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -77,13 +78,14 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-             checkob,finalcheck,score_crit
+      checkob,finalcheck,score_crit
   use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
-       tll2xy,txy2ll
+      tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
+  use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
   
   implicit none
 
@@ -102,12 +104,12 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Number of channels for sensors in BUFR
   character(7),parameter:: fov_flag="conical"
-  integer(i_kind),parameter :: maxchanl  =  24_i_kind
-  integer(i_kind),parameter :: maxinfo   =  33_i_kind
-  integer(i_kind),parameter :: mxscen_img = 180_i_kind   !img
-  integer(i_kind),parameter :: mxscen_env = 90_i_kind    !env
-  integer(i_kind),parameter :: mxscen_las = 60_i_kind    !las
-  integer(i_kind),parameter :: mxscen_uas = 30_i_kind    !uas
+  integer(i_kind),parameter :: maxchanl  =  24
+  integer(i_kind),parameter :: maxinfo   =  33
+  integer(i_kind),parameter :: mxscen_img = 180   !img
+  integer(i_kind),parameter :: mxscen_env = 90    !env
+  integer(i_kind),parameter :: mxscen_las = 60    !las
+  integer(i_kind),parameter :: mxscen_uas = 30    !uas
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
@@ -121,7 +123,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
   integer(i_kind) :: nmind,itx,nele,itt
   integer(i_kind) :: iskip
-  integer(i_kind) :: lnbufr,isflg,idomsfc
+  integer(i_kind) :: lnbufr,isflg,idomsfc(1)
   integer(i_kind) :: ilat,ilon
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
@@ -163,7 +165,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !----------------------------------------------------------------------
 ! Initialize variables
-  lnbufr = 15_i_kind
+  lnbufr = 15
   disterrmax=zero
   ntest  = 0
 
@@ -172,10 +174,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   nodata = 0
   nread  = 0
   nfov_bad = 0
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+     call skindepth(obstype,zob)
   endif
   r07 = 0.7_r_kind * deg2rad
 
@@ -206,12 +208,12 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   ssmis    =     obstype == 'ssmis'
   
 ! Common
-  bufsat = 249_i_kind
+  bufsat = 249
 
 ! Humidity imager:180
   if(ssmis)then
      nscan  = mxscen_las
-     ifovoff = 270_i_kind
+     ifovoff = 270
      incangl = 53.0_r_kind
   else if(ssmis_img) then
      nscan  = mxscen_img
@@ -220,17 +222,17 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! env:90
   else if(ssmis_env) then
      nscan  = mxscen_env
-     ifovoff = 180_i_kind
+     ifovoff = 180
      incangl = 53.1_r_kind
 ! las:60
   else if(ssmis_las) then
      nscan  = mxscen_las
-     ifovoff = 270_i_kind
+     ifovoff = 270
      incangl = 53.0_r_kind
 ! uas:30
   else if(ssmis_uas) then
      nscan  = mxscen_uas
-     ifovoff = 330_i_kind
+     ifovoff = 330
      incangl = 52.4_r_kind
 
   end if
@@ -252,8 +254,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
   if (isfcalc == 1) then
-     if (trim(jsatid) == 'f16') instr=26_i_kind
-     if (trim(jsatid) == 'f17') instr=27_i_kind
+     if (trim(jsatid) == 'f16') instr=26
+     if (trim(jsatid) == 'f17') instr=27
 ! right now, all ssmis data is mapped to a common fov -
 ! that of the las channels.
      ichan = 1
@@ -272,8 +274,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      read_loop: do while(ireadsb(lnbufr)==0)
 
 !       BUFR read 1/3
-        call ufbint(lnbufr,bufrinit,7_i_kind,1,nlv, &
-             "SAID SECO SLNM FOVN RSURF RAINF ORBN" )
+        call ufbint(lnbufr,bufrinit,7,1,nlv, &
+           "SAID SECO SLNM FOVN RSURF RAINF ORBN" )
 
 !       Extract satellite id.  If not the one we want, read next record
         said = int( bufrinit(1) + MILLI ) 
@@ -286,7 +288,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         if(ifov>nscan) then
 !           write(6,*) 'READ_SSMIS(',obstype,'): unreliable FOV number fovn=',fovn, &
-!                ' ifov=',ifov
+!              ' ifov=',ifov
            nfov_bad = nfov_bad+1
            cycle read_loop
         end if
@@ -296,16 +298,16 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       SSMIS imager has 180 scan positions.  Select every other position.
 !        if(ssmis_img) then
-!           if (mod(ifov,2_i_kind)/=0) then
+!           if (mod(ifov,2)/=0) then
 !              cycle read_loop
 !           else
-!              ifov = min(max(1,nint(float(ifov)/two + half)),90_i_kind)
+!              ifov = min(max(1,nint(float(ifov)/two + half)),90)
 !           endif
 !        endif
 
 !       BUFR read 2/3
-        call ufbrep(lnbufr,bufrymd,3_i_kind,5_i_kind,nlv,"YEAR MNTH DAYS" )
-        call ufbrep(lnbufr,bufrhm, 2_i_kind,2_i_kind,nlv,"HOUR MINU" )
+        call ufbrep(lnbufr,bufrymd,3,5,nlv,"YEAR MNTH DAYS" )
+        call ufbrep(lnbufr,bufrhm, 2,2,nlv,"HOUR MINU" )
 
         
 !       Calc obs seqential time  If time outside window, skip this obs
@@ -324,10 +326,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Extract obs location, TBB, other information
 
 !       BUFR read 3/3
-        call ufbrep(lnbufr,bufrloc,  2_i_kind,29_i_kind,      nlv,"CLAT CLON" )
-        call ufbrep(lnbufr,bufrtbb,  2_i_kind,maxchanl,       nlv,"CHNM TMBR" )
-!       call ufbrep(lnbufr,bufrinfo, 1,3_i_kind,           nlv,"SELV" )
-!       call ufbrep(lnbufr,bufrlleaa,2_i_kind,28_i_kind,      nlv,"RAIA BEARAZ" )
+        call ufbrep(lnbufr,bufrloc,  2,29,      nlv,"CLAT CLON" )
+        call ufbrep(lnbufr,bufrtbb,  2,maxchanl,nlv,"CHNM TMBR" )
+!       call ufbrep(lnbufr,bufrinfo, 1,3,       nlv,"SELV" )
+!       call ufbrep(lnbufr,bufrlleaa,2,28,      nlv,"RAIA BEARAZ" )
         
 !       Regional case
         dlat_earth = bufrloc(1,1)  !degrees
@@ -407,20 +409,20 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         if (isfcalc==1) then
 
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-                              dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
+              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else
            call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
-              idomsfc,sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+              idomsfc(1),sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
            call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
-              idomsfc,sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+              idomsfc(1),sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
            call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
-              idomsfc,sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+              idomsfc(1),sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
            call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
-              idomsfc,sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+              idomsfc(1),sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
-           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-                   ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
+              ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 
            sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/four
@@ -447,54 +449,54 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
         if ( nst_gsi > 0 ) then
-          tref  = ts(0)
-          dtw   = zero
-          dtc   = zero
-          tz_tr = one
-          if ( sfcpct(0) > zero ) then
-            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
-          endif
+           tref  = ts(0)
+           dtw   = zero
+           dtc   = zero
+           tz_tr = one
+           if ( sfcpct(0) > zero ) then
+              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+           endif
         endif
 
-        data_all( 1,itx)= rsat                 ! satellite id
-        data_all( 2,itx)= t4dv                 ! time diff between obs and anal (min)
-        data_all( 3,itx)= dlon                 ! grid relative longitude
-        data_all( 4,itx)= dlat                 ! grid relative latitude
-        data_all( 5,itx)= incangl*deg2rad      ! local zenith angle (rad)
-        data_all( 6,itx)= zero                 ! local azimuth angle (missing)
-        data_all( 7,itx)= zero                 ! look angle (rad)
-        data_all( 8,itx)= ifov                 ! FOV scan position
-        data_all( 9,itx)= zero                 ! solar zenith angle (deg) : not used for MW-RT calc
-        data_all(10,itx)= zero                 ! solar azimuth angle (deg) : not used for MW-RT calc
-        data_all(11,itx) = sfcpct(0)           ! sea percentage of
-        data_all(12,itx) = sfcpct(1)           ! land percentage
-        data_all(13,itx) = sfcpct(2)           ! sea ice percentage
-        data_all(14,itx) = sfcpct(3)           ! snow percentage
-        data_all(15,itx)= ts(0)                ! ocean skin temperature
-        data_all(16,itx)= ts(1)                ! land skin temperature
-        data_all(17,itx)= ts(2)                ! ice skin temperature
-        data_all(18,itx)= ts(3)                ! snow skin temperature
-        data_all(19,itx)= tsavg                ! average skin temperature
-        data_all(20,itx)= vty                  ! vegetation type
-        data_all(21,itx)= vfr                  ! vegetation fraction
-        data_all(22,itx)= sty                  ! soil type
-        data_all(23,itx)= stp                  ! soil temperature
-        data_all(24,itx)= sm                   ! soil moisture
-        data_all(25,itx)= sn                   ! snow depth
-        data_all(26,itx)= zz                   ! surface height
-        data_all(27,itx)= idomsfc + 0.001_r_kind ! dominate surface type
-        data_all(28,itx)= sfcr                 ! surface roughness
-        data_all(29,itx)= ff10                 ! ten meter wind factor
-        data_all(30,itx)= dlon_earth_deg       ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth_deg       ! earth relative latitude (degrees)
+        data_all( 1,itx)= rsat                      ! satellite id
+        data_all( 2,itx)= t4dv                      ! time diff between obs and anal (min)
+        data_all( 3,itx)= dlon                      ! grid relative longitude
+        data_all( 4,itx)= dlat                      ! grid relative latitude
+        data_all( 5,itx)= incangl*deg2rad           ! local zenith angle (rad)
+        data_all( 6,itx)= zero                      ! local azimuth angle (missing)
+        data_all( 7,itx)= zero                      ! look angle (rad)
+        data_all( 8,itx)= ifov                      ! FOV scan position
+        data_all( 9,itx)= zero                      ! solar zenith angle (deg) : not used for MW-RT calc
+        data_all(10,itx)= zero                      ! solar azimuth angle (deg) : not used for MW-RT calc
+        data_all(11,itx) = sfcpct(0)                ! sea percentage of
+        data_all(12,itx) = sfcpct(1)                ! land percentage
+        data_all(13,itx) = sfcpct(2)                ! sea ice percentage
+        data_all(14,itx) = sfcpct(3)                ! snow percentage
+        data_all(15,itx)= ts(0)                     ! ocean skin temperature
+        data_all(16,itx)= ts(1)                     ! land skin temperature
+        data_all(17,itx)= ts(2)                     ! ice skin temperature
+        data_all(18,itx)= ts(3)                     ! snow skin temperature
+        data_all(19,itx)= tsavg                     ! average skin temperature
+        data_all(20,itx)= vty                       ! vegetation type
+        data_all(21,itx)= vfr                       ! vegetation fraction
+        data_all(22,itx)= sty                       ! soil type
+        data_all(23,itx)= stp                       ! soil temperature
+        data_all(24,itx)= sm                        ! soil moisture
+        data_all(25,itx)= sn                        ! snow depth
+        data_all(26,itx)= zz                        ! surface height
+        data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+        data_all(28,itx)= sfcr                      ! surface roughness
+        data_all(29,itx)= ff10                      ! ten meter wind factor
+        data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
         data_all(maxinfo-1,itx)=val_ssmis
         data_all(maxinfo,itx)=itt
 
         if ( nst_gsi > 0 ) then
-          data_all(maxinfo+1,itx) = tref         ! foundation temperature
-          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+           data_all(maxinfo+1,itx) = tref         ! foundation temperature
+           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
         endif
 
         do jc=1,maxchanl
@@ -509,7 +511,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -543,10 +545,10 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   call destroygrids
     
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
-       write(6,*)'READ_SSMIS:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+     write(6,*)'READ_SSMIS:  mype,ntest,disterrmax=',&
+     mype,ntest,disterrmax
   if (nfov_bad>0) &
-       write(6,*)'READ_SSMIS(',obstype,'):  found ',nfov_bad,' questionable fov'
+     write(6,*)'READ_SSMIS(',obstype,'):  found ',nfov_bad,' questionable fov'
   
 ! End of routine
   return

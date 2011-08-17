@@ -7,8 +7,9 @@ subroutine evaljcdfi(svalue,pjc,rvalue)
 ! program history log:
 !   2007-10-18  tremolet - initial version
 !   2009-01-18  todling  - carry sommation in quad precision
-!   2009-08-14  lueken   - updte documentation
-!   2010-05-14  todling  - updte to use gsi_bundle
+!   2009-08-14  lueken   - update documentation
+!   2010-05-14  todling  - update to use gsi_bundle
+!   2011-08-01  lueken   - replace F90 with f90 (no machine logic) and replaced izero/ione with 0/1
 !
 !   input argument list:
 !    svalue
@@ -25,7 +26,7 @@ subroutine evaljcdfi(svalue,pjc,rvalue)
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind,r_quad
-use constants, only: izero,ione,zero,one
+use constants, only: zero,one
 use jcmod, only: wgtdfi,alphajc
 use gsi_4dvar, only: nobs_bins
 use mpimod, only: mype
@@ -46,7 +47,7 @@ type(gsi_bundle) :: sfilter,afilter
 
 !************************************************************************************  
 
-idfi = (nobs_bins-ione)/2+ione
+idfi = (nobs_bins-1)/2+1
 call allocate_state(sfilter)
 call allocate_state(afilter)
 
@@ -67,7 +68,7 @@ call self_mul(sfilter,alphajc)
 ! afilter = wgt * sfilter
 call enorm_state(sfilter,pjc,afilter)
 pjc=half_quad*pjc
-if (mype==izero) write(6,*)'Jc DFI=',pjc
+if (mype==0) write(6,*)'Jc DFI=',pjc
 
 ! Adjoint Jc multiplicative factor
 call self_mul(afilter,alphajc)

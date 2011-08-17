@@ -11,6 +11,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! program history log: 
 
 !    2010-03-30  Tangborn, initial code.
+!    2011-08-01  Lueken  - replaced F90 with f90 (no machine logic), removed _i_kind, fixed indentation
 
 !   input argument list:
 !     obstype  - observation type to process
@@ -31,12 +32,12 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: makegrids,map2tgrid,destroygrids, &
-               finalcheck,itxmax
+      finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
   use obsmod, only: iadate,nlco
   use convinfo, only: nconvtype, &
-        icuse,ictype,ioctype
+      icuse,ictype,ioctype
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use qcmod, only: use_poq7
   implicit none
@@ -113,11 +114,11 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Set constants.  Initialize variables
   rsat=999._r_kind
-  maxobs=1e6_i_kind
-  ilon=3_i_kind
-  ilat=4_i_kind
+  maxobs=1e6
+  ilon=3
+  ilat=4
   ipoq7=0
-  nreal=nlco*nlco+8_i_kind+nlco
+  nreal=nlco*nlco+8+nlco
 
   if (obstype == 'mopitt' )then 
 
@@ -131,29 +132,29 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      allocate(   aker(nlco,nlco))
 
 
-! Read in observations from ascii file 
+!    Read in observations from ascii file 
 
-! Opening file for reading
-  open(lunin,file=infile,form='formatted',iostat=iferror)
-  lerror = (iferror/=0)
+!    Opening file for reading
+     open(lunin,file=infile,form='formatted',iostat=iferror)
+     lerror = (iferror/=0)
 
-110 continue
+110  continue
 
-! Read the first line of the data file
-  if (.not.lerror) then 
-     read(lunin,fmt=*,iostat=iferror) &
-       inum,iyear,imonth,iday,ihour,imin,rlat,rlon,rpress,rsza
-     if(iferror/=0) go to 150
-     do i=1,nlco 
-       read(lunin,fmt=*,iostat=iferror) (aker(i,j),j=1,nlco)
-     enddo 
-     read(lunin,fmt=*,iostat=iferror) (apco(j),j=1,nlco)
-     read(lunin,fmt=*,iostat=iferror) (pco(j),j=1,nlco)
+!    Read the first line of the data file
+     if (.not.lerror) then 
+        read(lunin,fmt=*,iostat=iferror) &
+           inum,iyear,imonth,iday,ihour,imin,rlat,rlon,rpress,rsza
+        if(iferror/=0) go to 150
+        do i=1,nlco 
+           read(lunin,fmt=*,iostat=iferror) (aker(i,j),j=1,nlco)
+        enddo 
+        read(lunin,fmt=*,iostat=iferror) (apco(j),j=1,nlco)
+        read(lunin,fmt=*,iostat=iferror) (pco(j),j=1,nlco)
        
-!    lerror=(iferror>0)
-     leof  =(iferror<0)
-     lmax  =.false.
-  end if
+!       lerror=(iferror>0)
+        leof  =(iferror<0)
+        lmax  =.false.
+     end if
 
 
      hdrco(2)=rlat
@@ -214,15 +215,15 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      coout(7,ndata)=poq                ! profile co error flag
      coout(8,ndata)=solzen             ! solar zenith angle
      do k=1,nlco
-       coout(k+8_i_kind,ndata)=apco(k)
+        coout(k+8,ndata)=apco(k)
      enddo 
      do i=1,nlco
-       do j=1,nlco 
-         coout(j+(i-1)*nlco+8_i_kind+nlco,ndata)=aker(i,j)
-       enddo 
+        do j=1,nlco 
+           coout(j+(i-1)*nlco+8+nlco,ndata)=aker(i,j)
+        enddo 
      enddo 
      do k=1,nlco
-       coout(k+8_i_kind+nlco*nlco+nlco,ndata)=pco(k)
+        coout(k+8+nlco*nlco+nlco,ndata)=pco(k)
      end do
 
 !    Loop back to read next profile

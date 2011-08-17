@@ -15,12 +15,12 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
 
 
-  use qcmod, only: dfact,dfact1,repe_dw,npres_print,ptop,pbot
+  use qcmod, only: dfact,dfact1,npres_print,ptop,pbot
 
   use gridmod, only: nsig,get_ijk
 
   use guess_grids, only: hrdifsig,ges_ps,geop_hgtl,ges_lnprsl,&
-       nfldsig,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10
+       nfldsig,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10,ges_z   !jsw add ges_z
 
   use constants, only: grav_ratio,flattening,grav,zero,rad2deg,deg2rad, &
        grav_equator,one,two,somigliana,semi_major_axis,eccentricity,r1000,&
@@ -94,8 +94,16 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2007-08-28      su - modify the gross check error 
 !   2008-05-23  safford - rm unused vars
 !   2008-12-03  todling - changed handle of tail%time
-!   2009-03-19  mccarty - set initial obs error to that from bufr
+!   2009-03-19  mccarty/brin - set initial obs error to that from bufr
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2010-08-01  woollen  - add azmth and elevation angle check in duplication (denoted as jsw)
+!   2010-09-01  masutani - remove repe_dw and get representativeness error from coninfo  (msq)
+!   2010-11-20  woollen -  dpress is adjusted by zsges  (denoted as jsw)
+!   2010-12-03  woollen -  fix low level adjust ment to factw (denoted as jsw)
+!   2010-12-06  masutani - pass subtype kx to identify KNMI product  (msq)
+!   2011-04-18  mccarty - updated kx determination for ADM, modified presw calculation
+!   2011-05-05  mccarty - re-removed repe_dw, added +1 conditional for reproducibility on ADM
+!   2011-05-26  mccarty - moved MSQ error logic from read_lidar
 !
 ! !REMARKS:
 !   language: f90
@@ -118,12 +126,13 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r8 = 8.0_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
   character(len=*),parameter:: myname="setupdw"
+  real(r_kind),parameter:: dmiss = 9.0e+10_r_kind !missing value for msq error adj - wm
 
 ! Declare local variables
   
   real(r_double) rstation_id
   real(r_kind) sinazm,cosazm,scale
-  real(r_kind) ratio_errors,dlat,dlon,dtime,error,dpres
+  real(r_kind) ratio_errors,dlat,dlon,dtime,error,dpres,zsges    !jsw
   real(r_kind) dlnp,pobl,rhgh,rsig,rlow
   real(r_kind) zob,termrg,dz,termr,sin2,termg
   real(r_kind) sfcchk,slat,psges,dwwind
@@ -145,6 +154,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier,ilon,ilat,ihgt,ilob,id,itime,ikx,iatd,inls,incls
   integer(i_kind) iazm,ielva,iuse,ilate,ilone,istat
   integer(i_kind) idomsfc,isfcr,iff10,iskint
+
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -198,6 +208,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ihgt,k) == data(ihgt,l) .and. &
+           data(iazm,k) == data(iazm,l) .and. &     ! jsw check azmth angle
+           data(ielva,k) == data(ielva,l) .and. &   ! jsw check eleveaiton angle
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
            tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
@@ -313,6 +325,11 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
           1,nsig,mype,nfldsig)
 
+     call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&      ! jsw
+          1,1,mype,nfldsig)                                    ! jsw
+          dpres=dpres-zsges              !jsw need to adjust dpres by zsges
+
+
 ! Convert geopotential height at layer midpoints to geometric height using
 ! equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
 ! measures of altitude" (2001).  Available on the web at
@@ -343,12 +360,19 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! lidar obs within 10 meters of the surface.  Almost always,
 ! the code below resets the 10m wind factor to 1.0 (i.e., no
 ! reduction in wind speed due to surface friction).
-     if (dpres<ten) then
-        dz = ten-dpres
-        factw = factw + (factw-zero)/dz
-     else
-        factw=one
-     endif
+
+!    adjust wind near surface        jsw
+  if (dpres<zges(1)) then            !jsw
+      if(zges(1)>10)then
+         term = (zges(1)-dpres)/(zges(1)-ten)
+         term = min(max(term,zero),one)
+         if(zges(1)<10) term=1
+         factw = one-term+factw*term
+      endif
+    else
+      factw=one
+    endif
+
 
 ! Convert observation height (in dpres) from meters to grid relative
 ! units.  Save the observation height in zob for later use.
@@ -356,9 +380,12 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call grdcrd(dpres,1,zges,nsig,1)
 
 ! Set indices of model levels below (k1) and above (k2) observation.
+! wm - updated so {k1,k2} are at min {1,2} and at max {nsig-1,nsig}
      k=dpres
-     k1=max(1,k)
-     k2=min(k+1,nsig)
+     k1=min(max(1,k),nsig-1)
+     k2=min(k1+1,nsig)
+!    k1=max(1,k)         - old method
+!    k2=min(k+1,nsig)    - old method
 
 ! Compute observation pressure (only used for diagnostics)
      dz       = zges(k2)-zges(k1)
@@ -389,13 +416,19 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Set initial obs error to that supplied in BUFR stream.
      error = data(ier,i)
-! Add Representativeness Error via variable repe_dw .
-! Currently hardcoded in qcmod.f90 (as of 3-19-09), 
-!                 repe_dw = 1.0 .
-! This variable should be tuned/adjusted to better
-! characterize the representativeness error of the 
-! DWL observations.
-     error = error + repe_dw
+! Removed repe_dw, but retained the "+ one" for reproducibility
+!  for ikx=100 or 101 - wm
+     if (ictype(ikx)==100 .or. ictype(ikx)==101)error = error + one
+! msq error change moved from read_lidar, wrapped to avoid changing 
+!  ADM values
+     if (ictype(ikx)==200 .or. ictype(ikx)==201) then 
+        if (data(ier,i) > dmiss) then                  
+           error = 3.0_r_kind                                
+        else
+           error = data(ier,i) / cos(data(ielva,i))
+        endif
+     endif    
+
      ratio_errors = error/abs(error + 1.0e6_r_kind*rhgh + r8*rlow)
      error = one/error
 
@@ -406,11 +439,20 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp3(ges_u,ugesindw,dlat,dlon,dpres,dtime,&
         hrdifsig,1,mype,nfldsig)
      call tintrp3(ges_v,vgesindw,dlat,dlon,dpres,dtime,&
-        hrdifsig,1,mype,nfldsig)
- 
+        hrdifsig,1,mype,nfldsig) 
+
+
 ! Next, convert wind components to line of sight value
-     cosazm  = cos(data(iazm,i))  ! cos(azimuth)
-     sinazm  = sin(data(iazm,i))  ! sin(azimuth)
+!wm     if (nint(data(isubtype,i))==100.or.nint(data(isubtype,i))==101) then
+     if (ictype(ikx)==100 .or. ictype(ikx)==101) then
+!     KNMI  product  msq
+        cosazm  = -cos(data(iazm,i))  ! cos(azimuth)  ! mccarty msq 
+        sinazm  = -sin(data(iazm,i))  ! sin(azimuth)  ! mccarty msq
+     else
+        cosazm  = cos(data(iazm,i))  ! cos(azimuth)
+        sinazm  = sin(data(iazm,i))  ! sin(azimuth)
+     endif
+
      dwwind=(ugesindw*sinazm+vgesindw*cosazm)*factw
 
      ddiff = data(ilob,i) - dwwind

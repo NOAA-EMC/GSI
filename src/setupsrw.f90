@@ -47,6 +47,7 @@ subroutine setupsrw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-21  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-05-05  mccarty - removed antiquated comment reference to repe_dw
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -375,8 +376,6 @@ subroutine setupsrw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 ! Adjust observation error.
-! Variable repe_dw contains a value which should be tuned to
-! account for representativeness error.
 
      ratio_errors = error/abs(error + 1.0e6_r_kind*rhgh + r8*rlow)
      error = one/error

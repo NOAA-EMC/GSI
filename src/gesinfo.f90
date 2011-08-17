@@ -22,6 +22,7 @@ subroutine gesinfo(mype)
 !   2010-12-03  hcHuang - add use_gfs_nemsio if input files is in NEMSIO format
 !                         make use of nemsio_module to obtain header information including time
 !                         vertical corrdiates, ...etc.
+!   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -63,14 +64,14 @@ subroutine gesinfo(mype)
   use gsi_4dvar, only: nhr_assimilation,min_offset
   use mpimod, only: npe
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
-       regional,nsig,regional_fhr,regional_time,&
-       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
-       ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
-       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
+      regional,nsig,regional_fhr,regional_time,&
+      wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
+      ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
+      ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
-       sigio_sropen
+      sigio_sropen
   use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
-       gfsio_init,gfsio_finalize,gfsio_getfilehead
+      gfsio_init,gfsio_finalize,gfsio_getfilehead
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
 
@@ -329,8 +330,8 @@ subroutine gesinfo(mype)
         if (gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
             gfshead%levs/=nsig ) then
            write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
-                gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
-                ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
+              gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
+              ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
            call stop2(99)
         endif
      endif
@@ -403,12 +404,12 @@ subroutine gesinfo(mype)
 !    Echo select header information to stdout
      if(mype==mype_out) then
         write(6,100) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
-             gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,&
-             idvm5,idsl5,idpsfc5,idthrm5
+           gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,&
+           idvm5,idsl5,idpsfc5,idthrm5
 100     format('GESINFO:  jcap_b=',i4,', levs=',i3,', latb=',i5,&
-             ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
-             ', nvcoord=',i3,', idvm=',i3,', idsl=',i3,', idpsfc=',i3,&
-             ', idthrm=',i3)
+           ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
+           ', nvcoord=',i3,', idvm=',i3,', idsl=',i3,', idpsfc=',i3,&
+           ', idthrm=',i3)
         do k=1,nsig
            write(6,110) k,ak5(k),bk5(k),ck5(k),tref5(k)
         end do

@@ -12,6 +12,7 @@ subroutine enorm_state(xst,enorm,yst)
 !   2009-08-14  lueken   - update documentation
 !   2010-05-13  todling  - update to use gsi_bundle
 !   2010-09-06  todling  - revisit pointers; add Q-term to norm
+!   2011-08-01  lueken   - replaced F90 with f90 (no machine logic)
 !
 !   input argument list:
 !    xst
@@ -76,10 +77,10 @@ do jj=2,lon2-1
       if (ANY(dsig(ii,jj,:)<=zero)) then
          do kk=1,nsig
             write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk,dsig=',&
-              kk,r1000*ak5(kk),bk5(kk),r1000*ak5(kk)+bk5(kk)*pref,dsig(2,2,kk)
+               kk,r1000*ak5(kk),bk5(kk),r1000*ak5(kk)+bk5(kk)*pref,dsig(2,2,kk)
          enddo
          write(6,'(A,I3,4(2X,F18.8))')'enorm ak,bk,pk     =',&
-           nsig+1,r1000*ak5(nsig+1),bk5(nsig+1),r1000*ak5(nsig+1)+bk5(nsig+1)*pref
+            nsig+1,r1000*ak5(nsig+1),bk5(nsig+1),r1000*ak5(nsig+1)+bk5(nsig+1)*pref
          write(6,*)'enorm_state: negative dsig'
          call stop2(123)
       endif

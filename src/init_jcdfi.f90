@@ -9,6 +9,7 @@ subroutine init_jcdfi
 ! program history log:
 !   2007-10-18  tremolet - initial code
 !   2009-08-17  lueken   - update documentation
+!   2011-08-01  lueken   - changed F90 to f90 (no machine logic)
 !
 !   input argument list:
 !

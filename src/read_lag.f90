@@ -12,6 +12,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 !
 ! program history log:
 !   2009-03-05  meunier
+!   2011-08-01  lueken  - changed F90 to f90 (no machine logic), removed _i_kind, replaced izero/ione with 0/1
 !
 !   input argument list:
 !     infile   - unit from which to read ozone data
@@ -35,9 +36,9 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,ione,deg2rad,zero,r60inv
+  use constants, only: deg2rad,zero,r60inv
   use convinfo, only: nconvtype,ctwind, &
-        icuse,ictype,ioctype
+      icuse,ictype,ioctype
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
 
   use lag_fields, only: ntotal_orig_lag,orig_lag_num
@@ -54,12 +55,12 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 
 ! Declare local parameters
   real(r_kind),parameter:: r360 = 360.0_r_kind
-  integer(i_kind),parameter:: nmaxobs = 1e5_i_kind
-  integer(i_kind),parameter:: npara   = 10_i_kind
-  integer(i_kind),parameter:: idnum = ione
-  integer(i_kind),parameter:: idlon = 3_i_kind
-  integer(i_kind),parameter:: idlat = 4_i_kind
-  integer(i_kind),parameter:: lunin = 10_i_kind
+  integer(i_kind),parameter:: nmaxobs = 1e5
+  integer(i_kind),parameter:: npara   = 10
+  integer(i_kind),parameter:: idnum = 1
+  integer(i_kind),parameter:: idlon = 3
+  integer(i_kind),parameter:: idlat = 4
+  integer(i_kind),parameter:: lunin = 10
   real(r_kind),parameter:: pmin=10_r_kind
   real(r_kind),parameter:: pmax=1000_r_kind
   real(r_kind),parameter:: lonmin=-180_r_kind
@@ -67,7 +68,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
   real(r_kind),parameter:: latmin=-90_r_kind
   real(r_kind),parameter:: latmax=90_r_kind
   integer(i_kind),parameter:: nreal=npara
-  integer(i_kind),parameter:: nchanl=izero
+  integer(i_kind),parameter:: nchanl=0
 
 ! Declare local variables
   real(r_kind),allocatable,dimension(:,:):: lagdata
@@ -87,25 +88,25 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 
   ! type definition depending on sis
   if (trim(sis) == 'lagP') then
-     ctype=902_i_kind;
+     ctype=902;
   else
-     ctype=901_i_kind; !Default
+     ctype=901; !Default
   end if
 
   write(6,*) ' READLAG: sis=',trim(sis),' ctype=',ctype
 
-  ikx = izero
+  ikx = 0
   do i=1,nconvtype
      if(trim(obstype)==trim(ioctype(i)) .and. &
-         &ctype==ictype(i)) ikx=i
+        ctype==ictype(i)) ikx=i
   end do
-  if(ikx == izero)then
+  if(ikx == 0)then
      write(6,*) ' READLAG: NO DATA REQUESTED'
      return
   end if
 
 ! If data have not to be used (convinfo)
-  if (icuse(ikx)==izero) then
+  if (icuse(ikx)==0) then
      write(6,*) ' READLAG: DATA DISABLED IN CONVINFO'
      return
   end if
@@ -116,37 +117,37 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 
 ! Opening file for reading
   open(lunin,file=infile,form='formatted',iostat=iferror)
-  lerror = (iferror/=izero)
+  lerror = (iferror/=0)
 
 ! Read the first line of the data file
   if (.not.lerror) then
      read(lunin,fmt=*,iostat=iferror) &
-       inum,iyear,imonth,iday,ihour,imin,rlon,rlat,rpress
-     lerror=(iferror>izero)
-     leof  =(iferror<izero)
+        inum,iyear,imonth,iday,ihour,imin,rlon,rlat,rpress
+     lerror=(iferror>0)
+     leof  =(iferror<0)
      lmax  =.false.
   end if
 
 ! Loop on the file
   do while (.not.(lerror .or. leof .or. lmax))
    
-     nread = nread + ione 
+     nread = nread + 1 
 
      !Obs ok ?
      lok=(rlon>=lonmin .and. rlon<=lonmax .and. &
-         &rlat>=latmin .and. rlat<=latmax .and. &
-         &rpress>=pmin .and. rpress<=pmax)
+          rlat>=latmin .and. rlat<=latmax .and. &
+          rpress>=pmin .and. rpress<=pmax)
      !Is there a starting point for this balloon
-     internalnum=izero
+     internalnum=0
      findnum: do i=1,ntotal_orig_lag
         if (inum==orig_lag_num(i,1)) then
            internalnum=i
            exit findnum
         end if
      end do findnum
-     lok=lok .and. (internalnum/=izero)
-     if (internalnum==izero) &
-       & write(6,*)'READ_LAG: no reference for balloon',inum
+     lok=lok .and. (internalnum/=0)
+     if (internalnum==0) &
+        write(6,*)'READ_LAG: no reference for balloon',inum
 
      if (lok) then
 
@@ -159,8 +160,8 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
         else
            rlongrid=rlonrad
            rlatgrid=rlatrad
-           call grdcrd(rlongrid,ione,rlons,nlon,ione)
-           call grdcrd(rlatgrid,ione,rlats,nlat,ione)
+           call grdcrd(rlongrid,1,rlons,nlon,1)
+           call grdcrd(rlatgrid,1,rlats,nlat,1)
         end if
 
         ! In the regional grid ?
@@ -192,8 +193,8 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
            ! Time ok ?
            if (lok) then
           
-              ndata  = ndata+ione
-              nodata = nodata + ione
+              ndata  = ndata+1
+              nodata = nodata + 1
             
               lagdata(idnum,ndata)=real(internalnum,r_kind)   ! balloon number
               lagdata(2,ndata)=r4dtime
@@ -211,16 +212,16 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 
     ! read the next one
      read(lunin,fmt=*,iostat=iferror) &
-       inum,iyear,imonth,iday,ihour,imin,rlon,rlat,rpress
-     lerror=(iferror>izero)
-     leof  =(iferror<izero)
+        inum,iyear,imonth,iday,ihour,imin,rlon,rlat,rpress
+     lerror=(iferror>0)
+     leof  =(iferror<0)
      lmax  =nreal>=nmaxobs
     
   end do
 
   if (lmax) then
      write(6,*) ' READ_LAG:   Number of lagrangian obs reached maxobs = ', &
-         nmaxobs
+        nmaxobs
   end if
 
   if (.not.lerror) then
@@ -228,9 +229,9 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
      write(lunout) obstype,sis,nreal,nchanl,idnum
      write(lunout) ((lagdata(k,i),k=1,npara),i=1,ndata)
      write(6,*) ' READ_LAG:   Number of lagrangian obs read = ', &
-         nread
+        nread
      write(6,*) ' READ_LAG:   Number of lagrangian obs to be use = ', &
-         ndata
+        ndata
   else
      write(6,*) ' READ_LAG:   I/O error while processing obs file'
   end if

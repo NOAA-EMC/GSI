@@ -93,6 +93,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2010-11-13  su - skip satellite winds from prepbufr 
 !   2010-11-18  treadon - add check for small POB (if POB<tiny_r_kind then POB=bmiss)
 !   2011-07-13  wu     - not use mesonet Psfc when 8th character of sid is "x"
+!   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -114,15 +115,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !$$$
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
-       three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
-       r60inv,r10,r100,r2000
+      three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
+      r60inv,r10,r100,r2000
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
-       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons,twodvar_regional
+      tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
+      rlats,rlons,twodvar_regional
   use convinfo, only: nconvtype,ctwind, &
-       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv, &
-       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
+      ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
+      ithin_conv,rmesh_conv,pmesh_conv, &
+      id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom
   use obsmod, only: blacklst,offtime_data
@@ -134,6 +135,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,destroy_rjlists
   use jfunc, only: tsensible
+  use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
 
   implicit none
 
@@ -365,8 +367,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      end if
   end do
   if(ntmatch == 0)then
-    write(6,*) ' no matching obstype found in obsinfo ',obstype
-    return
+     write(6,*) ' no matching obstype found in obsinfo ',obstype
+     return
   end if
 
   allocate(lmsg(nmsgmax,ntread))
@@ -386,93 +388,93 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         call stop2(50)
      endif
      loop_report: do while (ireadsb(lunin) == 0)
-       ntb = ntb+1
-       nrep(nmsg)=nrep(nmsg)+1
-       if (ntb>mxtb) then
-          write(6,*)'READ_PREPBUFR: reports exceed maximum ',mxtb
-          call stop2(50)
-       endif
+        ntb = ntb+1
+        nrep(nmsg)=nrep(nmsg)+1
+        if (ntb>mxtb) then
+           write(6,*)'READ_PREPBUFR: reports exceed maximum ',mxtb
+           call stop2(50)
+        endif
 
-!      Extract type information
-       call ufbint(lunin,hdr,4,1,iret,hdstr2)
-       kx=hdr(1)
+!       Extract type information
+        call ufbint(lunin,hdr,4,1,iret,hdstr2)
+        kx=hdr(1)
 
-       if(twodvar_regional)then
-!        If running in 2d-var (surface analysis) mode, check to see if observation
-!        is surface type.  If not, read next observation report from bufr file
-         sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
-         if (.not.sfctype ) cycle loop_report
+        if(twodvar_regional)then
+!          If running in 2d-var (surface analysis) mode, check to see if observation
+!          is surface type.  If not, read next observation report from bufr file
+           sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
+           if (.not.sfctype ) cycle loop_report
 
-       end if
+        end if
 
 ! temporary specify iobsub until put in bufr file
-       iobsub = 0                                                  
-       if(kx == 280) iobsub=hdr(3)                                            
+        iobsub = 0                                                  
+        if(kx == 280) iobsub=hdr(3)                                            
 !       if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(2)  
 
-!      For the satellite wind to get quality information and check if it will be used
+!       For the satellite wind to get quality information and check if it will be used
 !       if( kx ==243 .or. kx == 253 .or. kx ==254 ) then
 !          call ufbint(lunin,satqc,1,1,iret,satqcstr)
 !          if(satqc(1) <  85.0_r_double) cycle loop_report   ! QI w/o fcst (su's setup
-!!        if(satqc(2) <= 80.0_r_double) cycle loop_report   ! QI w/ fcst (old prepdata)
+!!         if(satqc(2) <= 80.0_r_double) cycle loop_report   ! QI w/ fcst (old prepdata)
 !       endif
 
-!      Check for blacklisting of station ID
-       if (blacklst .and. ibcnt > 0) then
-          stnid = transfer(hdr(4),stnid)
-          do i = 1,ibcnt
-             if( kx == blkkx(i) .and. stnid == blkstns(i) ) then
-                write(6,*)'READ_PREPBUFR: blacklist station ',stnid, &
-                     'for obstype ',trim(obstype),' and kx=',kx
-                cycle loop_report
-             endif
-          enddo
-       endif
+!       Check for blacklisting of station ID
+        if (blacklst .and. ibcnt > 0) then
+           stnid = transfer(hdr(4),stnid)
+           do i = 1,ibcnt
+              if( kx == blkkx(i) .and. stnid == blkstns(i) ) then
+                 write(6,*)'READ_PREPBUFR: blacklist station ',stnid, &
+                    'for obstype ',trim(obstype),' and kx=',kx
+                 cycle loop_report
+              endif
+           enddo
+        endif
 
 !  Match ob to proper convinfo type
-       ncsave=0
-       matchloop:do ncx=1,ntmatch
-          nc=ntxall(ncx)
-          if (kx /= ictype(nc))cycle 
+        ncsave=0
+        matchloop:do ncx=1,ntmatch
+           nc=ntxall(ncx)
+           if (kx /= ictype(nc))cycle 
 
 !  Find convtype which match ob type and subtype
-          if(icsubtype(nc) == iobsub) then
-             ncsave=nc
-             exit matchloop
-          else
+           if(icsubtype(nc) == iobsub) then
+              ncsave=nc
+              exit matchloop
+           else
 !  Find convtype which match ob type and subtype group (isubtype == ?*)
 !       where ? specifies the group and icsubtype = ?0)
-             ixsub=icsubtype(nc)/10
-             iosub=iobsub/10
-             isubsub=icsubtype(nc)-ixsub*10
-             if(ixsub == iosub .and. isubsub == 0) then
-                ncsave=nc
+              ixsub=icsubtype(nc)/10
+              iosub=iobsub/10
+              isubsub=icsubtype(nc)-ixsub*10
+              if(ixsub == iosub .and. isubsub == 0) then
+                 ncsave=nc
 !  Find convtype which match ob type and subtype is all remaining 
 !       (icsubtype(nc) = 0)
-             else if (ncsave == 0 .and. icsubtype(nc) == 0) then
-                ncsave=nc
-             end if
-          end if
-       end do matchloop
+              else if (ncsave == 0 .and. icsubtype(nc) == 0) then
+                 ncsave=nc
+              end if
+           end if
+        end do matchloop
 
 !  Save information for next read
-       if(ncsave /= 0) then
+        if(ncsave /= 0) then
 
-          call ufbint(lunin,levdat,1,255,levs,levstr)
-          maxobs=maxobs+max(1,levs)
-          nx=1
-          if(ithin_conv(ncsave) > 0)then
-            do ii=2,ntread
-              if(ntx(ii) == ncsave)nx=ii
-            end do
-          end if
-          tab(ntb,1)=ncsave
-          tab(ntb,2)=nx
-          tab(ntb,3)=levs
-          lmsg(nmsg,nx) = .true.
-       end if
+           call ufbint(lunin,levdat,1,255,levs,levstr)
+           maxobs=maxobs+max(1,levs)
+           nx=1
+           if(ithin_conv(ncsave) > 0)then
+              do ii=2,ntread
+                 if(ntx(ii) == ncsave)nx=ii
+              end do
+           end if
+           tab(ntb,1)=ncsave
+           tab(ntb,2)=nx
+           tab(ntb,3)=levs
+           lmsg(nmsg,nx) = .true.
+        end if
 
-    end do loop_report
+     end do loop_report
   enddo msg_report
   if (nmsg==0) goto 900
   write(6,*)'READ_PREPBUFR: messages/reports = ',nmsg,'/',ntb,' ntread = ',ntread
@@ -530,7 +532,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            endif
      
            write(6,*)'READ_PREPBUFR: obstype,ictype(nc),rmesh,pflag,nlevp,pmesh=',&
-               trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh
+              trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh
         endif
      endif
        
@@ -547,724 +549,737 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      icntpnt=0
      icntpnt2=0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
-       if(trim(subset) =='SATWND') cycle loop_msg
-       nmsg = nmsg+1
-       if(.not.lmsg(nmsg,nx)) then
-          do i=ntb+1,ntb+nrep(nmsg)
-            icntpnt2=icntpnt2+tab(i,3)
-          end do
-          ntb=ntb+nrep(nmsg)
-          cycle loop_msg ! no useable reports this mesage, skip ahead report count
-       end if 
+        if(trim(subset) =='SATWND') cycle loop_msg
+        nmsg = nmsg+1
+        if(.not.lmsg(nmsg,nx)) then
+           do i=ntb+1,ntb+nrep(nmsg)
+              icntpnt2=icntpnt2+tab(i,3)
+           end do
+           ntb=ntb+nrep(nmsg)
+           cycle loop_msg ! no useable reports this mesage, skip ahead report count
+        end if 
 
-       loop_readsb: do while(ireadsb(lunin) == 0)
-!       use msg lookup table to decide which messages to skip
-!       use report id lookup table to only process matching reports
-        ntb = ntb+1
-        if(icntpnt < icntpnt2)icntpnt=icntpnt2
-        icntpnt2=icntpnt2+tab(ntb,3)
-        nc=tab(ntb,1)
-        if(nc <= 0 .or. tab(ntb,2) /= nx) cycle loop_readsb
+        loop_readsb: do while(ireadsb(lunin) == 0)
+!          use msg lookup table to decide which messages to skip
+!          use report id lookup table to only process matching reports
+           ntb = ntb+1
+           if(icntpnt < icntpnt2)icntpnt=icntpnt2
+           icntpnt2=icntpnt2+tab(ntb,3)
+           nc=tab(ntb,1)
+           if(nc <= 0 .or. tab(ntb,2) /= nx) cycle loop_readsb
                  
-!       Extract type, date, and location information
-        call ufbint(lunin,hdr,8,1,iret,hdstr)
-        if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
-        if(hdr(2)== r360)hdr(2)=hdr(2)-r360
-        if(hdr(2) < zero)hdr(2)=hdr(2)+r360
-        dlon_earth=hdr(2)*deg2rad
-        dlat_earth=hdr(3)*deg2rad
-        if(regional)then
-           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
-           if(diagnostic_reg) then
-              call txy2ll(dlon,dlat,rlon00,rlat00)
-              ntest=ntest+1
-              cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                   (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
-              cdist=max(-one,min(cdist,one))
-              disterr=acos(cdist)*rad2deg
-              disterrmax=max(disterrmax,disterr)
-           end if
-           if(outside) cycle loop_readsb   ! check to see if outside regional domain
-        else
-           dlat = dlat_earth
-           dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
-        endif
+!          Extract type, date, and location information
+           call ufbint(lunin,hdr,8,1,iret,hdstr)
+           if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
+           if(hdr(2)== r360)hdr(2)=hdr(2)-r360
+           if(hdr(2) < zero)hdr(2)=hdr(2)+r360
+           dlon_earth=hdr(2)*deg2rad
+           dlat_earth=hdr(3)*deg2rad
+           if(regional)then
+              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
+              if(diagnostic_reg) then
+                 call txy2ll(dlon,dlat,rlon00,rlat00)
+                 ntest=ntest+1
+                 cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
+                      (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+                 cdist=max(-one,min(cdist,one))
+                 disterr=acos(cdist)*rad2deg
+                 disterrmax=max(disterrmax,disterr)
+              end if
+              if(outside) cycle loop_readsb   ! check to see if outside regional domain
+           else
+              dlat = dlat_earth
+              dlon = dlon_earth
+              call grdcrd(dlat,1,rlats,nlat,1)
+              call grdcrd(dlon,1,rlons,nlon,1)
+           endif
 
 !------------------------------------------------------------------------
 
-        if(offtime_data) then
+           if(offtime_data) then
+ 
+!             in time correction for observations to account for analysis
+!                      time being different from obs file time.
+              write(date,'( i10)') idate
+              read (date,'(i4,3i2)') iy,im,idd,ihh
+              idate5(1)=iy
+              idate5(2)=im
+              idate5(3)=idd
+              idate5(4)=ihh
+              idate5(5)=0
+              call w3fs21(idate5,minobs)    !  obs ref time in minutes relative to historic date
+              idate5(1)=iadate(1)
+              idate5(2)=iadate(2)
+              idate5(3)=iadate(3)
+              idate5(4)=iadate(4)
+              idate5(5)=0
+              call w3fs21(idate5,minan)    !  analysis ref time in minutes relative to historic date
+ 
+!             Add obs reference time, then subtract analysis time to get obs time relative to analysis
+ 
+              time_correction=float(minobs-minan)*r60inv
 
-!          in time correction for observations to account for analysis
-!                   time being different from obs file time.
-           write(date,'( i10)') idate
-           read (date,'(i4,3i2)') iy,im,idd,ihh
-           idate5(1)=iy
-           idate5(2)=im
-           idate5(3)=idd
-           idate5(4)=ihh
-           idate5(5)=0
-           call w3fs21(idate5,minobs)    !  obs ref time in minutes relative to historic date
-           idate5(1)=iadate(1)
-           idate5(2)=iadate(2)
-           idate5(3)=iadate(3)
-           idate5(4)=iadate(4)
-           idate5(5)=0
-           call w3fs21(idate5,minan)    !  analysis ref time in minutes relative to historic date
-
-!          Add obs reference time, then subtract analysis time to get obs time relative to analysis
-
-           time_correction=float(minobs-minan)*r60inv
-            
-        else
-           time_correction=zero
-        end if
-
-        timeobs=real(real(hdr(4),r_single),r_double)
-        t4dv=timeobs + toff
-        zeps=1.0e-8_r_kind
-        if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
-        if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
-        t4dv=t4dv + time_correction
-        time=timeobs + time_correction
-        kx=hdr(5)
-
-!       Balloon drift information available for these data
-        driftl=kx==120.or.kx==220.or.kx==221
-
-        if (l4dvar) then
-           if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
-        else
-           if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
-                  .and. .not. driftl)cycle loop_readsb ! outside time window
-        endif
-
-        timex=time
-
-!       If ASCAT data, determine primary surface type.  If not open sea,
-!       skip this observation.  This check must be done before thinning.
-        if (kx==290 .or. kx==289 .or. kx==285) then
-           call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-           if (isflg /= 0) cycle loop_readsb
-           if (tsavg <= 273.0_r_kind) cycle loop_readsb
-        endif
-     
-!       Extract data information on levels
-        call ufbint(lunin,obsdat,9,255,levs,obstr)
-        call ufbint(lunin,qcmark,8,255,levs,qcstr)
-        call ufbint(lunin,obserr,8,255,levs,oestr)
-        nread=nread+levs
-        if(uvob)then
-           nread=nread+levs
-        else if(sstob)then 
-           sstdat=1.e11_r_kind
-           call ufbint(lunin,sstdat,8,1,levs,sststr)
-        else if(metarcldobs) then
-          metarcld=1.e11_r_kind
-          metarwth=1.e11_r_kind
-          metarvis=1.e11_r_kind
-          call ufbint(lunin,metarcld,2,10,metarcldlevs,metarcldstr)
-          call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
-          call ufbint(lunin,metarvis,1,1,iret,metarvisstr)
-          if(levs /= 1 ) then
-            write(6,*) 'READ_PREPBUFR: error in Metar observations, levs sould be 1 !!!'
-            call stop2(110)
-          endif
-        else if(geosctpobs) then
-           geoscld=1.e11_r_kind
-           call ufbint(lunin,geoscld,4,1,levs,geoscldstr)
-        endif
-
-!       Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
-        rstation_id=hdr(1)
-        do k=1,levs
-           if (obsdat(1,k)<tiny_r_kind) then
-              write(6,*)'READ_PREPBUFR:  ***WARNING*** invalid pressure pob=',&
-                   obsdat(1,k),' at k=',k,' for obstype=',obstype,' kx=',kx,&
-                   ' c_station_id=',c_station_id,' reset pob=',bmiss
-              obsdat(1,k)=bmiss
-           endif
-        end do
-
-!       If available, get obs errors from error table
-        if(oberrflg)then
-
-!          Set lower limits for observation errors
-           terrmin=half
-           werrmin=one
-           perrmin=half
-           qerrmin=one_tenth
-           pwerrmin=one
-
-           do k=1,levs
-              itypex=kx
-              ppb=obsdat(1,k)
-              if(kx==153)ppb=obsdat(9,k)*0.01_r_kind
-              ppb=max(zero,min(ppb,r2000))
-              if(ppb>=etabl(itypex,1,1)) k1=1
-              do kl=1,32
-                 if(ppb>=etabl(itypex,kl+1,1).and.ppb<=etabl(itypex,kl,1)) k1=kl
-              end do
-              if(ppb<=etabl(itypex,33,1)) k1=5
-              k2=k1+1
-              ediff = etabl(itypex,k2,1)-etabl(itypex,k1,1)
-              if (abs(ediff) > tiny_r_kind) then
-                 del = (ppb-etabl(itypex,k1,1))/ediff
-              else
-                 del = huge_r_kind
-              endif
-              del=max(zero,min(del,one))
-              obserr(3,k)=(one-del)*etabl(itypex,k1,2)+del*etabl(itypex,k2,2)
-              obserr(2,k)=(one-del)*etabl(itypex,k1,3)+del*etabl(itypex,k2,3)
-              obserr(5,k)=(one-del)*etabl(itypex,k1,4)+del*etabl(itypex,k2,4)
-              obserr(1,k)=(one-del)*etabl(itypex,k1,5)+del*etabl(itypex,k2,5)
-              obserr(7,k)=(one-del)*etabl(itypex,k1,6)+del*etabl(itypex,k2,6)
-
-              obserr(3,k)=max(obserr(3,k),terrmin)
-              obserr(2,k)=max(obserr(2,k),qerrmin)
-              obserr(5,k)=max(obserr(5,k),werrmin)
-              obserr(1,k)=max(obserr(1,k),perrmin)
-              obserr(7,k)=max(obserr(7,k),pwerrmin)
-           enddo
-        endif
-     
-
-!       If data with drift position, get drift information
-        if(driftl)call ufbint(lunin,drfdat,8,255,iret,drift)
-
-!       Loop over levels       
-        do k=1,levs
-           do i=1,8
-              qcmark(i,k) = min(qcmark(i,k),qcmark_huge)
-           end do
-
-           if (kx == id_bias_ps) then
-              plevs(k)=one_tenth*obsdat(1,k)+conv_bias_ps   ! convert mb to cb
            else
-              plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
-           endif
-           if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
-           if (geosctpobs) plevs(k)=geoscld(1,k)/1000.0_r_kind ! cloud top pressure in cb
-           pqm(k)=nint(qcmark(1,k))
-           qqm(k)=nint(qcmark(2,k))
-           tqm(k)=nint(qcmark(3,k))
-           wqm(k)=nint(qcmark(5,k))
-        end do
-
-!       If temperature ob, extract information regarding virtual
-!       versus sensible temperature
-        if(tob) then
-           call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
-           if (.not. twodvar_regional .or. .not.tsensible) then
-              do k=1,levs
-                 tvflg(k)=one                               ! initialize as sensible
-                 do j=1,20
-                    if (tpc(k,j)==vtcd) tvflg(k)=zero       ! reset flag if virtual
-                    if (tpc(k,j)>=bmiss) exit               ! end of stack
-                 end do
-              end do
-           else         !peel back events to store sensible temp in case temp is virtual
-              call ufbevn(lunin,tobaux,2,255,20,levs,'TOB TQM')
-              do k=1,levs
-                 tvflg(k)=one                              ! initialize as sensible
-                 do j=1,20
-                    if (tpc(k,j)==vtcd) then
-                       obsdat(3,k)=tobaux(1,k,j+1)
-                       qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
-                       tqm(k)=nint(qcmark(3,k))
-                    end if
-                    if (tpc(k,j)>=bmiss) exit              ! end of stack
-                 end do
-              end do
+              time_correction=zero
            end if
-        end if
 
-        stnelev=hdr(6)
-        ithin=ithin_conv(nc)
-        ithinp = ithin > 0 .and. pflag /= 0
-        if(.not. driftl .and. (levs > 1 .or. ithinp))then
-!          Interpolate guess pressure profile to observation location
-           klon1= int(dlon);  klat1= int(dlat)
-           dx   = dlon-klon1; dy   = dlat-klat1
-           dx1  = one-dx;     dy1  = one-dy
-           w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+           timeobs=real(real(hdr(4),r_single),r_double)
+           t4dv=timeobs + toff
+           zeps=1.0e-8_r_kind
+           if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
+           if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
+           t4dv=t4dv + time_correction
+           time=timeobs + time_correction
+           kx=hdr(5)
  
-           klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
-           if (klon1==0) klon1=nlon
-           klatp1=min(nlat,klat1+1); klonp1=klon1+1
-           if (klonp1==nlon+1) klonp1=1
-           do kk=1,nsig
-              presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
-                        w10*prsl_full(klatp1,klon1 ,kk) + &
-                        w01*prsl_full(klat1 ,klonp1,kk) + &
-                        w11*prsl_full(klatp1,klonp1,kk)
+!          Balloon drift information available for these data
+           driftl=kx==120.or.kx==220.or.kx==221
+
+           if (l4dvar) then
+              if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
+           else
+              if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
+                 .and. .not. driftl)cycle loop_readsb ! outside time window
+           endif
+
+           timex=time
+
+!          If ASCAT data, determine primary surface type.  If not open sea,
+!          skip this observation.  This check must be done before thinning.
+           if (kx==290 .or. kx==289 .or. kx==285) then
+              call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
+              if (isflg /= 0) cycle loop_readsb
+              if (tsavg <= 273.0_r_kind) cycle loop_readsb
+           endif
+     
+!          Extract data information on levels
+           call ufbint(lunin,obsdat,9,255,levs,obstr)
+           call ufbint(lunin,qcmark,8,255,levs,qcstr)
+           call ufbint(lunin,obserr,8,255,levs,oestr)
+           nread=nread+levs
+           if(uvob)then
+              nread=nread+levs
+           else if(sstob)then 
+              sstdat=1.e11_r_kind
+              call ufbint(lunin,sstdat,8,1,levs,sststr)
+           else if(metarcldobs) then
+              metarcld=1.e11_r_kind
+              metarwth=1.e11_r_kind
+              metarvis=1.e11_r_kind
+              call ufbint(lunin,metarcld,2,10,metarcldlevs,metarcldstr)
+              call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
+              call ufbint(lunin,metarvis,1,1,iret,metarvisstr)
+              if(levs /= 1 ) then
+                 write(6,*) 'READ_PREPBUFR: error in Metar observations, levs sould be 1 !!!'
+                 call stop2(110)
+              endif
+           else if(geosctpobs) then
+              geoscld=1.e11_r_kind
+              call ufbint(lunin,geoscld,4,1,levs,geoscldstr)
+           endif
+
+!          Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
+           rstation_id=hdr(1)
+           do k=1,levs
+              if (obsdat(1,k)<tiny_r_kind) then
+                 write(6,*)'READ_PREPBUFR:  ***WARNING*** invalid pressure pob=',&
+                    obsdat(1,k),' at k=',k,' for obstype=',obstype,' kx=',kx,&
+                    ' c_station_id=',c_station_id,' reset pob=',bmiss
+                 obsdat(1,k)=bmiss
+              endif
            end do
 
-!          Compute depth of guess pressure layersat observation location
-           if (.not.twodvar_regional .and. levs > 1) then
-              do kk=1,nsig-1
-                 dpres(kk)=presl(kk)-presl(kk+1)
-              end do
+!          If available, get obs errors from error table
+           if(oberrflg)then
+
+!             Set lower limits for observation errors
+              terrmin=half
+              werrmin=one
+              perrmin=half
+              qerrmin=one_tenth
+              pwerrmin=one
+
+              do k=1,levs
+                 itypex=kx
+                 ppb=obsdat(1,k)
+                 if(kx==153)ppb=obsdat(9,k)*0.01_r_kind
+                 ppb=max(zero,min(ppb,r2000))
+                 if(ppb>=etabl(itypex,1,1)) k1=1
+                 do kl=1,32
+                    if(ppb>=etabl(itypex,kl+1,1).and.ppb<=etabl(itypex,kl,1)) k1=kl
+                 end do
+                 if(ppb<=etabl(itypex,33,1)) k1=5
+                 k2=k1+1
+                 ediff = etabl(itypex,k2,1)-etabl(itypex,k1,1)
+                 if (abs(ediff) > tiny_r_kind) then
+                    del = (ppb-etabl(itypex,k1,1))/ediff
+                 else
+                    del = huge_r_kind
+                 endif
+                 del=max(zero,min(del,one))
+                 obserr(3,k)=(one-del)*etabl(itypex,k1,2)+del*etabl(itypex,k2,2)
+                 obserr(2,k)=(one-del)*etabl(itypex,k1,3)+del*etabl(itypex,k2,3)
+                 obserr(5,k)=(one-del)*etabl(itypex,k1,4)+del*etabl(itypex,k2,4)
+                 obserr(1,k)=(one-del)*etabl(itypex,k1,5)+del*etabl(itypex,k2,5)
+                 obserr(7,k)=(one-del)*etabl(itypex,k1,6)+del*etabl(itypex,k2,6)
+
+                 obserr(3,k)=max(obserr(3,k),terrmin)
+                 obserr(2,k)=max(obserr(2,k),qerrmin)
+                 obserr(5,k)=max(obserr(5,k),werrmin)
+                 obserr(1,k)=max(obserr(1,k),perrmin)
+                 obserr(7,k)=max(obserr(7,k),pwerrmin)
+              enddo
            endif
-        end if
-        LOOP_K_LEVS: do k=1,levs
+     
 
-           icntpnt=icntpnt+1
+!          If data with drift position, get drift information
+           if(driftl)call ufbint(lunin,drfdat,8,255,iret,drift)
+ 
+!          Loop over levels       
+           do k=1,levs
+              do i=1,8
+                 qcmark(i,k) = min(qcmark(i,k),qcmark_huge)
+              end do
 
-!          Extract quality marks
-           if(tob)then
-              qm=tqm(k)
-           else if(uvob) then 
-              qm=wqm(k)
-           else if(spdob) then
-              qm=wqm(k)
-           else if(psob) then
-              qm=pqm(k)
-           else if(qob) then
-              if(obsdat(2,k) > 1.0e9_r_kind)cycle loop_k_levs
-              qm=qqm(k)
-           else if(pwob) then
-              pwq=nint(qcmark(7,k))
-              qm=pwq
-           else if(sstob) then
-              sstq=100
-              if (k==1) sstq=nint(min(sstdat(4,k),qcmark_huge))
-              qm=sstq
-           else if(metarcldobs) then
-              qm=0      
-           else if(geosctpobs) then
-              qm=0
+              if (kx == id_bias_ps) then
+                 plevs(k)=one_tenth*obsdat(1,k)+conv_bias_ps   ! convert mb to cb
+              else
+                 plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
+              endif
+              if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
+              if (geosctpobs) plevs(k)=geoscld(1,k)/1000.0_r_kind ! cloud top pressure in cb
+              pqm(k)=nint(qcmark(1,k))
+              qqm(k)=nint(qcmark(2,k))
+              tqm(k)=nint(qcmark(3,k))
+              wqm(k)=nint(qcmark(5,k))
+           end do
+
+!          If temperature ob, extract information regarding virtual
+!          versus sensible temperature
+           if(tob) then
+              call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
+              if (.not. twodvar_regional .or. .not.tsensible) then
+                 do k=1,levs
+                    tvflg(k)=one                               ! initialize as sensible
+                    do j=1,20
+                       if (tpc(k,j)==vtcd) tvflg(k)=zero       ! reset flag if virtual
+                       if (tpc(k,j)>=bmiss) exit               ! end of stack
+                    end do
+                 end do
+              else         !peel back events to store sensible temp in case temp is virtual
+                 call ufbevn(lunin,tobaux,2,255,20,levs,'TOB TQM')
+                 do k=1,levs
+                    tvflg(k)=one                              ! initialize as sensible
+                    do j=1,20
+                       if (tpc(k,j)==vtcd) then
+                          obsdat(3,k)=tobaux(1,k,j+1)
+                          qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
+                          tqm(k)=nint(qcmark(3,k))
+                       end if
+                       if (tpc(k,j)>=bmiss) exit              ! end of stack
+                    end do
+                 end do
+              end if
            end if
 
-
-!          Check qc marks to see if obs should be processed or skipped
-           if (psob) then
-              cat=nint(min(obsdat(8,k),qcmark_huge))
-              if ( cat /=0 ) cycle loop_k_levs
-              if ( obsdat(1,k)< r500) qm=100
-              zqm=nint(qcmark(4,k))
-              if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
-           endif
-
-!          if(convobs .and. pqm(k) >=lim_qm .and. qm/=15 .and. qm/=9 )cycle loop_k_levs
-!          if(qm >=lim_qm .and. qm /=15 .and. qm /=9)cycle loop_k_levs
-           if(qm > 15 .or. qm < 0) cycle loop_k_levs
-
-!          If needed, extract drift information.   
-           if(driftl)then
-              if(drfdat(1,k) >= r360)drfdat(1,k)=drfdat(1,k)-r360
-              if(drfdat(1,k) <  zero)drfdat(1,k)=drfdat(1,k)+r360
-              if(abs(drfdat(2,k)) > r90 .or. drfdat(1,k) > r360 .or. drfdat(1,k) < zero)then
-                 drfdat(2,k)=hdr(3)
-                 drfdat(1,k)=hdr(2)
-              end if
-
-!             Check to ensure header lat and drift lat similar
-              if(abs(drfdat(2,k)-hdr(3)) > r10 .and.  &
-                 abs(drfdat(1,k)-hdr(2)) > r10)then
-                 drfdat(2,k)=hdr(3)
-                 drfdat(1,k)=hdr(2)
-              end if
-
-!             Check to see if the time is outrageous if so set to header value
-              timeobs = real(real(drfdat(3,k),r_single),r_double)
-              time_drift = timeobs + time_correction
-              if (abs(time_drift-time)>four) time_drift = time
+           stnelev=hdr(6)
+           ithin=ithin_conv(nc)
+           ithinp = ithin > 0 .and. pflag /= 0
+           if(.not. driftl .and. (levs > 1 .or. ithinp))then
+!             Interpolate guess pressure profile to observation location
+              klon1= int(dlon);  klat1= int(dlat)
+              dx   = dlon-klon1; dy   = dlat-klat1
+              dx1  = one-dx;     dy1  = one-dy
+              w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
  
-!             Check to see if the time is outside range
-              if (l4dvar) then
-                 t4dv=toff+time_drift
-                 if (t4dv<zero .or. t4dv>winlen) then
-                    t4dv=toff+timex
-                    if (t4dv<zero .or. t4dv>winlen) CYCLE LOOP_K_LEVS
-                 end if
-              else
-                 if(abs(time_drift) > ctwind(nc) .or. abs(time_drift) > twindin)then
-                    time_drift=timex
-                    if(abs(timex) > ctwind(nc) .or. abs(timex) > twindin) CYCLE LOOP_K_LEVS
-                 end if
-                 t4dv = toff + time_drift
-              endif
-           
-              dlat_earth = drfdat(2,k) * deg2rad
-              dlon_earth = drfdat(1,k) * deg2rad
+              klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+              if (klon1==0) klon1=nlon
+              klatp1=min(nlat,klat1+1); klonp1=klon1+1
+              if (klonp1==nlon+1) klonp1=1
+              do kk=1,nsig
+                 presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
+                           w10*prsl_full(klatp1,klon1 ,kk) + &
+                           w01*prsl_full(klat1 ,klonp1,kk) + &
+                           w11*prsl_full(klatp1,klonp1,kk)
+              end do
 
-              if(regional)then
-                 call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-                 if(outside) cycle LOOP_K_LEVS 
-              else
-                 dlat = dlat_earth
-                 dlon = dlon_earth
-                 call grdcrd(dlat,1,rlats,nlat,1)
-                 call grdcrd(dlon,1,rlons,nlon,1)
-              endif
-
-              if(levs > 1 .or. ithinp)then
-!                Interpolate guess pressure profile to observation location
-                 klon1= int(dlon);  klat1= int(dlat)
-                 dx   = dlon-klon1; dy   = dlat-klat1
-                 dx1  = one-dx;     dy1  = one-dy
-                 w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
- 
-                 klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
-                 if (klon1==0) klon1=nlon
-                 klatp1=min(nlat,klat1+1); klonp1=klon1+1
-                 if (klonp1==nlon+1) klonp1=1
-
-                 do kk=1,nsig
-                    presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
-                              w10*prsl_full(klatp1,klon1 ,kk) + &
-                              w01*prsl_full(klat1 ,klonp1,kk) + &
-                              w11*prsl_full(klatp1,klonp1,kk)
+!             Compute depth of guess pressure layersat observation location
+              if (.not.twodvar_regional .and. levs > 1) then
+                 do kk=1,nsig-1
+                    dpres(kk)=presl(kk)-presl(kk+1)
                  end do
+              endif
+           end if
+           LOOP_K_LEVS: do k=1,levs
 
-!                Compute depth of guess pressure layersat observation location
-                 if (.not.twodvar_regional .and. levs > 1) then
-                    do kk=1,nsig-1
-                       dpres(kk)=presl(kk)-presl(kk+1)
+              icntpnt=icntpnt+1
+
+!             Extract quality marks
+              if(tob)then
+                 qm=tqm(k)
+              else if(uvob) then 
+                 qm=wqm(k)
+              else if(spdob) then
+                 qm=wqm(k)
+              else if(psob) then
+                 qm=pqm(k)
+              else if(qob) then
+                 if(obsdat(2,k) > 1.0e9_r_kind)cycle loop_k_levs
+                 qm=qqm(k)
+              else if(pwob) then
+                 pwq=nint(qcmark(7,k))
+                 qm=pwq
+              else if(sstob) then
+                 sstq=100
+                 if (k==1) sstq=nint(min(sstdat(4,k),qcmark_huge))
+                 qm=sstq
+              else if(metarcldobs) then
+                 qm=0      
+              else if(geosctpobs) then
+                 qm=0
+              end if
+ 
+
+!             Check qc marks to see if obs should be processed or skipped
+              if (psob) then
+                 cat=nint(min(obsdat(8,k),qcmark_huge))
+                 if ( cat /=0 ) cycle loop_k_levs
+                 if ( obsdat(1,k)< r500) qm=100
+                 zqm=nint(qcmark(4,k))
+                 if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
+              endif
+
+!             if(convobs .and. pqm(k) >=lim_qm .and. qm/=15 .and. qm/=9 )cycle loop_k_levs
+!             if(qm >=lim_qm .and. qm /=15 .and. qm /=9)cycle loop_k_levs
+              if(qm > 15 .or. qm < 0) cycle loop_k_levs
+
+!             If needed, extract drift information.   
+              if(driftl)then
+                 if(drfdat(1,k) >= r360)drfdat(1,k)=drfdat(1,k)-r360
+                 if(drfdat(1,k) <  zero)drfdat(1,k)=drfdat(1,k)+r360
+                 if(abs(drfdat(2,k)) > r90 .or. drfdat(1,k) > r360 .or. drfdat(1,k) < zero)then
+                    drfdat(2,k)=hdr(3)
+                    drfdat(1,k)=hdr(2)
+                 end if
+
+!                Check to ensure header lat and drift lat similar
+                 if(abs(drfdat(2,k)-hdr(3)) > r10 .and.  &
+                    abs(drfdat(1,k)-hdr(2)) > r10)then
+                    drfdat(2,k)=hdr(3)
+                    drfdat(1,k)=hdr(2)
+                 end if
+
+!                Check to see if the time is outrageous if so set to header value
+                 timeobs = real(real(drfdat(3,k),r_single),r_double)
+                 time_drift = timeobs + time_correction
+                 if (abs(time_drift-time)>four) time_drift = time
+ 
+!                Check to see if the time is outside range
+                 if (l4dvar) then
+                    t4dv=toff+time_drift
+                    if (t4dv<zero .or. t4dv>winlen) then
+                       t4dv=toff+timex
+                       if (t4dv<zero .or. t4dv>winlen) CYCLE LOOP_K_LEVS
+                    end if
+                 else
+                    if(abs(time_drift) > ctwind(nc) .or. abs(time_drift) > twindin)then
+                       time_drift=timex
+                       if(abs(timex) > ctwind(nc) .or. abs(timex) > twindin) CYCLE LOOP_K_LEVS
+                    end if
+                    t4dv = toff + time_drift
+                 endif
+
+                 dlat_earth = drfdat(2,k) * deg2rad
+                 dlon_earth = drfdat(1,k) * deg2rad
+ 
+                 if(regional)then
+                    call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+                    if(outside) cycle LOOP_K_LEVS 
+                 else
+                    dlat = dlat_earth
+                    dlon = dlon_earth
+                    call grdcrd(dlat,1,rlats,nlat,1)
+                    call grdcrd(dlon,1,rlons,nlon,1)
+                 endif
+
+                 if(levs > 1 .or. ithinp)then
+!                   Interpolate guess pressure profile to observation location
+                    klon1= int(dlon);  klat1= int(dlat)
+                    dx   = dlon-klon1; dy   = dlat-klat1
+                    dx1  = one-dx;     dy1  = one-dy
+                    w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+
+                    klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+                    if (klon1==0) klon1=nlon
+                    klatp1=min(nlat,klat1+1); klonp1=klon1+1
+                    if (klonp1==nlon+1) klonp1=1
+
+                    do kk=1,nsig
+                       presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
+                                 w10*prsl_full(klatp1,klon1 ,kk) + &
+                                 w01*prsl_full(klat1 ,klonp1,kk) + &
+                                 w11*prsl_full(klatp1,klonp1,kk)
+                    end do
+
+!                   Compute depth of guess pressure layersat observation location
+                    if (.not.twodvar_regional .and. levs > 1) then
+                       do kk=1,nsig-1
+                          dpres(kk)=presl(kk)-presl(kk+1)
+                       end do
+                    endif
+                 end if
+              end if
+
+!             Special block for data thinning - if requested
+              if (ithin > 0) then
+                 ntmp=ndata  ! counting moved to map3gridS
+           
+!                Set data quality index for thinning
+                 if (l4dvar) then
+                    timedif = zero
+                 else
+                    timedif=abs(t4dv-toff)
+                 endif
+!                if(kx == 243 .or. kx == 253 .or. kx ==254) then
+!                   call ufbint(lunin,satqc,1,1,iret,satqcstr)
+!                   crit1 = timedif/r6+half + four*(one-satqc(1)/r100)*r3_33
+!                else
+                 crit1 = timedif/r6+half
+!                endif
+
+!                Set data quality index for thinning
+                 if (l4dvar) then
+                    timedif = zero
+                 else
+                    timedif=abs(t4dv-toff)
+                 endif
+                 if(kx == 243 .or. kx == 253 .or. kx ==254) then
+                    call ufbint(lunin,satqc,1,1,iret,satqcstr)
+                    crit1 = timedif/r6+half + four*(one-satqc(1)/r100)*r3_33
+                 else
+                    crit1 = timedif/r6+half
+                 endif
+
+                 if (pflag==0) then
+                    do kk=1,nsig
+                       presl_thin(kk)=presl(kk)
                     end do
                  endif
-              end if
-           end if
 
-!          Special block for data thinning - if requested
-           if (ithin > 0) then
-              ntmp=ndata  ! counting moved to map3gridS
-           
-!             Set data quality index for thinning
-              if (l4dvar) then
-                 timedif = zero
-              else
-                 timedif=abs(t4dv-toff)
-              endif
-!              if(kx == 243 .or. kx == 253 .or. kx ==254) then
-!                 call ufbint(lunin,satqc,1,1,iret,satqcstr)
-!                 crit1 = timedif/r6+half + four*(one-satqc(1)/r100)*r3_33
-!              else
-                 crit1 = timedif/r6+half
-!              endif
+                 call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
+                    plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse)
 
-              if (pflag==0) then
-                 do kk=1,nsig
-                    presl_thin(kk)=presl(kk)
-                 end do
-              endif
-
-              call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                   plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse)
-
-              if (.not. luse) then
-                 if(k==levs) then
-                    cycle loop_readsb
-                 else
-                    cycle LOOP_K_LEVS
+                 if (.not. luse) then
+                    if(k==levs) then
+                       cycle loop_readsb
+                    else
+                       cycle LOOP_K_LEVS
+                    endif
                  endif
+                 if(iiout > 0) isort(iiout)=0
+                 if(ndata >  ntmp)then
+                    nodata=nodata+1
+                    if(uvob)nodata=nodata+1
+                 end if
+                 isort(icntpnt)=iout
+
+              else
+                 ndata=ndata+1
+                 nodata=nodata+1
+                 if(uvob)nodata=nodata+1
+                 iout=ndata
+                 isort(icntpnt)=iout
               endif
-              if(iiout > 0) isort(iiout)=0
-              if(ndata >  ntmp)then
-                nodata=nodata+1
-                if(uvob)nodata=nodata+1
+
+              if(ndata > maxobs) then
+                 write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
+                 ndata = maxobs
               end if
-              isort(icntpnt)=iout
 
-           else
-              ndata=ndata+1
-              nodata=nodata+1
-              if(uvob)nodata=nodata+1
-              iout=ndata
-              isort(icntpnt)=iout
-           endif
-
-           if(ndata > maxobs) then
-              write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
-              ndata = maxobs
-           end if
-
-!          Set usage variable              
-           usage = zero
+!             Set usage variable              
+              usage = zero
 
 
-           if(icuse(nc) <= 0)usage=100._r_kind
-           if(qm == 15 .or. qm == 12 .or. qm == 9)usage=100._r_kind
-           if(qm >=lim_qm )usage=101._r_kind
-           if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
+              if(icuse(nc) <= 0)usage=100._r_kind
+              if(qm == 15 .or. qm == 12 .or. qm == 9)usage=100._r_kind
+              if(qm >=lim_qm )usage=101._r_kind
+              if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
 
-           sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
-           if (sfctype) then
-              call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
-              call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
-              call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage)
-           endif
+              sfctype=(kx>179.and.kx<190).or.(kx>279.and.kx<290)
+              if (sfctype) then
+                 call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
+                 call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
+                 call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage)
+              endif
 
-           if(ncnumgrp(nc) > 0 )then                     ! cross validation on
-              if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
-           end if
+              if(ncnumgrp(nc) > 0 )then                     ! cross validation on
+                 if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
+              end if
 
 ! Flag regional MAP wind above 400mb for monitoring 
-           if(regional .and. kx==227 .and. obsdat(1,k)<400._r_kind ) usage=r100
-
+              if(regional .and. kx==227 .and. obsdat(1,k)<400._r_kind ) usage=r100
+ 
 ! don't use MESONET psfc obs if  8th character of station id is "x")
-           if( kx==188 .and. psob .and. sidchr(8)=='x' ) usage=r100
+              if( kx==188 .and. psob .and. sidchr(8)=='x' ) usage=r100
 
 ! Get information from surface file necessary for conventional data here
-           call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
+              call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
 
 
-!          Extract pressure level and quality marks
-           dlnpob=log(plevs(k))  ! ln(pressure in cb)
+!             Extract pressure level and quality marks
+              dlnpob=log(plevs(k))  ! ln(pressure in cb)
 
-!          Set inflate_error logical based on qm flag
-           inflate_error=.false.
-           if (qm==3 .or. qm==7) inflate_error=.true.
-
-!          Temperature
-           if(tob) then
-              ppb=obsdat(1,k)
-              call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-              toe=obserr(3,k)*errout
-              qtflg=tvflg(k) 
-              if (inflate_error) toe=toe*r1_2
-              if(ppb < r100)toe=toe*r1_2
-              cdata_all(1,iout)=toe                     ! temperature error
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
-              cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
-
-              if (kx == id_bias_t) then
-                 cdata_all(5,iout)=obsdat(3,k)+t0c+conv_bias_t   ! temperature ob.+bias
-              else
-                 cdata_all(5,iout)=obsdat(3,k)+t0c               ! temperature ob.
-              endif
-
-              cdata_all(6,iout)=rstation_id             ! station id
-              cdata_all(7,iout)=t4dv                    ! time
-              cdata_all(8,iout)=nc                      ! type
-              cdata_all(9,iout)=qtflg                   ! qtflg (virtual temperature flag)
-              cdata_all(10,iout)=tqm(k)                 ! quality mark
-              cdata_all(11,iout)=obserr(3,k)            ! original obs error
-              cdata_all(12,iout)=usage                  ! usage parameter
-              cdata_all(13,iout)=idomsfc                ! dominate surface type
-              cdata_all(14,iout)=tsavg                  ! skin temperature
-              cdata_all(15,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(16,iout)=sfcr                   ! surface roughness
-              cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              cdata_all(19,iout)=stnelev                ! station elevation (m)
-              cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
-              if(perturb_obs)cdata_all(21,iout)=ran01dom()*perturb_fact ! t perturbation
-
-!          Winds 
-           else if(uvob) then 
-              call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-              woe=obserr(5,k)*errout
-              if (inflate_error) woe=woe*r1_2
-              if(obsdat(1,k) < r50)woe=woe*r1_2
-              selev=stnelev
-              oelev=obsdat(4,k)
-              if(kx >= 280 .and. kx < 300 )then
-                 oelev=r10+selev
-                 if (kx == 280 )then
-                    it29=nint(hdr(8))
-                    if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
-!                      oelev=r20+selev
-                       oelev=r20
-                    end if
-                 end if
-
-                 if (kx == 282) oelev=r20+selev
-                 if (kx == 285 .or. kx == 289 .or. kx == 290) then
-                    oelev=selev
-                    selev=zero
-                 endif
-              else
-                 if((kx >= 221 .and.  kx <= 229) &
-                     .and. selev >= oelev) oelev=r10+selev
-              end if
-
-!             Rotate winds to rotated coordinate
-              uob=obsdat(5,k)
-              vob=obsdat(6,k)
-              if(regional)then
-                 u0=uob
-                 v0=vob
-                 call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
-                 if(diagnostic_reg) then
-                    call rotate_wind_xy2ll(uob,vob,u00,v00,dlon_earth,dlon,dlat)
-                    nvtest=nvtest+1
-                    disterr=sqrt((u0-u00)**2+(v0-v00)**2)
-                    vdisterrmax=max(vdisterrmax,disterr)
-                 end if
-              endif
-           
-              cdata_all(1,iout)=woe                     ! wind error
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
-              cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
-              cdata_all(5,iout)=oelev                   ! height of observation
-              cdata_all(6,iout)=uob                     ! u obs
-              cdata_all(7,iout)=vob                     ! v obs
-              cdata_all(8,iout)=rstation_id             ! station id
-              cdata_all(9,iout)=t4dv                    ! time
-              cdata_all(10,iout)=nc                     ! type
-              cdata_all(11,iout)=selev                  ! station elevation
-              cdata_all(12,iout)=wqm(k)                 ! quality mark
-              cdata_all(13,iout)=obserr(5,k)            ! original obs error
-              cdata_all(14,iout)=usage                  ! usage parameter
-              cdata_all(15,iout)=idomsfc                ! dominate surface type
-              cdata_all(16,iout)=tsavg                  ! skin temperature
-              cdata_all(17,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(18,iout)=sfcr                   ! surface roughness
-              cdata_all(19,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(20,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              if(perturb_obs)then
-                 cdata_all(21,iout)=ran01dom()*perturb_fact ! u perturbation
-                 cdata_all(22,iout)=ran01dom()*perturb_fact ! v perturbation
-              endif
-
-           else if(spdob) then 
-              woe=obserr(5,k)
-              if (inflate_error) woe=woe*r1_2
-              elev=r20
-
-              cdata_all(1,iout)=woe                     ! wind error
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
-              cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
-              cdata_all(5,iout)=obsdat(5,k)             ! u obs
-              cdata_all(6,iout)=obsdat(6,k)             ! v obs
-              cdata_all(7,iout)=rstation_id             ! station id
-              cdata_all(8,iout)=t4dv                    ! time
-              cdata_all(9,iout)=nc                      ! type
-              cdata_all(10,iout)=elev                   ! elevation of observation
-              cdata_all(11,iout)=wqm(k)                 ! quality mark
-              cdata_all(12,iout)=obserr(5,k)            ! original obs error
-              cdata_all(13,iout)=usage                  ! usage parameter
-              cdata_all(14,iout)=idomsfc                ! dominate surface type
-              cdata_all(15,iout)=tsavg                  ! skin temperature
-              cdata_all(16,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(17,iout)=sfcr                   ! surface roughness
-              cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              cdata_all(20,iout)=stnelev                ! station elevation (m)
-
-!          Surface pressure 
-           else if(psob) then
+!             Set inflate_error logical based on qm flag
+              inflate_error=.false.
+              if (qm==3 .or. qm==7) inflate_error=.true.
  
-              poe=obserr(1,k)*one_tenth                  ! convert from mb to cb
-              if (inflate_error) poe=poe*r1_2
-              cdata_all(1,iout)=poe                     ! surface pressure error (cb)
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
+!             Temperature
+              if(tob) then
+                 ppb=obsdat(1,k)
+                 call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                 toe=obserr(3,k)*errout
+                 qtflg=tvflg(k) 
+                 if (inflate_error) toe=toe*r1_2
+                 if(ppb < r100)toe=toe*r1_2
+                 cdata_all(1,iout)=toe                     ! temperature error
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
 
-              cdata_all(4,iout)=exp(dlnpob)             ! pressure (in cb)
+                 if (kx == id_bias_t) then
+                    cdata_all(5,iout)=obsdat(3,k)+t0c+conv_bias_t   ! temperature ob.+bias
+                 else
+                    cdata_all(5,iout)=obsdat(3,k)+t0c               ! temperature ob.
+                 endif
 
-              cdata_all(5,iout)=obsdat(4,k)             ! surface height
-              cdata_all(6,iout)=obsdat(3,k)+t0c         ! surface temperature
-              cdata_all(7,iout)=rstation_id             ! station id
-              cdata_all(8,iout)=t4dv                    ! time
-              cdata_all(9,iout)=nc                      ! type
-              cdata_all(10,iout)=pqm(k)                 ! quality mark
-              cdata_all(11,iout)=obserr(1,k)*one_tenth  ! original obs error (cb)
-              cdata_all(12,iout)=usage                  ! usage parameter
-              cdata_all(13,iout)=idomsfc                ! dominate surface type
-              cdata_all(14,iout)=tsavg                  ! skin temperature
-              cdata_all(15,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(16,iout)=sfcr                   ! surface roughness
-              cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              cdata_all(19,iout)=stnelev                ! station elevation (m)
-              if(perturb_obs)cdata_all(20,iout)=ran01dom()*perturb_fact ! ps perturbation
+                 cdata_all(6,iout)=rstation_id             ! station id
+                 cdata_all(7,iout)=t4dv                    ! time
+                 cdata_all(8,iout)=nc                      ! type
+                 cdata_all(9,iout)=qtflg                   ! qtflg (virtual temperature flag)
+                 cdata_all(10,iout)=tqm(k)                 ! quality mark
+                 cdata_all(11,iout)=obserr(3,k)            ! original obs error
+                 cdata_all(12,iout)=usage                  ! usage parameter
+                 cdata_all(13,iout)=idomsfc                ! dominate surface type
+                 cdata_all(14,iout)=tsavg                  ! skin temperature
+                 cdata_all(15,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(16,iout)=sfcr                   ! surface roughness
+                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(19,iout)=stnelev                ! station elevation (m)
+                 cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
+                 if(perturb_obs)cdata_all(21,iout)=ran01dom()*perturb_fact ! t perturbation
 
-!          Specific humidity 
-           else if(qob) then
-              qmaxerr=emerr
-              call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-              qoe=obserr(2,k)*one_tenth*errout
-              if (inflate_error) then
-                 qmaxerr=emerr*r0_7; qoe=qoe*r1_2
-              end if
-              qobcon=obsdat(2,k)*convert
-              tdry=r999
-              if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
-              cdata_all(1,iout)=qoe                     ! q error   
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
-              cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
-              cdata_all(5,iout)=qobcon                  ! q ob
-              cdata_all(6,iout)=rstation_id             ! station id
-              cdata_all(7,iout)=t4dv                    ! time
-              cdata_all(8,iout)=nc                      ! type
-              cdata_all(9,iout)=qmaxerr                 ! q max error
-              cdata_all(10,iout)=tdry                   ! dry temperature (obs is tv)
-              cdata_all(11,iout)=qqm(k)                 ! quality mark
-              cdata_all(12,iout)=obserr(2,k)*one_tenth  ! original obs error
-              cdata_all(13,iout)=usage                  ! usage parameter
-              cdata_all(14,iout)=idomsfc                ! dominate surface type
-              cdata_all(15,iout)=tsavg                  ! skin temperature
-              cdata_all(16,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(17,iout)=sfcr                   ! surface roughness
-              cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              cdata_all(20,iout)=stnelev                ! station elevation (m)
-              cdata_all(21,iout)=obsdat(4,k)            ! observation height (m)
-              if(perturb_obs)cdata_all(22,iout)=ran01dom()*perturb_fact ! q perturbation
+!             Winds 
+              else if(uvob) then 
+                 call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                 woe=obserr(5,k)*errout
+                 if (inflate_error) woe=woe*r1_2
+                 if(obsdat(1,k) < r50)woe=woe*r1_2
+                 selev=stnelev
+                 oelev=obsdat(4,k)
+                 if(kx >= 280 .and. kx < 300 )then
+                    oelev=r10+selev
+                    if (kx == 280 )then
+                       it29=nint(hdr(8))
+                       if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
+!                         oelev=r20+selev
+                          oelev=r20
+                       end if
+                    end if
+ 
+                    if (kx == 282) oelev=r20+selev
+                    if (kx == 285 .or. kx == 289 .or. kx == 290) then
+                       oelev=selev
+                       selev=zero
+                    endif
+                 else
+                    if((kx >= 221 .and.  kx <= 229) &
+                       .and. selev >= oelev) oelev=r10+selev
+                 end if
 
-!          Total precipitable water (ssm/i)
-           else if(pwob) then
+!                Rotate winds to rotated coordinate
+                 uob=obsdat(5,k)
+                 vob=obsdat(6,k)
+                 if(regional)then
+                    u0=uob
+                    v0=vob
+                    call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
+                    if(diagnostic_reg) then
+                       call rotate_wind_xy2ll(uob,vob,u00,v00,dlon_earth,dlon,dlat)
+                       nvtest=nvtest+1
+                       disterr=sqrt((u0-u00)**2+(v0-v00)**2)
+                       vdisterrmax=max(vdisterrmax,disterr)
+                    end if
+                 endif
 
-              pwoe=obserr(7,k)
-              pwmerr=pwoe*three
-              cdata_all(1,iout)=pwoe                    ! pw error
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
-              cdata_all(4,iout)=obsdat(7,k)             ! pw obs
-              cdata_all(5,iout)=rstation_id             ! station id
-              cdata_all(6,iout)=t4dv                    ! time
-              cdata_all(7,iout)=nc                      ! type
-              cdata_all(8,iout)=pwmerr                  ! pw max error
-              cdata_all(9,iout)=pwq                     ! quality mark
-              cdata_all(10,iout)=obserr(7,k)            ! original obs error
-              cdata_all(11,iout)=usage                  ! usage parameter
-              cdata_all(12,iout)=idomsfc                ! dominate surface type
-              cdata_all(13,iout)=tsavg                  ! skin temperature
-              cdata_all(14,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(15,iout)=sfcr                   ! surface roughness
-              cdata_all(16,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              cdata_all(18,iout)=stnelev                ! station elevation (m)
-              cdata_all(19,iout)=obsdat(1,k)            ! observation pressure (hPa)
-              cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
+                 cdata_all(1,iout)=woe                     ! wind error
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
+                 cdata_all(5,iout)=oelev                   ! height of observation
+                 cdata_all(6,iout)=uob                     ! u obs
+                 cdata_all(7,iout)=vob                     ! v obs
+                 cdata_all(8,iout)=rstation_id             ! station id
+                 cdata_all(9,iout)=t4dv                    ! time
+                 cdata_all(10,iout)=nc                     ! type
+                 cdata_all(11,iout)=selev                  ! station elevation
+                 cdata_all(12,iout)=wqm(k)                 ! quality mark
+                 cdata_all(13,iout)=obserr(5,k)            ! original obs error
+                 cdata_all(14,iout)=usage                  ! usage parameter
+                 cdata_all(15,iout)=idomsfc                ! dominate surface type
+                 cdata_all(16,iout)=tsavg                  ! skin temperature
+                 cdata_all(17,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(18,iout)=sfcr                   ! surface roughness
+                 cdata_all(19,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(20,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 if(perturb_obs)then
+                    cdata_all(21,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(22,iout)=ran01dom()*perturb_fact ! v perturbation
+                 endif
+ 
+              else if(spdob) then 
+                 woe=obserr(5,k)
+                 if (inflate_error) woe=woe*r1_2
+                 elev=r20
 
+                 cdata_all(1,iout)=woe                     ! wind error
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
+                 cdata_all(5,iout)=obsdat(5,k)             ! u obs
+                 cdata_all(6,iout)=obsdat(6,k)             ! v obs
+                 cdata_all(7,iout)=rstation_id             ! station id
+                 cdata_all(8,iout)=t4dv                    ! time
+                 cdata_all(9,iout)=nc                      ! type
+                 cdata_all(10,iout)=elev                   ! elevation of observation
+                 cdata_all(11,iout)=wqm(k)                 ! quality mark
+                 cdata_all(12,iout)=obserr(5,k)            ! original obs error
+                 cdata_all(13,iout)=usage                  ! usage parameter
+                 cdata_all(14,iout)=idomsfc                ! dominate surface type
+                 cdata_all(15,iout)=tsavg                  ! skin temperature
+                 cdata_all(16,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(17,iout)=sfcr                   ! surface roughness
+                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(20,iout)=stnelev                ! station elevation (m)
 
-!          Conventional sst observations
-           else if(sstob) then
+!             Surface pressure 
+              else if(psob) then
 
-!             Locate the observation on the analysis grid.  Get land/sea/ice
-!             mask at nearest analysis grid points.
+                 poe=obserr(1,k)*one_tenth                  ! convert from mb to cb
+                 if (inflate_error) poe=poe*r1_2
+                 cdata_all(1,iout)=poe                     ! surface pressure error (cb)
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
 
-              sstoe=r0_75
+                 cdata_all(4,iout)=exp(dlnpob)             ! pressure (in cb)
 
-              cdata_all(1,iout)=sstoe                   ! sst error
-              cdata_all(2,iout)=dlon                    ! grid relative longitude
-              cdata_all(3,iout)=dlat                    ! grid relative latitude
-              cdata_all(4,iout)=sstdat(3,k)             ! sst obs
-              cdata_all(5,iout)=rstation_id             ! station id
-              cdata_all(6,iout)=t4dv                    ! time
-              cdata_all(7,iout)=nc                      ! type
-              cdata_all(8,iout)=sstoe*three             ! pw max error
-              cdata_all(9,iout)=sstdat(2,k)             ! depth of measurement
-              cdata_all(10,iout)=sstdat(1,k)            ! measurement type
-              cdata_all(11,iout)=sstq                   ! quality mark
-              cdata_all(12,iout)=sstdat(5,k)            ! original obs error
-              cdata_all(13,iout)=usage                  ! usage parameter
-              cdata_all(14,iout)=idomsfc                ! dominate surface type
-              cdata_all(15,iout)=tsavg                  ! skin temperature
-              cdata_all(16,iout)=ff10                   ! 10 meter wind factor
-              cdata_all(17,iout)=sfcr                   ! surface roughness
-              cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
-              cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
-              cdata_all(20,iout)=stnelev                ! station elevation (m)
+                 cdata_all(5,iout)=obsdat(4,k)             ! surface height
+                 cdata_all(6,iout)=obsdat(3,k)+t0c         ! surface temperature
+                 cdata_all(7,iout)=rstation_id             ! station id
+                 cdata_all(8,iout)=t4dv                    ! time
+                 cdata_all(9,iout)=nc                      ! type
+                 cdata_all(10,iout)=pqm(k)                 ! quality mark
+                 cdata_all(11,iout)=obserr(1,k)*one_tenth  ! original obs error (cb)
+                 cdata_all(12,iout)=usage                  ! usage parameter
+                 cdata_all(13,iout)=idomsfc                ! dominate surface type
+                 cdata_all(14,iout)=tsavg                  ! skin temperature
+                 cdata_all(15,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(16,iout)=sfcr                   ! surface roughness
+                 cdata_all(17,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(18,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(19,iout)=stnelev                ! station elevation (m)
+                 if(perturb_obs)cdata_all(20,iout)=ran01dom()*perturb_fact ! ps perturbation
+
+!             Specific humidity 
+              else if(qob) then
+                 qmaxerr=emerr
+                 call errormod(pqm,qqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                 qoe=obserr(2,k)*one_tenth*errout
+                 if (inflate_error) then
+                    qmaxerr=emerr*r0_7; qoe=qoe*r1_2
+                 end if
+                 qobcon=obsdat(2,k)*convert
+                 tdry=r999
+                 if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 cdata_all(1,iout)=qoe                     ! q error   
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
+                 cdata_all(5,iout)=qobcon                  ! q ob
+                 cdata_all(6,iout)=rstation_id             ! station id
+                 cdata_all(7,iout)=t4dv                    ! time
+                 cdata_all(8,iout)=nc                      ! type
+                 cdata_all(9,iout)=qmaxerr                 ! q max error
+                 cdata_all(10,iout)=tdry                   ! dry temperature (obs is tv)
+                 cdata_all(11,iout)=qqm(k)                 ! quality mark
+                 cdata_all(12,iout)=obserr(2,k)*one_tenth  ! original obs error
+                 cdata_all(13,iout)=usage                  ! usage parameter
+                 cdata_all(14,iout)=idomsfc                ! dominate surface type
+                 cdata_all(15,iout)=tsavg                  ! skin temperature
+                 cdata_all(16,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(17,iout)=sfcr                   ! surface roughness
+                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(20,iout)=stnelev                ! station elevation (m)
+                 cdata_all(21,iout)=obsdat(4,k)            ! observation height (m)
+                 if(perturb_obs)cdata_all(22,iout)=ran01dom()*perturb_fact ! q perturbation
+ 
+!             Total precipitable water (ssm/i)
+              else if(pwob) then
+
+                 pwoe=obserr(7,k)
+                 pwmerr=pwoe*three
+                 cdata_all(1,iout)=pwoe                    ! pw error
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=obsdat(7,k)             ! pw obs
+                 cdata_all(5,iout)=rstation_id             ! station id
+                 cdata_all(6,iout)=t4dv                    ! time
+                 cdata_all(7,iout)=nc                      ! type
+                 cdata_all(8,iout)=pwmerr                  ! pw max error
+                 cdata_all(9,iout)=pwq                     ! quality mark
+                 cdata_all(10,iout)=obserr(7,k)            ! original obs error
+                 cdata_all(11,iout)=usage                  ! usage parameter
+                 cdata_all(12,iout)=idomsfc                ! dominate surface type
+                 cdata_all(13,iout)=tsavg                  ! skin temperature
+                 cdata_all(14,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(15,iout)=sfcr                   ! surface roughness
+                 cdata_all(16,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(17,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(18,iout)=stnelev                ! station elevation (m)
+                 cdata_all(19,iout)=obsdat(1,k)            ! observation pressure (hPa)
+                 cdata_all(20,iout)=obsdat(4,k)            ! observation height (m)
+ 
+
+!             Conventional sst observations
+              else if(sstob) then
+
+!                Locate the observation on the analysis grid.  Get land/sea/ice
+!                mask at nearest analysis grid points.
+ 
+                 sstoe=r0_75
+
+                 cdata_all(1,iout)=sstoe                   ! sst error
+                 cdata_all(2,iout)=dlon                    ! grid relative longitude
+                 cdata_all(3,iout)=dlat                    ! grid relative latitude
+                 cdata_all(4,iout)=sstdat(3,k)             ! sst obs
+                 cdata_all(5,iout)=rstation_id             ! station id
+                 cdata_all(6,iout)=t4dv                    ! time
+                 cdata_all(7,iout)=nc                      ! type
+                 cdata_all(8,iout)=sstoe*three             ! pw max error
+                 cdata_all(9,iout)=sstdat(2,k)             ! depth of measurement
+                 cdata_all(10,iout)=sstdat(1,k)            ! measurement type
+                 cdata_all(11,iout)=sstq                   ! quality mark
+                 cdata_all(12,iout)=sstdat(5,k)            ! original obs error
+                 cdata_all(13,iout)=usage                  ! usage parameter
+                 cdata_all(14,iout)=idomsfc                ! dominate surface type
+                 cdata_all(15,iout)=tsavg                  ! skin temperature
+                 cdata_all(16,iout)=ff10                   ! 10 meter wind factor
+                 cdata_all(17,iout)=sfcr                   ! surface roughness
+                 cdata_all(18,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                 cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                 cdata_all(20,iout)=stnelev                ! station elevation (m)
 
 
 !          Measurement types
@@ -1282,54 +1297,54 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             11-14   Reserved
 
 ! METAR cloud observation
-           else if(metarcldobs) then
-              cdata_all(1,iout)=rstation_id    !  station ID
-              cdata_all(2,iout)=dlon           !  grid relative longitude
-              cdata_all(3,iout)=dlat           !  grid relative latitude
-              cdata_all(4,iout)=stnelev        !  station  elevation
-              if(metarvis(1,1) < 1.e10_r_kind) then
-                cdata_all(5,iout)=metarvis(1,1)  !  visibility (m)
-              else
-                cdata_all(5,iout) = -99999.0_r_kind
-              endif
-              do kk=1, 6
-                if(metarcld(1,kk) < 1.e10_r_kind) then
-                  cdata_all(5+kk,iout) =metarcld(1,kk)  !  cloud amount
-                else
-                  cdata_all(5+kk,iout) = -99999.0_r_kind
-                endif
-                if(metarcld(2,kk) < 1.e10_r_kind) then
-                  cdata_all(11+kk,iout)=metarcld(2,kk)  !  cloud bottom height (m)
-                else
-                  cdata_all(11+kk,iout)= -99999.0_r_kind
-                endif
-              enddo
-              do kk=1, 3
-                if(metarwth(1,kk) < 1.e10_r_kind) then
-                  cdata_all(17+kk,iout)=metarwth(1,kk)  !  weather
-                else
-                  cdata_all(17+kk,iout)= -99999.0_r_kind
-                endif
-              enddo
-              cdata_all(21,iout)=timeobs     !  time observation
-              cdata_all(22,iout)=usage
-              cdata_all(23,iout)=0.0_r_kind  ! reserved for distance between obs and grid
+              else if(metarcldobs) then
+                 cdata_all(1,iout)=rstation_id    !  station ID
+                 cdata_all(2,iout)=dlon           !  grid relative longitude
+                 cdata_all(3,iout)=dlat           !  grid relative latitude
+                 cdata_all(4,iout)=stnelev        !  station  elevation
+                 if(metarvis(1,1) < 1.e10_r_kind) then
+                    cdata_all(5,iout)=metarvis(1,1)  !  visibility (m)
+                 else
+                    cdata_all(5,iout) = -99999.0_r_kind
+                 endif
+                 do kk=1, 6
+                    if(metarcld(1,kk) < 1.e10_r_kind) then
+                       cdata_all(5+kk,iout) =metarcld(1,kk)  !  cloud amount
+                    else
+                       cdata_all(5+kk,iout) = -99999.0_r_kind
+                    endif
+                    if(metarcld(2,kk) < 1.e10_r_kind) then
+                       cdata_all(11+kk,iout)=metarcld(2,kk)  !  cloud bottom height (m)
+                    else
+                       cdata_all(11+kk,iout)= -99999.0_r_kind
+                    endif
+                 enddo
+                 do kk=1, 3
+                    if(metarwth(1,kk) < 1.e10_r_kind) then
+                       cdata_all(17+kk,iout)=metarwth(1,kk)  !  weather
+                    else
+                       cdata_all(17+kk,iout)= -99999.0_r_kind
+                    endif
+                 enddo
+                 cdata_all(21,iout)=timeobs     !  time observation
+                 cdata_all(22,iout)=usage
+                 cdata_all(23,iout)=0.0_r_kind  ! reserved for distance between obs and grid
 ! NESDIS cloud products
-           else if(geosctpobs) then
-              cdata_all(1,iout)=rstation_id    !  station ID
-              cdata_all(2,iout)=dlon                 !  grid relative longitude
-              cdata_all(3,iout)=dlat                 !  grid relative latitude
-              cdata_all(4,iout)=geoscld(1,k)/100.0_r_kind   !  cloud top pressure (pa)
-              cdata_all(5,iout)=geoscld(2,k)         !  cloud cover
-              cdata_all(6,iout)=geoscld(3,k)         !  Cloud top temperature (K)
-              cdata_all(7,iout)=timeobs              !  time
-              cdata_all(8,iout)=usage
-           end if
+              else if(geosctpobs) then
+                 cdata_all(1,iout)=rstation_id    !  station ID
+                 cdata_all(2,iout)=dlon                 !  grid relative longitude
+                 cdata_all(3,iout)=dlat                 !  grid relative latitude
+                 cdata_all(4,iout)=geoscld(1,k)/100.0_r_kind   !  cloud top pressure (pa)
+                 cdata_all(5,iout)=geoscld(2,k)         !  cloud cover
+                 cdata_all(6,iout)=geoscld(3,k)         !  Cloud top temperature (K)
+                 cdata_all(7,iout)=timeobs              !  time
+                 cdata_all(8,iout)=usage
+              end if
 
 !
 !    End k loop over levs
-        end do  LOOP_K_LEVS
-       end do loop_readsb
+           end do  LOOP_K_LEVS
+        end do loop_readsb
 
 !
 !   End of bufr read loop
@@ -1389,13 +1404,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_PREPBUFR:  ',&
-       'ntest,disterrmax=',ntest,disterrmax
+     'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_PREPBUFR:  ',&
-       'nvtest,vdisterrmax=',ntest,vdisterrmax
+     'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if (ndata == 0) then 
-	call closbf(lunin)
-	write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
+     call closbf(lunin)
+     write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
   endif
 
   close(lunin)

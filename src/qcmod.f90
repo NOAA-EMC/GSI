@@ -29,6 +29,7 @@ module qcmod
 !                       - (2) Introduce nst_tzr to control QC with Tz retrieval
 !                       - (3) Modify QC subroutines by adding a few dummy variables for Tz retrieval
 !   2011-02-17  todling - add parameter to control O3 Jacobian from IR instruments
+!   2011-05-05  mccarty - removed declaration and assignment of repe_dw
 !   2011-05-20  mccarty - add qc_atms routine
 !   2011-07-08  collard - reverse relaxation of AMSU-A Ch 5 QC introduced at revision 5986.
 !
@@ -51,7 +52,6 @@ module qcmod
 ! remarks: variable definitions below
 !   def dfact           - factor for duplicate obs at same location for conv. data
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
-!   def repe_dw         - factor for error in radar doppler winds
 !   def erradar_inflate - radar error inflation factor
 !   def npres_print     - number of levels for print
 !   def ptop,pbot       - arrays containing top pressure and bottom pressure of print levels
@@ -99,7 +99,7 @@ module qcmod
   public :: qc_atms
   public :: qc_noirjaco3
 ! set passed variables to public
-  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,repe_dw
+  public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
   public :: pboto3,ptopo3,pbotq,ptopq
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,ifail_gross_qc
@@ -111,7 +111,7 @@ module qcmod
 
   character(10):: vadfile
   integer(i_kind) npres_print
-  real(r_kind) dfact,dfact1,repe_dw,erradar_inflate,c_varqc
+  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -275,7 +275,6 @@ contains
 
     dfact    = zero
     dfact1   = three
-    repe_dw  = one
     varqc_iter=one
 
     erradar_inflate   = one
@@ -1461,7 +1460,7 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
   do i=1,nchanl
        cld_qc: do k=1,lcloud
-        if(abs(cld*dtb(i,k)) > 0.75_r_kind)then
+        if(abs(cld*dtb(i,k)) > tnoise(i))then
 !          QC4 in statsrad
            if(luse)aivals(11,is)   = aivals(11,is) + one
            varinv(i) = zero
@@ -1489,7 +1488,7 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
         dts=min(three,dts)
      end if
      do i=1,nchanl
-        if(abs(dts*ts(i)) > 0.75_r_kind)then
+        if(abs(dts*ts(i)) > tnoise(i))then
 !          QC3 in statsrad
            if(luse .and. varinv(i) > zero) &
            aivals(10,is)   = aivals(10,is) + one
@@ -2525,6 +2524,9 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !       QC1 in statsrad
         if(luse)aivals(8,is)= aivals(8,is) + one  !hliu check
      end if
+!    modified variances.
+     errf(i)   = efact*errf(i)
+     varinv(i) = vfact*varinv(i)
 
   end do
 
@@ -2554,9 +2556,6 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      endif
 
    do i = 1, nchanl
-!    modified variances.
-     errf(i)   = efact*errf(i)
-     varinv(i) = vfact*varinv(i)
 !    Modify error based on transmittance at top of model
 !    need this for SEVIRI??????
 !    varinv(i)=varinv(i)*ptau5(nsig,i)
