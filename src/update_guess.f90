@@ -236,7 +236,7 @@ subroutine update_guess(sval,sbias)
            gsi_metguess_bundle(it)%r3(ipges)%q = gsi_metguess_bundle(it)%r3(ipges)%q + sval(ii)%r3(ipinc)%q
            icloud=getindex(cloud,guess(ic))
            if(icloud>0) then
-              gsi_metguess_bundle(it)%r3(ipges)%q = max(gsi_metguess_bundle(it)%r3(ipges)%q,1.e-10_r_kind)
+              gsi_metguess_bundle(it)%r3(ipges)%q = max(gsi_metguess_bundle(it)%r3(ipges)%q,zero)
            endif
         endif
         id=getindex(svars2d,guess(ic))

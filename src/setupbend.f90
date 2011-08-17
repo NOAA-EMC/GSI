@@ -73,6 +73,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2011-01-13 lueken    - corrected init_pass and last_pass indentation
 !   2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
 !   2011-06-17 treadon  - remove call tell at end of routine
+!   2011-08-16 cucurull - fix bug in statistics qc
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -425,6 +426,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
      hob=tpdpres(i)
      call grdcrd(hob,1,ref_rad(1),nsig,1)
+     data(ihgt,i)=hob
      if (hob<one .or. hob>rsig) then 
         data(ier,i) = zero
         ratio_errors(i) = zero
@@ -556,7 +558,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         rdiagbuf(18,i)  = trefges ! temperature at obs location (Kelvin)
 
         data(igps,i)=data(igps,i)-dbend !innovation vector
-        data(ihgt,i)=hob
 
         if(alt <= gpstop) then ! go into qc checks
 
@@ -643,7 +644,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            kprof = data(iprof,i)
            do j=1,nobs
               jprof = data(iprof,j)
-              if( kprof == jprof .and. .not. qcfail(j))then
+              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_loc(j) == zero)then
  
 !          Remove data below
                  if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then

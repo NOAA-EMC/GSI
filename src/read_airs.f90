@@ -62,6 +62,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-04-15  jung  - added use of acqf flag from bufr file to reject bad channels
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !
 !   input argument list:
@@ -116,6 +117,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind),parameter :: n_amsuchan =  15
   integer(i_kind),parameter :: n_hsbchan  =   4
   integer(i_kind),parameter :: n_totchan  = n_amsuchan+n_airschan+n_hsbchan+1
+  integer(i_kind),parameter :: n_totchanp4 = n_totchan + 4
   integer(i_kind),parameter :: maxinfo    =  33
 
 
@@ -155,6 +157,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(2) :: aquaspot
   real(r_double),dimension(12,3) :: allspot
   real(r_double),dimension(n_totchan) :: allchan
+  real(r_double),dimension(n_totchanp4) :: airflag
   
   real(r_kind)      :: step, start
   character(len=8)  :: subset
@@ -172,7 +175,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset
+  integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset,ioffset_acqf
   integer(i_kind)  :: itx, k, nele, itt, n,iscbtseqn,ix
   real(r_kind)     :: chsstf,chsst,chsst_all,sfcr
   real(r_kind)     :: ch15, ch3, df2, tt
@@ -245,6 +248,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      nchanlr = n_airschan
      ioff=newchn(sis,1)-1
      ioffset=0
+     ioffset_acqf=0
      ichansst   = newchn(sis,914)
      ichsst     = ichansst-ioff+ioffset
      if(isfcalc==1)then
@@ -270,6 +274,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      nchanlr = n_amsuchan
      ioff=newchn(sis,1)-1
      ioffset=n_airschan
+     ioffset_acqf=n_airschan+4
      ichansst   = newchn(sis,1)
      ichsst     = ioffset +1            !channel 1
      if(isfcalc==1)then
@@ -522,14 +527,21 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Read AIRSCHAN or AMSUCHAN or HSBCHAN
 
+!       Read the brightness temperatures
         call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
-
         if( iret /= n_totchan)then
            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
+                iret, ' TEMPERATURE CH DATA IS READ INSTEAD OF ',n_totchan
            cycle read_loop
         endif
 
+!       Read the quality flag. Will catch "popped" channels
+        call ufbrep(lnbufr,airflag,1,n_totchanp4,iret,'ACQF')
+        if( iret /= n_totchanp4)then
+           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                iret, ' QUALITY FLAG DATA IS READ INSTEAD OF ',n_totchanp4
+           cycle read_loop
+        endif
 
 !       check for missing channels (if key channel reject)
         iskip = 0
@@ -748,6 +760,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
         end do
 
+!       Replace popped AIRS channel Tb with zero
+        if (airs) then
+           do l=1,nchanl
+              if (airflag(l+ioffset_acqf) /= zero) data_all(l+nreal,itx) = zero
+           end do
+        endif
 
      enddo read_loop
   enddo

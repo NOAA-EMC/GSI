@@ -89,6 +89,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2011-01-05 cucurull - add gpstop to reject anything above this value 
 !  2011-01-13 lueken   - corrected init_pass and last_pass indentation
 !  2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
+!  2011-08-16 cucurull - fix bug in statistics qc
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -591,7 +592,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            kprof = data(iprof,i)
            do j=1,nobs
               jprof = data(iprof,j)
-              if( kprof == jprof .and. .not. qcfail(j))then
+              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_loc(j) == zero)then
 
 !             Remove data below
                  if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
