@@ -10,6 +10,7 @@ module m_berror_stats
 !
 ! program history log:
 !   2010-03-24  j guo   - added this document block
+!   2011-08-01  lueken  - changed F90 to f90 (no machine logic) and fix indentation
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -162,21 +163,21 @@ end subroutine get_dims
     read(inerr) nsigstat,nlatstat
 
     if(mype==0) then
-      if (nsig/=nsigstat .or. nlat/=nlatstat) then
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
-           '"',trim(berror_stats),'"', &
-              'incompatiable with guess'
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat=', &
-           nsigstat,nlatstat
-         write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat=', &
-           nsig,nlat
-         call stop2(ERRCODE)
+       if (nsig/=nsigstat .or. nlat/=nlatstat) then
+          write(6,*) myname_,'(PREBAL):  ***ERROR*** resolution of ', &
+             '"',trim(berror_stats),'"', &
+             'incompatiable with guess'
+          write(6,*) myname_,'(PREBAL):  ***ERROR*** nsigstat,nlatstat=', &
+             nsigstat,nlatstat
+          write(6,*) myname_,'(PREBAL):  ***ERROR*** expects nsig,nlat=', &
+             nsig,nlat
+          call stop2(ERRCODE)
        end if
 
        write(6,*) myname_,'(PREBAL):  get balance variables', &
-         '"',trim(berror_stats),'".  ', &
-         'mype,nsigstat,nlatstat =', &
-          mype,nsigstat,nlatstat
+          '"',trim(berror_stats),'".  ', &
+          'mype,nsigstat,nlatstat =', &
+           mype,nsigstat,nlatstat
     end if
 
 !   Read background error file to get balance variables
@@ -262,14 +263,14 @@ end subroutine read_bal
      if(nsigstat/=nsig .or. nlatstat/=nlat) then
         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
         write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
-             ' -vs- GSI nsig,nlat=',nsig,nlat
+           ' -vs- GSI nsig,nlat=',nsig,nlat
         call stop2(101)
      end if
 
      write(6,*) myname_,'(PREWGT):  read error amplitudes ', &
-       '"',trim(berror_stats),'".  ', &
-       'mype,nsigstat,nlatstat =', &
-        mype,nsigstat,nlatstat
+        '"',trim(berror_stats),'".  ', &
+        'mype,nsigstat,nlatstat =', &
+         mype,nsigstat,nlatstat
   end if
   read(inerr) agvin,bvin,wgvin
 
@@ -441,7 +442,7 @@ end subroutine read_wgt
      do j = 2,lon1+1
         do i = 2,lat1+1
            work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k,ntguessig)* &
-                rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
+              rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
         end do
      end do
   end do
@@ -660,9 +661,9 @@ end subroutine setvscalesoz_
        do j = 2,lon1+1
           do i = 2,lat1+1
              work_chem(k,mm1) = work_chem(k,mm1) + gsi_chemguess_bundle(ntguessig)%r3(iptr)%q(i,j,k)* &
-                         (ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
+                (ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
 !_RT not sure yet how to handle scaling factor (rozcon) in general
-!_RT              rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
+!_RT            rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
           end do
        end do
     end do

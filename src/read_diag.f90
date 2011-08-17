@@ -16,6 +16,7 @@
 !   2011-02-22 kleist  - changes related to memory allocate/deallocate
 !   2011-04-08 li      - add tref, dtw, dtc to diag_data_fix_list, add tb_tz to diag_data_chan_list
 !                      - correspondingly, change ireal_radiag (26 -> 30) and ipchan_radiag (7 -> 8)
+!   2011-07-24 safford - make structure size for reading data_fix data version dependent 
 !
 ! contains
 !   read_radiag_header - read radiance diagnostic file header
@@ -50,6 +51,7 @@ module read_diag
   public :: ipchan_radiag
 
   integer(i_kind),parameter :: ireal_radiag  = 30   ! number of real entries per spot in radiance diagnostic file
+  integer(i_kind),parameter :: ireal_old_radiag  = 26   ! number of real entries per spot in versions older than iversion_radiag_2
   integer(i_kind),parameter :: ipchan_radiag = 8    ! number of entries per channel per spot in radiance diagnostic file
 
 ! Declare structures for radiance diagnostic file information
@@ -378,6 +380,8 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
     
   integer(i_kind) :: ich,iang,ndiag
   real(r_single),dimension(:,:),allocatable :: data_tmp
+  real(r_single),dimension(:),allocatable   :: fix_tmp
+!  type(old_diag_data_fix_list)              :: old_data_fix
 
 ! Allocate arrays as needed
   if (associated(data_chan)) deallocate(data_chan)
@@ -396,12 +400,63 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
 ! Allocate array to hold data record
   allocate(data_tmp(header_fix%idiag,header_fix%nchan))
 
-! Read data record
-  if (header_fix%iextra == 0) then
-     read(ftin,IOSTAT=iflag) data_fix, data_tmp
+  if (header_fix%iversion < iversion_radiag_2) then
+     allocate( fix_tmp( ireal_old_radiag ) )
   else
-     read(ftin,IOSTAT=iflag) data_fix, data_tmp, data_extra
+     allocate( fix_tmp( ireal_radiag ) )
+  end if
+
+! Read data record
+
+  if (header_fix%iextra == 0) then
+!     read(ftin,IOSTAT=iflag) old_data_fix, data_tmp
+     read(ftin,IOSTAT=iflag) fix_tmp, data_tmp
+  else
+!     read(ftin,IOSTAT=iflag) old_data_fix, data_tmp, data_extra
+     read(ftin,IOSTAT=iflag) fix_tmp, data_tmp, data_extra
   endif
+
+
+! Transfer fix_tmp record to output structure
+  data_fix%lat = fix_tmp(1)
+  data_fix%lon = fix_tmp(2)
+  data_fix%zsges = fix_tmp(3)
+  data_fix%obstime = fix_tmp(4) 
+  data_fix%senscn_pos = fix_tmp(5)
+  data_fix%satzen_ang = fix_tmp(6)
+  data_fix%satazm_ang = fix_tmp(7)
+  data_fix%solzen_ang = fix_tmp(8)
+  data_fix%solazm_ang = fix_tmp(9)
+  data_fix%sungln_ang = fix_tmp(10)
+  data_fix%water_frac = fix_tmp(11)
+  data_fix%land_frac = fix_tmp(12)
+  data_fix%ice_frac = fix_tmp(13)
+  data_fix%snow_frac = fix_tmp(14)
+  data_fix%water_temp = fix_tmp(15)
+  data_fix%land_temp = fix_tmp(16)
+  data_fix%ice_temp = fix_tmp(17)
+  data_fix%snow_temp = fix_tmp(18)
+  data_fix%soil_temp = fix_tmp(19)
+  data_fix%soil_mois = fix_tmp(20)
+  data_fix%land_type = fix_tmp(21)
+  data_fix%veg_frac = fix_tmp(22)
+  data_fix%snow_depth = fix_tmp(23)
+  data_fix%sfc_wndspd = fix_tmp(24)
+  data_fix%qcdiag1 = fix_tmp(25)
+  data_fix%qcdiag2 = fix_tmp(26)
+
+  if ( header_fix%iversion <= iversion_radiag_1 ) then
+     data_fix%tref = rmiss_radiag
+     data_fix%dtw = rmiss_radiag
+     data_fix%dtc = rmiss_radiag
+     data_fix%tz_tr = rmiss_radiag
+  else
+     data_fix%tref = fix_tmp(27)
+     data_fix%dtw = fix_tmp(28)
+     data_fix%dtc = fix_tmp(29)
+     data_fix%tz_tr = fix_tmp(30)
+  end if
+
 
 ! Transfer data record to output structure
   do ich=1,header_fix%nchan
@@ -457,7 +512,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)  
      end do
   endif
-  deallocate(data_tmp)
+  deallocate(data_tmp, fix_tmp)
     
 end subroutine read_radiag_data
 

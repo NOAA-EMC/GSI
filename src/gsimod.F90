@@ -47,7 +47,7 @@
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,&
       erradar_inflate,use_poq7,&
-      repe_dw,init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3
+      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
@@ -204,6 +204,7 @@
 !                       (4) add integer tzr_bufrsave to control if save Tz retrieval or not
 !  04-07-2011 todling   move newpc4pred to radinfo
 !  04-19-2011 El Akkraoui add iorthomax to control numb of vecs in orthogonalization for CG opts
+!  05-05-2011 mccarty   removed references to repe_dw
 !  05-21-2011 todling   add call to setservice
 !
 !EOP
@@ -504,7 +505,6 @@
 !
 !
 !     Parameters below use for nonlinear (variational) quality control
-!     repe_dw  - factor for representativeness error in radar doppler winds
 !     dfact    - factor for duplicate obs at same location for conv. data
 !     dfact1   - time factor for duplicate obs at same location for conv. data
 !     erradar_inflate - radar error inflation factor
@@ -520,7 +520,7 @@
 !     tcp_ermax  - parameter for tcps oberr inflation (maximum oberr, mb)
 !     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
 
-  namelist/obsqc/ repe_dw,dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
+  namelist/obsqc/ dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
        c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
        qc_noirjaco3
 

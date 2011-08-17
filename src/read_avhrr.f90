@@ -34,6 +34,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !                         (5) add observation scoring for thinning
+!
+!   2011-08-01  lueken  - added module use deter_sfc_mod, remove _i_kind, fixed indentation
 !   input argument list:
 !     mype     - mpi task id
 !     val_avhrr- weighting factor applied to super obs
@@ -59,11 +61,12 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-               finalcheck,score_crit
+      finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
   use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use deter_sfc_mod, only: deter_sfc
   implicit none
 
 
@@ -83,9 +86,9 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Declare local parameters
   character(6),parameter:: file_sst='SST_AN'
-  integer(i_kind),parameter:: maxinfo = 35_i_kind
-  integer(i_kind),parameter:: mlat_sst = 3000_i_kind
-  integer(i_kind),parameter:: mlon_sst = 5000_i_kind
+  integer(i_kind),parameter:: maxinfo = 35
+  integer(i_kind),parameter:: mlat_sst = 3000
+  integer(i_kind),parameter:: mlon_sst = 5000
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_double),parameter:: r360=360.0_r_double
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -94,7 +97,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),parameter:: bmiss = 1.0E11_r_kind
   real(r_kind),parameter :: ngac=409.0_r_kind,nfov=90.0_r_kind,cut_spot=11.0_r_kind
   character(len=80),parameter ::  &
-    headr='YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAID FOVN SAZA SOZA CLAVR'
+     headr='YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAID FOVN SAZA SOZA CLAVR'
 
 ! Declare local variables  
   logical outside,iuse,assim
@@ -143,19 +146,19 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !**************************************************************************
 
 ! Start routine here.  Set constants.  Initialize variables
-  lnbufr = 10_i_kind
+  lnbufr = 10
   disterrmax=zero
   ntest=0
   ndata  = 0
   nodata  = 0
-  nchanl = 3_i_kind
+  nchanl = 3
   ich_win = 2
   r01 = 0.01_r_kind
 
   dfov = (ngac - two*cut_spot - one)/nfov
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
 
   if(nst_gsi>0) then
      call skindepth(obstype,zob)
@@ -168,12 +171,12 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   rlndsea(4) = 30._r_kind
 
                                         ! 207, 208 or 209 for NOAA-16, 17 & 18 respectively
-  if(jsatid == 'n16')bufsat = 207_i_kind
-! if(jsatid == 'n17')bufsat = 208_i_kind
-  if(jsatid == 'n17')bufsat = 4_i_kind
-  if(jsatid == 'n18')bufsat = 209_i_kind
-  if(jsatid == 'n19')bufsat = 223_i_kind
-  if(jsatid == 'metop-a')bufsat = 4_i_kind
+  if(jsatid == 'n16')bufsat = 207
+! if(jsatid == 'n17')bufsat = 208
+  if(jsatid == 'n17')bufsat = 4
+  if(jsatid == 'n18')bufsat = 209
+  if(jsatid == 'n19')bufsat = 223
+  if(jsatid == 'metop-a')bufsat = 4
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -196,7 +199,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Read hi-res sst analysis
   if (retrieval) call rdgrbsst(file_sst,mlat_sst,mlon_sst,&
-       sst_an,rlats_sst,rlons_sst,nlat_sst,nlon_sst)
+     sst_an,rlats_sst,rlons_sst,nlat_sst,nlon_sst)
 
 
 ! Allocate arrays to hold all data for given satellite
@@ -217,15 +220,15 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr) == 0)
-        call ufbint(lnbufr,hdr,13_i_kind,1,iret,headr)
-        call ufbrep(lnbufr,bufrf, 3_i_kind,5_i_kind,iret,'INCN ALBD TMBR')
+        call ufbint(lnbufr,hdr,13,1,iret,headr)
+        call ufbrep(lnbufr,bufrf, 3,5,iret,'INCN ALBD TMBR')
         if(iret <= 0) cycle read_loop
         if (hdr(10) <= real(cut_spot) .or. hdr(10) > real(ngac-cut_spot)) cycle read_loop! drop starting and ending pixels
 !       if (hdr(13) /= zero ) cycle read_loop ! drop pixel with CLAVR partly cloud flag
  
         iskip = 0
         do k=1,nchanl
-           if(bufrf(3,2_i_kind+k) < zero .or. bufrf(3,2_i_kind+k) > tbmax) then
+           if(bufrf(3,2+k) < zero .or. bufrf(3,2+k) > tbmax) then
               iskip=iskip+1
            else
               nread=nread+1
@@ -325,7 +328,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-              ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
         if(isflg /= zero)  cycle read_loop
 !
 !       Get scan position (1 - 90) based on (409 - 2*cut_spot - 1) = 386 here,  GAC pixels
@@ -338,22 +341,22 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
         if ( scan_pos > nfov ) scan_pos = nfov
 
-      ifov = nint(scan_pos)
+        ifov = nint(scan_pos)
 
-!     Set common predictor parameters
-      crit1=crit1+rlndsea(isflg)
+!       Set common predictor parameters
+        crit1=crit1+rlndsea(isflg)
 
-!     Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+!       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
-      ch_win    = bufrf(3,2+ich_win) -ang_rad(ich_win)*cbias(ifov,ich_win)- &
-               r01*predx(1,ich_win)*air_rad(ich_win)
-      ch_win_flg = tsavg-ch_win
-      pred   = 10.0_r_kind*max(zero,ch_win_flg)
+        ch_win    = bufrf(3,2+ich_win) -ang_rad(ich_win)*cbias(ifov,ich_win)- &
+                   r01*predx(1,ich_win)*air_rad(ich_win)
+        ch_win_flg = tsavg-ch_win
+        pred   = 10.0_r_kind*max(zero,ch_win_flg)
 
-      crit1 = crit1+pred  
-      call finalcheck(dist1,crit1,itx,iuse)
+        crit1 = crit1+pred  
+        call finalcheck(dist1,crit1,itx,iuse)
 
-      if(.not. iuse)cycle read_loop
+        if(.not. iuse)cycle read_loop
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -404,17 +407,17 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(34,itx) = val_avhrr              ! weighting factor applied to super obs
         data_all(35,itx) = itt                    !
 
-      if(nst_gsi>0) then
-         data_all(maxinfo+1,itx) = tref            ! foundation temperature
-         data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
-         data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob
-         data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
-      endif
+        if(nst_gsi>0) then
+           data_all(maxinfo+1,itx) = tref            ! foundation temperature
+           data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
+           data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob
+           data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
+        endif
 
 
-      do k=1,nchanl
-        data_all(k+nreal,itx)= bufrf(3,2+k) ! Tb for avhrr ch-3, ch-4 and ch-5
-      end do
+        do k=1,nchanl
+           data_all(k+nreal,itx)= bufrf(3,2+k) ! Tb for avhrr ch-3, ch-4 and ch-5
+        end do
 
 !    End of satellite read block
 
@@ -422,7 +425,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   enddo
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 ! write(6,*) 'READ_AVHRR:  total number of obs, nread,ndata : ',nread,ndata
 
@@ -432,14 +435,14 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Now that we've identified the "best" observations, pull out best obs
 ! and write them to the output file
- do n=1,ndata
-    do k=1,nchanl
-       if(data_all(k+nreal,n) > tbmin .and. &
-          data_all(k+nreal,n) < tbmax) nodata=nodata+1
-    end do
-    itt=nint(data_all(maxinfo,n))
-    super_val(itt)=super_val(itt)+val_avhrr
- end do
+  do n=1,ndata
+     do k=1,nchanl
+        if(data_all(k+nreal,n) > tbmin .and. &
+           data_all(k+nreal,n) < tbmax) nodata=nodata+1
+     end do
+     itt=nint(data_all(maxinfo,n))
+     super_val(itt)=super_val(itt)+val_avhrr
+  end do
 
 ! Write retained data to local file
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
@@ -454,8 +457,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   call closbf(lnbufr)
 
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &
-       write(6,*)'READ_AVHRR:  ',&
-       'mype,ntest,disterrmax=',mype,ntest,disterrmax
+     write(6,*)'READ_AVHRR:  ',&
+     'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
   return

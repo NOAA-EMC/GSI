@@ -44,6 +44,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod and removed _i_kind
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -70,11 +71,12 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-           finalcheck,score_crit
+      finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, rad2deg, r60inv
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
+  use deter_sfc_mod, only: deter_sfc
   implicit none
 
 
@@ -94,9 +96,9 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Declare local parameters
   character(6),parameter:: file_sst='SST_AN'
-  integer(i_kind),parameter:: maxinfo = 35_i_kind
-  integer(i_kind),parameter:: mlat_sst = 3000_i_kind
-  integer(i_kind),parameter:: mlon_sst = 5000_i_kind
+  integer(i_kind),parameter:: maxinfo = 35
+  integer(i_kind),parameter:: mlat_sst = 3000
+  integer(i_kind),parameter:: mlon_sst = 5000
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -149,14 +151,14 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !**************************************************************************
 ! Start routine here.  Set constants.  Initialize variables
   disterrmax=zero
-  lnbufr = 10_i_kind
+  lnbufr = 10
   ntest=0
   ndata  = 0
   nodata  = 0
-  nchanl = 3_i_kind
+  nchanl = 3
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
 
   zob = zero
   if(nst_gsi>0) then
@@ -171,11 +173,11 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   rlndsea(4) = 30._r_kind
 
                             ! 207, 208 or 209 for NOAA-16, 17 & 18 respectively
-  if(jsatid == 'n16')bufsat = 207_i_kind
-  if(jsatid == 'n17')bufsat = 208_i_kind
-  if(jsatid == 'n18')bufsat = 209_i_kind
-  if(jsatid == 'n19')bufsat = 223_i_kind
-  if(jsatid == 'metop-a')bufsat = 4_i_kind
+  if(jsatid == 'n16')bufsat = 207
+  if(jsatid == 'n17')bufsat = 208
+  if(jsatid == 'n18')bufsat = 209
+  if(jsatid == 'n19')bufsat = 223
+  if(jsatid == 'metop-a')bufsat = 4
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -198,7 +200,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Read hi-res sst analysis
   if (retrieval) call rdgrbsst(file_sst,mlat_sst,mlon_sst,&
-       sst_an,rlats_sst,rlons_sst,nlat_sst,nlon_sst)
+     sst_an,rlats_sst,rlons_sst,nlat_sst,nlon_sst)
 
 
 ! Allocate arrays to hold all data for given satellite
@@ -229,17 +231,17 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
      if(next /= mype_sub)cycle
      read_loop:do while (ireadsb(lnbufr) == 0)
   
-        call ufbint(lnbufr,bufrf(1),9_i_kind,1,iret, &
-        &            'YEAR MNTH DAYS HOUR MINU SECO CLAT CLON SAID')
+        call ufbint(lnbufr,bufrf(1),9,1,iret, &
+           'YEAR MNTH DAYS HOUR MINU SECO CLAT CLON SAID')
 
         if ( bufsat /= nint(bufrf(9)) ) cycle read_loop               ! read next bufr subset
-        call ufbint(lnbufr,bufrf(10),4_i_kind,1,iret,'SAZA SOZA SOLAZI SSTYPE')
+        call ufbint(lnbufr,bufrf(10),4,1,iret,'SAZA SOZA SOLAZI SSTYPE')
         call ufbint(lnbufr,bufrf(14),1,1,iret,'SST1')
-        call ufbrep(lnbufr,bufrf(15),1,5_i_kind,iret,'TMBR')
+        call ufbrep(lnbufr,bufrf(15),1,5,iret,'TMBR')
 
         iskip = 0
         do k=1,nchanl
-           if(bufrf(16_i_kind+k) < tbmin .or. bufrf(16_i_kind+k) > tbmax) then
+           if(bufrf(16+k) < tbmin .or. bufrf(16+k) > tbmax) then
               iskip=iskip+1
            else
               nread=nread+1
@@ -320,7 +322,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                4 mixed                          
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
         pred=zero
 
@@ -359,7 +361,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-             call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 
@@ -411,7 +413,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         endif
 
         do k=1,nchanl
-           data_all(k+maxinfo,itx)= bufrf(16_i_kind+k)  ! Tb for avhrr ch-3, ch-4 and ch-5
+           data_all(k+maxinfo,itx)= bufrf(16+k)  ! Tb for avhrr ch-3, ch-4 and ch-5
         end do
 
 !    End of satellite read block
@@ -426,7 +428,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 700 continue
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 
 ! Now that we've identified the "best" observations, pull out best obs
@@ -455,7 +457,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   call closbf(lnbufr)
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_AVHRR_NAVY:  ',&
-       'mype,ntest,disterrmax=',mype,ntest,disterrmax
+     'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
   return

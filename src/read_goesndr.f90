@@ -49,6 +49,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -79,12 +80,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-             checkob,finalcheck,score_crit
+      checkob,finalcheck,score_crit
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
-              newpc4pred,nst_gsi,nstinfo,fac_dtl,fac_tsl
+      newpc4pred,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
 
   implicit none
 
@@ -110,9 +112,9 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind),parameter:: tbmax=550.0_r_kind
   real(r_kind),parameter:: bmiss = 1.0E11_r_kind
   character(80),parameter:: hdstr = &
-               'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
+     'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
   character(80),parameter:: hdstr5 = &
-               'XOB YOB ELEV SOEL BEARAZ SOLAZI SAID TYP ACAV DHR SID '
+     'XOB YOB ELEV SOEL BEARAZ SOLAZI SAID TYP ACAV DHR SID '
   character(80),parameter:: rbstr = 'TMBR'
 
 ! Declare local variables
@@ -165,7 +167,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+     call skindepth(obstype,zob)
   endif
 
   rlndsea(0) = zero
@@ -380,7 +382,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                4 mixed 
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-                ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 
 !       If not goes data over ocean , read next bufr record
@@ -417,7 +419,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
           dtc   = zero
           tz_tr = one
           if ( sfcpct(0) > zero ) then
-            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+             call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
           endif
         endif
 
@@ -480,7 +482,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -510,8 +512,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call destroygrids    ! Deallocate satthin arrays
 
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
-       write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+     write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
+     mype,ntest,disterrmax
 
   return
 

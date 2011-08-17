@@ -230,15 +230,16 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
-	crtm_cloud.F90 \
+	crtm_cloud.f90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
 	dtast.f90 \
 	deter_nst.f90 \
+        deter_sfc_mod.f90 \
 	egrid2agrid_mod.f90 \
-	enorm_state.F90 \
+	enorm_state.f90 \
 	evaljgrad.f90 \
-	evaljcdfi.F90 \
+	evaljcdfi.f90 \
 	evaljo.f90 \
 	evalqlim.f90 \
 	fgrid2agrid_mod.f90 \
@@ -253,7 +254,7 @@ clean:
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
-	gesinfo.F90 \
+	gesinfo.f90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_ensperts_dualres.f90 \
@@ -263,7 +264,7 @@ clean:
 	getsiga.f90 \
 	getuv.f90 \
 	getvvel.f90 \
-	glbsoi.F90 \
+	glbsoi.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
 	grid2sub.f90 \
@@ -272,7 +273,7 @@ clean:
 	gsd_terrain_match_surfTobs.f90 \
 	gsdcloudanalysis.F90 \
 	gsi_4dvar.f90 \
-	gsi_4dcouplermod.F90 \
+	gsi_4dcouplermod.f90 \
 	gsi_bundlemod.F90 \
 	gsi_chemguess_mod.F90 \
 	gsi_io.f90 \
@@ -287,7 +288,7 @@ clean:
 	hybrid_ensemble_parameters.f90 \
 	inc2guess.f90 \
 	init_commvars.f90 \
-	init_jcdfi.F90 \
+	init_jcdfi.f90 \
 	insitu_info.f90 \
 	int3dvar.f90 \
 	intall.f90 \
@@ -296,7 +297,7 @@ clean:
 	intgps.f90 \
 	intjcpdry.f90 \
 	intjo.f90 \
-	intlag.F90 \
+	intlag.f90 \
 	intlimq.f90 \
 	intoz.f90 \
 	intpcp.f90 \
@@ -319,21 +320,21 @@ clean:
         jgrad.f90 \
 	kinds.f90 \
 	lag_fields.f90 \
-	lag_interp.F90 \
-	lag_traj.F90 \
+	lag_interp.f90 \
+	lag_traj.f90 \
 	lagmod.f90 \
 	lanczos.F90 \
 	looplimits.f90 \
-	m_berror_stats.F90 \
+	m_berror_stats.f90 \
 	m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
 	m_dtime.F90	\
 	m_gpsrhs.F90 \
-	m_gsiBiases.F90 \
-	m_rerank.F90 \
+	m_gsiBiases.f90 \
+	m_rerank.f90 \
 	m_obdiag.F90	\
 	m_rhs.F90	\
-	m_stats.F90 \
+	m_stats.f90 \
 	m_tick.F90 \
 	mpeu_mpif.F90 \
 	mpeu_util.F90 \
@@ -386,7 +387,7 @@ clean:
 	raflib.f90 \
 	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_co.F90 \
+	read_co.f90 \
 	read_diag.f90 \
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
@@ -450,14 +451,14 @@ clean:
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
-        stub_set_crtm_aerosol.F90 \
-        stub_set_crtm_cloud.F90 \
+        stub_set_crtm_aerosol.f90 \
+        stub_set_crtm_cloud.f90 \
 	stub_pertmod.F90 \
-	stub_timermod.F90 \
+	stub_timermod.f90 \
 	tendsmod.f90 \
 	test_obsens.f90 \
 	tcv_mod.f90 \
-	timermod.F90 \
+	timermod.f90 \
 	tintrp2a.f90 \
 	tintrp3.f90 \
 	tpause.f90 \
@@ -473,7 +474,7 @@ clean:
 	update_guess.f90 \
 	update_geswtend.f90 \
 	wind_fft.f90 \
-	wrf_mass_guess_mod.F90 \
+	wrf_mass_guess_mod.f90 \
 	wrf_binary_interface.F90 \
 	wrf_netcdf_interface.F90 \
 	write_all.F90 \
@@ -491,7 +492,7 @@ clean:
 	read_Lightning.f90 \
 	read_NASA_LaRC.f90 \
 	read_RadarRef_mosaic.f90 \
-	read_aerosol.F90 \
+	read_aerosol.f90 \
 	read_airs.f90 \
 	read_amsre.f90 \
 	read_anowbufr.f90 \
@@ -503,13 +504,13 @@ clean:
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
-	read_lag.F90 \
+	read_lag.f90 \
 	read_iasi.f90 \
 	read_l2bufr_mod.f90 \
 	read_lidar.f90 \
 	read_modsbufr.f90 \
 	read_obs.F90 \
-	read_ozone.F90 \
+	read_ozone.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_satwnd.f90 \
@@ -522,7 +523,7 @@ clean:
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
-	setuplag.F90 \
+	setuplag.f90 \
 	setupoz.f90 \
 	setuppcp.f90 \
 	setuppm2_5.f90 \

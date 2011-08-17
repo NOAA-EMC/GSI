@@ -46,6 +46,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!
+!   2011-08-01  lueken  - added module use deter_sfc_mod and removed _i_kind
 !   input argument list:
 !     mype     - mpi task id
 !     val_ssmi - weighting factor applied to super obs
@@ -75,12 +77,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-            checkob,finalcheck,score_crit
+      checkob,finalcheck,score_crit
   use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
-       tll2xy,txy2ll
+      tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
 
   implicit none
 
@@ -101,13 +104,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
 
 ! Declare local parameters
-  integer(i_kind),parameter :: n1bhdr=14_i_kind
-  integer(i_kind),parameter :: maxinfo=33_i_kind
-  integer(i_kind),parameter :: maxchanl=30_i_kind
+  integer(i_kind),parameter :: n1bhdr=14
+  integer(i_kind),parameter :: maxinfo=33
+  integer(i_kind),parameter :: maxchanl=30
 
-  integer(i_kind),parameter :: ntime=8_i_kind      !time header
-  integer(i_kind),parameter :: nloc=5_i_kind       !location dat used for ufbint()
-  integer(i_kind),parameter :: maxscan=64_i_kind   !possible max of scan positons
+  integer(i_kind),parameter :: ntime=8      !time header
+  integer(i_kind),parameter :: nloc=5       !location dat used for ufbint()
+  integer(i_kind),parameter :: maxscan=64   !possible max of scan positons
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
@@ -173,8 +176,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   nread  = 0
   ssmi_def_ang = 53.1_r_kind
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
 
   if(nst_gsi>0) then
      call skindepth(obstype,zob)
@@ -185,15 +188,15 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   ssmi  = obstype  == 'ssmi'
 
   if ( ssmi ) then
-     nscan  = 64_i_kind   !for A-scan
-!    nscan  = 128_i_kind  !for B-scan
-     nchanl = 7_i_kind
-     if(jsatid == 'f08')bufsat=241_i_kind
-     if(jsatid == 'f10')bufsat=243_i_kind
-     if(jsatid == 'f11')bufsat=244_i_kind
-     if(jsatid == 'f13')bufsat=246_i_kind
-     if(jsatid == 'f14')bufsat=247_i_kind
-     if(jsatid == 'f15')bufsat=248_i_kind
+     nscan  = 64   !for A-scan
+!    nscan  = 128  !for B-scan
+     nchanl = 7
+     if(jsatid == 'f08')bufsat=241
+     if(jsatid == 'f10')bufsat=243
+     if(jsatid == 'f11')bufsat=244
+     if(jsatid == 'f13')bufsat=246
+     if(jsatid == 'f14')bufsat=247
+     if(jsatid == 'f15')bufsat=248
      rlndsea(0) = zero
      rlndsea(1) = 30._r_kind
      rlndsea(2) = 30._r_kind
@@ -213,8 +216,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      if (nusis(i)==sis) then
         if (iuse_rad(i)>=0) then
            if (iuse_rad(i)>0) assim=.true.
-	   if (nuchan(i)==6_i_kind) ch6=.true.
-	   if (nuchan(i)==7_i_kind) ch7=.true.
+	   if (nuchan(i)==6) ch6=.true.
+	   if (nuchan(i)==7) ch7=.true.
 	   if (assim.and.ch6.and.ch7) exit
         endif
      endif
@@ -328,7 +331,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               ij = ij+1
               if(mirad(ij)<tbmin .or. mirad(ij)>tbmax ) then
                  iskip = iskip + 1
-                 if(jc == 1 .or. jc == 3_i_kind .or. jc == 6_i_kind)iskip=iskip+nchanl
+                 if(jc == 1 .or. jc == 3 .or. jc == 6)iskip=iskip+nchanl
               else
                  nread=nread+1
               end if
@@ -415,7 +418,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               dtc   = zero
               tz_tr = one
               if(sfcpct(0)>zero) then
-                call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                 call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               endif
            endif
 
@@ -475,7 +478,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
   write(6,*) 'READ_SSMI: after combine_obs, nread,ndata is ',nread,ndata
 
@@ -511,8 +514,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   call destroygrids
 
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
-       write(6,*)'READ_SSMI:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+     write(6,*)'READ_SSMI:  mype,ntest,disterrmax=',&
+        mype,ntest,disterrmax
 
 ! End of routine
  return

@@ -51,6 +51,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        ithin_conv,rmesh_conv,pmesh_conv, &
        id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
+  use deter_sfc_mod, only: deter_sfc2,deter_sfc_type
   implicit none
 
 ! Declare passed variables
@@ -307,22 +308,22 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         end do matchloop
 
 !  Save information for next read
-       if(ncsave /= 0) then
-          maxobs=maxobs+1
-          nx=1
-          if(ithin_conv(ncsave) > 0)then
-            do ii=2,ntread
-              if(ntx(ii) == ncsave)nx=ii
-            end do
-          end if
-          tab(ntb,1)=ncsave
-          tab(ntb,2)=nx
-          tab(ntb,3)=1
-          lmsg(nmsg,nx) = .true.
-       end if
+        if(ncsave /= 0) then
+           maxobs=maxobs+1
+           nx=1
+           if(ithin_conv(ncsave) > 0)then
+              do ii=2,ntread
+                 if(ntx(ii) == ncsave)nx=ii
+              end do
+           end if
+           tab(ntb,1)=ncsave
+           tab(ntb,2)=nx
+           tab(ntb,3)=1
+           lmsg(nmsg,nx) = .true.
+        end if
 
-    enddo loop_report
- enddo msg_report
+     enddo loop_report
+  enddo msg_report
 
 
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
@@ -341,19 +342,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   loop_convinfo: do nx=1,ntread 
      use_all = .true.
      ithin=0
-     nc=ntx(nx)
-     ithin=ithin_conv(nc)
-     if (ithin > 0 ) then
-        rmesh=rmesh_conv(nc)
-        pmesh=pmesh_conv(nc)
-        use_all = .false.
-        if(pmesh > zero) then
-           pflag=1
-           nlevp=r1200/pmesh
-        else
-           pflag=0
-           nlevp=nsig
-        endif
+     if(nx >1) then
+        nc=ntx(nx)
+        ithin=ithin_conv(nc)
+        if (ithin > 0 ) then
+           rmesh=rmesh_conv(nc)
+           pmesh=pmesh_conv(nc)
+           use_all = .false.
+           if(pmesh > zero) then
+              pflag=1
+              nlevp=r1200/pmesh
+           else
+              pflag=0
+              nlevp=nsig
+           endif
            xmesh=rmesh
            call make3grids(xmesh,nlevp)
            if (.not.use_all) then
@@ -365,8 +367,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
            endif
            write(6,*)'READ_SATWND: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
-                 ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
+              ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
+        endif
      endif
+
      call closbf(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
@@ -540,7 +544,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  call txy2ll(dlon,dlat,rlon00,rlat00)
                  ntest=ntest+1
                  cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                       (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+                        (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
                  cdist=max(-one,min(cdist,one))
                  disterr=acos(cdist)*rad2deg
                  disterrmax=max(disterrmax,disterr)
@@ -631,10 +635,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     klatp1=min(nlat,klat1+1); klonp1=klon1+1
                     if (klonp1==nlon+1) klonp1=1
                     do kk=1,nsig
-                       presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) +  &
-                        w10*prsl_full(klatp1,klon1 ,kk) + &
-                        w01*prsl_full(klat1 ,klonp1,kk) + &
-                        w11*prsl_full(klatp1,klonp1,kk)
+                       presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) + &
+                                 w10*prsl_full(klatp1,klon1 ,kk) + &
+                                 w01*prsl_full(klat1 ,klonp1,kk) + &
+                                 w11*prsl_full(klatp1,klonp1,kk)
                     end do
 
 !          Compute depth of guess pressure layersat observation location
@@ -672,7 +676,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
 
                     call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                 ppb,crit1,ithin,ndata,iout,ntb,iiout,luse)
+                       ppb,crit1,ithin,ndata,iout,ntb,iiout,luse)
                     if (.not. luse) cycle loop_readsb
                     if(iiout > 0) isort(iiout)=0
                     if (ndata > ntmp) then
@@ -729,7 +733,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     cdata_all(22,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
         enddo  loop_readsb
-!   End of bufr read loop
+!    End of bufr read loop
      enddo loop_msg
 !    Close unit to bufr file
      call closbf(lunin)
@@ -746,11 +750,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   ! Write header record and data to output file for further processing
   allocate(iloc(ndata))
-   icount=0
+  icount=0
   do i=1,maxobs
      if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
+        icount=icount+1
+        iloc(icount)=isort(i)
      end if
   end do
   if(ndata /= icount)then
@@ -773,15 +777,15 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   deallocate(cdata_out)
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_SATWND:  ',&
-       'ntest,disterrmax=',ntest,disterrmax
+     'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_SATWND:  ',&
-       'nvtest,vdisterrmax=',ntest,vdisterrmax
+     'nvtest,vdisterrmax=',ntest,vdisterrmax
 
 
 
   if (ndata == 0) then
-        call closbf(lunin)
-        write(6,*)'READ_SATWND:  closbf(',lunin,')'
+     call closbf(lunin)
+     write(6,*)'READ_SATWND:  closbf(',lunin,')'
   endif
   
   write(6,*) 'READ_SATWND,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata

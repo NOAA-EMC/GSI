@@ -81,6 +81,7 @@ subroutine glbsoi(mype)
 !   2010-05-12  zhu     - add option passive_bc for radiance bias correction for monitored channels
 !   2010-10-01  el akkraoui/todling - add Bi-CG as optional minimization scheme
 !   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -96,26 +97,26 @@ subroutine glbsoi(mype)
   use constants, only: rearth
   use mpimod, only: npe
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
-       write_guess_solution,&
-       tendsflag,xhatsave
+      write_guess_solution,&
+      tendsflag,xhatsave
   use anberror, only: anisotropic, &
-       create_anberror_vars_reg,destroy_anberror_vars_reg,&
-       create_anberror_vars,destroy_anberror_vars
+      create_anberror_vars_reg,destroy_anberror_vars_reg,&
+      create_anberror_vars,destroy_anberror_vars
   use anisofilter, only: anprewgt_reg
   use anisofilter_glb, only: anprewgt
   use berror, only: create_berror_vars_reg,create_berror_vars,&
-       set_predictors_var,destroy_berror_vars_reg,&
-       destroy_berror_vars,bkgv_flowdep,pcinfo
+      set_predictors_var,destroy_berror_vars_reg,&
+      destroy_berror_vars,bkgv_flowdep,pcinfo
   use balmod, only: create_balance_vars_reg,create_balance_vars, &
-       destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
+      destroy_balance_vars_reg,destroy_balance_vars,prebal,prebal_reg
   use compact_diffs, only: create_cdiff_coefs,inisph
   use gridmod, only: nlat,nlon,nsig,rlats,regional,&
-       twodvar_regional,wgtlats
+      twodvar_regional,wgtlats
   use guess_grids, only: nfldsig
   use obsmod, only: write_diag,perturb_obs,ditype
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
-                             init_fc_sens, save_fc_sens
+      init_fc_sens, save_fc_sens
   use smooth_polcarf, only: norsp,destroy_smooth_polcas
   use jcmod, only: ljcdfi
   use gsi_4dvar, only: l4dvar, lsqrtb, lbicg, lanczosave
@@ -236,7 +237,7 @@ subroutine glbsoi(mype)
   do jiter=jiterstart,jiterlast
 
      if (mype==0) write(6,*)'GLBSOI: jiter,jiterstart,jiterlast,jiterend=', &
-                                         jiter,jiterstart,jiterlast,jiterend
+        jiter,jiterstart,jiterlast,jiterend
 
 !    Set up right hand side of analysis equation
      call setuprhsall(ndata,mype,.true.,.true.)
@@ -283,7 +284,7 @@ subroutine glbsoi(mype)
            endif
 
            clfile='xhatsave.ZZZ'   ! normally don't needs this written in 3dvar,
-                                      ! except when wanting to debug adjoint of GSI
+                                   ! except when wanting to debug adjoint of GSI
            write(clfile(10:12),'(I3.3)') jiter
            call write_cv(xhatsave,clfile)
            zgg=dot_product(xhatsave,xhatsave)

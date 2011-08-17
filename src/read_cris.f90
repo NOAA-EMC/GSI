@@ -17,6 +17,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! program history log:
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
 !   2011-05-18  mccarty - read_cris copied from read_iasi r10572 
+!   2011-08-01  lueken  - added module use deter_sfc_mod
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -52,16 +53,17 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Use modules
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-               finalcheck,checkob,score_crit
+      finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
-               find_edges,radstart,radstep
+      find_edges,radstart,radstep
   use crtm_planck_functions, only: crtm_planck_temperature
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
-       tll2xy,txy2ll,rlats,rlons
+      tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,rad2deg,r60inv,one
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
+  use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
 
   implicit none
 
@@ -148,7 +150,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: iexponent
-  integer(i_kind):: idomsfc
+  integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status
   character(len=20),dimension(1):: sensorlist
@@ -204,7 +206,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
   
   allspotlist= &
-   'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
+     'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
@@ -220,7 +222,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
   if (error_status /= success) then
      write(6,*)'READ_CRIS:  ***ERROR*** crtm_init error_status=',error_status,&
-          '   TERMINATE PROGRAM EXECUTION'
+        '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   endif
 
@@ -305,7 +307,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         if( abs(dlat_earth) > R90  .or. abs(dlon_earth) > R360 .or. &
            (abs(dlat_earth) == R90 .and. dlon_earth /= ZERO) )then
            write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-               ' STRANGE OBS POINT (LAT,LON):', dlat_earth, dlon_earth
+              ' STRANGE OBS POINT (LAT,LON):', dlat_earth, dlon_earth
            cycle read_loop
         endif
 
@@ -361,7 +363,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
             idate5(5) <0     .or. idate5(5) >   60 )then
 
            write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
+              ' STRANGE OBS TIME (YMDHM):', idate5(1:5)
            cycle read_loop
 
         endif
@@ -423,7 +425,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
             ifor < 1 .or. ifor > 30 .or. & ! FORN not betw. 1 & 30
             sat_zenang > 90._r_kind ) then
            write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                ' STRANGE OBS INFO(FOVN,FORN,SLNM,SAZA):', ifov, ifor, iscn, allspot(10)
+              ' STRANGE OBS INFO(FOVN,FORN,SLNM,SAZA):', ifov, ifor, iscn, allspot(10)
            cycle read_loop
         endif
         if ( ifor <= 15 ) sat_zenang = -sat_zenang
@@ -438,7 +440,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
         if (abs(sat_zenang - lzaest) > one) then
            write(6,*)' READ_CRIS WARNING uncertainty in lza ', &
-               lza*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
+              lza*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
            bad_line = iscn
            cycle read_loop
         endif
@@ -482,10 +484,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,allspot(11),dlat_earth_deg, &
-                              dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
+                              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else
-           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
                       ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
         endif
 
@@ -503,7 +505,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,allchan,2,n_totchan,iret,'SRAD CHNM')
         if( iret /= n_totchan)then
            write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
+              iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
            cycle read_loop
         endif
 
@@ -540,37 +542,37 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
-        data_all(1,itx) = 4                      ! satellite ID (temp. 49)
-        data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
-        data_all(3,itx) = dlon                   ! grid relative longitude
-        data_all(4,itx) = dlat                   ! grid relative latitude
-        data_all(5,itx) = sat_zenang*deg2rad     ! satellite zenith angle (rad)
-        data_all(6,itx) = allspot(11)            ! satellite azimuth angle (deg)
-        data_all(7,itx) = lza                    ! look angle (rad)
-        data_all(8,itx) = ifovn                  ! fov number
-        data_all(9,itx) = allspot(12)            ! solar zenith angle (deg)
-        data_all(10,itx)= allspot(13)            ! solar azimuth angle (deg)
-        data_all(11,itx) = sfcpct(0)             ! sea percentage of
-        data_all(12,itx) = sfcpct(1)             ! land percentage
-        data_all(13,itx) = sfcpct(2)             ! sea ice percentage
-        data_all(14,itx) = sfcpct(3)             ! snow percentage
-        data_all(15,itx)= ts(0)                  ! ocean skin temperature
-        data_all(16,itx)= ts(1)                  ! land skin temperature
-        data_all(17,itx)= ts(2)                  ! ice skin temperature
-        data_all(18,itx)= ts(3)                  ! snow skin temperature
-        data_all(19,itx)= tsavg                  ! average skin temperature
-        data_all(20,itx)= vty                    ! vegetation type
-        data_all(21,itx)= vfr                    ! vegetation fraction
-        data_all(22,itx)= sty                    ! soil type
-        data_all(23,itx)= stp                    ! soil temperature
-        data_all(24,itx)= sm                     ! soil moisture
-        data_all(25,itx)= sn                     ! snow depth
-        data_all(26,itx)= zz                     ! surface height
-        data_all(27,itx)= idomsfc + 0.001_r_kind ! dominate surface type
-        data_all(28,itx)= sfcr                   ! surface roughness
-        data_all(29,itx)= ff10                   ! ten meter wind factor
-        data_all(30,itx)= dlon_earth*rad2deg     ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth*rad2deg     ! earth relative latitude (degrees)
+        data_all(1,itx) = 4                         ! satellite ID (temp. 49)
+        data_all(2,itx) = t4dv                      ! time diff (obs-anal) (hrs)
+        data_all(3,itx) = dlon                      ! grid relative longitude
+        data_all(4,itx) = dlat                      ! grid relative latitude
+        data_all(5,itx) = sat_zenang*deg2rad        ! satellite zenith angle (rad)
+        data_all(6,itx) = allspot(11)               ! satellite azimuth angle (deg)
+        data_all(7,itx) = lza                       ! look angle (rad)
+        data_all(8,itx) = ifovn                     ! fov number
+        data_all(9,itx) = allspot(12)               ! solar zenith angle (deg)
+        data_all(10,itx)= allspot(13)               ! solar azimuth angle (deg)
+        data_all(11,itx) = sfcpct(0)                ! sea percentage of
+        data_all(12,itx) = sfcpct(1)                ! land percentage
+        data_all(13,itx) = sfcpct(2)                ! sea ice percentage
+        data_all(14,itx) = sfcpct(3)                ! snow percentage
+        data_all(15,itx)= ts(0)                     ! ocean skin temperature
+        data_all(16,itx)= ts(1)                     ! land skin temperature
+        data_all(17,itx)= ts(2)                     ! ice skin temperature
+        data_all(18,itx)= ts(3)                     ! snow skin temperature
+        data_all(19,itx)= tsavg                     ! average skin temperature
+        data_all(20,itx)= vty                       ! vegetation type
+        data_all(21,itx)= vfr                       ! vegetation fraction
+        data_all(22,itx)= sty                       ! soil type
+        data_all(23,itx)= stp                       ! soil temperature
+        data_all(24,itx)= sm                        ! soil moisture
+        data_all(25,itx)= sn                        ! snow depth
+        data_all(26,itx)= zz                        ! surface height
+        data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+        data_all(28,itx)= sfcr                      ! surface roughness
+        data_all(29,itx)= ff10                      ! ten meter wind factor
+        data_all(30,itx)= dlon_earth*rad2deg        ! earth relative longitude (degrees)
+        data_all(31,itx)= dlat_earth*rad2deg        ! earth relative latitude (degrees)
 
         data_all(32,itx)= val_cris
         data_all(33,itx)= itt
@@ -587,13 +589,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! deallocate crtm info
   error_status = crtm_destroy(channelinfo)
   if (error_status /= success) &
-    write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
+     write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -628,8 +630,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
   if(diagnostic_reg .and. ntest > 0 .and. mype_sub==mype_root) &
-       write(6,*)'READ_CRIS:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+     write(6,*)'READ_CRIS:  mype,ntest,disterrmax=',&
+        mype,ntest,disterrmax
   
   return
 end subroutine read_cris

@@ -21,6 +21,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod and removed _i_kind
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -47,12 +48,13 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-            checkob,finalcheck,score_crit
+      checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
   use obsmod, only: offtime_data
   use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
   implicit none
 
 ! Declare passed variables
@@ -120,7 +122,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+     call skindepth(obstype,zob)
   endif
 
 ! HLIU: NEED TO confirm
@@ -263,17 +265,17 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
  
         rclrsky=bmiss
         do n=1,ncld
-          if(datasev1(1,n)>= zero .and. datasev1(1,n) <= 100.0_r_kind ) then
-            rclrsky=datasev1(1,n)
-!           first QC filter out data with less clear sky fraction
-            if ( rclrsky < r70 ) cycle read_loop
-          end if
+           if(datasev1(1,n)>= zero .and. datasev1(1,n) <= 100.0_r_kind ) then
+              rclrsky=datasev1(1,n)
+!             first QC filter out data with less clear sky fraction
+              if ( rclrsky < r70 ) cycle read_loop
+           end if
         end do
 
-       if (clrsky) then     ! asr bufr has no sza
-!         remove the obs whose satellite zenith angles larger than 65 degree
-          if ( hdr(ilzah) > r65 ) cycle read_loop
-       end if
+        if (clrsky) then     ! asr bufr has no sza
+!          remove the obs whose satellite zenith angles larger than 65 degree
+           if ( hdr(ilzah) > r65 ) cycle read_loop
+        end if
 
 !       Compare relative obs time with window.  If obs 
 !       falls outside of window, don't use this obs
@@ -285,11 +287,11 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call w3fs21(idate5,nmind)
         t4dv = (real((nmind-iwinbgn),r_kind) + real(hdr(7),r_kind)*r60inv)*r60inv
         if (l4dvar) then
-          if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-          sstime = real(nmind,r_kind) + real(hdr(7),r_kind)*r60inv
-          tdiff=(sstime-gstime)*r60inv
-          if (abs(tdiff)>twind) cycle read_loop
+           sstime = real(nmind,r_kind) + real(hdr(7),r_kind)*r60inv
+           tdiff=(sstime-gstime)*r60inv
+           if (abs(tdiff)>twind) cycle read_loop
         endif
 
 !       Convert obs location from degrees to radians
@@ -327,10 +329,10 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         endif
 
         if (l4dvar) then
-          crit1=0.01_r_kind
+           crit1=0.01_r_kind
         else
-          timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
-          crit1=0.01_r_kind+timedif
+           timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
+           crit1=0.01_r_kind+timedif
         endif
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
@@ -347,7 +349,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 
         crit1=crit1+rlndsea(isflg)
@@ -372,13 +374,13 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
         if ( nst_gsi > 0 ) then
-          tref  = ts(0)
-          dtw   = zero
-          dtc   = zero
-          tz_tr = one
-          if ( sfcpct(0) > zero ) then
-            call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
-          endif
+           tref  = ts(0)
+           dtw   = zero
+           dtc   = zero
+           tz_tr = one
+           if ( sfcpct(0) > zero ) then
+              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+           endif
         endif
 
 !       Transfer information to work array
@@ -408,7 +410,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(24,itx)= sm                          ! soil moisture
         data_all(25,itx)= sn                          ! snow depth
         data_all(26,itx)= zz                          ! surface height
-        data_all(27,itx)= idomsfc + 0.001             ! dominate surface type
+        data_all(27,itx)= idomsfc + 0.001_r_kind      ! dominate surface type
         data_all(28,itx)= sfcr                        ! surface roughness
         data_all(29,itx)= ff10                        ! ten meter wind factor
         data_all(30,itx) = dlon_earth*rad2deg         ! earth relative longitude (degrees)
@@ -418,10 +420,10 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         data_all(33,itx) = itt
 
         if ( nst_gsi > 0 ) then
-          data_all(maxinfo+1,itx) = tref         ! foundation temperature
-          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+           data_all(maxinfo+1,itx) = tref         ! foundation temperature
+           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
         endif
 
         do k=1,nchanl
@@ -439,7 +441,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   call closbf(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit)
 
 ! If no observations read, jump to end of routine.
 
@@ -448,37 +450,37 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   if (mype_sub==mype_root.and.ndata>0) then
 
   do n=1,ndata
-    do k=1,nchanl
+     do k=1,nchanl
         if(data_all(k+nreal,n) > tbmin .and. &
            data_all(k+nreal,n) < tbmax)nodata=nodata+1
-    end do
-    itt=nint(data_all(maxinfo,n))
-    super_val(itt)=super_val(itt)+val_sev
+     end do
+     itt=nint(data_all(maxinfo,n))
+     super_val(itt)=super_val(itt)+val_sev
   end do
 
 ! Write retained data to local file
- write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
- write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
   endif
 
 ! Deallocate local arrays
- deallocate(data_all)
+  deallocate(data_all)
 
 ! Deallocate satthin arrays
 900 continue
- call destroygrids
+  call destroygrids
 
 ! Print data counts
   write(6,9000) infile,sis,nread,rmesh,ndata
 9000 format(' READ_SEVIRI:  infile=',a10,&
-          '   sis=',a20,&
-          '   nread=',i10, &
-          '   rmesh=',f7.3,'   ndata=',i10)
+        '   sis=',a20,&
+        '   nread=',i10, &
+        '   rmesh=',f7.3,'   ndata=',i10)
 
- if(diagnostic_reg.and.ntest>0) write(6,*)'READ_SEVIRI:  ',&
-      'mype,ntest,disterrmax=',mype,ntest,disterrmax
+  if(diagnostic_reg.and.ntest>0) write(6,*)'READ_SEVIRI:  ',&
+     'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
- return
+  return
 end subroutine read_seviri

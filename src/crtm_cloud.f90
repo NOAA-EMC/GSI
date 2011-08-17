@@ -14,9 +14,9 @@ module crtm_cloud
   use constants, only: zero,one,two,five,r0_05,t0c,fv
   use CRTM_Cloud_Define, only: CRTM_Cloud_type
   use CRTM_Cloud_Define, only: WATER_CLOUD,ICE_CLOUD,RAIN_CLOUD, &
-                               SNOW_CLOUD,GRAUPEL_CLOUD,HAIL_CLOUD 
+      SNOW_CLOUD,GRAUPEL_CLOUD,HAIL_CLOUD 
 
-  use mpeu_util,         only: die
+  use mpeu_util, only: die
 
   implicit none
 
@@ -27,6 +27,8 @@ module crtm_cloud
 ! !REVISION HISTORY:
 !
 ! 14May2011  Todling   Initial version, based on da Silva's Aerosols interface.
+! 22Jul2011  Lueken    Changed F90 to f90 (no machine logic).
+!                      Added implicit none to subroutines.
 !
 !EOP
 !-----------------------------------------------------------------------------
@@ -42,6 +44,10 @@ CONTAINS
 !
 
   subroutine setCloud (cloud_name, icmask, cloud_cont, dp, tp, pr, qh, cloud)
+
+! !USES:
+
+  implicit none
 
 ! !ARGUMENTS:
 
@@ -163,6 +169,7 @@ CONTAINS
 CONTAINS
 
   function CloudType_(name) Result(ctype)
+    implicit none
     character(len=*) :: name  ! Model cloud name
     integer(i_kind)  :: ctype ! CRTM cloud type
     
@@ -186,6 +193,7 @@ CONTAINS
   end function CloudType_
 
   function EftSize_(name) Result(csize)
+    implicit none
     character(len=*) :: name  ! Model cloud name
     real(r_kind)     :: csize ! CRTM cloud type
     

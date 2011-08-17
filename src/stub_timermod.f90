@@ -11,6 +11,7 @@
 !   2009-08-13  lueken - update documentation
 !   2010-06-16  guo - separated stub implementation with implicit interfaces
 !		      from module implementation with explicit interfaces.
+!   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !
 ! subroutines included:
 !   sub timer_init_

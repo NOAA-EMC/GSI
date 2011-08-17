@@ -18,6 +18,7 @@ module lag_interp
 !
 ! module history log:
 !   2009-03-11  meunier
+!   2011-08-01  lueken  - replaced ione with 1, removed double &
 !
 ! subroutines included:
 !   sub lag_inipgrid
@@ -42,7 +43,7 @@ module lag_interp
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlon,nlat,nsig,rlons,rlats
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
 
   implicit none
 
@@ -122,7 +123,7 @@ module lag_interp
     implicit none
 
     if (allocated(lag_logcte_p)) &
-      & deallocate(lag_logcte_p)
+       deallocate(lag_logcte_p)
 
   end subroutine lag_delpgrid
 
@@ -159,11 +160,11 @@ module lag_interp
 
     ! Use the function already implemented
     i=lon
-    call grdcrd(i,ione,rlons,nlon,ione)
+    call grdcrd(i,1,rlons,nlon,1)
     j=lat
-    call grdcrd(j,ione,rlats,nlat,ione)
+    call grdcrd(j,1,rlats,nlat,1)
     k=log(p)
-    call grdcrd(k,ione,lag_logcte_p,nsig,-ione)
+    call grdcrd(k,1,lag_logcte_p,nsig,-1)
   end subroutine lag_gridrel_ijk
 
   
@@ -197,7 +198,7 @@ module lag_interp
 
     integer(i_kind)::lag_index_h
 
-    lag_index_h=lat+(lon-ione)*nlat
+    lag_index_h=lat+(lon-1)*nlat
   end function lag_index_h
   ! ------------------------------------------------------------------------
   ! Give the global array index number for a grid point on 3D grid
@@ -229,7 +230,7 @@ module lag_interp
 
     integer(i_kind)::lag_index_3d
 
-    lag_index_3d=lonlat+(sig-ione)*nlat*nlon
+    lag_index_3d=lonlat+(sig-1)*nlat*nlon
   end function lag_index_3d
   ! ------------------------------------------------------------------------
   ! Retrieve horizontal index and sigma level from a 3D index number
@@ -261,7 +262,7 @@ module lag_interp
     integer(i_kind),intent(in   ) :: i3d
     integer(i_kind),intent(  out) :: lonlat,sig
  
-    sig   =(i3d/(nlat*nlon))+ione
+    sig   =(i3d/(nlat*nlon))+1
     lonlat=mod(i3d,nlat*nlon)
   end subroutine lag_retr_3d
 
@@ -337,12 +338,12 @@ module lag_interp
     
     ! Position of the grid points for the upper level
     i111(1)=floor(rlong); i111(2)=floor(rlatg); i111(3)=floor(rpg)
-    i211=i111; i211(1)=i111(1)+ione; if (i211(1)>nlon) i211(1)=ione
-    i121=i111; i121(2)=i111(2)+ione; if (i121(2)>nlat) i121(2)=ione
+    i211=i111; i211(1)=i111(1)+1; if (i211(1)>nlon) i211(1)=1
+    i121=i111; i121(2)=i111(2)+1; if (i121(2)>nlat) i121(2)=1
     i221(1)=i211(1); i221(2)=i121(2); i221(3)=i111(3)
     
     ! Position of the grid points for the lower level
-    i112=i111; i112(3)=i111(3)+ione; if (i112(3)>nsig) i112(3)=nsig
+    i112=i111; i112(3)=i111(3)+1; if (i112(3)>nsig) i112(3)=nsig
     i212=i211; i212(3)=i112(3)
     i122=i121; i122(3)=i112(3)
     i222=i221; i222(3)=i112(3)
@@ -392,10 +393,10 @@ module lag_interp
       
        ! On a grid point ?
        if (abs(rdx)<lag_accur .and. abs(rdy)<lag_accur) then
-          im111=i111; im111(1)=i111(1)-ione; if (im111(1)<ione) im111(1)=nlon
-          i1m11=i111; i1m11(2)=i111(2)-ione; if (i1m11(2)<ione) i1m11(2)=nlat
-          im112=i112; im112(1)=i112(1)-ione; if (im112(1)<ione) im112(1)=nlon
-          i1m12=i112; i1m12(2)=i112(2)-ione; if (i1m12(2)<ione) i1m12(2)=nlat
+          im111=i111; im111(1)=i111(1)-1; if (im111(1)<1) im111(1)=nlon
+          i1m11=i111; i1m11(2)=i111(2)-1; if (i1m11(2)<1) i1m11(2)=nlat
+          im112=i112; im112(1)=i112(1)-1; if (im112(1)<1) im112(1)=nlon
+          i1m12=i112; i1m12(2)=i112(2)-1; if (i1m12(2)<1) i1m12(2)=nlat
           rcx=half*( &
             (one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))- &
               field(lag_index_h(im111(1),im111(2)),im111(3))) + &
@@ -409,10 +410,10 @@ module lag_interp
 
        ! On a longitude line ?
        elseif (abs(rdx)<lag_accur .and. abs(rdy)>lag_accur) then
-          im111=i111; im111(1)=i111(1)-ione; if (im111(1)<ione) im111(1)=nlon
-          im112=i112; im112(1)=i112(1)-ione; if (im112(1)<ione) im112(1)=nlon
-          im121=i121; im121(1)=i121(1)-ione; if (im121(1)<ione) im121(1)=nlon
-          im122=i122; im122(1)=i122(1)-ione; if (im122(1)<ione) im122(1)=nlon
+          im111=i111; im111(1)=i111(1)-1; if (im111(1)<1) im111(1)=nlon
+          im112=i112; im112(1)=i112(1)-1; if (im112(1)<1) im112(1)=nlon
+          im121=i121; im121(1)=i121(1)-1; if (im121(1)<1) im121(1)=nlon
+          im122=i122; im122(1)=i122(1)-1; if (im122(1)<1) im122(1)=nlon
           rcx=half*( &
             (one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
                      field(lag_index_h(im111(1),im111(2)),im111(3))+&
@@ -433,10 +434,10 @@ module lag_interp
                      
        ! On a lattitude line ?
        elseif (abs(rdx)>lag_accur .and. abs(rdy)<lag_accur) then
-          i1m11=i111; i1m11(2)=i111(2)-ione; if (i1m11(2)<ione) i1m11(2)=nlat
-          i1m12=i112; i1m12(2)=i112(2)-ione; if (i1m12(2)<ione) i1m12(2)=nlat
-          i2m11=i211; i2m11(2)=i211(2)-ione; if (i2m11(2)<ione) i2m11(2)=nlat
-          i2m12=i212; i2m12(2)=i212(2)-ione; if (i2m12(2)<ione) i2m12(2)=nlat
+          i1m11=i111; i1m11(2)=i111(2)-1; if (i1m11(2)<1) i1m11(2)=nlat
+          i1m12=i112; i1m12(2)=i112(2)-1; if (i1m12(2)<1) i1m12(2)=nlat
+          i2m11=i211; i2m11(2)=i211(2)-1; if (i2m11(2)<1) i2m11(2)=nlat
+          i2m12=i212; i2m12(2)=i212(2)-1; if (i2m12(2)<1) i2m12(2)=nlat
           rcx=(one-rdz)*(field(lag_index_h(i211(1),i211(2)),i211(3))-&
                        field(lag_index_h(i111(1),i111(2)),i111(3))) +&
               (    rdz)*(field(lag_index_h(i212(1),i212(2)),i212(3))-&
@@ -545,7 +546,7 @@ module lag_interp
     end do
 
     lag_int3d_tl=lag_int3d_tl+&
-      &lspec_r(9)*dlon + lspec_r(10)*dlat
+       lspec_r(9)*dlon + lspec_r(10)*dlat
     
   end function lag_int3d_tl
 

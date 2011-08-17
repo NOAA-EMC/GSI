@@ -10,6 +10,7 @@ module m_gsiBiases
 !
 ! program history log:
 !   2010-03-24  j guo   - added this document block
+!   2011-08-01  lueken  - replaced F90 with f90, replace izero/ione with 0/1, remove _i_kind
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -38,7 +39,6 @@ module m_gsiBiases
 
   use kinds,only : r_kind
   use kinds,only : i_kind
-  use constants, only: izero, ione
   use jfunc, only : biascor, bcoption, diurnalbc
 
   implicit none
@@ -80,13 +80,13 @@ module m_gsiBiases
   public :: bias_u
   public :: bias_v
 
-  integer(i_kind),save :: bias_hour = -ione
-  integer(i_kind),save :: nbc       = -ione
+  integer(i_kind),save :: bias_hour = -1
+  integer(i_kind),save :: nbc       = -1
 
   interface compress_bias; module procedure &
-    comp2d_,comp3d_; end interface
+     comp2d_,comp3d_; end interface
   interface update_bias 
-    module procedure update2d_,update3d_,update3d3d_,updateall_,update_st
+     module procedure update2d_,update3d_,update3d3d_,updateall_,update_st
   end interface
   interface correct_bias; module procedure correct_; end interface
   interface create_bias_grids ; module procedure init_   ; end interface
@@ -138,8 +138,8 @@ subroutine init_()
 
   if (initialized_) return 
   if ( biascor < zero ) return
-  nbc = ione
-  if (nint(diurnalbc)==ione) nbc=3_i_kind
+  nbc = 1
+  if (nint(diurnalbc)==1) nbc=3
 
   allocate(bias_ps(lat2,lon2,nbc),bias_tskin(lat2,lon2,nbc),&
            bias_vor(lat2,lon2,nsig,nbc),&
@@ -147,9 +147,9 @@ subroutine init_()
            bias_oz(lat2,lon2,nsig,nbc),bias_q(lat2,lon2,nsig,nbc),&
            bias_tv(lat2,lon2,nsig,nbc),bias_u(lat2,lon2,nsig,nbc),&
            bias_v(lat2,lon2,nsig,nbc),stat=istatus)
-  if (istatus/=izero) then
+  if (istatus/=0) then
      write(6,*)'CREATE_BIAS_GRIDS:  allocate error5, istatus=',&
-       istatus
+        istatus
   endif
 
   do n=1,nbc
@@ -207,7 +207,7 @@ subroutine clean_()
    integer(i_kind):: istatus
 
    if (.not.initialized_) return 
-   if ( nbc < izero ) return
+   if ( nbc < 0 ) return
    deallocate(bias_ps,bias_tskin,bias_vor,bias_div,&
               bias_tv,bias_q,bias_oz,bias_cwmr,bias_u,bias_v,stat=istatus)
    write(6,*)'CREATE_BIAS_GRIDS:  deallocate error5, istatus=',istatus
@@ -377,28 +377,28 @@ subroutine update2d_(bias,lat2,lon2,xhat,hour)
   integer(i_kind) :: i,ib,ie
 
   dumpcor_=one
-  if (bcoption == ione)     dumpcor_=0.98_r_kind
-  if (bcoption == 2_i_kind) dumpcor_=one-half*biascor
+  if (bcoption == 1) dumpcor_=0.98_r_kind
+  if (bcoption == 2) dumpcor_=one-half*biascor
 
   if(present(hour)) then
      twopi=8._r_kind*atan(one)
      coshr=cos(twopi*hour/24._r_kind)*two*biascor
      sinhr=sin(twopi*hour/24._r_kind)*two*biascor
 
-     ib=izero
+     ib=0
      do i=1,lon2
         ie=ib+lat2
-        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+ione:ie)
-        bias(:,i,2)=dumpcor_*bias(:,i,2) +   coshr*xhat(ib+ione:ie)
-        bias(:,i,3)=dumpcor_*bias(:,i,3) +   sinhr*xhat(ib+ione:ie)
+        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+1:ie)
+        bias(:,i,2)=dumpcor_*bias(:,i,2) +   coshr*xhat(ib+1:ie)
+        bias(:,i,3)=dumpcor_*bias(:,i,3) +   sinhr*xhat(ib+1:ie)
         ib=ie
      end do
 
   else
-     ib=izero
+     ib=0
      do i=1,lon2
         ie=ib+lat2
-        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+ione:ie)
+        bias(:,i,1)=dumpcor_*bias(:,i,1) + biascor*xhat(ib+1:ie)
         ib=ie
      end do
   endif
@@ -457,31 +457,31 @@ subroutine update3d_(bias,lat2,lon2,nsig,xhat,hour)
   integer(i_kind) :: k,i,ib,ie
 
   dumpcor_=one
-  if (bcoption == ione)     dumpcor_=0.98_r_kind
-  if (bcoption == 2_i_kind) dumpcor_=one-half*biascor
+  if (bcoption == 1) dumpcor_=0.98_r_kind
+  if (bcoption == 2) dumpcor_=one-half*biascor
 
   if(present(hour)) then
      twopi=8._r_kind*atan(one)
      coshr=cos(twopi*hour/24._r_kind)*two*biascor
      sinhr=sin(twopi*hour/24._r_kind)*two*biascor
  
-     ib=izero
+     ib=0
      do k=1,nsig
         do i=1,lon2
            ie=ib+lat2
-           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+ione:ie)
-           bias(:,i,k,2)=dumpcor_*bias(:,i,k,2) +   coshr*xhat(ib+ione:ie)
-           bias(:,i,k,3)=dumpcor_*bias(:,i,k,3) +   sinhr*xhat(ib+ione:ie)
+           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+1:ie)
+           bias(:,i,k,2)=dumpcor_*bias(:,i,k,2) +   coshr*xhat(ib+1:ie)
+           bias(:,i,k,3)=dumpcor_*bias(:,i,k,3) +   sinhr*xhat(ib+1:ie)
            ib=ie
         end do
      end do
 
   else
-     ib=izero
+     ib=0
      do k=1,nsig
         do i=1,lon2
            ie=ib+lat2
-           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+ione:ie)
+           bias(:,i,k,1)=dumpcor_*bias(:,i,k,1) + biascor*xhat(ib+1:ie)
            ib=ie
         end do
      end do
@@ -538,8 +538,8 @@ subroutine update3d3d_(bias,xhat,hour)
   real   (r_kind) :: twopi,coshr,sinhr
                                                                                                                                                              
   dumpcor_=one
-  if (bcoption == ione    ) dumpcor_=0.98_r_kind
-  if (bcoption == 2_i_kind) dumpcor_=one-half*biascor
+  if (bcoption == 1) dumpcor_=0.98_r_kind
+  if (bcoption == 2) dumpcor_=one-half*biascor
                                                                                                                                                              
   if(present(hour)) then
      twopi=8._r_kind*atan(one)
@@ -609,21 +609,21 @@ subroutine updateall_ (xhat,xhatuv,xhat_div,xhat_vor,xhat_q,hour)
   integer(i_kind) :: l2,l3
   integer(i_kind) :: ncw,nt,np,noz,nsst,nq,nu,nv,nst,nvp
  
-  l2=lat2*lon2-ione
-  l3=lat2*lon2*nsig-ione
+  l2=lat2*lon2-1
+  l3=lat2*lon2*nsig-1
 
-  nst=ione                               ! streamfunction
-  nvp=nst+latlon1n                       ! velocity potential
-  nt=nvp +latlon1n                       ! t
-  nq=nt  +latlon1n                       ! q
-  noz=nq +latlon1n                       ! oz
-  ncw=noz+latlon1n                       ! cloud water
-  np=ncw +latlon1n                       ! surface pressure
-  nsst=np+latlon11                       ! skin temperature
+  nst=1                               ! streamfunction
+  nvp=nst+latlon1n                    ! velocity potential
+  nt=nvp +latlon1n                    ! t
+  nq=nt  +latlon1n                    ! q
+  noz=nq +latlon1n                    ! oz
+  ncw=noz+latlon1n                    ! cloud water
+  np=ncw +latlon1n                    ! surface pressure
+  nsst=np+latlon11                    ! skin temperature
 
 ! Define pointers for isolated u,v on subdomains work vector
-  nu=ione                                ! zonal wind
-  nv=nu+latlon1n                         ! meridional wind
+  nu=1                                ! zonal wind
+  nv=nu+latlon1n                      ! meridional wind
 
   call update3d_  (bias_u    ,lat2,lon2,nsig,xhatuv(nu:nu+l3)  ,hour)
   call update3d_  (bias_v    ,lat2,lon2,nsig,xhatuv(nv:nv+l3)  ,hour)
@@ -729,7 +729,7 @@ subroutine correct_()
   use gridmod, only: lat2,lon2,nsig,latlon1n
   use guess_grids, only: nfldsig,ntguessig
   use guess_grids, only: ges_ps,ges_u,ges_v,ges_vor,ges_div,&
-                         ges_tv,ges_q,ges_oz,sfct
+      ges_tv,ges_q,ges_oz,sfct
   use constants, only: tiny_r_kind
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

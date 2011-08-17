@@ -54,6 +54,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2009-7-02   h.liu   - toss the OMI data with AFBO=3 (c-pair correction) and clean up codes
 !   2010-05-26  treadon - add timedif=zero for l4dvar (used in thinning)
 !   2010-06-02  sienkiewicz - care for closing bufr other than for o3lev
+!   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -85,12 +86,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: makegrids,map2tgrid,destroygrids, &
-               finalcheck,itxmax
+      finalcheck,itxmax
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg,one_tenth,r60inv,two
   use obsmod, only: iadate,nloz_v6,nloz_v8
   use convinfo, only: nconvtype, &
-        icuse,ictype,ioctype
+      icuse,ictype,ioctype
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use qcmod, only: use_poq7
   use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
@@ -480,11 +481,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call w3fs21(idate5,nmind)
      t4dv=real((nmind-iwinbgn),r_kind)*r60inv
      if (l4dvar) then
-       if(t4dv<zero .OR. t4dv>winlen) goto 120
+        if(t4dv<zero .OR. t4dv>winlen) goto 120
      else
-       sstime=real(nmind,r_kind)
-       tdiff=(sstime-gstime)*r60inv
-       if(abs(tdiff) > twind) goto 120
+        sstime=real(nmind,r_kind)
+        tdiff=(sstime-gstime)*r60inv
+        if(abs(tdiff) > twind) goto 120
      end if
 
 
@@ -715,7 +716,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            itype = 306
         case default
            write(6,*) 'READ_OZONE: unknown SIS ',trim(sis),          &
-             ', using type=302'
+              ', using type=302'
            itype = 302
      end select
 
@@ -740,7 +741,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      do while ( ndata < maxobs )
         read(lunin,2,end=150,err=160) iy,im,idd,ihh,imin,rsec,isnd,&
-             ilev,slats,slons,ppmv,iflg,mflg,prec,pres,obserr
+           ilev,slats,slons,ppmv,iflg,mflg,prec,pres,obserr
 
         if (iuse_oz(ipos(ilev)) < 0) then
            usage = 100._r_kind
@@ -777,7 +778,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         if (l4dvar) then
            if (t4dv<zero .OR. t4dv>winlen) then
               write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', t4dv=',&
-                   t4dv,' is outside time window, sstime=',sstime*r60inv
+                 t4dv,' is outside time window, sstime=',sstime*r60inv
               cycle
            end if
         else
@@ -785,7 +786,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            tdiff=(sstime-gstime)*r60inv
            if(abs(tdiff) > twind)then
               write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', tdiff=',&
-                   tdiff,' is outside time window=',twind
+                 tdiff,' is outside time window=',twind
               cycle
            end if
         end if
@@ -799,9 +800,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
         if (abs(slats0)<30._r_kind) then
            if(pres>100._r_kind .and. pres<216._r_kind) then
-             if(mflg <= 1.2_r_kind) cycle                 
+              if(mflg <= 1.2_r_kind) cycle                 
            else
-             if(mflg <= 0.4_r_kind) cycle                 
+              if(mflg <= 0.4_r_kind) cycle                 
            endif
         else
            if(mflg <= 0.4_r_kind) then
@@ -833,7 +834,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      enddo
      write(6,*) ' READ_OZONE:   Number of MLS obs reached maxobs = ', &
-             maxobs
+        maxobs
      deallocate(ipos)
 
 ! Process MLS bufr data
@@ -981,9 +982,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if (abs(slats0)<30._r_kind) then
         do k=1,nloz
            if(hdrmlsl(1,k)>10000._r_kind .and. hdrmlsl(1,k)<21600._r_kind) then
-             if(hdrmls13 <= 1.2_r_kind) usage1(k)=1000._r_kind
+              if(hdrmls13 <= 1.2_r_kind) usage1(k)=1000._r_kind
            else
-             if(hdrmls13 <= 0.4_r_kind) usage1(k)=1000._r_kind
+              if(hdrmls13 <= 0.4_r_kind) usage1(k)=1000._r_kind
            endif
         end do
      else

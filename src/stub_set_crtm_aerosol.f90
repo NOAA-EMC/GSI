@@ -6,7 +6,7 @@ subroutine Set_CRTM_Aerosol ( km, na, aero_name, aero_conc, rh, aerosol)
   use mpimod, only: mype
   use CRTM_Aerosol_Define, only: CRTM_Aerosol_type
 
-implicit none
+  implicit none
 
 ! !ARGUMENTS:
 
@@ -24,13 +24,14 @@ implicit none
 ! !REVISION HISTORY:
 !
 ! 23feb2011  da Silva  Initial version, FORTRAN-77 interface for GSI.
+! 01aug2011  Lueken    Replaced F90 with f90 (no machine logic)
 !
 !EOP
 !-----------------------------------------------------------------------------
 
   if(mype==0) then 
-    print*, 'Stub Set_CRTM_Aerosol: Code should not be here (STUB)'
-    print*, 'Stub Set_CRTM_Aerosol: You are likely doing something wrong'
+     print*, 'Stub Set_CRTM_Aerosol: Code should not be here (STUB)'
+     print*, 'Stub Set_CRTM_Aerosol: You are likely doing something wrong'
   endif
   call stop2(999)
   
