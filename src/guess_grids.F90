@@ -140,6 +140,7 @@ module guess_grids
   public :: ntguessig_ref
   public :: ntguessfc_ref
   public :: ntguesnst_ref
+  public :: limit_qmax, qmin
 
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
@@ -149,6 +150,7 @@ module guess_grids
   logical, save :: ges_initialized = .false.
   logical, save :: tnd_initialized = .false.
   logical, save :: drv_initialized = .false.
+  logical:: limit_qmax = .false.    ! .true. = limit ges_q to min(ges_q,qsatg)
 
   integer(i_kind) ntguessig         ! location of actual guess time for sigma fields
   integer(i_kind) ntguessfc         ! location of actual guess time for sfc fields
@@ -160,6 +162,7 @@ module guess_grids
 
   integer(i_kind):: ifact10 = 0     ! 0 = use 10m wind factor from guess
   integer(i_kind):: nsig_ext = 13   ! use 13 layers above model top to compute the bending angle for gpsro
+  real(r_kind):: qmin = 1.e-10_r_kind ! lower bound for ges_q
 
   ! number of guess sigma/surface times are set in GSI_gridComp.rc
 

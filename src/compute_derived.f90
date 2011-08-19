@@ -77,7 +77,7 @@ subroutine compute_derived(mype,init_pass)
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
        tropprs,ges_prsl,ntguessig,&
-       nfldsig,&
+       nfldsig, qmin, &
        ges_teta,fact_tv, &
        ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,ges_ozlon,ges_cwmr_lon, &
        ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
@@ -143,12 +143,12 @@ subroutine compute_derived(mype,init_pass)
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')
 
-! Limit q to be >= 1.e-10_r_kind
+! Limit q to be >= qmin
   do it=1,nfldsig
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),1.e-10_r_kind)
+              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
            end do
         end do
      end do

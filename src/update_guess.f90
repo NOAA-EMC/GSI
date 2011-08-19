@@ -85,12 +85,12 @@ subroutine update_guess(sval,sbias)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length
-  use jfunc, only: iout_iter,biascor,tsensible
+  use jfunc, only: iout_iter,biascor,tsensible,qsatg
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
-       nfldsfc,dsfct
+       nfldsfc,dsfct,qmin,limit_qmax
   use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
@@ -199,7 +199,8 @@ subroutine update_guess(sval,sbias)
            do i=1,lat2
               if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + sval(ii)%r3(is_u)%q(i,j,k)
               if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + sval(ii)%r3(is_v)%q(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),1.e-10_r_kind) 
+              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),qmin)
+              if(is_q>0 .and. limit_qmax) ges_q(i,j,k,it) = min(ges_q(i,j,k,it),qsatg(i,j,k))
               if(is_t > 0)then
                  if (.not.twodvar_regional .or. .not.tsensible) then
                     ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + sval(ii)%r3(is_t)%q(i,j,k)

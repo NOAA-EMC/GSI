@@ -284,7 +284,6 @@ contains
 !   Declare local parameters
     integer(sigio_intkind):: lunges = 11
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
-    real(r_kind),parameter:: qsmall = 1.e-11_r_kind
 
 !   Declare passed variables
     character(24)                         ,intent(in   ) :: filename

@@ -657,7 +657,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !
 !   output argument list:
 !     h            - interpolated temperature
-!     q            - interpolated specific humidity (max(qsmall,q))
+!     q            - interpolated specific humidity (max(qmin,q))
 !     prsl         - interpolated layer pressure (nsig)
 !     prsi         - interpolated level pressure (nsig+1)
 !     trop5        - interpolated tropopause pressure
@@ -688,7 +688,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use radinfo, only: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl
   use guess_grids, only: ges_u,ges_v,ges_tsen,ges_q,ges_oz,&
       ges_ps,ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
-      hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
+      hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2,qmin
   use ncepgfs_ghg, only: co2vmr_def
   use gsi_chemguess_mod, only: gsi_chemguess_bundle   ! for now, a common block
   use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -721,7 +721,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Declare local parameters
   real(r_kind),parameter:: minsnow=one_tenth
-  real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
 
@@ -879,19 +878,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         else 
            qclr(k) = (q(k) - cf*qs(k))/(one-cf)
            if (qclr(k)<zero) then
-              qclr(k)=max(qsmall,qclr(k))
+              qclr(k)=max(qmin,qclr(k))
            endif
         endif 
      endif
 
-!  Ensure q is greater than or equal to qsmall
+!  Ensure q is greater than or equal to qmin
 
-     q(k)=max(qsmall,q(k))
+     q(k)=max(qmin,q(k))
 
 ! Create constants for later
 
      if (lcf4crtm) then
-        qclr(k)=max(qsmall,qclr(k))
+        qclr(k)=max(qmin,qclr(k))
         c2(k)=one/(one+fv*qclr(k))
         c3(k)=one/(one-qclr(k))
      else
