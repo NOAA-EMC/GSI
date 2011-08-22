@@ -75,7 +75,6 @@ program multiplier
              corq2in(i,k)=min(max(corq2x,0.00015),1.0)
 
              if (k >= 35 .and. k <= 37 ) corzin(i,k) = corzin(i,k)*0.4
-             if (k >= 35 .and. k <= 37 ) corzin(i,k) = corzin(i,k)*0.4
              if (k >= 38 .and. k <= 41 ) corzin(i,k) = corzin(i,k)*0.24
              if (k == 42 ) corzin(i,k) = corzin(i,k)*0.6
              if (k == 43 ) corzin(i,k) = corzin(i,k)*0.7
@@ -95,7 +94,6 @@ program multiplier
              if (k == 63 ) corzin(i,k) = corzin(i,k)*0.01
              if (k >= 64 ) corzin(i,k) = corzin(i,k)*0.02
 
-             if (k >= 35 .and. k <= 37 ) corq2in(i,k) = corq2in(i,k)*0.4
              if (k >= 35 .and. k <= 37 ) corq2in(i,k) = corq2in(i,k)*0.4
              if (k >= 38 .and. k <= 41 ) corq2in(i,k) = corq2in(i,k)*0.24
              if (k == 42 ) corq2in(i,k) = corq2in(i,k)*0.6
@@ -137,7 +135,7 @@ program multiplier
        read(inerr) corsstin
        read(inerr) hsstin
        write(outerr) corsstin
-       write(outerr) corsstin
+       write(outerr) hsstin
     end if
 
     deallocate(corzin,hwllin)
