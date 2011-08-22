@@ -2738,7 +2738,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
      ii=(k-1)*a_en(1)%ndim
      is=ii+1
-     ie=is+a_en(1)%ndim
+     ie=ii+a_en(1)%ndim
      a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
   enddo
 
@@ -2767,7 +2767,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   do k=1,n_ens
      ii=(k-1)*a_en(1)%ndim
      is=ii+1
-     ie=is+a_en(1)%ndim
+     ie=ii+a_en(1)%ndim
      a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
   end do
