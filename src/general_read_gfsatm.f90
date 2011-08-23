@@ -80,7 +80,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     iret_read=0
     nlatm2=grd%nlat-2
 
-!   Read NCEP gfs guess file using appropriate io module !NOTE: for now only allow ncep_sigio.
+!   Read NCEP gfs guess file using appropriate io module
     call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
     gfshead%fhour   = sighead%fhour
     gfshead%idate   = sighead%idate

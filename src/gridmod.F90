@@ -34,7 +34,7 @@ module gridmod
 !   2006-04-14  treadon - remove global sigi,sigl; add ntracter,ncloud,ck5
 !   2006-04-17  treadon - remove regional sigi_ll,sigl_ll
 !   2006-10-17  kleist  - add lat dependent coriolis parameter
-!   2007-05-07  treadon - add ncep_sigio, ncepgfs_head(v)
+!   2007-05-07  treadon - add ncepgfs_head(v)
 !   2007-05-08  kleist  - add variables for fully generalized vertical coordinate
 !   2007-10-24  parrish - fix error in wind rotation reference angle field
 !   2009-01-28  todling - remove original GMAO interface
@@ -117,7 +117,7 @@ module gridmod
   public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,vlevs,nsig1o,rlats
   public :: region_dy,region_dx,region_lon,rlat_min_dd,rlat_max_dd,rlon_max_dd
   public :: rlon_min_dd,coslon,sinlon,rlons,ird_s,irc_s,periodic,idthrm5
-  public :: cp5,idvm5,ncep_sigio,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
+  public :: cp5,idvm5,ncepgfs_head,idpsfc5,nlon_sfc,nlat_sfc
   public :: rlons_sfc,rlats_sfc,jlon1,ilat1,periodic_s,latlon1n1
   public :: nsig2,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
   public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf
@@ -132,8 +132,6 @@ module gridmod
 
   logical regional          ! .t. for regional background/analysis
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
-
-  logical ncep_sigio        ! .t. if using ncep sigio format file
 
   logical wrf_nmm_regional  !
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
@@ -288,7 +286,7 @@ module gridmod
   integer(i_kind),allocatable::i0_tilde(:,:),j0_tilde(:,:)
   integer(i_byte),allocatable::ip_tilde(:,:),jp_tilde(:,:)
 
-! Define structure to hold NCEP sigio/gfsio header information
+! Define structure to hold NCEP sigio header information
   type:: ncepgfs_head
      integer(i_kind):: ivs
      integer(i_kind):: version
@@ -387,7 +385,6 @@ contains
     ncloud = 0
     gencode = 80
     regional = .false.
-    ncep_sigio = .true.
     periodic = .false.
     wrf_nmm_regional = .false.
     wrf_mass_regional = .false.

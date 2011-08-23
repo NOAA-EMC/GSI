@@ -572,14 +572,11 @@ THIS_SP    = NCEP_sp_r8i4
 THIS_W3    = NCEP_w3_r8i4
 THIS_BACIO = NCEP_bacio_r4i4
 THIS_BUFR  = NCEP_bufr_r8i4
-THIS_GFSIO = NCEP_gfsio
 THIS_NEMSIO= NCEP_nemsio
-LIB_GFSIO  = $(ESMADIR)/$(ARCH)/lib/lib$(THIS_GFSIO).a   # move to proper place
-INC_GFSIO  = $(ESMADIR)/$(ARCH)/include/$(THIS_GFSIO)   # move to proper place
 INC_BACIO  = # $(ESMADIR)/$(ARCH)/include/$(THIS_BACIO)   # move to proper place
 
 MOD_DIRS = . $(INC_ESMF) $(INC_CRTM)              \
-	     $(INC_SIGIO) $(INC_GFSIO) $(INC_BACIO) $(INC_NEMSIO) \
+	     $(INC_SIGIO) $(INC_BACIO) $(INC_NEMSIO) \
 	     $(INC_SFCIO) $(INC_GEOS) $(INC_MPI)
 USER_FINCS = $(foreach dir,$(MOD_DIRS), $(I)$(dir))
 USER_FDEFS = $(_D) $(HAVE_ESMF)
@@ -609,7 +606,7 @@ $(LIB) lib : $(LIBgsi_util) $(LIBgsi_solver) $(OBJS_GC)
 
 gsi.x:  $(LIBgsi_util)  $(LIBgsi_solver) gsimain.o
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIBgsi_solver) $(LIBgsi_util) $(LIB_CRTM)  \
-	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_NEMSIO) $(LIB_BACIO) $(LIB_GFSIO) $(LIB_SIGIO) \
+	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_NEMSIO) $(LIB_BACIO) $(LIB_SIGIO) \
 	     $(LIB_SP) $(LIB_W3) \
 	     $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
 

@@ -11,7 +11,6 @@ subroutine gesinfo(mype)
 !   2006-01-10  treadon
 !   2006-04-14  treadon - remove sigi,sigl; add ntracer,ncloud,ck5
 !   2007-03-16  moorthi - replace gfsatm_head%ak,%bk with %vcoord
-!   2007-05-07  treadon - add gfsio interface
 !   2007-05-08  kleist  - add capability to handle fully generalized coordinate
 !   2008-06-04  safford - rm unused use one
 !   2009-01-07  todling - add logics to determine begin/end of analysis
@@ -66,12 +65,10 @@ subroutine gesinfo(mype)
   use gridmod, only: idvc5,ak5,bk5,ck5,tref5,&
       regional,nsig,regional_fhr,regional_time,&
       wrf_nmm_regional,wrf_mass_regional,twodvar_regional,nems_nmmb_regional,cmaq_regional,&
-      ntracer,ncloud,ncep_sigio,nlat,nlon,idvm5,&
+      ntracer,ncloud,nlat,nlon,idvm5,&
       ncepgfs_head,ncepgfs_headv,idpsfc5,idthrm5,idsl5,cp5,jcap_b, use_gfs_nemsio
   use sigio_module, only: sigio_head,sigio_srhead,sigio_sclose,&
       sigio_sropen
-  use gfsio_module, only: gfsio_gfile,gfsio_open,gfsio_close,&
-      gfsio_init,gfsio_finalize,gfsio_getfilehead
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
 
@@ -105,7 +102,6 @@ subroutine gesinfo(mype)
   real(r_single),allocatable,dimension(:,:,:) :: nems_vcoord
 
   type(sigio_head):: sighead
-  type(gfsio_gfile) :: gfile
   type(ncepgfs_head):: gfshead
   type(ncepgfs_headv):: gfsheadv
   type(nemsio_gfile) :: gfile2
@@ -143,113 +139,53 @@ subroutine gesinfo(mype)
 
         call sigio_sropen(lunges,filename,iret)
         call sigio_srhead(lunges,sighead,iret2)
-        if (iret==0 .and. iret2==0) then
-           intype = 1
-        else
-           call gfsio_init(iret)
-           call gfsio_open(gfile,trim(filename),'read',iret)
-           call gfsio_getfilehead(gfile,iret=iret2,gtype=filetype)
-           if (iret==0 .and. iret2==0 .and. filetype=='GFSIOATM') intype = 2
-        endif
-        if (intype==1) then
-           ncep_sigio=.true.
-        elseif (intype==2) then
-           ncep_sigio=.false.
-        else
+        if (iret/=0 .or. iret2/=0) then
            write(6,*)' GESINFO:  UNKNOWN FORMAT FOR NCEP ATM GUESS FILE ',filename
            call stop2(99)
            stop
         endif
-
-        if (mype==mype_out) then
-           if (ncep_sigio) then
-              write(6,*)'GESINFO:  Read NCEP sigio format file, ',filename
-           else
-              write(6,*)'GESINFO:  Read NCEP gfsio format file, ',filename
-           endif
-        endif
+        if (mype==mype_out) &
+             write(6,*)'GESINFO:  Read NCEP sigio format file, ',filename
            
 !       Extract information from NCEP atmospheric guess using sigio
-        if (ncep_sigio) then
-
-!          Fill structure with NCEP sigio header information
-           gfshead%fhour=sighead%fhour
-           gfshead%idate=sighead%idate
-           gfshead%latb=sighead%latb
-           gfshead%lonb=sighead%lonb
-           gfshead%levs=sighead%levs
-           gfshead%jcap=sighead%jcap
-           gfshead%ntrac=sighead%ntrac
-           gfshead%idvc=sighead%idvc
-           gfshead%idvm=sighead%idvm
-           gfshead%idsl=sighead%idsl
-           gfshead%ncldt=sighead%ncldt
-           gfshead%nvcoord=sighead%nvcoord
-
-           allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
-           gfsheadv%vcoord=sighead%vcoord
-
-           allocate(gfsheadv%cpi(gfshead%ntrac+1))
-           if (mod(gfshead%idvm/10,10) == 3) then
-              do k=1,gfshead%ntrac+1
-                 gfsheadv%cpi(k)=sighead%cpi(k)
-              end do
-           else
-              do k=1,gfshead%ntrac+1
-                 gfsheadv%cpi(k)=zero
-              end do
-           endif
-
-           call sigio_sclose(lunges,iret)
-
-!          Check for consistency:  jcap, levs
-           if (gfshead%jcap/=jcap_b .or. gfshead%levs/=nsig) then
-              write(6,*)'GESINFO:  ***ERROR*** sigio (jcap_b,levs)=',&
-                 gfshead%jcap,gfshead%levs, ' do not equal ',&
-                 ' user (jcap_b,nsig)=',jcap_b,nsig
-              call stop2(85)
-           endif
-
-
-!       Extract information from NCEP atmospheric guess using gfsio
+!       Fill structure with NCEP sigio header information
+        gfshead%fhour=sighead%fhour
+        gfshead%idate=sighead%idate
+        gfshead%latb=sighead%latb
+        gfshead%lonb=sighead%lonb
+        gfshead%levs=sighead%levs
+        gfshead%jcap=sighead%jcap
+        gfshead%ntrac=sighead%ntrac
+        gfshead%idvc=sighead%idvc
+        gfshead%idvm=sighead%idvm
+        gfshead%idsl=sighead%idsl
+        gfshead%ncldt=sighead%ncldt
+        gfshead%nvcoord=sighead%nvcoord
+        
+        allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+        gfsheadv%vcoord=sighead%vcoord
+        
+        allocate(gfsheadv%cpi(gfshead%ntrac+1))
+        if (mod(gfshead%idvm/10,10) == 3) then
+           do k=1,gfshead%ntrac+1
+              gfsheadv%cpi(k)=sighead%cpi(k)
+           end do
         else
-           call gfsio_getfilehead(gfile,iret=iret,&
-                fhour=gfshead%fhour,&
-                idate=gfshead%idate,&
-                latb=gfshead%latb,&
-                lonb=gfshead%lonb,&
-                levs=gfshead%levs,&
-                jcap=gfshead%jcap,&
-                ntrac=gfshead%ntrac,&
-                idvc=gfshead%idvc,&
-                idvm=gfshead%idvm,&
-                idsl=gfshead%idsl,&
-                ncldt=gfshead%ncldt,&
-                nvcoord=gfshead%nvcoord)
-
-
-!          Extract horizontal and vertical coordinate structure
-           allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
-           call gfsio_getfilehead(gfile,iret=iret,vcoord=gfsheadv%vcoord)
-   
-           allocate(gfsheadv%cpi(gfshead%ntrac+1))
            do k=1,gfshead%ntrac+1
               gfsheadv%cpi(k)=zero
            end do
-
-           call gfsio_close(gfile,iret)
-           call gfsio_finalize()
-
-!          Check for consistency:  jcap, levs, latb,lonb
-           if ( gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
-              gfshead%levs/=nsig ) then
-              write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
-                 gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
-                 ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
-              call stop2(85)
-           endif
-
         endif
+
+        call sigio_sclose(lunges,iret)
+
+!          Check for consistency:  jcap, levs
+        if (gfshead%jcap/=jcap_b .or. gfshead%levs/=nsig) then
+           write(6,*)'GESINFO:  ***ERROR*** sigio (jcap_b,levs)=',&
+                gfshead%jcap,gfshead%levs, ' do not equal ',&
+                ' user (jcap_b,nsig)=',jcap_b,nsig
+           call stop2(85)
+        endif
+
 
 !    Extract information from NCEP atmospheric guess using NEMSIO
      else
@@ -329,7 +265,7 @@ subroutine gesinfo(mype)
 !       Check for consistency:  levs, latb,lonb
         if (gfshead%latb+2/=nlat .or. gfshead%lonb/=nlon .or. &
             gfshead%levs/=nsig ) then
-           write(6,*)'GESINFO:  ***ERROR*** gfsio (latb+2,lonb,levs)=',&
+           write(6,*)'GESINFO:  ***ERROR*** gfshead (latb+2,lonb,levs)=',&
               gfshead%latb+2,gfshead%lonb,gfshead%levs, ' do not equal ',&
               ' user (nlat,nlon,nsig)=',nlat,nlon,nsig
            call stop2(99)
