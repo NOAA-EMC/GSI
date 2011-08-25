@@ -657,7 +657,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !
 !   output argument list:
 !     h            - interpolated temperature
-!     q            - interpolated specific humidity (max(qmin,q))
+!     q            - interpolated specific humidity (max(qsmall,q))
 !     prsl         - interpolated layer pressure (nsig)
 !     prsi         - interpolated level pressure (nsig+1)
 !     trop5        - interpolated tropopause pressure
@@ -735,7 +735,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
-  real(r_kind):: sno00,sno01,sno10,sno11,secant_term
+  real(r_kind):: sno00,sno01,sno10,sno11,secant_term,qsmall
   real(r_kind),dimension(0:3):: wgtavg
   real(r_kind),dimension(nsig,nchanl):: omix
   real(r_kind),dimension(nsig,nchanl,n_clouds):: cwj
@@ -759,6 +759,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
   m1=mype+1
+
+! Previous tests with CRTM indicate problems with moisture values 
+! less than 1.e-7 kg/kg.   Hence the check below to ensure qsmall
+! is greater than or equal to 1.0e-7
+
+  qsmall=max(1.0e-7_r_kind,qmin)
+  
 
   dx  = data_s(ilat)                 ! grid relative latitude
   dy  = data_s(ilon)                 ! grid relative longitude
@@ -878,19 +885,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         else 
            qclr(k) = (q(k) - cf*qs(k))/(one-cf)
            if (qclr(k)<zero) then
-              qclr(k)=max(qmin,qclr(k))
+              qclr(k)=max(qsmall,qclr(k))
            endif
         endif 
      endif
 
-!  Ensure q is greater than or equal to qmin
+!  Ensure q is greater than or equal to qsmall
 
-     q(k)=max(qmin,q(k))
+     q(k)=max(qsmall,q(k))
 
 ! Create constants for later
 
      if (lcf4crtm) then
-        qclr(k)=max(qmin,qclr(k))
+        qclr(k)=max(qsmall,qclr(k))
         c2(k)=one/(one+fv*qclr(k))
         c3(k)=one/(one-qclr(k))
      else
