@@ -195,8 +195,8 @@ subroutine read_guess(iyear,month,mype)
      ice = .true.
      iderivative = 0
      do it=1,nfldsig
-        call genqsat(satq,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
-             nsig,ice,iderivative)
+        if (limit_qmax) call genqsat(satq,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),&
+             lat2,lon2,nsig,ice,iderivative)
         do k=1,nsig
            do j=1,lon2
               do i=1,lat2
