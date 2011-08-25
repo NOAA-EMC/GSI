@@ -64,7 +64,9 @@ subroutine update_guess(sval,sbias)
 !   2010-06-01  todling - skip upd when pointer not defined
 !   2010-06-02  todling - bug in upd of chem
 !   2010-11-02  ting - replace loop index k in nfldsfc loop with it (bug fix)
-!   2010-05-01  todling - add support for generalized guess (use met-guess)
+!   2010-12-09  jung    - reset q to subsaturated and positive value where necessary
+!                         before writing output grid
+!   2011-05-01  todling - add support for generalized guess (use met-guess)
 !                       - cwmr now in met-guess
 !
 !   input argument list:
@@ -90,7 +92,7 @@ subroutine update_guess(sval,sbias)
        regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
-       nfldsfc,dsfct,qmin,limit_qmax
+       nfldsfc,dsfct,qmin,limit_qmin,limit_qmax
   use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
@@ -120,7 +122,7 @@ subroutine update_guess(sval,sbias)
   integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
   integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst
   integer(i_kind) ipinc,ipges,icloud,ncloud
-  real(r_kind) :: zt
+  real(r_kind) :: zt, gesq
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -199,8 +201,12 @@ subroutine update_guess(sval,sbias)
            do i=1,lat2
               if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + sval(ii)%r3(is_u)%q(i,j,k)
               if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + sval(ii)%r3(is_v)%q(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),qmin)
-              if(is_q>0 .and. limit_qmax) ges_q(i,j,k,it) = min(ges_q(i,j,k,it),qsatg(i,j,k))
+              if(is_q>0) then
+                 gesq                    =     ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k)
+                 if (limit_qmin) gesq=max(qmin,gesq)
+                 if (limit_qmax) gesq=min(gesq,qsatg(i,j,k))
+                 ges_q(i,j,k,it) = gesq
+              endif
               if(is_t > 0)then
                  if (.not.twodvar_regional .or. .not.tsensible) then
                     ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + sval(ii)%r3(is_t)%q(i,j,k)

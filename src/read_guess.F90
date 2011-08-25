@@ -59,6 +59,8 @@ subroutine read_guess(iyear,month,mype)
 !   2010-09-17  pagowski - add cmaq
 !                         depend on obsmod - that's why idate not passed via common block
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
+!   2010-12-09  jung    - recompute sensible temperature after checking for supersaturation
+!                         and negative q
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -74,6 +76,7 @@ subroutine read_guess(iyear,month,mype)
   use kinds, only: r_kind,i_kind
   use jfunc, only: biascor,bcoption
   use guess_grids, only:  nfldsig,ges_tv,ges_q,ges_tsen,load_prsges,load_geop_hgt
+  use guess_grids, only:  qmin,limit_qmin,limit_qmax,ges_prsl
   use m_gsiBiases,only : correct_bias,nbc
   use m_gsiBiases,only : bias_q,bias_tv,bias_cwmr,bias_oz,bias_ps,&
        bias_vor,bias_div,bias_tskin,bias_u,bias_v
@@ -96,10 +99,13 @@ subroutine read_guess(iyear,month,mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
+  logical:: ice
   character(24) filename
-  integer(i_kind) i,j,k,it,iret_bias
+  integer(i_kind) i,j,k,it,iret_bias,iderivative
 
+  real(r_kind):: gesq
   real(r_kind),dimension(lat2,lon2):: work
+  real(r_kind),dimension(lat2,lon2,nsig):: satq
 
 !-----------------------------------------------------------------------------------
 ! Certain functions are only done once --> on the first outer iteration. 
@@ -176,6 +182,34 @@ subroutine read_guess(iyear,month,mype)
 
 ! Load 3d subdomain pressure arrays from the guess fields
   call load_prsges
+
+! If requested, apply lower and upper bounds on ges_q
+  if (limit_qmin .or. limit_qmax) then
+     if (.not. twodvar_regional)then
+        if(regional)then
+           call tpause(mype,'temp')
+        else
+           call tpause(mype,'pvoz')
+        end if
+     endif
+     ice = .true.
+     iderivative = 0
+     do it=1,nfldsig
+        call genqsat(satq,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+             nsig,ice,iderivative)
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 gesq = ges_q(i,j,k,it)
+                 if (limit_qmin) gesq=max(qmin,gesq)
+                 if (limit_qmax) gesq=min(gesq,satq(i,j,k))
+                 ges_q(i,j,k,it) = gesq
+                 ges_tsen(i,j,k,it)= ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
+              end do
+           end do
+        end do
+     end do
+  endif
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt

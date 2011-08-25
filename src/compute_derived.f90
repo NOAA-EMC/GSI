@@ -52,6 +52,8 @@ subroutine compute_derived(mype,init_pass)
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-06-01  todling - remove nrf3 pointer
 !   2010-06-05  todling - an_amp0 coming from control_vectors
+!   2010-12-09  jung    - changed ges_q to qmin and re arranged subroutine to recompute qgues and fact_tv
+!                         before each outer loop
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-05-22  rancic/todling - add traj-init call here (but it is undesirable to be here)
 !
@@ -77,7 +79,7 @@ subroutine compute_derived(mype,init_pass)
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
        tropprs,ges_prsl,ntguessig,&
-       nfldsig, qmin, &
+       nfldsig,qmin,limit_qmin,limit_qmax,&
        ges_teta,fact_tv, &
        ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,ges_ozlon,ges_cwmr_lon, &
        ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
@@ -134,7 +136,7 @@ subroutine compute_derived(mype,init_pass)
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss,iq_loc
-  real(r_kind):: factor,factk,hswgtsum
+  real(r_kind):: factor,factk,hswgtsum,gesq
 
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
 	call die('compute_derived','invalid init_pass, ntguessig =',ntguessig)
@@ -143,16 +145,50 @@ subroutine compute_derived(mype,init_pass)
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')
 
-! Limit q to be >= qmin
-  do it=1,nfldsig
+  if(init_pass) then
+
+! Compute tropopause level (in pressure, hPa).  The 'pvoz'
+! string means compute tropopause using potential vorticity
+! and ozone. The 'temp' string means compute tropopause 
+! using WMO temperature lapse rate method.
+
+! NOTE:  tropopause pressure is not needed for 2dvar option
+
+     if (.not. twodvar_regional)then
+       if(regional)then
+          call tpause(mype,'temp')
+       else	! (regional)
+          call tpause(mype,'pvoz')
+       end if	! (regional)
+     endif      ! (!twodvar_regional)
+
+! Compute saturation specific humidity.   
+     iderivative = 0
+     if(qoption == 1)then
+       if(jiter == jiterstart)iderivative = 1
+     else
+       iderivative = 2
+     end if
+      
+     ice=.true.
+     call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
+           nsig,ice,iderivative)
+
+! Limit q to be >=qmin and/or <=qsatg
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
+              gesq = ges_q(i,j,k,ntguessig)
+              if (limit_qmin) gesq = max(qmin,gesq)
+              if (limit_qmax) gesq = min(gesq,qsatg(i,j,k))
+              ges_q(i,j,k,ntguessig) = gesq
+              qgues(i,j,k)=ges_q(i,j,k,ntguessig)
+              fact_tv(i,j,k)=one/(one+fv*qgues(i,j,k))
            end do
         end do
      end do
-  end do
+  endif   ! init_pass
+
 
 ! RTodling: The following call is in a completely undesirable place
 ! -----------------------------------------------------------------
@@ -222,48 +258,9 @@ subroutine compute_derived(mype,init_pass)
           end if	! (init_pass)
         end if
      end if
-
-     if(init_pass) then
-
-! Compute tropopause level (in pressure, hPa).  The 'pvoz'
-! string means compute tropopause using potential vorticity
-! and ozone. The 'temp' string means compute tropopause 
-! using WMO temperature lapse rate method.
-
-! NOTE:  tropopause pressure is not needed for 2dvar option
-
-       if(regional)then
-          call tpause(mype,'temp')
-       else	! (regional)
-          call tpause(mype,'pvoz')
-       end if	! (regional)
-  
-     endif       ! (init_pass)
   endif         ! (!twodvar_regional)
 
   if(.not. init_pass) return
-
-! Load guess q for use in limq.  Initialize saturation array to guess.
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           qgues(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
-           fact_tv(i,j,k)=one/(one+fv*qgues(i,j,k))      ! factor for tv to tsen conversion
-        end do
-     end do
-  end do
-
-! Compute saturation specific humidity.   
-  iderivative = 0
-  if(qoption == 1)then
-      if(jiter == jiterstart)iderivative = 1
-  else
-      iderivative = 2
-  end if
-      
-  ice=.true.
-  call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
-           nsig,ice,iderivative)
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH

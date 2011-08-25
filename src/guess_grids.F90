@@ -140,7 +140,7 @@ module guess_grids
   public :: ntguessig_ref
   public :: ntguessfc_ref
   public :: ntguesnst_ref
-  public :: limit_qmax, qmin
+  public :: limit_qmax, limit_qmin, qmin
 
   logical:: sfcmod_gfs = .false.    ! .true. = recompute 10m wind factor using gfs physics
   logical:: sfcmod_mm5 = .false.    ! .true. = recompute 10m wind factor using mm5 physics
@@ -150,6 +150,7 @@ module guess_grids
   logical, save :: ges_initialized = .false.
   logical, save :: tnd_initialized = .false.
   logical, save :: drv_initialized = .false.
+  logical:: limit_qmin = .false.    ! .true. = limit ges_q to max(qmin,ges_q)
   logical:: limit_qmax = .false.    ! .true. = limit ges_q to min(ges_q,qsatg)
 
   integer(i_kind) ntguessig         ! location of actual guess time for sigma fields
