@@ -722,6 +722,8 @@
 !   2008-08-09  kleespies
 !   2008-11-06  gayno - modified for gsi software standards
 !   2009-03-05  Kleespies - Add airs and iasi 
+!   2011-09-02  gayno - add default power coefficients for
+!                       unrecognized satellites.
 !
 ! input argument list:
 !   instr      - Instrument number
@@ -836,6 +838,8 @@
           amsucoeff=>amsucoeff_21
        case('metop-c')
           amsucoeff=>amsucoeff_22
+       case default
+          amsucoeff=>amsucoeff_19
     end select
  endif
 
@@ -857,6 +861,8 @@
           mhscoeff=>mhscoeff_21
        case('metop-c')
           mhscoeff=>mhscoeff_22
+       case default
+          mhscoeff=>mhscoeff_19
     end select
  endif
 

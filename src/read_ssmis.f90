@@ -40,6 +40,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-05-27  safford - rm unused vars and uses
 !   2009-01-09  gayno   - new option to calculate surface fields within FOV
+!                         (when isfcalc flag set to one)
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
@@ -47,6 +48,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod and remove _i_kind
+!   2011-09-02  gayno - add processing of future satellites for FOV-based
+!                       surface field calculation.
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -254,8 +257,12 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
   if (isfcalc == 1) then
+     instr=25  ! circular fov, use as default
      if (trim(jsatid) == 'f16') instr=26
      if (trim(jsatid) == 'f17') instr=27
+     if (trim(jsatid) == 'f18') instr=28
+     if (trim(jsatid) == 'f19') instr=29
+     if (trim(jsatid) == 'f20') instr=30
 ! right now, all ssmis data is mapped to a common fov -
 ! that of the las channels.
      ichan = 1

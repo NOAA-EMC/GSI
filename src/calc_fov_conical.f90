@@ -426,6 +426,8 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
 ! program history log:
 !   2008-08-09  kleespies
 !   2008-11-06  gayno - modified for gsi software standards
+!   2011-09-02  gayno - use f16 power coeffients as default
+!                       for unrecognized satellites.
 !
 ! input argument list:
 !   ichan             - channel number (ghz)
@@ -1024,11 +1026,20 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
   minstr = instr
   if(instr == 25_i_kind) minstr = 26_i_kind ! use dmsp 16 for default circular fov size
 
-  if (minstr==26_i_kind) ssmiscoeff=>ssmiscoeff_26
-  if (minstr==27_i_kind) ssmiscoeff=>ssmiscoeff_27
-  if (minstr==28_i_kind) ssmiscoeff=>ssmiscoeff_28
-  if (minstr==29_i_kind) ssmiscoeff=>ssmiscoeff_29
-  if (minstr==30_i_kind) ssmiscoeff=>ssmiscoeff_30
+  select case (minstr)
+     case(26_i_kind)
+        ssmiscoeff=>ssmiscoeff_26
+     case(27_i_kind)
+        ssmiscoeff=>ssmiscoeff_27
+     case(28_i_kind)
+        ssmiscoeff=>ssmiscoeff_28
+     case(29_i_kind)
+        ssmiscoeff=>ssmiscoeff_29
+     case(30_i_kind)
+        ssmiscoeff=>ssmiscoeff_30
+     case default
+        ssmiscoeff=>ssmiscoeff_26
+   end select
 
 ! Get satellite az to where we want it. 1st, convert +- to 0-360
   satellite_azimuth_rot = satellite_azimuth
