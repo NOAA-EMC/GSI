@@ -202,7 +202,7 @@
 
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
-  integer(i_kind) m,mm,jc,j,k,i,kmax,icw4crtm,ier
+  integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
@@ -257,6 +257,9 @@
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
+  integer(i_kind),dimension(nchanl):: kmax
+  logical sensor_passive
+  logical channel_passive
 
   logical,dimension(nobs):: luse
 
@@ -357,9 +360,10 @@
 !
 !       Set error instrument channels
         tnoise(jc)=varch(j)
-        if (iuse_rad(j)< -1 .or. (iuse_rad(j) == -1 .and.  &
+        channel_passive=iuse_rad(j)==-1 .or. iuse_rad(j)==0
+        if (iuse_rad(j)< -1 .or. (channel_passive .and.  &
            .not.rad_diagsave)) tnoise(jc)=r1e10
-        if (passive_bc .and. (iuse_rad(j)==-1)) tnoise(jc)=varch(j)
+        if (passive_bc .and. channel_passive) tnoise(jc)=varch(j)
         if (iuse_rad(j)>-1) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
      end if
@@ -752,24 +756,24 @@
  
 !       Apply bias correction
  
-           if (lwrite_peakwt) then
+           kmax(i) = 0
+           if (lwrite_peakwt .or. passive_bc) then
               ptau5derivmax = -9.9e31_r_kind
 ! maximum of weighting function is level at which transmittance
 ! (ptau5) is changing the fastest.  This is used for the level
 ! assignment (needed for vertical localization).
               weightmax(i) = zero
-              kmax = 0
               do k=2,nsig
                  ptau5deriv(k,i) = abs( (ptau5(k-1,i)-ptau5(k,i))/ &
                     (log(prsltmp(k-1))-log(prsltmp(k))) )
                  if (ptau5deriv(k,i) > ptau5derivmax) then
                     ptau5derivmax = ptau5deriv(k,i)
-                    kmax = k
+                    kmax(i) = k
                     weightmax(i) = r10*prsitmp(k) ! cb to mb.
                  end if
               enddo
 ! normalize weighting function
-              ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax,i)
+              ptau5deriv(:,i) = ptau5deriv(:,i)/ptau5deriv(kmax(i),i)
               ptau5deriv(1,i) = ptau5deriv(2,i)
            end if
 
@@ -835,8 +839,9 @@
               endif
            endif
 !Kim ----------------------------------------
-           if(tnoise(i) < 1.e4_r_kind .or. (iuse_rad(ich(i))==-1 .and. rad_diagsave) &
-                  .or. (passive_bc .and. iuse_rad(ich(i))==-1))then
+           channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
+           if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
+                  .or. (passive_bc .and. channel_passive))then
               varinv(i)     = val_obs/error0(i)**2
               errf(i)       = error0(i)
            else
@@ -866,14 +871,22 @@
 !     in the qc.  The loop below loads array varinv_use
 !     such that this condition is satisfied.  Array
 !     varinv_use is then used in the qc calculations.
+!     For the case when all channels of a sensor are passive, all
+!     channels with iuse_rad=-1 or 0 are used in cloud detection.
+
+           sensor_passive=.true.
+           do i=1,nchanl
+              m=ich(i)
+              if (iuse_rad(m)>0) sensor_passive=.false.
+           end do
 
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. iuse_rad(m)==-1)) then
-                 varinv_use(i) = varinv(i)
+                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                    varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
                  end if
@@ -882,7 +895,7 @@
            call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
               zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
 
 
 !  --------- MSU -------------------
@@ -967,14 +980,22 @@
 !     in the qc.  The loop below loads array varinv_use
 !     such that this condition is satisfied.  Array
 !     varinv_use is then used in the qc calculations.
+!     For the case when all channels of a sensor are passive, all
+!     channels with iuse_rad=-1 or 0 are used in cloud detection.
+
+           sensor_passive=.true.
+           do i=1,nchanl
+              m=ich(i)
+              if (iuse_rad(m)>0) sensor_passive=.false.
+           end do
 
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. iuse_rad(m)==-1)) then
-                 varinv_use(i) = varinv(i)
+                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                    varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
                  end if
@@ -1051,8 +1072,9 @@
            kval=0
            do i=2,nlev
 !          do i=1,nlev
+              channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
               if (varinv(i)<tiny_r_kind .and. ((iuse_rad(ich(i))>=1) .or. &
-                  (passive_bc .and. iuse_rad(ich(i))==-1))) then
+                  (passive_bc .and. channel_passive))) then
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)kval=nlev
                  if(amsua .and. i <= 3)kval = zero
@@ -1135,7 +1157,8 @@
 
 !             At the end of analysis, prepare for bias correction for monitored channels
 !             Only "good monitoring" obs are included in J_passive calculation.
-              if (passive_bc .and. (jiter>miter) .and. (iuse_rad(m)==-1)) then
+              channel_passive=iuse_rad(m)==-1 .or. iuse_rad(m)==0
+              if (passive_bc .and. (jiter>miter) .and. channel_passive) then
 !                summation of observation number,
 !                skip ostats accumulation for channels without coef. initialization 
                  if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
@@ -1374,7 +1397,8 @@
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
-                 if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)==-1) then
+                 channel_passive=iuse_rad(m)==-1 .or. iuse_rad(m)==0
+                 if (varinv(ii)>tiny_r_kind .and. channel_passive) then
 
                     iii=iii+1
                     radtailm(ibin)%head%res(iii)=tbc(ii)                 ! obs-ges innovation

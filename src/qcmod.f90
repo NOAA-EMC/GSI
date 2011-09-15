@@ -78,7 +78,7 @@ module qcmod
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
   use constants, only: deg2rad,rad2deg,t0c,one_tenth
   use obsmod, only: rmiss_single
-  use radinfo, only: iuse_rad,nst_tzr
+  use radinfo, only: iuse_rad,nst_tzr,passive_bc
   implicit none
 
 ! set default to private
@@ -948,7 +948,7 @@ end subroutine qc_ssmi
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -961,6 +961,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !
 ! program history log:
 !     2010-08-10  derber transfered from setuprad
+!     2011-08-20  zhu    add cloud qc for passive channels based on the cloud
+!                        level determined by channels with irad_use=1 and 0
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1022,6 +1024,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
   real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
   real(r_kind),                       intent(  out) :: cld,cldp
@@ -1040,7 +1043,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact,sfchgtfact
   real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
-  integer(i_kind) :: i,k,kk,lcloud
+  integer(i_kind) :: i,j,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
   real(r_kind) :: dtz,ts_ave,xindx,tzchks
 
@@ -1163,6 +1166,18 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   if ( lcloud > 0 ) then  ! If cloud detected, reject channels affected by it.
 
      do i=1,nchanl
+
+!       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
+        j=ich(i)
+        if (passive_bc .and. iuse_rad(j)==-1) then
+           if (lcloud .ge. kmax(i)) then
+              if(luse)aivals(11,is)   = aivals(11,is) + one
+              varinv(i) = zero
+              varinv_use(i) = zero
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
+              cycle
+           end if
+        end if
 
 !       If more than 2% of the transmittance comes from the cloud layer,
 !          reject the channel (0.02 is a tunable parameter)

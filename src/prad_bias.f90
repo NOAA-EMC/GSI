@@ -49,7 +49,7 @@
   icp      = 0
   jpassive = 0
   do j=1,jpch_rad
-     if (iuse_rad(j)==-1) then 
+     if (iuse_rad(j)==-1 .or. iuse_rad(j)==0) then 
         jpassive=jpassive+1
         icp(j) = jpassive
      end if
