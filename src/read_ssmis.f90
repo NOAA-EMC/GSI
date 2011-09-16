@@ -49,7 +49,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod and remove _i_kind
 !   2011-09-02  gayno - add processing of future satellites for FOV-based
-!                       surface field calculation.
+!                       surface field calculation and improved its error handling
+!                       (isfcalc=1)
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -95,7 +96,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,isfcalc
+  integer(i_kind) ,intent(inout) :: mype,lunout,ithin,isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -119,7 +120,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Declare local variables
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
-  logical :: outside,iuse,assim
+  logical :: outside,iuse,assim,valid
   character(len=8)  :: subset
   integer(i_kind) :: i,k,ifov,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
@@ -268,9 +269,17 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      ichan = 1
      expansion = 2.9_r_kind
      sat_aziang = 90.0_r_kind  ! 'fill' value; need to get this from file
-     call instrument_init(instr, jsatid, expansion)
+     call instrument_init(instr, jsatid, expansion, valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_SSMIS:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         isfcalc = 0
+         write(6,*)'READ_SSMIS:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+    endif
   endif
-
 
 ! Big loop to read data file
   next=0

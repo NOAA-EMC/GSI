@@ -56,6 +56,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - move deter_sfc_amsre_low to new module deter_sfc_mod,
 !                         remove _i_kind, fix indentation
+!   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
+!                         (isfcalc=1)
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -103,7 +105,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   character(len=*) ,intent(in   ) :: infile
   character(len=*) ,intent(in   ) :: obstype
   integer(i_kind)  ,intent(in   ) :: mype
-  integer(i_kind)  ,intent(in   ) :: isfcalc
+  integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: ithin
   integer(i_kind)  ,intent(in   ) :: lunout
   real(r_kind)     ,intent(inout) :: val_amsre
@@ -162,6 +164,8 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   character(len=3) :: fov_satid
   
   integer(i_kind) :: ichan, instr, idum
+
+  logical :: valid
 
   real(r_kind) :: clath_sun_glint_calc , clonh_sun_glint_calc 
   real(r_kind) :: date5_4_sun_glint_calc
@@ -296,7 +300,16 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         ichan=12
         expansion=2.9_r_kind
      endif
-     call instrument_init(instr, fov_satid, expansion)
+     call instrument_init(instr, fov_satid, expansion, valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_AMSRE:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         isfcalc = 0
+         write(6,*)'READ_AMSRE:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+    endif
   endif
 
 ! Make thinning grids

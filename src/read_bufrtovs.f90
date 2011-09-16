@@ -75,6 +75,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2011-05-20  mccarty - updated to read ATMS data
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - removed deter_sfc subroutines, placed in new module deter_sfc_mod
+!   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
+!                       (isfcalc=1)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -131,7 +133,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,isfcalc
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(  out) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -296,15 +299,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if ( hirs ) then
      nchanl=19
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1)then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 30._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 30._r_kind
      if (isfcalc == 1) then
         expansion=one  ! use one for ir sensors
         ichan=-999  ! not used for hirs
@@ -332,7 +331,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
         endif
      endif  ! isfcalc == 1
-
   else if ( msu ) then
      nchanl=4
      if (isfcalc==1) then
@@ -341,15 +339,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 20._r_kind
-        rlndsea(2) = 15._r_kind
-        rlndsea(3) = 20._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 20._r_kind
+     rlndsea(2) = 15._r_kind
+     rlndsea(3) = 20._r_kind
+     rlndsea(4) = 100._r_kind
   else if ( amsua ) then
      nchanl=15
      if (isfcalc==1) then
@@ -358,15 +352,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind ! use almost three for microwave sensors.
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 100._r_kind
   else if ( amsub )  then
      nchanl=5
      if (isfcalc==1) then
@@ -380,9 +370,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
-     if (isfcalc==1) then
-        rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
-     endif
   else if ( mhs )  then
      nchanl=5
      if (isfcalc==1) then
@@ -396,9 +383,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
-     if (isfcalc==1) then
-        rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
-     endif
   else if ( ssu ) then
      nchanl=3
      if (isfcalc==1) then
@@ -407,15 +391,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=one
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 30._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 30._r_kind
   else if ( atms ) then
      nchanl=22
      if (isfcalc==1) then
@@ -424,21 +404,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind        ! use almost three for microwave sensors.
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 100._r_kind
   end if
-
-! Initialize variables for use by FOV-based surface code.
-  if (isfcalc == 1) then
-     call instrument_init(instr,jsatid,expansion)
-  endif
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -454,6 +425,28 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end do search
   if (.not.assim) val_tovs=zero
 
+! Initialize variables for use by FOV-based surface code.
+  if (isfcalc == 1) then
+     call instrument_init(instr,jsatid,expansion,valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         call fov_cleanup
+         isfcalc = 0
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+     endif
+  endif
+
+  if (isfcalc==1) then
+    if (amsub.or.mhs)then
+      rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
+    else
+      rlndsea=0
+    endif
+  endif
 
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
@@ -669,7 +662,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          skip this ob.
 
            if (isfcalc == 1) then
-              call fov_check(ifov,instr,valid)
+              call fov_check(ifov,instr,ichan,valid)
               if (.not. valid) cycle read_loop
            end if
 
