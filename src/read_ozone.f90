@@ -54,6 +54,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2009-7-02   h.liu   - toss the OMI data with AFBO=3 (c-pair correction) and clean up codes
 !   2010-05-26  treadon - add timedif=zero for l4dvar (used in thinning)
 !   2010-06-02  sienkiewicz - care for closing bufr other than for o3lev
+!   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !
 !   input argument list:
@@ -143,15 +144,16 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   integer(i_kind) itx,itt,ipoq7
 
-  real(r_kind) tdiff,sstime,slons,slats,dlon,dlat,t4dv,toq,poq,timedif,crit1,dist1
+  real(r_kind) tdiff,sstime,slons,slats,dlon,dlat,t4dv,timedif,crit1,dist1
   real(r_kind) slons0,slats0,rsat,solzen,solzenp,dlat_earth,dlon_earth
   real(r_kind) rsec, ppmv, prec, pres, pob, obserr, usage
   real(r_kind),allocatable,dimension(:):: poz
 
 ! maximum number of observations set to 
   real(r_kind),allocatable,dimension(:,:):: ozout
-  real(r_kind),dimension(nloz_v6):: ozone_v6
-  real(r_kind),dimension(29,nloz_v8):: ozone_v8
+  real(r_double) toq,poq
+  real(r_double),dimension(nloz_v6):: ozone_v6
+  real(r_double),dimension(29,nloz_v8):: ozone_v8
   real(r_double),dimension(10):: hdroz
   real(r_double),dimension(10):: hdrozg
   real(r_double),dimension(5):: hdrozg2
@@ -354,8 +356,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !      3) We do not use the version 6 error flags.   Thus, initialize toq and
 !         poq to 0 (use the data)
 
-     toq=zero
-     poq=zero
+     toq=0._r_double
+     poq=0._r_double
      if (version8) then
         call ufbint(lunin,toq,1,1,iret,'SBUVTOQ')
         call ufbint(lunin,poq,1,1,iret,'SBUVPOQ')
@@ -495,7 +497,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      if (totoz > badoz ) goto 120
 
 !    only accept flag 0 (good) data
-     toq=zero
+     toq=0._r_double
      call ufbint(lunin,toq,1,1,iret,'GOMEEF')
      if (toq/=0) goto 120
 

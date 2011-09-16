@@ -22,6 +22,7 @@ module lanczos
 !   2011-04-07  todling  - rename precond to lanczos_precond
 !   2011-04-19  el akkraoui - avoid convert precond vectors for the next outer loop;
 !                             and avoid lanczos decomposition at each iteration
+!   2011-07-04  todling  - determine precision based on kinds
 !
 ! Subroutines Included:
 !   congrad       - Main minimization routine
@@ -53,7 +54,7 @@ module lanczos
 !   machine:
 !
 ! ------------------------------------------------------------------------------
-use kinds, only: r_kind,i_kind,r_quad
+use kinds, only: r_kind,i_kind,r_quad,r_single,r_double
 use constants, only: zero, one, two, one_tenth
 use jfunc, only: iter
 use control_vectors, only: control_vector,allocate_cv,inquire_cv,deallocate_cv, &
@@ -92,10 +93,8 @@ TYPE(control_vector), ALLOCATABLE, DIMENSION(:) :: YVCGLWK
 type(control_vector), allocatable, dimension(:) :: cglwork
 
 ! --------------------------------------
-REAL             :: Z_DEFAULT_REAL      ! intentionally not real(r_kind)
-integer(i_kind), PARAMETER :: N_DEFAULT_REAL_KIND = KIND(Z_DEFAULT_REAL)
-DOUBLE PRECISION :: DL_DOUBLE_PRECISION ! intentionally not real(r_double)
-integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = KIND(DL_DOUBLE_PRECISION)
+integer(i_kind), PARAMETER :: N_DEFAULT_REAL_KIND = r_single
+integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = r_double
 ! --------------------------------------
 
 ! ------------------------------------------------------------------------------
@@ -232,7 +231,6 @@ iprt=nprt
 if(ltcost_) iprt=0
 kminit = kmaxit
 kmaxevecs = kmaxit
-imaxevecs=0
 lldone=.false.
 if (kmaxit>maxiter) then
    write(6,*)'setup_congrad: kmaxit>maxiter',kmaxit,maxiter
@@ -1091,7 +1089,7 @@ if (ldsave) then
 
    ALLOCATE(YVCGLWK(npcvecs))
    ii=0
-   if(.not.LCONVERT) then
+   if(.not.lCONVERT) then
       DO jj=1,NVCGLEV
          ii=ii+1
          !  zz=sqrt(RCGLPC(jj)-one)

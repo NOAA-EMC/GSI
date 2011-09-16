@@ -73,6 +73,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !                         (4) add more elements (nstinfo) in data array
 !   2011-05-05  todling - merge in Min-Jeong update for cloudy-radiance work
 !   2011-05-20  mccarty - updated to read ATMS data
+!   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - removed deter_sfc subroutines, placed in new module deter_sfc_mod
 !
 !   input argument list:
@@ -107,6 +108,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  USE type_kinds, only: crtm_kind => fp
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
@@ -194,6 +196,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),allocatable,dimension(:,:):: data_all
 
+  real(crtm_kind),allocatable,dimension(:):: data1b4
   real(r_double),allocatable,dimension(:):: data1b8,data1b8x
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
@@ -455,7 +458,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax),data1b8(nchanl))
+  allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl))
 
 
 ! Big loop over standard data feed and possible ears data
@@ -620,7 +623,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
               data1b8x=data1b8
               if(.not. hirs)then
-                 call remove_antcorr(sc(instrument)%ac,ifov,data1b8)
+                 data1b4=data1b8
+                 call remove_antcorr(sc(instrument)%ac,ifov,data1b4)
+                 data1b8=data1b4
                  do j=1,nchanl
                     if(data1b8x(j) > r1000)data1b8(j) = 1000000._r_kind
                  end do
@@ -973,7 +978,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 500  continue
 
   end do
-  deallocate(data1b8)
+  deallocate(data1b8,data1b4)
 !  end of llll loop
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&

@@ -235,7 +235,7 @@ end subroutine berror_read_bal_reg
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
       use control_vectors,only: nrf,nc2d,nc3d,nvars
-      use control_vectors,only: cvars => nrf_var !_RT ,nrf2_loc,nrf3_loc
+      use control_vectors,only: cvars => nrf_var
       use control_vectors,only: cvars2d,cvars3d
       use jfunc,only: varq,qoption
       use guess_grids, only:  ges_psfcavg,ges_prslavg

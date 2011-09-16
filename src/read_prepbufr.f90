@@ -94,6 +94,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2010-11-18  treadon - add check for small POB (if POB<tiny_r_kind then POB=bmiss)
 !   2011-07-13  wu     - not use mesonet Psfc when 8th character of sid is "x"
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
+!   2011-08-27  todling - add use_prepb_satwnd; cleaned out somebody's left over's
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -123,7 +124,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv, &
-      id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
+      id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom
   use obsmod, only: blacklst,offtime_data
@@ -345,7 +346,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ntxall=0
   do nc=1,nconvtype
      if(trim(ioctype(nc)) == trim(obstype))then
-       if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
+       if(.not.use_prepb_satwnd .and. trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
           .and. ictype(nc) <260) then 
           cycle
        else
@@ -354,7 +355,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        endif
      end if
      if(trim(ioctype(nc)) == trim(obstype) .and. abs(icuse(nc)) <= 1)then
-        if( trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
+        if(.not.use_prepb_satwnd .and. trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
             .and. ictype(nc) <260) then
             cycle
         else
@@ -379,7 +380,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   nrep=0
   ntb = 0
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
-     if(trim(subset) == 'SATWND') cycle msg_report
+     if(.not.use_prepb_satwnd .and. trim(subset) == 'SATWND') cycle msg_report
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
@@ -410,14 +411,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! temporary specify iobsub until put in bufr file
         iobsub = 0                                                  
         if(kx == 280) iobsub=hdr(3)                                            
-!       if(kx == 243 .or. kx == 253 .or. kx == 254) iobsub = hdr(2)  
+        if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)  
 
 !       For the satellite wind to get quality information and check if it will be used
-!       if( kx ==243 .or. kx == 253 .or. kx ==254 ) then
-!          call ufbint(lunin,satqc,1,1,iret,satqcstr)
-!          if(satqc(1) <  85.0_r_double) cycle loop_report   ! QI w/o fcst (su's setup
+        if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx ==254) ) then
+           call ufbint(lunin,satqc,1,1,iret,satqcstr)
+           if(satqc(1) <  85.0_r_double) cycle loop_report   ! QI w/o fcst (su's setup
 !!         if(satqc(2) <= 80.0_r_double) cycle loop_report   ! QI w/ fcst (old prepdata)
-!       endif
+        endif
 
 !       Check for blacklisting of station ID
         if (blacklst .and. ibcnt > 0) then
@@ -549,7 +550,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      icntpnt=0
      icntpnt2=0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
-        if(trim(subset) =='SATWND') cycle loop_msg
+        if(.not.use_prepb_satwnd .and. trim(subset) =='SATWND') cycle loop_msg
         nmsg = nmsg+1
         if(.not.lmsg(nmsg,nx)) then
            do i=ntb+1,ntb+nrep(nmsg)
@@ -934,19 +935,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (ithin > 0) then
                  ntmp=ndata  ! counting moved to map3gridS
            
-!                Set data quality index for thinning
-                 if (l4dvar) then
-                    timedif = zero
-                 else
-                    timedif=abs(t4dv-toff)
-                 endif
-!                if(kx == 243 .or. kx == 253 .or. kx ==254) then
-!                   call ufbint(lunin,satqc,1,1,iret,satqcstr)
-!                   crit1 = timedif/r6+half + four*(one-satqc(1)/r100)*r3_33
-!                else
-                 crit1 = timedif/r6+half
-!                endif
-
 !                Set data quality index for thinning
                  if (l4dvar) then
                     timedif = zero

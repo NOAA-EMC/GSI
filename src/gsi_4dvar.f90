@@ -18,6 +18,7 @@ module gsi_4dvar
 !   2011-03-14 guo      - Moved gsi_4dcoupler calls out of this module, to split
 !			  gsi_4dcoupler_init_traj() from gsimain_initialize(),
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
+!   2011-07-10 guo/zhang- add liauon
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -38,6 +39,7 @@ module gsi_4dvar
 !   nwrvecs           - Number of precond vectors (Lanczos) or pairs of vectors (QN)
 !                       being saved
 !   iorthomax         - max number of vectors used for orthogonalization of various CG options
+!   liauon            - turn on IAU mode.  The default value is set to .false.
 !
 !   ibdate            - Date and time at start of 4dvar window
 !   iadatebgn         - Date and time at start of 4dvar window
@@ -88,7 +90,7 @@ module gsi_4dvar
   public :: hr_obsbin,ltlint,idmodel,iwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
-  public :: jsiga,ltcost,iorthomax
+  public :: jsiga,ltcost,iorthomax,liauon
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -101,6 +103,7 @@ module gsi_4dvar
   logical         :: idmodel
   logical         :: lanczosave
   logical         :: ltcost
+  logical         :: liauon
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -148,6 +151,7 @@ lcongrad = .false.
 lbfgsmin = .false.
 ltlint = .false.
 ltcost = .false.
+liauon = .false.
 
 nhr_assimilation=6
 min_offset=180
@@ -283,6 +287,7 @@ if (mype==0) then
    write(6,*)'SETUP_4DVAR: jsiga=',jsiga
    write(6,*)'SETUP_4DVAR: nwrvecs=',nwrvecs
    write(6,*)'SETUP_4DVAR: iorthomax=',iorthomax
+   write(6,*)'SETUP_4DVAR: liauon=',liauon
 endif
 
 end subroutine setup_4dvar

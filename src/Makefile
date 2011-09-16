@@ -258,6 +258,7 @@ clean:
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_ensperts_dualres.f90 \
+        get_gefs_for_regional.f90 \
 	get_wrf_mass_ensperts_netcdf.F90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
@@ -284,7 +285,7 @@ clean:
 	guess_grids.F90 \
 	half_nmm_grid2.f90 \
 	hilbert_curve.f90 \
-	hybrid_ensemble_isotropic.f90 \
+	hybrid_ensemble_isotropic.F90 \
 	hybrid_ensemble_parameters.f90 \
 	inc2guess.f90 \
 	init_commvars.f90 \
@@ -318,7 +319,7 @@ clean:
 	jcmod.f90 \
 	jfunc.f90 \
         jgrad.f90 \
-	kinds.f90 \
+	kinds.F90 \
 	lag_fields.f90 \
 	lag_interp.f90 \
 	lag_traj.f90 \
@@ -356,7 +357,7 @@ clean:
 	normal_rh_to_q.f90 \
 	nstio_module.f90 \
 	obs_ferrscale.F90 \
-	obs_sensitivity.F90 \
+	obs_sensitivity.f90 \
 	obsmod.F90 \
 	omegas_ad.f90 \
 	ozinfo.f90 \
@@ -403,6 +404,8 @@ clean:
 	rsearch.F90 \
 	rtlnmc_version3.f90 \
 	satthin.F90 \
+        set_crtm_aerosolmod.f90 \
+        set_crtm_cloudmod.f90 \
 	setupyobs.f90 \
 	skindepth.f90 \
 	sfc_model.f90 \
@@ -451,9 +454,9 @@ clean:
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
+	stub_pertmod.F90 \
         stub_set_crtm_aerosol.f90 \
         stub_set_crtm_cloud.f90 \
-	stub_pertmod.F90 \
 	stub_timermod.f90 \
 	tendsmod.f90 \
 	test_obsens.f90 \
@@ -513,8 +516,8 @@ clean:
 	read_ozone.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
-	read_satwnd.f90 \
 	read_radar.f90 \
+        read_satwnd.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \

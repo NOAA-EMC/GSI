@@ -256,7 +256,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use radinfo, only: radjacnames,radjacindxs,nsigradjac
   use obsmod, only: rad_ob_type,lsaveobsens,l_do_adjoint
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use gridmod, only: latlon11,latlon1n,nsig,wrf_mass_regional,netcdf
+  use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: zero,half,one,tiny_r_kind,cg_term,r3600
   use gsi_bundlemod, only: gsi_bundle

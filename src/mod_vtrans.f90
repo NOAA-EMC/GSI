@@ -11,6 +11,7 @@ module mod_vtrans
 ! program history log:
 !   2006-06-26
 !   2007-05-08   kleist - finish vertical coordinate generalization
+!   2011-07-04  todling  - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub init_vtrans              - initialize vertical mode related variables
@@ -165,6 +166,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+    use kinds, only: r_double
     use constants,only: zero,half,one,quarter,one_tenth,ten
     use gridmod,only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,&
          ltosi,ltosj,iglobal,ijn,displs_g,strip
@@ -186,8 +188,8 @@ contains
     real(r_kind),dimension(nsig+1)::ahat,bhat,chat
     real(r_kind),dimension(nsig)::hmat,smat,sqmatinv
     real(r_kind),dimension(nsig,nsig)::amat,bmat,qmat,qmatinv,bqmatinv
-    real(r_kind),dimension(2,nsig):: www,wwwd
-    real(r_kind),dimension(2,nsig,nsig):: zzz,zzzd
+    real(r_double),dimension(2,nsig):: www,wwwd
+    real(r_double),dimension(2,nsig,nsig):: zzz,zzzd
     real(r_kind),dimension(lat1*lon1):: zsm
     real(r_kind),dimension(iglobal):: work1
     real(r_kind),dimension(nlat,nlon):: sumall

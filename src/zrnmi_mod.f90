@@ -16,6 +16,7 @@ module zrnmi_mod
 ! program history log:
 !   2006-11-03  parrish
 !   2008-03-26  safford -- rm unused vars, add subroutine doc blocks
+!   2011-07-04  todling - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub zrnmi_initialize       --- 
@@ -95,7 +96,7 @@ module zrnmi_mod
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_double
+  use kinds, only: r_kind,i_kind
   use constants, only: izero,ione,pi
   implicit none
 
@@ -2898,7 +2899,7 @@ contains
     implicit none
 
     real(r_kind)  ,intent(in   ) :: f_x(nx,ny_0:ny_1)
-    real(r_double),intent(  out) :: fx_x(nx,ny_0:ny_1)
+    real(r_kind),intent(  out) :: fx_x(nx,ny_0:ny_1)
 
     integer(i_kind) i,j,iy
 
@@ -2942,7 +2943,7 @@ contains
     implicit none
 
     real(r_kind)  ,intent(  out) :: f_x(nx,ny_0:ny_1)
-    real(r_double),intent(in   ) :: fx_x(nx,ny_0:ny_1)
+    real(r_kind)  ,intent(in   ) :: fx_x(nx,ny_0:ny_1)
 
     integer(i_kind) i,j,iy
 
@@ -3060,7 +3061,7 @@ contains
     implicit none
 
     real(r_kind)  ,intent(in   ) :: f_y(ny,nx_0:nx_1)
-    real(r_double),intent(  out) :: fy_y(ny,nx_0:nx_1)
+    real(r_kind)  ,intent(  out) :: fy_y(ny,nx_0:nx_1)
 
     integer(i_kind) i,j,ix
 
@@ -3104,7 +3105,7 @@ contains
     implicit none
 
     real(r_kind)  ,intent(  out) :: f_y(ny,nx_0:nx_1)
-    real(r_double),intent(in   ) :: fy_y(ny,nx_0:nx_1)
+    real(r_kind)  ,intent(in   ) :: fy_y(ny,nx_0:nx_1)
 
     integer(i_kind) i,j,ix
 

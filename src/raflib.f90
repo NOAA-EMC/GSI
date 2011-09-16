@@ -11,6 +11,7 @@ module raflib
 !   2005-11-30  parrish
 !   2005-11-30  parrish -- replace blended triad routine gettri4 with
 !                          newer version provided by Jim Purser.
+!   2011-07-04  todling - fix mpi call to run either single or double prec
 !
 ! subroutines included:
 !   sub set_indices                   -
@@ -534,8 +535,13 @@ subroutine adjoint_check4(filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
         end do
      end do
   end do
-  call mpi_gather(yty,ione,mpi_real16,yty0,ione,mpi_real16,izero,mpi_comm_world,ierror)
-  call mpi_gather(xtz,ione,mpi_real16,xtz0,ione,mpi_real16,izero,mpi_comm_world,ierror)
+  if(r_double==r_quad) then
+     call mpi_gather(yty,ione,mpi_real8 ,yty0,ione,mpi_real8 ,izero,mpi_comm_world,ierror)
+     call mpi_gather(xtz,ione,mpi_real8 ,xtz0,ione,mpi_real8 ,izero,mpi_comm_world,ierror)
+  else
+     call mpi_gather(yty,ione,mpi_real16,yty0,ione,mpi_real16,izero,mpi_comm_world,ierror)
+     call mpi_gather(xtz,ione,mpi_real16,xtz0,ione,mpi_real16,izero,mpi_comm_world,ierror)
+  endif
   if(mype==izero) then
      yty=zero_quad
      xtz=zero_quad

@@ -20,7 +20,11 @@ module mpimod
   use mpi
 #else
   use mpeu_mpif, only : mpi_rtype4 => mpi_real4
+#ifdef _REAL4_
+  use mpeu_mpif, only : mpi_rtype => mpi_real4
+#else
   use mpeu_mpif, only : mpi_rtype => mpi_real8
+#endif
   use mpeu_mpif, only : mpi_itype => mpi_integer4
   use mpeu_mpif, only : mpi_real8
   use mpeu_mpif, only : mpi_real16
@@ -73,6 +77,7 @@ module mpimod
 !                         routines are now found in gridmod
 !   2010-05-23  todling - nvarbal_id no longer wired to 1,2,3,4, rather linked
 !                         to where fields are in control vector
+!   2011-07-04  todling - allow proper setting of REAL*4 or REAL*8
 !
 ! !REMARKS:
 !

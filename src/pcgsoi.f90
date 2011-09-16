@@ -93,7 +93,8 @@ subroutine pcgsoi()
 !   2010-05-28  Hu      - add call for cloud analysis driver : gsdcloudanalysis
 !   2010-09-24  todling - must turn off variational qc when ltlint=.t.
 !   2011-04-07  todling - newpc4pred now in radinfo
-!   2011-04-25  EL Akkraoui - add option for re-orthogonalization.
+!   2011-04-25  eL akkraoui - add option for re-orthogonalization.
+!   2011-07-10  todling - minor fixes for general precision handling. 
 !
 ! input argument list:
 !
@@ -109,7 +110,7 @@ subroutine pcgsoi()
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,i_kind,r_double,r_quad
   use qcmod, only: nlnqc_iter,varqc_iter,c_varqc
   use obsmod, only: destroyobs,oberror_tune
   use jfunc, only: iter,jiter,jiterstart,niter,miter,iout_iter,&
@@ -157,7 +158,8 @@ subroutine pcgsoi()
   integer(i_kind) i,istep,iobs,ii,nprt
   real(r_kind) stp,b,converge
   real(r_kind) gsave
-  real(r_kind) gnormx,penx,penalty,pennorm
+  real(r_kind) gnormx,penx,penalty
+  real(r_double) pennorm
   real(r_quad) zjo
   real(r_kind),dimension(2):: gnorm
   real(r_kind) :: zgini,zfini,fjcost(4),zgend,zfend
@@ -191,7 +193,7 @@ subroutine pcgsoi()
 ! Set constants.  Initialize variables.
   restart=.false.
   if (jiter==0 .and. (iguess==1 .or. iguess==2)) restart=.true.
-  pennorm=10.e50_r_kind
+  pennorm=10.e50_r_double
   iout_6=.true.
   if (iout_iter==6) iout_6=.false.
   stp=start_step
@@ -569,7 +571,7 @@ subroutine pcgsoi()
 
 ! Update contributions of incremental values from current outer loop
 
-  if (jcstrong .and. baldiag_inc) call strong_baldiag_inc(sval)
+  if (jcstrong .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
 ! Evaluate final cost function and gradient
   if (mype==0) write(6,*)'Minimization final diagnostics'

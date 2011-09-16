@@ -34,6 +34,8 @@ module general_sub2grid_mod
 !                           of allocating arrays when kend_loc = kbegin_loc-1, which happens for
 !                           processors not involved with sub2grid/grid2sub.
 !                           to fix this, use kend_alloc = max(kend_loc,kbegin_loc) for allocation.
+!   2011-07-26  todling  - generalize single/double prec and rank interfaces
+!   2011-08-29  todling  - add rank11 for sub2grid and grid2sub interfaces (nned for hybrid stuff)
 !
 ! subroutines included:
 !   sub general_sub2grid_r_single  - convert from subdomains to grid for real single precision (4 byte)
@@ -56,16 +58,53 @@ module general_sub2grid_mod
 ! set default to private
    private
 ! set subroutines to public
-   public :: general_sub2grid_r_single
-   public :: general_grid2sub_r_single
-   public :: general_sub2grid_r_double
-   public :: general_grid2sub_r_double
+   public :: general_sub2grid
+   public :: general_grid2sub
    public :: general_sub2grid_create_info
-   public :: general_sube2suba_r_double
-   public :: general_sube2suba_r_double_ad
-   public :: general_suba2sube_r_double
+   public :: general_sube2suba
+   public :: general_sube2suba_ad
+   public :: general_suba2sube
 ! set passed variables to public
    public :: sub2grid_info
+
+   interface general_sub2grid
+     module procedure general_sub2grid_r_single_rank11
+     module procedure general_sub2grid_r_single_rank14
+     module procedure general_sub2grid_r_single_rank4
+     module procedure general_sub2grid_r_double_rank11
+     module procedure general_sub2grid_r_double_rank14
+     module procedure general_sub2grid_r_double_rank4
+   end interface
+
+   interface general_grid2sub
+     module procedure general_grid2sub_r_single_rank11
+     module procedure general_grid2sub_r_single_rank41
+     module procedure general_grid2sub_r_single_rank4
+     module procedure general_grid2sub_r_double_rank11
+     module procedure general_grid2sub_r_double_rank41
+     module procedure general_grid2sub_r_double_rank4
+   end interface
+
+   interface general_suba2sube
+     module procedure general_suba2sube_r_single_rank1
+     module procedure general_suba2sube_r_single_rank4
+     module procedure general_suba2sube_r_double_rank1
+     module procedure general_suba2sube_r_double_rank4
+   end interface
+
+   interface general_sube2suba
+      module procedure general_sube2suba_r_single_rank1
+      module procedure general_sube2suba_r_single_rank4
+      module procedure general_sube2suba_r_double_rank1
+      module procedure general_sube2suba_r_double_rank4
+   end interface
+
+   interface general_sube2suba_ad
+      module procedure general_sube2suba_r_single_rank1_ad
+      module procedure general_sube2suba_r_single_rank4_ad
+      module procedure general_sube2suba_r_double_rank1_ad
+      module procedure general_sube2suba_r_double_rank4_ad
+   end interface
 
    type sub2grid_info
 
@@ -512,7 +551,7 @@ module general_sub2grid_mod
         end if
         ilat1(k)=jjnum
         jlon1(k)=iinum
-            if (jlon1(k)==nlon.and..not.regional) then  ! _RT I have not idea if
+            if (jlon1(k)==nlon.and..not.regional) then  ! _RT I have no idea if
                                                         !     this is correct
                periodic=.true.
                periodic_s(k)=.true.
@@ -718,10 +757,98 @@ module general_sub2grid_mod
 
    end subroutine general_deter_subdomain_nolayout
 
-   subroutine general_sub2grid_r_single(s,sub_vars,grid_vars)
+   subroutine general_sub2grid_r_single_rank11(s,sub_vars,grid_vars)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    general_sub2grid_r_single  convert from subdomains to full horizontal grid
+! subprogram:    general_sub2grid_r_single_rank11  rank-1x1 interface to general_sub2grid_r
+!   prgmmr: todling          org: np22                date: 2011-08-29
+!
+! abstract: see general_sub2grid_r_single_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode (contains one halo row)
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single),     intent(in   ) :: sub_vars(:)
+      real(r_single),    intent(  out)  :: grid_vars(:)
+
+      real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      real(r_single),pointer,dimension(:,:,:,:) :: grid_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sub_vars_r4  => rerank(sub_vars ,mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+      grid_vars_r4 => rerank(grid_vars,mold4,(/s%inner_vars,s%nlat,s%nlon,s%kend_alloc-s%kbegin_loc+1/))
+
+      call general_sub2grid_r_single_rank4(s,sub_vars_r4,grid_vars_r4)
+
+   end subroutine general_sub2grid_r_single_rank11
+
+   subroutine general_sub2grid_r_single_rank14(s,sub_vars,grid_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid_r_single_rank14  rank-1x4 interface to general_sub2grid_r
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_sub2grid_r_single_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode (contains one halo row)
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single),     intent(in   ) :: sub_vars(:)
+      real(r_single),     intent(  out) :: grid_vars(:,:,:,:)
+
+      real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sub_vars_r4  => rerank(sub_vars,mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+
+      call general_sub2grid_r_single_rank4(s,sub_vars_r4,grid_vars)
+
+   end subroutine general_sub2grid_r_single_rank14
+
+   subroutine general_sub2grid_r_single_rank4(s,sub_vars,grid_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid_r_single_rank4  convert from subdomains to full horizontal grid
 !   prgmmr: parrish          org: np22                date: 2010-02-11
 !
 ! abstract: generalized version of sub2grid--uses only gsi module kinds.
@@ -759,7 +886,7 @@ module general_sub2grid_mod
 
       type(sub2grid_info),intent(in   ) :: s
       real(r_single),     intent(in   ) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
-      real(r_single),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
+      real(r_single),     intent(  out) :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
 
       real(r_single) :: sub_vars0(s%inner_vars,s%lat1,s%lon1,s%num_fields)
       real(r_single) :: work(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+1)) 
@@ -808,9 +935,97 @@ module general_sub2grid_mod
          end do
       end do
 
-   end subroutine general_sub2grid_r_single
+   end subroutine general_sub2grid_r_single_rank4
 
-   subroutine general_grid2sub_r_single(s,grid_vars,sub_vars)
+   subroutine general_grid2sub_r_single_rank11(s,grid_vars,sub_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_grid2sub_r_single_rank11  rank-1x1 interface to general_grid2sub_r
+!   prgmmr: todling          org: np22                date: 2011-08-29
+!
+! abstract: see general_grid2sub_r_single_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single), intent(in   )     :: grid_vars(:)
+      real(r_single),     intent(  out) :: sub_vars(:)
+
+      real(r_single),pointer,dimension(:,:,:,:) :: grid_vars_r4
+      real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      grid_vars_r4=> rerank(grid_vars,mold4,(/s%inner_vars,s%nlat,s%nlon,s%kend_alloc-s%kbegin_loc+1/))
+      sub_vars_r4 => rerank(sub_vars, mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+
+      call general_grid2sub_r_single_rank4(s,grid_vars_r4,sub_vars_r4)
+
+   end subroutine general_grid2sub_r_single_rank11
+
+   subroutine general_grid2sub_r_single_rank41(s,grid_vars,sub_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_grid2sub_r_single_rank41  rank-4x1 interface to general_grid2sub_r
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_grid2sub_r_single_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
+      real(r_single),     intent(  out) :: sub_vars(:)
+
+      real(r_single),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sub_vars_r4 => rerank(sub_vars,mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+
+      call general_grid2sub_r_single_rank4(s,grid_vars,sub_vars_r4)
+
+   end subroutine general_grid2sub_r_single_rank41
+
+   subroutine general_grid2sub_r_single_rank4(s,grid_vars,sub_vars)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_sub2grid  convert from subdomains to full horizontal grid
@@ -910,12 +1125,100 @@ module general_sub2grid_mod
       deallocate(work)
       call mpi_type_free(mpi_string,ierror)
 
-   end subroutine general_grid2sub_r_single
+   end subroutine general_grid2sub_r_single_rank4
 
-   subroutine general_sub2grid_r_double(s,sub_vars,grid_vars)
+   subroutine general_sub2grid_r_double_rank11(s,sub_vars,grid_vars)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    general_sub2grid_r_double  convert from subdomains to full horizontal grid
+! subprogram:    general_sub2grid_r_double_rank11 rank-1x1 interface
+!   prgmmr: todling          org: np22                date: 2011-08-29
+!
+! abstract: see general_sub2grid_r_double_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: sub_vars(:)
+      real(r_double),     intent(  out) :: grid_vars(:)
+
+      real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      real(r_double),pointer,dimension(:,:,:,:) :: grid_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sub_vars_r4  => rerank(sub_vars, mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+      grid_vars_r4 => rerank(grid_vars,mold4,(/s%inner_vars,s%nlat,s%nlon,s%kend_alloc-s%kbegin_loc+1/))
+
+      call general_sub2grid_r_double_rank4(s,sub_vars_r4,grid_vars_r4)
+
+   end subroutine general_sub2grid_r_double_rank11
+
+   subroutine general_sub2grid_r_double_rank14(s,sub_vars,grid_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid_r_double_rank14 rank-1x4 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_sub2grid_r_double_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: sub_vars(:)
+      real(r_double),     intent(  out) :: grid_vars(:,:,:,:)
+
+      real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sub_vars_r4  => rerank(sub_vars,mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+
+      call general_sub2grid_r_double_rank4(s,sub_vars_r4,grid_vars)
+
+   end subroutine general_sub2grid_r_double_rank14
+
+   subroutine general_sub2grid_r_double_rank4(s,sub_vars,grid_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid_r_double_rank4  convert from subdomains to full horizontal grid
 !   prgmmr: parrish          org: np22                date: 2010-02-11
 !
 ! abstract: generalized version of sub2grid--uses only gsi module kinds.
@@ -1003,12 +1306,100 @@ module general_sub2grid_mod
          end do
       end do
 
-   end subroutine general_sub2grid_r_double
+   end subroutine general_sub2grid_r_double_rank4
 
-   subroutine general_grid2sub_r_double(s,grid_vars,sub_vars)
+   subroutine general_grid2sub_r_double_rank11(s,grid_vars,sub_vars)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    general_sub2grid  convert from subdomains to full horizontal grid
+! subprogram:    general_grid2sub_r_double_rank11  rank-1x1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_grid2sub_r_double_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: grid_vars(:)
+      real(r_double),     intent(  out) :: sub_vars(:)
+
+      real(r_double),pointer,dimension(:,:,:,:) :: grid_vars_r4
+      real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      grid_vars_r4 => rerank(grid_vars,mold4,(/s%inner_vars,s%nlat,s%nlon,s%kend_alloc-s%kbegin_loc+1/))
+      sub_vars_r4  => rerank(sub_vars, mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+
+      call general_grid2sub_r_double_rank4(s,grid_vars_r4,sub_vars_r4)
+
+   end subroutine general_grid2sub_r_double_rank11
+
+   subroutine general_grid2sub_r_double_rank41(s,grid_vars,sub_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_grid2sub_r_double_rank41  rank-4x1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_grid2sub_r_double_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: grid_vars(s%inner_vars,s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
+      real(r_double),     intent(  out) :: sub_vars(:)
+
+      real(r_double),pointer,dimension(:,:,:,:) :: sub_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sub_vars_r4 => rerank(sub_vars,mold4,(/s%inner_vars,s%lat2,s%lon2,s%num_fields/))
+
+      call general_grid2sub_r_double_rank4(s,grid_vars,sub_vars_r4)
+
+   end subroutine general_grid2sub_r_double_rank41
+
+   subroutine general_grid2sub_r_double_rank4(s,grid_vars,sub_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_grid2sub_r_double_rank4  convert from subdomains to full horizontal grid
 !   prgmmr: parrish          org: np22                date: 2010-02-11
 !
 ! abstract: generalized version of grid2sub--uses only gsi module kinds.
@@ -1084,12 +1475,175 @@ module general_sub2grid_mod
                         sub_vars,s%recvcounts_s,s%rdispls_s,mpi_string,mpi_comm_world,ierror)
       call mpi_type_free(mpi_string,ierror)
 
-   end subroutine general_grid2sub_r_double
+   end subroutine general_grid2sub_r_double_rank4
 
-   subroutine general_sube2suba_r_double(se,sa,p_e2a,sube_vars,suba_vars,regional)
+   subroutine general_sube2suba_r_single_rank1(se,sa,p_e2a,sube_vars,suba_vars,regional)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    general_sube2suba_r_double  interpolate ens grid to anl grid
+! subprogram:    general_sube2suba_r_single_rank1  rank-1 inerface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_sube2suba_r_single_rank4
+!
+! program history log:
+!   2010-02-27  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     se         - ensemble grid structure variable
+!     sa         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     sube_vars  - input ensemble grid values in ensemble subdomain mode (as defined by se)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     suba_vars  - output analysis grid values in analysis subdomain mode (as defined by sa)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use egrid2agrid_mod, only: g_egrid2agrid,egrid2agrid_parm
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: se,sa
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_single),        intent(in   ) :: sube_vars(:)
+      real(r_single),        intent(  out) :: suba_vars(:)
+      logical,               intent(in   ) :: regional
+
+      real(r_single),pointer,dimension(:,:,:,:) :: sube_vars_r4
+      real(r_single),pointer,dimension(:,:,:,:) :: suba_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sube_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+      suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
+
+      call general_sube2suba_r_single_rank4(se,sa,p_e2a,sube_vars_r4,suba_vars_r4,regional)
+
+   end subroutine general_sube2suba_r_single_rank1
+
+   subroutine general_sube2suba_r_single_rank4(se,sa,p_e2a,sube_vars,suba_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sube2suba_r_single_rank4  interpolate ens grid to anl grid
+!   prgmmr: parrish          org: np22                date: 2010-02-27
+!
+! abstract: interpolate ensemble grid variables to analysis grid variables,
+!              where input and output are in the respective subdomains as defined
+!              by the structure variables se and sa.
+!
+! program history log:
+!   2010-02-27  parrish, initial documentation
+!
+!   input argument list:
+!     se         - ensemble grid structure variable
+!     sa         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     sube_vars  - input ensemble grid values in ensemble subdomain mode (as defined by se)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     suba_vars  - output analysis grid values in analysis subdomain mode (as defined by sa)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use egrid2agrid_mod, only: g_egrid2agrid,egrid2agrid_parm
+      use mpimod, only: mpi_comm_world,mpi_real8
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: se,sa
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_single),        intent(in   ) :: sube_vars(se%inner_vars,se%lat2,se%lon2,se%num_fields)
+      real(r_single),        intent(  out) :: suba_vars(sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields)
+      logical,               intent(in   ) :: regional
+
+      real(r_single),allocatable:: gride_vars(:,:,:,:),grida_vars(:,:,:,:)
+      logical,allocatable :: vectorx(:)
+      integer(i_kind) k
+
+      allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
+      call general_sub2grid_r_single_rank4(se,sube_vars,gride_vars)
+      allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
+      if(regional) then
+         write(6,*)' not ready for regional dual_res yet'
+         call mpi_finalize(k)
+         stop
+      else
+         do k=se%kbegin_loc,se%kend_loc
+           vectorx(k)=se%vector(k)
+         end do
+         call g_egrid2agrid(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc,vectorx)
+      end if
+      deallocate(gride_vars,vectorx)
+      call general_grid2sub_r_single_rank4(sa,grida_vars,suba_vars)
+      deallocate(grida_vars)
+
+   end subroutine general_sube2suba_r_single_rank4
+
+   subroutine general_sube2suba_r_double_rank1(se,sa,p_e2a,sube_vars,suba_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sube2suba_r_double_rank1  rank-1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_sube2suba_r_double_rank4
+!
+! program history log:
+!   2010-02-27  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     se         - ensemble grid structure variable
+!     sa         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     sube_vars  - input ensemble grid values in ensemble subdomain mode (as defined by se)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     suba_vars  - output analysis grid values in analysis subdomain mode (as defined by sa)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use egrid2agrid_mod, only: g_egrid2agrid,egrid2agrid_parm
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: se,sa
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_double),        intent(in   ) :: sube_vars(:)
+      real(r_double),        intent(  out) :: suba_vars(:)
+      logical,               intent(in   ) :: regional
+
+      real(r_double),pointer,dimension(:,:,:,:) :: sube_vars_r4
+      real(r_double),pointer,dimension(:,:,:,:) :: suba_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sube_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+      suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
+
+      call general_sube2suba_r_double_rank4(se,sa,p_e2a,sube_vars_r4,suba_vars_r4,regional)
+
+   end subroutine general_sube2suba_r_double_rank1
+
+   subroutine general_sube2suba_r_double_rank4(se,sa,p_e2a,sube_vars,suba_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sube2suba_r_double_rank4  interpolate ens grid to anl grid
 !   prgmmr: parrish          org: np22                date: 2010-02-27
 !
 ! abstract: interpolate ensemble grid variables to analysis grid variables,
@@ -1125,13 +1679,13 @@ module general_sub2grid_mod
       real(r_double),        intent(  out) :: suba_vars(sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields)
       logical,               intent(in   ) :: regional
 
-      real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
+      real(r_double),allocatable:: gride_vars(:,:,:,:),grida_vars(:,:,:,:)
       logical,allocatable :: vectorx(:)
       integer(i_kind) k
 
-      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
-      call general_sub2grid_r_double(se,sube_vars,gride_vars)
-      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
+      call general_sub2grid_r_double_rank4(se,sube_vars,gride_vars)
+      allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
@@ -1144,15 +1698,176 @@ module general_sub2grid_mod
          call g_egrid2agrid(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc,vectorx)
       end if
       deallocate(gride_vars,vectorx)
-      call general_grid2sub_r_double(sa,grida_vars,suba_vars)
+      call general_grid2sub_r_double_rank4(sa,grida_vars,suba_vars)
       deallocate(grida_vars)
 
-   end subroutine general_sube2suba_r_double
+   end subroutine general_sube2suba_r_double_rank4
 
-   subroutine general_sube2suba_r_double_ad(se,sa,p_e2a,sube_vars,suba_vars,regional)
+   subroutine general_sube2suba_r_single_rank1_ad(se,sa,p_e2a,sube_vars,suba_vars,regional)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    general_sube2suba_r_double_ad  adjoint of interpolate ens grid to anl grid
+! subprogram:    general_sube2suba_r_single_rank1_ad  rank-1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_sube2suba_r_single_rank4_ad
+!
+! program history log:
+!   2010-02-28  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     se         - ensemble grid structure variable
+!     sa         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     sube_vars  - input ensemble grid values in ensemble subdomain mode (as defined by se)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     suba_vars  - output analysis grid values in analysis subdomain mode (as defined by sa)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use egrid2agrid_mod, only: g_egrid2agrid_ad,egrid2agrid_parm
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: se,sa
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_single),        intent(  out) :: sube_vars(:)
+      real(r_single),        intent(in   ) :: suba_vars(:)
+      logical,               intent(in   ) :: regional
+
+      real(r_single),pointer,dimension(:,:,:,:) :: sube_vars_r4
+      real(r_single),pointer,dimension(:,:,:,:) :: suba_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sube_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+      suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
+
+      call general_sube2suba_r_single_rank4_ad(se,sa,p_e2a,sube_vars_r4,suba_vars_r4,regional)
+
+   end subroutine general_sube2suba_r_single_rank1_ad
+
+   subroutine general_sube2suba_r_single_rank4_ad(se,sa,p_e2a,sube_vars,suba_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sube2suba_r_single_rank4_ad  adjoint of interpolate ens grid to anl grid
+!   prgmmr: parrish          org: np22                date: 2010-02-28
+!
+! abstract: adjoint of general_sube2suba_r_double.
+!
+! program history log:
+!   2010-02-28  parrish, initial documentation
+!
+!   input argument list:
+!     se         - ensemble grid structure variable
+!     sa         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     sube_vars  - input ensemble grid values in ensemble subdomain mode (as defined by se)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     suba_vars  - output analysis grid values in analysis subdomain mode (as defined by sa)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use egrid2agrid_mod, only: g_egrid2agrid_ad,egrid2agrid_parm
+      use mpimod, only: mpi_comm_world,mpi_real8
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: se,sa
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_single),        intent(  out) :: sube_vars(se%inner_vars,se%lat2,se%lon2,se%num_fields)
+      real(r_single),        intent(in   ) :: suba_vars(sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields)
+      logical,               intent(in   ) :: regional
+
+      real(r_single),allocatable:: gride_vars(:,:,:,:),grida_vars(:,:,:,:)
+      logical,allocatable :: vectorx(:)
+      integer(i_kind) k
+
+      allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      call general_sub2grid_r_single_rank4(sa,suba_vars,grida_vars)
+      allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
+      allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
+      if(regional) then
+         write(6,*)' not ready for regional dual_res yet'
+         call mpi_finalize(k)
+         stop
+      else
+         do k=se%kbegin_loc,se%kend_loc
+           vectorx(k)=se%vector(k)
+         end do
+         call g_egrid2agrid_ad(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc,vectorx)
+      end if
+      deallocate(grida_vars,vectorx)
+      call general_grid2sub_r_single_rank4(se,gride_vars,sube_vars)
+      deallocate(gride_vars)
+
+   end subroutine general_sube2suba_r_single_rank4_ad
+
+   subroutine general_sube2suba_r_double_rank1_ad(se,sa,p_e2a,sube_vars,suba_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sube2suba_r_double_rank1_ad  rank-1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_sube2suba_r_double_rank4_ad
+!
+! program history log:
+!   2010-02-28  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     se         - ensemble grid structure variable
+!     sa         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     sube_vars  - input ensemble grid values in ensemble subdomain mode (as defined by se)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     suba_vars  - output analysis grid values in analysis subdomain mode (as defined by sa)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use egrid2agrid_mod, only: g_egrid2agrid_ad,egrid2agrid_parm
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: se,sa
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_double),        intent(  out) :: sube_vars(:)
+      real(r_double),        intent(in   ) :: suba_vars(:)
+      logical,               intent(in   ) :: regional
+
+      real(r_double),pointer,dimension(:,:,:,:) :: sube_vars_r4
+      real(r_double),pointer,dimension(:,:,:,:) :: suba_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      sube_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+      suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
+
+      call general_sube2suba_r_double_rank4_ad(se,sa,p_e2a,sube_vars_r4,suba_vars_r4,regional)
+
+   end subroutine general_sube2suba_r_double_rank1_ad
+
+   subroutine general_sube2suba_r_double_rank4_ad(se,sa,p_e2a,sube_vars,suba_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sube2suba_r_double_rank4_ad  adjoint of interpolate ens grid to anl grid
 !   prgmmr: parrish          org: np22                date: 2010-02-28
 !
 ! abstract: adjoint of general_sube2suba_r_double.
@@ -1186,13 +1901,13 @@ module general_sub2grid_mod
       real(r_double),        intent(in   ) :: suba_vars(sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields)
       logical,               intent(in   ) :: regional
 
-      real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
+      real(r_double),allocatable:: gride_vars(:,:,:,:),grida_vars(:,:,:,:)
       logical,allocatable :: vectorx(:)
       integer(i_kind) k
 
-      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
-      call general_sub2grid_r_double(sa,suba_vars,grida_vars)
-      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
+      allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      call general_sub2grid_r_double_rank4(sa,suba_vars,grida_vars)
+      allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
@@ -1205,15 +1920,177 @@ module general_sub2grid_mod
          call g_egrid2agrid_ad(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc,vectorx)
       end if
       deallocate(grida_vars,vectorx)
-      call general_grid2sub_r_double(se,gride_vars,sube_vars)
+      call general_grid2sub_r_double_rank4(se,gride_vars,sube_vars)
       deallocate(gride_vars)
 
-   end subroutine general_sube2suba_r_double_ad
+   end subroutine general_sube2suba_r_double_rank4_ad
 
-   subroutine general_suba2sube_r_double(sa,se,p_e2a,suba_vars,sube_vars,regional)
+   subroutine general_suba2sube_r_single_rank1(sa,se,p_e2a,suba_vars,sube_vars,regional)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    general_suba2sube_r_double  smoothing interpolate anl grid to ens grid
+! subprogram:    general_suba2sube_r_single_rank1  rank-1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_suba2sube_r_single_rank4
+!
+! program history log:
+!   2010-03-01  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     sa         - ensemble grid structure variable
+!     se         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     suba_vars  - input analysis grid values in analysis subdomain mode (as defined by sa)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     sube_vars  - output ensemble grid values in ensemble subdomain mode (as defined by se)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use egrid2agrid_mod, only: g_agrid2egrid,egrid2agrid_parm
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: sa,se
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_single),        intent(in   ) :: suba_vars(:)
+      real(r_single),        intent(  out) :: sube_vars(:)
+      logical,               intent(in   ) :: regional
+
+      real(r_single),pointer,dimension(:,:,:,:) :: suba_vars_r4
+      real(r_single),pointer,dimension(:,:,:,:) :: sube_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
+      suba_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+
+      call general_suba2sube_r_single_rank4(sa,se,p_e2a,suba_vars_r4,sube_vars_r4,regional)
+
+   end subroutine general_suba2sube_r_single_rank1
+
+   subroutine general_suba2sube_r_single_rank4(sa,se,p_e2a,suba_vars,sube_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_suba2sube_r_single_rank4  smoothing interpolate anl grid to ens grid
+!   prgmmr: parrish          org: np22                date: 2010-03-01
+!
+! abstract: smoothing interpolation from analysis grid to ensemble grid (analysis subdomain
+!            input, ensemble subdomain output).
+!
+! program history log:
+!   2010-03-01  parrish, initial documentation
+!
+!   input argument list:
+!     sa         - ensemble grid structure variable
+!     se         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     suba_vars  - input analysis grid values in analysis subdomain mode (as defined by sa)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     sube_vars  - output ensemble grid values in ensemble subdomain mode (as defined by se)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use egrid2agrid_mod, only: g_agrid2egrid,egrid2agrid_parm
+      use mpimod, only: mpi_comm_world,mpi_real8
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: sa,se
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_single),        intent(in   ) :: suba_vars(sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields)
+      real(r_single),        intent(  out) :: sube_vars(se%inner_vars,se%lat2,se%lon2,se%num_fields)
+      logical,               intent(in   ) :: regional
+
+      real(r_single),allocatable:: gride_vars(:,:,:,:),grida_vars(:,:,:,:)
+      logical,allocatable :: vectorx(:)
+      integer(i_kind) k
+
+      allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      call general_sub2grid_r_single_rank4(sa,suba_vars,grida_vars)
+      allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
+      allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
+      if(regional) then
+         write(6,*)' not ready for regional dual_res yet'
+         call mpi_finalize(k)
+         stop
+      else
+         do k=se%kbegin_loc,se%kend_loc
+           vectorx(k)=se%vector(k)
+         end do
+         call g_agrid2egrid(p_e2a,grida_vars,gride_vars,se%kbegin_loc,se%kend_loc,vectorx)
+      end if
+      deallocate(grida_vars,vectorx)
+      call general_grid2sub_r_single_rank4(se,gride_vars,sube_vars)
+      deallocate(gride_vars)
+
+   end subroutine general_suba2sube_r_single_rank4
+
+   subroutine general_suba2sube_r_double_rank1(sa,se,p_e2a,suba_vars,sube_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_suba2sube_r_double_rank1  rank-1 interface
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: see general_suba2sube_r_double_rank4
+!
+! program history log:
+!   2010-03-01  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     sa         - ensemble grid structure variable
+!     se         - analysis grid structure variable
+!     p_e2a      - interpolation from ensemble to grid to analysis grid structure variable
+!     suba_vars  - input analysis grid values in analysis subdomain mode (as defined by sa)
+!     regional   - true for regional grids--this code currently works only with global grids
+!                     need to fix this.
+!
+!   output argument list:
+!     sube_vars  - output ensemble grid values in ensemble subdomain mode (as defined by se)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_double,i_kind
+      use egrid2agrid_mod, only: g_agrid2egrid,egrid2agrid_parm
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),   intent(in   ) :: sa,se
+      type(egrid2agrid_parm),intent(in   ) :: p_e2a
+      real(r_double),        intent(in   ) :: suba_vars(:)
+      real(r_double),        intent(  out) :: sube_vars(:)
+      logical,               intent(in   ) :: regional
+
+      real(r_double),pointer,dimension(:,:,:,:) :: suba_vars_r4
+      real(r_double),pointer,dimension(:,:,:,:) :: sube_vars_r4
+      integer(i_kind) mold4(2,2,2,2)
+
+      suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
+      suba_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+
+      call general_suba2sube_r_double_rank4(sa,se,p_e2a,suba_vars_r4,sube_vars_r4,regional)
+
+   end subroutine general_suba2sube_r_double_rank1
+
+   subroutine general_suba2sube_r_double_rank4(sa,se,p_e2a,suba_vars,sube_vars,regional)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_suba2sube_r_double_rank4  smoothing interpolate anl grid to ens grid
 !   prgmmr: parrish          org: np22                date: 2010-03-01
 !
 ! abstract: smoothing interpolation from analysis grid to ensemble grid (analysis subdomain
@@ -1248,13 +2125,13 @@ module general_sub2grid_mod
       real(r_double),        intent(  out) :: sube_vars(se%inner_vars,se%lat2,se%lon2,se%num_fields)
       logical,               intent(in   ) :: regional
 
-      real(r_double),allocatable:: gride_vars(:,:),grida_vars(:,:)
+      real(r_double),allocatable:: gride_vars(:,:,:,:),grida_vars(:,:,:,:)
       logical,allocatable :: vectorx(:)
       integer(i_kind) k
 
-      allocate(grida_vars(sa%inner_vars*sa%nlat*sa%nlon,sa%kbegin_loc:sa%kend_alloc))
-      call general_sub2grid_r_double(sa,suba_vars,grida_vars)
-      allocate(gride_vars(se%inner_vars*se%nlat*se%nlon,se%kbegin_loc:se%kend_alloc))
+      allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
+      call general_sub2grid_r_double_rank4(sa,suba_vars,grida_vars)
+      allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
          write(6,*)' not ready for regional dual_res yet'
@@ -1267,9 +2144,9 @@ module general_sub2grid_mod
          call g_agrid2egrid(p_e2a,grida_vars,gride_vars,se%kbegin_loc,se%kend_loc,vectorx)
       end if
       deallocate(grida_vars,vectorx)
-      call general_grid2sub_r_double(se,gride_vars,sube_vars)
+      call general_grid2sub_r_double_rank4(se,gride_vars,sube_vars)
       deallocate(gride_vars)
 
-   end subroutine general_suba2sube_r_double
+   end subroutine general_suba2sube_r_double_rank4
 
 end module general_sub2grid_mod

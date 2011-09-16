@@ -9,6 +9,7 @@ module mpl_allreducemod
 ! program history log:
 !   2008-12-09 todling 
 !   2009-01-17 todling - add allgather (quad)
+!   2011-07-04  todling  - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub rmpl_allreduce
@@ -120,8 +121,8 @@ subroutine qmpl_allreduce1d(klen,qpvals)
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind,r_quad
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mpi_real16
+  use kinds, only: r_kind,i_kind,r_quad,r_double
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mpi_real8,mpi_real16
   implicit none
 
 ! Declare passed variables
@@ -148,8 +149,13 @@ subroutine qmpl_allreduce1d(klen,qpvals)
                         qpval2r,klen,mpi_rtype, mpi_comm_world,ierror)
      qpval2=qpval2r
 #else
-     call mpi_allgather(qpvals,klen,mpi_real16, &
-                        qpval2,klen,mpi_real16, mpi_comm_world,ierror)
+     if(r_double==r_quad) then
+        call mpi_allgather(qpvals,klen,mpi_real8 , &
+                           qpval2,klen,mpi_real8 , mpi_comm_world,ierror)
+     else
+        call mpi_allgather(qpvals,klen,mpi_real16, &
+                           qpval2,klen,mpi_real16, mpi_comm_world,ierror)
+     endif
 #endif
 
 !    Reproducible sum (when truncated to real precision)
@@ -193,8 +199,8 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind,r_quad
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype,npe,mpi_real16
+  use kinds, only: r_kind,i_kind,r_quad,r_double
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype,npe,mpi_real8,mpi_real16
   implicit none
 
 ! Declare passed variables
@@ -219,8 +225,13 @@ subroutine qmpl_allreduce2d(ilen,klen,pvals,pvnew)
                      pval2r,ilen*klen,mpi_rtype, mpi_comm_world,ierror)
   pval2=pval2r
 #else
-  call mpi_allgather(pvals,ilen*klen,mpi_real16, &
-                     pval2,ilen*klen,mpi_real16, mpi_comm_world,ierror)
+  if(r_double==r_quad) then
+     call mpi_allgather(pvals,ilen*klen,mpi_real8 , &
+                        pval2,ilen*klen,mpi_real8 , mpi_comm_world,ierror)
+  else
+     call mpi_allgather(pvals,ilen*klen,mpi_real16, &
+                        pval2,ilen*klen,mpi_real16, mpi_comm_world,ierror)
+  endif
 #endif
   
     
@@ -284,8 +295,8 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
 !   machine:
 !
 !$$$ end documentation block
-  use kinds, only: i_kind,r_kind,r_quad
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mpi_real16
+  use kinds, only: i_kind,r_kind,r_quad,r_double
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mpi_real8,mpi_real16
   implicit none
 
   integer(i_kind),intent(in   ) :: idim,jdim
@@ -307,8 +318,13 @@ subroutine mpl_allgatherq(idim,jdim,zloc,zall)
                      zallr,idim,mpi_rtype, mpi_comm_world,ierror)
   zall=zallr
 #else
-  call mpi_allgather(zloc,idim,mpi_real16, &
-                     zall,idim,mpi_real16, mpi_comm_world,ierror)
+  if(r_double==r_quad) then
+     call mpi_allgather(zloc,idim,mpi_real8 , &
+                        zall,idim,mpi_real8 , mpi_comm_world,ierror)
+  else
+     call mpi_allgather(zloc,idim,mpi_real16, &
+                        zall,idim,mpi_real16, mpi_comm_world,ierror)
+  endif
 #endif
 
 

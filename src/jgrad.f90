@@ -189,7 +189,7 @@ if (l_do_adjoint) then
 endif
 
 ! Produce diagnostic when applying strong constraint
-if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval)
+if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
 ! Save increment (update guess)
 if (lupdfgs) then
@@ -197,18 +197,17 @@ if (lupdfgs) then
    call xhat_vordiv_init
    call xhat_vordiv_calc(sval)
 
-! Update guess (model background, bias correction) fields
-  if (mype==0) write(6,*)trim(seqcalls),': Updating guess'
-  call update_guess(sval,sbias)
-! Write output analysis files
-  if(jiter == jiterend)call write_all(.false.,mype)
-  call prt_guess('analysis')
-
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
+    if (mype==0) write(6,*)trim(seqcalls),': Saving increment to file'
     call inc2guess(sval)
     call write_all(iwrtinc,mype)
     call prt_guess('increment')
+  else ! Update guess (model background, bias correction) fields
+     if (mype==0) write(6,*)trim(seqcalls),': Updating guess'
+     call update_guess(sval,sbias)
+     if(jiter == jiterend)call write_all(iwrtinc,mype)
+     call prt_guess('analysis')
   endif
 
 ! Clean up increments of vorticity/divergence

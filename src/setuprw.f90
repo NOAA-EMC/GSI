@@ -299,6 +299,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
           1,1,mype,nfldsig)
      dpres=dpres-zsges
+     if(dpres<zero) cycle     !  temporary fix to prevent out of bounds array reference in zges,prsltmp
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
           1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&

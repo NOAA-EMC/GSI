@@ -1,4 +1,4 @@
-subroutine read_modsbufr(mype,nread,ndata,nodata,gstime,infile,obstype,lunout, &
+subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
           twindin,sis)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -25,7 +25,6 @@ subroutine read_modsbufr(mype,nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !   2011-08-01  lueken  - added module use deter_sfc_mod, removed_i_kind, fixed indentation
 !
 !   input argument list:
-!     mype     - mpi unit
 !     infile   - unit from which to read BUFR data
 !     obstype  - observation type to process
 !     lunout   - unit to which to write data for further processing
@@ -43,6 +42,7 @@ subroutine read_modsbufr(mype,nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind,r_single
+  use mpimod, only: mype
   use constants, only: zero,one_tenth,quarter,half,one,deg2rad,&
       two,three,four,rad2deg,r60inv
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
@@ -59,7 +59,7 @@ subroutine read_modsbufr(mype,nread,ndata,nodata,gstime,infile,obstype,lunout, &
 ! Declare passed variables
   character(len=*),intent(in):: infile,obstype
   character(len=*),intent(in):: sis
-  integer(i_kind),intent(in):: mype,lunout
+  integer(i_kind),intent(in):: lunout
   integer(i_kind),intent(inout):: nread,ndata,nodata
   real(r_kind),intent(in):: gstime,twindin
 

@@ -215,6 +215,7 @@ contains
 !
 ! program history log:
 !   2010-12-23  hcHuang - initial code, based on read_gfs_chem
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !
@@ -242,11 +243,13 @@ contains
     integer(i_kind), intent(in):: month
 
 !   Declare local variables
-    integer(i_kind) :: igfsco2, i, j, k, n, ico2, iret
+    integer(i_kind) :: igfsco2, i, j, k, n, iret
     real(r_kind),dimension(lat2):: xlats
+    real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
 
     if(.not.associated(gsi_chemguess_bundle)) return
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',ico2,iret)
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,iret)
     if(iret /= 0) return
 
 !   Get subdomain latitude array
@@ -259,10 +262,11 @@ contains
 !   Read in CO2
     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, iret )
     call read_gfsco2 ( iyear,month,igfsco2,xlats,ges_prsi(:,:,:,ntguessig),&
-                       lat2,lon2,nsig,mype, gsi_chemguess_bundle(1)%r3(ico2)%q )
+                       lat2,lon2,nsig,mype, p_co2 )
 
     do n = 2, ntguessig
-       gsi_chemguess_bundle(n)%r3(ico2)%q = gsi_chemguess_bundle(1)%r3(ico2)%q
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d,iret)
+       ptr3d = p_co2
     enddo
 
   end subroutine read_chem_

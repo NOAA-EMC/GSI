@@ -1,4 +1,4 @@
-subroutine strong_baldiag_inc(sval)
+subroutine strong_baldiag_inc(sval,nsval)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -16,6 +16,8 @@ subroutine strong_baldiag_inc(sval)
 !   2009-01-17  todling  - per early changes from Tremolet (revisited)
 !   2010-05-13  todling  - udpate to use gsi_bundle
 !                          BUG FIX: was missing deallocate_state call
+!   2011-06-07  guo      - fixed the dimension of argument sval and added nsval
+!   2011-07-03  todling  - avoid explicit reference to internal bundle arrays
 !
 !   input argument list:
 !     sval    - current solution in state space
@@ -42,7 +44,8 @@ subroutine strong_baldiag_inc(sval)
   implicit none
 
 ! Declare passed variables
-  type(gsi_bundle),intent(inout) :: sval(nsubwin)
+  type(gsi_bundle),intent(inout) :: sval(nsval)
+  integer(i_kind) ,intent(in   ) :: nsval
 
 ! Declare local variables
   integer(i_kind) ii,ier,istatus
@@ -54,6 +57,15 @@ subroutine strong_baldiag_inc(sval)
   real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_oz
   real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_cw
   real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_p3d
+!
+  real(r_kind),pointer,dimension(:,:,:) :: p_u  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_v  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_q  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_t  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_cw =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_oz =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_p3d=>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: p_ps =>NULL()
   logical fullfield
   type(gsi_bundle) dhat_dt
 
@@ -93,19 +105,29 @@ subroutine strong_baldiag_inc(sval)
 ! Determine how many vertical levels each mpi task will
 ! handle in computing horizontal derivatives
 
-  do ii=1,nsubwin
+  do ii=1,nsval
+     if(mype==0) write(6,'(1x,a,i0,a)') 'strong_baldiag_inc: sval(',ii,')'
+
+     call gsi_bundlegetpointer(sval(ii),'u',  p_u,  istatus)
+     call gsi_bundlegetpointer(sval(ii),'v',  p_v,  istatus)
+     call gsi_bundlegetpointer(sval(ii),'tv', p_t,  istatus)
+     call gsi_bundlegetpointer(sval(ii),'q',  p_q,  istatus)
+     call gsi_bundlegetpointer(sval(ii),'oz', p_oz, istatus)
+     call gsi_bundlegetpointer(sval(ii),'cw', p_cw, istatus)
+     call gsi_bundlegetpointer(sval(ii),'ps', p_ps, istatus)
+     call gsi_bundlegetpointer(sval(ii),'p3d',p_p3d,istatus)
 
      call calctends_tl( &
-       sval(ii)%r3(is_u)%q,sval(ii)%r3(is_v)%q ,sval(ii)%r3(is_t)%q,  &
-       sval(ii)%r3(is_q)%q,sval(ii)%r3(is_oz)%q,sval(ii)%r3(is_cw)%q, &
+       p_u,p_v ,p_t,  &
+       p_q,p_oz,p_cw, &
        mype, nnnn1o,          &
        dhat_dt_u,dhat_dt_v ,dhat_dt_t,dhat_dt_p3d, &
-       dhat_dt_q,dhat_dt_oz,dhat_dt_cw,sval(ii)%r3(is_p3d)%q)
+       dhat_dt_q,dhat_dt_oz,dhat_dt_cw,p_p3d)
      if(nvmodes_keep>izero) then
         fullfield=.false.
         call strong_bal_correction(dhat_dt_u,dhat_dt_v,dhat_dt_t,dhat_dt_p3d,&
-                    mype,sval(ii)%r3(is_u)%q,sval(ii)%r3(is_v)%q,&
-                         sval(ii)%r3(is_t)%q,sval(ii)%r2(is_p)%q,&
+                    mype,p_u,p_v,&
+                         p_t,p_ps,&
                    .true.,fullfield,.false.)
      end if
 

@@ -13,6 +13,7 @@ subroutine rfdpar1(be,rate,m)
 !   1998-01-01  purser
 !   2004-06-22  treadon - update documentation
 !   2004-06-23  purser  - update documentation
+!   2011-07-03  todling - use general interface to FORTRAN intrisic math
 !
 !   input argument list:
 !     m    - the degree of the recursive filter
@@ -78,8 +79,8 @@ subroutine rfdpar1(be,rate,m)
 ! If m is even, all roots are complex; if odd, there is one real root,
 ! which is the first in the list, croot, returned by subr. zroots:
   if(kmod2==ione)then    ! treat the single real root:
-     r=-dreal(croot(1))
-     q=-dimag(croot(1))
+     r=-real(croot(1),r_kind)
+     q=-aimag(croot(1))
      qa=abs(q)
      if(qa>qcrit) then
         write(6,*)'RFDPAR1:  imaginary root qa=',qa,' > qcrit=',qcrit
@@ -102,8 +103,8 @@ subroutine rfdpar1(be,rate,m)
      jimag=kmod2+j2
      ca=-croot(j2)
      cb=sqrt(ca)
-     r=dreal(cb)
-     q=dimag(cb)
+     r=real(cb,r_kind)
+     q=aimag(cb)
      if(r<zero)then
         cb=-cb
         r=-r
@@ -116,8 +117,8 @@ subroutine rfdpar1(be,rate,m)
      do i=2,m
         ipow=i*2_i_kind-3_i_kind
         cc=cb**ipow
-        van(i,jreal)=dreal(cc)
-        van(i,jimag)=-dimag(cc)
+        van(i,jreal)=real(cc,r_kind)
+        van(i,jimag)=-aimag(cc)
      enddo
   enddo
   be(1)=one
@@ -141,6 +142,7 @@ subroutine rfdpar2(be,rate,turn,samp,m)
 ! program history log:
 !   1998-01-01  purser
 !   2004-06-23  purser - added documentation
+!   2011-07-03  todling - use mathkinds for math-intrisic
 !
 !   input argument list:
 !     be   - Recursive filter coefficients listed by characteristic modes
@@ -175,35 +177,35 @@ subroutine rfdpar2(be,rate,turn,samp,m)
      s=s+turn(1,1)*be1
      do lr=kmod2+ione,m,2
         li=lr+ione
-        cbe=dcmplx(be(lr),be(li))
-        crl=dcmplx(rate(lr),rate(li))
+        cbe=cmplx(be(lr),be(li),r_kind)
+        crl=cmplx(rate(lr),rate(li),r_kind)
         cl1=cbe/(r1+crl)
-        turn(lr,1)=dreal(cl1)
-        turn(li,1)=dimag(cl1)
+        turn(lr,1)=real(cl1,r_kind)
+        turn(li,1)=aimag(cl1)
         c1l=be1/(r1+crl)
-        turn(1,lr)=dreal(c1l)
-        turn(1,li)=-dimag(c1l)
+        turn(1,lr)=real(c1l,r_kind)
+        turn(1,li)=-aimag(c1l)
         s=s+turn(lr,1)*be1+turn(1,lr)*be(lr)+turn(1,li)*be(li)
      enddo
   endif
   do kr=kmod2+ione,m,2
      ki=kr+ione
-     crk=dcmplx(rate(kr),rate(ki))
-     crj=dconjg(crk)
+     crk=cmplx(rate(kr),rate(ki),r_kind)
+     crj=conjg(crk)
      bekr=be(kr)
      beki=be(ki)
      do lr=kmod2+ione,m,2
         li=lr+ione
-        cbeh=half*dcmplx(be(lr),be(li))
-        crl=dcmplx(rate(lr),rate(li))
+        cbeh=half*cmplx(be(lr),be(li),r_kind)
+        crl=cmplx(rate(lr),rate(li),r_kind)
         clk=cbeh/(crl+crk)
         clj=cbeh/(crl+crj)
         clkr=clk+clj
         clki=clk-clj
-        turn(lr,kr)= dreal(clkr)
-        turn(li,kr)= dimag(clkr)
-        turn(lr,ki)=-dimag(clki)
-        turn(li,ki)= dreal(clki)
+        turn(lr,kr)= real(clkr,r_kind)
+        turn(li,kr)= aimag(clkr)
+        turn(lr,ki)=-aimag(clki)
+        turn(li,ki)= real(clki,r_kind)
         s=s+turn(lr,kr)*bekr+turn(lr,ki)*beki
      enddo
   enddo
@@ -533,6 +535,7 @@ subroutine zroots(a,m,roots,polish)
 !   2004-06-23  purser  - added documentation
 !   2004-10-28  treadon - replace "tiny" with "tiny_r_kind"
 !   2005-03-29  treadon - define small = sqrt(tiny_r_kind)
+!   2011-07-03  todling - use mathkinds for math-intrisic
 !
 !   input argument list:
 !     a    - complex array of m+1 polynomial coefficients
@@ -567,10 +570,10 @@ subroutine zroots(a,m,roots,polish)
      ad(j)=a(j)
   end do
   do j=m,1,-1
-     x=dcmplx(zero,zero)
+     x=cmplx(zero,zero,r_kind)
      call laguer(ad,j,x,small,.false.)
-     if(abs(dimag(x)) <= twosmall2*abs(dreal(x))) then
-        x=dcmplx(dreal(x),zero)
+     if(abs(aimag(x)) <= twosmall2*abs(real(x,r_kind))) then
+        x=cmplx(real(x,r_kind),zero,r_kind)
      end if
      roots(j)=x
      b=ad(j+ione)
@@ -588,7 +591,7 @@ subroutine zroots(a,m,roots,polish)
   do j=2,m
      x=roots(j)
      do i=j-ione,1,-1
-        if(dreal(roots(i))<=dreal(x))go to 10
+        if(real(roots(i),r_kind)<=real(x,r_kind))go to 10
         roots(i+ione)=roots(i)
      end do
      i=izero
@@ -613,6 +616,7 @@ subroutine laguer(a,m,x,small,polish)
 ! program history log:
 !   1998-01-01  purser
 !   2004-06-23  purser  - update documentation
+!   2011-07-02  todling - adjust smalls for single precision
 !
 !   input argument list:
 !     a    - complex array of m+1 polynomial coefficients
@@ -625,7 +629,7 @@ subroutine laguer(a,m,x,small,polish)
 !     x    - one of the complex roots of the polynomial
 ! 
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single,r_double
   use constants, only: ione,zero,two
   implicit none
 
@@ -636,11 +640,20 @@ subroutine laguer(a,m,x,small,polish)
   real(r_kind)                ,intent(in   ) :: small
 
   integer(i_kind),parameter:: maxit=100_i_kind
-  real(r_kind),parameter:: smalls=6.8e-8_r_kind
 
   integer(i_kind) iter,j
   real(r_kind) abx,cdx,err,dxold
+  real(r_kind) smalls
   complex(r_kind) dx,x1,b,d,f,g,h,sq,gp,gm,g2
+
+  if(r_kind==r_single) then
+     smalls=6.8e-4_r_kind
+  else if(r_kind==r_double) then
+     smalls=6.8e-8_r_kind
+  else
+     write(6,*)'LAGUER:  unsupported precision r_kind=', r_kind
+     call stop2(99)
+  endif
 
   dxold=abs(x)
   do iter=1,maxit

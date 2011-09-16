@@ -427,7 +427,7 @@ subroutine wrwrfmassa_binary(mype)
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
      if (ier/=0) then
-         write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
+         write(6,*)'wrwrfmassa_binary: getpointer failed, cannot do cloud analysis'
          call stop2(999)
      endif
      kqc=i_qc-ione

@@ -16,6 +16,7 @@
 !   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
 !   2010-05-13  todling - udpate to use gsi_bundle; interface via state vector
 !   2011-05-01  todling - udpate to use gsi_metguess_bundle: cwmr taken from it now
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !     xut,xvt,xtt,xqt,xozt,xcwt,xpt - tendencies
@@ -55,6 +56,7 @@
   real(r_kind),dimension(lat2,lon2,nsig):: dvor_t,ddiv_t
   real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
   real(r_kind),pointer,dimension(:,:,:) :: xut,xvt,xtt,xqt,xozt,xcwt
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3d
   real(r_kind),pointer,dimension(:,:)   :: xpt
 
 
@@ -181,9 +183,9 @@
      end do
 
 !    update cw (used to be array in guess_grids
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ipges,istatus)
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3d,istatus)
      if(istatus==0) &
-     gsi_metguess_bundle(it)%r3(ipges)%q = gsi_metguess_bundle(it)%r3(ipges)%q + xcwt(i,j,k)*tcon
+     ptr3d = ptr3d + xcwt(i,j,k)*tcon
 
   end do
 

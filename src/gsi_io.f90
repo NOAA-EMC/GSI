@@ -703,13 +703,13 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,r_single
+   use kinds, only: r_kind,r_double
    use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
    implicit none
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(nlon,nlat),intent(in   ) :: grid_in   ! input grid
+   real(r_double),dimension(nlon,nlat),intent(in ) :: grid_in   ! input grid
    real(r_kind),dimension(itotsub)  ,intent(  out) :: grid_out  ! output grid
 
 ! !DESCRIPTION: This routine transfers the contents of a two-diemnsional,
@@ -720,6 +720,7 @@ contains
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
 !   2007-05-27  todling - add double precision version
+!   2011-07-03  todling - true double prec interface
 !
 ! !REMARKS:
 !   language: f90
@@ -807,14 +808,14 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,r_single
+   use kinds, only: r_kind,r_double
    use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
    implicit none
 
 ! !INPUT PARAMETERS:
 
    real(r_kind),dimension(max(iglobal,itotsub)),intent(in   ) :: grid_in   ! input grid
-   real(r_kind),dimension(nlon,nlat)           ,intent(  out) :: grid_out  ! input grid
+   real(r_double),dimension(nlon,nlat)         ,intent(  out) :: grid_out  ! input grid
 
 ! !DESCRIPTION: This routine transfers the contents of a one-diemnsional,
 !               type r_kind array into a two-dimensional, type r_single
@@ -824,6 +825,7 @@ contains
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
 !   2007-05-27  todling - add double precision version
+!   2011-07-03  todling - true double prec interface
 !
 ! !REMARKS:
 !   language: f90

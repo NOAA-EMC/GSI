@@ -14,17 +14,20 @@ subroutine model_ad(xini,xobs,ldprt)
 use kinds, only: r_kind,i_kind
 use gsi_4dvar, only: nsubwin,nobs_bins,winlen,winsub,hr_obsbin
 use gsi_4dvar, only: iadateend,idmodel
+use gsi_4dvar, only: liauon
 use constants, only: zero,r3600
 use state_vectors, only: allocate_state,deallocate_state,dot_product
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
+use gsi_bundlemod, only: gsi_bundleAddMul
 use gsi_bundlemod, only: self_add,assignment(=)
 use gsi_4dcouplermod, only: gsi_4dcoupler_init_model_ad
 use gsi_4dcouplermod, only: gsi_4dcoupler_model_ad
 use gsi_4dcouplermod, only: gsi_4dcoupler_final_model_ad
 use m_tick, only: tick
 use timermod, only: timer_ini,timer_fnl
-use mpeu_util,only: die
+use mpeu_util,only: die,tell
+use mpimod, only: mype
 
 #ifdef _LAG_MODEL_
 use lag_fields, only: nlocal_orig_lag, ntotal_orig_lag
@@ -78,9 +81,11 @@ real(r_kind),pointer,dimension(:,:,:)  :: xx_u,xx_v
 type(gsi_bundle),pointer:: p_xini
 type(gsi_bundle),pointer:: p_xobs
 type(gsi_bundle) :: xxpert	! perturbation state, persistent between steps
+logical:: ldprt_,iau_on_
 
 ! Temporary vector for lagrangian backward integration
 real(r_kind),dimension(3):: ad_tmp_locvect
+real(r_kind):: wt
 
 !******************************************************************************
 
@@ -88,6 +93,9 @@ real(r_kind),dimension(3):: ad_tmp_locvect
 call timer_ini('model_ad')
 	n=size(xobs)
 	if(n<1) call die(myname,'unexpected size, size(xobs) =',n)
+
+ldprt_=ldprt	! .or.mype==0	!! in case one needs to debug locally
+iau_on_=liauon
 
 ! Initialize AD model
 	! Get [date,time]
@@ -99,6 +107,9 @@ nhmsi  = (iadateend-100*nymdi)*10000
 	! Create and initialize a persistent state
 call gsi_4dcoupler_init_model_ad(xxpert,xobs(1),nymdi,nhmsi,ndtpert,rc=ierr)
 	if(ierr/=0) call die(myname,'gsi_4dcoupler_init_model_ad(), rc =',ierr)
+do n=1,nsubwin
+  xini(n)=0._r_kind
+enddo
 
 ! Determine corresponding GSI time step parameters.
 ! A GSI time step is a hr_obsbin time interval.
@@ -110,38 +121,50 @@ nstep  = NINT(winlen*r3600/tstep)	! e.g. 6
 nfrctl = NINT(winsub*r3600/tstep)	! e.g. 6
 nfrobs = NINT(hr_obsbin*r3600/tstep)	! e.g. 1
 
-if (ldprt) write(6,'(a,3(1x,i4))')'model_ad: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
+wt=0.
+if(iau_on_) then
+  wt=1._r_kind/nfrctl
+  if(ldprt_.and.mype==0) call tell(myname,'increment weighting, wt =',wt)
+endif
+
+if (ldprt_.and.mype==0) write(6,'(a,3(1x,i4))')'model_ad: nstep,nfrctl,nfrobs=',nstep,nfrctl,nfrobs
 
 ! Locate (nstep) in xobs, if any.  Then add this adjoint increment to
 ! the current state (xxpert).
 
 	p_xobs => istep_locate_(xobs,nstep,nfrobs, &
-		ldprt,myname//":xobs[nstep]",nymdi,nhmsi)
+		ldprt_.and.mype==0,myname//".xobs-",nymdi,nhmsi)
 
-if(associated(p_xobs)) call self_add(xxpert,p_xobs)
-
-d0 = zero
+if(associated(p_xobs)) call self_add(xxpert,p_xobs)	! xxpert += p_xobs
 
 ! Locate (nstep) in xini, if any.  Then store the current adjoint state
 ! (xxpert) to xini.
 
+      if(iau_on_) then
+	p_xini => iau_locate_(xini,nstep,nfrctl, &
+		ldprt_.and.mype==0,myname//".xini-",nymdi,nhmsi)
+      else
 	p_xini => istep_locate_(xini,nstep,nfrctl, &
-		ldprt,myname//":xini[nstep]",nymdi,nhmsi)
+		ldprt_.and.mype==0,myname//".xini-",nymdi,nhmsi)
+      endif
 
 if(associated(p_xini)) then
-  p_xini = xxpert
-  d0=d0+dot_product(p_xini,p_xini)
+  if(iau_on_) then
+    call gsi_bundleAddMul(p_xini,wt,xxpert)	! p_xini += wt*xxpert
+  else
+    call self_add(p_xini,xxpert)		! p_xini += xxpert
+  endif
 endif
 
 ! Run AD model
 do istep=nstep-1,0,-1
-  ! get (date,time) at (istep).
-  call tick(nymdi,nhmsi,-dt)
-
   ! Locate (istep+1) in xobs, if any.  Then apply AD model from istep+1
   ! (xxpert, p_xobs) to istep (xxpert).
   	p_xobs => istep_locate_(xobs,istep+1,nfrobs, &
-		ldprt,myname//":xobs[istep+1]",nymdi,nhmsi)
+		ldprt_.and.mype==0,myname//".xobs+",nymdi,nhmsi)
+
+  ! get (date,time) at (istep).
+  call tick(nymdi,nhmsi,-dt)
 
   call gsi_4dcoupler_model_ad(xxpert,p_xobs,nymdi,nhmsi,ndt,rc=ierr)
 	if(ierr/=0) call die(myname,'gsi_4dcoupler_model_ad(), rc =',ierr)
@@ -179,23 +202,35 @@ do istep=nstep-1,0,-1
   ! Locate (istep) in xobs, if any.  Then add adjoint increment to
   ! the current adjoint state (xxpert).
   	p_xobs => istep_locate_(xobs,istep,nfrobs, &
-		ldprt,myname//":xobs[istep]",nymdi,nhmsi)
+		ldprt_.and.mype==0,myname//".xobs-",nymdi,nhmsi)
 
-  if(associated(p_xobs)) call self_add(xxpert,p_xobs)
+  if(associated(p_xobs)) call self_add(xxpert,p_xobs)	! xxpert += p_xobs
 
   ! Locate (istep) in xini, if any.  Then store the current adjoint
   ! state (xxpert) to xini.
+      if(iau_on_) then
+  	p_xini => iau_locate_(xini,istep,nfrctl, &
+		ldprt_.and.mype==0,myname//".xini-",nymdi,nhmsi)
+      else
   	p_xini => istep_locate_(xini,istep,nfrctl, &
-		ldprt,myname//":xini[istep]",nymdi,nhmsi)
+		ldprt_.and.mype==0,myname//".xini-",nymdi,nhmsi)
+      endif
 
   if(associated(p_xini)) then
-    p_xini = xxpert
-    d0=d0+dot_product(p_xini,p_xini)
+    if(iau_on_) then
+      call gsi_bundleAddMul(p_xini,wt,xxpert)	! p_xini += wt*xxpert
+    else
+      call self_add(p_xini,xxpert)		! p_xini += xxpert
+    endif
   endif
 
 enddo
 
-if(ldprt) print *, myname, ': total (gsi) dot product ', d0
+d0 = zero
+do n=lbound(xini,1),ubound(xini,1)
+  d0 = d0+dot_product(xini(n),xini(n))
+enddo
+if(ldprt_) print *, myname, ': total (gsi) dot product ', d0
 
 ! Finalize AD model, and destroy xxpert at the same time.
 call gsi_4dcoupler_final_model_ad(xxpert,xobs(1),nymdi,nhmsi,rc=ierr)
@@ -209,9 +244,12 @@ contains
 
   function istep_locate_(x,istep,intvl, verbose,which,nymdi,nhmsi) result(p_)
   	!-- locate istep-th element in x, which is defined only at every intvl
-	!-- isteps.  i.e., istep:i=0:1, intvl:2, 2*intvl:3, 3*intvl:4, etc.
+	!-- isteps.  i.e., p_ => x(1), if istep=0;
+	!--                      x(2), if istep=1*intvl; 
+	!--                      x(3), if istep=2*intvl; etc.
+	!--			 null, otherwise.
 
-    use mpeu_util,only: tell,warn
+    use mpeu_util,only: tell,warn,stdout
     implicit none
     type(gsi_bundle),pointer:: p_
     type(gsi_bundle),target,dimension(:),intent(in):: x
@@ -231,16 +269,46 @@ contains
     if (MOD(istep,intvl_)/=0) return
 
     i=istep/intvl_+1
+    if (i<1.or.i>isize_) return
 
-    if (i<1.or.i>isize_) then
-      if(verbose) call warn(which, &
-	'nymd, nhms, istep, intvl, i, size =',(/nymdi,nhmsi,istep,intvl_,i,isize_/))
-      return
-    endif
-
-    if(verbose) call tell(which, &
-	'nymd, nhms, istep, intvl, i, size =',(/nymdi,nhmsi,istep,intvl_,i,isize_/))
+    if(verbose) write(stdout,'(1x,2a,i8.8,i7.6,2(i6,"/",i2.2))') which, &
+		'() -- (nymd,nhms,istep/intvl,i/size) =',nymdi,nhmsi,istep,intvl_,i,isize_
 
     p_ => x(i)
   end function istep_locate_
+
+  function iau_locate_(x,istep,intvl, verbose,which,nymdi,nhmsi) result(p_)
+  	!-- locate IAU istep-th element in x, which is defined at corresponding
+	!-- istep values.  i.e., p_=> null, if istep=0;
+	!--                           x(1), if istep=0*intvl+1 .. 1*intvl;
+	!--                           x(2), if istep=1*intvl+1 .. 2*intvl; etc.
+	!--                           x(3), if istep=2*intvl+1 .. 3*intvl; etc.
+	!--			      null, otherwise.
+
+    use mpeu_util,only: tell,warn,stdout
+    implicit none
+    type(gsi_bundle),pointer:: p_
+    type(gsi_bundle),target,dimension(:),intent(in):: x
+    integer(i_kind),intent(in):: istep
+    integer(i_kind),intent(in):: intvl	! istep interval of two x(:) elements
+
+    logical         ,intent(in):: verbose	! if information is needed
+    character(len=*),intent(in):: which		! for which this call is made.
+    integer(i_kind) ,intent(in):: nymdi,nhmsi	! current clock time
+
+    integer:: i,isize_,intvl_
+
+    isize_= size(x)
+    intvl_= max(1,intvl)
+
+    i=(istep+intvl-1)/intvl_
+
+    p_ => null()
+    if (i<1.or.i>isize_) return
+
+    if(verbose) write(stdout,'(1x,2a,i8.8,i7.6,2(i6,"/",i2.2))') which, &
+		'() -- (nymd,nhms,istep/intvl,i/size) =',nymdi,nhmsi,istep,intvl_,i,isize_
+
+    p_ => x(i)
+  end function iau_locate_
 end subroutine model_ad

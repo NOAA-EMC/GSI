@@ -1,4 +1,4 @@
-subroutine Set_CRTM_Aerosol ( km, na, aero_name, aero_conc, rh, aerosol)
+subroutine Set_CRTM_Aerosol_ ( km, na, aero_name, aero_conc, rh, aerosol)
 
 ! USES:
 
@@ -35,4 +35,4 @@ subroutine Set_CRTM_Aerosol ( km, na, aero_name, aero_conc, rh, aerosol)
   endif
   call stop2(999)
   
-end subroutine Set_CRTM_Aerosol
+end subroutine Set_CRTM_Aerosol_

@@ -11,6 +11,7 @@ subroutine get_wrf_mass_ensperts_netcdf
 !
 ! program history log:
 !   2010-08-11  parrish, initial documentation
+!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !
 !   input argument list:
 !
@@ -24,10 +25,17 @@ subroutine get_wrf_mass_ensperts_netcdf
 
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
-    use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
+    use hybrid_ensemble_isotropic, only: en_perts,nelen
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass,rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens
+    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+    use gsi_bundlemod, only: gsi_bundlecreate
+    use gsi_bundlemod, only: gsi_grid
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_bundlemod, only: gsi_bundledestroy
+    use gsi_bundlemod, only: gsi_gridcreate
 
     implicit none
 
@@ -39,22 +47,33 @@ subroutine get_wrf_mass_ensperts_netcdf
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,n_ens):: u_tmp,v_tmp,tv_tmp,rh_tmp
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,n_ens):: ps_tmp
 
-    real(r_kind),dimension(grd_ens%latlon1n):: stbar,vpbar,tbar,rhbar,ozbar,cwbar
-    real(r_kind),dimension(grd_ens%latlon11):: pbar,sstbar
+    real(r_single),pointer,dimension(:,:,:):: w3
+    real(r_single),pointer,dimension(:,:):: w2
+    real(r_kind),pointer,dimension(:,:,:):: x3
+    real(r_kind),pointer,dimension(:,:):: x2
+    type(gsi_bundle):: en_bar
+    type(gsi_grid):: grid_ens
     real(r_kind):: bar_norm,sig_norm,kapr,kap1
 
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig):: u_wrk,v_wrk,tv_wrk,rh_wrk
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: ps_wrk
 
-    integer(i_kind):: iret,i,j,k,m,n,il,jl,mm1,apm_idx
+    integer(i_kind):: iret,i,j,k,m,n,il,jl,mm1,apm_idx,istatus
+    integer(i_kind):: ic2,ic3
 
     character(24) filename
     logical ice
 
+    call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+    call gsi_bundlecreate(en_bar,grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+    if(istatus/=0) then
+       write(6,*)' get_wrf_mass_ensperts_netcdf: trouble creating en_bar bundle'
+       call stop2(999)
+    endif
+
 !
 ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
-    stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
-    pbar=zero ; sstbar =zero
+    en_bar%values=zero
 
     mm1=mype+1
     kap1=rd_over_cp+one
@@ -91,69 +110,126 @@ subroutine get_wrf_mass_ensperts_netcdf
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 !
 ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
-       m=0
-       do k=1,grd_ens%nsig
-          do i=1,grd_ens%lon2
-             do j=1,grd_ens%lat2
-                m=m+1
-                st_en(m,n) = u(j,i,k)
-                vp_en(m,n) = v(j,i,k)
-                t_en(m,n)  = tv(j,i,k)
-                rh_en(m,n) = rh(j,i,k)
-                oz_en(m,n) = oz(j,i,k)
-                cw_en(m,n) = cwmr(j,i,k)
+       do ic3=1,nc3d
 
-                stbar(m)=stbar(m)+u(j,i,k)
-                vpbar(m)=vpbar(m)+v(j,i,k)
-                tbar(m)= tbar(m)+ tv(j,i,k)
-                rhbar(m)=rhbar(m)+rh(j,i,k)
-                ozbar(m)=ozbar(m)+oz(j,i,k)
-                cwbar(m)=cwbar(m)+cwmr(j,i,k)
+          call gsi_bundlegetpointer(en_perts(n),trim(cvars3d(ic3)),w3,istatus)
+          if(istatus/=0) then
+             write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
+             call stop2(999)
+          end if
+          call gsi_bundlegetpointer(en_bar,trim(cvars3d(ic3)),x3,istatus)
+          if(istatus/=0) then
+             write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
+             call stop2(999)
+          end if
 
-!                if(k.eq.grd_ens%nsig/2.and.i.eq.grd_ens%lon2/2.and. \
-!                j.eq.grd_ens%lat2/2) then
-!                  apm_idx=m
-!                  print *, 'APM: j,i,k ',j,i,k
-!                  print *, 'APM: apm_idx ',apm_idx
-!                  print *, 'APM: u ',u(j,i,k)
-!                endif  
-             enddo
-          enddo
-       enddo
-                                    
-! 
-!       print *, 'APM: u-st_en ',st_en(apm_idx,n),n
-!       print *, 'APM: v-st_en ',vp_en(apm_idx,n),n
-!       print *, 'APM: t-st_en ',t_en(apm_idx,n),n
-!       print *, 'APM: rh-st_en ',rh_en(apm_idx,n),n
-!       print *, 'APM: cw-st_en ',oz_en(apm_idx,n),n
-!       print *, 'APM: oz-st_en ',cw_en(apm_idx,n),n
-!
-!
-! APM: Test printing of ensemble input fields
-!       if(mype==0) then
-!          i=grd_ens%lon2/2
-!          j=grd_ens%lat2/2
-!          k=grd_ens%nsig/2
-!          print *, 'APM: lat2,lon2,sig2 ',grd_ens%lat2,grd_ens%lon2,grd_ens%nsig
-!          print *, 'APM: j,i,k ',j,i,k
-!          print *, 'APM: u ,n ',u(j,i,k),n
-!          print *, 'APM: v ,n ',v(j,i,k),n
-!          print *, 'APM: tv ,n ',tv(j,i,k),n
-!          print *, 'APM: rh ,n ',rh(j,i,k),n
-!          print *, 'APM: oz ,n ',oz(j,i,k),n
-!          print *, 'APM: cwmr ,n ',cwmr(j,i,k),n
-!          print *, 'APM: ps ,n ',ps(j,i),n
-!       endif
-!
-       m=0
-       do i=1,grd_ens%lon2
-          do j=1,grd_ens%lat2
-             m=m+1
-             p_en(m,n) = ps(j,i)
-             pbar(m)=pbar(m)+ ps(j,i)
-          enddo
-       enddo
+          select case (trim(cvars3d(ic3)))
+
+             case('sf','SF')
+
+                do k=1,grd_ens%nsig
+                   do i=1,grd_ens%lon2
+                      do j=1,grd_ens%lat2
+                         w3(j,i,k) = u(j,i,k)
+                         x3(j,i,k)=x3(i,j,k)+u(j,i,k)
+                      end do
+                   end do
+                end do
+
+             case('vp','VP')
+
+                do k=1,grd_ens%nsig
+                   do i=1,grd_ens%lon2
+                      do j=1,grd_ens%lat2
+                         w3(j,i,k) = v(j,i,k)
+                         x3(j,i,k)=x3(i,j,k)+v(j,i,k)
+                      end do
+                   end do
+                end do
+
+             case('t','T')
+
+                do k=1,grd_ens%nsig
+                   do i=1,grd_ens%lon2
+                      do j=1,grd_ens%lat2
+                         w3(j,i,k) = tv(j,i,k)
+                         x3(j,i,k)=x3(j,i,k)+tv(j,i,k)
+                      end do
+                   end do
+                end do
+
+             case('q','Q')
+
+                do k=1,grd_ens%nsig
+                   do i=1,grd_ens%lon2
+                      do j=1,grd_ens%lat2
+                         w3(j,i,k) = rh(j,i,k)
+                         x3(j,i,k)=x3(j,i,k)+rh(j,i,k)
+                      end do
+                   end do
+                end do
+
+             case('oz','OZ')
+
+                do k=1,grd_ens%nsig
+                   do i=1,grd_ens%lon2
+                      do j=1,grd_ens%lat2
+                         w3(j,i,k) = oz(j,i,k)
+                         x3(j,i,k)=x3(j,i,k)+oz(j,i,k)
+                      end do
+                   end do
+                end do
+
+             case('cw','CW')
+
+                do k=1,grd_ens%nsig
+                   do i=1,grd_ens%lon2
+                      do j=1,grd_ens%lat2
+                         w3(j,i,k) = cwmr(j,i,k)
+                         x3(j,i,k)=x3(j,i,k)+cwmr(j,i,k)
+                      end do
+                   end do
+                end do
+
+          end select
+       end do
+
+       do ic2=1,nc2d
+
+          call gsi_bundlegetpointer(en_perts(n),trim(cvars2d(ic2)),w2,istatus)
+          if(istatus/=0) then
+             write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
+             call stop2(999)
+          end if
+          call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+          if(istatus/=0) then
+             write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar'
+             call stop2(999)
+          end if
+
+          select case (trim(cvars2d(ic2)))
+
+             case('ps','PS')
+
+                do i=1,grd_ens%lon2
+                   do j=1,grd_ens%lat2
+                      w2(j,i) = ps(j,i)
+                      x2(j,i)=x2(j,i)+ps(j,i)
+                   end do
+                end do
+
+             case('sst','SST')
+! IGNORE SST IN HYBRID for now
+
+                do i=1,grd_ens%lon2
+                   do j=1,grd_ens%lat2
+                      w2(j,i) = zero
+                      x2(j,i)=zero
+                   end do
+                end do
+
+          end select
+       end do
 !
 ! SAVE ENSEMBLE MEMBER DATA TO CALCULATE ENSEMBLE VARIANCE
        u_tmp(:,:,:,n)=u(:,:,:)
@@ -184,14 +260,7 @@ subroutine get_wrf_mass_ensperts_netcdf
 !
 ! CALCULATE ENSEMBLE MEAN
     bar_norm = one/float(n_ens)
-    do i=1,grd_ens%latlon1n
-       stbar(i)=stbar(i)*bar_norm
-       vpbar(i)=vpbar(i)*bar_norm
-       tbar(i) = tbar(i)*bar_norm
-       rhbar(i)=rhbar(i)*bar_norm
-       ozbar(i)=ozbar(i)*bar_norm
-       cwbar(i)=cwbar(i)*bar_norm
-    enddo
+    en_bar%values=en_bar%values*bar_norm
 ! 
 !       print *, 'APM: u-bar ',stbar(apm_idx)
 !       print *, 'APM: v-bar ',vpbar(apm_idx)
@@ -200,47 +269,30 @@ subroutine get_wrf_mass_ensperts_netcdf
 !       print *, 'APM: cw-bar ',ozbar(apm_idx)
 !       print *, 'APM: oz-bar ',cwbar(apm_idx)
 !
-    do i=1,grd_ens%latlon11
-       pbar(i)=pbar(i)*bar_norm
-    enddo
+   !do i=1,grd_ens%latlon11
+   !   pbar(i)=pbar(i)*bar_norm
+   !enddo
     call mpi_barrier(mpi_comm_world,ierror)
 !
 ! CALCULATE ENSEMBLE SPREAD
-    call ens_spread_dualres_regional(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
+    call ens_spread_dualres_regional(en_bar,mype)
     call mpi_barrier(mpi_comm_world,ierror)
 !
 ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
     sig_norm=sqrt(one/max(one,n_ens-one))
+
     do n=1,n_ens
-       do i=1,grd_ens%latlon1n
-          st_en(i,n)=(st_en(i,n)-stbar(i))*sig_norm
-          vp_en(i,n)=(vp_en(i,n)-vpbar(i))*sig_norm
-          t_en(i,n) =( t_en(i,n)- tbar(i))*sig_norm
-          rh_en(i,n)=(rh_en(i,n)-rhbar(i))*sig_norm
-          oz_en(i,n)=(oz_en(i,n)-ozbar(i))*sig_norm
-          cw_en(i,n)=(cw_en(i,n)-cwbar(i))*sig_norm
-!          if (mype.eq.0) then
-!          if (i.eq.1 .or. i.eq.grd_ens%latlon1n) then
-!             print *, 'APM:wrf_read st_en, ens = ', n, ' indx = ', i, ' val = ', st_en(i,n)
-!             print *, 'APM:wrf_read vp_en, ens = ', n, ' indx = ', i, ' val = ', vp_en(i,n)
-!             print *, 'APM:wrf_read t_en, ens = ', n, ' indx = ', i, ' val = ', t_en(i,n)
-!             print *, 'APM:wrf_read rh_en, ens = ', n, ' indx = ', i, ' val = ', rh_en(i,n)
-!             print *, 'APM:wrf_read oz_en, ens = ', n, ' indx = ', i, ' val = ', oz_en(i,n)
-!             print *, 'APM:wrf_read cw_en, ens = ', n, ' indx = ', i, ' val = ', cw_en(i,n)
-!          endif
-!          endif
-       enddo
-       do i=1,grd_ens%latlon11
-          p_en(i,n)=(p_en(i,n)- pbar(i))*sig_norm
-       enddo
-    enddo
+       do i=1,nelen
+          en_perts(n)%valuesr4(i)=(en_perts(n)%valuesr4(i)-en_bar%values(i))*sig_norm
+       end do
+    end do
 !
-! IGNORE SST IN HYBRID
-    do n=1,n_ens
-       do i=1,grd_ens%latlon11
-          sst_en(i,n)=zero
-       enddo
-    enddo
+   call gsi_bundledestroy(en_bar,istatus)
+   if(istatus/=0) then
+      write(6,*)' in get_wrf_mass_ensperts_netcdf: trouble destroying en_bar bundle'
+             call stop2(999)
+          endif
+
 return
 end subroutine get_wrf_mass_ensperts_netcdf
 
@@ -1319,7 +1371,7 @@ subroutine halo_2d(fld_in,fld_out,ny,nx)
 return
 end subroutine halo_2d
 
-subroutine ens_spread_dualres_regional(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
+subroutine ens_spread_dualres_regional(en_bar,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ens_spread_dualres_regional
@@ -1330,8 +1382,12 @@ subroutine ens_spread_dualres_regional(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,m
 !
 ! program history log:
 !   2010-08-11  parrish, initial documentation
+!   2011-04-05  parrish - add pseudo-bundle capability
+!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !
 !   input argument list:
+!     en_bar - ensemble mean
+!      mype  - current processor number
 !
 !   output argument list:
 !
@@ -1343,95 +1399,136 @@ subroutine ens_spread_dualres_regional(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,m
 !
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-  use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en
-  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba_r_double
+  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
   use constants, only:  zero,two,half,one
+  use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_gridcreate
   implicit none
 
-  real(r_kind),dimension(grd_ens%latlon1n),intent(in):: stbar,vpbar,tbar,rhbar,ozbar,cwbar
-  real(r_kind),dimension(grd_ens%latlon11),intent(in):: pbar
+  type(gsi_bundle),intent(in):: en_bar
   integer(i_kind),intent(in):: mype
 
-  real(r_kind),dimension(grd_ens%latlon11*(grd_ens%nsig*6+1)):: sube
-  real(r_kind),dimension(grd_anl%latlon11*(grd_anl%nsig*6+1)):: suba
+  type(gsi_bundle):: sube,suba
+  type(gsi_grid):: grid_ens,grid_anl
   real(r_kind) sp_norm
   type(sub2grid_info)::se,sa
 !
 ! APM: addition
   integer(i_kind) j,k,apm_k,apm_idx
 
-  integer(i_kind) i,ii,n
-  integer(i_kind) ist,ivp,it,irh,ioz,icw,ip
+  integer(i_kind) i,ii,n,ic3
   logical regional
-  integer(i_kind) num_fields,inner_vars
+  integer(i_kind) num_fields,inner_vars,istat,istatus
   logical,allocatable::vector(:)
+  real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
+  real(r_kind),pointer,dimension(:,:):: ps
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
+
+!      create simple regular grid
+        call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+        call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+
+!      create two internal bundles, one on analysis grid and one on ensemble grid
+
+       call gsi_bundlecreate (suba,grid_anl,'ensemble work',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+       if(istatus/=0) then
+          write(6,*)' in ens_spread_dualres_regional: trouble creating bundle_anl bundle'
+          call stop2(999)
+       endif
+       call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+       if(istatus/=0) then
+          write(6,*)' ens_spread_dualres_regional: trouble creating bundle_ens bundle'
+          call stop2(999)
+       endif
 
   sp_norm=(one/float(n_ens))
 
-  sube=zero
+  sube%values=zero
 !
   do n=1,n_ens
-    ii=0
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (st_en(i,n)-stbar(i))*(st_en(i,n)-stbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (vp_en(i,n)-vpbar(i))*(vp_en(i,n)-vpbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + ( t_en(i,n)- tbar(i))*( t_en(i,n)- tbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (rh_en(i,n)-rhbar(i))*(rh_en(i,n)-rhbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (oz_en(i,n)-ozbar(i))*(oz_en(i,n)-ozbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (cw_en(i,n)-cwbar(i))*(cw_en(i,n)-cwbar(i)) 
-    end do
-    do i=1,grd_ens%latlon11
-       ii=ii+1
-       sube(ii) =sube(ii)  + ( p_en(i,n)- pbar(i))*( p_en(i,n)- pbar(i)) 
-    end do
+     do i=1,nelen
+        sube%values(i)=sube%values(i) &
+          +(en_perts(n)%valuesr4(i)-en_bar%values(i))*(en_perts(n)%valuesr4(i)-en_bar%values(i))
+     end do
   end do
  
-  do i=1,grd_ens%latlon11*(grd_ens%nsig*6+1)
-    sube(i) = sqrt(sp_norm*sube(i))
+  do i=1,nelen
+    sube%values(i) = sqrt(sp_norm*sube%values(i))
   end do
 
   if(grd_ens%latlon1n == grd_anl%latlon1n) then
-     suba=sube
+     do i=1,nelen
+        suba%values(i)=sube%values(i)
+     end do
   else
-!
-! APM: THIS BRANCH SHOULD NOT BE NEEDED IN REGIONAL MONO-RES CASE
-!     regional=.false.
-!     inner_vars=1
-!     num_fields=6*grd_ens%nsig+1
-!     allocate(vector(num_fields))
-!     vector=.false.
-!     vector(1:2*grd_ens%nsig)=uv_hyb_ens   !  assume here that 1st two 3d variables are either u,v or psi,chi
-!     call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
-!                                       regional,vector)
-!     call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
-!                                       regional,vector)
-!     deallocate(vector)
-!     call general_sube2suba_r_double(se,sa,p_e2a,sube,suba,regional)
+     inner_vars=1
+     num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
+     allocate(vector(num_fields))
+     vector=.false.
+     do ic3=1,nc3d
+        if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
+           do k=1,grd_ens%nsig
+              vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
+           end do
+        end if
+     end do
+     call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
+                                       regional,vector)
+     call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
+                                       regional,vector)
+     deallocate(vector)
+     call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
   end if
 
-  ist=1
-  ivp=grd_anl%latlon1n+ist
-  it =grd_anl%latlon1n+ivp
-  irh=grd_anl%latlon1n+it
-  ioz=grd_anl%latlon1n+irh
-  icw=grd_anl%latlon1n+ioz
-  ip =grd_anl%latlon1n+icw
+  dum2=zero
+  dum3=zero
+  call gsi_bundlegetpointer(suba,'sf',st,istat)
+  if(istat/=0) then
+     write(6,*)' no sf pointer in ens_spread_dualres, point st at dum3 array'
+     st => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'vp',vp,istat)
+  if(istat/=0) then
+     write(6,*)' no vp pointer in ens_spread_dualres, point vp at dum3 array'
+     vp => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'t',tv,istat)
+  if(istat/=0) then
+     write(6,*)' no t pointer in ens_spread_dualres, point tv at dum3 array'
+     tv => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'q',rh,istat)
+  if(istat/=0) then
+     write(6,*)' no q pointer in ens_spread_dualres, point rh at dum3 array'
+     rh => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'oz',oz,istat)
+  if(istat/=0) then
+     write(6,*)' no oz pointer in ens_spread_dualres, point oz at dum3 array'
+     oz => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'cw',cw,istat)
+  if(istat/=0) then
+     write(6,*)' no cw pointer in ens_spread_dualres, point cw at dum3 array'
+     cw => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'ps',ps,istat)
+  if(istat/=0) then
+     write(6,*)' no ps pointer in ens_spread_dualres, point ps at dum2 array'
+     ps => dum2
+  end if
+
+  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
+
 ! 
 ! APM:test print of spread before call write_spread_dualres
 !  print *, 'APM: anal latlon1n, latlon11 ',grd_anl%latlon1n, grd_anl%latlon11
@@ -1471,8 +1568,6 @@ subroutine ens_spread_dualres_regional(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,m
 ! ps spread
 !  apm_idx=apm_k
 !  print *, 'APM: ps spread calc ',suba(ip+apm_idx-1)
-
-  call write_spread_dualres(suba(ist),suba(ivp),suba(it),suba(irh),suba(ioz),suba(icw),suba(ip),mype)
 
   return
 end subroutine ens_spread_dualres_regional

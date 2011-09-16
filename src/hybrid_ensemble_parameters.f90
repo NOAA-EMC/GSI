@@ -107,6 +107,7 @@ module hybrid_ensemble_parameters
 !                             s_ens_v = 20 and s_ens_v = -0.44 are roughly comparable, and
 !                             connection of .44 is .44 = (sqrt(.15)/sqrt(2))*1.6, where 1.6 is the value used
 !                             by Jeff Whitaker for his distance in which the Gaspari-Cohn function 1st = 0.
+!   2010-09-25  parrish - add logical parameter gefs_in_regional to signal use gefs for regional hybens.
 !   2010-10-13  parrish - add parameter write_ens_sprd to allow option of writing global ensemble spread
 !                             in byte addressable format for plotting with grads.
 !
@@ -143,6 +144,8 @@ module hybrid_ensemble_parameters
 !   def p_e2a               - structure variable for interpolation from ensemble grid to analysis grid
 !                              when in dual resolution mode.
 !   def dual_res            - if true, then ensemble grid is different from analysis grid.
+!   def gefs_in_regional    - if true, then reading in gefs directly and interpolating to lower resolution
+!                              regional grid aligned with the regional analysis grid.
 !
 ! attributes:
 !   language: f90
@@ -175,12 +178,15 @@ module hybrid_ensemble_parameters
   public :: sp_loc
   public :: p_e2a
   public :: dual_res
+  public :: gefs_in_regional
   public :: write_ens_sprd
+  public :: nval_lenz_en
 
   logical l_hyb_ens,uv_hyb_ens,oz_univ_static
   logical aniso_a_en
   logical generate_ens
   logical dual_res
+  logical gefs_in_regional
   logical write_ens_sprd
   logical readin_localization
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
@@ -189,6 +195,13 @@ module hybrid_ensemble_parameters
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a
   real(r_kind),allocatable,dimension(:) :: s_ens_hv,s_ens_vv
+!    nval_lenz_en is total length of ensemble extended control variable for sqrt
+!    minimization mode
+!NOTE:   for sqrt minimization, nval_lenz_en =
+!nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
+!          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
+  integer(i_kind) nval_lenz_en
 
 contains
 
@@ -221,6 +234,7 @@ subroutine init_hybrid_ensemble_parameters
   oz_univ_static=.false.
   aniso_a_en=.false.
   generate_ens=.true.
+  gefs_in_regional=.false.
   write_ens_sprd=.false.
   readin_localization=.false.
   n_ens=0
@@ -234,7 +248,8 @@ subroutine init_hybrid_ensemble_parameters
                              !      ETKF.3DVAR data assimilation scheme for the WRF Model. Part II: 
                              !      Observing system simulation experiment. Mon.  Wea. Rev., 136, 5132-5147.)
 
-  s_ens_v = 30._r_kind    ! grid units 
+  s_ens_v = 30._r_kind       ! grid units 
+  nval_lenz_en=-1            ! initialize diemnsion to absurd value
 
 end subroutine init_hybrid_ensemble_parameters
 

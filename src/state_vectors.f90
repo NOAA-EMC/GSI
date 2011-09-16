@@ -18,6 +18,7 @@ module state_vectors
 !                        - declare all private (explicit public)
 !                        - remove following:  assignment, sum(s)
 !   2011-05-20  guo      - add a rank-1 interface of dot_product()
+!   2011-07-04  todling  - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -39,12 +40,11 @@ module state_vectors
 !
 !$$$
 
-use kinds, only: r_kind,i_kind,r_quad
+use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
 use constants, only: one,zero,zero_quad,max_varname_length
 use mpimod, only: mype
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
-use GSI_BundleMod, only : GSI_BundleSet
 use GSI_BundleMod, only : GSI_BundleCreate
 use GSI_BundleMod, only : GSI_Bundle
 use GSI_BundleMod, only : GSI_BundleGetPointer
@@ -277,7 +277,7 @@ subroutine allocate_state(yst)
   call GSI_GridCreate(grid,lat2,lon2,nsig)
   write(bname,'(a)') 'State Vector'
   call GSI_BundleCreate(yst,grid,bname,ierror, &
-                        names2d=svars2d,names3d=svars3d,edges=edges)  
+                        names2d=svars2d,names3d=svars3d,edges=edges,bundle_kind=r_kind)  
 
   if (yst%ndim/=nval_len) then
      write(6,*)'allocate_state: error length'
@@ -374,29 +374,53 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   ii=0
   do i = 1,ns3d
      ii=ii+1
-     zloc(ii)= sum_mask(xst%r3(i)%q,ihalo=1)
+     if(xst%r3(i)%mykind==r_single)then
+        zloc(ii)= sum_mask(xst%r3(i)%qr4,ihalo=1)
+     else
+        zloc(ii)= sum_mask(xst%r3(i)%q,ihalo=1)
+     endif
   enddo
   do i = 1,ns2d
      ii=ii+1
-     zloc(ii)= sum_mask(xst%r2(i)%q,ihalo=1)
+     if(xst%r2(i)%mykind==r_single)then
+        zloc(ii)= sum_mask(xst%r2(i)%qr4,ihalo=1)
+     else
+        zloc(ii)= sum_mask(xst%r2(i)%q,ihalo=1)
+     endif
   enddo
 ! Min
   do i = 1,ns3d
      ii=ii+1
-     zloc(ii)= minval(xst%r3(i)%q)
+     if(xst%r3(i)%mykind==r_single)then
+        zloc(ii)= minval(xst%r3(i)%qr4)
+     else
+        zloc(ii)= minval(xst%r3(i)%q)
+     endif
   enddo
   do i = 1,ns2d
      ii=ii+1
-     zloc(ii)= minval(xst%r2(i)%q)
+     if(xst%r2(i)%mykind==r_single)then
+        zloc(ii)= minval(xst%r2(i)%qr4)
+      else
+        zloc(ii)= minval(xst%r2(i)%q)
+     endif
   enddo
 ! Max
   do i = 1,ns3d
      ii=ii+1
-     zloc(ii)= maxval(xst%r3(i)%q)
+     if(xst%r3(i)%mykind==r_single)then
+        zloc(ii)= maxval(xst%r3(i)%qr4)
+     else
+        zloc(ii)= maxval(xst%r3(i)%q)
+     endif
   enddo
   do i = 1,ns2d
      ii=ii+1
-     zloc(ii)= maxval(xst%r2(i)%q)
+     if(xst%r2(i)%mykind==r_single)then
+        zloc(ii)= maxval(xst%r2(i)%qr4)
+     else
+        zloc(ii)= maxval(xst%r2(i)%q)
+     endif
   enddo
   if(ns3d>0)      zloc(3*nvars+1) = real((lat2-2)*(lon2-2)*nsig, r_kind)      ! dim of 3d fields
   if(any(edges))  zloc(3*nvars+2) = real((lat2-2)*(lon2-2)*(nsig+1),r_kind)   ! dim of 3d(edge) fields
@@ -567,11 +591,25 @@ real(r_quad) function dot_prod_st(xst,yst,which)
      ii=0
      do i = 1,ns3d
         ii=ii+1
-        zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+        if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)then
+           zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+        else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double)then
+           zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+        else
+           dot_prod_st=zero_quad
+           return
+        endif
      enddo
      do i = 1,ns2d
         ii=ii+1
-        zz(ii)= dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
+        if(xst%r2(i)%mykind==r_single .and. yst%r2(i)%mykind==r_single)then
+           zz(ii)= dplevs(xst%r2(i)%qr4,yst%r2(i)%qr4,ihalo=1)
+        else if(xst%r2(i)%mykind==r_double .and. yst%r2(i)%mykind==r_double)then
+           zz(ii)= dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
+        else ! this is an error ...
+           dot_prod_st=zero_quad
+           return
+        endif
      enddo
 
   else
@@ -590,10 +628,24 @@ real(r_quad) function dot_prod_st(xst,yst,which)
         allocate(zz(nv))
         zz=zero_quad
         if (irkx==2) then
-           zz(1)=dplevs(xst%r2(ipntx)%q,yst%r2(ipnty)%q,ihalo=1)
+           if(xst%r2(i)%mykind==r_single .and. yst%r2(i)%mykind==r_single) then
+              zz(1)=dplevs(xst%r2(ipntx)%qr4,yst%r2(ipnty)%qr4,ihalo=1)
+           else if(xst%r2(i)%mykind==r_double .and. yst%r2(i)%mykind==r_double) then
+              zz(1)=dplevs(xst%r2(ipntx)%q,yst%r2(ipnty)%q,ihalo=1)
+           else ! this is an error
+              dot_prod_st=zero_quad
+              return
+           endif
         endif
         if (irkx==3) then
-           zz(1)=dplevs(xst%r3(ipntx)%q,yst%r3(ipnty)%q,ihalo=1)
+           if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single) then
+              zz(1)=dplevs(xst%r3(ipntx)%qr4,yst%r3(ipnty)%qr4,ihalo=1)
+           else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double) then
+              zz(1)=dplevs(xst%r3(ipntx)%q,yst%r3(ipnty)%q,ihalo=1)
+           else ! this is an error
+              dot_prod_st=zero_quad
+              return
+           endif
         endif
 
      else
@@ -662,9 +714,11 @@ subroutine set_random_st ( xst )
   implicit none
   type(gsi_bundle), intent(inout) :: xst
 
-  integer(i_kind):: i,ii,jj,iseed,itsn,ip3d,ips,itv,iq,ierror
+  integer(i_kind):: i,ii,jj,iseed,itsn,ip3d,ips,itv,iq,ierror,ier
   integer, allocatable :: nseed(:) ! Intentionaly default integer
   real(r_kind), allocatable :: zz(:)
+  real(r_kind), pointer,dimension(:,:,:):: p_tv,p_q,p_p3d,p_tsen
+  real(r_kind), pointer,dimension(:,:  ):: p_ps
 
   iseed=nsig ! just a number
   call random_seed(size=jj)
@@ -678,27 +732,39 @@ subroutine set_random_st ( xst )
   call random_seed(put=nseed)
   deallocate(nseed)
 
-  call gsi_bundlegetpointer ( xst, 'p3d' , ip3d, ierror )
-  call gsi_bundlegetpointer ( xst, 'tsen', itsn, ierror )
+  ier=0
+  call gsi_bundlegetpointer ( xst, 'p3d' , ip3d, ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tsen', itsn, ierror );ier=ierror+ier
   do i = 1,ns3d
      if (i/=ip3d.and.i/=itsn) then ! Physical consistency
-        call random_number ( xst%r3(i)%q )
+         if(xst%r3(i)%mykind==r_single) then
+           call random_number ( xst%r3(i)%qr4 )
+         else
+           call random_number ( xst%r3(i)%q )
+         endif
      endif
   enddo
   do i = 1,ns2d
-     call random_number ( xst%r2(i)%q )
+     if(xst%r2(i)%mykind==r_single) then
+        call random_number ( xst%r2(i)%qr4 )
+     else
+        call random_number ( xst%r2(i)%q )
+     endif
   enddo
 
 ! There must be physical consistency when creating random vectors
 
-  call gsi_bundlegetpointer ( xst, 'ps', ips, ierror )
-  call gsi_bundlegetpointer ( xst, 'tv', itv, ierror )
-  call gsi_bundlegetpointer ( xst, 'q' , iq , ierror )
+  ier=0
+  call gsi_bundlegetpointer ( xst, 'ps'  , p_ps,  ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tv'  , p_tv,  ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'q'   , p_q ,  ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'p3d' , p_p3d ,ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tsen', p_tsen,ierror );ier=ierror+ier
 
 ! There must be physical consistency when creating random vectors
-  if (ips>0.and.itv>0.and.iq>0) then
-      call getprs_tl (xst%r2(ips)%q,xst%r3(itv)%q,xst%r3(ip3d)%q)
-      call tv_to_tsen(xst%r3(itv)%q,xst%r3(iq )%q,xst%r3(itsn)%q)
+  if (ier==0) then
+      call getprs_tl (p_ps,p_tv,p_p3d)
+      call tv_to_tsen(p_tv,p_q,p_tsen)
   endif
 
 return

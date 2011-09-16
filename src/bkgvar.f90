@@ -23,6 +23,7 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 !   2010-05-06  todling - use gsi_bundle
 !   2010-06-03  todling - protection for mvars<2
 !   2010-07-07  todling - rename cstate to cvec for clarity
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !     t        - t grid values
@@ -78,14 +79,17 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 ! Declare local variables
   integer(i_kind) i,j,k,n,i_sst,istatus
   real(r_kind) dl1,dl2
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+  real(r_kind),pointer,dimension(:,:)  ::ptr2d=>NULL()
 
 ! Multipy by variances
-!$omp parallel do  schedule(dynamic,1) private(n,k,i,j)
+!$omp parallel do  schedule(dynamic,1) private(n,k,i,j,ptr3d,istatus)
   do n=1,cvec%n3d   ! _RT: must map dssv to this (assumes same order)
+     call gsi_bundlegetpointer ( cvec,cvec%r3(n)%shortname,ptr3d,istatus )
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              cvec%r3(n)%q(j,i,k)  =cvec%r3(n)%q(j,i,k)*dssv(j,i,k,n)
+              ptr3d(j,i,k)  =ptr3d(j,i,k)*dssv(j,i,k,n)
            end do
         enddo
      enddo
@@ -95,12 +99,13 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
   call gsi_bundlegetpointer(cvec,'sst',i_sst,istatus)
 
 ! Surface fields
-!$omp parallel do  schedule(dynamic,1) private(n,i,j)
+!$omp parallel do  schedule(dynamic,1) private(n,i,j,ptr2d,istatus)
   do n=1,cvec%n2d
+     call gsi_bundlegetpointer(cvec,cvec%r2(n)%shortname,ptr2d,istatus)
      if (n/=i_sst) then
         do i=1,lon2
            do j=1,lat2
-              cvec%r2(n)%q(j,i)=cvec%r2(n)%q(j,i)*dssvs(j,i,n)
+              ptr2d(j,i)=ptr2d(j,i)*dssvs(j,i,n)
            end do
         end do
      else
@@ -110,11 +115,11 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
                do i=1,lon2
                   do j=1,lat2
                      if(isli2(j,i) == ione) then
-                        slndt(j,i)=cvec%r2(n)%q(j,i)*dssvs(j,i,nc2d+1)
+                        slndt(j,i)=ptr2d(j,i)*dssvs(j,i,nc2d+1)
                      else if(isli2(j,i) == 2) then
-                        sicet(j,i)=cvec%r2(n)%q(j,i)*dssvs(j,i,nc2d+2)
+                        sicet(j,i)=ptr2d(j,i)*dssvs(j,i,nc2d+2)
                      else
-                        sst(j,i)  =cvec%r2(n)%q(j,i)*dssvs(j,i,n)
+                        sst(j,i)  =ptr2d(j,i)*dssvs(j,i,n)
                      end if
                   end do
                end do
@@ -123,11 +128,11 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
               do i=1,lon2
                  do j=1,lat2
                     if(isli2(j,i) == ione) then
-                       cvec%r2(n)%q(j,i)=slndt(j,i)*dssvs(j,i,nc2d+1)
+                       ptr2d(j,i)=slndt(j,i)*dssvs(j,i,nc2d+1)
                     else if(isli2(j,i) == 2) then
-                       cvec%r2(n)%q(j,i)=sicet(j,i)*dssvs(j,i,nc2d+2)
+                       ptr2d(j,i)=sicet(j,i)*dssvs(j,i,nc2d+2)
                     else
-                       cvec%r2(n)%q(j,i)=sst(j,i)*dssvs(j,i,n)
+                       ptr2d(j,i)=sst(j,i)*dssvs(j,i,n)
                     end if
                  end do
               end do

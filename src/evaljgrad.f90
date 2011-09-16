@@ -231,7 +231,7 @@ if (l_do_adjoint) then
 endif
 
 ! Produce diagnostic when applying strong constraint
-if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval)
+if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
 ! Save increment (update guess)
 if (lupdfgs) then
@@ -329,8 +329,9 @@ subroutine adtest_show_(x,p,q,y)
   type(gsi_bundle),dimension(:),intent(in):: q, y	! some q, and y=M'q
 
   character(len=*),parameter:: myname_=myname//".adtest_show_"
-  real(r_quad):: dpp,dqq,dpq,cpq
+  real(r_quad):: dpp,dqq,dpq,cpq,rpq
   real(r_quad):: dxx,dyy,dxy
+  integer(i_kind):: ipq
   logical:: IamRoot_
   integer(i_kind):: iv
 
@@ -374,12 +375,14 @@ subroutine adtest_show_(x,p,q,y)
 
   cpq=1._r_quad
   if(abs(dxy)>0._r_kind) cpq=dpq/dxy
+  rpq=cpq-1._r_quad
+  ipq=int(-log(abs(rpq)+tiny(rpq))/log(10._r_quad))
 
-  write(stdout,'(1x,2a,i2,1x,3e12.5)') trim(myname_), &
+  write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
         "() -- n, (    q,p=Mx), qq, pp =" ,size(p),dpq,dqq,dpp
-  write(stdout,'(1x,2a,i2,1x,3e12.5)') trim(myname_), &
+  write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
         "() -- m, (y=M'q,   x), yy, xx =",size(x),dxy,dyy,dxx
-  write(stdout,'(1x,2a,2x,1x,1e12.5,2(1x,f11.9))') trim(myname_), &
-        "() --    pq-xy, pq/xy,pq/xy-1 =",dpq-dxy,cpq,cpq-1._r_quad
+  write(stdout,'(1x,2a,2x,1x,1p,1e12.5,2(1x,f11.9),2x,i4)') trim(myname_), &
+        "() -- pq-xy, pq/xy,pq/xy-1,#d =",dpq-dxy,cpq,rpq,ipq
 end subroutine adtest_show_
 end subroutine evaljgrad

@@ -8,6 +8,7 @@
 !
 ! program history log:
 !   2010-08-19 derber combine retrieval_mi,ret_ssmis,retrieval_amsre and part of setuprad
+!   2011-07-02 todling use general interface for intrisic FORTRAN math functions
 !
 ! subroutines included:
 !   sub calc_clw        - calculates cloud liquid water (clw) for microwave channels over ocean (public)
@@ -781,8 +782,8 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
      polar_status = 1
      call emis_water(angle,frequency,sst,wind,polar_status, emissivity)
      ev(ich) = emissivity
-     tvmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-ev(ich)) )
-!    thmin(ich) = sst*( one - dexp(-tauo(ich)/umu)*dexp(-tauo(ich)/umu)*(one-eh(ich)) )
+     tvmin(ich) = sst*( one - exp(-tauo(ich)/umu)*exp(-tauo(ich)/umu)*(one-ev(ich)) )
+!    thmin(ich) = sst*( one - exp(-tauo(ich)/umu)*exp(-tauo(ich)/umu)*(one-eh(ich)) )
 
 ! Quality control
      if (tv(ich) < tvmin(ich)) tv(ich) = tvmin(ich)
@@ -796,12 +797,12 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   b0 =  half*kl(4)/(kw(4)*kl(3)-kw(3)*kl(4))
   a1 =  kw(3)/kw(4)
   b1 =  kl(3)/kl(4)
-  a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*dlog(sst) + dlog(one-ev(3)) - a1*dlog(one-ev(4))
-  b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*dlog(sst) + dlog(one-ev(3)) - b1*dlog(one-ev(4))
+  a2 = -two*(tauo(3) - a1*tauo(4))/umu +(one-a1)*log(sst) + log(one-ev(3)) - a1*log(one-ev(4))
+  b2 = -two*(tauo(3) - b1*tauo(4))/umu +(one-b1)*log(sst) + log(one-ev(3)) - b1*log(one-ev(4))
 
   if ( ( sst-tv(3) > 0.01_r_kind ) .and. ( sst-tv(4) > 0.01_r_kind ) ) then
-!    rwp = a0*umu*( dlog(sst-tv(3)) - a1*dlog(sst-tv(4))-a2)
-     vr  = b0*umu*( dlog(sst-tv(3)) - b1*dlog(sst-tv(4))-b2)
+!    rwp = a0*umu*( log(sst-tv(3)) - a1*log(sst-tv(4))-a2)
+     vr  = b0*umu*( log(sst-tv(3)) - b1*log(sst-tv(4))-b2)
 
 ! Clear conditions
 !    if (rwp < zero) rwp = zero
@@ -818,13 +819,13 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 ! b0 =  half*kl(4)/(kw(4)*kl(5)-kw(5)*kl(4))
   a1 =  kw(5)/kw(4)
 ! b1 =  kl(5)/kl(4)
-  a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*dlog(sst) + &
-                           dlog(one-ev(5)) - a1*dlog(one-ev(4))
-! b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*dlog(sst) + &
-!                          dlog(one-ev(5)) - b1*dlog(one-ev(4))
+  a2 = -two*(tauo(5) - a1*tauo(4))/umu  +(one-a1)*log(sst) + &
+                           log(one-ev(5)) - a1*log(one-ev(4))
+! b2 = -two*(tauo(5)  - b1*tauo(4))/umu +(one-b1)*log(sst) + &
+!                          log(one-ev(5)) - b1*log(one-ev(4))
   if ( ( sst-tv(4) > 0.01_r_kind ) .and. ( sst-tv(5) > 0.01_r_kind ) ) then
-     cwp = a0*umu*( dlog(sst-tv(5) ) - a1*dlog(sst-tv(4))-a2)
-!    vc = b0*umu*( dlog(sst-tv(5)) - b1*dlog(sst-tv(4))-b2 )
+     cwp = a0*umu*( log(sst-tv(5) ) - a1*log(sst-tv(4))-a2)
+!    vc = b0*umu*( log(sst-tv(5)) - b1*log(sst-tv(4))-b2 )
      if(cwp < zero) cwp = zero
 !    if(vc < zero) vc = zero
   else
@@ -1110,11 +1111,11 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
   real(r_kind) ep,real_ep,imag_ep
   complex mu, eps, aid1,aid2,aid3,cang,refwat,rh,rv
 
-  mu = cmplx (one,zero)
+  mu = cmplx (one,zero,r_kind)
   f = frequency*1.0e9_r_kind
   pi = four*atan(one)
   degre = angle*180.0_r_kind/pi
-  cang = cmplx(angle)
+  cang = cmplx(angle,r_kind)
   t = sst ! - 273.15_r_kind
 
 ! complex dielectric properties of saline water
@@ -1122,7 +1123,7 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
   real_ep=ep
   call epspp(sst,s,f,ep)
   imag_ep=-ep
-  eps=cmplx (real_ep,imag_ep)
+  eps=cmplx (real_ep,imag_ep,r_kind)
 
 ! complex refractive index of saline water (not used)
   refwat = csqrt(eps)
@@ -1136,7 +1137,7 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
   if(wind<7.0_r_kind) then
      foam=zero
   else
-     foam=0.006_r_kind*(one-dexp(-f*1.0e-9_r_kind/7.5_r_kind))*(wind-7.0_r_kind)
+     foam=0.006_r_kind*(one-exp(-f*1.0e-9_r_kind/7.5_r_kind))*(wind-7.0_r_kind)
   endif
 
 ! correction for wind induced foam free sea surface
@@ -1153,7 +1154,7 @@ subroutine emis_water(angle,frequency,sst,wind,polar_status,emissivity)
 
 ! emperical functions for wind induced reflection changes for vp
   g  = one - 9.946e-4_r_kind*degre+3.218e-5_r_kind*degre**2 -1.187e-6_r_kind*degre**3+7.e-20_r_kind*degre**10
-  tr = wind*(1.17e-1_r_kind-2.09e-3_r_kind*dexp(7.32e-2_r_kind*degre))*sqrt(f*1.0e-9_r_kind)
+  tr = wind*(1.17e-1_r_kind-2.09e-3_r_kind*exp(7.32e-2_r_kind*degre))*sqrt(f*1.0e-9_r_kind)
   rfoam = one-(208.0_r_kind+1.29e-9_r_kind*f)/t*g
   ref = ( cabs(rv) )**2
   rclear = ref - tr/t
@@ -1284,7 +1285,7 @@ subroutine epspp (t1,s,f,ep)
   sswo = s*(0.18252_r_kind-1.4619e-3_r_kind*s+2.093e-5_r_kind*s**2-1.282e-7_r_kind*s**3)
   d = 25.0_r_kind-t
   fi = d*(2.033e-2_r_kind+1.266e-4_r_kind*d+2.464e-6_r_kind*d**2- s*(1.849e-5_r_kind-2.551e-7_r_kind*d+2.551e-8_r_kind*d*d))
-  ssw = sswo*dexp(-fi)
+  ssw = sswo*exp(-fi)
   ep = tsw*f*(esw-eswi)/(one+(tsw*f)**2)
   ep = ep + ssw/(two*pi*eo*f)
 

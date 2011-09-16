@@ -132,6 +132,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
 !                          input/output variables psi=u, chi=v.
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2011-06-09  guo     - added protections to 0/0 = NaN case on the text outputs
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -187,6 +188,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(nuvlevs)::rmstend_loc_f,rmstend_g_loc_f
   real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f,gspeed
+  real(r_kind) :: ri,r1
 
   integer(i_kind) i,j,k,kk,iad,mode,m,mmax
   logical filtered
@@ -288,25 +290,37 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         do i=1,nvmodes_keep
            rmstend_all_uf=rmstend_all_uf+rmstend_uf(i)
            rmstend_all_g_uf=rmstend_all_g_uf+rmstend_g_uf(i)
+	   ri=zero
+           if(abs(rmstend_uf(i)-rmstend_g_uf(i))>zero) &
+			ri=rmstend_g_uf(i)/(rmstend_uf(i)-rmstend_g_uf(i))
+	   r1=zero
+           if(abs(rmstend_uf(1)-rmstend_g_uf(1))>zero) &
+			r1=rmstend_g_uf(i)/(rmstend_uf(1)-rmstend_g_uf(1))
            write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e14.4,2f10.4)') &
-                              i,rmstend_uf(i),rmstend_g_uf(i),&
-                              rmstend_g_uf(i)/(rmstend_uf(i)-rmstend_g_uf(i)), &
-                              rmstend_g_uf(i)/(rmstend_uf(1)-rmstend_g_uf(1))
+                              i,rmstend_uf(i),rmstend_g_uf(i),ri,r1
         end do
         rmstend_all_f=zero
         rmstend_all_g_f=zero
         do i=1,nvmodes_keep
            rmstend_all_f=rmstend_all_f+rmstend_f(i)
            rmstend_all_g_f=rmstend_all_g_f+rmstend_g_f(i)
+	   ri=0.
+	   if(abs(rmstend_f(i)-rmstend_g_f(i))>0.) &
+			ri=rmstend_g_f(i)/(rmstend_f(i)-rmstend_g_f(i))
+	   r1=0.
+	   if(abs(rmstend_f(1)-rmstend_g_f(1))>0.) &
+			r1=rmstend_g_f(i)/(rmstend_f(1)-rmstend_g_f(1))
            write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e14.4,2f10.4)') &
-                              i,rmstend_f(i),rmstend_g_f(i),&
-                              rmstend_g_f(i)/(rmstend_f(i)-rmstend_g_f(i)), &
-                              rmstend_g_f(i)/(rmstend_f(1)-rmstend_g_f(1))
+                              i,rmstend_f(i),rmstend_g_f(i),ri,r1
         end do
-        write(6,'(" rmstend_all_uf,g_uf,rat = ",2e14.4,f10.4)') rmstend_all_uf,rmstend_all_g_uf, &
-                                                 rmstend_all_g_uf/(rmstend_all_uf-rmstend_all_g_uf) 
-        write(6,'(" rmstend_all_f,g_f,rat = ",2e14.4,f10.4)') rmstend_all_f,rmstend_all_g_f, &
-                                                 rmstend_all_g_f/(rmstend_all_f-rmstend_all_g_f) 
+	ri=0.
+	if(abs(rmstend_all_uf-rmstend_all_g_uf)>0.) &
+			ri=rmstend_all_g_uf/(rmstend_all_uf-rmstend_all_g_uf) 
+        write(6,'(" rmstend_all_uf,g_uf,rat = ",2e14.4,f10.4)') rmstend_all_uf,rmstend_all_g_uf,ri
+	ri=0.
+	if(abs(rmstend_all_f-rmstend_all_g_f)>0.) &
+			ri=rmstend_all_g_f/(rmstend_all_f-rmstend_all_g_f) 
+        write(6,'(" rmstend_all_f,g_f,rat = ",2e14.4,f10.4)') rmstend_all_f,rmstend_all_g_f,ri
      end if
   end if
 

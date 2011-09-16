@@ -25,6 +25,7 @@ module control_vectors
 !   2010-05-05  derber   - omp commands removed
 !   2010-05-22  todling  - add a wired-in set of variables composing a motley (not fully part of CVector)
 !   2010-05-28  todling  - remove all nrf2/3_VAR-specific "pointers"
+!   2011-07-04  todling  - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub init_anacv   
@@ -63,14 +64,14 @@ module control_vectors
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind,r_quad
+use kinds, only: r_kind,r_double,r_single,i_kind,r_quad
 use mpimod, only: mpi_comm_world,mpi_max,mpi_rtype,mype,npe,ierror
 use constants, only: zero, one, two, three, zero_quad, tiny_r_kind
 use gsi_4dvar, only: iadatebgn
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
 use hybrid_ensemble_parameters, only: beta1_inv,l_hyb_ens
-use hybrid_ensemble_parameters, only: grd_ens
+use hybrid_ensemble_parameters, only: grd_ens,nval_lenz_en
 use constants, only : max_varname_length
 
 use m_rerank, only : rerank
@@ -100,8 +101,8 @@ public deallocate_cv
 public assignment(=)
 public dot_product  
 public prt_control_norms, axpy, random_cv, setup_control_vectors, &
-     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, init_anacv, &
-     & final_anacv
+     write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, init_anacv, &
+     final_anacv
 
 ! 
 ! Public variables
@@ -182,7 +183,7 @@ END INTERFACE
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
-                               & ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
+                                 ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_control_vectors
@@ -220,7 +221,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 
   implicit none
   integer(i_kind)          , intent(in   ) :: ksig,klat,klon,katlon11,katlon1n, &
-                               & ksclen,kpclen,kclen,ksubwin,kval_len,k_ens
+                                 ksclen,kpclen,kclen,ksubwin,kval_len,k_ens
   logical                  , intent(in   ) :: ldsqrtb
 
   integer(i_kind) n
@@ -456,7 +457,7 @@ subroutine allocate_cv(ycv)
       ALLOCATE(ycv%aens(nsubwin,n_ens))
       call GSI_GridCreate(ycv%grid_aens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
          if (lsqrtb) then
-            write(6,*) 'allocate_cv: this opt not ready (lsqrtb+ens), aborting ...'
+            write(6,*) 'allocate_cv: this opt not ready (lsqrtb+ens), aborting ...' 
             call stop2(999)
          else
             n_aens=grd_ens%latlon11*grd_ens%nsig
@@ -472,24 +473,20 @@ subroutine allocate_cv(ycv)
          ycv%step(jj)%values => ycv%values(ii+1:ii+n_step)
 
          write(bname,'(a,i3.3)') 'Static Control Bundle subwin-',jj
-         call GSI_BundleSet(ycv%step(jj),ycv%grid_step,bname,ierror,names2d=cvars2d,names3d=cvars3d)
+         call GSI_BundleSet(ycv%step(jj),ycv%grid_step,bname,ierror,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
          if (ierror/=0) then
              write(6,*)'allocate_cv: error alloc(static bundle)'
              call stop2(109)
          endif
          ndim=ndim+ycv%step(jj)%ndim
 
-         if (lsqrtb) then
-            ii=ii+nval_len
-         else
-            ii=ii+n_step
-         endif
+         ii=ii+n_step
 
 !        If motley variables needed (these don't contribute to CV size)
 !        Presently, there are thankfully only 2d-fields in this category
          if(mvars>0) then
             write(bname,'(a,i3.3,a,i4.4)') 'Motley Control Bundle subwin-',jj
-            call GSI_BundleCreate(ycv%motley(jj),grid_motley,bname,ierror,names2d=cvarsmd)
+            call GSI_BundleCreate(ycv%motley(jj),grid_motley,bname,ierror,names2d=cvarsmd,bundle_kind=r_kind)
             if (ierror/=0) then
                 write(6,*)'allocate_cv: error alloc(motley bundle)'
                 call stop2(109)
@@ -503,19 +500,14 @@ subroutine allocate_cv(ycv)
          do nn=1,n_ens
             ycv%aens(jj,nn)%values => ycv%values(ii+1:ii+n_aens)
             write(bname,'(a,i3.3,a,i4.4)') 'Ensemble Control Bundle subwin-',jj,' and member-',nn
-            call GSI_BundleSet(ycv%aens(jj,nn),ycv%grid_aens,bname,ierror,names3d=(/'a_en'/))
+            call GSI_BundleSet(ycv%aens(jj,nn),ycv%grid_aens,bname,ierror,names3d=(/'a_en'/),bundle_kind=r_kind)
             if (ierror/=0) then
                 write(6,*)'allocate_cv: error alloc(ensemble bundle)'
                 call stop2(109)
             endif
             ndim=ndim+ycv%aens(jj,nn)%ndim
 
-            if (lsqrtb) then
-               ii=ii+nval_len
-               call stop2(999) ! code will not get here (see above)
-            else
-               ii=ii+n_aens
-            endif
+            ii=ii+n_aens
          enddo
 
      endif
@@ -583,7 +575,8 @@ subroutine deallocate_cv(ycv)
 !   2010-05-01  todling - update to use gsi_bundle
 !   2010-05-17  todling - add back ens control; w/ a twist from original
 !   2010-05-22  todling - add support for motley variables
-
+!   2011-09-05  todling - replace destroy calls with unset calls
+!
 !   input argument list:
 !    ycv
 !
@@ -598,20 +591,12 @@ subroutine deallocate_cv(ycv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  integer(i_kind) :: ii,n,nn,m3d,m2d,nd,ierror
+  integer(i_kind) :: ii,n,nn,ierror
 
   if (ycv%lallocated) then
      do ii=1,nsubwin
         if (l_hyb_ens) then
            do nn=n_ens,1,-1
-              m3d=ycv%aens(ii,nn)%n3d
-              do n = 1,m3d
-                 nullify(ycv%aens(ii,nn)%r3(n)%q)
-              enddo
-              m2d=ycv%aens(ii,nn)%n2d
-              do n = 1,m2d
-                 nullify(ycv%aens(ii,nn)%r2(n)%q)
-              enddo
               call GSI_BundleUnset(ycv%aens(ii,nn),ierror)
            enddo
         endif
@@ -619,20 +604,13 @@ subroutine deallocate_cv(ycv)
            if(mvars>0) then
               call GSI_BundleDestroy(ycv%motley(ii),ierror)
            endif
-           m3d=ycv%step(ii)%n3d
-           do n = 1,m3d
-              nullify(ycv%step(ii)%r3(n)%q)
-           enddo
-           m2d=ycv%step(ii)%n2d
-           do n = 1,m2d
-              nullify(ycv%step(ii)%r2(n)%q)
-           enddo
            call GSI_BundleUnset(ycv%step(ii),ierror)
 !       endif ! beta1_inv
      end do
      NULLIFY(ycv%predr)
      NULLIFY(ycv%predp)
 
+     if(l_hyb_ens) DEALLOCATE(ycv%aens)
      if(mvars>0) DEALLOCATE(ycv%motley)
      DEALLOCATE(ycv%step)
      DEALLOCATE(ycv%values)
@@ -821,6 +799,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 !   2010-05-17  todling - update to use bundle
 !   2010-06-02  parrish - add contribution from ensemble control variable to dot product
 !   2010-10-08  derber  - optimize and clean up
+!   2011-09-05  todling - add hybrid to sqrt part of code
 !
 !   input argument list:
 !    xcv,ycv
@@ -836,7 +815,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
-  integer(i_kind) :: ii,m3d,m2d,i,j,itot
+  integer(i_kind) :: ii,nn,m3d,m2d,i,j,itot
   real(r_quad),allocatable,dimension(:) :: partsum
 
   qdot_prod_sub=zero_quad
@@ -846,6 +825,13 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
      do ii=1,nsubwin
         qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
      end do
+     if(l_hyb_ens) then
+        do nn=1,n_ens
+           do ii=1,nsubwin
+              qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%aens(ii,nn)%values(:) ,ycv%aens(ii,nn)%values(:) )
+           end do
+        end do
+     endif
   else
      do ii=1,nsubwin
         m3d=xcv%step(ii)%n3d
@@ -899,6 +885,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 !   2009-09-20  parrish - initial documentation
 !   2010-05-17  todling - update to use bundle
 !   2010-10-08  derber - optimize and clean up
+!   2011-09-05  todling - add hybrid to sqrt part of code
 !
 !   input argument list:
 !    xcv,ycv
@@ -928,9 +915,18 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 
 ! Independent part of vector
   if (lsqrtb) then
-     do ii=1,nsubwin
-        zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-     end do
+     if(trim(eb) == 'cost_b') then
+        do ii=1,nsubwin
+           zz(ii)=zz(ii)+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+        end do
+     endif
+     if(trim(eb) == 'cost_e') then
+        do nn=1,n_ens
+           do ii=1,nsubwin
+              zz(ii)=zz(ii)+qdot_product( xcv%aens(ii,nn)%values(:) ,ycv%aens(ii,nn)%values(:) )
+           end do
+        end do
+     endif
   else
      if(trim(eb) == 'cost_b') then
         do ii=1,nsubwin                                                         
@@ -1321,7 +1317,7 @@ implicit none
 type(control_vector)     , intent(inout) :: ycv
 integer(i_kind), optional, intent(in   ) :: kseed
 
-integer(i_kind):: ii,jj,iseed
+integer(i_kind):: ii,jj,nn,iseed
 integer, allocatable :: nseed(:) ! Intentionaly default integer
 real(r_kind), allocatable :: zz(:)
 
@@ -1346,6 +1342,19 @@ do jj=1,nsubwin
    enddo
 enddo
 deallocate(zz)
+
+if (nval_lenz_en>0) then
+   allocate(zz(nval_lenz_en))
+   do nn=1,n_ens
+      do jj=1,nsubwin
+         call random_number(zz)
+         do ii=1,nval_lenz_en
+            ycv%aens(jj,nn)%values(ii) = two*zz(ii)-one
+         enddo
+      enddo
+   enddo
+   deallocate(zz)
+endif
 
 if (nsclen>0) then
    allocate(zz(nsclen))
@@ -1578,3 +1587,4 @@ real(r_quad) function qdot_product(x,y)
 end function qdot_product
 ! ----------------------------------------------------------------------
 end module control_vectors
+
