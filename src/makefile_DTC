@@ -270,7 +270,6 @@ LIBsys          = $(MYLIBsys)
 	psichi2uvt_reg.o \
 	q_diag.o \
 	qcmod.o \
-        qnewton.o \
         qnewton3.o \
 	radinfo.o \
 	raflib.o \

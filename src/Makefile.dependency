@@ -200,7 +200,6 @@ psichi2uv_reg.o : psichi2uv_reg.f90 gridmod.o constants.o kinds.o
 psichi2uvt_reg.o : psichi2uvt_reg.f90 gridmod.o constants.o kinds.o 
 q_diag.o : q_diag.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o gridmod.o constants.o mpimod.o jfunc.o guess_grids.o kinds.o 
 qcmod.o : qcmod.f90 gsi_metguess_mod.o radinfo.o obsmod.o constants.o kinds.o 
-qnewton.o : qnewton.f90 jfunc.o qcmod.o control_vectors.o mpimod.o constants.o kinds.o 
 qnewton3.o : qnewton3.f90 timermod.o jfunc.o qcmod.o control_vectors.o mpimod.o constants.o kinds.o 
 radinfo.o : radinfo.f90 read_diag.o constants.o obsmod.o gridmod.o gsi_metguess_mod.o mpimod.o kinds.o 
 raflib.o : raflib.f90 plib8.o constants.o mpimod.o kinds.o 

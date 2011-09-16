@@ -382,7 +382,6 @@ clean:
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
-	qnewton.f90 \
 	qnewton3.f90 \
 	radinfo.f90 \
 	raflib.f90 \

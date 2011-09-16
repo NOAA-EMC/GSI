@@ -429,7 +429,6 @@ SRCS_SOLVER =	$(wildcard \
 	prt_guess.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
-	qnewton.f90 \
 	qnewton3.f90 \
 	radinfo.f90 \
         read_aerosol.f90 \
