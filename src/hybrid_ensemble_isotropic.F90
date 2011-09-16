@@ -24,6 +24,10 @@ module hybrid_ensemble_isotropic
 !                         bundles here are not necessarily idendical to the control vector,
 !                         but rather what this module take the ensemble to be composed of
 !   2010-07-29  kleist  - combine hybrid_ensemble_isotropic global/regional modules 
+!   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
+!   2011-06-28  parrish - add code to allow sqrt of localization correlation so hybrid ensemble option
+!                            can be extended to sqrt(B) minimization option.
+!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -55,11 +59,16 @@ module hybrid_ensemble_isotropic
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mype
   use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_bundleset
+  use gsi_bundlemod, only: gsi_bundleunset
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
+
+  use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+  use hybrid_ensemble_parameters, only: nval_lenz_en
   implicit none
 
 ! set default to private
@@ -84,9 +93,13 @@ module hybrid_ensemble_isotropic
   public :: beta12mult
   public :: init_sf_xy
   public :: sf_xy
+  public :: sqrt_sf_xy
+  public :: sqrt_sf_xy_ad
 
 ! set passed variables to public
-  public :: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
+  public :: nelen
+  public :: en_perts,ps_bar
+  public :: region_lat_ens,region_lon_ens
 
   character(len=*),parameter::myname='hybrid_ensemble_isotropic'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -105,22 +118,21 @@ module hybrid_ensemble_isotropic
   real(r_kind),allocatable:: psbar(:)
 
 ! Other local variables for horizontal/spectral localization
-  real(r_kind),allocatable,dimension(:,:)  :: spectral_filter
+  real(r_kind),allocatable,dimension(:,:)  :: spectral_filter,sqrt_spectral_filter
   integer(i_kind),allocatable,dimension(:) :: k_index
 
-!    following is for storage of ensemble perturbations:
+! following is for storage of ensemble perturbations:
 
-!   def st_en               - array of stream function ensemble perturbations
-!   def vp_en               - array of potential function ensemble perturbations
-!   def t_en                - array of virtual temp ensemble perturbations
-!   def rh_en               - array of relative humidity ensemble perturbations
-!   def oz_en               - array of ozone ensemble perturbations
-!   def cw_en               - array of ozone ensemble perturbations
-!   def p_en                - array of surface pressure ensemble perturbations
-!   def sst_en              - array of skin temperature ensemble perturbations
+!   def en_perts            - array of ensemble perturbations
+!   def nelen               - length of one ensemble perturbation vector
 
-  real(r_single),dimension(:,:),allocatable:: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en
-  real(r_single),dimension(:),allocatable:: ps_bar
+  integer(i_kind) nelen
+  type(gsi_bundle),save,allocatable :: en_perts(:)
+  real(r_single),dimension(:,:),allocatable:: ps_bar
+
+!    following is for interpolation of global ensemble to regional ensemble grid
+
+  real(r_kind),allocatable:: region_lat_ens(:,:),region_lon_ens(:,:)
 
 !    following is for special subdomain to slab variables used when internally generating ensemble members
 
@@ -130,15 +142,6 @@ module hybrid_ensemble_isotropic
   integer(i_kind),allocatable,dimension(:):: i_recv,k_recv
 
   logical,parameter:: debug=.false.
-
-! The following needs to come from a file outside the source code (Todling)
-! NOTE: These names are convention they cannot be changed
-  integer(i_kind),parameter::ne3d=6
-  character(len=3),parameter::evars3d(ne3d)=(/'sf ','vp ','t  ','q  ','oz ','cw '/)
-  integer(i_kind),parameter::ne2d=2
-  character(len=3),parameter::evars2d(ne2d)=(/'ps ','sst'/)
-  integer(i_kind),parameter::nevs=ne3d+ne2d
-  character(len=3),parameter::evars(nevs)=(/'sf ','vp ','t  ','q  ','oz ','cw ','ps ','sst'/)
 
 
 contains
@@ -185,7 +188,7 @@ subroutine init_rf_z(z_len)
 
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
-  integer(i_kind) k,km,kp,nxy,i
+  integer(i_kind) k,km,kp,nxy,i,ii,jj
   real(r_kind) aspect(nsig),p_interface(nsig+1),lnp_layer(nsig)
   real(r_kind) p_layer,dlnp,kap1,kapr,d1,d2
 
@@ -216,9 +219,12 @@ subroutine init_rf_z(z_len)
 !              profiles using GFS sigma-p coordinate [ add mods to be able
 !              to use fully generalized coordinate later** ]
 !
-     do i=1,nxy
+     i=0
+     do jj=1,grd_ens%lon2
+      do ii=1,grd_ens%lat2
+       i=i+1
        do k=1,nsig+1
-         p_interface(k)=ak5(k)+(bk5(k)*ps_bar(i))
+         p_interface(k)=ak5(k)+(bk5(k)*ps_bar(ii,jj))
        end do
        do k=1,nsig
           p_layer=((p_interface(k)**kap1-p_interface(k+1)**kap1)/&
@@ -260,6 +266,7 @@ subroutine init_rf_z(z_len)
 	end do
 
      	call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
+      end do
      end do
 
   end if
@@ -295,7 +302,7 @@ subroutine init_rf_x(x_len)
 
   real(r_kind),intent(in   ) :: x_len
 
-  integer(i_kind) i,j,k,l,m
+  integer(i_kind) i,j,k,l
   real(r_kind) aspect(nlon)
   real(r_kind) fmatc(2,nlon,2),fmat0c(nlon,2)
 
@@ -350,7 +357,7 @@ subroutine init_rf_y(y_len)
   real(r_kind),intent(in   ) :: y_len
 
   real(r_kind) aspect(nlat)
-  integer(i_kind) i,m
+  integer(i_kind) i
 
 !    use new factorization:
   if(allocated(fmaty)) deallocate(fmaty)
@@ -408,7 +415,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
      end do
   end if
   do k=1,nz
-     do l=1,min(2_i_kind,k-1)
+     do l=1,min(2,k-1)
         do i=1,nxy
            f(i,k)=f(i,k)-fmatz(l,k,iadvance,i)*f(i,k-l)
         end do
@@ -418,7 +425,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
      end do
   end do
   do k=nz,1,-1
-     do l=1,min(2_i_kind,nz-k)
+     do l=1,min(2,nz-k)
         do i=1,nxy
            f(i,k)=f(i,k)-fmatz(l,k+l,iback,i)*f(i,k+l)
         end do
@@ -427,7 +434,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
         f(i,k)=fmat0z(k,iback,i)*f(i,k)
      end do
   end do
-  if(iadvance == 2_i_kind) then
+  if(iadvance == 2) then
      do k=1,nz
         do i=1,nxy
            f(i,k)=znorm_new(i,k)*f(i,k)
@@ -630,9 +637,9 @@ subroutine normal_new_factorization_rf_z
       f=zero
       f(:,k)=one
 
-      iadvance=1 ; iback=2_i_kind
+      iadvance=1 ; iback=2
       call new_factorization_rf_z(f,iadvance,iback)
-      iadvance=2_i_kind ; iback=1
+      iadvance=2 ; iback=1
       call new_factorization_rf_z(f,iadvance,iback)
 
       diag(:,k)=sqrt(one/f(:,k))
@@ -647,9 +654,9 @@ subroutine normal_new_factorization_rf_z
      f=zero
      f(:,k)=one
 
-     iadvance=1 ; iback=2_i_kind
+     iadvance=1 ; iback=2
      call new_factorization_rf_z(f,iadvance,iback)
-     iadvance=2_i_kind ; iback=1
+     iadvance=2 ; iback=1
      call new_factorization_rf_z(f,iadvance,iback)
 
      diag(:,k)=sqrt(one/f(:,k))
@@ -863,6 +870,8 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-06-16  parrish
 !   2010-02-20  parrish  modifications for dual resolution
+!   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
+!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !
 !   input argument list:
 !
@@ -877,15 +886,36 @@ end subroutine normal_new_factorization_rf_y
 
     implicit none
 
+    type(gsi_grid)  :: grid_ens
 
-    allocate(st_en(grd_ens%latlon1n,n_ens), vp_en(grd_ens%latlon1n,n_ens), &
-              t_en(grd_ens%latlon1n,n_ens), rh_en(grd_ens%latlon1n,n_ens), &
-             oz_en(grd_ens%latlon1n,n_ens), cw_en(grd_ens%latlon1n,n_ens), &
-              p_en(grd_ens%latlon11,n_ens),sst_en(grd_ens%latlon11,n_ens))
-    allocate(ps_bar(grd_ens%latlon11) )
+    integer(i_kind) ii,n,istatus
+    character(len=*),parameter::myname_=trim(myname)//'*create_ensemble'
+
+    nelen=grd_ens%latlon11*(max(0,nc3d)*grd_ens%nsig+max(0,nc2d))
+!   create ensemble perturbations bundles (using newly added r_single capability
+
+    allocate(en_perts(n_ens))
+    call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+    ii=0
+    do n=1,n_ens
+        call gsi_bundlecreate(en_perts(n),grid_ens,'ensemble perts',istatus, &
+                              names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+       if(istatus/=0) then
+          write(6,*)trim(myname_),': trouble creating en_perts bundle'
+          call stop2(999)
+       endif
+       ii=ii+nelen
+    end do
+
+                              !if(1/=0) then
+                              !     call mpi_finalize(istatus)
+                              !     stop
+                              !end if
+
+    allocate(ps_bar(grd_ens%lat2,grd_ens%lon2) )
     if(debug) write(6,*)' in create_ensemble, grd_ens%latlon11,grd_ens%latlon1n,n_ens=', &
                                     grd_ens%latlon11,grd_ens%latlon1n,n_ens
-    if(debug) write(6,*)' in create_ensemble, total bytes allocated=',4*(6*grd_ens%latlon1n+2*grd_ens%latlon11)*n_ens
+    if(debug) write(6,*)' in create_ensemble, total bytes allocated=',4*nelen*n_ens
 
   end subroutine create_ensemble
 
@@ -904,6 +934,7 @@ end subroutine normal_new_factorization_rf_y
 !   2010-03-15  zhu      make changes using cstate
 !   2010-03-28  todling  update to use gsi_bundle
 !   2010-06-03  parrish  multiple fixes for dual resolution
+!   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
 !
 !   input argument list:
 !
@@ -920,22 +951,27 @@ end subroutine normal_new_factorization_rf_y
     use mpimod, only: mype,ierror
     implicit none
 
-!   real(r_kind),dimension(grd_ens%latlon1n)::st,vp,t,rh,oz,cw
-!   real(r_kind),dimension(grd_ens%latlon11)::p,sst
-    real(r_kind),dimension(grd_ens%latlon1n)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
-    real(r_kind),dimension(grd_ens%latlon11)::pbar,sstbar
+    type(gsi_bundle):: en_bar
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
-    integer(i_kind) i,j,k,n,ii
+    integer(i_kind) i,j,k,n,ii,ic2
     integer(i_kind) istatus,ier
     real(r_kind),allocatable:: seed(:,:)
+    real(r_kind),pointer,dimension(:,:)   :: cv_ps
     real(r_kind) sig_norm,bar_norm
     character(len=*),parameter::myname_=trim(myname)//'*load_ensemble'
     character(50) title
-    real(r_kind),pointer,dimension(:,:)  :: p,sst
-    real(r_kind),pointer,dimension(:,:,:):: t,q,cw,oz,st,vp
 
+!      create simple regular grid
+    call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+    call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
 
+    call gsi_bundlecreate(en_bar,grid_ens,'ensemble',istatus, &
+                          names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble creating en_bar bundle'
+       call stop2(999)
+    endif
     sig_norm=sqrt(one/max(one,n_ens-one))
     bar_norm=one/n_ens
     if(n_ens == 1) bar_norm=zero
@@ -947,110 +983,65 @@ end subroutine normal_new_factorization_rf_y
        call special_sd2h0
        allocate(seed(nval2f,nscl))
        seed=-one
-       stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero
-       ozbar=zero ; cwbar=zero ; pbar=zero ; sstbar=zero
+       en_bar%values=zero
 
-!      create simple regular grid
-        call gsi_gridcreate(grid_anl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
-        call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+!      create two internal bundles, one on analysis grid and one on ensemble grid
+
+       call gsi_bundlecreate (bundle_anl,grid_anl,'ensemble work',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+       if(istatus/=0) then
+          write(6,*)trim(myname_),': trouble creating bundle_anl bundle'
+          call stop2(999)
+       endif
+       call gsi_bundlecreate (bundle_ens,grid_ens,'ensemble work ens',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+       if(istatus/=0) then
+          write(6,*)trim(myname_),': trouble creating bundle_ens bundle'
+          call stop2(999)
+       endif
        do n=1,n_ens
-          ! create internal structures w/ the same vars as those in the CV
-          ! one at analysis resolution ...
-          call gsi_bundlecreate (bundle_anl,grid_anl,'ensemble work',istatus, &
-                                 names2d=evars2d,names3d=evars3d)
-          if(istatus/=0) then
-             write(6,*)trim(myname_),': trouble creating work anl bundle'
-             call stop2(999)
-          endif
-
-          ! another at ensemble (reduced) resolution ...
-          call gsi_bundlecreate (bundle_ens,grid_ens,'ensemble work ens',istatus, &
-                                 names2d=evars2d,names3d=evars3d)
-          if(istatus/=0) then
-             write(6,*)trim(myname_),': trouble creating work ens bundle'
-             call stop2(999)
-          endif
 
           call generate_one_ensemble_perturbation(bundle_anl,bundle_ens,seed)
+
+          do ii=1,nelen
+             en_perts(n)%valuesr4(ii)=bundle_ens%values(ii)
+             en_bar%values(ii)=en_bar%values(ii)+bundle_ens%values(ii)
+          end do
+       end do
+
+! Load ps_bar for use with vertical localization later
+       call gsi_bundlegetpointer (en_bar,'ps' ,cv_ps ,istatus)
+       do j=1,grd_ens%lon2
+          do i=1,grd_ens%lat2
+             ps_bar(i,j)=cv_ps(i,j)*bar_norm
+          end do
+       end do
 
           ! do some cleanning
           call gsi_bundledestroy(bundle_anl,istatus)
           if(istatus/=0) then
-             write(6,*)trim(myname_),': trouble destroying work anl bundle'
+             write(6,*)trim(myname_),': trouble destroying bundle_anl bundle'
              call stop2(999)
           endif
-
-          ! Get required pointers
-          ier=0
-          call gsi_bundlegetpointer (bundle_ens, evars(1),st, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(2),vp, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(3), t, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(4), q, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(5),oz, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(6),cw, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(7), p, istatus);ier=ier+istatus
-          call gsi_bundlegetpointer (bundle_ens, evars(8),sst,istatus);ier=ier+istatus
-          if(ier/=0) then
-             write(6,*)myname_,': cannot find pointers'
-             call stop2(999)
-          endif
-
-          ii=0
-          do k=1,grd_ens%nsig
-             do j=1,grd_ens%lon2
-                do i=1,grd_ens%lat2
-                   ii=ii+1
-                   st_en(ii,n)=st(i,j,k)
-                   vp_en(ii,n)=vp(i,j,k)
-                   t_en (ii,n)=t (i,j,k)
-                   rh_en(ii,n)=q (i,j,k)
-                   oz_en(ii,n)=oz(i,j,k)
-                   cw_en(ii,n)=cw(i,j,k)
-                   stbar(ii)=stbar(ii)+st(i,j,k)
-                   vpbar(ii)=vpbar(ii)+vp(i,j,k)
-                   tbar (ii)= tbar(ii)+t (i,j,k)
-                   rhbar(ii)=rhbar(ii)+q (i,j,k)
-                   ozbar(ii)=ozbar(ii)+oz(i,j,k)
-                   cwbar(ii)=cwbar(ii)+cw(i,j,k)
-                end do
-             end do
-          end do
-          ii=0
-          do j=1,grd_ens%lon2
-             do i=1,grd_ens%lat2
-                ii=ii+1
-                p_en  (ii,n)=p(i,j)
-                sst_en(ii,n)=sst(i,j)
-                pbar  (ii)  =pbar  (ii)+ p  (i,j)
-                sstbar(ii)  =sstbar(ii)+ sst(i,j)
-             end do
-          end do
-! Load ps_bar for use with vertical localization later
-       ps_bar(:) = pbar(:)*bar_norm
-
           call gsi_bundledestroy(bundle_ens,istatus)
           if(istatus/=0) then
-             write(6,*)trim(myname_),': trouble destroying work ens bundle'
+             write(6,*)trim(myname_),': trouble destroying bundle_ens bundle'
              call stop2(999)
           endif
-       end do
 !                          remove mean, which is locally significantly non-zero, due to sample size.
 !                           with real ensembles, the mean of the actual sample will be removed.
+
        do n=1,n_ens
-          do i=1,grd_ens%latlon1n
-             st_en(i,n)=(st_en(i,n)-stbar(i)*bar_norm)*sig_norm
-             vp_en(i,n)=(vp_en(i,n)-vpbar(i)*bar_norm)*sig_norm
-             t_en(i,n) =( t_en(i,n)- tbar(i)*bar_norm)*sig_norm
-             rh_en(i,n)=(rh_en(i,n)-rhbar(i)*bar_norm)*sig_norm
-             oz_en(i,n)=(oz_en(i,n)-ozbar(i)*bar_norm)*sig_norm
-             cw_en(i,n)=(cw_en(i,n)-cwbar(i)*bar_norm)*sig_norm
-          end do
-          do i=1,grd_ens%latlon11
-             p_en(i,n)=(p_en(i,n)- pbar(i)*bar_norm)*sig_norm
-             sst_en(i,n)=(sst_en(i,n)-sstbar(i)*bar_norm)*sig_norm
+          do ii=1,nelen
+             en_perts(n)%valuesr4(ii)=(en_perts(n)%valuesr4(ii)-en_bar%values(ii)*bar_norm)*sig_norm
           end do
        end do
-    
+          call gsi_bundledestroy(en_bar,istatus)
+          if(istatus/=0) then
+             write(6,*)trim(myname_),': trouble destroying en_bar bundle'
+             call stop2(999)
+          endif
+
     else
 !            read in ensembles
       if (.not.regional) then
@@ -1058,13 +1049,15 @@ end subroutine normal_new_factorization_rf_y
       else
         if (mype==0) write(6,*) 'READING OF ACTUAL ENSEMBLE PERTS FOR WRF ARW REGIONAL!'
 ! APM addition
-        call get_wrf_mass_ensperts_netcdf
+!???????????????????????????????????????need to add a selection parameter for which ensemble to read
+       !call get_wrf_mass_ensperts_netcdf
+        call get_gefs_for_regional
       end if
 
     end if
 
   end subroutine load_ensemble
-     
+
   subroutine generate_one_ensemble_perturbation(bundle_anl,bundle_ens,seed)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1082,6 +1075,7 @@ end subroutine normal_new_factorization_rf_y
 !   2010-04-28  todling - update to use gsi_bundle
 !   2010-05-18  parrish  reactivate dual resolution
 !   2010-06-04  parrish  multiple fixes for dual resolution
+!   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -1109,7 +1103,7 @@ end subroutine normal_new_factorization_rf_y
     use gridmod, only: vlevs,nnnn1o,regional
     use mpimod, only: mype,mpi_rtype,mpi_comm_world,ierror,nvar_pe
     use hybrid_ensemble_parameters, only: uv_hyb_ens,grd_ens,grd_anl,p_e2a
-    use general_sub2grid_mod, only: general_suba2sube_r_double
+    use general_sub2grid_mod, only: general_suba2sube
     use constants, only: zero,one
     implicit none
 
@@ -1120,9 +1114,8 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind),dimension(nval2f,nnnn1o,nscl):: z
     real(r_kind) vert1(vlevs)
     integer(i_llong) iseed
-    integer(i_kind) nvert,i,j,ii,is,naux,k
-    integer(i_kind) ist,ivp,it,irh,ioz,icw,ip,isst
-    integer(i_kind) ipc(2),istatus
+    integer(i_kind) nvert,i,j,ii,is,naux,k,ic3
+    integer(i_kind) istat_st,istat_vp
     real(r_kind) aux
     real(r_kind),dimension(nh_0:nh_1,vlevs,nscl):: zsub
     real(r_kind),dimension(:,:,:),allocatable:: ua,va
@@ -1171,9 +1164,13 @@ end subroutine normal_new_factorization_rf_y
     if(uv_hyb_ens) then
        allocate(ua(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig))
        allocate(va(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig))
-       call gsi_bundlegetpointer (bundle_anl, evars(1),st, istatus)
-       call gsi_bundlegetpointer (bundle_anl, evars(2),vp, istatus)
-       if(istatus/=0) then
+       istat_st=-999
+       istat_vp=-999
+       do ic3=1,nc3d
+          if(trim(cvars3d(ic3))=='sf') call gsi_bundlegetpointer (bundle_anl, cvars3d(ic3),st, istat_st)
+          if(trim(cvars3d(ic3))=='vp') call gsi_bundlegetpointer (bundle_anl, cvars3d(ic3),vp, istat_vp)
+       end do
+       if(istat_st/=0.or.istat_vp/=0) then
           write(6,*) myname_,': error getting sf/vp pointers, aborting ...'
           call stop2(999)
        endif
@@ -1186,7 +1183,7 @@ end subroutine normal_new_factorization_rf_y
     if(grd_anl%latlon11 == grd_ens%latlon11) then
        bundle_ens%values=bundle_anl%values
     else
-       call general_suba2sube_r_double(grd_anl,grd_ens,p_e2a,bundle_anl%values,bundle_ens%values,regional)
+       call general_suba2sube(grd_anl,grd_ens,p_e2a,bundle_anl%values,bundle_ens%values,regional)
     end if
 
 
@@ -1268,6 +1265,8 @@ end subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-10-15  parrish
 !   2010-02-20  parrish  modifications for dual resolution
+!   2011-02-28  parrish  bundle changes
+!   2011-07-08  todling  adapt to fit upd interface to general_sub2grid
 !
 !   input argument list:
 !
@@ -1281,26 +1280,37 @@ end subroutine normal_new_factorization_rf_y
     use kinds, only: r_kind,i_kind
     use gridmod, only: regional
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a
-    use general_sub2grid_mod, only: general_suba2sube_r_double
+    use general_sub2grid_mod, only: general_suba2sube
     use berror, only: qvar3d
     implicit none
 
-    integer(i_kind) i,ii,j,k,n
-    real(r_kind) qvar3d_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+    integer(i_kind) i,ii,j,k,n,istatus
+    real(r_kind) qvar3d_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1)
+    real(r_single),pointer,dimension(:,:,:):: w3
+
+    call gsi_bundlegetpointer(en_perts(1),'q',w3,istatus)
+    if(istatus/=0) then
+       write(6,*)' rh variable not available, skip subroutine rescale_ensemble_rh_perturbations'
+       return
+    end if
 
     if(grd_anl%latlon11 == grd_ens%latlon11) then
-       qvar3d_ens=qvar3d
+       qvar3d_ens=reshape(qvar3d,(/size(qvar3d,1),size(qvar3d,2),size(qvar3d,3),1/))
     else
-       call general_suba2sube_r_double(grd_a1,grd_e1,p_e2a,qvar3d,qvar3d_ens,regional)
+       call general_suba2sube(grd_a1,grd_e1,p_e2a, &
+            reshape(qvar3d,(/size(qvar3d,1),size(qvar3d,2),size(qvar3d,3),1/)),qvar3d_ens,regional)
     end if
 !$omp parallel do schedule(dynamic,1) private(n,ii,i,j,k)
     do n=1,n_ens
-       ii=0
+       call gsi_bundlegetpointer(en_perts(n),'q',w3,istatus)
+       if(istatus/=0) then
+          write(6,*)' error retrieving pointer to rh variable for ensemble number ',n
+          call stop2(999)
+       end if
        do k=1,grd_ens%nsig
           do j=1,grd_ens%lon2
              do i=1,grd_ens%lat2
-                ii=ii+1
-                rh_en(ii,n)=qvar3d_ens(i,j,k)*rh_en(ii,n)
+                w3(i,j,k)=qvar3d_ens(i,j,k,1)*w3(i,j,k)
              end do
           end do
        end do
@@ -1319,6 +1329,7 @@ end subroutine normal_new_factorization_rf_y
 !
 ! program history log:
 !   2009-06-16  parrish
+!   2011-02-28  parrish, replace specific ensemble perturbation arrays with pseudo-bundle en_perts array
 !
 !   input argument list:
 !
@@ -1329,11 +1340,21 @@ end subroutine normal_new_factorization_rf_y
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use hybrid_ensemble_parameters, only: l_hyb_ens
+    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens
     implicit none
 
+    integer(i_kind) istatus,n
+
     if(l_hyb_ens) then
-       deallocate(st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar)
+       do n=n_ens,1,-1
+          call gsi_bundleunset(en_perts(n),istatus)
+          if(istatus/=0) then
+             write(6,*)'in destroy_ensemble: trouble destroying en_perts bundle'
+             call stop2(999)
+          endif
+       end do
+       deallocate(ps_bar)
+       deallocate(en_perts)
     end if
 
   end subroutine destroy_ensemble
@@ -1354,6 +1375,7 @@ end subroutine normal_new_factorization_rf_y
 !   2010-03-23  zhu - use cstate
 !   2010-05-07  parrish - remove error stop for dual resolution
 !   2010-04-28  todling - update to use gsi_bundle
+!   2011-02-28  parrish  bundle changes
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1393,8 +1415,8 @@ end subroutine normal_new_factorization_rf_y
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model'
     logical nogood
-    integer(i_kind) i,j,k,n,ii
-    integer(i_kind) ipc(nevs),ipe(1),istatus
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
 
 !   Check resolution consistency between static and ensemble components
     nogood=.not.(cvec%grid%im==a_en(1)%grid%im.and.&
@@ -1406,34 +1428,40 @@ end subroutine normal_new_factorization_rf_y
     endif
 
 !   Request ensemble-corresponding fields from control vector
-    call gsi_bundlegetpointer (cvec,evars,ipc,istatus)
+!    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
+!             ipc2d indices for cvec and en_perts bundles.
+    call gsi_bundlegetpointer (cvec,cvars3d,ipc3d,istatus)
     if(istatus/=0) then
-      write(6,*) myname_,': cannot find pointers'
+      write(6,*) myname_,': cannot find 3d pointers'
+      call stop2(999)
+    endif
+    call gsi_bundlegetpointer (cvec,cvars2d,ipc2d,istatus)
+    if(istatus/=0) then
+      write(6,*) myname_,': cannot find 2d pointers'
       call stop2(999)
     endif
  
+    im=cvec%grid%im
+    jm=cvec%grid%jm
+    km=cvec%grid%km
     ipe(1)=1
     do n=1,n_ens
-       ii=0
-       do k=1,grd_ens%nsig
-          do j=1,grd_ens%lon2
-             do i=1,grd_ens%lat2
-                ii=ii+1
-                cvec%r3(ipc(1))%q(i,j,k)=cvec%r3(ipc(1))%q(i,j,k)+a_en(n)%r3(ipe(1))%q(i,j,k)*st_en(ii,n)
-                cvec%r3(ipc(2))%q(i,j,k)=cvec%r3(ipc(2))%q(i,j,k)+a_en(n)%r3(ipe(1))%q(i,j,k)*vp_en(ii,n)
-                cvec%r3(ipc(3))%q(i,j,k)=cvec%r3(ipc(3))%q(i,j,k)+a_en(n)%r3(ipe(1))%q(i,j,k)* t_en(ii,n)
-                cvec%r3(ipc(4))%q(i,j,k)=cvec%r3(ipc(4))%q(i,j,k)+a_en(n)%r3(ipe(1))%q(i,j,k)*rh_en(ii,n)
-                cvec%r3(ipc(5))%q(i,j,k)=cvec%r3(ipc(5))%q(i,j,k)+a_en(n)%r3(ipe(1))%q(i,j,k)*oz_en(ii,n)
-                cvec%r3(ipc(6))%q(i,j,k)=cvec%r3(ipc(6))%q(i,j,k)+a_en(n)%r3(ipe(1))%q(i,j,k)*cw_en(ii,n)
+       do ic3=1,nc3d
+          do k=1,km
+             do j=1,jm
+                do i=1,im
+                   cvec%r3(ipc3d(ic3))%q(i,j,k)=cvec%r3(ipc3d(ic3))%q(i,j,k) &
+                         +a_en(n)%r3(ipe(1))%q(i,j,k)*en_perts(n)%r3(ipc3d(ic3))%qr4(i,j,k)
+                end do
              end do
           end do
        end do
-       ii=0
-       do j=1,grd_ens%lon2
-          do i=1,grd_ens%lat2
-             ii=ii+1
-             cvec%r2(ipc(7))%q(i,j)=cvec%r2(ipc(7))%q(i,j)+a_en(n)%r3(ipe(1))%q(i,j,1)*  p_en(ii,n)
-             cvec%r2(ipc(8))%q(i,j)=cvec%r2(ipc(8))%q(i,j)+a_en(n)%r3(ipe(1))%q(i,j,1)*sst_en(ii,n)
+       do ic2=1,nc2d
+          do j=1,jm
+             do i=1,im
+                cvec%r2(ipc2d(ic2))%q(i,j)=cvec%r2(ipc2d(ic2))%q(i,j) &
+                      +a_en(n)%r3(ipe(1))%q(i,j,1)*en_perts(n)%r2(ipc2d(ic2))%qr4(i,j)
+             end do
           end do
        end do
     end do
@@ -1459,6 +1487,7 @@ end subroutine normal_new_factorization_rf_y
 !                         the ensemble part is still not updated for
 !                         generalized control variable
 !   2010-05-18  todling - revisited bundle usage in light of Dave's change (2010-05-07)
+!   2011-02-28  parrish  bundle changes
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1491,191 +1520,93 @@ end subroutine normal_new_factorization_rf_y
 !$$$
 
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-    use general_sub2grid_mod, only: general_sube2suba_r_double  
+    use general_sub2grid_mod, only: general_sube2suba
     use gridmod,only: regional
     use constants, only: zero
-
     implicit none
+
     type(gsi_bundle),intent(inout) :: cvec
     type(gsi_bundle),intent(in)    :: a_en(:)
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_dual_res'
-    integer(i_kind) i,ii,jj,j,k,n,iv,im,jm,km
-    real(r_kind),allocatable:: sube_vars(:),suba_vars(:)
-    integer(i_kind) ipc(nevs),ipe(1),istatus
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    type(gsi_grid)  :: grid_ens,grid_anl
+    type(gsi_bundle)  :: work_ens,work_anl
+    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
 
 !   Request ensemble-corresponding fields from control vector
-    call gsi_bundlegetpointer (cvec,evars,ipc,istatus)
+!    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
+!             ipc2d indices for cvec and en_perts bundles.
+    call gsi_bundlegetpointer (cvec,cvars3d,ipc3d,istatus)
     if(istatus/=0) then
-      write(6,*) myname_,': cannot find pointers'
+      write(6,*) myname_,': cannot find 3d pointers'
+      call stop2(999)
+    endif
+    call gsi_bundlegetpointer (cvec,cvars2d,ipc2d,istatus)
+    if(istatus/=0) then
+      write(6,*) myname_,': cannot find 2d pointers'
       call stop2(999)
     endif
 
+    call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+    call gsi_bundlecreate (work_ens,grid_ens,'ensemble work',istatus, &
+                              names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble creating work_ens bundle'
+       call stop2(999)
+    endif
+    call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+    call gsi_bundlecreate (work_anl,grid_anl,'analysis work',istatus, &
+                              names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble creating work_anl bundle'
+       call stop2(999)
+    endif
+
+
     ipe(1)=1
-    allocate(sube_vars(grd_ens%latlon11*grd_ens%num_fields))
-    im=a_en(1)%grid%im
-    jm=a_en(1)%grid%jm
-    km=a_en(1)%grid%km
-!$omp parallel sections private(i,j,k,ii,jj)
-!$omp section
-    do ii=1,km*jm*im
-      sube_vars(ii)=zero
-    end do
+    work_ens%values(:)=zero
+    im=work_ens%grid%im
+    jm=work_ens%grid%jm
+    km=work_ens%grid%km
     do n=1,n_ens
-       ii=0
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1; jj=jj+1
-                sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,k)*st_en(jj,n)
+       do ic3=1,nc3d
+          do k=1,km
+             do j=1,jm
+                do i=1,im
+                      work_ens%r3(ipc3d(ic3))%q(i,j,k)=work_ens%r3(ipc3d(ic3))%q(i,j,k) &
+                         +a_en(n)%r3(ipe(1))%q(i,j,k)*en_perts(n)%r3(ipc3d(ic3))%qr4(i,j,k)
+                end do
              end do
           end do
        end do
-    end do
-!$omp section
-    do ii=km*jm*im+1,2*km*jm*im
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=im*jm*km
-       jj=0
-       do k=1,km
+       do ic2=1,nc2d
           do j=1,jm
              do i=1,im
-                ii=ii+1; jj=jj+1
-                sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,k)*vp_en(jj,n)
+                work_ens%r2(ipc2d(ic2))%q(i,j)=work_ens%r2(ipc2d(ic2))%q(i,j) &
+                      +a_en(n)%r3(ipe(1))%q(i,j,1)*en_perts(n)%r2(ipc2d(ic2))%qr4(i,j)
              end do
-          end do
-       end do
-    end do
-!$omp section
-    do ii=2*km*jm*im+1,3*km*jm*im
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=2*im*jm*km
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1; jj=jj+1
-                sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,k)*t_en(jj,n)
-             end do
-          end do
-       end do
-    end do
-!$omp section
-    do ii=3*km*jm*im+1,4*km*jm*im
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=3*im*jm*km
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1; jj=jj+1
-                sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,k)*rh_en(jj,n)
-             end do
-          end do
-       end do
-    end do
-!$omp section
-    do ii=4*km*jm*im+1,5*km*jm*im
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=4*im*jm*km
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1; jj=jj+1
-                sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,k)*oz_en(jj,n)
-             end do
-          end do
-       end do
-    end do
-!$omp section
-    do ii=5*km*jm*im+1,6*km*jm*im
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=5*im*jm*km
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1; jj=jj+1
-                sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,k)*cw_en(jj,n)
-             end do
-          end do
-       end do
-    end do
-!$omp section
-    do ii=6*km*jm*im+1,6*km*jm*im+im*jm
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=6*im*jm*km
-       jj=0
-       do j=1,jm
-          do i=1,im
-             ii=ii+1; jj=jj+1
-             sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,1)*p_en(jj,n)
-          end do
-       end do
-    end do
-!$omp section
-    do ii=6*km*jm*im+im*jm+1,6*km*jm*im+2*im*jm
-      sube_vars(ii)=zero
-    end do
-    do n=1,n_ens
-       ii=6*im*jm*km+im*jm
-       jj=0
-       do j=1,jm
-          do i=1,im
-             ii=ii+1; jj=jj+1
-             sube_vars(ii)=sube_vars(ii)+a_en(n)%r3(ipe(1))%q(i,j,1)*sst_en(jj,n)
           end do
        end do
     end do
 
-!$omp end parallel sections
-    allocate(suba_vars(grd_anl%latlon11*grd_anl%num_fields))
-    call general_sube2suba_r_double(grd_ens,grd_anl,p_e2a,sube_vars,suba_vars,regional)
-    deallocate(sube_vars)
-    im=cvec%grid%im
-    jm=cvec%grid%jm
-    km=cvec%grid%km
-! since suba_vars is ordered in the same way as sube_vars 
-! (from choice of pointers made locally above)
-! we can now simple loop over all locally defined 3d and 2d variables 
-!$omp parallel do schedule(dynamic,1) private(iv,ii,k,j,i)
-    do iv=1,nevs
-      if(iv <= ne3d)then
-       ii=(iv-1)*im*jm*km
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1
-                cvec%r3(ipc(iv))%q(i,j,k)=cvec%r3(ipc(iv))%q(i,j,k)+suba_vars(ii)
-             end do
-          end do
-       end do
-      else
-       ii=(iv-1-ne3d)*im*jm+ne3d*im*jm*km
-       do j=1,jm
-          do i=1,im
-             ii=ii+1
-             cvec%r2(ipc(iv))%q(i,j)=cvec%r2(ipc(iv))%q(i,j)+suba_vars(ii)
-          end do
-       end do
-      end if
+    call general_sube2suba(grd_ens,grd_anl,p_e2a,work_ens%values,work_anl%values,regional)
+    call gsi_bundledestroy(work_ens,istatus)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble destroying work ens bundle'
+       call stop2(999)
+    endif
+    do ic3=1,nc3d
+       cvec%r3(ipc3d(ic3))%q=cvec%r3(ipc3d(ic3))%q+work_anl%r3(ipc3d(ic3))%q
     end do
-
-    deallocate(suba_vars)
+    do ic2=1,nc2d
+       cvec%r2(ipc2d(ic2))%q=cvec%r2(ipc2d(ic2))%q+work_anl%r2(ipc2d(ic2))%q
+    end do
+    call gsi_bundledestroy(work_anl,istatus)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble destroying work anl bundle'
+       call stop2(999)
+    endif
 
   end subroutine ensemble_forward_model_dual_res
 
@@ -1733,8 +1664,8 @@ end subroutine normal_new_factorization_rf_y
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad'
     logical nogood
-    integer(i_kind) i,j,k,n,ii
-    integer(i_kind) ipc(nevs),ipe(1),istatus
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),ipe(1),istatus
 
 !   Check resolution consistency between static and ensemble components
     nogood=.not.(cvec%grid%im==a_en(1)%grid%im.and.&
@@ -1746,34 +1677,40 @@ end subroutine normal_new_factorization_rf_y
     endif
 
 !   Request ensemble-corresponding fields from control vector
-    call gsi_bundlegetpointer (cvec,evars,ipc,istatus)
+!    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
+!             ipc2d indices for cvec and en_perts bundles.
+    call gsi_bundlegetpointer (cvec,cvars3d,ipc3d,istatus)
     if(istatus/=0) then
-      write(6,*) myname_,': cannot find pointers'
+      write(6,*) myname_,': cannot find 3d pointers'
       call stop2(999)
     endif
-    ipe(1)=1
+    call gsi_bundlegetpointer (cvec,cvars2d,ipc2d,istatus)
+    if(istatus/=0) then
+      write(6,*) myname_,': cannot find 2d pointers'
+      call stop2(999)
+    endif
 
+    im=cvec%grid%im
+    jm=cvec%grid%jm
+    km=cvec%grid%km
+    ipe(1)=1
     do n=1,n_ens
-       ii=0
-       do k=1,grd_ens%nsig
-          do j=1,grd_ens%lon2
-             do i=1,grd_ens%lat2
-                ii=ii+1
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+cvec%r3(ipc(1))%q(i,j,k)*st_en(ii,n)
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+cvec%r3(ipc(2))%q(i,j,k)*vp_en(ii,n)
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+cvec%r3(ipc(3))%q(i,j,k)* t_en(ii,n)
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+cvec%r3(ipc(4))%q(i,j,k)*rh_en(ii,n)
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+cvec%r3(ipc(5))%q(i,j,k)*oz_en(ii,n)
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+cvec%r3(ipc(6))%q(i,j,k)*cw_en(ii,n)
+       do ic3=1,nc3d
+          do k=1,km
+             do j=1,jm
+                do i=1,im
+                      a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k) &
+                            +cvec%r3(ipc3d(ic3))%q(i,j,k)*en_perts(n)%r3(ipc3d(ic3))%qr4(i,j,k)
+                end do
              end do
           end do
        end do
-       ii=0
-       do j=1,grd_ens%lon2
-          do i=1,grd_ens%lat2
-             ii=ii+1
-             a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1)+cvec%r2(ipc(7))%q(i,j)*p_en(ii,n)
-             a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1)+cvec%r2(ipc(8))%q(i,j)*sst_en(ii,n)
+       do ic2=1,nc2d
+          do j=1,jm
+             do i=1,im
+                a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1) &
+                      +cvec%r2(ipc2d(ic2))%q(i,j)*en_perts(n)%r2(ipc2d(ic2))%qr4(i,j)
+             end do
           end do
        end do
     end do
@@ -1799,6 +1736,7 @@ end subroutine normal_new_factorization_rf_y
 !                           the ensemble part is still not updated for
 !                           generalized control variable
 !   2010-05-18  todling - revisited bundle usage in light of Dave's change (2010-05-07)
+!   2011-02-28  parrish  bundle changes
 !
 !   input argument list:
 !     st       - stream function input control variable
@@ -1830,8 +1768,9 @@ end subroutine normal_new_factorization_rf_y
 !
 !$$$
 
+    use constants, only: zero
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-    use general_sub2grid_mod, only: general_sube2suba_r_double_ad
+    use general_sub2grid_mod, only: general_sube2suba_ad
     use gridmod,only: regional
     implicit none
 
@@ -1839,126 +1778,83 @@ end subroutine normal_new_factorization_rf_y
     type(gsi_bundle),intent(inout) :: a_en(:)
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad_dual_res'
-    integer(i_kind) i,ii,jj,j,k,n,iv,im,jm,km
-    real(r_kind),allocatable:: sube_vars(:),suba_vars(:)
-    integer(i_kind) ipc(nevs),ipe(1),istatus
+    integer(i_kind) i,j,k,n,im,jm,km,ic2,ic3
+    type(gsi_grid)  :: grid_ens,grid_anl
+    type(gsi_bundle)  :: work_ens,work_anl
+    integer(i_kind) ipc2d(nc2d),ipc3d(nc3d),ipe(1),istatus
 
 !   Request ensemble-corresponding fields from control vector
-    call gsi_bundlegetpointer (cvec,evars,ipc,istatus)
+!    NOTE:  because ensemble perturbation bundle structure is same as control vector, use same ipc3d and
+!             ipc2d indices for cvec and en_perts bundles.
+    call gsi_bundlegetpointer (cvec,cvars3d,ipc3d,istatus)
     if(istatus/=0) then
-      write(6,*) myname_,': cannot find pointers'
+      write(6,*) myname_,': cannot find 3d pointers'
       call stop2(999)
     endif
-    ipe(1)=1
+    call gsi_bundlegetpointer (cvec,cvars2d,ipc2d,istatus)
+    if(istatus/=0) then
+      write(6,*) myname_,': cannot find 2d pointers'
+      call stop2(999)
+    endif
 
-    allocate(suba_vars(grd_anl%latlon11*grd_anl%num_fields))
+    call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+    call gsi_bundlecreate (work_ens,grid_ens,'ensemble work',istatus, &
+                              names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble creating work_ens bundle'
+       call stop2(999)
+    endif
+    call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+    call gsi_bundlecreate (work_anl,grid_anl,'analysis work',istatus, &
+                              names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble creating work_anl bundle'
+       call stop2(999)
+    endif
 
-    im=cvec%grid%im
-    jm=cvec%grid%jm
-    km=cvec%grid%km
-!$omp parallel do schedule(dynamic,1) private(iv,ii,k,j,i)
-    do iv=1,nevs
-      if(iv <= ne3d)then
-       ii=(iv-1)*km*jm*im
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1
-                suba_vars(ii)=cvec%r3(ipc(iv))%q(i,j,k)
-             end do
-          end do
-       end do
-      else
-       ii=(iv-1-ne3d)*im*jm+ne3d*im*jm*km
-       do j=1,jm
-          do i=1,im
-             ii=ii+1
-             suba_vars(ii)=cvec%r2(ipc(iv))%q(i,j)
-          end do
-       end do
-      end if
+    do ic3=1,nc3d
+       work_anl%r3(ipc3d(ic3))%q=cvec%r3(ipc3d(ic3))%q
     end do
+    do ic2=1,nc2d
+       work_anl%r2(ipc2d(ic2))%q=cvec%r2(ipc2d(ic2))%q
+    end do
+    work_ens%values=zero
+    call general_sube2suba_ad(grd_ens,grd_anl,p_e2a,work_ens%values,work_anl%values,regional)
+    call gsi_bundledestroy(work_anl,istatus)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble destroying work anl bundle'
+       call stop2(999)
+    endif
 
-    allocate(sube_vars(grd_ens%latlon11*grd_ens%num_fields))
-    call general_sube2suba_r_double_ad(grd_ens,grd_anl,p_e2a,sube_vars,suba_vars,regional)
-    deallocate(suba_vars)
+    ipe(1)=1
     im=a_en(1)%grid%im
     jm=a_en(1)%grid%jm
     km=a_en(1)%grid%km
-!$omp parallel do schedule(dynamic,1) private(n,ii,jj,i,j,k)
     do n=1,n_ens
-       ii=0
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-                ii=ii+1; jj=jj+1
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+sube_vars(ii)*st_en(jj,n)
+       do ic3=1,nc3d
+          do k=1,km
+             do j=1,jm
+                do i=1,im
+                      a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k) &
+                               +work_ens%r3(ipc3d(ic3))%q(i,j,k)*en_perts(n)%r3(ipc3d(ic3))%qr4(i,j,k)
+                end do
              end do
           end do
        end do
-       jj=0
-       do k=1,km
+       do ic2=1,nc2d
           do j=1,jm
              do i=1,im
-                ii=ii+1; jj=jj+1
-                a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+sube_vars(ii)*vp_en(jj,n)
+                a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1) &
+                          +work_ens%r2(ipc2d(ic2))%q(i,j)*en_perts(n)%r2(ipc2d(ic2))%qr4(i,j)
              end do
-          end do
-       end do
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-             ii=ii+1; jj=jj+1
-             a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+sube_vars(ii)*t_en(jj,n)
-             end do
-          end do
-       end do
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-             ii=ii+1; jj=jj+1
-             a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+sube_vars(ii)*rh_en(jj,n)
-             end do
-          end do
-       end do
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-             ii=ii+1; jj=jj+1
-             a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+sube_vars(ii)*oz_en(jj,n)
-             end do
-          end do
-       end do
-       jj=0
-       do k=1,km
-          do j=1,jm
-             do i=1,im
-             ii=ii+1; jj=jj+1
-             a_en(n)%r3(ipe(1))%q(i,j,k)=a_en(n)%r3(ipe(1))%q(i,j,k)+sube_vars(ii)*cw_en(jj,n)
-             end do
-          end do
-       end do
-       jj=0
-       do j=1,jm
-          do i=1,im
-            ii=ii+1; jj=jj+1
-            a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1)+sube_vars(ii)*p_en(jj,n)
-         end do
-       end do
-       jj=0
-       do j=1,jm
-          do i=1,im
-             ii=ii+1; jj=jj+1
-             a_en(n)%r3(ipe(1))%q(i,j,1)=a_en(n)%r3(ipe(1))%q(i,j,1)+sube_vars(ii)*sst_en(jj,n)
           end do
        end do
     end do
-    deallocate(sube_vars)
-
+    call gsi_bundledestroy(work_ens,istatus)
+    if(istatus/=0) then
+       write(6,*)trim(myname_),': trouble destroying work ens bundle'
+       call stop2(999)
+    endif
 
   end subroutine ensemble_forward_model_ad_dual_res
 
@@ -2212,9 +2108,9 @@ subroutine beta12mult(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*beta12mult'
-  integer(i_kind) ii,jj,nn
+  integer(i_kind) ii,nn,ic2,ic3
   real(r_kind) beta2_inv
-  integer(i_kind) ipc(nevs),istatus
+  integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
 ! Initialize timer
   call timer_ini('beta12mult')
@@ -2222,35 +2118,29 @@ subroutine beta12mult(grady)
   beta2_inv=one-beta1_inv
 
 ! Request CV pointers to vars pertinent to ensemble
-  call gsi_bundlegetpointer ( grady%step(1), evars, ipc, istatus )
+  call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
   if(istatus/=0) then
-     write(6,*) myname_,': cannot proceed, CV does not contain ens-required field'
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+     call stop2(999)
+  endif
+  call gsi_bundlegetpointer ( grady%step(1), cvars2d, ipc2d, istatus )
+  if(istatus/=0) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
      call stop2(999)
   endif
   do ii=1,nsubwin
 
 !    multiply by beta1_inv first:
-     if (.not.oz_univ_static) then
-
-!$omp parallel do schedule(dynamic,1) private(jj)
-     	do jj=1,ne3d
-           grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
-        enddo
-     else
-! Skip ozone (slot 5)
-
-!$omp parallel do schedule(dynamic,1) private(jj)
-     	do jj=1,4
-	  grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
-	end do
-        do jj=6,ne3d
-	   grady%step(ii)%r3(ipc(jj))%q =beta1_inv*grady%step(ii)%r3(ipc(jj))%q
-	end do
-     end if
-
+     do ic3=1,nc3d
+!  check for ozone and skip if oz_univ_static = true
+        if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+        grady%step(ii)%r3(ipc3d(ic3))%q =beta1_inv*grady%step(ii)%r3(ipc3d(ic3))%q
+     enddo
+     do ic2=1,nc2d
 ! Default to static B estimate for SST
-!    grady%step(ii)%r2(ipc(8))%q=beta1_inv*grady%step(ii)%r2(ipc(8))%q ! <---- sst
-     grady%step(ii)%r2(ipc(7))%q=beta1_inv*grady%step(ii)%r2(ipc(7))%q
+        if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
+        grady%step(ii)%r2(ipc2d(ic2))%q =beta1_inv*grady%step(ii)%r2(ipc2d(ic2))%q
+     enddo
 
 !    next multiply by beta2inv:
 !$omp parallel do schedule(dynamic,1) private(nn)
@@ -2391,15 +2281,16 @@ subroutine init_sf_xy(jcap_in)
 !     compute latitudes in km from north pole
   rkm(grd_ens%nlat)=zero
   rkm(1)=two*asin(one)*rearth*.001_r_kind
-  do i=1,(grd_ens%nlat-2_i_kind)/2
+  do i=1,(grd_ens%nlat-2)/2
      rkm(grd_ens%nlat-i)=(asin(one)-asin(sp_loc%slat(i)))*rearth*.001_r_kind
      rkm(1+i)=(asin(one)+asin(sp_loc%slat(i)))*rearth*.001_r_kind
   end do
   if(mype == 0) write(6,*)' in init_sf_xy, lat,max(dlat)=', &
-           rkm(1+(grd_ens%nlat-2_i_kind)/2), &
-          -rkm(grd_ens%nlat-(grd_ens%nlat-2_i_kind)/2)+rkm(1+(grd_ens%nlat-2_i_kind)/2),' km'
+           rkm(1+(grd_ens%nlat-2)/2), &
+          -rkm(grd_ens%nlat-(grd_ens%nlat-2)/2)+rkm(1+(grd_ens%nlat-2)/2),' km'
 
   allocate(spectral_filter(sp_loc%nc,grd_ens%nsig))
+  allocate(sqrt_spectral_filter(sp_loc%nc,grd_ens%nsig))
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
   do k=1,grd_ens%nsig
@@ -2447,7 +2338,7 @@ subroutine init_sf_xy(jcap_in)
         factor=one
         if(l >  0) factor=half
         do n=l,sp_loc%jcap
-           nn=nn+2_i_kind
+           nn=nn+2
            ii=ii+1
            spectral_filter(ii,k)=factor*g(2*n+1)
            ii=ii+1
@@ -2459,6 +2350,7 @@ subroutine init_sf_xy(jcap_in)
         end do
      end do
   end do
+  sqrt_spectral_filter=sqrt(spectral_filter)
   deallocate(g,gsave,pn0_npole)
 
 !  assign array k_index for each processor, based on grd_loc%kbegin_loc,grd_loc%kend_loc
@@ -2533,10 +2425,104 @@ subroutine sf_xy(f,k_start,k_end)
   do k=k_start,k_end
      call general_s2g0_ad(grd_ens,sp_loc,g,f(:,k))
      g(:)=g(:)*spectral_filter(:,k_index(k))
+!    g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
+!    g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
      call general_s2g0(grd_ens,sp_loc,g,f(:,k))
   end do
 
 end subroutine sf_xy
+
+subroutine sqrt_sf_xy(z,f,k_start,k_end)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    sqrt_sf_xy  sqrt(sf_xy)
+!
+!   prgrmmr:  parrish        org: np22                              date: 2011-06-28
+!
+! abstract:  sqrt of spectral localization operator sf_xy.
+!
+! program history log:
+!   2011-06-28  parrish  initial documentation
+!
+!   input argument list:
+!     z        - input spectral space variable
+!     k_start  - starting horizontal slab index
+!     k_end    - ending horizontal slab index    (k_end can be less than k_start, meaning there is
+!                                                   no work on this processor)
+!                 NOTE: above args allow horizontal localization length to vary in vertical
+!
+!   output argument list:
+!     f        - output grid space variable
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc
+  implicit none
+
+  integer(i_kind),intent(in   ) :: k_start,k_end
+  real(r_kind)   ,intent(in   ) :: z(sp_loc%nc,k_start:max(k_start,k_end))
+  real(r_kind)   ,intent(  out) :: f(grd_ens%nlat*grd_ens%nlon,k_start:max(k_start,k_end))
+
+  real(r_kind) g(sp_loc%nc)
+  integer(i_kind) k
+
+  do k=k_start,k_end
+     g(:)=z(:,k)*sqrt_spectral_filter(:,k_index(k))
+     call general_s2g0(grd_ens,sp_loc,g,f(:,k))
+  end do
+
+end subroutine sqrt_sf_xy
+
+subroutine sqrt_sf_xy_ad(z,f,k_start,k_end)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    sqrt_sf_xy_ad  adjoint of sqrt_sf_xy
+!
+!   prgrmmr:  parrish        org: np22                              date: 2011-06-28
+!
+! abstract:  adjoint of sqrt_sf_xy.
+!
+! program history log:
+!   2011-06-28  parrish  initial documentation
+!
+!   input argument list:
+!     f        - grid space variable
+!     k_start  - starting horizontal slab index
+!     k_end    - ending horizontal slab index    (k_end can be less than k_start, meaning there is
+!                                                   no work on this processor)
+!                 NOTE: above args allow horizontal localization length to vary in vertical
+!
+!   output argument list:
+!     z        - spectral space variable
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc
+  implicit none
+
+  integer(i_kind),intent(in   ) :: k_start,k_end
+  real(r_kind)   ,intent(inout) :: z(sp_loc%nc,k_start:max(k_start,k_end))
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat*grd_ens%nlon,k_start:max(k_start,k_end))
+
+  real(r_kind) g(sp_loc%nc)
+  integer(i_kind) k
+
+  do k=k_start,k_end
+     call general_s2g0_ad(grd_ens,sp_loc,g,f(:,k))
+     z(:,k)=g(:)*sqrt_spectral_filter(:,k_index(k))
+  end do
+
+end subroutine sqrt_sf_xy_ad
 
 end module hybrid_ensemble_isotropic
 
@@ -2568,7 +2554,7 @@ subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_double
   use constants, only: one
   use raflib, only: stringop
   implicit none
@@ -2578,7 +2564,7 @@ subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
   real(r_kind)               , intent(  out) :: fmat_out(2,ng,2),fmat0_out(ng,2)
 
   integer(i_kind) i,j
-  real(r_kind) sig(0:ng-1),fmat(0:ng-1,-2:0,2)
+  real(r_double) sig(0:ng-1),fmat(0:ng-1,-2:0,2)
 
   do i=1,ng
      sig(i-1)=sqrt(aspect(i))
@@ -2622,10 +2608,10 @@ subroutine bkerror_a_en(gradx,grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin, lsqrtb
-  use mpimod, only: mype ! _RT DEBUG
   use control_vectors
   use timermod, only: timer_ini,timer_fnl
   use hybrid_ensemble_parameters, only: n_ens
+  use hybrid_ensemble_parameters, only: nval_lenz_en
   use gsi_bundlemod,only: gsi_bundlegetpointer
   implicit none
 
@@ -2635,6 +2621,7 @@ subroutine bkerror_a_en(gradx,grady)
 
 ! Declare local variables
   integer(i_kind) ii,nn,ip,istatus
+  real(r_kind),allocatable::z(:)
 
   if (lsqrtb) then
      write(6,*)'bkerror_a_en: not for use with lsqrtb'
@@ -2659,7 +2646,16 @@ subroutine bkerror_a_en(gradx,grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
   do ii=1,nsubwin
-     call bkgcov_a_en_new_factorization(grady%aens(ii,1:n_ens))
+    !if(test_sqrt_localization) then
+    !        write(6,*)' using ckgcov_a_en_new_factorization'
+    !   allocate(z(nval_lenz_en))
+    !   call ckgcov_a_en_new_factorization_ad(z,grady%aens(ii,1:n_ens))
+    !   call ckgcov_a_en_new_factorization   (z,grady%aens(ii,1:n_ens))
+    !   deallocate(z)
+    !else
+    !        write(6,*)' using bkgcov_a_en_new_factorization'
+        call bkgcov_a_en_new_factorization(grady%aens(ii,1:n_ens))
+    !end if
   end do
 
 ! Finalize timer
@@ -2701,7 +2697,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
   use hybrid_ensemble_isotropic, only: &
          new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y,sf_xy
-  use general_sub2grid_mod, only: general_sub2grid_r_double,general_grid2sub_r_double
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
@@ -2738,12 +2734,12 @@ subroutine bkgcov_a_en_new_factorization(a_en)
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
      ii=(k-1)*a_en(1)%ndim
      is=ii+1
-     ie=is+a_en(1)%ndim
+     ie=ii+a_en(1)%ndim
      a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
   enddo
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call general_sub2grid_r_double(grd_loc,a_en_work,hwork)
+  call general_sub2grid(grd_loc,a_en_work,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
   if(regional) then
@@ -2758,7 +2754,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   end if
 
 ! Put back onto subdomains
-  call general_grid2sub_r_double(grd_loc,hwork,a_en_work)
+  call general_grid2sub(grd_loc,hwork,a_en_work)
 
 ! Retrieve ensemble components from long vector
 ! Apply vertical smoother on each ensemble member
@@ -2767,14 +2763,231 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   do k=1,n_ens
      ii=(k-1)*a_en(1)%ndim
      is=ii+1
-     ie=is+a_en(1)%ndim
+     ie=ii+a_en(1)%ndim
      a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
-  end do
+  enddo
   deallocate(a_en_work)
 
   return
 end subroutine bkgcov_a_en_new_factorization
+
+subroutine ckgcov_a_en_new_factorization(z,a_en)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ckgcov_a_en_new_factorization sqrt(bkgcov_a_en_new_factorization)
+!   prgmmr: parrish        org: np22                date: 2011-06-27
+!
+! abstract: make a copy of bkgcov_a_en_new_factorization and form sqrt.
+!
+! program history log:
+!   2011-06-27  parrish, initial documentation
+!
+!   input argument list:
+!     z        - long vector containing sqrt control vector for ensemble extended control variable
+!
+!   output argument list:
+!     a_en     - bundle containing intermediate control variable after multiplication by sqrt(S), the
+!                    ensemble localization correlation.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use gridmod, only: regional
+  use hybrid_ensemble_parameters, only: n_ens,grd_loc
+  use hybrid_ensemble_isotropic, only: &
+         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y
+#ifdef LATER
+  use hybrid_ensemble_isotropic, only: sqrt_sf_xy
+#endif /*LATER*/
+  use hybrid_ensemble_parameters, only: nval_lenz_en
+  use general_sub2grid_mod, only: general_grid2sub
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+
+  implicit none
+
+! Passed Variables
+  type(gsi_bundle),intent(inout) :: a_en(n_ens)
+  real(r_kind),dimension(nval_lenz_en),intent(in   ) :: z
+
+! Local Variables
+  integer(i_kind) i,ii,k,iadvance,iback,is,ie,ipnt,istatus
+  real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
+!NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
+!          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
+!   but internal array hwork always has
+!      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!    which just happens to match up with nval_lenz_en for regional case, but not global.
+  real(r_kind),allocatable,dimension(:):: a_en_work
+
+  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
+  if(istatus/=0) then
+     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
+     call stop2(999)
+  endif
+
+
+  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+!     no work to be done on this processor, but hwork still has allocated space, since
+!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
+     hwork=zero
+  else
+! Apply horizontal smoother for number of horizontal scales
+     if(regional) then
+! Make a copy of input variable z to hwork
+        hwork=z
+        iadvance=2 ; iback=1
+        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     else
+#ifdef LATER
+        call sqrt_sf_xy(z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+#else
+        write(6,*) ' problem with ibm compiler with "use hybrid_ensemble_isotropic, only: sqrt_sf_xy"'
+#endif /*LATER*/
+     end if
+  end if
+
+! Put back onto subdomains
+  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
+  if(istatus/=0) then
+     write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
+     call stop2(999)
+  endif
+  call general_grid2sub(grd_loc,hwork,a_en_work)
+
+! Retrieve ensemble components from long vector
+  ii=0
+  do k=1,n_ens
+     is=ii+1
+     ie=ii+a_en(1)%ndim
+     a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
+     ii=ii+a_en(1)%ndim
+  enddo
+  deallocate(a_en_work)
+
+! Apply vertical smoother on each ensemble member
+  do k=1,n_ens
+
+     iadvance=2 ; iback=1
+     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
+
+  end do
+
+  return
+end subroutine ckgcov_a_en_new_factorization
+
+subroutine ckgcov_a_en_new_factorization_ad(z,a_en)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ckgcov_a_en_new_factorization_ad adjoint of ckgcov_a_en_new_factorization
+!   prgmmr: parrish        org: np22                date: 2011-06-27
+!
+! abstract: adjoint of ckgcov_a_en_new_factorization.  Calling ckgcov_a_en_new_factorization_ad,
+!            followed by ckgcov_a_en_new_factorization is the equivalent of one call to
+!            subroutine bkgcov_a_en_new_factorization.
+!
+! program history log:
+!   2011-06-27  parrish, initial documentation
+!
+!   input argument list:
+!     z        - long vector containing sqrt control vector for ensemble extended control variable
+!     a_en     - bundle containing intermediate control variable after multiplication by sqrt(S), the
+!                    ensemble localization correlation.
+!
+!   output argument list:
+!     z        - long vector containing sqrt control vector for ensemble extended control variable
+!     a_en     - bundle containing intermediate control variable after multiplication by sqrt(S), the
+!                    ensemble localization correlation.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use gridmod, only: regional
+  use hybrid_ensemble_parameters, only: n_ens,grd_loc
+  use hybrid_ensemble_isotropic, only: &
+         new_factorization_rf_z,new_factorization_rf_x,new_factorization_rf_y,sqrt_sf_xy_ad
+  use hybrid_ensemble_parameters, only: nval_lenz_en
+  use general_sub2grid_mod, only: general_sub2grid
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+
+  implicit none
+
+! Passed Variables
+  type(gsi_bundle),intent(inout) :: a_en(n_ens)
+  real(r_kind),dimension(nval_lenz_en),intent(inout) :: z
+
+! Local Variables
+  integer(i_kind) i,ii,k,iadvance,iback,is,ie,ipnt,istatus
+  real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
+!NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
+!          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
+!   but internal array hwork always has
+!      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!    which just happens to match up with nval_lenz_en for regional case, but not global.
+  real(r_kind),allocatable,dimension(:):: a_en_work
+
+  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
+  if(istatus/=0) then
+     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
+     call stop2(999)
+  endif
+
+! Apply vertical smoother on each ensemble member
+  do k=1,n_ens
+
+     iadvance=1 ; iback=2
+     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
+ 
+  end do
+
+! To avoid my having to touch the general sub2grid and grid2sub,
+! get copy for ensemble components to work array
+  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
+  if(istatus/=0) then
+     write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
+     call stop2(999)
+  endif
+  ii=0
+  do k=1,n_ens
+     is=ii+1
+     ie=ii+a_en(1)%ndim
+     a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
+     ii=ii+a_en(1)%ndim
+  enddo
+
+! Convert from subdomain to full horizontal field distributed among processors
+  call general_sub2grid(grd_loc,a_en_work,hwork)
+  deallocate(a_en_work)
+
+  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+!     no work to be done on this processor, but z still has allocated space, since
+!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
+     z=zero
+  else
+! Apply horizontal smoother for number of horizontal scales
+     if(regional) then
+        iadvance=1 ; iback=2
+        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+        z=hwork
+     else
+        call sqrt_sf_xy_ad(z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+     end if
+  end if
+
+  return
+end subroutine ckgcov_a_en_new_factorization_ad
 
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -2804,19 +3017,24 @@ subroutine hybens_grid_setup
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
                       s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
                       grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,&
-                      dual_res,uv_hyb_ens
+                      dual_res,uv_hyb_ens,gefs_in_regional
   use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
   use general_sub2grid_mod, only: general_sub2grid_create_info
   use general_specmod, only: general_init_spec_vars
-  use egrid2agrid_mod,only: g_create_egrid2agrid
+  use egrid2agrid_mod,only: g_create_egrid2agrid,create_egrid2agrid
   use mpimod, only: mype,ierror,npe
   use constants, only: one
+  use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
+  use control_vectors, only: cvars3d,nc2d,nc3d
+  use gridmod, only: region_lat,region_lon  ! debug only
 
   implicit none
 
-  integer(i_kind) inner_vars,num_fields
+  integer(i_kind) inner_vars,num_fields,ic3,k
   integer(i_kind) nord_e2a
   logical,allocatable::vector(:)
+  real(r_kind) eps,r_e
+  real(r_kind) rlon_a(nlon),rlat_a(nlat),rlon_e(nlon),rlat_e(nlat)
 
              nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
 
@@ -2828,11 +3046,31 @@ subroutine hybens_grid_setup
      end if
   end if
 
+!  check if regional and using gefs for ensemble information:
+
+ !eps=10._r_kind
+  eps= 0._r_kind
+ !r_e=2._r_kind
+  r_e=1._r_kind    ! tempory until have dual res problems worked out
+  if(regional.and.gefs_in_regional) then
+     call get_regional_gefs_grid(eps,r_e,nlon,nlon_ens,rlon_a,rlon_e)
+     call get_regional_gefs_grid(eps,r_e,nlat,nlat_ens,rlat_a,rlat_e)
+     allocate(region_lat_ens(nlat_ens,nlon_ens))
+     allocate(region_lon_ens(nlat_ens,nlon_ens))
+     call get_region_lat_lon_ens(region_lat_ens,region_lon_ens,rlat_e,rlon_e,nlat_ens,nlon_ens)
+  end if
+
   if(nlon_ens<=0 .or. nlat_ens<=0) then
      nlon_ens=nlon ; nlat_ens=nlat
   end if
 
   dual_res = (nlon /= nlon_ens .or. nlat /= nlat_ens)
+      if(.not.dual_res.and.regional.and.gefs_in_regional) then
+         if(mype==0) write(0,*)' at 3.2 max(abs(region_lat-region_lat_ens)=',&
+                maxval(abs(region_lat-region_lat_ens))
+         if(mype==0) write(0,*)' at 3.2 max(abs(region_lon-region_lon_ens)=',&
+                maxval(abs(region_lon-region_lon_ens))
+      end if
 
 !     2.  create grid info for ensemble, including stuff for ensemble general_sub2grid, general_grid2sub
   num_fields=nsig*n_ens
@@ -2840,11 +3078,17 @@ subroutine hybens_grid_setup
   allocate(vector(num_fields))
   vector=.false.
   call general_sub2grid_create_info(grd_loc,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
-  num_fields=6*nsig+2     !??? need to fix this based on control vector info ???!
+  num_fields=max(0,nc3d)*nsig+max(0,nc2d)
   deallocate(vector)
   allocate(vector(num_fields))
   vector=.false.
-  vector(1:2*nsig)=uv_hyb_ens     !??? need to fix this based on control vector info ???!
+  do ic3=1,nc3d
+     if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
+        do k=1,nsig
+           vector((ic3-1)*nsig+k)=uv_hyb_ens
+        end do
+     end if
+  end do
   call general_sub2grid_create_info(grd_ens,inner_vars,nlat_ens,nlon_ens,nsig,num_fields,regional,vector)
   call general_sub2grid_create_info(grd_anl,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
   deallocate(vector)
@@ -2863,9 +3107,7 @@ subroutine hybens_grid_setup
                                nord_e2a,p_e2a)
   else
      if(dual_res) then
-        write(6,*)' not ready for dual-res regional hybrid yet, program stops'
-        write(0,*)' not ready for dual-res regional hybrid yet, program stops'
-        call stop2(999)
+        call create_egrid2agrid(nlat,rlat_a,nlon,rlon_a,nlat_ens,rlat_e,nlon_ens,rlon_e,nord_e2a,p_e2a)
      end if
   end if
 
@@ -2894,8 +3136,8 @@ subroutine hybens_localization_setup
 !$$$
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
-	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,&
-         readin_localization
+	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
+         readin_localization,nval_lenz_en
   use gridmod,only: regional
   use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
          normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
@@ -2962,6 +3204,17 @@ subroutine hybens_localization_setup
   else
      call init_sf_xy(jcap_ens)
   end if
+
+!  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
+!     and triggered by lsqrtb.
+  if(regional) then
+     nval_lenz_en=grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+  else
+     nval_lenz_en=sp_loc%nc*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+  end if
+      write(6,*)' at end of hybens_localization_setup, sp_loc%nc,grd_loc%nlat*nlon=', &
+                              sp_loc%nc,grd_loc%nlat*grd_loc%nlon
+      write(6,*)' at end of hybens_localization_setup, nval_lenz_en=',nval_lenz_en
 
 end subroutine hybens_localization_setup
 
@@ -3283,6 +3536,178 @@ subroutine grads1_ens(f,nvert,mype,fname)
 
 end subroutine grads1_ens
 
+subroutine general_grads1(f,nvert,mype,fname,grd)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grads1      generate grads output file for f on subdomains
+!   prgmmr: parrish          org: np22                date: 2009-09-17
+!
+! abstract: create grads output file for variable f on subdomains.  used
+!            to visualize the field f using grads software.
+!
+! program history log:
+!   2009-09-17  parrish
+!
+!   input argument list:
+!     f     - field to generate grads output file
+!     nvert - number of vertical levels in f
+!     mype  - local processor
+!     fname - character string used to identify field f in grads output file
+!     grd   - contains communication info for f
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,r_kind,i_kind
+  use constants, only: one
+  use general_sub2grid_mod, only: sub2grid_info
+  implicit none
+
+  type(sub2grid_info),intent(in):: grd
+  integer(i_kind),intent(in   ) :: nvert,mype
+  character(*)   ,intent(in   ) :: fname
+  real(r_kind)   ,intent(in   ) :: f(grd%lat2,grd%lon2,nvert)
+
+  real(r_kind),dimension(grd%nlat,grd%nlon)::work
+  real(r_single) outfield(grd%nlon,grd%nlat)
+
+  character(50) dsname,title,filename
+! data dsname/'test.dat'/
+  data title/'inmi'/
+  character(112) datdes(50000)
+  character(1) blank
+  data blank/' '/
+  data undef/-9.99e33_r_single/
+
+  integer(i_kind) i,k,kend,kstart,next,np,ioutdes,ioutdat
+  integer(i_kind) last,j,koutmax
+  real(r_single) undef
+  real(r_single) startp,pinc
+
+  if(mype == 0) then
+     np=nvert
+     startp=1._r_single
+     pinc=1._r_single
+     ioutdes=98550
+     ioutdat=98551
+     write(filename,'(a,".des")')trim(fname)
+     write(dsname,'(a,".dat")')trim(fname)
+     open(unit=ioutdes,file=trim(filename),form='formatted')
+     open(unit=ioutdat,file=trim(dsname),form='unformatted')
+     rewind ioutdes
+     rewind ioutdat
+     do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+     end do
+     write(datdes(1),'("DSET ",a50)')dsname
+     write(datdes(2),'("options big_endian sequential")')
+     write(datdes(3),'("TITLE ",a50)')title
+     write(datdes(4),'("UNDEF ",e11.2)')undef
+     next=5
+     write(datdes(next),'("XDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlon,startp,pinc
+     next=next+1
+     write(datdes(next),'("YDEF ",i5," LINEAR ",f7.2,f7.2)')grd%nlat,startp,pinc
+     next=next+1
+     write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')np,startp,pinc
+     next=next+1
+     koutmax=1
+     write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
+     next=next+1
+     write(datdes(next),'("VARS 1")')
+     next=next+1
+     write(datdes(next),'("f   ",i5," 99 f   ")')nvert
+     next=next+1
+     write(datdes(next),'("ENDVARS")')
+     last=next
+     write(ioutdes,'(a112)')(datdes(i),i=1,last)
+ 
+  end if
+
+  do k=1,nvert
+     call general_sub2grid_1_ens(f(1,1,k),work,0,mype,grd)
+     if(mype == 0) then
+        do j=1,grd%nlon ; do i=1,grd%nlat
+           outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+     end if
+  end do
+
+  if(mype == 0) then
+     close(ioutdes)
+     close(ioutdat)
+  end if
+
+end subroutine general_grads1
+
+subroutine general_sub2grid_1_ens(sub,grid,gridpe,mype,grd)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    grads1      generate grads output file for f on subdomains
+!   prgmmr: parrish          org: np22                date: 2009-09-17
+!
+! abstract: straightforward, but inefficient code to convert a single variable
+!            on subdomains to complete slab on one processor.
+!
+! program history log:
+!   2009-09-17  parrish
+!
+!   input argument list:
+!     sub   - field on subdomains
+!     gridpe- processor that contains full slab representation of sub
+!     mype  - local processor
+!
+!   output argument list:
+!     grid  - field on complete slab
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+  use general_sub2grid_mod, only: sub2grid_info
+  implicit none
+
+  type(sub2grid_info),intent(in):: grd
+  integer(i_kind)                  ,intent(in   ) :: gridpe,mype
+  real(r_kind),dimension(grd%lat2,grd%lon2),intent(in   ) :: sub
+  real(r_kind),dimension(grd%nlat,grd%nlon),intent(  out) :: grid
+
+  real(r_kind),dimension(grd%lat1,grd%lon1):: zsm
+  real(r_kind),dimension(grd%itotsub):: work1
+  integer(i_kind) mm1,i,i0,j,j0,k
+
+  mm1=mype+1
+
+  do j=2,grd%lon2-1
+     j0=j-1
+     do i=2,grd%lat2-1
+        i0=i-1
+        zsm(i0,j0)=sub(i,j)
+     end do
+  end do
+  call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
+                 work1,grd%ijn,grd%displs_g,mpi_rtype, &
+                 gridpe,mpi_comm_world,ierror)
+  if(mype == gridpe) then
+     do k=1,grd%iglobal
+        i=grd%ltosi(k) ; j=grd%ltosj(k)
+        grid(i,j)=work1(k)
+     end do
+  end if
+
+end subroutine general_sub2grid_1_ens
+
 subroutine sub2grid_1_ens(sub,grid,gridpe,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -3344,3 +3769,167 @@ subroutine sub2grid_1_ens(sub,grid,gridpe,mype)
   end if
 
 end subroutine sub2grid_1_ens
+
+subroutine get_region_lat_lon_ens(region_lat_ens,region_lon_ens,rlat_e,rlon_e,nlat_e,nlon_e)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_region_lat_lon_ens
+!   prgmmr: parrish          org: np22                date: 2009-09-25
+!
+! abstract: compute earth lats and lons on regional ensemble grid, which has the same coordinates
+!            as the regional analysis grid, but on a coarser grid with a halo zone to allow full
+!            accuracy interpolation of ensemble perturbations to the entire domain of the analysis grid.
+!
+! program history log:
+!   2010-09-25  parrish, initial documentation
+!
+!   input argument list:
+!     rlat_e - regional ensemble grid latitude coordinates in analysis grid units
+!     rlon_e - regional ensemble grid longitude coordinates in analysis grid units
+!     nlat_e - number of ensemble grid latitudes
+!     nlon_e - number of ensemble grid longitudes
+!
+!   output argument list:
+!     region_lat_ens - earth lats at regional ensemble grid points
+!     region_lon_ens - earth lons at regional ensemble grid points
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind,r_single
+  use constants, only: half,one,two
+  use gridmod, only: nlon,nlat,txy2ll
+  use gridmod, only: region_lat,region_lon
+  use mpimod, only: mype
+  implicit none
+
+  real(r_kind),intent(in):: rlat_e(nlat_e),rlon_e(nlon_e)
+  integer(i_kind),intent(in):: nlon_e,nlat_e
+  real(r_kind),intent(out):: region_lat_ens(nlat_e,nlon_e),region_lon_ens(nlat_e,nlon_e)
+
+  integer(i_kind) i,j
+  logical make_test_maps
+  real(r_single),allocatable::out1(:,:)
+  real(r_kind),allocatable::region_lat_e(:,:),region_lon_e(:,:)
+
+  do j=1,nlon_e
+     do i=1,nlat_e
+        call txy2ll(rlon_e(j),rlat_e(i),region_lon_ens(i,j),region_lat_ens(i,j))
+     end do
+  end do
+
+  make_test_maps=.true.
+  allocate(out1(nlon_e,nlat_e))
+  if(make_test_maps.and.mype==0) then
+         do j=1,nlon_e
+            do i=1,nlat_e
+               out1(j,i)=region_lon_ens(i,j)
+            end do
+         end do
+         call outgrads1(out1,nlon_e,nlat_e,'region_lon_e')
+                do j=1,nlon_e
+                   do i=1,nlat_e
+                      out1(j,i)=region_lon(i,j)
+                   end do
+                end do
+                call outgrads1(out1,nlon_e,nlat_e,'region_lon')
+         do j=1,nlon_e
+            do i=1,nlat_e
+               out1(j,i)=region_lat_ens(i,j)
+            end do
+         end do
+         call outgrads1(out1,nlon_e,nlat_e,'region_lat_e')
+                do j=1,nlon_e
+                   do i=1,nlat_e
+                      out1(j,i)=region_lat(i,j)
+                   end do
+                end do
+                call outgrads1(out1,nlon_e,nlat_e,'region_lat')
+         do j=1,nlon_e
+            do i=1,nlat_e
+               out1(j,i)=rlon_e(j)
+            end do
+         end do
+         call outgrads1(out1,nlon_e,nlat_e,'rlon_e')
+         do j=1,nlon_e
+            do i=1,nlat_e
+               out1(j,i)=rlat_e(i)
+            end do
+         end do
+         call outgrads1(out1,nlon_e,nlat_e,'rlat_e')
+  end if
+
+end subroutine get_region_lat_lon_ens
+
+subroutine get_regional_gefs_grid(eps,r_e,n_a,n_e,x_a,x_e)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_regional_gefs_grid
+!   prgmmr: parrish          org: np22                date: 2009-09-25
+!
+! abstract: create ensemble grid centered on regional grid domain.
+!           The ensemble grid extends beyond the edge of the analysis domain by
+!           amount eps (in analysis grid units), and the resolution of the
+!           ensemble grid is in ratio r_e to the analysis grid.
+!
+! program history log:
+!   2010-09-21  parrish, initial documentation
+!
+!   input argument list:
+!     eps   - width of buffer zone--how far ensemble grid extends beyond analysis grid--
+!               in analysis grid units.
+!     r_e   - ratio of ensemble grid resolution to analysis grid resolution (approximate--
+!               actual resolution can be slightly higher)
+!     n_a   - number of analysis grid points in coordinate being processed
+!
+!   output argument list:
+!     n_e   - number of ensemble grid points in coordinate being processed
+!     x_a   - analysis coordinate in grid units (1 to n_a)
+!     x_e   - ensemble grid coordinate in analysis grid units
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_kind,i_kind,r_single
+  use constants, only: half,one,two
+                               use mpimod, only: mype
+  implicit none
+
+  real(r_kind),intent(in):: eps      !  width of halo zone that ensemble grid extends beyond analysis grid
+                                     !       in analysis grid units
+  real(r_kind),intent(in):: r_e      !  ratio of ensemble grid increment to analysis grid increment.
+                                     !     because analysis grid increment=1, bigl_e is ensemble grid
+                                     !     increment in analysis grid units.
+  integer(i_kind),intent(in):: n_a   !  number of analysis coordinate grid points in direction processed
+  integer(i_kind),intent(out):: n_e  !  number of ensemble grid points in direction processed
+  real(r_kind),intent(out)::x_a(n_a) !  analysis coordinate in analysis grid units
+  real(r_kind),intent(out)::x_e(n_a) !  ensemble coordinate in analysis grid units
+
+  real(r_kind) bigl_e,bigl_e_x,r_e_x
+  integer(i_kind) i,j,n
+
+!      schematic for one dimension of domain:
+!
+!       |       |                                |       |
+!        < eps >                                  < eps >
+!
+!               1                               n_a
+
+  bigl_e = n_a - one + two*eps
+  n_e = ceiling(one + bigl_e/r_e)
+  r_e_x = bigl_e/(n_e-one)
+  do n=1,n_a
+     x_a(n)=n
+  end do
+  do n=1,n_e
+     x_e(n) =one - eps + r_e_x*(n-one)
+         if(mype==0) write(0,*)' n,x_e(n),n_a=',n,x_e(n),n_a
+  end do
+
+end subroutine get_regional_gefs_grid

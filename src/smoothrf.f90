@@ -59,7 +59,8 @@ subroutine smoothrf(work,nsc,nlevs)
 
 ! Regional case
   if(regional)then
-!$omp parallel do  schedule(dynamic,1) private(k,j,totwgt)
+!$omp parallel do  schedule(dynamic,1) private(k,j,totwgt), &
+!$omp  shared(nlevs,hswgt,hzscl,nrf_var,nvar_id,work,nx,ny,ii,jj,slw,nsc),default(none)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
@@ -84,7 +85,9 @@ subroutine smoothrf(work,nsc,nlevs)
      end do
      
 !$omp parallel do  schedule(dynamic,1) private(kk) &
-!$omp private(i,j,k,kkk,pall)
+!$omp private(i,j,k,kkk,pall), &
+!$omp shared(nlevs,workout,nx,ny,ii,jj,slw,nsc,nf,nfg,totwgt, &
+!$omp        ii2,slw1,slw2,jj2,jj1,nlat,nlon,ii1,work),default(none)
      do kk=1,3*nlevs
 
         k=(kk-1)/3+1
@@ -228,7 +231,6 @@ subroutine grid2tr(work,p1all)
 
 
   return
-  stop
 end subroutine grid2tr
 
 subroutine grid2tr_ad(work,p1all)
@@ -308,7 +310,6 @@ subroutine grid2tr_ad(work,p1all)
   enddo
 
   return
-  stop
 end subroutine grid2tr_ad
 subroutine grid2nh(work,pall)
 !$$$  subprogram documentation block
@@ -374,7 +375,6 @@ subroutine grid2nh(work,pall)
   end if
 
   return
-  stop
 end subroutine grid2nh
 
 subroutine grid2nh_ad(work,pall)
@@ -438,7 +438,6 @@ subroutine grid2nh_ad(work,pall)
   enddo
 
   return
-  stop
 end subroutine grid2nh_ad
 
 subroutine grid2sh(work,pall)
@@ -506,7 +505,6 @@ subroutine grid2sh(work,pall)
   end if
 
   return
-  stop
 end subroutine grid2sh
 
 subroutine grid2sh_ad(work,pall)
@@ -570,7 +568,6 @@ subroutine grid2sh_ad(work,pall)
   enddo
 
   return
-  stop
 end subroutine grid2sh_ad
 
 
@@ -1145,10 +1142,11 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
 ! Regional case
   if(regional)then
-     allocate(zloc(nlat*nlon,nsc))
-!$omp parallel do  schedule(dynamic,1) private(k,j,iz,totwgt)
+!$omp parallel do  schedule(dynamic,1) private(k,i,j,iz,totwgt,zloc), &
+!$omp  shared(nlevs,nsc,hswgt,hzscl,nrf_var,nvar_id,nlat,nlon,nnnn1o,slw,nx,ii,jj,z,work,ny),default(none)
      do k=1,nlevs
 
+        allocate(zloc(nlat*nlon,nsc))
 !       apply horizontal recursive filters
         do j=1,nsc
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
@@ -1168,8 +1166,8 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         call sqrt_rfxyyx(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
              jj(1,1,1,k),slw(1,k),nsc,totwgt)
         
+        deallocate(zloc)
      end do
-     deallocate(zloc)
 
 ! Global case
   else
@@ -1182,7 +1180,9 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
      do k=1,nlevs
      end do
 !$omp parallel do  schedule(dynamic,1) private(kk) &
-!$omp private(i,j,k,iz,kkk,pall,zloc)
+!$omp private(i,j,k,iz,kkk,pall,zloc), &
+!$omp   shared(nlevs,nlon,nlat,nsc,nfnf,nx,ny,nnnn1o,nfg,nf,z,ii,jj,ii1,jj1,ii2,jj2,slw2, &
+!$omp          slw,slw1,workout,totwgt),default(none)
      do kk=1,3*nlevs
 
         k=(kk-1)/3+1
@@ -1319,10 +1319,11 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 
 ! Regional case
   if(regional)then
-     allocate(zloc(nlat*nlon,nsc))
-!$omp parallel do  schedule(dynamic,1) private(k,j,iz,totwgt)
+!$omp parallel do  schedule(dynamic,1) private(k,i,j,iz,totwgt,zloc), &
+!$omp  shared(nlevs,nsc,hswgt,hzscl,nrf_var,nvar_id,nlat,nlon,nnnn1o,slw,ii,jj,z,nx,ny,work),default(none)
      do k=1,nlevs
 
+        allocate(zloc(nlat*nlon,nsc))
 !       apply horizontal recursive filters
         do j=1,nsc
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
@@ -1341,9 +1342,9 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
               z(i+iz)=zloc(i,j)
            end do
         end do
+        deallocate(zloc)
         
      end do
-     deallocate(zloc)
 
 ! Global case
   else
@@ -1354,7 +1355,9 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
      
 
 !$omp parallel do  schedule(dynamic,1) private(kk) &
-!$omp private(i,j,k,iz,kkk,pall,zloc)
+!$omp private(i,j,k,iz,kkk,pall,zloc), &
+!$omp   shared(nlevs,nlon,nlat,nsc,nfnf,nx,ny,nnnn1o,z,ii,jj,ii1,jj1,slw,slw1, &
+!$omp          ii2,jj2,slw2,nfg,nf,work,totwgt),default(none)
      do kk=1,3*nlevs
 
         k=(kk-1)/3+1

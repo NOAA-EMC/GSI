@@ -15,6 +15,7 @@ subroutine get_gefs_ensperts_dualres
 !   2010-03-24  derber - use generalized genqsat rather than specialized for this resolution
 !   2010-03-29  kleist  - make changes to allow for st/vp perturbations
 !   2010-04-14  kleist  - add ensemble mean ps array for use with vertical localizaion (lnp)
+!   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !
 !   input argument list:
 !
@@ -28,28 +29,50 @@ subroutine get_gefs_ensperts_dualres
 
   use gridmod, only: idsl5
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static
-  use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en,sst_en,ps_bar
+  use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens
+  use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_gridcreate
   implicit none
 
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
   real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
-  real(r_kind),dimension(grd_ens%latlon1n):: stbar,vpbar,tbar,rhbar,ozbar,cwbar
-  real(r_kind),dimension(grd_ens%latlon11):: pbar,sstbar
+  real(r_single),pointer,dimension(:,:,:):: w3
+  real(r_single),pointer,dimension(:,:):: w2
+  real(r_kind),pointer,dimension(:,:,:):: x3
+  real(r_kind),pointer,dimension(:,:):: x2
+  type(gsi_bundle):: en_bar
+  type(gsi_grid)  :: grid_ens
   real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri
 
   integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) iret,i,j,k,m,n,il,jl,mm1,iderivative,im,jm,km
-  character(24) filename
+  integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,il,jl,mm1,iderivative,im,jm,km
+  character(70) filename
   logical ice
 
-  stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
-  pbar=zero ; sstbar =zero
+  call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+  call gsi_bundlecreate(en_bar,grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d)
+  if(istatus/=0) then
+     write(6,*)' get_gefs_ensperts_dualres: trouble creating en_bar bundle'
+     call stop2(999)
+  endif
+
+  do n=1,n_ens
+     en_perts(n)%valuesr4=zero
+  end do
+  en_bar%values=zero
+  sst2=zero        !    for now, sst not used in ensemble perturbations, so if sst array is called for
+                   !      then sst part of en_perts will be zero when sst2=zero
 
   mm1=mype+1
   kap1=rd_over_cp+one
@@ -110,90 +133,200 @@ subroutine get_gefs_ensperts_dualres
     call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
     deallocate(tsen,prsl)
 
-!$omp parallel do schedule(dynamic,1) private(m,i,j,k,rh)
-    do k=1,km
-      do j=1,jm
-        do i=1,im
-          m=(k-1)*im*jm+(j-1)*im+i
-          rh=q(i,j,k)/qs(i,j,k)
-          st_en(m,n) = u(i,j,k)
-          vp_en(m,n) = v(i,j,k)
-          t_en(m,n)  = tv(i,j,k)
-          rh_en(m,n) = rh
-          oz_en(m,n) = oz(i,j,k)
-          cw_en(m,n) = cwmr(i,j,k)
+    do ic3=1,nc3d
 
-          stbar(m)=stbar(m)+u(i,j,k)  
-          vpbar(m)=vpbar(m)+v(i,j,k)  
-           tbar(m)= tbar(m)+tv(i,j,k)
-          rhbar(m)=rhbar(m)+rh
-          ozbar(m)=ozbar(m)+oz(i,j,k) 
-          cwbar(m)=cwbar(m)+cwmr(i,j,k)
-        end do
-      end do
-      if(k == 1)then
-        do j=1,jm
-          do i=1,im
-            m=(j-1)*im+i
-            p_en(m,n) = ps(i,j)
-            pbar(m)=pbar(m)+ ps(i,j)
-          end do
-        end do
-      end if
+       call gsi_bundlegetpointer(en_perts(n),trim(cvars3d(ic3)),w3,istatus)
+       if(istatus/=0) then
+          write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
+          call stop2(999)
+       end if
+       call gsi_bundlegetpointer(en_bar,trim(cvars3d(ic3)),x3,istatus)
+       if(istatus/=0) then
+          write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for en_bar'
+          call stop2(999)
+       end if
+
+       select case (trim(cvars3d(ic3)))
+
+          case('sf','SF')
+
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      w3(i,j,k) = u(i,j,k)
+                      x3(i,j,k)=x3(i,j,k)+u(i,j,k)
+                   end do
+                end do
+             end do
+
+          case('vp','VP')
+
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      w3(i,j,k) = v(i,j,k)
+                      x3(i,j,k)=x3(i,j,k)+v(i,j,k)
+                   end do
+                end do
+             end do
+
+          case('t','T')
+
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      w3(i,j,k) = tv(i,j,k)
+                      x3(i,j,k)=x3(i,j,k)+tv(i,j,k)
+                   end do
+                end do
+             end do
+
+          case('q','Q')
+
+!$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      rh=q(i,j,k)/qs(i,j,k)
+                      w3(i,j,k) = rh
+                      x3(i,j,k)=x3(i,j,k)+rh
+                   end do
+                end do
+             end do
+
+          case('oz','OZ')
+
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      w3(i,j,k) = oz(i,j,k)
+                      x3(i,j,k)=x3(i,j,k)+oz(i,j,k)
+                   end do
+                end do
+             end do
+
+          case('cw','CW')
+
+!$omp parallel do schedule(dynamic,1) private(i,j,k)
+             do k=1,km
+                do j=1,jm
+                   do i=1,im
+                      w3(i,j,k) = cwmr(i,j,k)
+                      x3(i,j,k)=x3(i,j,k)+cwmr(i,j,k)
+                   end do
+                end do
+             end do
+
+       end select
+    end do
+
+    do ic2=1,nc2d
+
+       call gsi_bundlegetpointer(en_perts(n),trim(cvars2d(ic2)),w2,istatus)
+       if(istatus/=0) then
+          write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
+          call stop2(999)
+       end if
+       call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+       if(istatus/=0) then
+          write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar'
+          call stop2(999)
+       end if
+
+       select case (trim(cvars2d(ic2)))
+
+          case('ps','PS')
+
+!$omp parallel do schedule(dynamic,1) private(i,j)
+             do j=1,jm
+                do i=1,im
+                   w2(i,j) = ps(i,j)
+                   x2(i,j)=x2(i,j)+ps(i,j)
+                end do
+             end do
+
+          case('sst','SST')
+
+!$omp parallel do schedule(dynamic,1) private(i,j)
+             do j=1,jm
+                do i=1,im
+                   w2(i,j) = sst2(i,j)
+                   x2(i,j)=x2(i,j)+sst2(i,j)
+                end do
+             end do
+
+       end select
     end do
   end do ! end do over ensemble
 
 ! Convert to mean
   bar_norm = one/float(n_ens)
 !$omp parallel do schedule(dynamic,1) private(i)
-  do i=1,grd_ens%latlon1n
-    stbar(i)=stbar(i)*bar_norm
-    vpbar(i)=vpbar(i)*bar_norm
-    tbar(i) = tbar(i)*bar_norm
-    rhbar(i)=rhbar(i)*bar_norm
-    ozbar(i)=ozbar(i)*bar_norm
-    cwbar(i)=cwbar(i)*bar_norm
+  do i=1,nelen
+     en_bar%values(i)=en_bar%values(i)*bar_norm
   end do
+
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
 ! in terms of scale heights/normalized p/p 
-  do i=1,grd_ens%latlon11
-    pbar(i)=pbar(i)*bar_norm
-    ps_bar(i)=pbar(i)
+  do ic2=1,nc2d
+
+     if(trim(cvars2d(ic2))=='ps'.or.trim(cvars2d(ic2))=='PS') then
+
+        call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+        if(istatus/=0) then
+           write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar'
+           call stop2(999)
+        end if
+
+        do j=1,grd_ens%lon2
+           do i=1,grd_ens%lat2
+              ps_bar(i,j)=x2(i,j)
+           end do
+        end do
+        exit
+     end if
   end do
 
 ! Before converting to perturbations, get ensemble spread
-  if (write_ens_sprd) call ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
+  if (write_ens_sprd) call ens_spread_dualres(en_bar,mype)
 
 ! Convert ensemble members to perturbations
   sig_norm=sqrt(one/max(one,n_ens-one))
+   
 
 !$omp parallel do schedule(dynamic,1) private(n,i)
   do n=1,n_ens
-    do i=1,grd_ens%latlon1n
-      st_en(i,n)=(st_en(i,n)-stbar(i))*sig_norm
-      vp_en(i,n)=(vp_en(i,n)-vpbar(i))*sig_norm
-      t_en(i,n) =( t_en(i,n)- tbar(i))*sig_norm
-      rh_en(i,n)=(rh_en(i,n)-rhbar(i))*sig_norm
-      cw_en(i,n)=(cw_en(i,n)-cwbar(i))*sig_norm
-    end do
-
-! If request, zero out ozone perturbations for hybrid
-    if (.not. oz_univ_static) then
-       do i=1,grd_ens%latlon1n
-          oz_en(i,n)=(oz_en(i,n)-ozbar(i))*sig_norm  
-       end do
-    else
-       do i=1,grd_ens%latlon1n
-          oz_en(i,n)=zero
-       end do
-    end if
-
-    do i=1,grd_ens%latlon11
-      p_en(i,n)=(p_en(i,n)- pbar(i))*sig_norm
-! Ignore sst perturbations in hybrid
-      sst_en(i,n)=zero
+    do i=1,nelen
+      en_perts(n)%valuesr4(i)=(en_perts(n)%valuesr4(i)-en_bar%values(i))*sig_norm
     end do
   end do
+
+! If request, zero out ozone perturbations for hybrid
+  if (oz_univ_static) then
+     do ic3=1,nc3d
+        if(trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ') then
+
+           do n=1,n_ens
+              call gsi_bundlegetpointer(en_perts(n),trim(cvars3d(ic3)),w3,istatus)
+              if(istatus/=0) then
+                 write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
+                 call stop2(999)
+              end if
+              do k=1,km
+                 do j=1,jm
+                    do i=1,im
+                       w3(i,j,k) = zero
+                    end do
+                 end do
+              end do
+           end do
+        end if
+     end do
+  end if
 
 !  since initial version is ignoring sst perturbations, skip following code for now.  revisit
 !   later--creating general_read_gfssfc, analogous to general_read_gfsatm above.
@@ -237,11 +370,24 @@ subroutine get_gefs_ensperts_dualres
 !    end do
 !  end do
 
+!     following commented out--see above where sst2=zero at beginning of subroutine
+!! dtk: temporarily ignore sst perturbations in hybrid
+!  do n=1,n_ens
+!    do i=1,grd_ens%latlon11
+!      sst_en(i,n)=zero
+!    end do
+!  end do
+
+   call gsi_bundledestroy(en_bar,istatus)
+   if(istatus/=0) then
+      write(6,*)' in get_gefs_ensperts_dualres: trouble destroying en_bar bundle'
+             call stop2(999)
+          endif
 
   return
 end subroutine get_gefs_ensperts_dualres
 
-subroutine ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
+subroutine ens_spread_dualres(en_bar,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ens_spread_dualres  output ensemble spread for diagnostics
@@ -254,15 +400,10 @@ subroutine ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
 ! program history log:
 !   2010-01-05  kleist, initial documentation
 !   2010-02-28  parrish - make changes to allow dual resolution capability
+!   2011-03-19  parrish - add pseudo-bundle capability
 !
 !   input argument list:
-!     stbar  - ensemble mean stream function (or u wind component)
-!     vpbar  - ensemble mean stream function (or v wind component)
-!      tbar  - ensemble mean Tv
-!     rhbar  - ensemble mean rh
-!     ozbar  - ensemble mean ozone
-!     cwbar  - ensemble mean cloud water
-!      pbar  - ensemble mean surface pressure
+!     en_bar - ensemble mean
 !      mype  - current processor number
 !
 !   output argument list:
@@ -274,90 +415,132 @@ subroutine ens_spread_dualres(stbar,vpbar,tbar,rhbar,ozbar,cwbar,pbar,mype)
 !$$$ end documentation block
   use kinds, only: r_single,r_kind,i_kind
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,p_e2a,uv_hyb_ens
-  use hybrid_ensemble_isotropic, only: st_en,vp_en,t_en,rh_en,oz_en,cw_en,p_en
-  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba_r_double
+  use hybrid_ensemble_isotropic, only: en_perts,nelen
+  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sube2suba
   use constants, only:  zero,two,half,one
+  use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_gridcreate
   implicit none
 
-  real(r_kind),dimension(grd_ens%latlon1n),intent(in):: stbar,vpbar,tbar,rhbar,ozbar,cwbar
-  real(r_kind),dimension(grd_ens%latlon11),intent(in):: pbar
+  type(gsi_bundle),intent(in):: en_bar
   integer(i_kind),intent(in):: mype
 
-  real(r_kind),dimension(grd_ens%latlon11*(grd_ens%nsig*6+1)):: sube
-  real(r_kind),dimension(grd_anl%latlon11*(grd_anl%nsig*6+1)):: suba
+  type(gsi_bundle):: sube,suba
+  type(gsi_grid):: grid_ens,grid_anl
   real(r_kind) sp_norm
   type(sub2grid_info)::se,sa
 
-  integer(i_kind) i,ii,n
-  integer(i_kind) ist,ivp,it,irh,ioz,icw,ip
+  integer(i_kind) i,ii,n,ic3,k
   logical regional
-  integer(i_kind) num_fields,inner_vars
+  integer(i_kind) num_fields,inner_vars,istat,istatus
   logical,allocatable::vector(:)
+  real(r_kind),pointer,dimension(:,:,:):: st,vp,tv,rh,oz,cw
+  real(r_kind),pointer,dimension(:,:):: ps
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2,grd_anl%nsig),target::dum3
+  real(r_kind),dimension(grd_anl%lat2,grd_anl%lon2),target::dum2
+
+!      create simple regular grid
+        call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
+        call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+
+!      create two internal bundles, one on analysis grid and one on ensemble grid
+
+       call gsi_bundlecreate (suba,grid_anl,'ensemble work',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d)
+       if(istatus/=0) then
+          write(6,*)' ens_spread_dualres: trouble creating bundle_anl bundle'
+          call stop2(999)
+       endif
+       call gsi_bundlecreate (sube,grid_ens,'ensemble work ens',istatus, &
+                                 names2d=cvars2d,names3d=cvars3d)
+       if(istatus/=0) then
+          write(6,*)' ens_spread_dualres: trouble creating bundle_ens bundle'
+          call stop2(999)
+       endif
 
   sp_norm=(one/float(n_ens))
 
-  sube=zero
+  sube%values=zero
   do n=1,n_ens
-    ii=0
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (st_en(i,n)-stbar(i))*(st_en(i,n)-stbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (vp_en(i,n)-vpbar(i))*(vp_en(i,n)-vpbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + ( t_en(i,n)- tbar(i))*( t_en(i,n)- tbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (rh_en(i,n)-rhbar(i))*(rh_en(i,n)-rhbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (oz_en(i,n)-ozbar(i))*(oz_en(i,n)-ozbar(i)) 
-    end do
-    do i=1,grd_ens%latlon1n
-       ii=ii+1
-       sube(ii) =sube(ii)  + (cw_en(i,n)-cwbar(i))*(cw_en(i,n)-cwbar(i)) 
-    end do
-    do i=1,grd_ens%latlon11
-       ii=ii+1
-       sube(ii) =sube(ii)  + ( p_en(i,n)- pbar(i))*( p_en(i,n)- pbar(i)) 
-    end do
+     do i=1,nelen
+        sube%values(i)=sube%values(i) &
+           +(en_perts(n)%valuesr4(i)-en_bar%values(i))*(en_perts(n)%valuesr4(i)-en_bar%values(i))
+     end do
   end do
- 
-  do i=1,grd_ens%latlon11*(grd_ens%nsig*6+1)
-    sube(i) = sqrt(sp_norm*sube(i))
+
+  do i=1,nelen
+    sube%values(i) = sqrt(sp_norm*sube%values(i))
   end do
 
   if(grd_ens%latlon1n == grd_anl%latlon1n) then
-     suba=sube
+     do i=1,nelen
+        suba%values(i)=sube%values(i)
+     end do
   else
      regional=.false.
      inner_vars=1
-     num_fields=6*grd_ens%nsig+1
+     num_fields=max(0,nc3d)*grd_ens%nsig+max(0,nc2d)
      allocate(vector(num_fields))
      vector=.false.
-     vector(1:2*grd_ens%nsig)=uv_hyb_ens   !  assume here that 1st two 3d variables are either u,v or psi,chi
+     do ic3=1,nc3d
+        if(trim(cvars3d(ic3))=='sf'.or.trim(cvars3d(ic3))=='vp') then
+           do k=1,grd_ens%nsig
+              vector((ic3-1)*grd_ens%nsig+k)=uv_hyb_ens
+           end do
+        end if
+     end do
      call general_sub2grid_create_info(se,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,num_fields, &
                                        regional,vector)
      call general_sub2grid_create_info(sa,inner_vars,grd_anl%nlat,grd_anl%nlon,grd_anl%nsig,num_fields, &
                                        regional,vector)
      deallocate(vector)
-     call general_sube2suba_r_double(se,sa,p_e2a,sube,suba,regional)
+     call general_sube2suba(se,sa,p_e2a,sube%values,suba%values,regional)
   end if
 
-  ist=1
-  ivp=grd_anl%latlon1n+ist
-  it =grd_anl%latlon1n+ivp
-  irh=grd_anl%latlon1n+it
-  ioz=grd_anl%latlon1n+irh
-  icw=grd_anl%latlon1n+ioz
-  ip =grd_anl%latlon1n+icw
-  call write_spread_dualres(suba(ist),suba(ivp),suba(it),suba(irh),suba(ioz),suba(icw),suba(ip),mype)
+  dum2=zero
+  dum3=zero
+  call gsi_bundlegetpointer(suba,'sf',st,istat)
+  if(istat/=0) then
+     write(6,*)' no sf pointer in ens_spread_dualres, point st at dum3 array'
+     st => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'vp',vp,istat)
+  if(istat/=0) then
+     write(6,*)' no vp pointer in ens_spread_dualres, point vp at dum3 array'
+     vp => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'t',tv,istat)
+  if(istat/=0) then
+     write(6,*)' no t pointer in ens_spread_dualres, point tv at dum3 array'
+     tv => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'q',rh,istat)
+  if(istat/=0) then
+     write(6,*)' no q pointer in ens_spread_dualres, point rh at dum3 array'
+     rh => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'oz',oz,istat)
+  if(istat/=0) then
+     write(6,*)' no oz pointer in ens_spread_dualres, point oz at dum3 array'
+     oz => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'cw',cw,istat)
+  if(istat/=0) then
+     write(6,*)' no cw pointer in ens_spread_dualres, point cw at dum3 array'
+     cw => dum3
+  end if
+  call gsi_bundlegetpointer(suba,'ps',ps,istat)
+  if(istat/=0) then
+     write(6,*)' no ps pointer in ens_spread_dualres, point ps at dum2 array'
+     ps => dum2
+  end if
+
+  call write_spread_dualres(st,vp,tv,rh,oz,cw,ps,mype)
 
   return
 end subroutine ens_spread_dualres

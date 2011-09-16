@@ -66,6 +66,7 @@ subroutine update_guess(sval,sbias)
 !   2010-11-02  ting - replace loop index k in nfldsfc loop with it (bug fix)
 !   2010-05-01  todling - add support for generalized guess (use met-guess)
 !                       - cwmr now in met-guess
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !    sval
@@ -121,6 +122,15 @@ subroutine update_guess(sval,sbias)
   integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst
   integer(i_kind) ipinc,ipges,icloud,ncloud
   real(r_kind) :: zt
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc=>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dges=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_u     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_v     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_q     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_tv    =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_oz    =>NULL()
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -162,10 +172,11 @@ subroutine update_guess(sval,sbias)
   if (regional) then
      if(is_cw>0)then
         do ii=1,nobs_bins
+           call gsi_bundlegetpointer (sval(ii),'cw',ptr3dinc,istatus)
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
-                    sval(ii)%r3(is_cw)%q(i,j,k)=zero
+                    ptr3dinc(i,j,k)=zero
                  end do
               end do
            end do
@@ -174,10 +185,11 @@ subroutine update_guess(sval,sbias)
      if(.not.regional_ozone) then
         if(is_oz>0)then
            do ii=1,nobs_bins
+              call gsi_bundlegetpointer (sval(ii),'oz',ptr3dinc,istatus)
               do k=1,nsig
                  do j=1,lon2
                     do i=1,lat2
-                       sval(ii)%r3(is_oz)%q(i,j,k)=zero
+                       ptr3dinc(i,j,k)=zero
                     end do
                  end do
               end do
@@ -194,35 +206,41 @@ subroutine update_guess(sval,sbias)
      else
         ii = 1
      endif
+     call gsi_bundlegetpointer (sval(ii),'u' ,p_u ,istatus)
+     call gsi_bundlegetpointer (sval(ii),'v' ,p_v ,istatus)
+     call gsi_bundlegetpointer (sval(ii),'q' ,p_q ,istatus)
+     call gsi_bundlegetpointer (sval(ii),'tv',p_tv,istatus)
+     call gsi_bundlegetpointer (sval(ii),'oz',p_oz,istatus)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + sval(ii)%r3(is_u)%q(i,j,k)
-              if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + sval(ii)%r3(is_v)%q(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + sval(ii)%r3(is_q)%q(i,j,k),1.e-10_r_kind) 
-              if(is_t > 0)then
+              if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + p_u(i,j,k)
+              if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + p_v(i,j,k)
+              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),1.e-10_r_kind) 
+              if(is_t > 0) then
                  if (.not.twodvar_regional .or. .not.tsensible) then
-                    ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + sval(ii)%r3(is_t)%q(i,j,k)
+                    ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + p_tv(i,j,k)
 !  produce sensible temperature
                     ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
                  else
-                    ges_tsen(i,j,k,it) = ges_tsen(i,j,k,it) + sval(ii)%r3(is_t)%q(i,j,k)
+                    ges_tsen(i,j,k,it) = ges_tsen(i,j,k,it) + p_tv(i,j,k)
 !  produce virtual temperature
                     ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
                  endif
               endif
 
 !             Note:  Below variables only used in NCEP GFS model
-              if(is_oz>0) ges_oz(i,j,k,it)  = ges_oz(i,j,k,it)   + sval(ii)%r3(is_oz)%q(i,j,k)
+              if(is_oz>0) ges_oz(i,j,k,it)  = ges_oz(i,j,k,it)   + p_oz(i,j,k)
                           ges_div(i,j,k,it) = ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
                           ges_vor(i,j,k,it) = ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
            end do
         end do
      end do
      if(is_ps>0) then
+        call gsi_bundlegetpointer (sval(ii),'ps',ptr2dinc,istatus)
         do j=1,lon2
            do i=1,lat2
-              ges_ps(i,j,it) = ges_ps(i,j,it) + sval(ii)%r2(is_ps)%q(i,j)
+              ges_ps(i,j,it) = ges_ps(i,j,it) + ptr2dinc(i,j)
            end do
         end do
      endif
@@ -231,19 +249,19 @@ subroutine update_guess(sval,sbias)
      do ic=1,nguess
         id=getindex(svars3d,guess(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
-           gsi_metguess_bundle(it)%r3(ipges)%q = gsi_metguess_bundle(it)%r3(ipges)%q + sval(ii)%r3(ipinc)%q
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
+           ptr3dges = ptr3dges + ptr3dinc
            icloud=getindex(cloud,guess(ic))
            if(icloud>0) then
-              gsi_metguess_bundle(it)%r3(ipges)%q = max(gsi_metguess_bundle(it)%r3(ipges)%q,1.e-10_r_kind)
+              ptr3dges = max(ptr3dges,1.e-10_r_kind)
            endif
         endif
         id=getindex(svars2d,guess(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
-           gsi_metguess_bundle(it)%r2(ipges)%q = gsi_metguess_bundle(it)%r2(ipges)%q + sval(ii)%r2(ipinc)%q
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr2dinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
+           ptr2dges = ptr2dges + ptr2dinc
         endif
      enddo
 
@@ -251,15 +269,15 @@ subroutine update_guess(sval,sbias)
      do ic=1,ngases
         id=getindex(svars3d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
-           gsi_chemguess_bundle(it)%r3(ipges)%q = gsi_chemguess_bundle(it)%r3(ipges)%q + sval(ii)%r3(ipinc)%q
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
+           ptr3dges = ptr3dges + ptr3dinc
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
-           gsi_chemguess_bundle(it)%r2(ipges)%q = gsi_chemguess_bundle(it)%r2(ipges)%q + sval(ii)%r2(ipinc)%q
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
+           ptr2dges = ptr2dges + ptr2dinc
         endif
      enddo
 
@@ -278,9 +296,10 @@ subroutine update_guess(sval,sbias)
            ii = 1
         endif
         ij=0
+        call gsi_bundlegetpointer (sval(ii),'sst',ptr2dinc,istatus)
         do j=1,lon2
            do i=1,lat2
-              dsfct(i,j,it)=dsfct(i,j,it)+sval(ii)%r2(is_sst)%q(i,j)
+              dsfct(i,j,it)=dsfct(i,j,it)+ptr2dinc(i,j)
            end do
         end do
      end do

@@ -134,17 +134,17 @@ call GSI_BundlePutVar ( GSI_bundle_mix, 'ps' , one, ierr )
 ! ------
 ! TEST 1: merge two bundles
 ! ------
-! call merger ( GSI_bundle_mix )
+  call merger ( GSI_bundle_mix )
 
 ! ------
 ! TEST 2: create a multiple bundle
 ! ----
-! call multi ( GSI_bundle_mix )
+  call multi ( GSI_bundle_mix )
 
 ! ------
 ! TEST 3: append to bundle another bundle w/ mixed vertical layers/levels
 ! ----
-! call edge ( GSI_bundle_mix )
+  call edge ( GSI_bundle_mix )
 
 ! ------
 ! TEST 4: test creating a bundle w/ "mix-grids" as in control vector
@@ -230,6 +230,9 @@ real(r_kind),allocatable,dimension(:,:)::varRank2
 lat2 = GSI_bundle_mix%grid%im
 lon2 = GSI_bundle_mix%grid%jm
 nlev = GSI_bundle_mix%grid%km
+
+print*, 'TESTING MERGE ...'
+print*, '-----------------'
 
 ! create simple grid
 call GSI_GridCreate (grid1d, lat2, 0, 0)
@@ -337,6 +340,9 @@ real(r_kind),dimension(:),pointer :: u
 real(r_kind),dimension(:),pointer :: tv
 real(r_kind),dimension(:,:,:),pointer :: u3
 real(r_kind),dimension(:,:,:),pointer :: tv3
+
+print*, 'TESTING MULTI ...'
+print*, '-----------------'
 
 !------------------------------------------------------
 ! creates new bundle based on pre-existing one
@@ -480,6 +486,9 @@ type(GSI_Grid)   :: grid
 integer(i_kind) ipnt, ival, lat2, lon2, nlev, npes, npee, ierr
 real(r_kind),allocatable,dimension(:) ::varRank1
 real(r_kind),pointer::pe(:,:,:)
+
+print*, 'TESTING EDGE  ...'
+print*, '-----------------'
 
 lat2 = GSI_bundle_mix%grid%im
 lon2 = GSI_bundle_mix%grid%jm
@@ -703,6 +712,9 @@ nval_len = nval_reg+nval_ens*n_ens
 allocate(cv%values(nval_len))
 allocate(cv%main(nsubwin))
 allocate(cv%ensemble(nsubwin,n_ens))
+
+print*, 'TESTING ENSM  ...'
+print*, '-----------------'
 
 ! regular part of the control vector ...
 ii=0

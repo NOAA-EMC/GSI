@@ -830,7 +830,7 @@ subroutine read_obs(ndata,mype)
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'mods') then
-                   call read_modsbufr(mype,nread,npuse,nouse,gstime,infile,obstype, &
+                   call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis)
                    string='READ_MODSBUFR'
                 else

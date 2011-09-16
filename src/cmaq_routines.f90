@@ -182,9 +182,9 @@ subroutine read_cmaq_guess(mype)
 !                .      .    .                                       .
 !read intermediate cmaq binary file that included aerosol species
 !and meteorology, all input variables in cmaq binary are on A-grid
-! 2010-08-02 pagowski
-!largely based on reading wrf intermediate binary file
-!routine read_wrf_mass_netcdf_guess
+!   2010-08-02 pagowski - largely based on reading wrf intermediate binary file
+!                         routine read_wrf_mass_netcdf_guess
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !     mype     - pe number
@@ -247,6 +247,7 @@ subroutine read_cmaq_guess(mype)
   real(r_single) tempa(itotsub)
   real(r_single),allocatable::temp1(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   character(6) filename 
   integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
   integer(i_kind) ifld,im,jm,lm,num_cmaq_fields
@@ -440,10 +441,9 @@ subroutine read_cmaq_guess(mype)
      cvar='pm2_5'
 
      call gsi_bundlegetpointer (gsi_chemguess_bundle(it), &
-          cvar, ipnt, status,irank)
+          cvar, ptr3d, status)
      
-     if(irank/=3) then 
-        status=1 ! better be 3d
+     if(status/=0) then 
         write(6,*)'problem with bundle pointers in cmaq_routines'
         call stop2(425)
      endif
@@ -451,7 +451,7 @@ subroutine read_cmaq_guess(mype)
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              gsi_chemguess_bundle(it)%r3(ipnt)%q(j,i,k)=pm2_5_guess(j,i,k)
+              ptr3d(j,i,k)=pm2_5_guess(j,i,k)
            enddo
         enddo
      enddo
@@ -524,7 +524,7 @@ subroutine write_cmaq(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_single,i_kind
+  use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessig,ifilesig
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: lat2,iglobal,itotsub,&
@@ -554,6 +554,7 @@ subroutine write_cmaq(mype)
   real(r_single),allocatable::all_loc(:,:,:),ratio(:,:,:)
   real(r_single),allocatable::incr(:,:,:)
   real(r_single),allocatable::strp(:)
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   character(6) filename
   integer(i_kind) :: i,j,k,it
   integer(i_kind) :: ncmaqin,nskip
@@ -608,10 +609,9 @@ subroutine write_cmaq(mype)
   cvar='pm2_5'
 
   call gsi_bundlegetpointer (gsi_chemguess_bundle(it), &
-       cvar, ipnt, status,irank)
+       cvar, ptr3d, status)
 
-  if(irank/=3) then
-     status=1 ! better be 3d
+  if(status/=0) then
      write(6,*)'problem with bundle pointers in cmaq_routines'
      call stop2(426)
   endif
@@ -619,7 +619,7 @@ subroutine write_cmaq(mype)
   do k=1,nsig
      do i=1,lon2
         do j=1,lat2
-           incr(j,i,k)=gsi_chemguess_bundle(it)%r3(ipnt)%q(j,i,k)-pm2_5_guess(j,i,k)
+           incr(j,i,k)=ptr3d(j,i,k)-pm2_5_guess(j,i,k)
            ratio(j,i,k)=max(min(1.0_r_single+incr(j,i,k)/pm2_5_guess(j,i,k),10.0_r_single),&
                 tiny_single)
            all_loc(j,i,k)=ratio(j,i,k)

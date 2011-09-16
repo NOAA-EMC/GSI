@@ -61,6 +61,8 @@ subroutine prewgt(mype)
 !                       - turn nrf2_loc/nrf3_loc into local variables
 !   2010-06-18  todling - add call to write_bkgvars_grid and write_bkgvars2_grid
 !   2010-07-07  kokron/todling - fix definition of hwllp to do sfc-only
+!   2011-07-03  todling - calculation of bl and bl2 must be done in double-prec
+!                         or GSI won'd work when running in single precision; go figure!
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -73,7 +75,7 @@ subroutine prewgt(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single
+  use kinds, only: r_kind,i_kind,r_single,r_double
   use berror, only: dssvs,wtaxs,&
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
@@ -101,7 +103,7 @@ subroutine prewgt(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) n,nrr,iii,jjj,nxg,i2,im,jm,j2 !_RT ,loc
+  integer(i_kind) n,nrr,iii,jjj,nxg,i2,im,jm,j2
   integer(i_kind) i,j,k,ii,nn,nbuf,nmix,nxe,nor,ndx,ndy
   integer(i_kind) nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
@@ -111,7 +113,8 @@ subroutine prewgt(mype)
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) wlipi,wlipih,df
-  real(r_kind) samp,y,s2u,x,dxx,df2,pi2
+  real(r_kind) samp,s2u,df2,pi2
+  real(r_double) y,x,dxx
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
   real(r_kind),dimension(lat2,lon2)::temp
@@ -194,20 +197,24 @@ subroutine prewgt(mype)
 !  nbuf=nolp/4
   nbuf=izero
   nmix=nolp-nbuf*2
-  dxx=one/(nmix+ione)
-  bl2=zero
+  dxx=1._r_double/(nmix+ione)
+  bl2=0._r_double
   k=izero
   do i=1,nmix
      k=k+ione
      x=i*dxx
-     y=zero
-     y=iblend(mm)
+     y=0._r_double
+     y=real(iblend(mm),r_double)
      do j=mm-ione,0,-1
-        y=x*y+iblend(j)
+        y=x*y+real(iblend(j),r_double)
      enddo
      y=y*x**(mm+ione)
-     bl2(k)=one-y
+     bl2(k)=1._r_double-y
   enddo
+  if(minval(bl2)<zero) then
+     write(6,*) 'prewgt: trouble bl2 coeffs negative ', bl2
+     call stop2(99)
+  endif
   do k=1,nmix    
     bl2(k)=sqrt(bl2(k))
   end do
@@ -221,13 +228,17 @@ subroutine prewgt(mype)
      k=k+ione
      x=i*dxx
      y=zero
-     y=iblend(mm)
+     y=real(iblend(mm),r_kind)
      do j=mm-ione,0,-1
-        y=x*y+iblend(j)
+        y=x*y+real(iblend(j),r_kind)
      enddo
      y=y*x**(mm+ione)
      bl(k)=one-y
   enddo
+  if(minval(bl)<zero) then
+     write(6,*) 'prewgt: trouble bl coeffs negative ', bl
+     call stop2(99)
+  endif
   do k=1,nmix
      bl(k)=sqrt(bl(k))
   end do

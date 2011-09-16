@@ -77,9 +77,11 @@ module convinfo
 
   public :: ncgroup,ncnumgrp,ncmiter,ctwind,cermax,pmesh_conv,rmesh_conv,ithin_conv,cvar_b,cvar_pg
   public :: cermin,cgross
+  public :: use_prepb_satwnd
 
   logical diag_conv
   logical :: ihave_pm2_5
+  logical :: use_prepb_satwnd
   integer(i_kind) nconvtype,mype_conv
   real(r_kind),allocatable,dimension(:)::ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
 										rmesh_conv,pmesh_conv,stndev_conv
@@ -112,6 +114,7 @@ contains
 ! program history log:
 !   2008-06-04  safford -- add subprogram doc block
 !   2008-09-05  lueken -- merged ed's changes into q1fy09 code
+!   2011-08-27  todling -- add knob to allow using prepbufr SATWND
 !
 !   input argument list:
 !
@@ -149,6 +152,8 @@ contains
     conv_bias_spd= zero       ! magnitude of spd bias(m/sec)
 				
     conv_bias_pm2_5= zero
+
+    use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
 
     call init_pm2_5
 		  

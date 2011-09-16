@@ -26,6 +26,8 @@ subroutine bkerror(gradx,grady)
 !   2010-04-28  todling - update to use gsi_bundle
 !   2010-05-31  todling - revisit check on pointers
 !   2010-08-19  lueken  - add only to module use
+!   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2011-09-05  todling - made sure ckgcov still reproduces bkgcov
 !
 !   input argument list:
 !     gradx    - input field  
@@ -44,6 +46,7 @@ subroutine bkerror(gradx,grady)
   use gsi_4dvar, only: nsubwin, lsqrtb
   use gridmod, only: lat2,lon2,nlat,nlon,nnnn1o,periodic,latlon11
   use jfunc, only: nsclen,npclen
+  use jfunc, only: set_sqrt_2dsize
   use constants, only:  zero
   use control_vectors, only: control_vector,assignment(=)
   use timermod, only: timer_ini,timer_fnl
@@ -58,10 +61,16 @@ subroutine bkerror(gradx,grady)
   integer(i_kind) i,j,iflg,ii
   integer(i_kind) i_t,i_p,i_st,i_vp
   integer(i_kind) ipnts(4),istatus
+  integer(i_kind) nval_lenz,ndim2d
   real(r_kind),dimension(nlat,nlon,nnnn1o):: work
   real(r_kind),dimension(lat2,lon2):: slndt,sicet
-  real(r_kind),pointer,dimension(:,:)  :: p_sst
+  real(r_kind),pointer,dimension(:,:,:):: p_t  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_st =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_vp =>NULL()
+  real(r_kind),pointer,dimension(:,:)  :: p_ps =>NULL()
+  real(r_kind),pointer,dimension(:,:)  :: p_sst=>NULL()
   logical dobal
+  real(r_kind),allocatable,dimension(:):: gradz
 
   if (lsqrtb) then
      write(6,*)'bkerror: not for use with lsqrtb'
@@ -84,12 +93,7 @@ subroutine bkerror(gradx,grady)
         end do
      end do
      do ii=1,nsubwin
-        call gsi_bundlegetpointer ( gradx%step(ii),(/'sst'/),ipnts,istatus )
-        if (istatus==0) then
-           p_sst => gradx%step(ii)%r2(ipnts(1))%q
-        else
-           p_sst => NULL() 
-        end if
+        call gsi_bundlegetpointer ( gradx%step(ii),'sst',p_sst,istatus )
         call sub2grid(work,gradx%step(ii),p_sst,slndt,sicet,iflg)
         call grid2sub(work,gradx%step(ii),p_sst,slndt,sicet)
      end do
@@ -111,17 +115,32 @@ subroutine bkerror(gradx,grady)
   do ii=1,nsubwin
 
 !    Transpose of balance equation
-     if(dobal) &
-     call tbalance(grady%step(ii)%r3(i_t )%q,grady%step(ii)%r2(i_p )%q, &
-                   grady%step(ii)%r3(i_st)%q,grady%step(ii)%r3(i_vp)%q,fpsproj)
+     if(dobal) then
+        call gsi_bundlegetpointer ( grady%step(ii),'t' ,p_t ,istatus )
+        call gsi_bundlegetpointer ( grady%step(ii),'sf',p_st,istatus )
+        call gsi_bundlegetpointer ( grady%step(ii),'vp',p_vp,istatus )
+        call gsi_bundlegetpointer ( grady%step(ii),'ps',p_ps,istatus )
+        call tbalance(p_t,p_ps,p_st,p_vp,fpsproj)
+     endif
 
 !    Apply variances, as well as vertical & horizontal parts of background error
      call bkgcov(grady%step(ii),nnnn1o)
 
+!    The following lines test that indeed proper application of cgkcov
+!    reproduces results of bkgcov - left as comments (please do not remove
+!    as this tends to break from time to time).
+!    Last tested Sep 5, 2011: correct to within roundoff
+!
+!    call set_sqrt_2dsize(ndim2d)
+!    nval_lenz=ndim2d*nnnn1o
+!    allocate(gradz(nval_lenz))
+!    gradz=zero
+!    call ckgcov_ad(gradz,grady%step(ii),nnnn1o,nval_lenz)
+!    call ckgcov   (gradz,grady%step(ii),nnnn1o,nval_lenz)
+!    deallocate(gradz)
+
 !    Balance equation
-     if(dobal) &
-     call balance(grady%step(ii)%r3(i_t )%q,grady%step(ii)%r2(i_p )%q, &
-                  grady%step(ii)%r3(i_st)%q,grady%step(ii)%r3(i_vp)%q,fpsproj)
+     if(dobal) call balance(p_t,p_ps,p_st,p_vp,fpsproj)
 
   end do
 

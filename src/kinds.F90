@@ -11,6 +11,7 @@ module kinds
 !
 ! module history log:
 !   2004-08-15  treadon
+!   2011-07-04  todling - define main precision during compilation
 !
 ! Subroutines Included:
 !
@@ -95,9 +96,15 @@ module kinds
 
 ! Default values
 ! **** CHANGE THE FOLLOWING TO CHANGE THE DEFAULT REAL TYPE KIND ***
-  integer, parameter, private :: default_real = 2  ! 1=single, 
-                                                   ! 2=double, 
-                                                   ! 3=quad
+#ifdef _REAL4_
+  integer, parameter, private :: default_real = 1  ! 1=single, 
+#endif
+#ifdef _REAL8_
+  integer, parameter, private :: default_real = 2  ! 2=double, 
+#endif
+#ifdef _REAL16_
+  integer, parameter, private :: default_real = 3  ! 3=quad
+#endif
   integer, parameter, public  :: r_kind = real_kinds( default_real )
   integer, parameter, public  :: num_bytes_for_r_kind = &
        real_byte_sizes( default_real )

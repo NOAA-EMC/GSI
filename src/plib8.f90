@@ -13,6 +13,13 @@ MODULE MODULE_pmat1
 !  operation, the remainder defining the type of operand and, if needed to
 !  resolve an ambiguity, the type of result.
 !
+! program history log:
+!   2011-07-04 todling - set to double precision to allow running GSI in
+!                        in either single or double precision
+!
+! remarks:
+!   1. routines here must work under REAL*8 (double precision)
+!
 !  OPERATIONS:
 !   DET     evaluate log-determinant
 !   DIF     differentiate
@@ -149,7 +156,8 @@ MODULE MODULE_pmat1
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants,only: izero,ione,zero,one
 IMPLICIT NONE
 
@@ -3562,7 +3570,8 @@ MODULE MODULE_pmat2
 !$$$ end documentation block
 
 USE MODULE_pmat1
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: izero,ione,zero,one,two
 IMPLICIT NONE
 
@@ -6393,7 +6402,8 @@ module module_fitcons
 !$$$ end documentation block
 
 !============================================================================
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: ione,zero,one,two,three,five
 implicit none
 
@@ -6634,7 +6644,8 @@ subroutine coefrf(sig,nu,n,m,bnf,lnf)
 !$$$ end documentation block
 
 use module_pmat2
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: ione,zero,half,one
 implicit none
 
@@ -6753,7 +6764,8 @@ subroutine ldlb1i(nol,lnf,bnf,                                              &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -6819,7 +6831,8 @@ subroutine ldlb2i(nol,lnf,bnf,                                              &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -6887,7 +6900,8 @@ subroutine ldlb2j(nol,lnf,bnf,                                              &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -6955,7 +6969,8 @@ subroutine ldlb3i(nol,lnf,bnf,                                              &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7025,7 +7040,8 @@ subroutine ldlb3j(nol,lnf,bnf,                                              &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7097,7 +7113,8 @@ SUBROUTINE hbnrf1i(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7166,7 +7183,8 @@ SUBROUTINE hbnrf2i(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7237,7 +7255,8 @@ SUBROUTINE hbnrf2j(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7312,7 +7331,8 @@ SUBROUTINE hbnrf3i(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7385,7 +7405,8 @@ SUBROUTINE hbnrf3j(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7466,7 +7487,8 @@ SUBROUTINE vbnrf1k(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7535,7 +7557,8 @@ SUBROUTINE vbnrf2k(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7610,7 +7633,8 @@ SUBROUTINE vbnrf3k(a,nol,lnf,bnf,                                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   use constants, only: ione
   IMPLICIT NONE
 
@@ -7684,7 +7708,8 @@ SUBROUTINE hbncij(a,hamp,nol,lnfi,bnfi,lnfj,bnfj,                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7748,7 +7773,8 @@ SUBROUTINE hbncji(a,hamp,nol,lnfi,bnfi,lnfj,bnfj,                           &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7812,7 +7838,8 @@ SUBROUTINE hbncijk(a,hamp,nol,lnfi,bnfi,lnfj,bnfj,lnfk,bnfk,                &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7881,7 +7908,8 @@ SUBROUTINE hbnckji(a,hamp,nol,lnfi,bnfi,lnfj,bnfj,lnfk,bnfk,                &
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use kinds, only: r_kind,i_kind
+  use kinds, only: i_kind
+  use kinds, only: r_kind => r_double
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7952,7 +7980,8 @@ subroutine rfit(ng,sig,nu, ns,nw,ssig,snu,ins1,wts)
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: izero,ione,zero,one
 use module_fitcons
 implicit none
@@ -8139,7 +8168,8 @@ subroutine jfit(ng,ig1,igm,ns,iw,cofg,dsdg,dhdg,cofs,ins1,wts)
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: izero,ione,zero,half,one,two
 use module_fitcons
 implicit none
@@ -8337,7 +8367,8 @@ subroutine stog(ns,ng,ins1,wts, as,ag)
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: izero,ione,zero
 implicit none
 
@@ -8393,7 +8424,8 @@ subroutine stogt(ns,ng,ins1,wts, as,ag)
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind
+use kinds, only: i_kind
+use kinds, only: r_kind => r_double
 use constants, only: izero,ione,zero
 implicit none
 

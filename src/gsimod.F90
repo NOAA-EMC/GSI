@@ -25,7 +25,7 @@
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
                        lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
-                       idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost
+                       idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
@@ -39,7 +39,8 @@
                       id_bias_ps,id_bias_t,id_bias_spd, &
                       conv_bias_ps,conv_bias_t,conv_bias_spd, &
                       stndev_conv_ps,stndev_conv_t,stndev_conv_spd,diag_conv,&
-                      stndev_conv_pm2_5,id_bias_pm2_5,conv_bias_pm2_5
+                      stndev_conv_pm2_5,id_bias_pm2_5,conv_bias_pm2_5,&
+                      use_prepb_satwnd
 
   use oneobmod, only: oblon,oblat,obpres,obhourset,obdattim,oneob_type,&
      oneobtest,magoberr,maginnov,init_oneobmod,pctswitch
@@ -206,6 +207,8 @@
 !  04-19-2011 El Akkraoui add iorthomax to control numb of vecs in orthogonalization for CG opts
 !  05-05-2011 mccarty   removed references to repe_dw
 !  05-21-2011 todling   add call to setservice
+!  06-01-2011 guo/zhang add liauon
+!  07-27-2011 todling   add use_prepb_satwnd to control usage of satwnd's in prepbufr files
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -239,6 +242,7 @@
 !     nhr_assimilation - assimilation time interval (currently 6hrs for global, 3hrs for reg)
 !     min_offset       - time in minutes of analysis in assimilation window (default 3 hours)
 !     l4dvar           - turn 4D-Var on/off (default=off=3D-Var)
+!     liauon           - treat 4dvar CV as tendency perturbation (default=false)
 !     jsiga            - calculate approximate analysis errors from lanczos for jiter=jsiga
 !     idmodel          - uses identity model when running 4D-Var (test purposes)
 !     iwrtinc          - when >0, writes out increments from iwrtinc-index slot
@@ -331,6 +335,7 @@
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
+!     use_prepb_satwnd - allow using satwnd's from prepbufr (historical) files
 
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -358,7 +363,7 @@
        idmodel,iwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt, use_gfs_nemsio
+       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution

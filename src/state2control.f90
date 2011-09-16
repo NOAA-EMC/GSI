@@ -203,7 +203,6 @@ do jj=1,nsubwin
 !  background error
    if (do_getuv) then
       if(l_hyb_ens.and.uv_hyb_ens) then
-         ii=0
          call gsi_bundleputvar ( wbundle, 'sf', rv_u, istatus )
          call gsi_bundleputvar ( wbundle, 'vp', rv_v, istatus )
       else

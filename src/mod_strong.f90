@@ -493,6 +493,7 @@ contains
 !         
 ! program history log:
 !   2008-05-05  safford -- add subprogram doc block, rm unused uses
+!   2011-07-01  todling -- balm1 must not be zeroed out
 !               
 !   input argument list:
 !    vort_t_hat,div_t_hat,phi_t_hat
@@ -514,7 +515,6 @@ contains
 
     integer(i_kind) n
 
-    balnm1=zero
     do n=m,mmax
        balnm1=balnm1+vort_t_hat(1,n)**2+vort_t_hat(2,n)**2 &
                      +div_t_hat(1,n)**2+ div_t_hat(2,n)**2 &

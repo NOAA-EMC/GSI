@@ -438,7 +438,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !       Otherwise, use bilinear interpolation.
 
         if (isfcalc==1)then
-           call deter_sfc_fov(fov_flag,idum,instr,ichan,amsrspot_d(11),dlat_earth_deg,&
+           call deter_sfc_fov(fov_flag,idum,instr,ichan,real(amsrspot_d(11),r_kind),dlat_earth_deg,&
               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else

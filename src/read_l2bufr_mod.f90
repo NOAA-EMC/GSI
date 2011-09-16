@@ -19,6 +19,7 @@ module read_l2bufr_mod
 !   2009-04-18  woollen  improve mpi_io interface with bufrlib routines
 !   2009-11-24  parrish  change time variable from regional_time (passed from gridmod) to
 !                          iadate (passed from obsmod), to prevent all radar data being tossed.
+!   2011-07-04  todling  - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub initialize_superob_radar - initialize superob parameters to defaults
@@ -598,8 +599,13 @@ contains
     allocate(bins_work(6,nthisrad,npe))
     do irad=1,num_radars_0
        krad=indx(irad)
-       call mpi_gather(bins(1,1,krad),nthisbins,mpi_real16,bins_work,nthisbins, &
-                    mpi_real16,0,mpi_comm_world,ierror)
+       if(r_double==r_quad) then
+          call mpi_gather(bins(1,1,krad),nthisbins,mpi_real8 ,bins_work,nthisbins, &
+                       mpi_real8 ,0,mpi_comm_world,ierror)
+       else
+          call mpi_gather(bins(1,1,krad),nthisbins,mpi_real16,bins_work,nthisbins, &
+                       mpi_real16,0,mpi_comm_world,ierror)
+       endif
        if(mype == 0)then
     
 !   Create superobs and write out.

@@ -54,6 +54,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-07-04  todling  - fixes to run either single or double precision
 !   2001-08-01  lueken  - add module use deter_sfc_mod, fixed indentation
 !
 !   input argument list:
@@ -88,6 +89,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !$$$
 ! Use modules
+  use type_kinds, only: crtm_kind => fp
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
@@ -168,14 +170,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: lza, lzaest,sat_height_ratio
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind)     :: sat_zenang
-  real(r_kind)     :: radiance
+  real(crtm_kind)  :: radiance
   real(r_kind)     :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr
   real(r_kind)     :: zob,tref,dtw,dtc,tz_tr
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:3) :: ts
   real(r_kind),dimension(10) :: sscale
-  real(r_kind),dimension(n_totchan) :: temperature
+  real(crtm_kind),dimension(n_totchan) :: temperature
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
 
@@ -505,7 +507,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Otherwise, use bilinear interpolation.
 
         if (isfcalc == 1) then
-           call deter_sfc_fov(fov_flag,ifov,instr,ichan,allspot(11),dlat_earth_deg, &
+           call deter_sfc_fov(fov_flag,ifov,instr,ichan,real(allspot(11),r_kind),dlat_earth_deg, &
                               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
                               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
         else

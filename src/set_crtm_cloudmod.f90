@@ -1,22 +1,34 @@
-!-----------------------------------------------------------------------------
-!BOP
- 
-! !IROUTINE: set_CRTM_Cloud --- Set CRTM Cloud (FORTRAN-77 Interface)
+module set_crtm_cloudmod
+!$$$ module documentation block
+!           .      .    .                                       .
+! module:   set_crtm_cloudmod
+!  prgmmr: todling          org: gmao                date: 2011-06-01
 !
-! !INTERFACE:
+! abstract: module providing interface to set-crtm-cloud procedures
 !
-subroutine Set_CRTM_Cloud_ ( km, nac, cloud_name, icmask, nc, cloud_cont, dp, tp, pr, qh, cloud)
+! program history log:
+!   2011-06-01  todling
+!
+! subroutines included:
+!   sub Set_CRTM_Cloud
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
 
-! USES:
+implicit none
 
+private
+
+public Set_CRTM_Cloud
+
+interface Set_CRTM_Cloud
+  subroutine Set_CRTM_Cloud_ ( km, nac, cloud_name, icmask, nc, cloud_cont, dp, tp, pr, qh, cloud)
   use kinds, only: i_kind,r_kind
   use CRTM_Cloud_Define, only: CRTM_Cloud_type
-  use crtm_cloud, only: SetCloud
-
   implicit none
-
-! !ARGUMENTS:
-
   integer(i_kind) , intent(in)    :: km                ! number of levels
   integer(i_kind) , intent(in)    :: nac               ! number of actual clouds
   character(len=*), intent(in)    :: cloud_name(nac)   ! [nac]   Model cloud names: qi, ql, etc.
@@ -27,19 +39,8 @@ subroutine Set_CRTM_Cloud_ ( km, nac, cloud_name, icmask, nc, cloud_cont, dp, tp
   real(r_kind),     intent(in)    :: tp(km)            ! [km]   atmospheric temperature (K)
   real(r_kind),     intent(in)    :: pr(km)            ! [km]   atmospheric pressure  
   real(r_kind),     intent(in)    :: qh(km)            ! [km]   specific humidity
-
   type(CRTM_Cloud_type), intent(inout) :: cloud(nc)    ! [nc]   CRTM Cloud object
+  end subroutine Set_CRTM_Cloud_
+end interface
 
-! !DESCRIPTION: Set the CRTM Cloud object given model cloud properties.
-!
-! !REVISION HISTORY:
-!
-! 14May2011  Todling  Initial version, FORTRAN-77 interface for GSI.
-! 01Aug2011  Lueken   Replaced F90 with f90 (no machine logic)
-!
-!EOP
-!-----------------------------------------------------------------------------
- 
-  call setCloud (cloud_name, icmask, cloud_cont, dp, tp, pr, qh, cloud)
-
-end subroutine Set_CRTM_Cloud_
+end module set_crtm_cloudmod

@@ -404,6 +404,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2010-04-01  treadon - move strip to grimod
 !   2010-04-29  todling - update to use control vectory based on gsi_bundle
 !   2010-08-19  lueken  - add only to module use
+!   2011-07-03  todling - avoid explicit reference to internal bundle arrays
 !
 !   input argument list:
 !     nv
@@ -447,6 +448,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   real(r_kind),allocatable,dimension(:,:)::slab
   real(r_kind),allocatable,dimension(:)::strp
   real(r_kind),allocatable,dimension(:)::field
+  real(r_kind),pointer,dimension(:,:)  :: ptr2d
   type(control_vector)::dz
 ! RTodling: not sure this is the best thing to do here
 ! This assumes the control vector has variables named
@@ -511,9 +513,9 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      enddo !ifield
 
 !                               gradient wrt sfcp
-     call gsi_bundlegetpointer(dz%step(ii),'ps',ip,istatus)
-     if (ip>0) then
-        call strip(dz%step(ii)%r2(ip)%q,strp,ione)
+     call gsi_bundlegetpointer(dz%step(ii),'ps',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp,ione)
         call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
@@ -527,9 +529,9 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 
 !                               gradient wrt sfct
-     call gsi_bundlegetpointer(dz%step(ii),'sst',ip,istatus)
-     if (ip>0) then
-        call strip(dz%step(ii)%r2(ip)%q,strp,ione)
+     call gsi_bundlegetpointer(dz%step(ii),'sst',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp,ione)
         call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 

@@ -191,11 +191,11 @@ contains
        end do
     end do
 
-    if (mype ==0) write (6,*) 'in mod_vtrans_create_vtrans, before CALL DGEEV'
+    if (mype ==0) write (6,*) myname, ' before CALL DGEEV'
     call dgeev(jobvl,jobvr,nsig,aaa,nsig,wr,wi,vl,nsig,vr,nsig,work,lwork,info)
 
 
-    if (mype ==0) write (6,*) ' AFTER CALL DGEEV', 'status: info =  ', info
+    if (mype ==0) write (6,*) myname, ' after  CALL DGEEV', 'status: info =  ', info
 
 ! use Dave's array names
     do j=1,nsig

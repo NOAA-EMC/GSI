@@ -15,6 +15,7 @@ module crtm_interface
 !                      - (3) add tzbgr as one of the out dummy variable
 !                      - (4) Include tz_tr in ts calculation over water
 !                      - (5) Change minmum temperature of water surface from 270.0 to 271.0
+!   2011-07-04  todling - fixes to run either single or double precision
 !
 ! subroutines included:
 !   sub init_crtm
@@ -27,7 +28,8 @@ module crtm_interface
 !
 !$$$ end documentation block
 
-use kinds,only: r_kind,i_kind
+use kinds,only: r_kind,i_kind,r_single
+use type_kinds, only: crtm_kind => fp
 use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type, &
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
@@ -42,7 +44,7 @@ use crtm_atmosphere_define, only:crtm_atmosphere_associated, &
     crtm_atmosphere_destroy,crtm_atmosphere_zero
 use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_rtsolution_create, &
     crtm_rtsolution_destroy, crtm_rtsolution_associated
-use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
+use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional
 use mpeu_util, only: die
 
 implicit none
@@ -99,13 +101,11 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   character(len=*), parameter :: myname='crtm_interface'
 
   character(len=20),save,allocatable,dimension(:)   :: aero_names   ! aerosol names
-  integer(i_kind), save ,allocatable,dimension(:)   :: iaero        ! index pointers to aerosols in chemguess_bundle
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero         ! aerosol (guess) profiles at obs location
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_conc    ! aerosol (guess) concentrations at obs location
   real(r_kind)   , save ,allocatable,dimension(:)   :: auxrh        ! temporary array for rh profile as seen by CRTM
 
   character(len=20),save,allocatable,dimension(:)   :: cloud_names  ! cloud names
-  integer(i_kind), save ,allocatable,dimension(:)   :: icloud       ! cloud index for those considered here
   integer(i_kind), save ,allocatable,dimension(:)   :: jcloud       ! cloud index for those fed to CRTM
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud        ! cloud considered here
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud_cont   ! cloud content fed into CRTM 
@@ -280,10 +280,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
        allocate(jcloud(n_clouds))
        allocate(cloud_names(n_actual_clouds))
        allocate(cloud(nsig,n_actual_clouds))
-       allocate(icloud(n_actual_clouds))
 
        call gsi_metguess_get ('clouds_4crtm::3d',cloud_names,ier)
-       call gsi_bundlegetpointer(gsi_metguess_bundle(1),cloud_names,icloud,ier)
 
        if (.not.lcw4crtm) then
           iii=0
@@ -381,10 +379,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
  call gsi_chemguess_get ('aerosols_4crtm::3d',n_aerosols,ier)
  if(n_aerosols>0)then
-    allocate(aero(nsig,n_aerosols),iaero(n_aerosols),aero_conc(msig,n_aerosols),auxrh(msig))
+    allocate(aero(nsig,n_aerosols),aero_conc(msig,n_aerosols),auxrh(msig))
     allocate(aero_names(n_aerosols))
     call gsi_chemguess_get ('aerosols_4crtm::3d',aero_names,ier)
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),aero_names,iaero,ier)
 
     Load_AerosolCoeff=.true.
  else
@@ -465,7 +462,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !  Create structures for radiative transfer
 
  call crtm_atmosphere_create(atmosphere(1),msig,n_absorbers,n_clouds,n_aerosols)
- call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+!_RTod-NOTE if(r_kind==r_single .and. crtm_kind/=r_kind) then ! take care of case: GSI(single); CRTM(double)
+!_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
+!_RTod-NOTE else
+!_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
+    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
+!_RTod-NOTE endif
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
  call crtm_options_create(options,nchanl)
@@ -612,10 +614,9 @@ subroutine destroy_crtm
   deallocate(rtsolution,atmosphere_k,surface_k,rtsolution_k)
   if(n_aerosols>0)then
      deallocate(aero_names)
-     deallocate(aero,iaero,aero_conc,auxrh)
+     deallocate(aero,aero_conc,auxrh)
   endif
   if(n_clouds>0)then
-     deallocate(icloud)
      deallocate(cloud)
      deallocate(cloud_names)
      deallocate(jcloud)
@@ -646,6 +647,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2011-05-03  todling - merge with Min-Jeong's MW cloudy radiance; combine w/ metguess
 !                         (did not include tendencies since they were calc but not used)
 !   2011-05-17  auligne/todling - add handling for hydrometeors
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -690,6 +692,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
       ges_ps,ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
   use ncepgfs_ghg, only: co2vmr_def
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_chemguess_mod, only: gsi_chemguess_bundle   ! for now, a common block
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use gsi_metguess_mod,  only: gsi_metguess_bundle   ! for now, a common block
@@ -698,6 +701,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
 
+  use set_crtm_aerosolmod, only: set_crtm_aerosol
+  use set_crtm_cloudmod, only: set_crtm_cloud
   use crtm_module, only: crtm_atmosphere_type,crtm_surface_type
   use crtm_parameters, only: limit_exp
   use obsmod, only: iadate
@@ -744,6 +749,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig+1) :: prsi_rtm
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
+  real(r_kind),allocatable,dimension(:)::auxt,auxp
   real(r_kind),dimension(nsig)  :: poz,co2
   real(r_kind),dimension(nsig)  :: rh,qs,qclr
   real(r_kind),dimension(5)     :: tmp_time
@@ -752,6 +758,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(nsig)  :: dz, cw, tem2d
   real(r_kind) :: tref,dtw,dtc,tz_tr
   real(r_kind) tv, tem4, cf
+  real(r_kind),pointer,dimension(:,:,:)::cfges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::co2ges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::co2ges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::aeroges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::aeroges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::cloudges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::cloudges_itsigp=>NULL()
 
   logical :: sea,icmask
 
@@ -835,6 +849,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   dtsfcp=one-dtsfc
   jacobian=zero
 
+  if (lcf4crtm) then
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'cf',cfges_itsig ,ier)
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'cf',cfges_itsigp,ier)
+  endif
+
 !$omp parallel sections private(k,i)
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
@@ -857,14 +876,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
              ges_q(ix ,iyp,k,itsigp)*w01+ &
              ges_q(ixp,iyp,k,itsigp)*w11)*dtsigp
      if (lcf4crtm) then
-        cf    =(gsi_metguess_bundle(itsig )%r3(icf)%q(ix ,iy ,k)*w00+ &
-                gsi_metguess_bundle(itsig )%r3(icf)%q(ixp,iy ,k)*w10+ &
-                gsi_metguess_bundle(itsig )%r3(icf)%q(ix ,iyp,k)*w01+ &
-                gsi_metguess_bundle(itsig )%r3(icf)%q(ixp,iyp,k)*w11)*dtsig + &
-               (gsi_metguess_bundle(itsigp)%r3(icf)%q(ix ,iy ,k)*w00+ &
-                gsi_metguess_bundle(itsigp)%r3(icf)%q(ixp,iy ,k)*w10+ &
-                gsi_metguess_bundle(itsigp)%r3(icf)%q(ix ,iyp,k)*w01+ &
-                gsi_metguess_bundle(itsigp)%r3(icf)%q(ixp,iyp,k)*w11)*dtsigp
+        cf    =(cfges_itsig (ix ,iy ,k)*w00+ &
+                cfges_itsig (ixp,iy ,k)*w10+ &
+                cfges_itsig (ix ,iyp,k)*w01+ &
+                cfges_itsig (ixp,iyp,k)*w11)*dtsig + &
+               (cfges_itsigp(ix ,iy ,k)*w00+ &
+                cfges_itsigp(ixp,iy ,k)*w10+ &
+                cfges_itsigp(ix ,iyp,k)*w01+ &
+                cfges_itsigp(ixp,iyp,k)*w11)*dtsigp
         qs(k) =(gesqsat(ix ,iy ,k,itsig )*w00+ &
                 gesqsat(ixp,iy ,k,itsig )*w10+ &
                 gesqsat(ix ,iyp,k,itsig )*w01+ &
@@ -964,6 +983,18 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      write(6,*)'CALL_CRTM:  ***WARNING*** SSU cell pressure correction NOT applied'
   endif
 
+  igfsco2=0
+  if(ico2>0) then
+     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
+     if(igfsco2>0)then
+        if(size(gsi_chemguess_bundle)==1) then
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',co2ges_itsig ,ier)
+        else
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),'co2',co2ges_itsig ,ier)
+           call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),'co2',co2ges_itsigp,ier)
+        endif
+     endif
+  endif
 
 !$omp section 
 ! Space-time interpolation of ozone(poz), co2 and aerosol fields from sigma files
@@ -984,24 +1015,22 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !    Get information for how to use CO2 and interpolate CO2
 
      co2(k) = co2vmr_def
-     igfsco2=0
      if(ico2>0) then
-        call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
         if(igfsco2>0)then
            if(size(gsi_chemguess_bundle)==1) then
-              co2(k) =(gsi_chemguess_bundle(1)%r3(ico2)%q(ix ,iy ,k)*w00+ &
-                       gsi_chemguess_bundle(1)%r3(ico2)%q(ixp,iy ,k)*w10+ &
-                       gsi_chemguess_bundle(1)%r3(ico2)%q(ix ,iyp,k)*w01+ &
-                       gsi_chemguess_bundle(1)%r3(ico2)%q(ixp,iyp,k)*w11)
+              co2(k) =(co2ges_itsig(ix ,iy ,k)*w00+ &
+                       co2ges_itsig(ixp,iy ,k)*w10+ &
+                       co2ges_itsig(ix ,iyp,k)*w01+ &
+                       co2ges_itsig(ixp,iyp,k)*w11)
            else
-              co2(k) =(gsi_chemguess_bundle(itsig )%r3(ico2)%q(ix ,iy ,k)*w00+ &
-                       gsi_chemguess_bundle(itsig )%r3(ico2)%q(ixp,iy ,k)*w10+ &
-                       gsi_chemguess_bundle(itsig )%r3(ico2)%q(ix ,iyp,k)*w01+ &
-                       gsi_chemguess_bundle(itsig )%r3(ico2)%q(ixp,iyp,k)*w11)*dtsig + &
-                      (gsi_chemguess_bundle(itsigp)%r3(ico2)%q(ix ,iy ,k)*w00+ &
-                       gsi_chemguess_bundle(itsigp)%r3(ico2)%q(ixp,iy ,k)*w10+ &
-                       gsi_chemguess_bundle(itsigp)%r3(ico2)%q(ix ,iyp,k)*w01+ &
-                       gsi_chemguess_bundle(itsigp)%r3(ico2)%q(ixp,iyp,k)*w11)*dtsigp
+              co2(k) =(co2ges_itsig (ix ,iy ,k)*w00+ &
+                       co2ges_itsig (ixp,iy ,k)*w10+ &
+                       co2ges_itsig (ix ,iyp,k)*w01+ &
+                       co2ges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                      (co2ges_itsigp(ix ,iy ,k)*w00+ &
+                       co2ges_itsigp(ixp,iy ,k)*w10+ &
+                       co2ges_itsigp(ix ,iyp,k)*w01+ &
+                       co2ges_itsigp(ixp,iyp,k)*w11)*dtsigp
            endif
         endif
      endif
@@ -1011,21 +1040,24 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      if(n_aerosols>0)then
         if(size(gsi_chemguess_bundle)==1) then
            do ii=1,n_aerosols
-              aero(k,ii) =(gsi_chemguess_bundle(1)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
-                           gsi_chemguess_bundle(1)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
-                           gsi_chemguess_bundle(1)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
-                           gsi_chemguess_bundle(1)%r3(iaero(ii))%q(ixp,iyp,k)*w11)
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(1),aero_names(ii),aeroges_itsig ,ier) ! _RT: not efficient
+              aero(k,ii) =(aeroges_itsig(ix ,iy ,k)*w00+ &
+                           aeroges_itsig(ixp,iy ,k)*w10+ &
+                           aeroges_itsig(ix ,iyp,k)*w01+ &
+                           aeroges_itsig(ixp,iyp,k)*w11)
            enddo
         else
            do ii=1,n_aerosols
-              aero(k,ii) =(gsi_chemguess_bundle(itsig )%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
-                           gsi_chemguess_bundle(itsig )%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
-                           gsi_chemguess_bundle(itsig )%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
-                           gsi_chemguess_bundle(itsig )%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsig + &
-                          (gsi_chemguess_bundle(itsigp)%r3(iaero(ii))%q(ix ,iy ,k)*w00+ &
-                           gsi_chemguess_bundle(itsigp)%r3(iaero(ii))%q(ixp,iy ,k)*w10+ &
-                           gsi_chemguess_bundle(itsigp)%r3(iaero(ii))%q(ix ,iyp,k)*w01+ &
-                           gsi_chemguess_bundle(itsigp)%r3(iaero(ii))%q(ixp,iyp,k)*w11)*dtsigp
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),aero_names(ii),aeroges_itsig ,ier) ! _RT: not efficient
+              call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),aero_names(ii),aeroges_itsigp,ier) ! _RT: not efficient
+              aero(k,ii) =(aeroges_itsig (ix ,iy ,k)*w00+ &
+                           aeroges_itsig (ixp,iy ,k)*w10+ &
+                           aeroges_itsig (ix ,iyp,k)*w01+ &
+                           aeroges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                          (aeroges_itsigp(ix ,iy ,k)*w00+ &
+                           aeroges_itsigp(ixp,iy ,k)*w10+ &
+                           aeroges_itsigp(ix ,iyp,k)*w01+ &
+                           aeroges_itsigp(ixp,iyp,k)*w11)*dtsigp
            enddo
         endif
         if(.not.lcf4crtm) then ! otherwise already calculated
@@ -1091,14 +1123,16 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                 ges_tv(ix ,iyp,k,itsigp)*w01+ &
                 ges_tv(ixp,iyp,k,itsigp)*w11)*dtsigp
         do ii=1,n_actual_clouds
-           cloud(k,ii) =(gsi_metguess_bundle(itsig )%r3(icloud(ii))%q(ix ,iy ,k)*w00+ &     ! kg/kg
-                         gsi_metguess_bundle(itsig )%r3(icloud(ii))%q(ixp,iy ,k)*w10+ &
-                         gsi_metguess_bundle(itsig )%r3(icloud(ii))%q(ix ,iyp,k)*w01+ &
-                         gsi_metguess_bundle(itsig )%r3(icloud(ii))%q(ixp,iyp,k)*w11)*dtsig + &
-                        (gsi_metguess_bundle(itsigp)%r3(icloud(ii))%q(ix ,iy ,k)*w00+ &
-                         gsi_metguess_bundle(itsigp)%r3(icloud(ii))%q(ixp,iy ,k)*w10+ &
-                         gsi_metguess_bundle(itsigp)%r3(icloud(ii))%q(ix ,iyp,k)*w01+ &
-                         gsi_metguess_bundle(itsigp)%r3(icloud(ii))%q(ixp,iyp,k)*w11)*dtsigp
+           call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),cloud_names(ii),cloudges_itsig ,ier) ! _RT: not efficient
+           call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),cloud_names(ii),cloudges_itsigp,ier) ! _RT: not efficient
+           cloud(k,ii) =(cloudges_itsig (ix ,iy ,k)*w00+ &     ! kg/kg
+                         cloudges_itsig (ixp,iy ,k)*w10+ &
+                         cloudges_itsig (ix ,iyp,k)*w01+ &
+                         cloudges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                        (cloudges_itsigp(ix ,iy ,k)*w00+ &
+                         cloudges_itsigp(ixp,iy ,k)*w10+ &
+                         cloudges_itsigp(ix ,iyp,k)*w01+ &
+                         cloudges_itsigp(ixp,iyp,k)*w11)*dtsigp
 !          cloud(k,ii) =cloud(k,ii) * r1000*prsl(k)/(rd*tv)   ! [kg/kg] to [kg/m3]
            cloud(k,ii) =max(cloud(k,ii) * r1000 / rd,zero)  ! [kg/kg] to [kg/m3]
         end do
@@ -1374,8 +1408,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Set clouds for CRTM
   if(n_clouds>0) then
+     allocate(auxt(size(atmosphere(1)%temperature)))
+     allocate(auxp(size(atmosphere(1)%pressure)))
+     auxt=atmosphere(1)%temperature
+     auxp=atmosphere(1)%pressure
      call Set_CRTM_Cloud  ( msig, n_actual_clouds, cloud_names, icmask, n_clouds, cloud_cont, auxdp, & 
-                            atmosphere(1)%temperature, atmosphere(1)%pressure, auxq, atmosphere(1)%cloud )
+                            auxt, auxp, auxq, atmosphere(1)%cloud )
+     deallocate(auxt,auxp)
   endif
 
 ! Set aerosols for CRTM

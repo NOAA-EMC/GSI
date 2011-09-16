@@ -17,6 +17,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2010-04-29  todling - update to use gsi_bundle
 !   2010-05-22  todling - remove implicit assumption in ordering of nvar_id
 !   2010-05-31  todling - no need to do pointer checking
+!   2011-07-04  todling - allow run either single or double precision
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -129,7 +130,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   call gsi_gridcreate(grid,lat2,lon2,nsig)
   do it=1,nfldsig
      call gsi_bundlecreate (cstate,grid,'derivatives work',ier, &
-                            names2d=cvars2d,names3d=cvars3d)
+                            names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
      if(ier/=0) then
         write(6,*) trim(myname), ': trouble creating work bundle'
         call stop2(999)
@@ -301,7 +302,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   call gsi_gridcreate(grid,lat2,lon2,nsig)
   call gsi_bundlecreate (cstate,grid,'ad derivatives work',ier, &
-                         names2d=cvars2d,names3d=cvars3d)
+                         names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
   if(ier/=0) then
      write(6,*) trim(myname), ': trouble creating work bundle'
      call stop2(999)

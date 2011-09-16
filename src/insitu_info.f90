@@ -9,6 +9,8 @@ module insitu_info
 !
 !
 ! program history log:
+!   ??????    li      - intial version
+!   10Jul2011 todling - careful about existence of info-text file
 !
 !   input argument list:
 !
@@ -27,7 +29,8 @@ module insitu_info
   integer(i_kind),parameter:: n_scripps = 40
   integer(i_kind),parameter:: n_triton = 70
   integer(i_kind),parameter:: n_3mdiscus = 153
-  integer(i_kind),parameter:: lunship = 11, n_ship = 2011
+  integer(i_kind),parameter:: lunship = 11
+  integer(i_kind),save     :: n_ship = 2011
 
 ! Declare variables
   integer(i_kind) :: i
@@ -229,17 +232,25 @@ module insitu_info
 !
 !  read ship info from an external file to determine the depth and instrument
 !
-   implicit none
-
    integer(i_kind), intent(in) :: mype
 
-   allocate (ship%id(n_ship),ship%depth(n_ship),ship%sensor(n_ship))
+   integer(i_kind) ios
+   logical iexist
 
    filename='insituinfo'
-   open(lunship,file=filename,form='formatted')
-   do i = 1, n_ship
-      read(lunship,'(a10,f6.1,1x,a5)') ship%id(i),ship%depth(i),ship%sensor(i)
-   enddo
+   inquire(file=trim(filename),exist=iexist)
+   if(iexist) then
+      open(lunship,file=filename,form='formatted',iostat=ios)
+      allocate (ship%id(n_ship),ship%depth(n_ship),ship%sensor(n_ship))
+      if(ios==0) then
+         do i = 1, n_ship
+            read(lunship,'(a10,f6.1,1x,a5)') ship%id(i),ship%depth(i),ship%sensor(i)
+         enddo
+      endif
+   else 
+      n_ship=0
+      allocate (ship%id(n_ship),ship%depth(n_ship),ship%sensor(n_ship))
+   endif
   
    if(mype == 0) write(6,*) ' in read_ship_info, n_ship = ', n_ship
  end subroutine read_ship_info

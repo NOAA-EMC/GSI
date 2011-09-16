@@ -86,6 +86,7 @@ subroutine setup_sub2fslab
 !   2008-01-23  sato
 !   2010-04-28  todling - alloc/deall should always be: first in; last out
 !                       - update to use gsi_bundle
+!   2011-07-04  todling  - fixes to run either single or double precision
 !
 !   input argument list:
 !
@@ -104,7 +105,7 @@ subroutine setup_sub2fslab
 ! create an internal structure w/ the same vars as those in the control vector
   call gsi_gridcreate(grid,lat2,lon2,nsig)
   call gsi_bundlecreate (work,grid,'sub2fslab work',istatus, &
-                         names2d=cvars2d,names3d=cvars3d)
+                         names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
   if (istatus/=0) then
      write(6,*) trim(myname_),': trouble creating work bundle'
      call stop2(999)
@@ -191,6 +192,7 @@ subroutine sub2fslab(fsub,fslab)
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
 !   2010-04-28  todling - update to use bundle
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !    fsub     - subdomain data array
@@ -205,6 +207,7 @@ subroutine sub2fslab(fsub,fslab)
 !$$$ end documentation block\
   use constants, only: ione,izero
   use fgrid2agrid_mod, only: agrid2fgrid
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -212,23 +215,27 @@ subroutine sub2fslab(fsub,fslab)
   real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,n,n2d,n3d
+  integer(i_kind):: k,iflg,i,j,n,n2d,n3d,istatus
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ptr2d=>NULL()
 
   n2d=work%n2d
   n3d=work%n3d
   do n=1,n3d
+     call gsi_bundlegetpointer(work,work%r3(n)%shortname,ptr3d,istatus)
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              work%r3(n)%q(j,i,k) =fsub(j,i,k)
+              ptr3d(j,i,k) =fsub(j,i,k)
            end do
         end do
      end do
   end do
   do n=1,n2d
+     call gsi_bundlegetpointer(work,work%r2(n)%shortname,ptr2d,istatus)
      do i=1,lon2
         do j=1,lat2
-           work%r2(n)%q(j,i) =fsub(j,i,1)
+           ptr2d(j,i) =fsub(j,i,1)
         end do
      end do
   end do
@@ -262,6 +269,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
 !   2010-04-28  todling - update to use bundle
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !    fsub                 - subdomain data array
@@ -276,6 +284,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !$$$ end documentation block
   use constants, only: ione,izero
   use patch2grid_mod, only: grid2patch
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -285,23 +294,27 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
   real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,n,n2d,n3d
+  integer(i_kind):: k,iflg,i,j,n,n2d,n3d,istatus
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ptr2d=>NULL()
 
   n2d=work%n2d
   n3d=work%n3d
   do n=1,n3d
+     call gsi_bundlegetpointer(work,work%r3(n)%shortname,ptr3d,istatus)
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              work%r3(n)%q(j,i,k) =fsub(j,i,k)
+              ptr3d(j,i,k) =fsub(j,i,k)
            end do
         end do
      end do
   end do
   do n=1,n2d
+     call gsi_bundlegetpointer(work,work%r2(n)%shortname,ptr2d,istatus)
      do i=1,lon2
         do j=1,lat2
-           work%r2(n)%q(j,i) =fsub(j,i,1)
+           ptr2d(j,i) =fsub(j,i,1)
         end do
      end do
   end do
@@ -434,6 +447,7 @@ subroutine sub2slab2d(fsub,slab)
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
 !   2010-04-28  todling - update to use bundle
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !    fsub     - subdomain data array
@@ -447,6 +461,7 @@ subroutine sub2slab2d(fsub,slab)
 !
 !$$$ end documentation block
   use constants, only: ione,izero
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
@@ -454,23 +469,27 @@ subroutine sub2slab2d(fsub,slab)
   real(r_kind),intent(  out) :: slab(nlat,nlon,nsig1o)
   
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,n,n2d,n3d
+  integer(i_kind):: k,iflg,i,j,n,n2d,n3d,istatus
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ptr2d=>NULL()
 
   n2d=work%n2d
   n3d=work%n3d
   do n=1,n3d
+     call gsi_bundlegetpointer(work,work%r3(n)%shortname,ptr3d,istatus)
      do k=1,nsig
         do i=1,lon2
            do j=1,lat2
-              work%r3(n)%q(j,i,k) =fsub(j,i)
+              ptr3d(j,i,k) =fsub(j,i)
            end do
         end do
      end do
   end do
   do n=1,n2d
+     call gsi_bundlegetpointer(work,work%r2(n)%shortname,ptr2d,istatus)
      do i=1,lon2
         do j=1,lat2
-           work%r2(n)%q(j,i) =fsub(j,i)
+           ptr2d(j,i) =fsub(j,i)
         end do
      end do
   end do

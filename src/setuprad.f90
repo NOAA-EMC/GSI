@@ -121,6 +121,7 @@
 !   2011-05-04  todling - partially merge in Min-Jeong Kim's cloud clear assimilation changes (connect to Metguess)
 !   2011-05-16  todling - generalize handling of jacobian matrix entries
 !   2011-05-20  mccarty - updated for ATMS
+!   2011-06-09  sienkiewicz - call to qc_ssu needs tb_obs instead of tbc
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -1012,7 +1013,7 @@
         elseif (ssu) then
 
            call qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
-              zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
+              zsges,cenlat,tb_obs,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
             
         end if ObsQCs
 
@@ -1193,7 +1194,7 @@
                        radtail(ibin)%head%ich(icc),&
                        radtail(ibin)%head%icx(icc))
 
-              call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(1),radtail(ibin)%head%wij(1))
+              call get_ij(mm1,slats,slons,radtail(ibin)%head%ij(:),radtail(ibin)%head%wij(:))
               radtail(ibin)%head%time=dtime
               radtail(ibin)%head%luse=luse(n)
               radtail(ibin)%head%ich(:)=-1

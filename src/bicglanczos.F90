@@ -11,6 +11,7 @@ module bicglanczos
 !   2009-08-10  tremolet
 !   2010-10-01  el akkraoui - revisit original implementation (still w/o precond)
 !   2011-04-19  el akkraoui - add preconditioning and orthogonalization
+!   2011-07-04  todling - determine precision based on kinds
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
@@ -43,7 +44,7 @@ module bicglanczos
 ! ------------------------------------------------------------------------------
 
 !=============================================================
-use kinds    , only : r_kind,i_kind,r_quad
+use kinds    , only : r_kind,i_kind,r_quad,r_single,r_double
 use constants, only : zero, one, half,two, zero_quad
 use timermod , only : timer_ini, timer_fnl
 use lanczos  , only : save_precond
@@ -87,10 +88,8 @@ type(control_vector), allocatable, dimension(:) :: cglwork
 type(control_vector), allocatable, dimension(:) :: cglworkhat
 
 ! --------------------------------------
-REAL                       :: Z_DEFAULT_REAL      ! intentionally not real(r_kind)
-integer(i_kind), PARAMETER :: N_DEFAULT_REAL_KIND = KIND(Z_DEFAULT_REAL)
-DOUBLE PRECISION           :: DL_DOUBLE_PRECISION ! intentionally not real(r_double)
-integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = KIND(DL_DOUBLE_PRECISION)
+integer(i_kind), PARAMETER :: N_DEFAULT_REAL_KIND = r_single
+integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = r_double
 
 !=============================================================
 contains

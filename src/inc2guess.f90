@@ -19,6 +19,7 @@ subroutine inc2guess(sval)
 !   2010-06-15  todling - generalize handling of chemistry
 !   2010-05-01  todling - add support for generalized guess (use met-guess)
 !                       - cwmr now in met-guess
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !     sval     - analysis increment in grid space
@@ -58,19 +59,12 @@ subroutine inc2guess(sval)
   character(len=10),allocatable,dimension(:) :: gases
   character(len=10),allocatable,dimension(:) :: guess
   integer(i_kind) i,j,k,it,ii,ic,id,ngases,nguess,istatus
-  integer(i_kind) i_u,i_v,i_t,i_q,i_oz,i_cw,i_ps,i_sst
   integer(i_kind) ipinc,ipges
   real(r_kind) :: zt
-
-! Get pointers (enough to get for 1st instance)
-  call gsi_bundlegetpointer(sval(1),'u',  i_u,  istatus)
-  call gsi_bundlegetpointer(sval(1),'v',  i_v,  istatus)
-  call gsi_bundlegetpointer(sval(1),'tv', i_t,  istatus)
-  call gsi_bundlegetpointer(sval(1),'q',  i_q,  istatus)
-  call gsi_bundlegetpointer(sval(1),'oz', i_oz, istatus)
-  call gsi_bundlegetpointer(sval(1),'cw', i_cw, istatus)
-  call gsi_bundlegetpointer(sval(1),'ps', i_ps, istatus)
-  call gsi_bundlegetpointer(sval(1),'sst',i_sst,istatus)
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc=>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dges=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges=>NULL()
 
 ! Inquire about guess fields
 call gsi_metguess_get('dim',nguess,istatus)
@@ -96,11 +90,11 @@ endif
      else
         ii = 1
      endif
-     call copyfld_(ges_u,   i_u)
-     call copyfld_(ges_v,   i_v)
-     call copyfld_(ges_tv,  i_t)
-     call copyfld2_(ges_q,   i_q)
-     call copyfld_(ges_oz,  i_oz)
+     call copyfld_ (ges_u,  'u' )
+     call copyfld_ (ges_v,  'v' )
+     call copyfld_ (ges_tv, 'tv')
+     call copyfld2_(ges_q,  'q' )
+     call copyfld_ (ges_oz, 'oz')
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -109,10 +103,11 @@ endif
            end do
         end do
      end do
-     if(i_ps>0)then
+     call gsi_bundlegetpointer (sval(ii),'ps',ptr2dinc,istatus)
+     if(istatus==0)then
         do j=1,lon2
            do i=1,lat2
-              ges_ps(i,j,it) = sval(ii)%r2(i_ps)%q(i,j)
+              ges_ps(i,j,it) = ptr2dinc(i,j)
            end do
         end do
      end if
@@ -121,15 +116,15 @@ endif
      do ic=1,nguess
         id=getindex(svars3d,guess(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
-           gsi_metguess_bundle(it)%r3(ipges)%q = sval(ii)%r3(ipinc)%q 
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
+           ptr3dges = ptr3dinc
         endif
         id=getindex(svars2d,guess(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),               guess(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ipges,istatus)
-           gsi_metguess_bundle(it)%r2(ipges)%q = sval(ii)%r2(ipinc)%q 
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr2dinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
+           ptr2dges = ptr2dinc
         endif
      enddo
 
@@ -137,15 +132,15 @@ endif
      do ic=1,ngases
         id=getindex(svars3d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
-           gsi_chemguess_bundle(it)%r3(ipges)%q = sval(ii)%r3(ipinc)%q 
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
+           ptr3dges = ptr3dinc
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
-           call gsi_bundlegetpointer (sval(ii),                gases(ic),ipinc,istatus)
-           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ipges,istatus)
-           gsi_chemguess_bundle(it)%r2(ipges)%q = sval(ii)%r2(ipinc)%q 
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
+           ptr2dges = ptr2dinc
         endif
      enddo
   end do
@@ -154,11 +149,12 @@ endif
     deallocate(gases)
   endif
 
-  if(i_sst>0)then
+  call gsi_bundlegetpointer (sval(ii),'sst',ptr2dinc,istatus)
+  if(istatus==0)then
      do k=1,nfldsfc
         do j=1,lon2
            do i=1,lat2
-              sfct(i,j,k)= sval(ii)%r2(i_sst)%q(i,j)
+              sfct(i,j,k)= ptr2dinc(i,j)
            end do
         end do
      end do
@@ -167,27 +163,33 @@ endif
 
   return
   contains
-  subroutine copyfld_(fld,ipnt)
+  subroutine copyfld_(fld,var)
   real(r_kind) :: fld(:,:,:,:)
-  integer(i_kind) :: ipnt
-  if(ipnt<0) return
+  character(len=*) :: var
+  integer(i_kind) istatus
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+  call gsi_bundlegetpointer (sval(ii),var,ptr3d,istatus)
+  if(istatus==0) return
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              fld(i,j,k,it)    = sval(ii)%r3(ipnt)%q(i,j,k)
+              fld(i,j,k,it) = ptr3d(i,j,k)
            end do
         end do
      end do
   end subroutine copyfld_
-  subroutine copyfld2_(fld,ipnt)
+  subroutine copyfld2_(fld,var)
   real(r_kind) :: fld(:,:,:,:)
   real(r_kind) :: ana
-  integer(i_kind) :: ipnt
-  if(ipnt<0) return
+  character(len=*) :: var
+  integer(i_kind) istatus
+  real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+  call gsi_bundlegetpointer (sval(ii),var,ptr3d,istatus)
+  if(istatus==0) return
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ana = max(fld(i,j,k,it)+ sval(ii)%r3(ipnt)%q(i,j,k),1.e-10_r_kind)
+              ana = max(fld(i,j,k,it)+ ptr3d(i,j,k),1.e-10_r_kind)
               fld(i,j,k,it) = ana - fld(i,j,k,it)
            end do
         end do

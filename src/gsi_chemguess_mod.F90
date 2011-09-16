@@ -527,6 +527,7 @@ end subroutine final_
 ! !REVISION HISTORY:
 !   2010-04-20  todling  initial code
 !   2010-05-17  todling  update create interface to pass a grid
+!   2011-07-03  todling  allow running single or double precision
 !
 ! !AUTHOR:
 !   Ricardo Todling  org: gmao      date: 2010-04-10
@@ -552,7 +553,7 @@ end subroutine final_
     allocate(GSI_ChemGuess_Bundle(nbundles))
     do nt=1,nbundles
        call GSI_BundleCreate ( GSI_ChemGuess_Bundle(nt), grid, 'Trace Gases', istatus, &
-                               names3d=tgases3d ) ! only 3d for now
+                               names3d=tgases3d,bundle_kind=r_kind ) ! only 3d for now
     enddo
 
     if (istatus/=0) then

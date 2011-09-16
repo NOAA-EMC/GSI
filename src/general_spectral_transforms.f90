@@ -800,6 +800,7 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
 !   2010-02-18  parrish, spectra_pole_scalar to general_spectra_pole_scalar--
 !                          replace 'use specmod' with structure var sp
 !                           also replace 'use gridmod' with input structure variable grd
+!   2011-07-03  todling - use intrinsic sqrt (avoid old dsqrt-interface)
 !
 !   input argument list:
 !     coefs  - spherical harmonic coefficients of scalar field
@@ -847,12 +848,12 @@ subroutine general_spectra_pole_scalar (grd,sp,field,coefs)
       do n=1,sp%jcap
          fnum=real(n**2)
          fden=real(4*n**2-1)
-         epsi0(n)=dsqrt(fnum/fden)
+         epsi0(n)=sqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-      alp0(0)=dsqrt(half)
-      alp0(1)=dsqrt(three)*alp0(0)
+      alp0(0)=sqrt(half)
+      alp0(1)=sqrt(three)*alp0(0)
       do n=2,sp%jcap
          alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
       enddo
@@ -949,12 +950,12 @@ subroutine general_spectra_pole_scalar_ad (grd,sp,field,coefs)
       do n=1,sp%jcap
          fnum=real(n**2, r_kind)
          fden=real(4*n**2-1, r_kind)
-         epsi0(n)=dsqrt(fnum/fden)
+         epsi0(n)=sqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials for m=0 at North Pole
-      alp0(0)=dsqrt(half)
-      alp0(1)=dsqrt(three)*alp0(0)
+      alp0(0)=sqrt(half)
+      alp0(1)=sqrt(three)*alp0(0)
       do n=2,sp%jcap
          alp0(n)=(alp0(n-1)-epsi0(n-1)*alp0(n-2))/epsi0(n)
       enddo
@@ -1091,13 +1092,13 @@ subroutine general_spectra_pole_wind (grd,sp,ufield,vfield,vort,divg)
       do n=1,sp%jcap
         fnum=real(n**2-1, r_kind)
         fden=real(4*n**2-1, r_kind)
-        epsi1(n)=dsqrt(fnum/fden)
+        epsi1(n)=sqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials / cos for m=1 at North Pole
 !  This is actually limit Pn,m / abs (cos) as pole is approached 
       alp1(1)=sqrt(three)/two
-      alp1(2)=dsqrt(two+three)*alp1(1)
+      alp1(2)=sqrt(two+three)*alp1(1)
       do n=3,sp%jcap
          alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
       enddo
@@ -1247,13 +1248,13 @@ subroutine general_spectra_pole_wind_ad (grd,sp,ufield,vfield,vort,divg)
       do n=1,sp%jcap
          fnum=real(n**2-1, r_kind)
          fden=real(4*n**2-1, r_kind)
-         epsi1(n)=dsqrt(fnum/fden)
+         epsi1(n)=sqrt(fnum/fden)
       enddo
 !
 !  Compute Legendre polynomials / cos for m=1 at North Pole
 !  This is actually limit Pn,m / abs (cos) as pole is approached 
       alp1(1)=sqrt(three)/two
-      alp1(2)=dsqrt(two+three)*alp1(1)
+      alp1(2)=sqrt(two+three)*alp1(1)
       do n=3,sp%jcap
          alp1(n)=(alp1(n-1)-epsi1(n-1)*alp1(n-2))/epsi1(n)
       enddo

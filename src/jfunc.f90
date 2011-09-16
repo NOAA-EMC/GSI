@@ -109,6 +109,7 @@ module jfunc
   public :: write_guess_solution
   public :: strip2
   public :: set_pointer
+  public :: set_sqrt_2dsize
 ! set passed variables to public
   public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,jiterend,jiterstart,jiter,iter,niter,miter
@@ -603,10 +604,10 @@ contains
     use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
-    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens
+    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens,nval_lenz_en
     implicit none
 
-    integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,nedges
+    integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,nedges,n_ensz
     character(len=max_varname_length) cvar
 
     nedges=count(edges .eqv. .true.)
@@ -625,24 +626,19 @@ contains
     nclen1=nclen-nrclen
     nclen2=nclen1+nsclen
   
-    if(lsqrtb.or.(l_hyb_ens.and.generate_ens)) then
+    n_ensz=0
+    if(lsqrtb) then
        if(regional) then
           nval2d=nlat*nlon*3
        else
-!           following lifted from subroutine create_berror_vars in module berror.f90
-!            inserted because create_berror_vars called after this routine
-          nx=nlon*3/2
-          nx=nx/2*2
-          ny=nlat*8/9
-          ny=ny/2*2
-          if(mod(nlat,2)/=0)ny=ny+1
-          mr=0
-          nr=nlat/4
-          nf=nr
-          nval2d=(ny*nx + 2*(2*nf+1)*(2*nf+1))*3
+          call set_sqrt_2dsize(nval2d)
        end if
        nval_lenz=nval2d*nnnn1o
        nclenz=nsubwin*nval_lenz+nsclen+npclen
+       if(l_hyb_ens) then
+          n_ensz=1 !n_ens
+          nclenz=nclenz+nsubwin*nval_lenz_en*n_ensz
+        endif
     else
        nval2d=latlon11
     end if
@@ -650,7 +646,7 @@ contains
 
     if (lsqrtb) then
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ens)
+                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ensz)
     else
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
@@ -659,5 +655,46 @@ contains
     CALL setup_predictors(nrclen,nsclen,npclen)
 
   end subroutine set_pointer
+
+  subroutine set_sqrt_2dsize(ndim2d)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    set_sqrt_2dsize
+!   prgmmr: todling          org: np23                date: 2011-09-05
+!
+! abstract: Calculates size of 2d-component of control vector in sqrt-B
+!           case. This being an independent call allows using ckgcov
+!           within context of B-precond.
+!
+! program history log:
+!   2011-09-05  todling - move as independent piece out of set_pointer
+!
+!   input argument list:
+!
+!   output argument list:
+!     ndim2d - size of 2d component of control vector in sqrt-B case
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+  use kinds, only: i_kind
+  use gridmod, only: nlat,nlon
+  implicit none
+  integer(i_kind),intent(out):: ndim2d
+  integer(i_kind) nx,ny,mr,nr,nf
+!           following lifted from subroutine create_berror_vars in module berror.f90
+!            inserted because create_berror_vars called after this routine
+     nx=nlon*3/2
+     nx=nx/2*2
+     ny=nlat*8/9
+     ny=ny/2*2
+     if(mod(nlat,2)/=0)ny=ny+1
+     mr=0
+     nr=nlat/4
+     nf=nr
+     ndim2d=(ny*nx + 2*(2*nf+1)*(2*nf+1))*3
+  end subroutine set_sqrt_2dsize
 
 end module jfunc

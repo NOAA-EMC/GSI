@@ -15,6 +15,8 @@ subroutine read_gfs_ozone_for_regional
 !   2010-10-15  parrish - add uv_hyb_ens to arg list for call to general_read_gfsatm.
 !                          This was added to allow retrieval of u,v or psi,chi in
 !                           subroutine get_gefs_ensperts_dualres.f90.
+!   2011-07-05  todling - treatment of oz and prsl looks suspicious: fix to fit 
+!                         new interface to general_sub2grid (but equally suspicious)
 !
 !   input argument list:
 !
@@ -32,7 +34,7 @@ subroutine read_gfs_ozone_for_regional
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
   use kinds, only: r_kind,i_kind
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-  use general_sub2grid_mod, only: general_grid2sub_r_double,general_sub2grid_r_double
+  use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
   use general_specmod, only: spec_vars,general_init_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
@@ -46,10 +48,10 @@ subroutine read_gfs_ozone_for_regional
   real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
-  real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:),work_reg(:,:,:)
+  real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
 
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
-  integer(i_kind) iret,i,j,k,k2,m,n,il,jl,mm1
+  integer(i_kind) iret,i,j,k,k2,m,n,il,jl,mm1,ndim
   character(24) filename
   logical ice
   logical uv_hyb_ens
@@ -290,18 +292,19 @@ subroutine read_gfs_ozone_for_regional
 
 ! use general_sub2grid to go to horizontal slabs 
 
-  allocate(work_sub(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig,2))
+  allocate(work_sub(grd_gfs%lat2,grd_gfs%lon2,grd_gfs%nsig*2,1))
+  ndim=grd_gfs%nsig
   do k=1,grd_gfs%nsig
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
            work_sub(i,j,k,1)=prsl(i,j,k)
-           work_sub(i,j,k,2)=oz(i,j,k)
+           work_sub(i,j,k+ndim,1)=oz(i,j,k)
         end do
      end do
   end do
   deallocate(oz,prsl)
-  allocate(work(grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
-  call general_sub2grid_r_double(grd_gfs,work_sub,work)
+  allocate(work(grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc,1))
+  call general_sub2grid(grd_gfs,work_sub,work)
   deallocate(work_sub)
 
 ! then interpolate to regional analysis grid
@@ -309,15 +312,15 @@ subroutine read_gfs_ozone_for_regional
   call g_create_egrid2points_slow(nlat*nlon,region_lat,region_lon, &
                     grd_gfs%nlat,sp_gfs%rlats,grd_gfs%nlon,sp_gfs%rlons,nord_g2r,p_g2r)
   vector0=.false.
-  allocate(work_reg(grd_mix%nlat,grd_mix%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
+  allocate(work_reg(grd_mix%nlat,grd_mix%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc,1))
   do k=grd_gfs%kbegin_loc,grd_gfs%kend_loc
-     call g_egrid2points_faster(p_g2r,work(:,:,k),work_reg(:,:,k),vector0)
+     call g_egrid2points_faster(p_g2r,work(:,:,k,1),work_reg(:,:,k,1),vector0)
   end do
   deallocate(work)
 
 ! next general_grid2sub to go to regional grid subdomains.
-  allocate(work_sub(grd_mix%lat2,grd_mix%lon2,grd_gfs%nsig,2))
-  call general_grid2sub_r_double(grd_mix,work_reg,work_sub)
+  allocate(work_sub(grd_mix%lat2,grd_mix%lon2,grd_gfs%nsig*2,1))
+  call general_grid2sub(grd_mix,work_reg,work_sub)
   deallocate(work_reg)
   do k=1,grd_gfs%nsig
      ozmin=minval(work_sub(:,:,k,1))
@@ -326,8 +329,8 @@ subroutine read_gfs_ozone_for_regional
      call mpi_allreduce(ozmax,ozmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
   end do
   do k=1,grd_gfs%nsig
-     ozmin=minval(work_sub(:,:,k,2))
-     ozmax=maxval(work_sub(:,:,k,2))
+     ozmin=minval(work_sub(:,:,k+ndim,1))
+     ozmax=maxval(work_sub(:,:,k+ndim,1))
      call mpi_allreduce(ozmin,ozmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
      call mpi_allreduce(ozmax,ozmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
   end do
@@ -346,7 +349,7 @@ subroutine read_gfs_ozone_for_regional
      do i=1,lat2
         do k=1,grd_mix%nsig
            xspli(k)=log(work_sub(i,j,k,1)*10.0_r_kind)
-           yspli(k)=work_sub(i,j,k,2)
+           yspli(k)=work_sub(i,j,k+ndim,1)
            glb_ozmax(k)=max(yspli(k),glb_ozmax(k))
            glb_ozmin(k)=min(yspli(k),glb_ozmin(k))
                  

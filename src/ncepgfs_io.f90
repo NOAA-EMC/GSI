@@ -103,7 +103,7 @@ contains
 
 !         Get pointer to could water mixing ratio
           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-          if (iret/=0) call die('WRITE_GFS','cannot get pointer to cwmr, iret =',iret)
+          if (iret/=0) call die('READ_GFS','cannot get pointer to cwmr, iret =',iret)
 
           write(filename,100) ifilesig(it)
 100       format('sigf',i2.2)
@@ -122,7 +122,7 @@ contains
 
 !         Get pointer to could water mixing ratio
           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-          if (iret/=0) call die('WRITE_GFS','cannot get pointer to cwmr, iret =',iret)
+          if (iret/=0) call die('READ_GFS','cannot get pointer to cwmr, iret =',iret)
 
           write(filename,100) ifilesig(it)
           call read_gfsatm(filename,mype,sp_a,sp_a,&
@@ -157,6 +157,7 @@ contains
 !   2010-05-19  todling - Port Hou's code from compute_derived(!)
 !                         into this module and linked with the chemguess_bundle
 !   2011-02-01  r. yang - proper initialization of prsi
+!   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
 !
@@ -184,12 +185,14 @@ contains
     integer(i_kind), intent(in):: month
 
 !   Declare local variables
-    integer(i_kind) igfsco2,i,j,k,n,ico2,ier
+    integer(i_kind) igfsco2,i,j,k,n,ier
     real(r_kind),dimension(lat2):: xlats
     real(r_kind),dimension(lat2,lon2,nsig+1)::prsi
+    real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
 
     if(.not.associated(gsi_chemguess_bundle)) return
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',ico2,ier)
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
     if(ier/=0) return
 
 !   Get subdomain latitude array
@@ -206,12 +209,13 @@ contains
     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
     call read_gfsco2 ( iyear,month,igfsco2,xlats,prsi, &
                        lat2,lon2,nsig,mype,  &
-                       gsi_chemguess_bundle(1)%r3(ico2)%q )
+                       p_co2 )
 
 ! For now, I don't know what best to do other than setting all times to have
 ! equal CO2 ... anybody?
     do n=2,nfldsig
-       gsi_chemguess_bundle(n)%r3(ico2)%q = gsi_chemguess_bundle(1)%r3(ico2)%q
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d,ier)
+       ptr3d = p_co2
     enddo
 
   end subroutine read_gfs_chem
@@ -2349,7 +2353,7 @@ contains
 !-------------------------------------------------------------------------
 
 !   Declare local parameters
-    character(10),parameter:: fname_ges_sfc ='sfcanl.gsi'
+    character(10),parameter:: fname_ges_sfc ='sfcf06'
     character(6),parameter:: fname_ges_nst ='nstf06'
 
     integer(sfcio_intkind),parameter:: ioges_sfc = 12

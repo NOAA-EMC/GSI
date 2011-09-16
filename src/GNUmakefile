@@ -98,6 +98,7 @@ RSRC =	gmao_airs_bufr.tbl		\
 	gmao_global_blacklist.txt	\
 	gmao_global_coinfo.txt		\
 	gmao_global_convinfo.txt	\
+	gmao_global_insituinfo.txt	\
 	gmao_global_ozinfo.txt		\
 	gmao_global_pcpinfo.txt		\
 	gmao_global_satinfo.txt		\
@@ -118,17 +119,17 @@ local_esma_install local_install:
 
 install_lib: $(ESMALIB) $(LIB)
 	@ echo "-- $@: $(LIB) --> $(ESMALIB)/ --"
-	$(CP) $(LIBgsi_util)   $(ESMALIB)/
-	$(CP) $(LIBgsi_solver) $(ESMALIB)/
-	$(CP) $(LIB)           $(ESMALIB)/
+	$(CP) -p $(LIBgsi_util)   $(ESMALIB)/
+	$(CP) -p $(LIBgsi_solver) $(ESMALIB)/
+	$(CP) -p $(LIB)           $(ESMALIB)/
 
 install_inc: $(ESMAINC)/$(THIS)
 	@ echo "-- $@: *.mod --> $(ESMAINC)/ --"
-	$(CP) *.mod     $(ESMAINC)/$(THIS)
+	$(CP) -p *.mod     $(ESMAINC)/$(THIS)
 
 install_bin: $(ESMABIN) $(BIN) analyzer gsidiags
 	@ echo "-- $@: $(BIN) --> $(ESMABIN)/ --"
-	$(CP) $(BIN)     $(ESMABIN)/
+	$(CP) -p $(BIN)     $(ESMABIN)/
 	$(SED) -e "s^@DASPERL^$(PERL)^" < analyzer > $(ESMABIN)/analyzer
 	$(SED) -e "s^@DASPERL^$(PERL)^" < gsidiags > $(ESMABIN)/gsidiags
 	chmod 755 $(ESMABIN)/analyzer
@@ -142,8 +143,8 @@ install_etc: $(ESMAETC) $(RSRC)
 	      *.txt)		F=`basename $$f .txt`.rc ;;\
 	      *)		F=$$f			 ;;\
 	      esac ;\
-	      echo "$(CP) $$f     $(ESMAETC)/$$F" ;\
-	      $(CP) $$f $(ESMAETC)/$$F )\
+	      echo "$(CP) -p $$f     $(ESMAETC)/$$F" ;\
+	      $(CP) -p $$f $(ESMAETC)/$$F )\
 	  done
 
 $(ESMALIB) $(ESMABIN) $(ESMAINC)/$(THIS) $(ESMAETC):
@@ -211,6 +212,7 @@ SRCS_UTIL =	$(wildcard \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
         get_gefs_ensperts_dualres.f90 \
+        get_gefs_for_regional.f90 \
         get_wrf_mass_ensperts_netcdf.F90 \
 	get_semimp_mats.f90 \
 	getuv.f90 \
@@ -230,7 +232,7 @@ SRCS_UTIL =	$(wildcard \
 	hybrid_ensemble_parameters.f90 \
 	init_commvars.f90 \
         insitu_info.f90 \
-	kinds.f90 \
+	kinds.F90 \
         looplimits.f90 \
 	m_dgeevx.F90 \
 	m_rerank.f90 \
@@ -266,6 +268,8 @@ SRCS_UTIL =	$(wildcard \
 	rfdpar.f90 \
 	rsearch.F90 \
 	rtlnmc_version3.f90 \
+        set_crtm_aerosolmod.f90 \
+        set_crtm_cloudmod.f90 \
 	sfc_model.f90 \
 	simpin1.f90 \
 	simpin1_init.f90 \
@@ -338,6 +342,7 @@ SRCS_SOLVER =	$(wildcard \
 	cvsection.f90 \
 	dtast.f90 \
 	deter_nst.f90 \
+        deter_sfc_mod.f90 \
         enorm_state.f90 \
         evaljgrad.f90 \
         evaljcdfi.f90 \
@@ -457,6 +462,7 @@ SRCS_SOLVER =	$(wildcard \
 	read_prepbufr.f90 \
 	read_radar.f90 \
         read_RadarRef_mosaic.f90 \
+        read_satwnd.f90 \
         read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
@@ -568,13 +574,8 @@ FREAL      = $(FREAL4)
 FOPT_nobig = $(FOPT) $(BYTERECLEN) $(_D)
 FPE        =
 
-THIS_SP    = NCEP_sp_r8i4
-THIS_W3    = NCEP_w3_r8i4
-THIS_BACIO = NCEP_bacio_r4i4
 THIS_BUFR  = NCEP_bufr_r8i4
 THIS_GFSIO = NCEP_gfsio
-THIS_NEMSIO= NCEP_nemsio
-LIB_GFSIO  = $(ESMADIR)/$(ARCH)/lib/lib$(THIS_GFSIO).a   # move to proper place
 INC_GFSIO  = $(ESMADIR)/$(ARCH)/include/$(THIS_GFSIO)   # move to proper place
 INC_BACIO  = # $(ESMADIR)/$(ARCH)/include/$(THIS_BACIO)   # move to proper place
 
@@ -586,7 +587,7 @@ USER_FDEFS = $(_D) $(HAVE_ESMF)
 USER_FFLAGS = -CB $(BIG_ENDIAN) $(BYTERECLEN)
 USER_FFLAGS = $(BYTERECLEN)
 USER_FFLAGS =
-USER_FFLAGS = $(BIG_ENDIAN) $(BYTERECLEN)
+USER_FFLAGS = $(BIG_ENDIAN) $(BYTERECLEN) -D_REAL8_
 USER_CFLAGS = -I . -DLINUX -Dfunder -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
 USER_FMODS  = $(foreach dir,$(MOD_DIRS),$(M)$(dir)) 
 
@@ -607,11 +608,11 @@ $(LIB) lib : $(LIBgsi_util) $(LIBgsi_solver) $(OBJS_GC)
 %.x : $(LIB) %.o 
 	$(LD) $(LDFLAGS) -o $@ $*.o $(LIB) $(LIB_SYS)
 
-gsi.x:  $(LIBgsi_util)  $(LIBgsi_solver) gsimain.o
-	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIBgsi_solver) $(LIBgsi_util) $(LIB_CRTM)  \
-	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_NEMSIO) $(LIB_BACIO) $(LIB_GFSIO) $(LIB_SIGIO) \
-	     $(LIB_SP) $(LIB_W3) \
-	     $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
+#gsi.x:  $(LIBgsi_util)  $(LIBgsi_solver) gsimain.o
+#	$(FC) $(LDFLAGS) -o gsi.x gsimain.o $(LIBgsi_solver) $(LIBgsi_util) $(LIB_CRTM)  \
+#	     $(LIB_SFCIO)  $(LIB_BUFR) $(LIB_NEMSIO) $(LIB_BACIO) $(LIB_GFSIO) $(LIB_SIGIO) \
+#	     $(LIB_SP) $(LIB_W3) \
+#	     $(LIB_MPI) $(LIB_SCI) $(LIB_SYS)
 
 ut_gsibundle.x:  $(OBJS) $(LIB) ut_gsibundle.o
 	$(FC) $(LDFLAGS) -o ut_gsibundle.x ut_gsibundle.o $(LIBgsi_util) \
@@ -652,6 +653,7 @@ OBJS_OPENBUFR	= read_airs.o		\
 		  read_pcp.o		\
 		  read_prepbufr.o	\
 		  read_radar.o		\
+                  read_satwnd.o         \
                   read_seviri.f90       \
 		  read_ssmi.o		\
 		  read_ssmis.o		\
