@@ -688,7 +688,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use radinfo, only: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl
   use guess_grids, only: ges_u,ges_v,ges_tsen,ges_q,ges_oz,&
       ges_ps,ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
-      hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2,qmin
+      hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2
   use ncepgfs_ghg, only: co2vmr_def
   use gsi_chemguess_mod, only: gsi_chemguess_bundle   ! for now, a common block
   use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -721,6 +721,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Declare local parameters
   real(r_kind),parameter:: minsnow=one_tenth
+  real(r_kind),parameter:: qsmall  = 1.e-6_r_kind
   real(r_kind),parameter:: ozsmall = 1.e-10_r_kind
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
 
@@ -735,7 +736,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
-  real(r_kind):: sno00,sno01,sno10,sno11,secant_term,qsmall
+  real(r_kind):: sno00,sno01,sno10,sno11,secant_term
   real(r_kind),dimension(0:3):: wgtavg
   real(r_kind),dimension(nsig,nchanl):: omix
   real(r_kind),dimension(nsig,nchanl,n_clouds):: cwj
@@ -759,13 +760,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
   m1=mype+1
-
-! Previous tests with CRTM indicate problems with moisture values 
-! less than 1.e-7 kg/kg.   Hence the check below to ensure qsmall
-! is greater than or equal to 1.0e-7
-
-  qsmall=max(1.0e-7_r_kind,qmin)
-  
 
   dx  = data_s(ilat)                 ! grid relative latitude
   dy  = data_s(ilon)                 ! grid relative longitude

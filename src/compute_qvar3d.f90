@@ -11,7 +11,6 @@ subroutine compute_qvar3d
 ! 2010-03-15 zhu - extracted out from compute_derived
 ! 2010-04-10 parrish - make rhgues local, since removed from jfunc by derber (no longer used)
 ! 2010-05-28  todling - obtain variable id's on the fly (add getindex)
-! 2010-12-08 Jung     - changed ges_q to qmin, recomputed qsatg and fact_tv
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -30,8 +29,7 @@ subroutine compute_qvar3d
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig
   use constants, only: izero,one,ione,fv
-  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl
-  use guess_grids, only: qmin,limit_qmin,limit_qmax
+  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl,qmin
   use mpeu_util, only: getindex
 
   implicit none
@@ -39,23 +37,21 @@ subroutine compute_qvar3d
 ! Declare local variables
   logical ice
   integer(i_kind) :: i,j,k,it,n,np,iderivative,nrf3_q
-  real(r_kind) d,dn1,dn2,gesq
+  real(r_kind) d,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
   nrf3_q=getindex(cvars3d,'q')
 
 ! Limit q to be >= qmin
-  if (limit_qmin) then
-     do it=1,nfldsig
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
-              end do
+  do it=1,nfldsig
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
            end do
         end do
      end do
-  endif
+  end do
 
 ! Load guess q.  Initialize saturation array to guess.
   do k=1,nsig
@@ -63,6 +59,7 @@ subroutine compute_qvar3d
         do i=1,lat2
            qgues(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
            qsatg(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
+           fact_tv(i,j,k)=one/(one+fv*qsatg(i,j,k))      ! factor for tv to tsen conversion
         end do
      end do
   end do
@@ -83,11 +80,6 @@ subroutine compute_qvar3d
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           gesq = ges_q(i,j,k,ntguessig)
-           if (limit_qmax) gesq = min(gesq,qsatg(i,j,k))
-           ges_q(i,j,k,ntguessig) = gesq
-           qgues(i,j,k)=ges_q(i,j,k,ntguessig)
-           fact_tv(i,j,k)=one/(one+fv*ges_q(i,j,k,ntguessig))   ! factor for tv to tsen conversion
            rhgues(i,j,k)=qgues(i,j,k)/qsatg(i,j,k)
         end do
      end do
