@@ -28,8 +28,8 @@ subroutine compute_qvar3d
   use jfunc, only: qsatg,qgues,varq,qoption
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig
-  use constants, only: izero,one,ione,fv
-  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl,qmin
+  use constants, only: izero,one,ione,fv,qmin
+  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl
   use mpeu_util, only: getindex
 
   implicit none
