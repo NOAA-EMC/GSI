@@ -108,7 +108,7 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = main.f90 kinds.f90 read_diag.f90 determine_time_levels.f90
+  SRCSF90C = main.f90 kinds.F90 read_diag.f90 determine_time_levels.f90
 
   SRCSF77 =
 
@@ -183,7 +183,7 @@ $(EXE_FILE) : $(OBJS)
 
 #--- Normal mode options
 
-  FFLAGS_F90	= -qsuffix=f=f90
+  FFLAGS_F90	= -qsuffix=f=f90:cpp=F90 -WF,-D_REAL8_
   FFLAGS_COM_N	= -I ./ -qarch=auto -qmaxmem=-1 -q64
 
   FFLAGS_N	= -O3 -qstrict $(FFLAGS_F90) $(FFLAGS_COM_N)

@@ -89,7 +89,7 @@ clean:
 SRC_C   =
 
 SRC_F90 = \
-		kinds.f90		\
+		kinds.F90		\
 		utilities_time.f90	\
 		read_diag.f90		\
 		grads_hdr.f90		\
@@ -103,17 +103,22 @@ SRC = $(SRC_C) $(SRC_F) $(SRC_F90)
 # Object files
 # ------------
 
-OBJ_FILES = ${SRC_C:.c=.o} ${SRC_F:.f=.o} ${SRC_F90:.f90=.o}
+SRCSF90       = ${SRC_F90:.F90=.f90}
+
+OBJ_FILES = ${SRC_C:.c=.o} ${SRC_F:.f=.o} ${SRCSF90:.f90=.o}
 
 
 # ---------------
 # Dependency list
 # ---------------
 
-diag2grads.o :	kinds.o 		\
-		utilities_time.o	\
-		read_diag.o		\
-		grads_hdr.o
+diag2grads.o : diag2grads.f90 write_station.o grads_hdr.o read_diag.o utilities_time.o
+grads_hdr.o : grads_hdr.f90
+kinds.o : kinds.F90
+read_diag.o : read_diag.f90 kinds.o
+utilities_time.o : utilities_time.f90
+write_station.o : write_station.f90 read_diag.o grads_hdr.o
+
 
 
 # ---------------------
@@ -159,8 +164,7 @@ $(EXE_FILE) : $(OBJ_FILES)
 
 #--- Normal mode options
 
-  FFLAGS_F90	= -qfree=f90 -qsuffix=f=f90:cpp=F90 \
-		  -WF,-C -WF,-P -WF,-DNEWPRED=$(NEWPRED)
+  FFLAGS_F90	= -qsuffix=f=f90:cpp=F90 -WF,-D_REAL8_ -WF,-C -WF,-P -WF,-DNEWPRED=$(NEWPRED)
   FFLAGS_FIX	= -qfixed
 
   FFLAGS_COM_N	= -NS32704 -qmaxmem=-1 -O2 -Q
@@ -179,8 +183,6 @@ $(EXE_FILE) : $(OBJ_FILES)
 			-qfloat=nans \
 			-qflttrap=overflow:zero:invalid:enable \
 			-qattr=full -qxref=full -qnolm \
-			-d
-
 #			-qhalt=w \
 #			-qinitauto=7FF7FFFF \
 #			-qlist -qflag=i:i \
