@@ -411,20 +411,19 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  endif
 
  sensorindex = 0
-
-! temporary hardcoded declaration of NPP Sat ID.  Dies later because this is read 
-!    from TauCoeff, where it is currently undefined. -wm
-! 5/20 Update: Commented out for the time being w/ new atms_npp coef files, will
-!    remove later -wm
-! if (trim(isis) == 'atms_c1') channelinfo(1)%WMO_Satellite_ID = 224
-
-! determine specific sensor
+ if (channelinfo(1)%sensor_id == isis) then
+    sensorindex = 1
 ! Added a fudge in here to prevent multiple script changes following change of AIRS naming
-! convention in CRTM.
-
- if (channelinfo(1)%sensor_id == isis .OR. &
-    (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. &
-    isis == 'airs281SUBSET_aqua')) sensorindex = 1
+! convention in CRTM:
+ else if (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. isis == 'airs281SUBSET_aqua') then
+    sensorindex = 1
+! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
+! and BUFR files is checked in read_cris:
+ else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') THEN
+    if (isis == 'cris_npp' .AND. INDEX(channelinfo(1)%sensor_id,'npp') > 0) sensorindex = 1
+    if (isis == 'cris_c1' .AND. INDEX(channelinfo(1)%sensor_id,'c1') > 0) sensorindex = 1
+    if (isis == 'cris_c2' .AND. INDEX(channelinfo(1)%sensor_id,'c2') > 0) sensorindex = 1
+ endif 
  if (sensorindex == 0 ) then
     write(6,*)'INIT_CRTM:  ***WARNING*** problem with sensorindex=',isis,&
        ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION found ',&

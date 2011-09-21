@@ -1576,6 +1576,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !     2011-05-04  todling - partially merge Min-Jeong Kim's cloud radiance work
 !     2011-05-20  mccarty - generalized routine so that it could be more readily 
 !                           applied to atms
+!     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1657,8 +1658,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
   logical         :: latms
 
-  if (nchanl == 16_i_kind) then
-      latms  = .true.    ! If there are 16 channels passed along, it's atms
+  if (nchanl == 22_i_kind) then
+      latms  = .true.    ! If there are 22 channels passed along, it's atms
       ich238 =  1
       ich314 =  2
       ich503 =  3
@@ -1739,12 +1740,21 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      if(factch6 >= one .and. .not.sea )then   !Kim 
         efactmc=zero
         vfactmc=zero
-        errf(ich544)=zero
-        varinv(ich544)=zero
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
         do i=1,ich544
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC3 in statsrad
         if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
@@ -1753,31 +1763,60 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         vfactmc=zero
         do i=1,ich536
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+           varinv(i) = zero 
+           errf(i) = zero
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC1 in statsrad
         if(luse) aivals(8,is) = aivals(8,is) + one
      else if(factch6 >= one .and. sea .and. cenlat <= -60.0_r_kind) then
         efactmc=zero
         vfactmc=zero
-        errf(ich544)=zero
-        varinv(ich544)=zero
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
         do i=1,ich544
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC3 in statsrad
         if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
      else if(factch4 > half .and. sea .and. cenlat <= -60.0_r_kind )then   !Kim
         efactmc=zero
         vfactmc=zero
-        errf(ich544)=zero
-        varinv(ich544)=zero
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
         do i=1,ich544
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC3 in statsrad
         if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
      end if
@@ -1787,10 +1826,19 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         vfactmc=zero
         do i=1,ich536
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+           errf(i) = zero
            varinv(i) = zero
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
         varinv(ich890) = zero
+        errf(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
      endif
 ! Kim-------------------------------------------
 
@@ -1799,12 +1847,21 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      if(factch6 >= one)then
         efactmc=zero
         vfactmc=zero
-        errf(ich544)=zero
-        varinv(ich544)=zero
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
         do i=1,ich544
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC3 in statsrad
         if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
@@ -1813,19 +1870,39 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         vfactmc=zero
         do i=1,ich536
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+           errf(i) = zero
+           varinv(i) = zero
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC1 in statsrad
         if(luse) aivals(8,is) = aivals(8,is) + one
      else if(factch6 >= one .and. sea .and. cenlat .le. -60.0_r_kind) then
         efactmc=zero
         vfactmc=zero
-        errf(ich544)=zero
-        varinv(ich544)=zero
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
         do i=1,ich544
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
         end do
         if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels 
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
 !       QC3 in statsrad
         if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
  
@@ -1853,8 +1930,19 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
            vfactmc=zero
            do i=1,ich536
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
+              varinv(i) = zero
+              errf(i) = zero 
            end do
            if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_emiss_qc
+           errf(ich890) = zero
+           varinv(ich890) = zero
+           if (latms) then
+              do i=17,22   !  AMSU-B/MHS like channels 
+                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
+                 errf(i) = zero
+                 varinv(i) = zero
+              enddo
+           endif
         end if
      end if
 
@@ -1869,6 +1957,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      errf(ich544)          = fact*errf(ich544)
      vfactmc               = fact*vfactmc
      varinv(ich544)        = fact*varinv(ich544)
+     if (latms) then
+        do i=17,22   !  AMSU-B/MHS like channels 
+           varinv(i)        = fact*varinv(i)
+           errf(i)          = fact*errf(i)
+        enddo
+     endif
      if (zsges > r4000) then
 !       QC5 in statsrad
         if(luse)aivals(12,is) = aivals(12,is) + one
@@ -1889,7 +1983,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         dtbf=demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
         term=dtbf*dtbf
         if(i <= ich536 .or. i == ich890)then
-
 !          Adjust observation error based on magnitude of liquid
 !          water correction.  0.2 is empirical factor
            term=term+0.2_r_kind*(predchan(3,i)*pred(3,i))**2
@@ -2138,12 +2231,8 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,  
   real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,varinv
 
-! Declare local variable
-  integer(i_kind),parameter                          :: nchanl_tchan = 16
-  integer(i_kind),parameter                          :: nchanl_qchan = 7
-
-! For now, just pass the first 16 channels to qc_amsua
-  call qc_amsua (nchanl_tchan,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
+! For now, just pass all channels to qc_amsua
+  call qc_amsua (nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
                  zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts, &
                  pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
 

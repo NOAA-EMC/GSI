@@ -811,8 +811,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               pred = max(zero,pred)
 
            else if (atms) then
-! AMSU-A-Type calculations
-!   Remove angle dependent pattern (not mean)
+! Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
+!   Remove angle dependent pattern (not mean).
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
                  ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
@@ -832,6 +832,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  endif
                  pred  = max(zero,qval)*100.0_r_kind
               else
+!                This is taken straight from AMSU-A even though Ch 3 has a different polarisation
+!                and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
                  if (adp_anglebc .and. newpc4pred) then
                     ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
                     ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)
@@ -851,39 +853,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     end if
                  end if
               endif
-              pred_tchan=pred
-!AMSU-B Type Calculations
-              if (newpc4pred) then
-                 ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)- &
-                       predx(1,ichan16)*air_rad(ichan16)
-                 ch17 = data1b8(ich17)-ang_rad(ichan17)*cbias(ifov,ichan17)- &
-                       predx(1,ichan17)*air_rad(ichan17)
-              else
-                 ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)- &
-                       r01*predx(1,ichan16)*air_rad(ichan16)
-                 ch17 = data1b8(ich17)-ang_rad(ichan17)*cbias(ifov,ichan17)- &
-                       r01*predx(1,ichan17)*air_rad(ichan17)
-              end if
-              pred_water = zero
-              if(sfcpct(0) > zero)then
-                 cosza = cos(lza)
-                 if(ch17 < h300)then
-                    pred_water = (0.13_r_kind*(ch16+33.58_r_kind*log(h300-ch17)- &
-                       341.17_r_kind))*five
-                 else
-                    pred_water = 100._r_kind
-                 end if
-              end if
-              pred_not_water = 42.72_r_kind + 0.85_r_kind*ch16-ch17
-              pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
-              pred = max(zero,pred)
-              pred_qchan=pred           
-              pred = pred_tchan          ! For the time being, use AMSU-A-styled scoring
-                                         !  This should be investigated further. It is
-                                         !  probably not proper to use a straight combination
-                                         !  of pred_qchan & pred_tchan w/o some sort of 
-                                         !  smarter logic
-!              write(423,*)pred_tchan,pred_qchan
            endif
            
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"

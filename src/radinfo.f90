@@ -1078,12 +1078,6 @@ contains
          nstep = 90
          edge1 = 10
          edge2 = 81
-      else if (index(isis,'atms')/=0) then
-         step  = 1.11_r_kind
-         start = -52.725_r_kind
-         nstep = 96
-         edge1 = 10
-         edge2 = 87
       else
          step  = 9.474_r_kind
          start = -47.37_r_kind
@@ -1091,6 +1085,12 @@ contains
          edge1 = 2
          edge2 = 10
       end if
+   else if (index(isis,'atms')/=0) then
+      step  = 1.11_r_kind
+      start = -52.725_r_kind
+      nstep = 96
+      edge1 = 10
+      edge2 = 87
    else if (index(isis,'mhs')/=0) then
       step  = 10.0_r_kind/9.0_r_kind
       start = -445.0_r_kind/9.0_r_kind
