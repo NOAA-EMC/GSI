@@ -81,7 +81,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     nlatm2=grd%nlat-2
 
 !   Read NCEP gfs guess file using appropriate io module
-    call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
+    call sigio_srohdc(lunges,filename,sighead,sigdata,iret_read)
     gfshead%fhour   = sighead%fhour
     gfshead%idate   = sighead%idate
     gfshead%levs    = sighead%levs
@@ -91,6 +91,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     gfshead%latb    = nlatm2
 
     if (iret_read /= 0) goto 1000
+
 
     icount=0
 
@@ -402,7 +403,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
 !   ERROR detected while reading file
 1000 continue
     if (mype==0) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
-         filename,' from unit ',lunges,'.   iret=',iret
+         filename,' from unit ',lunges,'.   iret_read=',iret_read
     call sigio_axdata(sigdata,iret)
     iret_read=iret_read+iret
 
