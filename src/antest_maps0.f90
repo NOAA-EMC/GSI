@@ -9,6 +9,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
 ! program history log:
 !   2009-09-18  lueken - added subprogram doc block
 !   2010-03-30  zhu    - use nvars from control_vectors
+!   2010-12-05  pondeca - change variable names: "tv" is now "t" , and "st" is "sf" 
 !
 !   input argument list:
 !    mype
@@ -53,10 +54,10 @@ subroutine antest_maps0(mype,theta0f,z0f)
 !*********************************************************************
 !          variable names expected for var_plotcor are
 !
-!    st  -- stream function
+!    sf  -- stream function
 !    vp  -- velocity potential
 !    ps  -- surface pressure
-!    tv  -- virtual temperature
+!    t   -- virtual temperature
 !    q   -- specific humidity
 !    oz  -- ozone
 !    sst -- sea surface temperature
@@ -68,7 +69,7 @@ subroutine antest_maps0(mype,theta0f,z0f)
 ! i_plotcor=500_i_kind
 ! j_plotcor=500_i_kind
 ! k_plotcor=25_i_kind
-  var_plotcor='st'
+  var_plotcor='sf'
 !Note: Must call this subroutine from anprewgt_reg.f90
 !Make sure statement has been uncommented!
 ! End of choice section
@@ -82,14 +83,14 @@ subroutine antest_maps0(mype,theta0f,z0f)
 
   do iref=1,5 !--- element loop start --------------------------------------------------
 
-     if     (iref==ione)     then ; var_plotcor='st'
+     if     (iref==ione)     then ; var_plotcor='sf'
      else if(iref==2_i_kind) then ; var_plotcor='vp'
-     else if(iref==3_i_kind) then ; var_plotcor='tv'
+     else if(iref==3_i_kind) then ; var_plotcor='t'
      else if(iref==4_i_kind) then ; var_plotcor='ps'
      else if(iref==5_i_kind) then ; var_plotcor='q'
      end if
 
-!    ref_plotcor='tv'
+!    ref_plotcor='t'
      ref_plotcor=var_plotcor
      it=ntguessig
      lunin=ione
@@ -311,10 +312,10 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 !*********************************************************************
 !          variable names expected for var_plotcor are
 !
-!    st  -- stream function
+!    sf  -- stream function
 !    vp  -- velocity potential
 !    ps  -- surface pressure
-!    tv  -- virtual temperature
+!    t   -- virtual temperature
 !    q   -- specific humidity
 !    oz  -- ozone
 !    sst -- sea surface temperature
@@ -328,7 +329,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   k_plotcor=ione
   iloc=i_plotcor-istart(mype+ione)+2_i_kind
   jloc=j_plotcor-jstart(mype+ione)+2_i_kind
-!  var_plotcor='st'
+!  var_plotcor='sf'
 !Note: Must call this subroutine from anprewgt_reg.f90
 !Make sure statement has been uncommented!
 ! End of choice section
@@ -337,10 +338,10 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   ref_plotcor='theta'
   it=ntguessig
   do 200 lvar=1,5
-     if (lvar==ione)      var_plotcor='st'
+     if (lvar==ione)      var_plotcor='sf'
      if (lvar==2_i_kind)  var_plotcor='vp'
      if (lvar==3_i_kind)  var_plotcor='ps'
-     if (lvar==4_i_kind)  var_plotcor='tv'
+     if (lvar==4_i_kind)  var_plotcor='t'
      if (lvar==5_i_kind)  var_plotcor='q'
      lunin=ione
      if(mype==izero) then

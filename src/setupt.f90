@@ -117,9 +117,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-21  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2008-12-03  todling - changed handle of tail%time
+!   2009-02-07  pondeca - for each observation site, add the following to the
+!                         diagnostic file: local terrain height, dominate surface
+!                         type, station provider name, and station subprovider name
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2010-06-10  Hu      - add call for terrain match for surface T obs    
-!   2011-05-06  Su      - modify the observation gross check error    
+!   2011-05-06  Su      - modify the observation gross check error
 !
 ! !REMARKS:
 !   language: f90
@@ -173,12 +176,15 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) mm1,jsig,iqt
   integer(i_kind) itype,msges
   integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb
-  integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt
+  integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
   
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
+  character(8),allocatable,dimension(:):: cprvstg,csprvstg
+  character(8) c_prvstg,c_sprvstg
+  real(r_double) r_prvstg,r_sprvstg
 
   logical,dimension(nobs):: luse,muse
   logical sfctype
@@ -191,6 +197,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(obs_diag),pointer:: my_diag
 
   equivalence(rstation_id,station_id)
+  equivalence(r_prvstg,c_prvstg)
+  equivalence(r_sprvstg,c_sprvstg)
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -224,7 +232,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ilate=18    ! index of latitude (degrees)
   istnelv=19  ! index of station elevation (m)
   iobshgt=20  ! index of observation height (m)
-  iptrb=21    ! index of t perturbation
+  izz=21      ! index of surface height
+  iprvd=22    ! index of observation provider
+  isprvd=23   ! index of observation subprovider
+  iptrb=24    ! index of t perturbation
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -252,6 +263,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=19
      if (lobsdiagsave) nreal=nreal+4*miter+1
+     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
   scale=one
@@ -349,7 +361,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           1,nsig,mype,nfldsig)
 
      drpx=zero
-     if(sfctype) then
+     if(sfctype .and. .not.twodvar_regional) then
         drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
      end if
 
@@ -409,7 +421,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(sfctype)then
         if(abs(dpres)>four) drpx=1.0e10_r_kind
         pres_diff=prest-r10*psges
-        if (twodvar_regional .and. abs(pres_diff)>=r10) drpx=1.0e10_r_kind
+        if (twodvar_regional .and. abs(pres_diff)>=r1000) drpx=1.0e10_r_kind
      end if
      rlow=max(sfcchk-dpres,zero)
 
@@ -451,13 +463,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      residual = abs(ddiff)
      ratio    = residual/obserrlm
 
- ! modify gross check limit for quality mark=3 
+ ! modify gross check limit for quality mark=3
      if(data(iqc,i) == three ) then
         qcgross=r0_7*cgross(ikx)
      else
         qcgross=cgross(ikx)
      endif
-
 
      if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one
@@ -661,8 +672,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
 
+        idia=19
         if (lobsdiagsave) then
-           idia=19
            do jj=1,miter
               idia=idia+1
               if (obsdiags(i_t_ob_type,ibin)%tail%muse(jj)) then
@@ -685,6 +696,15 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
         endif
 
+        if (twodvar_regional) then
+           rdiagbuf(idia+1,ii) = data(idomsfc,i) ! dominate surface type
+           rdiagbuf(idia+2,ii) = data(izz,i)     ! model terrain at observation location
+           r_prvstg            = data(iprvd,i)
+           cprvstg(ii)         = c_prvstg        ! provider name
+           r_sprvstg           = data(isprvd,i)
+           csprvstg(ii)        = c_sprvstg       ! subprovider name
+        endif
+
      end if
 
 ! End of loop over observations
@@ -696,6 +716,11 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      write(7)'  t',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
+
+     if (twodvar_regional) then
+        write(7)cprvstg(1:ii),csprvstg(1:ii)
+        deallocate(cprvstg,csprvstg)
+     endif
   end if
 
 

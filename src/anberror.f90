@@ -655,6 +655,8 @@ contains
 !                   - use vlevs from gridmod
 !   2010-05-25  todling - move levb, leve from jfunc here (only used here)
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-12-05  pondeca - add initialization of kvar_start, kvar_end, and levs_jdvar
+!                         for nrf2_sst>0 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -722,8 +724,11 @@ contains
        idvar(kvar_start(n):kvar_end(n))=n
     end do
     if (nrf2_sst>0) then
-       idvar(kvar_end(nrf)+1)=nrf+1
-       idvar(kvar_end(nrf)+2)=nrf+2
+       do n=nrf+1,nrf+2
+          kvar_start(n)=kvar_end(n-1)+1
+          kvar_end(n)=kvar_start(n)
+          idvar(kvar_start(n):kvar_end(n))=n
+       enddo
     end if
     jdvar=idvar
 
@@ -739,6 +744,11 @@ contains
           levs_jdvar(kk)=1
        end if
     end do
+
+    if (nrf2_sst>0) then
+       levs_jdvar(kk+1)=1
+       levs_jdvar(kk+2)=1
+    end if
 
     deallocate(nrf_levb,nrf_leve)
 

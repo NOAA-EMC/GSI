@@ -36,6 +36,7 @@ module jfunc
 !   2010-05-12  todling - replace some existing subdomain pointers w/ nsubwhalo/nsubnhalo
 !                       - declare all variables coming from use statements
 !   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
+!   2011-02-16  zhu     - add ggues,vgues,pgues
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -94,9 +95,11 @@ module jfunc
   use control_vectors, only: control_vector
   use control_vectors, only: assignment(=)
   use control_vectors, only: setup_control_vectors
+  use control_vectors, only: cvars2d
   use state_vectors, only: setup_state_vectors
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundle
+  use mpeu_util, only: getindex
   implicit none
 
 ! set default to private
@@ -116,6 +119,7 @@ module jfunc
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
+  public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
@@ -128,9 +132,10 @@ module jfunc
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
-  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc
+  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
+  real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
   type(gsi_bundle),save :: xhat_dt,dhat_dt
@@ -178,6 +183,9 @@ contains
 
     factqmin=one
     factqmax=one
+    factg=one
+    factv=one
+    factp=one
     iout_iter=220
     miter=1
     qoption=1
@@ -270,6 +278,33 @@ contains
        end do
     end do
 
+    if (getindex(cvars2d,'gust')>0) then
+       allocate(ggues(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             ggues(i,j)=zero
+          end do
+       end do
+    end if
+    if (getindex(cvars2d,'vis')>0) then
+       allocate(vgues(lat2,lon2),dvisdlog(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             vgues(i,j)=zero
+             dvisdlog(i,j)=zero
+          end do
+       end do
+    end if
+    if (getindex(cvars2d,'pblh')>0) then
+       allocate(pgues(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             pgues(i,j)=zero
+          end do
+       end do
+    end if
+
+
     return
   end subroutine create_jfunc
     
@@ -300,6 +335,9 @@ contains
     call deallocate_cv(yhatsave)
     deallocate(varq)
     deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
+    if (getindex(cvars2d,'gust')>0) deallocate(ggues)
+    if (getindex(cvars2d,'vis')>0)  deallocate(vgues,dvisdlog)
+    if (getindex(cvars2d,'pblh')>0) deallocate(pgues)
 
     return
   end subroutine destroy_jfunc

@@ -9,6 +9,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 ! program history log:
 !   2009-09-21  lueken - added subprogram doc block
 !   2010-03-30  zhu    - use nvars from control_vectors
+!   2010-12-05  pondeca - change variable names: "tv" is now "t" , and "st" is "sf"
 !
 !   input argument list:
 !    mype
@@ -62,10 +63,10 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 !*********************************************************************
 !          variable names expected for var_plotcor are
 !
-!    st  -- stream function
+!    sf  -- stream function
 !    vp  -- velocity potential
 !    ps  -- surface pressure
-!    tv  -- virtual temperature
+!    t   -- virtual temperature
 !    q   -- specific humidity
 !    oz  -- ozone
 !    sst -- sea surface temperature
@@ -77,7 +78,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 ! i_plotcor=500_i_kind
 ! j_plotcor=500_i_kind
 ! k_plotcor=25_i_kind
-! var_plotcor='st'
+! var_plotcor='sf'
 !Note: Must call this subroutine from anprewgt_reg.f90
 !Make sure statement has been uncommented!
 ! End of choice section
@@ -85,9 +86,9 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 
   do ielm=1,5
      select case (ielm)
-        case(ione); var_plotcor='st'
+        case(ione); var_plotcor='sf'
         case(2)   ; var_plotcor='vp'
-        case(3)   ; var_plotcor='tv'
+        case(3)   ; var_plotcor='t'
         case(4)   ; var_plotcor='q'
         case(5)   ; var_plotcor='ps'
      end select
