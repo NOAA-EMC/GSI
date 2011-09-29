@@ -122,6 +122,7 @@
 !   2011-05-16  todling - generalize handling of jacobian matrix entries
 !   2011-05-20  mccarty - updated for ATMS
 !   2011-06-09  sienkiewicz - call to qc_ssu needs tb_obs instead of tbc
+!   2011-09-28  collard - Fix error trapping for CRTM failures.         
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -662,7 +663,9 @@
 ! and set the QC flag to ifail_crtm_qc.
 ! We currently go through the rest of the QC steps, ensuring that the diagnostic
 ! files are populated, but this could be changed if it causes problems.  
-        if (error_status /=0) then
+        if (error_status == 0) then
+           varinv(1:nchanl) = val_obs
+        else
            id_qc(1:nchanl) = ifail_crtm_qc
            varinv(1:nchanl) = zero
         endif
@@ -843,7 +846,7 @@
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
                   .or. (passive_bc .and. channel_passive))then
-              varinv(i)     = val_obs/error0(i)**2
+              varinv(i)     = varinv(i)/error0(i)**2
               errf(i)       = error0(i)
            else
               if(id_qc(i) == igood_qc) id_qc(i)=ifail_satinfo_qc
