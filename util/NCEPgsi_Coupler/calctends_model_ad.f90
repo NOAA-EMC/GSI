@@ -99,7 +99,7 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
      eta2_ll,wrf_nmm_regional,regional,region_lat,region_lon,jstart,corlats
   use constants, only: ione,zero,half,one,two,rd,rcp,rearth,grav,pi,omega
   use tendsmod, only: coriolis,ctph0,stph0,tlm0
-  use tends4pertmod, only: curvfct,coriolis,time_step
+  use tends4pertmod, only: curvfct,time_step
   use nonlinmod, only: bck_u,bck_v,bck_tv,bck_q,bck_oz,bck_cw, &
      bck_u_lon,bck_u_lat,bck_v_lon,bck_v_lat,bck_tvlat,bck_tvlon, &
      bck_qlon,bck_qlat,bck_ozlon,bck_ozlat,bck_cwlon,bck_cwlat, &
@@ -120,18 +120,13 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
   real(r_kind),dimension(lat2,lon2,nsig+ione):: prsth,what
   real(r_kind),dimension(lat2,lon2,nsig):: prsum,prdif,pr_xsum,pr_xdif,pr_ysum,&
        pr_ydif
-!m-----------------------------------------------------------------------------B
   real(r_kind),dimension(lat2,lon2,nsig):: prdifu,prdifv
   real(r_kind),dimension(lat2,lon2,nsig):: pgf_x,pgf_y
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-!!  real(r_kind),dimension(lat2,lon2,nsig):: pgf1_x,pgf1_y,pgf1_xx,pgf1_yy,pgf_xx,pgf_yy
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
   real(r_kind),dimension(lat2,lon2,nsig):: rdtop,div,prdifu_x,prdifv_y2
   real(r_kind),dimension(lat2,lon2):: rdrdx2,rdrdy2
   real(r_kind) psum,psum9,psump1,psum9p1
   real(r_kind) rr,dlam,dphi,wpdar,pdif
   real(r_kind) relm,crlm,aph,sph,cph,cc,tph
-!m-----------------------------------------------------------------------------E
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind) tmp,tmp1,tmp2,tmp3,var,sumk,sumvk,sum2k,sum2vk
   real(r_kind) tmp9,tmp9u,tmp9v,tmp9t,tmp9q,tmp9oz,tmp9cw
@@ -142,13 +137,6 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
   jjstart=1
   jjstop=lon2
 
-!!!$omp parallel private(nth,tid,i,j,k,jjstart,jjstop,tmp,tmp2,ix,&
-!!!$omp                  tmp3,sumk,sumvk,sum2k,sum2vk)
-!#ifdef ibm_sp
-!  nth = omp_get_num_threads()
-!  tid = omp_get_thread_num()
-!  call looplimits(tid, nth, 1, lon2, jjstart, jjstop)
-!#endif
 
 ! Preliminaries for (0)
 
@@ -185,10 +173,6 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
   rr=rd/rearth**2
   dlam=two*pi/nlon
   dphi=pi/nlat      
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-!!  wpdar=  grav*time_step  * 0.09 !m>>>> test
-!!  wpdar=  grav*time_step  * 0.0 !m>>>> test
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 
     do j=1,lon2
       do i=1,lat2
@@ -220,14 +204,6 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
         pr_ydif(i,j,k)=zero
         pgf_x(i,j,k)=zero
         pgf_y(i,j,k)=zero
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-!!        pgf1_x(i,j,k)=zero
-!!        pgf1_y(i,j,k)=zero
-!!        pgf_xx(i,j,k)=zero
-!!        pgf_yy(i,j,k)=zero
-!!        pgf1_xx(i,j,k)=zero
-!!        pgf1_yy(i,j,k)=zero
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
         prdifu_x(i,j,k)=zero
         prdifv_y2(i,j,k)=zero
         rdtop(i,j,k)=zero
@@ -449,14 +425,6 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
   do k=1,nsig
     do j=1,lon2
       do i=1,lat2
-!!    do j=2,lon2-ione
-!!      do i=2,lat2-ione
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-!!        pgf1_xx(i,j,k)=pgf1_xx(i,j,k)+wpdar*div(i,j,k)
-!!        pgf1_yy(i,j,k)=pgf1_yy(i,j,k)+wpdar*div(i,j,k)
-!!        pgf_xx(i,j,k)=pgf_xx(i,j,k)-wpdar*div(i,j,k)
-!!        pgf_yy(i,j,k)=pgf_yy(i,j,k)-wpdar*div(i,j,k)
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
         prdifu_x(i,j,k)=prdifu_x(i,j,k)+div(i,j,k)
         prdifv_y2(i,j,k)=prdifv_y2(i,j,k)+div(i,j,k)
       end do
@@ -478,64 +446,6 @@ subroutine calctends_model_ad(u,v,t,q,oz,cw,pri, &
     end do
   end do
 
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-!!       pgf1_x=zero
-!!       pgf1_y=zero
-
-!!  do k=1,nsig
-!!    do j=lon2-ione,2,-ione
-!!      do i=1,lat2
-!!        pgf1_x(i,j,k)  =pgf1_x(i,j,k  )+pgf1_xx(i,j,k)
-!!        pgf1_x(i,j-ione,k)=               -pgf1_xx(i,j,k)
-!!      end do
-!!    end do
-!!  end do
-!!  do k=1,nsig
-!!    do j=1,lon2
-!!      do i=lat2-ione,2,-ione
-!!        pgf1_y(i,j,k)  =pgf1_y(i,j,k  )+pgf1_yy(i,j,k)
-!!        pgf1_y(i-ione,j,k)=               -pgf1_yy(i,j,k)
-!!      end do
-!!    end do
-!!  end do
-
-!!  do k=1,nsig
-!!    do j=1,lon2
-!!      do i=lat2-ione,1,-ione
-!!          psum9=prsum_bck(i,j,k)
-!!          psum9p1=prsum_bck(i+ione,j,k)
-!!          tmp9=one/(psum9+psum9p1)
-!!          tmp1=rdrdy2(i,j)*tmp9
-!!          tmp2=tmp1*(psum9p1-psum9)
-!!          tmp3=tmp1*two*tmp9*(bck_tv(i+ione,j,k)+bck_tv(i,j,k))
-!!        t(i+ione,j,k)=t(i+ione,j,k)+tmp2*pgf1_y(i,j,k)
-!!        t(i  ,j,k)=t(i  ,j,k)+tmp2*pgf1_y(i,j,k)
-!!        prsum(i+ione,j,k)=prsum(i+ione,j,k)+tmp3*psum9  *pgf1_y(i,j,k)
-!!        prsum(i  ,j,k)=prsum(i  ,j,k)-tmp3*psum9p1*pgf1_y(i,j,k)
-!!      end do
-!!    end do
-!!  end do
-
-!!  do k=1,nsig
-!!    do j=lon2-ione,1,-ione
-!!      do i=1,lat2
-!!          psum9=prsum_bck(i,j,k)
-!!          psum9p1=prsum_bck(i,j+ione,k)
-!!          tmp9=one/(psum9+psum9p1)
-!!          tmp1=rdrdx2(i,j)*tmp9
-!!          tmp2=tmp1*(psum9p1-psum9)
-!!          tmp3=tmp1*two*tmp9*(bck_tv(i,j+ione,k)+bck_tv(i,j,k))
-!!        t(i,j+ione,k)=t(i,j+ione,k)+tmp2*pgf1_x(i,j,k)
-!!        t(i  ,j,k)=t(i  ,j,k)+tmp2*pgf1_x(i,j,k)
-!!        prsum(i,j+ione,k)=prsum(i,j+ione,k)+tmp3*psum9  *pgf1_x(i,j,k)
-!!        prsum(i,j  ,k)=prsum(i,j  ,k)-tmp3*psum9p1*pgf1_x(i,j,k)
-!!      end do
-!!    end do
-!!  end do
-
-!!  call mp_compact_dlon2_ad(pgf_x,pgf_xx,.false.,nsig,mype)
-!!  call mp_compact_dlat2_ad(pgf_y,pgf_yy,.false.,nsig,mype)
-!!MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 
   do k=nsig,1,-ione
     do j=1,lon2

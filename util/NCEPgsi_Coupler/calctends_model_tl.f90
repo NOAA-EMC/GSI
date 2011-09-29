@@ -126,14 +126,6 @@ subroutine calctends_model_tl(u,v,t,q,oz,cw,pri, &
 
 ! preliminaries:
 
-!>>>>>>>>>>>>>>>>>>>
-
-!#ifdef ibm_sp
-!m         nth = omp_get_num_threads()
-!m         tid = omp_get_thread_num()
-!m         call looplimits(tid, nth, 1, lon2, jjstart, jjstop)
-!#endif
-
   do k=1,nsig
     do j=jjstart,jjstop
       do i=1,lat2

@@ -59,9 +59,6 @@ subroutine gsi_model_tl(u_TL,v_TL,tv_TL,q_TL,oz_TL,cw_TL,ps_TL,z_TL,mype,indx_mi
 
     TIME_TL: do itime=indx_min,indx_max
 
-!M>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>B
-     if(mype==0) write(6,*) 'GSI_MODEL_TL: read from itime=',itime
-!M>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>E
 
 ! Read base fields produced by nonlinear model
 

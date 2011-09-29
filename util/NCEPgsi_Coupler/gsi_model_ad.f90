@@ -57,9 +57,6 @@ subroutine gsi_model_ad(u_AD,v_AD,tv_AD,q_AD,oz_AD,cw_AD,ps_AD,z_AD,mype,indx_mi
 
         call read_nonlinear(itime,mype)
 
-!M>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>B
-     if(mype==0) write(6,*) 'GSI_MODEL_AD: read from itime=',itime
-!M>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>E
 
 ! Add contribution from vertical mixing
 

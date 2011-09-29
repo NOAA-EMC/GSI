@@ -53,9 +53,7 @@ subroutine calctends_model(u,v,t,q,oz,cw,pri,phi,phi_x,phi_y,u_x,u_y,v_x,v_y,t_x
 !     v_t      - time tendency of v
 !     t_t      - time tendency of t
 !xxxx p_t      - time tendency of 3d prs  xxxxxxxxxxxxxxxxxx
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!     ps_t      - replaced by Rancic (need to fix _tl and _ad)
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!     ps_t     - replaced back by Rancic in order to increase efficiecy
 !     q_t      - time tendency of q
 !     oz_t     - time tendency of ozone
 !     cw_t     - time tendency of cloud water
