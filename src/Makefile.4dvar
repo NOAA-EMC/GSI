@@ -628,9 +628,9 @@ all :
 	@$(MAKE) -f $(MAKE_FILE) \
 		"LIBS=$(LIBS_N)" "LDFLAGS=$(LDFLAGS_N)" \
 		$(EXE_FILE)
-	$(MAKE) lib
-	cp $(LIB) ../lib
-	rm $(EXE_FILE)
+        $(MAKE) lib
+        cp $(LIB) ../lib
+        rm $(EXE_FILE)
 
 debug :
 	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode
