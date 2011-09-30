@@ -246,7 +246,7 @@ zreqrd = preduc
 ilen=xhat%lencv
 
 
-allocate(alpha(kmaxit),beta(kmaxit),delta(kmaxit),gam(0:kmaxit))
+allocate(alpha(kmaxit),beta(kmaxit),delta(0:kmaxit),gam(0:kmaxit))
 alpha(:)=zero_quad
 beta(:)=zero_quad
 
@@ -268,6 +268,7 @@ end if
 
 zg0=dot_product(gradx,grady,r_quad)
 zgk=zg0
+delta(0)=zg0
 zg0=sqrt(zg0)
 gam(0)=one/zg0
 
@@ -588,6 +589,7 @@ end if
 deallocate(zdiag,ztoff,zwork,zritz,zbnds,zevecs)
 
 ! Release memory
+deallocate(alpha,beta,delta,gam)
 call deallocate_cv(grad0)
 call deallocate_cv(xtry)
 call deallocate_cv(ytry)

@@ -239,7 +239,7 @@ if (lupdfgs) then
    call xhat_vordiv_calc(sval)
    if (nprt>=1.and.mype==0) write(6,*)trim(seqcalls),': evaljgrad: Updating guess'
    call update_guess(sval,sbias)
-   call write_all(.false.,mype)
+   call write_all(-1,mype)
    if (iwrtinc>0) then
       call inc2guess(sval)
       call write_all(iwrtinc,mype)

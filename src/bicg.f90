@@ -114,13 +114,12 @@ costf=zf0
 
 zeps=eps
 jtermax=itermax
-lsavev=.false.
-lanczosave=lsavev
+lsavev=lanczosave
 
   call setup_pcglanczos(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
                      l4dvar,lanczosave)
 
-   if(jiter>1) lsavev=.false.
+   if(jiter>=miter) lsavev=.false.
            
   call pcglanczos(xhat,yhat,costf,gradx,grady,eps,itermax,iobsconv,lsavev)
 
