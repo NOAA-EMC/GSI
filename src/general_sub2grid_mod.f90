@@ -1969,7 +1969,7 @@ module general_sub2grid_mod
       integer(i_kind) mold4(2,2,2,2)
 
       suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
-      suba_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+      sube_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
 
       call general_suba2sube_r_single_rank4(sa,se,p_e2a,suba_vars_r4,sube_vars_r4,regional)
 
@@ -2081,7 +2081,7 @@ module general_sub2grid_mod
       integer(i_kind) mold4(2,2,2,2)
 
       suba_vars_r4 => rerank(suba_vars,mold4,(/sa%inner_vars,sa%lat2,sa%lon2,sa%num_fields/))
-      suba_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
+      sube_vars_r4 => rerank(sube_vars,mold4,(/se%inner_vars,se%lat2,se%lon2,se%num_fields/))
 
       call general_suba2sube_r_double_rank4(sa,se,p_e2a,suba_vars_r4,sube_vars_r4,regional)
 

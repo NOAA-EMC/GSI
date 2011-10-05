@@ -79,7 +79,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   
 ! !input parameters:
 
-  character(len=3) :: cvar='pm2_5'
+  character(len=3) :: cvar='pm2'
   integer(i_kind)                  , intent(in   ) :: lunin  ! unit from which to read observations
   integer(i_kind)                  , intent(in   ) :: mype   ! mpi task id
   integer(i_kind)                  , intent(in   ) :: nreal  ! number of pieces of non-co info (location, time, etc) per obs
