@@ -147,7 +147,7 @@ include $(MAKE_CONF)
 # Make install
 # ------------
 
-install:
+install: #(LIB)
 	@echo
 	@echo '==== INSTALL ================================================='
 	@if [ -e $(INSTALL_DIR) ]; then \
@@ -442,8 +442,8 @@ clean:
 	stpjcpdry.f90 \
 	stplimq.f90 \
 	stplimg.f90 \
-	stplimp.f90 \
 	stplimv.f90 \
+	stplimp.f90 \
 	stpoz.f90 \
 	stppblh.f90 \
 	stppcp.f90 \
@@ -645,6 +645,9 @@ all :
 	@$(MAKE) -f $(MAKE_FILE) \
 		"LIBS=$(LIBS_N)" "LDFLAGS=$(LDFLAGS_N)" \
 		$(EXE_FILE)
+        $(MAKE) lib
+        cp $(LIB) ../lib
+        rm $(EXE_FILE)
 
 debug :
 	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode

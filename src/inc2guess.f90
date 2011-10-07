@@ -169,7 +169,7 @@ endif
   integer(i_kind) istatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   call gsi_bundlegetpointer (sval(ii),var,ptr3d,istatus)
-  if(istatus==0) return
+  if(istatus/=0) return
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -185,7 +185,7 @@ endif
   integer(i_kind) istatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   call gsi_bundlegetpointer (sval(ii),var,ptr3d,istatus)
-  if(istatus==0) return
+  if(istatus/=0) return
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2

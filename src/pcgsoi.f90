@@ -691,9 +691,9 @@ subroutine pcgsoi()
 
 ! Write output analysis files
   if (twodvar_regional) then
-      call write_all(.false.,mype)
+      call write_all(-1,mype)
     else
-      if(jiter == miter)call write_all(.false.,mype)
+      if(jiter == miter)call write_all(-1,mype)
   endif
   call prt_guess('analysis')
 

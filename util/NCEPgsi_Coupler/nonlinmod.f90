@@ -183,7 +183,7 @@ contains
 
   if(itrajfrq_hrs==0) then
      itrajfreq=0
-  else if(itrajfreq>0) then
+  else if(itrajfrq_hrs>0) then
      itrajfreq=NINT(itrajfrq_hrs*r3600/itime_step)
   else
      itrajfreq=1
@@ -230,7 +230,6 @@ contains
 ! Frequency of trajectory i/o
    itrajfrq_hrs=-1  ! default: i/o every time step
 
-   print*, '_RT debug just out of defaults'; call flush(6)
 
   end subroutine set_defaults_
 
