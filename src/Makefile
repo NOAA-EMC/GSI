@@ -258,7 +258,7 @@ clean:
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
 	get_gefs_ensperts_dualres.f90 \
-        get_gefs_for_regional.f90 \
+	get_gefs_for_regional.f90 \
 	get_wrf_mass_ensperts_netcdf.F90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
@@ -296,11 +296,16 @@ clean:
 	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
+	intgust.f90 \
 	intjcpdry.f90 \
 	intjo.f90 \
 	intlag.f90 \
 	intlimq.f90 \
+	intlimg.f90 \
+	intlimv.f90 \
+	intlimp.f90 \
 	intoz.f90 \
+	intpblh.f90 \
 	intpcp.f90 \
 	intpm2_5.f90 \
 	intps.f90 \
@@ -315,6 +320,7 @@ clean:
 	intsst.f90 \
 	intt.f90 \
 	inttcp.f90 \
+	intvis.f90 \
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
@@ -325,6 +331,7 @@ clean:
 	lag_traj.f90 \
 	lagmod.f90 \
 	lanczos.F90 \
+	logvis_to_vis.f90 \
 	looplimits.f90 \
 	m_berror_stats.f90 \
 	m_berror_stats_reg.f90 \
@@ -404,8 +411,8 @@ clean:
 	rsearch.F90 \
 	rtlnmc_version3.f90 \
 	satthin.F90 \
-        set_crtm_aerosolmod.f90 \
-        set_crtm_cloudmod.f90 \
+	set_crtm_aerosolmod.f90 \
+	set_crtm_cloudmod.f90 \
 	setupyobs.f90 \
 	skindepth.f90 \
 	sfc_model.f90 \
@@ -430,10 +437,15 @@ clean:
 	stpco.f90 \
 	stpdw.f90 \
 	stpgps.f90 \
+	stpgust.f90 \
 	stpjo.f90 \
 	stpjcpdry.f90 \
 	stplimq.f90 \
+	stplimg.f90 \
+	stplimp.f90 \
+	stplimv.f90 \
 	stpoz.f90 \
+	stppblh.f90 \
 	stppcp.f90 \
 	stppm2_5.f90 \
 	stpps.f90 \
@@ -446,6 +458,7 @@ clean:
 	stpsst.f90 \
 	stpt.f90 \
 	stptcp.f90 \
+	stpvis.f90 \
 	stpw.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
@@ -454,9 +467,9 @@ clean:
 	sub2fslab_mod.f90 \
 	sub2grid.f90 \
 	support_2dvar.f90 \
-	stub_pertmod.F90 \
         stub_set_crtm_aerosol.f90 \
         stub_set_crtm_cloud.f90 \
+	stub_pertmod.F90 \
 	stub_timermod.f90 \
 	tendsmod.f90 \
 	test_obsens.f90 \
@@ -514,10 +527,11 @@ clean:
 	read_modsbufr.f90 \
 	read_obs.F90 \
 	read_ozone.f90 \
+	read_pblh.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
-        read_satwnd.f90 \
+	read_satwnd.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
@@ -526,8 +540,10 @@ clean:
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
+	setupgust.f90 \
 	setuplag.f90 \
 	setupoz.f90 \
+	setuppblh.f90 \
 	setuppcp.f90 \
 	setuppm2_5.f90 \
 	setupps.f90 \
@@ -542,6 +558,7 @@ clean:
 	setupsst.f90 \
 	setupt.f90 \
 	setuptcp.f90 \
+	setupvis.f90 \
 	setupw.f90 \
 	sst_retrieval.f90
 

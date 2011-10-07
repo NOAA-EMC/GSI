@@ -54,8 +54,12 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-03-24      wu - oberror tuning and perturb obs
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handle of tail%time
+!   2009-02-06  pondeca - for each observation site, add the following to the
+!                         diagnostic file: local terrain height, dominate surface
+!                         type, station provider name, and station subprovider name
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
-!   2011-05-06  Su      - modify the observation gross check error 
+!   2011-05-06  Su      - modify the observation gross check error
+!   2011-08-09  pondeca - correct bug in qcgross use
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -83,7 +87,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl
-  use gridmod, only: lat2,lon2,nsig,get_ijk
+  use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
@@ -140,11 +144,14 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) i,nchar,nreal,j,ii,l,jj,mm1,itemp
   integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
-  integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat
+  integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iskint,isfcr,iff10,iderivative
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
+  character(8),allocatable,dimension(:):: cprvstg,csprvstg
+  character(8) c_prvstg,c_sprvstg
+  real(r_double) r_prvstg,r_sprvstg
 
   logical ice
   logical,dimension(nobs):: luse,muse
@@ -156,6 +163,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(obs_diag),pointer:: my_diag
 
   equivalence(rstation_id,station_id)
+  equivalence(r_prvstg,c_prvstg)
+  equivalence(r_sprvstg,c_sprvstg)
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -184,7 +193,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ilate=19    ! index of latitude (degrees)
   istnelv=20  ! index of station elevation (m)
   iobshgt=21  ! index of observation height (m)
-  iptrb=22    ! index of q perturbation           
+  izz=22      ! index of surface height
+  iprvd=23    ! index of observation provider
+  isprvd=24   ! index of observation subprovider
+  iptrb=25    ! index of q perturbation
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -212,6 +224,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=20
      if (lobsdiagsave) nreal=nreal+4*miter+1
+     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
   rsig=nsig
@@ -316,7 +329,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      presq=r10*exp(dpres)
      itype=ictype(ikx)
      dprpx=zero
-     if(itype > 179 .and. itype < 190)then
+     if(itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
         dprpx=abs(one-exp(dpres-log(psges)))*r10
 !       dprpx=abs(presq-r10*psges)*0.0025_r_kind
      end if
@@ -404,7 +417,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=cgross(ikx)
      endif
 
-     if(ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
+     if(ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if(luse(i))awork(4)=awork(4)+one
         error=zero
         ratio_errors=zero
@@ -598,8 +611,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
 
+        ioff=20
         if (lobsdiagsave) then
-           ioff=20
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_q_ob_type,ibin)%tail%muse(jj)) then
@@ -622,6 +635,15 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
         endif
         
+        if (twodvar_regional) then
+           rdiagbuf(ioff+1,ii) = data(idomsfc,i) ! dominate surface type
+           rdiagbuf(ioff+2,ii) = data(izz,i)     ! model terrain at ob location
+           r_prvstg            = data(iprvd,i)
+           cprvstg(ii)         = c_prvstg        ! provider name
+           r_sprvstg           = data(isprvd,i)
+           csprvstg(ii)        = c_sprvstg       ! subprovider name
+        endif
+
      end if
 
 ! End of loop over observations
@@ -634,6 +656,11 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      write(7)'  q',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
+
+     if (twodvar_regional) then
+        write(7)cprvstg(1:ii),csprvstg(1:ii)
+        deallocate(cprvstg,csprvstg)
+     endif
   end if
 
 ! End of routine

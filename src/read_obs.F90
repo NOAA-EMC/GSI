@@ -501,7 +501,9 @@ subroutine read_obs(ndata,mype)
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
            obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
-           obstype == 'larccld' .or. obstype == 'pm2_5')  then
+           obstype == 'larccld' .or. obstype == 'pm2_5' .or. &
+           obstype == 'gust' .or. obstype=='vis' .or. &
+           obstype == 'pblh') then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  &
                obstype == 'seviri'    .or.  &
@@ -811,6 +813,7 @@ subroutine read_obs(ndata,mype)
              if (obstype == 't'  .or. &
                  obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
+                 obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
@@ -893,6 +896,11 @@ subroutine read_obs(ndata,mype)
                         &infile,obstype,lunout,twind,sis)
                    string='READ_ANOWBUFR'
                 endif
+
+!            Process pblh
+             else if (obstype == 'pblh') then
+                call read_pblh(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
+                string='READ_PBLH'
              end if
 
           else if (ditype(i) == 'rad')then

@@ -369,11 +369,16 @@ SRCS_SOLVER =	$(wildcard \
 	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
+	intgust.f90 \
 	intjcpdry.f90 \
 	intjo.f90 \
 	intlag.f90 \
 	intlimq.f90 \
+	intlimq.f90 \
+	intlimv.f90 \
+	intlimp.f90 \
 	intoz.f90 \
+	intpblh.f90 \
 	intpcp.f90 \
 	intpm2_5.f90 \
 	intps.f90 \
@@ -388,6 +393,7 @@ SRCS_SOLVER =	$(wildcard \
 	intsst.f90 \
 	intt.f90 \
 	inttcp.f90 \
+	intvis.f90 \
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
@@ -397,6 +403,7 @@ SRCS_SOLVER =	$(wildcard \
 	lag_traj.f90 \
 	lagmod.f90 \
         lanczos.F90 \
+	logvis_to_vis.f90 \
 	m_berror_stats.f90 \
         m_berror_stats_reg.f90 \
 	m_gsiBiases.f90 \
@@ -458,6 +465,7 @@ SRCS_SOLVER =	$(wildcard \
 	read_obs.F90 \
 	read_obsdiags.F90 \
 	read_ozone.f90 \
+	read_pblh.f90 \
 	read_pcp.f90 \
 	read_prepbufr.f90 \
 	read_radar.f90 \
@@ -478,8 +486,10 @@ SRCS_SOLVER =	$(wildcard \
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
+	setupgust.f90 \
 	setuplag.f90 \
 	setupoz.f90 \
+	setuppblh.f90 \
 	setuppcp.f90 \
         setuppm2_5.f90 \
 	setupps.f90 \
@@ -494,6 +504,7 @@ SRCS_SOLVER =	$(wildcard \
 	setupsst.f90 \
 	setupt.f90 \
 	setuptcp.f90 \
+	setupvis.f90 \
 	setupw.f90 \
 	setupyobs.f90 \
 	sfcobsqc.f90 \
@@ -514,10 +525,15 @@ SRCS_SOLVER =	$(wildcard \
 	stpco.f90 \
 	stpdw.f90 \
 	stpgps.f90 \
+	stpgust.f90 \
 	stpjo.f90 \
 	stpjcpdry.f90 \
 	stplimq.f90 \
+	stplimg.f90 \
+	stplimv.f90 \
+	stplimp.f90 \
 	stpoz.f90 \
+	stppblh.f90 \
 	stppcp.f90 \
 	stppm2_5.f90 \
 	stpps.f90 \
@@ -530,6 +546,7 @@ SRCS_SOLVER =	$(wildcard \
 	stpsst.f90 \
 	stpt.f90 \
 	stptcp.f90 \
+	stpvis.f90 \
 	stpw.f90 \
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \

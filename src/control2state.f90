@@ -24,6 +24,7 @@ subroutine control2state(xhat,sval,bval)
 !                        - ready to bypass analysis of (any) meteorological fields
 !   2010-06-04  parrish  - bug fix: u,v copy to wbundle after getuv for hyb ensemble
 !   2010-06-15  todling  - generalized handling of chemistry
+!   2011-02-20  zhu      - add gust,vis,pblh
 !   2011-05-15  auligne/todling - generalized cloud handling
 !
 !   input argument list:
@@ -78,11 +79,12 @@ type(gsi_bundle):: wbundle ! work bundle
 ! Declare required local control variables
 integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)
+integer(i_kind) :: icpblh,icgust,icvis
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
-real(r_kind),pointer,dimension(:,:)   :: cv_ps
+real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
 
 ! Declare required local state variables
@@ -92,6 +94,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
 logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
+real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
@@ -146,6 +149,10 @@ do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
+call gsi_bundlegetpointer (xhat%step(1),'gust',icgust,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'vis',icvis,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'pblh',icpblh,istatus)
+
 ! Loop over control steps
 do jj=1,nsubwin
 
@@ -163,6 +170,7 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
+   if (icvis >0) call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
 
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
@@ -174,6 +182,9 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
    call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus)
    call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
+   if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
+   if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
+   if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
 
 ! If this is ensemble run, then add ensemble contribution sum(a_en(k)*xe(k)),  where a_en(k) are the ensemble
 !   control variables and xe(k), k=1,n_ens are the ensemble perturbations.
@@ -220,11 +231,16 @@ do jj=1,nsubwin
       end if
    end if
 
+!  Convert log(vis) to vis
+   if (icvis >0)  call logvis_to_vis(cv_vis,sv_vis)
+
 !  Copy other variables
    call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
    call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
+   if (icgust>0) call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )
+   if (icpblh>0) call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
 
 !  Since cloud-vars map one-to-one, take care of them together
    do ic=1,nclouds

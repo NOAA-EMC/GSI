@@ -15,10 +15,12 @@ module sfcobsqc
 !
 ! program history log:
 !   2007-10-19  pondeca
+!   2011-02-15  zhu - add get_gustqm
 !
 ! subroutines included:
 !   sub init_rjlists
 !   sub get_usagerj
+!   sub get_gustqm
 !   sub destroy_rjlists
 !
 ! variable definitions:
@@ -50,6 +52,7 @@ module sfcobsqc
 
   public init_rjlists
   public get_usagerj
+  public get_gustqm
   public destroy_rjlists
 
 contains
@@ -84,11 +87,11 @@ subroutine init_rjlists
   integer(i_kind) meso_unit,ncount,m
   character(80) cstring
 
-  integer(i_kind), parameter::nmax=10000_i_kind
+  integer(i_kind), parameter::nmax=100000
 
-  data meso_unit / 20_i_kind /
+  data meso_unit / 20 /
 !**************************************************************************
-  allocate(cprovider(200))
+  allocate(cprovider(500))
   allocate(w_rjlist(nmax))
   allocate(t_rjlist(nmax))
   allocate(p_rjlist(nmax))
@@ -256,14 +259,14 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 
   usage_rj0=usage_rj
 
-  if (kx<190_i_kind) then  !<==mass obs
+  if (kx<200) then  !<==mass obs
 
      if(obstype=='t' .and. tlistexist ) then
         do m=1,ntrjs
            ch8(1:8)=t_rjlist(m)(1:8)
            nlen=len_trim(ch8)
            if ((trim(c_station_id) == trim(ch8)) .or. &
-               (kx==188_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
               usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
               exit
            endif
@@ -273,7 +276,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
            ch8(1:8)=q_rjlist(m)(1:8)
            nlen=len_trim(ch8)
            if ((trim(c_station_id) == trim(ch8)) .or. &
-               (kx==188_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
               usage_rj=r5000
               exit
            endif
@@ -283,16 +286,16 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
            ch8(1:8)=p_rjlist(m)(1:8)
            nlen=len_trim(ch8)
            if ((trim(c_station_id) == trim(ch8)) .or. &
-               (kx==188_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
               usage_rj=r5000
               exit
            endif
         enddo
      end if
 
-  elseif (kx>=190_i_kind) then !<==wind obs
+  elseif (kx>=200) then !<==wind obs
 
-     if (kx==288_i_kind .and. (listexist.or.listexist2)) then  !note that uselist must precede rejectlist
+     if ((kx==288.or.kx==295).and.(listexist.or.listexist2)) then  !note that uselist must precede rejectlist
         usage_rj=r6000
         if (listexist) then
            do m=1,nprov
@@ -319,8 +322,8 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
            ch8(1:8)=w_rjlist(m)(1:8)
            nlen=len_trim(ch8)
            if ((trim(c_station_id) == trim(ch8)) .or. &
-               (kx==288_i_kind .and. c_station_id(1:nlen)==ch8(1:nlen))) then
-              if (kx/=288_i_kind) then
+              ((kx==288.or.kx==295).and. c_station_id(1:nlen)==ch8(1:nlen))) then
+              if (kx/=288.and.kx/=295) then
                  usage_rj=r5000
               else
                  if (usage_rj==usage_rj0)    usage_rj=r6100 !ob is in at least one of the above two uselists
@@ -333,6 +336,64 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 
   end if
 end subroutine get_usagerj
+
+
+subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
+!$$$  module documentation block
+! abstract: determine the qm for gust 1) for gust that is not on the uselist qm=9
+!                                     2) for gust that is on the rejectlist qm=3 or 15
+! program history log:
+!   2009-01-29  zhu
+!
+  implicit none
+
+  integer(i_kind) kx
+  integer(i_kind) nlen
+  integer(i_kind) gustqm
+  character(8),intent(in)::  c_station_id
+  character(8),intent(in)::  c_prvstg,c_sprvstg
+
+! Declare local variables
+  integer(i_kind) m,idx
+  character(8)  ch8
+
+  gustqm=9
+  if (listexist) then
+     do m=1,nprov
+!       if (trim(c_prvstg//c_sprvstg) == trim(cprovider(m))) then
+        if (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
+                                               .or. cprovider(m)(9:16) == 'allsprvs') ) then
+           gustqm=0
+           exit
+         endif
+     enddo
+  endif
+  if (listexist2) then
+     do m=1,nsta_mesowind_use
+        if (c_station_id(1:5) == csta_winduse(m)(1:5)) then
+           gustqm=0
+           exit
+         endif
+     enddo
+  endif
+
+  if(wlistexist ) then
+     do m=1,nwrjs
+        ch8(1:8)=w_rjlist(m)(1:8)
+        nlen=len_trim(ch8)
+        if ((trim(c_station_id) == trim(ch8)) .or. &
+            (c_station_id(1:nlen)==ch8(1:nlen))) then
+            if (gustqm==0) then
+               gustqm=3
+            else
+               gustqm=15
+            end if
+            exit
+        endif
+     enddo
+  endif
+end subroutine get_gustqm
+
 
 subroutine destroy_rjlists
 !$$$  subprogram documentation block

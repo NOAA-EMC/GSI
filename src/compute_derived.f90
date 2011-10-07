@@ -67,15 +67,16 @@ subroutine compute_derived(mype,init_pass)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: qsatg,qgues,jiter,jiterstart,&
+  use jfunc, only: qsatg,qgues,ggues,vgues,pgues,jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq
-  use control_vectors, only: cvars3d
+       tendsflag,varq,dvisdlog
+  use control_vectors, only: cvars3d,cvars2d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
   use mpimod, only: levs_id
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
+       ges_gust,ges_vis,ges_pblh,&
        tropprs,ges_prsl,ntguessig,&
        nfldsig,&
        ges_teta,fact_tv, &
@@ -99,7 +100,7 @@ subroutine compute_derived(mype,init_pass)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-  use constants, only: zero,one,one_tenth,half,fv
+  use constants, only: zero,one,one_tenth,half,fv,ten
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -252,6 +253,31 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end do
+
+! Load guess gust, vis & pblh for use in limg, limv & limp.
+  if (getindex(cvars2d,'gust')>0) then
+     do j=1,lon2
+        do i=1,lat2
+           ggues(i,j)=max(one,ges_gust(i,j,ntguessig))
+        end do
+     end do
+  end if
+  if (getindex(cvars2d,'vis')>0) then
+     do j=1,lon2
+        do i=1,lat2
+           vgues(i,j)=max(10.0_r_kind,ges_vis(i,j,ntguessig))
+           dvisdlog(i,j)=log(ten)*ges_vis(i,j,ntguessig)  !d(vis)/d(log(vis))
+        end do
+     end do
+  end if
+  if (getindex(cvars2d,'pblh')>0) then
+     do j=1,lon2
+        do i=1,lat2
+           pgues(i,j)=max(10.0_r_kind,ges_pblh(i,j,ntguessig))
+        end do
+     end do
+  end if
+
 
 ! Compute saturation specific humidity.   
   iderivative = 0

@@ -690,7 +690,11 @@ subroutine pcgsoi()
   endif
 
 ! Write output analysis files
-  if(jiter == miter)call write_all(.false.,mype)
+  if (twodvar_regional) then
+      call write_all(.false.,mype)
+    else
+      if(jiter == miter)call write_all(.false.,mype)
+  endif
   call prt_guess('analysis')
 
 ! Overwrite guess with increment (4d-var only, for now)

@@ -33,7 +33,7 @@ module deter_sfc_mod
       fact10_full,zs_full,sfc_rough_full,zs_full_gfs
   use constants, only: zero,one,two,one_tenth,deg2rad,rad2deg
   use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc, &
-      dx_gfs,txy2ll,lpl_gfs
+      rlats,rlons,dx_gfs,txy2ll,lpl_gfs
   use guess_grids, only: nfldsfc,hrdifsfc,ntguessfc
   use calc_fov_crosstrk, only: npoly, fov_ellipse_crosstrk, inside_fov_crosstrk
   use calc_fov_conical, only: fov_ellipse_conical, inside_fov_conical
@@ -529,7 +529,7 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      return
 end subroutine deter_sfc_type
 
-subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
+subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr,zz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    deter_sfc                     determine land surface type
@@ -542,6 +542,8 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
 !   2005-01-27 derber
 !   2005-03-03 treadon - add implicit none, define zero
 !   2006-02-01 parrish  - change names of sno,isli,sst
+!   2010-12-05 pondeca - add local terrain elevation zz as
+!                        optional output variable
 !
 !   input argument list:
 !     dlat_earth
@@ -553,6 +555,7 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
 !     idomsfc
 !     sfcr
 !     ff10
+!     zz
 !
 ! attributes:
 !   language: f90
@@ -567,6 +570,7 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
      integer(i_kind),intent(  out) :: idomsfc
      real(r_kind)   ,intent(  out) :: tsavg,sfcr
      real(r_kind)   ,intent(  out) :: ff10
+     real(r_kind),optional,intent(  out) :: zz
 
      integer(i_kind):: itsfc,itsfcp
      integer(i_kind):: ix,iy,ixp,iyp,j
@@ -663,6 +667,30 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
            sfc_rough_full(ixp,iy ,itsfcp)*w10+ &
            sfc_rough_full(ix ,iyp,itsfcp)*w01+ &
            sfc_rough_full(ixp,iyp,itsfcp)*w11)*dtsfcp
+
+     if(present(zz)) then
+        if(regional)then
+           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        else
+           dlat=dlat_earth
+           dlon=dlon_earth
+           call grdcrd(dlat,1,rlats,nlat,1)
+           call grdcrd(dlon,1,rlons,nlon,1)
+        end if
+
+        iy=int(dlon); ix=int(dlat)
+        dy  =dlon-iy; dx  =dlat-ix
+        dx1 =one-dx;    dy1 =one-dy
+        w00=dx1*dy1; w10=dx*dy1; w01=dx1*dy; w11=dx*dy
+
+        ix=min(max(1,ix),nlat); iy=min(max(0,iy),nlon)
+        ixp=min(nlat,ix+1); iyp=iy+1
+        if(iy==0) iy=nlon
+        if(iyp==nlon+1) iyp=1
+
+        zz   = zs_full(ix,iy) *w00 + zs_full(ixp,iy) *w10 + &
+               zs_full(ix,iyp)*w01 + zs_full(ixp,iyp)*w11
+     endif
 
      return
 end subroutine deter_sfc2

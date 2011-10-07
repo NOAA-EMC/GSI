@@ -112,6 +112,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2009-02-06  pondeca - for each observation site, add the following to the
+!                         diagnostic file: local terrain height, dominate surface
+!                         type, station provider name, and station subprovider name
 !   2010-11-25  su      - data items to hold quality mark for satellite wind 
 !   2011-03-08  parrish - for regional=.true., convert wind components in rdiagbuf from grid relative
 !                           to earth relative, using subroutine rotate_wind_xy2ll.
@@ -171,13 +174,18 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) k1,k2,ikxx,nn,isli,ibin,ioff
   integer(i_kind) ier,ilon,ilat,ipres,iuob,ivob,id,itime,ikx,ielev,iqc
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone,istat,isatqc,iuob1,ivob1,isatang
+  integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
+  character(8),allocatable,dimension(:):: cprvstg,csprvstg
+  character(8) c_prvstg,c_sprvstg
+  real(r_double) r_prvstg,r_sprvstg
 
   logical z_height,sfc_data
   logical,dimension(nobs):: luse,muse
+  logical lowlevelsat
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -186,6 +194,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(obs_diag),pointer :: my_diag
 
   equivalence(rstation_id,station_id)
+  equivalence(r_prvstg,c_prvstg)
+  equivalence(r_sprvstg,c_sprvstg)
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -217,8 +227,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   isfcr=18    ! index of surface roughness
   ilone=19    ! index of longitude (degrees)
   ilate=20    ! index of latitude (degrees)
-  iptrbu=21   ! index of u perturbation
-  iptrbv=22   ! index of v perturbation
+  izz=21      ! index of surface height
+  iprvd=22    ! index of observation provider
+  isprvd=23   ! index of observation subprovider
+  iptrbu=24   ! index of u perturbation
+  iptrbv=25   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -235,6 +248,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=23
      if (lobsdiagsave) nreal=nreal+7*miter+2
+     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
 
@@ -579,6 +593,17 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
 
 !    Compute innovations
+     lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
+                 itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
+                 itype==253.or.itype==254.or.itype==257.or.itype==258.or. &
+                 itype==259
+     if (lowlevelsat .and. twodvar_regional) then
+         call windfactor(presw,factw)
+         data(iuob,i)=factw*data(iuob,i)
+         data(ivob,i)=factw*data(ivob,i)
+         uob = data(iuob,i)
+         vob = data(ivob,i)
+     endif
      dudiff=uob-ugesin
      dvdiff=vob-vgesin
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
@@ -728,6 +753,13 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
         ratio_errors =ratio_errors/sqrt(dup(i)) 
      end if
+
+     if (lowlevelsat .and. twodvar_regional) then
+        if (presw < 750._r_kind) then
+           error = zero
+           ratio_errors = zero
+        endif
+     endif
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
@@ -952,10 +984,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(21,ii) = dvdiff             ! v obs-ges used in analysis (m/s)
         rdiagbuf(22,ii) = vob-vgesin         ! v obs-ges w/o bias correction (m/s) (future slot)
 
-!   if regional run, then generate earth relative equivalent of uob,vob, ugesin,vgesin, dudiff,dvdiff
-!       and add 6 more entries to rdiagbuf (reflected in value of mreal, which is increased from 23 to 
-!       29 for regional run).
-
         if(regional) then
 
 !           replace positions 17-22 with earth relative wind component information
@@ -977,8 +1005,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rdiagbuf(23,ii) = factw              ! 10m wind reduction factor
 
+        ioff=23
         if (lobsdiagsave) then
-           ioff=23
            do jj=1,miter
               ioff=ioff+1
               if (obsdiags(i_w_ob_type,ibin)%tail%muse(jj)) then
@@ -1007,6 +1035,15 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
         endif
 
+        if (twodvar_regional) then
+           rdiagbuf(ioff+1,ii) = data(idomsfc,i) ! dominate surface type
+           rdiagbuf(ioff+2,ii) = data(izz,i)     ! model terrain at ob location
+           r_prvstg            = data(iprvd,i)
+           cprvstg(ii)         = c_prvstg        ! provider name
+           r_sprvstg           = data(isprvd,i)
+           csprvstg(ii)        = c_sprvstg       ! subprovider name
+        endif
+
      endif
 ! End of loop over observations
   end do
@@ -1018,6 +1055,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      write(7)' uv',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
+
+     if (twodvar_regional) then
+        write(7)cprvstg(1:ii),csprvstg(1:ii)
+        deallocate(cprvstg,csprvstg)
+     endif
   end if
 
 

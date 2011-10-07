@@ -153,6 +153,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-05-13  todling  - harmonized interfaces to int* routines when it comes to state_vector (add only's)
 !   2010-06-13  todling  - add intco call
 !   2010-10-15  pagowski  - add intpm2_5 call
+!   2011-02-20  zhu      - add intgust,intvis,intpblh calls
 !
 !   input argument list:
 !     ibin
@@ -207,6 +208,9 @@ use intozmod, only: intoz
 use intcomod, only: intco
 use intpm2_5mod, only: intpm2_5
 use intlagmod, only: intlag
+use intgustmod, only: intgust
+use intvismod, only: intvis
+use intpblhmod, only: intpblh
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
@@ -269,6 +273,7 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 ! RHS for pm2_5
   call intpm2_5(yobs%pm2_5,rval,sval)
 
+
 ! RHS for surface pressure observations
   call intps(yobs%ps,rval,sval)
 
@@ -289,6 +294,15 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS calculation for precipitation
   call intpcp(yobs%pcp,rval,sval)
+
+! RHS for conventional gust observations
+  call intgust(yobs%gust,rval,sval)
+
+! RHS for conventional vis observations
+  call intvis(yobs%vis,rval,sval)
+
+! RHS for conventional pblh observations
+  call intpblh(yobs%pblh,rval,sval)
 
 ! Take care of background error for bias correction terms
 

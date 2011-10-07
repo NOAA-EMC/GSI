@@ -21,6 +21,7 @@ subroutine convert_binary_2d
 !   2008-11-04  pondeca - add routines for dew-point computation at
 !                         station location. used for qc purposes in 2dvar.
 !   2009-02-27  pondeca - add fgat to 2dvar
+!   2011-02-09  zhu     - add gust,vis and pblh
 !
 !   input argument list:
 !
@@ -57,7 +58,7 @@ subroutine convert_binary_2d
 
   data in_unit / 11 /
 
-  n_loop: do n=1,3
+  n_loop: do n=1,9
 
      if(n==1)then
         wrfges = 'wrf_inout'
@@ -265,6 +266,21 @@ subroutine convert_binary_2d
      write(6,*)' convert_binary_2d: mid TSK=',field2(nlon_regional/2,nlat_regional/2)
      write(lendian_out)field2
  
+     read(in_unit)field2             !  GUST
+     write(6,*)' convert_binary_2d: max,min GUST=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid GUST=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  VIS
+     write(6,*)' convert_binary_2d: max,min VIS=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid VIS=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  PBLH
+     write(6,*)' convert_binary_2d: max,min PBLH=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid PBLH=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
      close(in_unit)
      close(lendian_out)
 
@@ -339,6 +355,8 @@ subroutine read_2d_files(mype)
   nhr_half=nhr_assimilation/2
   if(nhr_half*2<nhr_assimilation) nhr_half=nhr_half+1
   npem1=npe-1
+
+  print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=',nhr_assimilation,nhr_half,time_offset
 
   do i=1,202
      time_ges(i) = 999._r_kind
@@ -463,6 +481,9 @@ subroutine read_2d_guess(mype)
 !   2006-07-30  kleist - make change to ges_ps from ln(ps)
 !   2006-07-28  derber  - include sensible temperature
 !   2008-04-02  safford - rm unused vars and uses
+!   2010-12-05  pondeca - change definition of land point from (landmask value)/=0.
+!                         to (landmask value)>=0.5
+!   2011-02-09  zhu     - add gust,vis and pblh
 !   2011-05-01  todling - introduce met-guess (cwmr no longer in guess-grids)
 !
 !   input argument list:
@@ -479,6 +500,7 @@ subroutine read_2d_guess(mype)
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_vor,&
        ges_div,ges_u,ges_v,ges_tvlat,ges_tvlon,ges_qlat,ges_qlon,&
+       ges_gust,ges_vis,ges_pblh,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
@@ -513,7 +535,7 @@ subroutine read_2d_guess(mype)
   integer(i_kind) num_all_fields,num_loc_groups,num_all_pad
   integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
-  integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
+  integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it
@@ -540,7 +562,7 @@ subroutine read_2d_guess(mype)
   lm=nsig
 
 ! Following is for convenient 2D input
-  num_2d_fields=18! Adjust once exact content of RTMA restart file is known
+  num_2d_fields=21! Adjust once exact content of RTMA restart file is known
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
   if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
@@ -638,6 +660,15 @@ subroutine read_2d_guess(mype)
   jsig_skip(i)=0 ; igtype(i)=1
   i=i+1 ; i_tsk=i                                             ! tsk
   write(identity(i),'("record ",i3,"--sst")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+  i=i+1 ; i_gust=i                                            ! gust
+  write(identity(i),'("record ",i3,"--gust")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+  i=i+1 ; i_vis=i                                             ! vis
+  write(identity(i),'("record ",i3,"--vis")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+  i=i+1 ; i_pblh=i                                            ! pblh
+  write(identity(i),'("record ",i3,"--pblh")')i
   jsig_skip(i)=0 ; igtype(i)=1
 
 ! End of stuff from 2D restart file
@@ -786,7 +817,7 @@ subroutine read_2d_guess(mype)
               veg_frac(j,i,it)=r0_01*all_loc(j,i,i_0+i_vegfrac)
               soil_type(j,i,it)=all_loc(j,i,i_0+i_isltyp)
               sm_this=zero
-              if(all_loc(j,i,i_0+i_sm) /= zero_single) sm_this=one
+              if(all_loc(j,i,i_0+i_sm) >= 0.5_r_single) sm_this=one
               xice_this=zero
               if(all_loc(j,i,i_0+i_xice) /= zero_single) xice_this=one
 
@@ -805,6 +836,15 @@ subroutine read_2d_guess(mype)
 !                     j,i,mype,sfct(j,i,it)
                  num_doubtful_sfct=num_doubtful_sfct+1
               end if
+
+              ges_gust(j,i,it)=all_loc(j,i,i_0+i_gust)
+
+              ges_vis(j,i,it)=all_loc(j,i,i_0+i_vis)
+              if (ges_vis(j,i,it)<=zero) ges_vis(j,i,it)=1.0e-4_r_kind
+              if (ges_vis(j,i,it)>20000.0_r_kind) ges_vis(j,i,it)=20000.0_r_kind
+
+              ges_pblh(j,i,it)=all_loc(j,i,i_0+i_pblh)
+
            end do
         end do
      end do
@@ -822,6 +862,8 @@ subroutine read_2d_guess(mype)
           minval(soil_type),maxval(soil_type)
      if(mype==10) write(6,*)' in read_2d_guess, min,max(isli)=', &
           minval(isli),maxval(isli)
+     if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_gust)=', &
+          minval(ges_gust),maxval(ges_gust)
 
      deallocate(all_loc,jsig_skip,igtype,identity)
      deallocate(temp1,itemp1,temp1u,temp1v)
@@ -850,6 +892,7 @@ subroutine wr2d_binary(mype)
 !   2006-07-31  kleist - make change to ges_ps instead of ln(ps)
 !   2008-04-03  safford - rm unused vars and uses
 !   2010-04-01  treadon - move strip_single to gridmod
+!   2011-02-09  zhu     - add gust,vis,pblh
 !
 !   input argument list:
 !     mype     - pe number
@@ -864,12 +907,14 @@ subroutine wr2d_binary(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_kind
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,sfct,ges_ps,&
-       ges_q,ges_u,ges_v,ges_tsen
+       ges_q,ges_u,ges_v,ges_tsen,ges_gust,ges_vis,ges_pblh
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: lat2,iglobal,itotsub,update_regsfc,strip_single,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
+  use mpeu_util, only: getindex
+  use control_vectors, only: cvars2d
   use constants, only: zero_single,r10,r100
-  use jfunc, only: qsatg
+  use jfunc, only: qsatg,jiter,miter
   implicit none
 
 ! Declare passed variables
@@ -885,8 +930,9 @@ subroutine wr2d_binary(mype)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
   character(6) filename
+  character(2) ch2
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_skt
+  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
@@ -899,7 +945,7 @@ subroutine wr2d_binary(mype)
   jm=nlat_regional
   lm=nsig
 
-  num_2d_fields=3+4*lm
+  num_2d_fields=6+4*lm
   num_all_fields=num_2d_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat1+2,lon1+2,num_all_pad))
@@ -914,6 +960,9 @@ subroutine wr2d_binary(mype)
   i_v=i_u+lm
   i_sst=i_v+lm
   i_skt=i_sst+1
+  i_gust=i_skt+1
+  i_vis=i_gust+1
+  i_pblh=i_vis+1
 
   allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
   allocate(temp1_ps(im*jm))
@@ -926,7 +975,9 @@ subroutine wr2d_binary(mype)
   if(mype == 0) then
      write(filename,'("sigf",i2.2)')ifilesig(ntguessig)
      open (iog,file=filename,form='unformatted')
-     open (ioan,file='siganl',form='unformatted')
+     write(ch2,'(i2.2)') jiter+1
+     if (jiter <  miter) open (ioan,file='sigfupdate'//ch2,form='unformatted')
+     if (jiter == miter) open (ioan,file='siganl',form='unformatted')
      rewind iog ; rewind ioan
   end if
 
@@ -1193,6 +1244,81 @@ subroutine wr2d_binary(mype)
      end if
   end if
 
+  if (getindex(cvars2d,'gust')>0) then
+     do i=1,lon2
+        do j=1,lat2
+           all_loc(j,i,i_gust)=ges_gust(j,i,it)
+        end do
+     end do
+     if(mype==0) read(iog)temp1
+     call strip_single(all_loc(1,1,i_gust),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(ioan)temp1
+     end if
+  else
+     if(mype==0) then
+        read(iog)temp1
+        write(ioan)temp1
+     end if
+  endif
+
+  if (getindex(cvars2d,'vis')>0) then
+     do i=1,lon2
+        do j=1,lat2
+           all_loc(j,i,i_vis)=ges_vis(j,i,it)
+        end do
+     end do
+     if(mype == 0) read(iog)temp1
+     call strip_single(all_loc(1,1,i_vis),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(ioan)temp1
+     end if
+  else
+     if(mype==0) then
+        read(iog)temp1
+        write(ioan)temp1
+     end if
+  endif
+
+  if (getindex(cvars2d,'pblh')>0) then
+     do i=1,lon2
+        do j=1,lat2
+           all_loc(j,i,i_pblh)=ges_pblh(j,i,it)
+        end do
+     end do
+     if(mype==0) read(iog)temp1
+     call strip_single(all_loc(1,1,i_pblh),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(ioan)temp1
+     end if
+  else
+     if(mype==0) then
+        read(iog)temp1
+        write(ioan)temp1
+     end if
+  endif
+
   if (mype==0) then
      close(iog)
      close(ioan)
@@ -1240,12 +1366,20 @@ module ndfdgrids
 ! program history log:
 !   2008-11-04  pondeca - consolidate scattered routines into current
 !                         module
+!   2010-12-05  pondeca - add the capability to shift slightly the obs
+!               which are close to shorelines so that land (water) obs are not
+!               mistaken for water(land) obs by the landmask.
+!   2010-12-05  pondeca - add the capability to randomly pick one dataset
+!               for cross-validation in the hilbert-curve procedure
+!
 !
 ! subroutines included:
 !   sub init_ndfdgrid
 !   sub ndfdgrid_info
 !   sub latlon_to_grid0
+!   sub grid_to_latlon0
 !   sub terrain_slmask
+!   sub relocsfcob
 !   sub adjust_error
 !   sub destroy_ndfdgrid
 !
@@ -1267,9 +1401,13 @@ module ndfdgrids
   public :: init_ndfdgrid
   public :: ndfdgrid_info
   public :: latlon_to_grid0
+  public :: grid_to_latlon0
   public :: terrain_slmask
   public :: adjust_error
+  public :: relocsfcob
   public :: destroy_ndfdgrid
+
+  integer(i_kind),parameter::lunreloc=77
 
   character(60) cgrid
   integer(i_kind) nx,ny
@@ -1277,10 +1415,12 @@ module ndfdgrids
   real(r_single),allocatable::terrain(:,:)
   real(r_kind) da8,alat18,elon18,elonv8,alatan8,xx8,yy8
 
-  real(r_kind) oberrinflfact
+  real(r_kind) oberrinflfact,slmland
   integer(i_kind) ineighbour,jneighbour
   logical ladjusterr
   logical fexist
+  logical lshoreline
+  logical,save :: relocfile_opnd=.false.
 
 contains
 
@@ -1306,16 +1446,21 @@ subroutine init_ndfdgrid
 !
 !$$$ end documentation block
   use constants, only: five
+  use mpimod, only: mype
   implicit none
 
+  character(3) clun33
+
   namelist/parmcardreadprepb/cgrid,ladjusterr,oberrinflfact, & 
-                             ineighbour,jneighbour 
+                             ineighbour,jneighbour,slmland,lshoreline
 
   cgrid='conus'
   ladjusterr=.false.
+  lshoreline=.false.
   oberrinflfact=five
   ineighbour=3
   jneighbour=3
+  slmland=0.51_r_kind
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
@@ -1329,6 +1474,8 @@ subroutine init_ndfdgrid
   print*,'in init_ndfdgrid: oberrinflfact=',oberrinflfact
   print*,'in init_ndfdgrid: ineighbour=',ineighbour
   print*,'in init_ndfdgrid: jneighbour=',jneighbour
+  print*,'in init_ndfdgrid: lshoreline=',lshoreline
+  print*,'in init_ndfdgrid: slmland=',slmland
 
   call ndfdgrid_info
 
@@ -1345,6 +1492,17 @@ subroutine init_ndfdgrid
   open (55,file='rtma_terrain.dat',form='unformatted')
   read(55) terrain
   close(55)
+
+  if (.not.relocfile_opnd) then
+     write(clun33,'(i3.3)') mype
+     open (lunreloc,file='shoreline_obrelocation.dat_'//clun33, &
+          form='formatted')
+      write(lunreloc,*) '***********************************************************************'
+      write(lunreloc,*) 'stn      itype     rlatin     rlonin       rlatout     rlonout  vartype'
+      write(lunreloc,*) '***********************************************************************'
+      relocfile_opnd=.true.
+   endif
+
 
 end subroutine init_ndfdgrid
 
@@ -1390,8 +1548,12 @@ subroutine ndfdgrid_info
   elseif (trim(cgrid) == 'hawaii') then 
      nx=321
      ny=225
-     alat18=18.066780_r_kind
-     elon18=198.374755_r_kind
+
+!    alat18=18.066780_r_kind      !before domain shift
+!    elon18=198.374755_r_kind     !before domain shift
+
+     alat18=18.072699_r_kind
+     elon18=198.474999_r_kind
      da8=2500.000_r_kind
      elonv8=9999._r_kind
      alatan8=20.000000_r_kind
@@ -1413,6 +1575,51 @@ subroutine ndfdgrid_info
      da8=2500.000_r_kind
      elonv8=9999._r_kind
      alatan8=20.000000_r_kind
+
+  elseif (trim(cgrid) == 'cohres') then
+     nx=2145
+     ny=1377
+     alat18=20.192_r_kind
+     elon18=238.446_r_kind
+     da8=2539.703_r_kind
+     elonv8=265.000_r_kind
+     alatan8=25.000_r_kind
+
+  elseif (trim(cgrid) == 'akhres') then
+     nx=1649
+     ny=1105
+     alat18=40.530101_r_kind
+     elon18=181.429000_r_kind
+     da8=2976.563_r_kind
+     elonv8=210.000000_r_kind
+     alatan8=60.000000_r_kind
+
+  elseif (trim(cgrid) == 'hrrr') then
+     nx=1799
+     ny=1059
+     alat18=21.138_r_kind
+     elon18=237.280_r_kind
+     da8=3000.000_r_kind
+     elonv8=262.500_r_kind
+     alatan8=38.500_r_kind
+
+  elseif (trim(cgrid) == 'cohresext') then
+     nx=2145
+     ny=1597
+     alat18=20.192_r_kind
+     elon18=238.446_r_kind
+     da8=2539.703_r_kind
+     elonv8=265.000_r_kind
+     alatan8=25.000_r_kind
+
+  elseif (trim(cgrid) == 'juneau') then
+     nx=655
+     ny=855
+     alat18=51.500000_r_kind
+     elon18=217.500000_r_kind
+     da8=1448.281_r_kind
+     elonv8=225.000000_r_kind
+     alatan8=60.000000_r_kind
 
   else
      print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
@@ -1451,19 +1658,77 @@ subroutine latlon_to_grid0(rlat8,rlon8,xx8,yy8)
   real(r_kind),intent(in   ) :: rlat8,rlon8
   real(r_kind),intent(  out) :: xx8,yy8
 
-  if (trim(cgrid)=='conus') then
-     call w3fb11(rlat8,rlon8,alat18,elon18,da8,elonv8,alatan8,xx8,yy8)
-  endif
+  logical lambconform
+  logical polarstereo
+  logical lmercator
 
-  if (trim(cgrid)=='alaska') then
-     call w3fb06(rlat8,rlon8,alat18,elon18,da8,elonv8,xx8,yy8) 
-  endif
 
-  if (trim(cgrid)=='hawaii' .or. trim(cgrid)=='guam' .or. trim(cgrid)=='prico') then
-     call w3fb08(rlat8,rlon8,alat18,elon18,alatan8,da8,xx8,yy8)
-  endif
+  lambconform=trim(cgrid)=='conus'.or.trim(cgrid)=='cohres'.or.trim(cgrid)=='hrrr'.or.trim(cgrid)=='cohresext'
+  polarstereo=trim(cgrid)=='alaska'.or.trim(cgrid)=='akhres'.or.trim(cgrid)=='juneau'
+  lmercator=trim(cgrid)=='hawaii'.or.trim(cgrid)=='guam'.or.trim(cgrid)=='prico'
+  
+  if (lambconform) call w3fb11(rlat8,rlon8,alat18,elon18,da8,elonv8,alatan8,xx8,yy8)
+  if (polarstereo) call w3fb06(rlat8,rlon8,alat18,elon18,da8,elonv8,xx8,yy8) 
+  if (lmercator)   call w3fb08(rlat8,rlon8,alat18,elon18,alatan8,da8,xx8,yy8)
 
 end subroutine latlon_to_grid0
+!****************************************************************
+subroutine grid_to_latlon0(xx8,yy8,rlat8,rlon8)
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2008-11-04
+!
+! abstract: given the (x,y) coordinates on the projected cartesian grid
+! for a selected point of the ndfd grid, use w3 subroutines to
+! compute the earth (lat,lon)
+!
+! program history log:
+!   2010-03-18  pondeca
+!
+! input argument list:
+!   xx8 - x coordinate on the plane projected grid
+!   yy8 - y coordinate on the plane projected grid
+!
+! output argument list:
+!   rlon8  - east longitude in degrees
+!   rlat8  - latitude in degrees
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use constants, only: izero
+  implicit none
+
+  real(r_kind),intent(in   ) :: xx8,yy8
+  real(r_kind),intent(  out) :: rlat8,rlon8
+
+  integer(i_kind) ierr
+
+  logical lambconform
+  logical polarstereo
+  logical lmercator
+
+
+  lambconform=trim(cgrid)=='conus'.or.trim(cgrid)=='cohres'.or.trim(cgrid)=='hrrr'.or.trim(cgrid)=='cohresext'
+  polarstereo=trim(cgrid)=='alaska'.or.trim(cgrid)=='akhres'.or.trim(cgrid)=='juneau'
+  lmercator=trim(cgrid)=='hawaii'.or.trim(cgrid)=='guam'.or.trim(cgrid)=='prico'
+
+  if (lambconform) then 
+     call w3fb12(xx8,yy8,alat18,elon18,da8,elonv8,alatan8,rlat8,rlon8,ierr)
+     if (ierr > izero) then
+       print*,'in grid_to_latlon0: trouble,xx8,yy8,rlat8,rlon8,ierr=',&
+                                           xx8,yy8,rlat8,rlon8,ierr
+     endif
+
+  endif
+
+  if (polarstereo) call w3fb07(xx8,yy8,alat18,elon18,da8,elonv8,rlat8,rlon8)
+  if (lmercator)   call w3fb09(xx8,yy8,alat18,elon18,alatan8,da8,rlat8,rlon8)
+
+end subroutine grid_to_latlon0
+!****************************************************************
 !****************************************************************
 subroutine terrain_slmask(radrlat8,radrlon8,hgt0,slm0)
 !$$$  subprogram documentation block
@@ -1573,7 +1838,7 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
   lcase1=(rlon8>=-122._r_kind .and. rlon8<=-117._r_kind & 
             .and. rlat8>=32._r_kind .and. rlat8<=35._r_kind)
 
-  if (trim(cgrid)=='conus') then
+  if (trim(cgrid)=='conus' .or. trim(cgrid)=='cohres' .or. trim(cgrid)=='cohresext') then
      if(lcase1) return
   endif
 
@@ -1611,7 +1876,168 @@ subroutine adjust_error(alon,alat,oberr,oberr2)
 100 continue
 ! print*,'in adjust_error: after, oberr,oberr2=',oberr,oberr2
 end subroutine adjust_error
+!****************************************************************
+subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
+!$$$  subprogram documentation block
+!
+!   prgmmr: pondeca           org: np20                date: 2010-03-18
+!
+! abstract: relocate ob that land-sea mask says it's on water to 
+! nearby land grid point
+!
+! program history log:
+!   2010-03-18  pondeca  
+!
+! input argument list:
+!   rlon8  - observation east longitude in radians
+!   rlat8  - observation latitude in radians
+!
+! output argument list:
+!   rlon8  - relocated observation east longitude in radians
+!   rlat8  - relocated observation latitude in radians
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use constants, only: ione,zero,zero_single,half,rad2deg,deg2rad
 
+  implicit none
+
+! Declare passed variables
+  real (r_kind), intent(inout   ) :: rlon8,rlat8
+  character(len=*) ,intent(in   ) :: cobtypein
+  character(len=8) ,intent(in   ) :: cstationin
+  integer(i_kind)  ,intent(in   ) :: kxin
+
+! Declare local parameters
+  integer(i_kind),parameter::npts=300
+  real(r_single),parameter::dx=0.03125_r_single
+  real(r_single),parameter::dy=0.03125_r_single
+  real(r_single),parameter::del=0.125_r_single
+
+! Declare local variables
+  character(20) cvarname
+  integer(i_kind) i,j,istart,jstart,is,ie,js,je
+  integer(i_kind) imin,jmin
+  real(r_kind) rlonin8,rlatin8,xxin8,yyin8,xx8,yy8
+  real(r_single) xxin,yyin
+  real(r_single) dist,distmin,ri,rj,delx,dely
+  real(r_single) ris,rie,rjs,rje,rimin,rjmin
+  real(r_single) idist,rlonin,rlatin,rlon,rlat
+  real(r_single) slmin,slmout,slmask0
+  logical lfound
+
+
+  if (.not.lshoreline) return
+
+  rlonin8=rlon8*rad2deg
+  rlatin8=rlat8*rad2deg
+  rlatin=real(rlatin8,r_single)
+  rlonin=real(rlonin8,r_single)
+
+  call latlon_to_grid0(rlatin8,rlonin8,xxin8,yyin8)
+
+  xxin=real(xxin8,kind=r_single)
+  yyin=real(yyin8,kind=r_single)
+
+  istart=floor(xxin)
+  jstart=floor(yyin)
+
+  call bilinear_2d0(slmask,nx,ny,slmin,yyin,xxin)!Note the reverse order "yyin,xxin"
+
+! print*,'in relocsfcob: cstationin,slmin,rlonin8,rlatin8=',trim(cstationin),slmin,rlonin8,rlatin8
+
+  slmout=-9999.
+
+  if (slmin < 0.75_r_single) then
+  
+     is=max(ione,(istart-ineighbour))
+     ie=min((istart+ineighbour),nx)
+     js=max(ione,(jstart-jneighbour))
+     je=min((jstart+jneighbour),ny)
+
+     ris=float(is)
+     rie=float(ie)
+     rjs=float(js)
+     rje=float(je)
+
+     distmin=1.e+20_r_single
+     lfound=.false.
+
+     do j=1,npts
+      rj=rjs+float(j-1)*dy  
+      if (rj > rje) cycle
+      do i=1,npts
+         ri=ris+float(i-1)*dx  
+         if (ri > rie) cycle
+
+         call bilinear_2d0(slmask,nx,ny,slmask0,rj,ri)
+
+         if (slmask0>=slmland) then
+            lfound=.true.
+            dist=(ri-xxin)*(ri-xxin)+(rj-yyin)*(rj-yyin)                        
+            if (dist > zero_single) dist=sqrt(dist)
+            if (dist < distmin) then 
+               rimin=ri
+               rjmin=rj
+               distmin=dist
+               slmout=slmask0
+            endif
+         endif
+      enddo 
+     enddo 
+
+     delx=zero_single
+     dely=zero_single
+
+     if (lfound) then
+        if ((rimin-xxin) < zero_single) delx=-del
+        if ((rimin-xxin) > zero_single) delx=+del
+        if ((rjmin-yyin) < zero_single) dely=-del
+        if ((rjmin-yyin) > zero_single) dely=+del
+
+        call bilinear_2d0(slmask,nx,ny,slmask0,rjmin+dely,rimin+delx)
+
+        if (slmask0>=slmland) then
+           xx8=real(rimin+delx,r_kind)
+           yy8=real(rjmin+dely,r_kind)
+           slmout=slmask0
+         else
+           xx8=real(rimin,r_kind)
+           yy8=real(rjmin,r_kind)
+        endif
+
+        call grid_to_latlon0(xx8,yy8,rlat8,rlon8)
+
+        rlat=real(rlat8,r_single)
+        rlon=real(rlon8,r_single)
+
+        if (trim(cobtypein)=='t') cvarname='temperatureob'
+        if (trim(cobtypein)=='q') cvarname='moistureob'
+        if (trim(cobtypein)=='ps') cvarname='psfcob'
+        if (trim(cobtypein)=='uv') cvarname='windob'
+        if (trim(cobtypein)=='spd') cvarname='wspdob'
+        write(lunreloc,'(a8,i6,4(f12.4),3x,a20)') cstationin,kxin,rlatin,rlonin,rlat,rlon,cvarname
+     endif
+
+!    print*,'in relocsfcob: cstationin,kxin,rlatin,rlonin,rlat,rlon,cvarname=', & 
+!              trim(cstationin),kxin,rlatin,rlonin,rlat,rlon,trim(cvarname) 
+!    print*,'in relocsfcob: rlatin8,rlonin8,xxin8,yyin8=',rlatin8,rlonin8,xxin8,yyin8
+!    print*,'in relocsfcob: rlat8,rlon8,xx8,yy8=',rlat8,rlon8,xx8,yy8
+!    print*,'in relocsfcob: istart,jstart,imin,jmin,distmin=',istart,jstart,imin,jmin,distmin
+!    print*,'in relocsfcob: slmin,slmout=',slmin,slmout
+!    print*,'in relocsfcob: ************************************************'
+
+    rlat8=rlat8*deg2rad
+    rlon8=rlon8*deg2rad
+
+  endif
+
+end subroutine relocsfcob
+!****************************************************************
+!****************************************************************
 subroutine  destroy_ndfdgrid
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1636,6 +2062,7 @@ subroutine  destroy_ndfdgrid
 
   deallocate(slmask)
   deallocate(terrain)
+  if (relocfile_opnd) close (lunreloc)
 end subroutine destroy_ndfdgrid
 
 end module ndfdgrids
@@ -1686,7 +2113,7 @@ module hilbertcurve
 !
 !$$$ end documentation block
 
-  use kinds, only: i_kind,r_kind
+  use kinds, only: i_kind,r_kind,r_single
 
   implicit none
 
@@ -1698,13 +2125,31 @@ module hilbertcurve
   public :: apply_hilbertcurve
   public :: destroy_hilbertcurve
 
-  integer(i_kind) ncross
+  integer(i_kind) ncross,nxv
+
+  character(8),allocatable,dimension(:):: hil_cstation
+  character(8),allocatable,dimension(:):: hil_cprovider
+  character(8),allocatable,dimension(:):: hil_csubprovider
   real(r_kind),allocatable,dimension(:):: hil_dlon
   real(r_kind),allocatable,dimension(:):: hil_dlat
+  real(r_kind),allocatable,dimension(:):: hil_alon
+  real(r_kind),allocatable,dimension(:):: hil_alat
+  real(r_kind),allocatable,dimension(:):: hil_time
   integer(i_kind),allocatable,dimension(:):: hil_ikx
   integer(i_kind),allocatable,dimension(:):: hil_kx
   integer(i_kind),allocatable,dimension(:):: hil_i
   integer(i_kind),allocatable,dimension(:):: test_set
+  
+  integer(i_kind) ngrps_tob
+  integer(i_kind) ngrps_uvob
+  integer(i_kind) ngrps_spdob
+  integer(i_kind) ngrps_psob
+  integer(i_kind) ngrps_qob
+  integer(i_kind) ngrps_pwob
+  integer(i_kind) ngrps_sstob
+
+  logical random_cvgrp
+  real(r_kind) usagecv
 
 contains
 
@@ -1733,17 +2178,64 @@ subroutine init_hilbertcurve(maxobs)
 
   integer(i_kind),intent(in   ) :: maxobs
 
+  character(1),parameter::blank=' '
+  integer(i_kind) i,k
+  logical fexist
+
+  namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
+                    ngrps_spdob,ngrps_psob,ngrps_qob, & 
+                    ngrps_pwob,ngrps_sstob
+
+  random_cvgrp=.false.
+  ngrps_tob=5
+  ngrps_uvob=8
+  ngrps_spdob=0
+  ngrps_psob=5
+  ngrps_qob=5
+  ngrps_pwob=0
+  ngrps_sstob=0
+
+  inquire(file='parmcard_input',exist=fexist)
+  if (fexist) then
+     open(55,file='parmcard_input',form='formatted')
+     read(55,parmcardhcurve)
+     close(55)
+  endif
+
+  print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
+  print*,'in init_hilbertcurve: usagecv=',usagecv
+  print*,'in init_hilbertcurve: ngrps_tob=',ngrps_tob
+  print*,'in init_hilbertcurve: ngrps_uvob=',ngrps_uvob
+  print*,'in init_hilbertcurve: ngrps_spdob=',ngrps_spdob
+  print*,'in init_hilbertcurve: ngrps_psob=',ngrps_psob
+  print*,'in init_hilbertcurve: ngrps_qob=',ngrps_qob
+  print*,'in init_hilbertcurve: ngrps_pwob=',ngrps_pwob
+  print*,'in init_hilbertcurve: ngrps_sstob=',ngrps_sstob
+
   ncross=0
 
+  allocate(hil_cstation(maxobs))
+  allocate(hil_cprovider(maxobs))
+  allocate(hil_csubprovider(maxobs))
   allocate(hil_dlon(maxobs))
   allocate(hil_dlat(maxobs))
+  allocate(hil_alon(maxobs))
+  allocate(hil_alat(maxobs))
+  allocate(hil_time(maxobs))
   allocate(hil_ikx(maxobs))
   allocate(hil_kx(maxobs))
   allocate(hil_i(maxobs))
 
+  do i=1,maxobs
+     write(hil_cstation(i),'(8a1)') (blank,k=1,8)
+     write(hil_cprovider(i),'(8a1)') (blank,k=1,8)
+     write(hil_csubprovider(i),'(8a1)') (blank,k=1,8)
+  enddo
+
 end subroutine init_hilbertcurve
 
-subroutine accum_hilbertcurve(usage,dlat,dlon,ikx,kx,ndata)
+subroutine accum_hilbertcurve(usage,cstation,cprovider,csubprovider, &
+                              alat,alon,dlat,dlon,time,toff,ikx,kx,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    accum_hilbertcurve
@@ -1755,8 +2247,11 @@ subroutine accum_hilbertcurve(usage,dlat,dlon,ikx,kx,ndata)
 !   2009-10-01  lueken - added subprogram doc block
 !
 !   input argument list:
-!    usage,dlat,dlon
+!    usage,time,toff
+!    dlat,dlon       !grid-relative lat and lon
+!    alat,alon       !earth lat and lon in radians on entry
 !    ikx,kx,ndata
+!    cstation,cprovider,csubprovider
 !
 !   output argument list:
 !
@@ -1765,21 +2260,39 @@ subroutine accum_hilbertcurve(usage,dlat,dlon,ikx,kx,ndata)
 !   machine:
 !
 !$$$ end documentation block
+  use constants, only: izero,ione,rad2deg
   use convinfo, only: ncnumgrp,ncgroup
   use  gridmod, only: nlon,nlat
 
   implicit none
 
-  real(r_kind)   ,intent(in   ) :: usage,dlat,dlon
-  integer(i_kind),intent(in   ) :: ikx,kx,ndata
-
-  if(ncnumgrp(ikx) > 0 .and. usage < 6._r_kind) then
-     ncross=ncross+1
-     hil_dlat(ncross)=dlat/nlat
-     hil_dlon(ncross)=dlon/nlon
-     hil_ikx(ncross)=ikx
-     hil_kx(ncross)=kx
-     hil_i(ncross)=ndata
+  real(r_kind),intent(in)::usage,time,toff
+  real(r_kind),intent(in)::dlat,dlon       !grid-relative lat and lon
+  real(r_kind),intent(in)::alat,alon       !earth lat and lon in radians on entry
+  integer(i_kind),intent(in)::ikx,kx,ndata
+  character(8),intent(in)::cstation,cprovider,csubprovider
+ 
+  logical goodkx
+ 
+  goodkx=(kx>=180.and.kx<=188).or.(kx>=280.and.kx<=288).or.&
+         (kx>=192.and.kx<=195).or.(kx>=292.and.kx<=295).and.&
+         usage<6._r_kind
+    
+!!!      if(ncnumgrp(ikx) > 0 .and. usage < 6._r_kind) then
+!!!      if(usage < 6._r_kind) then
+      if(goodkx) then
+         ncross=ncross+1
+         hil_cstation(ncross)=cstation
+         hil_cprovider(ncross)=cprovider
+         hil_csubprovider(ncross)=csubprovider
+         hil_dlat(ncross)=dlat
+         hil_dlon(ncross)=dlon
+         hil_alat(ncross)=alat*rad2deg
+         hil_alon(ncross)=alon*rad2deg
+         hil_time(ncross)=time-toff
+         hil_ikx(ncross)=ikx
+         hil_kx(ncross)=kx
+         hil_i(ncross)=ndata
 
 !     write(6,*) 'CHECK0:',ndata,ncross,hil_ikx(ncross),hil_kx(ncross), & 
 !                ncnumgrp(hil_ikx(ncross)),ncgroup(hil_ikx(ncross))
@@ -1814,6 +2327,7 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 !
 !$$$ end documentation block
   use convinfo, only:  ncmiter,ncgroup,ncnumgrp
+  use  gridmod, only: nlon,nlat
 
   implicit none
 
@@ -1824,51 +2338,196 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
   integer(i_kind),intent(in   ) :: maxobs,k1,k2
   real(r_kind)   ,intent(inout) :: cdata(k1:k2,maxobs)
 
+!Declare local parameter
+  real(r_kind),parameter::usage_dup=8.
+
 !Declare local variables
-  integer(i_kind) i,ncnumgrp0,ncgroup0
+  real(r_kind),parameter:: epsilon=1.e-03_r_kind
+  integer(i_kind) i,j,n,nt,ncnumgrp0,ncgroup0
+  integer(i_kind),allocatable,dimension(:)::hilflag,hilikx,hili,ipoint
+  real(r_kind),allocatable::hildlon(:),hildlat(:)
   real(r_kind) usage
+  integer(i_kind) ncvcount(100)
+  character(60) outfile
+  character(30) cstring
+  character(2) clun
+  logical ldup
 
-  if(ncross>0) then
 
-     allocate(test_set(ncross))
+  allocate(hilflag(maxobs))
+  allocate(hilikx(maxobs))
+  allocate(hili(maxobs))
+  allocate(ipoint(maxobs))
+  allocate(hildlon(maxobs))
+  allocate(hildlat(maxobs))
 
-     ncnumgrp0=ncnumgrp(hil_ikx(ncross)) ! number of cross-validating datasets is
-                                         ! chosen to be the last "number of groups" 
-                                         ! specified in convinfo for that ob type. 
-                                         ! there is no particular reason to do so.
+      print*,'in apply_hilbertcurve: tob,uvob,spdob,psob,qob,pwob,sstob=',&
+                                     tob,uvob,spdob,psob,qob,pwob,sstob
 
-     call hilbert(ncnumgrp0,ncross,hil_dlon(1:ncross),hil_dlat(1:ncross),test_set)
+      nt=ncross
+      if(nt.gt.0) then
 
-     do i=1,ncross
+         !--deal with duplicate obs. use only the ob that is nearest
+         !  to the valid assimilation time
 
-        ncgroup0=ncgroup(hil_ikx(i))      !note: convinfo must be set up so that this 
-                                          !is the same group element for all ob subtypes 
-                                          !of a given ob type 
+         print*,'in apply_hilbertcurve: before duplicate removal: ncross=',nt
 
-        if (test_set(i)==ncgroup0) then
+         hilflag=+1
+         do j=1,nt
+            do i=j+1,nt
+!              ldup=hil_cstation(i)(1:8)==hil_cstation(j)(1:8)        .and. & 
+!                   hil_cprovider(i)(1:8)==hil_cprovider(j)(1:8)      .and. &
+!                   hil_csubprovider(i)(1:8)==hil_csubprovider(j)(1:8).and. &
+!                   hil_kx(i)==hil_kx(j)                              .and. &
+!                   abs(hil_dlon(i)-hil_dlon(j))<epsilon              .and. &
+!                   abs(hil_dlat(i)-hil_dlat(j))<epsilon  
+       
+               ldup=abs(hil_dlon(i)-hil_dlon(j))<epsilon .and. &
+                    abs(hil_dlat(i)-hil_dlat(j))<epsilon  
 
-           usage=ncmiter(hil_ikx(i))
+                if ( ldup ) then 
+                  if ( abs(hil_time(i)) >= abs(hil_time(j)) ) then 
+                       hilflag(i)=-1
+                     else
+                       hilflag(j)=-1
+                  endif
+                endif
+            enddo
+         enddo
 
-           if(tob)   cdata(ktob,hil_i(i))=usage
+         ncross=0
+         do i=1,nt
+            if (hilflag(i) > 0) then 
+                ncross=ncross+1
+                hildlon(ncross)=hil_dlon(i)
+                hildlat(ncross)=hil_dlat(i)
+                hilikx(ncross)=hil_ikx(i)
+                hili(ncross)=hil_i(i)
+                ipoint(ncross)=i
+            endif
+         enddo
 
-           if(uvob)  cdata(kuvob,hil_i(i))=usage
+         print*,'in apply_hilbertcurve: after duplicate removal: ncross=',ncross
 
-           if(spdob) cdata(kspdob,hil_i(i))=usage
+        !--evoke the main code for the hilbert curve
 
-           if(psob)  cdata(kpsob,hil_i(i))=usage
+        allocate(test_set(ncross))
 
-           if(qob)   cdata(kqob,hil_i(i))=usage
-
-           if(pwob)  cdata(kpwob,hil_i(i))=usage
-
-           if(sstob) cdata(ksstob,hil_i(i))=usage
-
+        if (random_cvgrp) then 
+            if(tob)   ncnumgrp0=ngrps_tob
+            if(uvob)  ncnumgrp0=ngrps_uvob
+            if(spdob) ncnumgrp0=ngrps_spdob
+            if(psob)  ncnumgrp0=ngrps_psob
+            if(qob)   ncnumgrp0=ngrps_qob
+            if(pwob)  ncnumgrp0=ngrps_pwob
+            if(sstob) ncnumgrp0=ngrps_sstob
+          else
+            ncnumgrp0=ncnumgrp(hilikx(ncross)) ! number of cross-validating datasets is
+                                               ! chosen to be the last "number of groups" 
+                                               ! specified in convinfo for that ob type. 
+                                               ! there is no particular reason to do so.
         endif
 
-!        write(6,*) 'CHECK2:',i,test_set(i),ncgroup(hil_ikx(i)),ncross
-     end do
+        hildlon=hildlon/nlon
+        hildlat=hildlat/nlat
 
-  endif
+        call hilbert(ncnumgrp0,ncross,hildlon(1:ncross),hildlat(1:ncross),test_set)
+
+        if (random_cvgrp) call shuffle(ncnumgrp0,ncgroup0)
+
+        do i=1,ncross
+
+           if (.not. random_cvgrp)  ncgroup0=ncgroup(hilikx(i)) !note: convinfo must be set up so that this 
+                                                                !is the same group element for all ob subtypes 
+                                                                !of a given ob type 
+
+           if (i==1) print*,'in apply_hilbertcurve: ncnumgrp0,ncgroup0=',ncnumgrp0,ncgroup0 
+
+           if (test_set(i).eq.ncgroup0) then
+              if (     random_cvgrp) usage=usagecv           !3.
+              if (.not.random_cvgrp) usage=ncmiter(hilikx(i))
+
+              if(tob)   cdata(ktob,hili(i))=usage
+              if(uvob)  cdata(kuvob,hili(i))=usage
+              if(spdob) cdata(kspdob,hili(i))=usage
+              if(psob)  cdata(kpsob,hili(i))=usage
+              if(qob)   cdata(kqob,hili(i))=usage
+              if(pwob)  cdata(kpwob,hili(i))=usage
+              if(sstob) cdata(ksstob,hili(i))=usage
+
+              j=ipoint(i)
+              do n=1,nt
+                 if (n==j) cycle
+                 ldup=abs(hil_dlon(j)-hil_dlon(n))<epsilon .and. &
+                      abs(hil_dlat(j)-hil_dlat(n))<epsilon  
+                 if ( ldup ) then 
+                    if(tob)   cdata(ktob,hil_i(n))=usage_dup
+                    if(uvob)  cdata(kuvob,hil_i(n))=usage_dup
+                    if(spdob) cdata(kspdob,hil_i(n))=usage_dup
+                    if(psob)  cdata(kpsob,hil_i(n))=usage_dup
+                    if(qob)   cdata(kqob,hil_i(n))=usage_dup
+                    if(pwob)  cdata(kpwob,hil_i(n))=usage_dup
+                    if(sstob) cdata(ksstob,hil_i(n))=usage_dup
+                 endif
+              enddo
+           endif
+
+!         write(6,*) 'CHECK2:',i,test_set(i),ncgroup(hilikx(i)),ncross
+        end do
+      endif
+
+      if(ncross.gt.0) then
+        ! count number of obs in each cross-validation dataset
+        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob=',ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob
+        ncvcount=0
+        do n=1,ncnumgrp0
+           do i=1,ncross
+              if (test_set(i).eq.n) then
+                 ncvcount(n)=ncvcount(n)+1
+              endif
+           enddo
+           print*,'n,ncvcount(n)=',n,ncvcount(n)
+        enddo
+
+        ! write all groups to a file
+        if(tob)   outfile='tobs_allcv_groups'
+        if(uvob)  outfile='uvobs_allcv_groups'
+        if(spdob) outfile='spdobs_allcv_groups'
+        if(psob)  outfile='psobs_allcv_groups'
+        if(qob)   outfile='qobs_allcv_groups'
+
+        open (92,file=trim(outfile),form='unformatted')
+
+        write(92) ncross,ncnumgrp0,ncgroup0
+        write(92) ncvcount
+
+        do n=1,ncnumgrp0
+
+           write(clun,'(i2.2)') n
+           cstring='start group number '//clun
+           write(92) cstring
+
+           do i=1,ncross
+              if (test_set(i).eq.n) then
+                  j=ipoint(i)
+                  write(92) hil_cstation(j)
+                  write(92) hil_cprovider(j)
+                  write(92) hil_csubprovider(j)
+                  write(92) hil_kx(j), &
+                            hil_alon(j),hil_alat(j), &
+                            hil_dlon(j),hil_dlat(j)
+              endif
+           enddo
+        enddo
+        close(92)
+      endif
+
+  deallocate(hilflag)
+  deallocate(hilikx)
+  deallocate(hili)
+  deallocate(ipoint)
+  deallocate(hildlon)
+  deallocate(hildlat)
 
 end subroutine apply_hilbertcurve
 
@@ -1894,8 +2553,14 @@ subroutine destroy_hilbertcurve
 !$$$ end documentation block
   implicit none
 
+  deallocate(hil_cstation)
+  deallocate(hil_cprovider)
+  deallocate(hil_csubprovider)
   deallocate(hil_dlon)
   deallocate(hil_dlat)
+  deallocate(hil_alon)
+  deallocate(hil_alat)
+  deallocate(hil_time)
   deallocate(hil_ikx)
   deallocate(hil_kx)
   deallocate(hil_i)
@@ -1961,6 +2626,26 @@ subroutine mkheader_madis_and_time_rejects(cobtype,lun)
   if (trim(cobtype)=='spd') then
      write(lun,*)   'RTMA WIND SPEED OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
      write(lun,*)   'OB UNITS are m/s'
+  endif
+
+  if (trim(cobtype)=='gust') then
+     write(lun,*)   'RTMA WIND GUST OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m/s'
+  endif
+
+  if (trim(cobtype)=='vis') then
+     write(lun,*)   'RTMA VISIBILITY OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m'
+  endif
+
+  if (trim(cobtype)=='pblh') then
+     write(lun,*)   'RTMA PBLH OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m'
+  endif
+
+  if (trim(cobtype)=='dist') then
+     write(lun,*)   'RTMA CEELING HEIGHT OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m'
   endif
 
   write(lun,*)   'dtime is the hour relative to the analysis time. For example, dtime=-0.1'
@@ -2074,24 +2759,208 @@ end subroutine get_stndewpt
       real(r_single) ,intent(  out) :: rfobs
 
 !declare local variables
-      integer(i_kind) i,j
+      integer(i_kind) i,j,ip,jp
       real(r_single) dx,dy,dxm,dym
 
       i  = ifix(yy)
       j  = ifix(xx)
-      if((i>=1) .and. (i<=(ix-1)) .and. &
-         (j>=1) .and. (j<=(jx-1)) ) then
-         dx = xx - float(j)
-         dy = yy - float(i)
-         dxm= 1.0_r_single-dx
-         dym= 1.0_r_single-dy
-         rfobs=dxm*(dym*rffcst(i,j)+dy*rffcst(i+1,j)) &
-                  + dx *(dym*rffcst(i,j+1)+dy*rffcst(i+1,j+1))
-      else
-	 rfobs=HUGE(rfobs)	! A note is left here for whoever knows what this is, since
-         !rfobs=1.e+39_r_single	! this number (1.e+39) can not have a r_single kind.
-      endif
+      
+      dx = xx - float(j)
+      dy = yy - float(i)
+      dxm= 1.0_r_single-dx
+      dym= 1.0_r_single-dy
+ 
+      i=min(max(1,i),ix) ; j=min(max(1,j),jx)
+      ip=min(ix,i+1)     ; jp=min(jx,j+1) 
+
+      rfobs=dxm*(dym*rffcst(i,j)+dy*rffcst(ip,j)) &
+               + dx *(dym*rffcst(i,jp)+dy*rffcst(ip,jp))
 
       return
 end subroutine bilinear_2d0
 !------------------------------------------------------
+!------------------------------------------------------
+!------------------------------------------------------
+subroutine getwdir(ue,ve,wdir)
+!                .      .    .                                       .
+! subprogram:   getwdir
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!
+!   input argument list:
+!    ue-
+!    ve-
+!
+!   output argument list:
+!    wdir
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: r_kind
+  use constants, only: zero,deg2rad
+  implicit none
+
+! Declare passed variables
+  real(r_kind),intent(in   ) :: ue,ve
+  real(r_kind),intent(  out) :: wdir
+
+! Declare local parameters
+  real(r_kind),parameter::r90=90._r_kind
+  real(r_kind),parameter::r180=180._r_kind
+  real(r_kind),parameter::r270=270._r_kind
+  real(r_kind),parameter::r360=360._r_kind
+
+! Declare local variables
+  real(r_kind) wspd2,angle
+
+  wspd2=ue*ue+ve*ve
+  if (wspd2.eq.zero) then
+       wdir=zero 
+       goto 100
+  endif
+
+  if (ve.eq.zero) then
+     if (ue.gt.zero) wdir = r270
+     if (ue.lt.zero) wdir = r90 
+    else 
+     angle = atan(ue/ve)/deg2rad
+     if (ue.le.zero .and. ve.le.zero ) wdir = angle
+     if (ue.le.zero .and. ve.ge.zero ) wdir = angle + r180
+     if (ue.ge.zero .and. ve.ge.zero ) wdir = angle + r180
+     if (ue.ge.zero .and. ve.le.zero ) wdir = angle + r360
+  endif
+
+100 continue
+end subroutine getwdir
+!************************************************************
+!------------------------------------------------------
+!------------------------------------------------------
+subroutine windfactor(p0,wfact0)
+! subprogram:   windfactor
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!
+!   input argument list:
+!    p0 
+!
+!   output argument list:
+!    wfact
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use constants, only: one
+  implicit none
+
+! Declare passed variables
+  real(r_kind),intent(in   ) :: p0
+  real(r_kind),intent(  out) :: wfact0
+
+! Declare local parameters
+  integer(i_kind),parameter::nlevs=14
+
+! Declare local variables
+  real(r_kind) plevs(nlevs)
+  real(r_kind) wfacts(nlevs)
+  real(r_kind) alpha
+  integer(i_kind) n
+
+  !note:  wfacts represents the ratio 
+  !       wind(n)/wind10m
+
+  plevs(1)=1000._r_kind ; wfacts(1)=1.16
+  plevs(2)=975._r_kind  ; wfacts(2)=1.23
+  plevs(3)=950._r_kind  ; wfacts(3)=1.27
+  plevs(4)=925._r_kind  ; wfacts(4)=1.31
+  plevs(5)=900._r_kind  ; wfacts(5)=1.34
+  plevs(6)=875._r_kind  ; wfacts(6)=1.33
+  plevs(7)=850._r_kind  ; wfacts(7)=1.29
+  plevs(8)=825._r_kind  ; wfacts(8)=1.25
+  plevs(9)=800._r_kind  ; wfacts(9)=1.19
+  plevs(10)=750._r_kind ; wfacts(10)=1.12
+  plevs(11)=725._r_kind ; wfacts(11)=1.16
+  plevs(12)=700._r_kind ; wfacts(12)=1.20
+  plevs(13)=650._r_kind ; wfacts(13)=1.23
+  plevs(14)=600._r_kind ; wfacts(14)=1.14
+
+  do n=1,nlevs-1
+     if (p0.ge.plevs(n+1) .and. p0.le.plevs(n)) then
+        alpha=(wfacts(n+1)-wfacts(n))/(plevs(n+1)-plevs(n))
+        wfact0=wfacts(n)+alpha*(p0-plevs(n))
+     endif
+  enddo
+
+  if (p0 < plevs(nlevs))  wfact0=wfacts(nlevs)
+  if (p0 > plevs(1))      wfact0=wfacts(1)
+
+  wfact0=one/wfact0
+end subroutine windfactor
+!============================================================
+subroutine shuffle(ngrps,ngrp0)
+
+  use kinds, only: r_kind,i_kind
+  use obsmod, only: iadate
+  implicit none
+
+!Declare passed variables
+  integer(i_kind),intent(in)::  ngrps
+  integer(i_kind),intent(out):: ngrp0
+
+!Declare local variables
+  integer(i_kind) iseed,n,nt
+  real(r_kind) randx
+
+  call w3fs21(iadate,iseed) !use # of minutes since 0000, 1 jan 1978
+                            !as the seed
+
+  nt=sum(iadate)            !arbitrarily select number of times to call
+                            !random number generator
+ 
+  print*,'in shuffle: iadate,iseed,nt=',iadate,iseed,nt
+
+! do n=1,max(1,nt/5) !nt
+!    call random8(iseed,randx) 
+! enddo
+
+! ngrp0=nint(real((ngrps-1),r_kind)*randx+0.001_r_kind)+1
+
+! print*,'in shuffle: ngrps,randx,ngrp0=',ngrps,randx,ngrp0
+
+! use this instead:  /20Jan2011
+  ngrp0=mod(nt,ngrps)
+  if (ngrp0==0) ngrp0=ngrps
+  print*,'in shuffle:ngrps,ngrp0=',ngrps,ngrp0
+
+end subroutine shuffle
+!============================================================
+subroutine random8(iseed,randx)
+
+! this subroutine generates random numbers between 0.0 and 1.0
+! using an integer seed
+
+  use kinds, only: r_kind,i_kind
+  implicit none
+
+!Declare passed variables
+  integer(i_kind),intent(inout):: iseed
+  real(r_kind),intent(out):: randx
+
+  iseed=2045*iseed+1
+  iseed=iseed-(iseed/1048576)*1048576
+  randx=real((iseed+1),r_kind)/1048577.0_r_kind
+
+  return
+end subroutine random8
+!===========================================================================

@@ -75,6 +75,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-10-14  pagowski - added pm2_5 conventional obs
+!   2011-02-16      zhu - add gust,vis,pblh
 !   2011-04-07  todling - newpc4pred now in radinfo
 !
 !   input argument list:
@@ -164,6 +165,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupt
   external:: setuptcp
   external:: setupw
+  external:: setupgust
+  external:: setupvis
+  external:: setuppblh
   external:: statsconv
   external:: statsoz
   external:: statspcp
@@ -182,7 +186,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   integer(i_kind) lunin,nobs,nchanl,nreal,nele,&
        is,idate,i_dw,i_rw,i_srw,i_sst,i_tcp,i_gps,i_uv,i_ps,i_lag,&
-       i_t,i_pw,i_q,i_co,iobs,nprt,ii,jj
+       i_t,i_pw,i_q,i_co,i_gust,i_vis,i_ref,i_pblh,iobs,nprt,ii,jj
   integer(i_kind) ier
 
   real(r_quad):: zjo
@@ -191,7 +195,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   real(r_kind),dimension(9,jpch_oz):: stats_oz1
   real(r_kind),dimension(9,jpch_co):: stats_co1
   real(r_kind),dimension(npres_print,nconvtype,5,3):: bwork1
-  real(r_kind),dimension(7*nsig+100,14):: awork1
+  real(r_kind),allocatable,dimension(:,:):: awork1
 
   if(.not.init_pass .and. .not.lobsdiag_allocated) call die('setuprhsall','multiple lobsdiag_allocated',lobsdiag_allocated)
 !******************************************************************************
@@ -211,8 +215,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   ozone_diagsave= write_diag(jiter) .and. diag_ozone .and. ihave_oz
   co_diagsave   = write_diag(jiter) .and. diag_co    .and. ihave_co
 
-  if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
-
   i_ps = 1
   i_uv = 2
   i_t  = 3
@@ -226,6 +228,13 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   i_tcp= 11
   i_lag= 12
   i_co = 13
+  i_gust=14
+  i_vis =15
+  i_pblh=16
+  i_ref =i_pblh
+
+  allocate(awork1(7*nsig+100,i_ref))
+  if(.not.rhs_allocated) call rhs_alloc(aworkdim2=size(awork1,2))
 
 ! Reset observation pointers
   if(init_pass) call destroyobs
@@ -354,7 +363,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  mype,aivals,stats,nchanl,nreal,nobs,&
                  obstype,isis,is,rad_diagsave,init_pass,last_pass)
 
-
 !          Set up for precipitation data
            else if(ditype(is) == 'pcp')then
               call setuppcp(lunin,mype,&
@@ -366,26 +374,21 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
               if(obstype=='t')then
                  call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,is,conv_diagsave)
 
-
 !             Set up uv wind data
               else if(obstype=='uv')then
                  call setupw(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
-
 
 !             Set up wind speed data
               else if(obstype=='spd')then
                  call setupspd(lunin,mype,bwork,awork(1,i_uv),nele,nobs,is,conv_diagsave)
 
-
 !             Set up surface pressure data
               else if(obstype=='ps')then
                  call setupps(lunin,mype,bwork,awork(1,i_ps),nele,nobs,is,conv_diagsave)
  
-
 !             Set up tc-mslp data
               else if(obstype=='tcp')then
                  call setuptcp(lunin,mype,bwork,awork(1,i_tcp),nele,nobs,is,conv_diagsave)
-
 
 !             Set up moisture data
               else if(obstype=='q') then
@@ -417,7 +420,19 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
               else if(obstype == 'pm2_5')then 
                  call setuppm2_5(lunin,mype,nele,nobs,&
                       isis,is)
-                 
+
+!             Set up conventional wind gust data
+              else if(obstype=='gust' .and. getindex(svars2d,'gust')>0) then
+                 call setupgust(lunin,mype,bwork,awork(1,i_gust),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional visibility data
+              else if(obstype=='vis' .and. getindex(svars2d,'vis')>0) then
+                 call setupvis(lunin,mype,bwork,awork(1,i_vis),nele,nobs,is,conv_diagsave)
+
+!             Set up conventional pbl height data
+              else if(obstype=='pblh' .and. getindex(svars2d,'pblh')>0) then
+                 call setuppblh(lunin,mype,bwork,awork(1,i_pblh),nele,nobs,is,conv_diagsave)
+
               end if
 
 !          set up ozone (sbuv/omi/mls) data
@@ -500,7 +515,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   call mpi_allreduce(bwork,bwork1,npres_print*nconvtype*5*3,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
   
-  call mpi_allreduce(awork,awork1,13*(7*nsig+100),mpi_rtype,mpi_sum, &
+  call mpi_allreduce(awork,awork1,i_ref*(7*nsig+100),mpi_rtype,mpi_sum, &
        mpi_comm_world,ierror)
 
 ! Compute and print statistics for radiance, precipitation, and ozone data.
@@ -528,10 +543,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    Compute and print statistics for "conventional" data
      call statsconv(mype,&
           i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-          bwork1,awork1,ndata)
+          i_gust,i_vis,i_pblh,bwork1,awork1,ndata)
 
   endif  ! < .not. lobserver >
 
+  deallocate(awork1)
   call rhs_dealloc()	! destroy the workspace: awork, bwork, etc.
 ! Print Jo table
   nprt=2
