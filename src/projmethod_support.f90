@@ -404,6 +404,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2010-04-01  treadon - move strip to grimod
 !   2010-04-29  todling - update to use control vectory based on gsi_bundle
 !   2010-08-19  lueken  - add only to module use
+!   2011-06-06  pondeca - add output for gust,vis,pblh,dist
 !   2011-07-03  todling - avoid explicit reference to internal bundle arrays
 !
 !   input argument list:
@@ -434,6 +435,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   use constants, only: izero,ione
   use control_vectors, only: control_vector,allocate_cv,deallocate_cv, &
       assignment(=)
+  use control_vectors, only: cvars3d,cvars2d
+  use mpeu_util, only: getindex
   implicit none
 
 ! Declare passed variables
@@ -443,7 +446,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 
 ! Declare local variables
+  integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
+  integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist
+
   integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,ip,istatus
+
   real(r_kind),allocatable,dimension(:)::tempa
   real(r_kind),allocatable,dimension(:,:)::slab
   real(r_kind),allocatable,dimension(:)::strp
@@ -466,6 +473,23 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   character(2) clun1
   character(3) clun2
 !*************************************************************************
+! Get control variable indices
+  if (iter==0) then
+     nrf3_sf   = getindex(cvars3d,'sf')
+     nrf3_vp   = getindex(cvars3d,'vp')
+     nrf3_t    = getindex(cvars3d,'t')
+     nrf3_q    = getindex(cvars3d,'q')
+     nrf3_oz   = getindex(cvars3d,'oz')
+     nrf3_cw   = getindex(cvars3d,'cw')
+     nrf2_ps   = getindex(cvars2d,'ps')
+     nrf2_sst  = getindex(cvars2d,'sst')
+     nrf2_gust = getindex(cvars2d,'gust')
+     nrf2_vis  = getindex(cvars2d,'vis')
+     nrf2_pblh = getindex(cvars2d,'pblh')
+     nrf2_dist = getindex(cvars2d,'dist')
+  endif
+
+
   call allocate_cv(dz)
   allocate(tempa(itotsub))
   allocate(slab(nlon,nlat))
@@ -486,7 +510,9 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
         open (lun,file='grady.dat_'//clun1//'_'//clun2,form='unformatted')
      endif
 
-     write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma
+     write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma, &
+                 nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw, & 
+                 nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist
 
      ii=1
      do ifield=1,my3d
@@ -533,7 +559,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      if (istatus==0) then
         call strip(ptr2d,strp,ione)
         call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
-            tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
         if(mype == izero) then
            do i=1,iglobal
@@ -541,7 +567,69 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
            end do
            write(lun) slab
         endif
-     endif ! ip>0
+     endif !ip>0
+
+
+!                               gradient wrt gust
+     call gsi_bundlegetpointer(dz%step(ii),'gust',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+        if(mype == izero) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+
+!                               gradient wrt vis
+     call gsi_bundlegetpointer(dz%step(ii),'vis',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+        if(mype == izero) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt pblh
+     call gsi_bundlegetpointer(dz%step(ii),'pblh',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+        if(mype == izero) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt dist
+     call gsi_bundlegetpointer(dz%step(ii),'dist',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+
+        if(mype == izero) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
 
 !                   gradient wrt satellite radiance bias correction coefficients
      if (mype==izero) write(lun) dz%predr

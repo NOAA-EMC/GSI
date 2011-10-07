@@ -133,6 +133,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2010-06-14  todling - add stpco call 
 !   2010-07-10  todling - somebody reordered calls to stpw, stpq, and stpoz - any reason?
 !   2010-10-15  pagowski - add stppm2_5 call 
+!   2011-02-24  zhu    - add gust,vis,pblh calls
 
 !
 !   input argument list:
@@ -169,7 +170,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_colvk_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
-                  &i_pm2_5_ob_type, &
+                  &i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
                     nobs_type
   use stptmod, only: stpt
   use stpwmod, only: stpw
@@ -189,8 +190,13 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stpozmod, only: stpoz
   use stpcomod, only: stpco
   use stppm2_5mod, only: stppm2_5
+  use stpgustmod, only: stpgust
+  use stpvismod, only: stpvis
+  use stppblhmod, only: stppblh
   use bias_predictors, only: predictors
   use gsi_bundlemod, only: gsi_bundle
+  use control_vectors, only: cvars2d
+  use mpeu_util, only: getindex
   implicit none
 
 ! Declare passed variables
@@ -281,6 +287,21 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !_$omp section
 !   penalty, b, and c for clouds
 !   call stpcld(dval,xhat,pbcjo(:,i_cld_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional gust
+    if (getindex(cvars2d,'gust')>0) &
+    call stpgust(yobs%gust,dval,xval,pbcjo(1,i_gust_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional vis
+    if (getindex(cvars2d,'vis')>0) &
+    call stpvis(yobs%vis,dval,xval,pbcjo(1,i_vis_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional pblh
+    if (getindex(cvars2d,'pblh')>0) &
+    call stppblh(yobs%pblh,dval,xval,pbcjo(1,i_pblh_ob_type),sges,nstep)
 
 !$omp end parallel sections
 

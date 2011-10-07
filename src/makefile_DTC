@@ -73,121 +73,126 @@ LIBsys          = $(MYLIBsys)
 
   OBJS	= \
 	abor1.o \
-        adjtest.o \
-        aeroinfo.o \
+	adjtest.o \
+	aeroinfo.o \
 	anberror.o \
 	anbkerror.o \
 	aniso_ens_util.o \
 	anisofilter.o \
 	anisofilter_glb.o \
-        antcorr_application.o \
+	antcorr_application.o \
 	antest_maps0.o \
 	antest_maps0_glb.o \
 	balmod.o \
 	berror.o \
-        bias_predictors.o \
+	bias_predictors.o \
 	bkerror.o \
 	bkgcov.o \
 	bkgvar.o \
 	bkgvar_rewgt.o \
 	blacklist.o \
-        calc_fov_conical.o \
-        calc_fov_crosstrk.o \
-        cal_tztr.o \
+	calc_fov_conical.o \
+	calc_fov_crosstrk.o \
+	cal_tztr.o \
 	calctends.o \
 	calctends_ad.o \
 	calctends_tl.o \
 	calctends_no_ad.o \
 	calctends_no_tl.o \
-        chemmod.o \
-        clw_mod.o \
-        cmaq_routines.o \
-        coinfo.o \
+	chemmod.o \
+	clw_mod.o \
+	cmaq_routines.o \
+	coinfo.o \
 	combine_radobs.o \
 	compact_diffs.o \
 	compute_derived.o \
 	compute_fact10.o \
-        compute_qvar3d.o \
+	compute_qvar3d.o \
 	constants.o \
-        control2model.o \
-        control2state.o \
-        control_vectors.o \
+	control2model.o \
+	control2state.o \
+	control_vectors.o \
 	converr.o \
 	convinfo.o \
 	convthin.o \
-        crtm_cloud.o \
-        crtm_interface.o \
-        cvsection.o \
-        deter_nst.o \
-        deter_sfc_mod.o \
+	crtm_cloud.o \
+	crtm_interface.o \
+	cvsection.o \
+	deter_nst.o \
+	deter_sfc_mod.o \
 	dtast.o \
 	egrid2agrid_mod.o \
-        enorm_state.o \
-        evaljgrad.o \
-        evaljcdfi.o \
-        evaljo.o \
-        evalqlim.o \
+	enorm_state.o \
+	evaljgrad.o \
+	evaljcdfi.o \
+	evaljo.o \
+	evalqlim.o \
 	fgrid2agrid_mod.o \
 	fill_mass_grid2.o \
 	fill_nmm_grid2.o \
 	fpvsx_ad.o \
-        general_read_gfsatm.o \
-        general_specmod.o \
-        general_spectral_transforms.o \
-        general_sub2grid_mod.o \
-        general_transform.o \
+	general_read_gfsatm.o \
+	general_specmod.o \
+	general_spectral_transforms.o \
+	general_sub2grid_mod.o \
+	general_transform.o \
 	gengrid_vars.o \
 	genqsat.o \
 	genstats_gps.o \
 	gesinfo.o \
 	get_derivatives.o \
 	get_derivatives2.o \
-        get_gefs_ensperts_dualres.o \
-        get_gefs_for_regional.o \
+	get_gefs_ensperts_dualres.o \
+	get_gefs_for_regional.o \
 	get_semimp_mats.o \
 	getprs.o \
 	getsiga.o \
-        get_wrf_mass_ensperts_netcdf.o \
+	get_wrf_mass_ensperts_netcdf.o \
 	getuv.o \
 	getvvel.o \
 	glbsoi.o \
-        grtest.o \
+	grtest.o \
 	grdcrd.o \
 	grid2sub.o \
 	gridmod.o \
 	gscond_ad.o \
-        gsd_terrain_match_surfTobs.o \
-        gsdcloudanalysis.o \
+	gsd_terrain_match_surfTobs.o \
+	gsdcloudanalysis.o \
 	gsi_4dvar.o \
-        gsi_4dcouplermod.o \
-        gsi_bundlemod.o \
-        gsi_chemguess_mod.o \
-        gsi_metguess_mod.o \
+	gsi_4dcouplermod.o \
+	gsi_bundlemod.o \
+	gsi_chemguess_mod.o \
+	gsi_metguess_mod.o \
 	gsi_io.o \
-        gsi_nemsio_mod.o \
+	gsi_nemsio_mod.o \
 	gsimod.o \
 	gsisub.o \
 	guess_grids.o \
 	half_nmm_grid2.o \
 	hilbert_curve.o \
-        hybrid_ensemble_isotropic.o \
-        hybrid_ensemble_parameters.o \
-        inc2guess.o \
+	hybrid_ensemble_isotropic.o \
+	hybrid_ensemble_parameters.o \
+	inc2guess.o \
 	init_commvars.o \
-        init_jcdfi.o \
+	init_jcdfi.o \
 	insitu_info.o \
-        int3dvar.o \
+	int3dvar.o \
 	intall.o \
-        intco.o \
+	intco.o \
 	intdw.o \
 	intgps.o \
+	intgust.o \
 	intjcpdry.o \
 	intjo.o \
 	intlag.o \
 	intlimq.o \
+	intlimg.o \
+	intlimv.o \
+	intlimp.o \
 	intoz.o \
+	intpblh.o \
 	intpcp.o \
-        intpm2_5.o \
+	intpm2_5.o \
 	intps.o \
 	intpw.o \
 	intq.o \
@@ -201,51 +206,53 @@ LIBsys          = $(MYLIBsys)
 	intsst.o \
 	intt.o \
 	inttcp.o \
+	intvis.o \
 	intw.o \
 	jcmod.o \
 	jfunc.o \
 	kinds.o \
-        lag_fields.o \
-        lag_interp.o \
-        lag_traj.o \
+	lag_fields.o \
+	lag_interp.o \
+	lag_traj.o \
 	lagmod.o \
-        lanczos.o \
-        looplimits.o \
+	lanczos.o \
+	logvis_to_vis.o \
+	looplimits.o \
 	m_berror_stats.o \
-        m_berror_stats_reg.o \
+	m_berror_stats_reg.o \
 	m_dgeevx.o \
 	m_dtime.o	\
-        m_gpsrhs.o \
- 	m_gsiBiases.o \
-        m_rerank.o \
+	m_gpsrhs.o \
+	m_gsiBiases.o \
+	m_rerank.o \
 	m_obdiag.o	\
 	m_rhs.o	\
-        m_stats.o \
-        m_tick.o \
-        mpeu_mpif.o \
-        mpeu_util.o \
-        missing_routines.o \
-        mod_nmmb_to_a.o \
+	m_stats.o \
+	m_tick.o \
+	mpeu_mpif.o \
+	mpeu_util.o \
+	missing_routines.o \
+	mod_nmmb_to_a.o \
 	mod_strong.o \
 	mod_vtrans.o \
-        model_ad.o \
-        model_tl.o \
-        model2control.o \
+	model_ad.o \
+	model_tl.o \
+	model2control.o \
 	mp_compact_diffs_mod1.o \
 	mp_compact_diffs_support.o \
 	mpimod.o \
-        mpl_allreduce.o \
-        mpl_bcast.o \
-        ncepgfs_ghg.o \
-        ncepgfs_io.o \
+	mpl_allreduce.o \
+	mpl_bcast.o \
+	ncepgfs_ghg.o \
+	ncepgfs_io.o \
 	ncepnems_io.o \
 	nlmsas_ad.o \
 	normal_rh_to_q.o \
-        nstio_module.o \
-        obs_ferrscale.o \
+	nstio_module.o \
+	obs_ferrscale.o \
 	obs_para.o \
-        obs_sensitivity.o \
-        observer.o \
+	obs_sensitivity.o \
+	observer.o \
 	obsmod.o \
 	omegas_ad.o \
 	oneobmod.o \
@@ -255,7 +262,7 @@ LIBsys          = $(MYLIBsys)
 	pcgsqrt.o \
 	pcp_k.o \
 	pcpinfo.o \
-        penal.o \
+	penal.o \
 	phil.o \
 	phil1.o \
 	plib8.o \
@@ -266,21 +273,21 @@ LIBsys          = $(MYLIBsys)
 	prewgt.o \
 	prewgt_reg.o \
 	projmethod_support.o \
-        prt_guess.o \
+	prt_guess.o \
 	psichi2uv_reg.o \
 	psichi2uvt_reg.o \
 	q_diag.o \
 	qcmod.o \
-        qnewton.o \
-        qnewton3.o \
+	qnewton.o \
+	qnewton3.o \
 	radinfo.o \
 	raflib.o \
-        rapidrefresh_cldsurf_mod.o \
+	rapidrefresh_cldsurf_mod.o \
 	rdgrbsst.o \
-        read_aerosol.o \
+	read_aerosol.o \
 	read_airs.o \
 	read_amsre.o \
-        read_anowbufr.o \
+	read_anowbufr.o \
 	read_avhrr.o \
 	read_avhrr_navy.o \
 	read_bufrtovs.o \
@@ -288,26 +295,27 @@ LIBsys          = $(MYLIBsys)
 	read_co.o \
 	read_diag.o \
 	read_files.o \
-        read_gfs_ozone_for_regional.o \
+	read_gfs_ozone_for_regional.o \
 	read_goesimg.o \
 	read_goesndr.o \
 	read_gps.o \
 	read_guess.o \
 	read_iasi.o \
 	read_l2bufr_mod.o \
-        read_lag.o \
+	read_lag.o \
 	read_lidar.o \
-        read_Lightning.o \
+	read_Lightning.o \
 	read_modsbufr.o \
-        read_NASA_LaRC.o \
+	read_NASA_LaRC.o \
 	read_obs.o \
 	read_obsdiags.o \
 	read_ozone.o \
+	read_pblh.o \
 	read_pcp.o \
 	read_prepbufr.o \
 	read_radar.o \
-        read_RadarRef_mosaic.o \
-        read_satwnd.o \
+	read_RadarRef_mosaic.o \
+	read_satwnd.o \
 	read_seviri.o \
 	read_ssmi.o \
 	read_ssmis.o \
@@ -318,20 +326,22 @@ LIBsys          = $(MYLIBsys)
 	read_wrf_nmm_files.o \
 	read_wrf_nmm_guess.o \
 	regional_io.o \
-        reorg_metar_cloud.o \
+	reorg_metar_cloud.o \
 	rfdpar.o \
 	rsearch.o \
-        rtlnmc_version3.o \
+	rtlnmc_version3.o \
 	satthin.o \
-        set_crtm_aerosolmod.o \
-        set_crtm_cloudmod.o \
-        setupbend.o \
-        setupco.o \
+	set_crtm_aerosolmod.o \
+	set_crtm_cloudmod.o \
+	setupbend.o \
+	setupco.o \
 	setupdw.o \
-        setuplag.o \
+	setupgust.o \
+	setuplag.o \
 	setupoz.o \
+	setuppblh.o \
 	setuppcp.o \
-        setuppm2_5.o \
+	setuppm2_5.o \
 	setupps.o \
 	setuppw.o \
 	setupq.o \
@@ -344,21 +354,22 @@ LIBsys          = $(MYLIBsys)
 	setupsst.o \
 	setupt.o \
 	setuptcp.o \
+	setupvis.o \
 	setupw.o \
 	setupyobs.o \
 	sfc_model.o \
 	sfcobsqc.o \
 	simpin1.o \
 	simpin1_init.o \
-        skindepth.o \
+	skindepth.o \
 	smooth_polcarf.o \
 	smoothrf.o \
 	smoothwwrf.o \
 	smoothzrf.o \
-        sqrtmin.o \
+	sqrtmin.o \
 	sst_retrieval.o \
-        state2control.o \
-        state_vectors.o \
+	state2control.o \
+	state_vectors.o \
 	statsco.o \
 	statsconv.o \
 	statsoz.o \
@@ -370,12 +381,17 @@ LIBsys          = $(MYLIBsys)
 	stpco.o \
 	stpdw.o \
 	stpgps.o \
+	stpgust.o \
 	stpjo.o \
 	stpjcpdry.o \
 	stplimq.o \
+	stplimg.o \
+	stplimv.o \
+	stplimp.o \
 	stpoz.o \
+	stppblh.o \
 	stppcp.o \
-        stppm2_5.o \
+	stppm2_5.o \
 	stpps.o \
 	stppw.o \
 	stpq.o \
@@ -386,6 +402,7 @@ LIBsys          = $(MYLIBsys)
 	stpsst.o \
 	stpt.o \
 	stptcp.o \
+	stpvis.o \
 	stpw.o \
 	strong_bal_correction.o \
 	strong_baldiag_inc.o \
@@ -394,14 +411,14 @@ LIBsys          = $(MYLIBsys)
 	sub2fslab_mod.o \
 	sub2grid.o \
 	support_2dvar.o \
-        stub_set_crtm_aerosol.o \
-        stub_set_crtm_cloud.o \
-        stub_pertmod.o \
-        stub_timermod.o \
+	stub_set_crtm_aerosol.o \
+	stub_set_crtm_cloud.o \
+	stub_pertmod.o \
+	stub_timermod.o \
 	tendsmod.o \
-        test_obsens.o \
-        tcv_mod.o \
-        timermod.o \
+	test_obsens.o \
+	tcv_mod.o \
+	timermod.o \
 	tintrp2a.o \
 	tintrp3.o \
 	tpause.o \
@@ -422,12 +439,12 @@ LIBsys          = $(MYLIBsys)
 	wrf_netcdf_interface.o \
 	write_all.o \
 	write_bkgvars_grid.o \
-        write_obsdiags.o \
+	write_obsdiags.o \
 	wrwrfmassa.o \
 	wrwrfnmma.o \
-        xhat_vordivmod.o \
+	xhat_vordivmod.o \
 	zrnmi_mod.o \
-        blockIO.o
+	blockIO.o
 
 # ----
 

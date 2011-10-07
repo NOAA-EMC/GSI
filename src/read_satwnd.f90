@@ -14,6 +14,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !
 ! program history log:
 !   2010-10-13 su, x.  
+!   2011-08-09 pondeca - add support for twodvar option
 !   2011-08-27 todling - bypass this routine when SATWND from prepbufr are used
 !
 !   input argument list:
@@ -102,6 +103,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(50) satqctr,qcstr
   character(8) subset
   character(20) derdwtr,heightr
+  character(8) c_prvstg,c_sprvstg
 
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
@@ -136,7 +138,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1
-  real(r_kind) tsavg,ff10,sfcr,sstime,gstime
+  real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
   real(r_kind),dimension(nsig-1):: dpres
@@ -147,8 +149,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(3,5) :: heightdat
   real(r_double),dimension(6,4) :: derdwdat
   real(r_double),dimension(3,12) :: qcdat
+  real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+
+! equivalence to handle character names
+  equivalence(r_prvstg(1,1),c_prvstg)
+  equivalence(r_sprvstg(1,1),c_sprvstg)
 
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA GCLONG SCCF'/ 
   data obstr/'HAMD PRLC WDIR WSPD'/ 
@@ -171,7 +178,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=20
+  nreal=23
   if(perturb_obs ) nreal=nreal+2
   if (noiqc) then
      lim_qm=8
@@ -234,10 +241,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !       Extract type information
         call ufbint(lunin,hdrdat,12,1,iret,hdrtr)
 !       determine the satellite wind type as in prepbufr
-!       241: India, 242:JMA IR and visible<850mb,243: EUMETSAT IR and visible <850mb
+!       241: India, 242:JMA Visible,243: EUMETSAT visible
 !       245: GOES IR. 246: GOES WV cloud top, 247: GOES WV deep layer
-!       250: JMA WV deep layer. 251:GOES visible, 252: JMA IR and visible >850mb
-!       253: EUMETSAT IR and visible >850mb, 254: EUMETSAT WV deep layer
+!       250: JMA WV deep layer. 251:GOES visible, 252: JMA IR
+!       253: EUMETSAT IR , 254: EUMETSAT WV deep layer
 !       257: MODIS IR, 258: WV cloud top, 259:  WV deep layer
         iobsub=0
         itype=-1
@@ -434,10 +441,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if (abs(tdiff)>twind) cycle loop_readsb 
            endif
 !       determine the satellite wind type as in prepbufr
-!       241: India, 242:JMA IR and visible<850mb,243: EUMETSAT IR and visible <850mb
+!       241: India, 242:JMA visible,243: EUMETSAT visible
 !       245: GOES IR. 246: GOES WV cloud top, 247: GOES WV deep layer
-!       250: JMA WV deep layer. 251:GOES visible, 252: JMA IR and visible >850mb 
-!       253: EUMETSAT IR and visible >850mb, 254: EUMETSAT WV deep layer
+!       250: JMA WV deep layer. 251:GOES visible, 252: JMA IR
+!       253: EUMETSAT IR , 254: EUMETSAT WV deep layer
 !       257: MODIS IR, 258: WV cloud top, 259:  WV deep layer
            iosub=0
            if(abs(hdrdat(2)) >r90 ) cycle loop_readsb 
@@ -620,8 +627,22 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(iuse <= 0)usage=r100
                  if(qm == 15 .or. qm == 12 .or. qm == 9)usage=r100
 
+
+                 if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
+                 if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
+                 if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
+                 if(itype==246) then;  c_prvstg='NESDIS'   ;  c_sprvstg='WV'       ; endif
+                 if(itype==250) then;  c_prvstg='JMA'      ;  c_sprvstg='WV'       ; endif
+                 if(itype==251) then;  c_prvstg='NESDIS'   ;  c_sprvstg='VI'       ; endif
+                 if(itype==252) then;  c_prvstg='JMA'      ;  c_sprvstg='IR'       ; endif
+                 if(itype==253) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='IR'       ; endif
+                 if(itype==254) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='WV'       ; endif
+                 if(itype==257) then;  c_prvstg='MODIS'    ;  c_sprvstg='IR'       ; endif
+                 if(itype==258) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVCTOP'   ; endif
+                 if(itype==259) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVDLAYER' ; endif
+
 ! Get information from surface file necessary for conventional data here
-                 call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr)
+                 call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
  
 !!    process the thining procedure
                 
@@ -731,10 +752,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  cdata_all(18,iout)=sfcr                ! surface roughness
                  cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
                  cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
+                 cdata_all(21,iout)=zz                  ! terrain height at ob location
+                 cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
+                 cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
 
                  if(perturb_obs)then
-                    cdata_all(21,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(22,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(24,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(25,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
         enddo  loop_readsb
 !   End of bufr read loop

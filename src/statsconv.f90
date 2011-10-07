@@ -1,6 +1,6 @@
 subroutine statsconv(mype,&
      i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-     bwork,awork,ndata)
+     i_gust,i_vis,i_pblh,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -51,6 +51,9 @@ subroutine statsconv(mype,&
 !     i_sst    - index in awork array holding sst info
 !     i_tcp    - index in awork array holding tcps info
 !     i_lag    - index in awork array holding lag info
+!     i_gust   - index in awork array holding gust info
+!     i_vis    - index in awork array holding vis info
+!     i_pblh   - index in awork array holding pblh info
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
 !     ndata(*,1)- number of profiles retained for further processing
@@ -68,8 +71,9 @@ subroutine statsconv(mype,&
   use constants, only: zero,three,five
   use obsmod, only: iout_sst,iout_pw,iout_t,iout_rw,iout_dw,&
        iout_srw,iout_uv,iout_gps,iout_ps,iout_q,iout_tcp,iout_lag,&
-       mype_dw,mype_rw,mype_srw,mype_sst,mype_gps,mype_uv,mype_ps,&
-       mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag
+       iout_gust,iout_vis,iout_pblh,mype_dw,mype_rw,mype_srw,&
+       mype_sst,mype_gps,mype_uv,mype_ps,mype_t,mype_pw,mype_q,&
+       mype_tcp,ndat,dtype,mype_lag,mype_gust,mype_vis,mype_pblh
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -78,7 +82,7 @@ subroutine statsconv(mype,&
 
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
-       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag
+       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh
   real(r_kind),dimension(7*nsig+100,13)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -87,7 +91,7 @@ subroutine statsconv(mype,&
   character(100) mesage
 
   integer(i_kind) numgrspw,numsst,nsuperp,nump,nhitopo,ntoodif
-  integer(i_kind) numgrsq,numhgh
+  integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh
   integer(i_kind) ntot,numlow,k,numssm,i,j
   integer(i_kind) numgross,numfailqc,numfailqc_ssmi,nread,nkeep
   integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd
@@ -526,6 +530,122 @@ subroutine statsconv(mype,&
      close(iout_sst)
   end if
 
+! Summary report for conventional gust
+  if(mype==mype_gust) then
+     if(first)then
+        open(iout_gust)
+     else
+        open(iout_gust,position='append')
+     end if
+
+     numgust=nint(awork(5,i_gust))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'gust')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional gust data, ranges in  m/s$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'gust'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_gust,pflag)
+
+        numgross=nint(awork(6,i_gust))
+        numfailqc=nint(awork(21,i_gust))
+        if(numgust > 0)then
+           pw=awork(4,i_gust)/numgust
+           pw3=awork(22,i_gust)/numgust
+        end if
+        write(iout_gust,925) 'gust',numgross,numfailqc
+     end if
+     write(iout_gust,950) 'gust',jiter,nread,nkeep,numgust
+     write(iout_gust,951) 'gust',awork(4,i_gust),awork(22,i_gust),pw,pw3
+
+     close(iout_gust)
+  end if
+
+! Summary report for conventional vis
+  if(mype==mype_vis) then
+     if(first)then
+        open(iout_vis)
+     else
+        open(iout_vis,position='append')
+     end if
+
+     numvis=nint(awork(5,i_vis))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'vis')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional vis data, ranges in  m$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'vis'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_vis,pflag)
+
+        numgross=nint(awork(6,i_vis))
+        numfailqc=nint(awork(21,i_vis))
+        if(numvis > 0)then
+           pw=awork(4,i_vis)/numvis
+           pw3=awork(22,i_vis)/numvis
+        end if
+        write(iout_vis,925) 'vis',numgross,numfailqc
+     end if
+     write(iout_vis,950) 'vis',jiter,nread,nkeep,numvis
+     write(iout_vis,951) 'vis',awork(4,i_vis),awork(22,i_vis),pw,pw3
+
+     close(iout_vis)
+  end if
+
+! Summary report for conventional pblh
+  if(mype==mype_pblh) then
+     if(first)then
+        open(iout_pblh)
+     else
+        open(iout_pblh,position='append')
+     end if
+
+     numpblh=nint(awork(5,i_pblh))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'pblh')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional pblh data, ranges in  m$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'pblh'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_pblh,pflag)
+
+        numgross=nint(awork(6,i_pblh))
+        numfailqc=nint(awork(21,i_pblh))
+        if(numpblh > 0)then
+           pw=awork(4,i_pblh)/numpblh
+           pw3=awork(22,i_pblh)/numpblh
+        end if
+        write(iout_pblh,925) 'pblh',numgross,numfailqc
+     end if
+     write(iout_pblh,950) 'pblh',jiter,nread,nkeep,numpblh
+     write(iout_pblh,951) 'pblh',awork(4,i_pblh),awork(22,i_pblh),pw,pw3
+
+     close(iout_pblh)
+  end if
 
 ! Summary report for temperature  
   if (mype==mype_t)then

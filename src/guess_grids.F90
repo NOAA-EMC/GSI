@@ -83,6 +83,7 @@ module guess_grids
 !   2010-09-15  pagowski - add cmaq
 !   2010-12-20  cucurull - add integer nsig_ext 
 !   2011-01-05  cucurull - add real gpstop
+!   2011-02-11  zhu      - add ges_gust,ges_vis,ges_pblh
 !   2011-03-13  li      - add for nst FCST file
 !   2011-04-29  todling  - some of cloud fields move to wrf_guess_mod; some to met_guess
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
@@ -127,6 +128,7 @@ module guess_grids
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
+  public :: ges_gust,ges_vis,ges_pblh
   public :: use_compress,nsig_ext,gpstop
 
   public :: ges_initialized
@@ -224,6 +226,9 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_ps     ! log(surface pressure)
   real(r_kind),allocatable,dimension(:,:,:):: ges_ps_lat ! log(ps)/lat for pcp routine
   real(r_kind),allocatable,dimension(:,:,:):: ges_ps_lon ! log(ps)/lon for pcp routine
+  real(r_kind),allocatable,dimension(:,:,:):: ges_gust   ! wind gust speed
+  real(r_kind),allocatable,dimension(:,:,:):: ges_vis    ! visibility
+  real(r_kind),allocatable,dimension(:,:,:):: ges_pblh   ! pbl height
 
                                                          ! Guess Fields ...
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsi  ! interface pressure
@@ -430,6 +435,7 @@ contains
 !   2006-12-04  todling - remove bias initialization; rename routine
 !   2006-12-15  todling - protection to allow initializing ges/tnd/drv at will
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
+!   2011-02-09  zhu     - add ges_gust,ges_vis,ges_pblh
 !
 ! !REMARKS:
 !   language: f90
@@ -473,7 +479,8 @@ contains
             ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
             ges_q(lat2,lon2,nsig,nfldsig),&
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
-            stat=istatus)
+            ges_gust(lat2,lon2,nfldsig),ges_vis(lat2,lon2,nfldsig),&
+            ges_pblh(lat2,lon2,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #endif /* HAVE_ESMF */
@@ -512,6 +519,9 @@ contains
              do i=1,lat2
                 ges_z(i,j,n)=zero
                 ges_ps(i,j,n)=zero
+                ges_gust(i,j,n)=zero
+                ges_vis(i,j,n)=zero
+                ges_pblh(i,j,n)=zero
              end do
           end do
        end do

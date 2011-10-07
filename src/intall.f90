@@ -172,10 +172,15 @@ subroutine intall(sval,sbias,rval,rbias)
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
   use intlimqmod, only: intlimq
+  use intlimgmod, only: intlimg
+  use intlimvmod, only: intlimv
+  use intlimpmod, only: intlimp
   use intjcpdrymod, only: intjcpdry
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
+  use control_vectors, only: cvars2d
+  use mpeu_util, only: getindex
   implicit none
 
 ! Declare passed variables
@@ -211,6 +216,18 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for moisture constraint
   if (.not.ltlint) call intlimq(rval(1),sval(1))
+
+! RHS for gust constraint
+  if ((.not.ltlint) .and. (getindex(cvars2d,'gust')>0)) &
+     call intlimg(rval(1),sval(1))
+
+! RHS for vis constraint
+  if ((.not.ltlint) .and. (getindex(cvars2d,'vis')>0)) &
+     call intlimv(rval(1),sval(1))
+
+! RHS for pblh constraint
+  if ((.not.ltlint) .and. (getindex(cvars2d,'pblh')>0)) &
+     call intlimp(rval(1),sval(1))
 
 ! RHS for dry ps constraint
   if (ljcpdry) call intjcpdry(rval(1),sval(1))
