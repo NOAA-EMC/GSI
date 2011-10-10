@@ -48,6 +48,9 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2007-08-28      su - modify the observation gross check error 
 !   2008-05-23  safford - rm unused vars and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2009-02-06  pondeca - for each observation site, add the following to the
+!                         diagnostic file: local terrain height, dominate surface
+!                         type, station provider name, and station subprovider name
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !
 !   input argument list:
@@ -74,7 +77,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig,ges_tv,ges_lnprsl, &
            ges_ps,comp_fact10,sfcmod_gfs,sfcmod_mm5
-  use gridmod, only: nsig,get_ij
+  use gridmod, only: nsig,get_ij,twodvar_regional
   use qcmod, only: npres_print,ptop,pbot
   use constants, only: one,grav,rd,zero,four,tiny_r_kind, &
        half,two,cg_term,huge_single,r1000,wgtlim
@@ -124,7 +127,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) mm1,ibin,ioff
   integer(i_kind) ii,jj,i,nchar,nreal,k,j,l,nty,nn,ikxx
   integer(i_kind) ier,ilon,ilat,ipres,iuob,ivob,id,itime,ikx
-  integer(i_kind) ihgt,iqc,ier2,iuse,ilate,ilone,istnelv,istat
+  integer(i_kind) ihgt,iqc,ier2,iuse,ilate,ilone,istnelv,istat,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iskint,iff10,isfcr,isli
 
   
@@ -132,6 +135,9 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
+  character(8),allocatable,dimension(:):: cprvstg,csprvstg
+  character(8) c_prvstg,c_sprvstg
+  real(r_double) r_prvstg,r_sprvstg
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -141,6 +147,8 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
   equivalence(rstation_id,station_id)
+  equivalence(r_prvstg,c_prvstg)
+  equivalence(r_sprvstg,c_sprvstg)
 
 
   n_alloc(:)=0
@@ -170,6 +178,9 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ilone=18    ! index of longitude (degrees)
   ilate=19    ! index of latitude (degrees)
   istnelv=20  ! index of station elevation (m)
+  izz=21      ! index of surface height
+  iprvd=22    ! index of observation provider
+  isprvd=23   ! index of  observation subprovider
 
   mm1=mype+1
   scale=one
@@ -185,6 +196,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=20
      if (lobsdiagsave) nreal=nreal+4*miter+1
+     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
 
@@ -538,8 +550,8 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rdiagbuf(20,ii) = factw              ! 10m wind reduction factor
 
+        ioff=20
         if (lobsdiagsave) then
-           ioff=20
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_spd_ob_type,ibin)%tail%muse(jj)) then
@@ -562,7 +574,18 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            enddo
         endif
 
+        if (twodvar_regional) then
+           rdiagbuf(ioff+1,ii) = data(idomsfc,i) ! dominate surface type
+           rdiagbuf(ioff+2,ii) = data(izz,i)     ! model terrain at ob location
+           r_prvstg            = data(iprvd,i)
+           cprvstg(ii)         = c_prvstg        ! provider name
+           r_sprvstg           = data(isprvd,i)
+           csprvstg(ii)        = c_sprvstg       ! subprovider name
+        endif
+
      end if
+
+! End of loop over observations
   end do
 
 ! Write information to diagnostic file
@@ -571,6 +594,11 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      write(7)'spd',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
+
+     if (twodvar_regional) then
+        write(7)cprvstg(1:ii),csprvstg(1:ii)
+        deallocate(cprvstg,csprvstg)
+     endif
   end if
 
 ! End of routine

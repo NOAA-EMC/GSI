@@ -23,6 +23,7 @@ subroutine state2control(rval,bval,grad)
 !   2010-05-31  todling  - better consistency checks; add co/co2
 !                        - ready to bypass analysis of (any) meteorological fields
 !   2010-06-15  todling  - generalized handling of chemistry
+!   2011-02-22  zhu      - add gust,vis,pblh
 !   2011-05-15  auligne/todling - generalized cloud handling
 !
 !   input argument list:
@@ -75,10 +76,11 @@ type(gsi_bundle) :: wbundle ! work bundle
 !       this routines knows how to handle.
 integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)
+integer(i_kind) :: icpblh,icgust,icvis
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
-real(r_kind),pointer,dimension(:,:)   :: cv_ps
+real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
 
 ! Declare required local state variables
@@ -88,6 +90,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
 logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
+real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
@@ -139,6 +142,10 @@ do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_p3d.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_p3d
 do_strong_bk_ad     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
 
+call gsi_bundlegetpointer (grad%step(1),'gust',icgust,istatus)
+call gsi_bundlegetpointer (grad%step(1),'vis',icvis,istatus)
+call gsi_bundlegetpointer (grad%step(1),'pblh',icpblh,istatus)
+
 ! Loop over control steps
 do jj=1,nsubwin
 
@@ -155,6 +162,7 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'ps' ,cv_ps ,istatus)
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
+   if (icvis>0) call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
 
 !  Get pointers to this subwin require state variables
    call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
@@ -166,6 +174,9 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
    call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)
    call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
+   if (icgust>0) call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
+   if (icvis >0) call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
+   if (icpblh>0) call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
 
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
@@ -175,6 +186,9 @@ do jj=1,nsubwin
    call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
    call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
    call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
+   if (icgust>0) call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
+   if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
+   if (icpblh>0) call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
 
 !  Since cloud-vars map one-to-one, take care of them together
    do ic=1,nclouds
@@ -219,6 +233,9 @@ do jj=1,nsubwin
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(cv_ps,cv_t,rv_p3d)
+
+!  Adjoint of convert logvis to vis
+   if(icvis >0) call logvis_to_vis_ad(cv_vis,rv_vis)
 
 !  If this is ensemble run, then add ensemble contribution sum(a(k)*xe(k)),  where a(k) are the ensemble
 !    control variables and xe(k), k=1,n_ens are the ensemble perturbations.

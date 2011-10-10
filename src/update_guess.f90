@@ -64,6 +64,7 @@ subroutine update_guess(sval,sbias)
 !   2010-06-01  todling - skip upd when pointer not defined
 !   2010-06-02  todling - bug in upd of chem
 !   2010-11-02  ting - replace loop index k in nfldsfc loop with it (bug fix)
+!   2011-02-25  zhu  - add gust,vis,pblh
 !   2010-05-01  todling - add support for generalized guess (use met-guess)
 !                       - cwmr now in met-guess
 !   2011-06-29  todling - no explict reference to internal bundle arrays
@@ -90,8 +91,8 @@ subroutine update_guess(sval,sbias)
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
-       nfldsfc,dsfct
+       ges_tsen,ges_oz,ges_u,ges_v,ges_gust,ges_vis,ges_pblh,&
+       nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
@@ -120,6 +121,7 @@ subroutine update_guess(sval,sbias)
   character(max_varname_length),allocatable,dimension(:) :: cloud
   integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
   integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst
+  integer(i_kind) is_gust,is_vis,is_pblh
   integer(i_kind) ipinc,ipges,icloud,ncloud
   real(r_kind) :: zt
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc=>NULL()
@@ -131,6 +133,7 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: p_q     =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_tv    =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_oz    =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2daux=>NULL()
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -146,6 +149,9 @@ subroutine update_guess(sval,sbias)
   call gsi_bundlegetpointer(sval(1),'cw', is_cw, istatus)
   call gsi_bundlegetpointer(sval(1),'ps', is_ps, istatus)
   call gsi_bundlegetpointer(sval(1),'sst',is_sst,istatus)
+  call gsi_bundlegetpointer(sval(1),'gust',is_gust,istatus)
+  call gsi_bundlegetpointer(sval(1),'vis',is_vis,istatus)
+  call gsi_bundlegetpointer(sval(1),'pblh',is_pblh,istatus)
 
 ! Inquire about guess fields
   call gsi_metguess_get('dim',nguess,istatus)
@@ -281,6 +287,36 @@ subroutine update_guess(sval,sbias)
         endif
      enddo
 
+     if (twodvar_regional) then
+        if(is_gust>0) then
+           call gsi_bundlegetpointer (sval(ii),'gust',ptr2daux,istatus)
+           do j=1,lon2
+              do i=1,lat2
+                 ges_gust(i,j,it) = ges_gust(i,j,it) + ptr2daux(i,j)
+                 ges_gust(i,j,it) = max(zero,ges_gust(i,j,it))
+              end do
+           end do
+        endif
+        if(is_vis>0) then
+           call gsi_bundlegetpointer (sval(ii),'vis',ptr2daux,istatus)
+           do j=1,lon2
+              do i=1,lat2
+                 ges_vis(i,j,it) = ges_vis(i,j,it) + ptr2daux(i,j)
+                 if (ges_vis(i,j,it)<=zero) ges_vis(i,j,it)=1.0e-4_r_kind
+                 if (ges_vis(i,j,it)>20000.0_r_kind) ges_vis(i,j,it)=20000.0_r_kind
+              end do
+           end do
+        endif
+        if(is_pblh>0) then
+           call gsi_bundlegetpointer (sval(ii),'pblh',ptr2daux,istatus)
+           do j=1,lon2
+              do i=1,lat2
+                 ges_pblh(i,j,it) = ges_pblh(i,j,it) + ptr2daux(i,j)
+                 ges_pblh(i,j,it) = max(zero,ges_pblh(i,j,it))
+              end do
+           end do
+        endif
+     end if
   end do
 
   if(ngases>0)then

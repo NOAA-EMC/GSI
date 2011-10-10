@@ -79,6 +79,9 @@ module m_gsiBiases
   public :: bias_tv
   public :: bias_u
   public :: bias_v
+  public :: bias_gust
+  public :: bias_vis
+  public :: bias_pblh
 
   integer(i_kind),save :: bias_hour = -1
   integer(i_kind),save :: nbc       = -1
@@ -94,6 +97,9 @@ module m_gsiBiases
 
   real(r_kind),allocatable,dimension(:,:,:)   :: bias_ps
   real(r_kind),allocatable,dimension(:,:,:)   :: bias_tskin
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_gust
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_vis
+  real(r_kind),allocatable,dimension(:,:,:)   :: bias_pblh
   real(r_kind),allocatable,dimension(:,:,:,:) :: bias_vor
   real(r_kind),allocatable,dimension(:,:,:,:) :: bias_div
   real(r_kind),allocatable,dimension(:,:,:,:) :: bias_cwmr
@@ -142,7 +148,8 @@ subroutine init_()
   if (nint(diurnalbc)==1) nbc=3
 
   allocate(bias_ps(lat2,lon2,nbc),bias_tskin(lat2,lon2,nbc),&
-           bias_vor(lat2,lon2,nsig,nbc),&
+           bias_gust(lat2,lon2,nbc),bias_vis(lat2,lon2,nbc),&
+           bias_pblh(lat2,lon2,nbc),bias_vor(lat2,lon2,nsig,nbc),&
            bias_div(lat2,lon2,nsig,nbc),bias_cwmr(lat2,lon2,nsig,nbc),&
            bias_oz(lat2,lon2,nsig,nbc),bias_q(lat2,lon2,nsig,nbc),&
            bias_tv(lat2,lon2,nsig,nbc),bias_u(lat2,lon2,nsig,nbc),&
@@ -157,6 +164,9 @@ subroutine init_()
         do i=1,lat2
            bias_ps   (i,j,n)=zero
            bias_tskin(i,j,n)=zero
+           bias_gust (i,j,n)=zero
+           bias_vis  (i,j,n)=zero
+           bias_pblh (i,j,n)=zero
         end do
      end do
   end do
@@ -208,7 +218,7 @@ subroutine clean_()
 
    if (.not.initialized_) return 
    if ( nbc < 0 ) return
-   deallocate(bias_ps,bias_tskin,bias_vor,bias_div,&
+   deallocate(bias_ps,bias_tskin,bias_gust,bias_vis,bias_pblh,bias_vor,bias_div,&
               bias_tv,bias_q,bias_oz,bias_cwmr,bias_u,bias_v,stat=istatus)
    write(6,*)'CREATE_BIAS_GRIDS:  deallocate error5, istatus=',istatus
 end subroutine clean_
@@ -651,7 +661,7 @@ end subroutine updateall_
 
 subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,twodvar_regional
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
@@ -667,6 +677,7 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 !
 !   2007-04-13  tremolet - initial code
 !   2010-05-13  todling  - update to use gsi_bundle (not fully up-to-date)
+!   2011-02-11  zhu      - add gust,vis,pblh
 !
 ! !REMARKS:
 !   language: f90
@@ -677,7 +688,8 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 
    character(len=*),parameter::myname_='update_st'
    integer(i_kind) ier,istatus
-   real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
+   integer(i_kind) i_gust,i_vis,i_pblh
+   real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst,sv_gust,sv_vis,sv_pblh
    real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz,sv_cw
 
 !  Get pointers to require state variables
@@ -692,6 +704,22 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
 !  call gsi_bundlegetpointer (xhat,'p3d' ,sv_p3d, istatus); ier=istatus+ier
 !  call gsi_bundlegetpointer (xhat,'tsen',sv_tsen,istatus); ier=istatus+ier
    call gsi_bundlegetpointer (xhat,'sst' ,sv_sst, istatus); ier=istatus+ier
+   if (twodvar_regional) then
+      call gsi_bundlegetpointer (xhat,'gust' ,i_gust, istatus)
+      if (i_gust>0) then
+         call gsi_bundlegetpointer (xhat,'gust' ,sv_gust, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'vis' ,i_vis, istatus)
+      if (i_vis>0) then
+         call gsi_bundlegetpointer (xhat,'vis' ,sv_vis, istatus); ier=istatus+ier
+      end if
+
+      call gsi_bundlegetpointer (xhat,'pblh' ,i_pblh, istatus)
+      if (i_pblh>0) then
+         call gsi_bundlegetpointer (xhat,'pblh' ,sv_pblh, istatus); ier=istatus+ier
+      end if
+   end if
    if(ier/=0) then
       write(6,*) trim(myname_), ': trouble getting SV pointers, ier=',ier
       call stop2(999)
@@ -708,6 +736,11 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
   call update3d3d_(bias_div  ,               xhat_vor,hour)
   call update2d_  (bias_ps   ,lat2,lon2     ,sv_ps   ,hour)
   call update2d_  (bias_tskin,lat2,lon2     ,sv_sst  ,hour)
+  if (twodvar_regional) then
+     if (i_gust>0) call update2d_  (bias_gust,lat2,lon2,sv_gust,hour)
+     if (i_vis>0 ) call update2d_  (bias_vis ,lat2,lon2,sv_vis ,hour)
+     if (i_pblh>0) call update2d_  (bias_pblh,lat2,lon2,sv_pblh,hour)
+  end if
 
 end subroutine update_st
 
@@ -726,14 +759,17 @@ subroutine correct_()
 
 ! !USES:
 
-  use gridmod, only: lat2,lon2,nsig,latlon1n
+  use gridmod, only: lat2,lon2,nsig,latlon1n,twodvar_regional
   use guess_grids, only: nfldsig,ntguessig
   use guess_grids, only: ges_ps,ges_u,ges_v,ges_vor,ges_div,&
-      ges_tv,ges_q,ges_oz,sfct
+      ges_tv,ges_q,ges_oz,sfct,&
+      ges_gust,ges_vis,ges_pblh
   use constants, only: tiny_r_kind
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
+  use control_vectors, only: cvars2d
+  use mpeu_util, only: getindex
 
   implicit none
 
@@ -744,6 +780,7 @@ subroutine correct_()
 ! !REVISION HISTORY:
 !
 !   2006-12-04  todling - initial code
+!   2011-02-11  zhu     - add gust,vis,pblh
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !
 ! !TO DO:
@@ -771,6 +808,9 @@ subroutine correct_()
 
   real(r_kind),allocatable,dimension(:,:)  :: b_ps
   real(r_kind),allocatable,dimension(:,:)  :: b_tskin
+  real(r_kind),allocatable,dimension(:,:)  :: b_gust
+  real(r_kind),allocatable,dimension(:,:)  :: b_vis
+  real(r_kind),allocatable,dimension(:,:)  :: b_pblh
   real(r_kind),allocatable,dimension(:,:,:):: b_vor
   real(r_kind),allocatable,dimension(:,:,:):: b_div
   real(r_kind),allocatable,dimension(:,:,:):: b_cwmr
@@ -786,7 +826,8 @@ subroutine correct_()
 ! Get memory for bias-related arrays
 
   allocate(hours(nfldsig))
-  allocate(b_ps(lat2,lon2),b_tskin(lat2,lon2),b_vor(lat2,lon2,nsig),&
+  allocate(b_ps(lat2,lon2),b_tskin(lat2,lon2),b_gust(lat2,lon2),&
+           b_vis(lat2,lon2),b_pblh(lat2,lon2),b_vor(lat2,lon2,nsig),&
            b_div(lat2,lon2,nsig),b_cwmr(lat2,lon2,nsig),&
            b_oz(lat2,lon2,nsig),b_q(lat2,lon2,nsig),&
            b_tv(lat2,lon2,nsig),b_u(lat2,lon2,nsig),b_v(lat2,lon2,nsig))
@@ -807,7 +848,16 @@ subroutine correct_()
      call comp3d_(b_cwmr ,bias_cwmr ,hours(it))
      call comp3d_(b_q    ,bias_q    ,hours(it))
      call comp3d_(b_oz   ,bias_oz   ,hours(it))
-                                                                                                               
+
+     if (twodvar_regional) then
+        if (getindex(cvars2d,'gust')>0) &
+        call comp2d_(b_gust,bias_gust,hours(it))
+        if (getindex(cvars2d,'vis')>0) &
+        call comp2d_(b_vis ,bias_vis ,hours(it))
+        if (getindex(cvars2d,'pblh')>0) &
+        call comp2d_(b_pblh,bias_pblh,hours(it))
+     end if
+
      bias_hour=hours(ntguessig)
 
      do j=1,lon2
@@ -834,12 +884,36 @@ subroutine correct_()
            sfct(i,j,it)= sfct(i,j,it) + b_tskin(i,j)
         end do
      end do
+
+     if (twodvar_regional) then
+        if (getindex(cvars2d,'gust')>0) then
+           do j=1,lon2
+              do i=1,lat2
+                 ges_gust(i,j,it)= ges_gust(i,j,it) + b_gust(i,j)
+              end do
+           end do
+        end if
+        if (getindex(cvars2d,'vis')>0) then
+           do j=1,lon2
+              do i=1,lat2
+                 ges_vis(i,j,it)= ges_vis(i,j,it) + b_vis(i,j)
+              end do
+           end do
+        end if
+        if (getindex(cvars2d,'pblh')>0) then
+           do j=1,lon2
+              do i=1,lat2
+                 ges_pblh(i,j,it)= ges_pblh(i,j,it) + b_pblh(i,j)
+              end do
+           end do
+        end if
+     end if
   end do
 
 ! Clean up bias-related arrays
 
   deallocate(hours)
-  deallocate(b_ps,b_tskin,b_vor,b_div,b_cwmr,b_oz,b_q,b_tv,b_u,b_v)
+  deallocate(b_ps,b_tskin,b_gust,b_vis,b_pblh,b_vor,b_div,b_cwmr,b_oz,b_q,b_tv,b_u,b_v)
 
 end subroutine correct_
 

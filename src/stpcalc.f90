@@ -163,6 +163,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !   2010-06-01  treadon - accumulate pbcjo over nobs_bins 
 !   2010-08-19  lueken - add only to module use
 !   2010-09-14  derber - clean up quad precision
+!   2011-02-25  zhu    - add gust,vis,pblh calls
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -203,14 +204,18 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use jcmod, only: ljcpdry
   use obsmod, only: yobs,nobs_type
   use stplimqmod, only: stplimq
+  use stplimgmod, only: stplimg
+  use stplimvmod, only: stplimv
+  use stplimpmod, only: stplimp
   use stpjcpdrymod, only: stpjcpdry
   use bias_predictors, only: predictors
-  use control_vectors, only: control_vector,qdot_prod_sub
+  use control_vectors, only: control_vector,qdot_prod_sub,cvars2d
   use state_vectors, only: allocate_state,deallocate_state
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: assignment(=)
   use mpl_allreducemod, only: mpl_allreduce
+  use mpeu_util, only: getindex
   use timermod, only: timer_ini,timer_fnl
   implicit none
 
@@ -228,7 +233,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: ipen = 5+nobs_type
+  integer(i_kind),parameter:: ipen = 8+nobs_type
   integer(i_kind),parameter:: istp_iter = 5
   integer(i_kind),parameter:: ipenlin = 3
   integer(i_kind),parameter:: ioutpen = istp_iter*4
@@ -279,22 +284,28 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    nonlinear terms -> pbc(*,4:ipen)
 !    pbc(*,4)  contribution from negative moisture constraint term (Jl/Jq)
 !    pbc(*,5)  contribution from excess moisture term (Jl/Jq)
-!    pbc(*,6)  contribution from ps observation  term (Jo)
-!    pbc(*,7)  contribution from t observation  term (Jo)
-!    pbc(*,8)  contribution from w observation  term (Jo)
-!    pbc(*,9)  contribution from q observation  term (Jo)
-!    pbc(*,10) contribution from spd observation  term (Jo)
-!    pbc(*,11) contribution from srw observation  term (Jo)
-!    pbc(*,12) contribution from rw observation  term (Jo)
-!    pbc(*,13) contribution from dw observation  term (Jo)
-!    pbc(*,14) contribution from sst observation  term (Jo)
-!    pbc(*,15) contribution from pw observation  term (Jo)
-!    pbc(*,16) contribution from pcp observation  term (Jo)
-!    pbc(*,17) contribution from oz observation  term (Jo)
-!    pbc(*,18) contribution from o3l observation  term (Jo)(not used)
-!    pbc(*,19) contribution from gps observation  term (Jo)
-!    pbc(*,20) contribution from rad observation  term (Jo)
-!    pbc(*,21) contribution from tcp observation  term (Jo)
+!    pbc(*,6) contribution from negative gust constraint term (Jo)
+!    pbc(*,7) contribution from negative vis constraint term (Jo)
+!    pbc(*,8) contribution from negative pblh constraint term (Jo)
+!    pbc(*,9)  contribution from ps observation  term (Jo)
+!    pbc(*,10)  contribution from t observation  term (Jo)
+!    pbc(*,11)  contribution from w observation  term (Jo)
+!    pbc(*,12)  contribution from q observation  term (Jo)
+!    pbc(*,13) contribution from spd observation  term (Jo)
+!    pbc(*,14) contribution from srw observation  term (Jo)
+!    pbc(*,15) contribution from rw observation  term (Jo)
+!    pbc(*,16) contribution from dw observation  term (Jo)
+!    pbc(*,17) contribution from sst observation  term (Jo)
+!    pbc(*,18) contribution from pw observation  term (Jo)
+!    pbc(*,19) contribution from pcp observation  term (Jo)
+!    pbc(*,20) contribution from oz observation  term (Jo)
+!    pbc(*,21) contribution from o3l observation  term (Jo)(not used)
+!    pbc(*,22) contribution from gps observation  term (Jo)
+!    pbc(*,23) contribution from rad observation  term (Jo)
+!    pbc(*,24) contribution from tcp observation  term (Jo)
+!    pbc(*,30) contribution from gust observation  term (Jo)
+!    pbc(*,31) contribution from vis observation  term (Jo)
+!    pbc(*,32) contribution from pblh observation  term (Jo)
 !
 
 
@@ -355,6 +366,18 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    penalties for moisture constraint
      if(.not.ltlint) call stplimq(dval(1),sval(1),sges,pbc(1,4),pbc(1,5),nstep)
 
+!    penalties for gust constraint
+     if(.not.ltlint .and. getindex(cvars2d,'gust')>0) & 
+     call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
+
+!    penalties for vis constraint
+     if(.not.ltlint .and. getindex(cvars2d,'vis')>0) &
+     call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
+
+!    penalties for pblh constraint
+     if(.not.ltlint .and. getindex(cvars2d,'pblh')>0) &
+     call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
+
 !    penalties for Jo
      pbcjo=zero_quad
      do ibin=1,nobs_bins
@@ -368,7 +391,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      enddo
      do j=1,nobs_type 
         do i=1,nstep 
-           pbc(i,5+j)=pbcjo(i,j) 
+           pbc(i,8+j)=pbcjo(i,j) 
         end do 
      end do 
 
@@ -422,10 +445,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      if(ii == 1)then
         pjcost(1) =  pbc(ipenloc,1) + pbc(1,1)                                ! Jb
         pjcost(3) = (pbc(ipenloc,2) + pbc(1,2)) + (pbc(ipenloc,3) + pbc(1,3)) ! Jc
-        pjcost(4) = (pbc(ipenloc,5) + pbc(1,5)) + (pbc(ipenloc,4) + pbc(1,4)) ! Jl
+        pjcost(4) = (pbc(ipenloc,5) + pbc(1,5)) + (pbc(ipenloc,4) + pbc(1,4)) &
+                  + (pbc(ipenloc,6) + pbc(1,6)) + (pbc(ipenloc,7) + pbc(1,7)) &
+                  + (pbc(ipenloc,8) + pbc(1,8))                               ! Jl
         pjcost(2) = zero
         do i=1,nobs_type
-           pjcost(2) = pjcost(2)+pbc(ipenloc,5+i) + pbc(1,5+i)                ! Jo
+           pjcost(2) = pjcost(2)+pbc(ipenloc,8+i) + pbc(1,8+i)                ! Jo
         end do
         penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)
      end if

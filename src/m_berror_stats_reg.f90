@@ -268,6 +268,7 @@ end subroutine berror_read_bal_reg
 !       23Jun10 Treadon - explicitly specify dimensions for hwll,hwllp,vz
 !       20Nov10 Pagowski - make var name longer for chemical berror and
 !                          related change in read
+!       16Feb11 Zhu - add gust,vis,pblh
 !
 !EOP ___________________________________________________________________
 
@@ -293,6 +294,7 @@ end subroutine berror_read_bal_reg
   logical,dimension(nrf):: nrf_err
 
   integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf2_sst
+  integer(i_kind) :: nrf3_t,nrf2_gust,nrf2_vis,nrf2_pblh
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
   integer(i_kind) :: loc,nn,m1,m,i,n,j,k
@@ -466,11 +468,15 @@ end subroutine berror_read_bal_reg
   enddo
 
 ! Get control variable indexes
+  nrf3_t  =getindex(cvars3d,'t')
   nrf3_q  =getindex(cvars3d,'q')
   nrf3_oz =getindex(cvars3d,'oz')
   nrf3_cw =getindex(cvars3d,'cw')
   nrf3_sf =getindex(cvars3d,'sf')
   nrf2_sst=getindex(cvars2d,'sst')
+  nrf2_gust=getindex(cvars2d,'gust')
+  nrf2_vis=getindex(cvars2d,'vis')
+  nrf2_pblh=getindex(cvars2d,'pblh')
 
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
@@ -506,6 +512,30 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_sf)
            hwllp(i,nc2d+1)=hwll(i,1,nrf3_sf)
            hwllp(i,nc2d+2)=hwll(i,1,nrf3_sf)
+        end do
+     end if
+     if (n==nrf2_gust) then
+        do i=1,mlat
+           corp(i,n)=3.0_r_kind
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_q)
+        end do
+     end if
+     if (n==nrf2_vis) then
+        do i=1,mlat
+           corp(i,n)=4500.0_r_kind
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_t)
+        end do
+     end if
+     if (n==nrf2_pblh) then
+        do i=1,mlat
+           corp(i,n)=500.0_r_kind
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=3.0_r_kind*hwll(i,1,nrf3_t)
         end do
      end if
   enddo
