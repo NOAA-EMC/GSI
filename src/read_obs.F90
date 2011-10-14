@@ -203,6 +203,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
       if(jsatid == 'n06')kidsat=706
       if(jsatid == 'n07')kidsat=707
       if(jsatid == 'tirosn')kidsat=708
+      if ( jsatid == 'terra' ) kidsat = 783
+      if ( jsatid == 'aqua'  ) kidsat = 784
 
       if(lexist)then
        if(kidsat /= 0)then
@@ -526,7 +528,7 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'pcp'
        else if (obstype == 'gps_ref' .or. obstype == 'gps_bnd') then
           ditype(i) = 'gps'
-       else if ( modis ) then
+       else if ( index(obstype,'aod') /= 0 ) then
           ditype(i) = 'aero'
        else
           write(6,*)'READ_OBS:  ***ERROR*** - unknown ob type ',obstype
@@ -1033,7 +1035,8 @@ subroutine read_obs(ndata,mype)
 !         Process aerosol data
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
-                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)
+                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
+                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
              string='READ_AEROSOL'
              
           end if

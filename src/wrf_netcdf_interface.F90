@@ -18,6 +18,7 @@ subroutine convert_netcdf_mass
 !   2006-09-15  treadon - use nhr_assimilation to build local guess filename
 !   2010-03-29  Hu  - add code to read 5 cloud/hydrometeor variables for cloud analysis
 !   2010-03-29  Hu  - bug fix: replace XICE with SEAICE 
+!   2010-10-20  hclin   - added 15 wrfchem/gocart fields for aod
 !
 !   input argument list:
 !
@@ -34,9 +35,12 @@ subroutine convert_netcdf_mass
 !$$$
 
   use kinds, only: r_single,i_kind
-  use constants, only: izero,ione,h300
+  use constants, only: h300
   use gsi_4dvar, only: nhr_assimilation
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use aod_mod, only: laeroana_gocart, ppmv_conv
+  use gsi_chemguess_mod, only: gsi_chemguess_get
+
   implicit none
 
 ! Declare local parameters
@@ -61,6 +65,7 @@ subroutine convert_netcdf_mass
   character (len=80) :: SysDepInfo
  
   integer(i_kind) :: ierr, Status, Status_next_time
+  integer(i_kind) :: iv, n_gocart_var, ier
   
 ! binary stuff
 
@@ -76,9 +81,9 @@ subroutine convert_netcdf_mass
   integer(i_kind),allocatable::ifield2(:,:)
   real(r_single) rad2deg_single
   integer(i_kind) wrf_real
-  data iunit / 15_i_kind /
+  data iunit / 15 /
   
-  wrf_real=104_i_kind
+  wrf_real=104
   end_index=0
   start_index=0
   
@@ -87,11 +92,11 @@ subroutine convert_netcdf_mass
 !      to temporary binary format
 
   call ext_ncd_ioinit(sysdepinfo,status)
-  call set_wrf_debug_level ( 5_i_kind )
+  call set_wrf_debug_level ( 5 )
   
   flnm1='wrf_inout'
-  call ext_ncd_open_for_read( trim(flnm1), izero, izero, "", dh1, Status)
-  if ( Status /= izero )then
+  call ext_ncd_open_for_read( trim(flnm1), 0, 0, "", dh1, Status)
+  if ( Status /= 0 )then
      write(6,*)'CONVERT_NETCDF_MASS:  problem with flnm1 = ',&
           trim(flnm1),', Status = ', Status
      call stop2(74) 
@@ -136,9 +141,9 @@ subroutine convert_netcdf_mass
   nlat_regional=end_index(2)
   nsig_regional=end_index(3)
   write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
-  allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+ione))
-  allocate(field3u(nlon_regional+ione,nlat_regional,nsig_regional))
-  allocate(field3v(nlon_regional,nlat_regional+ione,nsig_regional))
+  allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))
+  allocate(field3u(nlon_regional+1,nlat_regional,nsig_regional))
+  allocate(field3v(nlon_regional,nlat_regional+1,nsig_regional))
   allocate(field2b(nlon_regional,nlat_regional),field2c(nlon_regional,nlat_regional))
   allocate(ifield2(nlon_regional,nlat_regional))
   allocate(field1(max(nlon_regional,nlat_regional,nsig_regional)))
@@ -154,7 +159,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       pt_regional,WRF_REAL,izero,izero,izero,ordering,          &
+       pt_regional,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -176,7 +181,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index,                   & !dom
        start_index,end_index,                   & !mem
@@ -198,13 +203,13 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index,                   & !dom
        start_index,end_index,                   & !mem
        start_index,end_index,                   & !pat
        ierr                                 )
-  do k=1,nsig_regional+ione
+  do k=1,nsig_regional+1
      write(6,*)' k,znw(k)=',k,field1(k)
   end do
   write(iunit)field1(1:nsig_regional+1)  ! ZNW
@@ -220,7 +225,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       rdx,WRF_REAL,izero,izero,izero,ordering,          &
+       rdx,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -239,7 +244,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       rdy,WRF_REAL,izero,izero,izero,ordering,          &
+       rdy,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -258,7 +263,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -285,7 +290,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -310,7 +315,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -335,7 +340,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -354,7 +359,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2b,WRF_REAL,izero,izero,izero,ordering,           &
+       field2b,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -376,13 +381,13 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
        start_index,end_index,               & !pat
        ierr                                 )
-  k=ione
+  k=1
   write(6,*)' k,max,min,mid PHB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
        field3(nlon_regional/2,nlat_regional/2,k)
   write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PHB (zsfc*g)
@@ -398,7 +403,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -422,7 +427,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -445,7 +450,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3u,WRF_REAL,izero,izero,izero,ordering,           &
+       field3u,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -454,7 +459,7 @@ subroutine convert_netcdf_mass
   do k=1,nsig_regional
      write(6,*)' k,max,min,mid U=',k,maxval(field3u(:,:,k)),minval(field3u(:,:,k)), &
           field3u(nlon_regional/2,nlat_regional/2,k)
-     write(iunit)((field3u(i,j,k),i=1,nlon_regional+ione),j=1,nlat_regional)   ! U
+     write(iunit)((field3u(i,j,k),i=1,nlon_regional+1),j=1,nlat_regional)   ! U
   end do
   
   rmse_var='V'
@@ -468,7 +473,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3v,WRF_REAL,izero,izero,izero,ordering,           &
+       field3v,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -491,7 +496,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -514,7 +519,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -534,7 +539,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -554,7 +559,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       ifield2,WrfType,izero,izero,izero,ordering,           &
+       ifield2,WrfType,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -594,7 +599,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -614,7 +619,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -634,7 +639,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -654,7 +659,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -674,13 +679,13 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
        start_index,end_index,               & !pat
        ierr                                 )
-  k=ione
+  k=1
   write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
        field3(nlon_regional/2,nlat_regional/2,1)
   write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
@@ -696,13 +701,13 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
        start_index,end_index,               & !pat
        ierr                                 )
-  k=ione
+  k=1
   write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
        field3(nlon_regional/2,nlat_regional/2,1)
   write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
@@ -718,7 +723,7 @@ subroutine convert_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index=',end_index
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index,               & !dom
        start_index,end_index,               & !mem
@@ -739,7 +744,7 @@ subroutine convert_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index=',end_index
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index,               & !dom
          start_index,end_index,               & !mem
@@ -762,7 +767,7 @@ subroutine convert_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index=',end_index
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index,               & !dom
          start_index,end_index,               & !mem
@@ -785,7 +790,7 @@ subroutine convert_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index=',end_index
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index,               & !dom
          start_index,end_index,               & !mem
@@ -808,7 +813,7 @@ subroutine convert_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index=',end_index
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index,               & !dom
          start_index,end_index,               & !mem
@@ -831,7 +836,7 @@ subroutine convert_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index=',end_index
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index,               & !dom
          start_index,end_index,               & !mem
@@ -854,7 +859,7 @@ subroutine convert_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index=',end_index
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index,               & !dom
          start_index,end_index,               & !mem
@@ -869,6 +874,68 @@ subroutine convert_netcdf_mass
     end do
 
   endif   ! l_cloud_analysis
+
+  if(laeroana_gocart) then
+     call gsi_chemguess_get('aerosols::3d', n_gocart_var, ier)
+     do iv = 1, n_gocart_var
+        select case ( iv )
+           case ( 1 )
+              rmse_var='sulf'
+           case ( 2 )
+              rmse_var='BC1'
+           case ( 3 )
+              rmse_var='BC2'
+           case ( 4 )
+              rmse_var='OC1'
+           case ( 5 )
+              rmse_var='OC2'
+           case ( 6 )
+              rmse_var='DUST_1'
+           case ( 7 )
+              rmse_var='DUST_2'
+           case ( 8 )
+              rmse_var='DUST_3'
+           case ( 9 )
+             rmse_var='DUST_4'
+           case ( 10 )
+              rmse_var='DUST_5'
+           case ( 11 )
+              rmse_var='SEAS_1'
+           case ( 12 )
+              rmse_var='SEAS_2'
+           case ( 13 )
+              rmse_var='SEAS_3'
+           case ( 14 )
+              rmse_var='SEAS_4'
+           case ( 15 )
+              rmse_var='P25'
+        end select
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        write(6,*)' ordering=',ordering
+        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+        write(6,*)' ndim1=',ndim1
+        write(6,*)' staggering=',staggering
+        write(6,*)' start_index=',start_index
+        write(6,*)' end_index=',end_index
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index,               & !dom
+             start_index,end_index,               & !mem
+             start_index,end_index,               & !pat
+             ierr                                 )
+        if ( trim(rmse_var) == 'sulf' ) then
+           field3 = field3*ppmv_conv   ! ppmv to ug/kg
+        end if
+        do k=1,nsig_regional
+           write(6,*)' k,max,min,mid var=',rmse_var,k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
+                    field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+        end do
+     end do ! n_gocart_var loop
+  endif ! laeroana_gocart
 
   deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
   close(iunit)
@@ -920,7 +987,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 
   use kinds, only: r_single,i_kind,r_kind
   use gsi_4dvar, only: nhr_assimilation
-  use constants, only: izero,ione,half,rad2deg
+  use constants, only: half,rad2deg
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
@@ -961,8 +1028,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   integer(i_kind),allocatable::ifield2(:,:)
   integer(i_kind) wrf_real
-  data iunit / 15_i_kind /
-  wrf_real=104_i_kind
+  data iunit / 15 /
+  wrf_real=104
   end_index1=0
 
 
@@ -970,11 +1037,11 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !      to temporary binary format
 
   call ext_ncd_ioinit(sysdepinfo,status)
-  call set_wrf_debug_level ( ione )
+  call set_wrf_debug_level ( 1 )
   
   flnm1='wrf_inout'
-  call ext_ncd_open_for_read( trim(flnm1), izero, izero, "", dh1, Status)
-  if ( Status /= izero )then
+  call ext_ncd_open_for_read( trim(flnm1), 0, 0, "", dh1, Status)
+  if ( Status /= 0 )then
      write(6,*)'CONVERT_NETCDF_NMM:  problem with flnm1 = ',&
           trim(flnm1),', Status = ', Status
      call stop2(74)
@@ -1000,9 +1067,9 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   nlat_regional=end_index1(2)
   nsig_regional=end_index1(3)
   write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
-  allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+ione))
+  allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))
   allocate(field2b(nlon_regional,nlat_regional),ifield2(nlon_regional,nlat_regional))
-  allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+ione)))
+  allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+1)))
   rmse_var='SMC'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
@@ -1013,7 +1080,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       dlmd_regional,WRF_REAL,izero,izero,izero,ordering,          &
+       dlmd_regional,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1026,7 +1093,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       dphd_regional,WRF_REAL,izero,izero,izero,ordering,          &
+       dphd_regional,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1039,7 +1106,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       pt_regional,WRF_REAL,izero,izero,izero,ordering,          &
+       pt_regional,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1051,7 +1118,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       pdtop_regional,WRF_REAL,izero,izero,izero,ordering,       &
+       pdtop_regional,WRF_REAL,0,0,0,ordering,       &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1067,7 +1134,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index1,                   & !dom
        start_index,end_index1,                   & !mem
@@ -1084,7 +1151,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index1,                   & !dom
        start_index,end_index1,                   & !mem
@@ -1100,23 +1167,23 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index1,                   & !dom
        start_index,end_index1,                   & !mem
        start_index,end_index1,                   & !pat
        ierr                                 )
-  do k=1,nsig_regional+ione
+  do k=1,nsig_regional+1
      write(6,*)' k, eta1(k)=',k,field1(k)
   end do
-  write(iunit)field1(1:nsig_regional+ione)  !  ETA1
+  write(iunit)field1(1:nsig_regional+1)  !  ETA1
   
   rmse_var='DETA2'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index1,                   & !dom
        start_index,end_index1,                   & !mem
@@ -1132,7 +1199,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index1,                   & !dom
        start_index,end_index1,                   & !mem
@@ -1148,23 +1215,23 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field1,WRF_REAL,izero,izero,izero,ordering,           &
+       field1,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,                    &
        start_index,end_index1,                   & !dom
        start_index,end_index1,                   & !mem
        start_index,end_index1,                   & !pat
        ierr                                 )
-  do k=1,nsig_regional+ione
+  do k=1,nsig_regional+1
      write(6,*)' k,eta2(k)=',k,field1(k)
   end do
-  write(iunit)field1(1:nsig_regional+ione)  ! ETA2
+  write(iunit)field1(1:nsig_regional+1)  ! ETA2
   
   rmse_var='GLAT'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1174,16 +1241,16 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   write(6,*)' glat(1,1),glat(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
   write(6,*)' glat(1,nlat),glat(nlon,nlat)=', &
        rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-  write(6,*)' my guess at tph0d = ',rad2deg*field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)
-  ctph0=cos(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
-  stph0=sin(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
+  write(6,*)' my guess at tph0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
+  ctph0=cos(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
+  stph0=sin(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
   
   rmse_var='DX_NMM'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2b,WRF_REAL,izero,izero,izero,ordering,           &
+       field2b,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1200,7 +1267,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1210,16 +1277,16 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   write(6,*)' glon(1,1),glon(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
   write(6,*)' glon(1,nlat),glon(nlon,nlat)=', &
        rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
-  write(6,*)' my guess at tlm0d = ',rad2deg*field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)
-  tlm0=half*(field2(ione+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2)+ &
-           field2(2_i_kind+(nlon_regional-ione)/2,ione+(nlat_regional-ione)/2))
+  write(6,*)' my guess at tlm0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
+  tlm0=half*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
+           field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
   
   rmse_var='DY_NMM'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       dy_nmm,WRF_REAL,izero,izero,izero,ordering,       &
+       dy_nmm,WRF_REAL,0,0,0,ordering,       &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1234,7 +1301,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1248,7 +1315,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1261,17 +1328,17 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   rmse_var='PINT'
   call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
        start_index,end_index1, WrfType, ierr    )
-  if(ierr==izero) then
+  if(ierr==0) then
     update_pint=.true.
     write(6,*)' rmse_var=',trim(rmse_var)
     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
          start_index,end_index1,               & !pat
          ierr                                 )
-    do k=1,nsig_regional+ione
+    do k=1,nsig_regional+1
        write(6,*)' k,max,min,mid PINT=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
             field3(nlon_regional/2,nlat_regional/2,k)
        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
@@ -1283,7 +1350,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1300,7 +1367,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1317,7 +1384,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1334,7 +1401,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1351,7 +1418,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1369,7 +1436,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1383,7 +1450,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1397,7 +1464,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       ifield2,WrfType,izero,izero,izero,ordering,           &
+       ifield2,WrfType,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1411,7 +1478,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       ifield2,WrfType,izero,izero,izero,ordering,           &
+       ifield2,WrfType,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1425,7 +1492,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1439,7 +1506,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1453,7 +1520,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1467,7 +1534,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1481,13 +1548,13 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
        start_index,end_index1,               & !pat
        ierr                                 )
-  k=ione
+  k=1
   write(6,*)' k,max,min,mid SMC=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
        field3(nlon_regional/2,nlat_regional/2,1)
   write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMC
@@ -1497,13 +1564,13 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
        start_index,end_index1,               & !pat
        ierr                                 )
-  k=ione
+  k=1
   write(6,*)' k,max,min,mid STC=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
        field3(nlon_regional/2,nlat_regional/2,1)
   write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! STC
@@ -1513,7 +1580,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
        start_index,end_index1, WrfType, ierr    )
   write(6,*)' rmse_var=',trim(rmse_var)
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1560,8 +1627,11 @@ subroutine update_netcdf_mass
 !$$$ end documentation block
 
   use kinds, only: r_single,i_kind
-  use constants, only: izero,ione,h300
+  use constants, only: h300
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use aod_mod, only: laeroana_gocart, ppmv_conv
+  use gsi_chemguess_mod, only: gsi_chemguess_get
+
   implicit none
 
 ! Declare local parameters
@@ -1571,6 +1641,7 @@ subroutine update_netcdf_mass
   integer(i_kind)            :: dh1
 
   integer(i_kind) :: iunit
+  integer(i_kind) :: iv, n_gocart_var, ier
 
   integer(i_kind) :: i,j,k
   integer(i_kind) :: ndim1
@@ -1598,8 +1669,8 @@ subroutine update_netcdf_mass
   real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
   integer(i_kind),allocatable::ifield2(:,:)
   integer(i_kind) wrf_real
-  data iunit / 15_i_kind /
-  wrf_real=104_i_kind
+  data iunit / 15 /
+  wrf_real=104
   end_index1=0
 
 
@@ -1610,8 +1681,8 @@ subroutine update_netcdf_mass
 !           update mass core netcdf file with analysis variables from 3dvar
 !
   flnm1='wrf_inout'
-  call ext_ncd_open_for_update( trim(flnm1), izero, izero, "", dh1, Status)
-  if ( Status /= izero )then
+  call ext_ncd_open_for_update( trim(flnm1), 0, 0, "", dh1, Status)
+  if ( Status /= 0 )then
      write(6,*)'UPDATE_NETCDF_MASS:  problem with flnm1 = ',&
           trim(flnm1),', Status = ', Status
      call stop2(75)
@@ -1638,8 +1709,8 @@ subroutine update_netcdf_mass
   nsig_regional=end_index1(3)
   write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
   allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional))
-  allocate(field3u(nlon_regional+ione,nlat_regional,nsig_regional))
-  allocate(field3v(nlon_regional,nlat_regional+ione,nsig_regional))
+  allocate(field3u(nlon_regional+1,nlat_regional,nsig_regional))
+  allocate(field3v(nlon_regional,nlat_regional+1,nsig_regional))
   allocate(field2b(nlon_regional,nlat_regional))
   allocate(ifield2(nlon_regional,nlat_regional))
   allocate(field1(max(nlon_regional,nlat_regional,nsig_regional)))
@@ -1655,7 +1726,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       pt_regional,WRF_REAL,izero,izero,izero,ordering,          &
+       pt_regional,WRF_REAL,0,0,0,ordering,          &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1667,7 +1738,7 @@ subroutine update_netcdf_mass
   
   read(iunit) ! field1(1:nsig_regional)  ! AETA1  (ZNU)
   
-  read(iunit) ! field1(1:nsig_regional+ione)  !  ETA1 (ZNW)
+  read(iunit) ! field1(1:nsig_regional+1)  !  ETA1 (ZNW)
   
   read(iunit) ! field2   !XLAT,DX_MC
   
@@ -1684,7 +1755,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1707,7 +1778,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2b,WRF_REAL,izero,izero,izero,ordering,           &
+       field2b,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1733,7 +1804,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1756,7 +1827,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1779,7 +1850,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3u,WRF_REAL,izero,izero,izero,ordering,           &
+       field3u,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1802,7 +1873,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3v,WRF_REAL,izero,izero,izero,ordering,           &
+       field3v,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1825,7 +1896,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1845,7 +1916,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1873,7 +1944,7 @@ subroutine update_netcdf_mass
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -1897,7 +1968,7 @@ subroutine update_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
@@ -1920,7 +1991,7 @@ subroutine update_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
@@ -1943,7 +2014,7 @@ subroutine update_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
@@ -1966,7 +2037,7 @@ subroutine update_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
@@ -1989,7 +2060,7 @@ subroutine update_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
@@ -2012,7 +2083,7 @@ subroutine update_netcdf_mass
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-         field3,WRF_REAL,izero,izero,izero,ordering,           &
+         field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
          start_index,end_index1,               & !dom
          start_index,end_index1,               & !mem
@@ -2020,6 +2091,68 @@ subroutine update_netcdf_mass
          ierr                                 )
 
   endif     ! l_cloud_analysis
+
+  if(laeroana_gocart) then
+     call gsi_chemguess_get('aerosols::3d', n_gocart_var, ier)
+     do iv = 1, n_gocart_var
+        select case ( iv )
+           case ( 1 )
+              rmse_var='sulf'
+           case ( 2 )
+              rmse_var='BC1'
+           case ( 3 )
+              rmse_var='BC2'
+           case ( 4 )
+              rmse_var='OC1'
+           case ( 5 )
+              rmse_var='OC2'
+           case ( 6 )
+              rmse_var='DUST_1'
+           case ( 7 )
+              rmse_var='DUST_2'
+           case ( 8 )
+              rmse_var='DUST_3'
+           case ( 9 )
+              rmse_var='DUST_4'
+           case ( 10 )
+              rmse_var='DUST_5'
+           case ( 11 )
+              rmse_var='SEAS_1'
+           case ( 12 )
+             rmse_var='SEAS_2'
+           case ( 13 )
+              rmse_var='SEAS_3'
+           case ( 14 )
+              rmse_var='SEAS_4'
+           case ( 15 )
+              rmse_var='P25'
+        end select
+        do k=1,nsig_regional
+           read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
+           write(6,*)' k,max,min,mid var=',rmse_var,k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
+                    field3(nlon_regional/2,nlat_regional/2,k)
+        end do
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        write(6,*)' ordering=',ordering
+        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+        write(6,*)' ndim1=',ndim1
+        write(6,*)' staggering=',staggering
+        write(6,*)' start_index=',start_index
+        write(6,*)' end_index=',end_index1
+        if ( trim(rmse_var) == 'sulf' ) then
+           field3 = field3/ppmv_conv    ! ug/kg to ppmv
+        end if
+        call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+     end do ! n_gocart_var loop
+  endif ! laeroana_gocart
 
   deallocate(field1,field2,field2b,ifield2,field3,field3u,field3v)
   call ext_ncd_ioclose(dh1, Status)
@@ -2053,7 +2186,6 @@ subroutine update_netcdf_nmm
 !$$$ end documentation block
 
   use kinds, only: r_single,i_kind
-  use constants, only: izero,ione
   use regional_io, only: update_pint
 ! use wrf_data
   implicit none
@@ -2092,8 +2224,8 @@ subroutine update_netcdf_nmm
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:)
   integer(i_kind),allocatable::ifield2(:,:)
   integer(i_kind) wrf_real
-  data iunit / 15_i_kind /
-  wrf_real=104_i_kind
+  data iunit / 15 /
+  wrf_real=104
   start_index=0
   end_index1=0
 
@@ -2105,8 +2237,8 @@ subroutine update_netcdf_nmm
 !           update nmm netcdf file with analysis variables from 3dvar
 !
   flnm1='wrf_inout'
-  call ext_ncd_open_for_update( trim(flnm1), izero, izero, "", dh1, Status)
-  if ( Status /= izero )then
+  call ext_ncd_open_for_update( trim(flnm1), 0, 0, "", dh1, Status)
+  if ( Status /= 0 )then
      write(6,*)'UPDATE_NETCDF_NMM:  problem with flnm1 = ',&
           trim(flnm1),', Status = ', Status
      call stop2(75)
@@ -2132,7 +2264,7 @@ subroutine update_netcdf_nmm
   nlat_regional=end_index1(2)
   nsig_regional=end_index1(3)
   nallo = nsig_regional
-  if(update_pint) nallo = nallo+ione   ! add contribution of PINT
+  if(update_pint) nallo = nallo+1   ! add contribution of PINT
   write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
   allocate(field2(nlon_regional,nlat_regional))
   allocate(field3(nlon_regional,nlat_regional,nallo))
@@ -2146,13 +2278,13 @@ subroutine update_netcdf_nmm
 
   read(iunit) ! field1(1:nsig_regional)  ! AETA1
 
-  read(iunit) ! field1(1:nsig_regional+ione)  !  ETA1
+  read(iunit) ! field1(1:nsig_regional+1)  !  ETA1
 
   read(iunit) ! field1(1:nsig_regional)  ! DETA2
 
   read(iunit) ! field1(1:nsig_regional)  ! AETA2
 
-  read(iunit) ! field1(1:nsig_regional+ione)  ! ETA2
+  read(iunit) ! field1(1:nsig_regional+1)  ! ETA2
 
   read(iunit) ! field2   !GLAT,DX_NMM
 
@@ -2171,7 +2303,7 @@ subroutine update_netcdf_nmm
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field2,WRF_REAL,izero,izero,izero,ordering,           &
+       field2,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -2181,7 +2313,7 @@ subroutine update_netcdf_nmm
   read(iunit) ! field2   ! FIS
   
   if(update_pint) then
-     do k=1,nsig_regional+ione
+     do k=1,nsig_regional+1
         read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
         write(6,*)' k,max,min,mid PINT=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                     field3(nlon_regional/2,nlat_regional/2,k)
@@ -2197,7 +2329,7 @@ subroutine update_netcdf_nmm
      write(6,*)' start_index=',start_index
      write(6,*)' end_index1=',end_index1
      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),          &
-                              field3,WRF_REAL,izero,izero,izero,ordering,       &
+                              field3,WRF_REAL,0,0,0,ordering,       &
                               staggering, dimnames ,                &
                               start_index,end_index1,               & !dom
                               start_index,end_index1,               & !mem
@@ -2221,7 +2353,7 @@ subroutine update_netcdf_nmm
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -2244,7 +2376,7 @@ subroutine update_netcdf_nmm
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -2267,7 +2399,7 @@ subroutine update_netcdf_nmm
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem
@@ -2290,7 +2422,7 @@ subroutine update_netcdf_nmm
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-       field3,WRF_REAL,izero,izero,izero,ordering,           &
+       field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
        start_index,end_index1,               & !dom
        start_index,end_index1,               & !mem

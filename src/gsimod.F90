@@ -33,7 +33,7 @@
   use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
-  use aeroinfo, only: diag_aero, init_aero
+  use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
   use coinfo, only: diag_co,init_co
   use convinfo, only: init_convinfo,npred_conv_max, &
                       id_bias_ps,id_bias_t,id_bias_spd, &
@@ -103,6 +103,7 @@
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname
+  use aod_mod, only: laeroana_gocart, init_aod, l_aoderr_table, aod_qa_limit, luse_deepblue
 
   implicit none
 
@@ -624,7 +625,8 @@
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
-       in_fname,out_fname,incr_fname
+       in_fname,out_fname,incr_fname, &
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
 
 !EOC
 
@@ -699,6 +701,7 @@
   call init_hybrid_ensemble_parameters
   call init_rapidrefresh_cldsurf
   call init_chem
+  call init_aod
   call init_tcps_errvals
   preserve_restart_date=.false.
 
@@ -997,6 +1000,8 @@
 ! Initialize values in radinfo
   call init_rad_vars
 
+! Initialize values in aeroinfo
+  call init_aero_vars
 
   end subroutine gsimain_initialize
 
@@ -1049,6 +1054,7 @@
 
   implicit none
 ! Deallocate arrays
+  call final_aero_vars
   call final_rad_vars
   call clean_4dvar
   call destroy_obsmod_vars

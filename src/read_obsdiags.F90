@@ -20,6 +20,7 @@ subroutine read_obsdiags(cdfile)
 !   2010-04-27  tangborn - addded read_colvkhead
 !   2010-05-26  treadon  - add read_tcphead
 !   2011-05-18  todling  - aero, aerol, and pm2_5
+!   2011-09-20  hclin    - 1d wij for aero
 !
 !   input argument list:
 !     cdfile - filename to read data from
@@ -2570,7 +2571,7 @@ subroutine read_aerohead_ ()
     real(r_kind),dimension(:),allocatable :: zraterr2  ! square of ratio of final obs error
                                                        ! to original obs error
     real(r_kind)    :: ztime                           ! observation time
-    real(r_kind)    :: zwij(4,nsig)                    ! horizontal interpolation weights
+    real(r_kind)    :: zwij(4)                         ! horizontal interpolation weights
     real(r_kind),dimension(:),allocatable :: zprs      ! delta pressure at mid layers at obs locations 
     integer(i_kind),dimension(:),allocatable :: zipos  !
     integer(i_kind) :: zij(4)                          ! horizontal locations
@@ -2613,8 +2614,7 @@ _EXIT_(myname_)
        end if
        allocate(aerotail(ii)%head%res(nlaero+1),aerotail(ii)%head%diags(nlaero+1), &
                 aerotail(ii)%head%err2(nlaero+1),aerotail(ii)%head%raterr2(nlaero+1), &
-                aerotail(ii)%head%prs(nlevp),aerotail(ii)%head%ipos(nlaero+1), &
-                aerotail(ii)%head%wij(4,nsig),stat=istatus)
+                aerotail(ii)%head%prs(nlevp),aerotail(ii)%head%ipos(nlaero+1), stat=istatus)
        if (istatus/=0) write(6,*)'read_aerohead:  allocate error for aero_point, istatus=',istatus
 
        my_node => aerotail(ii)%head

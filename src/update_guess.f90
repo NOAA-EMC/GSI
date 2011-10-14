@@ -68,6 +68,7 @@ subroutine update_guess(sval,sbias)
 !   2010-05-01  todling - add support for generalized guess (use met-guess)
 !                       - cwmr now in met-guess
 !   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2011-09-20  hclin   - enforce non-negative aerosol fields
 !
 !   input argument list:
 !    sval
@@ -278,12 +279,14 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
            ptr3dges = ptr3dges + ptr3dinc
+           ptr3dges = max(ptr3dges,1.e-15_r_kind)
         endif
         id=getindex(svars2d,gases(ic))
         if (id>0) then
            call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
            ptr2dges = ptr2dges + ptr2dinc
+           ptr2dges = max(ptr2dges,1.e-15_r_kind)
         endif
      enddo
 

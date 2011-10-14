@@ -386,3 +386,117 @@ subroutine prt_guessfc2(sgrep)
 
   return
 end subroutine prt_guessfc2
+
+subroutine prt_guesschem(sgrep)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    prt_guesschem
+!  prgmmr:       hclin
+!
+! abstract: Print some diagnostics about the chem guess arrays
+!
+! program history log:
+!   2011-09-20  hclin -
+!
+!   input argument list:
+!    sgrep  - prefix for write statement
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
+  use constants, only: zero
+  use gridmod, only: lat1,lon1,itotsub,nsig
+  use guess_grids, only: ntguessig
+  use gsi_chemguess_mod, only: gsi_chemguess_bundle, gsi_chemguess_get
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+
+  implicit none
+
+! Declare passed variables
+  character(len=*), intent(in   ) :: sgrep
+
+! Declare local variables
+  integer(i_kind) nvars
+  integer(i_kind) ii
+  integer(i_kind) ntsig
+  real(r_kind),allocatable,dimension(:) :: zloc,zmin,zmax,zavg
+  real(r_kind),allocatable,dimension(:,:) :: zall
+  real(r_kind) zz
+  character(len=5),allocatable,dimension(:) :: cvar
+  real(r_kind), pointer, dimension(:,:,:) :: ptr3d
+  integer(i_kind) ier, istatus
+
+!*******************************************************************************
+
+  ntsig = ntguessig
+
+  call gsi_chemguess_get('dim',nvars,istatus)
+  if(istatus/=0) then
+     write(6,*) 'prt_guesschem: trouble getting number of chem-guess fields'
+     return
+  endif
+  if ( nvars > 0 ) then
+     allocate(zloc(3*nvars+1))
+     allocate(zall(3*nvars+1,npe))
+     allocate(zmin(nvars))
+     allocate(zmax(nvars))
+     allocate(zavg(nvars))
+     allocate(cvar(nvars))
+     call gsi_chemguess_get ('aerosols::3d',cvar,ier)
+  endif
+
+  ier = 0
+  do ii = 1, nvars
+     call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(ntsig),cvar(ii),ptr3d,istatus);ier=ier+istatus
+     if ( ier == 0 ) then
+        zloc(ii)             = sum   (ptr3d(2:lat1+1,2:lon1+1,1:nsig))
+        zloc(nvars+ii)       = minval(ptr3d(2:lat1+1,2:lon1+1,1:nsig))
+        zloc(2*nvars+ii)     = maxval(ptr3d(2:lat1+1,2:lon1+1,1:nsig))
+        zloc(3*nvars+1)      = real(lat1*lon1*nsig*ntsig,r_kind)
+     endif
+  enddo
+
+! Gather contributions
+  call mpi_allgather(zloc,3*nvars+1_i_kind,mpi_rtype, &
+                   & zall,3*nvars+1_i_kind,mpi_rtype, mpi_comm_world,ierror)
+
+  if (mype==0) then
+     zmin=zero
+     zmax=zero
+     zavg=zero
+     zz=SUM(zall(3*nvars+1,:))
+     do ii=1,nvars
+        zavg(ii)=SUM(zall(ii,:))/zz
+     enddo
+     do ii=1,nvars
+        zmin(ii)=MINVAL(zall(  nvars+ii,:))
+        zmax(ii)=MAXVAL(zall(2*nvars+ii,:))
+     enddo
+
+     write(6,'(80a)') ('=',ii=1,80)
+     write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
+     do ii=1,nvars
+        write(6,999)sgrep,cvar(ii),zavg(ii),zmin(ii),zmax(ii)
+     enddo
+     write(6,'(80a)') ('=',ii=1,80)
+  endif
+999 format(A,1X,A,3(1X,ES20.12))
+
+  if ( nvars > 0 ) then
+     deallocate(zloc)
+     deallocate(zall)
+     deallocate(zmin)
+     deallocate(zmax)
+     deallocate(zavg)
+     deallocate(cvar)
+  endif
+
+  return
+end subroutine prt_guesschem
+

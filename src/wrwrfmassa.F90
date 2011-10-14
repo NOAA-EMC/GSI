@@ -51,7 +51,7 @@ subroutine wrwrfmassa_binary(mype)
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
-  use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
+  use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use wrf_mass_guess_mod, only: destroy_cld_grids
@@ -86,13 +86,13 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind) i_sst,i_tsk
   real(r_kind) psfc_this,psfc_this_dry
   real(r_kind):: work_prsl,work_prslk
-  real(r_kind),dimension(lat1+2_i_kind,lon1+2_i_kind):: q_integral
+  real(r_kind),dimension(lat1+2,lon1+2):: q_integral
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) request
-  integer(i_kind) jbegin(0:npe),jend(0:npe-ione),jend2(0:npe-ione)
-  integer(i_kind) kbegin(0:npe),kend(0:npe-ione)
+  integer(i_kind) jbegin(0:npe),jend(0:npe-1),jend2(0:npe-1)
+  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
   real(r_single),allocatable::mub(:,:)
@@ -121,8 +121,8 @@ subroutine wrwrfmassa_binary(mype)
   jm=nlat_regional
   lm=nsig
 
-  num_mass_fields=4*lm+3_i_kind
-  if(l_cloud_analysis) num_mass_fields=4*lm+3_i_kind+6*lm
+  num_mass_fields=4*lm+3
+  if(l_cloud_analysis) num_mass_fields=4*lm+3+6*lm
   allocate(offset(num_mass_fields))
   allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
   allocate(length(num_mass_fields))
@@ -142,7 +142,7 @@ subroutine wrwrfmassa_binary(mype)
 
   write(filename,'("sigf",i2.2)')ifilesig(it)
   open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-  if(mype == izero) write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
+  if(mype == 0) write(6,*)'READ_WRF_MASS_OFFSET_FILE:  open lendian_in=',lendian_in,' to file=',filename
   read(lendian_in) iyear,imonth,iday,ihour,iminute,isecond,dummy3,pt_regional_single
   do iskip=2,5
      read(lendian_in)
@@ -150,14 +150,14 @@ subroutine wrwrfmassa_binary(mype)
   read(lendian_in) 
   read(lendian_in) n_position          !  offset for START_DATE record
   offset_start_date=n_position
-  length_start_date=2048_i_kind
+  length_start_date=2048
 
-  i=izero
+  i=0
   read(lendian_in) n_position                                         ! mub
   offset_mub=n_position
   length_mub=im*jm
-  igtype_mub=ione
-  kdim_mub=ione
+  igtype_mub=1
+  kdim_mub=1
 
 
 !     open wrf file for mpi-io reading and writing
@@ -166,7 +166,7 @@ subroutine wrwrfmassa_binary(mype)
 
 !     update START_DATE record so it contains new analysis time in place of old starting time
   call mpi_file_read_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
-  if(mype==izero)  then
+  if(mype==0)  then
      call update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
      call mpi_file_write_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
   end if
@@ -176,84 +176,84 @@ subroutine wrwrfmassa_binary(mype)
   call mpi_file_iread_at(mfcst,offset_mub,mub,length_mub,mpi_real4,request,ierror)
 
 
-  i=i+ione ; i_mu =i                                                ! mu
+  i=i+1 ; i_mu =i                                                ! mu
   read(lendian_in) n_position
-  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
-  if(mype == izero) write(6,*)' mu, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+  if(mype == 0) write(6,*)' mu, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
 
   read(lendian_in) n_position                                    !  geopotential  (should this be updated??)
 
-  i_t=i+ione
+  i_t=i+1
   read(lendian_in) n_position,memoryorder
   do k=1,lm
-     i=i+ione                                                       ! theta(k)  (pot temp)
+     i=i+1                                                       ! theta(k)  (pot temp)
      if(trim(memoryorder)=='XZY') then
-        iadd=izero
+        iadd=0
         kord(i)=lm
      else
-        iadd=(k-ione)*im*jm*4
-        kord(i)=ione
+        iadd=(k-1)*im*jm*4
+        kord(i)=1
      end if
-     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-     if(mype == izero.and.k==ione) write(6,*)' temp i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+     if(mype == 0.and.k==1) write(6,*)' temp i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   end do
 
-  i_q=i+ione
+  i_q=i+1
   read(lendian_in) n_position,memoryorder
   do k=1,lm
-     i=i+ione                                                       ! q(k)
+     i=i+1                                                       ! q(k)
      if(trim(memoryorder)=='XZY') then
-        iadd=izero
+        iadd=0
         kord(i)=lm
      else
-        iadd=(k-ione)*im*jm*4
-        kord(i)=ione
+        iadd=(k-1)*im*jm*4
+        kord(i)=1
      end if
-     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-     if(mype == izero.and.k==ione) write(6,*)' q i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+     offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+     if(mype == 0.and.k==1) write(6,*)' q i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
   end do
 
-  i_u=i+ione
+  i_u=i+1
   read(lendian_in) n_position,memoryorder
   do k=1,lm
-     i=i+ione                                                       ! u(k)
+     i=i+1                                                       ! u(k)
      if(trim(memoryorder)=='XZY') then
-        iadd=izero
+        iadd=0
         kord(i)=lm
      else
-        iadd=(k-ione)*(im+ione)*jm*4
-        kord(i)=ione
+        iadd=(k-1)*(im+1)*jm*4
+        kord(i)=1
      end if
      offset(i)=n_position+iadd
-     igtype(i)=2_i_kind ; kdim(i)=lm
-     length(i)=(im+ione)*jm
-     if(mype == izero.and.k==ione) write(6,*)' u i,igtype,offset,kdim(i),kord(i) = ', &
+     igtype(i)=2 ; kdim(i)=lm
+     length(i)=(im+1)*jm
+     if(mype == 0.and.k==1) write(6,*)' u i,igtype,offset,kdim(i),kord(i) = ', &
                                                            i,igtype(i),offset(i),kdim(i),kord(i)
   end do
 
-  i_v=i+ione
+  i_v=i+1
   read(lendian_in) n_position,memoryorder
   do k=1,lm
-     i=i+ione                                                       ! v(k)
+     i=i+1                                                       ! v(k)
      if(trim(memoryorder)=='XZY') then
-        iadd=izero
+        iadd=0
         kord(i)=lm
      else
-        iadd=(k-ione)*im*(jm+ione)*4
-        kord(i)=ione
+        iadd=(k-1)*im*(jm+1)*4
+        kord(i)=1
      end if
-     offset(i)=n_position+iadd ; length(i)=im*(jm+ione) ; igtype(i)=3_i_kind ; kdim(i)=lm
-     if(mype == izero.and.k==ione) write(6,*)' v i,igtype,offset,kdim(i),kord(i) = ', &
+     offset(i)=n_position+iadd ; length(i)=im*(jm+1) ; igtype(i)=3 ; kdim(i)=lm
+     if(mype == 0.and.k==1) write(6,*)' v i,igtype,offset,kdim(i),kord(i) = ', &
                                                             i,igtype(i),offset(i),kdim(i),kord(i)
   end do
 
   read(lendian_in)                                                    ! landmask
   read(lendian_in)                                                    ! xice
 
-  i=i+ione ; i_sst=i                                                ! sst
+  i=i+1 ; i_sst=i                                                ! sst
   read(lendian_in) n_position
-  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
-  if(mype == izero) write(6,*)' sst i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+  if(mype == 0) write(6,*)' sst i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
 
   read(lendian_in)                                                    ! ivgtyp
   read(lendian_in)                                                    ! isltyp
@@ -264,102 +264,102 @@ subroutine wrwrfmassa_binary(mype)
   read(lendian_in)                                                    ! smois
   read(lendian_in)                                                    ! tslb
 
-  i=i+ione ; i_tsk=i                                                ! tsk
+  i=i+1 ; i_tsk=i                                                ! tsk
   read(lendian_in) n_position
-  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ione
-  if(mype == izero) write(6,*)' tsk i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+  offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+  if(mype == 0) write(6,*)' tsk i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
 
 ! for cloud/hydrometeor analysis fields
   if(l_cloud_analysis) then
 
-     i_qc=i+ione
+     i_qc=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
-        i=i+ione                                                       ! qc(k)
+        i=i+1                                                       ! qc(k)
         if(trim(memoryorder)=='XZY') then
-           iadd=izero
+           iadd=0
            kord(i)=lm
         else
-           iadd=(k-ione)*im*jm*4
-           kord(i)=ione
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
         end if
-        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-        if(mype == izero.and.k==ione) write(6,*)' qc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' qc i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
 
-     i_qr=i+ione
+     i_qr=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
-        i=i+ione                                                       ! qr(k)
+        i=i+1                                                       ! qr(k)
         if(trim(memoryorder)=='XZY') then
-           iadd=izero
+           iadd=0
            kord(i)=lm
         else
-           iadd=(k-ione)*im*jm*4
-           kord(i)=ione
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
          end if
-        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-        if(mype == izero.and.k==ione) write(6,*)' qr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' qr i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
 
-     i_qi=i+ione
+     i_qi=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
-        i=i+ione                                                       ! qi(k)
+        i=i+1                                                       ! qi(k)
         if(trim(memoryorder)=='XZY') then
-           iadd=izero
+           iadd=0
            kord(i)=lm
         else
-           iadd=(k-ione)*im*jm*4
-           kord(i)=ione
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
         end if
-        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-        if(mype == izero.and.k==ione) write(6,*)' qi i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' qi i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
 
-     i_qs=i+ione
+     i_qs=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
-        i=i+ione                                                       ! qs(k)
+        i=i+1                                                       ! qs(k)
         if(trim(memoryorder)=='XZY') then
-           iadd=izero
+           iadd=0
            kord(i)=lm
         else
-           iadd=(k-ione)*im*jm*4
-           kord(i)=ione
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
         end if
-        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-        if(mype == izero.and.k==ione) write(6,*)' qs i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' qs i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
  
-     i_qg=i+ione
+     i_qg=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
-        i=i+ione                                                       ! qg(k)
+        i=i+1                                                       ! qg(k)
         if(trim(memoryorder)=='XZY') then
-           iadd=izero
+           iadd=0
            kord(i)=lm
         else
-           iadd=(k-ione)*im*jm*4
-           kord(i)=ione
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
         end if
-        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-        if(mype == izero.and.k==ione) write(6,*)' qg i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' qg i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
 
-     i_tt=i+ione
+     i_tt=i+1
      read(lendian_in) n_position,memoryorder
      do k=1,lm
-        i=i+ione                                                       ! tt(k)
+        i=i+1                                                       ! tt(k)
         if(trim(memoryorder)=='XZY') then
-           iadd=izero
+           iadd=0
            kord(i)=lm
         else
-           iadd=(k-ione)*im*jm*4
-           kord(i)=ione
+           iadd=(k-1)*im*jm*4
+           kord(i)=1
         end if
-        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-        if(mype == izero.and.k==ione) write(6,*)' tt i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+        offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+        if(mype == 0.and.k==1) write(6,*)' tt i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
 
   endif    ! l_cloud_analysis
@@ -371,37 +371,37 @@ subroutine wrwrfmassa_binary(mype)
 
   num_loc_groups=num_mass_fields/npe
   nextra=num_mass_fields-num_loc_groups*npe
-  kbegin(0)=ione
-  if(nextra > izero) then
+  kbegin(0)=1
+  if(nextra > 0) then
      do k=1,nextra
-        kbegin(k)=kbegin(k-ione)+ione+num_loc_groups
+        kbegin(k)=kbegin(k-1)+1+num_loc_groups
      end do
   end if
-  do k=nextra+ione,npe
-     kbegin(k)=kbegin(k-ione)+num_loc_groups
+  do k=nextra+1,npe
+     kbegin(k)=kbegin(k-1)+num_loc_groups
   end do
-  do k=0,npe-ione
-     kend(k)=kbegin(k+ione)-ione
+  do k=0,npe-1
+     kend(k)=kbegin(k+1)-1
   end do
-  if(mype == izero) then
+  if(mype == 0) then
      write(6,*)' kbegin=',kbegin
      write(6,*)' kend= ',kend
   end if
   num_j_groups=jm/npe
   jextra=jm-num_j_groups*npe
-  jbegin(0)=ione
-  if(jextra > izero) then
+  jbegin(0)=1
+  if(jextra > 0) then
      do j=1,jextra
-        jbegin(j)=jbegin(j-ione)+ione+num_j_groups
+        jbegin(j)=jbegin(j-1)+1+num_j_groups
      end do
   end if
-  do j=jextra+ione,npe
-     jbegin(j)=jbegin(j-ione)+num_j_groups
+  do j=jextra+1,npe
+     jbegin(j)=jbegin(j-1)+num_j_groups
   end do
-  do j=0,npe-ione
-   jend(j)=min(jbegin(j+ione)-ione,jm)
+  do j=0,npe-1
+   jend(j)=min(jbegin(j+1)-1,jm)
   end do
-  if(mype == izero) then
+  if(mype == 0) then
      write(6,*)' jbegin=',jbegin
      write(6,*)' jend= ',jend
   end if
@@ -412,10 +412,10 @@ subroutine wrwrfmassa_binary(mype)
 ! Create all_loc from ges_*
   allocate(all_loc(lat1,lon1,num_mass_fields))
   all_loc=zero_single
-  kt=i_t-ione
-  kq=i_q-ione
-  ku=i_u-ione
-  kv=i_v-ione
+  kt=i_t-1
+  kq=i_q-1
+  ku=i_u-1
+  kv=i_v-1
   q_integral=one
 ! for hydrometeors
   if(l_cloud_analysis) then
@@ -430,32 +430,32 @@ subroutine wrwrfmassa_binary(mype)
          write(6,*)'wrwrfmassa_binary: getpointer failed, cannot do cloud analysis'
          call stop2(999)
      endif
-     kqc=i_qc-ione
-     kqi=i_qi-ione
-     kqr=i_qr-ione
-     kqs=i_qs-ione
-     kqg=i_qg-ione
-     ktt=i_tt-ione
+     kqc=i_qc-1
+     kqi=i_qi-1
+     kqr=i_qr-1
+     kqs=i_qs-1
+     kqg=i_qg-1
+     ktt=i_tt-1
   endif
   do k=1,nsig
-     deltasigma=eta1_ll(k)-eta1_ll(k+ione)
-     kt=kt+ione
-     kq=kq+ione
-     ku=ku+ione
-     kv=kv+ione
+     deltasigma=eta1_ll(k)-eta1_ll(k+1)
+     kt=kt+1
+     kq=kq+1
+     ku=ku+1
+     kv=kv+1
 ! for hydrometeors
      if(l_cloud_analysis) then
-        kqc=kqc+ione
-        kqi=kqi+ione
-        kqr=kqr+ione
-        kqs=kqs+ione
-        kqg=kqg+ione
-        ktt=ktt+ione
+        kqc=kqc+1
+        kqi=kqi+1
+        kqr=kqr+1
+        kqs=kqs+1
+        kqg=kqg+1
+        ktt=ktt+1
      endif
      do i=1,lon1
-        ip1=i+ione
+        ip1=i+1
         do j=1,lat1
-           jp1=j+ione
+           jp1=j+1
            all_loc(j,i,ku)=ges_u(jp1,ip1,k,it)
            all_loc(j,i,kv)=ges_v(jp1,ip1,k,it)
 
@@ -490,9 +490,9 @@ subroutine wrwrfmassa_binary(mype)
   end do
 
   do i=1,lon1
-     ip1=i+ione
+     ip1=i+1
      do j=1,lat1
-        jp1=j+ione
+        jp1=j+1
         psfc_this=r10*ges_ps(jp1,ip1,it)   ! convert from cb to mb
         psfc_this_dry=pt_ll+(psfc_this-pt_ll)/q_integral(jp1,ip1)
         all_loc(j,i,i_mu)=r100*psfc_this_dry
@@ -502,9 +502,9 @@ subroutine wrwrfmassa_binary(mype)
 ! Load updated skin temperature array if writing out to analysis file
   if (update_regsfc) then
      do i=1,lon1
-        ip1=i+ione
+        ip1=i+1
         do j=1,lat1
-           jp1=j+ione
+           jp1=j+1
            all_loc(j,i,i_sst)=dsfct(jp1,ip1,ntguessfc)
            all_loc(j,i,i_tsk)=dsfct(jp1,ip1,ntguessfc)
         end do
@@ -516,7 +516,7 @@ subroutine wrwrfmassa_binary(mype)
   call generic_sub2grid(all_loc,tempa,kbegin(mype),kend(mype),kbegin,kend,mype,num_mass_fields)
   deallocate(all_loc)
 
-  allocate(ibuf((im+ione)*(jm+ione),kbegin(mype):kend(mype)))
+  allocate(ibuf((im+1)*(jm+1),kbegin(mype):kend(mype)))
 !      finish reading in mub
   call mpi_wait(request,status,ierror)
 
@@ -524,117 +524,117 @@ subroutine wrwrfmassa_binary(mype)
 !   2.  create ibuf with records to be updated read in
 
 !                                    read temps
-  if(kord(i_t)/=ione) then
+  if(kord(i_t)/=1) then
      allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-     this_offset=offset(i_t)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_t,i_t+lm-ione)
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_t,i_t+lm-1)
      deallocate(jbuf)
   end if
 
 !                                    read q
-  if(kord(i_q)/=ione) then
+  if(kord(i_q)/=1) then
      allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-     this_offset=offset(i_q)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+     this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_q,i_q+lm-ione)
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_q,i_q+lm-1)
      deallocate(jbuf)
   end if
 
 !                                    read u
-  if(kord(i_u)/=ione) then
-     allocate(jbuf(im+ione,lm,jbegin(mype):min(jend(mype),jm)))
-     this_offset=offset(i_u)+(jbegin(mype)-ione)*4*(im+ione)*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*(im+ione)*lm
+  if(kord(i_u)/=1) then
+     allocate(jbuf(im+1,lm,jbegin(mype):min(jend(mype),jm)))
+     this_offset=offset(i_u)+(jbegin(mype)-1)*4*(im+1)*lm
+     this_length=(jend(mype)-jbegin(mype)+1)*(im+1)*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend,kbegin,kend,mype,npe,im+ione,jm,lm,im+ione,jm+ione,i_u,i_u+lm-ione)
+                        jbegin,jend,kbegin,kend,mype,npe,im+1,jm,lm,im+1,jm+1,i_u,i_u+lm-1)
      deallocate(jbuf)
   end if
 
 
 !                                    read v
-  if(kord(i_v)/=ione) then
+  if(kord(i_v)/=1) then
      jend2=jend
-     jend2(npe-ione)=jend2(npe-ione)+ione
+     jend2(npe-1)=jend2(npe-1)+1
      allocate(jbuf(im,lm,jbegin(mype):jend2(mype)))
-     this_offset=offset(i_v)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend2(mype)-jbegin(mype)+ione)*im*lm
+     this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
+     this_length=(jend2(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend2,kbegin,kend,mype,npe,im,jm+ione,lm,im+ione,jm+ione,i_v,i_v+lm-ione)
+                        jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
      deallocate(jbuf)
   end if
 
 ! read hydrometeors
   if(l_cloud_analysis) then
 !                                    read qc
-     if(kord(i_qc)/=ione) then
+     if(kord(i_qc)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-        this_offset=offset(i_qc)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+        this_offset=offset(i_qc)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qc,i_qc+lm-ione)
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qc,i_qc+lm-1)
         deallocate(jbuf)
      end if
 
 !                                    read qr
-     if(kord(i_qr)/=ione) then
+     if(kord(i_qr)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-        this_offset=offset(i_qr)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+        this_offset=offset(i_qr)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qr,i_qr+lm-ione)
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qr,i_qr+lm-1)
         deallocate(jbuf)
      end if
 
 !                                    read qi
-     if(kord(i_qi)/=ione) then
+     if(kord(i_qi)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-        this_offset=offset(i_qi)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+        this_offset=offset(i_qi)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qi,i_qi+lm-ione)
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qi,i_qi+lm-1)
         deallocate(jbuf)
      end if
 
 !                                    read qs
-     if(kord(i_qs)/=ione) then
+     if(kord(i_qs)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-        this_offset=offset(i_qs)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+        this_offset=offset(i_qs)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qs,i_qs+lm-ione)
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qs,i_qs+lm-1)
         deallocate(jbuf)
      end if
 
 !                                    read qg
-     if(kord(i_qg)/=ione) then
+     if(kord(i_qg)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-        this_offset=offset(i_qg)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+        this_offset=offset(i_qg)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qg,i_qg+lm-ione)
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qg,i_qg+lm-1)
         deallocate(jbuf)
      end if
  
 !                                    read tt
-     if(kord(i_tt)/=ione) then
+     if(kord(i_tt)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
-        this_offset=offset(i_tt)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+        this_offset=offset(i_tt)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_tt,i_tt+lm-ione)
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_tt,i_tt+lm-1)
         deallocate(jbuf)
      end if
 
@@ -642,11 +642,11 @@ subroutine wrwrfmassa_binary(mype)
 
 !---------------------- read surface files last
   do k=kbegin(mype),kend(mype)
-     if(kdim(k)==ione.or.kord(k)==ione) then
+     if(kdim(k)==1.or.kord(k)==1) then
         call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
-        if(igtype(k)==ione    ) call expand_ibuf(ibuf(1,k),im     ,jm     ,im+ione,jm+ione)
-        if(igtype(k)==2_i_kind) call expand_ibuf(ibuf(1,k),im+ione,jm     ,im+ione,jm+ione)
-        if(igtype(k)==3_i_kind) call expand_ibuf(ibuf(1,k),im     ,jm+ione,im+ione,jm+ione)
+        if(igtype(k)==1) call expand_ibuf(ibuf(1,k),im  ,jm     ,im+1,jm+1)
+        if(igtype(k)==2) call expand_ibuf(ibuf(1,k),im+1,jm     ,im+1,jm+1)
+        if(igtype(k)==3) call expand_ibuf(ibuf(1,k),im  ,jm+1,im+1,jm+1)
      end if
   end do
 ! call mpi_barrier(mpi_comm_world,ierror)
@@ -654,15 +654,15 @@ subroutine wrwrfmassa_binary(mype)
 !   5.  tempa --> updated ibuf --> jbuf --> write out
 
   allocate(tempb(itotsub,kbegin(mype):kend(mype)))
-  allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+ione,jm),temp1v(im,jm+ione))
+  allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+1,jm),temp1v(im,jm+1))
   do ifld=kbegin(mype),kend(mype)
      if((ifld==i_sst.or.ifld==i_tsk).and..not.update_regsfc) cycle
-     if(igtype(ifld) == ione) then
-        call move_ibuf_hg(ibuf(1,ifld),temp1,im+ione,jm+ione,im,jm)
+     if(igtype(ifld) == 1) then
+        call move_ibuf_hg(ibuf(1,ifld),temp1,im+1,jm+1,im,jm)
         if(ifld==i_mu) then
            temp1=temp1+mub+pt_regional_single
         end if
-        call fill_mass_grid2t(temp1,im,jm,tempb(1,ifld),2_i_kind)
+        call fill_mass_grid2t(temp1,im,jm,tempb(1,ifld),2)
         if(ifld==i_sst.or.ifld==i_tsk) then
            do i=1,iglobal
               if(tempb(i,ifld) < r225) then
@@ -680,66 +680,66 @@ subroutine wrwrfmassa_binary(mype)
         if(ifld==i_mu) then
            temp1=temp1-mub-pt_regional_single
         end if
-        call move_hg_ibuf(temp1,ibuf(1,ifld),im+ione,jm+ione,im,jm)
-     else if(igtype(ifld) == 2_i_kind) then
-        call move_ibuf_hg(ibuf(1,ifld),temp1u,im+ione,jm+ione,im+ione,jm)
-        call fill_mass_grid2u(temp1u,im,jm,tempb(1,ifld),2_i_kind)
+        call move_hg_ibuf(temp1,ibuf(1,ifld),im+1,jm+1,im,jm)
+     else if(igtype(ifld) == 2) then
+        call move_ibuf_hg(ibuf(1,ifld),temp1u,im+1,jm+1,im+1,jm)
+        call fill_mass_grid2u(temp1u,im,jm,tempb(1,ifld),2)
         tempa(:,ifld)=tempa(:,ifld)-tempb(:,ifld)
         call unfill_mass_grid2u(tempa(1,ifld),im,jm,temp1u)
-        call move_hg_ibuf(temp1u,ibuf(1,ifld),im+ione,jm+ione,im+ione,jm)
-     else if(igtype(ifld) == 3_i_kind) then
-        call move_ibuf_hg(ibuf(1,ifld),temp1v,im+ione,jm+ione,im,jm+ione)
-        call fill_mass_grid2v(temp1v,im,jm,tempb(1,ifld),2_i_kind)
+        call move_hg_ibuf(temp1u,ibuf(1,ifld),im+1,jm+1,im+1,jm)
+     else if(igtype(ifld) == 3) then
+        call move_ibuf_hg(ibuf(1,ifld),temp1v,im+1,jm+1,im,jm+1)
+        call fill_mass_grid2v(temp1v,im,jm,tempb(1,ifld),2)
         tempa(:,ifld)=tempa(:,ifld)-tempb(:,ifld)
         call unfill_mass_grid2v(tempa(1,ifld),im,jm,temp1v)
-        call move_hg_ibuf(temp1v,ibuf(1,ifld),im+ione,jm+ione,im,jm+ione)
+        call move_hg_ibuf(temp1v,ibuf(1,ifld),im+1,jm+1,im,jm+1)
      end if
   end do
 
 !           finally write ibuf back out ( ibuf --> jbuf -->  mpi_file_write )
 
 !                                    write temps
-  if(kord(i_t)/=ione) then
+  if(kord(i_t)/=1) then
      allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_t,i_t+lm-ione)
-     this_offset=offset(i_t)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_t,i_t+lm-1)
+     this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
 
 !                                    write q
-  if(kord(i_q)/=ione) then
+  if(kord(i_q)/=1) then
      allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_q,i_q+lm-ione)
-     this_offset=offset(i_q)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                        jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_q,i_q+lm-1)
+     this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
+     this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
 
 !                                    write u
-  if(kord(i_u)/=ione) then
-     allocate(jbuf(im+ione,lm,jbegin(mype):min(jend(mype),jm)))
+  if(kord(i_u)/=1) then
+     allocate(jbuf(im+1,lm,jbegin(mype):min(jend(mype),jm)))
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend,kbegin,kend,mype,npe,im+ione,jm,lm,im+ione,jm+ione,i_u,i_u+lm-ione)
-     this_offset=offset(i_u)+(jbegin(mype)-ione)*4*(im+ione)*lm
-     this_length=(jend(mype)-jbegin(mype)+ione)*(im+ione)*lm
+                        jbegin,jend,kbegin,kend,mype,npe,im+1,jm,lm,im+1,jm+1,i_u,i_u+lm-1)
+     this_offset=offset(i_u)+(jbegin(mype)-1)*4*(im+1)*lm
+     this_length=(jend(mype)-jbegin(mype)+1)*(im+1)*lm
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
 
 !                                    write v
-  if(kord(i_v)/=ione) then
+  if(kord(i_v)/=1) then
      jend2=jend
-     jend2(npe-ione)=jend2(npe-ione)+ione
+     jend2(npe-1)=jend2(npe-1)+1
      allocate(jbuf(im,lm,jbegin(mype):jend2(mype)))
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend2(mype),ibuf,kbegin(mype),kend(mype), &
-                        jbegin,jend2,kbegin,kend,mype,npe,im,jm+ione,lm,im+ione,jm+ione,i_v,i_v+lm-ione)
-     this_offset=offset(i_v)+(jbegin(mype)-ione)*4*im*lm
-     this_length=(jend2(mype)-jbegin(mype)+ione)*im*lm
+                        jbegin,jend2,kbegin,kend,mype,npe,im,jm+1,lm,im+1,jm+1,i_v,i_v+lm-1)
+     this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
+     this_length=(jend2(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
@@ -747,67 +747,67 @@ subroutine wrwrfmassa_binary(mype)
 !  write hydrometeors
   if(l_cloud_analysis) then
 !                                    write qc
-     if(kord(i_qc)/=ione) then
+     if(kord(i_qc)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qc,i_qc+lm-ione)
-        this_offset=offset(i_qc)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qc,i_qc+lm-1)
+        this_offset=offset(i_qc)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
 
 !                                    write qr
-     if(kord(i_qr)/=ione) then
+     if(kord(i_qr)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qr,i_qr+lm-ione)
-        this_offset=offset(i_qr)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qr,i_qr+lm-1)
+        this_offset=offset(i_qr)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
 
 !                                    write qi
-     if(kord(i_qi)/=ione) then
+     if(kord(i_qi)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qi,i_qi+lm-ione)
-        this_offset=offset(i_qi)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qi,i_qi+lm-1)
+        this_offset=offset(i_qi)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
 
 !                                    write qs
-     if(kord(i_qs)/=ione) then
+     if(kord(i_qs)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qs,i_qs+lm-ione)
-        this_offset=offset(i_qs)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qs,i_qs+lm-1)
+        this_offset=offset(i_qs)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
 
 !                                    write qg
-     if(kord(i_qg)/=ione) then
+     if(kord(i_qg)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_qg,i_qg+lm-ione)
-        this_offset=offset(i_qg)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qg,i_qg+lm-1)
+        this_offset=offset(i_qg)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
 
 !                                    write tt
-     if(kord(i_tt)/=ione) then
+     if(kord(i_tt)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+ione,jm+ione,i_tt,i_tt+lm-ione)
-        this_offset=offset(i_tt)+(jbegin(mype)-ione)*4*im*lm
-        this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_tt,i_tt+lm-1)
+        this_offset=offset(i_tt)+(jbegin(mype)-1)*4*im*lm
+        this_length=(jend(mype)-jbegin(mype)+1)*im*lm
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
@@ -815,10 +815,10 @@ subroutine wrwrfmassa_binary(mype)
   end if ! l_cloud_analysis
 !---------------------- write surface files last
   do k=kbegin(mype),kend(mype)
-     if(kdim(k)==ione.or.kord(k)==ione) then
-        if(igtype(k)==ione    ) call contract_ibuf(ibuf(1,k),im     ,jm     ,im+ione,jm+ione)
-        if(igtype(k)==2_i_kind) call contract_ibuf(ibuf(1,k),im+ione,jm     ,im+ione,jm+ione)
-        if(igtype(k)==3_i_kind) call contract_ibuf(ibuf(1,k),im     ,jm+ione,im+ione,jm+ione)
+     if(kdim(k)==1.or.kord(k)==1) then
+        if(igtype(k)==1) call contract_ibuf(ibuf(1,k),im  ,jm     ,im+1,jm+1)
+        if(igtype(k)==2) call contract_ibuf(ibuf(1,k),im+1,jm     ,im+1,jm+1)
+        if(igtype(k)==3) call contract_ibuf(ibuf(1,k),im  ,jm+1,im+1,jm+1)
         call mpi_file_write_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
      end if
   end do
@@ -866,12 +866,11 @@ subroutine wrwrfmassa_binary(mype)
 !
 !$$$
   use kinds, only: i_kind
-  use constants, only: izero
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
 
-  if (mype==izero) write(6,*)'WRWRFMASSA_BINARY:  enter dummy call, do nothing'
+  if (mype==0) write(6,*)'WRWRFMASSA_BINARY:  enter dummy call, do nothing'
 end subroutine wrwrfmassa_binary
 #endif /* End no WRF-library block */
 
@@ -910,37 +909,36 @@ subroutine generic_sub2grid(all_loc,tempa,kbegin_loc,kend_loc,kbegin,kend,mype,n
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: izero,ione
   use mpimod, only: ierror,mpi_comm_world,mpi_real4,npe
   use gridmod, only: ijn,itotsub,lat1,lon1
   use kinds, only: r_single,i_kind
   implicit none
 
   integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
-  integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-ione)
+  integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
   real(r_single) ,intent(  out) :: tempa(itotsub,kbegin_loc:kend_loc)
   real(r_single) ,intent(in   ) :: all_loc(lat1*lon1*num_fields)
 
   integer(i_kind) k
-  integer(i_kind) sendcounts(0:npe-ione),sdispls(0:npe),recvcounts(0:npe-ione),rdispls(0:npe)
+  integer(i_kind) sendcounts(0:npe-1),sdispls(0:npe),recvcounts(0:npe-1),rdispls(0:npe)
 
 ! first get alltoallv indices
 
-  sdispls(0)=izero
-  do k=0,npe-ione
-     sendcounts(k)=ijn(k+ione)*(kend_loc-kbegin_loc+ione)
-     sdispls(k+ione)=sdispls(k)+sendcounts(k)
+  sdispls(0)=0
+  do k=0,npe-1
+     sendcounts(k)=ijn(k+1)*(kend_loc-kbegin_loc+1)
+     sdispls(k+1)=sdispls(k)+sendcounts(k)
   end do
-  rdispls(0)=izero
-  do k=0,npe-ione
-     recvcounts(k)=ijn(mype+ione)*(kend(k)-kbegin(k)+ione)
-     rdispls(k+ione)=rdispls(k)+recvcounts(k)
+  rdispls(0)=0
+  do k=0,npe-1
+     recvcounts(k)=ijn(mype+1)*(kend(k)-kbegin(k)+1)
+     rdispls(k+1)=rdispls(k)+recvcounts(k)
   end do
 
   call mpi_alltoallv(all_loc,recvcounts,rdispls,mpi_real4, &
                 tempa,sendcounts,sdispls,mpi_real4,mpi_comm_world,ierror)
 
-  call reorder_s(tempa,kend_loc-kbegin_loc+ione)
+  call reorder_s(tempa,kend_loc-kbegin_loc+1)
 
 end subroutine generic_sub2grid
 
@@ -974,7 +972,7 @@ end subroutine generic_sub2grid
 
     use mpimod, only: npe
     use kinds, only: r_single,i_kind
-    use constants, only: izero,ione,zero
+    use constants, only: zero
     use gridmod, only: ijn,itotsub
     implicit none
 
@@ -995,25 +993,25 @@ end subroutine generic_sub2grid
 
 ! Load temp array in desired order
     do k=1,k_in
-       iskip=izero
-       iloc=izero
+       iskip=0
+       iloc=0
        do n=1,npe
-          if (n/=ione) then
-             iskip=iskip+ijn(n-ione)*k_in
+          if (n/=1) then
+             iskip=iskip+ijn(n-1)*k_in
           end if
           do i=1,ijn(n)
-             iloc=iloc+ione
+             iloc=iloc+1
              temp(iloc,k)=work(i + iskip + &
-                      (k-ione)*ijn(n))
+                      (k-1)*ijn(n))
           end do
        end do
     end do
 
 ! Load the temp array back into work
-    iloc=izero
+    iloc=0
     do k=1,k_in
        do i=1,itotsub
-          iloc=iloc+ione
+          iloc=iloc+1
           work(iloc)=temp(i,k)
        end do
     end do
@@ -1054,7 +1052,6 @@ subroutine contract_ibuf(ibuf,im,jm,imp,jmp)
 !   field of dim imp*jmp needs to be converted to field of im*jm
 
   use kinds, only: i_long,i_kind
-  use constants, only: izero,ione
   implicit none
 
   integer(i_kind),intent(in   ) :: im,jm,imp,jmp
@@ -1068,19 +1065,19 @@ subroutine contract_ibuf(ibuf,im,jm,imp,jmp)
         itemp(i,j)=0_i_long
      end do
   end do
-  ii=izero
+  ii=0
   do j=1,jmp
      do i=1,imp
-        ii=ii+ione
+        ii=ii+1
         itemp(i,j)=ibuf(ii)
      end do
   end do
 
   ibuf=0_i_long
-  ii=izero
+  ii=0
   do j=1,jm
      do i=1,im
-        ii=ii+ione
+        ii=ii+1
         ibuf(ii)=itemp(i,j)
      end do
   end do
@@ -1134,7 +1131,6 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
 
   use mpimod, only: mpi_comm_world,mpi_integer4
   use kinds, only: i_long,i_kind
-  use constants, only: izero,ione
   implicit none
 
   integer(i_kind),intent(in   ) :: jbegin_loc,jend_loc,kbegin_loc,kend_loc,mype,npe,im_jbuf,jm_jbuf,lm_jbuf
@@ -1142,55 +1138,55 @@ subroutine transfer_ibuf2jbuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
 
   integer(i_long),intent(  out) :: jbuf(im_jbuf,lm_jbuf,jbegin_loc:jend_loc)
   integer(i_long),intent(in   ) :: ibuf(im_ibuf,jm_ibuf,kbegin_loc:kend_loc)
-  integer(i_kind),intent(in   ) :: jbegin(0:npe),jend(0:npe-ione)
-  integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-ione)
+  integer(i_kind),intent(in   ) :: jbegin(0:npe),jend(0:npe-1)
+  integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
 
-  integer(i_long) sendbuf(im_jbuf*lm_jbuf*(min(jend_loc,jm_jbuf)-jbegin_loc+ione))
-  integer(i_long) recvbuf(im_jbuf*jm_jbuf*(kend_loc-kbegin_loc+ione))
-  integer(i_long) recvcounts(0:npe-ione),displs(0:npe)
+  integer(i_long) sendbuf(im_jbuf*lm_jbuf*(min(jend_loc,jm_jbuf)-jbegin_loc+1))
+  integer(i_long) recvbuf(im_jbuf*jm_jbuf*(kend_loc-kbegin_loc+1))
+  integer(i_long) recvcounts(0:npe-1),displs(0:npe)
   integer(i_kind) i,ipe,j,ierror,k,n,ii,k_t_start,k_t_end,sendcount
 
-  do ipe=0,npe-ione
+  do ipe=0,npe-1
      k_t_start=max(k_start,kbegin(ipe))
      k_t_end=  min(k_end,kend(ipe))
      if(k_t_end < k_t_start) cycle
 
      displs(0)=0_i_long
-     do i=0,npe-ione
+     do i=0,npe-1
         recvcounts(i)=im_jbuf*(k_t_end-k_t_start+1_i_long)*(jend(i)-jbegin(i)+1_i_long)
-        displs(i+ione)=displs(i)+recvcounts(i)
+        displs(i+1)=displs(i)+recvcounts(i)
      end do
 
      if(ipe==mype) then
-        ii=izero
-        do n=0,npe-ione
+        ii=0
+        do n=0,npe-1
            do k=k_t_start,k_t_end
               do j=jbegin(n),jend(n)
                  do i=1,im_jbuf
-                    ii=ii+ione
+                    ii=ii+1
                     recvbuf(ii)=ibuf(i,j,k)
                  end do
               end do
            end do
         end do
      end if
-     ii=izero
+     ii=0
      do k=k_t_start,k_t_end
         do j=jbegin_loc,jend_loc
            do i=1,im_jbuf
-              ii=ii+ione
+              ii=ii+1
            end do
         end do
      end do
      sendcount=ii
      call mpi_scatterv(recvbuf,recvcounts,displs,mpi_integer4, &
                        sendbuf,sendcount,mpi_integer4,ipe,mpi_comm_world,ierror)
-     ii=izero
+     ii=0
      do k=k_t_start,k_t_end
         do j=jbegin_loc,jend_loc
            do i=1,im_jbuf
-              ii=ii+ione
-              jbuf(i,k-k_start+ione,j)=sendbuf(ii)
+              ii=ii+1
+              jbuf(i,k-k_start+1,j)=sendbuf(ii)
            end do
         end do
      end do
@@ -1272,6 +1268,7 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
 !   2010-04-01  treadon - move strip_single to gridmod
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
+!   2011-09-20  hclin   - added 15 wrfchem/gocart fields for aod
 !
 !   input argument list:
 !     mype     - pe number
@@ -1292,11 +1289,13 @@ subroutine wrwrfmassa_netcdf(mype)
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
        aeta1_ll,strip_single
-  use constants, only: izero,ione,one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
+  use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use aod_mod, only: laeroana_gocart
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use gsi_chemguess_mod, only: GSI_ChemGuess_Bundle, gsi_chemguess_get
   implicit none
 
 ! Declare passed variables
@@ -1314,6 +1313,8 @@ subroutine wrwrfmassa_netcdf(mype)
   integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_tt,ktt
   integer(i_kind) i_sst,i_skt
+  integer(i_kind) :: iv, n_gocart_var
+  integer(i_kind),allocatable :: i_chem(:), kchem(:)
   integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   integer(i_kind) ier,istatus
@@ -1331,40 +1332,65 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_kind), pointer :: ges_qr(:,:,:)
   real(r_kind), pointer :: ges_qs(:,:,:)
   real(r_kind), pointer :: ges_qg(:,:,:)
+  real(r_kind), pointer :: ges_sulf(:,:,:), ges_bc1(:,:,:),ges_bc2(:,:,:),ges_oc1(:,:,:), &
+       ges_oc2(:,:,:),ges_dust1(:,:,:),ges_dust2(:,:,:),ges_dust3(:,:,:),ges_dust4(:,:,:),&
+       ges_dust5(:,:,:),ges_seas1(:,:,:),ges_seas2(:,:,:),ges_seas3(:,:,:),ges_seas4(:,:,:),&
+       ges_p25(:,:,:)
 
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
 
-  num_mass_fields=3_i_kind+4*lm
-  if(l_cloud_analysis) num_mass_fields=3_i_kind+4_i_kind*lm + 6_i_kind*lm
+  num_mass_fields=3+4*lm
+  if(l_cloud_analysis) num_mass_fields=3+4*lm + 6*lm
+  if ( laeroana_gocart ) then
+     call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
+     if ( n_gocart_var > 0 ) then
+        num_mass_fields = num_mass_fields + n_gocart_var*lm
+        allocate(i_chem(n_gocart_var))
+        allocate(kchem(n_gocart_var))
+     else
+        laeroana_gocart = .false.
+     endif
+  endif
   num_all_fields=num_mass_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat2,lon2,num_all_pad))
   allocate(strp(lat1*lon1))
 
-  i_psfc=ione
-  i_t=2_i_kind
+  i_psfc=1
+  i_t=2
   i_q=i_t+lm
   i_u=i_q+lm
   i_v=i_u+lm
   i_sst=i_v+lm
-  i_skt=i_sst+ione
+  i_skt=i_sst+1
 ! for hydrometeors
   if(l_cloud_analysis) then
-     i_qc=i_skt+ione
+     i_qc=i_skt+1
      i_qr=i_qc+lm
      i_qs=i_qr+lm
      i_qi=i_qs+lm
      i_qg=i_qi+lm
      i_tt=i_qg+lm
+     if ( laeroana_gocart ) then
+        do iv = 1, n_gocart_var
+           i_chem(iv)=i_tt+(iv-1)*lm+1
+        end do
+     endif
+  else
+     if ( laeroana_gocart) then
+        do iv = 1, n_gocart_var
+           i_chem(iv)=i_skt+(iv-1)*lm+1
+        end do
+     endif
   endif
   
-  allocate(temp1(im*jm),temp1u((im+ione)*jm),temp1v(im*(jm+ione)))
+  allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
 
-  if(mype == izero) write(6,*)' at 2 in wrwrfmassa'
+  if(mype == 0) write(6,*)' at 2 in wrwrfmassa'
 
-  if(mype == izero) then
+  if(mype == 0) then
      write(filename,'("sigf",i2.2)')ifilesig(ntguessig)
      open (lendian_in,file=filename,form='unformatted')
      open (lendian_out,file='siganl',form='unformatted')
@@ -1388,36 +1414,65 @@ subroutine wrwrfmassa_netcdf(mype)
 
   
 ! Create all_loc from ges_*
-  if(mype == izero) write(6,*)' at 3 in wrwrfmassa'
+  if(mype == 0) write(6,*)' at 3 in wrwrfmassa'
   all_loc=zero_single
-  kt=i_t-ione
-  kq=i_q-ione
-  ku=i_u-ione
-  kv=i_v-ione
+  kt=i_t-1
+  kq=i_q-1
+  ku=i_u-1
+  kv=i_v-1
 ! for hydrometeors
   if(l_cloud_analysis) then
-     kqc=i_qc-ione
-     kqi=i_qi-ione
-     kqr=i_qr-ione
-     kqs=i_qs-ione
-     kqg=i_qg-ione
-     ktt=i_tt-ione
+     kqc=i_qc-1
+     kqi=i_qi-1
+     kqr=i_qr-1
+     kqs=i_qs-1
+     kqg=i_qg-1
+     ktt=i_tt-1
+  endif
+  if ( laeroana_gocart ) then
+     ier = 0
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'sulf',  ges_sulf,  istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'bc1',   ges_bc1,   istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'bc2',   ges_bc2,   istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'oc1',   ges_oc1,   istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'oc2',   ges_oc2,   istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust1', ges_dust1, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust2', ges_dust2, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust3', ges_dust3, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust4', ges_dust4, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'dust5', ges_dust5, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas1', ges_seas1, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas2', ges_seas2, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas3', ges_seas3, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'seas4', ges_seas4, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it), 'p25',   ges_p25,   istatus );ier=ier+istatus
+     if (ier/=0 .and. mype == 0) then
+         write(6,*)'WRWRFMASSA_NETCDF: getpointer failed for gocart species'
+     endif
+     do iv = 1, n_gocart_var
+        kchem(iv) = i_chem(iv)-1
+     end do
   endif
   q_integral=one
   do k=1,nsig
-     deltasigma=eta1_ll(k)-eta1_ll(k+ione)
-     kt=kt+ione
-     kq=kq+ione
-     ku=ku+ione
-     kv=kv+ione
+     deltasigma=eta1_ll(k)-eta1_ll(k+1)
+     kt=kt+1
+     kq=kq+1
+     ku=ku+1
+     kv=kv+1
 ! for hydrometeors
      if(l_cloud_analysis) then
-        kqc=kqc+ione
-        kqi=kqi+ione
-        kqr=kqr+ione
-        kqs=kqs+ione
-        kqg=kqg+ione
-        ktt=ktt+ione
+        kqc=kqc+1
+        kqi=kqi+1
+        kqr=kqr+1
+        kqs=kqs+1
+        kqg=kqg+1
+        ktt=ktt+1
+     endif
+     if ( laeroana_gocart ) then
+        do iv = 1, n_gocart_var
+           kchem(iv) = kchem(iv)+1
+        end do
      endif
      do i=1,lon2
         do j=1,lat2
@@ -1442,6 +1497,24 @@ subroutine wrwrfmassa_netcdf(mype)
               all_loc(j,i,ktt)=ges_tten(j,i,k,it)
            endif
 
+           if ( laeroana_gocart ) then
+              all_loc(j,i,kchem(1))=ges_sulf(j,i,k)
+              all_loc(j,i,kchem(2))=ges_bc1(j,i,k)
+              all_loc(j,i,kchem(3))=ges_bc2(j,i,k)
+              all_loc(j,i,kchem(4))=ges_oc1(j,i,k)
+              all_loc(j,i,kchem(5))=ges_oc2(j,i,k)
+              all_loc(j,i,kchem(6))=ges_dust1(j,i,k)
+              all_loc(j,i,kchem(7))=ges_dust2(j,i,k)
+              all_loc(j,i,kchem(8))=ges_dust3(j,i,k)
+              all_loc(j,i,kchem(9))=ges_dust4(j,i,k)
+              all_loc(j,i,kchem(10))=ges_dust5(j,i,k)
+              all_loc(j,i,kchem(11))=ges_seas1(j,i,k)
+              all_loc(j,i,kchem(12))=ges_seas2(j,i,k)
+              all_loc(j,i,kchem(13))=ges_seas3(j,i,k)
+              all_loc(j,i,kchem(14))=ges_seas4(j,i,k)
+              if ( n_gocart_var>=15 ) all_loc(j,i,kchem(15))=ges_p25(j,i,k)
+           endif
+
            q_integral(j,i)=q_integral(j,i)+deltasigma* &
                 ges_q(j,i,k,it)/(one-ges_q(j,i,k,it))
         end do
@@ -1455,7 +1528,7 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
   end do
   
-  if(mype == izero) then
+  if(mype == 0) then
      read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0
      write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0
      read(lendian_in) aeta10
@@ -1469,15 +1542,15 @@ subroutine wrwrfmassa_netcdf(mype)
   end if
   
 ! Update psfc
-  if(mype == izero) write(6,*)' at 6 in wrwrfmassa'
+  if(mype == 0) write(6,*)' at 6 in wrwrfmassa'
 
   allocate(tempa(itotsub),tempb(itotsub))
-  if(mype == izero) read(lendian_in)temp1
-  call strip_single(all_loc(1,1,i_psfc),strp,ione)
-  call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-       tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-  if(mype == izero) then
-     call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+  if(mype == 0) read(lendian_in)temp1
+  call strip_single(all_loc(1,1,i_psfc),strp,1)
+  call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+       tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+  if(mype == 0) then
+     call fill_mass_grid2t(temp1,im,jm,tempb,2)
      do i=1,iglobal
         tempa(i)=tempa(i)-tempb(i)
      end do
@@ -1486,21 +1559,21 @@ subroutine wrwrfmassa_netcdf(mype)
   end if
 
 !  FIS read/write
-  if(mype == izero) then
+  if(mype == 0) then
      read(lendian_in)temp1
      write(lendian_out)temp1
   end if
 
 ! Update t
-  kt=i_t-ione
+  kt=i_t-1
   do k=1,nsig
-     kt=kt+ione
-     if(mype == izero) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kt),strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-     if(mype == izero) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+     kt=kt+1
+     if(mype == 0) read(lendian_in)temp1
+     call strip_single(all_loc(1,1,kt),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
@@ -1510,15 +1583,15 @@ subroutine wrwrfmassa_netcdf(mype)
   end do
 
 ! Update q
-  kq=i_q-ione
+  kq=i_q-1
   do k=1,nsig
-     kq=kq+ione
-     if(mype == izero) read(lendian_in)temp1
-     call strip_single(all_loc(1,1,kq),strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-     if(mype == izero) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+     kq=kq+1
+     if(mype == 0) read(lendian_in)temp1
+     call strip_single(all_loc(1,1,kq),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
@@ -1528,15 +1601,15 @@ subroutine wrwrfmassa_netcdf(mype)
   end do
 
 ! Update u
-  ku=i_u-ione
+  ku=i_u-1
   do k=1,nsig
-     ku=ku+ione
-     if(mype == izero) read(lendian_in)temp1u
-     call strip_single(all_loc(1,1,ku),strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-     if(mype == izero) then
-        call fill_mass_grid2u(temp1u,im,jm,tempb,2_i_kind)
+     ku=ku+1
+     if(mype == 0) read(lendian_in)temp1u
+     call strip_single(all_loc(1,1,ku),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2u(temp1u,im,jm,tempb,2)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
@@ -1546,15 +1619,15 @@ subroutine wrwrfmassa_netcdf(mype)
   end do
 
 ! Update v
-  kv=i_v-ione
+  kv=i_v-1
   do k=1,nsig
-     kv=kv+ione
-     if(mype == izero) read(lendian_in)temp1v
-     call strip_single(all_loc(1,1,kv),strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-     if(mype == izero) then
-        call fill_mass_grid2v(temp1v,im,jm,tempb,2_i_kind)
+     kv=kv+1
+     if(mype == 0) read(lendian_in)temp1v
+     call strip_single(all_loc(1,1,kv),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2v(temp1v,im,jm,tempb,2)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
@@ -1573,7 +1646,7 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
   end if
 
-  if(mype == izero) then
+  if(mype == 0) then
 ! SM
      read(lendian_in)temp1
      write(lendian_out)temp1
@@ -1584,14 +1657,14 @@ subroutine wrwrfmassa_netcdf(mype)
 
 ! SST
   if(update_regsfc) then
-     if(mype == izero) read(lendian_in)temp1
-     if (mype==izero)write(6,*)' at 9.1 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_sst),strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-     if(mype == izero) then
-        if(mype == izero) write(6,*)' at 9.2 in wrwrfmassa,max,min(tempa)=',maxval(tempa),minval(tempa)
-        call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+     if(mype == 0) read(lendian_in)temp1
+     if (mype==0)write(6,*)' at 9.1 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
+     call strip_single(all_loc(1,1,i_sst),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        if(mype == 0) write(6,*)' at 9.2 in wrwrfmassa,max,min(tempa)=',maxval(tempa),minval(tempa)
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
         do i=1,iglobal
            if(tempb(i) < (r225)) then
               tempa(i)=zero_single
@@ -1599,20 +1672,20 @@ subroutine wrwrfmassa_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        if(mype == izero) write(6,*)' at 9.4 in wrwrfmassa,max,min(tempa)=',maxval(tempa),minval(tempa)
+        if(mype == 0) write(6,*)' at 9.4 in wrwrfmassa,max,min(tempa)=',maxval(tempa),minval(tempa)
         call unfill_mass_grid2t(tempa,im,jm,temp1)
         write(6,*)' at 9.6 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if     !endif mype==0
   else
-     if(mype==izero) then
+     if(mype==0) then
         read(lendian_in)temp1
         write(lendian_out)temp1
      end if
   end if   !end if check updatesfc
   
 ! REST OF FIELDS
-  if (mype == izero) then
+  if (mype == 0) then
      do k=4,11
         read(lendian_in)temp1
         write(lendian_out)temp1
@@ -1621,13 +1694,13 @@ subroutine wrwrfmassa_netcdf(mype)
   
 ! Update SKIN TEMP
   if(update_regsfc) then
-     if(mype == izero) read(lendian_in)temp1
-     if (mype==izero)write(6,*)' at 10.0 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_skt),strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-     if(mype == izero) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+     if(mype == 0) read(lendian_in)temp1
+     if (mype==0)write(6,*)' at 10.0 in wrwrfmassa,max,min(temp1)=',maxval(temp1),minval(temp1)
+     call strip_single(all_loc(1,1,i_skt),strp,1)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
         do i=1,iglobal
            if(tempb(i) < (r225)) then
               tempa(i)=zero_single
@@ -1639,7 +1712,7 @@ subroutine wrwrfmassa_netcdf(mype)
         write(lendian_out)temp1
      end if
   else
-     if (mype == izero) then
+     if (mype == 0) then
         read(lendian_in)temp1
         write(lendian_out)temp1
      end if
@@ -1648,15 +1721,15 @@ subroutine wrwrfmassa_netcdf(mype)
 ! for saving cloud analysis results
   if(l_cloud_analysis) then
 ! Update qc
-     kqc=i_qc-ione
+     kqc=i_qc-1
      do k=1,nsig
-        kqc=kqc+ione
-        if(mype == izero) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqc),strp,ione)
-        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-        if(mype == izero) then
-           call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+        kqc=kqc+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,kqc),strp,1)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
@@ -1666,15 +1739,15 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
 
 ! Update qr     
-     kqr=i_qr-ione
+     kqr=i_qr-1
      do k=1,nsig
-        kqr=kqr+ione
-        if(mype == izero) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqr),strp,ione)
-        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-        if(mype == izero) then
-           call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+        kqr=kqr+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,kqr),strp,1)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
@@ -1684,15 +1757,15 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
 
 ! Update qs     
-     kqs=i_qs-ione
+     kqs=i_qs-1
      do k=1,nsig
-        kqs=kqs+ione
-        if(mype == izero) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqs),strp,ione)
-        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-        if(mype == izero) then
-           call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+        kqs=kqs+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,kqs),strp,1)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
@@ -1702,15 +1775,15 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
 
 ! Update qi     
-     kqi=i_qi-ione
+     kqi=i_qi-1
      do k=1,nsig
-        kqi=kqi+ione
-        if(mype == izero) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqi),strp,ione)
-        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-        if(mype == izero) then
-           call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+        kqi=kqi+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,kqi),strp,1)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
@@ -1720,15 +1793,15 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
 
 ! Update qg     
-     kqg=i_qg-ione
+     kqg=i_qg-1
      do k=1,nsig
-        kqg=kqg+ione
-        if(mype == izero) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,kqg),strp,ione)
-        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-        if(mype == izero) then
-           call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+        kqg=kqg+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,kqg),strp,1)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
@@ -1738,15 +1811,15 @@ subroutine wrwrfmassa_netcdf(mype)
      end do
  
 ! Update tten     
-     ktt=i_tt-ione
+     ktt=i_tt-1
      do k=1,nsig
-        ktt=ktt+ione
-        if(mype == izero) read(lendian_in)temp1
-        call strip_single(all_loc(1,1,ktt),strp,ione)
-        call mpi_gatherv(strp,ijn(mype+ione),mpi_real4, &
-             tempa,ijn,displs_g,mpi_real4,izero,mpi_comm_world,ierror)
-        if(mype == izero) then
-           call fill_mass_grid2t(temp1,im,jm,tempb,2_i_kind)
+        ktt=ktt+1
+        if(mype == 0) read(lendian_in)temp1
+        call strip_single(all_loc(1,1,ktt),strp,1)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+             tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+        if(mype == 0) then
+           call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
@@ -1757,7 +1830,30 @@ subroutine wrwrfmassa_netcdf(mype)
 
   endif    ! l_cloud_analysis
 
-  if (mype==izero) then
+  if ( laeroana_gocart ) then
+     do iv = 1, n_gocart_var
+        kchem(iv)=i_chem(iv)-1
+        do k=1,nsig
+           kchem(iv)=kchem(iv)+1
+           if(mype == 0) read(lendian_in)temp1
+           call strip_single(all_loc(1,1,kchem(iv)),strp,1)
+           call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+                tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+           if(mype == 0) then
+              call fill_mass_grid2t(temp1,im,jm,tempb,2)
+              do i=1,iglobal
+                 tempa(i)=tempa(i)-tempb(i)
+              end do
+              call unfill_mass_grid2t(tempa,im,jm,temp1)
+              write(lendian_out)temp1
+           end if
+        end do
+     end do
+     deallocate(i_chem)
+     deallocate(kchem)
+  endif
+
+  if (mype==0) then
      close(lendian_in)
      close(lendian_out)
   endif
@@ -1806,7 +1902,6 @@ subroutine update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
 !    update date record in START_DATE header record
 
   use kinds, only: i_kind
-  use constants, only: izero
   implicit none
 
   character(1)   ,intent(inout) :: chdrbuf(2048)
@@ -1818,81 +1913,81 @@ subroutine update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
   equivalence (c2(1),c_two),(c4(1),c_four)
   integer(i_kind) i,ibegin,j
 
-  ibegin=izero
+  ibegin=0
   do i=1,1932
-     if(chdrbuf(i)=='S'.and.chdrbuf(i+4_i_kind)=='T'.and.chdrbuf(i+8_i_kind)=='A' &
-       .and.chdrbuf(i+12_i_kind)=='R'.and.chdrbuf(i+16_i_kind)=='T'.and.chdrbuf(i+20_i_kind)=='_' &
-       .and.chdrbuf(i+24_i_kind)=='D'.and.chdrbuf(i+28_i_kind)=='A'.and.chdrbuf(i+32_i_kind)=='T' &
-       .and.chdrbuf(i+36_i_kind)=='E') then
-        ibegin=i+44_i_kind
+     if(chdrbuf(i)=='S'.and.chdrbuf(i+4)=='T'.and.chdrbuf(i+8)=='A' &
+       .and.chdrbuf(i+12)=='R'.and.chdrbuf(i+16)=='T'.and.chdrbuf(i+20)=='_' &
+       .and.chdrbuf(i+24)=='D'.and.chdrbuf(i+28)=='A'.and.chdrbuf(i+32)=='T' &
+       .and.chdrbuf(i+36)=='E') then
+        ibegin=i+44
         exit
      end if
   end do
-  if(ibegin==izero) then
+  if(ibegin==0) then
      write(6,*)'UPDATE_START_DATE:  ***ERROR***  ibegin = ',ibegin
      write(6,*)'chdrbuf=',chdrbuf
      call stop2(24)
   endif
 
-  i=ibegin-4_i_kind
+  i=ibegin-4
   write(c_four,'(i4.4)')iyear
   do j=1,4
-     i=i+4_i_kind
+     i=i+4
      d4(j)=chdrbuf(i)
      chdrbuf(i)=c4(j)
   end do
   write(6,*) 'UPDATE_START_DATE:  old year, new year =',d4,' , ',c4
 
 !          skip "-"
-  i=i+4_i_kind
+  i=i+4
 
   write(c_two,'(i2.2)')imonth
   do j=1,2
-     i=i+4_i_kind
+     i=i+4
      d2(j)=chdrbuf(i)
      chdrbuf(i)=c2(j)
   end do
   write(6,*) 'UPDATE_START_DATE:  old month, new month =',d2,' , ',c2
 
 !          skip "-"
-  i=i+4_i_kind
+  i=i+4
 
   write(c_two,'(i2.2)')iday
   do j=1,2
-     i=i+4_i_kind
+     i=i+4
      d2(j)=chdrbuf(i)
      chdrbuf(i)=c2(j)
   end do
   write(6,*) 'UPDATE_START_DATE:  old day, new day =',d2,' , ',c2
 
 !          skip "_"
-  i=i+4_i_kind
+  i=i+4
 
   write(c_two,'(i2.2)')ihour
   do j=1,2
-     i=i+4_i_kind
+     i=i+4
      d2(j)=chdrbuf(i)
      chdrbuf(i)=c2(j)
   end do
   write(6,*) 'UPDATE_START_DATE:  old hour, new hour =',d2,' , ',c2
 
 !          skip ":"
-  i=i+4_i_kind
+  i=i+4
 
   write(c_two,'(i2.2)')iminute
   do j=1,2
-     i=i+4_i_kind
+     i=i+4
      d2(j)=chdrbuf(i)
      chdrbuf(i)=c2(j)
   end do
   write(6,*) 'UPDATE_START_DATE:  old minute, new minute =',d2,' , ',c2
 
 !          skip ":"
-  i=i+4_i_kind
+  i=i+4
 
   write(c_two,'(i2.2)')isecond
   do j=1,2
-     i=i+4_i_kind
+     i=i+4
      d2(j)=chdrbuf(i)
      chdrbuf(i)=c2(j)
   end do
