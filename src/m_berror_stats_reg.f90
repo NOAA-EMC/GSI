@@ -462,7 +462,7 @@ end subroutine berror_read_bal_reg
            enddo
         enddo
         if(mype==0) then
-           write(6,*)'Assigned default statistics to variable ',cvars(n)
+           write(6,*)'Assigned default statistics to variable ',cvars(loc)
         endif
      end if
   enddo

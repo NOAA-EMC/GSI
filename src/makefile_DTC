@@ -72,7 +72,6 @@ LIBsys          = $(MYLIBsys)
 # ------------
 
   OBJS	= \
-	abor1.o \
 	adjtest.o \
 	aeroinfo.o \
 	anberror.o \
@@ -83,9 +82,12 @@ LIBsys          = $(MYLIBsys)
 	antcorr_application.o \
 	antest_maps0.o \
 	antest_maps0_glb.o \
+	aod_mod.o \
 	balmod.o \
 	berror.o \
 	bias_predictors.o \
+        bicg.o  \
+        bicglanczos.o  \
 	bkerror.o \
 	bkgcov.o \
 	bkgvar.o \
@@ -102,6 +104,7 @@ LIBsys          = $(MYLIBsys)
 	chemmod.o \
 	clw_mod.o \
 	cmaq_routines.o \
+        co_mop_ak.o  \
 	coinfo.o \
 	combine_radobs.o \
 	compact_diffs.o \
@@ -178,17 +181,18 @@ LIBsys          = $(MYLIBsys)
 	insitu_info.o \
 	int3dvar.o \
 	intall.o \
-	intco.o \
+	intaod.o \
+        intco.o \
 	intdw.o \
 	intgps.o \
 	intgust.o \
 	intjcpdry.o \
 	intjo.o \
 	intlag.o \
-	intlimq.o \
 	intlimg.o \
-	intlimv.o \
 	intlimp.o \
+	intlimq.o \
+        intlimv.o   \
 	intoz.o \
 	intpblh.o \
 	intpcp.o \
@@ -198,18 +202,18 @@ LIBsys          = $(MYLIBsys)
 	intq.o \
 	intrad.o \
 	intrp2a.o \
-	intrp3co.o \
 	intrp3oz.o \
+        intvis.o   \
 	intrw.o \
 	intspd.o \
 	intsrw.o \
 	intsst.o \
 	intt.o \
 	inttcp.o \
-	intvis.o \
 	intw.o \
 	jcmod.o \
 	jfunc.o \
+        jgrad.o  \
 	kinds.o \
 	lag_fields.o \
 	lag_interp.o \
@@ -331,10 +335,11 @@ LIBsys          = $(MYLIBsys)
 	rsearch.o \
 	rtlnmc_version3.o \
 	satthin.o \
-	set_crtm_aerosolmod.o \
-	set_crtm_cloudmod.o \
-	setupbend.o \
-	setupco.o \
+	setupaod.o \
+        set_crtm_aerosolmod.o \
+        set_crtm_cloudmod.o \
+        setupbend.o \
+        setupco.o \
 	setupdw.o \
 	setupgust.o \
 	setuplag.o \
@@ -386,7 +391,6 @@ LIBsys          = $(MYLIBsys)
 	stpjcpdry.o \
 	stplimq.o \
 	stplimg.o \
-	stplimv.o \
 	stplimp.o \
 	stpoz.o \
 	stppblh.o \
@@ -403,6 +407,7 @@ LIBsys          = $(MYLIBsys)
 	stpt.o \
 	stptcp.o \
 	stpvis.o \
+        stplimv.o \
 	stpw.o \
 	strong_bal_correction.o \
 	strong_baldiag_inc.o \
@@ -411,10 +416,11 @@ LIBsys          = $(MYLIBsys)
 	sub2fslab_mod.o \
 	sub2grid.o \
 	support_2dvar.o \
+        ncar_set_crtm_aerosol.o \
 	stub_set_crtm_aerosol.o \
-	stub_set_crtm_cloud.o \
-	stub_pertmod.o \
-	stub_timermod.o \
+        stub_set_crtm_cloud.o \
+        stub_pertmod.o \
+        stub_timermod.o \
 	tendsmod.o \
 	test_obsens.o \
 	tcv_mod.o \
@@ -444,7 +450,7 @@ LIBsys          = $(MYLIBsys)
 	wrwrfnmma.o \
 	xhat_vordivmod.o \
 	zrnmi_mod.o \
-	blockIO.o
+        blockIO.o
 
 # ----
 
@@ -477,6 +483,7 @@ include Makefile.dependency
 	$(RM) $*.b
 	$(F90) $(FFLAGS) -c $*.f90
 	$(RM) $*.f90
+
 
 clean:
 	$(RM) -f *.o *.exe $(LIB)

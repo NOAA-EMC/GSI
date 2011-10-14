@@ -195,6 +195,7 @@ clean:
 	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
+        aod_mod.f90 \
 	balmod.f90 \
 	berror.f90 \
 	bias_predictors.f90 \
@@ -293,6 +294,7 @@ clean:
 	insitu_info.f90 \
 	int3dvar.f90 \
 	intall.f90 \
+        intaod.f90 \
 	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
@@ -357,6 +359,7 @@ clean:
 	mpimod.F90 \
 	mpl_allreduce.F90 \
 	mpl_bcast.f90 \
+        ncar_set_crtm_aerosol.f90 \
 	ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
 	ncepnems_io.f90 \
@@ -537,6 +540,7 @@ clean:
 	read_ssmis.f90 \
 	read_superwinds.f90 \
 	read_tcps.f90 \
+        setupaod.f90  \
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \

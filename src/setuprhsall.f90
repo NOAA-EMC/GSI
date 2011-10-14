@@ -75,6 +75,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-10-14  pagowski - added pm2_5 conventional obs
+!   2010-10-20  hclin    - added aod
 !   2011-02-16      zhu - add gust,vis,pblh
 !   2011-04-07  todling - newpc4pred now in radinfo
 !
@@ -118,7 +119,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
   use state_vectors, only: svars2d
   use mpeu_util, only: getindex
-    use mpl_allreducemod, only: mpl_allreduce
+  use mpl_allreducemod, only: mpl_allreduce
+  use aeroinfo, only: diag_aero
 
   use m_rhs, only: rhs_alloc
   use m_rhs, only: rhs_dealloc
@@ -165,6 +167,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupt
   external:: setuptcp
   external:: setupw
+  external:: setupaod
   external:: setupgust
   external:: setupvis
   external:: setuppblh
@@ -177,6 +180,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Delcare local variables
   logical rad_diagsave,ozone_diagsave,pcp_diagsave,conv_diagsave,llouter,getodiag,co_diagsave
+  logical aero_diagsave
 
   character(80):: string
   character(10)::obstype
@@ -214,6 +218,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   conv_diagsave = write_diag(jiter) .and. diag_conv
   ozone_diagsave= write_diag(jiter) .and. diag_ozone .and. ihave_oz
   co_diagsave   = write_diag(jiter) .and. diag_co    .and. ihave_co
+  aero_diagsave = write_diag(jiter) .and. diag_aero
 
   i_ps = 1
   i_uv = 2
@@ -363,6 +368,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  mype,aivals,stats,nchanl,nreal,nobs,&
                  obstype,isis,is,rad_diagsave,init_pass,last_pass)
 
+!          Set up for aerosol data
+           else if(ditype(is) == 'aero')then
+              call setupaod(lunin,&
+                 mype,nchanl,nreal,nobs,&
+                 obstype,isis,is,aero_diagsave,init_pass,last_pass)
+ 
 !          Set up for precipitation data
            else if(ditype(is) == 'pcp')then
               call setuppcp(lunin,mype,&

@@ -921,12 +921,12 @@ end subroutine final_
   endif
   if(trim(desc)=='aerosols_4crtm::3d') then
      labfound=.true.
-     if(size(ivar)>=naero) then
+     if(size(ivar)>0) then
         ii=0
         do i=1,ng3d
            if(i4crtm3d(i)==12) then
               ii=ii+1
-              ivar(ii)=tgases(i)
+              ivar(ii)=tgases3d(i)
            endif
         enddo
         if(ii>0) istatus=0

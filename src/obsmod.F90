@@ -81,6 +81,7 @@ module obsmod
 !   2010-07-10  todling  - turn aerosol heads/tails public
 !   2010-08-18       hu  - add codiags to public declaration
 !   2010-10-15 pagowski  - add pm2_5 in-situ
+!   2010-10-20 hclin     - use 1d wij for aod in channels
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
 ! 
 ! Subroutines Included:
@@ -762,14 +763,16 @@ module obsmod
      real(r_kind),dimension(:),pointer    :: raterr2 => NULL() !  square of ratio of final obs error
                                                                !  to original obs error
      real(r_kind)                         :: time              !  observation time in sec
-     real(r_kind),dimension(:,:),pointer  :: wij => NULL()     !  horizontal interpolation weights
+     real(r_kind)    :: wij(4)                                 !  horizontal interpolation weights
+     real(r_kind),dimension(:,:),pointer :: daod_dvar => NULL() ! jacobians_aero (nsig*n_aerosols,nchan)
      real(r_kind),dimension(:),pointer    :: prs => NULL()     !  pressure levels
      integer(i_kind),dimension(:),pointer :: ipos  => NULL()
+     integer(i_kind),dimension(:),pointer :: icx  => NULL()
      integer(i_kind) :: ij(4)                                  !  horizontal locations
-     integer(i_kind) :: nlaero                                 !  number of levels for this profile
+     integer(i_kind) :: nlaero                                 !  number of channels
      logical         :: luse                                   !  flag indicating if ob is used in pen.
-
-     integer(i_kind) :: idv,iob         ! device id and obs index for sorting
+     integer(i_kind) :: idv,iob                                !  device id and obs index for sorting
+     integer(i_kind),dimension(:),pointer :: ich
   end type aero_ob_type
 
   type aero_ob_head
@@ -1363,8 +1366,8 @@ contains
     cobstype(i_tcp_ob_type)  ="tcp (tropic cyclone)" ! tcp_ob_type
     cobstype(i_lag_ob_type)  ="lagrangian tracer   " ! lag_ob_type
     cobstype(i_colvk_ob_type)="carbon monoxide     " ! colvk_ob_type
-    cobstype( i_aero_ob_type)="modis aerosol aod   " ! aero_ob_type
-    cobstype(i_aerol_ob_type)="level modis aero aod" ! aerol_ob_type
+    cobstype( i_aero_ob_type)="aerosol aod         " ! aero_ob_type
+    cobstype(i_aerol_ob_type)="level aero aod      " ! aerol_ob_type
     cobstype( i_pm2_5_ob_type)="in-situ pm2_5 obs  " ! pm2_5_ob_type
     cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
     cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
@@ -1806,9 +1809,10 @@ contains
       aerotail(ii)%head => aerohead(ii)%head
       do while (associated(aerotail(ii)%head))
         aerohead(ii)%head => aerotail(ii)%head%llpoint
-        deallocate(aerotail(ii)%head%res, aerotail(ii)%head%wij,&
+        deallocate(aerotail(ii)%head%res, &
                    aerotail(ii)%head%err2,aerotail(ii)%head%raterr2, &
-                   aerotail(ii)%head%prs,aerotail(ii)%head%ipos,stat=istatus)
+                   aerotail(ii)%head%daod_dvar, &
+                   aerotail(ii)%head%icx,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero arrays, istatus=',istatus
         deallocate(aerotail(ii)%head,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero, istatus=',istatus
