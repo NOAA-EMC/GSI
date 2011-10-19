@@ -5,14 +5,12 @@
 # ----------------------------------
 # Redefine variables for NCEP IBM SP
 # ----------------------------------
-COREINC  = /nwprod/lib/incmod
-INCsfcio = $(COREINC)/sfcio_4
-INCsigio = $(COREINC)/sigio_4
-INCgfsio = $(COREINC)/gfsio_4
-INCcrtm  = $(COREINC)/crtm_2.0.2
-
-INCnemsio = /nwpara/lib/incmod/nemsio
-LIBnemsio = /nwpara/lib/libnemsio.a
+COREINC   = /nwprod/lib/incmod
+INCsfcio  = $(COREINC)/sfcio_4
+INCsigio  = $(COREINC)/sigio_4
+INCgfsio  = $(COREINC)/gfsio_4
+INCnemsio = $(COREINC)/nemsio
+INCcrtm   = $(COREINC)/crtm_2.0.2
 
 WRFPATH=/nwprod/sorc/nam_nmm_real_fcst.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
@@ -113,8 +111,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 ##                    -lsigio_4 -lsfcio_4 -lgfsio_4 -lnetcdf_64 \
 ##                    $(LIBcrtm) $(WRFLIB)
 
-  LIBS_N        =   $(LIBnemsio) \
-                    -L/nwprod/lib -lw3_d -lsp_d -lbufr_d_64 -lbacio_4 -lmpitrace \
+  LIBS_N        =   -L/nwprod/lib -lnemsio -lw3_d -lsp_d -lbufr_d_64 -lbacio_4 -lmpitrace \
                     -lsigio_4 -lsfcio_4 -lgfsio_4 -lnetcdf_64 \
                     -lcrtm_2.0.2 $(WRFLIB)
 
