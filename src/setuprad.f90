@@ -456,7 +456,7 @@
   if (retrieval.and.init_pass) call setup_sst_retrieval(obstype,dplat(is),mype)
 
 ! Special setup for Tz retrieval
-   if (nst_tzr>0) call setup_tzr_qc(obstype)
+  if (nst_tzr>0) call setup_tzr_qc(obstype)
 
 ! If SSM/I, check for non-use of 85GHz channel, for QC workaround
 ! set no85GHz true if any 85GHz is not used, and other freq channel is used
@@ -673,17 +673,17 @@
 !  For SST retrieval, use interpolated NCEP SST analysis
         if (retrieval) then
            if( avhrr_navy )then
-             dtp_avh = data_s(idata_type,n)
-             sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
-             sstnv=data_s(isst_navy,n)
+              dtp_avh = data_s(idata_type,n)
+              sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
+              sstnv=data_s(isst_navy,n)
            elseif ( avhrr) then
-             if ( pangs <= 89.0_r_kind) then              ! day time
-                dtp_avh = 151.0_r_kind
-             else
-                dtp_avh = 152.0_r_kind
-             endif
-             sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
-             sstnv=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
+              if ( pangs <= 89.0_r_kind) then              ! day time
+                 dtp_avh = 151.0_r_kind
+              else
+                 dtp_avh = 152.0_r_kind
+              endif
+              sstcu=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
+              sstnv=data_s(isst_hires,n)      ! not available, assigned as interpolated sst
            endif
            tsavg5 = data_s(isst_hires,n)
         else
@@ -1473,9 +1473,9 @@
               diagbuf(21) = dtp_avh                           ! data type             
            endif
            if(amsua .and. sea .and. icw4crtm>10) then
-             diagbuf(22) = tpwc_amsua
+              diagbuf(22) = tpwc_amsua
            else
-             diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
+              diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
            endif
 
            if(amsua .and. sea .and. icw4crtm>10) then
@@ -1485,9 +1485,9 @@
            endif
 
            if(amsua .and. sea .and. icw4crtm>10) then
-             diagbuf(24) = clw_guess_retrieval
+              diagbuf(24) = clw_guess_retrieval
            else
-             diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
+              diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
            endif
  
 !          Note:  The following quantities are not computed for all sensors

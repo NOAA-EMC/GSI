@@ -34,21 +34,21 @@ module crtm_interface
 !$$$ end documentation block
 
 use kinds,only: r_kind,i_kind,r_single
-use type_kinds, only: crtm_kind => fp
 use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type, &
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
-    crtm_surface_create,crtm_k_matrix
-use crtm_module, only: urban_concrete,compacted_soil,irrigated_low_vegetation,grass_soil,meadow_grass
-use crtm_module, only: broadleaf_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil
-use crtm_module, only: broadleaf_pine_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil
-use crtm_module, only: scrub,tilled_soil,scrub_soil,broadleaf_brush,grass_scrub,invalid_land
-use crtm_channelinfo_define, only: crtm_channelinfo_type
-use crtm_surface_define, only: crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero
-use crtm_atmosphere_define, only:crtm_atmosphere_associated, &
-    crtm_atmosphere_destroy,crtm_atmosphere_zero
-use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_rtsolution_create, &
-    crtm_rtsolution_destroy, crtm_rtsolution_associated
+    crtm_surface_create,crtm_k_matrix, &
+    urban_concrete,compacted_soil,irrigated_low_vegetation,grass_soil,meadow_grass, &
+    broadleaf_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil, &
+    broadleaf_pine_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil, &
+    scrub,tilled_soil,scrub_soil,broadleaf_brush,grass_scrub,invalid_land, &
+    crtm_channelinfo_type, &
+    crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
+    crtm_atmosphere_associated, &
+    crtm_atmosphere_destroy,crtm_atmosphere_zero, &
+    crtm_rtsolution_type, crtm_rtsolution_create, &
+    crtm_rtsolution_destroy, crtm_rtsolution_associated, &
+    crtm_kind => fp
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional
 use mpeu_util, only: die
 !nesdis_crtm_aod use crtm_aod_module, only: crtm_aod_k
@@ -198,9 +198,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use gsi_metguess_mod,  only: gsi_metguess_bundle    ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
-  use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init
-  use crtm_parameters, only: toa_pressure,max_n_layers
-  use crtm_atmosphere_define, only: volume_mixing_ratio_units,h2o_id
+  use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init, &
+      toa_pressure,max_n_layers, &
+      volume_mixing_ratio_units,h2o_id
   use radinfo, only: crtm_coeffs_path
   use radinfo, only: radjacindxs,radjacnames
   use aeroinfo, only: aerojacindxs,aerojacnames
@@ -755,8 +755,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
   use set_crtm_cloudmod, only: set_crtm_cloud
-  use crtm_module, only: crtm_atmosphere_type,crtm_surface_type
-  use crtm_parameters, only: limit_exp
+  use crtm_module, only: crtm_atmosphere_type,crtm_surface_type, &
+      limit_exp
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
   implicit none

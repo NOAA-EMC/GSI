@@ -110,7 +110,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  USE type_kinds, only: crtm_kind => fp
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
@@ -120,9 +119,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
-  use crtm_parameters, only: MAX_SENSOR_ZENITH_ANGLE
+  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type, &
+      crtm_kind => fp, &
+      MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc
-  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use antcorr_application, only: remove_antcorr

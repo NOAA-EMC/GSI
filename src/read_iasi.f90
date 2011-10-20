@@ -91,17 +91,17 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !$$$
 ! Use modules
-  use type_kinds, only: crtm_kind => fp
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
       find_edges,radstart,radstep
+  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
+      crtm_kind => fp
   use crtm_planck_functions, only: crtm_planck_temperature
-  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,rad2deg,r60inv,one
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
@@ -166,7 +166,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  real(r_kind)     :: clr_amt,piece,ten
+  real(r_kind)     :: clr_amt,piece
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: lza, lzaest,sat_height_ratio
@@ -221,14 +221,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   nodata = 0
   iasi=      obstype == 'iasi'
   r01=0.01_r_kind
-  ten=10.0_r_kind
 
   ilon=3
   ilat=4
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+     call skindepth(obstype,zob)
   endif
 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
@@ -299,14 +298,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      instr=18
      call instrument_init(instr, jsatid, expansion, valid)
      if (.not. valid) then
-       if (assim) then 
-         write(6,*)'READ_IASI:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
-         call stop2(71)
-       else
-         call fov_cleanup
-         isfcalc = 0
-         write(6,*)'READ_IASI:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
-       endif
+        if (assim) then 
+           write(6,*)'READ_IASI:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+           call stop2(71)
+        else
+           call fov_cleanup
+           isfcalc = 0
+           write(6,*)'READ_IASI:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+        endif
      endif
   endif
 
@@ -592,7 +591,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
 !       if( iskip >= 10 )cycle read_loop 
 
-        crit1=crit1 + 10.0_r_kind*float(iskip)
+        crit1=crit1 + ten*float(iskip)
 
 
 !    Map obs to grids
