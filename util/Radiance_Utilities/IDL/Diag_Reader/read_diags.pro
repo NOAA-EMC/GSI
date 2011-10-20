@@ -140,8 +140,11 @@ a={ cenlat:0.,$                 ; observation latitude (degrees)
     snow_depth:0.,$             ; snow depth
     wind_speed:0.,$             ; surface wind speed (m/s)
     cldfrac_clw:0.,$            ; cloud fraction (%)
-    cldp_tpwc:0. }              ; cloud top pressure (hPa)
-
+    cldp_tpwc:0.,$              ; cloud top pressure (hPa) 
+    tref:0,$                    ; reference temperature    
+    dtw:0,$                     ; dt_warm at zob
+    dtc:0,$                     ; dt_cool at zob
+    tz_tr:0 }                   ; d(Tz)/d(Tr)   
 if (n_tags(a) ne num_real) then begin
   print,'Number of elemenents in diagbuf is different to that expected for Meta structure:',n_tags(a)
   stop
