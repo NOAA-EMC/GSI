@@ -54,7 +54,6 @@ program makeoneobbufr
     xob=oblon
     yob=oblat
     dhr=obhourset
-    idate=2008091200
     write(6,*)idate
 
 ! set default values for this routine

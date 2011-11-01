@@ -1076,6 +1076,12 @@ end subroutine normal_new_factorization_rf_y
 !   2010-05-18  parrish  reactivate dual resolution
 !   2010-06-04  parrish  multiple fixes for dual resolution
 !   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
+!   2011-09-27  parrish - ckgcov is called here, which uses sqrt_smootrf.  The variable nval_lenz is passed
+!                         to sqrt_smoothrf through module jfunc, but if lsqrtb=F, then nval_lenz=0.
+!                         To fix this, nval_lenz is passed in to this subroutine through module jfunc,
+!                         then is temporarily replaced with the proper non-zero value, and restored back
+!                         to its original value after exiting from the call to ckgcov.  Also, this is
+!                         now an argument in ckgcov, which was missing in this call to ckgcov.
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -1105,6 +1111,7 @@ end subroutine normal_new_factorization_rf_y
     use hybrid_ensemble_parameters, only: uv_hyb_ens,grd_ens,grd_anl,p_e2a
     use general_sub2grid_mod, only: general_suba2sube
     use constants, only: zero,one
+    use jfunc, only: nval_lenz
     implicit none
 
     character(len=*),parameter::myname_=myname//'*generate_one_ensemble_perturbation'
@@ -1116,6 +1123,7 @@ end subroutine normal_new_factorization_rf_y
     integer(i_llong) iseed
     integer(i_kind) nvert,i,j,ii,is,naux,k,ic3
     integer(i_kind) istat_st,istat_vp
+    integer(i_kind) nval_lenz_save
     real(r_kind) aux
     real(r_kind),dimension(nh_0:nh_1,vlevs,nscl):: zsub
     real(r_kind),dimension(:,:,:),allocatable:: ua,va
@@ -1158,7 +1166,12 @@ end subroutine normal_new_factorization_rf_y
 !     if this is a global run, then need to fix tropical belt part of z so periodic overlap is correct
     if(.not.regional) call fix_belt(z)
 
-    call ckgcov(z,bundle_anl,nnnn1o)
+!     temporarily redefine nval_lenz
+    nval_lenz_save=nval_lenz
+    nval_lenz=nval2f*nnnn1o*nscl
+    call ckgcov(z,bundle_anl,nnnn1o,nval_lenz)
+!     restore nval_lenz
+    nval_lenz=nval_lenz_save
 
 !     if uv_hyb_ens=.true., then convert st,vp to u,v
     if(uv_hyb_ens) then

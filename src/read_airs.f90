@@ -62,7 +62,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
+!   2011-04-15  jung  - added use of acqf flag from bufr file to reject bad channels
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
+!   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
+!                       (isfcalc=1)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -116,6 +119,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind),parameter :: n_amsuchan =  15
   integer(i_kind),parameter :: n_hsbchan  =   4
   integer(i_kind),parameter :: n_totchan  = n_amsuchan+n_airschan+n_hsbchan+1
+  integer(i_kind),parameter :: n_totchanp4 = n_totchan + 4
   integer(i_kind),parameter :: maxinfo    =  33
 
 
@@ -124,7 +128,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype
   real(r_kind)     ,intent(in   ) :: twind
   integer(i_kind)  ,intent(in   ) :: ithin
-  integer(i_kind)  ,intent(in   ) :: isfcalc
+  integer(i_kind)  ,intent(inout) :: isfcalc
   character(len=*) ,intent(in   ) :: jsatid
   character(len=*) ,intent(in   ) :: infile
   character(len=*) ,intent(in   ) :: obstype
@@ -155,6 +159,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(2) :: aquaspot
   real(r_double),dimension(12,3) :: allspot
   real(r_double),dimension(n_totchan) :: allchan
+  real(r_double),dimension(n_totchanp4) :: airflag
   
   real(r_kind)      :: step, start
   character(len=8)  :: subset
@@ -172,7 +177,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset
+  integer(i_kind)  :: nreal, ichsst, ichansst, isflg,ioffset,ioffset_acqf
   integer(i_kind)  :: itx, k, nele, itt, n,iscbtseqn,ix
   real(r_kind)     :: chsstf,chsst,chsst_all,sfcr
   real(r_kind)     :: ch15, ch3, df2, tt
@@ -245,17 +250,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      nchanlr = n_airschan
      ioff=newchn(sis,1)-1
      ioffset=0
+     ioffset_acqf=0
      ichansst   = newchn(sis,914)
      ichsst     = ichansst-ioff+ioffset
-     if(isfcalc==1)then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero                       
-        rlndsea(1) = 10._r_kind
-        rlndsea(2) = 15._r_kind
-        rlndsea(3) = 10._r_kind
-        rlndsea(4) = 30._r_kind
-     endif
      if(isfcalc==1) then
         instr=17
         ichan=-999  ! not used for airs
@@ -270,17 +267,9 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      nchanlr = n_amsuchan
      ioff=newchn(sis,1)-1
      ioffset=n_airschan
+     ioffset_acqf=n_airschan+4
      ichansst   = newchn(sis,1)
      ichsst     = ioffset +1            !channel 1
-     if(isfcalc==1)then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero                       
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 20._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
      if(isfcalc==1) then
         instr=11
         ichan=15  ! for now pick a surface channel
@@ -295,26 +284,11 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      ioffset=iscbtseqn+n_amsuchan
      ichansst   = newchn(sis,4)
      ichsst     = ichansst-ioff+ioffset
-     if(isfcalc==1)then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero                       
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 20._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
      if(isfcalc==1) then
         instr=12 ! similar to amsu-b according to tom kleespies
         ichan=-999 ! not used for hsb
         expansion=2.9_r_kind ! use almost three for microwave
      endif
-  endif
-
-! When calculating surface fields based on size/shape of fov, need
-! to initialize several variables.
-  if (isfcalc == 1) then
-     call instrument_init(instr,jsatid,expansion)
   endif
 
   allspotlist='SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ FOVN'
@@ -332,6 +306,40 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      endif
   end do search
   if (.not.assim) val_airs=zero
+
+! When calculating surface fields based on size/shape of fov, need
+! to initialize several variables.
+  if (isfcalc == 1) then
+     call instrument_init(instr,jsatid,expansion,valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_AIRS:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         call fov_cleanup
+         isfcalc = 0
+         write(6,*)'READ_AIRS:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+     endif
+  endif
+
+  if(isfcalc==1)then
+    rlndsea = zero
+  else
+    if (airs)then
+      rlndsea(0) = zero                       
+      rlndsea(1) = 10._r_kind
+      rlndsea(2) = 15._r_kind
+      rlndsea(3) = 10._r_kind
+      rlndsea(4) = 30._r_kind
+    elseif (amsua.or.hsb)then
+      rlndsea(0) = zero
+      rlndsea(1) = 15._r_kind
+      rlndsea(2) = 20._r_kind
+      rlndsea(3) = 15._r_kind
+      rlndsea(4) = 100._r_kind
+    endif
+  endif
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -497,7 +505,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       based on the fov's size/shape.  if it is out-of-range, skip ob.
 
         if (isfcalc == 1) then
-           call fov_check(ifov,instr,valid)
+           call fov_check(ifov,instr,ichan,valid)
            if (.not. valid) cycle read_loop
         endif
 
@@ -522,14 +530,21 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       Read AIRSCHAN or AMSUCHAN or HSBCHAN
 
+!       Read the brightness temperatures
         call ufbrep(lnbufr,allchan,1,n_totchan,iret,'TMBR')
-
         if( iret /= n_totchan)then
            write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              iret, ' CH DATA IS READ INSTEAD OF ',n_totchan
+              iret, ' TEMPERATURE CH DATA IS READ INSTEAD OF ',n_totchan
            cycle read_loop
         endif
 
+!       Read the quality flag. Will catch "popped" channels
+        call ufbrep(lnbufr,airflag,1,n_totchanp4,iret,'ACQF')
+        if( iret /= n_totchanp4)then
+           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                iret, ' QUALITY FLAG DATA IS READ INSTEAD OF ',n_totchanp4
+           cycle read_loop
+        endif
 
 !       check for missing channels (if key channel reject)
         iskip = 0
@@ -748,6 +763,12 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
         end do
 
+!       Replace popped AIRS channel Tb with zero
+        if (airs) then
+           do l=1,nchanl
+              if (airflag(l+ioffset_acqf) /= zero) data_all(l+nreal,itx) = zero
+           end do
+        endif
 
      enddo read_loop
   enddo

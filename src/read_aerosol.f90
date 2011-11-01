@@ -1,6 +1,5 @@
 subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
-           obstype,twind,sis,ithin,rmesh, &
-           mype,mype_root,mype_sub,npe_sub,mpi_comm_sub)
+           obstype,twind,sis,ithin,rmesh)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_aerosol                    read aerosol data
@@ -17,8 +16,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !
 ! program history log:
 !   2009-04-08  Huang   - modified from read_ozone to read in MODIS AEROSOL data
-!   2010-10-20  hclin   - modified for total aod in channels
-!   2011-01-05  hclin   - added three more BUFR records (STYP DBCF QAOD)
+!   2011-08-01  lueken  - changed F90 to F90 (no machine logic)
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -31,11 +29,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !     sis      - satellite/instrument/sensor indicator
 !     ithin    - flag to thin data
 !     rmesh    - thinning mesh size (km)
-!     mype     - mpi task id
-!     mype_root - "root" task for sub-communicator
-!     mype_sub - mpi task id within sub-communicator
-!     npe_sub  - number of data read tasks
-!     mpi_comm_sub - sub-communicator for data read
 !
 !   output argument list:
 !     nread    - number of modis aerosol observations read
@@ -51,12 +44,9 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !$$$
   use kinds,     only: r_kind, r_double, i_kind
   use gridmod,   only: nlat, nlon, regional, tll2xy, rlats, rlons
-  use aod_mod,   only: aod_qa_limit, luse_deepblue
-  use constants, only: deg2rad, zero, two, three, four, rad2deg, r60inv
-  use obsmod,    only: iadate, rmiss_single
+  use constants, only: deg2rad, zero, rad2deg, r60inv
+  use obsmod,    only: iadate, nlaero
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
-  use satthin,   only: itxmax,makegrids,destroygrids,checkob, &
-      finalcheck,map2tgrid,score_crit
   implicit none
 !
 ! Declare local parameters
@@ -70,11 +60,6 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind), intent(in)    :: lunout, ithin
   integer(i_kind), intent(inout) :: nread
   integer(i_kind), intent(inout) :: ndata, nodata
-  integer(i_kind) ,intent(in)    :: mype
-  integer(i_kind) ,intent(in)    :: mype_root
-  integer(i_kind) ,intent(in)    :: mype_sub
-  integer(i_kind) ,intent(in)    :: npe_sub
-  integer(i_kind) ,intent(in)    :: mpi_comm_sub
   real(r_kind),    intent(in)    :: gstime, twind, rmesh
 !
 ! Declare local variables
@@ -84,12 +69,12 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character (len= 8) :: subset
   character (len=10) :: date
 
-  integer(i_kind) :: naerodat, next, ireadmg, ireadsb
+  integer(i_kind) :: maxobs, naerodat
   integer(i_kind) :: idate, jdate, ksatid, kk, iy, iret, im, ihh, idd
   integer(i_kind) :: lunin = 10
-  integer(i_kind) :: nmind, i, n
+  integer(i_kind) :: nmind, i
   integer(i_kind) :: imin, isec
-  integer(i_kind) :: k, ilat, ilon, nreal, nchanl
+  integer(i_kind) :: nmrecs, k, ilat, ilon, nreal, nchanl
   integer(i_kind) :: kidsat
   integer(i_kind) :: JULIAN, IDAYYR, IDAYWK
   integer(i_kind), dimension(5) :: idate5
@@ -132,44 +117,29 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character (len= 4) :: aerostr  = 'OPTD'
   character (len=53) :: aerogstr = &
       'SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI'
-  character (len=14)  :: flagstr = 'STYP DBCF QAOD'
 
   integer(i_kind) :: itx, itt
 
   real(r_kind) :: tdiff, sstime, slons, slats, dlon, dlat, t4dv, toq, poq, timedif, crit1, dist1
   real(r_kind) :: slons0, slats0, rsat, toto3, solzen, azimuth, dlat_earth, dlon_earth
-  real(r_kind) :: styp, dbcf, qaod
-  real(r_kind),dimension(0:4):: rlndsea
 
+  real(r_kind), allocatable, dimension(:)   :: paero
   real(r_kind), allocatable, dimension(:,:) :: aeroout
-  real(r_kind), allocatable, dimension(:)   :: dataaod
   real(r_double), dimension( 10) :: hdraerog
-  real(r_double)                 :: aod_550
-  real(r_double), dimension(3)   :: aod_flags
+  real(r_double)                 :: totaod
 
 !**************************************************************************
 ! Set constants.  Initialize variables
   rsat=999._r_kind
+  maxobs=1e6
   ! output position of LON and LAT
   ilon=3
   ilat=4
-  nread = 0
-  ndata = 0
-  nodata = 0
 
-  ! Set rlndsea for types we would prefer selecting
-  rlndsea(0) = zero        ! styp 0: water
-  rlndsea(1) = 15._r_kind  ! styp 1: coast
-  rlndsea(2) = 20._r_kind  ! styp 2: desert
-  rlndsea(3) = 10._r_kind  ! styp 3: land
-  rlndsea(4) = 25._r_kind  ! styp 4: deep blue
-
-! Make thinning grids
-  call makegrids(rmesh,ithin)
-
-  if ( obstype == 'modis_aod' ) then
+  if ( obstype == 'modis' ) then
 !
      open(lunin,file=infile,form='unformatted')
+     nmrecs=0
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
@@ -179,11 +149,12 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         if (subset == 'NC008041') then
            write(6,*)'READ_AEROSOL: MODIS data type, subset = ',subset
            !          Set dependent variables and allocate arrays
-           nreal=11   !9
-           nchanl=19
+           nreal=9
+           nlaero=0
+           nchanl=1
            naerodat=nreal+nchanl
-           allocate (aeroout(naerodat,itxmax))
-           allocate (dataaod(nchanl))
+           allocate (aeroout(naerodat,maxobs))
+           allocate (paero(nlaero+1))
 
            iy = 0
            im = 0
@@ -210,6 +181,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
               if ( ksatid /= kidsat  ) cycle read_modis
 
+              nmrecs=nmrecs+nlaero+1
+    
               !    Convert observation location to radians
               slats0= hdraerog(2)
               slons0= hdraerog(3)
@@ -239,7 +212,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               idate5(5) = hdraerog(8)  !minute
 
               !    extract total column aod 1 value 'OPTD' as defined in aerostr
-              call ufbint(lunin,aod_550,1,1,iret,aerostr)
+              call ufbint(lunin,totaod,1,1,iret,aerostr)
 
               call w3fs21(idate5,nmind)
               t4dv=real((nmind-iwinbgn),r_kind)*r60inv
@@ -251,105 +224,49 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
                  if ( abs(tdiff) > twind ) cycle read_modis
               end if
 
-              nread = nread + 1   !nread = nread + nchanl
+              if ( totaod > 1.0e+10_r_double ) cycle read_modis
+!
+              toq=zero
 
-              if (l4dvar) then
-                 timedif = zero
-              else
-                 timedif = two*abs(tdiff)        ! range:  0 to 6
-              endif
+              ndata=min(ndata+1,maxobs)
+              nodata=nodata + 1                    ! only total AOD
 
-              crit1 = 0.01_r_kind + timedif
-
-              if ( aod_550 > 1.0e+10_r_double ) cycle read_modis
-
-              ! extract STYP, DBCF, and QAOD
-              call ufbint(lunin,aod_flags,3,1,iret,flagstr)
-              styp = rmiss_single
-              dbcf = rmiss_single
-              qaod = rmiss_single
-              if ( aod_flags(1) < 1.0e+10_r_double ) styp = aod_flags(1)
-              if ( aod_flags(2) < 1.0e+10_r_double ) dbcf = aod_flags(2)
-              if ( aod_flags(3) < 1.0e+10_r_double ) qaod = aod_flags(3)
-
-              if ( .not. luse_deepblue .and. nint(styp)==4 ) cycle read_modis
-              if ( qaod < aod_qa_limit ) cycle read_modis
-
-              ! Map obs to thinning grid
-              call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-              if ( .not. iuse ) cycle read_modis
-
-              if ( (styp > rmiss_single) .and. (styp >= zero .and. styp <= four) ) then
-                 crit1 = crit1 + rlndsea(nint(styp))
-              end if
-              !if ( (dbcf > rmiss_single) .and. (dbcf >= zero .and. dbcf <= three) ) then
-              !   crit1 = crit1 + 10.0_r_kind*(four-dbcf)
-              !end if
-              if ( (qaod > rmiss_single) .and. (qaod >= aod_qa_limit .and. qaod <= three) ) then
-                 crit1 = crit1 + 10.0_r_kind*(four-qaod)
-              end if
-              call checkob(dist1,crit1,itx,iuse)
-              if ( .not. iuse ) cycle read_modis
-
-              ! Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-              call finalcheck(dist1,crit1,itx,iuse)
-              if ( .not. iuse ) cycle read_modis
-
-              dataaod = rmiss_single
-              dataaod(4) = aod_550
-
-              aeroout( 1,itx) = rsat
-              aeroout( 2,itx) = tdiff
-              aeroout( 3,itx) = dlon               ! grid relative longitude
-              aeroout( 4,itx) = dlat               ! grid relative latitude
-              aeroout( 5,itx) = dlon_earth*rad2deg ! earth relative longitude (degrees)
-              aeroout( 6,itx) = dlat_earth*rad2deg ! earth relative latitude (degrees)
-              aeroout( 7,itx) = qaod               ! total column AOD error flag
-              aeroout( 8,itx) = solzen             ! solar zenith angle
-              aeroout( 9,itx) = azimuth            ! solar azimuth angle
-              aeroout(10,itx) = styp               ! surface type
-              aeroout(11,itx) = dbcf               ! deep blue confidence flag
-              do i = 1, nchanl
-                 aeroout(i+nreal,itx) = dataaod(i)
-              end do
+              aeroout( 1,ndata) = rsat
+              aeroout( 2,ndata) = tdiff
+              aeroout( 3,ndata) = dlon               ! grid relative longitude
+              aeroout( 4,ndata) = dlat               ! grid relative latitude
+              aeroout( 5,ndata) = dlon_earth*rad2deg ! earth relative longitude (degrees)
+              aeroout( 6,ndata) = dlat_earth*rad2deg ! earth relative latitude (degrees)
+              aeroout( 7,ndata) = toq                ! total column AOD error flag
+              aeroout( 8,ndata) = solzen             ! solar zenith angle
+              aeroout( 9,ndata) = azimuth            ! solar azimuth angle
+              aeroout(10,ndata) = totaod
        
            end do read_modis
 
-           call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-              naerodat,itxmax,nread,ndata,aeroout,score_crit)
+           ! Write header record and data to output file for further processing
+           write(lunout) obstype, sis, nreal, nchanl, ilat, ilon
+           write(lunout) ((aeroout(k,i), k=1,naerodat), i=1,ndata)
 
-           if ( mype_sub == mype_root ) then
-              do n = 1, ndata
-                 do i = 1, nchanl
-                    if ( aeroout(i+nreal,n) > rmiss_single ) nodata = nodata + 1
-                 end do
-              end do
-              ! Write final set of "best" observations to output file
-              write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-              write(lunout) ((aeroout(k,n),k=1,naerodat),n=1,ndata)
-           end if
+           nread = nmrecs
 
            ! Deallocate local arrays
-           deallocate(aeroout)
-           deallocate(dataaod)
+           deallocate(aeroout,paero)
 
            ! End of MODIS bufr block
+           call closbf(lunin)
+           close(lunin)
         else       ! subset /= NC008041
            write(6,*)'READ_AEROSOL:  *** WARNING: unknown aerosol data type, subset=',subset
            write(6,*)' infile=',infile, ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
            write(6,*)' SKIP PROCESSING OF THIS MODIS FILE'
         endif
-
+     
      else          ! read subset iret /= 0
         write(6,*)'READ_AEROSOL:  *** WARNING: read subset error, obstype=',obstype,', iret=',iret
      end if
-     call closbf(lunin)
-     close(lunin)
   else             ! obstype /= 'modis'
      write(6,*)'READ_AEROSOL:  *** WARNING: unknown aerosol input type, obstype=',obstype
   endif
-
-  ! Deallocate satthin arrays
-  call destroygrids
 
 end subroutine read_aerosol

@@ -53,6 +53,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !                         on the order of the satellites in the convinfo file
 !   2011-01-06 cucurull - replace obstype (gps_ref/gps_bnd) with sis (gps) due to replacing
 !                         gps_ref/gps_bnd with gps in convinfo files 
+!   2011-08-24 cucurull - add preliminaty qc flags for C/NOFS, SAC-C, Oceansat-2, METOP-B, SAC-D, and M-T
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -241,7 +242,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         endif
  
 ! Check profile quality flags
-        if ( (said > 739).and.(said < 746) ) then  !Cosmic
+        if ( ((said > 739).and.(said < 746)).or.(said == 820).or.(said == 786)) then  !CDAAC processing
            if(pcc==zero) then
               write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
                   ' SKIP this report'
@@ -249,7 +250,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            endif
         endif
 
-        if (said == 4) then ! Gras
+        if ((said == 4).or.(said == 3).or.(said == 421).or.(said == 440).or.&
+            (said == 821)) then ! GRAS SAF processing
            call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
            lone = .false.
              if(nib > 0) then

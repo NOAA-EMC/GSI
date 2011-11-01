@@ -103,7 +103,6 @@
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname
-  use aod_mod, only: laeroana_gocart, init_aod, l_aoderr_table, aod_qa_limit, luse_deepblue
 
   implicit none
 
@@ -625,8 +624,7 @@
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
-       in_fname,out_fname,incr_fname, &
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue
+       in_fname,out_fname,incr_fname
 
 !EOC
 
@@ -701,7 +699,6 @@
   call init_hybrid_ensemble_parameters
   call init_rapidrefresh_cldsurf
   call init_chem
-  call init_aod
   call init_tcps_errvals
   preserve_restart_date=.false.
 

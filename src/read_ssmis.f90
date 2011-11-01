@@ -40,6 +40,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-05-27  safford - rm unused vars and uses
 !   2009-01-09  gayno   - new option to calculate surface fields within FOV
+!                         (when isfcalc flag set to one)
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
 !   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
@@ -47,6 +48,9 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod and remove _i_kind
+!   2011-09-02  gayno - add processing of future satellites for FOV-based
+!                       surface field calculation and improved its error handling
+!                       (isfcalc=1)
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -92,7 +96,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,isfcalc
+  integer(i_kind) ,intent(inout) :: mype,lunout,ithin,isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -116,7 +120,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Declare local variables
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
-  logical :: outside,iuse,assim
+  logical :: outside,iuse,assim,valid
   character(len=8)  :: subset
   integer(i_kind) :: i,k,ifov,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
@@ -254,16 +258,28 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax))
 
   if (isfcalc == 1) then
+     instr=25  ! circular fov, use as default
      if (trim(jsatid) == 'f16') instr=26
      if (trim(jsatid) == 'f17') instr=27
+     if (trim(jsatid) == 'f18') instr=28
+     if (trim(jsatid) == 'f19') instr=29
+     if (trim(jsatid) == 'f20') instr=30
 ! right now, all ssmis data is mapped to a common fov -
 ! that of the las channels.
      ichan = 1
      expansion = 2.9_r_kind
      sat_aziang = 90.0_r_kind  ! 'fill' value; need to get this from file
-     call instrument_init(instr, jsatid, expansion)
+     call instrument_init(instr, jsatid, expansion, valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_SSMIS:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         isfcalc = 0
+         write(6,*)'READ_SSMIS:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+    endif
   endif
-
 
 ! Big loop to read data file
   next=0

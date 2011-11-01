@@ -75,6 +75,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2011-05-20  mccarty - updated to read ATMS data
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - removed deter_sfc subroutines, placed in new module deter_sfc_mod
+!   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
+!                       (isfcalc=1)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -108,7 +110,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  USE type_kinds, only: crtm_kind => fp
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
@@ -118,9 +119,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
-  use crtm_parameters, only: MAX_SENSOR_ZENITH_ANGLE
+  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type, &
+      crtm_kind => fp, &
+      MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc
-  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use antcorr_application, only: remove_antcorr
@@ -131,7 +133,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,isfcalc
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(  out) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -296,15 +299,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if ( hirs ) then
      nchanl=19
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1)then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 30._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 30._r_kind
      if (isfcalc == 1) then
         expansion=one  ! use one for ir sensors
         ichan=-999  ! not used for hirs
@@ -332,7 +331,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
         endif
      endif  ! isfcalc == 1
-
   else if ( msu ) then
      nchanl=4
      if (isfcalc==1) then
@@ -341,15 +339,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 20._r_kind
-        rlndsea(2) = 15._r_kind
-        rlndsea(3) = 20._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 20._r_kind
+     rlndsea(2) = 15._r_kind
+     rlndsea(3) = 20._r_kind
+     rlndsea(4) = 100._r_kind
   else if ( amsua ) then
      nchanl=15
      if (isfcalc==1) then
@@ -358,15 +352,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind ! use almost three for microwave sensors.
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 100._r_kind
   else if ( amsub )  then
      nchanl=5
      if (isfcalc==1) then
@@ -380,9 +370,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
-     if (isfcalc==1) then
-        rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
-     endif
   else if ( mhs )  then
      nchanl=5
      if (isfcalc==1) then
@@ -396,9 +383,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 20._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
-     if (isfcalc==1) then
-        rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
-     endif
   else if ( ssu ) then
      nchanl=3
      if (isfcalc==1) then
@@ -407,15 +391,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=one
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 30._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 30._r_kind
   else if ( atms ) then
      nchanl=22
      if (isfcalc==1) then
@@ -424,21 +404,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         expansion=2.9_r_kind        ! use almost three for microwave sensors.
      endif
 !   Set rlndsea for types we would prefer selecting
-     if (isfcalc==1) then
-        rlndsea = zero
-     else
-        rlndsea(0) = zero
-        rlndsea(1) = 15._r_kind
-        rlndsea(2) = 10._r_kind
-        rlndsea(3) = 15._r_kind
-        rlndsea(4) = 100._r_kind
-     endif
+     rlndsea(0) = zero
+     rlndsea(1) = 15._r_kind
+     rlndsea(2) = 10._r_kind
+     rlndsea(3) = 15._r_kind
+     rlndsea(4) = 100._r_kind
   end if
-
-! Initialize variables for use by FOV-based surface code.
-  if (isfcalc == 1) then
-     call instrument_init(instr,jsatid,expansion)
-  endif
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -454,6 +425,28 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end do search
   if (.not.assim) val_tovs=zero
 
+! Initialize variables for use by FOV-based surface code.
+  if (isfcalc == 1) then
+     call instrument_init(instr,jsatid,expansion,valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         call fov_cleanup
+         isfcalc = 0
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+     endif
+  endif
+
+  if (isfcalc==1) then
+    if (amsub.or.mhs)then
+      rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
+    else
+      rlndsea=0
+    endif
+  endif
 
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
@@ -669,7 +662,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          skip this ob.
 
            if (isfcalc == 1) then
-              call fov_check(ifov,instr,valid)
+              call fov_check(ifov,instr,ichan,valid)
               if (.not. valid) cycle read_loop
            end if
 
@@ -818,8 +811,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               pred = max(zero,pred)
 
            else if (atms) then
-! AMSU-A-Type calculations
-!   Remove angle dependent pattern (not mean)
+! Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
+!   Remove angle dependent pattern (not mean).
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
                  ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
@@ -839,6 +832,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  endif
                  pred  = max(zero,qval)*100.0_r_kind
               else
+!                This is taken straight from AMSU-A even though Ch 3 has a different polarisation
+!                and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
                  if (adp_anglebc .and. newpc4pred) then
                     ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
                     ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)
@@ -858,39 +853,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     end if
                  end if
               endif
-              pred_tchan=pred
-!AMSU-B Type Calculations
-              if (newpc4pred) then
-                 ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)- &
-                       predx(1,ichan16)*air_rad(ichan16)
-                 ch17 = data1b8(ich17)-ang_rad(ichan17)*cbias(ifov,ichan17)- &
-                       predx(1,ichan17)*air_rad(ichan17)
-              else
-                 ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)- &
-                       r01*predx(1,ichan16)*air_rad(ichan16)
-                 ch17 = data1b8(ich17)-ang_rad(ichan17)*cbias(ifov,ichan17)- &
-                       r01*predx(1,ichan17)*air_rad(ichan17)
-              end if
-              pred_water = zero
-              if(sfcpct(0) > zero)then
-                 cosza = cos(lza)
-                 if(ch17 < h300)then
-                    pred_water = (0.13_r_kind*(ch16+33.58_r_kind*log(h300-ch17)- &
-                       341.17_r_kind))*five
-                 else
-                    pred_water = 100._r_kind
-                 end if
-              end if
-              pred_not_water = 42.72_r_kind + 0.85_r_kind*ch16-ch17
-              pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
-              pred = max(zero,pred)
-              pred_qchan=pred           
-              pred = pred_tchan          ! For the time being, use AMSU-A-styled scoring
-                                         !  This should be investigated further. It is
-                                         !  probably not proper to use a straight combination
-                                         !  of pred_qchan & pred_tchan w/o some sort of 
-                                         !  smarter logic
-!              write(423,*)pred_tchan,pred_qchan
            endif
            
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"

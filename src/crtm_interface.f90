@@ -34,21 +34,21 @@ module crtm_interface
 !$$$ end documentation block
 
 use kinds,only: r_kind,i_kind,r_single
-use type_kinds, only: crtm_kind => fp
 use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type, &
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
-    crtm_surface_create,crtm_k_matrix
-use crtm_module, only: urban_concrete,compacted_soil,irrigated_low_vegetation,grass_soil,meadow_grass
-use crtm_module, only: broadleaf_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil
-use crtm_module, only: broadleaf_pine_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil
-use crtm_module, only: scrub,tilled_soil,scrub_soil,broadleaf_brush,grass_scrub,invalid_land
-use crtm_channelinfo_define, only: crtm_channelinfo_type
-use crtm_surface_define, only: crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero
-use crtm_atmosphere_define, only:crtm_atmosphere_associated, &
-    crtm_atmosphere_destroy,crtm_atmosphere_zero
-use crtm_rtsolution_define, only: crtm_rtsolution_type, crtm_rtsolution_create, &
-    crtm_rtsolution_destroy, crtm_rtsolution_associated
+    crtm_surface_create,crtm_k_matrix, &
+    urban_concrete,compacted_soil,irrigated_low_vegetation,grass_soil,meadow_grass, &
+    broadleaf_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil, &
+    broadleaf_pine_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil, &
+    scrub,tilled_soil,scrub_soil,broadleaf_brush,grass_scrub,invalid_land, &
+    crtm_channelinfo_type, &
+    crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
+    crtm_atmosphere_associated, &
+    crtm_atmosphere_destroy,crtm_atmosphere_zero, &
+    crtm_rtsolution_type, crtm_rtsolution_create, &
+    crtm_rtsolution_destroy, crtm_rtsolution_associated, &
+    crtm_kind => fp
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional
 use mpeu_util, only: die
 !nesdis_crtm_aod use crtm_aod_module, only: crtm_aod_k
@@ -198,9 +198,9 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use gsi_metguess_mod,  only: gsi_metguess_bundle    ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
-  use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init
-  use crtm_parameters, only: toa_pressure,max_n_layers
-  use crtm_atmosphere_define, only: volume_mixing_ratio_units,h2o_id
+  use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init, &
+      toa_pressure,max_n_layers, &
+      volume_mixing_ratio_units,h2o_id
   use radinfo, only: crtm_coeffs_path
   use radinfo, only: radjacindxs,radjacnames
   use aeroinfo, only: aerojacindxs,aerojacnames
@@ -461,20 +461,19 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
  endif
 
  sensorindex = 0
-
-! temporary hardcoded declaration of NPP Sat ID.  Dies later because this is read 
-!    from TauCoeff, where it is currently undefined. -wm
-! 5/20 Update: Commented out for the time being w/ new atms_npp coef files, will
-!    remove later -wm
-! if (trim(isis) == 'atms_c1') channelinfo(1)%WMO_Satellite_ID = 224
-
-! determine specific sensor
+ if (channelinfo(1)%sensor_id == isis) then
+    sensorindex = 1
 ! Added a fudge in here to prevent multiple script changes following change of AIRS naming
-! convention in CRTM.
-
- if (channelinfo(1)%sensor_id == isis .OR. &
-    (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. &
-    isis == 'airs281SUBSET_aqua')) sensorindex = 1
+! convention in CRTM:
+ else if (channelinfo(1)%sensor_id == 'airs281_aqua' .AND. isis == 'airs281SUBSET_aqua') then
+    sensorindex = 1
+! This is to try to keep the CrIS naming conventions more flexible.  The consistency of CRTM 
+! and BUFR files is checked in read_cris:
+ else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') THEN
+    if (isis == 'cris_npp' .AND. INDEX(channelinfo(1)%sensor_id,'npp') > 0) sensorindex = 1
+    if (isis == 'cris_c1' .AND. INDEX(channelinfo(1)%sensor_id,'c1') > 0) sensorindex = 1
+    if (isis == 'cris_c2' .AND. INDEX(channelinfo(1)%sensor_id,'c2') > 0) sensorindex = 1
+ endif 
  if (sensorindex == 0 ) then
     write(6,*)'INIT_CRTM:  ***WARNING*** problem with sensorindex=',isis,&
        ' --> CAN NOT PROCESS isis=',isis,'   TERMINATE PROGRAM EXECUTION found ',&
@@ -756,8 +755,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
   use set_crtm_cloudmod, only: set_crtm_cloud
-  use crtm_module, only: crtm_atmosphere_type,crtm_surface_type
-  use crtm_parameters, only: limit_exp
+  use crtm_module, only: crtm_atmosphere_type,crtm_surface_type, &
+      limit_exp
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
   implicit none

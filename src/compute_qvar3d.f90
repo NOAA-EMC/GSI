@@ -28,7 +28,7 @@ subroutine compute_qvar3d
   use jfunc, only: qsatg,qgues,varq,qoption
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig
-  use constants, only: izero,one,ione,fv
+  use constants, only: izero,one,ione,fv,qmin
   use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl
   use mpeu_util, only: getindex
 
@@ -42,12 +42,12 @@ subroutine compute_qvar3d
 
   nrf3_q=getindex(cvars3d,'q')
 
-! Limit q to be >= 1.e-10_r_kind
+! Limit q to be >= qmin
   do it=1,nfldsig
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),1.e-10_r_kind)
+              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
            end do
         end do
      end do

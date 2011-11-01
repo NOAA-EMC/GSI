@@ -100,7 +100,7 @@ subroutine compute_derived(mype,init_pass)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-  use constants, only: zero,one,one_tenth,half,fv,ten
+  use constants, only: zero,one,one_tenth,half,fv,qmin,ten
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -144,12 +144,12 @@ subroutine compute_derived(mype,init_pass)
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')
 
-! Limit q to be >= 1.e-10_r_kind
+! Limit q to be >= qmin
   do it=1,nfldsig
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),1.e-10_r_kind)
+              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
            end do
         end do
      end do

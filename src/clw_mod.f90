@@ -102,7 +102,7 @@ contains
   real(r_kind) tbcx1,tbcx2
 
 
-  if (amsua) then
+  if (amsua .or. atms) then
  
      if(tsavg5>t0c)then
         tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
@@ -126,11 +126,6 @@ contains
 
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
-
-  else if (atms) then
-
-     ! placeholder for ATMS CLW Retrieval
-     clw = zero
 
   endif
   clw = max(zero,clw)

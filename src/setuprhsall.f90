@@ -75,7 +75,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-04-28      zhu - add ostats and rstats for additional precoditioner
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-10-14  pagowski - added pm2_5 conventional obs
-!   2010-10-20  hclin    - added aod
 !   2011-02-16      zhu - add gust,vis,pblh
 !   2011-04-07  todling - newpc4pred now in radinfo
 !
@@ -167,7 +166,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   external:: setupt
   external:: setuptcp
   external:: setupw
-  external:: setupaod
   external:: setupgust
   external:: setupvis
   external:: setuppblh
@@ -368,12 +366,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  mype,aivals,stats,nchanl,nreal,nobs,&
                  obstype,isis,is,rad_diagsave,init_pass,last_pass)
 
-!          Set up for aerosol data
-           else if(ditype(is) == 'aero')then
-              call setupaod(lunin,&
-                 mype,nchanl,nreal,nobs,&
-                 obstype,isis,is,aero_diagsave,init_pass,last_pass)
- 
 !          Set up for precipitation data
            else if(ditype(is) == 'pcp')then
               call setuppcp(lunin,mype,&

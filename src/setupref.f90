@@ -89,6 +89,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2011-01-05 cucurull - add gpstop to reject anything above this value 
 !  2011-01-13 lueken   - corrected init_pass and last_pass indentation
 !  2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
+!  2011-08-16 cucurull - fix bug in statistics qc
+!  2011-08-17 cucurull - add METOP-B GRAS (plus Oceansat-2, SAC-D and M-T) assimilation capabilities
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -489,7 +491,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
                     cutoff2=r1em3*trefges**2-r0_455*trefges+r52_075
                  endif
                  if((ictype(ikx)==41).or.(ictype(ikx)==722).or.(ictype(ikx)==723).or.&
-                    ictype(ikx)==4.or.ictype(ikx)==786) then !CL
+                    (ictype(ikx)==4).or.(ictype(ikx)==786).or.(ictype(ikx)==3)) then !CL
                     cutoff3=(half+two*cos(data(ilate,i)*deg2rad))/three
                  else
                     cutoff3=(one+r2_5*cos(data(ilate,i)*deg2rad))/three
@@ -591,12 +593,12 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            kprof = data(iprof,i)
            do j=1,nobs
               jprof = data(iprof,j)
-              if( kprof == jprof .and. .not. qcfail(j))then
+              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_loc(j) == zero)then
 
 !             Remove data below
                  if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
                     if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.(rdiagbuf(1,i)==723).or.&
-                       (rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786)) then
+                       (rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786).or.(rdiagbuf(1,i)==3)) then
                        if(r1em3*rdiagbuf(7,i)<= ten) then
                           qcfail(j) = .true.
                           qcfail_stats_2(j)=one
@@ -622,7 +624,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
            ratio_errors(i) = zero
            muse(i) = .false.
            if ( (rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.(rdiagbuf(1,i)==723).or.&
-                (rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786)) then
+                (rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786).or.(rdiagbuf(1,i)==3)) then
               if(alt<=ten) then
                  toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(ihgt,i))
               endif

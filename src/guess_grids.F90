@@ -454,13 +454,13 @@ contains
     if ( .not. ges_initialized ) then
 
 #ifndef HAVE_ESMF
-    nfldsig_all=nfldsig
-    nfldsfc_all=nfldsfc
-    nfldnst_all=nfldnst
-    nfldsig_now=0	! _now variables are not used if not for ESMF
-    nfldsfc_now=0
-    nfldnst_now=0
-    extrap_intime=.true.
+       nfldsig_all=nfldsig
+       nfldsfc_all=nfldsfc
+       nfldnst_all=nfldnst
+       nfldsig_now=0 ! _now variables are not used if not for ESMF
+       nfldsfc_now=0
+       nfldnst_now=0
+       extrap_intime=.true.
 #endif /* HAVE_ESMF */
 
 !      Allocate and zero guess grids
@@ -831,20 +831,20 @@ contains
    endif
    if(ntgases==0) return
    if (ntgases>0) then
-       allocate (tgases(ntgases))
-       call gsi_chemguess_get('gsinames',tgases,istatus)
-       if(istatus/=0) then
-          write(6,*) myname_, ': trouble getting name of chem/gases'
-          return
-       endif
+      allocate (tgases(ntgases))
+      call gsi_chemguess_get('gsinames',tgases,istatus)
+      if(istatus/=0) then
+         write(6,*) myname_, ': trouble getting name of chem/gases'
+         return
+      endif
 
-!      Allocate memory for guess files for trace gases
-!      ------------------------------------------------
-       call gsi_chemguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
-       if(istatus/=0) then
-          write(6,*) myname_, ': trouble allocating mem for chem/gases'
-          return
-       endif
+!     Allocate memory for guess files for trace gases
+!     ------------------------------------------------
+      call gsi_chemguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
+      if(istatus/=0) then
+         write(6,*) myname_, ': trouble allocating mem for chem/gases'
+         return
+      endif
    endif
 
   end subroutine create_chemges_grids
@@ -1216,7 +1216,7 @@ contains
 
 ! !USES:
 
-    use constants,only: zero,one,rd_over_cp,one_tenth,half
+    use constants,only: zero,one,rd_over_cp,one_tenth,half,ten
     use gridmod, only: lat2,lon2,nsig,ak5,bk5,ck5,tref5,idvc5,&
          regional,wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,&
          cmaq_regional,pt_ll,aeta2_ll,&
@@ -1249,7 +1249,6 @@ contains
 !-------------------------------------------------------------------------
 
 !   Declare local parameter
-    real(r_kind),parameter:: ten = 10.0_r_kind
     real(r_kind),parameter:: r1013=1013.0_r_kind
 
 !   Declare local variables
@@ -1439,31 +1438,31 @@ contains
 !     Compute compressibility factor (Picard et al 2008) and geopotential heights at midpoint 
 !     of each layer
 
-      do jj=1,nfldsig
-         do j=1,lon2
-            do i=1,lat2
-               k  = 1
-               fact    = one + fv * ges_q(i,j,k,jj)
-               pw      = eps + ges_q(i,j,k,jj)*( one - eps )
-               tmp_K   = ges_tv(i,j,k,jj) / fact
-               tmp_C   = tmp_K - t0c
-               prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! Pvap sat, eq A1.1 (Pa)
-               prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k,jj)) + log(ges_prsl(i,j,k,jj))))     ! (Pa) 
-               ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-               prs_v   = ges_q(i,j,k,jj) * prs_a / pw   ! vapor pressure (Pa)
-               rl_hm   = prs_v / prs_sv    ! relative humidity
-               x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+       do jj=1,nfldsig
+          do j=1,lon2
+             do i=1,lat2
+                k  = 1
+                fact    = one + fv * ges_q(i,j,k,jj)
+                pw      = eps + ges_q(i,j,k,jj)*( one - eps )
+                tmp_K   = ges_tv(i,j,k,jj) / fact
+                tmp_C   = tmp_K - t0c
+                prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! Pvap sat, eq A1.1 (Pa)
+                prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k,jj)) + log(ges_prsl(i,j,k,jj))))     ! (Pa) 
+                ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+                prs_v   = ges_q(i,j,k,jj) * prs_a / pw   ! vapor pressure (Pa)
+                rl_hm   = prs_v / prs_sv    ! relative humidity
+                x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+ 
+                ! Compressibility factor (eq A1.4 from Picard et al 2008)
+                cmpr = one - (prs_a/tmp_K) * (cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                           + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                           + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
 
-               ! Compressibility factor (eq A1.4 from Picard et al 2008)
-               cmpr = one - (prs_a/tmp_K) * (cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
-                          + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
-                          + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
-                         
-               h  = rdog * ges_tv(i,j,k,jj)
-               dz = h * cmpr * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
-               height(k) = ges_z(i,j,jj) + dz   
-              
-               do k=2,nsig
+                h  = rdog * ges_tv(i,j,k,jj)
+                dz = h * cmpr * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
+                height(k) = ges_z(i,j,jj) + dz   
+
+                do k=2,nsig
                    fact    = one + fv * half * (ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj))
                    pw      = eps + half * (ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj)) * (one - eps)
                    tmp_K   = half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj)) / fact
@@ -1480,116 +1479,116 @@ contains
                    h       = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
                    dz      = h * cmpr * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
                    height(k) = height(k-1) + dz
-               end do
+                end do
 
-               do k=1,nsig
-                  geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
-               end do
+                do k=1,nsig
+                   geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                end do
              enddo
           enddo
-      enddo
+       enddo
 
-!     Compute compressibility factor (Picard et al 2008) and geopotential heights at interface
-!     between layers
+!      Compute compressibility factor (Picard et al 2008) and geopotential heights at interface
+!      between layers
 
-      do jj=1,nfldsig
-         do j=1,lon2
-            do i=1,lat2
-               k=1
-               height(k) = ges_z(i,j,jj)
+       do jj=1,nfldsig
+          do j=1,lon2
+             do i=1,lat2
+                k=1
+                height(k) = ges_z(i,j,jj)
 
-               do k=2,nsig
-                  fact    = one + fv * ges_q(i,j,k-1,jj)
-                  pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
-                  tmp_K   = ges_tv(i,j,k-1,jj) / fact
-                  tmp_C   = tmp_K - t0c
-                  prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
-                  prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsi(i,j,k,jj)))) 
-                  ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-                  prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw   ! vapor pressure (Pa)
-                  rl_hm   = prs_v / prs_sv    ! relative humidity
-                  x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
-                  cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
-                           + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
-                           + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
-                  h       = rdog * ges_tv(i,j,k-1,jj)
-                  dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
-                  height(k) = height(k-1) + dz
-               enddo
+                do k=2,nsig
+                   fact    = one + fv * ges_q(i,j,k-1,jj)
+                   pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
+                   tmp_K   = ges_tv(i,j,k-1,jj) / fact
+                   tmp_C   = tmp_K - t0c
+                   prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
+                   prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsi(i,j,k,jj)))) 
+                   ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+                   prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw   ! vapor pressure (Pa)
+                   rl_hm   = prs_v / prs_sv    ! relative humidity
+                   x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+                   cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                            + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                            + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
+                   h       = rdog * ges_tv(i,j,k-1,jj)
+                   dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
+                   height(k) = height(k-1) + dz
+                enddo
 
-               k=nsig+1
-               fact    = one + fv* ges_q(i,j,k-1,jj)
-               pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
-               tmp_K   = ges_tv(i,j,k-1,jj) / fact
-               tmp_C   = tmp_K - t0c
-               prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
-               prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsl(i,j,k-1,jj))))     ! (Pa)
-               ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-               prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw  
-               rl_hm   = prs_v / prs_sv    ! relative humidity
-               x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
-               cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
-                         + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
-                         + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
-               h       = rdog * ges_tv(i,j,k-1,jj)
-               dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
-               height(k) = height(k-1) + dz
-
-               do k=1,nsig+1
-                  geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
-               end do
-            enddo
+                k=nsig+1
+                fact    = one + fv* ges_q(i,j,k-1,jj)
+                pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
+                tmp_K   = ges_tv(i,j,k-1,jj) / fact
+                tmp_C   = tmp_K - t0c
+                prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
+                prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsl(i,j,k-1,jj))))     ! (Pa)
+                ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
+                prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw  
+                rl_hm   = prs_v / prs_sv    ! relative humidity
+                x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
+                cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
+                          + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
+                          + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
+                h       = rdog * ges_tv(i,j,k-1,jj)
+                dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
+                height(k) = height(k-1) + dz
+ 
+                do k=1,nsig+1
+                   geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                end do
+             enddo
           enddo
-      enddo
+       enddo
 
     else
 
-!   Compute geopotential height at midpoint of each layer
-    do jj=1,nfldsig
-       do j=1,lon2
-          do i=1,lat2
-             k  = 1
-             h  = rdog * ges_tv(i,j,k,jj)
-             dz = h * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
-             height(k) = ges_z(i,j,jj) + dz
+!      Compute geopotential height at midpoint of each layer
+       do jj=1,nfldsig
+          do j=1,lon2
+             do i=1,lat2
+                k  = 1
+                h  = rdog * ges_tv(i,j,k,jj)
+                dz = h * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
+                height(k) = ges_z(i,j,jj) + dz
+ 
+                do k=2,nsig
+                   h  = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
+                   dz = h * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
+                   height(k) = height(k-1) + dz
+                end do
 
-             do k=2,nsig
-                h  = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
-                dz = h * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
-                height(k) = height(k-1) + dz
-             end do
-
-             do k=1,nsig
-                geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
-             end do
-          end do
-       end do
-    end do
-
-!   Compute geopotential height at interface between layers
-    do jj=1,nfldsig
-       do j=1,lon2
-          do i=1,lat2
-             k=1
-             height(k) = ges_z(i,j,jj)
-
-             do k=2,nsig
-                h  = rdog * ges_tv(i,j,k-1,jj)
-                dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
-                height(k) = height(k-1) + dz
-             end do
-
-             k=nsig+1
-             h = rdog * ges_tv(i,j,k-1,jj)
-             dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
-             height(k) = height(k-1) + dz
-
-             do k=1,nsig+1
-                geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                do k=1,nsig
+                   geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                end do
              end do
           end do
        end do
-    end do
+
+!      Compute geopotential height at interface between layers
+       do jj=1,nfldsig
+          do j=1,lon2
+             do i=1,lat2
+                k=1
+                height(k) = ges_z(i,j,jj)
+
+                do k=2,nsig
+                   h  = rdog * ges_tv(i,j,k-1,jj)
+                   dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
+                   height(k) = height(k-1) + dz
+                end do
+
+                k=nsig+1
+                h = rdog * ges_tv(i,j,k-1,jj)
+                dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
+                height(k) = height(k-1) + dz
+
+                do k=1,nsig+1
+                   geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                end do
+             end do
+          end do
+       end do
 
     endif
 
@@ -1609,9 +1608,9 @@ contains
 
 ! !USES:
 
-    use constants, only: half
+    use constants, only: half,ten
     use gridmod, only: nsig,msig,nlayers
-    use crtm_parameters, only: toa_pressure
+    use crtm_module, only: toa_pressure
 
     implicit none
 
@@ -1640,8 +1639,6 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-
-    real(r_kind),parameter:: ten = 10.0_r_kind
 
 !   Declare local variables
     integer(i_kind) k,kk,l

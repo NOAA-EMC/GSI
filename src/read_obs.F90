@@ -823,7 +823,7 @@ subroutine read_obs(ndata,mype)
 !            Process winds in the prepbufr
              else if(obstype == 'uv') then
 !             Process satellite winds which seperate from prepbufr
-                if ( trim(infile) == 'satwnd') then
+                if ( index(infile,'satwnd') /=0 ) then
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'

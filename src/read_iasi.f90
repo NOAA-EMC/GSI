@@ -55,7 +55,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-07-04  todling  - fixes to run either single or double precision
-!   2001-08-01  lueken  - add module use deter_sfc_mod, fixed indentation
+!   2011-08-01  lueken  - add module use deter_sfc_mod, fixed indentation
+!   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
+!                         (isfcalc=1)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -89,17 +91,17 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !
 !$$$
 ! Use modules
-  use type_kinds, only: crtm_kind => fp
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
       find_edges,radstart,radstep
+  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
+      crtm_kind => fp
   use crtm_planck_functions, only: crtm_planck_temperature
-  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,rad2deg,r60inv,one
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
@@ -117,7 +119,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Input variables
   integer(i_kind)  ,intent(in   ) :: mype
   integer(i_kind)  ,intent(in   ) :: ithin
-  integer(i_kind)  ,intent(in   ) :: isfcalc
+  integer(i_kind)  ,intent(inout) :: isfcalc
   integer(i_kind)  ,intent(in   ) :: lunout
   integer(i_kind)  ,intent(in   ) :: mype_root
   integer(i_kind)  ,intent(in   ) :: mype_sub
@@ -164,7 +166,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  real(r_kind)     :: clr_amt,piece,ten
+  real(r_kind)     :: clr_amt,piece
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: lza, lzaest,sat_height_ratio
@@ -219,14 +221,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   nodata = 0
   iasi=      obstype == 'iasi'
   r01=0.01_r_kind
-  ten=10.0_r_kind
 
   ilon=3
   ilat=4
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+     call skindepth(obstype,zob)
   endif
 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
@@ -241,15 +242,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   step_adjust = 0.625_r_kind
   senname = 'IASI'
   nchanlr = nchanl
-  if (isfcalc==1)then
-     rlndsea = zero
-  else
-     rlndsea(0) = zero                       
-     rlndsea(1) = 10._r_kind
-     rlndsea(2) = 15._r_kind
-     rlndsea(3) = 10._r_kind
-     rlndsea(4) = 30._r_kind
-  endif
   
   allspotlist= &
    'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
@@ -287,12 +279,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   ioff=ioff-1
   if (mype_sub==mype_root)write(6,*)'READ_IASI:  iasi offset ',ioff
 
-! Calculate parameters needed for FOV-based surface calculation.
-  if (isfcalc==1)then
-     instr=18
-     call instrument_init(instr, jsatid, expansion)
-  endif
-
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
 ! We do not want such observations affecting the relative
@@ -306,6 +292,32 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      endif
   end do search
   if (.not.assim) val_iasi=zero
+
+! Calculate parameters needed for FOV-based surface calculation.
+  if (isfcalc==1)then
+     instr=18
+     call instrument_init(instr, jsatid, expansion, valid)
+     if (.not. valid) then
+        if (assim) then 
+           write(6,*)'READ_IASI:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+           call stop2(71)
+        else
+           call fov_cleanup
+           isfcalc = 0
+           write(6,*)'READ_IASI:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+        endif
+     endif
+  endif
+
+  if (isfcalc==1)then
+     rlndsea = zero
+  else
+     rlndsea(0) = zero                       
+     rlndsea(1) = 10._r_kind
+     rlndsea(2) = 15._r_kind
+     rlndsea(3) = 10._r_kind
+     rlndsea(4) = 30._r_kind
+  endif
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -499,7 +511,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    When using FOV-based surface code, must screen out obs with bad fov numbers.
         if (isfcalc == 1) then
-           call fov_check(ifov,instr,valid)
+           call fov_check(ifov,instr,ichan,valid)
            if (.not. valid) cycle read_loop
         endif
 
@@ -579,7 +591,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(iskip > 0)write(6,*) ' READ_IASI : iskip > 0 ',iskip
 !       if( iskip >= 10 )cycle read_loop 
 
-        crit1=crit1 + 10.0_r_kind*float(iskip)
+        crit1=crit1 + ten*float(iskip)
 
 
 !    Map obs to grids

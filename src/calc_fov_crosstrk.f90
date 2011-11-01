@@ -12,6 +12,7 @@
 !                                 specific.  add channel specific 
 !                                 MHS antenna patterns. add airs
 !                                 and iasi.
+!   2011-09-13  gayno             improve module's error handling
 !
 ! subroutines included:
 !   sub fov_ellipse_crosstrk   - calc lat/lon of fov polygon
@@ -709,7 +710,7 @@
 
  contains
 
- subroutine instrument_init(instr, satid, expansion)
+ subroutine instrument_init(instr, satid, expansion, valid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    instrument_init          initalize instrument fields
@@ -722,6 +723,9 @@
 !   2008-08-09  kleespies
 !   2008-11-06  gayno - modified for gsi software standards
 !   2009-03-05  Kleespies - Add airs and iasi 
+!   2011-09-13  gayno - pass back bad status (variable valid)
+!                       if inputs are incorrect.  use amsua
+!                       noaa19 coefficients as default for aqua.
 !
 ! input argument list:
 !   instr      - Instrument number
@@ -750,7 +754,7 @@
 !               microwave.
 !
 ! output argument list:
-!   n/a
+!   valid     - error status; set to false when inputs are incorrect.
 !
 ! attributes:
 !   language: f90
@@ -765,18 +769,28 @@
 ! Declare passed variables.
  character(len=*), intent(in   ) :: satid
  integer(i_kind) , intent(in   ) :: instr
+ logical         , intent(  out) :: valid
  real(r_kind)    , intent(in   ) :: expansion
 
 ! Declare local variables.
  integer(i_kind)                    :: i, ifov
  real(r_kind)                       :: ata, cta, atf, ctf, ratio, height    
 
+ valid=.true.
  if (instr < ione .or. instr > maxinstr) then
-    write(6,*) "INSTURMENT_INIT: INSTRUMENT NUMBER OF: ", instr, " IS OUT OF RANGE."
-    call stop2(100)
+    write(6,*) "INSTRUMENT_INIT: INSTRUMENT NUMBER OF: ", instr, " IS OUT OF RANGE."
+    valid=.false.
+    return
  end if
 
- call get_sat_height(satid, height)
+ if (expansion < 0.95_r_kind .or. expansion > 3.0_r_kind) then
+   write(6,*) "INSTRUMENT_INIT: EXPANSION FACTOR IS OUT OF RANGE."
+   valid=.false.
+   return
+ endif
+
+ call get_sat_height(satid, height, valid)
+ if (.not.valid) return
 
  call fov_cleanup
 
@@ -836,6 +850,12 @@
           amsucoeff=>amsucoeff_21
        case('metop-c')
           amsucoeff=>amsucoeff_22
+       case('aqua')
+          amsucoeff=>amsucoeff_19
+       case default
+          write(6,*) "INSTRUMENT_INIT: NO AMSUA COEFFICIENTS FOR SATELLITE ",trim(satid)
+          valid=.false.
+          return
     end select
  endif
 
@@ -857,6 +877,10 @@
           mhscoeff=>mhscoeff_21
        case('metop-c')
           mhscoeff=>mhscoeff_22
+       case default
+          write(6,*) "INSTRUMENT_INIT: NO MHS COEFFICIENTS FOR SATELLITE ",trim(satid)
+          valid=.false.
+          return
     end select
  endif
 
@@ -1177,7 +1201,7 @@
  alongtrackangle = 360._r_kind * alongtrackfovsize/(two*pi*radius)
 
  end subroutine fovanglessizes
- subroutine get_sat_height(satid, height)
+ subroutine get_sat_height(satid, height, valid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_sat_height   return height of satellite in km
@@ -1192,12 +1216,16 @@
 ! program history log:
 !   2007-08-09  gayno
 !   2009-12-20  gayno - add metop-b/c 
+!   2011-09-13  gayno - pass back bad status for undefined 
+!                       satellites
 !
 ! input argument list:
 !   satid         - satellite id
 !  
 ! output argument list:
 !   height        - height of satellite in km
+!   valid         - status flag, set to false for 
+!                   undefined satellites
 !
 ! attributes:
 !   language: f90
@@ -1209,8 +1237,10 @@
 
 ! Declare passed variables
  character(len=*), intent(in   ) :: satid
+ logical,          intent(  out) :: valid
  real(r_kind)    , intent(  out) :: height
 
+ valid=.true.
  select case (trim(satid))
     case('tirosn')
        height=870._r_kind
@@ -1230,7 +1260,8 @@
        height=817._r_kind
     case default
        write(6,*) 'GET_SAT_HEIGHT: ERROR, unrecognized satellite id: ', trim(satid)
-       call stop2(100)
+       valid=.false.
+       return
  end select
 
  end subroutine get_sat_height
@@ -1447,7 +1478,7 @@
  return
 
  end subroutine inside_fov_crosstrk
- subroutine fov_check(fov,instr,valid)
+ subroutine fov_check(fov,instr,ichan,valid)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fov_check        ensure fov number is valid      
@@ -1457,13 +1488,15 @@
 !
 ! program history log:
 !   2009-01-05  gayno
+!   2011-09-13  gayno - add check of channel number
 !
 ! input argument list:
 !   fov           - fov number   
 !   instr         - instrument number
+!   ichan         - channel number
 !  
 ! output argument list:
-!   valid         - true if valid fov number
+!   valid         - false if inputs are incorrect.
 !
 ! attributes:
 !   language: f90
@@ -1475,7 +1508,7 @@
 
 ! Declare passed variables
  integer(i_kind), intent(in   ) :: fov
- integer(i_kind), intent(in   ) :: instr
+ integer(i_kind), intent(in   ) :: instr, ichan
  logical        , intent(  out) :: valid
 
  integer(i_kind):: ifov
@@ -1499,6 +1532,22 @@
     return
  endif
 
+ if (instr == 11) then
+   if (ichan < 1 .or. ichan > 15) then
+     write(6,*) "FOV_CHECK: ERROR, invalid amsua channel number"
+     valid=.false.
+     return
+   endif 
+ endif
+
+ if (instr == 13) then
+   if (ichan < 1 .or. ichan > 5) then
+     write(6,*) "FOV_CHECK: ERROR, invalid mhs channel number"
+     valid=.false.
+     return
+   endif 
+ endif
+ 
  return
  end subroutine fov_check
  end module calc_fov_crosstrk

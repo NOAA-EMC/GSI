@@ -33,12 +33,12 @@ subroutine Set_CRTM_Aerosol_ ( km, na, na_crtm, aero_name, aero_conc, rh, aeroso
 ! USES:
 
   use kinds, only: i_kind,r_kind
-  use constants, only: tiny_r_kind
+  use constants, only: one,tiny_r_kind
   use mpimod, only: mype
-  use CRTM_Aerosol_Define, only: CRTM_Aerosol_type
   use mpeu_util, only: getindex
   use crtm_module, only: SULFATE_AEROSOL,BLACK_CARBON_AEROSOL,ORGANIC_CARBON_AEROSOL,&
-      DUST_AEROSOL,SEASALT_SSAM_AEROSOL,SEASALT_SSCM1_AEROSOL,SEASALT_SSCM2_AEROSOL,SEASALT_SSCM3_AEROSOL
+      DUST_AEROSOL,SEASALT_SSAM_AEROSOL,SEASALT_SSCM1_AEROSOL,SEASALT_SSCM2_AEROSOL,SEASALT_SSCM3_AEROSOL,&
+      CRTM_Aerosol_type
 
   implicit none
 
@@ -166,7 +166,7 @@ subroutine Set_CRTM_Aerosol_ ( km, na, na_crtm, aero_name, aero_conc, rh, aeroso
   if ( j2 == 0 ) then
      R_eff = AeroC%Reff(j1,itype )
   else
-     R_eff = (1.0_r_kind-h1)*AeroC%Reff(j1,itype ) + h1*AeroC%Reff(j2,itype )
+     R_eff = (one-h1)*AeroC%Reff(j1,itype ) + h1*AeroC%Reff(j2,itype )
   endif
 
   return

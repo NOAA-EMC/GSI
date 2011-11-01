@@ -18,7 +18,6 @@ subroutine convert_netcdf_mass
 !   2006-09-15  treadon - use nhr_assimilation to build local guess filename
 !   2010-03-29  Hu  - add code to read 5 cloud/hydrometeor variables for cloud analysis
 !   2010-03-29  Hu  - bug fix: replace XICE with SEAICE 
-!   2010-10-20  hclin   - added 15 wrfchem/gocart fields for aod
 !
 !   input argument list:
 !
@@ -38,8 +37,6 @@ subroutine convert_netcdf_mass
   use constants, only: h300
   use gsi_4dvar, only: nhr_assimilation
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use aod_mod, only: laeroana_gocart, ppmv_conv
-  use gsi_chemguess_mod, only: gsi_chemguess_get
 
   implicit none
 
@@ -65,7 +62,6 @@ subroutine convert_netcdf_mass
   character (len=80) :: SysDepInfo
  
   integer(i_kind) :: ierr, Status, Status_next_time
-  integer(i_kind) :: iv, n_gocart_var, ier
   
 ! binary stuff
 
@@ -875,68 +871,6 @@ subroutine convert_netcdf_mass
 
   endif   ! l_cloud_analysis
 
-  if(laeroana_gocart) then
-     call gsi_chemguess_get('aerosols::3d', n_gocart_var, ier)
-     do iv = 1, n_gocart_var
-        select case ( iv )
-           case ( 1 )
-              rmse_var='sulf'
-           case ( 2 )
-              rmse_var='BC1'
-           case ( 3 )
-              rmse_var='BC2'
-           case ( 4 )
-              rmse_var='OC1'
-           case ( 5 )
-              rmse_var='OC2'
-           case ( 6 )
-              rmse_var='DUST_1'
-           case ( 7 )
-              rmse_var='DUST_2'
-           case ( 8 )
-              rmse_var='DUST_3'
-           case ( 9 )
-             rmse_var='DUST_4'
-           case ( 10 )
-              rmse_var='DUST_5'
-           case ( 11 )
-              rmse_var='SEAS_1'
-           case ( 12 )
-              rmse_var='SEAS_2'
-           case ( 13 )
-              rmse_var='SEAS_3'
-           case ( 14 )
-              rmse_var='SEAS_4'
-           case ( 15 )
-              rmse_var='P25'
-        end select
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index, WrfType, ierr    )
-        write(6,*)' rmse_var=',trim(rmse_var)
-        write(6,*)' ordering=',ordering
-        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-        write(6,*)' ndim1=',ndim1
-        write(6,*)' staggering=',staggering
-        write(6,*)' start_index=',start_index
-        write(6,*)' end_index=',end_index
-        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index,               & !dom
-             start_index,end_index,               & !mem
-             start_index,end_index,               & !pat
-             ierr                                 )
-        if ( trim(rmse_var) == 'sulf' ) then
-           field3 = field3*ppmv_conv   ! ppmv to ug/kg
-        end if
-        do k=1,nsig_regional
-           write(6,*)' k,max,min,mid var=',rmse_var,k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
-                    field3(nlon_regional/2,nlat_regional/2,k)
-           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
-        end do
-     end do ! n_gocart_var loop
-  endif ! laeroana_gocart
-
   deallocate(field1,field2,field2b,field2c,ifield2,field3,field3u,field3v)
   close(iunit)
   call ext_ncd_ioclose(dh1, Status)
@@ -1629,8 +1563,6 @@ subroutine update_netcdf_mass
   use kinds, only: r_single,i_kind
   use constants, only: h300
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use aod_mod, only: laeroana_gocart, ppmv_conv
-  use gsi_chemguess_mod, only: gsi_chemguess_get
 
   implicit none
 
@@ -1641,7 +1573,6 @@ subroutine update_netcdf_mass
   integer(i_kind)            :: dh1
 
   integer(i_kind) :: iunit
-  integer(i_kind) :: iv, n_gocart_var, ier
 
   integer(i_kind) :: i,j,k
   integer(i_kind) :: ndim1
@@ -2091,68 +2022,6 @@ subroutine update_netcdf_mass
          ierr                                 )
 
   endif     ! l_cloud_analysis
-
-  if(laeroana_gocart) then
-     call gsi_chemguess_get('aerosols::3d', n_gocart_var, ier)
-     do iv = 1, n_gocart_var
-        select case ( iv )
-           case ( 1 )
-              rmse_var='sulf'
-           case ( 2 )
-              rmse_var='BC1'
-           case ( 3 )
-              rmse_var='BC2'
-           case ( 4 )
-              rmse_var='OC1'
-           case ( 5 )
-              rmse_var='OC2'
-           case ( 6 )
-              rmse_var='DUST_1'
-           case ( 7 )
-              rmse_var='DUST_2'
-           case ( 8 )
-              rmse_var='DUST_3'
-           case ( 9 )
-              rmse_var='DUST_4'
-           case ( 10 )
-              rmse_var='DUST_5'
-           case ( 11 )
-              rmse_var='SEAS_1'
-           case ( 12 )
-             rmse_var='SEAS_2'
-           case ( 13 )
-              rmse_var='SEAS_3'
-           case ( 14 )
-              rmse_var='SEAS_4'
-           case ( 15 )
-              rmse_var='P25'
-        end select
-        do k=1,nsig_regional
-           read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)
-           write(6,*)' k,max,min,mid var=',rmse_var,k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &         
-                    field3(nlon_regional/2,nlat_regional/2,k)
-        end do
-        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
-             start_index,end_index1, WrfType, ierr    )
-        write(6,*)' rmse_var=',trim(rmse_var)
-        write(6,*)' ordering=',ordering
-        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-        write(6,*)' ndim1=',ndim1
-        write(6,*)' staggering=',staggering
-        write(6,*)' start_index=',start_index
-        write(6,*)' end_index=',end_index1
-        if ( trim(rmse_var) == 'sulf' ) then
-           field3 = field3/ppmv_conv    ! ug/kg to ppmv
-        end if
-        call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
-             field3,WRF_REAL,0,0,0,ordering,           &
-             staggering, dimnames ,               &
-             start_index,end_index1,               & !dom
-             start_index,end_index1,               & !mem
-             start_index,end_index1,               & !pat
-             ierr                                 )
-     end do ! n_gocart_var loop
-  endif ! laeroana_gocart
 
   deallocate(field1,field2,field2b,ifield2,field3,field3u,field3v)
   call ext_ncd_ioclose(dh1, Status)

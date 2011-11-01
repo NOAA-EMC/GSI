@@ -32,7 +32,6 @@ LIBsigio  = -L$(CORELIB) -lsigio_i4r4
 LIBcrtm   = -L$(CORELIB) -lcrtm
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
-LIBgfsio  = -L$(CORELIB) -lgfsio_i4r4
 LIBnemsio = -L$(CORELIB) -lnemsio
 
 # --------------------------
@@ -282,7 +281,6 @@ LIBsys          = $(MYLIBsys)
 	psichi2uvt_reg.o \
 	q_diag.o \
 	qcmod.o \
-	qnewton.o \
 	qnewton3.o \
 	radinfo.o \
 	raflib.o \
@@ -468,7 +466,7 @@ $(LIB):	 $(OBJS)
 	$(AR) -ruv $(LIB) $(OBJS)
 
 $(EXE_FILE):  $(OBJS) $(LIB) gsimain.o
-	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBgfsio) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys)
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys)
 	cp $(EXE_FILE) $(COREBIN)
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)

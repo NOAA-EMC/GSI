@@ -20,7 +20,6 @@ subroutine read_files(mype)
 !   2005-02-18  todling - no need to read entire sfc file; only head needed
 !   2005-03-30  treadon - clean up formatting of write statements
 !   2006-01-09  treadon - use sigio to read gfs spectral coefficient file header
-!   2007-05-08  treadon - add gfsio interface
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2007-04-17  todling  - getting nhr_assimilation from gsi_4dvar
 !   2008-05-27  safford - rm unused vars
@@ -74,7 +73,7 @@ subroutine read_files(mype)
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
   use guess_grids, only: hrdifsig_all,hrdifsfc_all,hrdifnst_all
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, nhr_assimilation
-  use gridmod, only: ncep_sigio,nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
+  use gridmod, only: nlat_sfc,nlon_sfc,lpl_gfs,dx_gfs, use_gfs_nemsio
   use constants, only: zero,r60inv,r60,r3600
   use obsmod, only: iadate
   use radinfo, only: nst_gsi
@@ -84,8 +83,6 @@ subroutine read_files(mype)
        nstio_srclose,nstio_srhead
   use sigio_module, only: sigio_head,sigio_sropen,&
        sigio_sclose,sigio_srhead
-  use gfsio_module, only: gfsio_gfile,gfsio_open,&
-       gfsio_getfilehead,gfsio_close
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
   
@@ -123,7 +120,6 @@ subroutine read_files(mype)
   type(sfcio_head):: sfc_head
   type(sigio_head):: sigatm_head
   type(nstio_head):: nst_head
-  type(gfsio_gfile) :: gfile
   type(nemsio_gfile) :: gfile_atm,gfile_sfc,gfile_nst
 
 
@@ -177,19 +173,11 @@ subroutine read_files(mype)
         inquire(file=filename,exist=fexist)
         if(fexist)then
            if ( .not. use_gfs_nemsio ) then
-              if (ncep_sigio) then
-                 call sigio_sropen(lunatm,filename,iret)
-                 call sigio_srhead(lunatm,sigatm_head,iret)
-                 hourg4=sigatm_head%fhour
-                 idateg=sigatm_head%idate
-                 call sigio_sclose(lunatm,iret)
-              else
-                 call gfsio_open(gfile,trim(filename),'read',iret)
-                 call gfsio_getfilehead(gfile,iret=iret,&
-                      fhour=hourg4, &
-                      idate=idateg)
-                 call gfsio_close(gfile,iret)
-              endif
+              call sigio_sropen(lunatm,filename,iret)
+              call sigio_srhead(lunatm,sigatm_head,iret)
+              hourg4=sigatm_head%fhour
+              idateg=sigatm_head%idate
+              call sigio_sclose(lunatm,iret)
            else
               call nemsio_init(iret=iret)
               call nemsio_open(gfile_atm,filename,'READ',iret=iret)

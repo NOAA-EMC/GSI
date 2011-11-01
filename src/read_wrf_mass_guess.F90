@@ -972,7 +972,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !   2010-03-29  hu     - add code to read in cloud/hydrometeor fields 
 !                             and distributed them to all processors 
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
-!   2011-09-20  hclin   - added 15 wrfchem/gocart fields for aod
 !
 !   input argument list:
 !     mype     - pe number
@@ -1006,7 +1005,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use constants, only: r0_01, tiny_r_kind
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use aod_mod, only: laeroana_gocart
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
@@ -1046,8 +1044,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind) deltasigma
   real(r_kind):: work_prsl,work_prslk
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
-  integer(i_kind) :: iv, n_gocart_var
-  integer(i_kind),allocatable :: i_chem(:),kchem(:)
   integer(i_kind) ier, istatus
 
   real(r_kind), pointer :: ges_qc(:,:,:)
@@ -1055,14 +1051,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind), pointer :: ges_qr(:,:,:)
   real(r_kind), pointer :: ges_qs(:,:,:)
   real(r_kind), pointer :: ges_qg(:,:,:)
-  character(len=5),allocatable :: cvar(:)
-  real(r_kind), pointer :: ges_sulf(:,:,:), ges_bc1(:,:,:),ges_bc2(:,:,:),ges_oc1(:,:,:), &
-       ges_oc2(:,:,:),ges_dust1(:,:,:),ges_dust2(:,:,:),ges_dust3(:,:,:),ges_dust4(:,:,:),&
-       ges_dust5(:,:,:),ges_seas1(:,:,:),ges_seas2(:,:,:),ges_seas3(:,:,:),ges_seas4(:,:,:),&
-       ges_p25(:,:,:)
-  integer(i_kind) :: indx_sulf, indx_bc1, indx_bc2, indx_oc1, indx_oc2, indx_dust1, indx_dust2, &
-       indx_dust3, indx_dust4, indx_dust5, indx_seas1, indx_seas2, indx_seas3, indx_seas4, &
-       indx_p25
 
 
 !  WRF MASS input grid dimensions in module gridmod
@@ -1087,14 +1075,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !    Following is for convenient WRF MASS input
      num_mass_fields=14_i_kind+4_i_kind*lm
      if(l_cloud_analysis) num_mass_fields=14_i_kind+4_i_kind*lm+6_i_kind*lm+2_i_kind
-     if ( laeroana_gocart ) then
-        call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
-        if ( n_gocart_var > 0 ) then
-           num_mass_fields = num_mass_fields + n_gocart_var*lm
-        else
-           laeroana_gocart = .false.
-        endif
-     endif
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -1249,23 +1229,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         end do
      endif
 
-     if ( laeroana_gocart ) then
-       if (n_gocart_var >0) then
-          allocate(cvar(n_gocart_var))
-          call gsi_chemguess_get ('aerosols::3d',cvar,ier)
-          allocate(i_chem(n_gocart_var))
-          allocate(kchem(n_gocart_var))
-          do iv = 1, n_gocart_var
-             i_chem(iv)=i+1
-             do k=1,lm
-                i=i+1
-                !write(identity(i),'("record ",i3,"--sulf(",i2,")")')i,k
-                jsig_skip(i)=0 ; igtype(i)=1
-             end do
-          end do
-       endif
-     endif ! laeroana_gocart
-
 !    End of stuff from MASS restart file
 
      allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+1,jm),temp1v(im,jm+1))
@@ -1367,71 +1330,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            kqg=i_0+i_qg-1
            ktt=i_0+i_tt-1
         endif
-        if ( laeroana_gocart ) then
-           ier = 0
-           indx_sulf=-1; indx_bc1=-1; indx_bc2=-1; indx_oc1=-1; indx_oc2=-1; indx_dust1=-1; indx_dust2=-1
-           indx_dust3=-1; indx_dust4=-1; indx_dust5=-1; indx_seas1=-1; indx_seas2=-1; indx_seas3=-1
-           indx_seas4=-1; indx_p25=-1
-           do iv = 1, n_gocart_var
-              if ( ier == 0 ) then
-                 select case ( trim(cvar(iv)) )
-                 case ( 'sulf' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_sulf,istatus );ier=ier+istatus
-                    indx_sulf = iv
-                 case ( 'bc1' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_bc1,istatus );ier=ier+istatus
-                    indx_bc1 = iv
-                 case ( 'bc2' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_bc2,istatus );ier=ier+istatus
-                    indx_bc2 = iv
-                 case ( 'oc1' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_oc1,istatus );ier=ier+istatus
-                    indx_oc1 = iv
-                 case ( 'oc2' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_oc2,istatus );ier=ier+istatus
-                    indx_oc2 = iv
-                 case ( 'dust1' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_dust1,istatus );ier=ier+istatus
-                    indx_dust1 = iv
-                 case ( 'dust2' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_dust2,istatus );ier=ier+istatus
-                    indx_dust2 = iv
-                 case ( 'dust3' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_dust3,istatus );ier=ier+istatus
-                    indx_dust3 = iv
-                 case ( 'dust4' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_dust4,istatus );ier=ier+istatus
-                    indx_dust4 = iv
-                 case ( 'dust5' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_dust5,istatus );ier=ier+istatus
-                    indx_dust5 = iv
-                 case ( 'seas1' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_seas1,istatus );ier=ier+istatus
-                    indx_seas1 = iv
-                 case ( 'seas2' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_seas2,istatus );ier=ier+istatus
-                    indx_seas2 = iv
-                 case ( 'seas3' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_seas3,istatus );ier=ier+istatus
-                    indx_seas3 = iv
-                 case ( 'seas4' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_seas4,istatus );ier=ier+istatus
-                    indx_seas4 = iv
-                 case ( 'p25' )
-                    call GSI_BundleGetPointer(GSI_ChemGuess_Bundle(it),cvar(iv),ges_p25,istatus );ier=ier+istatus
-                    indx_p25 = iv
-                 end select
-              endif
-              if (ier/=0 .and. mype == 0) then
-                  write(6,*)'READ_WRF_MASS_NETCDF_GUESS: getpointer failed for gocart species'
-              endif
-           enddo
-           if ( n_gocart_var > 0 ) then
-              do iv = 1, n_gocart_var
-                 kchem(iv) = i_0+i_chem(iv)-1
-              end do
-           endif
-        endif
+
 !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
 !              so accumulate 1 + total water vapor to use as correction factor
 
@@ -1450,13 +1349,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               kqi=kqi+1
               kqg=kqg+1
               ktt=ktt+1
-           endif
-           if ( laeroana_gocart ) then
-              if ( n_gocart_var > 0 ) then
-                 do iv = 1, n_gocart_var
-                    kchem(iv) = kchem(iv)+1
-                 end do
-              endif
            endif
            do i=1,lon2
               do j=1,lat2
@@ -1477,30 +1369,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                     ges_qg(j,i,k) = all_loc(j,i,kqg)
                     ges_tten(j,i,k,it) = all_loc(j,i,ktt)
                  endif
-                 if ( laeroana_gocart ) then
-                    if (indx_sulf>0)  ges_sulf(j,i,k)  = all_loc(j,i,kchem(indx_sulf))
-                    if (indx_bc1>0)   ges_bc1(j,i,k)   = all_loc(j,i,kchem(indx_bc1))
-                    if (indx_bc2>0)   ges_bc2(j,i,k)   = all_loc(j,i,kchem(indx_bc2))
-                    if (indx_oc1>0)   ges_oc1(j,i,k)   = all_loc(j,i,kchem(indx_oc1))
-                    if (indx_oc2>0)   ges_oc2(j,i,k)   = all_loc(j,i,kchem(indx_oc2))
-                    if (indx_dust1>0) ges_dust1(j,i,k) = all_loc(j,i,kchem(indx_dust1))
-                    if (indx_dust2>0) ges_dust2(j,i,k) = all_loc(j,i,kchem(indx_dust2))
-                    if (indx_dust3>0) ges_dust3(j,i,k) = all_loc(j,i,kchem(indx_dust3))
-                    if (indx_dust4>0) ges_dust4(j,i,k) = all_loc(j,i,kchem(indx_dust4))
-                    if (indx_dust5>0) ges_dust5(j,i,k) = all_loc(j,i,kchem(indx_dust5))
-                    if (indx_seas1>0) ges_seas1(j,i,k) = all_loc(j,i,kchem(indx_seas1))
-                    if (indx_seas2>0) ges_seas2(j,i,k) = all_loc(j,i,kchem(indx_seas2))
-                    if (indx_seas3>0) ges_seas3(j,i,k) = all_loc(j,i,kchem(indx_seas3))
-                    if (indx_seas4>0) ges_seas4(j,i,k) = all_loc(j,i,kchem(indx_seas4))
-                    if (indx_p25>0)   ges_p25(j,i,k)   = all_loc(j,i,kchem(indx_p25))
-                 end if
               end do
            end do
         end do
-        if ( laeroana_gocart ) then
-           deallocate(i_chem)
-           deallocate(kchem)
-        endif
         do i=1,lon2
            do j=1,lat2
 

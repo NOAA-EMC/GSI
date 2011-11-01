@@ -87,7 +87,7 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero,one,fv,max_varname_length
+  use constants, only: zero,one,fv,max_varname_length,qmin
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
@@ -223,7 +223,7 @@ subroutine update_guess(sval,sbias)
            do i=1,lat2
               if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + p_u(i,j,k)
               if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + p_v(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),1.e-10_r_kind) 
+              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),qmin) 
               if(is_t > 0) then
                  if (.not.twodvar_regional .or. .not.tsensible) then
                     ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + p_tv(i,j,k)
@@ -261,7 +261,7 @@ subroutine update_guess(sval,sbias)
            ptr3dges = ptr3dges + ptr3dinc
            icloud=getindex(cloud,guess(ic))
            if(icloud>0) then
-              ptr3dges = max(ptr3dges,1.e-10_r_kind)
+              ptr3dges = max(ptr3dges,zero)
            endif
         endif
         id=getindex(svars2d,guess(ic))

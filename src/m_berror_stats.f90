@@ -314,7 +314,7 @@ end subroutine read_bal
               do k=1,isig
                  do i=1,nlat
                     corq2x=corq2(i,k)
-                    varq(i,k)=min(max(corq2x,0.0015_r_kind),one)
+                    varq(i,k)=min(max(corq2x,0.00015_r_kind),one)
                  enddo
               enddo
               do k=1,isig

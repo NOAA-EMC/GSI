@@ -208,7 +208,6 @@ use intozmod, only: intoz
 use intcomod, only: intco
 use intpm2_5mod, only: intpm2_5
 use intlagmod, only: intlag
-use intaodmod, only: intaod
 use intgustmod, only: intgust
 use intvismod, only: intvis
 use intpblhmod, only: intpblh
@@ -295,9 +294,6 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS calculation for precipitation
   call intpcp(yobs%pcp,rval,sval)
-
-! RHS calculation for AOD
-  call intaod(yobs%aero,rval,sval)
 
 ! RHS for conventional gust observations
   call intgust(yobs%gust,rval,sval)

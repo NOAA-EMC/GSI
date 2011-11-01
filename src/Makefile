@@ -27,6 +27,9 @@ SHELL=/bin/sh
 #   4) To crean up files created by make, type
 #         > make clean
 #
+#   5) To create a library, libgsi.a, in the lib directory, type
+#         > make library
+#
 #
 # Created by Y.Tahara in May,2002
 # Edited by D.Kleist Oct. 2003
@@ -195,12 +198,11 @@ clean:
 	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
-        aod_mod.f90 \
 	balmod.f90 \
 	berror.f90 \
 	bias_predictors.f90 \
-        bicg.f90 \
-        bicglanczos.F90 \
+	bicg.f90 \
+	bicglanczos.F90 \
 	bkerror.f90 \
 	bkgcov.f90 \
 	bkgvar.f90 \
@@ -217,7 +219,7 @@ clean:
 	chemmod.f90 \
 	clw_mod.f90 \
 	cmaq_routines.f90 \
-        co_mop_ak.f90 \
+	co_mop_ak.f90 \
 	coinfo.f90 \
 	combine_radobs.f90 \
 	compact_diffs.f90 \
@@ -236,7 +238,7 @@ clean:
 	cvsection.f90 \
 	dtast.f90 \
 	deter_nst.f90 \
-        deter_sfc_mod.f90 \
+	deter_sfc_mod.f90 \
 	egrid2agrid_mod.f90 \
 	enorm_state.f90 \
 	evaljgrad.f90 \
@@ -279,7 +281,7 @@ clean:
 	gsi_bundlemod.F90 \
 	gsi_chemguess_mod.F90 \
 	gsi_io.f90 \
-        gsi_metguess_mod.F90 \
+	gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
@@ -294,7 +296,6 @@ clean:
 	insitu_info.f90 \
 	int3dvar.f90 \
 	intall.f90 \
-        intaod.f90 \
 	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
@@ -326,7 +327,7 @@ clean:
 	intw.f90 \
 	jcmod.f90 \
 	jfunc.f90 \
-        jgrad.f90 \
+	jgrad.f90 \
 	kinds.F90 \
 	lag_fields.f90 \
 	lag_interp.f90 \
@@ -359,7 +360,6 @@ clean:
 	mpimod.F90 \
 	mpl_allreduce.F90 \
 	mpl_bcast.f90 \
-        ncar_set_crtm_aerosol.f90 \
 	ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
 	ncepnems_io.f90 \
@@ -392,7 +392,6 @@ clean:
 	psichi2uvt_reg.f90 \
 	q_diag.f90 \
 	qcmod.f90 \
-	qnewton.f90 \
 	qnewton3.f90 \
 	radinfo.f90 \
 	raflib.f90 \
@@ -445,8 +444,8 @@ clean:
 	stpjcpdry.f90 \
 	stplimq.f90 \
 	stplimg.f90 \
-	stplimp.f90 \
 	stplimv.f90 \
+	stplimp.f90 \
 	stpoz.f90 \
 	stppblh.f90 \
 	stppcp.f90 \
@@ -519,7 +518,7 @@ clean:
 	read_avhrr_navy.f90 \
 	read_bufrtovs.f90 \
 	read_co.f90 \
-        read_cris.f90 \
+	read_cris.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -540,7 +539,6 @@ clean:
 	read_ssmis.f90 \
 	read_superwinds.f90 \
 	read_tcps.f90 \
-        setupaod.f90  \
 	setupbend.f90 \
 	setupco.f90 \
 	setupdw.f90 \
@@ -649,6 +647,20 @@ all :
 	@$(MAKE) -f $(MAKE_FILE) \
 		"LIBS=$(LIBS_N)" "LDFLAGS=$(LDFLAGS_N)" \
 		$(EXE_FILE)
+
+library :
+	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode
+	@echo
+	@echo '==== COMPILE ================================================='
+	@$(MAKE) -f $(MAKE_FILE) \
+		"FFLAGS=$(FFLAGS_N)" \
+		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
+		"CFLAGS=$(CFLAGS_N)" \
+		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+	@echo
+	@echo '==== CREATING LIBRARY ========================================'
+	$(MAKE) lib
+	mv $(LIB) ../lib
 
 debug :
 	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode

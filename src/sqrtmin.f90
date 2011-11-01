@@ -14,7 +14,6 @@ subroutine sqrtmin()
 !   2009-01-18  todling  - calc dot-prod in quad precision
 !   2009-08-12  lueken   - updated documentation
 !   2010-05-15  todling  - add only for all used variables
-!   2010-10-20  hclin    - added prt_guesschem for aod
 !
 !   input argument list:
 !
@@ -45,7 +44,6 @@ use control_vectors, only: allocate_cv,deallocate_cv,write_cv,inquire_cv
 use control_vectors, only: dot_product,assignment(=)
 use obs_ferrscale, only: lferrscale, apply_hrm1h
 use timermod, only: timer_ini, timer_fnl
-use aod_mod, only: laeroana_gocart
 
 implicit none
 
@@ -86,7 +84,6 @@ if (ladtest) call adtest()
 zgg=dot_product(xhatsave,xhatsave,r_quad)
 if (mype==0) write(6,888)trim(myname),': Norm xhatsave=',sqrt(zgg)
 call prt_guess('guess')
-if ( laeroana_gocart ) call prt_guesschem('guess')
 if (lobsensfc.and.lobsensmin) lsaveobsens=.true.
 
 ! Get initial cost function and gradient
@@ -218,7 +215,6 @@ else
       call prt_guess('increment')
    else
       call prt_guess('analysis')
-      if ( laeroana_gocart ) call prt_guesschem('analysis')
    endif
 
    zge=dot_product(gradx,gradx,r_quad)

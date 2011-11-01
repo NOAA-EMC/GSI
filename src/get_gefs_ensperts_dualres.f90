@@ -33,7 +33,7 @@ subroutine get_gefs_ensperts_dualres
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_grid
@@ -90,6 +90,15 @@ subroutine get_gefs_ensperts_dualres
 ! For now, everything is assumed to be at the same resolution
     if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',filename
     call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+
+! Check read return code.  Revert to static B if read error detected
+    if (iret/=0) then
+       beta1_inv=one
+       if (mype==0) &
+            write(6,*)'***WARNING*** ERROR READING ENS FILE : ',filename,' IRET=',IRET,' RESET beta1_inv=',beta1_inv
+       cycle
+    endif
+
 
 ! Temporarily, try to use the u,v option (i.e. uv_hyb_ens)...eventually two
 ! options exist:

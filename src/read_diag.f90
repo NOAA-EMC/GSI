@@ -303,7 +303,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         data_name%chn(12)= 'biang     '
         data_name%chn(13)= 'biclw     '
         if (retrieval) data_name%chn(13)= 'bisst     '
-     elseif ( header_fix%iversion < iversion_radiag_2 .and. header_fix%iversion > iversion_radiag_1 ) then
+     elseif ( header_fix%iversion < iversion_radiag_2 .and. header_fix%iversion >= iversion_radiag_1 ) then
         data_name%chn( 8)= 'bicons    '
         data_name%chn( 9)= 'biang     '
         data_name%chn(10)= 'biclw     '
@@ -378,7 +378,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   type(diag_data_extra_list) ,pointer    :: data_extra(:,:)
   integer(i_kind),intent(out)            :: iflag
     
-  integer(i_kind) :: ich,iang,ndiag
+  integer(i_kind) :: ich,iang
   real(r_single),dimension(:,:),allocatable :: data_tmp
   real(r_single),dimension(:),allocatable   :: fix_tmp
 !  type(old_diag_data_fix_list)              :: old_data_fix
@@ -483,7 +483,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
            data_chan(ich)%bisst   =data_tmp(13,ich) 
         endif
      end do
-  elseif ( header_fix%iversion < iversion_radiag_2 .and. header_fix%iversion > iversion_radiag_1 ) then
+  elseif ( header_fix%iversion < iversion_radiag_2 .and. header_fix%iversion >= iversion_radiag_1 ) then
      do ich=1,header_fix%nchan
         data_chan(ich)%bicons=data_tmp(8,ich)
         data_chan(ich)%biang =data_tmp(9,ich)
