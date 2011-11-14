@@ -348,6 +348,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !    Loop over data types to process
      do is=1,ndat
+
         nobs=nsat1(is)
  
         if(nobs > 0)then
@@ -361,7 +362,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !          Set up for radiance data
            if(ditype(is) == 'rad')then
- 
               call setuprad(lunin,&
                  mype,aivals,stats,nchanl,nreal,nobs,&
                  obstype,isis,is,rad_diagsave,init_pass,last_pass)
@@ -546,7 +546,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    Compute and print statistics for "conventional" data
      call statsconv(mype,&
           i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-          i_gust,i_vis,i_pblh,bwork1,awork1,ndata)
+          i_gust,i_vis,i_pblh,i_ref,bwork1,awork1,ndata)
 
   endif  ! < .not. lobserver >
 
