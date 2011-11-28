@@ -422,7 +422,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,is,conv_diagsave)
               else if(obstype == 'pm2_5')then 
                  call setuppm2_5(lunin,mype,nele,nobs,&
-                      isis,is)
+                      isis,is,conv_diagsave)
 
 !             Set up conventional wind gust data
               else if(obstype=='gust' .and. getindex(svars2d,'gust')>0) then

@@ -43,7 +43,8 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use chemmod, only : obs2model_anowbufr_pm2_5,&
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone,&
-        elev_missing,site_scale,tunable_error
+        elev_missing,site_scale,tunable_error,&
+        code_pm25_bufr,code_pm25_prepbufr
 
   implicit none
   
@@ -101,18 +102,13 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   real(r_kind), dimension(nreal,maxobs):: cdata_all
   character(len=8):: sid
   character(len=10) :: cdate
-  
+
+  logical :: prepbufr
+
   data lunin / 10 /
 
   equivalence (sid,indata(nsid))
   
-!temporarily set
-  if (trim(obstype)=='pm2_5') then
-     subset='ANOWPM' !'AIRNOW' for ozone
-     headr='SID XOB YOB DHR TYP COPOPM'
-  else !keep option for ozone
-  endif
-
   site_char=1 ! set unknown site character
   site_elev=elev_missing ! set unknown site elevation
 
@@ -133,14 +129,45 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
   do while (ireadmg(lunin,subset,idate) == 0)
 
+     if (trim(obstype)=='pm2_5') then
+        
+        if ( (subset == 'NC008031') .or. (subset == 'NC008032' ) ) then
+           headr='PTID CLONH CLATH TPHR TYPO COPOPM'
+           prepbufr=.false.
+           write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
+        else if (subset == 'ANOWPM') then
+           headr='SID XOB YOB DHR TYP COPOPM'
+           prepbufr=.true.
+           write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
+        else
+           cycle
+        endif
+        
+     else !keep option for ozone
+        cycle
+!     subset='AIRNOW' for ozone
+     endif
+
      write(cdate,'(i10)') idate
      read (cdate,'(i4,3i2)') iy,im,id,ih
      imin=0
 
      do while (ireadsb(lunin) == 0)
         call ufbint(lunin,indata,nfields,1,iret,headr)
-        read(sid,'(Z8)')site_id
-        kx=indata(ntyp)
+
+        if (prepbufr) then
+           kx=indata(ntyp)
+           read(sid,'(Z8)')site_id
+        else
+           kx=indata(ntyp)
+           if (kx/=code_pm25_bufr) then
+              cycle
+           else
+              kx=code_pm25_prepbufr
+           endif
+           site_id=nint(indata(1))
+        endif
+        
         nread = nread + 1
         conc=indata(ncopopm)
         
