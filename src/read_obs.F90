@@ -199,6 +199,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
       if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255
       if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256
       if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257
+      if(jsatid == 'g14' .or. jsatid == 'g14_prep')kidsat=258
+      if(jsatid == 'g15' .or. jsatid == 'g15_prep')kidsat=259
       if(jsatid == 'n05')kidsat=705
       if(jsatid == 'n06')kidsat=706
       if(jsatid == 'n07')kidsat=707

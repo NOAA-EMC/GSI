@@ -184,6 +184,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   if(jsatid == 'g11') kidsat = 255
   if(jsatid == 'g12') kidsat = 256
   if(jsatid == 'g13') kidsat = 257
+  if(jsatid == 'g14') kidsat = 258
+  if(jsatid == 'g15') kidsat = 259
 
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
