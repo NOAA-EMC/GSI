@@ -968,6 +968,8 @@ contains
       if (index(isis,'hirs')/=0 .and. (index(isis,'n16')/=0 .or. &
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
+      else if (index(isis,'atms') /= 0) then
+         ifov=ifov+3
       else
          ifov=iscan
       end if
@@ -1089,8 +1091,8 @@ contains
       step  = 1.11_r_kind
       start = -52.725_r_kind
       nstep = 96
-      edge1 = 10
-      edge2 = 87
+      edge1 = 7
+      edge2 = 84
    else if (index(isis,'mhs')/=0) then
       step  = 10.0_r_kind/9.0_r_kind
       start = -445.0_r_kind/9.0_r_kind

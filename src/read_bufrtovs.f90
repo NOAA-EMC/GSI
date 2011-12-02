@@ -205,7 +205,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
-
 !**************************************************************************
 ! Initialize variables
 
@@ -587,6 +586,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               call find_edges(sis,ifov,data_on_edges)
               if (data_on_edges) cycle read_loop
            end if
+           ! For ATMS we shift the FOV number down by three as we can only use
+           ! 90 of the 96 positions right now because of the scan bias limitation.
+           if (atms) ifov=ifov-3
+           ! Check that ifov is not out of range of cbias dimension
+           if (ifov < 1 .OR. ifov > 90) cycle read_loop
 
            nread=nread+nchanl
 
@@ -610,9 +614,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
 
 !          Read data record.  Increment data counter
-           if(llll == 1)then
+!          TMBR is actually the antenna temperature for most microwave sounders but for
+!          ATMS it is stored in TMANT.
+           if (atms) then   ! ATMS is assumed not to come via EARS
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
+           else if (llll == 1) then
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
-           else
+           else     ! EARS
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
               data1b8x=data1b8
               if(.not. hirs)then
@@ -689,6 +697,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          Account for assymetry due to satellite build error
            if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
               ifovmod=ifovmod+1
+!          Account for ATMS IFOV offset imposed above
+           if (atms) ifovmod=ifovmod+3
 
            panglr=(start+float(ifovmod-1)*step)*deg2rad
            lzaest = asin(rato*sin(panglr))
