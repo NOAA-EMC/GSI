@@ -198,6 +198,7 @@ clean:
 	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
+	atms_spatial_average_mod.f90 \
 	balmod.f90 \
 	berror.f90 \
 	bias_predictors.f90 \
@@ -516,6 +517,7 @@ clean:
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
+	read_atms.f90 \
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \

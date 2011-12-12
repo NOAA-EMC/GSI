@@ -82,6 +82,7 @@ LIBsys          = $(MYLIBsys)
 	antest_maps0.o \
 	antest_maps0_glb.o \
 	aod_mod.o \
+        atms_spatial_average_mod.o \
 	balmod.o \
 	berror.o \
 	bias_predictors.o \
@@ -290,6 +291,7 @@ LIBsys          = $(MYLIBsys)
 	read_airs.o \
 	read_amsre.o \
 	read_anowbufr.o \
+	read_atms.o \
 	read_avhrr.o \
 	read_avhrr_navy.o \
 	read_bufrtovs.o \
