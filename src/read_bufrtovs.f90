@@ -77,6 +77,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2011-08-01  lueken  - removed deter_sfc subroutines, placed in new module deter_sfc_mod
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
+!   2011-12-01  collard Add ATMS
+!   2011-12-13  collard Replace find_edges code to speed up execution.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -114,7 +116,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
-      use_edges,find_edges,radstart,radstep,newpc4pred
+      use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
   use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
@@ -149,7 +151,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: n1bhdr=13
-  integer(i_kind),parameter:: n2bhdr=14
+  integer(i_kind),parameter:: n2bhdr=4
   integer(i_kind),parameter:: maxinfo=33
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -158,7 +160,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Declare local variables
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,atms
   logical outside,iuse,assim,valid
-  logical data_on_edges
 
   character(14):: infile2
   character(8) subset
@@ -175,7 +176,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
-  integer(i_kind):: error_status,ier
+  integer(i_kind) error_status,ier
+  integer(i_kind) radedge_min, radedge_max
   character(len=20),dimension(1):: sensorlist
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
@@ -286,10 +288,16 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if(jsatid == 'metop-c')kidsat=6
   if(jsatid == 'npp')kidsat=224
 
+  radedge_min = 0
+  radedge_max = 1000
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
         step  = radstep(i)
         start = radstart(i)
+        if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+           radedge_min=radedge1(i)
+           radedge_max=radedge2(i)
+        end if
         exit 
      endif
   end do 
@@ -582,9 +590,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            ifov = nint(bfr1bhdr(2))
            if (use_edges) then 
               if (msu .and. (ifov==1 .or. ifov==11)) cycle read_loop
-           else
-              call find_edges(sis,ifov,data_on_edges)
-              if (data_on_edges) cycle read_loop
+           else if ((ifov < radedge_min .OR. ifov > radedge_max )) then
+              cycle read_loop
            end if
            ! For ATMS we shift the FOV number down by three as we can only use
            ! 90 of the 96 positions right now because of the scan bias limitation.

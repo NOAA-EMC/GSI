@@ -1186,6 +1186,7 @@ contains
    integer(i_kind):: istatus,ispot,iuseqc
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp
+   integer(i_kind):: radedge_min, radedge_max
    integer(i_kind),dimension(maxchn):: ich
    integer(i_kind),dimension(maxchn):: io_chan
    integer(i_kind),dimension(maxdat):: ipoint
@@ -1342,6 +1343,18 @@ contains
          end do
       end if
 
+      radedge_min = 0
+      radedge_max = 1000
+      do i=1,jpch_rad
+         if (trim(nusis(i))==trim(satsens_id)) then
+            if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+               radedge_min=radedge1(i)
+               radedge_max=radedge2(i)
+            end if
+            exit 
+         endif
+      end do
+
 
 !     Loop to read diagnostic file
       istatus = 0
@@ -1356,10 +1369,8 @@ contains
          ispot  = nint(scan)
 
 !        Exclude data on edges
-         if (.not. use_edges) then
-            call find_edges(satsens_id,ispot,data_on_edges)
-            if (data_on_edges) cycle loopd
-         end if
+         if (.not. use_edges .and. (&
+              ispot < radedge_min .OR. ispot > radedge_max )) cycle loopd
 
 !        Channel loop
          nc=0
@@ -1600,7 +1611,7 @@ contains
    logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,airs,hsb,iasi
  
    data_on_edges=.false.
-   write(*,*) 'jpch_rad=',jpch_rad
+   
    do i=1,jpch_rad
       if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
       if (trim(sis)==trim(nusis(i)) .and. (ispot<radedge1(i) .or. ispot>radedge2(i))) then

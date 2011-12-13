@@ -94,7 +94,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: n1bhdr=12
-  integer(i_kind),parameter:: n2bhdr=14
+  integer(i_kind),parameter:: n2bhdr=4
   integer(i_kind),parameter:: maxinfo=33
   integer(i_kind),parameter:: maxobs = 800000
   integer(i_kind),parameter:: max_chanl = 22
@@ -103,15 +103,13 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
 ! Declare local variables
-  logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,atms
   logical outside,iuse,assim,valid
   logical data_on_edges
 
-  character(14):: infile2
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) ireadsb,ireadmg,irec,isub
   integer(i_kind) i,j,k,ntest,llll,iob
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
@@ -137,13 +135,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
-  real(r_kind) pred, pred_water, pred_not_water
-  real(r_kind) pred_tchan,pred_qchan              ! wm - added for testing of AA/AB pred
-                                                  !      to atms
+  real(r_kind) pred
   real(r_kind) dlat,panglr,dlon,rato,sstime,tdiff
   real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
-  real(r_kind) step,start,ch8flg,dist1
-  real(r_kind) timedif,tt,lzaest
+  real(r_kind) step,start,dist1
+  real(r_kind) tt,lzaest
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),allocatable :: Relative_Time_In_Seconds(:)
   real(r_kind),allocatable,dimension(:,:):: data_all
@@ -162,7 +158,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
 
-  real(r_double),allocatable,dimension(:):: data1b8,data1b8x
+  real(r_double),allocatable,dimension(:):: data1b8
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
@@ -225,10 +221,16 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      return
   end if
 
+  radedge_min = 0
+  radedge_max = 1000
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
         step  = radstep(i)
         start = radstart(i)
+        if (radedge1(i)/=-1 .or. radedge2(i)/=-1) then
+           radedge_min=radedge1(i)
+           radedge_max=radedge2(i)
+        end if
         exit 
      endif
   end do 
@@ -280,11 +282,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! This eventually needs to be spit between MHS and AMSU-A like channels
   if (isfcalc==1) then
-    if (amsub.or.mhs)then
-      rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
-    else
+!   if (amsub.or.mhs)then
+!     rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
+!   else
       rlndsea=0
-    endif
+!   endif
   endif
 
 ! Allocate arrays for BUFR I/O
@@ -300,121 +302,103 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(solazi_save(maxobs)) 
   ALLOCATE(bt_save(max_chanl,maxobs))
 
+! Reopen unit to satellite bufr file
+  iob=1
+  call closbf(lnbufr)
+  open(lnbufr,file=infile,form='unformatted',status = 'old',err = 500)
 
-! Big loop over standard data feed and possible ears data
-  do llll=llb,llb       ! Only support global level 1b (not RARS) for now.
-
-!    Set bufr subset names based on type of data to read
-
-!    Open unit to satellite bufr file
-     infile2=infile
-     if(llll == 2)then
-        infile2=trim(infile)//'ears'
-     end if
-
-!    Reopen unit to satellite bufr file
-     iob=1
-     call closbf(lnbufr)
-     open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
-
-     call openbf(lnbufr,'IN',lnbufr)
+  call openbf(lnbufr,'IN',lnbufr)
+  hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'
+  hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
-!    Loop to read bufr file
-     next=0
-     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0 .AND. iob < maxobs)
+! Loop to read bufr file
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0 .AND. iob < maxobs)
 
-        next=next+1
-        if(next == npe_sub)next=0
-        if(next/=mype_sub)cycle
-        read_loop: do while (ireadsb(lnbufr)==0 .and. iob < maxobs)
+     read_loop: do while (ireadsb(lnbufr)==0 .and. iob < maxobs)
 
-           rsat       => rsat_save(iob)
-           t4dv       => t4dv_save(iob)
-           dlon_earth => dlon_earth_save(iob)
-           dlat_earth => dlat_earth_save(iob)
-           crit1      => crit1_save(iob)
-           ifov       => ifov_save(iob)
-           lza        => lza_save(iob)
-           satazi     => satazi_save(iob)
-           solzen     => solzen_save(iob)
-           solazi     => solazi_save(iob)
+        rsat       => rsat_save(iob)
+        t4dv       => t4dv_save(iob)
+        dlon_earth => dlon_earth_save(iob)
+        dlat_earth => dlat_earth_save(iob)
+        crit1      => crit1_save(iob)
+        ifov       => ifov_save(iob)
+        lza        => lza_save(iob)
+        satazi     => satazi_save(iob)
+        solzen     => solzen_save(iob)
+        solazi     => solazi_save(iob)
 
-!          Read header record.  (llll=1 is normal feed, 2=EARS data)
-           hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'
-           call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
+!       Read header record.  (llll=1 is normal feed, 2=EARS data)
+        call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
-!          Extract satellite id.  If not the one we want, read next record
-           rsat=bfr1bhdr(1) 
-           ksatid=nint(bfr1bhdr(1))
-           if(ksatid /= kidsat) cycle read_subset
+!       Extract satellite id.  If not the one we want, read next record
+        rsat=bfr1bhdr(1) 
+        ksatid=nint(bfr1bhdr(1))
+        if(ksatid /= kidsat) cycle read_subset
 
-!          Extract observation location and other required information
-           if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
-              dlat_earth = bfr1bhdr(11)
-              dlon_earth = bfr1bhdr(12)
-           elseif(abs(bfr1bhdr(9)) <= 90._r_kind .and. abs(bfr1bhdr(10)) <= r360)then
-              dlat_earth = bfr1bhdr(9)
-              dlon_earth = bfr1bhdr(10)
-           else
-              cycle read_loop
-           end if
-           if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
-           if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
+!       Extract observation location and other required information
+        if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
+           dlat_earth = bfr1bhdr(11)
+           dlon_earth = bfr1bhdr(12)
+        elseif(abs(bfr1bhdr(9)) <= 90._r_kind .and. abs(bfr1bhdr(10)) <= r360)then
+           dlat_earth = bfr1bhdr(9)
+           dlon_earth = bfr1bhdr(10)
+        else
+           cycle read_loop
+        end if
+        if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
+        if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
 
 
-!          Extract date information.  If time outside window, skip this obs
-           idate5(1) = bfr1bhdr(3) !year
-           idate5(2) = bfr1bhdr(4) !month
-           idate5(3) = bfr1bhdr(5) !day
-           idate5(4) = bfr1bhdr(6) !hour
-           idate5(5) = bfr1bhdr(7) !minute
-           call w3fs21(idate5,nmind)
-           t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-           if (l4dvar) then
-              if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
-           else
-              sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-              tdiff=(sstime-gstime)*r60inv
-              if(abs(tdiff) > twind) cycle read_loop
-           endif
+!       Extract date information.  If time outside window, skip this obs
+        idate5(1) = bfr1bhdr(3) !year
+        idate5(2) = bfr1bhdr(4) !month
+        idate5(3) = bfr1bhdr(5) !day
+        idate5(4) = bfr1bhdr(6) !hour
+        idate5(5) = bfr1bhdr(7) !minute
+        call w3fs21(idate5,nmind)
+        t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
+        if (l4dvar) then
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+        else
+           sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
+           tdiff=(sstime-gstime)*r60inv
+           if(abs(tdiff) > twind) cycle read_loop
+        endif
  
-           if (l4dvar) then
-              timedif = zero
-           else
-              timedif = two*abs(tdiff)        ! range:  0 to 6
-           endif
+        if (l4dvar) then
+           crit1 = zero
+        else
+           crit1 = two*abs(tdiff)        ! range:  0 to 6
+        endif
 
-           crit1 = (llll-1)*500.0_r_kind + timedif 
  
-           hdr2b ='SAZA SOZA BEARAZ SOLAZI'
-           call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
+        call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
 
-           satazi=bfr2bhdr(3)
-           if (abs(satazi) > r360) then
-              satazi=zero
-           endif
+        satazi=bfr2bhdr(3)
+        if (abs(satazi) > r360) then
+           satazi=zero
+        endif
 
-           ifov = nint(bfr1bhdr(2))
-           lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
-           if(ifov <= 48)    lza=-lza
+        ifov = nint(bfr1bhdr(2))
+        lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
+        if(ifov <= 48)    lza=-lza
 
-           solzen_save(iob)=bfr2bhdr(2) 
-           solazi_save(iob)=bfr2bhdr(4) 
+        solzen_save(iob)=bfr2bhdr(2) 
+        solazi_save(iob)=bfr2bhdr(4) 
 
-!          Read data record.  Increment data counter
-!          TMBR is actually the antenna temperature for most microwave sounders but for
-!          ATMS it is stored in TMANT.
-!          ATMS is assumed not to come via EARS
-           call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
+!       Read data record.  Increment data counter
+!       TMBR is actually the antenna temperature for most microwave sounders but for
+!       ATMS it is stored in TMANT.
+!       ATMS is assumed not to come via EARS
+        call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
 
-           bt_save(1:nchanl,iob) = data1b8(1:nchanl)
+        bt_save(1:nchanl,iob) = data1b8(1:nchanl)
 
-           iob=iob+1
+        iob=iob+1
 
-        end do read_loop
-     end do read_subset
-     call closbf(lnbufr)
-  end do
+     end do read_loop
+  end do read_subset
+  call closbf(lnbufr)
   deallocate(data1b8)
   
   num_obs = iob-1
@@ -446,19 +430,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   write(*,*) 'ATMS!!!!, NOBS=',Num_Obs
   call cpu_time(time1)
-
-! Find radedge values for this instrument
-  radedge_min = 0
-  radedge_max = 1000
-  do i=1,jpch_rad
-     if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
-     if (trim(sis)==trim(nusis(i))) then
-        radedge_min=radedge1(i)
-        radedge_max=radedge2(i)
-        exit
-     end if
-  end do
-  write(*,*) 'Radedge_min, Radedge_max =',Radedge_min, Radedge_max 
 
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
@@ -505,16 +476,21 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         call grdcrd(dlat,1,rlats,nlat,1)
         call grdcrd(dlon,1,rlons,nlon,1)
      endif
+
+!    Map obs to thinning grid
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     if(.not. iuse)cycle ObsLoop
+
 !
 !    Check FOV and scan-edge usage
-     if (use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
+     if (.not. use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
           cycle ObsLoop
 
      ! For ATMS we shift the FOV number down by three as we can only use
      ! 90 of the 96 positions right now because of the scan bias limitation.
-     ifov=ifov-3
+     ifovmod=ifov-3
      ! Check that ifov is not out of range of cbias dimension
-     if (ifov < 1 .OR. ifov > 90) cycle ObsLoop
+     if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop
      
      nread=nread+nchanl
      
@@ -530,9 +506,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         endif
      end do
      if (iskip >= nchanl) cycle ObsLoop
-!    Map obs to thinning grid
-     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-     if(.not. iuse)cycle ObsLoop
 
 !    Determine surface properties based on 
 !    sst and land/sea/ice mask   
@@ -550,12 +523,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if (isfcalc == 1) then
         call fov_check(ifov,instr,ichan,valid)
         if (.not. valid) cycle ObsLoop
-     end if
 
 !    When isfcalc is one, calculate surface fields based on size/shape of fov.
 !    Otherwise, use bilinear method.
 
-     if (isfcalc == 1) then
         call deter_sfc_fov(fov_flag,ifov,instr,ichan,satazi,dlat_earth_deg,&
              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -568,19 +539,13 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle ObsLoop
 
-!    Set common predictor parameters
-     ifovmod=ifov
-
-!    Account for ATMS IFOV offset imposed above
-     ifovmod=ifovmod+3
-
-     panglr=(start+float(ifovmod-1)*step)*deg2rad
+     panglr=(start+float(ifov-1)*step)*deg2rad
      lzaest = asin(rato*sin(panglr))
 
 !    Check for errors in satellite zenith angles 
      if(abs(lzaest-lza)*rad2deg > one) then
         write(6,*)' READ_ATMS WARNING uncertainty in lza ', &
-             lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
+             lza*rad2deg,lzaest*rad2deg,sis,ifov,start,step
         cycle ObsLoop
      end if
 
@@ -593,13 +558,13 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
 !    Remove angle dependent pattern (not mean).
      if (adp_anglebc .and. newpc4pred) then
-        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
-        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
+        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
+        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
      else
-        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
-             air_rad(ichan1)*cbias(15,ichan1)
-        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
-             air_rad(ichan2)*cbias(15,ichan2)   
+        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
+             air_rad(ichan1)*cbias(45,ichan1)
+        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
+             air_rad(ichan2)*cbias(45,ichan2)   
      end if
      if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
         cosza = cos(lza)
@@ -614,13 +579,13 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !       This is taken straight from AMSU-A even though Ch 3 has a different polarisation
 !       and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
         if (adp_anglebc .and. newpc4pred) then
-           ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
-           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)
+           ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
+           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
         else
-           ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
-                air_rad(ichan3)*cbias(15,ichan3)   
-           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)+ &
-                air_rad(ichan16)*cbias(15,ichan16)
+           ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
+                air_rad(ichan3)*cbias(45,ichan3)   
+           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
+                air_rad(ichan16)*cbias(45,ichan16)
         end if
         pred = abs(ch1-ch16)
         if(ch1-ch16 >= three) then
@@ -659,7 +624,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      data_all(5 ,itx)= lza                       ! local zenith angle
      data_all(6 ,itx)= satazi                    ! local azimuth angle
      data_all(7 ,itx)= panglr                    ! look angle
-     data_all(8 ,itx)= ifov                      ! scan position
+     data_all(8 ,itx)= ifovmod                   ! scan position
      data_all(9 ,itx)= solzen                    ! solar zenith angle
      data_all(10,itx)= solazi                    ! solar azimuth angle
      data_all(11,itx) = sfcpct(0)                ! sea percentage of
