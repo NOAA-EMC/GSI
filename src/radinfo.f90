@@ -77,6 +77,7 @@ module radinfo
   public :: newpc4pred
   public :: radjacnames,radjacindxs,nsigradjac
   public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
+  public :: radedge1, radedge2
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -1599,7 +1600,7 @@ contains
    logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,airs,hsb,iasi
  
    data_on_edges=.false.
-
+   write(*,*) 'jpch_rad=',jpch_rad
    do i=1,jpch_rad
       if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
       if (trim(sis)==trim(nusis(i)) .and. (ispot<radedge1(i) .or. ispot>radedge2(i))) then

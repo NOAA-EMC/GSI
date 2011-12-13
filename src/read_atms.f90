@@ -61,7 +61,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
-      use_edges,find_edges,radstart,radstep,newpc4pred
+      use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred
   use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
@@ -123,6 +123,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
   integer(i_kind):: error_status,ier
+  integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
   character(len=20),dimension(1):: sensorlist
@@ -148,17 +149,18 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
+  real(r_kind) time1, time2
 
-  real(r_kind), TARGET :: rsat_save(maxobs)
-  real(r_kind), TARGET :: t4dv_save(maxobs)
-  real(r_kind), TARGET :: dlon_earth_save(maxobs)
-  real(r_kind), TARGET :: dlat_earth_save(maxobs)
-  real(r_kind), TARGET :: crit1_save(maxobs)
-  real(r_kind), TARGET :: lza_save(maxobs)
-  real(r_kind), TARGET :: satazi_save(maxobs)
-  real(r_kind), TARGET :: solzen_save(maxobs) 
-  real(r_kind), TARGET :: solazi_save(maxobs) 
-  real(r_kind), TARGET :: bt_save(max_chanl,maxobs)
+  real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: dlon_earth_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: dlat_earth_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: crit1_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: lza_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: satazi_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: solzen_save(:) 
+  real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
+  real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
 
   real(r_double),allocatable,dimension(:):: data1b8,data1b8x
   real(r_double),dimension(n1bhdr):: bfr1bhdr
@@ -285,10 +287,18 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
     endif
   endif
 
-! Allocate arrays to hold all data for given satellite
-  nreal = maxinfo + nstinfo
-  nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax),data1b8(nchanl))
+! Allocate arrays for BUFR I/O
+  ALLOCATE(data1b8(nchanl))
+  ALLOCATE(rsat_save(maxobs))
+  ALLOCATE(t4dv_save(maxobs))
+  ALLOCATE(dlon_earth_save(maxobs))
+  ALLOCATE(dlat_earth_save(maxobs))
+  ALLOCATE(crit1_save(maxobs))
+  ALLOCATE(lza_save(maxobs))
+  ALLOCATE(satazi_save(maxobs))
+  ALLOCATE(solzen_save(maxobs)) 
+  ALLOCATE(solazi_save(maxobs)) 
+  ALLOCATE(bt_save(max_chanl,maxobs))
 
 
 ! Big loop over standard data feed and possible ears data
@@ -435,6 +445,25 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Complete Read_ATMS thinning and QC steps
 
   write(*,*) 'ATMS!!!!, NOBS=',Num_Obs
+  call cpu_time(time1)
+
+! Find radedge values for this instrument
+  radedge_min = 0
+  radedge_max = 1000
+  do i=1,jpch_rad
+     if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
+     if (trim(sis)==trim(nusis(i))) then
+        radedge_min=radedge1(i)
+        radedge_max=radedge2(i)
+        exit
+     end if
+  end do
+  write(*,*) 'Radedge_min, Radedge_max =',Radedge_min, Radedge_max 
+
+! Allocate arrays to hold all data for given satellite
+  nreal = maxinfo + nstinfo
+  nele  = nreal   + nchanl
+  allocate(data_all(nele,itxmax))
 
   ObsLoop: do iob = 1, num_obs  
 
@@ -476,12 +505,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         call grdcrd(dlat,1,rlats,nlat,1)
         call grdcrd(dlon,1,rlons,nlon,1)
      endif
-
+!
 !    Check FOV and scan-edge usage
-     if (use_edges) then
-        call find_edges(sis,ifov,data_on_edges)
-        if (data_on_edges) cycle ObsLoop
-     end if
+     if (use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
+          cycle ObsLoop
+
      ! For ATMS we shift the FOV number down by three as we can only use
      ! 90 of the 96 positions right now because of the scan bias limitation.
      ifov=ifov-3
@@ -504,7 +532,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if (iskip >= nchanl) cycle ObsLoop
 !    Map obs to thinning grid
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-    if(.not. iuse)cycle ObsLoop
+     if(.not. iuse)cycle ObsLoop
 
 !    Determine surface properties based on 
 !    sst and land/sea/ice mask   
@@ -578,7 +606,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
         if (icw4crtm>0) then
            qval  = zero 
-        else
+        else 
            qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
         endif
         pred  = max(zero,qval)*100.0_r_kind
@@ -608,7 +636,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
      crit1 = crit1+pred 
      call finalcheck(dist1,crit1,itx,iuse)
-    if(.not. iuse)cycle ObsLoop
+     if(.not. iuse)cycle ObsLoop
      
 !    interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
      if(nst_gsi>0) then
@@ -671,6 +699,23 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      end do
 
   end do ObsLoop
+
+! DEAllocate I/O arrays
+  DEALLOCATE(rsat_save)
+  DEALLOCATE(t4dv_save)
+  DEALLOCATE(dlon_earth_save)
+  DEALLOCATE(dlat_earth_save)
+  DEALLOCATE(crit1_save)
+  DEALLOCATE(lza_save)
+  DEALLOCATE(satazi_save)
+  DEALLOCATE(solzen_save) 
+  DEALLOCATE(solazi_save) 
+  DEALLOCATE(bt_save)
+
+  call cpu_time(time2)
+
+  write(*,*) 'nread=',nread
+  write(*,*) 'Time for obs loop =',time2-time1
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
