@@ -256,7 +256,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                    call ufbint(lnbufr,rtype,1,1,iret,'TYP')
                    kx=nint(rtype)
                 else if ( (subset == 'NC008031') .or. &
-                     & (subset == 'NC008032' ) ) then
+                       (subset == 'NC008032' ) ) then
                    call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
                    kx=nint(rtype)
                    if (kx/=code_pm25_bufr) then

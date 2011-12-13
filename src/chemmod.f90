@@ -46,7 +46,7 @@ module chemmod
   real(r_kind) :: maginnov_chem,magoberr_chem,conconeobs,&
         oblon_chem,oblat_chem,obpres_chem,elev_tolerance,tunable_error
   
-  integer, parameter :: code_pm25_bufr=11, code_pm25_prepbufr=102
+  integer(i_kind), parameter :: code_pm25_bufr=11, code_pm25_prepbufr=102
   
 
   real(r_kind),parameter :: pm2_5_teom_max=200_r_kind !ug/m3
