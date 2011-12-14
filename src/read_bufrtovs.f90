@@ -77,8 +77,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2011-08-01  lueken  - removed deter_sfc subroutines, placed in new module deter_sfc_mod
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
-!   2011-12-01  collard Add ATMS
 !   2011-12-13  collard Replace find_edges code to speed up execution.
+!   2011-12-14  collard Remove ATMS
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -158,7 +158,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
 ! Declare local variables
-  logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,atms
+  logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
   logical outside,iuse,assim,valid
 
   character(14):: infile2
@@ -191,8 +191,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) pred, pred_water, pred_not_water
-  real(r_kind) pred_tchan,pred_qchan              ! wm - added for testing of AA/AB pred
-                                                  !      to atms
   real(r_kind) rsat,dlat,panglr,dlon,rato,sstime,tdiff,t4dv
   real(r_kind) dlon_earth_deg,dlat_earth_deg,sat_aziang
   real(r_kind) dlon_earth,dlat_earth,r01
@@ -241,7 +239,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   amsub =    obstype == 'amsub'
   mhs   =    obstype == 'mhs'
   ssu   =    obstype == 'ssu'
-  atms  =    obstype == 'atms'
 
 !  instrument specific variables
   d1 =  0.754_r_kind
@@ -264,8 +261,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      ichan8  = newchn(sis,ich8)
   endif
   if (amsua) ichan15 = newchn(sis,ich15)
-  if (atms)  ichan16 = newchn(sis,ich16)
-  if (atms)  ichan17 = newchn(sis,ich17)
 
   if(jsatid == 'n05')kidsat=705
   if(jsatid == 'n06')kidsat=706
@@ -403,19 +398,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 30._r_kind
-  else if ( atms ) then
-     nchanl=22
-     if (isfcalc==1) then
-        instr=14                    ! This section isn't really updated.
-        ichan=15                    ! pick a surface sens. channel
-        expansion=2.9_r_kind        ! use almost three for microwave sensors.
-     endif
-!   Set rlndsea for types we would prefer selecting
-     rlndsea(0) = zero
-     rlndsea(1) = 15._r_kind
-     rlndsea(2) = 10._r_kind
-     rlndsea(3) = 15._r_kind
-     rlndsea(4) = 100._r_kind
   end if
 
 ! If all channels of a given sensor are set to monitor or not
@@ -522,7 +504,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !          Read header record.  (llll=1 is normal feed, 2=EARS data)
            hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
-           if (atms) hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL'
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
@@ -593,9 +574,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            else if ((ifov < radedge_min .OR. ifov > radedge_max )) then
               cycle read_loop
            end if
-           ! For ATMS we shift the FOV number down by three as we can only use
-           ! 90 of the 96 positions right now because of the scan bias limitation.
-           if (atms) ifov=ifov-3
+
            ! Check that ifov is not out of range of cbias dimension
            if (ifov < 1 .OR. ifov > 90) cycle read_loop
 
@@ -621,11 +600,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
 
 !          Read data record.  Increment data counter
-!          TMBR is actually the antenna temperature for most microwave sounders but for
-!          ATMS it is stored in TMANT.
-           if (atms) then   ! ATMS is assumed not to come via EARS
-              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
-           else if (llll == 1) then
+!          TMBR is actually the antenna temperature for most microwave 
+!          sounders.
+           if (llll == 1) then
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
            else     ! EARS
               call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
@@ -653,9 +630,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                                   j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
                     (hirs  .and. (j == ich8 )) .or.                               &
                     (amsub .and.  j == ich1) .or.                                 &
-                    (mhs   .and. (j == ich1 .or. j == ich2)) .or.                 &
-                    (atms  .and. (j == ich1 .or. j == ich2 .or. j == ich16        &
-                             .or. j == ich17))                   ) iskip = iskip+nchanl
+                    (mhs   .and. (j == ich1 .or. j == ich2)) ) iskip = iskip+nchanl
               endif
            end do
            if (iskip >= nchanl) cycle read_loop
@@ -704,8 +679,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          Account for assymetry due to satellite build error
            if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
               ifovmod=ifovmod+1
-!          Account for ATMS IFOV offset imposed above
-           if (atms) ifovmod=ifovmod+3
 
            panglr=(start+float(ifovmod-1)*step)*deg2rad
            lzaest = asin(rato*sin(panglr))
@@ -716,8 +689,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if((amsua .and. ifovmod <= 15) .or.        &
                  (amsub .and. ifovmod <= 45) .or.        &
                  (mhs   .and. ifovmod <= 45) .or.        &
-                 (hirs  .and. ifovmod <= 28) .or.        &
-                 (atms  .and. ifovmod <= 48) )   lza=-lza
+                 (hirs  .and. ifovmod <= 28) )   lza=-lza
            end if
 
 !  Check for errors in satellite zenith angles 
@@ -827,49 +799,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
               pred = max(zero,pred)
 
-           else if (atms) then
-! Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
-!   Remove angle dependent pattern (not mean).
-              if (adp_anglebc .and. newpc4pred) then
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
-                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
-              else
-                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
-                       air_rad(ichan1)*cbias(15,ichan1)
-                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
-                       air_rad(ichan2)*cbias(15,ichan2)   
-              end if
-              if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
-                 cosza = cos(lza)
-                 d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                 if (icw4crtm>0) then
-                    qval  = zero 
-                 else
-                    qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                 endif
-                 pred  = max(zero,qval)*100.0_r_kind
-              else
-!                This is taken straight from AMSU-A even though Ch 3 has a different polarisation
-!                and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
-                 if (adp_anglebc .and. newpc4pred) then
-                    ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
-                    ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)
-                 else
-                    ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
-                           air_rad(ichan3)*cbias(15,ichan3)   
-                    ch16 = data1b8(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)+ &
-                           air_rad(ichan16)*cbias(15,ichan16)
-                 end if
-                 pred = abs(ch1-ch16)
-                 if(ch1-ch16 >= three) then
-                    df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
-                    tt   = 168._r_kind-0.49_r_kind*ch16
-                    if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
-                      (ch16 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
-                       pred = 100._r_kind
-                    end if
-                 end if
-              endif
            endif
            
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"

@@ -8,7 +8,6 @@ anisofilter_glb.o : anisofilter_glb.f90 compact_diffs.o balmod.o sub2fslab_mod.o
 antcorr_application.o : antcorr_application.f90 
 antest_maps0.o : antest_maps0.f90 control_vectors.o fgrid2agrid_mod.o guess_grids.o mpimod.o constants.o gridmod.o anberror.o kinds.o 
 antest_maps0_glb.o : antest_maps0_glb.f90 control_vectors.o patch2grid_mod.o guess_grids.o mpimod.o constants.o gridmod.o anberror.o kinds.o 
-balmod.o : balmod.f90 mod_strong.o mod_vtrans.o hybrid_ensemble_parameters.o m_berror_stats_reg.o guess_grids.o m_berror_stats.o constants.o mpimod.o gridmod.o kinds.o 
 atms_spatial_average_mod.o : atms_spatial_average_mod.f90 kinds.o
 balmod.o : balmod.f90 mod_strong.o mod_vtrans.o hybrid_ensemble_parameters.o m_berror_stats_reg.o guess_grids.o m_berror_stats.o constants.o mpimod.o gridmod.o kinds.o 
 berror.o : berror.f90 radinfo.o jfunc.o gridmod.o balmod.o constants.o control_vectors.o kinds.o 

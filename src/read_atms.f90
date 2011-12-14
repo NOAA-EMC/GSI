@@ -72,7 +72,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   use atms_spatial_average_mod, only : atms_spatial_average
-  use obsmod, only : atms_filter
   implicit none
 
 ! Declare passed variables
@@ -101,6 +100,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
+  ! The next two are one minute in hours
+  real(r_kind),parameter:: one_minute=0.01666667_r_kind
+  real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
 
 ! Declare local variables
   logical outside,iuse,assim,valid
@@ -145,7 +147,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
   real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi, lza
-  real(r_kind) time1, time2
 
   real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
@@ -358,11 +359,12 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         call w3fs21(idate5,nmind)
         t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
         if (l4dvar) then
-           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
+           if (t4dv<minus_one_minute .OR. t4dv>winlen+one_minute) &
+                cycle read_loop
         else
            sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
            tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind) cycle read_loop
+           if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
  
         if (l4dvar) then
@@ -411,25 +413,20 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! Call filtering code 
 
-  IF (atms_filter) then
-     ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
-     Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-     write(*,*) 'Calling ATMS_Spatial_Average'
-     CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
-          Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IRet)
-     write(*,*) 'ATMS_Spatial_Average Called with IRet=',IRet
-     DEALLOCATE(Relative_Time_In_Seconds)
-     
-     IF (IRet /= 0) THEN
-        write(*,*) 'Error Calling ATMS_Spatial_Average from READ_ATMS'
-        RETURN
-     END IF
+  ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
+  Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
+  write(*,*) 'Calling ATMS_Spatial_Average'
+  CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
+       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IRet)
+  write(*,*) 'ATMS_Spatial_Average Called with IRet=',IRet
+  DEALLOCATE(Relative_Time_In_Seconds)
+  
+  IF (IRet /= 0) THEN
+     write(*,*) 'Error Calling ATMS_Spatial_Average from READ_ATMS'
+     RETURN
   END IF
 
 ! Complete Read_ATMS thinning and QC steps
-
-  write(*,*) 'ATMS!!!!, NOBS=',Num_Obs
-  call cpu_time(time1)
 
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
@@ -477,6 +474,15 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         call grdcrd(dlon,1,rlons,nlon,1)
      endif
 
+! Check time window
+     if (l4dvar) then
+        if (t4dv<zero .OR. t4dv>winlen) cycle ObsLoop
+     else
+        sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
+        tdiff=(sstime-gstime)*r60inv
+        if(abs(tdiff) > twind) cycle ObsLoop
+     endif
+ 
 !    Map obs to thinning grid
      call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
      if(.not. iuse)cycle ObsLoop
@@ -502,7 +508,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            iskip = iskip + 1
            
 !          Remove profiles where key channels are bad  
-           if((j == ich1 .or. j == ich2 .or. j == ich16 .or. j == ich17)) iskip = iskip+nchanl
+           if((j == ich1 .or. j == ich2 .or. &
+                j == ich16 .or. j == ich17)) iskip = iskip+nchanl
         endif
      end do
      if (iskip >= nchanl) cycle ObsLoop
@@ -676,11 +683,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solzen_save) 
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
-
-  call cpu_time(time2)
-
-  write(*,*) 'nread=',nread
-  write(*,*) 'Time for obs loop =',time2-time1
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)

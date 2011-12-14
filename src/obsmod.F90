@@ -296,7 +296,7 @@ module obsmod
   public :: ozptr,o3lptr,coptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
   public :: aeroptr,aerolptr,pm2_5ptr
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
-  public :: ndat_times,lwrite_predterms,lwrite_peakwt, atms_filter
+  public :: ndat_times,lwrite_predterms,lwrite_peakwt
 !
   public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
   public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
@@ -1205,7 +1205,6 @@ module obsmod
   logical lread_obs_skip
   logical lwrite_predterms
   logical lwrite_peakwt
-  logical atms_filter
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1275,7 +1274,6 @@ contains
     endif
     blacklst  = .false.
     lobserver = .false.     ! when .t., calculate departure vectors only
-    atms_filter = .true.    ! Spatially filter ATMS radiances by default.
 
 !   Specify unit numbers to which to write data counts, indication of quality control
 !   decisions, and statistics summary of innovations.  For radiance data also write

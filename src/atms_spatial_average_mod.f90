@@ -31,7 +31,7 @@ CONTAINS
     integer(i_kind) ,intent(in   ) :: Num_Obs, NChanl
     integer(i_kind) ,intent(in   ) :: Fov(num_obs)
     real(r_kind)    ,intent(in   ) :: Time(Num_Obs)
-    real(r_kind)    ,intent(inout) :: BT_InOut(Num_Obs,NChanl)
+    real(r_kind)    ,intent(inout) :: BT_InOut(NChanl,Num_Obs)
     integer(i_kind) ,intent(  out) :: Error_Status
 
     ! Declare local parameters
@@ -58,10 +58,10 @@ CONTAINS
     Error_Status=0
 
     ! Read the beamwidth requirements
-    OPEN(lninfile,file='atms_beamwidth.dat',form='formatted',status='old', &
+    OPEN(lninfile,file='atms_beamwidth.txt',form='formatted',status='old', &
          iostat=ios)
     IF (ios /= 0) THEN
-       WRITE(*,*) 'Unable to open atms_beamwidth.dat'
+       WRITE(*,*) 'Unable to open atms_beamwidth.txt'
        Error_Status=1
        RETURN
     ENDIF
@@ -123,16 +123,16 @@ CONTAINS
     
     ScanLine_Back(:,:) = -1
     DO I=1,Num_Obs
-       bt_image(FOV(I),Scanline(I),:)=bt_inout(I,:)
+       bt_image(FOV(I),Scanline(I),:)=bt_inout(:,I)
        Scanline_Back(FOV(I),Scanline(I))=I
     END DO
-     
+
     DO IChan=1,nchanl
        
        bt_image1 => bt_image(:,:,ichan)
        
-       ! If the channel number is present in the channelnumber array we should process it (otherwise
-       ! bt_inout just keeps the same value):
+       ! If the channel number is present in the channelnumber array we should process it 
+       ! (otherwise bt_inout just keeps the same value):
        IF (ANY(channelnumber(1:nchannels) == ichan)) THEN
 
           CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image1, &
@@ -144,8 +144,8 @@ CONTAINS
              do iscan=1,max_scan
                 do ifov=1,max_fov
                    if (Scanline_Back(IFov, IScan) > 0) &
-                        bt_inout(Scanline_Back(IFov, IScan),&
-                        channelnumber(ichan)) = BT_Image1(ifov,iscan)
+                        bt_inout(channelnumber(ichan),Scanline_Back(IFov, IScan)) = &
+                        BT_Image1(ifov,iscan)
                 end do
              end do
           ELSE
@@ -236,7 +236,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
       INTEGER(I_KIND) :: deltax, minii, maxii, minjj, maxjj
       REAL(R_KIND), ALLOCATABLE :: mtfxin(:),mtfxout(:)
       REAL(R_KIND), ALLOCATABLE :: mtfyin(:),mtfyout(:)
-      REAL(R_KIND) :: mtfin,mtfout
+      REAL(R_KIND) :: mtfin,mtfout,mtf_constant
       REAL(R_KIND), ALLOCATABLE :: mtfpad(:,:)
       REAL(R_KIND), ALLOCATABLE :: imagepad(:,:)
       REAL(R_KIND), ALLOCATABLE :: work(:)
@@ -251,6 +251,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
       
       PI = 4.0*atan(1.0)
       LN2 = LOG(2.0)
+      MTF_Constant=PI/(2*sampling_dist)**2/LN2
       IF (mtfcutoff .GT. 0.0) LNcsquared = LOG(mtfcutoff)**2
       nxav2 = nxaverage/2
       nyav2 = nyaverage/2
@@ -356,8 +357,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
         df = 1.0/nxpad
         DO i=1,nxpad/2+1
           f = df*(i-1)      !DC to Nyquist
-          mtfxin(i) = exp(-(PI*f*beamwidth/(2*sampling_dist))**2/LN2)
-          mtfxout(i) = exp(-(PI*f*newwidth/(2*sampling_dist))**2/LN2)
+          mtfxin(i) = exp(-(f*beamwidth*MTF_Constant))
+          mtfxout(i) = exp(-(f*newwidth*MTF_Constant))
           IF (i.GT.1.AND.i.LT.nxpad/2+1) THEN
             mtfxin(nxpad-i+2) = mtfxin(i)
             mtfxout(nxpad-i+2) = mtfxout(i)
@@ -366,8 +367,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
         df = 1.0/nypad
         DO i=1,nypad/2+1
           f = df*(i-1)      !DC to Nyquist
-          mtfyin(i) = exp(-(PI*f*beamwidth/(2*sampling_dist))**2/LN2)
-          mtfyout(i) = exp(-(PI*f*newwidth/(2*sampling_dist))**2/LN2)
+          mtfyin(i) = exp(-(f*beamwidth*MTF_Constant))
+          mtfyout(i) = exp(-(f*newwidth*MTF_Constant))
           IF (i.GT.1.AND.i.LT.nypad/2+1) THEN
             mtfyin(nypad-i+2) = mtfyin(i)
             mtfyout(nypad-i+2) = mtfyout(i)
@@ -390,9 +391,14 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !After each FFT, points 1 to nxpad/2+1 contain the real part of the spectrum,
 !the rest contain the imaginary part in reverse order.
 
+!$omp parallel do  schedule(dynamic,1) private(j), &
+!$omp shared(imagepad,nxpad,nypad,xpow2),default(none) 
         DO j=1,nypad
            CALL SFFTCF(imagepad(:,j),nxpad,xpow2)
         ENDDO
+
+!$omp parallel do  schedule(dynamic,1) private(j,i,work), &
+!$omp shared(imagepad,nxpad,nypad,ypow2),default(none) 
         DO i=1,nxpad
            DO j=1,nypad
               work(j) = imagepad(i,j)
@@ -413,6 +419,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 
 !5) Inverse Fourier transform, column by column then line by line 
 
+!$omp parallel do  schedule(dynamic,1) private(j,i,work), &
+!$omp shared(imagepad,nxpad,nypad,ypow2),default(none) 
         DO i=1,nxpad
           DO j=1,nypad
             work(j) = imagepad(i,j)
@@ -422,14 +430,22 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
             imagepad(i,j) = work(j)
           ENDDO
         ENDDO
+
+!$omp parallel do  schedule(dynamic,1) private(j), &
+!$omp shared(imagepad,nxpad,nypad,xpow2),default(none) 
         DO j=1,nypad
           CALL SFFTCB(imagepad(:,j),nxpad,xpow2)
         ENDDO
-      ENDIF   !New width is specified
+     ENDIF   !New width is specified
 
-!6) Reset missing values in gooddata_map, based on qc_dist and the values in the 
-!   input image array
+!6) Reset missing values in gooddata_map, based on qc_dist and the values 
+!   in the input image array
 
+     ! Set the ends of the image to missing in the along track direction
+     ! (doing the same across track will remove too much data)
+     gooddata_map(:,1:qc_dist)=.FALSE.
+     gooddata_map(:,ny-qc_dist+1:ny)=.FALSE.
+     
      DO j=1,ny
         DO i=1,nx
            IF (image(i,j) <= minval) THEN
