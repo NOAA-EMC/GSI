@@ -90,17 +90,19 @@ CONTAINS
           read(lninfile,'(a30)') Cline
        ENDDO
        READ(Cline,*) nchannels
-       
+      
        read(lninfile,'(a30)') Cline
-       DO ichan=1,nchannels
-          read(lninfile,'(a30)') Cline
-          DO WHILE (Cline(1:1) == '#')
-             read(lninfile,'(a30)') Cline
-          ENDDO
-          READ(Cline,*) channelnumber(ichan),beamwidth(ichan), &
-               &       newwidth(ichan),cutoff(ichan),nxaverage(ichan), &
-               &       nyaverage(ichan), qc_dist(ichan)
-       ENDDO
+       if (nchannels > 0) then 
+         DO ichan=1,nchannels
+            read(lninfile,'(a30)') Cline
+            DO WHILE (Cline(1:1) == '#')
+               read(lninfile,'(a30)') Cline
+            ENDDO
+            READ(Cline,*) channelnumber(ichan),beamwidth(ichan), &
+                 &       newwidth(ichan),cutoff(ichan),nxaverage(ichan), &
+                 &       nyaverage(ichan), qc_dist(ichan)
+         ENDDO
+       end if
        read(lninfile,'(a30)',iostat=ios) Cline
     ENDDO
     IF (wmosatid /= atms1c_h_wmosatid) THEN
@@ -130,7 +132,12 @@ CONTAINS
     DO IChan=1,nchanl
        
        bt_image1 => bt_image(:,:,ichan)
-       
+
+!       if (ichan == 1) then
+!          write(92,*)max_fov,max_scan
+!          write(92,*)bt_image1
+!          close(92)
+!       end if
        ! If the channel number is present in the channelnumber array we should process it 
        ! (otherwise bt_inout just keeps the same value):
        IF (ANY(channelnumber(1:nchannels) == ichan)) THEN
@@ -140,6 +147,13 @@ CONTAINS
                cutoff(ichan), nxaverage(ichan), nyaverage(ichan), &
                qc_dist(ichan), IOS)
           
+!       if (ichan == 1) then
+!          write(93,*)max_fov,max_scan
+!          write(93,*)bt_image1
+!          close(93)
+!          stop
+!       end if
+
           IF (IOS == 0) THEN
              do iscan=1,max_scan
                 do ifov=1,max_fov

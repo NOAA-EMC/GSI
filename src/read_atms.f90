@@ -364,7 +364,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         else
            sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
            tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind+one_minute) cycle read_loop
+!xxxxxxxxxxxxxxxx           if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
  
         if (l4dvar) then
