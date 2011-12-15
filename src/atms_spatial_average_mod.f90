@@ -133,11 +133,6 @@ CONTAINS
        
        bt_image1 => bt_image(:,:,ichan)
 
-!       if (ichan == 1) then
-!          write(92,*)max_fov,max_scan
-!          write(92,*)bt_image1
-!          close(92)
-!       end if
        ! If the channel number is present in the channelnumber array we should process it 
        ! (otherwise bt_inout just keeps the same value):
        IF (ANY(channelnumber(1:nchannels) == ichan)) THEN
@@ -147,13 +142,6 @@ CONTAINS
                cutoff(ichan), nxaverage(ichan), nyaverage(ichan), &
                qc_dist(ichan), IOS)
           
-!       if (ichan == 1) then
-!          write(93,*)max_fov,max_scan
-!          write(93,*)bt_image1
-!          close(93)
-!          stop
-!       end if
-
           IF (IOS == 0) THEN
              do iscan=1,max_scan
                 do ifov=1,max_fov
@@ -265,7 +253,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
       
       PI = 4.0*atan(1.0)
       LN2 = LOG(2.0)
-      MTF_Constant=PI/(2*sampling_dist)**2/LN2
+      MTF_Constant=-(PI/(2*sampling_dist))**2/LN2
       IF (mtfcutoff .GT. 0.0) LNcsquared = LOG(mtfcutoff)**2
       nxav2 = nxaverage/2
       nyav2 = nyaverage/2
@@ -371,8 +359,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
         df = 1.0/nxpad
         DO i=1,nxpad/2+1
           f = df*(i-1)      !DC to Nyquist
-          mtfxin(i) = exp(-(f*beamwidth*MTF_Constant))
-          mtfxout(i) = exp(-(f*newwidth*MTF_Constant))
+          mtfxin(i) = exp(MTF_Constant*(f*beamwidth)**2)
+          mtfxout(i) = exp(MTF_Constant*(f*newwidth)**2)
           IF (i.GT.1.AND.i.LT.nxpad/2+1) THEN
             mtfxin(nxpad-i+2) = mtfxin(i)
             mtfxout(nxpad-i+2) = mtfxout(i)
@@ -381,8 +369,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
         df = 1.0/nypad
         DO i=1,nypad/2+1
           f = df*(i-1)      !DC to Nyquist
-          mtfyin(i) = exp(-(f*beamwidth*MTF_Constant))
-          mtfyout(i) = exp(-(f*newwidth*MTF_Constant))
+          mtfyin(i) = exp(MTF_Constant*(f*beamwidth)**2)
+          mtfyout(i) = exp(MTF_Constant*(f*newwidth)**2)
           IF (i.GT.1.AND.i.LT.nypad/2+1) THEN
             mtfyin(nypad-i+2) = mtfyin(i)
             mtfyout(nypad-i+2) = mtfyout(i)
@@ -433,8 +421,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 
 !5) Inverse Fourier transform, column by column then line by line 
 
-!$omp parallel do  schedule(dynamic,1) private(j,i,work), &
-!$omp shared(imagepad,nxpad,nypad,ypow2),default(none) 
         DO i=1,nxpad
           DO j=1,nypad
             work(j) = imagepad(i,j)
@@ -445,8 +431,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
           ENDDO
         ENDDO
 
-!$omp parallel do  schedule(dynamic,1) private(j), &
-!$omp shared(imagepad,nxpad,nypad,xpow2),default(none) 
         DO j=1,nypad
           CALL SFFTCB(imagepad(:,j),nxpad,xpow2)
         ENDDO
