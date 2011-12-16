@@ -393,14 +393,10 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !After each FFT, points 1 to nxpad/2+1 contain the real part of the spectrum,
 !the rest contain the imaginary part in reverse order.
 
-!$omp parallel do  schedule(dynamic,1) private(j), &
-!$omp shared(imagepad,nxpad,nypad,xpow2),default(none) 
         DO j=1,nypad
            CALL SFFTCF(imagepad(:,j),nxpad,xpow2)
         ENDDO
 
-!$omp parallel do  schedule(dynamic,1) private(j,i,work), &
-!$omp shared(imagepad,nxpad,nypad,ypow2),default(none) 
         DO i=1,nxpad
            DO j=1,nypad
               work(j) = imagepad(i,j)
