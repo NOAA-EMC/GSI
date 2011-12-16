@@ -18,10 +18,19 @@ subroutine gesinfo(mype)
 !   2009-10-09  wu      - replace nhr_offset with min_offset since it's 1.5 hr for regional
 !   2010-03-31  treadon - move jcap_b to gridmod
 !   2010-09-09  pagowski - add cmaq
-!   2010-12-03  hcHuang - add use_gfs_nemsio if input files is in NEMSIO format
+!   2010-12-03  Huang   - add use_gfs_nemsio if input files is in NEMSIO format
 !                         make use of nemsio_module to obtain header information including time
 !                         vertical corrdiates, ...etc.
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
+!   2011-10-27  Huang   - (1) no gfshead%nvcoord info in NEMS header. Add code to determine the
+!                             value of gfshead%nvcoord from gfsheadv%vcoord.
+!                         (2) no idvm info in NEMS header. The output data type of temp and pres
+!                             is fixed as dry temperature (in kelvin) and pressure (pascal).
+!                             The read/write in ncepnems_io.f90 automatically recognizes this
+!                             setting.  Therefore, when use_gfs_nemsio = .true.
+!                             (1) remove idvm(5) and derivation of idpsfc5 and idthrm5
+!                             (2) remove cpi, NEMSIO input always is dry tempersture (no
+!                                 conversion from enthalpy w/ cpi is needed)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -72,7 +81,7 @@ subroutine gesinfo(mype)
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
 
-  use constants, only: zero,h300,r60,r3600
+  use constants, only: zero,h300,r60,r3600,i_missing
 
   implicit none
 
@@ -191,66 +200,90 @@ subroutine gesinfo(mype)
      else
         call nemsio_init(iret=iret2)
         if ( iret2 /= 0 ) then
-           write(6,*)' GESINFO:  ***ERROR*** problem nemsio_init file = ',trim(filename),', Status = ',iret2
+           write(6,*)' GESINFO:  ***ERROR*** problem nemsio_init file = ', &
+              trim(filename),', Status = ',iret2
            call stop2(99)
         end if
         call nemsio_open(gfile2,filename,'READ',iret=iret2)
         if ( iret2 /= 0 ) then
-           write(6,*)' GESINFO:  ***ERROR*** problem opening file = ',trim(filename),', Status = ',iret2
+           write(6,*)' GESINFO:  ***ERROR*** problem opening file = ', &
+              trim(filename),', Status = ',iret2
            call stop2(99)
         end if
-        call nemsio_getfilehead(gfile2, idate=idate, gtype=filetype, modelname=mdlname, &
-           nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd,  &
-           dimx=gfshead%lonb, dimy=gfshead%latb,   dimz=gfshead%levs,   &
-           jcap=gfshead%jcap, ntrac=gfshead%ntrac, idvc=gfshead%idvc,   &
-           idvm=gfshead%idvm, idsl=gfshead%idsl,   ncldt=gfshead%ncldt, iret=iret2)
+
+        idate         = i_missing
+        nfhour        = i_missing
+        nfminute      = i_missing
+        nfsecondn     = i_missing
+        nfsecondd     = i_missing
+        gfshead%idsl  = i_missing
+        call nemsio_getfilehead(gfile2, idate=idate, gtype=filetype,  &
+           modelname=mdlname, nfhour=nfhour, nfminute=nfminute,       &
+           nfsecondn=nfsecondn, nfsecondd=nfsecondd,                  &
+           dimx=gfshead%lonb, dimy=gfshead%latb,   dimz=gfshead%levs, &
+           jcap=gfshead%jcap, ntrac=gfshead%ntrac, idvc=gfshead%idvc, &
+           idsl=gfshead%idsl,   ncldt=gfshead%ncldt, iret=iret2)
 
         if ( iret2 /= 0 .or. TRIM(filetype) /= 'NEMSIO' ) then
-           write(6,*)' GESINFO:  UNKNOWN FORMAT FOR GFSATM file = ',trim(filename),' Status = ',iret2
-           write(6,*)' GESINFO:  reding filetype = ',trim(filetype),' modelname = ', trim(mdlname)
+           write(6,*)' GESINFO:  UNKNOWN FORMAT FOR GFSATM file = ', &
+              trim(filename),' Status = ',iret2
+           write(6,*)' GESINFO:  reding filetype = ',trim(filetype), &
+              ' modelname = ', trim(mdlname)
            call stop2(99)
-           stop
         else
-           if (mype==mype_out) then
-              write(6,*)'GESINFO:  Read NCEP nemsio format file, ',trim(filename), ' model name = ', trim(mdlname)
-           endif
+           if (mype==mype_out) write(6,*)'GESINFO:  Read NCEP nemsio ', &
+              'format file, ',trim(filename), ' model name = ', trim(mdlname)
         endif
 
-!       Extract horizontal and vertical coordinate structure
-        call nemsio_getheadvar(gfile2,'nvcoord',gfshead%nvcoord,iret=iret2)
-!
+!       Extract vertical coordinate descriptions nems_vcoord.
+!       nems_vcoord(gfshead%levs+1,3,2) dimension is hardwired here.
 !       Present NEMSIO modules do not allow flexibility of 2nd and 3rd
-!       array dimension for nems_vcoord, for now, it is hardwired as (levs,3,2)
-!
+!       array dimension for nems_vcoord, for now, it is hardwired as
+!       (levs,3,2) If NEMS changes the setting of vcoord dimension,
+!       GSI needs to update its setting of nems_vcoord accordingly.
+
         if (allocated(nems_vcoord))     deallocate(nems_vcoord)
-        if (allocated(gfsheadv%vcoord)) deallocate(gfsheadv%vcoord)
         allocate(nems_vcoord(gfshead%levs+1,3,2))
-        allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
         call nemsio_getfilehead(gfile2,iret=iret2,vcoord=nems_vcoord)
-        gfsheadv%vcoord(:,1:gfshead%nvcoord) = nems_vcoord(:,1:gfshead%nvcoord,1) 
         if ( iret2 /= 0 ) then
-           write(6,*)' GESINFO:  ***ERROR*** problem reading header vcoord, Status = ',iret2
+           write(6,*)' GESINFO:  ***ERROR*** problem reading header ', &
+              'vcoord, Status = ',iret2
            call stop2(99)
-           stop
-        endif
-        gfsheadv%vcoord(:,1:gfshead%nvcoord) = nems_vcoord(:,1:gfshead%nvcoord,1) 
-!
-!       Get cpi if needed, otherwise reset them to zero
-!
-        if (allocated(gfsheadv%cpi)) deallocate(gfsheadv%cpi)
-        allocate(gfsheadv%cpi(gfshead%ntrac+1))
-        if ( mod(gfshead%idvm/10,10) == 3) then
-           call nemsio_getheadvar(gfile2,'cpi',gfsheadv%cpi,iret=iret2)
-           if ( iret2 /= 0 ) then
-              write(6,*)' READ_FILES: ****ERROR**** reading gfsheadv%cpi, iret = ', iret2
-              call stop2(99)
-           end if
-        else
-           gfsheadv%cpi=zero
         endif
 
-!       obtain gfs%head time info from readin nemsio header info (w/ different definition and variables)
-        gfshead%fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+!       Determine the type of vertical coordinate used by model because that
+!       gfshead%nvcoord is no longer part of NEMSIO header output.
+        gfshead%nvcoord=3
+        if(maxval(nems_vcoord(:,3,1))==zero .and. &
+           minval(nems_vcoord(:,3,1))==zero ) then
+           gfshead%nvcoord=2
+           if(maxval(nems_vcoord(:,2,1))==zero .and. &
+              minval(nems_vcoord(:,2,1))==zero ) then
+              gfshead%nvcoord=1
+           end if
+        end if
+        if ( gfshead%idsl==i_missing .or. gfshead%idsl < 1 ) then
+           gfshead%idsl=1
+           if ( gfshead%nvcoord == 3 ) gfshead%idsl=2
+        end if
+!
+        if (allocated(gfsheadv%vcoord)) deallocate(gfsheadv%vcoord)
+        allocate(gfsheadv%vcoord(gfshead%levs+1,gfshead%nvcoord))
+        gfsheadv%vcoord(:,1:gfshead%nvcoord) = nems_vcoord(:,1:gfshead%nvcoord,1)
+!
+!       obtain gfs%head time info from readin nemsio header info (w/ different
+!       definition and variables)
+        if ( nfhour == i_missing .or. nfminute == i_missing .or. &
+             nfsecondn == i_missing .or. nfsecondd == i_missing ) then
+           write(6,*)'GESINFO:  ***ERROR*** some forecast hour info are not ', &
+              'defined in ', trim(filename)
+           write(6,*)'       :  nfhour, nfminute, nfsecondn, and nfsecondd = ', &
+              nfhour, nfminute, nfsecondn, nfsecondd
+           call stop2(99)
+        endif
+        gfshead%fhour = float(nfhour) + float(nfminute)/r60 + &
+                        float(nfsecondn)/float(nfsecondd)/r3600
+
         gfshead%idate(1) = idate(4)  !hour
         gfshead%idate(3) = idate(3)  !day
         gfshead%idate(2) = idate(2)  !month
@@ -316,17 +349,19 @@ subroutine gesinfo(mype)
         tref5(k)=h300
      end do
 
-!    Load surface pressure and thermodynamic variable ids
-     idvm5   = gfshead%idvm
-     idpsfc5 = mod ( gfshead%idvm,10 )
-     idthrm5 = mod ( gfshead%idvm/10,10 )
+     if ( .not. use_gfs_nemsio ) then
+!       Load surface pressure and thermodynamic variable ids
+        idvm5   = gfshead%idvm
+        idpsfc5 = mod ( gfshead%idvm,10 )
+        idthrm5 = mod ( gfshead%idvm/10,10 )
 
-!    Load specific heat for tracers
-     if (allocated(cp5)) deallocate(cp5)
-     allocate(cp5(gfshead%ntrac+1))
-     do k=1,gfshead%ntrac+1
-        cp5(k)=gfsheadv%cpi(k)
-     end do
+!       Load specific heat for tracers
+        if (allocated(cp5)) deallocate(cp5)
+        allocate(cp5(gfshead%ntrac+1))
+        do k=1,gfshead%ntrac+1
+           cp5(k)=gfsheadv%cpi(k)
+        end do
+     end if
 
 !    Check for consistency with namelist settings           
      if ((gfshead%jcap/=jcap_b.and..not.regional) .or. gfshead%levs/=nsig) then
@@ -339,13 +374,21 @@ subroutine gesinfo(mype)
 
 !    Echo select header information to stdout
      if(mype==mype_out) then
-        write(6,100) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
-           gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,&
-           idvm5,idsl5,idpsfc5,idthrm5
-100     format('GESINFO:  jcap_b=',i4,', levs=',i3,', latb=',i5,&
-           ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
-           ', nvcoord=',i3,', idvm=',i3,', idsl=',i3,', idpsfc=',i3,&
-           ', idthrm=',i3)
+        if ( .not. use_gfs_nemsio ) then
+           write(6,100) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
+                gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,&
+                idvm5,idsl5,idpsfc5,idthrm5
+100        format('GESINFO:  jcap_b=',i4,', levs=',i3,', latb=',i5,&
+                ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
+                ', nvcoord=',i3,', idvm=',i3,', idsl=',i3,', idpsfc=',i3,&
+                ', idthrm=',i3)
+        else
+           write(6,200) gfshead%jcap,gfshead%levs,gfshead%latb,gfshead%lonb,&
+                gfshead%ntrac,gfshead%ncldt,idvc5,gfshead%nvcoord,idsl5
+200        format('GESINFO:  jcap_b=',i4,', levs=',i3,', latb=',i5,&
+                ', lonb=',i5,', ntrac=',i3,', ncldt=',i3,', idvc=',i3,&
+                ', nvcoord=',i3,', idsl=',i3)
+        end if
         do k=1,nsig
            write(6,110) k,ak5(k),bk5(k),ck5(k),tref5(k)
         end do
