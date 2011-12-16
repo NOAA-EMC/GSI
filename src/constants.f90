@@ -26,6 +26,7 @@ module constants
 !                        - add option to use Rueger/Bevis refractive index coeffs
 !   2010-12-20 pagowski  - add max_varname_length=12
 !   2010-04-01 li        - add maximum diurnal thermocline thickness
+!   2011-10-27 Huang     - add i_missing and r_missing to detect missing values
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -69,6 +70,7 @@ module constants
   public :: ef_alpha, ef_beta, ef_gamma
   public :: max_varname_length
   public :: z_w_max,qmin
+  public :: i_missing, r_missing
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
@@ -223,6 +225,10 @@ module constants
                                      ! relative to other observations is reduced. Changing
                                      ! wgtlim does not alter the analysis, only
                                      ! the nonlinear qc data "count"
+
+! Constant used to detect missing input value
+  integer(i_kind),parameter:: i_missing=-9999
+  integer(r_kind),parameter:: r_missing=-9999._r_kind
 
 contains
 
