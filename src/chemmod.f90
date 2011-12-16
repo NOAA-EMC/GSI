@@ -12,6 +12,8 @@ module chemmod
 ! for testing one observation assimilation
 
 ! NB: keep aerosol names capital for consistency with cmaq output names
+! 2011-09-09 pagowski - add codes for PM2.5 for prepbufr and bufr dump files
+
 
   use kinds, only : i_kind, r_kind, r_single
   use gridmod, only: cmaq_regional,wrf_mass_regional,lat2,lon2,nsig
@@ -36,14 +38,17 @@ module chemmod
   public :: site_scale,nsites
   public :: tunable_error
   public :: in_fname,out_fname,incr_fname,maxstr
+  public :: code_pm25_bufr,code_pm25_prepbufr
 
-  
   logical :: oneobtest_chem,diag_incr,berror_chem
   character(len=max_varname_length) :: oneob_type_chem
   integer(i_kind), parameter :: maxstr=256
   real(r_kind) :: maginnov_chem,magoberr_chem,conconeobs,&
         oblon_chem,oblat_chem,obpres_chem,elev_tolerance,tunable_error
   
+  integer(i_kind), parameter :: code_pm25_bufr=11, code_pm25_prepbufr=102
+  
+
   real(r_kind),parameter :: pm2_5_teom_max=200_r_kind !ug/m3
 !some parameters need to be put here since convinfo file won't
 !accomodate, stands for maximum realistic value of surface pm2.5

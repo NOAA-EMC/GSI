@@ -193,6 +193,7 @@ module obsmod
 !   def iout_vis     - output unit for conventional vis stats
 !   def iout_pblh    - output unit for conventional pblh stats
 !   def iout_lag     - output unit for conventional lag stats
+!   def iout_pm2_5   - output unit for pm2_5 stats
 !   def mype_t       - task to handle temperature stats
 !   def mype_q       - task to handle moisture stats
 !   def mype_uv      - task to handle wind stats
@@ -208,6 +209,7 @@ module obsmod
 !   def mype_pblh    - task to handle conventional pblh stats
 !   def mype_lag     - task to handle conventional lag stats
 !   def mype_aero    - task to handle aerosol stats
+!   def mype_pm2_5   - task to handle pm2_5
 !   def oberrflg     - logical for reading in new observation error table
 !                      .true.  will read in obs errors from file 'errtable'
 !                      .false. will not read in new obs errors
@@ -305,6 +307,7 @@ module obsmod
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
   public :: tcp_ob_head,colvk_ob_head,odiags
   public :: mype_aero,iout_aero,nlaero
+  public :: mype_pm2_5,iout_pm2_5
   public :: codiags,use_limit
 
 ! Set parameters
@@ -1180,6 +1183,7 @@ module obsmod
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh
   integer(i_kind) nlaero, iout_aero, mype_aero
+  integer(i_kind) iout_pm2_5, mype_pm2_5
   integer(i_kind),dimension(5):: iadate
   integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
@@ -1298,6 +1302,7 @@ contains
     iout_gust=218  ! wind gust
     iout_vis=219   ! visibility
     iout_pblh=221  ! pbl height
+    iout_pm2_5=222 ! pm2_5
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -1315,6 +1320,7 @@ contains
     mype_gust= max(0,npe-14) ! wind gust
     mype_vis = max(0,npe-15) ! visibility
     mype_pblh= max(0,npe-16) ! pbl height
+    mype_pm2_5= max(0,npe-17)! pm2_5
     
 !   Initialize arrays used in namelist obs_input 
     ndat = ndatmax          ! number of observation types (files)

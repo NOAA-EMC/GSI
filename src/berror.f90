@@ -760,9 +760,11 @@ contains
          qvar3d(lat2,lon2,nsig))
     if(nc3d>0)then
        allocate(alv(llmin:llmax,ndeg,nsig,nc3d), &
-            dssv(lat2,lon2,nsig,nc3d), &
-            dssvs(lat2,lon2,nvars-nc3d))
-       dssvs=zero
+            dssv(lat2,lon2,nsig,nc3d))
+       if(nvars-nc3d>0)then
+          allocate(dssvs(lat2,lon2,nvars-nc3d))
+          dssvs = zero
+       endif
     endif
     
     allocate(varprd(max(1,nrclen) ) )     
