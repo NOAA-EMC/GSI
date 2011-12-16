@@ -1,6 +1,6 @@
 subroutine statsconv(mype,&
      i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-     i_gust,i_vis,i_pblh,bwork,awork,ndata)
+     i_gust,i_vis,i_pblh,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -54,6 +54,7 @@ subroutine statsconv(mype,&
 !     i_gust   - index in awork array holding gust info
 !     i_vis    - index in awork array holding vis info
 !     i_pblh   - index in awork array holding pblh info
+!     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
 !     ndata(*,1)- number of profiles retained for further processing
@@ -82,8 +83,8 @@ subroutine statsconv(mype,&
 
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
-       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh
-  real(r_kind),dimension(7*nsig+100,13)     ,intent(in   ) :: awork
+       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,i_ref
+  real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
 
