@@ -128,7 +128,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   use gsi_4dvar, only: iadatebgn,iadateend
   use obsmod, only: offtime_data
   use convinfo, only: nconvtype,ictype,ioctype,icuse
-  use chemmod, only : oneobtest_chem,oneob_type_chem
+  use chemmod, only : oneobtest_chem,oneob_type_chem,&
+       code_pm25_bufr,code_pm25_prepbufr
 
   implicit none
 
@@ -251,8 +252,22 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
           lexist = .false.
           fileloopanow:do while(ireadmg(lnbufr,subset,idate2) >= 0)
              do while(ireadsb(lnbufr)>=0)
-                call ufbint(lnbufr,rtype,1,1,iret,'TYP')
-                kx=nint(rtype)
+                if (subset == 'ANOWPM') then
+                   call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+                   kx=nint(rtype)
+                else if ( (subset == 'NC008031') .or. &
+                       (subset == 'NC008032' ) ) then
+                   call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
+                   kx=nint(rtype)
+                   if (kx/=code_pm25_bufr) then
+                      cycle
+                   else
+                      kx=code_pm25_prepbufr
+                   endif
+                else
+                   cycle
+                endif
+                
                 do nc=1,nconvtype
                    if(trim(ioctype(nc)) == trim(dtype) .and. &
                         kx == ictype(nc) .and. icuse(nc) > minuse)then
