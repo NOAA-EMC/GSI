@@ -372,7 +372,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    Put obs pressure in correct units to get grid coord. number
-19   format(10f12.8)
      call grdcrd(dpres,1,prsltmp(1),nsig,-1)
 
 ! Implementation of forward model ----------
