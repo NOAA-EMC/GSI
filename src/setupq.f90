@@ -668,6 +668,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
       ku=dpres-1
+      ku=min(nsig,ku)
       kl=dpreso+2
       kl=max(2,kl)
       do k = kl,ku
@@ -676,8 +677,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            qtail(ibin)%head => qtail(ibin)%head%llpoint
 
 !!! find qob (qint)
-      qint=data(iqob,im)*(prsltmp(k)-data(ipres,i))/(data(ipres,im)-data(ipres,i)) &
-          +data(iqob,i)*(data(ipres,im)-prsltmp(k))/(data(ipres,im)-data(ipres,i))
+      qint=(data(iqob,im)*(prsltmp(k)-data(ipres,i)) &
+           +data(iqob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
 !!! find qges (qgint)
        dpk=k
      call tintrp3(ges_q,qgint,dlat,dlon,dpk,dtime, &
@@ -691,9 +692,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ddiff = qint-qgint
 
 !!! set oberror for pseudo-obs
-!        error=one/(data(ier2,i)+data(ier2,im))/qsges
      error=one/(max(data(ier2,i),data(ier2,im))*qsges)
-!     error=one/(data(ier2,i)*qsges)
 
         qtail(ibin)%head%res     = ddiff
         qtail(ibin)%head%err2    = error**2
