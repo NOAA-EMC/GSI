@@ -1063,6 +1063,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        dpres > 0. .and. station_id== station_ido  )  then
 
       ku=dpres-1
+      ku=min(nsig,ku)
       kl=dpreso+2
       kl=max(2,kl)
       do k = kl,ku
@@ -1071,10 +1072,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            wtail(ibin)%head => wtail(ibin)%head%llpoint
 
 !!! find wob (wint)
-      uint=data(iuob,im)*(prsltmp(k)-data(ipres,i))/(data(ipres,im)-data(ipres,i)) &
-          +data(iuob,i)*(data(ipres,im)-prsltmp(k))/(data(ipres,im)-data(ipres,i))
-      vint=data(ivob,im)*(prsltmp(k)-data(ipres,i))/(data(ipres,im)-data(ipres,i)) &
-          +data(ivob,i)*(data(ipres,im)-prsltmp(k))/(data(ipres,im)-data(ipres,i))
+      uint=(data(iuob,im)*(prsltmp(k)-data(ipres,i)) &
+           +data(iuob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
+      vint=(data(ivob,im)*(prsltmp(k)-data(ipres,i))  &
+           +data(ivob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
 !!! find wges (wgint)
        dpk=k
         call tintrp3(ges_u,ugesin,dlat,dlon,dpk,dtime, &
@@ -1090,9 +1091,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      dvdiff=vint-vgesin
 
 !!! set oberror of pseudo_obs
-!        error=one/(data(ier2,i)+data(ier2,im))
         error=one/max(data(ier2,i),data(ier2,im))
-!     error=one/data(ier2,i)
 
         wtail(ibin)%head%ures=dudiff
         wtail(ibin)%head%vres=dvdiff
