@@ -732,8 +732,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            ttail(ibin)%head => ttail(ibin)%head%llpoint
 
 !!! find tob (tint)
-      tint=data(itob,im)*(prsltmp(k)-data(ipres,i))/(data(ipres,im)-data(ipres,i)) &
-          +data(itob,i)*(data(ipres,im)-prsltmp(k))/(data(ipres,im)-data(ipres,i))
+      tint=(data(itob,im)*(prsltmp(k)-data(ipres,i)) &
+           +data(itob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
 !!! find tges (tgint)
        dpk=k
         if(iqtflg)then
