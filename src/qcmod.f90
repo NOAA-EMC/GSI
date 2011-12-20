@@ -1577,6 +1577,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !     2011-05-20  mccarty - generalized routine so that it could be more readily 
 !                           applied to atms
 !     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
+!     2011-12-19  collard - ATMS 1-7 is always rejected over ice, snow or mixed surfaces.
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1656,7 +1657,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
-  logical         :: latms
+  logical         :: latms, latms_surfaceqc
 
   if (nchanl == 22_i_kind) then
       latms  = .true.    ! If there are 22 channels passed along, it's atms
@@ -1733,11 +1734,18 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   if(dsval >= one .and. luse)aivals(14,is) = aivals(14,is) + one
   factch6=dsval**2+(tbc(ich544)*w2f6)**2
 
+! For this conservative initial implementation of ATMS, we will not
+! use surface channels over
+! a) Mixed surfaces (to minimise and possible issues with re-mapping the FOVs)
+! b) Snow and Ice (as the empirical model for these surfaces in CRTM is not 
+!                  available for ATMS).
+  latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
+
 
   if (icw4crtm>10) then
 
 ! Kim-------------------------------------------
-     if(factch6 >= one .and. .not.sea )then   !Kim 
+     if((factch6 >= one .and. .not.sea) .or. latms_surfaceqc)then   !Kim 
         efactmc=zero
         vfactmc=zero
         errf(1:ich544)=zero
@@ -1844,7 +1852,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
   else  ! <icw4crtm>
 
-     if(factch6 >= one)then
+     if(factch6 >= one .or. latms_surfaceqc)then
         efactmc=zero
         vfactmc=zero
         errf(1:ich544)=zero
