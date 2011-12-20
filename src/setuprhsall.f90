@@ -348,7 +348,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !    Loop over data types to process
      do is=1,ndat
-
         nobs=nsat1(is)
  
         if(nobs > 0)then
@@ -362,6 +361,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !          Set up for radiance data
            if(ditype(is) == 'rad')then
+ 
               call setuprad(lunin,&
                  mype,aivals,stats,nchanl,nreal,nobs,&
                  obstype,isis,is,rad_diagsave,init_pass,last_pass)
@@ -422,7 +422,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                  call setuplag(lunin,mype,bwork,awork(1,i_lag),nele,nobs,is,conv_diagsave)
               else if(obstype == 'pm2_5')then 
                  call setuppm2_5(lunin,mype,nele,nobs,&
-                      isis,is)
+                      isis,is,conv_diagsave)
 
 !             Set up conventional wind gust data
               else if(obstype=='gust' .and. getindex(svars2d,'gust')>0) then
