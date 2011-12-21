@@ -48,7 +48,7 @@
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,&
       erradar_inflate,use_poq7,&
-      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3
+      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
@@ -524,10 +524,11 @@
 !     tcp_ermin  - parameter for tcps oberr inflation (minimum oberr, mb)
 !     tcp_ermax  - parameter for tcps oberr inflation (maximum oberr, mb)
 !     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
+!     qc_noirjaco3_pole - controls wheter to use O3 Jac from IR instruments near poles
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
        c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
-       qc_noirjaco3
+       qc_noirjaco3,qc_noirjaco3_pole
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name

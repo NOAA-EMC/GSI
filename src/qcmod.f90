@@ -98,6 +98,7 @@ module qcmod
   public :: qc_mhs
   public :: qc_atms
   public :: qc_noirjaco3
+  public :: qc_noirjaco3_pole
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
@@ -108,6 +109,7 @@ module qcmod
   logical noiqc
   logical use_poq7
   logical qc_noirjaco3
+  logical qc_noirjaco3_pole
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -288,6 +290,7 @@ contains
     use_poq7 = .false.
 
     qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
+    qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
 
     return
   end subroutine init_qcvars
@@ -948,7 +951,7 @@ end subroutine qc_ssmi
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1008,6 +1011,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     varinv_use   - observation weight used(modified obs var error inverse)
 !     cld          - cloud fraction
 !     cldp         - cloud pressure
+!     zero_irjaco3_pole - logical to control use of ozone jacobians near poles
 !
 ! attributes:
 !     language: f90
@@ -1021,6 +1025,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 ! Declare passed variables
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr
+  logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
@@ -1088,6 +1093,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      demisf = r0_03
      dtempf = four
   end if
+
+! Optionally turn off ozone jacabians near poles
+  zero_irjaco3_pole=.false.
+  if (qc_noirjaco3_pole .and. (abs(cenlat)>r60)) zero_irjaco3_pole=.true.
 
 ! If GOES and lza > 60. do not use
   if( goessndr .and. zasat*rad2deg > r60) then
