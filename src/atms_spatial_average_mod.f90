@@ -214,8 +214,9 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 ! Parameters
       INTEGER(I_KIND), PARAMETER :: nxmax=128  !Max number of spots per scan line
       INTEGER(I_KIND), PARAMETER :: nymax=8192 !Max number of lines. Allows 6hrs of ATMS.
-      REAL(R_KIND) minval
+      REAL(R_KIND) minval, maxval
       PARAMETER (minval=0.0)   !Values less than this are treated as missing
+      PARAMETER (maxval=400.0) !Values greater than this are treated as missing
 
 ! Arguments
       INTEGER(I_KIND), INTENT(IN)  :: nx, ny         !Size of image
@@ -292,6 +293,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !Loop over scan positions
       DO j=dy+1,dy+ny
         DO i=dx+1,dx+nx
+          if (image(i-dx,j-dy) > maxval .OR. image(i-dx,j-dy) < minval) &
+               image(i-dx,j-dy) = minval - 1.0_r_kind
           imagepad(i,j) = image(i-dx,j-dy)   !Take a copy of the input data
           gooddata_map(i,j) = .TRUE.   ! Initialised for step 6)
         ENDDO
