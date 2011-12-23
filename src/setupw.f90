@@ -217,7 +217,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   itime=9     ! index of observation time in data array
   ikxx=10     ! index of ndex ob type in convinfo file
   ielev=11    ! index of station elevation
-  isatqc=11  !  for satellite winds
   iqc=12      ! index of quality mark
   ier2=13     ! index of original-original obs error ratio
   iuse=14     ! index of use parameter
@@ -948,7 +947,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(8,ii)  = dtime-time_offset  ! obs time (hours relative to analysis time)
 
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
-        rdiagbuf(10,ii) = data(isatqc,i)       ! setup qc or event mark
+        rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
         rdiagbuf(11,ii) = data(iuse,i)       ! read_prepbufr data usage flag
         if(muse(i)) then
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
