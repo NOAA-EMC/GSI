@@ -1320,7 +1320,7 @@ contains
       ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
       seviri     = obstype == 'seviri'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy
+                .or. avhrr .or. avhrr_navy .or. seviri
 
 !     Allocate arrays and initialize
       if (mean_only) then 
