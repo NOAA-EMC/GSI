@@ -323,7 +323,6 @@ contains
 !   Declare passed variables
     character(LEN=24)                     ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
-    integer(i_kind)                       ,intent(  out) :: iret_read
     real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: g_z,g_ps
     real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: g_u,g_v,&
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
