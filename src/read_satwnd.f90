@@ -133,8 +133,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
   
  
-  integer(i_kind),dimension(28) :: ntxall 
-  integer(i_kind),dimension(29) :: ntx  
+  integer(i_kind),dimension(nconvtype) :: ntxall 
+  integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
   integer(i_kind),dimension(nmsgmax):: nrep
