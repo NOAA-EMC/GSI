@@ -23,7 +23,7 @@ Module ATMS_Spatial_Average_Mod
 CONTAINS 
 
   SUBROUTINE ATMS_Spatial_Average(Num_Obs, NChanl, FOV, Time, BT_InOut, &
-       Error_Status)
+       Scanline, Error_Status)
 
     IMPLICIT NONE
     
@@ -32,6 +32,7 @@ CONTAINS
     integer(i_kind) ,intent(in   ) :: Fov(num_obs)
     real(r_kind)    ,intent(in   ) :: Time(Num_Obs)
     real(r_kind)    ,intent(inout) :: BT_InOut(NChanl,Num_Obs)
+    integer(i_kind) ,intent(  out) :: Scanline(Num_Obs)
     integer(i_kind) ,intent(  out) :: Error_Status
 
     ! Declare local parameters
@@ -48,7 +49,7 @@ CONTAINS
     integer(i_kind) :: ios, max_scan, mintime
     integer(i_kind) :: nxaverage(nchanl), nyaverage(nchanl)
     integer(i_Kind) :: channelnumber(nchanl),qc_dist(nchanl)
-    integer(i_kind), ALLOCATABLE ::  scanline(:), scanline_back(:,:)
+    integer(i_kind), ALLOCATABLE ::  scanline_back(:,:)
 
     real(r_kind) :: sampling_dist, beamwidth(nchanl) 
     real(r_kind) :: newwidth(nchanl), cutoff(nchanl)
@@ -115,7 +116,6 @@ CONTAINS
 
     ! Determine scanline from time
     MinTime = MINVAL(Time)
-    ALLOCATE(Scanline(Num_Obs))
     Scanline(:)   = NINT((Time(1:Num_Obs)-MinTime)/Scan_Interval)+1
     Max_Scan=MAXVAL(Scanline)
     
@@ -145,7 +145,7 @@ CONTAINS
           IF (IOS == 0) THEN
              do iscan=1,max_scan
                 do ifov=1,max_fov
-                   if (Scanline_Back(IFov, IScan) > 0) &
+                   IF (Scanline_Back(IFov, IScan) > 0) &
                         bt_inout(channelnumber(ichan),Scanline_Back(IFov, IScan)) = &
                         BT_Image1(ifov,iscan)
                 end do
@@ -158,7 +158,7 @@ CONTAINS
 
     END DO
 
-    DEALLOCATE(BT_Image, Scanline, Scanline_Back)
+    DEALLOCATE(BT_Image, Scanline_Back)
     NULLIFY(BT_Image1)
     
 END Subroutine ATMS_Spatial_Average

@@ -126,6 +126,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
+  integer(i_kind), ALLOCATABLE :: IScan(:)
+
   character(len=20),dimension(1):: sensorlist
 
   real(r_kind) cosza,sfcr
@@ -414,10 +416,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Call filtering code 
 
   ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
+  ALLOCATE(IScan(Num_Obs))
   Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
   write(*,*) 'Calling ATMS_Spatial_Average'
   CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
-       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IRet)
+       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
   write(*,*) 'ATMS_Spatial_Average Called with IRet=',IRet
   DEALLOCATE(Relative_Time_In_Seconds)
   
@@ -451,6 +454,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      dlon_earth_deg = dlon_earth
      dlat_earth = dlat_earth*deg2rad
      dlon_earth = dlon_earth*deg2rad   
+
+! Just use every fifth scan position and scanline (and make sure that we have
+! position 48 as we need it for scan bias)
+     if (5*NINT(REAL(IScan(Iob))/5_r_kind) /= IScan(IOb) .OR. &
+          5*NINT(REAL(IFov-3)/5_r_kind) /= IFOV -3 ) CYCLE ObsLoop 
 
 !    Regional case
      if(regional)then
@@ -683,6 +691,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solzen_save) 
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
+  DEALLOCATE(iscan)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit)
