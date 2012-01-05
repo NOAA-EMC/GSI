@@ -41,6 +41,25 @@ CONTAINS
     integer(i_kind), parameter :: max_fov=96
     integer(i_kind), parameter :: max_obs=1000000
     real(r_kind), parameter    :: scan_interval = 8.0_r_kind/3.0_r_kind
+    ! Maximum number of channels 
+    integer(i_kind), parameter :: MaxChans = 22
+    ! Minimum allowed BT as a function of channel number
+    real(r_kind), parameter :: MinBT(MaxChans) = &
+         (/ 120.0_r_kind, 120.0_r_kind, 190.0_r_kind, 190.0_r_kind, &
+            200.0_r_kind, 200.0_r_kind, 200.0_r_kind, 190.0_r_kind, &
+            190.0_r_kind, 180.0_r_kind, 180.0_r_kind, 180.0_r_kind, &
+            190.0_r_kind, 200.0_r_kind, 200.0_r_kind, 120.0_r_kind, &
+            120.0_r_kind, 120.0_r_kind, 150.0_r_kind, 170.0_r_kind, &
+            180.0_r_kind, 190.0_r_kind /)
+    ! Maximum allowed BT as a function of channel number
+    real(r_kind), parameter :: MaxBT(MaxChans) = &
+         (/ 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
+            300.0_r_kind, 270.0_r_kind, 250.0_r_kind, 240.0_r_kind, &
+            240.0_r_kind, 250.0_r_kind, 250.0_r_kind, 270.0_r_kind, &
+            280.0_r_kind, 290.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
+            300.0_r_kind, 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
+            300.0_r_kind, 300.0_r_kind /)
+    
 
     ! Declare local variables
     character(30) :: Cline
@@ -57,6 +76,12 @@ CONTAINS
     real(r_kind), pointer :: bt_image1(:,:)
 
     Error_Status=0
+
+    IF (NChanl > MaxChans) THEN
+       WRITE(0,*) 'Unexpected number of ATMS channels: ',nchanl
+       Error_Status = 1
+       RETURN
+    END IF
 
     ! Read the beamwidth requirements
     OPEN(lninfile,file='atms_beamwidth.txt',form='formatted',status='old', &
@@ -140,7 +165,7 @@ CONTAINS
           CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image1, &
                sampling_dist, beamwidth(ichan), newwidth(ichan), &
                cutoff(ichan), nxaverage(ichan), nyaverage(ichan), &
-               qc_dist(ichan), IOS)
+               qc_dist(ichan), MinBT(Ichan), MaxBT(IChan), IOS)
           
           IF (IOS == 0) THEN
              do iscan=1,max_scan
@@ -167,7 +192,7 @@ END Subroutine ATMS_Spatial_Average
 
 SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,& 
      beamwidth, newwidth, mtfcutoff, nxaverage, nyaverage, qc_dist, &
-     Error)
+     Minval, MaxVal, Error)
      
 !-----------------------------------------
 ! Name: $Id: modify_beamwidth.F 222 2010-08-11 14:39:09Z frna $
@@ -214,9 +239,6 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 ! Parameters
       INTEGER(I_KIND), PARAMETER :: nxmax=128  !Max number of spots per scan line
       INTEGER(I_KIND), PARAMETER :: nymax=8192 !Max number of lines. Allows 6hrs of ATMS.
-      REAL(R_KIND) minval, maxval
-      PARAMETER (minval=0.0)   !Values less than this are treated as missing
-      PARAMETER (maxval=400.0) !Values greater than this are treated as missing
 
 ! Arguments
       INTEGER(I_KIND), INTENT(IN)  :: nx, ny         !Size of image
@@ -228,6 +250,8 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
       INTEGER(I_KIND), INTENT(IN)  :: nxaverage      !Number of samples to average (or zero)
       INTEGER(I_KIND), INTENT(IN)  :: nyaverage      !Number of samples to average (or zero)
       INTEGER(I_KIND), INTENT(IN)  :: qc_dist        !Number of samples around missing data to set to 
+      REAL(R_KIND), INTENT(IN)     :: maxval         !BTs above this are considered missing
+      REAL(R_KIND), INTENT(IN)     :: minval         !BTs below this are considered missing
       INTEGER(I_KIND), INTENT(OUT) :: Error          !Error Status
        
 ! Local variables
@@ -293,8 +317,10 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !Loop over scan positions
       DO j=dy+1,dy+ny
         DO i=dx+1,dx+nx
-          if (image(i-dx,j-dy) > maxval .OR. image(i-dx,j-dy) < minval) &
+          if (image(i-dx,j-dy) < minval) &
                image(i-dx,j-dy) = minval - 1.0_r_kind
+          if (image(i-dx,j-dy) > maxval ) &
+               image(i-dx,j-dy) = maxval + 1.0_r_kind
           imagepad(i,j) = image(i-dx,j-dy)   !Take a copy of the input data
           gooddata_map(i,j) = .TRUE.   ! Initialised for step 6)
         ENDDO
@@ -306,13 +332,14 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
         
         DO i=dx+1,dx+nx
           IF (.not.missing) THEN
-            IF (imagepad(i,j) .GE. minval) THEN
+            IF (imagepad(i,j) >= minval .AND. imagepad(i,j) <= maxval) THEN
               ifirst = i
             ELSE
               missing = .true.
             ENDIF
           ELSE
-            IF (imagepad(i,j) .GE. minval) THEN  !First good point after missing
+            IF (imagepad(i,j) >= minval .AND. imagepad(i,j) <= maxval) THEN  !First good point 
+                                                                             ! after missing
                missing = .false.
                IF (ifirst .eq. -1) THEN
                   DO k=dx+1,i-1
@@ -445,12 +472,12 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
      
      DO j=1,ny
         DO i=1,nx
-           IF (image(i,j) <= minval) THEN
-              minjj=max(j+dy-qc_dist,0)
+           IF (image(i,j) <= minval .OR. image(i,j) >= maxval ) THEN
+              minjj=max(j+dy-qc_dist,1)
               maxjj=min(j+dy+qc_dist,nymax)
               DO jj=minjj,maxjj
                  deltax=INT(SQRT(REAL(qc_dist**2 - (jj-j-dy)**2 )))
-                 minii=max(i+dx-deltax,0)
+                 minii=max(i+dx-deltax,1)
                  maxii=min(i+dx+deltax,nxmax)
                  DO ii=minii,maxii
                     gooddata_map(ii,jj)=.FALSE.
