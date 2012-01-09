@@ -53,7 +53,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use qcmod, only: errormod,noiqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
-        tiny_r_kind,huge_r_kind,huge_i_kind,r60inv,one_tenth,&
+        tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r100,r2000
 !  use converr,only: etabl
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom
@@ -187,15 +187,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !**************************************************************************
 
 ! Return when SATWND are coming from prepbufr file
-  if(use_prepb_satwnd) return
+     if(use_prepb_satwnd) return
 
 !  read observation error table
-   allocate(etabl(300,33,6))
 
-   etabl=1.e9_r_kind
-
-
-     ietabl=19_i_kind
+     allocate(etabl(300,33,6))
+     etabl=1.e9_r_kind
+     ietabl=19
      open(ietabl,file='errtable',form='formatted')
      rewind ietabl
      etabl=1.e9_r_kind
@@ -310,8 +308,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
            endif
         else if(trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or. &
-              trim(subset) == 'NC005046') then
-              if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then    ! JMA
+           trim(subset) == 'NC005046') then
+           if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then    ! JMA
               if(hdrdat(9) == one)  then                            ! IR winds
                  itype=252
               else if(hdrdat(9) == two) then                        ! visible winds
@@ -324,7 +322,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
            endif
         else if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or. &
-                trim(subset) == 'NC005012' ) then
+           trim(subset) == 'NC005012' ) then
            if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! NESDIS GOES 
               if(hdrdat(1) == 259.0_r_kind) iobsub=15
               if(hdrdat(9) == one)  then                            ! IR winds
@@ -360,7 +358,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(hdrdat(9) == one)  then                            ! IR winds
                  itype=244
               else
-                write(6,*) 'READ_SATWND: wrong derived method value'
+                 write(6,*) 'READ_SATWND: wrong derived method value'
               endif
            endif
         endif
@@ -554,7 +552,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        else if(qcdat(2,j) == two .and. qifn >r105) then
                           qifn=qcdat(3,j)
                        else if(qcdat(2,j) ==  three .and. ee >r105) then
-                           ee=qcdat(3,j)
+                          ee=qcdat(3,j)
                        endif
                     endif
                  enddo
@@ -589,7 +587,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        else if(qcdat(2,j) == 102.0_r_kind .and. qifn >r105 ) then
                           qifn=qcdat(3,j)
                        else if(qcdat(2,j) == 103.0_r_kind .and. ee >r105) then
-                           ee=qcdat(3,j)
+                          ee=qcdat(3,j)
                        endif   
                     endif
                  enddo 
