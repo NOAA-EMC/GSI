@@ -1,0 +1,347 @@
+#!/bin/sh
+################################################################################
+####  UNIX Script Documentation Block
+#                      .                                             .
+# Script name:         exglobal_angupdate.sh.sms
+# Script description:  Updates global_gsi angle dependent bias correction file
+#
+# Author:        Russ Treadon       Org: NP23         Date: 2010-04-26
+#
+# Abstract: This script update the angle dependent bias correction file
+#
+# Script history log:
+# 2010-04-28  Russ Treadon
+#
+#   Input script positional parameters:
+#     1             Input surface guess
+#                   defaults to $SFCGES; required
+#     2             Input guess angle dependent bias correction
+#                   defaults to $GSATANG; required
+#     3             Input radiance diagnostic file
+#                   defaults to $RADSTAT; required
+#     4             Output (updated) angle dependent bias correction
+#                   defaults to $SATANGO, then to ${COMOUT}/${PREINP}satang
+#
+#   Imported Shell Variables:
+#     SFCGES        Input surface guess
+#                   overridden by $1; required
+#     GSATANG       Input guess angle dependent bias correction
+#                   overridden by $2; required
+#     RADSTAT       Output radiance assimilation statistics
+#                   overridden by $3; required
+#     SATANGO       Output updated angle dependent bias correction
+#                   overridden by $4; defaults to ${COMIN}/${PREINP}${PREINP}satang
+#     FIXGLOBAL     Directory for global fixed files
+#                   defaults to /nwprod/fix
+#     EXECGLOBAL    Directory for global executables
+#                   defaults to /nwprod/exec
+#     USHGLOBAL     Directory for global scripts
+#                   defaults to /nwprod/ush
+#     DATA          working directory
+#                   (if nonexistent will be made, used and deleted)
+#                   defaults to current working directory
+#     COMIN         input directory
+#                   defaults to current working directory
+#     COMOUT        output directory
+#                   (if nonexistent will be made)
+#                   defaults to current working directory
+#     XC            Suffix to add to executables
+#                   defaults to none
+#     PREINP        Prefix to add to input observation files
+#                   defaults to none
+#     SUFINP        Suffix to add to input observation files
+#                   defaults to none
+#     NCP           Copy command
+#                   defaults to cp
+#     SFCHDR        Command to read surface header
+#                   defaults to ${EXECGLOBAL}/global_sfchdr$XC
+#     ANGUPDATEXEC  Radiance angle dependent bias correction update executable
+#                   defaults to ${EXECGLOBAL}/global_angupdate$XC
+#     SATANGL       Input satellite angle bias file
+#                   defaults to ${FIXGLOBAL}/global_satangbias.txt
+#     INISCRIPT     Preprocessing script
+#                   defaults to none
+#     LOGSCRIPT     Log posting script
+#                   defaults to none
+#     ERRSCRIPT     Error processing script
+#                   defaults to 'eval [[ $err = 0 ]]'
+#     ENDSCRIPT     Postprocessing script
+#                   defaults to none
+#     CDATE         Current analysis date in yyyymmddhh format
+#                   defaults to the value in the input surface file header
+#     NTHREADS_ANG  Number of threads for ANGUPDATEXEC
+#                   defaults to 1
+#     NTHSTACK_ANG  Size of stack per thread for ANGUPDATEXEC
+#                   defaults to 64000000
+#     FILESTYLE     File management style flag
+#                   ('C' to copy to/from $DATA, 'L' for symbolic links in $DATA,
+#                    'X' to use XLFUNIT or symbolic links where appropriate)
+#                   defaults to 'X'
+#     PGMOUT        Executable standard output
+#                   defaults to $pgmout, then to '&1'
+#     PGMERR        Executable standard error
+#                   defaults to $pgmerr, then to '&1'
+#     pgmout        Executable standard output default
+#     pgmerr        Executable standard error default
+#     REDOUT        standard output redirect ('1>' or '1>>')
+#                   defaults to '1>', or to '1>>' to append if $PGMOUT is a file
+#     REDERR        standard error redirect ('2>' or '2>>')
+#                   defaults to '2>', or to '2>>' to append if $PGMERR is a file
+#     VERBOSE       Verbose flag (YES or NO)
+#                   defaults to NO
+#
+#   Exported Shell Variables:
+#     PGM           Current program name
+#     pgm
+#     ERR           Last return code
+#     err
+#
+#   Modules and files referenced:
+#     scripts    : $INISCRIPT
+#                  $LOGSCRIPT
+#                  $ERRSCRIPT
+#                  $ENDSCRIPT
+#
+#     programs   : $CYCLEXEC
+#                  $GSIEXEC
+#                  $ANGUPDATEXEC
+#
+#     fixed data : $SATANGL
+#
+#     input data : $GSATANG
+#                  $RADSTAT
+#
+#     output data: $SATANGO
+#
+# Remarks:
+#
+#   Condition codes
+#      0 - no problem encountered
+#     >0 - some problem encountered
+#
+#  Control variable resolution priority
+#    1 Command line argument.
+#    2 Environment variable.
+#    3 Inline default.
+#
+# Attributes:
+#   Language: POSIX shell
+#   Machine: IBM SP
+#
+################################################################################
+#  Set environment.
+export VERBOSE=${VERBOSE:-"NO"}
+if [[ "$VERBOSE" = "YES" ]]
+then
+   echo $(date) EXECUTING $0 $* >&2
+   set -x
+fi
+#  Command line arguments.
+export SFCGES=${1:-${SFCGES:?}}
+export GSATANG=${2:-${GSATANG:?}}
+export RADSTAT=${3:-${RADSTAT:?}}
+export SATANGO=${4:-${SATANGO:?}}
+#  Directories.
+export FIXGLOBAL=${FIXGLOBAL:-/nwprod/fix}
+export EXECGLOBAL=${EXECGLOBAL:-/nwprod/exec}
+export USHGLOBAL=${USHGLOBAL:-/nwprod/ush}
+export utilscript=${utilscript:-/nwprod/util/ush}
+export DATA=${DATA:-$(pwd)}
+export COMIN=${COMIN:-$(pwd)}
+export COMOUT=${COMOUT:-$(pwd)}
+#  Filenames.
+export XC=${XC}
+export PREINP=${PREINP}
+export SUFINP=${SUFINP}
+export SFCHDR=${SFCHDR:-${EXECGLOBAL}/global_sfchdr$XC}
+export ANGUPDATEXEC=${ANGUPDATEXEC:-${EXECGLOBAL}/global_angupdate$XC}
+export SATANGL=${SATANGL:-${FIXGLOBAL}/global_satangbias.txt}
+export INISCRIPT=${INISCRIPT}
+export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
+export LOGSCRIPT=${LOGSCRIPT}
+export ENDSCRIPT=${ENDSCRIPT}
+#  Other variables.
+export CDATE=${CDATE:-$($SFCHDR $SFCGES VDATE||echo 0)}
+export SETUPANG=${SETUPANG:-""}
+export OBSINPUTANG=${OBSINPUTANG:-""}
+export NTHREADS_ANG=${NTHREADS_ANG:-1}
+export NTHSTACK_ANG=${NTHSTACK_ANG:-64000000}
+export FILESTYLE=${FILESTYLE:-'X'}
+export PGMOUT=${PGMOUT:-${pgmout:-'&1'}}
+export PGMERR=${PGMERR:-${pgmerr:-'&2'}}
+export NCP=${NCP:-cp}
+typeset -L1 l=$PGMOUT
+[[ $l = '&' ]]&&a=''||a='>'
+export REDOUT=${REDOUT:-'1>'$a}
+typeset -L1 l=$PGMERR
+[[ $l = '&' ]]&&a=''||a='>'
+export REDERR=${REDERR:-'2>'$a}
+
+################################################################################
+#  Preprocessing
+$INISCRIPT
+pwd=$(pwd)
+if [[ -d $DATA ]]
+then
+   mkdata=NO
+else
+   mkdir -p $DATA
+   mkdata=YES
+fi
+cd $DATA||exit 99
+
+
+################################################################################
+#  Update angle dependent bias 
+export XLSMPOPTS="parthds=$NTHREADS_ANG:stack=$NTHSTACK_ANG"
+export PGM=$ANGUPDATEXEC
+export pgm=$PGM
+$LOGSCRIPT
+
+iy=$(echo $CDATE|cut -c1-4)
+im=$(echo $CDATE|cut -c5-6)
+id=$(echo $CDATE|cut -c7-8)
+ih=$(echo $CDATE|cut -c9-10)
+
+rm global_angupdate.namelist 
+rm satbias_angle satbias_ang.in radstat
+
+
+if [[ $FILESTYLE = 'C' ]]
+then
+   # Fixed fields
+   $NCP $SATANGL  satbias_angle
+
+   # Required guess fields
+   $NCP $GSATANG  satbias_ang.in
+   $NCP $RADSTAT  radstat
+
+else
+   # Fixed fields
+   ln -fs $SATANGL  satbias_angle
+
+   # Guess fields
+   ln -fs $GSATANG  satbias_ang.in
+   $NCP $RADSTAT    radstat
+fi
+
+# local input files assumed to already exist are
+#   ./satbias_ang.in
+#   radiance diagnostic files
+
+if [[ ! -s satbias_ang.in ]]; then
+   $NCP ./satbias_angle ./satbias_ang.in
+fi
+
+# Extract sensor specific diagnostic files from radstat file
+tar -xvf radstat
+rm -f diag_*_anl.$CDATE.Z
+
+
+# List of sensor specific diagnostic files
+   listrad="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 ssmi_f13 ssmi_f14 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_las_f16 ssmis_uas_f16 ssmis_img_f16 ssmis_env_f16 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19"
+for type in $listrad; do
+   if [[ -s diag_${type}_ges.$CDATE.Z ]]; then
+      uncompress diag_${type}_ges.$CDATE.Z
+      ln -fs diag_${type}_ges.$CDATE  ./diag_${type}.$CDATE
+   fi
+done
+
+# output file created by program is
+#   $SATANGO = ./satbias_ang.out 
+
+# Create global_angupdate namelist
+cat <<EOF > global_angupdate.namelist
+ &SETUP
+  jpch=1498,nstep=90,nsize=20,wgtang=0.008333333,wgtlap=0.0,
+  iuseqc=1,dtmax=1.0,
+  iyy1=${iy},imm1=${im},idd1=${id},ihh1=${ih},
+  iyy2=${iy},imm2=${im},idd2=${id},ihh2=${ih},
+  dth=06,ndat=48,
+  $SETUPANG
+ /
+ &OBS_INPUT
+  dtype(01)='hirs2',     dplat(01)='n14',       dsis(01)='hirs2_n14',
+  dtype(02)='hirs3',     dplat(02)='n16',       dsis(02)='hirs3_n16',
+  dtype(03)='hirs3',     dplat(03)='n17',       dsis(03)='hirs3_n17',
+  dtype(04)='hirs4',     dplat(04)='n18',       dsis(04)='hirs4_n18',
+  dtype(05)='hirs4',     dplat(05)='metop-a',   dsis(05)='hirs4_metop-a',
+  dtype(06)='sndr',      dplat(06)='g11',       dsis(06)='sndr_g11',
+  dtype(07)='sndr',      dplat(07)='g12',       dsis(07)='sndr_g12',
+  dtype(08)='goes_img',  dplat(08)='g11',       dsis(08)='imgr_g11',
+  dtype(09)='goes_img',  dplat(09)='g12',       dsis(09)='imgr_g12',
+  dtype(10)='airs',      dplat(10)='aqua',      dsis(10)='airs281SUBSET_aqua',
+  dtype(11)='msu',       dplat(11)='n14',       dsis(11)='msu_n14',
+  dtype(12)='amsua',     dplat(12)='n15',       dsis(12)='amsua_n15',
+  dtype(13)='amsua',     dplat(13)='n16',       dsis(13)='amsua_n16',
+  dtype(14)='amsua',     dplat(14)='n17',       dsis(14)='amsua_n17',
+  dtype(15)='amsua',     dplat(15)='n18',       dsis(15)='amsua_n18',
+  dtype(16)='amsua',     dplat(16)='metop-a',   dsis(16)='amsua_metop-a',
+  dtype(17)='amsua',     dplat(17)='aqua',      dsis(17)='amsua_aqua',
+  dtype(18)='amsub',     dplat(18)='n15',       dsis(18)='amsub_n15',
+  dtype(19)='amsub',     dplat(19)='n16',       dsis(19)='amsub_n16',
+  dtype(20)='amsub',     dplat(20)='n17',       dsis(20)='amsub_n17',
+  dtype(21)='mhs',       dplat(21)='n18',       dsis(21)='mhs_n18',
+  dtype(22)='mhs',       dplat(22)='metop-a',   dsis(22)='mhs_metop-a',
+  dtype(23)='ssmi',      dplat(23)='f13',       dsis(23)='ssmi_f13',
+  dtype(24)='ssmi',      dplat(24)='f14',       dsis(24)='ssmi_f14',
+  dtype(25)='ssmi',      dplat(25)='f15',       dsis(25)='ssmi_f15',
+  dtype(26)='amsre_low', dplat(26)='aqua',      dsis(26)='amsre_aqua',
+  dtype(27)='amsre_mid', dplat(27)='aqua',      dsis(27)='amsre_aqua',
+  dtype(28)='amsre_hig', dplat(28)='aqua',      dsis(28)='amsre_aqua',
+  dtype(29)='ssmis_las', dplat(29)='f16',       dsis(29)='ssmis_f16',
+  dtype(30)='ssmis_uas', dplat(30)='f16',       dsis(30)='ssmis_f16',
+  dtype(31)='ssmis_img', dplat(31)='f16',       dsis(31)='ssmis_f16',
+  dtype(32)='ssmis_env', dplat(32)='f16',       dsis(32)='ssmis_f16',
+  dtype(33)='sndrd1',    dplat(33)='g12',       dsis(33)='sndrD1_g12',
+  dtype(34)='sndrd2',    dplat(34)='g12',       dsis(34)='sndrD2_g12',
+  dtype(35)='sndrd3',    dplat(35)='g12',       dsis(35)='sndrD3_g12',
+  dtype(36)='sndrd4',    dplat(36)='g12',       dsis(36)='sndrD4_g12',
+  dtype(37)='sndrd1',    dplat(37)='g11',       dsis(37)='sndrD1_g11',
+  dtype(38)='sndrd2',    dplat(38)='g11',       dsis(38)='sndrD2_g11',
+  dtype(39)='sndrd3',    dplat(39)='g11',       dsis(39)='sndrD3_g11',
+  dtype(40)='sndrd4',    dplat(40)='g11',       dsis(40)='sndrD4_g11',
+  dtype(41)='sndrd1',    dplat(41)='g13',       dsis(41)='sndrD1_g13',
+  dtype(42)='sndrd2',    dplat(42)='g13',       dsis(42)='sndrD2_g13',
+  dtype(43)='sndrd3',    dplat(43)='g13',       dsis(43)='sndrD3_g13',
+  dtype(44)='sndrd4',    dplat(44)='g13',       dsis(44)='sndrD4_g13',
+  dtype(45)='iasi',      dplat(45)='metop-a',   dsis(45)='iasi616_metop-a',
+  dtype(46)='hirs4',     dplat(46)='n19',       dsis(46)='hirs4_n19',
+  dtype(47)='amsua',     dplat(47)='n19',       dsis(47)='amsua_n19',
+  dtype(48)='mhs',       dplat(48)='n19',       dsis(48)='mhs_n19',
+  $OBSINPUTANG
+ /
+EOF
+
+# Run global_angupdate program
+eval $PGM < global_angupdate.namelist $REDOUT$PGMOUT $REDERR$PGMERR
+rc=$?
+
+export ERR=$?
+export err=$ERR
+$ERRSCRIPT||exit 2
+
+# Output file
+$NCP satbias_ang.out  $SATANGO
+
+################################################################################
+
+if test "$RUN" = 'gdas1'
+then
+    if test "$SENDDBN" = 'YES'
+    then
+       $DBNROOT/bin/dbn_alert MODEL GDAS1_MSC_satang $job $SATANGO
+    fi
+fi
+
+################################################################################
+#  Postprocessing
+cd $pwd
+[[ $mkdata = YES ]]&&rmdir $DATA
+$ENDSCRIPT
+set +x
+if [[ "$VERBOSE" = "YES" ]]
+then
+   echo $(date) EXITING $0 with return code $err >&2
+fi
+exit $err
