@@ -179,19 +179,25 @@ $(EXE_FILE) : $(OBJS)
 # Fortran compiler and options
 # ----------------------------
 
- CF	= mpif90
+ CF	= ncepmpxlf95
 
 #--- Normal mode options
 
-  FFLAGS_F90	= -D_REAL4_
-  FFLAGS_COM_N	= -I ./ 
+  FFLAGS_F90	= -qsuffix=f=f90:cpp=F90 -WF,-D_REAL8_
+  FFLAGS_COM_N	= -I ./ -qarch=auto -qmaxmem=-1 -q64
 
-  FFLAGS_N	= -O3 -xHOST $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_N	= -O3 -qstrict $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
 
   FFLAGS_COM_D	= $(FFLAGS_COM_N) \
-		  -O0 -g
+		  -O0 -qdbg -qfullpath \
+		  -qsigtrap=xl__trcedump \
+		  -qinitauto=7FF7FFFF \
+		  -qflttrap=overflow:zero:enable \
+		  -qcheck \
+		  -qwarn64 \
+		  -qflag=i:i
 
   FFLAGS_D	= $(FFLAGS_F90) $(FFLAGS_COM_D)
 
@@ -200,7 +206,7 @@ $(EXE_FILE) : $(OBJS)
 # C Compiler and options
 # ----------------------
 
-  CC		= gcc
+  CC		= ncepcc
 
 #--- Normal mode options
 
@@ -219,13 +225,14 @@ $(EXE_FILE) : $(OBJS)
 
 #--- Normal mode options
 
-  LIBS_N= -L/lfs1/projects/globpsd/whitaker/EXP-hybens/nwprod/lib -lw3_4
+  LIBS_N= -L/nwprod/lib -lw3_4
 
-  LDFLAGS_N	= -
+  LDFLAGS_N	= -lessl -lmass -bloadmap:loadmap.txt \
+                  -bdatapsize:64K -bstackpsize:64K
 
 #--- Debug mode options
 
-  LIBS_D	= $(LIBS_N) 
+  LIBS_D	= $(LIBS_N) -lhmd
 
   LDFLAGS_D	= $(LDFLAGS_N)
 

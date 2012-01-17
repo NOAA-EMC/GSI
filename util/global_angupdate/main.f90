@@ -123,13 +123,8 @@ program main
 
 
 ! Read and echo namelist input
-!cltorg  read(5,setup)
-!cltorg  read(5,obs_input)
- open(912,file='global_angupdate.nml',form='formatted')
-  read(912,setup)
-  read(912,obs_input)
-  close(912)
-
+  read(5,setup)
+  read(5,obs_input)
   rsize=zero
   if (nsize>0) rsize=one/float(nsize)
   if (outask) then
