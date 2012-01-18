@@ -15,6 +15,7 @@ subroutine read_wrf_mass_files(mype)
 !   2005-03-30  treadon - reformat code (cosmetic changes only)
 !   2009-10-09  wu      - reset time reference (using iwinbgn and winlen...) in preparation for 4dvar
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
+!   2010-11-14  whitaker - set nfldsfc = nfldsig
 !   
 !   input argument list:
 !     mype     - pe number
@@ -183,7 +184,7 @@ subroutine read_wrf_mass_files(mype)
 
   nfldsig   = nint(time_ges(201,1))
 !!nfldsfc   = nint(time_ges(201,2))
-  nfldsfc   = ione
+  nfldsfc   = nfldsig
 
 ! Allocate space for guess information files
   call create_gesfinfo
