@@ -29,6 +29,9 @@ subroutine convert_binary_mass
 !                          grid ordering for input 3D fields
 !   2010-06-24  Hu  - bug fix: replace XICE with SEAICE
 !   2010-06-24  Hu  - add code to read 5 cloud/hydrometeor variables for cloud analysis
+!   2010-11-16  tong - - add loop to read upto 7 wrf mass binary restart file and
+!                        write to temporary binary files (extend FGAT capability for
+!                        wrf mass binary format)
 !
 !   input argument list:
 !
@@ -110,459 +113,477 @@ subroutine convert_binary_mass
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional
-  integer(i_kind) k
+  integer(i_kind) k,n
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:),field2c(:,:)
   real(r_single) rad2deg_single
   real(r_single)rdx,rdy
   integer(i_kind) ksize
   integer(i_kind) index
 
-  wrfges = 'wrf_inout'
-  open(in_unit,file=wrfges,form='unformatted')
-  write(6,*)' convert_binary_mass: in_unit,lendian_out=',in_unit,lendian_out
-  write(filename,100) nhr_assimilation
-100 format('sigf',i2.2)
-  open(lendian_out,file=filename,form='unformatted')
-  rewind lendian_out
+  n_loop: do n=1,7
 
+     if(n==1)then
+        wrfges = 'wrf_inout'
+     else
+        write(wrfges,'("wrf_inou",i1.1)')n
+     endif
+
+     open(in_unit,file=wrfges,form='unformatted')
+     write(6,*)' convert_binary_mass: in_unit,lendian_out=',in_unit,lendian_out
+     write(6,*)' convert_binary_mass: in_unit,out_unit=',wrfges,',',filename
+   
 ! Check for valid input file
-  read(in_unit,iostat=status_hdr)hdrbuf
-  if(status_hdr /= 0) then
-     write(6,*)'CONVERT_BINARY_MASS:  problem with wrfges = ',&
-          trim(wrfges),', Status = ',status_hdr
-     call stop2(74)
-  endif
+     read(in_unit,iostat=status_hdr)hdrbuf
+     if(n==1)then
+        if(status_hdr /= 0) then
+           write(6,*)'CONVERT_BINARY_MASS:  problem with wrfges = ',&
+                trim(wrfges),', Status = ',status_hdr
+           call stop2(74)
+        endif
+     else
+        if(status_hdr /= 0) then
+           write(6,*)'CONVERT_BINARY_MASS:  no off hour guess = ', filename
+           close(in_unit)
+           cycle n_loop
+        endif
+     end if
+
+     write(filename,'("sigf",i2.2)')n+nhr_assimilation-1
+     open(lendian_out,file=filename,form='unformatted')
+     rewind lendian_out
 
 !   reopen for direct access reading of sequential file
 
-  close(in_unit)
+     close(in_unit)
 
-  call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
-                 write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
-
-  allocate(datestr_all(nrecs),varname_all(nrecs),domainend_all(3,nrecs))
-  allocate(memoryorder_all(nrecs))
-  allocate(start_block(nrecs),end_block(nrecs),start_byte(nrecs),end_byte(nrecs),file_offset(nrecs))
-
-  call inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
-                                 datestr_all,varname_all,memoryorder_all,domainend_all, &
-                                 start_block,end_block,start_byte,end_byte,file_offset)
+     call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
+                    write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
+   
+     allocate(datestr_all(nrecs),varname_all(nrecs),domainend_all(3,nrecs))
+     allocate(memoryorder_all(nrecs))
+     allocate(start_block(nrecs),end_block(nrecs),start_byte(nrecs),end_byte(nrecs),file_offset(nrecs))
+   
+     call inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
+                                    datestr_all,varname_all,memoryorder_all,domainend_all, &
+                                    start_block,end_block,start_byte,end_byte,file_offset)
           
 !   start with date record for date forecast was started
 
 !                   y,m,d,h,m,s
-  call retrieve_index(index,'START_DATE',varname_all,nrecs)
-  if(index<0) stop
-  read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
-       iyear,imonth,iday,ihour,iminute,isecond
-  write(6,*)' convert_binary_mass: START_DATE =',&
-       iyear,imonth,iday,ihour,iminute,isecond
-
+     call retrieve_index(index,'START_DATE',varname_all,nrecs)
+     if(index<0) stop
+     read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
+          iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_mass: START_DATE =',&
+          iyear,imonth,iday,ihour,iminute,isecond
+   
 !                  nlon_regional, nlat_regional, nsig_regional
-  call retrieve_index(index,'T',varname_all,nrecs)
-  if(index<0) stop
+     call retrieve_index(index,'T',varname_all,nrecs)
+     if(index<0) stop
 
-  if(trim(memoryorder_all(index))=='XZY') then
-     nlon_regional=domainend_all(1,index)
-     nlat_regional=domainend_all(3,index)
-     nsig_regional=domainend_all(2,index)
-  end if
-  if(trim(memoryorder_all(index))=='XYZ') then
-     nlon_regional=domainend_all(1,index)
-     nlat_regional=domainend_all(2,index)
-     nsig_regional=domainend_all(3,index)
-  end if
-  read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
-       iyear,imonth,iday,ihour,iminute,isecond
-  write(6,*)' convert_binary_mass: iy,m,d,h,m,s=',&
-       iyear,imonth,iday,ihour,iminute,isecond
-  write(6,*)' convert_binary_mass: nlon,lat,sig_regional=',&
-       nlon_regional,nlat_regional,nsig_regional
-  
+     if(trim(memoryorder_all(index))=='XZY') then
+        nlon_regional=domainend_all(1,index)
+        nlat_regional=domainend_all(3,index)
+        nsig_regional=domainend_all(2,index)
+     end if
+     if(trim(memoryorder_all(index))=='XYZ') then
+        nlon_regional=domainend_all(1,index)
+        nlat_regional=domainend_all(2,index)
+        nsig_regional=domainend_all(3,index)
+     end if
+     read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
+          iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_mass: iy,m,d,h,m,s=',&
+          iyear,imonth,iday,ihour,iminute,isecond
+     write(6,*)' convert_binary_mass: nlon,lat,sig_regional=',&
+          nlon_regional,nlat_regional,nsig_regional
+     
 !                  pt_regional
-  call retrieve_index(index,'P_TOP',varname_all,nrecs)
-  if(index<0) stop
-  call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-
-  write(6,*)' convert_binary_mass: pt_regional=',pt_regional
-
-  write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
-       nlon_regional,nlat_regional,nsig_regional,pt_regional
-  
-  allocate(field1(nsig_regional),field1p(nsig_regional+1))
-
+     call retrieve_index(index,'P_TOP',varname_all,nrecs)
+     if(index<0) stop
+     call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+   
+     write(6,*)' convert_binary_mass: pt_regional=',pt_regional
+   
+     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
+          nlon_regional,nlat_regional,nsig_regional,pt_regional
+     
+     allocate(field1(nsig_regional),field1p(nsig_regional+1))
+   
 !                  znu
-  call retrieve_index(index,'ZNU',varname_all,nrecs)
-  if(index<0) stop
-  call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  do k=1,nsig_regional
-     write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
-  end do
-  write(lendian_out)field1             !  ZNU
-
+     call retrieve_index(index,'ZNU',varname_all,nrecs)
+     if(index<0) stop
+     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     do k=1,nsig_regional
+        write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
+     end do
+     write(lendian_out)field1             !  ZNU
+   
 !                  znw
-  call retrieve_index(index,'ZNW',varname_all,nrecs)
-  if(index<0) stop
-  call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  do k=1,nsig_regional+1
-     write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
-  end do
-  write(lendian_out)field1p            !  ZNW
-
-  deallocate(field1,field1p)
-
+     call retrieve_index(index,'ZNW',varname_all,nrecs)
+     if(index<0) stop
+     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     do k=1,nsig_regional+1
+        write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
+     end do
+     write(lendian_out)field1p            !  ZNW
+   
+     deallocate(field1,field1p)
+   
 !                  rdx
-  call retrieve_index(index,'RDX',varname_all,nrecs)
-  if(index<0) stop
-  call retrieve_field(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-
-  write(6,*)' convert_binary_mass: 1/rdx=',&
-       one_single/rdx   ! 1._4 necessary only to get bit reproducibility
+     call retrieve_index(index,'RDX',varname_all,nrecs)
+     if(index<0) stop
+     call retrieve_field(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+   
+     write(6,*)' convert_binary_mass: 1/rdx=',&
+          one_single/rdx   ! 1._4 necessary only to get bit reproducibility
 
 !                  rdy
-  call retrieve_index(index,'RDY',varname_all,nrecs)
-  if(index<0) stop
-  call retrieve_field(in_unit,wrfges,rdy,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-
-  write(6,*)' convert_binary_mass: 1/rdy=',&
-       one_single/rdy  ! 1._4 necessary only to get bit reproducibility
-  
-  allocate(field2(nlon_regional,nlat_regional))
-  allocate(field2b(nlon_regional,nlat_regional))
-  allocate(field2c(nlon_regional,nlat_regional))
-
+     call retrieve_index(index,'RDY',varname_all,nrecs)
+     if(index<0) stop
+     call retrieve_field(in_unit,wrfges,rdy,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+   
+     write(6,*)' convert_binary_mass: 1/rdy=',&
+          one_single/rdy  ! 1._4 necessary only to get bit reproducibility
+     
+     allocate(field2(nlon_regional,nlat_regional))
+     allocate(field2b(nlon_regional,nlat_regional))
+     allocate(field2c(nlon_regional,nlat_regional))
+   
 !                  mapfac_m
-  call retrieve_index(index,'MAPFAC_M',varname_all,nrecs)
-  if(index<0) stop
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-
-  write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
-  write(6,*)' convert_binary_mass: max,min MAPFAC_M(:,1)=', &
-       maxval(field2(:,1)),minval(field2(:,1))
-  write(6,*)' convert_binary_mass: max,min MAPFAC_M(1,:)=', &
-       maxval(field2(1,:)),minval(field2(1,:))
-  write(6,*)' convert_binary_mass: mapfac_m(1,1),mapfac_m(nlon,1)=', &
-       field2(1,1),field2(nlon_regional,1)
-  write(6,*)' convert_binary_mass: mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
-       field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  field2b=one_single/(field2*rdx)  !DX_MC
-  field2c=one_single/(field2*rdy)  !DY_MC
-
+     call retrieve_index(index,'MAPFAC_M',varname_all,nrecs)
+     if(index<0) stop
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+   
+     write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_mass: max,min MAPFAC_M(:,1)=', &
+          maxval(field2(:,1)),minval(field2(:,1))
+     write(6,*)' convert_binary_mass: max,min MAPFAC_M(1,:)=', &
+          maxval(field2(1,:)),minval(field2(1,:))
+     write(6,*)' convert_binary_mass: mapfac_m(1,1),mapfac_m(nlon,1)=', &
+          field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_mass: mapfac_m(1,nlat),mapfac_m(nlon,nlat)=', &
+          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     field2b=one_single/(field2*rdx)  !DX_MC
+     field2c=one_single/(field2*rdy)  !DY_MC
+   
 !                  XLAT
-  rad2deg_single=r45/atan(one_single)
-  call retrieve_index(index,'XLAT',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
+     rad2deg_single=r45/atan(one_single)
+     call retrieve_index(index,'XLAT',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
 
-  write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
-       maxval(field2(:,1)),minval(field2(:,1))
-  write(6,*)' convert_binary_mass: max,min XLAT(1,:)=',&
-       maxval(field2(1,:)),minval(field2(1,:))
-  write(6,*)' convert_binary_mass: xlat(1,1),xlat(nlon,1)=',&
-       field2(1,1),field2(nlon_regional,1)
-  write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
-       field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  field2=field2/rad2deg_single
-  write(lendian_out)field2,field2b,n_position     !  XLAT,DX_MC
-
+     write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
+          maxval(field2(:,1)),minval(field2(:,1))
+     write(6,*)' convert_binary_mass: max,min XLAT(1,:)=',&
+          maxval(field2(1,:)),minval(field2(1,:))
+     write(6,*)' convert_binary_mass: xlat(1,1),xlat(nlon,1)=',&
+          field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_mass: xlat(1,nlat),xlat(nlon,nlat)=', &
+          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     field2=field2/rad2deg_single
+     write(lendian_out)field2,field2b,n_position     !  XLAT,DX_MC
+   
 !                  XLONG
-  call retrieve_index(index,'XLONG',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
+     call retrieve_index(index,'XLONG',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
 
-  write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
-       maxval(field2(:,1)),minval(field2(:,1))
-  write(6,*)' convert_binary_mass: max,min XLONG(1,:)=',&
-       maxval(field2(1,:)),minval(field2(1,:))
-  write(6,*)' convert_binary_mass: xlong(1,1),xlong(nlon,1)=',&
-       field2(1,1),field2(nlon_regional,1)
-  write(6,*)' convert_binary_mass: xlong(1,nlat),xlong(nlon,nlat)=', &
-       field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
-  field2=field2/rad2deg_single
-
-  write(lendian_out)field2,field2c,n_position     !  XLONG,DY_MC
-
-  write(lendian_out) wrfges
-
+     write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
+          maxval(field2(:,1)),minval(field2(:,1))
+     write(6,*)' convert_binary_mass: max,min XLONG(1,:)=',&
+          maxval(field2(1,:)),minval(field2(1,:))
+     write(6,*)' convert_binary_mass: xlong(1,1),xlong(nlon,1)=',&
+          field2(1,1),field2(nlon_regional,1)
+     write(6,*)' convert_binary_mass: xlong(1,nlat),xlong(nlon,nlat)=', &
+          field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     field2=field2/rad2deg_single
+   
+     write(lendian_out)field2,field2c,n_position     !  XLONG,DY_MC
+   
+     write(lendian_out) wrfges
+   
 !      index for START_DATE record
-  call retrieve_index(index,'START_DATE',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index)
-  write(lendian_out)n_position    ! offset for START_DATE record
-
+     call retrieve_index(index,'START_DATE',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index)
+     write(lendian_out)n_position    ! offset for START_DATE record
+   
 !                  MUB
-  call retrieve_index(index,'MUB',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'MUB',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+   
+     write(6,*)'  byte offset for MUB = ',n_position
 
-  write(6,*)'  byte offset for MUB = ',n_position
-
-  write(lendian_out)n_position    ! offset for mub
+     write(lendian_out)n_position    ! offset for mub
 
 !                  MU
-  call retrieve_index(index,'MU',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'MU',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+   
+     write(6,*)'  byte offset for MU = ',n_position
 
-  write(6,*)'  byte offset for MU = ',n_position
-
-  write(lendian_out)n_position    ! offset for mu
+     write(lendian_out)n_position    ! offset for mu
   
 !                   PHB                  
-  call retrieve_index(index,'PHB',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, memoryorder for PHB(',k,') = ',n_position,memoryorder_all(index)
-  write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
+     call retrieve_index(index,'PHB',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for PHB(',k,') = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
                                                          !     (zsfc*g is 1st level of this 3d field)
                                !  but more efficient to read in whole 3-d field because of ikj order
 
 !                   T                  
-  call retrieve_index(index,'T',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, memoryorder for T(',k,') = ',n_position,memoryorder_all(index)
-  write(lendian_out)n_position,memoryorder_all(index)  ! offset for T(k)    ! POT TEMP (sensible)
+     call retrieve_index(index,'T',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for T(',k,') = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)  ! offset for T(k)    ! POT TEMP (sensible)
 
 
 !                   QVAPOR
-  call retrieve_index(index,'QVAPOR',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, memoryorder for QVAPOR(',k,' = ',n_position,memoryorder_all(index)
-  write(lendian_out)n_position,memoryorder_all(index)    ! offset for QVAPOR(k)
-  
+     call retrieve_index(index,'QVAPOR',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for QVAPOR(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QVAPOR(k)
+     
 !                   U                  
-  call retrieve_index(index,'U',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, memoryorder for U(',k,' = ',n_position,memoryorder_all(index)
-  write(lendian_out)n_position,memoryorder_all(index)    ! offset for U(k)
+     call retrieve_index(index,'U',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for U(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for U(k)
 
 !                   V                  
-  call retrieve_index(index,'V',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, memoryorder for V(',k,' = ',n_position,memoryorder_all(index)
-  write(lendian_out)n_position,memoryorder_all(index)    ! offset for V(k)
+     call retrieve_index(index,'V',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, memoryorder for V(',k,' = ',n_position,memoryorder_all(index)
+     write(lendian_out)n_position,memoryorder_all(index)    ! offset for V(k)
 
 !                   LANDMASK          
-  call retrieve_index(index,'LANDMASK',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'LANDMASK',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
 
-  write(6,*)'  byte offset for LANDMASK = ',n_position
+     write(6,*)'  byte offset for LANDMASK = ',n_position
 
-  write(lendian_out)n_position     !  LANDMASK  (1=land, 0=water)
+     write(lendian_out)n_position     !  LANDMASK  (1=land, 0=water)
 
 !                   XICE                
-  call retrieve_index(index,'SEAICE',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'SEAICE',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+   
+     write(6,*)'  byte offset for XICE = ',n_position
 
-  write(6,*)'  byte offset for XICE = ',n_position
-
-  write(lendian_out)n_position     !  XICE
+     write(lendian_out)n_position     !  XICE
 
 !                   SST                
-  call retrieve_index(index,'SST',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'SST',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
 
-  write(6,*)'  byte offset for SST = ',n_position
+     write(6,*)'  byte offset for SST = ',n_position
 
-  write(lendian_out)n_position     !  SST
+     write(lendian_out)n_position     !  SST
 
 !                   IVGTYP                
-  call retrieve_index(index,'IVGTYP',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'IVGTYP',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
 
-  write(6,*)'  byte offset for IVGTYP = ',n_position
+     write(6,*)'  byte offset for IVGTYP = ',n_position
 
-  write(lendian_out)n_position     !  IVGTYP
+     write(lendian_out)n_position     !  IVGTYP
 
 !                   ISLTYP                
-  call retrieve_index(index,'ISLTYP',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'ISLTYP',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+   
+     write(6,*)'  byte offset for ISLTYP = ',n_position
 
-  write(6,*)'  byte offset for ISLTYP = ',n_position
-
-  write(lendian_out)n_position     !  ISLTYP
+     write(lendian_out)n_position     !  ISLTYP
   
 !                   VEGFRA                
-  call retrieve_index(index,'VEGFRA',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'VEGFRA',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
 
-  write(6,*)'  byte offset for VEGFRA = ',n_position
+     write(6,*)'  byte offset for VEGFRA = ',n_position
 
-  write(lendian_out)n_position     !  VEGFRA
+     write(lendian_out)n_position     !  VEGFRA
 
 !                   SNOW
-  call retrieve_index(index,'SNOW',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'SNOW',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
 
-  write(6,*)'  byte offset for SNOW = ',n_position
+     write(6,*)'  byte offset for SNOW = ',n_position
 
-  write(lendian_out)n_position     !  SNOW
+     write(lendian_out)n_position     !  SNOW
 
 !                   U10                
-  call retrieve_index(index,'U10',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'U10',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
 
-  write(6,*)'  byte offset for U10 = ',n_position
+     write(6,*)'  byte offset for U10 = ',n_position
 
-  write(lendian_out)n_position     !  U10
+     write(lendian_out)n_position     !  U10
   
 !                   V10                
-  call retrieve_index(index,'V10',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
+     call retrieve_index(index,'V10',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+   
+     write(6,*)'  byte offset for V10 = ',n_position
 
-  write(6,*)'  byte offset for V10 = ',n_position
-
-  write(lendian_out)n_position     !  V10
+     write(lendian_out)n_position     !  V10
 
 !                   SMOIS              
-  call retrieve_index(index,'SMOIS',varname_all,nrecs)
-  if(index<0) stop
-  if(trim(memoryorder_all(index))=='XZY') then
-     ksize=domainend_all(2,index)
-  end if
-  if(trim(memoryorder_all(index))=='XYZ') then
-     ksize=domainend_all(3,index)
-  end if
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',k,') = ', &
+     call retrieve_index(index,'SMOIS',varname_all,nrecs)
+     if(index<0) stop
+     if(trim(memoryorder_all(index))=='XZY') then
+        ksize=domainend_all(2,index)
+     end if
+     if(trim(memoryorder_all(index))=='XYZ') then
+        ksize=domainend_all(3,index)
+     end if
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',k,') = ', &
                                            n_position,ksize,memoryorder_all(index)
-  write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
+     write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
 
 !                   TSLB               
-  call retrieve_index(index,'TSLB',varname_all,nrecs)
-  if(index<0) stop
-  if(trim(memoryorder_all(index))=='XZY') then
-     ksize=domainend_all(2,index)
-  end if
-  if(trim(memoryorder_all(index))=='XYZ') then
-     ksize=domainend_all(3,index)
-  end if
-  n_position=file_offset(index+1)
-  write(6,*)'  byte offset, ksize, memoryorder for TSLB(',k,') = ', &
-                                           n_position,ksize,memoryorder_all(index)
-  write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
+     call retrieve_index(index,'TSLB',varname_all,nrecs)
+     if(index<0) stop
+     if(trim(memoryorder_all(index))=='XZY') then
+        ksize=domainend_all(2,index)
+     end if
+     if(trim(memoryorder_all(index))=='XYZ') then
+        ksize=domainend_all(3,index)
+     end if
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset, ksize, memoryorder for TSLB(',k,') = ', &
+                                              n_position,ksize,memoryorder_all(index)
+     write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
 
 !                   TSK                
-  call retrieve_index(index,'TSK',varname_all,nrecs)
-  if(index<0) stop
-  n_position=file_offset(index+1)
-
-  write(6,*)'  byte offset for TSK = ',n_position
-
-  write(lendian_out)n_position     !  TSK
-
-  if(l_cloud_analysis) then
-!      QCLOUD
-     call retrieve_index(index,'QCLOUD',varname_all,nrecs)
+     call retrieve_index(index,'TSK',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for QCLOUD(',k,' = ',n_position,memoryorder_all(index)
-     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QCLOUD(k)
+
+     write(6,*)'  byte offset for TSK = ',n_position
+
+     write(lendian_out)n_position     !  TSK
+
+     if(l_cloud_analysis) then
+!      QCLOUD
+        call retrieve_index(index,'QCLOUD',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QCLOUD(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QCLOUD(k)
 
 !      QRAIN
-     call retrieve_index(index,'QRAIN',varname_all,nrecs)
-     if(index<0) stop
-     n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for QRAIN(',k,' = ',n_position,memoryorder_all(index)
-     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QRAIN(k)
+        call retrieve_index(index,'QRAIN',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QRAIN(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QRAIN(k)
 
 !      QICE
-     call retrieve_index(index,'QICE',varname_all,nrecs)
-     if(index<0) stop
-     n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for QICE(',k,' = ',n_position,memoryorder_all(index)
-     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QICE(k)
+        call retrieve_index(index,'QICE',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QICE(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QICE(k)
 
 !      QSNOW
-     call retrieve_index(index,'QSNOW',varname_all,nrecs)
-     if(index<0) stop
-     n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for QSNOW(',k,' = ',n_position,memoryorder_all(index)
-     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QSNOW(k)
+        call retrieve_index(index,'QSNOW',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QSNOW(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QSNOW(k)
 
 !      QGRAUP
-     call retrieve_index(index,'QGRAUP',varname_all,nrecs)
-     if(index<0) stop
-     n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
-     write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
+        call retrieve_index(index,'QGRAUP',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
 
 !      RAD_TTEN_DFI
-     call retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
-     if(index<0) stop
-     n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for RAD_TTEN_DFI(',k,' = ',n_position,memoryorder_all(index)
-     write(lendian_out)n_position,memoryorder_all(index)    ! offset for RAD_TTEN_DFI(k)
+        call retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for RAD_TTEN_DFI(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for RAD_TTEN_DFI(k)
 
-  endif     ! l_cloud_analysis
+     endif     ! l_cloud_analysis
 
 !??????????????????/later put in z0 here, but for now just fill with something
-  call retrieve_index(index,'TSK',varname_all,nrecs)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  write(6,*)' convert_binary_mass: max,min Z0=', &
-       maxval(field2),minval(field2)
-  write(lendian_out)field2        !  Z0
-  call retrieve_index(index,'SST',varname_all,nrecs)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  write(6,*)' convert_binary_mass: max,min SST=', &
-       maxval(field2),minval(field2)
-  write(lendian_out)field2        !  SST
-  call retrieve_index(index,'TSK',varname_all,nrecs)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  write(6,*)' convert_binary_mass: max,min TSK=', &
-       maxval(field2),minval(field2)
-  write(lendian_out)field2        !  TSK
-  call retrieve_index(index,'LANDMASK',varname_all,nrecs)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  write(6,*)' convert_binary_mass: max,min LANDMASK=', &
-       maxval(field2),minval(field2)
-  write(lendian_out)field2        !  LANDMASK
-  call retrieve_index(index,'SEAICE',varname_all,nrecs)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  write(6,*)' convert_binary_mass: max,min XICE=', &
-       maxval(field2),minval(field2)
-  write(lendian_out)field2        !  XICE
-  call retrieve_index(index,'SNOW',varname_all,nrecs)
-  call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
-                               start_byte(index+1),end_byte(index+1))
-  write(6,*)' convert_binary_mass: max,min SNOW=', &
-       maxval(field2),minval(field2)
-  write(lendian_out)field2        !  SNOW
-
-  deallocate(field2,field2b,field2c)
-  deallocate(datestr_all,varname_all,domainend_all,memoryorder_all)
-  deallocate(start_block,end_block,start_byte,end_byte,file_offset)
-  
-  close(in_unit)
-  close(lendian_out)
+     call retrieve_index(index,'TSK',varname_all,nrecs)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     write(6,*)' convert_binary_mass: max,min Z0=', &
+          maxval(field2),minval(field2)
+     write(lendian_out)field2        !  Z0
+     call retrieve_index(index,'SST',varname_all,nrecs)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     write(6,*)' convert_binary_mass: max,min SST=', &
+          maxval(field2),minval(field2)
+     write(lendian_out)field2        !  SST
+     call retrieve_index(index,'TSK',varname_all,nrecs)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     write(6,*)' convert_binary_mass: max,min TSK=', &
+          maxval(field2),minval(field2)
+     write(lendian_out)field2        !  TSK
+     call retrieve_index(index,'LANDMASK',varname_all,nrecs)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     write(6,*)' convert_binary_mass: max,min LANDMASK=', &
+          maxval(field2),minval(field2)
+     write(lendian_out)field2        !  LANDMASK
+     call retrieve_index(index,'SEAICE',varname_all,nrecs)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     write(6,*)' convert_binary_mass: max,min XICE=', &
+          maxval(field2),minval(field2)
+     write(lendian_out)field2        !  XICE
+     call retrieve_index(index,'SNOW',varname_all,nrecs)
+     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+     write(6,*)' convert_binary_mass: max,min SNOW=', &
+          maxval(field2),minval(field2)
+     write(lendian_out)field2        !  SNOW
+   
+     deallocate(field2,field2b,field2c)
+     deallocate(datestr_all,varname_all,domainend_all,memoryorder_all)
+     deallocate(start_block,end_block,start_byte,end_byte,file_offset)
+     
+     close(in_unit)
+     close(lendian_out)
+   
+  enddo n_loop
   
 end subroutine convert_binary_mass
 
@@ -592,6 +613,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
 !   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
 !                          grid ordering for input 3D fields
+!   2011-11-16  tong - increase number of multiple first guess upto 7
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -642,15 +664,19 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) ksize
   integer(i_kind) index
   
-  n_loop: do n=1,3
+  n_loop: do n=1,7
 
      if(n==1)then
         wrfges = 'wrf_inout'
      else
         write(wrfges,'("wrf_inou",i1.1)')n
      endif
+
+     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
+
      open(in_unit,file=trim(wrfges),form='unformatted')
      write(6,*)' convert_binary_nmm: in_unit,lendian_out=',in_unit,lendian_out
+     write(6,*)' convert_binary_nmm: in_unit,out_unit=',wrfges,',',fileout
 
 !    Check for valid input file
      read(in_unit,iostat=status_hdr)hdrbuf
@@ -667,8 +693,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
            cycle n_loop
         endif
      endif
-     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
-     write(6,*)' convert_binary_nmm: in_unit,out_unit=',wrfges,',',fileout
+
      open(lendian_out,file=fileout,form='unformatted')
      rewind lendian_out
 
@@ -1185,7 +1210,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      call stop2(74)
   end if
   
-  n_loop: do n=1,3
+  n_loop: do n=1,7
 
      if(n==1)then
         wrfges = 'wrf_inout'

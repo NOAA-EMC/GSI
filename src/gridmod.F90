@@ -69,6 +69,7 @@ module gridmod
 !   2010-11-03  derber  - added initialization of threading j loops for use in calctends
 !   2010-11-14 pagowski - added CMAQ
 !   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
+!   2011-11-14 whitaker - added a fix to sign_pole for large domain (rlat0max > 37N and rlat0min < 37S)
 !
 !
 ! !AUTHOR: 
@@ -1999,6 +2000,12 @@ end subroutine init_general_transform
     detinv =one/(d1tilde*e2tilde-d2tilde*e1tilde)
     x = i0+detinv*(e2tilde*dtilde-d2tilde*etilde)
     y = j0+detinv*(d1tilde*etilde-e1tilde*dtilde)
+    if (i0 == ip .and. j0 == jp) then ! ob at center of domain. 
+       x = i0; y = j0 
+    else 
+       x = i0+detinv*(e2tilde*dtilde-d2tilde*etilde) 
+       y = j0+detinv*(d1tilde*etilde-e1tilde*dtilde) 
+    endif
 
     outside=x < rlon_min_dd .or. x > rlon_max_dd .or. &
             y < rlat_min_dd .or. y > rlat_max_dd
@@ -2260,8 +2267,18 @@ end subroutine init_general_transform
 
 !   assign hemisphere ( parameter sign_pole )
 
+  sign_pole = zero
   if(rlats0min>-r37*deg2rad) sign_pole=-one   !  northern hemisphere xy domain
   if(rlats0max< r37*deg2rad) sign_pole= one   !  southern hemisphere xy domain
+  ! if neither condition satisfied (rlat0max > 37N, rlat0min < 37S), try 
+  ! this... 
+  if (sign_pole == zero) then 
+     if (abs(rlats0max) > abs(rlats0min)) then 
+        sign_pole=-one  ! NH domain 
+     else 
+        sign_pole=one   ! SH 
+     endif 
+  endif
 
 
 !   get optimum rotation angle rlambda0
