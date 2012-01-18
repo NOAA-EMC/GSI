@@ -18,7 +18,7 @@ Module ATMS_Spatial_Average_Mod
 
 
 ! Declare module level parameters
-  real(r_kind), parameter    :: Missing_Value=1.e11_r_double
+  real(r_double), parameter    :: Missing_Value=1.e11_r_double
 
 CONTAINS 
 
@@ -53,11 +53,11 @@ CONTAINS
             180.0_r_kind, 190.0_r_kind /)
     ! Maximum allowed BT as a function of channel number
     real(r_kind), parameter :: MaxBT(MaxChans) = &
-         (/ 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
+         (/ 320.0_r_kind, 320.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
             300.0_r_kind, 270.0_r_kind, 250.0_r_kind, 240.0_r_kind, &
             240.0_r_kind, 250.0_r_kind, 250.0_r_kind, 270.0_r_kind, &
-            280.0_r_kind, 290.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
-            300.0_r_kind, 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
+            280.0_r_kind, 290.0_r_kind, 300.0_r_kind, 320.0_r_kind, &
+            320.0_r_kind, 300.0_r_kind, 300.0_r_kind, 300.0_r_kind, &
             300.0_r_kind, 300.0_r_kind /)
     
 
@@ -93,7 +93,7 @@ CONTAINS
     ENDIF
     wmosatid=999
     read(lninfile,'(a30)',iostat=ios) Cline
-    DO WHILE (wmosatid .NE. atms1c_h_wmosatid .AND. ios == 0)
+    DO WHILE (wmosatid /= atms1c_h_wmosatid .AND. ios == 0)
        DO WHILE (Cline(1:1) == '#')
           read(lninfile,'(a30)') Cline
        ENDDO
@@ -119,15 +119,15 @@ CONTAINS
       
        read(lninfile,'(a30)') Cline
        if (nchannels > 0) then 
-         DO ichan=1,nchannels
-            read(lninfile,'(a30)') Cline
-            DO WHILE (Cline(1:1) == '#')
-               read(lninfile,'(a30)') Cline
-            ENDDO
-            READ(Cline,*) channelnumber(ichan),beamwidth(ichan), &
-                 &       newwidth(ichan),cutoff(ichan),nxaverage(ichan), &
-                 &       nyaverage(ichan), qc_dist(ichan)
-         ENDDO
+          DO ichan=1,nchannels
+             read(lninfile,'(a30)') Cline
+             DO WHILE (Cline(1:1) == '#')
+                read(lninfile,'(a30)') Cline
+             ENDDO
+             READ(Cline,*) channelnumber(ichan),beamwidth(ichan), &
+                  newwidth(ichan),cutoff(ichan),nxaverage(ichan), &
+                  nyaverage(ichan), qc_dist(ichan)
+          ENDDO
        end if
        read(lninfile,'(a30)',iostat=ios) Cline
     ENDDO
@@ -155,8 +155,15 @@ CONTAINS
     END DO
 
     DO IChan=1,nchanl
-       
+    
+   
        bt_image1 => bt_image(:,:,ichan)
+
+       ! Set all scan positions to missing in a scanline if one is missing
+       do iscan=1,max_scan
+          if (ANY(bt_image1(:,iscan) > 500.0_r_kind)) &
+	     bt_image1(:,iscan)=1000.0_r_kind
+       enddo
 
        ! If the channel number is present in the channelnumber array we should process it 
        ! (otherwise bt_inout just keeps the same value):
@@ -276,10 +283,10 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 ! End of declarations
 !-----------------------------------------
       
-      PI = 4.0*atan(1.0)
-      LN2 = LOG(2.0)
+      PI = 4.0_r_kind*atan(1.0)
+      LN2 = LOG(2.0_r_kind)
       MTF_Constant=-(PI/(2*sampling_dist))**2/LN2
-      IF (mtfcutoff .GT. 0.0) LNcsquared = LOG(mtfcutoff)**2
+      IF (mtfcutoff > 0.0_r_kind) LNcsquared = LOG(mtfcutoff)**2
       nxav2 = nxaverage/2
       nyav2 = nyaverage/2
       naverage = nxaverage*nyaverage
@@ -288,20 +295,20 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !1) Pad the image up to the nearest power of 2 in each dimension, by reversing
 !the points near the edge.
 
-      xpow2 = INT(LOG(nx*1.0)/LN2 + 1.0)
-      ypow2 = INT(LOG(ny*1.0)/LN2 + 1.0)
+      xpow2 = INT(LOG(nx*1.0_r_kind)/LN2 + 1.0_r_kind)
+      ypow2 = INT(LOG(ny*1.0_r_kind)/LN2 + 1.0_r_kind)
       nxpad = 2**xpow2
       nypad = 2**ypow2
       dx = (nxpad - nx)/2
       dy = (nypad - ny)/2
 
-      IF (nxpad .GT. nxmax) THEN
+      IF (nxpad > nxmax) THEN
          write(*,*) 'ATMS_Spatial_Average: nx too large, maximum allowed value is ',nxmax-1
          Error = 1
          RETURN
       END IF
       
-      IF (nypad .GT. nymax) THEN
+      IF (nypad > nymax) THEN
          write(*,*) 'ATMS_Spatial_Average: ny too large, maximum allowed value is ',nymax-1
          Error = 1
          RETURN
@@ -341,22 +348,22 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
             IF (imagepad(i,j) >= minval .AND. imagepad(i,j) <= maxval) THEN  !First good point 
                                                                              ! after missing
                missing = .false.
-               IF (ifirst .eq. -1) THEN
+               IF (ifirst == -1) THEN
                   DO k=dx+1,i-1
                      imagepad(k,j) = imagepad(i,j)      !Constant
                   ENDDO
                ELSE
                   DO k=ifirst+1,i-1
-                     factor = (i-k)*1.0/(i-ifirst)      !Interpolate
+                     factor = (i-k)*1.0_r_kind/(i-ifirst)      !Interpolate
                      imagepad(k,j) = imagepad(ifirst,j)*factor + &
-                          imagepad(i,j)*(1.0-factor)
+                          imagepad(i,j)*(1.0_r_kind-factor)
                   ENDDO
                ENDIF
             ENDIF
           ENDIF
         ENDDO
         IF (missing) THEN         !Last scan is missing
-          IF (ifirst .GE. 1) then
+          IF (ifirst >= 1) then
             DO k=ifirst+1,dx+nx
               imagepad(k,j) = imagepad(ifirst,j)     !Constant
             ENDDO
@@ -385,23 +392,23 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 
 !2) Compute the MTF modifications. Assume beams are Gaussian.
 
-      IF (newwidth .GT. 0) THEN
-        df = 1.0/nxpad
+      IF (newwidth > 0) THEN
+        df = 1.0_r_kind/nxpad
         DO i=1,nxpad/2+1
           f = df*(i-1)      !DC to Nyquist
           mtfxin(i) = exp(MTF_Constant*(f*beamwidth)**2)
           mtfxout(i) = exp(MTF_Constant*(f*newwidth)**2)
-          IF (i.GT.1.AND.i.LT.nxpad/2+1) THEN
+          IF (i > 1 .AND. i < nxpad/2+1) THEN
             mtfxin(nxpad-i+2) = mtfxin(i)
             mtfxout(nxpad-i+2) = mtfxout(i)
           ENDIF
         ENDDO
-        df = 1.0/nypad
+        df = 1.0_r_kind/nypad
         DO i=1,nypad/2+1
           f = df*(i-1)      !DC to Nyquist
           mtfyin(i) = exp(MTF_Constant*(f*beamwidth)**2)
           mtfyout(i) = exp(MTF_Constant*(f*newwidth)**2)
-          IF (i.GT.1.AND.i.LT.nypad/2+1) THEN
+          IF (i > 1 .AND. i < nypad/2+1) THEN
             mtfyin(nypad-i+2) = mtfyin(i)
             mtfyout(nypad-i+2) = mtfyout(i)
           ENDIF
@@ -410,7 +417,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
           DO j=1,nypad
             mtfin = mtfxin(i)*mtfyin(j)
             mtfout = mtfxout(i)*mtfyout(j)
-            if (mtfcutoff .GT. 0.0) THEN
+            if (mtfcutoff > 0.0_r_kind) THEN
               mtfpad(i,j) = (mtfout * &
                 exp(-LN2/LNcsquared*(LOG(mtfout))**2))/mtfin
             else
@@ -492,10 +499,10 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
      DO j=1,ny
         DO i=1,nx
            IF (gooddata_map(i+dx,j+dy)) THEN
-              IF (nxav2 == 0. .AND. nyav2 == 0) THEN
+              IF (nxav2 == 0.0_r_kind .AND. nyav2 == 0) THEN
                  image(i,j) = imagepad(i+dx,j+dy)
               ELSE
-                 image(i,j) = 0.0             !Do averaging
+                 image(i,j) = 0.0_r_kind             !Do averaging
                  DO ix = -nxav2,nxav2
                     DO iy = -nyav2,nyav2
                        image(i,j) = image(i,j) + imagepad(i+dx+ix,j+dy+iy)
@@ -569,17 +576,17 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !
 ! ... Exe. statements ...
 !
-      IF ( N .EQ. 1 ) RETURN
+      IF ( N == 1 ) RETURN
 !
  100  J = 1
       N1 = N - 1
       DO 104, I = 1, N1
-         IF ( I .GE. J ) GOTO 101
+         IF ( I >= J ) GOTO 101
          XT = X(J)
          X(J) = X(I)
          X(I) = XT
  101     K = N / 2
- 102     IF ( K .GE. J ) GOTO 103
+ 102     IF ( K >= J ) GOTO 103
             J = J - K
             K = K / 2
             GOTO 102
@@ -596,7 +603,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
  60   CONTINUE
       IS = 2 * ID - 1
       ID = 4 * ID
-      IF ( IS .LT. N ) GOTO 70
+      IF ( IS < N ) GOTO 70
 !
       N2 = 2
       DO 10, K = 2, M
@@ -615,7 +622,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
             X(I4) = X(I4) - X(I3)
             X(I3) = X(I1) - T1
             X(I1) = X(I1) + T1
-            IF ( N4 .EQ. 1 ) GOTO 38
+            IF ( N4 == 1 ) GOTO 38
             I1 = I1 + N8
             I2 = I2 + N8
             I3 = I3 + N8
@@ -629,7 +636,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
  38      CONTINUE
          IS = 2 * ID - N2
          ID = 4 * ID
-         IF ( IS .LT. N ) GOTO 40
+         IF ( IS < N ) GOTO 40
          A = E
          DO 32, J = 2, N8
             A3 = 3 * A
@@ -672,7 +679,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
  30         CONTINUE
             IS = 2 * ID - N2
             ID = 4 * ID
-            IF ( IS .LT. N ) GOTO 36
+            IF ( IS < N ) GOTO 36
  32      CONTINUE
  10   CONTINUE
       RETURN
@@ -731,7 +738,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 !
 ! ... Exe. statements ...
 !
-      IF ( N .EQ. 1 ) RETURN
+      IF ( N == 1 ) RETURN
 !
       N2 = 2 * N
       DO 10, K = 1, M-1
@@ -751,7 +758,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
             X(I2) = 2 * X(I2)
             X(I3) = T1 - 2 * X(I4)
             X(I4) = T1 + 2 * X(I4)
-            IF ( N4 .EQ. 1 ) GOTO 15
+            IF ( N4 == 1 ) GOTO 15
             I1 = I1 + N8
             I2 = I2 + N8
             I3 = I3 + N8
@@ -765,7 +772,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
  15      CONTINUE
          IS = 2 * ID - N2
          ID = 4 * ID
-         IF ( IS .LT. N-1 ) GOTO 17
+         IF ( IS < N-1 ) GOTO 17
          A = E
          DO 20, J = 2, N8
             A3 = 3 * A
@@ -804,7 +811,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
  30         CONTINUE
             IS = 2 * ID - N2
             ID = 4 * ID
-            IF ( IS .LT. N-1 ) GOTO 40
+            IF ( IS < N-1 ) GOTO 40
  20      CONTINUE
  10   CONTINUE
 !
@@ -818,23 +825,23 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
  60   CONTINUE
       IS = 2 * ID - 1
       ID = 4 * ID
-      IF ( IS .LT. N ) GOTO 70
+      IF ( IS < N ) GOTO 70
 !
  100  J = 1
       N1 = N - 1
       DO 104, I = 1, N1
-         IF ( I .GE. J ) GOTO 101
+         IF ( I >= J ) GOTO 101
          XT = X(J)
          X(J) = X(I)
          X(I) = XT
  101     K = N / 2
- 102     IF ( K .GE. J ) GOTO 103
+ 102     IF ( K >= J ) GOTO 103
             J = J - K
             K = K / 2
             GOTO 102
  103     J = J + K
  104  CONTINUE
-      XT = 1.0 / FLOAT( N )
+      XT = 1.0_r_kind / FLOAT( N )
       DO 99, I = 1, N
          X(I) = XT * X(I)
  99   CONTINUE

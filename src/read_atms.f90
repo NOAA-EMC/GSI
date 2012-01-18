@@ -387,6 +387,21 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
         if(ifov <= 48)    lza=-lza
 
+        panglr=(start+float(ifov-1)*step)*deg2rad
+        lzaest = asin(rato*sin(panglr))
+
+        if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
+          write(6,*)'READ_ATMS WARNING lza error ',lza,panglr
+          cycle read_loop
+        end if
+
+!       Check for errors in satellite zenith angles 
+        if(abs(lzaest-lza)*rad2deg > one) then
+          write(6,*)' READ_ATMS WARNING uncertainty in lza ', &
+             lza*rad2deg,lzaest*rad2deg,sis,ifov,start,step
+          cycle read_loop
+        end if
+
         solzen_save(iob)=bfr2bhdr(2) 
         solazi_save(iob)=bfr2bhdr(4) 
 
@@ -550,24 +565,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
              idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
      endif
 
-     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip) + 0.01*abs(zz)
+     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip) + 0.01_r_kind * abs(zz)
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle ObsLoop
-
-     panglr=(start+float(ifov-1)*step)*deg2rad
-     lzaest = asin(rato*sin(panglr))
-
-!    Check for errors in satellite zenith angles 
-     if(abs(lzaest-lza)*rad2deg > one) then
-        write(6,*)' READ_ATMS WARNING uncertainty in lza ', &
-             lza*rad2deg,lzaest*rad2deg,sis,ifov,start,step
-        cycle ObsLoop
-     end if
-
-     if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
-        write(6,*)'READ_ATMS WARNING lza error ',lza,panglr
-        cycle ObsLoop
-     end if
 
 !    Set data quality predictor
 !    Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
