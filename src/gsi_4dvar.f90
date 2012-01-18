@@ -156,6 +156,11 @@ liauon = .false.
 nhr_assimilation=6
 min_offset=180
 
+if(regional)then
+   nhr_assimilation=3
+   min_offset=90
+endif
+
 nhr_subwin=-1
 nhr_obsbin=-1
 ladtest=.false.
