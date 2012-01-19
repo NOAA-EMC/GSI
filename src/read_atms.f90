@@ -629,6 +629,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         endif
      endif
 
+! Re-calculate look angle
+     panglr=(start+float(ifov-1)*step)*deg2rad
+
 
 !     Load selected observation into data array
               
