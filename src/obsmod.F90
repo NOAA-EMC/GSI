@@ -83,6 +83,7 @@ module obsmod
 !   2010-10-15 pagowski  - add pm2_5 in-situ
 !   2010-10-20 hclin     - use 1d wij for aod in channels
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
+!   2011=11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -1582,8 +1583,9 @@ contains
 
 !   Because obs come in 6-hour batches
     ndat_times=nhr_assimilation/6
-    if(regional .and. .not.twodvar_regional)ndat_times = nhr_assimilation/3
+!    if(regional .and. .not.twodvar_regional)ndat_times = nhr_assimilation/3
     if(twodvar_regional)ndat_times = 1
+    if(nhr_assimilation < 6)ndat_times = 1
 !   if (ndat_times*6/=nhr_assimilation) then
 !       write(6,*)'OBSMOD:  ***ERROR*** in assimilation time window setting; ', &
 !        ' must be a multiple of 6hrs: ndat_times= ', ndat_times, &
