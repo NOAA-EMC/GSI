@@ -33,6 +33,7 @@ module satthin
 !			- added an an array size assertion on istart_val(:).
 !   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
 !   2011-05-26  todling - add create_nst
+!   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -832,6 +833,7 @@ contains
 !            reading of observations.
 !
 ! program history log:
+!   2012-01-31  hchuang - add nemsio function for read NST
 !
 !   input argument list:
 !

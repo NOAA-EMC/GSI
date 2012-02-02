@@ -27,7 +27,8 @@ module ncepnems_io
 !                           Remove unneeded nemsio_data & gfsdata.
 !                       (3) Add parallel IO code to read_atm_
 !   2011-11-01 Huang    (1) add integer nst_gsi to control the mode of NSST
-!                       (2) add subroutine write_nemssfc_nst to save sfc and nst files
+!                       (2) add read_nemsnst to read ncep nst file
+!                       (3) add subroutine write_nemssfc_nst to save sfc and nst files
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -878,7 +879,7 @@ contains
     integer(i_kind) :: i,j,k,mm1,latb,lonb
     integer(i_kind) :: iret, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-    integer(i_kind) :: istop = 102
+    integer(i_kind) :: istop = 103
     real(r_kind)    :: sumn, sums, fhour
     real(r_kind), allocatable, dimension(:,:)   :: rwork2d
     real(r_kind), allocatable, dimension(:,:,:) :: work, nstges
@@ -894,7 +895,7 @@ contains
     call nemsio_init(iret=iret)
     if (iret /= 0) call error_msg(mype,trim(my_name),null,null,'init',istop,iret)
 
-    call nemsio_open(gfile,filename,'READ',iret=iret)
+    call nemsio_open(gfile,trim(filename),'READ',iret=iret)
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
 
     call nemsio_getfilehead(gfile, idate=idate, iret=iret, nframe=nframe,   &
@@ -904,7 +905,7 @@ contains
     if( nframe /= 0 ) then
        if ( mype == 0 ) &
        write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
-       call stop2(102)
+       call stop2(istop)
     end if
 
     fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
@@ -937,7 +938,7 @@ contains
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'dt_cool','read',istop,iret)
 
 !   z_c
-    call nemsio_readrecv(gfile, 'z_c',  'sfc', 1, rwork2d(:,3),iret=iret)
+    call nemsio_readrecv(gfile, 'zc',  'sfc', 1, rwork2d(:,3),iret=iret)
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'z_c','read',istop,iret)
 
 !   xt
@@ -1021,6 +1022,9 @@ contains
        & 2i6, '', hour= '',f3.1,'', idate= '',4i5)') trim(my_name), &
        lonb,latb,fhour,odate
   end subroutine read_sfc_nst_
+
+
+
   subroutine write_ (increment,mype,mype_atm,mype_sfc)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1210,7 +1214,7 @@ contains
     integer(i_kind) :: i, j, ij, k, n, mm1, nlatm2
     integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-    integer(i_kind) :: istop = 103
+    integer(i_kind) :: istop = 104
     real(r_kind)    :: fhour
     
     real(r_kind),dimension(lat1*lon1)     :: hsm, psm
@@ -1551,7 +1555,7 @@ contains
     integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
     integer(i_kind) :: nlatm2, n, nrec, lonb, latb, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-    integer(i_kind) :: istop = 104
+    integer(i_kind) :: istop = 105
     real(r_kind)    :: fhour
 
     real(r_kind),dimension(nlon,nlat):: buffer
@@ -1791,7 +1795,7 @@ contains
     integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
     integer(i_kind) :: lonb, latb, nlatm2, n, nrec, nrec_nst, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-    integer(i_kind) :: istop = 104
+    integer(i_kind) :: istop = 106
     real(r_kind)    :: fhour
 
     real(r_kind),dimension(nlon,nlat):: buffer
@@ -1891,8 +1895,6 @@ contains
 
        call nemsio_open(gfile_nst,trim(fname_ges_nst),'read',iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges_nst),null,'open',istop,iret)
-! I would expected the check for consistent dimension between gfssfc and gfs_nst are done in read_file.
-! Thus, no further read on the lonb, latb and time info are made again in the following getheader
        call nemsio_getfilehead(gfile_nst, nrec=nrec_nst, iret=iret)
 !
 !      Replace header record date with analysis time from iadate
@@ -1960,7 +1962,8 @@ contains
           if ( iret /= 0 ) write(6,*) 'writerec nrec = ', n, '  Status = ', iret
        end do
 !
-! Only sea surface temperature will be updated in the SFC files
+! Only sea surface temperature will be updated in the SFC & NST files.
+! Need values from ges_nst for tref update
 !
        call nemsio_readrecv(gfile,'tmp','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_sfc),'tmp','read',istop,iret)
@@ -2006,7 +2009,8 @@ contains
           buffer2 = grid2
        end where
 !
-!      update tsea (in the surface file) When Tr analysis is on
+!      update tsea (in the surface file; grid2    ) When Tr analysis is on
+!      update tref (in the nst     file; grid2_nst) When Tr analysis is on
 !
        grid2     = zero
        grid2_nst = zero
@@ -2032,7 +2036,7 @@ contains
        call nemsio_writerecv(gfileo,'tmp','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'tmp','write',istop,iret)
 !
-!      update tref (in the nst file) When Tr analysis is on
+!      update tref record
        rwork1d = reshape( grid2_nst,(/size(rwork1d)/) )
        call nemsio_writerecv(gfileo_nst,'tref','sfc',1,rwork1d,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nst),'tref','write',istop,iret)
@@ -2057,6 +2061,9 @@ contains
           trim(my_name),lonb,latb,fhour,odate
     endif
   end subroutine write_sfc_nst_
+
+
+
   subroutine error_msg(mype,sub_name,file_name,var_name,action,stop_code,error_code)
     use kinds, only: i_kind
     implicit none
