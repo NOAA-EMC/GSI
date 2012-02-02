@@ -1050,6 +1050,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      write(6,*)'CALL_CRTM:  ***WARNING*** SSU cell pressure correction NOT applied'
   endif
 
+!$omp section
   igfsco2=0
   if(ico2>0) then
      call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
@@ -1063,7 +1064,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
   endif
 
-!$omp section 
 ! Space-time interpolation of ozone(poz), co2 and aerosol fields from sigma files
   do k=1,nsig
      poz(k)=((ges_oz(ix ,iy ,k,itsig )*w00+ &

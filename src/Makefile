@@ -81,7 +81,7 @@ LIBsp     = -L$(CORELIB) -lsp
 LIBbacio  = -L$(CORELIB) -lbacio
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
-LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
+LIBcrtm   = -L$(CORELIB) -lcrtm_2.0.5
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBgfio   = -L$(CORELIB) -lgfio
@@ -198,6 +198,7 @@ clean:
 	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
+	atms_spatial_average_mod.f90 \
 	balmod.f90 \
 	berror.f90 \
 	bias_predictors.f90 \
@@ -516,6 +517,7 @@ clean:
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
+	read_atms.f90 \
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \

@@ -116,7 +116,7 @@ subroutine glbsoi(mype)
   use obsmod, only: write_diag,perturb_obs,ditype
   use turblmod, only: create_turblvars,destroy_turblvars
   use obs_sensitivity, only: lobsensfc, iobsconv, lsensrecompute, &
-      init_fc_sens, save_fc_sens
+      init_fc_sens, save_fc_sens, lobsensincr, lobsensjb
   use smooth_polcarf, only: norsp,destroy_smooth_polcas
   use jcmod, only: ljcdfi
   use gsi_4dvar, only: l4dvar, lsqrtb, lbicg, lanczosave
@@ -276,15 +276,16 @@ subroutine glbsoi(mype)
            clfile='obsdiags.ZZZ'
            write(clfile(10:12),'(I3.3)') 100+jiter
            call write_obsdiags(clfile)
-        else
-           if (l4dvar.or.lanczosave) then
-              clfile='obsdiags.ZZZ'
+           if (lobsensincr .or. lobsensjb) then
+              clfile='xhatsave.ZZZ'
               write(clfile(10:12),'(I3.3)') jiter
-              call write_obsdiags(clfile)
+              call write_cv(xhatsave,clfile)
            endif
-
-           clfile='xhatsave.ZZZ'   ! normally don't needs this written in 3dvar,
-                                   ! except when wanting to debug adjoint of GSI
+        elseif (l4dvar.or.lanczosave) then
+           clfile='obsdiags.ZZZ'
+           write(clfile(10:12),'(I3.3)') jiter
+           call write_obsdiags(clfile)
+           clfile='xhatsave.ZZZ'
            write(clfile(10:12),'(I3.3)') jiter
            call write_cv(xhatsave,clfile)
            zgg=dot_product(xhatsave,xhatsave)

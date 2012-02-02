@@ -8,6 +8,7 @@ anisofilter_glb.o : anisofilter_glb.f90 compact_diffs.o balmod.o sub2fslab_mod.o
 antcorr_application.o : antcorr_application.f90 
 antest_maps0.o : antest_maps0.f90 control_vectors.o fgrid2agrid_mod.o guess_grids.o mpimod.o constants.o gridmod.o anberror.o kinds.o 
 antest_maps0_glb.o : antest_maps0_glb.f90 control_vectors.o patch2grid_mod.o guess_grids.o mpimod.o constants.o gridmod.o anberror.o kinds.o 
+atms_spatial_average_mod.o : atms_spatial_average_mod.f90 kinds.o
 balmod.o : balmod.f90 mod_strong.o mod_vtrans.o hybrid_ensemble_parameters.o m_berror_stats_reg.o guess_grids.o m_berror_stats.o constants.o mpimod.o gridmod.o kinds.o 
 berror.o : berror.f90 radinfo.o jfunc.o gridmod.o balmod.o constants.o control_vectors.o kinds.o 
 bias_predictors.o : bias_predictors.f90 constants.o kinds.o 
@@ -221,6 +222,7 @@ read_amsre.o : read_amsre.f90 deter_sfc_mod.o calc_fov_conical.o gsi_4dvar.o con
 read_anowbufr.o : read_anowbufr.f90 chemmod.o gsi_4dvar.o convinfo.o gridmod.o constants.o kinds.o 
 read_avhrr.o : read_avhrr.f90 deter_sfc_mod.o gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
 read_avhrr_navy.o : read_avhrr_navy.f90 deter_sfc_mod.o gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 
+read_atms.o : read_atms.f90 atms_spatial_average_mod.f90 deter_sfc_mod.o gsi_metguess_mod.o gsi_4dvar.o calc_fov_crosstrk.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_bufrtovs.o : read_bufrtovs.f90 deter_sfc_mod.o gsi_metguess_mod.o antcorr_application.o gsi_4dvar.o calc_fov_crosstrk.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_co.o : read_co.f90 qcmod.o gsi_4dvar.o convinfo.o obsmod.o constants.o gridmod.o satthin.o kinds.o 
 read_cris.o : read_cris.f90 deter_sfc_mod.o calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 

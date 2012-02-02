@@ -66,6 +66,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
+!   2011-12-13  collard Replace find_edges code to speed up execution.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -102,7 +103,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only: cbias,newchn,iuse_rad,nusis,jpch_rad,ang_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
-      air_rad,predx,adp_anglebc,use_edges,find_edges, &
+      air_rad,predx,adp_anglebc,use_edges,radedge1,radedge2, &
       radstep,radstart,newpc4pred
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
@@ -198,7 +199,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
   integer(i_kind):: idomsfc(1)
-
+  integer(i_kind):: radedge_min, radedge_max
 
 
 ! Set standard parameters
@@ -214,7 +215,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) ntest
 
   logical           :: airs, amsua, hsb, airstab
-  logical           :: data_on_edges
 
 
 ! Initialize variables
@@ -235,13 +235,19 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      call skindepth(obstype,zob)
   endif
 
+  radedge_min = 0
+  radedge_max = 1000
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
         step  = radstep(i)
         start = radstart(i)
-        exit
+        if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+           radedge_min=radedge1(i)
+           radedge_max=radedge2(i)
+        end if
+        exit 
      endif
-  end do
+  end do 
 
   if(airs)then
      ix=1
@@ -486,10 +492,8 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
 
 !       Remove data on edges
-        if (.not. use_edges) then
-           call find_edges(sis,ifov,data_on_edges)
-           if (data_on_edges) cycle read_loop
-        end if
+        if (.not. use_edges .and. &
+             (ifov < radedge_min .OR. ifov > radedge_max )) cycle read_loop
 
 !      "Score" observation.  We use this information to identify "best" obs
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice

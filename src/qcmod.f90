@@ -98,6 +98,7 @@ module qcmod
   public :: qc_mhs
   public :: qc_atms
   public :: qc_noirjaco3
+  public :: qc_noirjaco3_pole
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
@@ -108,6 +109,7 @@ module qcmod
   logical noiqc
   logical use_poq7
   logical qc_noirjaco3
+  logical qc_noirjaco3_pole
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -288,6 +290,7 @@ contains
     use_poq7 = .false.
 
     qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
+    qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
 
     return
   end subroutine init_qcvars
@@ -948,7 +951,7 @@ end subroutine qc_ssmi
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1008,6 +1011,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     varinv_use   - observation weight used(modified obs var error inverse)
 !     cld          - cloud fraction
 !     cldp         - cloud pressure
+!     zero_irjaco3_pole - logical to control use of ozone jacobians near poles
 !
 ! attributes:
 !     language: f90
@@ -1021,6 +1025,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 ! Declare passed variables
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr
+  logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
@@ -1088,6 +1093,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      demisf = r0_03
      dtempf = four
   end if
+
+! Optionally turn off ozone jacabians near poles
+  zero_irjaco3_pole=.false.
+  if (qc_noirjaco3_pole .and. (abs(cenlat)>r60)) zero_irjaco3_pole=.true.
 
 ! If GOES and lza > 60. do not use
   if( goessndr .and. zasat*rad2deg > r60) then
@@ -1577,6 +1586,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !     2011-05-20  mccarty - generalized routine so that it could be more readily 
 !                           applied to atms
 !     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
+!     2011-12-19  collard - ATMS 1-7 is always rejected over ice, snow or mixed surfaces.
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1656,7 +1666,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
-  logical         :: latms
+  logical         :: latms, latms_surfaceqc
 
   if (nchanl == 22_i_kind) then
       latms  = .true.    ! If there are 22 channels passed along, it's atms
@@ -1733,11 +1743,18 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   if(dsval >= one .and. luse)aivals(14,is) = aivals(14,is) + one
   factch6=dsval**2+(tbc(ich544)*w2f6)**2
 
+! For this conservative initial implementation of ATMS, we will not
+! use surface channels over
+! a) Mixed surfaces (to minimise and possible issues with re-mapping the FOVs)
+! b) Snow and Ice (as the empirical model for these surfaces in CRTM is not 
+!                  available for ATMS).
+  latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
+
 
   if (icw4crtm>10) then
 
 ! Kim-------------------------------------------
-     if(factch6 >= one .and. .not.sea )then   !Kim 
+     if((factch6 >= one .and. .not.sea) .or. latms_surfaceqc)then   !Kim 
         efactmc=zero
         vfactmc=zero
         errf(1:ich544)=zero
@@ -1844,7 +1861,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
   else  ! <icw4crtm>
 
-     if(factch6 >= one)then
+     if(factch6 >= one .or. latms_surfaceqc)then
         efactmc=zero
         vfactmc=zero
         errf(1:ich544)=zero
