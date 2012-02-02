@@ -64,7 +64,6 @@ module radinfo
   public :: radinfo_read
   public :: radinfo_write
   public :: angle_cbias
-  public :: find_edges
 ! set passed variables to public
   public :: jpch_rad,npred,b_rad,pg_rad,diag_rad,iuse_rad,nusis,inew_rad
   public :: crtm_coeffs_path,retrieval,predx,ang_rad,newchn,cbias
@@ -77,6 +76,7 @@ module radinfo
   public :: newpc4pred
   public :: radjacnames,radjacindxs,nsigradjac
   public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
+  public :: radedge1, radedge2
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -968,6 +968,8 @@ contains
       if (index(isis,'hirs')/=0 .and. (index(isis,'n16')/=0 .or. &
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
+      else if (index(isis,'atms') /= 0) then
+         ifov=ifov+3
       else
          ifov=iscan
       end if
@@ -1089,8 +1091,8 @@ contains
       step  = 1.11_r_kind
       start = -52.725_r_kind
       nstep = 96
-      edge1 = 10
-      edge2 = 87
+      edge1 = 7
+      edge2 = 84
    else if (index(isis,'mhs')/=0) then
       step  = 10.0_r_kind/9.0_r_kind
       start = -445.0_r_kind/9.0_r_kind
@@ -1183,6 +1185,7 @@ contains
    integer(i_kind):: istatus,ispot,iuseqc
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp
+   integer(i_kind):: radedge_min, radedge_max
    integer(i_kind),dimension(maxchn):: ich
    integer(i_kind),dimension(maxchn):: io_chan
    integer(i_kind),dimension(maxdat):: ipoint
@@ -1317,7 +1320,7 @@ contains
       ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
       seviri     = obstype == 'seviri'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy
+                .or. avhrr .or. avhrr_navy .or. seviri
 
 !     Allocate arrays and initialize
       if (mean_only) then 
@@ -1339,6 +1342,18 @@ contains
          end do
       end if
 
+      radedge_min = 0
+      radedge_max = 1000
+      do i=1,jpch_rad
+         if (trim(nusis(i))==trim(satsens_id)) then
+            if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+               radedge_min=radedge1(i)
+               radedge_max=radedge2(i)
+            end if
+            exit 
+         endif
+      end do
+
 
 !     Loop to read diagnostic file
       istatus = 0
@@ -1353,10 +1368,8 @@ contains
          ispot  = nint(scan)
 
 !        Exclude data on edges
-         if (.not. use_edges) then
-            call find_edges(satsens_id,ispot,data_on_edges)
-            if (data_on_edges) cycle loopd
-         end if
+         if (.not. use_edges .and. (&
+              ispot < radedge_min .OR. ispot > radedge_max )) cycle loopd
 
 !        Channel loop
          nc=0
@@ -1569,44 +1582,5 @@ contains
    return
    end subroutine init_predx
 
-   subroutine find_edges(sis,ispot,data_on_edges)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    find_edges
-!
-!   prgrmmr:     zhu      org: np23                date: 2010-09-02
-!
-! abstract:  For a given satellite/sensor produce data_on_edges
-!
-! program history log:
-!   2010-09-02  zhu
-!
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
-!
-!$$$ end documentation block
-
-   implicit none
-
-   character(len=*),intent(in) :: sis
-   integer(i_kind),intent(in ) :: ispot
-   logical,intent(out) :: data_on_edges
-
-   integer(i_kind):: i
-   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,airs,hsb,iasi
- 
-   data_on_edges=.false.
-
-   do i=1,jpch_rad
-      if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
-      if (trim(sis)==trim(nusis(i)) .and. (ispot<radedge1(i) .or. ispot>radedge2(i))) then
-         data_on_edges=.true.
-         exit
-      end if
-   end do
-
-   return
-   end subroutine find_edges
  
 end module radinfo

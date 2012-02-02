@@ -200,6 +200,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
       if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255
       if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256
       if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257
+      if(jsatid == 'g14' .or. jsatid == 'g14_prep')kidsat=258
+      if(jsatid == 'g15' .or. jsatid == 'g15_prep')kidsat=259
       if(jsatid == 'n05')kidsat=705
       if(jsatid == 'n06')kidsat=706
       if(jsatid == 'n07')kidsat=707
@@ -506,7 +508,8 @@ subroutine read_obs(ndata,mype)
        if(obstype == 'iasi' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'cris' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'amsua' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'atms' .and. dthin(i) > 0)parallel_read(i)= .true.
+! N.B. ATMS must be run on one processor for the filtering code to work.
+!       if(obstype == 'atms' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'mhs' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'goes_img' .and. dthin(i) > 0)parallel_read(i)= .true.
        if(obstype == 'ssu' .and. dthin(i) > 0)parallel_read(i)= .true.
@@ -928,7 +931,7 @@ subroutine read_obs(ndata,mype)
                   obstype == 'amsub' .or. obstype == 'msu'   .or.  &
                   obstype == 'mhs'   .or. obstype == 'hirs4' .or.  &
                   obstype == 'hirs3' .or. obstype == 'hirs2' .or.  &
-                  obstype == 'ssu'   .or. obstype == 'atms'  )) then
+                  obstype == 'ssu' )) then
                 llb=1
                 lll=1
                 if((obstype == 'amsua' .or. obstype == 'amsub' .or. obstype == 'mhs') .and. &
@@ -937,6 +940,15 @@ subroutine read_obs(ndata,mype)
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),llb,lll)
                 string='READ_BUFRTOVS'
+
+!            Process atms data
+             else if (obstype == 'atms') then
+                llb=1
+                lll=1
+                call read_atms(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),llb,lll)
+                string='READ_ATMS'
 
 !            Process airs data        
              else if(platid == 'aqua' .and. (obstype == 'airs' .or.   &

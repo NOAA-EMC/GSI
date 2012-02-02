@@ -230,6 +230,7 @@
   logical microwave, microwave_low
   logical no85GHz
   logical in_curbin, in_anybin
+  logical,dimension(nobs):: zero_irjaco3_pole
 
 ! Declare local arrays
 
@@ -399,6 +400,9 @@
      ius=radjacindxs(ius)
      ivs=radjacindxs(ivs)
   endif
+
+! Initialize ozone jacobian flags to .false. (retain ozone jacobian)
+  zero_irjaco3_pole = .false.
 
 !  These variables are initialized in init_crtm
 ! isatid    = 1     ! index of satellite id
@@ -899,7 +903,7 @@
            call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
               zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax)
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
 
 
 !  --------- MSU -------------------
@@ -1249,7 +1253,7 @@
 !                   There currently is no ozone analysis when running in the NCEP 
 !                   regional mode, therefore set ozone jacobian to 0.0
                     if (ioz>=0) then
-                       if (regional .or. qc_noirjaco3 .or. & 
+                       if (regional .or. qc_noirjaco3 .or. zero_irjaco3_pole(n) .or. & 
                           ((hirs .or. goessndr).and.(varinv(ich9) < tiny_r_kind))) then
                           do k = 1,nsig
                              radtail(ibin)%head%dtb_dvar(ioz+k,iii) = zero
