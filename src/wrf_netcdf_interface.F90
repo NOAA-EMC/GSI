@@ -40,6 +40,7 @@ subroutine convert_netcdf_mass
   use constants, only: h300
   use gsi_4dvar, only: nhr_assimilation
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use gsi_metguess_mod, only: gsi_metguess_get
 
   implicit none
 
@@ -64,7 +65,7 @@ subroutine convert_netcdf_mass
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
  
-  integer(i_kind) :: ierr, Status, Status_next_time, n
+  integer(i_kind) :: nguess, ierr, Status, Status_next_time, n
   
 ! binary stuff
 
@@ -86,9 +87,11 @@ subroutine convert_netcdf_mass
   end_index=0
   start_index=0
   
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,ierr)
 
-!   transfer code from diffwrf for converting netcdf wrf nmm restart file
-!      to temporary binary format
+! transfer code from diffwrf for converting netcdf wrf nmm restart file
+! to temporary binary format
 
   call ext_ncd_ioinit(sysdepinfo,status)
   call set_wrf_debug_level ( 5 )
@@ -745,7 +748,7 @@ subroutine convert_netcdf_mass
      write(6,*)' max,min TSK=',maxval(field2),minval(field2)
      write(iunit)field2   !TSK
    
-     if(l_cloud_analysis) then
+     if(l_cloud_analysis .or. nguess>0) then
        rmse_var='QCLOUD'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
@@ -917,6 +920,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !   2011-11-14  tong - add loop to read upto 7 wrf nmm netcdf restart file and
 !                          write to temporary netcdf files (extend FGAT capability for
 !                          wrf nmm netcdf format)
+!   2012-01-13  zhu     - add cloud hydrometeors
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -944,6 +948,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   use kinds, only: r_single,i_kind,r_kind
   use gsi_4dvar, only: nhr_assimilation
   use constants, only: half,rad2deg
+  use gsi_metguess_mod, only: gsi_metguess_get
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
@@ -969,7 +974,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   character (len=80), dimension(3)  ::  dimnames
   character (len=80) :: SysDepInfo
 
-  integer(i_kind) :: ierr, Status, Status_next_time, n
+  integer(i_kind) :: nguess, ierr, Status, Status_next_time, n
 
 ! binary stuff
 
@@ -988,9 +993,11 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   wrf_real=104
   end_index1=0
 
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,ierr)
 
-!   transfer code from diffwrf for converting netcdf wrf nmm restart file
-!      to temporary binary format
+! transfer code from diffwrf for converting netcdf wrf nmm restart file
+! to temporary binary format
 
   call ext_ncd_ioinit(sysdepinfo,status)
   call set_wrf_debug_level ( 1 )
@@ -1559,6 +1566,76 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           ierr                                 )
      write(6,*)' max,min TSK=',maxval(field2),minval(field2)
      write(iunit)field2   !TSK
+
+     if (nguess>0) then
+        rmse_var='CWM'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        do k=1,nsig_regional
+           write(6,*)' k,max,min,mid CWM=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! CWM
+        end do
+
+        rmse_var='F_ICE'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        do k=1,nsig_regional
+           write(6,*)' k,max,min,mid F_ICE=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_ICE
+        end do
+
+        rmse_var='F_RAIN'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        do k=1,nsig_regional
+           write(6,*)' k,max,min,mid F_RAIN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RAIN
+        end do
+
+        rmse_var='F_RIMEF'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index1, WrfType, ierr    )
+        write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field3,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index1,               & !dom
+             start_index,end_index1,               & !mem
+             start_index,end_index1,               & !pat
+             ierr                                 )
+        do k=1,nsig_regional
+           write(6,*)' k,max,min,mid F_RIMEF=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RIMEF
+        end do
+     end if ! end of nguess>0
      
      deallocate(field1,field2,field2b,ifield2,field3)
      close(iunit)
@@ -1599,9 +1676,12 @@ subroutine update_netcdf_mass
 !
 !$$$ end documentation block
 
-  use kinds, only: r_single,i_kind
+  use kinds, only: r_single,i_kind,r_kind
   use constants, only: h300
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
+  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use guess_grids, only: ntguessig
 
   implicit none
 
@@ -1624,7 +1704,12 @@ subroutine update_netcdf_mass
   character (len=80) :: SysDepInfo
 
 
-  integer(i_kind) :: ierr, Status, Status_next_time
+  integer(i_kind) :: it, nguess, ierr, istatus, Status, Status_next_time
+  real(r_kind), pointer :: ges_qc(:,:,:)
+  real(r_kind), pointer :: ges_qi(:,:,:)
+  real(r_kind), pointer :: ges_qr(:,:,:)
+  real(r_kind), pointer :: ges_qs(:,:,:)
+  real(r_kind), pointer :: ges_qg(:,:,:)
 
 ! binary stuff
 
@@ -1643,9 +1728,22 @@ subroutine update_netcdf_mass
   wrf_real=104
   end_index1=0
 
+! Inquire about guess fields
+  call gsi_metguess_get('dim',nguess,ierr)
+  if (nguess>0) then
+!    get pointer to relevant instance of cloud-related backgroud
+     it=ntguessig
+     ierr=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ierr=ierr+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ierr=ierr+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ierr=ierr+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ierr=ierr+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ierr=ierr+istatus
+     if (ierr/=0) nguess=0
+  end if
 
-!   transfer code from diffwrf for converting netcdf wrf nmm restart file
-!      to temporary binary format
+! transfer code from diffwrf for converting netcdf wrf nmm restart file
+! to temporary binary format
 
 !
 !           update mass core netcdf file with analysis variables from 3dvar
@@ -1921,7 +2019,7 @@ subroutine update_netcdf_mass
        start_index,end_index1,               & !pat
        ierr                                 )
   
-  if (l_cloud_analysis) then
+  if (l_cloud_analysis .or. nguess>0) then
     do k=1,nsig_regional
        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   !  Qc
        write(6,*)' k,max,min,mid Qc=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
@@ -2082,6 +2180,7 @@ subroutine update_netcdf_nmm
 !   2005-12-09  middlecoff - read in pint if update_pint=.true.
 !   2005-12-09  middlecoff - initialize character variable staggering and removed staggering1,staggering2
 !   2009-08-14  lueken - update documentation
+!   2012-01-14  zhu    - add cloud hydrometeors
 !
 !   input argument list:
 !
@@ -2093,8 +2192,13 @@ subroutine update_netcdf_nmm
 !
 !$$$ end documentation block
 
-  use kinds, only: r_single,i_kind
+  use kinds, only: r_single,i_kind,r_kind
   use regional_io, only: update_pint
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die,getindex
+  use control_vectors, only: cvars3d
+  use guess_grids, only: ntguessig
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
@@ -2117,7 +2221,14 @@ subroutine update_netcdf_nmm
   character (len=80) :: SysDepInfo
 
   
-  integer(i_kind) :: ierr, Status, Status_next_time
+  integer(i_kind) :: it, nguess, ier, iret, ierr, Status, Status_next_time
+  integer(i_kind) icw4crtm,iqtotal
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh
 
 ! binary stuff
 
@@ -2137,9 +2248,29 @@ subroutine update_netcdf_nmm
   start_index=0
   end_index1=0
 
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,ierr)
+  if (nguess>0) then
+     it=ntguessig
+!    Get pointer to cloud water mixing ratio
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
 
-!   transfer code from diffwrf for converting netcdf wrf nmm restart file
-!      to temporary binary format
+!    Determine whether or not cloud-condensate is the control variable
+     icw4crtm=getindex(cvars3d,'cw')
+
+!    Determine whether total moisture (water vapor+total cloud condensate) is the control variable
+     iqtotal=getindex(cvars3d,'qt')
+
+     if (ier/=0 .or. (icw4crtm<=0 .and. iqtotal<=0)) nguess=0
+  end if
+
+! transfer code from diffwrf for converting netcdf wrf nmm restart file
+! to temporary binary format
 
 !
 !           update nmm netcdf file with analysis variables from 3dvar
@@ -2337,6 +2468,105 @@ subroutine update_netcdf_nmm
        start_index,end_index1,               & !pat
        ierr                                 )
   
+  do k=1,12
+     read(iunit) field2
+     write(6,*)'read max,min REST',k,maxval(field2),minval(field2)
+  end do
+
+  if (nguess>0) then
+     do k=1,nsig_regional
+        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! CWM
+        write(6,*)' k,max,min,mid CWM=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     rmse_var='CWM'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+
+     do k=1,nsig_regional
+        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_ICE
+        write(6,*)' k,max,min,mid F_ICE=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     rmse_var='F_ICE'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+
+     do k=1,nsig_regional
+        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RAIN
+        write(6,*)' k,max,min,mid F_RAIN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     rmse_var='F_RAIN'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+
+     do k=1,nsig_regional
+        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RIMEF
+        write(6,*)' k,max,min,mid F_RIMEF=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     rmse_var='F_RIMEF'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+  end if
+
   close(iunit)
   deallocate(field1,field2,ifield2,field3)
   call ext_ncd_ioclose(dh1, Status)

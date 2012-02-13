@@ -25,6 +25,8 @@ subroutine state2control(rval,bval,grad)
 !   2010-06-15  todling  - generalized handling of chemistry
 !   2011-02-22  zhu      - add gust,vis,pblh
 !   2011-05-15  auligne/todling - generalized cloud handling
+!   2011-07-12  zhu      - add do_cw_to_hydro_ad and cw2hydro_ad
+!   2011-11-01  eliu     - generalize the use of do_cw_to_hydro_ad
 !
 !   input argument list:
 !     rval - State variable
@@ -34,17 +36,18 @@ subroutine state2control(rval,bval,grad)
 !
 !$$$
 use kinds, only: i_kind,r_kind
-use constants, only: zero
+use constants, only: zero,izero
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: latlon1n,latlon11
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
 use jfunc, only: nsclen,npclen
 use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
 use balmod, only: strong_bk_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
+use cwhydromod, only: cw2hydro_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -74,21 +77,21 @@ type(gsi_bundle) :: wbundle ! work bundle
 ! Note: The following does not aim to get all variables in
 !       the state and control vectors, but rather the ones
 !       this routines knows how to handle.
-integer(i_kind), parameter :: ncvars = 5
+integer(i_kind), parameter :: ncvars = 6 
 integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis
 character(len=3), parameter :: mycvars(ncvars) = (/  &
-                               'sf ', 'vp ', 'ps ', 't  ', 'q  '/)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
+                               'sf ', 'vp ', 'ps ', 't  ', 'q  ','cw '/)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
 
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 5
+integer(i_kind), parameter :: nsvars = 7 
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
+                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen', 'ql  ', 'qi  ' /)
+logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
@@ -96,7 +99,7 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
 
 logical :: musthave ! for now, pointers to meteorl variables must be defined
-logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_strong_bk_ad
+logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_strong_bk_ad,do_cw_to_hydro_ad
 
 !******************************************************************************
 
@@ -109,12 +112,12 @@ im=grad%step(1)%grid%im
 jm=grad%step(1)%grid%jm
 km=grad%step(1)%grid%km
 
-! Inquire about chemistry
-call gsi_metguess_get('clouds::3d',nclouds,istatus)
+! Inquire about clouds
+call gsi_metguess_get ('clouds::3d',nclouds,istatus)
 if (nclouds>0) then
-    allocate(clouds(nclouds))
-    call gsi_metguess_get('clouds::3d',clouds,istatus)
-endif
+   allocate(clouds(nclouds))
+   call gsi_metguess_get ('clouds::3d',clouds,istatus)
+end if
 
 ! Inquire about chemistry
 call gsi_chemguess_get('dim',ngases,istatus)
@@ -127,13 +130,13 @@ endif
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (grad%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0;lc_vp =icps(2)>0;lc_ps=icps(3)>0;lc_t  =icps(4)>0
-lc_rh =icps(5)>0
+lc_rh =icps(5)>0;lc_cw =icps(6)>0
 
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (rval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
-ls_q  =isps(4)>0; ls_tsen=isps(5)>0
+ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
 do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
@@ -141,6 +144,13 @@ do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
 do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_p3d.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_p3d
 do_strong_bk_ad     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
+
+do_cw_to_hydro_ad=.false.
+if (regional) then
+   do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
+else
+   do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
+endif
 
 call gsi_bundlegetpointer (grad%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (grad%step(1),'vis',icvis,istatus)
@@ -190,14 +200,26 @@ do jj=1,nsubwin
    if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
    if (icpblh>0) call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
 
-!  Since cloud-vars map one-to-one, take care of them together
-   do ic=1,nclouds
-      id=getindex(cvars3d,clouds(ic))
-      if (id>0) then
-          call gsi_bundlegetpointer (rval(jj),clouds(ic),rv_rank3,istatus)
-          call gsi_bundleputvar     (wbundle, clouds(ic),rv_rank3,istatus)
-      endif
-   enddo
+   if (do_cw_to_hydro_ad) then
+!     Case when cloud-vars do not map one-to-one
+!     e.g. cw-to-ql&qi
+      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
+      call cw2hydro_ad(rval(jj),wbundle,rv_tsen,clouds,nclouds)
+      if(.not. do_tv_to_tsen_ad) then
+         call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
+         deallocate(rv_tsen)
+      end if
+   else
+!     Case when cloud-vars map one-to-one, take care of them together
+!     e.g. cw-to-cw
+      do ic=1,nclouds
+         id=getindex(cvars3d,clouds(ic))
+         if (id>0) then
+            call gsi_bundlegetpointer (rval(jj),clouds(ic),rv_rank3,istatus)
+            call gsi_bundleputvar     (wbundle, clouds(ic),rv_rank3,istatus)
+         endif
+      enddo
+   end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
@@ -288,6 +310,8 @@ enddo
 if (ngases>0) then
     deallocate(gases)
 endif
+
+if (nclouds>0) deallocate(clouds)
 
 return
 end subroutine state2control

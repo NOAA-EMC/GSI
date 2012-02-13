@@ -296,8 +296,8 @@ subroutine prewgt_reg(mype)
      endif
   end do
 
-! Special case of dssv for qoption=2
-  if (qoption==2) call compute_qvar3d
+! Special case of dssv for qoption=2 and cw
+  if (qoption==2 .or. getindex(cvars3d,'cw')>0) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
   do n=1,nc2d

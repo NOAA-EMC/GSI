@@ -91,6 +91,7 @@ subroutine convert_binary_mass
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
 ! Declare local parameters
@@ -114,11 +115,15 @@ subroutine convert_binary_mass
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional
   integer(i_kind) k,n
+  integer(i_kind) nguess,istatus
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:),field2c(:,:)
   real(r_single) rad2deg_single
   real(r_single)rdx,rdy
   integer(i_kind) ksize
   integer(i_kind) index
+
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,istatus)
 
   n_loop: do n=1,7
 
@@ -493,7 +498,7 @@ subroutine convert_binary_mass
 
      write(lendian_out)n_position     !  TSK
 
-     if(l_cloud_analysis) then
+     if(l_cloud_analysis .or. nguess>0) then
 !      QCLOUD
         call retrieve_index(index,'QCLOUD',varname_all,nrecs)
         if(index<0) stop
@@ -614,6 +619,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
 !                          grid ordering for input 3D fields
 !   2011-11-16  tong - increase number of multiple first guess upto 7
+!   2012-01-12  zhu     - add cloud hydrometoers
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -637,6 +643,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   use constants, only: zero,half,rad2deg
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
+  use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
   integer(i_kind),parameter:: in_unit = 15
@@ -657,6 +664,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nguess,istatus
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   real(r_single) dy_nmm
   integer(i_kind) k,n
@@ -664,6 +672,9 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) ksize
   integer(i_kind) index
   
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,istatus)
+
   n_loop: do n=1,7
 
      if(n==1)then
@@ -1068,6 +1079,36 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      n_position=file_offset(index+1)
      write(6,*)'  byte offset for TSK = ',n_position
      write(lendian_out)n_position    ! offset for TSK   !
+
+     if (nguess>0) then
+!                   CWM
+        call retrieve_index(index,'CWM',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for CWM = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for CWM    !
+
+!                   F_ICE
+        call retrieve_index(index,'F_ICE',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for F_ICE = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_ICE    !
+
+!                   F_RAIN
+        call retrieve_index(index,'F_RAIN',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for F_RAIN = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_RAIN    !
+
+!                   F_RIMEF
+        call retrieve_index(index,'F_RIMEF',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for F_RIMEF = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_RIMEF    !
+     end if  ! end of nguess>0
 
 !????????????????????????????????????????????????????????????????read z0 here to see what it looks like
      call retrieve_index(index,'Z0',varname_all,nrecs)

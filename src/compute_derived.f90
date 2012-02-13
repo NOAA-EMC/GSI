@@ -54,6 +54,9 @@ subroutine compute_derived(mype,init_pass)
 !   2010-06-05  todling - an_amp0 coming from control_vectors
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-05-22  rancic/todling - add traj-init call here (but it is undesirable to be here)
+!   2011-07-15  zhu     - add cwgues for regional; update efr_ql 
+!   2011-11-01  eliu    - assign cwgues for global
+!   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -69,7 +72,7 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: qsatg,qgues,ggues,vgues,pgues,jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq,dvisdlog
+       tendsflag,varq,dvisdlog,cwgues
   use control_vectors, only: cvars3d,cvars2d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
@@ -87,20 +90,21 @@ subroutine compute_derived(mype,init_pass)
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use guess_grids, only: tnd_initialized
   use guess_grids, only: drv_initialized
+  use guess_grids, only: efr_ql,nfldsig
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
-  use gridmod, only: wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional
+  use gridmod, only: wrf_nmm_regional,wrf_mass_regional
   use berror, only: hswgt
   use balmod, only: rllat1,llmax
   use mod_strong, only: jcstrong,baldiag_full
   use obsmod, only: write_diag
   use gsi_4dvar, only: l4dvar
 
-  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-  use constants, only: zero,one,one_tenth,half,fv,qmin,ten
+  use constants, only: zero,one,one_tenth,half,fv,qmin,ten,t0c,five,r0_05
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -113,7 +117,6 @@ subroutine compute_derived(mype,init_pass)
 
   use gsi_4dvar, only: idmodel
   use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
-  use constants, only: zero,one,one_tenth,half,fv
   use mpeu_util, only: getindex
   use mpeu_util, only: die, tell
   implicit none
@@ -125,13 +128,16 @@ subroutine compute_derived(mype,init_pass)
 
 ! Declare local variables
   logical ice,fullfield
-  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q,istatus
+  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q,istatus,ier,nguess
   
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
+  real(r_kind) tem4,indexw
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss,iq_loc
@@ -154,6 +160,55 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end do
+
+! Load guess cw for use in inner loop
+! Get pointer to cloud water mixing ratio
+  it=ntguessig
+  if (regional) then
+     call gsi_metguess_get('dim',nguess,ier) 
+     if (nguess>0) then
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,istatus);ier=istatus
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,istatus);ier=ier+istatus
+        if (ier==zero) then
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    cwgues(i,j,k)=ges_ql(i,j,k)+ges_qi(i,j,k)
+                 end do
+              end do
+           end do
+        end if
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+        if (istatus/=0) ges_cwmr_it => cwgues    ! temporarily, revise after moist physics is ready 
+
+!       update efr_ql
+        if(regional .and. (.not. wrf_mass_regional) .and. jiter>jiterstart) then
+          do it=1,nfldsig
+             do k=1,nsig
+                do j=1,lon2
+                   do i=1,lat2
+                      tem4=max(zero,(t0c-ges_tsen(i,j,k,it))*r0_05)
+                      indexw=five + five * min(one, tem4) 
+                      efr_ql(i,j,k,it)=1.5_r_kind*indexw
+                   end do
+                end do
+             end do
+          end do
+        end if  ! jiter
+     else
+        ges_cwmr_it => cwgues
+     end if  ! end of nguess
+  else
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+     if (istatus/=0) call die('compute_derived','cannot get pointer to cwmr, istatus =',istatus)
+     do j=1,lon2
+        do i=1,lat2
+           do k=1,nsig
+              cwgues(i,j,k)=ges_cwmr_it(i,j,k)
+           end do
+        end do
+     end do
+  end if
 
 ! RTodling: The following call is in a completely undesirable place
 ! -----------------------------------------------------------------
@@ -178,10 +233,6 @@ subroutine compute_derived(mype,init_pass)
 
         
         it=ntguessig
-
-!       Get pointer to could water mixing ratio
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
-        if (istatus/=0) call die('compute_derived','cannot get pointer to cwmr, istatus =',istatus)
 
         call get_derivatives(ges_u(1,1,1,it),ges_v(1,1,1,it), &
              ges_tv(1,1,1,it),ges_ps,ges_q(1,1,1,it),&

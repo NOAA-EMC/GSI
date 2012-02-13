@@ -19,6 +19,8 @@ subroutine control2model(xhat,sval,bval)
 !                        - ready to bypass analysis of (any) meteorological fields
 !   2010-06-15  todling  - generalized handling of chemistry
 !   2011-05-15  auligne/todling - generalized cloud handling
+!   2011-07-12   zhu     - add cw_to_hydro and cwhydromod
+!   2011-12-14   mkim    - changed clouds4crtm to clouds in metguess 
 !
 !   input argument list:
 !     xhat - Control variable
@@ -43,6 +45,7 @@ use gridmod, only: lat2,lon2,nsig,nnnn1o
 use jfunc, only: nsclen,npclen
 use berror, only: varprd,fpsproj
 use balmod, only: balance
+use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -70,17 +73,17 @@ character(len=10),allocatable,dimension(:) :: clouds
 !       the state and control vectors, but rather the ones
 !       explicitly needed by this routine.
 ! Declare required local state variables
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_tv,ls_ps
-integer(i_kind), parameter :: nsvars = 7
+logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_tv,ls_ps,ls_ql,ls_qi
+integer(i_kind), parameter :: nsvars = 9
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from SV needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen',  'tv  ', 'ps  ' /)
+        'u   ', 'v   ', 'p3d ', 'q   ', 'tsen',  'tv  ', 'ps  ','ql  ', 'qi  ' /)
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
 
-logical :: do_balance,do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv
+logical :: do_balance,do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,cw_to_hydro
 
 !******************************************************************************
 
@@ -92,13 +95,6 @@ if (nsubwin/=1 .and. .not.l4dvar) then
    write(6,*)trim(myname),': error 3dvar',nsubwin
    call stop2(105)
 end if
-
-! Inquire about cloud-variables
-call gsi_metguess_get('clouds::3d',nclouds,istatus)
-if (nclouds>0) then
-    allocate(clouds(nclouds))
-    call gsi_metguess_get('clouds::3d',clouds,istatus)
-endif
 
 ! Inquire about chemistry
 call gsi_chemguess_get('dim',ngases,istatus)
@@ -112,7 +108,7 @@ endif
 call gsi_bundlegetpointer (sval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_tv =isps(6)>0
-ls_ps =isps(7)>0
+ls_ps =isps(7)>0; ls_ql  =isps(8)>0; ls_qi =isps(9)>0
 
 ! Define what to do depending on what's in SV and 
 ! what's explictly needed in this routine
@@ -121,6 +117,15 @@ do_getprs_tl     =ls_ps.and.ls_tv .and.ls_p3d
 do_normal_rh_to_q=ls_tv.and.ls_p3d.and.ls_q
 do_tv_to_tsen    =ls_tv.and.ls_q  .and.ls_tsen
 do_getuv         =ls_u .and.ls_v
+
+! Inquire about cloud-variables
+cw_to_hydro=.false.
+call gsi_metguess_get ('clouds::3d',nclouds,istatus)
+if (nclouds>0) then
+   allocate(clouds(nclouds))
+   call gsi_metguess_get ('clouds::3d',clouds,istatus)
+   if (getindex(cvars3d,'cw')>0 .and. ls_ql .and. ls_qi) cw_to_hydro=.true.
+end if
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -159,15 +164,6 @@ do jj=1,nsubwin
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
 
-!  Since cloud-vars map one-to-one, take care of them together
-   do ic=1,nclouds
-      id=getindex(cvars3d,clouds(ic))
-      if (id>0) then
-         call gsi_bundlegetpointer (sval(jj),clouds(ic),sv_rank3,istatus)
-         call gsi_bundlegetvar     (wbundle, clouds(ic),sv_rank3,istatus)
-      endif
-   enddo
-
 !  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
       id=getindex(cvars3d,gases(ic))
@@ -181,13 +177,6 @@ do jj=1,nsubwin
          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
       endif
    enddo
-
-!  destroy temporary bundle
-   call gsi_bundledestroy(wbundle,istatus)
-   if(istatus/=0) then
-      write(6,*) trim(myname), ': trouble destroying work bundle'
-      call stop2(999)
-   endif
 
 !  Balance equation
    if(do_balance) call balance(sv_tv,sv_ps,workst,workvp,fpsproj)
@@ -206,6 +195,34 @@ do jj=1,nsubwin
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) call getuv(sv_u,sv_v,workst,workvp,0)
 
+   if (nclouds>0) then
+      if (cw_to_hydro) then
+!        Case when cw is generated from hydrometeors
+         if (.not. do_tv_to_tsen) then 
+            allocate(sv_tsen(lat2,lon2,nsig))
+            call tv_to_tsen(sv_tv,sv_q,sv_tsen)
+         end if
+         call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
+         if (.not. do_tv_to_tsen) deallocate(sv_tsen)
+      else
+!        Case when cloud-vars map one-to-one, take care of them together
+         do ic=1,nclouds
+            id=getindex(cvars3d,clouds(ic))
+            if (id>0) then
+                call gsi_bundlegetpointer (sval(jj),clouds(ic),sv_rank3,istatus)
+                call gsi_bundlegetvar     (wbundle, clouds(ic),sv_rank3,istatus)
+            endif
+         enddo
+      end if
+   end if
+
+!  destroy temporary bundle
+   call gsi_bundledestroy(wbundle,istatus)
+   if(istatus/=0) then
+      write(6,*) trim(myname), ': trouble destroying work bundle'
+      call stop2(999)
+   endif
+
 end do
 
 ! Bias correction terms
@@ -221,6 +238,8 @@ enddo
 if (ngases>0) then
     deallocate(gases)
 endif
+
+if (nclouds>0) deallocate(clouds)
 
 return
 end subroutine control2model

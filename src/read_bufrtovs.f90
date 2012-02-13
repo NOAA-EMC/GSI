@@ -128,6 +128,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use antcorr_application, only: remove_antcorr
+  use control_vectors, only: cvars3d
+  use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
   implicit none
@@ -744,10 +746,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
                  if (icw4crtm>10) then
-                    qval  = zero
+                    qval=zero
                  else
-                    qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                 endif
+                    qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 end if
                  pred  = max(zero,qval)*100.0_r_kind
               else
                  if (adp_anglebc .and. newpc4pred) then

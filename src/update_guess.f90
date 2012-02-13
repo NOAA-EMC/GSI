@@ -69,6 +69,7 @@ subroutine update_guess(sval,sbias)
 !                       - cwmr now in met-guess
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-09-20  hclin   - enforce non-negative aerosol fields
+!   2011-11-01  eliu    - generalize met-guess updates for global/regional
 !
 !   input argument list:
 !    sval
@@ -87,7 +88,7 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero,one,fv,max_varname_length,qmin
+  use constants, only: zero,one,fv,max_varname_length,qmin,qcmin
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone
@@ -122,19 +123,22 @@ subroutine update_guess(sval,sbias)
   character(max_varname_length),allocatable,dimension(:) :: cloud
   integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
   integer(i_kind) is_u,is_v,is_t,is_q,is_oz,is_cw,is_ps,is_sst
+  integer(i_kind) ipinc,ipinc1,ipinc2,ipges,icloud,ncloud
+  integer(i_kind) ipges_ql,ipges_qi,ipges_cw
   integer(i_kind) is_gust,is_vis,is_pblh
-  integer(i_kind) ipinc,ipges,icloud,ncloud
   real(r_kind) :: zt
-  real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc=>NULL()
-  real(r_kind),pointer,dimension(:,:  ) :: ptr2dges=>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc=>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges=>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_u     =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_v     =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_q     =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_tv    =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: p_oz    =>NULL()
-  real(r_kind),pointer,dimension(:,:  ) :: ptr2daux=>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc1=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc2=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_u      =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_v      =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_oz     =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2daux =>NULL()
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -255,13 +259,22 @@ subroutine update_guess(sval,sbias)
 !    Update extra met-guess fields
      do ic=1,nguess
         id=getindex(svars3d,guess(ic))
-        if (id>0) then
+        if (id>0) then  ! Case when met_guess and state vars map one-to-one, take care of them together 
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            ptr3dges = ptr3dges + ptr3dinc
            icloud=getindex(cloud,guess(ic))
            if(icloud>0) then
-              ptr3dges = max(ptr3dges,zero)
+              ptr3dges = max(ptr3dges,qcmin)
+           endif
+        else  ! Case when met_guess and state vars do not map one-to-one 
+           icloud=getindex(cloud,guess(ic))
+           if (icloud>0.and.cloud(icloud)=='cw') then
+           call gsi_bundlegetpointer (sval(ii),               'ql',ptr3dinc1,istatus)
+           call gsi_bundlegetpointer (sval(ii),               'qi',ptr3dinc2,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3dges, istatus)
+           ptr3dges = ptr3dges+ptr3dinc1+ptr3dinc2   
+           ptr3dges = max(ptr3dges,qcmin)           
            endif
         endif
         id=getindex(svars2d,guess(ic))
@@ -271,7 +284,6 @@ subroutine update_guess(sval,sbias)
            ptr2dges = ptr2dges + ptr2dinc
         endif
      enddo
-
 !    Update trace gases
      do ic=1,ngases
         id=getindex(svars3d,gases(ic))

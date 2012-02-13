@@ -11,6 +11,8 @@ subroutine prt_guess(sgrep)
 !   2007-04-17  todling  - time index to summarize; bound in arrays
 !   2009-01-17  todling  - update tv/tsen names
 !   2011-05-01  todling  - cwmr no longer in guess_grids
+!   2011-08-01  zhu    - use cwgues for regional if cw is not in guess table
+!   2011-12-02  zhu    - add safe-guard for the case when there is no entry in the metguess table
 !
 !   input argument list:
 !    sgrep  - prefix for write statement
@@ -30,13 +32,14 @@ subroutine prt_guess(sgrep)
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe,mype
   use constants, only: zero
   use gridmod, only: lat1,lon1,itotsub,nsig
+  use gridmod, only: regional
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,ges_prsl,sfct
   use guess_grids, only: ntguessig,ntguessfc
   use radinfo, only: predx
   use pcpinfo, only: predxp
-  use jfunc, only: npclen,nsclen
-  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use jfunc, only: npclen,nsclen,cwgues
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
 
@@ -50,6 +53,7 @@ subroutine prt_guess(sgrep)
   integer(i_kind) ii,istatus
   integer(i_kind) ntsig
   integer(i_kind) ntsfc
+  integer(i_kind) nguess,ier
   real(r_kind) :: zloc(3*nvars+2),zall(3*nvars+2,npe),zz
   real(r_kind) :: zmin(nvars+2),zmax(nvars+2),zavg(nvars+2)
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it
@@ -61,8 +65,19 @@ subroutine prt_guess(sgrep)
   ntsfc = ntguessfc
 
 ! get pointer to cloud water condensate
-  call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'cw',ges_cwmr_it,istatus)
-  if (istatus/=0) call die('q_diag','cannot get pointer to cwmr, istatus =',istatus)
+  call gsi_metguess_get('dim',nguess,ier)
+  if (nguess>0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'cw',ges_cwmr_it,istatus)
+     if (istatus/=0) then 
+        if (regional) then 
+           ges_cwmr_it => cwgues
+        else
+           call die('q_diag','cannot get pointer to cwmr, istatus =',istatus)
+        end if
+     end if
+  else
+     ges_cwmr_it => cwgues
+  end if
 
   cvar( 1)='U   '
   cvar( 2)='V   '

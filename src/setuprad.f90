@@ -121,7 +121,9 @@
 !   2011-05-04  todling - partially merge in Min-Jeong Kim's cloud clear assimilation changes (connect to Metguess)
 !   2011-05-16  todling - generalize handling of jacobian matrix entries
 !   2011-05-20  mccarty - updated for ATMS
+!   2011-06-08  zhu     - move assignments of tnoise_cld values to satinfo file via varch_cld, use lcw4crtm
 !   2011-06-09  sienkiewicz - call to qc_ssu needs tb_obs instead of tbc
+!   2011-07-10  zhu     - add jacobian assignments for regional cloudy radiance
 !   2011-09-28  collard - Fix error trapping for CRTM failures.         
 !
 !  input argument list:
@@ -150,7 +152,7 @@
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
-      npred,jpch_rad,varch,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
+      npred,jpch_rad,varch,varch_cld,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,&
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
       nst_gsi,nstinfo,nst_tzr
@@ -181,6 +183,7 @@
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3
   use qcmod, only: setup_tzr_qc
   use gsi_metguess_mod, only: gsi_metguess_get
+  use control_vectors, only: cvars3d
   implicit none
 
 ! Declare passed variables
@@ -204,11 +207,12 @@
 
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
-  integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier
+  integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
   integer(i_kind) ioz,ius,ivs
+  integer(i_kind) iqs,iqg,iqh,iqr
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) term,tlap,tb_obsbc1
@@ -230,6 +234,7 @@
   logical microwave, microwave_low
   logical no85GHz
   logical in_curbin, in_anybin
+  logical lcw4crtm
   logical,dimension(nobs):: zero_irjaco3_pole
 
 ! Declare local arrays
@@ -254,7 +259,7 @@
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval
+  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
   real(r_kind) :: dtw,dtc,tz_tr
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
@@ -337,7 +342,14 @@
   microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
 
 ! Determine whether or not cloud-condensate is present in MetGuess
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
+  lcw4crtm=.false.
+  call gsi_metguess_get('dim',nguess,ier)
+  if (nguess>0) then
+     call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)
+     if(icw4crtm >0) lcw4crtm = .true.
+  end if
+
+  lcw4crtm=lcw4crtm .and. (amsua .or. atms)
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -369,6 +381,11 @@
         if (passive_bc .and. channel_passive) tnoise(jc)=varch(j)
         if (iuse_rad(j)>-1) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
+
+        tnoise_cld(jc)=varch_cld(j)
+        if (iuse_rad(j)< -1 .or. (iuse_rad(j) == -1 .and.  &
+           .not.rad_diagsave)) tnoise_cld(jc)=r1e10
+        if (passive_bc .and. (iuse_rad(j)==-1)) tnoise_cld(jc)=varch_cld(j)
      end if
   end do
   if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
@@ -400,6 +417,16 @@
      ius=radjacindxs(ius)
      ivs=radjacindxs(ivs)
   endif
+  if (regional .and. lcw4crtm) then
+     iqs=getindex(radjacnames,'qs')
+     if (iqs>0) iqs=radjacindxs(iqs)
+     iqg=getindex(radjacnames,'qg')
+     if (iqg>0) iqg=radjacindxs(iqg)
+     iqh=getindex(radjacnames,'qh')
+     if (iqh>0) iqh=radjacindxs(iqh)
+     iqr=getindex(radjacnames,'qr')
+     if (iqr>0) iqr=radjacindxs(iqr)
+  end if 
 
 ! Initialize ozone jacobian flags to .false. (retain ozone jacobian)
   zero_irjaco3_pole = .false.
@@ -623,25 +650,6 @@
               aivals(3,is) = aivals(3,is) + one
            end if
         end if
-!  Define observation errors for AMSU-A
-        if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10) then
-           tnoise_cld(1)  = 9.1_r_kind    !clr sky = 2.5
-           tnoise_cld(2)  = 13.5_r_kind   ! 2.0
-           tnoise_cld(3)  = 7.1_r_kind    !2.0
-           tnoise_cld(4)  = 1.3_r_kind    !0.55
-           tnoise_cld(5)  = 0.55_r_kind   !0.3
-           tnoise_cld(6)  = 0.23_r_kind   !0.23
-           tnoise_cld(7)  = 0.195_r_kind  !0.23
-           tnoise_cld(8)  = 0.232_r_kind  !0.25
-           tnoise_cld(9)  = 0.235_r_kind  !0.25
-           tnoise_cld(10) = 0.237_r_kind  !0.35
-           tnoise_cld(11) = 0.27_r_kind   !0.4
-           tnoise_cld(12) = 0.385_r_kind  !0.55
-           tnoise_cld(13) = 0.52_r_kind   !0.8
-           tnoise_cld(14) = 1.4_r_kind    !3.0
-           tnoise_cld(15) = 10.0_r_kind   !2.5
-        endif
-
 
 !       Set relative weight value
         val_obs=one
@@ -728,10 +736,10 @@
         if(microwave .and. sea) then 
            call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
                 tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
-           if(amsua .and. cenlat > -60.0_r_kind .and. icw4crtm>10) &
+           if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then
               call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua)
-           if(amsua .and. cenlat > -60.0_r_kind .and. icw4crtm>10) &
               call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval)
+           end if
         endif
         predbias=zero
         do i=1,nchanl
@@ -760,7 +768,7 @@
            else
               pred(3,i) = clw*cosza*cosza
            end if
-           if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10) pred(3,i ) = zero
+           if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) pred(3,i ) = zero
  
 !       Apply bias correction
  
@@ -829,19 +837,16 @@
            error0(i)     = tnoise(i)
 
 !Kim ----------------------------------------
-           if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10)  then
-              if(half*(clwp_amsua+clw_guess_retrieval) < 0.05_r_kind) then
+           if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind)  then
+              clwtmp=half*(clwp_amsua+clw_guess_retrieval)
+              if(clwtmp < 0.05_r_kind) then
                  error0(i) = tnoise(i)
-              else if(half*(clwp_amsua+clw_guess_retrieval) >= 0.05_r_kind .and. &
-                      half*(clwp_amsua+clw_guess_retrieval) < quarter) then
+              else if(clwtmp >= 0.05_r_kind .and. clwtmp < quarter) then
                  error0(i) = tnoise(i) + &
-                    (half*(clwp_amsua+clw_guess_retrieval)-0.05_r_kind) &
-                   *(tnoise_cld(i)-tnoise(i))/(quarter-0.05_r_kind)
-              else if (half*(clwp_amsua+clw_guess_retrieval) >= quarter .and.    &
-                       half*(clwp_amsua+clw_guess_retrieval) < half) then
+                    (clwtmp-0.05_r_kind)*(tnoise_cld(i)-tnoise(i))/(quarter-0.05_r_kind)
+              else if (clwtmp >= quarter .and. clwtmp < half) then
                  error0(i) = tnoise_cld(i) + &
-                    (half*(clwp_amsua+clw_guess_retrieval) - quarter) &
-                   *(tnoise(i)-tnoise_cld(i))/(half-quarter)
+                    (clwtmp-quarter)*(tnoise(i)-tnoise_cld(i))/(half-quarter)
               else
                  error0(i) = tnoise(i)
               endif
@@ -1052,7 +1057,7 @@
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
 
-              if(amsua .and. sea .and. cenlat > -60.0_r_kind .and.  icw4crtm>10) then
+              if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
                  errf(i) = three*errf(i)
               else 
                  errf(i) = min(three*errf(i),ermax_rad(m))
@@ -1269,6 +1274,30 @@
                        endif
                     end if
 
+!                   Load Jacobian for hydrometeors
+                    if (regional .and. lcw4crtm) then
+                       if (iqs>0) then
+                          do k = 1,nsig
+                             radtail(ibin)%head%dtb_dvar(iqs+k,iii) = zero
+                          end do
+                       end if
+                       if (iqg>0) then
+                          do k = 1,nsig
+                             radtail(ibin)%head%dtb_dvar(iqg+k,iii) = zero
+                          end do
+                       end if
+                       if (iqh>0) then
+                          do k = 1,nsig
+                             radtail(ibin)%head%dtb_dvar(iqh+k,iii) = zero
+                          end do
+                       end if
+                       if (iqr>0) then
+                          do k = 1,nsig
+                             radtail(ibin)%head%dtb_dvar(iqr+k,iii) = zero
+                          end do
+                       end if
+                    end if
+
                     my_head%ich(iii)=ii
 
 !                   compute hessian contribution from Jo bias correction terms
@@ -1476,19 +1505,19 @@
               diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
               diagbuf(21) = dtp_avh                           ! data type             
            endif
-           if(amsua .and. sea .and. icw4crtm>10) then
+           if(lcw4crtm .and. sea) then
               diagbuf(22) = tpwc_amsua
            else
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
            endif
 
-           if(amsua .and. sea .and. icw4crtm>10) then
+           if(lcw4crtm .and. sea) then
               diagbuf(23) = (clw_guess_retrieval+clwp_amsua)*half 
            else
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
            endif
 
-           if(amsua .and. sea .and. icw4crtm>10) then
+           if(lcw4crtm .and. sea) then
               diagbuf(24) = clw_guess_retrieval
            else
               diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
@@ -1499,7 +1528,7 @@
               diagbuf(25)  = cld                        ! cloud fraction (%)
               diagbuf(26)  = cldp                       ! cloud top pressure (hPa)
            else
-              if(amsua .and. sea .and. cenlat > -60.0_r_kind .and. icw4crtm>10) then
+              if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
                  diagbuf(25)  = clwp_amsua                 ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = clw_guess                  ! total column precip. water (km/m**2)
               else
@@ -1539,7 +1568,7 @@
               if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
               diagbufchan(5,i)= id_qc(ich_diag(i))*useflag            ! quality control mark or event indicator
 
-              if (amsua .and. sea .and. icw4crtm>10) then
+              if (lcw4crtm .and. sea) then
                  diagbufchan(6,i)=error0(ich_diag(i))
               else
                  diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
