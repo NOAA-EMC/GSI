@@ -27,6 +27,7 @@ module constants
 !   2010-12-20 pagowski  - add max_varname_length=12
 !   2010-04-01 li        - add maximum diurnal thermocline thickness
 !   2011-10-27 Huang     - add i_missing and r_missing to detect missing values
+!   2011-11-01 eliu      - add minimum value for cloud water mixing ratio 
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -69,7 +70,8 @@ module constants
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
   public :: max_varname_length
-  public :: z_w_max,qmin
+  public :: z_w_max
+  public :: qmin,qcmin 
   public :: i_missing, r_missing
 
 ! Declare derived constants
@@ -205,7 +207,7 @@ module constants
   real(r_kind),parameter::  ke2 = 0.00002_r_kind
   real(r_kind),parameter::  row = r1000
   real(r_kind),parameter::  rrow = one/row
-  real(r_kind),parameter::  qmin = 1.e-7_r_kind  !lower bound on ges_q
+! real(r_kind),parameter::  qmin = 1.e-7_r_kind  !lower bound on ges_q
 
 ! Constant used to process ozone
   real(r_kind),parameter::  constoz = 604229.0_r_kind
@@ -226,6 +228,10 @@ module constants
                                      ! wgtlim does not alter the analysis, only
                                      ! the nonlinear qc data "count"
 
+! Minimum values for water vapor and cloud water mixing ratio 
+  real(r_kind),parameter:: qmin   = 1.e-07_r_kind   ! lower bound on ges_q
+  real(r_kind),parameter:: qcmin  = 0.0_r_kind      ! lower bound on ges_cw
+
 ! Constant used to detect missing input value
   integer(i_kind),parameter:: i_missing=-9999
   integer(r_kind),parameter:: r_missing=-9999._r_kind
@@ -237,8 +243,7 @@ contains
 !                .      .    .                                       .
 ! subprogram:    init_constants_derived          set derived constants
 !     prgmmr:    treadon          org: np23           date: 2004-12-02
-!
-! abstract:  This routine sets derived constants
+! ! abstract:  This routine sets derived constants
 !
 ! program history log:
 !   2004-12-02  treadon

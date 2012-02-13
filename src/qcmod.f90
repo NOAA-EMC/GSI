@@ -1633,6 +1633,9 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !$$$ end documentation block
 
   use kinds, only: r_kind, i_kind
+  use gridmod, only: regional
+  use control_vectors, only: cvars3d
+  use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
@@ -1663,6 +1666,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dsval,clwx
   real(r_kind)    :: factch6,de1,de2,de3
   integer(i_kind) :: i,n,icw4crtm,ier
+  logical lcw4crtm
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
@@ -1708,8 +1712,10 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   end if
 
 ! Determine whether or not CW fed into CRTM
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
-
+  lcw4crtm=.false.
+  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  !emily
+  if(icw4crtm >0) lcw4crtm = .true.                          !emily
+   
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
   if (cenlatx < one) then
@@ -1750,11 +1756,11 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                  available for ATMS).
   latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
 
-
-  if (icw4crtm>10) then
+  if (lcw4crtm) then
 
 ! Kim-------------------------------------------
-     if((factch6 >= one .and. .not.sea) .or. latms_surfaceqc)then   !Kim 
+     if(factch6 >= one .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind)) &
+        .or. latms_surfaceqc) then   !Kim 
         efactmc=zero
         vfactmc=zero
         errf(1:ich544)=zero
@@ -1775,7 +1781,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !       QC3 in statsrad
         if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
-     else if(factch4 > half .and. .not.sea )then   !Kim
+     else if(factch4 > half .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind))) then   !Kim
         efactmc=zero
         vfactmc=zero
         do i=1,ich536
@@ -1795,50 +1801,9 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         endif
 !       QC1 in statsrad
         if(luse) aivals(8,is) = aivals(8,is) + one
-     else if(factch6 >= one .and. sea .and. cenlat <= -60.0_r_kind) then
-        efactmc=zero
-        vfactmc=zero
-        errf(1:ich544)=zero
-        varinv(1:ich544)=zero
-        do i=1,ich544
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
-        errf(ich890) = zero
-        varinv(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
-        endif
-!       QC3 in statsrad
-        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
-
-     else if(factch4 > half .and. sea .and. cenlat <= -60.0_r_kind )then   !Kim
-        efactmc=zero
-        vfactmc=zero
-        errf(1:ich544)=zero
-        varinv(1:ich544)=zero
-        do i=1,ich544
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
-        errf(ich890) = zero
-        varinv(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
-        endif
-!       QC3 in statsrad
-        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
      end if
 
-     if(sea .and. cenlat > -60.0_r_kind .and. (clwp_amsua > half .or. clw_guess_retrieval > half))  then
+     if(sea .and. abs(cenlat)<60.0_r_kind .and. (clwp_amsua > half .or. clw_guess_retrieval > half))  then
         efactmc = zero
         vfactmc=zero
         do i=1,ich536
@@ -1859,7 +1824,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      endif
 ! Kim-------------------------------------------
 
-  else  ! <icw4crtm>
+  else  ! <lcw4crtm>
 
      if(factch6 >= one .or. latms_surfaceqc)then
         efactmc=zero
@@ -1943,7 +1908,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         end if
      end if
 
-  endif ! <icw4crtm>
+  endif ! <lcw4crtm>
 
 ! Reduce q.c. bounds over higher topography
   if (zsges > r2000) then

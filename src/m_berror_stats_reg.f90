@@ -239,7 +239,7 @@ end subroutine berror_read_bal_reg
       use control_vectors,only: cvars2d,cvars3d
       use jfunc,only: varq,qoption
       use guess_grids, only:  ges_psfcavg,ges_prslavg
-      use constants, only: zero,one
+      use constants, only: zero,one,ten
       use mpeu_util,only: getindex
 
       implicit none
@@ -494,12 +494,19 @@ end subroutine berror_read_bal_reg
      vz(:,:,nrf3_oz)=vz_oz
   end if
 
-  if (nrf3_cw>0) then 
-     corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
-     hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
-     vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
+  if (nrf3_cw>0) then
+     corz(:,:,nrf3_cw)=zero
+     do k=1,nsig
+        if (ges_prslavg(k)>ten) then 
+           do j=1,mlat
+              corz(j,k,nrf3_cw)=1.0e-10_r_kind
+           end do
+        end if
+     end do
+     hwll(:,:,nrf3_cw)=0.75_r_kind*hwll(:,:,nrf3_q)
+     vz(:,:,nrf3_cw)=1.2_r_kind*vz(:,:,nrf3_q)
   end if
-  
+
 ! 2d variable
   do n=1,nc2d
      loc=nrf2_loc(n)

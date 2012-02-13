@@ -30,6 +30,7 @@ module radinfo
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
 !   2011-04-02  li      - add index nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave for NSST and QC_tzr
+!   2011-07-14  zhu     - add varch_cld for cloudy radiance
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -67,7 +68,7 @@ module radinfo
 ! set passed variables to public
   public :: jpch_rad,npred,b_rad,pg_rad,diag_rad,iuse_rad,nusis,inew_rad
   public :: crtm_coeffs_path,retrieval,predx,ang_rad,newchn,cbias
-  public :: air_rad,nuchan,numt,varch,fbias,ermax_rad,tlapmean
+  public :: air_rad,nuchan,numt,varch,varch_cld,fbias,ermax_rad,tlapmean
   public :: ifactq,mype_rad
   public :: ostats,rstats,varA
   public :: adp_anglebc,angord,use_edges
@@ -100,7 +101,8 @@ module radinfo
   integer(i_kind) mype_rad      ! task id for writing out radiance diagnostics
   integer(i_kind) angord        ! order of polynomial for angle bias correction
 
-  real(r_kind),allocatable,dimension(:):: varch       ! variance for each satellite channel
+  real(r_kind),allocatable,dimension(:):: varch       ! variance for clear radiance each satellite channel
+  real(r_kind),allocatable,dimension(:):: varch_cld   ! variance for cloudy radiance
   real(r_kind),allocatable,dimension(:):: ermax_rad   ! error maximum (qc)
   real(r_kind),allocatable,dimension(:):: b_rad       ! variational b value
   real(r_kind),allocatable,dimension(:):: pg_rad      ! variational pg value
@@ -262,11 +264,14 @@ contains
     if (adp_anglebc) npred=npred+angord
     
 !   inquire about variables in guess
+    mxlvs = 0
     call gsi_metguess_get ( 'dim', ndim, ier )
-    allocate(all_levels(ndim))
-    call gsi_metguess_get ( 'guesses_level', all_levels, ier )
-    mxlvs = maxval(all_levels)
-    deallocate(all_levels)
+    if (ndim>0) then
+       allocate(all_levels(ndim))
+       call gsi_metguess_get ( 'guesses_level', all_levels, ier )
+       mxlvs = maxval(all_levels)
+       deallocate(all_levels)
+    end if
 
 !   Test to ensure that mxlvs == nsig
     if (mxlvs/=nsig)then
@@ -474,10 +479,11 @@ contains
 !     nusis     - sensor/instrument/satellite
 !     iuse_rad  - use parameter
 !     ifactq    - scaling parameter for d(Tb)/dq sensitivity
-!     varch     - variance for each channel
+!     varch     - variance for clear radiance for each channel
+!     varch_cld - variance for cloudy radiance for each channel
 
-    allocate(nuchan(jpch_rad),nusis(jpch_rad),&
-         iuse_rad(0:jpch_rad),ifactq(jpch_rad),varch(jpch_rad),&
+    allocate(nuchan(jpch_rad),nusis(jpch_rad),iuse_rad(0:jpch_rad), &
+         ifactq(jpch_rad),varch(jpch_rad),varch_cld(jpch_rad), &
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad))
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
@@ -502,17 +508,17 @@ contains
        if (cflg == '!') cycle
        j=j+1
        read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
-            varch(j),ermax_rad(j),b_rad(j),pg_rad(j)
+            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j)
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
-            nuchan(j),varch(j),iuse_rad(j),ermax_rad(j), &
+            nuchan(j),varch(j),varch_cld(j),iuse_rad(j),ermax_rad(j), &
             b_rad(j),pg_rad(j)
     end do
     close(lunin)
 100 format(a1,a120)
 110 format(i4,1x,a20,' chan= ',i4,  &
-          ' var= ',f7.3,' use= ',i2,' ermax= ',F7.3, &
+          ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
           ' b_rad= ',F7.2,' pg_rad=',F7.2)
 
 
@@ -864,7 +870,7 @@ contains
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
-         ifactq,varch,inew_rad)
+         ifactq,varch,varch_cld,inew_rad)
     if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
     deallocate (radstart,radstep,radnstep,radedge1,radedge2)

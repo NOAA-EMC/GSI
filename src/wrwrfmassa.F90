@@ -56,7 +56,7 @@ subroutine wrwrfmassa_binary(mype)
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use wrf_mass_guess_mod, only: destroy_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
 
   implicit none
 
@@ -104,7 +104,7 @@ subroutine wrwrfmassa_binary(mype)
   real(r_kind) deltasigma
   integer(i_kind) ip1,jp1
   character(1) chdrbuf(2048)
-  integer(i_kind) iadd,ier,istatus
+  integer(i_kind) iadd,ier,istatus,nguess
   character(132) memoryorder
 
   real(r_kind), pointer :: ges_qc(:,:,:)
@@ -112,6 +112,21 @@ subroutine wrwrfmassa_binary(mype)
   real(r_kind), pointer :: ges_qr(:,:,:)
   real(r_kind), pointer :: ges_qs(:,:,:)
   real(r_kind), pointer :: ges_qg(:,:,:)
+
+  it=ntguessig
+
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,istatus)
+  if (nguess>0) then
+!    get pointer to relevant instance of cloud-related backgroud
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+     if (ier/=0) nguess=0
+  end if
 
 !   1.  get offsets etc only for records to be updated
 
@@ -122,7 +137,7 @@ subroutine wrwrfmassa_binary(mype)
   lm=nsig
 
   num_mass_fields=4*lm+3
-  if(l_cloud_analysis) num_mass_fields=4*lm+3+6*lm
+  if(l_cloud_analysis .or. nguess>0) num_mass_fields=4*lm+3+6*lm
   allocate(offset(num_mass_fields))
   allocate(igtype(num_mass_fields),kdim(num_mass_fields),kord(num_mass_fields))
   allocate(length(num_mass_fields))
@@ -137,8 +152,6 @@ subroutine wrwrfmassa_binary(mype)
 
 !    offset is the byte count preceding each record to be read/written from/to the wrf binary file.
 !       used as individual file pointers by mpi_file_read/mpi_file_write
-
-  it=ntguessig
 
   write(filename,'("sigf",i2.2)')ifilesig(it)
   open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
@@ -270,7 +283,7 @@ subroutine wrwrfmassa_binary(mype)
   if(mype == 0) write(6,*)' tsk i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
 
 ! for cloud/hydrometeor analysis fields
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
 
      i_qc=i+1
      read(lendian_in) n_position,memoryorder
@@ -418,7 +431,7 @@ subroutine wrwrfmassa_binary(mype)
   kv=i_v-1
   q_integral=one
 ! for hydrometeors
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
 !    get pointer to relevant instance of cloud-related backgroud
      ier=0
      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -444,7 +457,7 @@ subroutine wrwrfmassa_binary(mype)
      ku=ku+1
      kv=kv+1
 ! for hydrometeors
-     if(l_cloud_analysis) then
+     if(l_cloud_analysis .or. nguess>0) then
         kqc=kqc+1
         kqi=kqi+1
         kqr=kqr+1
@@ -474,7 +487,7 @@ subroutine wrwrfmassa_binary(mype)
            all_loc(j,i,kq)= ges_q(jp1,ip1,k,it)/(one-ges_q(jp1,ip1,k,it))
 
 ! for hydrometeors
-           if(l_cloud_analysis) then
+           if(l_cloud_analysis .or. nguess>0) then
               all_loc(j,i,kqc)=ges_qc(jp1,ip1,k)
               all_loc(j,i,kqi)=ges_qi(jp1,ip1,k)
               all_loc(j,i,kqr)=ges_qr(jp1,ip1,k)
@@ -571,7 +584,7 @@ subroutine wrwrfmassa_binary(mype)
   end if
 
 ! read hydrometeors
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
 !                                    read qc
      if(kord(i_qc)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -745,7 +758,7 @@ subroutine wrwrfmassa_binary(mype)
   end if
 
 !  write hydrometeors
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
 !                                    write qc
      if(kord(i_qc)/=1) then
         allocate(jbuf(im,lm,jbegin(mype):min(jend(mype),jm)))
@@ -1292,7 +1305,7 @@ subroutine wrwrfmassa_netcdf(mype)
   use gsi_io, only: lendian_in, lendian_out
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   implicit none
 
 ! Declare passed variables
@@ -1312,7 +1325,7 @@ subroutine wrwrfmassa_netcdf(mype)
   integer(i_kind) i_sst,i_skt
   integer(i_kind) num_mass_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
-  integer(i_kind) ier,istatus
+  integer(i_kind) nguess,ier,istatus
   real(r_kind) psfc_this,psfc_this_dry
   real(r_kind),dimension(lat2,lon2):: q_integral
   real(r_kind) deltasigma
@@ -1328,12 +1341,27 @@ subroutine wrwrfmassa_netcdf(mype)
   real(r_kind), pointer :: ges_qs(:,:,:)
   real(r_kind), pointer :: ges_qg(:,:,:)
 
+  it=ntguessig
+
+! Inquire about cloud guess fields
+  call gsi_metguess_get('dim',nguess,istatus)
+  if (nguess>0) then
+!    get pointer to relevant instance of cloud-related backgroud
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+     if (ier/=0) nguess=0
+  end if
+
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
 
   num_mass_fields=3+4*lm
-  if(l_cloud_analysis) num_mass_fields=3+4*lm + 6*lm
+  if(l_cloud_analysis .or. nguess>0) num_mass_fields=3+4*lm + 6*lm
   num_all_fields=num_mass_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat2,lon2,num_all_pad))
@@ -1347,7 +1375,7 @@ subroutine wrwrfmassa_netcdf(mype)
   i_sst=i_v+lm
   i_skt=i_sst+1
 ! for hydrometeors
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
      i_qc=i_skt+1
      i_qr=i_qc+lm
      i_qs=i_qr+lm
@@ -1368,8 +1396,6 @@ subroutine wrwrfmassa_netcdf(mype)
   end if
 
 ! Convert analysis variables to MASS variables
-  it=ntguessig
-
 ! get pointer to relevant instance of cloud-related backgroud
   ier=0
   call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
@@ -1379,7 +1405,7 @@ subroutine wrwrfmassa_netcdf(mype)
   call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
   if (ier/=0) then
       write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
-      if (l_cloud_analysis) call stop2(999)
+      if (l_cloud_analysis .or. nguess>0) call stop2(999)
   endif
 
   
@@ -1391,7 +1417,7 @@ subroutine wrwrfmassa_netcdf(mype)
   ku=i_u-1
   kv=i_v-1
 ! for hydrometeors
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
      kqc=i_qc-1
      kqi=i_qi-1
      kqr=i_qr-1
@@ -1407,7 +1433,7 @@ subroutine wrwrfmassa_netcdf(mype)
      ku=ku+1
      kv=kv+1
 ! for hydrometeors
-     if(l_cloud_analysis) then
+     if(l_cloud_analysis .or. nguess>0) then
         kqc=kqc+1
         kqi=kqi+1
         kqr=kqr+1
@@ -1429,7 +1455,7 @@ subroutine wrwrfmassa_netcdf(mype)
            all_loc(j,i,kq)= ges_q(j,i,k,it)/(one-ges_q(j,i,k,it))
            	
 ! for hydrometeors      
-           if(l_cloud_analysis) then
+           if(l_cloud_analysis .or. nguess>0) then
               all_loc(j,i,kqc)=ges_qc(j,i,k)
               all_loc(j,i,kqi)=ges_qi(j,i,k)
               all_loc(j,i,kqr)=ges_qr(j,i,k)
@@ -1642,7 +1668,7 @@ subroutine wrwrfmassa_netcdf(mype)
   end if
 
 ! for saving cloud analysis results
-  if(l_cloud_analysis) then
+  if(l_cloud_analysis .or. nguess>0) then
 ! Update qc
      kqc=i_qc-1
      do k=1,nsig

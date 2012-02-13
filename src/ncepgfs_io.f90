@@ -68,6 +68,10 @@ contains
 ! program history log:
 !   2010-03-31  treadon - create routine
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2011-10-01  mkim    - add calculation of hydrometeor mixing ratio from total condensate (cw)  
+!   2011-11-01  eliu    - add call to set_cloud_lower_bound (qcmin) 
+!   2011-11-01  eliu    - move then calculation of hydrometeor mixing ratio from total condensate to cloud_efr;
+!                         rearrange Min-Jeong's code  
 !
 !   input argument list:
 !     mype               - mpi task id
@@ -81,48 +85,78 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,sp_b
+    use gridmod, only: hires_b,sp_a,sp_b     
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
          ges_u,ges_v,ges_tv,ges_q,ges_oz,&
-         ifilesig,nfldsig
+         ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
+    use cloud_efr, only: cloud_calc_gfs,set_cloud_lower_bound    
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     character(24) filename
-    integer(i_kind):: it,iret
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
+    logical:: l_cld_derived
+    integer(i_kind):: it,i,j,k    
+    integer(i_kind):: iret,iret_cw,iret_ql,iret_qi,istatus 
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
     if (hires_b) then
        do it=1,nfldsig
 
-!         Get pointer to could water mixing ratio
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-          if (iret/=0) call die('READ_GFS','cannot get pointer to cwmr, iret =',iret)
+!         Get pointer to cloud water mixing ratio
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw) 
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
+          if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
+          if (iret_ql/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
+          endif
+          if (iret_qi/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
+          endif
+
+          l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
 
           write(filename,100) ifilesig(it)
 100       format('sigf',i2.2)
           call read_gfsatm(filename,mype,sp_a,sp_b,&
                ges_z(1,1,it),ges_ps(1,1,it),&
-               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
+               ges_vor(1,1,1,it),ges_div(1,1,1,i),&
                ges_u(1,1,1,it),ges_v(1,1,1,it),&
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
 
-       end do
+!         call set_cloud_lower_bound(ges_cwmr_it)
+          if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
+          if (l_cld_derived) &            
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
+
+       end do
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
     else
        do it=1,nfldsig
 
-!         Get pointer to could water mixing ratio
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-          if (iret/=0) call die('READ_GFS','cannot get pointer to cwmr, iret =',iret)
+!         Get pointer to cloud water mixing ratio
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw)    
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql)    
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)    
+          if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
+          if (iret_ql/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
+          endif
+          if (iret_qi/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
+          endif
+
+          l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
 
           write(filename,100) ifilesig(it)
           call read_gfsatm(filename,mype,sp_a,sp_a,&
@@ -132,8 +166,15 @@ contains
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
 
+!         call set_cloud_lower_bound(ges_cwmr_it)
+          if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
+
+          if (l_cld_derived) &            
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
+
        end do
     endif
+
   end subroutine read_gfs
 
   subroutine read_gfs_chem ( iyear, month )

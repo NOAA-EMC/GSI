@@ -219,6 +219,7 @@ clean:
 	calctends_no_tl.f90 \
 	chemmod.f90 \
 	clw_mod.f90 \
+	cloud_efr.f90 \
 	cmaq_routines.f90 \
 	co_mop_ak.f90 \
 	coinfo.f90 \
@@ -234,9 +235,9 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
-	crtm_cloud.f90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
+	cwhydromod.f90 \
 	dtast.f90 \
 	deter_nst.f90 \
 	deter_sfc_mod.f90 \
@@ -471,7 +472,6 @@ clean:
 	sub2grid.f90 \
 	support_2dvar.f90 \
 	stub_set_crtm_aerosol.f90 \
-	stub_set_crtm_cloud.f90 \
 	stub_pertmod.F90 \
 	stub_timermod.f90 \
 	tendsmod.f90 \

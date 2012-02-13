@@ -30,6 +30,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !                          work for any general orthogonal coordinate.
 !   2010-11-03  derber - moved threading calculations to gridmod and modified
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
 !
 ! usage:
 !   input argument list:
@@ -69,13 +70,14 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
   use gridmod, only: lat2,lon2,nsig,istart,rlats,nlat,idvc5,bk5,&
       eta2_ll,wrf_nmm_regional,nems_nmmb_regional,regional,nthreads,jtstart,jtstop
   use constants, only: zero,half,two,rd,rcp
+  use jfunc, only: cwgues
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
       pr_ysum9,pr_ydif9,curvx,curvy,coriolis
   use guess_grids, only: ntguessig,ges_u,&
       ges_u_lon,ges_u_lat,ges_v,ges_v_lon,ges_v_lat,ges_tv,ges_tvlat,ges_tvlon,&
       ges_q,ges_qlon,ges_qlat,ges_oz,ges_ozlon,ges_ozlat,ges_cwmr_lon,&
       ges_cwmr_lat,ges_teta,ges_prsi
-  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
   implicit none
@@ -99,14 +101,24 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2,tmp3,var,sumk,sumvk,sum2k,sum2vk
   real(r_kind),pointer,dimension(:,:,:) :: ges_cwmr_it
-  integer(i_kind) i,j,k,ix,it,kk,istatus
+  integer(i_kind) i,j,k,ix,it,kk,istatus,nguess,ier
 
   it=ntguessig
 
 ! Get pointer to could water mixing ratio
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
-  if (istatus/=0) call die('setuppcp','cannot get pointer to cwmr, istatus =',istatus)
-
+  call gsi_metguess_get('dim',nguess,ier)
+  if (nguess>0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+     if (istatus/=0) then 
+        if (regional) then 
+           ges_cwmr_it => cwgues   ! temporily, revise after moist physics is ready
+        else
+           call die('setuppcp','cannot get pointer to cwmr, istatus =',istatus)
+        end if
+     end if
+  else
+     ges_cwmr_it => cwgues
+  end if
 
 !  loop over threads
 !$omp parallel do schedule(dynamic,1) private(i,j,k,kk,tmp,tmp2,ix,&
