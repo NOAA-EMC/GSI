@@ -1,0 +1,1 @@
+../../image_gen/ush/get_satype.sh

@@ -1,0 +1,29 @@
+#
+# The data_map file contains information about all available data sources.
+#
+# All information is accessed by suffix.  This should be a unique identifier.
+#   NOTE:  the suffix should be preceeded by at least one blank space (" ").  
+#          The script that updates the processing dates uses an initial space
+#          before the suffix in order to distinguish between a suffix that is 
+#          entirely a subset of another (i.e. " tmp" won't match " ptmp", but
+#          "tmp" matches "ptmp"). 
+#   Area indicates global or regional.  
+#   File location indicates the directory which contains the radstat files.  If
+#     running as a parallel, the $COMOUT location will override this entry.  
+#   Anl flag indicates if analysis files should be processed. 
+#   Prodate indicates the last cycle that was processed by the data_extract 
+#     scripts.
+#   Imgdate indicates the last cycle for which images were produced.  This will be the
+#     last cycle shown on a time-series plot.  It must be less (meaning an earlier
+#     cycle) than the prodate cycle, or no plotting will occur.
+#   Static_SATYPE indicates the source for SATYPE.  
+#     0 = derive the SATYPE list dynamically from the contents of the radstat file 
+#         and (for image gen) from the list of files in $TANKDIR/$SUFFIX. 
+#     1 = use SATYPE.txt file in the $TANKDIR/$SUFFIX
+#
+# suffix    area  radstat file location                  anl    prodate       imgdate       static_SATYPE
+# ------    ----  ---------------------                  ---    -------       -------	    -------------
+   opr      glb    /com/gfs/prod                          1    2012012406    2012012406           1
+   nrx      rgn    /com/nam/prod                          0    2012012400    2012012400           1
+#  pry      glb    /gpfs/t3/global/save/wx20es/prd11q1f   0    2011051006    2011051000           0
+#  fud      glb    /com/gfs/prod                          0    2011112312    2011102806           1

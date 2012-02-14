@@ -1,0 +1,1 @@
+../../image_gen/ush/set_prodate.sh
