@@ -1,0 +1,23 @@
+Radiance Monitor, data_extract scripts
+
+
+The scripts in this directory are used to set up the environments, run the 
+appropriate executables, and move the resulting data and log files to the 
+desired directories.
+
+There are two sets of scripts; one for the global, and one for the
+regional.  They are similar, but not identical in functioning.  
+
+The top level scripts are VrfyRad_glbl.sh and VrfyRad_rgnl.sh scripts.
+They poll for new diagnostic files and calls the lower level data 
+extraction scripts if a new diag file is found. 
+
+VrfyRad_glbl.sh takes 2 parameters as input:  the desired suffix, and the 
+running environment ("dev", "para", or "prod").
+
+The resulting data files are saved in $TANKDIR/${SUFFIX} and 
+$TANKDIR/regional/${SUFFIX} directories.   $TANKDIR is defined within the 
+*_conf files in the parm directory.
+
+See the README in the parms directory for default settings information.
+ 

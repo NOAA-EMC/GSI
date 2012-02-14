@@ -1,0 +1,29 @@
+#----------------------------------------------------------------
+#
+#  glbl_comp_conf
+#
+#  Contains configuration information for producing glbl 
+#  comparision images from 2 or 3 different global data sources.
+#
+#  Users may need to edit the SATYPE list and web server
+#  resources.
+#----------------------------------------------------------------
+
+#
+# web server resources
+#
+export WEBDIR=${WEBDIR}/glbl/${SUFFIX}/pngs
+
+export LOGDIR=${LOGSverf_rad}/rad_comp
+export PLOT_WORK_DIR=${STMP_USER}/plot_comp_jobs
+
+export TANKDIR=${MY_TANKDIR}/stats
+export IMGNDIR=${MY_TANKDIR}/imgn
+
+
+#
+# default settings
+#
+export USER_CLASS=${USER_CLASS:-dev}
+export ACOUNT=${ACOUNT:-RDAS-MTN}
+

@@ -1,0 +1,39 @@
+# *****************************************************************
+#  makefile.bcor
+#
+#  Make the bcor.rgn.x executable.  The executable will extract
+#  bcor radiance data from a diagnostic file from a global run.
+#
+# *****************************************************************
+
+SHELL=/bin/sh
+SRCS = make_base.f90
+
+OBJS =  make_base.o
+
+#
+# *****************************************************************
+#
+
+CF=xlf90
+
+LIBS    = -L/nwprod/lib -lw3_4
+FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1
+
+LDFLAGS=
+
+CMD = make_base.rgn.x
+
+all:  $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.rgn.x
+
+$(CMD):         $(OBJS)
+	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../../exec/.
+
+make_base.o : make_base.f90
+	$(CF) $(FFLAGS) -c $(*).f90
