@@ -918,8 +918,8 @@ contains
     odate(4) = idate(1)  !year
 
     if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
-       if ( mype == 0 ) write(6,'(a,'': inconsistent spatial dimension '', &
-          & ''nlon,nlatm2 = '',2(i4,tr1),''-vs- sfc file lonb,latb = '',i4)') &
+       if ( mype == 0 ) &
+          write(6,'(a,'': inconsistent spatial dimension nlon,nlatm2 = '',2(i4,tr1),''-vs- sfc file lonb,latb = '',i4)') &
           trim(my_name),nlon_sfc,nlat_sfc-2,lonb,latb
        call stop2(102)
     endif
@@ -1021,9 +1021,9 @@ contains
     if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop,iret)
 !
 !   Print date/time stamp
-    if ( mype == 0 ) write(6,'(a,'': nst sfc read, nlon,nlat= '', &
-       & 2i6, '', hour= '',f3.1,'', idate= '',4i5)') trim(my_name), &
-       lonb,latb,fhour,odate
+    if ( mype == 0 ) &
+       write(6,'(a,'': nst sfc read, nlon,nlat= '', 2i6, '', hour= '',f3.1,'', idate= '',4i5)') &
+          trim(my_name),lonb,latb,fhour,odate
   end subroutine read_sfc_nst_
 
 
@@ -1777,10 +1777,9 @@ contains
 
     character(24)                    ,intent(in   ) :: filename  ! sfc file to open and write to
     character(24)                    ,intent(in   ) :: fname_nst ! nst file to open and write to
-    real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct   ! delta skin temperature
-
-    integer(i_kind)                  ,intent(in   ) :: mype     ! mpi task number
-    integer(i_kind)                  ,intent(in   ) :: mype_nst ! mpi task to write output file
+    real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct     ! delta skin temperature
+    integer(i_kind)                  ,intent(in   ) :: mype      ! mpi task number
+    integer(i_kind)                  ,intent(in   ) :: mype_nst  ! mpi task to write output file
 
 ! !OUTPUT PARAMETERS:
 
