@@ -1,4 +1,4 @@
-subroutine read_guess(iyear,month,mype)
+subroutine read_guess(iyear,month,idd,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_guess          read/compute various guess fields
@@ -59,6 +59,7 @@ subroutine read_guess(iyear,month,mype)
 !   2010-09-17  pagowski - add cmaq
 !                         depend on obsmod - that's why idate not passed via common block
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
+!   2010-10-21  r. yang - pass dd for read_gsf_chem
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -93,6 +94,7 @@ subroutine read_guess(iyear,month,mype)
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: iyear
   integer(i_kind),intent(in   ) :: month
+  integer(i_kind),intent(in   ) :: idd
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
@@ -148,10 +150,10 @@ subroutine read_guess(iyear,month,mype)
         if ( use_gfs_nemsio ) then
 !!           WRITE(6,*)'WARNING :: you elect to read first guess field in NEMSIO format'
            call read_nems(mype)
-           call read_nems_chem(iyear,month)
+           call read_nems_chem(iyear,month,idd)
         else
            call read_gfs(mype)
-           call read_gfs_chem(iyear,month)
+           call read_gfs_chem(iyear,month,idd)
         end if
 #endif
 

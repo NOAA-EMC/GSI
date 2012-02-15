@@ -448,18 +448,18 @@ do i=1,ng2d
 enddo
 
 if (iamroot_) then
-    write(6,*) myname_,':  2D-CHEM STATE VARIABLES: '
-    do i=1,ng2d
-       write(6,*) trim(tgases2d(i))
-    enddo
-    write(6,*) myname_,':  3D-CHEM STATE VARIABLES:'
-    do i=1,ng3d
-       write(6,*) trim(tgases3d(i))
-    enddo
-    write(6,*) myname_,': ALL CHEM STATE VARIABLES:'
-    do i=1,ntgases
-       write(6,*) trim(tgases(i))
-    enddo
+   write(6,*) myname_,':  2D-CHEM STATE VARIABLES: '
+   do i=1,ng2d
+      write(6,*) trim(tgases2d(i))
+   enddo
+   write(6,*) myname_,':  3D-CHEM STATE VARIABLES:'
+   do i=1,ng3d
+      write(6,*) trim(tgases3d(i))
+   enddo
+   write(6,*) myname_,': ALL CHEM STATE VARIABLES:'
+   do i=1,ntgases
+      write(6,*) trim(tgases(i))
+   enddo
 end if
 chem_initialized_=.true.
 
