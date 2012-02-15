@@ -177,7 +177,7 @@ contains
 
   end subroutine read_gfs
 
-  subroutine read_gfs_chem ( iyear, month )
+  subroutine read_gfs_chem (iyear, month,idd )
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_gfs_chem
@@ -198,6 +198,7 @@ contains
 !   2010-05-19  todling - Port Hou's code from compute_derived(!)
 !                         into this module and linked with the chemguess_bundle
 !   2011-02-01  r. yang - proper initialization of prsi
+!   2011-05-24  yang    - add idd for time interpolation of co2 field
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
@@ -219,11 +220,14 @@ contains
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
 
+
+
     implicit none
 
 !   Declared argument list
     integer(i_kind), intent(in):: iyear
     integer(i_kind), intent(in):: month
+    integer(i_kind), intent(in):: idd
 
 !   Declare local variables
     integer(i_kind) igfsco2,i,j,k,n,ier
@@ -243,23 +247,85 @@ contains
        xlats(i) = rlats(n)
     enddo
 
-!   Get pressure for 
-    call  getprs(ges_ps(:,:,1),prsi)
-
-!   Read in CO2
     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
-    call read_gfsco2 ( iyear,month,igfsco2,xlats,prsi, &
+    call read_gfsco2 ( iyear,month,idd,igfsco2,xlats, &
                        lat2,lon2,nsig,mype,  &
                        p_co2 )
 
-! For now, I don't know what best to do other than setting all times to have
-! equal CO2 ... anybody?
+
+! Approximation: assign three time slots (nfldsig) of CO2 with same values 
     do n=2,nfldsig
        call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d,ier)
        ptr3d = p_co2
     enddo
 
+! For checking the co2 field read and interpolated in read_gfsco2, uncomment the next line
+!      call write_co2_grid (ptr3d,mype)
+
   end subroutine read_gfs_chem
+!
+subroutine write_co2_grid(a,mype)
+!$$$  subroutine documentation block
+!
+! subprogram:    write_co2_grid
+!
+!   prgrmmr:  yang: follow write_bkgvars_grid
+!
+!
+!   input argument list:
+!     mype     - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$
+  use kinds, only: r_kind,i_kind,r_single
+  use constants, only: izero
+  use gridmod, only: nlat,nlon,nsig,lat2,lon2
+  use file_utility, only : get_lun
+  implicit none
+
+  integer(i_kind)                       ,intent(in   ) :: mype
+
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: a
+
+  character(255):: grdfile
+
+  real(r_kind),dimension(nlat,nlon,nsig):: ag
+
+  real(r_single),dimension(nlon,nlat,nsig):: a4
+  integer(i_kind) ncfggg,iret,i,j,k,lu
+
+! gather stuff to processor 0
+  do k=1,nsig
+     call gather_stuff2(a(1,1,k),ag(1,1,k),mype,izero)
+  end do
+
+  if (mype==izero) then
+     write(6,*) 'WRITE OUT CO2'
+! load single precision arrays
+     do k=1,nsig
+        do j=1,nlon
+           do i=1,nlat
+              a4(j,i,k)=ag(i,j,k)
+           end do
+        end do
+     end do
+
+! Create byte-addressable binary file for grads
+     grdfile='climco2_grd'
+     ncfggg=len_trim(grdfile)
+     lu=get_lun()
+     call baopenwt(lu,grdfile(1:ncfggg),iret)
+     call wryte(lu,4*nlat*nlon*nsig,a4)
+     call baclose(lu,iret)
+  end if
+   
+  return
+end subroutine write_co2_grid
 
   subroutine read_gfsatm(filename,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz,iret_read)

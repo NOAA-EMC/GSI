@@ -201,7 +201,7 @@ contains
     end do
   end subroutine read_
 
-  subroutine read_chem_ ( iyear, month )
+  subroutine read_chem_ ( iyear, month,idd )
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_nems_chem
@@ -235,7 +235,7 @@ contains
     use mpimod,  only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
     use ncepgfs_ghg, only: read_gfsco2
-    use guess_grids, only: ges_prsi,nfldsig,ntguessig
+    use guess_grids, only: ges_ps,nfldsig,ntguessig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -245,6 +245,7 @@ contains
 !   Declared argument list
     integer(i_kind), intent(in):: iyear
     integer(i_kind), intent(in):: month
+    integer(i_kind), intent(in):: idd
 
 !   Declare local variables
     integer(i_kind) :: igfsco2, i, j, k, n, iret
@@ -265,10 +266,12 @@ contains
 
 !   Read in CO2
     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, iret )
-    call read_gfsco2 ( iyear,month,igfsco2,xlats,ges_prsi(:,:,:,ntguessig),&
+    call read_gfsco2 ( iyear,month,idd,igfsco2,xlats,&
                        lat2,lon2,nsig,mype, p_co2 )
 
-    do n = 2, ntguessig
+! Approximation: setting all times co2 values equal to the daily co2 values
+
+    do n = 2, nfldsig
        call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d,iret)
        ptr3d = p_co2
     enddo
