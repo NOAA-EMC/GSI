@@ -1055,62 +1055,62 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      endif
 !!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
-       cat = nint(data(icat,i))
-        im=max(i-1,1)
-  if(   .not. last .and. ext_sonde .and. itype==220 .and. &
-       muse(i) .and.  muse(im) .and. &
-      (cat==3 .or. cato==3 .or. cat==5 .or. cato==5) .and. &
-       dpres > 0. .and. station_id== station_ido  )  then
+     cat = nint(data(icat,i))
+     im=max(i-1,1)
+     if(   .not. last .and. ext_sonde .and. itype==220 .and. &
+        muse(i) .and.  muse(im) .and. &
+       (cat==3 .or. cato==3 .or. cat==5 .or. cato==5) .and. &
+        dpres > 0._r_kind .and. station_id== station_ido  )  then
 
-      ku=dpres-1
-      ku=min(nsig,ku)
-      kl=dpreso+2
-      kl=max(2,kl)
-      do k = kl,ku
+        ku=dpres-1
+        ku=min(nsig,ku)
+        kl=dpreso+2
+        kl=max(2,kl)
+        do k = kl,ku
            allocate(wtail(ibin)%head%llpoint,stat=istat)
            if(istat /= 0)write(6,*)' failure to write wtail%llpoint '
            wtail(ibin)%head => wtail(ibin)%head%llpoint
 
 !!! find wob (wint)
-      uint=(data(iuob,im)*(prsltmp(k)-data(ipres,i)) &
-           +data(iuob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
-      vint=(data(ivob,im)*(prsltmp(k)-data(ipres,i))  &
-           +data(ivob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
+           uint=(data(iuob,im)*(prsltmp(k)-data(ipres,i)) &
+                +data(iuob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
+           vint=(data(ivob,im)*(prsltmp(k)-data(ipres,i))  &
+                +data(ivob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
 !!! find wges (wgint)
-       dpk=k
-        call tintrp3(ges_u,ugesin,dlat,dlon,dpk,dtime, &
-           hrdifsig,1,mype,nfldsig)
-        call tintrp3(ges_v,vgesin,dlat,dlon,dpk,dtime, &
-           hrdifsig,1,mype,nfldsig)
+           dpk=k
+           call tintrp3(ges_u,ugesin,dlat,dlon,dpk,dtime, &
+              hrdifsig,1,mype,nfldsig)
+           call tintrp3(ges_v,vgesin,dlat,dlon,dpk,dtime, &
+              hrdifsig,1,mype,nfldsig)
 
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location
-        call get_ijk(mm1,dlat,dlon,dpk,wtail(ibin)%head%ij(1),wtail(ibin)%head%wij(1))
+           call get_ijk(mm1,dlat,dlon,dpk,wtail(ibin)%head%ij(1),wtail(ibin)%head%wij(1))
 
 !!! find ddiff
-     dudiff=uint-ugesin
-     dvdiff=vint-vgesin
+           dudiff=uint-ugesin
+           dvdiff=vint-vgesin
 
 !!! set oberror of pseudo_obs
-        error=one/max(data(ier2,i),data(ier2,im))
+           error=one/max(data(ier2,i),data(ier2,im))
 
-        wtail(ibin)%head%ures=dudiff
-        wtail(ibin)%head%vres=dvdiff
-        wtail(ibin)%head%err2=error**2
-        wtail(ibin)%head%raterr2=ratio_errors **2
-        wtail(ibin)%head%time = dtime
-        wtail(ibin)%head%b=cvar_b(ikx)
-        wtail(ibin)%head%pg=cvar_pg(ikx)
-        wtail(ibin)%head%luse=luse(i)
-        wtail(ibin)%head%diagu => obsptr
-        wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
+           wtail(ibin)%head%ures=dudiff
+           wtail(ibin)%head%vres=dvdiff
+           wtail(ibin)%head%err2=error**2
+           wtail(ibin)%head%raterr2=ratio_errors **2
+           wtail(ibin)%head%time = dtime
+           wtail(ibin)%head%b=cvar_b(ikx)
+           wtail(ibin)%head%pg=cvar_pg(ikx)
+           wtail(ibin)%head%luse=luse(i)
+           wtail(ibin)%head%diagu => obsptr
+           wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
 
-      enddo
+        enddo
 
-endif    !   itype=120
+     endif    !   itype=120
 
-    station_ido=station_id
-    dpreso=dpres
-    cato=cat
+     station_ido=station_id
+     dpreso=dpres
+     cato=cat
 
 !!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
 ! End of loop over observations
