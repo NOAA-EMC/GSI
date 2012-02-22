@@ -37,6 +37,3 @@ export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
 export STNMAP=/usrx/local/grads/bin/stnmap
 export GRADS=/usrx/local/grads/bin/grads
 
-export DISCLAIMER="${SCRIPTS}/disclaimer.txt"
-export REGION="${SCRIPTS}/region.txt"
-
