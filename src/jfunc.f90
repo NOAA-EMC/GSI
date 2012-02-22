@@ -37,6 +37,7 @@ module jfunc
 !                       - declare all variables coming from use statements
 !   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
 !   2011-02-16  zhu     - add ggues,vgues,pgues
+!   2011-07-15  zhu     - add cwgues
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -115,7 +116,7 @@ module jfunc
   public :: set_sqrt_2dsize
 ! set passed variables to public
   public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
-  public :: switch_on_derivatives,qgues,qsatg,jiterend,jiterstart,jiter,iter,niter,miter
+  public :: switch_on_derivatives,qgues,qsatg,cwgues,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
@@ -135,6 +136,7 @@ module jfunc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
+  real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
   real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
@@ -256,6 +258,7 @@ contains
          dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
          varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
          qgues(lat2,lon2,nsig))
+    allocate(cwgues(lat2,lon2,nsig))
 
     xhatsave=zero
     yhatsave=zero
@@ -274,6 +277,14 @@ contains
              dqdrh(i,j,k)=zero
              dqdp(i,j,k)=zero
              qgues(i,j,k)=zero
+          end do
+       end do
+    end do
+
+    do k=1,nsig
+       do j=1,lon2
+          do i=1,lat2
+             cwgues(i,j,k)=zero
           end do
        end do
     end do
@@ -303,7 +314,6 @@ contains
           end do
        end do
     end if
-
 
     return
   end subroutine create_jfunc
@@ -335,6 +345,7 @@ contains
     call deallocate_cv(yhatsave)
     deallocate(varq)
     deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
+    deallocate(cwgues)
     if (getindex(cvars2d,'gust')>0) deallocate(ggues)
     if (getindex(cvars2d,'vis')>0)  deallocate(vgues,dvisdlog)
     if (getindex(cvars2d,'pblh')>0) deallocate(pgues)

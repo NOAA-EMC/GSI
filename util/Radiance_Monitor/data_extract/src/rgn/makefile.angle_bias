@@ -1,0 +1,54 @@
+# *****************************************************************
+#
+#  makefile.angle_bias
+#
+#  Make the angle_bias.rgn.x executable.  This will extract 
+#  angle radiance data from an NDAS diagnostic file.
+#
+# *****************************************************************
+
+SHELL=/bin/sh
+SRCS = kinds.F90 read_diag.f90 angle_bias.f90 \
+        create_ctl_angle.f90 read_satang.f90
+
+OBJS = kinds.o read_diag.o angle_bias.o \
+	create_ctl_angle.o read_satang.o
+
+#
+# *****************************************************************
+#
+
+CF=xlf90
+
+LIBS    = -L/nwprod/lib -lw3_4
+FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1 -WF,-D_REAL8_
+
+LDFLAGS=
+
+CMD = angle_bias.rgn.x
+
+all:  $(CMD)
+
+clean:
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.rgn.x
+
+$(CMD):         $(OBJS)
+	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
+	cp ${CMD} ../../exec/.
+
+read_diag.o : read_diag.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+angle_bias.o : angle_bias.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+create_ctl_angle.o : create_ctl_angle.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+read_satang.o : read_satang.f90
+	$(CF) $(FFLAGS) -c $(*).f90
+
+kinds.o : kinds.F90
+	$(CF) $(FFLAGS) -c $(*).F90

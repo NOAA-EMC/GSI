@@ -74,6 +74,7 @@ subroutine intpcp_(pcphead,rval,sval)
 !   2010-05-13 todling   - update to use gsi_bundle
 !                        - BUG FIX: foto was using TV instead of TSENS
 !                        - on-the-spot handling of non-essential vars
+!   2011-11-01 eliu      - add handling for ql and qi increments  
 !
 !   input argument list:
 !     pcphead  - obs type pointer to obs structure
@@ -81,19 +82,21 @@ subroutine intpcp_(pcphead,rval,sval)
 !     sq       - input q correction field
 !     su       - input zonal wind correction field
 !     sv       - input meridional wind correction field
-!     scwm     - input cloud condensate mixing ratio correction field
+!     sql      - input cloud liquid water mixing ratio correction field
+!     sqi      - input cloud ice water mixing ratio correction field
 !     rt
 !     rq
 !     ru
-!     rv
-!     rcwm
+!     rql
+!     rqi
 !
 !   output argument list:
-!     rt       - output t vector after inclusion of pcp. info.
-!     rq       - output q vector after inclusion of pcp. info.
-!     ru       - output u vector after inclusion of pcp. info.
-!     rv       - output v vector after inclusion of pcp. info.
-!     rcwm     - output cwm vector after inclusion of pcp. info.
+!     rt       - output  t vector after inclusion of pcp. info.
+!     rq       - output  q vector after inclusion of pcp. info.
+!     ru       - output  u vector after inclusion of pcp. info.
+!     rv       - output  v vector after inclusion of pcp. info.
+!     rql      - output ql vector after inclusion of pcp. info.
+!     rqi      - output qi vector after inclusion of pcp. info.
 !
 ! attributes:
 !   language: f90
@@ -107,7 +110,7 @@ subroutine intpcp_(pcphead,rval,sval)
   use constants, only: zero,one,half,tiny_r_kind,cg_term,r3600
   use gridmod, only: nsig,latlon11,latlon1n
   use gsi_4dvar, only: ltlint
-  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt  
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -118,20 +121,24 @@ subroutine intpcp_(pcphead,rval,sval)
   type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx,ier,istatus,icw
+  logical:: lcld
+  integer(i_kind) j1,j2,j3,j4,nq,nu,nv,ncwm,n,nt,kx,ier,istatus,icw,iql,iqi
   real(r_kind) dt,dq,du,dv,dcwm,dcwm_ad,termges_ad,w1,w2,w3,w4
   real(r_kind) pcp_ges_ad,dq_ad,dt_ad,dv_ad,du_ad,pcp_ges
   real(r_kind) obsges,termges,time_pcp,termges_tl,pcp_ges_tl,pcp_cur,termcur
   real(r_kind) cg_pcp,p0,wnotgross,wgross
   type(pcp_ob_type), pointer :: pcpptr
 
-  real(r_kind),pointer,dimension(:):: st,sq,su,sv,scwm
-  real(r_kind),pointer,dimension(:):: rt,rq,ru,rv,rcwm
+  real(r_kind),pointer,dimension(:):: st,sq,su,sv
+  real(r_kind),pointer,dimension(:):: sql,sqi,scwm   
+  real(r_kind),pointer,dimension(:):: rql,rqi,rcwm  
+  real(r_kind),pointer,dimension(:):: rt,rq,ru,rv
   real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
   real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
-  
-!  If no pcp obs return
+ 
+! If no pcp obs return
   if(.not. associated(pcphead))return
+
 ! Retrieve pointers
   ier=0
   call gsi_bundlegetpointer(sval,'u',    su,istatus);ier=istatus+ier
@@ -147,9 +154,13 @@ subroutine intpcp_(pcphead,rval,sval)
   if(ier/=0)return
 
 ! Non-essentials:
-  icw=0
+  icw=0; iql=0; iqi=0
   call gsi_bundlegetpointer(sval,'cw', scwm,istatus);icw=istatus+icw
   call gsi_bundlegetpointer(rval,'cw', rcwm,istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(sval,'ql', sql,istatus) ;iql=istatus+iql
+  call gsi_bundlegetpointer(sval,'qi', sqi,istatus) ;iqi=istatus+iqi
+  call gsi_bundlegetpointer(rval,'ql', rql,istatus) ;iql=istatus+iql
+  call gsi_bundlegetpointer(rval,'qi', rqi,istatus) ;iqi=istatus+iqi
 
   if(l_foto) then
      call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
@@ -167,6 +178,8 @@ subroutine intpcp_(pcphead,rval,sval)
      call gsi_bundlegetpointer(xhat_dt,'cw',    xhat_dt_cw,istatus);icw=istatus+icw
      call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
   endif
+
+  lcld = (icw==0 .or. (iql+iqi)==0)
 
   pcpptr => pcphead
   do while(associated(pcpptr))
@@ -189,12 +202,20 @@ subroutine intpcp_(pcphead,rval,sval)
         dq = w1* sq(j1)+w2* sq(j2)+ w3* sq(j3)+w4* sq(j4)
         du = w1* su(j1)+w2* su(j2)+ w3* su(j3)+w4* su(j4)
         dv = w1* sv(j1)+w2* sv(j2)+ w3* sv(j3)+w4* sv(j4)
-        if (icw==0) then
-           dcwm=w1* scwm(j1)+w2* scwm(j2)+  &
-                w3* scwm(j3)+w4* scwm(j4)
-        else
+        if (lcld) then
+           if (icw==0) then
+              dcwm=w1* scwm(j1)+w2* scwm(j2)+  &
+                   w3* scwm(j3)+w4* scwm(j4)
+           else
+              dcwm=w1* sql(j1)+w1* sqi(j1)+  &
+                   w2* sql(j2)+w2* sqi(j2)+  &
+                   w3* sql(j3)+w3* sqi(j3)+  &
+                   w4* sql(j4)+w4* sqi(j4)
+           endif
+        else 
            dcwm=zero
-        end if
+        endif
+
         if (l_foto) then
            dt = dt+&
                (w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
@@ -295,17 +316,28 @@ subroutine intpcp_(pcphead,rval,sval)
         do n=1,nsig
            nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
 
-           if (icw==0) dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
+           if (lcld) dcwm_ad = pcpptr%dpcp_dvar(ncwm)*pcp_ges_ad
            dv_ad   = pcpptr%dpcp_dvar(nv)*pcp_ges_ad
            du_ad   = pcpptr%dpcp_dvar(nu)*pcp_ges_ad
            dq_ad   = pcpptr%dpcp_dvar(nq)*pcp_ges_ad
            dt_ad   = pcpptr%dpcp_dvar(nt)*pcp_ges_ad
 
-           if (icw==0) then
-              rcwm(j4) = rcwm(j4) + w4*dcwm_ad
-              rcwm(j3) = rcwm(j3) + w3*dcwm_ad
-              rcwm(j2) = rcwm(j2) + w2*dcwm_ad
-              rcwm(j1) = rcwm(j1) + w1*dcwm_ad
+           if (lcld) then
+              if (icw==0) then
+                 rcwm(j4) = rcwm(j4) + w4*dcwm_ad   
+                 rcwm(j3) = rcwm(j3) + w3*dcwm_ad   
+                 rcwm(j2) = rcwm(j2) + w2*dcwm_ad   
+                 rcwm(j1) = rcwm(j1) + w1*dcwm_ad    
+              else
+                 rql(j4) = rql(j4)+w4*dcwm_ad       
+                 rqi(j4) = rqi(j4)+w4*dcwm_ad       
+                 rql(j3) = rql(j3)+w3*dcwm_ad       
+                 rqi(j3) = rqi(j3)+w3*dcwm_ad       
+                 rql(j2) = rql(j2)+w2*dcwm_ad        
+                 rqi(j2) = rqi(j2)+w2*dcwm_ad       
+                 rql(j1) = rql(j1)+w1*dcwm_ad      
+                 rqi(j1) = rqi(j1)+w1*dcwm_ad       
+              end if
            end if
 
            rv(j4) = rv(j4) + w4*dv_ad

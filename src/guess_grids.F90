@@ -87,6 +87,8 @@ module guess_grids
 !   2011-03-13  li      - add for nst FCST file
 !   2011-04-29  todling  - some of cloud fields move to wrf_guess_mod; some to met_guess
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2011-11-01  eliu    - modified condition to allocate/deallocate arrays related to 
+!                         cloud water tendencies and derivatives 
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -130,6 +132,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
   public :: ges_gust,ges_vis,ges_pblh
   public :: use_compress,nsig_ext,gpstop
+  public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
   public :: ges_initialized
   public :: tnd_initialized
@@ -267,6 +270,13 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
+
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qr     ! effective radius for rain
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qs     ! effective radius for snow
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qg     ! effective radius for graupel
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qh     ! effective radius for hail
 
   interface guess_grids_print
      module procedure print1r8_
@@ -407,8 +417,9 @@ contains
 ! !USES:
 
     use constants,only: zero,one
-    use gridmod, only: lat2,lon2,nsig
-    use mpeu_util, only: die, tell
+    use gridmod, only: lat2,lon2,nsig,regional
+    use control_vectors, only: cvars3d
+    use mpeu_util, only: die, tell, getindex
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -581,6 +592,24 @@ contains
           end do
        end if
 
+       allocate (efr_ql(lat2,lon2,nsig,nfldsig),efr_qi(lat2,lon2,nsig,nfldsig), &
+                 efr_qr(lat2,lon2,nsig,nfldsig),efr_qs(lat2,lon2,nsig,nfldsig), &
+                 efr_qg(lat2,lon2,nsig,nfldsig),efr_qh(lat2,lon2,nsig,nfldsig))
+       do n=1,nfldsig
+          do k=1,nsig
+             do j=1,lon2
+                do i=1,lat2
+                   efr_ql(i,j,k,n)=zero
+                   efr_qi(i,j,k,n)=zero
+                   efr_qr(i,j,k,n)=zero
+                   efr_qs(i,j,k,n)=zero
+                   efr_qg(i,j,k,n)=zero
+                   efr_qh(i,j,k,n)=zero
+                end do
+             end do
+          end do
+       end do
+
     end if ! ges_initialized
     
 !   If tendencies option on, allocate/initialize _ten arrays to zero
@@ -605,7 +634,9 @@ contains
           end do
        end do
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
-       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
+!      if (regional .and. nems_nmmb_regional) ivar=getindex(cvars3d,'cw')
+       ivar=getindex(cvars3d,'cw')
        if (ivar>0) then
            allocate(ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
            if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_ten):  allocate error, istatus=',&
@@ -655,7 +686,9 @@ contains
           end do
        end do
 !      Get pointer to could water mixing ratio, and alloc directional derivatives if cwmr present in guess
-       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
+!      if (regional .and. nems_nmmb_regional) ivar=getindex(cvars3d,'cw')
+       ivar=getindex(cvars3d,'cw')
        if (ivar>0) then
            allocate(ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
             stat=istatus)
@@ -893,7 +926,8 @@ contains
 
 ! !USES:
 
-    use mpeu_util, only: die, tell
+    use mpeu_util, only: die, tell,getindex
+    use control_vectors, only: cvars3d
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -914,6 +948,7 @@ contains
 !   2006-12-04  todling - remove bias destroy; rename routine
 !   2006-12-15  todling - using internal switches to deallc(tnds/drvs)
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
+!   2011-11-01  eliu    - add access to cvars3d & getindex 
 !
 ! !REMARKS:
 !   language: f90
@@ -947,9 +982,11 @@ contains
             write(6,*)'DESTROY_GES_GRIDS(ges_pint,..):  deallocate error, istatus=',&
             istatus
     endif
+    deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
     if (drv_initialized .and.switch_on_derivatives) then
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
-       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
+       ivar=getindex(cvars3d,'cw')
        if (ivar>0) then
            deallocate(ges_cwmr_lat,ges_cwmr_lon,&
             stat=istatus)
@@ -967,7 +1004,8 @@ contains
     endif
     if (tnd_initialized .and. tendsflag) then
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
-       call gsi_metguess_get ( 'var::cw', ivar, istatus )
+!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
+       ivar=getindex(cvars3d,'cw')
        if (ivar>0) then
            deallocate(ges_cwmr_ten,stat=istatus)
            if (istatus/=0) &

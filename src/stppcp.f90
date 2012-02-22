@@ -61,9 +61,10 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
 !   2010-03-25  zhu     - use state_vector in the interface;
 !                       - add handlings of cw case; add pointer_state
-!   2010-05-13 todling   - update to use gsi_bundle
-!                        - on-the-spot handling of non-essential vars
-!   2010-09-25 todling   - fix linearization
+!   2010-05-13 todling  - update to use gsi_bundle
+!                       - on-the-spot handling of non-essential vars
+!   2010-09-25 todling  - fix linearization
+!   2011-11-01 eliu     - add handling for ql and qi increments 
 !
 !   input argument list:
 !     pcphead
@@ -71,12 +72,14 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !     rq       - search direction for moisture 
 !     ru       - search direction for zonal wind
 !     rv       - search direction for meridional wind
-!     rcwm     - search direction for cloud condensate mixing ratio
+!     rql      - search direction for cloud liquid water mixing ratio
+!     rqi      - search direction for cloud ice water mixing ratio
 !     st       - input temperature correction field
-!     sq       - input q correction field
-!     su       - input u correction field
-!     sv       - input v correction field
-!     scwm     - input cwm correction field
+!     sq       - input  q correction field
+!     su       - input  u correction field
+!     sv       - input  v correction field
+!     sql      - input ql correction field
+!     sqi      - input qi correction field
 !     sges     - step size estimates (nstep)
 !     nstep    - number of stepsizes  (==0 means use outer iteration values)
 !
@@ -109,7 +112,8 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
-  integer(i_kind) n,ncwm,nq,nt,nu,nv,kx,ier,istatus,icw
+  logical:: lcld 
+  integer(i_kind) n,ncwm,nq,nt,nu,nv,kx,ier,istatus,icw,iql,iqi
   integer(i_kind) i,j1,j2,j3,j4,kk
   real(r_kind) dt,dt0,w1,w2,w3,w4,time_pcp
   real(r_kind) dq,dq0
@@ -121,22 +125,25 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   real(r_kind) cg_pcp,wgross,wnotgross,pentl,pencur
   type(pcp_ob_type), pointer :: pcpptr
   real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
+  real(r_kind),pointer,dimension(:):: rql,rqi,sql,sqi
   real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
   real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
 
 ! Initialize penalty, b1, and b3 to zero  
   out=zero_quad
 
-!  If no  pcp data return
+! If no  pcp data return
   if(.not. associated(pcphead))return
 
 ! Retrieve pointers
-  ier=0; icw=0
+  ier=0; icw=0; iql=0; iqi=0
   call gsi_bundlegetpointer(xval,'u',    su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'v',    sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'tsen' ,st,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'q',    sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'cw', scwm,istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(xval,'ql',  sql,istatus);iql=istatus+iql
+  call gsi_bundlegetpointer(xval,'qi',  sqi,istatus);iqi=istatus+iqi
   if(ier/=0)return
 
   call gsi_bundlegetpointer(dval,'u',    ru,istatus);ier=istatus+ier
@@ -144,6 +151,8 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
   call gsi_bundlegetpointer(dval,'tsen' ,rt,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dval,'q',    rq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dval,'cw', rcwm,istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(dval,'ql',  rql,istatus);iql=istatus+iql
+  call gsi_bundlegetpointer(dval,'qi',  rqi,istatus);iqi=istatus+iqi
   if(ier/=0)return
 
   if(l_foto) then
@@ -161,6 +170,8 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
      call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
      if(ier/=0)return
   endif
+
+  lcld = (icw==0 .or. (iql+iqi)==0)
 
 ! Loop over number of observations.
   pcpptr => pcphead
@@ -185,21 +196,37 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
               dq  =w1*   sq(j1)+w2*   sq(j2)+ w3*   sq(j3)+w4*   sq(j4)
               du  =w1*   su(j1)+w2*   su(j2)+ w3*   su(j3)+w4*   su(j4)
               dv  =w1*   sv(j1)+w2*   sv(j2)+ w3*   sv(j3)+w4*   sv(j4)
-              if (icw==0) then
-                 dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
+              if (lcld) then
+                 if (icw==0) then
+                    dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
+                 else
+                    dcwm=w1* (sql(j1)+sqi(j1))+ &
+                         w2* (sql(j2)+sqi(j2))+ &
+                         w3* (sql(j3)+sqi(j3))+ &
+                         w4* (sql(j4)+sqi(j4))
+                 end if
               else
                  dcwm=zero
-              end if
+              endif
 
               dt0  =w1*   rt(j1)+w2*   rt(j2)+ w3*   rt(j3)+w4*   rt(j4)
               dq0  =w1*   rq(j1)+w2*   rq(j2)+ w3*   rq(j3)+w4*   rq(j4)
               du0  =w1*   ru(j1)+w2*   ru(j2)+ w3*   ru(j3)+w4*   ru(j4)
               dv0  =w1*   rv(j1)+w2*   rv(j2)+ w3*   rv(j3)+w4*   rv(j4)
-              if (icw==0) then
-                 dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
-              else
+
+              if (lcld) then
+                 if (icw==0) then
+                    dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
+                 else
+                    dcwm0=w1* (rql(j1)+rqi(j1))+ &
+                          w2* (rql(j2)+rqi(j2))+ &
+                          w3* (rql(j3)+rqi(j3))+ &
+                          w4* (rql(j4)+rqi(j4))
+                 end if
+	      else
                  dcwm0=zero
-              end if
+              endif
+
               if(l_foto) then
                  time_pcp=pcpptr%time*r3600
                  dt=dt+(w1*  xhat_dt_tsen(j1)+w2*  xhat_dt_tsen(j2)+ &
@@ -299,7 +326,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
      
      pcpptr => pcpptr%llpoint
   end do
-  
+ 
   return
 end subroutine stppcp
 

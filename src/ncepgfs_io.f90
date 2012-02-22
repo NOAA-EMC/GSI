@@ -68,6 +68,10 @@ contains
 ! program history log:
 !   2010-03-31  treadon - create routine
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2011-10-01  mkim    - add calculation of hydrometeor mixing ratio from total condensate (cw)  
+!   2011-11-01  eliu    - add call to set_cloud_lower_bound (qcmin) 
+!   2011-11-01  eliu    - move then calculation of hydrometeor mixing ratio from total condensate to cloud_efr;
+!                         rearrange Min-Jeong's code  
 !
 !   input argument list:
 !     mype               - mpi task id
@@ -81,48 +85,78 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,sp_b
+    use gridmod, only: hires_b,sp_a,sp_b     
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
          ges_u,ges_v,ges_tv,ges_q,ges_oz,&
-         ifilesig,nfldsig
+         ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
+    use cloud_efr, only: cloud_calc_gfs,set_cloud_lower_bound    
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     character(24) filename
-    integer(i_kind):: it,iret
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
+    logical:: l_cld_derived
+    integer(i_kind):: it,i,j,k    
+    integer(i_kind):: iret,iret_cw,iret_ql,iret_qi,istatus 
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
     if (hires_b) then
        do it=1,nfldsig
 
-!         Get pointer to could water mixing ratio
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-          if (iret/=0) call die('READ_GFS','cannot get pointer to cwmr, iret =',iret)
+!         Get pointer to cloud water mixing ratio
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw) 
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
+          if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
+          if (iret_ql/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
+          endif
+          if (iret_qi/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
+          endif
+
+          l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
 
           write(filename,100) ifilesig(it)
 100       format('sigf',i2.2)
           call read_gfsatm(filename,mype,sp_a,sp_b,&
                ges_z(1,1,it),ges_ps(1,1,it),&
-               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
+               ges_vor(1,1,1,it),ges_div(1,1,1,i),&
                ges_u(1,1,1,it),ges_v(1,1,1,it),&
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
 
-       end do
+!         call set_cloud_lower_bound(ges_cwmr_it)
+          if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
+          if (l_cld_derived) &            
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
+
+       end do
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
     else
        do it=1,nfldsig
 
-!         Get pointer to could water mixing ratio
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-          if (iret/=0) call die('READ_GFS','cannot get pointer to cwmr, iret =',iret)
+!         Get pointer to cloud water mixing ratio
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw)    
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql)    
+          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)    
+          if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
+          if (iret_ql/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
+          endif
+          if (iret_qi/=0) then 
+             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
+          endif
+
+          l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
 
           write(filename,100) ifilesig(it)
           call read_gfsatm(filename,mype,sp_a,sp_a,&
@@ -132,11 +166,18 @@ contains
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
 
+!         call set_cloud_lower_bound(ges_cwmr_it)
+          if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
+
+          if (l_cld_derived) &            
+          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
+
        end do
     endif
+
   end subroutine read_gfs
 
-  subroutine read_gfs_chem ( iyear, month )
+  subroutine read_gfs_chem (iyear, month,idd )
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    read_gfs_chem
@@ -157,6 +198,7 @@ contains
 !   2010-05-19  todling - Port Hou's code from compute_derived(!)
 !                         into this module and linked with the chemguess_bundle
 !   2011-02-01  r. yang - proper initialization of prsi
+!   2011-05-24  yang    - add idd for time interpolation of co2 field
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !
 !   input argument list:
@@ -178,11 +220,14 @@ contains
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
 
+
+
     implicit none
 
 !   Declared argument list
     integer(i_kind), intent(in):: iyear
     integer(i_kind), intent(in):: month
+    integer(i_kind), intent(in):: idd
 
 !   Declare local variables
     integer(i_kind) igfsco2,i,j,k,n,ier
@@ -202,23 +247,85 @@ contains
        xlats(i) = rlats(n)
     enddo
 
-!   Get pressure for 
-    call  getprs(ges_ps(:,:,1),prsi)
-
-!   Read in CO2
     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
-    call read_gfsco2 ( iyear,month,igfsco2,xlats,prsi, &
+    call read_gfsco2 ( iyear,month,idd,igfsco2,xlats, &
                        lat2,lon2,nsig,mype,  &
                        p_co2 )
 
-! For now, I don't know what best to do other than setting all times to have
-! equal CO2 ... anybody?
+
+! Approximation: assign three time slots (nfldsig) of CO2 with same values 
     do n=2,nfldsig
        call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d,ier)
        ptr3d = p_co2
     enddo
 
+! For checking the co2 field read and interpolated in read_gfsco2, uncomment the next line
+!      call write_co2_grid (ptr3d,mype)
+
   end subroutine read_gfs_chem
+!
+subroutine write_co2_grid(a,mype)
+!$$$  subroutine documentation block
+!
+! subprogram:    write_co2_grid
+!
+!   prgrmmr:  yang: follow write_bkgvars_grid
+!
+!
+!   input argument list:
+!     mype     - mpi task id
+!
+!   output argument list:
+!
+! attributes:
+!   language:  f90
+!   machine:
+!
+!$$$
+  use kinds, only: r_kind,i_kind,r_single
+  use constants, only: izero
+  use gridmod, only: nlat,nlon,nsig,lat2,lon2
+  use file_utility, only : get_lun
+  implicit none
+
+  integer(i_kind)                       ,intent(in   ) :: mype
+
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: a
+
+  character(255):: grdfile
+
+  real(r_kind),dimension(nlat,nlon,nsig):: ag
+
+  real(r_single),dimension(nlon,nlat,nsig):: a4
+  integer(i_kind) ncfggg,iret,i,j,k,lu
+
+! gather stuff to processor 0
+  do k=1,nsig
+     call gather_stuff2(a(1,1,k),ag(1,1,k),mype,izero)
+  end do
+
+  if (mype==izero) then
+     write(6,*) 'WRITE OUT CO2'
+! load single precision arrays
+     do k=1,nsig
+        do j=1,nlon
+           do i=1,nlat
+              a4(j,i,k)=ag(i,j,k)
+           end do
+        end do
+     end do
+
+! Create byte-addressable binary file for grads
+     grdfile='climco2_grd'
+     ncfggg=len_trim(grdfile)
+     lu=get_lun()
+     call baopenwt(lu,grdfile(1:ncfggg),iret)
+     call wryte(lu,4*nlat*nlon*nsig,a4)
+     call baclose(lu,iret)
+  end if
+   
+  return
+end subroutine write_co2_grid
 
   subroutine read_gfsatm(filename,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz,iret_read)

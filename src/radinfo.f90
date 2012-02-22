@@ -30,6 +30,7 @@ module radinfo
 !   2010-10-12  zhu     - combine scaninfo and edgeinfo into one file scaninfo
 !   2011-01-04  zhu     - add tlapmean update for new/existing channels when adp_anglebc is turned on
 !   2011-04-02  li      - add index nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave for NSST and QC_tzr
+!   2011-07-14  zhu     - add varch_cld for cloudy radiance
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -64,11 +65,10 @@ module radinfo
   public :: radinfo_read
   public :: radinfo_write
   public :: angle_cbias
-  public :: find_edges
 ! set passed variables to public
   public :: jpch_rad,npred,b_rad,pg_rad,diag_rad,iuse_rad,nusis,inew_rad
   public :: crtm_coeffs_path,retrieval,predx,ang_rad,newchn,cbias
-  public :: air_rad,nuchan,numt,varch,fbias,ermax_rad,tlapmean
+  public :: air_rad,nuchan,numt,varch,varch_cld,fbias,ermax_rad,tlapmean
   public :: ifactq,mype_rad
   public :: ostats,rstats,varA
   public :: adp_anglebc,angord,use_edges
@@ -77,6 +77,7 @@ module radinfo
   public :: newpc4pred
   public :: radjacnames,radjacindxs,nsigradjac
   public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
+  public :: radedge1, radedge2
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -100,7 +101,8 @@ module radinfo
   integer(i_kind) mype_rad      ! task id for writing out radiance diagnostics
   integer(i_kind) angord        ! order of polynomial for angle bias correction
 
-  real(r_kind),allocatable,dimension(:):: varch       ! variance for each satellite channel
+  real(r_kind),allocatable,dimension(:):: varch       ! variance for clear radiance each satellite channel
+  real(r_kind),allocatable,dimension(:):: varch_cld   ! variance for cloudy radiance
   real(r_kind),allocatable,dimension(:):: ermax_rad   ! error maximum (qc)
   real(r_kind),allocatable,dimension(:):: b_rad       ! variational b value
   real(r_kind),allocatable,dimension(:):: pg_rad      ! variational pg value
@@ -262,11 +264,14 @@ contains
     if (adp_anglebc) npred=npred+angord
     
 !   inquire about variables in guess
+    mxlvs = 0
     call gsi_metguess_get ( 'dim', ndim, ier )
-    allocate(all_levels(ndim))
-    call gsi_metguess_get ( 'guesses_level', all_levels, ier )
-    mxlvs = maxval(all_levels)
-    deallocate(all_levels)
+    if (ndim>0) then
+       allocate(all_levels(ndim))
+       call gsi_metguess_get ( 'guesses_level', all_levels, ier )
+       mxlvs = maxval(all_levels)
+       deallocate(all_levels)
+    end if
 
 !   Test to ensure that mxlvs == nsig
     if (mxlvs/=nsig)then
@@ -474,10 +479,11 @@ contains
 !     nusis     - sensor/instrument/satellite
 !     iuse_rad  - use parameter
 !     ifactq    - scaling parameter for d(Tb)/dq sensitivity
-!     varch     - variance for each channel
+!     varch     - variance for clear radiance for each channel
+!     varch_cld - variance for cloudy radiance for each channel
 
-    allocate(nuchan(jpch_rad),nusis(jpch_rad),&
-         iuse_rad(0:jpch_rad),ifactq(jpch_rad),varch(jpch_rad),&
+    allocate(nuchan(jpch_rad),nusis(jpch_rad),iuse_rad(0:jpch_rad), &
+         ifactq(jpch_rad),varch(jpch_rad),varch_cld(jpch_rad), &
          ermax_rad(jpch_rad),b_rad(jpch_rad),pg_rad(jpch_rad), &
          ang_rad(jpch_rad),air_rad(jpch_rad),inew_rad(jpch_rad))
     allocate(satsenlist(jpch_rad),nfound(jpch_rad))
@@ -502,17 +508,17 @@ contains
        if (cflg == '!') cycle
        j=j+1
        read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
-            varch(j),ermax_rad(j),b_rad(j),pg_rad(j)
+            varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j)
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
-            nuchan(j),varch(j),iuse_rad(j),ermax_rad(j), &
+            nuchan(j),varch(j),varch_cld(j),iuse_rad(j),ermax_rad(j), &
             b_rad(j),pg_rad(j)
     end do
     close(lunin)
 100 format(a1,a120)
 110 format(i4,1x,a20,' chan= ',i4,  &
-          ' var= ',f7.3,' use= ',i2,' ermax= ',F7.3, &
+          ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
           ' b_rad= ',F7.2,' pg_rad=',F7.2)
 
 
@@ -864,7 +870,7 @@ contains
 !   Deallocate data arrays for bias correction and those which hold
 !   information from satinfo file.
     deallocate (predx,cbias,tlapmean,nuchan,nusis,iuse_rad,air_rad,ang_rad, &
-         ifactq,varch,inew_rad)
+         ifactq,varch,varch_cld,inew_rad)
     if (adp_anglebc) deallocate(count_tlapmean,update_tlapmean,tsum_tlapmean)
     if (newpc4pred) deallocate(ostats,rstats,varA)
     deallocate (radstart,radstep,radnstep,radedge1,radedge2)
@@ -968,6 +974,8 @@ contains
       if (index(isis,'hirs')/=0 .and. (index(isis,'n16')/=0 .or. &
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
+      else if (index(isis,'atms') /= 0) then
+         ifov=ifov+3
       else
          ifov=iscan
       end if
@@ -1089,8 +1097,8 @@ contains
       step  = 1.11_r_kind
       start = -52.725_r_kind
       nstep = 96
-      edge1 = 10
-      edge2 = 87
+      edge1 = 7
+      edge2 = 84
    else if (index(isis,'mhs')/=0) then
       step  = 10.0_r_kind/9.0_r_kind
       start = -445.0_r_kind/9.0_r_kind
@@ -1183,6 +1191,7 @@ contains
    integer(i_kind):: istatus,ispot,iuseqc
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp
+   integer(i_kind):: radedge_min, radedge_max
    integer(i_kind),dimension(maxchn):: ich
    integer(i_kind),dimension(maxchn):: io_chan
    integer(i_kind),dimension(maxdat):: ipoint
@@ -1317,7 +1326,7 @@ contains
       ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
       seviri     = obstype == 'seviri'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy
+                .or. avhrr .or. avhrr_navy .or. seviri
 
 !     Allocate arrays and initialize
       if (mean_only) then 
@@ -1339,6 +1348,18 @@ contains
          end do
       end if
 
+      radedge_min = 0
+      radedge_max = 1000
+      do i=1,jpch_rad
+         if (trim(nusis(i))==trim(satsens_id)) then
+            if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+               radedge_min=radedge1(i)
+               radedge_max=radedge2(i)
+            end if
+            exit 
+         endif
+      end do
+
 
 !     Loop to read diagnostic file
       istatus = 0
@@ -1353,10 +1374,8 @@ contains
          ispot  = nint(scan)
 
 !        Exclude data on edges
-         if (.not. use_edges) then
-            call find_edges(satsens_id,ispot,data_on_edges)
-            if (data_on_edges) cycle loopd
-         end if
+         if (.not. use_edges .and. (&
+              ispot < radedge_min .OR. ispot > radedge_max )) cycle loopd
 
 !        Channel loop
          nc=0
@@ -1569,44 +1588,5 @@ contains
    return
    end subroutine init_predx
 
-   subroutine find_edges(sis,ispot,data_on_edges)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    find_edges
-!
-!   prgrmmr:     zhu      org: np23                date: 2010-09-02
-!
-! abstract:  For a given satellite/sensor produce data_on_edges
-!
-! program history log:
-!   2010-09-02  zhu
-!
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
-!
-!$$$ end documentation block
-
-   implicit none
-
-   character(len=*),intent(in) :: sis
-   integer(i_kind),intent(in ) :: ispot
-   logical,intent(out) :: data_on_edges
-
-   integer(i_kind):: i
-   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu,airs,hsb,iasi
- 
-   data_on_edges=.false.
-
-   do i=1,jpch_rad
-      if (radedge1(i)==-1 .or. radedge2(i)==-1) cycle
-      if (trim(sis)==trim(nusis(i)) .and. (ispot<radedge1(i) .or. ispot>radedge2(i))) then
-         data_on_edges=.true.
-         exit
-      end if
-   end do
-
-   return
-   end subroutine find_edges
  
 end module radinfo

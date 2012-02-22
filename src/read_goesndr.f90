@@ -198,7 +198,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
   g5x5 = jsatid == 'g08_prep' .or. jsatid == 'g09_prep' .or.     &
          jsatid == 'g10_prep' .or. jsatid == 'g11_prep' .or.     &
-         jsatid == 'g12_prep' .or. jsatid == 'g13_prep'
+         jsatid == 'g12_prep' .or. jsatid == 'g13_prep' .or.     &
+         jsatid == 'g14_prep' .or. jsatid == 'g15_prep'
 
   if(g5x5)then
        if(jsatid=='g08_prep')lsatid=252
@@ -207,6 +208,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
        if(jsatid=='g11_prep')lsatid=255
        if(jsatid=='g12_prep')lsatid=256
        if(jsatid=='g13_prep')lsatid=257
+       if(jsatid=='g14_prep')lsatid=258
+       if(jsatid=='g15_prep')lsatid=259
    else
        if(jsatid=='g08')lsatid=252
        if(jsatid=='g09')lsatid=253
@@ -214,6 +217,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
        if(jsatid=='g11')lsatid=255
        if(jsatid=='g12')lsatid=256
        if(jsatid=='g13')lsatid=257
+       if(jsatid=='g14')lsatid=258
+       if(jsatid=='g15')lsatid=259
        if(obstype == 'sndrd1')ldetect = 1
        if(obstype == 'sndrd2')ldetect = 2
        if(obstype == 'sndrd3')ldetect = 3

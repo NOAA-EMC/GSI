@@ -74,7 +74,7 @@ subroutine read_wrf_mass_binary_guess(mype)
        mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen,sfc_rough
+       isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
@@ -83,7 +83,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   implicit none
 
 ! Declare passed variables
@@ -134,6 +134,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   real(r_kind):: work_prsl,work_prslk
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
   integer(i_kind) ier, istatus
+  integer(i_kind) nguess
 
   real(r_kind), pointer :: ges_qc(:,:,:)
   real(r_kind), pointer :: ges_qi(:,:,:)
@@ -165,9 +166,22 @@ subroutine read_wrf_mass_binary_guess(mype)
 
      if(mype==0) write(6,*)' in read_wrf_mass_binary_guess, im,jm,lm=',im,jm,lm
 
+!    Inquire about cloud guess fields
+     call gsi_metguess_get('dim',nguess,istatus)
+     if (nguess>0) then
+!       Get pointer for each of the hydrometeors from guess at time index "it"
+        it=ntguessig
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+        if (ier/=0) nguess=0
+     end if
+
 !    Following is for convenient WRF MASS input
      num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind
-     if(l_cloud_analysis) num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind+6_i_kind*lm+2_i_kind
+     if(l_cloud_analysis .or. nguess>0) num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind+6_i_kind*lm+2_i_kind
      num_loc_groups=num_mass_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
@@ -204,7 +218,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
 
 ! for cloud analysis
-        if(l_cloud_analysis) then
+        if(l_cloud_analysis .or. nguess>0) then
 
 ! get pointer to relevant instance of cloud-related background
            ier=0
@@ -434,7 +448,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         if(mype == 0) write(6,*)' tsk i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
 ! for cloud array
-        if(l_cloud_analysis) then
+        if(l_cloud_analysis .or. nguess>0) then
 
            i_qc=i+1
            read(lendian_in) n_position,memoryorder
@@ -669,7 +683,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         end if
 
 ! for cloud analysis
-        if(l_cloud_analysis) then
+        if(l_cloud_analysis .or. nguess>0) then
 !                                    read qc
            if(kord(i_qc)/=1) then
               allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -789,7 +803,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         ku=i_u-1
         kv=i_v-1
 ! hydrometeors
-        if(l_cloud_analysis) then
+        if(l_cloud_analysis .or. nguess>0) then
            kqc=i_qc-1
            kqr=i_qr-1
            kqs=i_qs-1
@@ -808,7 +822,7 @@ subroutine read_wrf_mass_binary_guess(mype)
            ku=ku+1
            kv=kv+1
 ! hydrometeors
-           if(l_cloud_analysis) then
+           if(l_cloud_analysis .or. nguess>0) then
               kqc=kqc+1
               kqr=kqr+1
               kqs=kqs+1
@@ -829,7 +843,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 !                Add offset to get guess potential temperature
                  ges_pot(j,i,k)  = all_loc(j,i,kt) + h300
 ! hydrometeors
-                 if(l_cloud_analysis) then
+                 if(l_cloud_analysis .or. nguess>0) then
                     ges_qc(j,i,k) = all_loc(j,i,kqc)
                     ges_qi(j,i,k) = all_loc(j,i,kqi)
                     ges_qr(j,i,k) = all_loc(j,i,kqr)
@@ -855,7 +869,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               soil_moi(j,i,it)=all_loc(j,i,i_smois)
               soil_temp(j,i,it)=all_loc(j,i,i_tslb)
 ! for cloud analysis
-              if(l_cloud_analysis) then
+              if(l_cloud_analysis .or. nguess>0) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)
                  ges_xlon(j,i,it)=all_loc(j,i,i_xlon)/rad2deg_single
                  ges_xlat(j,i,it)=all_loc(j,i,i_xlat)/rad2deg_single
@@ -910,7 +924,7 @@ subroutine read_wrf_mass_binary_guess(mype)
                       j,i,mype,sfct(j,i,it)
               end if
               sfc_rough(j,i,it)=rough_default
-              if(l_cloud_analysis) then
+              if(l_cloud_analysis .or. nguess>0) then
                  isli_cld(j,i,it)=isli(j,i,it)
               endif
            end do
@@ -998,7 +1012,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen,sfc_rough
+       isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
@@ -1007,7 +1021,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
-  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   use gsi_chemguess_mod, only: GSI_ChemGuess_Bundle, gsi_chemguess_get
   implicit none
 
@@ -1045,6 +1059,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind):: work_prsl,work_prslk
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
   integer(i_kind) ier, istatus
+  integer(i_kind) nguess
 
   real(r_kind), pointer :: ges_qc(:,:,:)
   real(r_kind), pointer :: ges_qi(:,:,:)
@@ -1068,13 +1083,26 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
      if(mype==0) write(6,*)' at 0.1 in read_wrf_mass_guess'
 
+!    Inquire about cloud guess fields
+     call gsi_metguess_get('dim',nguess,istatus)
+     if (nguess>0) then
+!       Get pointer for each of the hydrometeors from guess at time index "it"
+        it=ntguessig
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+        if (ier/=0) nguess=0
+     end if
+
      im=nlon_regional
      jm=nlat_regional
      lm=nsig
 
 !    Following is for convenient WRF MASS input
      num_mass_fields=14_i_kind+4_i_kind*lm
-     if(l_cloud_analysis) num_mass_fields=14_i_kind+4_i_kind*lm+6_i_kind*lm+2_i_kind
+     if(l_cloud_analysis .or. nguess>0) num_mass_fields=14_i_kind+4_i_kind*lm+6_i_kind*lm+2_i_kind
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -1108,7 +1136,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
      i=0
 ! for cloud analysis
-     if(l_cloud_analysis) then
+     if(l_cloud_analysis .or. nguess>0) then
         i=i+1 ; i_xlat=i                                                ! xlat
         write(identity(i),'("record ",i3,"--xlat")')i
         jsig_skip(i)=3_i_kind     ! number of files to skip before getting to xlat
@@ -1122,7 +1150,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      i=i+1 ; i_psfc=i                                                ! psfc
      write(identity(i),'("record ",i3,"--psfc")')i
      jsig_skip(i)=5_i_kind     ! number of files to skip before getting to psfc
-     if(l_cloud_analysis) jsig_skip(i)=0_i_kind ! number of files to skip before getting to psfc
+     if(l_cloud_analysis .or. nguess>0) jsig_skip(i)=0_i_kind ! number of files to skip before getting to psfc
      igtype(i)=1
      i=i+1 ; i_fis=i                                               ! sfc geopotential
      write(identity(i),'("record ",i3,"--fis")')i
@@ -1190,7 +1218,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=0 ; igtype(i)=1
 ! for cloud array
-     if(l_cloud_analysis) then
+     if(l_cloud_analysis .or. nguess>0) then
         i_qc=i+1
         do k=1,lm
            i=i+1                                                      ! qc(k)
@@ -1316,7 +1344,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         ku=i_0+i_u-1
         kv=i_0+i_v-1
 ! hydrometeors
-        if(l_cloud_analysis) then
+        if(l_cloud_analysis .or. nguess>0) then
 !          Get pointer for each of the hydrometeors from guess at time index "it"
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
@@ -1342,7 +1370,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            ku=ku+1
            kv=kv+1
 ! hydrometeors
-           if(l_cloud_analysis) then
+           if(l_cloud_analysis .or. nguess>0) then
               kqc=kqc+1
               kqr=kqr+1
               kqs=kqs+1
@@ -1361,7 +1389,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !                Convert guess mixing ratio to specific humidity
                  ges_q(j,i,k,it) = ges_q(j,i,k,it)/(one+ges_q(j,i,k,it))
 ! hydrometeors
-                 if(l_cloud_analysis) then
+                 if(l_cloud_analysis .or. nguess>0) then
                     ges_qc(j,i,k) = all_loc(j,i,kqc)
                     ges_qi(j,i,k) = all_loc(j,i,kqi)
                     ges_qr(j,i,k) = all_loc(j,i,kqr)
@@ -1387,7 +1415,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
               sfc_rough(j,i,it)=rough_default
 ! for cloud analysis
-              if(l_cloud_analysis) then
+              if(l_cloud_analysis .or. nguess>0) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)
                  ges_xlon(j,i,it)=all_loc(j,i,i_0+i_xlon)
                  ges_xlat(j,i,it)=all_loc(j,i,i_0+i_xlat)
@@ -1445,7 +1473,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                       j,i,mype,sfct(j,i,it)
                  num_doubtful_sfct=num_doubtful_sfct+1
               end if
-              if(l_cloud_analysis) then
+              if(l_cloud_analysis .or. nguess>0) then
                  isli_cld(j,i,it)=isli(j,i,it)
               endif
            end do

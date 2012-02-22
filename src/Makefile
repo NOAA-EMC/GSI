@@ -81,7 +81,7 @@ LIBsp     = -L$(CORELIB) -lsp
 LIBbacio  = -L$(CORELIB) -lbacio
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
-LIBcrtm   = -L$(CORELIB) -lcrtm_gfsgsi
+LIBcrtm   = -L$(CORELIB) -lcrtm_2.0.5
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBgfio   = -L$(CORELIB) -lgfio
@@ -198,6 +198,7 @@ clean:
 	antcorr_application.f90 \
 	antest_maps0.f90 \
 	antest_maps0_glb.f90 \
+	atms_spatial_average_mod.f90 \
 	balmod.f90 \
 	berror.f90 \
 	bias_predictors.f90 \
@@ -218,6 +219,7 @@ clean:
 	calctends_no_tl.f90 \
 	chemmod.f90 \
 	clw_mod.f90 \
+	cloud_efr.f90 \
 	cmaq_routines.f90 \
 	co_mop_ak.f90 \
 	coinfo.f90 \
@@ -233,9 +235,9 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
-	crtm_cloud.f90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
+	cwhydromod.f90 \
 	dtast.f90 \
 	deter_nst.f90 \
 	deter_sfc_mod.f90 \
@@ -470,7 +472,6 @@ clean:
 	sub2grid.f90 \
 	support_2dvar.f90 \
 	stub_set_crtm_aerosol.f90 \
-	stub_set_crtm_cloud.f90 \
 	stub_pertmod.F90 \
 	stub_timermod.f90 \
 	tendsmod.f90 \
@@ -516,6 +517,7 @@ clean:
 	read_anowbufr.f90 \
 	read_avhrr.f90 \
 	read_avhrr_navy.f90 \
+	read_atms.f90 \
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \

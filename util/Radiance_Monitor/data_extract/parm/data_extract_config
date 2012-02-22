@@ -1,0 +1,21 @@
+##################################################################
+#
+# data_extract_config
+#
+# This parameter file set up the environment variables used in
+# data_extract scripts (in ush) to run the data extract and 
+# verification scripts and programs.
+#
+##################################################################
+
+  echo "begin data_extract_config"
+
+  export HOMEverf_rad=${RADMON_DATA_EXTRACT}
+  export TANKverf_rad=${MY_TANKDIR}/stats
+
+  export EXECverf_rad=$HOMEverf_rad/exec
+  export PARMverf_rad=$HOMEverf_rad/parm
+  export USHverf_rad=$HOMEverf_rad/ush
+  export SCRIPTS=${USHverf_rad} 
+
+  echo "end data_extract_config"

@@ -58,6 +58,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-08-01  lueken  - add module use deter_sfc_mod, fixed indentation
 !   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
 !                         (isfcalc=1)
+!   2011-12-13  collard - Replace find_edges code to speed up execution.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -95,7 +96,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
-      find_edges,radstart,radstep
+      radedge1,radedge2,radstart,radstep
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
       crtm_kind => fp
   use crtm_planck_functions, only: crtm_planck_temperature
@@ -185,7 +186,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   logical          :: outside,iuse,assim,valid
   logical          :: iasi
-  logical          :: data_on_edges
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, ilat, ilon, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line
@@ -195,6 +195,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status
+  integer(i_kind):: radedge_min, radedge_max
   character(len=20),dimension(1):: sensorlist
 
 
@@ -232,13 +233,19 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
 !          mype, mype_root,mype_sub,mpi_comm_sub
+  radedge_min = 0
+  radedge_max = 1000
   do i=1,jpch_rad
      if (trim(nusis(i))==trim(sis)) then
         step  = radstep(i)
         start = radstart(i)
-        exit
+        if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+           radedge_min=radedge1(i)
+           radedge_max=radedge2(i)
+        end if
+        exit 
      endif
-  end do
+  end do  
   step_adjust = 0.625_r_kind
   senname = 'IASI'
   nchanlr = nchanl
@@ -458,10 +465,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         iscn = nint(linele(2))               ! scan line
 
 !    Remove data on edges
-        if (.not. use_edges) then 
-           call find_edges(sis,ifovn,data_on_edges)
-           if (data_on_edges) cycle read_loop
-        end if
+        if (.not. use_edges .and. &
+             (ifovn < radedge_min .OR. ifovn > radedge_max )) cycle read_loop
 
 !    Check field of view (FOVN) and satellite zenith angle (SAZA)
         if( ifov <= 0 .or. ifov > 120 .or. sat_zenang > 90._r_kind ) then

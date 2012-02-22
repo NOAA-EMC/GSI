@@ -1,0 +1,3 @@
+  Region Definitions:
+
+    1  Global              (90S-90N, 0-360E)

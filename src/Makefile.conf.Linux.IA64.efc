@@ -93,6 +93,10 @@ read_avhrr_navy.o :
 	@echo '---> Compiling $<'
 	$(CF) $(FFLAGS_nobig) -c $<
                                                                                 
+read_atms.o :
+	@echo '---> Compiling $<'
+	$(CF) $(FFLAGS_nobig) -c $<
+                                                                                
 read_bufrtovs.o :
 	@echo '---> Compiling $<'
 	$(CF) $(FFLAGS_nobig) -c $<
