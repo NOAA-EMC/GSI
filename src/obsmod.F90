@@ -83,7 +83,8 @@ module obsmod
 !   2010-10-15 pagowski  - add pm2_5 in-situ
 !   2010-10-20 hclin     - use 1d wij for aod in channels
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
-!   2011=11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
+!   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
+!   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -240,6 +241,7 @@ module obsmod
 !                          function to diag file
 !                          .true. - uses iextra,jextra to append information to diag file
 !                          .false. - write out standard diag file (default)
+!   def ext_sonde    - logical for extended forward model on sonde data
 !
 ! attributes:
 !   langauge: f90
@@ -281,7 +283,7 @@ module obsmod
   public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
-  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel
+  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: perturb_fact,dtbduv_on,ndatmax,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
@@ -1210,6 +1212,7 @@ module obsmod
   logical lread_obs_skip
   logical lwrite_predterms
   logical lwrite_peakwt
+  logical ext_sonde
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1279,6 +1282,7 @@ contains
     endif
     blacklst  = .false.
     lobserver = .false.     ! when .t., calculate departure vectors only
+    ext_sonde = .false.     ! .false. = do not use extended forward model for sonde
 
 !   Specify unit numbers to which to write data counts, indication of quality control
 !   decisions, and statistics summary of innovations.  For radiance data also write
