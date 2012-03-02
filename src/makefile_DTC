@@ -81,6 +81,7 @@ LIBsys          = $(MYLIBsys)
 	antcorr_application.o \
 	antest_maps0.o \
 	antest_maps0_glb.o \
+	aod_mod.o \
         atms_spatial_average_mod.o \
 	balmod.o \
 	berror.o \
@@ -101,7 +102,6 @@ LIBsys          = $(MYLIBsys)
 	calctends_no_ad.o \
 	calctends_no_tl.o \
 	chemmod.o \
-        cloud_efr.o \
 	clw_mod.o \
 	cmaq_routines.o \
         co_mop_ak.o  \
@@ -118,9 +118,9 @@ LIBsys          = $(MYLIBsys)
 	converr.o \
 	convinfo.o \
 	convthin.o \
+	crtm_cloud.o \
 	crtm_interface.o \
 	cvsection.o \
-        cwhydromod.o \
 	deter_nst.o \
 	deter_sfc_mod.o \
 	dtast.o \
@@ -181,6 +181,7 @@ LIBsys          = $(MYLIBsys)
 	insitu_info.o \
 	int3dvar.o \
 	intall.o \
+	intaod.o \
         intco.o \
 	intdw.o \
 	intgps.o \
@@ -334,6 +335,7 @@ LIBsys          = $(MYLIBsys)
 	rsearch.o \
 	rtlnmc_version3.o \
 	satthin.o \
+	setupaod.o \
         set_crtm_aerosolmod.o \
         set_crtm_cloudmod.o \
         setupbend.o \
@@ -414,7 +416,9 @@ LIBsys          = $(MYLIBsys)
 	sub2fslab_mod.o \
 	sub2grid.o \
 	support_2dvar.o \
+        ncar_set_crtm_aerosol.o \
 	stub_set_crtm_aerosol.o \
+        stub_set_crtm_cloud.o \
         stub_pertmod.o \
         stub_timermod.o \
 	tendsmod.o \

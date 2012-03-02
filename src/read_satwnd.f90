@@ -220,7 +220,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=24
+  nreal=23
   if(perturb_obs ) nreal=nreal+2
   if (noiqc) then
      lim_qm=8
