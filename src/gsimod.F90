@@ -16,7 +16,7 @@
   use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
      init_obsmod_dflts,create_obsmod_vars,write_diag,reduce_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
-     dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
+     dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
      lwrite_peakwt,use_limit
@@ -209,6 +209,7 @@
 !  05-21-2011 todling   add call to setservice
 !  06-01-2011 guo/zhang add liauon
 !  07-27-2011 todling   add use_prepb_satwnd to control usage of satwnd's in prepbufr files
+!  11-14-2011  wu       add logical switch to use extended forward model for sonde data
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -546,8 +547,9 @@
 !      time_window(ndat)- time window for each input data file
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
+!      ext_sonde        - logical for extended forward model on sonde data
 
-  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max,ext_sonde
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
