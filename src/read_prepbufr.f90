@@ -98,6 +98,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-07-13  wu     - not use mesonet Psfc when 8th character of sid is "x"
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !   2011-08-27  todling - add use_prepb_satwnd; cleaned out somebody's left over's
+!   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -300,15 +301,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   geosctpobs = obstype == 'gos_ctp'
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
-     nreal=23
+     nreal=24
   else if(uvob) then 
-     nreal=23
+     nreal=24
   else if(spdob) then
      nreal=23
   else if(psob) then
      nreal=22
   else if(qob) then
-     nreal=24
+     nreal=25
   else if(pwob) then
      nreal=20
   else if(sstob) then
@@ -1104,7 +1105,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
-                 if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! t perturbation
+                 cdata_all(24,iout)=obsdat(10,k)            ! cat
+                 if(perturb_obs)cdata_all(25,iout)=ran01dom()*perturb_fact ! t perturbation
 
 !             Winds 
               else if(uvob) then 
@@ -1172,9 +1174,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
+                 cdata_all(24,iout)=obsdat(10,k)            ! cat
                  if(perturb_obs)then
-                    cdata_all(24,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(25,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(25,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(26,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
  
               else if(spdob) then 
@@ -1272,7 +1275,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=zz                     ! terrain height at ob location
                  cdata_all(23,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(24,iout)=r_sprvstg(1,1)         ! subprovider name
-                 if(perturb_obs)cdata_all(25,iout)=ran01dom()*perturb_fact ! q perturbation
+                 cdata_all(25,iout)=obsdat(10,k)            ! cat
+                 if(perturb_obs)cdata_all(26,iout)=ran01dom()*perturb_fact ! q perturbation
  
 !             Total precipitable water (ssm/i)
               else if(pwob) then

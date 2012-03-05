@@ -60,6 +60,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-05-06  Su      - modify the observation gross check error
 !   2011-08-09  pondeca - correct bug in qcgross use
+!   2011-12-14  wu      - add code for rawinsonde level enhancement ( ext_sonde )
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -81,7 +82,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use obsmod, only: qtail,qhead,rmiss_single,perturb_obs,oberror_tune,&
        i_q_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset
+       time_offset,ext_sonde
   use obsmod, only: q_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -141,13 +142,17 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
+  real(r_kind) dpreso,dpk,qint,qgint
+
   integer(i_kind) i,nchar,nreal,j,ii,l,jj,mm1,itemp
-  integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff
+  integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,icat
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iskint,isfcr,iff10,iderivative
+  integer(i_kind) ku,kl,im
+  integer(i_kind) cat,cato
 
-  character(8) station_id
+  character(8) station_id,station_ido
   character(8),allocatable,dimension(:):: cdiagbuf
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
   character(8) c_prvstg,c_sprvstg
@@ -165,6 +170,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
+
+  cato=0
+  station_ido=''
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -196,7 +204,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   izz=22      ! index of surface height
   iprvd=23    ! index of observation provider
   isprvd=24   ! index of observation subprovider
-  iptrb=25    ! index of q perturbation
+  icat =25    ! index of data level category
+  iptrb=26    ! index of q perturbation
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -260,6 +269,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rmaxerr=data(iqmax,i)
         ikx=nint(data(ikxx,i))
+         itype=ictype(ikx)
+         rstation_id     = data(id,i)
         error=data(ier2,i)
      endif ! (in_curbin)
 
@@ -327,7 +338,6 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           1,nsig,mype,nfldsig)
 
      presq=r10*exp(dpres)
-     itype=ictype(ikx)
      dprpx=zero
      if(itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
         dprpx=abs(one-exp(dpres-log(psges)))*r10
@@ -645,6 +655,65 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
 
      end if
+
+!!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
+        cat = nint(data(icat,i))
+        im=max(i-1,1)
+
+
+  if(  .not. last .and. ext_sonde .and. itype==120 .and. &
+        muse(i) .and.  muse(im) .and. &
+        (cat==2 .or. cato==2 .or. cat==5 .or. cato==5) .and. &
+       dpres > 0. .and. station_id== station_ido      )  then
+
+
+      ku=dpres-1
+      ku=min(nsig,ku)
+      kl=dpreso+2
+      kl=max(2,kl)
+      do k = kl,ku
+           allocate(qtail(ibin)%head%llpoint,stat=istat)
+           if(istat /= 0)write(6,*)' failure to write qtail%llpoint '
+           qtail(ibin)%head => qtail(ibin)%head%llpoint
+
+!!! find qob (qint)
+      qint=(data(iqob,im)*(prsltmp(k)-data(ipres,i)) &
+           +data(iqob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
+!!! find qges (qgint)
+       dpk=k
+     call tintrp3(ges_q,qgint,dlat,dlon,dpk,dtime, &
+        hrdifsig,1,mype,nfldsig)
+     call tintrp3(qg,qsges,dlat,dlon,dpk,dtime,hrdifsig,&
+          1,mype,nfldsig)
+
+!!! Set (i,j,k) indices of guess gridpoint that bound obs location
+        call get_ijk(mm1,dlat,dlon,dpk,qtail(ibin)%head%ij(1),qtail(ibin)%head%wij(1))
+!!! find ddiff
+        ddiff = qint-qgint
+
+!!! set oberror for pseudo-obs
+     error=one/(max(data(ier2,i),data(ier2,im))*qsges)
+
+        qtail(ibin)%head%res     = ddiff
+        qtail(ibin)%head%err2    = error**2
+        qtail(ibin)%head%raterr2 = ratio_errors**2
+        qtail(ibin)%head%time    = dtime
+        qtail(ibin)%head%b       = cvar_b(ikx)
+        qtail(ibin)%head%pg      = cvar_pg(ikx)
+        qtail(ibin)%head%luse    = luse(i)
+
+        qtail(ibin)%head%diags => obsdiags(i_q_ob_type,ibin)%tail
+
+      enddo
+
+endif    !   itype=120
+
+    station_ido=station_id
+    dpreso=dpres
+    cato=cat
+
+!!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
+
 
 ! End of loop over observations
   end do
