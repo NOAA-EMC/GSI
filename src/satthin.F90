@@ -33,6 +33,7 @@ module satthin
 !			- added an an array size assertion on istart_val(:).
 !   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
 !   2011-05-26  todling - add create_nst
+!   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -832,6 +833,7 @@ contains
 !            reading of observations.
 !
 ! program history log:
+!   2012-01-31  hchuang - add nemsio function for read NST
 !
 !   input argument list:
 !
@@ -843,9 +845,10 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: nlat,nlon,nlat_sfc,nlon_sfc
+    use gridmod, only: nlat,nlon,nlat_sfc,nlon_sfc,use_gfs_nemsio
     use guess_grids, only: ntguesnst,nfldnst,ifilenst
     use ncepgfs_io, only: read_gfsnst
+    use ncepnems_io, only: read_nemsnst
 
     implicit none
 
@@ -864,11 +867,17 @@ contains
     do it=1,nfldnst
       write(filename,200)ifilenst(it)
 200   format('nstf',i2.2)
-      call read_gfsnst(filename,mype,&
-           tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
-           dt_warm_full(1,1,it), z_w_full(1,1,it), &
-           c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
-
+       if ( use_gfs_nemsio ) then
+          call read_nemsnst(filename,mype,&
+             tref_full(:,:,it),dt_cool_full(:,:,it),z_c_full(:,:,it), &
+             dt_warm_full(:,:,it), z_w_full(:,:,it), &
+             c_0_full(:,:,it),c_d_full(:,:,it),w_0_full(:,:,it),w_d_full(:,:,it))
+       else
+          call read_gfsnst(filename,mype,&
+             tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
+             dt_warm_full(1,1,it), z_w_full(1,1,it), &
+             c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
+       end if
     end do
 
   end subroutine getnst

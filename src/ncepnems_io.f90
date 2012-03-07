@@ -26,6 +26,9 @@ module ncepnems_io
 !                           reference to sfc_head and re-used the same local arrays.
 !                           Remove unneeded nemsio_data & gfsdata.
 !                       (3) Add parallel IO code to read_atm_
+!   2011-11-01 Huang    (1) add integer nst_gsi to control the mode of NSST
+!                       (2) add read_nemsnst to read ncep nst file
+!                       (3) add subroutine write_nemssfc_nst to save sfc and nst files
 !
 ! Subroutines Included:
 !   sub read_nems       - driver to read ncep nems atmospheric and surface
@@ -38,6 +41,8 @@ module ncepnems_io
 !                         analysis files
 !   sub write_nemsatm   - gather on grid, write ncep nems atmospheric analysis file
 !   sub write_nemssfc   - gather/write on grid ncep surface analysis file
+!   sub read_nemsnst    - read ncep nst file, scatter on grid to analysis subdomains
+!   sub write_nemssfc_nst - gather/write on grid ncep surface & nst analysis file
 !
 ! Variable Definitions:
 !   The difference of time Info between operational GFS IO (gfshead%, sfc_head%),
@@ -110,6 +115,8 @@ module ncepnems_io
   public write_nems
   public write_nemsatm
   public write_nemssfc
+  public read_nemsnst
+  public write_nemssfc_nst
 
   interface read_nems
      module procedure read_
@@ -127,6 +134,10 @@ module ncepnems_io
      module procedure read_sfc_
   end interface
 
+  interface read_nemsnst
+     module procedure read_sfc_nst_
+  end interface
+
   interface write_nems
      module procedure write_
   end interface
@@ -137,6 +148,14 @@ module ncepnems_io
 
   interface write_nemssfc
      module procedure write_sfc_
+  end interface
+
+  interface write_nemssfc_nst
+     module procedure write_sfc_nst_
+  end interface
+
+  interface error_msg
+     module procedure error_msg
   end interface
 
   character(len=*),parameter::myname='ncepnems_io'
@@ -806,6 +825,209 @@ contains
 
   end subroutine read_sfc_
 
+  subroutine read_sfc_nst_ (filename,mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_sfc_nst     read nems nst surface guess file (quadratic 
+!                                 Gaussin grids) without scattering to tasks
+!   prgmmr: Huang            org: np23                date: 2011-11-01
+!
+! abstract: read nems surface NST file
+!
+! program history log:
+!   2011-11-01  Huang    Initial version based on sub read_gfsnst
+!
+!   input argument list:
+!     filename - name of surface guess file
+!     mype     - mpi task id
+!
+!   output argument list:
+!   tref     (:,:)                ! oceanic foundation temperature
+!   dt_cool  (:,:)                ! sub-layer cooling amount at sub-skin layer
+!   z_c      (:,:)                ! depth of sub-layer cooling layer
+!   dt_warm  (:,:)                ! diurnal warming amount at sea surface (skin layer)
+!   z_w      (:,:)                ! depth of diurnal warming layer
+!   c_0      (:,:)                ! coefficient to calculate d(Tz)/d(tr) in dimensionless
+!   c_d      (:,:)                ! coefficient to calculate d(Tz)/d(tr) in m^-1
+!   w_0      (:,:)                ! coefficient to calculate d(Tz)/d(tr) in dimensionless
+!   w_d      (:,:)                ! coefficient to calculate d(Tz)/d(tr) in m^-1
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind
+    use gridmod, only: nlat_sfc,nlon_sfc
+    use constants, only: zero,two
+    use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
+    use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_readrecv
+    implicit none
+
+!   Declare passed variables
+    character(LEN=6)                            ,intent(in   ) :: filename
+    integer(i_kind)                             ,intent(in   ) :: mype
+    real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: tref,dt_cool, &
+         z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
+
+!   Declare local parameters
+    integer(i_kind),parameter:: n_nst=9
+    integer(i_kind),dimension(7):: idate
+    integer(i_kind),dimension(4):: odate
+
+!   Declare local variables
+    character(len=120) :: my_name = 'READ_NEMSNST'
+    character(len=1)   :: null = ' '
+    integer(i_kind) :: i,j,k,mm1,latb,lonb
+    integer(i_kind) :: iret, nframe
+    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
+    integer(i_kind) :: istop = 103
+    real(r_kind)    :: sumn, sums, fhour
+    real(r_kind), allocatable, dimension(:,:)   :: rwork2d
+    real(r_kind), allocatable, dimension(:,:,:) :: work, nstges
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!  Define read variable property   !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+    type(nemsio_gfile) :: gfile
+!-----------------------------------------------------------------------------
+    mm1=mype+1
+
+    call nemsio_init(iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),null,null,'init',istop,iret)
+
+    call nemsio_open(gfile,trim(filename),'READ',iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'open',istop,iret)
+
+    call nemsio_getfilehead(gfile, idate=idate, iret=iret, nframe=nframe,   &
+       nfhour=nfhour, nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd, &
+       dimx=lonb, dimy=latb )
+
+    if( nframe /= 0 ) then
+       if ( mype == 0 ) &
+       write(6,*)trim(my_name),': ***ERROR***  nframe /= 0 for global model read, nframe = ', nframe
+       call stop2(istop)
+    end if
+
+    fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+    odate(1) = idate(4)  !hour
+    odate(2) = idate(2)  !month
+    odate(3) = idate(3)  !day
+    odate(4) = idate(1)  !year
+
+    if ( (latb /= nlat_sfc-2) .or. (lonb /= nlon_sfc) ) then
+       if ( mype == 0 ) &
+          write(6,'(a,'': inconsistent spatial dimension nlon,nlatm2 = '',2(i4,tr1),''-vs- sfc file lonb,latb = '',i4)') &
+          trim(my_name),nlon_sfc,nlat_sfc-2,lonb,latb
+       call stop2(102)
+    endif
+!
+!   Load surface fields into local work array
+!   Follow NEMS/GFS sfcf read order
+!
+    allocate(work(lonb,latb,n_nst),nstges(latb+2,lonb,n_nst))
+    allocate(rwork2d(size(work,1)*size(work,2),size(work,3)))
+    work    = zero
+    rwork2d = zero
+
+!   Tref
+    call nemsio_readrecv(gfile, 'tref', 'sfc', 1, rwork2d(:,1), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'tref','read',istop,iret)
+
+!   dt_cool
+    call nemsio_readrecv(gfile, 'dtcool','sfc', 1, rwork2d(:,2), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'dt_cool','read',istop,iret)
+
+!   z_c
+    call nemsio_readrecv(gfile, 'zc',  'sfc', 1, rwork2d(:,3),iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'z_c','read',istop,iret)
+
+!   xt
+    call nemsio_readrecv(gfile, 'xt',   'sfc', 1, rwork2d(:,4), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'xt','read',istop,iret)
+
+!   xz
+    call nemsio_readrecv(gfile, 'xz',   'sfc', 1, rwork2d(:,5), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'xz','read',istop,iret)
+!
+    rwork2d(:,4) = two*rwork2d(:,4)/rwork2d(:,5)   
+!
+!   c_0
+    call nemsio_readrecv(gfile, 'c0',  'sfc', 1, rwork2d(:,6), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'c_0','read',istop,iret)
+
+!   c_d
+    call nemsio_readrecv(gfile, 'cd',  'sfc', 1, rwork2d(:,7), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'c_d','read',istop,iret)
+
+!   w_0
+    call nemsio_readrecv(gfile, 'w0',  'sfc', 1, rwork2d(:,8), iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'w_0','read',istop,iret)
+
+!   w_d
+    call nemsio_readrecv(gfile, 'wd',  'sfc', 1, rwork2d(:,9),iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),'w_d','read',istop,iret)
+
+!   Fill surface guess array
+    do k=1,n_nst
+       work(:,:,k)=reshape(rwork2d(:,k),(/size(work,1),size(work,2)/))
+
+!      Compute mean for southern- and northern-most rows
+!      of surface guess array
+       sumn = zero
+       sums = zero
+       do i=1, lonb
+          sumn = work(i,1,k)    + sumn
+          sums = work(i,latb,k) + sums
+       end do
+       sumn = sumn/float(lonb)
+       sums = sums/float(lonb)
+
+!      Transfer from local work array to surface guess array
+       do j = 1, lonb
+          nstges(1,j,k)=sums
+          nstges(latb+2,j,k)=sumn
+          do i=2,latb+1
+             nstges(i,j,k) = work(j,latb+2-i,k)
+          end do
+       end do
+
+!   End of loop over data records
+    end do
+
+!   Deallocate local work arrays
+    deallocate(work,rwork2d)
+
+!   Load data into output arrays
+
+    do j=1,lonb
+       do i=1,latb+2
+          tref(i,j)    = nstges(i,j,1)
+          dt_cool(i,j) = nstges(i,j,2)
+          z_c(i,j)     = nstges(i,j,3)
+          dt_warm(i,j) = nstges(i,j,4)
+          z_w(i,j)     = nstges(i,j,5)
+          c_0(i,j)     = nstges(i,j,6)
+          c_d(i,j)     = nstges(i,j,7)
+          w_0(i,j)     = nstges(i,j,8)
+          w_d(i,j)     = nstges(i,j,9)
+       end do
+    end do
+    deallocate(nstges)
+
+    call nemsio_close(gfile,iret=iret)
+    if (iret /= 0) call error_msg(mype,trim(my_name),trim(filename),null,'close',istop,iret)
+!
+!   Print date/time stamp
+    if ( mype == 0 ) &
+       write(6,'(a,'': nst sfc read, nlon,nlat= '', 2i6, '', hour= '',f3.1,'', idate= '',4i5)') &
+          trim(my_name),lonb,latb,fhour,odate
+  end subroutine read_sfc_nst_
+
+
+
   subroutine write_ (increment,mype,mype_atm,mype_sfc)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -840,6 +1062,7 @@ contains
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
+    use radinfo, only: nst_gsi
 
     implicit none
 
@@ -847,7 +1070,7 @@ contains
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
 
     character(len=*),parameter::myname_=myname//'*write_'
-    character(len=24)             :: filename
+    character(len=24)             :: filename, file_nst
     integer(i_kind)               :: itoutsig, iret
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
@@ -875,9 +1098,15 @@ contains
     if (increment>0) then
        filename='sfcinc.gsi'
     else
-       filename='sfcanl.gsi'
+       if ( nst_gsi > 0 ) then
+          filename = 'sfcanl'
+          file_nst = 'nstanl'
+          call write_sfc_nst_(filename,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
+       else
+          filename='sfcanl.gsi'
+          call write_sfc_ (filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
+       endif
     endif
-    call write_sfc_ (filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
   end subroutine write_
 
 
@@ -988,7 +1217,7 @@ contains
     integer(i_kind) :: i, j, ij, k, n, mm1, nlatm2
     integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-    integer(i_kind) :: istop = 103
+    integer(i_kind) :: istop = 104
     real(r_kind)    :: fhour
     
     real(r_kind),dimension(lat1*lon1)     :: hsm, psm
@@ -1329,7 +1558,7 @@ contains
     integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
     integer(i_kind) :: nlatm2, n, nrec, lonb, latb, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
-    integer(i_kind) :: istop = 104
+    integer(i_kind) :: istop = 105
     real(r_kind)    :: fhour
 
     real(r_kind),dimension(nlon,nlat):: buffer
@@ -1472,6 +1701,370 @@ contains
           trim(my_name),lonb,latb,fhour,odate
     endif
   end subroutine write_sfc_
+
+  subroutine write_sfc_nst_ (filename,fname_nst,mype,mype_nst,dsfct)
+
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    write_sfc_nst --- Write both sfc and nst surface analysis to file
+!
+!   prgmmr: Huang            org: np23                date: 2011-11-01
+!
+! abstract:     This routine writes the sfc & nst analysis files and is nst_gsi dependent.
+!               Tr (foundation temperature), instead of skin temperature, is the analysis variable.
+!               nst_gsi >  2: Tr analysis is on
+!               nst_gsi <= 2: Tr analysis is off
+!
+!               The routine gathers Tr field from subdomains,
+!               reformats the data records, and then writes each record
+!               to the output files.
+!
+!               Since the gsi only update the Tr temperature, all
+!               other fields in surface are simply read from the guess
+!               files and written to the analysis file.
+!
+! program history log:
+!   2011-11-01  Huang    initial version based on routine write_gfs_sfc_nst
+!
+!   input argument list:
+!     filename  - file to open and write to for sfc file
+!     fname_nst - file to open and write to for nst file
+!     dsfct     - delta skin temperature
+!     mype      - mpi task number
+!     mype_nst  - mpi task to write output file
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
+!
+!$$$ end documentation block
+
+! !USES:
+    use kinds, only: r_kind,i_kind
+  
+    use mpimod, only: mpi_rtype,mpi_itype
+    use mpimod, only: mpi_comm_world
+    use mpimod, only: ierror
+    
+    use gridmod, only: nlat,nlon
+    use gridmod, only: lat1,lon1
+    use gridmod, only: lat2,lon2
+    use gridmod, only: iglobal
+    use gridmod, only: ijn
+    use gridmod, only: ltosi,ltosj
+    use gridmod, only: displs_g
+    use gridmod, only: itotsub
+    
+    use obsmod, only: iadate
+    
+    use constants, only: zero,two
+    
+    use guess_grids, only: isli2
+    use radinfo, only: nst_gsi
+
+    use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close,nemsio_readrecv
+    use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead
+    use nemsio_module, only:  nemsio_readrec, nemsio_writerec, nemsio_writerecv
+
+!! should be remove if subroutine sfc_interpolate move to this module
+    use ncepgfs_io, only :  sfc_interpolate
+    
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    character(24)                    ,intent(in   ) :: filename  ! sfc file to open and write to
+    character(24)                    ,intent(in   ) :: fname_nst ! nst file to open and write to
+    real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct     ! delta skin temperature
+    integer(i_kind)                  ,intent(in   ) :: mype      ! mpi task number
+    integer(i_kind)                  ,intent(in   ) :: mype_nst  ! mpi task to write output file
+
+! !OUTPUT PARAMETERS:
+
+!-------------------------------------------------------------------------
+
+!   Declare local parameters
+    character( 6),parameter:: fname_ges_sfc='sfcf06'
+    character( 6),parameter:: fname_ges_nst='nstf06'
+
+!   Declare local variables
+    character(len=120) :: my_name = 'WRITE_SFC_NST'
+    character(len=1)   :: null = ' '
+    integer(i_kind),dimension(7):: idate, jdate
+    integer(i_kind),dimension(4):: odate
+    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
+    integer(i_kind) :: lonb, latb, nlatm2, n, nrec, nrec_nst, iret
+    integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
+    integer(i_kind) :: istop = 106
+    real(r_kind)    :: fhour
+
+    real(r_kind),dimension(nlon,nlat):: buffer
+    real(r_kind),dimension(lat1,lon1):: sfcsub
+    real(r_kind),dimension(nlon,nlat):: grid
+    real(r_kind),dimension(max(iglobal,itotsub)):: sfcall
+    real(r_kind),allocatable,dimension(:,:) :: buffer2, grid2, grid2_nst
+    real(r_kind),allocatable,dimension(:,:) :: tsea,tref,dt_cool,xt,xz,slmsk
+    real(r_kind),allocatable,dimension(:)   :: rwork1d
+
+    integer(i_kind),dimension(nlon,nlat):: isli
+    integer(i_kind),dimension(lat1,lon1):: isosub
+    integer(i_kind),dimension(nlon,nlat):: igrid
+    integer(i_kind),dimension(max(iglobal,itotsub)):: isoall
+
+    type(nemsio_gfile) :: gfile, gfileo, gfile_nst, gfileo_nst
+
+!*****************************************************************************
+
+!   Initialize local variables
+    mm1=mype+1
+    nlatm2=nlat-2
+
+!   Gather skin temperature information from all tasks.  
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ip1 = i+1
+          sfcsub(i,j)=dsfct(ip1,jp1)
+       end do
+    end do
+    call mpi_gatherv(sfcsub,ijn(mm1),mpi_rtype,&
+         sfcall,ijn,displs_g,mpi_rtype,mype_nst,&
+         mpi_comm_world,ierror)
+
+!   Gather land/ice/sea mask information from all tasks.
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ip1 = i+1
+          isosub(i,j)=isli2(ip1,jp1)
+       end do
+    end do
+    call mpi_gatherv(isosub,ijn(mm1),mpi_itype,&
+         isoall,ijn,displs_g,mpi_itype,mype_nst,&
+         mpi_comm_world,ierror)
+
+!   Only MPI task mype_nst writes the surface file.
+    if (mype==mype_nst) then
+
+!      Reorder updated skin temperature to output format
+       do i=1,iglobal
+          ilon=ltosj(i)
+          ilat=ltosi(i)
+          grid(ilon,ilat)=sfcall(i)
+       end do
+       do j=1,nlat
+          jj=nlat-j+1
+          do i=1,nlon
+             buffer(i,j)=grid(i,jj)
+          end do
+       end do
+
+!      Record updated isli to output format
+       do i=1,iglobal
+          ilon=ltosj(i)
+          ilat=ltosi(i)
+          igrid(ilon,ilat)=isoall(i)
+       end do
+       do j=1,nlat
+          jj=nlat-j+1
+          do i=1,nlon
+             isli(i,j)=igrid(i,jj)
+          end do
+       end do
+!
+!      set dsfct to be zero over non-water grids
+!
+       do j=1,nlat
+         do i=1,nlon
+           if ( isli(i,j) > 0 ) then
+             buffer(i,j)=zero
+           endif
+         end do
+       end do
+
+!      Read surface guess file
+       call nemsio_init(iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),null,null,'init',istop,iret)
+
+       call nemsio_open(gfile,trim(fname_ges_sfc),'read',iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges_sfc),null,'open',istop,iret)
+!
+       call nemsio_getfilehead(gfile, nrec=nrec, idate=idate, &
+          dimx=lonb, dimy=latb, nfhour=nfhour, nfminute=nfminute, &
+          nfsecondn=nfsecondn, nfsecondd=nfsecondd, iret=iret)
+
+       call nemsio_open(gfile_nst,trim(fname_ges_nst),'read',iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges_nst),null,'open',istop,iret)
+       call nemsio_getfilehead(gfile_nst, nrec=nrec_nst, iret=iret)
+!
+!      Replace header record date with analysis time from iadate
+!
+       jdate(1) = iadate(1)  ! analysis year
+       jdate(2) = iadate(2)  ! analysis month
+       jdate(3) = iadate(3)  ! analysis day
+       jdate(4) = iadate(4)  ! analysis hour
+       jdate(5) = iadate(5)  ! analysis minute
+       jdate(5) = 0          ! analysis minute
+       jdate(6) = 0          ! analysis scaled seconds
+       jdate(7) = idate(7)   ! analysis seconds multiplier
+
+       nfhour=0       !  new forecast hour, zero at analysis time
+       nfminute=0
+       nfsecondn=0
+       nfsecondd=100      ! default for denominator
+
+       fhour    = zero
+       odate(1) = jdate(4)  !hour
+       odate(2) = jdate(2)  !month
+       odate(3) = jdate(3)  !day
+       odate(4) = jdate(1)  !year
+!
+! Start to write output sfc file : filename
+!      open new output file with new header gfileo and gfileo_nst with "write" access. 
+!      Use this call to update header as well
+!
+       gfileo=gfile          ! copy input header info to output header info
+                             ! need to do this before nemsio_close(gfile)
+       call nemsio_open(gfileo,trim(filename),'write',iret=iret, idate=jdate, nfhour=nfhour,&
+          nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),null,'open',istop,iret)
+!
+       gfileo_nst=gfile_nst  ! copy input header info to output header info
+                             ! need to do this before nemsio_close(gfile_nst)
+       call nemsio_open(gfileo_nst,trim(fname_nst),'write',iret=iret, idate=jdate, nfhour=nfhour,&
+          nfminute=nfminute, nfsecondn=nfsecondn, nfsecondd=nfsecondd )
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nst),null,'open',istop,iret)
+!
+!      First copy entire data from fname_ges to filename, then do selective update
+!
+       allocate(rwork1d(lonb*latb))
+       allocate(buffer2(lonb,latb))
+       allocate(grid2(lonb,latb))
+       allocate(grid2_nst(lonb,latb))
+       allocate(tsea(lonb,latb))
+       allocate(tref(lonb,latb))
+       allocate(dt_cool(lonb,latb))
+       allocate(xt(lonb,latb))
+       allocate(xz(lonb,latb))
+       allocate(slmsk(lonb,latb))
+
+       do n = 1, nrec
+          call nemsio_readrec (gfile, n,rwork1d,iret=iret)
+          if ( iret /= 0 ) write(6,*) 'readrec  nrec = ', n, '  Status = ', iret
+          call nemsio_writerec(gfileo,n,rwork1d,iret=iret)
+          if ( iret /= 0 ) write(6,*) 'writerec nrec = ', n, '  Status = ', iret
+       end do
+
+       do n = 1, nrec_nst
+          call nemsio_readrec (gfile_nst, n,rwork1d,iret=iret)
+          if ( iret /= 0 ) write(6,*) 'readrec  nrec = ', n, '  Status = ', iret
+          call nemsio_writerec(gfileo_nst,n,rwork1d,iret=iret)
+          if ( iret /= 0 ) write(6,*) 'writerec nrec = ', n, '  Status = ', iret
+       end do
+!
+! Only sea surface temperature will be updated in the SFC & NST files.
+! Need values from ges_nst for tref update
+!
+       call nemsio_readrecv(gfile,'tmp','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_sfc),'tmp','read',istop,iret)
+       tsea=reshape(rwork1d,(/size(tsea,1),size(tsea,2)/))
+
+       call nemsio_readrecv(gfile_nst, 'tref',  'sfc', 1, rwork1d, iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_nst),'tref','read',istop,iret)
+       tref=reshape(rwork1d,(/size(tref,1),size(tref,2)/))
+
+       call nemsio_readrecv(gfile_nst, 'dtcool','sfc', 1, rwork1d, iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_nst),'dt_cool','read',istop,iret)
+       dt_cool=reshape(rwork1d,(/size(dt_cool,1),size(dt_cool,2)/))
+
+       call nemsio_readrecv(gfile_nst, 'xt',    'sfc', 1, rwork1d, iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_nst),'xt','read',istop,iret)
+       xt=reshape(rwork1d,(/size(xt,1),size(xt,2)/))
+
+       call nemsio_readrecv(gfile_nst, 'xz',    'sfc', 1, rwork1d, iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_nst),'xz','read',istop,iret)
+       xz=reshape(rwork1d,(/size(xz,1),size(xz,2)/))
+
+       call nemsio_readrecv(gfile_nst, 'slmsk', 'sfc', 1, rwork1d, iret=iret)
+       if (iret /= 0) call error_msg(mype,trim(my_name),trim(fname_ges_nst),'slmsk','read',istop,iret)
+       slmsk=reshape(rwork1d,(/size(slmsk,1),size(slmsk,2)/))
+
+       grid2 = zero
+       if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
+          write(6,*)trim(my_name),':  different grid dimensions analysis', &
+             ' vs sfc. interpolating sfc temperature nlon,nlat-2=',nlon,  &
+             nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
+          call sfc_interpolate(buffer,nlon,nlat,grid2,lonb,latb)
+       else
+          do j=1,latb
+             do i=1,lonb
+                grid2(i,j)=buffer(i,j+1)
+             end do
+          end do
+       endif
+
+       where ( nint(slmsk) > 0 )
+          buffer2 = zero
+       elsewhere
+          buffer2 = grid2
+       end where
+!
+!      update tsea (in the surface file; grid2    ) When Tr analysis is on
+!      update tref (in the nst     file; grid2_nst) When Tr analysis is on
+!
+       grid2     = zero
+       grid2_nst = zero
+       if ( nst_gsi > 2 ) then
+          where ( nint(slmsk) == 0 )
+             grid2     = max(tref+buffer2+two*xt/xz-dt_cool,271.0_r_kind)
+             grid2_nst = max(tref+buffer2,271.0_r_kind)
+          elsewhere
+             grid2     = tsea
+             grid2_nst = tsea
+          end where
+       else
+          grid2  = max(tsea+buffer2,271.0_r_kind)
+          where ( nint(slmsk) == 0 )
+             grid2_nst = tsea
+          elsewhere
+             grid2_nst = tref
+          end where
+       endif
+!
+!      update tsea record
+       rwork1d = reshape(grid2, (/size(rwork1d)/) )
+       call nemsio_writerecv(gfileo,'tmp','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),'tmp','write',istop,iret)
+!
+!      update tref record
+       rwork1d = reshape( grid2_nst,(/size(rwork1d)/) )
+       call nemsio_writerecv(gfileo_nst,'tref','sfc',1,rwork1d,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nst),'tref','write',istop,iret)
+
+       deallocate(grid2,dt_cool,xt,xz)
+       deallocate(buffer2,grid2_nst,tref,tsea,slmsk)
+       deallocate(rwork1d)
+
+       call nemsio_close(gfile, iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges_sfc),null,'close',istop,iret)
+
+       call nemsio_close(gfile_nst, iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_ges_nst),null,'close',istop,iret)
+
+       call nemsio_close(gfileo,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),null,'close',istop,iret)
+
+       call nemsio_close(gfileo_nst,iret=iret)
+       if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nst),null,'close',istop,iret)
+
+       write(6,'(a,'': sfc_nst anal written for lonb,latb= '',2i6,'',valid hour= '',f3.1,'',idate= '',4i5)') &
+          trim(my_name),lonb,latb,fhour,odate
+    endif
+  end subroutine write_sfc_nst_
+
+
 
   subroutine error_msg(mype,sub_name,file_name,var_name,action,stop_code,error_code)
     use kinds, only: i_kind
