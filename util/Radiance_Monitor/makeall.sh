@@ -39,6 +39,24 @@ for var in ${executables}; do
    echo
 done
 
+executables="angle bcoef bcor time"
+echo "Making data_extract/nwprod/sorc:"
+for var in ${executables}; do
+   if [[ $var = "angle" ]]; then
+      cd ${top_level}/nwprod/sorc/verf_radang.fd
+   else
+      cd ${top_level}/nwprod/sorc/verf_rad${var}.fd
+   fi
+
+   echo make ${var} ${mode}
+   make ${mode}
+   echo
+
+   if [[ $mode = all ]]; then
+      cp -f radmon_${var}.glb ${top_level}/nwprod/exec/.
+   fi
+done
+
 #------------------------------------------------------------------
 #  make image generation executables
 #------------------------------------------------------------------

@@ -68,11 +68,12 @@ for type in ${SATYPE2}; do
      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
         test_file=${TANKDIR}/radmon.${day}/bcor.${type}.${cdate}.ieee_d
         if [[ -s $test_file ]]; then
-           $NCP ${test_file} $tmpdir/${type}.${cdate}.ieee_d
+           $NCP ${test_file} ./${type}.${cdate}.ieee_d
         elif [[ -s ${test_file}.Z ]]; then
-           $NCP ${test_file}.Z $tmpdir/${type}.${cdate}.ieee_d.Z
+           $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
         fi
-     else
+     fi
+     if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
         $NCP $TANKDIR/bcor/${type}.${cdate}.ieee_d* ./
      fi
      adate=`$NDATE +6 $cdate`

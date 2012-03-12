@@ -80,7 +80,8 @@ for type in ${SATYPE2}; do
          elif [[ -s ${test_file}.Z ]]; then
             $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
          fi
-      else
+      fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
          $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
       fi
 
