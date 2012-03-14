@@ -22,7 +22,7 @@ program bcor
   integer n_chan,j,idsat,i,k,ii,nsub
   integer,dimension(mregion):: jsub
   integer,allocatable,dimension(:):: io_chan,nu_chan
-  integer npred_radiag
+  integer npred_radiag,angord
 
   real pen,rread
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm
@@ -126,6 +126,7 @@ program bcor
   satsis = header_fix%isis
   dplat  = header_fix%id
   n_chan = header_fix%nchan
+  angord = header_fix%angord
 
   write(6,*)'satype,dplat,n_chan=',satype,' ',dplat,n_chan
 
@@ -266,7 +267,7 @@ program bcor
            if (data_chan(j)%errinv > 1.e-6) then
               pen           =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
               cor_total(1)  =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)
-              cor_fixang(1) =  data_chan(j)%bifix(1)
+              cor_fixang(1) =  data_chan(j)%bifix(angord+1)
               cor_lapse(1)  =  data_chan(j)%bilap
               cor_lapse2(1) =  data_chan(j)%bilap2
               cor_const(1)  =  data_chan(j)%bicons
@@ -274,7 +275,7 @@ program bcor
               cor_clw(1)    =  data_chan(j)%biclw
 
               cor_total(2)  =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)**2
-              cor_fixang(2) =  (data_chan(j)%bifix(1))**2
+              cor_fixang(2) =  (data_chan(j)%bifix(angord+1))**2
               cor_lapse(2)  =  (data_chan(j)%bilap)**2
               cor_lapse2(2) =  (data_chan(j)%bilap2)**2
               cor_const(2)  =  (data_chan(j)%bicons)**2

@@ -22,7 +22,7 @@ program angle
   integer n_chan,j,i,k,ii,nsub,jiter,jj
   integer,dimension(mregion):: jsub
   integer,allocatable,dimension(:):: io_chan,nu_chan
-  integer imatch, npred_radiag
+  integer imatch, npred_radiag, angord
   
   real start,step
   integer nstep,iscan
@@ -145,13 +145,6 @@ program angle
 !
   if( iflag/=0 ) then
      write(6,*)'***ERROR*** problem reading diag file header, iflag=',iflag
-     call system('echo $XLFRTEOPTS >old_xlfrteopts')
-     write (command,"(A50)") "export XLFRTEOPTS=ufmt_littleendian=21:$XLFRTEOPTS"
-     write(6,*) 'command = ', command
-
-     call system( command )
-     call system('echo $XLFRTEOPTS >new_xlfrteopts' )
-
      call errexit(91)
   endif
 
@@ -162,8 +155,9 @@ program angle
   dplat  = header_fix%id
   n_chan = header_fix%nchan
   jiter  = header_fix%jiter
+  angord = header_fix%angord
  
-  write(6,*)'satype,satid,n_chan=',satype,' ',dplat,' ',n_chan
+  write(6,*)'satype,satid,n_chan,angord=',satype,' ',dplat,' ',n_chan,' ',angord
 
   string = trim(satype) //'_'// trim(dplat)
   write(6,*)'string,satname=',string,' ',satname
@@ -338,14 +332,14 @@ program angle
            nbc_omg(2) =  (data_chan(j)%omgnbc)**2
            bc_omg(2)  =  (data_chan(j)%omgbc)**2
 
-           cor_fixang(1) =  data_chan(j)%bifix(1)
+           cor_fixang(1) =  data_chan(j)%bifix(angord+1)
            cor_lapse(1)  =  data_chan(j)%bilap
            cor_lapse2(1) =  data_chan(j)%bilap2
            cor_const(1)  =  data_chan(j)%bicons
            cor_scangl(1) =  data_chan(j)%biang
            cor_clw(1)    =  data_chan(j)%biclw
 
-           cor_fixang(2) =  (data_chan(j)%bifix(1))**2
+           cor_fixang(2) =  (data_chan(j)%bifix(angord+1))**2
            cor_lapse(2)  =  (data_chan(j)%bilap)**2
            cor_lapse2(2) =  (data_chan(j)%bilap2)**2
            cor_const(2)  =  (data_chan(j)%bicons)**2
