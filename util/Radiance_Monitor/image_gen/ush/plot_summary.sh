@@ -49,8 +49,22 @@ for type in ${SATYPE2}; do
    uncompress *.ctl.Z
 
    cdate=$bdate
+
    while [[ $cdate -le $edate ]]; do
-      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
+      day=`echo $cdate | cut -c1-8 `
+
+      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+         test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
+         if [[ -s $test_file ]]; then
+            $NCP ${test_file} ./${type}.${cdate}.ieee_d
+         elif [[ -s ${test_file}.Z ]]; then
+            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         fi
+      fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+         $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
+      fi
+#      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
