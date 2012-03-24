@@ -1,15 +1,15 @@
 # *****************************************************************
-#  makefile.bcoef
+#  makefile
 #
-#  Make the bcoef.glb.x executable.  The executable will extract
-#  bcoef radiance data from a diagnostic file from a global run.
+#  Make the time.rgn executable.  This will extract time 
+#  radiance data from a diagnostic file from a regional run.
 #
 # *****************************************************************
 
 SHELL=/bin/sh
-SRCS = kinds.F90 read_diag.f90 bcoef.f90 create_ctl_bcoef.f90
+SRCS = kinds.F90 read_diag.f90 time.f90 create_ctl_time.f90
 
-OBJS = kinds.o read_diag.o bcoef.o create_ctl_bcoef.o
+OBJS = kinds.o read_diag.o time.o create_ctl_time.o
 
 #
 # *****************************************************************
@@ -22,26 +22,25 @@ FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1 -WF,-D_REAL8_
 
 LDFLAGS=
 
-CMD = bcoef.glb.x
+CMD = radmon_time.rgn
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb.x
+	rm -f *.rgn
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../../exec/.
 
 read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-bcoef.o : bcoef.f90
+time.o : time.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-create_ctl_bcoef.o : create_ctl_bcoef.f90
+create_ctl_time.o : create_ctl_time.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
 kinds.o : kinds.F90

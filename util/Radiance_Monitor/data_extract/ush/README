@@ -9,8 +9,8 @@ There are two sets of scripts; one for the global, and one for the
 regional.  They are similar, but not identical in functioning.  
 
 The top level scripts are VrfyRad_glbl.sh and VrfyRad_rgnl.sh scripts.
-They poll for new diagnostic files and calls the lower level data 
-extraction scripts if a new diag file is found. 
+They poll for new diagnostic files and, if a new diag file is found, they 
+submit ../nwprod/jobs/JGDAS_VRFYRAD.sms.prod to peform the data extraction.
 
 VrfyRad_glbl.sh takes 2 parameters as input:  the desired suffix, and the 
 running environment ("dev", "para", or "prod").

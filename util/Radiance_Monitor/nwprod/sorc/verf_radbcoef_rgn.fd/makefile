@@ -1,15 +1,16 @@
 # *****************************************************************
-#  makefile.bcor
 #
-#  Make the bcor.glb.x executable.  The executable will extract
-#  bcor radiance data from a diagnostic file from a global run.
+#  makefile
+#
+#  Make the radmon_bcoef.rgn executable.  This will extract bcoef
+#  radiance data from a diagnostic file from a regional run.
 #
 # *****************************************************************
 
 SHELL=/bin/sh
-SRCS = kinds.F90 read_diag.f90 bcor.f90 avgsdv.f90 create_ctl_bcor.f90
+SRCS = kinds.F90 read_diag.f90 bcoef.f90 create_ctl_bcoef.f90
 
-OBJS =  kinds.o read_diag.o bcor.o avgsdv.o create_ctl_bcor.o
+OBJS = kinds.o read_diag.o bcoef.o create_ctl_bcoef.o
 
 #
 # *****************************************************************
@@ -22,29 +23,25 @@ FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1 -WF,-D_REAL8_
 
 LDFLAGS=
 
-CMD = bcor.glb.x
+CMD = radmon_bcoef.rgn
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb.x
+	rm -f *.rgn
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../../exec/.
 
 read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-bcor.o : bcor.f90
+bcoef.o : bcoef.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-avgsdv.o : avgsdv.f90
-	$(CF) $(FFLAGS) -c $(*).f90
-
-create_ctl_bcor.o : create_ctl_bcor.f90
+create_ctl_bcoef.o : create_ctl_bcoef.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
 kinds.o : kinds.F90

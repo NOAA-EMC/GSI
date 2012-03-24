@@ -206,11 +206,6 @@ program time
 
 ! Compute average and standard deviation
      do j=1,n_chan
-!        call avgsdv(count(j),tot_cor(j,1), tot_cor(j,2), rmiss)
-!        call avgsdv(count(j),omg_nbc(j,1),omg_nbc(j,2),rmiss)
-!        call avgsdv(count(j),omg_bc(j,1), omg_bc(j,2), rmiss)
-!        write(6,*)'channel j=',j,' with count,avg,sdv=', &
-!             count(j),tot_cor(j,1),tot_cor(j,2)
         if (count(j)==0) then
 !           write(6,*) 'penalty=',penalty(j),count(j)
 !           penalty(j)=penalty(j)/count(j)

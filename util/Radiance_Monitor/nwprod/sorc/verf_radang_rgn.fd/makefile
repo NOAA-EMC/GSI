@@ -1,15 +1,18 @@
 # *****************************************************************
-#  makefile.time
 #
-#  Make the time.rgn.x executable.  This will extract time 
-#  radiance data from a diagnostic file from a regional run.
+#  makefile
+#
+#  Make the angle_bias.rgn executable.  This will extract 
+#  angle radiance data from an NDAS diagnostic file.
 #
 # *****************************************************************
 
 SHELL=/bin/sh
-SRCS = kinds.F90 read_diag.f90 time.f90 avgsdv.f90 create_ctl_time.f90
+SRCS = kinds.F90 read_diag.f90 angle_bias.f90 \
+        create_ctl_angle.f90 read_satang.f90
 
-OBJS = kinds.o read_diag.o time.o avgsdv.o create_ctl_time.o
+OBJS = kinds.o read_diag.o angle_bias.o \
+	create_ctl_angle.o read_satang.o
 
 #
 # *****************************************************************
@@ -22,29 +25,28 @@ FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1 -WF,-D_REAL8_
 
 LDFLAGS=
 
-CMD = time.rgn.x
+CMD = radmon_angle.rgn
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.rgn.x
+	rm -f *.rgn
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../../exec/.
 
 read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-time.o : time.f90
+angle_bias.o : angle_bias.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-avgsdv.o : avgsdv.f90
+create_ctl_angle.o : create_ctl_angle.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
-create_ctl_time.o : create_ctl_time.f90
+read_satang.o : read_satang.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
 kinds.o : kinds.F90

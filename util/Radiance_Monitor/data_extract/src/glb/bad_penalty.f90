@@ -1,1 +1,0 @@
-../../../nwprod/sorc/verf_radtime.fd/bad_penalty.f90

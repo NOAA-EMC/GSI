@@ -16,7 +16,7 @@
 # MY_GSI should point to your working directory which contains the 
 # copied or checked out instance of the GSI.
 #
-  export MY_GSI=/global/save/${USER}/safford_radmon
+  export MY_GSI=/global/save/${USER}/RadMon_241
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
