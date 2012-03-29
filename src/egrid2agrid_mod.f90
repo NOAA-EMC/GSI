@@ -16,6 +16,9 @@ module egrid2agrid_mod
 !                          normalized adjoint interpolation weights, used for smoothing interpolation
 !                          from fine to coarse grid.
 !   2011-07-26  todling  - generalize single/double prec and rank interface
+!   2012-02-08  parrish  - add single/double prec and rank interface for routines egrid2agrid,
+!                            egrid2agrid_ad, and agrid2egrid, to be used for regional dual resolution.
+!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
 !
 ! subroutines included:
 !   sub init_egrid2agrid         - initialize interpolation variables and constants to defaults
@@ -26,6 +29,8 @@ module egrid2agrid_mod
 !   sub egrid2agrid_ad           - adjoint of egrid2agrid
 !   sub agrid2egrid              - full weight interpolate from analysis grid to ensemble grid
 !                                   (same code as egrid2agrid_ad, but weights normalized to 1)
+!   sub create_egrid2points_slow - similar to create_egrid2agrid, but for general collection of points
+!   sub egrid2points             - interpolate to general set of points.
 !   sub g_create_egrid2agrid     - used for full global lat-lon egrid and agrid
 !   sub g_egrid2agrid            - for full global lat-lon egrid and agrid,
 !                                   interpolate from ensemble grid to analysis grid
@@ -71,6 +76,8 @@ module egrid2agrid_mod
    public :: egrid2agrid
    public :: egrid2agrid_ad
    public :: agrid2egrid
+   public :: create_egrid2points_slow
+   public :: egrid2points
    public :: g_create_egrid2agrid
    public :: g_egrid2agrid
    public :: g_egrid2agrid_ad
@@ -102,8 +109,33 @@ module egrid2agrid_mod
       integer(i_kind):: nlata,nlona,nlate,nlone,nlate_ex,nlone_ex,nextend
       integer(i_kind):: nlone_half
       logical:: identity
+      real(r_kind),pointer::blend(:) => NULL()
+      real(r_kind),pointer::xa_e(:) => NULL()
+      real(r_kind),pointer::ya_e(:) => NULL()
+      logical:: lallocated = .false.
       type(egrid2agrid_cons):: e2a_lon,e2a_lat
    end type egrid2agrid_parm
+
+   interface egrid2agrid
+      module procedure egrid2agrid_r4
+      module procedure egrid2agrid_r8
+      module procedure egrid2agrid_r4_rank4
+      module procedure egrid2agrid_r8_rank4
+   end interface
+
+   interface egrid2agrid_ad
+      module procedure egrid2agrid_r4_ad
+      module procedure egrid2agrid_r8_ad
+      module procedure egrid2agrid_r4_rank4_ad
+      module procedure egrid2agrid_r8_rank4_ad
+   end interface 
+
+   interface agrid2egrid
+      module procedure agrid2egrid_r4
+      module procedure agrid2egrid_r8
+      module procedure agrid2egrid_r4_rank4
+      module procedure agrid2egrid_r8_rank4
+   end interface
 
    interface g_egrid2agrid
       module procedure g_egrid2agrid_r4
@@ -223,6 +255,7 @@ module egrid2agrid_mod
 !                           this routine when optional logical variable e2a_only is present and true.
 !                           Even though hbig is not used in this case, it can be very large (it was
 !                           4.7Gb for a high res nems-nmmb window run by Ed Colon, which seg-faulted).
+!   2012-02-08  parrish - remove references to izero, ione
 !
 !   input argument list:
 !     e2a           - structure variable with previous/default interpolation information
@@ -249,7 +282,7 @@ module egrid2agrid_mod
 !            twin, itwin:  adjoint of interpolation weights, addresses, analysis grid --> ensemble grid
 !            swin, iswin:  smoothing interpolation weights, addresses for analysis grid --> ensemble grid
 !
-      use constants, only: izero,ione,zero,one
+      use constants, only: zero,one
       implicit none
 
       type(egrid2agrid_cons),intent(inout) :: e2a
@@ -259,8 +292,8 @@ module egrid2agrid_mod
 
       integer(i_kind) i,ii,ipmaxmax,ipminmin,j,jord,k,lbig,n,ntwinmax
       integer(i_kind) ixi(0:iord)
-      real(r_kind) tl(iord+ione,iord+ione,2*ngride),alocal(2*ngride),blocal(2*ngride),wgts(ngrida,iord+ione)
-      integer(i_kind) iwgts(ngrida,iord+ione),iflag(ngrida)
+      real(r_kind) tl(iord+1,iord+1,2*ngride),alocal(2*ngride),blocal(2*ngride),wgts(ngrida,iord+1)
+      integer(i_kind) iwgts(ngrida,iord+1),iflag(ngrida)
       real(r_kind) workc(ngride)
       real(r_kind),allocatable::hbig(:,:)
       integer(i_kind) ipmax(ngride),ipmin(ngride)
@@ -280,21 +313,21 @@ module egrid2agrid_mod
 
       e2a%ngride=ngride
       e2a%ngrida=ngrida
-      e2a%mgride=iord+ione
-      allocate(e2a%iwin(iord+ione,ngrida))
+      e2a%mgride=iord+1
+      allocate(e2a%iwin(iord+1,ngrida))
       allocate(e2a%nwin(ngrida))
-      allocate(e2a%win(iord+ione,ngrida))
-      e2a%iwin=ione
-      e2a%nwin=izero
+      allocate(e2a%win(iord+1,ngrida))
+      e2a%iwin=1
+      e2a%nwin=0
       e2a%win=zero
 
       do jord=1,iord
-         lbig=jord+ione
+         lbig=jord+1
          call simpin1_init(ixi,tl,alocal,blocal,jord,lbig,rgride,ngride)
          call simpin1(wgts,wgts,wgts,iwgts,iflag,rgrida,ngrida,jord,lbig, &
-                      rgride,ngride,ione,izero,izero,ixi,tl,alocal,blocal)
+                      rgride,ngride,1,0,0,ixi,tl,alocal,blocal)
          do i=1,ngrida
-            if(iflag(i)==ione) then
+            if(iflag(i)==1) then
                e2a%nwin(i)=lbig
                do k=1,lbig
                   e2a%win(k,i)=wgts(i,k)
@@ -317,8 +350,8 @@ module egrid2agrid_mod
 !   next get adjoint weights and addresses by brute force
 !--------------------------------------------------------
 
-      ipminmin=ngrida+ione
-      ipmaxmax=izero
+      ipminmin=ngrida+1
+      ipmaxmax=0
       ipmin=1
       ipmax=-1
       allocate(hbig(ngrida,ngride))
@@ -348,16 +381,16 @@ module egrid2agrid_mod
             end if
          end do
       end do
-      ntwinmax=ipmaxmax-ipminmin+ione
+      ntwinmax=ipmaxmax-ipminmin+1
       e2a%mgrida=ntwinmax
       allocate(e2a%twin(ntwinmax,ngride),e2a%itwin(ntwinmax,ngride),e2a%ntwin(ngride))
-      e2a%itwin=ione
+      e2a%itwin=1
       e2a%twin=zero
       do j=1,ngride
-         e2a%ntwin(j)=max(izero,ipmax(j)-ipmin(j)+ione)
-         ii=izero
+         e2a%ntwin(j)=max(0,ipmax(j)-ipmin(j)+1)
+         ii=0
          do i=ipmin(j),ipmax(j)
-            ii=ii+ione
+            ii=ii+1
             e2a%itwin(ii,j)=i
             e2a%twin(ii,j)=hbig(i,j)
          end do
@@ -427,7 +460,53 @@ module egrid2agrid_mod
 
    end subroutine destroy_egrid2agrid
 
-   subroutine egrid2agrid(p,e,a)
+   subroutine egrid2agrid_r4_rank4(p,e,a,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2agrid_r4_rank4   rank-4 interface to egrid2agrid_r4
+!   prgmmr: parrish          org: np22                date: 2011-11-23
+!
+! abstract: interpolate from ensemble to analysis grid
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     e              - ensemble grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     a              - analysis grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_single)          ,intent(in   ) :: e(:,:,:,:)
+      real(r_single)          ,intent(  out) :: a(:,:,:,:)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,idim
+
+      idim=size(e,1)
+      if(idim==size(a,1)) then
+         do i=1,idim
+            call egrid2agrid_r4(p,e(i,:,:,:),a(i,:,:,:),kb,ke)
+         enddo
+      else
+         write(6,*)' egrid2agrid_r4_rank4: inconsistent dim(e,a)', idim, size(a,1)
+         call stop2(999)
+      endif
+
+   end subroutine egrid2agrid_r4_rank4
+
+   subroutine egrid2agrid_r4(p,e,a,kb,ke)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    egrid2agrid   interpolate from ensemble to analysis grid
@@ -441,6 +520,8 @@ module egrid2agrid_mod
 !   input argument list:
 !     p              - parameters for egrid2agrid
 !     e              - ensemble grid
+!     kb             - starting level
+!     ke             - ending level
 !
 !   output argument list:
 !     a              - analysis grid
@@ -454,47 +535,169 @@ module egrid2agrid_mod
       implicit none
 
       type(egrid2agrid_parm),intent(in   ) :: p
-      real(r_kind)          ,intent(in   ) :: e(p%nlate,p%nlone)
-      real(r_kind)          ,intent(  out) :: a(p%nlata,p%nlona)
+      real(r_single)          ,intent(in   ) :: e(p%nlate,p%nlone,kb:ke)
+      real(r_single)          ,intent(  out) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
 
-      integer(i_kind) i,j,j1,k
+      integer(i_kind) i,j,j1,k,kk
       real(r_kind) w1,w(p%nlata,p%nlone)
 
       if(p%identity) then
-         do j=1,p%nlone
-            do i=1,p%nlate
-               a(i,j)=e(i,j)
-            end do
-         end do
-      else
-         do j=1,p%nlone
-            do i=1,p%nlata
-               w(i,j)=zero
-               do k=1,p%e2a_lat%nwin(i)
-                  w(i,j)=w(i,j)+p%e2a_lat%win(k,i)*e(p%e2a_lat%iwin(k,i),j)
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  a(i,j,kk)=e(i,j,kk)
                end do
             end do
          end do
-         do j=1,p%nlona
-            do i=1,p%nlata
-               a(i,j)=zero
-            end do
-            do k=1,p%e2a_lon%nwin(j)
-               j1=p%e2a_lon%iwin(k,j)
-               w1=p%e2a_lon%win(k,j)
+      else
+         do kk=kb,ke
+            do j=1,p%nlone
                do i=1,p%nlata
-                  a(i,j)=a(i,j)+w1*w(i,j1)
+                  w(i,j)=zero
+                  do k=1,p%e2a_lat%nwin(i)
+                     w(i,j)=w(i,j)+p%e2a_lat%win(k,i)*e(p%e2a_lat%iwin(k,i),j,kk)
+                  end do
+               end do
+            end do
+            do j=1,p%nlona
+               do i=1,p%nlata
+                  a(i,j,kk)=zero
+               end do
+               do k=1,p%e2a_lon%nwin(j)
+                  j1=p%e2a_lon%iwin(k,j)
+                  w1=p%e2a_lon%win(k,j)
+                  do i=1,p%nlata
+                     a(i,j,kk)=a(i,j,kk)+w1*w(i,j1)
+                  end do
                end do
             end do
          end do
       end if
 
-   end subroutine egrid2agrid
+   end subroutine egrid2agrid_r4
 
-   subroutine egrid2agrid_ad(p,a,e)
+   subroutine egrid2agrid_r8_rank4(p,e,a,kb,ke)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    egrid2agrid_ad  adjoint of egrid2agrid
+! subprogram:    egrid2agrid_r8_rank4   rank-4 interface to egrid2agrid_r8
+!   prgmmr: parrish          org: np22                date: 2011-11-23
+!
+! abstract: interpolate from ensemble to analysis grid
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     e              - ensemble grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     a              - analysis grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_double)          ,intent(in   ) :: e(:,:,:,:)
+      real(r_double)          ,intent(  out) :: a(:,:,:,:)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,idim
+
+      idim=size(e,1)
+      if(idim==size(a,1)) then
+         do i=1,idim
+            call egrid2agrid_r8(p,e(i,:,:,:),a(i,:,:,:),kb,ke)
+         enddo
+      else
+         write(6,*)' egrid2agrid_r8_rank4: inconsistent dim(e,a)', idim, size(a,1)
+         call stop2(999)
+      endif
+
+   end subroutine egrid2agrid_r8_rank4
+
+   subroutine egrid2agrid_r8(p,e,a,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2agrid   interpolate from ensemble to analysis grid
+!   prgmmr: parrish          org: np22                date: 2010-02-06
+!
+! abstract: interpolate from ensemble to analysis grid
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     e              - ensemble grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     a              - analysis grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      use constants, only: zero
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_double)        ,intent(in   ) :: e(p%nlate,p%nlone,kb:ke)
+      real(r_double)        ,intent(  out) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,j,j1,k,kk
+      real(r_kind) w1,w(p%nlata,p%nlone)
+
+      if(p%identity) then
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  a(i,j,kk)=e(i,j,kk)
+               end do
+            end do
+         end do
+      else
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlata
+                  w(i,j)=zero
+                  do k=1,p%e2a_lat%nwin(i)
+                     w(i,j)=w(i,j)+p%e2a_lat%win(k,i)*e(p%e2a_lat%iwin(k,i),j,kk)
+                  end do
+               end do
+            end do
+            do j=1,p%nlona
+               do i=1,p%nlata
+                  a(i,j,kk)=zero
+               end do
+               do k=1,p%e2a_lon%nwin(j)
+                  j1=p%e2a_lon%iwin(k,j)
+                  w1=p%e2a_lon%win(k,j)
+                  do i=1,p%nlata
+                     a(i,j,kk)=a(i,j,kk)+w1*w(i,j1)
+                  end do
+               end do
+            end do
+         end do
+      end if
+
+   end subroutine egrid2agrid_r8
+
+   subroutine egrid2agrid_r4_rank4_ad(p,a,e,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2agrid_r4_ad_rank4  rank-4 interface to egrid2agrid_r4
 !   prgmmr: parrish          org: np22                date: 2010-02-06
 !
 ! abstract: adjoint of egrid2agrid
@@ -505,6 +708,54 @@ module egrid2agrid_mod
 !   input argument list:
 !     p              - parameters for egrid2agrid
 !     a              - analysis grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     e             - filter grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_single)          ,intent(  out) :: e(:,:,:,:)
+      real(r_single)          ,intent(in   ) :: a(:,:,:,:)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,idim
+
+      idim=size(a,1)
+      if(idim==size(e,1)) then
+         do i=1,idim
+            call egrid2agrid_r4_ad(p,e(i,:,:,:),a(i,:,:,:),kb,ke)
+         enddo
+      else
+         write(6,*)' egrid2agrid_r4_rank4_ad: inconsistent dim(e,a)', idim, size(e,1)
+         call stop2(999)
+      endif
+
+   end subroutine egrid2agrid_r4_rank4_ad
+
+   subroutine egrid2agrid_r4_ad(p,e,a,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2agrid_r4_ad  adjoint of egrid2agrid
+!   prgmmr: parrish          org: np22                date: 2010-02-06
+!
+! abstract: adjoint of egrid2agrid
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     a              - analysis grid
+!     kb             - starting level
+!     ke             - ending level
 !
 !   output argument list:
 !     e             - filter grid
@@ -519,44 +770,221 @@ module egrid2agrid_mod
       implicit none
 
       type(egrid2agrid_parm),intent(in   ) :: p
-      real(r_kind)          ,intent(  out) :: e(p%nlate,p%nlone)
-      real(r_kind)          ,intent(in   ) :: a(p%nlata,p%nlona)
+      real(r_single)          ,intent(  out) :: e(p%nlate,p%nlone,kb:ke)
+      real(r_single)          ,intent(in   ) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
 
-      integer i,j,j1,k
+      integer i,j,j1,k,kk
       real(r_kind) w1,w(p%nlata,p%nlone)
 
       if(p%identity) then
-         do j=1,p%nlone
-            do i=1,p%nlate
-               e(i,j)=a(i,j)
-            end do
-         end do
-      else
-         do j=1,p%nlone
-            do i=1,p%nlata
-               w(i,j)=zero
-            end do
-            do k=1,p%e2a_lon%ntwin(j)
-               j1=p%e2a_lon%itwin(k,j)
-               w1=p%e2a_lon%twin(k,j)
-               do i=1,p%nlata
-                  w(i,j)=w(i,j)+w1*a(i,j1)
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=a(i,j,kk)
                end do
             end do
          end do
-         do j=1,p%nlone
-            do i=1,p%nlate
-               e(i,j)=zero
-               do k=1,p%e2a_lat%ntwin(i)
-                  e(i,j)=e(i,j)+p%e2a_lat%twin(k,i)*w(p%e2a_lat%itwin(k,i),j)
+      else
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlata
+                  w(i,j)=zero
+               end do
+            end do
+            do j=1,p%nlona
+               do k=1,p%e2a_lon%nwin(j)
+                  j1=p%e2a_lon%iwin(k,j)
+                  w1=p%e2a_lon%win(k,j)
+                  do i=1,p%nlata
+                     w(i,j1)=w(i,j1)+w1*a(i,j,kk)
+                  end do
+               end do
+            end do
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=zero
+               end do
+               do i=1,p%nlata
+                  do k=1,p%e2a_lat%nwin(i)
+                     e(p%e2a_lat%iwin(k,i),j,kk)=e(p%e2a_lat%iwin(k,i),j,kk)+p%e2a_lat%win(k,i)*w(i,j)
+                  end do
                end do
             end do
          end do
       end if
 
-   end subroutine egrid2agrid_ad
+   end subroutine egrid2agrid_r4_ad
 
-   subroutine agrid2egrid(p,a,e)
+   subroutine egrid2agrid_r8_rank4_ad(p,e,a,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2agrid_r8_rank4_ad  rank-4 interface to egrid2agrid_r8
+!   prgmmr: parrish          org: np22                date: 2010-02-06
+!
+! abstract: adjoint of egrid2agrid
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     a              - analysis grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     e             - filter grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_double)          ,intent(  out) :: e(:,:,:,:)
+      real(r_double)          ,intent(in   ) :: a(:,:,:,:)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,idim
+
+      idim=size(a,1)
+      if(idim==size(e,1)) then
+         do i=1,idim
+            call egrid2agrid_r8_ad(p,e(i,:,:,:),a(i,:,:,:),kb,ke)
+         enddo
+      else
+         write(6,*)' egrid2agrid_r8_rank4_ad: inconsistent dim(e,a)', idim, size(e,1)
+         call stop2(999)
+      endif
+
+   end subroutine egrid2agrid_r8_rank4_ad
+
+   subroutine egrid2agrid_r8_ad(p,e,a,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2agrid_r8_ad  adjoint of egrid2agrid
+!   prgmmr: parrish          org: np22                date: 2010-02-06
+!
+! abstract: adjoint of egrid2agrid
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     a              - analysis grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     e             - filter grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+      use constants, only: zero
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_double)          ,intent(  out) :: e(p%nlate,p%nlone,kb:ke)
+      real(r_double)          ,intent(in   ) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer i,j,j1,k,kk
+      real(r_kind) w1,w(p%nlata,p%nlone)
+
+      if(p%identity) then
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=a(i,j,kk)
+               end do
+            end do
+         end do
+      else
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlata
+                  w(i,j)=zero
+               end do
+            end do
+            do j=1,p%nlona
+               do k=1,p%e2a_lon%nwin(j)
+                  j1=p%e2a_lon%iwin(k,j)
+                  w1=p%e2a_lon%win(k,j)
+                  do i=1,p%nlata
+                     w(i,j1)=w(i,j1)+w1*a(i,j,kk)
+                  end do
+               end do
+            end do
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=zero
+               end do
+               do i=1,p%nlata
+                  do k=1,p%e2a_lat%nwin(i)
+                     e(p%e2a_lat%iwin(k,i),j,kk)=e(p%e2a_lat%iwin(k,i),j,kk)+p%e2a_lat%win(k,i)*w(i,j)
+                  end do
+               end do
+            end do
+         end do
+      end if
+
+   end subroutine egrid2agrid_r8_ad
+
+   subroutine agrid2egrid_r4_rank4(p,a,e,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    agrid2egrid_r4_rank4   rank-4 interface to agrid2egrid_r4
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: interpolation from a grid to e grid
+!
+! program history log:
+!   2010-02-10  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     a              - analysis grid on full global domain
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     e              - ensemble grid on full global domain
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_single)        ,intent(  out) :: e(:,:,:,:)
+      real(r_single)        ,intent(in   ) :: a(:,:,:,:)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,idim
+
+      idim=size(a,1)
+      if(idim==size(e,1)) then
+         do i=1,idim
+            call agrid2egrid_r4(p,a(i,:,:,:),e(i,:,:,:),kb,ke)
+         enddo
+      else
+         write(6,*)' agrid2egrid_r4_rank4: inconsistent dim(e,a)', idim, size(e,1)
+         call stop2(999)
+      endif
+
+   end subroutine agrid2egrid_r4_rank4
+
+   subroutine agrid2egrid_r4(p,a,e,kb,ke)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    agrid2egrid  smoothing interpolate from agrid to egrid
@@ -571,6 +999,8 @@ module egrid2agrid_mod
 !   input argument list:
 !     p              - parameters for egrid2agrid
 !     a              - analysis grid
+!     kb             - starting level
+!     ke             - ending level
 !
 !   output argument list:
 !     e              - ensemble grid
@@ -580,49 +1010,344 @@ module egrid2agrid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-
       use constants, only: zero
       implicit none
 
       type(egrid2agrid_parm),intent(in   ) :: p
-      real(r_kind)          ,intent(  out) :: e(p%nlate,p%nlone)
-      real(r_kind)          ,intent(in   ) :: a(p%nlata,p%nlona)
+      real(r_single)          ,intent(  out) :: e(p%nlate,p%nlone,kb:ke)
+      real(r_single)          ,intent(in   ) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
 
-      integer(i_kind) i,j,j1,k
+      integer(i_kind) i,j,j1,k,kk
       real(r_kind) w1,w(p%nlata,p%nlone)
 
       if(p%identity) then
-         do j=1,p%nlone
-            do i=1,p%nlate
-               e(i,j)=a(i,j)
-            end do
-         end do
-      else
-         do j=1,p%nlone
-            j1=p%e2a_lon%itwin(1,j)
-            w1=p%e2a_lon%swin(1,j)
-            do i=1,p%nlata
-               w(i,j)=w1*a(i,j1)
-            end do
-            do k=2,p%e2a_lon%ntwin(j)
-               j1=p%e2a_lon%itwin(k,j)
-               w1=p%e2a_lon%swin(k,j)
-               do i=1,p%nlata
-                  w(i,j)=w(i,j)+w1*a(i,j1)
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=a(i,j,kk)
                end do
             end do
          end do
-         do j=1,p%nlone
-            do i=1,p%nlate
-               e(i,j)=p%e2a_lat%swin(1,i)*w(p%e2a_lat%itwin(1,i),j)
-               do k=2,p%e2a_lat%ntwin(i)
-                  e(i,j)=e(i,j)+p%e2a_lat%swin(k,i)*w(p%e2a_lat%itwin(k,i),j)
+      else
+         do kk=kb,ke
+            do j=1,p%nlone
+               j1=p%e2a_lon%itwin(1,j)
+               w1=p%e2a_lon%swin(1,j)
+               do i=1,p%nlata
+                  w(i,j)=w1*a(i,j1,kk)
+               end do
+               do k=2,p%e2a_lon%ntwin(j)
+                  j1=p%e2a_lon%itwin(k,j)
+                  w1=p%e2a_lon%swin(k,j)
+                  do i=1,p%nlata
+                     w(i,j)=w(i,j)+w1*a(i,j1,kk)
+                  end do
+               end do
+            end do
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=p%e2a_lat%swin(1,i)*w(p%e2a_lat%itwin(1,i),j)
+                  do k=2,p%e2a_lat%ntwin(i)
+                     e(i,j,kk)=e(i,j,kk)+p%e2a_lat%swin(k,i)*w(p%e2a_lat%itwin(k,i),j)
+                  end do
                end do
             end do
          end do
       end if
 
-   end subroutine agrid2egrid
+   end subroutine agrid2egrid_r4
+
+   subroutine agrid2egrid_r8_rank4(p,a,e,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    agrid2egrid_r8_rank4   rank-4 interface to agrid2egrid_r8
+!   prgmmr: todling          org: np22                date: 2011-07-26
+!
+! abstract: interpolation from a grid to e grid
+!
+! program history log:
+!   2010-02-10  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     a              - analysis grid on full global domain
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     e              - ensemble grid on full global domain
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_double)        ,intent(  out) :: e(:,:,:,:)
+      real(r_double)        ,intent(in   ) :: a(:,:,:,:)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,idim
+
+      idim=size(a,1)
+      if(idim==size(e,1)) then
+         do i=1,idim
+            call agrid2egrid_r8(p,a(i,:,:,:),e(i,:,:,:),kb,ke)
+         enddo
+      else
+         write(6,*)' agrid2egrid_r8_rank4: inconsistent dim(e,a)', idim, size(e,1)
+         call stop2(999)
+      endif
+
+   end subroutine agrid2egrid_r8_rank4
+
+   subroutine agrid2egrid_r8(p,a,e,kb,ke)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    agrid2egrid  smoothing interpolate from agrid to egrid
+!   prgmmr: parrish          org: np22                date: 2010-02-06
+!
+! abstract: interpolate from agrid to egrid
+!
+!
+! program history log:
+!   2010-02-06  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     a              - analysis grid
+!     kb             - starting level
+!     ke             - ending level
+!
+!   output argument list:
+!     e              - ensemble grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      use constants, only: zero
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_double)          ,intent(  out) :: e(p%nlate,p%nlone,kb:ke)
+      real(r_double)          ,intent(in   ) :: a(p%nlata,p%nlona,kb:ke)
+      integer(i_kind)       ,intent(in   ) :: kb,ke
+
+      integer(i_kind) i,j,j1,k,kk
+      real(r_kind) w1,w(p%nlata,p%nlone)
+
+      if(p%identity) then
+         do kk=kb,ke
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=a(i,j,kk)
+               end do
+            end do
+         end do
+      else
+         do kk=kb,ke
+            do j=1,p%nlone
+               j1=p%e2a_lon%itwin(1,j)
+               w1=p%e2a_lon%swin(1,j)
+               do i=1,p%nlata
+                  w(i,j)=w1*a(i,j1,kk)
+               end do
+               do k=2,p%e2a_lon%ntwin(j)
+                  j1=p%e2a_lon%itwin(k,j)
+                  w1=p%e2a_lon%swin(k,j)
+                  do i=1,p%nlata
+                     w(i,j)=w(i,j)+w1*a(i,j1,kk)
+                  end do
+               end do
+            end do
+            do j=1,p%nlone
+               do i=1,p%nlate
+                  e(i,j,kk)=p%e2a_lat%swin(1,i)*w(p%e2a_lat%itwin(1,i),j)
+                  do k=2,p%e2a_lat%ntwin(i)
+                     e(i,j,kk)=e(i,j,kk)+p%e2a_lat%swin(k,i)*w(p%e2a_lat%itwin(k,i),j)
+                  end do
+               end do
+            end do
+         end do
+      end if
+
+   end subroutine agrid2egrid_r8
+
+   subroutine create_egrid2points_slow(np,yp,xp,nye,ye,nxe,xe,nord_e2a,p,nord_blend,nmix)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    create_egrid2points_slow 1st version of grid to points
+!   prgmmr: parrish          org: np22                date: 2010-10-29
+!
+! abstract: setup routine for egrid2points_slow, inefficient version of interpolation
+!             from regional grid to a general set of points.
+!
+!
+! program history log:
+!   2010-10-29  parrish, initial documentation
+!
+!   input argument list:
+!     np:     number of points to interpolate to
+!     yp:     y (latitude) points in ye grid units
+!     xp:     x (longitude) points in xe grid units
+!     nye:    number of y (lat) points for egrid
+!     ye:     y points in grid units (1 to nye)
+!     nxe:    number of x (lon) points for egrid
+!     xe:     x points in grid units (1 to nxe)
+!     nord_e2a:     order of interpolation from egrid to points
+!     nord_blend:  optional variable used to create variable blend mask
+!     nmix:        optional variable defining width of blend zone
+!
+!   output argument list:
+!     p
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+      use constants, only: zero,half,one,two
+      implicit none
+
+      integer(i_kind),intent(in) :: np,nye,nxe,nord_e2a
+      real(r_kind),intent(in) :: yp(np),xp(np),ye(nye),xe(nxe)
+      type(egrid2agrid_parm),intent(inout) :: p
+      integer(i_kind),optional,intent(in) :: nord_blend,nmix
+
+      integer(i_kind) i,j
+      real(r_kind) errtest
+      logical fail_tests,e2a_only
+      integer(i_kind),dimension(0:40):: iblend
+      integer(i_kind) mm
+      real(r_kind) dxx,x,y
+      real(r_kind),allocatable::blendx(:),wgt_xe(:),wgt_ye(:),wgt_e(:,:),wgt_a(:)
+
+      p%nlata=np
+      p%nlona=-np
+      p%nlate=nye
+      p%nlone=nxe
+      p%nlate_ex=nye
+      p%nlone_ex=nxe
+      p%identity=.false.
+
+
+      e2a_only=.true.
+      call get_3ops(p%e2a_lat,np,yp,nye,ye,nord_e2a,e2a_only)
+      call get_3ops(p%e2a_lon,np,xp,nxe,xe,nord_e2a,e2a_only)
+
+!       create blend mask:
+      if(p%lallocated) then
+         deallocate(p%blend,p%ya_e,p%xa_e)
+         p%lallocated=.false.
+      end if
+      allocate(p%blend(np),p%ya_e(np),p%xa_e(np))
+      p%blend=one
+      p%ya_e=yp
+      p%xa_e=xp
+      if(present(nord_blend).and.present(nmix)) then
+
+!     set up blend function
+
+         mm=nord_blend
+         call blend(mm,iblend)
+         allocate(blendx(nmix))
+         blendx(0)=zero
+         blendx(nmix)=one
+         dxx=one/nmix
+         blendx(1)=zero
+         do i=2,nmix
+            x=(i-one)*dxx
+            y=iblend(mm)
+            do j=mm-1,0,-1
+               y=x*y+iblend(j)
+            end do
+            y=y*x**(mm+1)
+            blendx(i)=y
+         end do
+         allocate(wgt_xe(nxe),wgt_ye(nye))
+         wgt_xe=one ; wgt_ye=one
+         do j=1,nmix
+            wgt_xe(j)=blendx(j)
+            wgt_xe(nxe+1-j)=blendx(j)
+            wgt_ye(j)=blendx(j)
+            wgt_ye(nye+1-j)=blendx(j)
+         end do
+         allocate(wgt_e(nye,nxe),wgt_a(np))
+         do j=1,nxe
+            do i=1,nye
+               wgt_e(i,j)=wgt_xe(j)*wgt_ye(i)
+            end do
+         end do
+
+!           interpolate wgt_e to a-grid
+         call egrid2points(p,wgt_e,wgt_a)
+         do i=1,np
+            p%blend(i)=wgt_a(i)
+         end do
+         deallocate(wgt_e,wgt_a,wgt_xe,wgt_ye,blendx)
+
+      end if
+
+   end subroutine create_egrid2points_slow
+
+   subroutine egrid2points(p,e,a)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    egrid2points interp from grid to set of points
+!   prgmmr: parrish          org: np22                date: 2010-10-29
+!
+! abstract: interpolate from grid to general set of points (faster version)
+!
+! program history log:
+!   2010-10-29  parrish, initial documentation
+!
+!   input argument list:
+!     p              - parameters for egrid2agrid
+!     e              - ensemble grid
+!
+!   output argument list:
+!     a              - interpolated values on general set of points
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+      use constants, only: zero,one
+      implicit none
+
+      type(egrid2agrid_parm),intent(in   ) :: p
+      real(r_kind)          ,intent(in   ) :: e(p%nlate,p%nlone)
+      real(r_kind)          ,intent(  out) :: a(p%nlata)
+
+      real(r_kind) w(p%nlone)                  !  this array is too big by nlone/(nord_e2a+1)
+                                               !   which is why this is the slow version.
+      integer(i_kind) i,j,j1,k
+      real(r_kind) w1,factor
+
+!       for each point, first interpolate in latitude at longitudes required for longitude interpolation,
+!         then finish up with longitude interpolation
+
+      do i=1,p%nlata
+         a(i)=zero
+         do j=1,p%e2a_lon%nwin(i)
+            j1=p%e2a_lon%iwin(j,i)
+            w1=p%e2a_lon%win(j,i)
+            w(j1)=zero
+            do k=1,p%e2a_lat%nwin(i)
+               w(j1)=w(j1)+p%e2a_lat%win(k,i)*e(p%e2a_lat%iwin(k,i),j1)
+            end do
+            a(i)=a(i)+w1*w(j1)
+         end do
+      end do
+
+   end subroutine egrid2points
 
    subroutine g_create_egrid2agrid(nlata,rlata,nlona,rlona,nlate,rlate,nlone,rlone,nord_e2a,p)
 !$$$  subprogram documentation block
@@ -776,9 +1501,9 @@ module egrid2agrid_mod
 !      construct extended ensemble grid used for actual interpolation 
 !               (note that analysis grid needs no extension)
 
-      nextend=1+(nord_e2a+2_i_kind)/2_i_kind
+      nextend=1+(nord_e2a+2)/2
       p%nextend=nextend
-      nlone_half=nlone/2_i_kind
+      nlone_half=nlone/2
       p%nlone_half=nlone_half
 
       nlate_ex=nlate+2*nextend
@@ -1869,9 +2594,9 @@ module egrid2agrid_mod
 !      construct extended ensemble grid used for actual interpolation 
 !               (note that analysis grid needs no extension)
 
-      nextend=1+(nord_e2a+2_i_kind)/2_i_kind
+      nextend=1+(nord_e2a+2)/2
       p%nextend=nextend
-      nlone_half=nlone/2_i_kind
+      nlone_half=nlone/2
       p%nlone_half=nlone_half
 
       nlate_ex=nlate+2*nextend

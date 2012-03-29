@@ -36,6 +36,7 @@ module general_sub2grid_mod
 !                           to fix this, use kend_alloc = max(kend_loc,kbegin_loc) for allocation.
 !   2011-07-26  todling  - generalize single/double prec and rank interfaces
 !   2011-08-29  todling  - add rank11 for sub2grid and grid2sub interfaces (nned for hybrid stuff)
+!   2012-02-08  parrish  - add changes for regional dual resolution hybrid ensemble application.
 !
 ! subroutines included:
 !   sub general_sub2grid_r_single  - convert from subdomains to grid for real single precision (4 byte)
@@ -1652,6 +1653,7 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-27  parrish, initial documentation
+!   2012-02-08  parrish - add code for regional dual-res application.
 !
 !   input argument list:
 !     se         - ensemble grid structure variable
@@ -1669,7 +1671,7 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use egrid2agrid_mod, only: g_egrid2agrid,egrid2agrid_parm
+      use egrid2agrid_mod, only: egrid2agrid,g_egrid2agrid,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
 
@@ -1688,9 +1690,7 @@ module general_sub2grid_mod
       allocate(grida_vars(sa%inner_vars,sa%nlat,sa%nlon,sa%kbegin_loc:sa%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
-         write(6,*)' not ready for regional dual_res yet'
-         call mpi_finalize(k)
-         stop
+         call egrid2agrid(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc)
       else
          do k=se%kbegin_loc,se%kend_loc
            vectorx(k)=se%vector(k)
@@ -1763,6 +1763,7 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-28  parrish, initial documentation
+!   2012-02-08  parrish - add code for regional dual-res application.
 !
 !   input argument list:
 !     se         - ensemble grid structure variable
@@ -1780,7 +1781,7 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use egrid2agrid_mod, only: g_egrid2agrid_ad,egrid2agrid_parm
+      use egrid2agrid_mod, only: egrid2agrid_ad,g_egrid2agrid_ad,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
 
@@ -1799,9 +1800,7 @@ module general_sub2grid_mod
       allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
-         write(6,*)' not ready for regional dual_res yet'
-         call mpi_finalize(k)
-         stop
+         call egrid2agrid_ad(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc)
       else
          do k=se%kbegin_loc,se%kend_loc
            vectorx(k)=se%vector(k)
@@ -1874,6 +1873,7 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-02-28  parrish, initial documentation
+!   2012-02-08  parrish - add code for regional dual-res application.
 !
 !   input argument list:
 !     se         - ensemble grid structure variable
@@ -1891,7 +1891,7 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use egrid2agrid_mod, only: g_egrid2agrid_ad,egrid2agrid_parm
+      use egrid2agrid_mod, only: egrid2agrid_ad,g_egrid2agrid_ad,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
 
@@ -1910,9 +1910,7 @@ module general_sub2grid_mod
       allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
-         write(6,*)' not ready for regional dual_res yet'
-         call mpi_finalize(k)
-         stop
+         call egrid2agrid_ad(p_e2a,gride_vars,grida_vars,se%kbegin_loc,se%kend_loc)
       else
          do k=se%kbegin_loc,se%kend_loc
            vectorx(k)=se%vector(k)
@@ -2098,6 +2096,7 @@ module general_sub2grid_mod
 !
 ! program history log:
 !   2010-03-01  parrish, initial documentation
+!   2012-02-08  parrish - add code for regional dual-res application.
 !
 !   input argument list:
 !     sa         - ensemble grid structure variable
@@ -2115,7 +2114,7 @@ module general_sub2grid_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-      use egrid2agrid_mod, only: g_agrid2egrid,egrid2agrid_parm
+      use egrid2agrid_mod, only: agrid2egrid,g_agrid2egrid,egrid2agrid_parm
       use mpimod, only: mpi_comm_world,mpi_real8
       implicit none
 
@@ -2134,9 +2133,7 @@ module general_sub2grid_mod
       allocate(gride_vars(se%inner_vars,se%nlat,se%nlon,se%kbegin_loc:se%kend_alloc))
       allocate(vectorx(sa%kbegin_loc:sa%kend_alloc))
       if(regional) then
-         write(6,*)' not ready for regional dual_res yet'
-         call mpi_finalize(k)
-         stop
+         call agrid2egrid(p_e2a,grida_vars,gride_vars,se%kbegin_loc,se%kend_loc)
       else
          do k=se%kbegin_loc,se%kend_loc
            vectorx(k)=se%vector(k)

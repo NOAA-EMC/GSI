@@ -1,4 +1,4 @@
-subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
+subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_tl       tlm of calctends
@@ -28,6 +28,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 !   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to
 !                          work for any general orthogonal coordinate.
 !   2010-11-03  derber - moved threading calculations to gridmod and modified
+!   2012-02-08  kleist - add uvflag to argument list
 !
 ! usage:
 !   input argument list:
@@ -35,6 +36,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
 !     v        - meridional wind on subdomain
 !     t        - virtual temperature on subdomain
 !     mype     - task id
+!     uvflag   - logical, set to true for st,vp wind components, instead of stream/potential function
 !
 !   output argument list:
 !     u_t      - time tendency of u
@@ -67,6 +69,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
   integer(i_kind)                       ,intent(in   ) :: mype
   real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: u_t,v_t,t_t
   real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: p_t
+  logical                               ,intent(   in) :: uvflag
 
 ! Declare local variables
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri
@@ -92,7 +95,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t)
   call getprs_tl(p,t,pri)
 
   call get_derivatives2(st,vp,t,pri,u,v,u_x,v_x,t_x,pri_x, &
-                                        u_y,v_y,t_y,pri_y)
+                                        u_y,v_y,t_y,pri_y,uvflag)
 
 !$omp parallel do private(i,j,k,kk,tmp,tmp2,uduvdv, &
 !$omp                  tmp3,sumk,sumvk,sum2k,sum2vk,ix)

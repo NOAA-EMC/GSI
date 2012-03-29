@@ -19,6 +19,9 @@ module balmod
 !                         (strong constraint gets moved to control2state and state2control routines
 !                            when l_hyb_ens=.true.)
 !   2010-03-04  zhu  - add horizontally interpolated agvk,wgvk,bvk for regional
+!   2012-02-08  kleist - remove ref to l_hyb_ens in subroutines balance, tbalance, strong_bk, 
+!                          and strong_bk_ad.  add new parameter hybens_inmc_option.
+!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
 !
 ! subroutines included:
 !   sub create_balance_vars      - create arrays for balance vars
@@ -282,15 +285,15 @@ contains
     do k=1,nsig
        do j=1,nsig
           do i=1,lat2
-             jx=istart(mm1)+i-2_i_kind
-             jx=max(jx,2_i_kind)
+             jx=istart(mm1)+i-2
+             jx=max(jx,2)
              jx=min(nlat-1,jx)
              agvz(i,j,k)=agvin(jx,j,k)
           end do
        end do
        do i=1,lat2
-          jx=istart(mm1)+i-2_i_kind
-          jx=max(jx,2_i_kind)
+          jx=istart(mm1)+i-2
+          jx=max(jx,2)
           jx=min(nlat-1,jx)
           wgvz(i,k)=wgvin(jx,k)
           bvz(i,k)=bvin(jx,k)
@@ -362,7 +365,7 @@ contains
 
 
 !   Read dimension of stats file
-    inerr=22_i_kind
+    inerr=22
     call berror_get_dims_reg(msig,mlat)
 
 !   Allocate arrays in stats file
@@ -485,6 +488,10 @@ contains
 !   2008-06-05  safford - rm unused vars
 !   2008-12-29  todling - remove q from arg list
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
+!   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
+!                           with   "use mod_strong, only: hybens_inmc_option".
+!                           then trigger call to strong_bk at end of subroutine balance with 
+!                           new parameter hybens_inmc_option and add uvflag=.false. to call strong_bk.
 !
 !   input argument list:
 !     t        - t grid values 
@@ -506,7 +513,7 @@ contains
 !$$$
     use constants, only: one,half
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
-    use hybrid_ensemble_parameters, only: l_hyb_ens
+    use mod_strong, only: hybens_inmc_option
     implicit none
     
 !   Declare passed variables
@@ -618,9 +625,9 @@ contains
 !   End of REGIONAL/GLOBAL if-then block
     endif
 
-!   Strong balance constraint
-    if(.not.l_hyb_ens) call strong_bk(st,vp,p,t)
-
+!!   Strong balance constraint
+!!   Pass uvflag=.false.
+    if (hybens_inmc_option==1) call strong_bk(st,vp,p,t,.false.)
 
     return
   end subroutine balance
@@ -659,6 +666,10 @@ contains
 !                         (strong constraint gets moved to control2state and state2control routines
 !                            when l_hyb_ens=.true.)
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
+!   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
+!                           with   "use mod_strong, only: hybens_inmc_option".
+!                           then trigger call to strong_bk_ad at beginning of subroutine tbalance with 
+!                           new parameter hybens_inmc_option and add uvflag=.false. to call strong_bk_ad.
 !
 !   input argument list:
 !     t        - t grid values from int routines 
@@ -680,7 +691,7 @@ contains
 !$$$
     use constants,   only: one,half
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
-    use hybrid_ensemble_parameters, only: l_hyb_ens
+    use mod_strong,  only: hybens_inmc_option
     implicit none
 
 !   Declare passed variables
@@ -695,7 +706,8 @@ contains
     real(r_kind) dl1,dl2
   
 !  Adjoint of strong balance constraint
-    if(.not.l_hyb_ens) call strong_bk_ad(st,vp,p,t)
+!  pass uvflag=.false.
+    if(hybens_inmc_option==1) call strong_bk_ad(st,vp,p,t,.false.)
 
 !   REGIONAL BRANCH
     if (regional) then
@@ -843,7 +855,7 @@ contains
 
 
 !   Read in dim of stats file
-    lunin=22_i_kind
+    lunin=22
     open(lunin,file='berror_stats',form='unformatted')
     rewind lunin
     read(lunin)msig,mlat
@@ -864,8 +876,8 @@ contains
 !   llmax,llmin: max,min stats grid needed in analysis domain
 !   rllat1: location of analysis grid in stats grid unit (MPP local domain)
 
-    llmax=-999_i_kind
-    llmin=999_i_kind
+    llmax=-999
+    llmin=999
     do j=1,nlon 
        do i=1,nlat   
           if(region_lat(i,j)>=clat_avn(mlat))then
@@ -899,10 +911,10 @@ contains
     
     mm1=mype+1
     do j=1,lon2            
-       jl=j+jstart(mm1)-2_i_kind
+       jl=j+jstart(mm1)-2
        jl=min0(max0(1,jl),nlon)
        do i=1,lat2            
-          il=i+istart(mm1)-2_i_kind
+          il=i+istart(mm1)-2
           il=min0(max0(1,il),nlat)
           rllat1(i,j)=rllat(il,jl)
        enddo
@@ -910,10 +922,10 @@ contains
     if(fstat)then
        fmid=one/sin(region_lat(nlat/2,nlon/2))
        do j=1,lon2
-          jl=j+jstart(mm1)-2_i_kind
+          jl=j+jstart(mm1)-2
           jl=min0(max0(1,jl),nlon)
           do i=1,lat2
-             il=i+istart(mm1)-2_i_kind
+             il=i+istart(mm1)-2
              il=min0(max0(1,il),nlat)
              f1(i,j)=sin(region_lat(il,jl))*fmid
           enddo
@@ -923,7 +935,7 @@ contains
     return
 end subroutine locatelat_reg
   
-subroutine strong_bk(st,vp,p,t)
+subroutine strong_bk(st,vp,p,t,uvflag)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    strong_bk   apply strong balance constraint
@@ -936,6 +948,8 @@ subroutine strong_bk(st,vp,p,t)
 !   2008-09-19  derber,j.
 !   2008-12-29  todling   - redefine interface
 !   2009-04-21  derber - modify interface with calctends_no
+!   2012-02-08  kleist  - add uvflag input parameter, passed in call to calctends_no_tl 
+!                            and strong_bal_correction
 !
 !   input argument list:
 !     st       - input control vector, stream function
@@ -965,6 +979,7 @@ subroutine strong_bk(st,vp,p,t)
   real(r_kind),dimension(latlon1n),intent(inout) :: st,vp
   real(r_kind),dimension(latlon11),intent(inout) :: p
   real(r_kind),dimension(latlon1n),intent(inout) :: t
+  logical, intent(in):: uvflag
 
   logical:: fullfield
   integer(i_kind) istrong
@@ -979,17 +994,17 @@ subroutine strong_bk(st,vp,p,t)
   fullfield=.false.
   do istrong=1,nstrong
  
-     call calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)
+     call calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,ps_t,uvflag)
 
      call strong_bal_correction(u_t,v_t,t_t, &
-          ps_t,mype,st,vp,t,p,.false.,fullfield,.true.)
+          ps_t,mype,st,vp,t,p,.false.,fullfield,.true.,uvflag)
 
   end do
 
   return
 end subroutine strong_bk
 
-subroutine strong_bk_ad(st,vp,p,t)
+subroutine strong_bk_ad(st,vp,p,t,uvflag)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    strong_bk_ad   apply adjoint of strong balance constraint
@@ -1002,6 +1017,8 @@ subroutine strong_bk_ad(st,vp,p,t)
 !   2008-09-19  derber,j.
 !   2008-12-29  todling   - redefine interface
 !   2009-04-21  derber - modify interface with calctends_no
+!   2012-02-08  kleist  - add uvflag input parameter, passed in call to calctends_no_ad 
+!                            and strong_bal_correction_ad
 !
 !   input argument list:
 !     st       - input control vector, stream function
@@ -1032,6 +1049,7 @@ subroutine strong_bk_ad(st,vp,p,t)
   real(r_kind),dimension(latlon1n),intent(inout) :: st,vp
   real(r_kind),dimension(latlon11),intent(inout) :: p
   real(r_kind),dimension(latlon1n),intent(inout) :: t
+  logical,intent(in):: uvflag
 
 ! Declare local variables  	
   integer(i_kind) i
@@ -1054,9 +1072,9 @@ subroutine strong_bk_ad(st,vp,p,t)
         ps_t(i)=zero
      end do
 
-     call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p)
+     call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p,uvflag)
 
-     call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)  
+     call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t,uvflag)  
 !
   end do
 

@@ -27,7 +27,7 @@ subroutine model2control(rval,bval,grad)
 !
 !$$$
 use kinds, only: r_kind,i_kind
-use constants, only: zero
+use constants, only: zero,max_varname_length
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
@@ -55,7 +55,7 @@ type(control_vector),intent(inout) :: grad
 ! Declare local variables
 character(len=*),parameter::myname='model2control'
 character(len=10),allocatable,dimension(:) :: gases
-character(len=10),allocatable,dimension(:) :: clouds
+character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
 integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
 real(r_kind) :: gradz(nval_lenz)

@@ -8,6 +8,7 @@ module strong_fast_global_mod
 
 ! program history log:
 !   2008-04-04  safford - add moddule doc block and missing subroutine doc blocks
+!   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
 !
 ! subroutines included:
 !    init_strongvars_2        --
@@ -144,7 +145,7 @@ end subroutine init_strongvars_2
 
 
 subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps, &
-                                              bal_diagnostic,fullfield,update)
+                                              bal_diagnostic,fullfield,update,uvflag)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -160,9 +161,10 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2006-07-15  parrish
 !   2007-04-16  kleist  - modified for full field or incremental diagnostics
 !   2008-10-08  parrish/derber - modify to output streamfunction and vel. pot. and not update time derivatives
-!   2009-11-27  parrish - add uv_hyb_ens.  if uv_hyb_ens=true, then
+!   2009-11-27  parrish - add uvflag.  if uvflag=true, then
 !                          input/output variables psi=u, chi=v.
 !   2010-03-31  treadon - replace specmod jcap with sp_a structure
+!   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -193,11 +195,10 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !$$$
 
   use mod_strong, only: dinmi,gproj
-  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
-  logical                               ,intent(in   ) :: bal_diagnostic,update,fullfield
+  logical                               ,intent(in   ) :: bal_diagnostic,update,fullfield,uvflag
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: u_t,v_t,t_t
   real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: ps_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
@@ -283,7 +284,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
                         m,mmax,gspeed)
         end if
 
-        if(.not. uv_hyb_ens)then
+        if(.not. uvflag)then
            do n=m,sp_a%jcap
               if(n >  0) then
                  rn=real(n,r_kind)
@@ -312,7 +313,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
      end do
   end do
 
-  if(uv_hyb_ens) then
+  if(uvflag) then
      call inmi_nszdm2uvm(uvm_ns,zdm_hat)
   else
      call inmi_nspcm_hat2pcm(uvm_ns,zdm_hat)
@@ -377,7 +378,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 
 end subroutine strong_bal_correction_fast_global
 
-subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -389,9 +390,10 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 ! program history log:
 !   2006-07-15  parrish
 !   2008-10-08  parrish/derber - modify to output streamfunction and vel. pot. and not update time derivatives
-!   2009-11-27  parrish - add uv_hyb_ens.  if present and true, then
+!   2009-11-27  parrish - add uvflag.  if present and true, then
 !                          input/output variables psi=u, chi=v.
 !   2010-03-31  treadon - replace specmod jcap with sp_a structure
+!   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -417,7 +419,6 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !$$$
 
   use mod_strong, only: dinmi_ad,gproj_ad
-  use hybrid_ensemble_parameters, only: uv_hyb_ens
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
@@ -425,6 +426,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: ps
+  logical, intent(in)                                  :: uvflag
 
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t2,vtilde_t2,mtilde_t2
@@ -453,7 +455,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   call inmi_coupler_sd2ew(delutilde,delvtilde,delmtilde,utilde_t_g,vtilde_t_g,mtilde_t_g,uvm_ew,mype)
   call inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   call inmi_coupler_ew2ns(uvm_ewtrans,uvm_ns)
-  if(uv_hyb_ens) then
+  if(uvflag) then
      call inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
   else
      call inmi_nspcm_hat2pcm_ad(uvm_ns,zdm_hat)
@@ -483,7 +485,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
            delmhat(1,n)=zdm_hat(3,1,i,ipair,kk)
            delmhat(2,n)=zdm_hat(3,2,i,ipair,kk)
         end do
-        if(.not. uv_hyb_ens) then
+        if(.not. uvflag) then
            do n=m,sp_a%jcap
               if(n >  0) then
                  rn=real(n,r_kind) 

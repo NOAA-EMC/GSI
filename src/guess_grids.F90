@@ -89,6 +89,7 @@ module guess_grids
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-11-01  eliu    - modified condition to allocate/deallocate arrays related to 
 !                         cloud water tendencies and derivatives 
+!   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -130,7 +131,7 @@ module guess_grids
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
-  public :: ges_gust,ges_vis,ges_pblh
+  public :: ges_gust,ges_vis,ges_pblh,ges_qsat
   public :: use_compress,nsig_ext,gpstop
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
@@ -270,6 +271,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat      ! 4d qsat array
 
   real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
   real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
@@ -481,7 +483,8 @@ contains
             ges_teta(lat2,lon2,nsig,nfldsig),&
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
-            tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),stat=istatus)
+            tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
+            ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #ifndef HAVE_ESMF
@@ -547,6 +550,7 @@ contains
                    ges_q(i,j,k,n)=zero
                    ges_oz(i,j,k,n)=zero
                    ges_tv(i,j,k,n)=zero
+                   ges_qsat(i,j,k,n)=zero
 !                  ges_pint(i,j,k,n)=zero
                 end do
              end do
@@ -963,7 +967,7 @@ contains
 
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
-         tropprs,fact_tv,stat=istatus)
+         tropprs,fact_tv,ges_qsat,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
          istatus

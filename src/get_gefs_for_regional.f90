@@ -10,6 +10,8 @@ subroutine get_gefs_for_regional
 !
 ! program history log:
 !   2010-09-26  parrish, initial documentation
+!   2012-01-17  wu, clean up, add/setup option "full_ensemble"
+!   2012-02-08  parrish - a little more cleanup
 !
 !   input argument list:
 !
@@ -22,13 +24,20 @@ subroutine get_gefs_for_regional
 !$$$ end documentation block
 
   use gridmod, only: idsl5,regional
-                                  use gridmod, only: region_lat,region_lon  !  for debug only
+  use gridmod, only: region_lat,region_lon  
+  use gridmod, only: nlon,nlat,lat2,lon2,nsig,rotate_wind_ll2xy
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
+  use hybrid_ensemble_parameters, only: full_ensemble
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_gridcreate
   use constants,only: zero,half,fv,rd_over_cp,one,h300
   use constants, only: rd,grav
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
@@ -40,6 +49,7 @@ subroutine get_gefs_for_regional
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ges_ps,ntguessig,geop_hgti,ges_z
+  use guess_grids, only: ges_tv,ges_q,ges_u,ges_v,ges_tsen
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   implicit none
@@ -51,9 +61,9 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
-  real(r_kind),allocatable,dimension(:,:)::  pbar,sstbar,zbar,pbar_nmmb
+  real(r_kind),allocatable,dimension(:,:)::  sstbar,pbar_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:)::st_eg,vp_eg,t_eg,rh_eg,oz_eg,cw_eg
-  real(r_kind),allocatable,dimension(:,:,:):: p_eg,z_eg,p_eg_nmmb
+  real(r_kind),allocatable,dimension(:,:,:):: p_eg_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl_e
   real(r_kind),allocatable,dimension(:,:,:)::tsen,qs
   real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,rht,ozt,cwt
@@ -64,7 +74,7 @@ subroutine get_gefs_for_regional
   integer(i_kind) iret,i,ig,j,jg,k,k2,n,il,jl,mm1,iderivative
   integer(i_kind) ic2,ic3
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
-  character(70) filename
+  character(255) filename
   logical ice
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
@@ -95,7 +105,7 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
   real(r_kind),allocatable,dimension(:)::glb_cwmin0,glb_cwmax0,reg_cwmin0,reg_cwmax0
                                              character(len=50) :: fname
-  integer(i_kind) k_t,kp,istatus
+  integer(i_kind) istatus
   real(r_kind) rdog,h,dz,this_tv
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
   logical add_bias_perturbation
@@ -105,6 +115,11 @@ integer(i_kind) kk,n_in
 real(r_kind) pdiffmax,pmax,pdiffmax0,pmax0,pdiffmin,pdiffmin0
 real(r_kind),allocatable::psfc_out(:,:)
 integer(i_kind) ilook,jlook
+
+   real(r_kind) dlon,dlat,uob,vob,dlon_ens,dlat_ens
+   integer(i_kind) ii,jj,n1
+integer(i_kind) iimax,iimin,jjmax,jjmin
+   real(r_kind) ratio_x,ratio_y
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
@@ -246,10 +261,7 @@ integer(i_kind) ilook,jlook
 !  create interpolation information for global grid to regional ensemble grid
 
   nord_g2r=4
-! call g_create_egrid2points_slow(grd_ens%nlat*grd_ens%nlon,region_lat_ens,region_lon_ens, &
-!                   grd_gfs%nlat,sp_gfs%rlats,grd_gfs%nlon,sp_gfs%rlons,nord_g2r,p_g2r)
-!    following only for no dualres !!!
-  call g_create_egrid2points_slow(grd_ens%nlat*grd_ens%nlon,region_lat,region_lon, &
+  call g_create_egrid2points_slow(grd_ens%nlat*grd_ens%nlon,region_lat_ens,region_lon_ens, &
                     grd_gfs%nlat,sp_gfs%rlats,grd_gfs%nlon,sp_gfs%rlons,nord_g2r,p_g2r)
 
 !  allocate mix ensemble space--horizontal on regional domain, vertical still gefs 
@@ -259,10 +271,8 @@ integer(i_kind) ilook,jlook
   allocate(rh_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
   allocate(oz_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
   allocate(cw_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate( p_eg(grd_mix%lat2,grd_mix%lon2,n_ens))
   allocate( p_eg_nmmb(grd_mix%lat2,grd_mix%lon2,n_ens))
-  allocate( z_eg(grd_mix%lat2,grd_mix%lon2,n_ens))
-  st_eg=zero ; vp_eg=zero ; t_eg=zero ; rh_eg=zero ; oz_eg=zero ; cw_eg=zero ; p_eg=zero ; z_eg=zero
+  st_eg=zero ; vp_eg=zero ; t_eg=zero ; rh_eg=zero ; oz_eg=zero ; cw_eg=zero 
   p_eg_nmmb=zero
 
 !                begin loop over ensemble members
@@ -290,18 +300,18 @@ integer(i_kind) ilook,jlook
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
      call general_read_gfsatm(grd_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
      deallocate(vor,div)
-     allocate(work_sub(grd_gfs%lat2,grd_gfs%lon2,num_fields,1))
+     allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
         ku=k ; kv=k+grd_gfs%nsig ; kt=k+2*grd_gfs%nsig ; kq=k+3*grd_gfs%nsig ; koz=k+4*grd_gfs%nsig
         kcw=k+5*grd_gfs%nsig
         do j=1,grd_gfs%lon2
            do i=1,grd_gfs%lat2
-              work_sub(i,j,ku,1)=u(i,j,k)
-              work_sub(i,j,kv,1)=v(i,j,k)
-              work_sub(i,j,kt,1)=tv(i,j,k)
-              work_sub(i,j,kq,1)=q(i,j,k)
-              work_sub(i,j,koz,1)=oz(i,j,k)
-              work_sub(i,j,kcw,1)=cwmr(i,j,k)
+              work_sub(1,i,j,ku)=u(i,j,k)
+              work_sub(1,i,j,kv)=v(i,j,k)
+              work_sub(1,i,j,kt)=tv(i,j,k)
+              work_sub(1,i,j,kq)=q(i,j,k)
+              work_sub(1,i,j,koz)=oz(i,j,k)
+              work_sub(1,i,j,kcw)=cwmr(i,j,k)
            end do
         end do
      end do
@@ -309,24 +319,24 @@ integer(i_kind) ilook,jlook
      kz=num_fields ; kps=kz-1
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
-           work_sub(i,j,kz,1)=z(i,j)
-           work_sub(i,j,kps,1)=ps(i,j)
+           work_sub(1,i,j,kz)=z(i,j)
+           work_sub(1,i,j,kps)=ps(i,j)
         end do
      end do
      deallocate(z,ps)
-     allocate(work(grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc,1))
+     allocate(work(grd_gfs%inner_vars,grd_gfs%nlat,grd_gfs%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
      call general_sub2grid(grd_gfs,work_sub,work)
      deallocate(work_sub)
 
 !    then interpolate to regional analysis grid
-     allocate(work_reg(grd_mix%nlat,grd_mix%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc,1))
+     allocate(work_reg(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_gfs%kbegin_loc:grd_gfs%kend_alloc))
      do k=grd_gfs%kbegin_loc,grd_gfs%kend_loc
-        call g_egrid2points_faster(p_g2r,work(:,:,k,1),work_reg(:,:,k,1),vector(k))
+        call g_egrid2points_faster(p_g2r,work(1,1,1,k),work_reg(1,1,1,k),vector(k))
      end do
      deallocate(work)
 
 !    next general_grid2sub to go to regional grid subdomains.
-     allocate(work_sub(grd_mix%lat2,grd_mix%lon2,num_fields,1))
+     allocate(work_sub(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,num_fields))
      call general_grid2sub(grd_mix,work_reg,work_sub)
      deallocate(work_reg)
      allocate(pri(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig+1))
@@ -339,7 +349,7 @@ integer(i_kind) ilook,jlook
      k2=grd_mix%nsig+1
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
-           pri(i,j,k)=work_sub(i,j,kps,1)
+           pri(i,j,k)=work_sub(1,i,j,kps)
            pri(i,j,k2)=zero
         end do
      end do
@@ -347,7 +357,7 @@ integer(i_kind) ilook,jlook
         do k=2,grd_mix%nsig
            do j=1,grd_mix%lon2
               do i=1,grd_mix%lat2
-                 pri(i,j,k)=ak5(k)+bk5(k)*work_sub(i,j,kps,1)
+                 pri(i,j,k)=ak5(k)+bk5(k)*work_sub(1,i,j,kps)
               end do
            end do
         end do
@@ -356,8 +366,8 @@ integer(i_kind) ilook,jlook
            kt=k+2*grd_mix%nsig
            do j=1,grd_mix%lon2
               do i=1,grd_mix%lat2
-                 trk=(half*(work_sub(i,j,kt-1,1)+work_sub(i,j,kt,1))/tref5(k))**kapr
-                 pri(i,j,k)=ak5(k)+(bk5(k)*work_sub(i,j,kps,1))+(ck5(k)*trk)
+                 trk=(half*(work_sub(1,i,j,kt-1)+work_sub(1,i,j,kt))/tref5(k))**kapr
+                 pri(i,j,k)=ak5(k)+(bk5(k)*work_sub(1,i,j,kps))+(ck5(k)*trk)
               end do
            end do
         end do
@@ -371,7 +381,7 @@ integer(i_kind) ilook,jlook
         kt=k+2*grd_mix%nsig ; kq=k+3*grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
-              tsen(i,j,k)= work_sub(i,j,kt,1)/(one+fv*max(zero,work_sub(i,j,kq,1)))
+              tsen(i,j,k)= work_sub(1,i,j,kt)/(one+fv*max(zero,work_sub(1,i,j,kq)))
            end do
         end do
      end do
@@ -396,80 +406,79 @@ integer(i_kind) ilook,jlook
         end do
      end if
 !  !Compute geopotential height at interface between layers
-     ! allocate(zbarl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-     ! allocate(height(grd_mix%nsig))
-     ! rdog=rd/grav
-     ! do j=1,grd_mix%lon2
-     !    do i=1,grd_mix%lat2
-     !       k  = 1
-     !       kt=k+2*grd_mix%nsig
-     !       h  = rdog * work_sub(i,j,kt,1)
-     !       dz = h * log(pri(i,j,k)/prsl(i,j,k))
-     !       height(k) = work_sub(i,j,kz,1)+dz
+       allocate(zbarl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+       allocate(height(grd_mix%nsig))
+       rdog=rd/grav
+       do j=1,grd_mix%lon2
+          do i=1,grd_mix%lat2
+             k  = 1
+             kt=k+2*grd_mix%nsig
+             h  = rdog * work_sub(1,i,j,kt)
+             dz = h * log(pri(i,j,k)/prsl(i,j,k))
+             height(k) = work_sub(1,i,j,kz)+dz
 
-     !       do k=2,grd_mix%nsig
-     !          kt=k+2*grd_mix%nsig
-     !          h  = rdog * half * (work_sub(i,j,kt-1,1)+work_sub(i,j,kt,1))
-     !          dz = h * log(prsl(i,j,k-1)/prsl(i,j,k))
-     !          height(k) = height(k-1) + dz
-     !       end do
-     !       do k=1,grd_mix%nsig
-     !          zbarl(i,j,k)=height(k)
-     !       end do
-     !    end do
-     ! end do
-             deallocate(pri)
-    !deallocate(pri,height)
+             do k=2,grd_mix%nsig
+                kt=k+2*grd_mix%nsig
+                h  = rdog * half * (work_sub(1,i,j,kt-1)+work_sub(1,i,j,kt))
+                dz = h * log(prsl(i,j,k-1)/prsl(i,j,k))
+                height(k) = height(k-1) + dz
+             end do
+             do k=1,grd_mix%nsig
+                zbarl(i,j,k)=height(k)
+             end do
+          end do
+       end do
+    deallocate(pri,height)
 !! recompute pbar using routine Wan-Shu obtained from Matt Pyle:
 
- !allocate(tt(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-  allocate(psfc_out(grd_mix%lat2,grd_mix%lon2))
-     !  do k=1,grd_mix%nsig
-     !     kt=k+2*grd_mix%nsig
-     !     do j=1,grd_mix%lon2
-     !        do i=1,grd_mix%lat2
-     !           tt(i,j,k)=work_sub(i,j,kt,1)
-     !        end do
-     !     end do
-     !  end do
-     !  mm1=mype+1
+ allocate(tt(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+ allocate(psfc_out(grd_mix%lat2,grd_mix%lon2))
+       do k=1,grd_mix%nsig
+          kt=k+2*grd_mix%nsig
+          do j=1,grd_mix%lon2
+             do i=1,grd_mix%lat2
+                tt(i,j,k)=work_sub(1,i,j,kt)
+             end do
+          end do
+       end do
+       mm1=mype+1
      ! !ilook=ide/2
      ! !jlook=jde/2
      ! !ilook=29
      ! !jlook=41
-     !           ilook=-1 ; jlook=-1
-     !  call compute_nmm_surfacep ( ges_z(:,:,ntguessig), zbarl,1000._r_kind*prsl,tt, &
-     !                              psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
-     !                              .true.,ilook,jlook)
-     !  deallocate(tt,zbarl)
-     !  psfc_out=.001_r_kind*psfc_out
-        psfc_out=ges_ps(:,:,ntguessig)
-        write(0,*)' min,max ges_ps-psfc_out=',&
-             minval(ges_ps(:,:,ntguessig)-psfc_out),maxval(ges_ps(:,:,ntguessig)-psfc_out)
-                    pdiffmax=-huge(pdiffmax)
-                    pdiffmin= huge(pdiffmin)
-        !  do j=2,grd_mix%lon2-1
-        !     do i=2,grd_mix%lat2-1
-           do j=1,grd_mix%lon2
-              do i=1,grd_mix%lat2
-                 pdiffmax=max(ges_ps(i,j,ntguessig)-psfc_out(i,j),pdiffmax)
-                 pdiffmin=min(ges_ps(i,j,ntguessig)-psfc_out(i,j),pdiffmin)
-                 if(ges_ps(i,j,ntguessig)<10._r_kind) &
-                    write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-                        grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
-                 if(psfc_out(i,j)<10._r_kind) &
-                    write(0,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-                        grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
-              end do
-           end do
-           call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-           call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-                  if(mype==0) write(0,*)' min,max ges_ps - matt ps =',pdiffmin0,pdiffmax0
+                ilook=-1 ; jlook=-1
+       call compute_nmm_surfacep ( ges_z(:,:,ntguessig), zbarl,1000._r_kind*prsl,tt, &
+                                   psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
+                                   .true.,ilook,jlook)
+       deallocate(tt,zbarl)
+       psfc_out=.001_r_kind*psfc_out
+     !   psfc_out=ges_ps(:,:,ntguessig)
+     !   write(0,*)' min,max ges_ps-psfc_out=',&
+     !        minval(ges_ps(:,:,ntguessig)-psfc_out),maxval(ges_ps(:,:,ntguessig)-psfc_out)
+     !               pdiffmax=-huge(pdiffmax)
+     !               pdiffmin= huge(pdiffmin)
+     !   !  do j=2,grd_mix%lon2-1
+     !   !     do i=2,grd_mix%lat2-1
+     !      do j=1,grd_mix%lon2
+     !         do i=1,grd_mix%lat2
+     !            pdiffmax=max(ges_ps(i,j,ntguessig)-psfc_out(i,j),pdiffmax)
+     !            pdiffmin=min(ges_ps(i,j,ntguessig)-psfc_out(i,j),pdiffmin)
+     !            if(ges_ps(i,j,ntguessig)<10._r_kind) &
+     !               write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+     !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
+     !            if(psfc_out(i,j)<10._r_kind) &
+     !               write(0,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+     !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
+     !         end do
+     !      end do
+     !      call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+     !      call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
+     !             if(mype==0) write(0,*)' min,max ges_ps - matt ps =',pdiffmin0,pdiffmax0
 
-                                                     write(fname,'("matt_pbar_corrected")')
-                                                     call grads1a(psfc_out,1,mype,trim(fname))
-                                                     write(fname,'("ges_ps")')
-                                                     call grads1a(ges_ps(:,:,ntguessig),1,mype,trim(fname))
+     !                                                write(fname,'("matt_pbar_corrected")')
+     !                                                call grads1a(psfc_out,1,mype,trim(fname))
+     !                                                write(fname,'("ges_ps")')
+     !                                                call grads1a(ges_ps(:,:,ntguessig),1,mype,trim(fname))
 
      ice=.true.
      iderivative=0
@@ -480,55 +489,76 @@ integer(i_kind) ilook,jlook
         kt=k+2*grd_mix%nsig ; kq=k+3*grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
-              work_sub(i,j,kq,1) = work_sub(i,j,kq,1)/qs(i,j,k)
-              work_sub(i,j,kt,1)=work_sub(i,j,kt,1)/(0.01_r_kind*prsl(i,j,k))**rd_over_cp
+              work_sub(1,i,j,kq) = work_sub(1,i,j,kq)/qs(i,j,k)
+              work_sub(1,i,j,kt)=work_sub(1,i,j,kt)/(0.01_r_kind*prsl(i,j,k))**rd_over_cp
            end do
         end do
      end do
      deallocate(qs)
      deallocate(prsl)
 
+         iimax=0
+         iimin=grd_mix%nlat
+         jjmax=0
+         jjmin=grd_mix%nlon
+     ratio_x=(nlon-one)/(grd_mix%nlon-one)
+     ratio_y=(nlat-one)/(grd_mix%nlat-one)
      do k=1,grd_mix%nsig
         ku=k ; kv=ku+grd_mix%nsig ; kt=kv+grd_mix%nsig ; kq=kt+grd_mix%nsig ; koz=kq+grd_mix%nsig
         kcw=koz+grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
-              st_eg(i,j,k,n)=work_sub(i,j,ku,1)
-              vp_eg(i,j,k,n)=work_sub(i,j,kv,1)
-               t_eg(i,j,k,n)=work_sub(i,j,kt,1)     !  now pot virtual temp
-              rh_eg(i,j,k,n)=work_sub(i,j,kq,1)     !  now rh
-              oz_eg(i,j,k,n)=work_sub(i,j,koz,1)
-              cw_eg(i,j,k,n)=work_sub(i,j,kcw,1)
+
+              ii=i+grd_mix%istart(mm1)-2
+              jj=j+grd_mix%jstart(mm1)-2
+              ii=min(grd_mix%nlat,max(1,ii))
+              jj=min(grd_mix%nlon,max(1,jj))
+                           iimax=max(ii,iimax)
+                           iimin=min(ii,iimin)
+                           jjmax=max(jj,jjmax)
+                           jjmin=min(jj,jjmin)
+              dlon_ens=float(jj)
+              dlat_ens=float(ii)
+              dlon=one+(dlon_ens-one)*ratio_x
+              dlat=one+(dlat_ens-one)*ratio_y
+              
+              call rotate_wind_ll2xy(work_sub(1,i,j,ku),work_sub(1,i,j,kv), &
+                                     uob,vob,region_lon_ens(ii,jj),dlon,dlat)
+              st_eg(i,j,k,n)=uob
+              vp_eg(i,j,k,n)=vob
+
+               t_eg(i,j,k,n)=work_sub(1,i,j,kt)     !  now pot virtual temp
+              rh_eg(i,j,k,n)=work_sub(1,i,j,kq)     !  now rh
+              oz_eg(i,j,k,n)=work_sub(1,i,j,koz)
+              cw_eg(i,j,k,n)=work_sub(1,i,j,kcw)
            end do
         end do
      end do
      kz=num_fields ; kps=kz-1
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
-           p_eg(i,j,n)=work_sub(i,j,kps,1)
            p_eg_nmmb(i,j,n)=psfc_out(i,j)
-           z_eg(i,j,n)=work_sub(i,j,kz,1)
         end do
      end do
      deallocate(work_sub,psfc_out)
 
-                    pdiffmax=-huge(pdiffmax)
-                    pdiffmin= huge(pdiffmin)
-           do j=1,grd_mix%lon2
-              do i=1,grd_mix%lat2
-                 pdiffmax=max(ges_ps(i,j,ntguessig)-p_eg_nmmb(i,j,n),pdiffmax)
-                 pdiffmin=min(ges_ps(i,j,ntguessig)-p_eg_nmmb(i,j,n),pdiffmin)
-                  if(ges_ps(i,j,ntguessig)<10._r_kind) &
-                     write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
-                  if(p_eg_nmmb(i,j,n)<10._r_kind) &
-                     write(0,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
-                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
-              end do
-           end do
-           call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-           call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-                   if(mype==0) write(0,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
+!                    pdiffmax=-huge(pdiffmax)
+!                    pdiffmin= huge(pdiffmin)
+!           do j=1,grd_mix%lon2
+!              do i=1,grd_mix%lat2
+!                 pdiffmax=max(ges_ps(i,j,ntguessig)-p_eg_nmmb(i,j,n),pdiffmax)
+!                 pdiffmin=min(ges_ps(i,j,ntguessig)-p_eg_nmmb(i,j,n),pdiffmin)
+!                  if(ges_ps(i,j,ntguessig)<10._r_kind) &
+!                     write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+!                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
+!                  if(p_eg_nmmb(i,j,n)<10._r_kind) &
+!                     write(0,*)' small ens ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
+!                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
+!              end do
+!           end do
+!           call mpi_allreduce(pdiffmax,pdiffmax0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+!           call mpi_allreduce(pdiffmin,pdiffmin0,1,mpi_rtype,mpi_min,mpi_comm_world,ierror)
+!                   if(mype==0) write(0,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
 
   end do   !  end loop over ensemble members.
 
@@ -540,14 +570,12 @@ integer(i_kind) ilook,jlook
   allocate(rhbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
   allocate(ozbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
   allocate(cwbar(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-  allocate(pbar(grd_mix%lat2,grd_mix%lon2))
   allocate(pbar_nmmb(grd_mix%lat2,grd_mix%lon2))
-  allocate( zbar(grd_mix%lat2,grd_mix%lon2))
   allocate(sstbar(grd_mix%lat2,grd_mix%lon2))
 
 !   compute mean state
-  stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero ; pbar=zero
-  zbar=zero ; sstbar=zero ; pbar_nmmb=zero
+  stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
+  sstbar=zero ; pbar_nmmb=zero
   do n=1,n_ens
      do k=1,grd_mix%nsig
         do j=1,grd_mix%lon2
@@ -563,9 +591,7 @@ integer(i_kind) ilook,jlook
      end do
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
-           pbar(i,j)=pbar(i,j)+p_eg(i,j,n)
            pbar_nmmb(i,j)=pbar_nmmb(i,j)+p_eg_nmmb(i,j,n)
-           zbar(i,j)=zbar(i,j)+z_eg(i,j,n)
         end do
      end do
   end do
@@ -586,23 +612,25 @@ integer(i_kind) ilook,jlook
   end do
   do j=1,grd_mix%lon2
      do i=1,grd_mix%lat2
-        pbar(i,j)=pbar(i,j)*bar_norm
         pbar_nmmb(i,j)=pbar_nmmb(i,j)*bar_norm
 !   also save pbar to module array ps_bar for possible use in vertical localization
 !                                                    in terms of scale heights/normalized p/p
-        ps_bar(i,j)=pbar_nmmb(i,j)
-        zbar(i,j)=zbar(i,j)*bar_norm
+        ps_bar(i,j,1)=pbar_nmmb(i,j)
      end do
   end do
-                                                 write(fname,'("test_pbar_uncorrected")')
-                                                 call grads1a(pbar,1,mype,trim(fname))
-                                                 write(fname,'("test_ges_ps")')
-                                                 call grads1a(ges_ps,1,mype,trim(fname))
-                                                 write(fname,'("test_ges_z")')
-                                                 call grads1a(ges_z,1,mype,trim(fname))
+!                                                 write(fname,'("test_pbar_uncorrected")')
+!                                                 call grads1a(pbar,1,mype,trim(fname))
+!                                                 write(fname,'("test_ges_ps")')
+!                                                 call grads1a(ges_ps,1,mype,trim(fname))
+!                                                 write(fname,'("test_ges_z")')
+!                                                 call grads1a(ges_z,1,mype,trim(fname))
 
 ! Subtract mean from ensemble members, but save scaling by sqrt(1/(nens-1)) until after vertical interpolation
-  do n=1,n_ens
+  n1=1
+!www  ensemble perturbation for all but the first member if full_ensemble
+  if(full_ensemble)n1=2
+
+  do n=n1,n_ens
      do k=1,grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
@@ -618,10 +646,10 @@ integer(i_kind) ilook,jlook
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
            p_eg_nmmb(i,j,n)=p_eg_nmmb(i,j,n)-pbar_nmmb(i,j)
-           p_eg(i,j,n)=p_eg(i,j,n)-pbar(i,j)
         end do
      end do
   end do
+  deallocate(stbar,vpbar,rhbar,ozbar,cwbar)
 
 !   now obtain mean pressure prsl
 !    compute 3d pressure on interfaces
@@ -633,7 +661,7 @@ integer(i_kind) ilook,jlook
      k2=grd_mix%nsig+1
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
-           pri(i,j,k)=pbar(i,j)
+           pri(i,j,k)=pbar_nmmb(i,j)
            pri(i,j,k2)=zero
         end do
      end do
@@ -641,7 +669,7 @@ integer(i_kind) ilook,jlook
         do k=2,grd_mix%nsig
            do j=1,grd_mix%lon2
               do i=1,grd_mix%lat2
-                 pri(i,j,k)=ak5(k)+bk5(k)*pbar(i,j)
+                 pri(i,j,k)=ak5(k)+bk5(k)*pbar_nmmb(i,j)
               end do
            end do
         end do
@@ -650,7 +678,7 @@ integer(i_kind) ilook,jlook
            do j=1,grd_mix%lon2
               do i=1,grd_mix%lat2
                  trk=(half*(tbar(i,j,k-1)+tbar(i,j,k))/tref5(k))**kapr
-                 pri(i,j,k)=ak5(k)+(bk5(k)*pbar(i,j))+(ck5(k)*trk)
+                 pri(i,j,k)=ak5(k)+(bk5(k)*pbar_nmmb(i,j))+(ck5(k)*trk)
               end do
            end do
         end do
@@ -676,74 +704,21 @@ integer(i_kind) ilook,jlook
            end do
         end do
      end if
-     deallocate(pri)
+     deallocate(pri,pbar_nmmb,tbar)
+     deallocate(ak5,bk5,ck5,tref5)
 
 ! interpolate/extrapolate in vertical using yoshi's spline code.
 
 !  first need ges_prsl_e, the 3d pressure on the ensemble grid.
 
-  allocate(ges_prsl_e(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1))
+  allocate(ges_prsl_e(grd_ens%inner_vars,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   if(dual_res) then
-     call general_suba2sube(grd_a1,grd_e1,p_e2a,ges_prsl(:,:,:,ntguessig:ntguessig),ges_prsl_e,regional)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,ges_prsl(:,1,1,ntguessig),ges_prsl_e(:,1,1,1),regional) ! x?
   else
-     ges_prsl_e(:,:,:,1)=ges_prsl(:,:,:,ntguessig)
+     ges_prsl_e(1,:,:,:)=ges_prsl(:,:,:,ntguessig)
   end if
-!                      write(0,*)' ntguessig,regional,min,max ges_prsl_e=',&
-!                                        ntguessig,regional,minval(ges_prsl_e),maxval(ges_prsl_e)
 
   allocate(xspli(grd_mix%nsig),yspli(grd_mix%nsig),xsplo(grd_ens%nsig),ysplo(grd_ens%nsig))
-
-  allocate(glb_umin(grd_mix%nsig),glb_umax(grd_mix%nsig))
-  allocate(glb_umin0(grd_mix%nsig),glb_umax0(grd_mix%nsig))
-  allocate(glb_vmin(grd_mix%nsig),glb_vmax(grd_mix%nsig))
-  allocate(glb_vmin0(grd_mix%nsig),glb_vmax0(grd_mix%nsig))
-  allocate(glb_tmin(grd_mix%nsig),glb_tmax(grd_mix%nsig))
-  allocate(glb_tmin0(grd_mix%nsig),glb_tmax0(grd_mix%nsig))
-  allocate(glb_rhmin(grd_mix%nsig),glb_rhmax(grd_mix%nsig))
-  allocate(glb_rhmin0(grd_mix%nsig),glb_rhmax0(grd_mix%nsig))
-  allocate(glb_ozmin(grd_mix%nsig),glb_ozmax(grd_mix%nsig))
-  allocate(glb_ozmin0(grd_mix%nsig),glb_ozmax0(grd_mix%nsig))
-  allocate(glb_cwmin(grd_mix%nsig),glb_cwmax(grd_mix%nsig))
-  allocate(glb_cwmin0(grd_mix%nsig),glb_cwmax0(grd_mix%nsig))
-
-  allocate(reg_umin(grd_ens%nsig),reg_umax(grd_ens%nsig))
-  allocate(reg_umin0(grd_ens%nsig),reg_umax0(grd_ens%nsig))
-  allocate(reg_vmin(grd_ens%nsig),reg_vmax(grd_ens%nsig))
-  allocate(reg_vmin0(grd_ens%nsig),reg_vmax0(grd_ens%nsig))
-  allocate(reg_tmin(grd_ens%nsig),reg_tmax(grd_ens%nsig))
-  allocate(reg_tmin0(grd_ens%nsig),reg_tmax0(grd_ens%nsig))
-  allocate(reg_rhmin(grd_ens%nsig),reg_rhmax(grd_ens%nsig))
-  allocate(reg_rhmin0(grd_ens%nsig),reg_rhmax0(grd_ens%nsig))
-  allocate(reg_ozmin(grd_ens%nsig),reg_ozmax(grd_ens%nsig))
-  allocate(reg_ozmin0(grd_ens%nsig),reg_ozmax0(grd_ens%nsig))
-  allocate(reg_cwmin(grd_ens%nsig),reg_cwmax(grd_ens%nsig))
-  allocate(reg_cwmin0(grd_ens%nsig),reg_cwmax0(grd_ens%nsig))
-
-  glb_umin= huge(glb_umin)
-  glb_umax=-huge(glb_umax)
-  glb_vmin= huge(glb_vmin)
-  glb_vmax=-huge(glb_vmax)
-  glb_tmin= huge(glb_tmin)
-  glb_tmax=-huge(glb_tmax)
-  glb_rhmin= huge(glb_rhmin)
-  glb_rhmax=-huge(glb_rhmax)
-  glb_ozmin= huge(glb_ozmin)
-  glb_ozmax=-huge(glb_ozmax)
-  glb_cwmin= huge(glb_cwmin)
-  glb_cwmax=-huge(glb_cwmax)
-
-  reg_umin= huge(reg_umin)
-  reg_umax=-huge(reg_umax)
-  reg_vmin= huge(reg_vmin)
-  reg_vmax=-huge(reg_vmax)
-  reg_tmin= huge(reg_tmin)
-  reg_tmax=-huge(reg_tmax)
-  reg_rhmin= huge(reg_rhmin)
-  reg_rhmax=-huge(reg_rhmax)
-  reg_ozmin= huge(reg_ozmin)
-  reg_ozmax=-huge(reg_ozmax)
-  reg_cwmin= huge(reg_cwmin)
-  reg_cwmax=-huge(reg_cwmax)
 
   allocate(ut(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   allocate(vt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
@@ -751,7 +726,6 @@ integer(i_kind) ilook,jlook
   allocate(rht(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   allocate(ozt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   allocate(cwt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
-!                           if(mype==0) write(0,*)' at 5 in get_gefs_for_regional'
   do n=1,n_ens
      do j=1,grd_ens%lon2
         do i=1,grd_ens%lat2
@@ -759,14 +733,12 @@ integer(i_kind) ilook,jlook
               xspli(k)=log(prsl(i,j,k)*10.0_r_kind)
            end do
            do k=1,grd_ens%nsig
-              xsplo(k)=log(ges_prsl_e(i,j,k,1)*10._r_kind)
+              xsplo(k)=log(ges_prsl_e(1,i,j,k)*10._r_kind)
            end do
 
 !    u
            do k=1,grd_mix%nsig
               yspli(k)=st_eg(i,j,k,n)
-!              glb_umax(k)=max(yspli(k),glb_umax(k))
-!              glb_umin(k)=min(yspli(k),glb_umin(k))
            end do
            call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,grd_ens%nsig)
 !               following is to correct for bug in intp_spl
@@ -776,14 +748,10 @@ integer(i_kind) ilook,jlook
            end do
            do k=1,grd_ens%nsig
               ut(i,j,k)=ysplo(k)
-!              reg_umax(k)=max(ysplo(k),reg_umax(k))
-!              reg_umin(k)=min(ysplo(k),reg_umin(k))
            end do
 !    v
            do k=1,grd_mix%nsig
               yspli(k)=vp_eg(i,j,k,n)
-!              glb_vmax(k)=max(yspli(k),glb_vmax(k))
-!              glb_vmin(k)=min(yspli(k),glb_vmin(k))
            end do
            call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,grd_ens%nsig)
 !               following is to correct for bug in intp_spl
@@ -793,14 +761,10 @@ integer(i_kind) ilook,jlook
            end do
            do k=1,grd_ens%nsig
               vt(i,j,k)=ysplo(k)
-!              reg_vmax(k)=max(ysplo(k),reg_vmax(k))
-!              reg_vmin(k)=min(ysplo(k),reg_vmin(k))
            end do
 !    t
            do k=1,grd_mix%nsig
               yspli(k)=t_eg(i,j,k,n)
-!              glb_tmax(k)=max(yspli(k),glb_tmax(k))
-!              glb_tmin(k)=min(yspli(k),glb_tmin(k))
            end do
            call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,grd_ens%nsig)
 !               following is to correct for bug in intp_spl
@@ -809,16 +773,12 @@ integer(i_kind) ilook,jlook
               if(xsplo(k) > xspli(1)) ysplo(k)=yspli(1)
            end do
            do k=1,grd_ens%nsig
-              ysplo(k)=ysplo(k)*(0.01_r_kind*ges_prsl_e(i,j,k,1))**rd_over_cp  ! converting from pot Tv to Tv
+              ysplo(k)=ysplo(k)*(0.01_r_kind*ges_prsl_e(1,i,j,k))**rd_over_cp  ! converting from pot Tv to Tv
               tt(i,j,k)=ysplo(k)
-!              reg_tmax(k)=max(ysplo(k),reg_tmax(k))
-!              reg_tmin(k)=min(ysplo(k),reg_tmin(k))
            end do
 !    rh
            do k=1,grd_mix%nsig
               yspli(k)=rh_eg(i,j,k,n)
-!              glb_rhmax(k)=max(yspli(k),glb_rhmax(k))
-!              glb_rhmin(k)=min(yspli(k),glb_rhmin(k))
            end do
            call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,grd_ens%nsig)
 !               following is to correct for bug in intp_spl
@@ -828,14 +788,10 @@ integer(i_kind) ilook,jlook
            end do
            do k=1,grd_ens%nsig
               rht(i,j,k)=ysplo(k)
-!              reg_rhmax(k)=max(ysplo(k),reg_rhmax(k))
-!              reg_rhmin(k)=min(ysplo(k),reg_rhmin(k))
            end do
 !       oz
            do k=1,grd_mix%nsig
               yspli(k)=oz_eg(i,j,k,n)
-!              glb_ozmax(k)=max(yspli(k),glb_ozmax(k))
-!              glb_ozmin(k)=min(yspli(k),glb_ozmin(k))
            end do
            call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,grd_ens%nsig)
 !               following is to correct for bug in intp_spl
@@ -845,14 +801,10 @@ integer(i_kind) ilook,jlook
            end do
            do k=1,grd_ens%nsig
               ozt(i,j,k)=ysplo(k)
-!              reg_ozmax(k)=max(ysplo(k),reg_ozmax(k))
-!              reg_ozmin(k)=min(ysplo(k),reg_ozmin(k))
            end do
 !    cw
            do k=1,grd_mix%nsig
               yspli(k)=cw_eg(i,j,k,n)
-!              glb_cwmax(k)=max(yspli(k),glb_cwmax(k))
-!              glb_cwmin(k)=min(yspli(k),glb_cwmin(k))
            end do
            call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,grd_ens%nsig)
 !               following is to correct for bug in intp_spl
@@ -862,35 +814,81 @@ integer(i_kind) ilook,jlook
            end do
            do k=1,grd_ens%nsig
               cwt(i,j,k)=ysplo(k)
-!              reg_cwmax(k)=max(ysplo(k),reg_cwmax(k))
-!              reg_cwmin(k)=min(ysplo(k),reg_cwmin(k))
            end do
 
         end do
      end do
 
+!wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
+if(n==1 .and. full_ensemble)then
+   if( grd_mix%lon2 /= lon2 .or. grd_mix%lat2 /= lat2)then
+      if(mype == 0) write(6,*)' problem setup gefs ensenble dims are',lat2,lon2,nsig,grd_mix%lat2,grd_mix%lon2,grd_mix%nsig
+      if(mype == 0) write(6,*)' NEED TO ADD AGRID2EGRID to put NMMB increment on ensemble grid'
+      call stop2(555)
+   endif
+! Subtract guess from ensemble members
+     allocate(qs(lat2,lon2,nsig))
+     ice=.true.
+     iderivative=0
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+           qs(i,j,k)=ges_q(i,j,k,ntguessig)
+           end do
+        end do
+     end do
+     call genqsat(qs,ges_tsen(:,:,:,ntguessig),ges_prsl(:,:,:,ntguessig),lat2,lon2,nsig,ice,iderivative)
+!!!!!!!!!!! The first member is full perturbation based on regional first guess !!!!!!!!!!!!!!!
+! Subtract guess from ensemble member
+    do k=1,grd_ens%nsig
+       do j=1,grd_ens%lon2
+          do i=1,grd_ens%lat2
+             ut(i,j,k) = ut(i,j,k)-ges_u(i,j,k,ntguessig)
+             vt(i,j,k) = vt(i,j,k)-ges_v(i,j,k,ntguessig)
+             tt(i,j,k) = tt(i,j,k)-ges_tv(i,j,k,ntguessig)
+             rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)/qs(i,j,k)
+          end do
+       end do
+    end do
 
+     do j=1,grd_ens%lon2
+        do i=1,grd_ens%lat2
+           p_eg_nmmb(i,j,n) = p_eg_nmmb(i,j,n)-ges_ps(i,j,ntguessig)
+        end do
+     end do
+     deallocate(qs)
+endif   ! n==1 .and. full_ensemble
+
+!wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 
 !   transfer from temporary arrays to perturbation arrays and normalize by sig_norm
+
+! sig_norm from the following
+! 2*J_b = x^T * (beta1*B + beta2*P_ens)^(-1) * x
+! where  P_ens is the ensemble covariance which is the sum of outer products of the
+! ensemble perturbations (unnormalized) divided by n_ens-1  (or n_ens, depending on who you read).
      sig_norm=sqrt(one/max(one,n_ens_temp-one))
-     if(n_ens_temp==n_ens.and.n==n_ens+1) sig_norm=one
-                                                  if(mod(n,20)==0) then
-                                                      write(fname,'("test_up_",i2.2)')n
-                                                      call grads1a(ut,grd_ens%nsig,mype,trim(fname))
-                                                      write(fname,'("test_vp_",i2.2)')n
-                                                      call grads1a(vt,grd_ens%nsig,mype,trim(fname))
-                                                      write(fname,'("test_tp_",i2.2)')n
-                                                      call grads1a(tt,grd_ens%nsig,mype,trim(fname))
-                                                      write(fname,'("test_rhp_",i2.2)')n
-                                                      call grads1a(rht,grd_ens%nsig,mype,trim(fname))
-                                                      write(fname,'("test_ozp_",i2.2)')n
-                                                      call grads1a(ozt,grd_ens%nsig,mype,trim(fname))
-                                                      write(fname,'("test_cwp_",i2.2)')n
-                                                      call grads1a(cwt,grd_ens%nsig,mype,trim(fname))
-                                                  end if
+
+!     if(n_ens_temp==n_ens.and.n==n_ens+1) sig_norm=one
+!                                                  if(n==1 .or. n==2 .or. n==50) then
+!                                                      write(fname,'("test_pp_",i2.2)')n
+!                                                      call grads1a(p_eg_nmmb(1,1,n),1,mype,trim(fname))
+!                                                      write(fname,'("test_up_",i2.2)')n
+!                                                      call grads1a(ut,grd_ens%nsig,mype,trim(fname))
+!                                                      write(fname,'("test_vp_",i2.2)')n
+!                                                      call grads1a(vt,grd_ens%nsig,mype,trim(fname))
+!                                                      write(fname,'("test_tp_",i2.2)')n
+!                                                      call grads1a(tt,grd_ens%nsig,mype,trim(fname))
+!                                                      write(fname,'("test_rhp_",i2.2)')n
+!                                                      call grads1a(rht,grd_ens%nsig,mype,trim(fname))
+!!                                                      write(fname,'("test_ozp_",i2.2)')n
+!!                                                      call grads1a(ozt,grd_ens%nsig,mype,trim(fname))
+!!                                                      write(fname,'("test_cwp_",i2.2)')n
+!!                                                      call grads1a(cwt,grd_ens%nsig,mype,trim(fname))
+!                                                  end if
      do ic3=1,nc3d
 
-        call gsi_bundlegetpointer(en_perts(n),trim(cvars3d(ic3)),w3,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
            call stop2(999)
@@ -966,7 +964,7 @@ integer(i_kind) ilook,jlook
      end do
      do ic2=1,nc2d
 
-        call gsi_bundlegetpointer(en_perts(n),trim(cvars2d(ic2)),w2,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
            call stop2(999)
@@ -995,94 +993,13 @@ integer(i_kind) ilook,jlook
      end do
   end do
 
-
-!  call mpi_allreduce(reg_umax,reg_umax0,grd_ens%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(reg_umin,reg_umin0,grd_ens%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_umax,glb_umax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_umin,glb_umin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  if(mype == 0) then
-!     do k=1,grd_mix%nsig
-!        write(0,'(" k,glb_umin,max=",i4,2e15.4)') k,glb_umin0(k),glb_umax0(k)
-!     end do
-!     do k=1,grd_ens%nsig
-!        write(0,'(" k,reg_umin,max=",i4,2e15.4)') k,reg_umin0(k),reg_umax0(k)
-!     end do
-!  end if
-!                           if(mype==0) write(0,*)' at 7 in get_gefs_for_regional'
-
-!  call mpi_allreduce(reg_vmax,reg_vmax0,grd_ens%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(reg_vmin,reg_vmin0,grd_ens%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_vmax,glb_vmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_vmin,glb_vmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  if(mype == 0) then
-!     do k=1,grd_mix%nsig
-!        write(0,'(" k,glb_vmin,max=",i4,2e15.4)') k,glb_vmin0(k),glb_vmax0(k)
-!     end do
-!     do k=1,grd_ens%nsig
-!        write(0,'(" k,reg_vmin,max=",i4,2e15.4)') k,reg_vmin0(k),reg_vmax0(k)
-!     end do
-!  end if
-!                           if(mype==0) write(0,*)' at 8 in get_gefs_for_regional'
-
-!  call mpi_allreduce(reg_tmax,reg_tmax0,grd_ens%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(reg_tmin,reg_tmin0,grd_ens%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_tmax,glb_tmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_tmin,glb_tmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  if(mype == 0) then
-!     do k=1,grd_mix%nsig
-!        write(0,'(" k,glb_tmin,max=",i4,2e15.4)') k,glb_tmin0(k),glb_tmax0(k)
-!     end do
-!     do k=1,grd_ens%nsig
-!        write(0,'(" k,reg_tmin,max=",i4,2e15.4)') k,reg_tmin0(k),reg_tmax0(k)
-!     end do
-!  end if
-
-!  call mpi_allreduce(reg_rhmax,reg_rhmax0,grd_ens%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(reg_rhmin,reg_rhmin0,grd_ens%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_rhmax,glb_rhmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_rhmin,glb_rhmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  if(mype == 0) then
-!     do k=1,grd_mix%nsig
-!        write(0,'(" k,glb_rhmin,max=",i4,2e15.4)') k,glb_rhmin0(k),glb_rhmax0(k)
-!     end do
-!     do k=1,grd_ens%nsig
-!        write(0,'(" k,reg_rhmin,max=",i4,2e15.4)') k,reg_rhmin0(k),reg_rhmax0(k)
-!     end do
-!  end if
-!                           if(mype==0) write(0,*)' at 9 in get_gefs_for_regional'
-
-!  call mpi_allreduce(reg_ozmax,reg_ozmax0,grd_ens%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(reg_ozmin,reg_ozmin0,grd_ens%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_ozmax,glb_ozmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_ozmin,glb_ozmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  if(mype == 0) then
-!     do k=1,grd_mix%nsig
-!        write(0,'(" k,glb_ozmin,max=",i4,2e15.4)') k,glb_ozmin0(k),glb_ozmax0(k)
-!     end do
-!     do k=1,grd_ens%nsig
-!        write(0,'(" k,reg_ozmin,max=",i4,2e15.4)') k,reg_ozmin0(k),reg_ozmax0(k)
-!     end do
-!  end if
-
-!  call mpi_allreduce(reg_cwmax,reg_cwmax0,grd_ens%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(reg_cwmin,reg_cwmin0,grd_ens%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_cwmax,glb_cwmax0,grd_mix%nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-!  call mpi_allreduce(glb_cwmin,glb_cwmin0,grd_mix%nsig,mpi_rtype,mpi_min,mpi_comm_world,ierror)
-!  if(mype == 0) then
-!     do k=1,grd_mix%nsig
-!        write(0,'(" k,glb_cwmin,max=",i4,2e15.4)') k,glb_cwmin0(k),glb_cwmax0(k)
-!     end do
-!     do k=1,grd_ens%nsig
-!        write(0,'(" k,reg_cwmin,max=",i4,2e15.4)') k,reg_cwmin0(k),reg_cwmax0(k)
-!     end do
-!  end if
-
-!                           if(mype==0) write(0,*)' at 10 in get_gefs_for_regional'
-!                           if(mype==0) write(0,*)' at 11 in get_gefs_for_regional'
-                               ! if(1/=0) then
-                               !     call mpi_finalize(i)
-                               !     stop
-                               ! end if
+     deallocate(vector)
+     deallocate(st_eg,vp_eg,t_eg,rh_eg)
+     deallocate(oz_eg,cw_eg,p_eg_nmmb)
+     deallocate(ges_prsl_e)
+     deallocate(xspli,yspli,xsplo,ysplo)
+     deallocate(prsl)
+     deallocate(ut,vt,tt,rht,ozt,cwt)
 
   return
 
@@ -1664,3 +1581,120 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
   end if
 
 end subroutine sub2grid_1a
+
+subroutine setup_ens_pwgt 
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_ens_wgt    projection of A for Psfc
+!   prgmmr: wu               org: np22                date: 2011-06-14
+!
+! abstract: setup pwgt: vertical projection of control variable A for Psfc
+!
+!
+! program history log:
+!   2011_06_14  wu, initial documentation
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg
+  use kinds, only: r_kind,i_kind
+  use gridmod, only: lat2,lon2,nsig,regional
+  use guess_grids, only: ges_prsl,ntguessig,ges_ps
+  use balmod, only: wgvk
+  use mpimod, only: mype
+  use constants,only: zero,one,ten,two,half
+  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt
+  implicit none
+  integer(i_kind) k,i,j
+  real(r_kind) sum
+  integer(i_kind) k8,k1,kb,kk
+  real(r_kind) pih
+  real(r_kind) beta2_inv
+
+  if (.not.regional) then
+     if (pwgtflg .or. betaflg) then 
+        if(mype==0) write(6,*) 'SETUP_ENS_PWGT: routine not build to load weights for global application'
+        if(mype==0) write(6,*) 'SETUP_ENS_PWGT: using defaults instead in pwgtflg or betaflg blocks'
+     end if
+     return
+  end if
+
+!!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
+!!!! weigh with balanced projection for pressure
+     pwgt=zero
+     do j=1,lon2
+        do i=1,lat2
+           sum=zero
+           do k=1,nsig
+              sum=sum+wgvk(i,j,k)
+           enddo
+           if(sum /= zero)sum=one/sum
+           do k=1,nsig 
+              pwgt(i,j,k)=sum*wgvk(i,j,k)
+           enddo
+        enddo
+     enddo
+!!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
+
+  i=grd_ens%lat2/2
+  j=grd_ens%lon2/2
+
+  k8_loop: do k=1,nsig
+   if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j,ntguessig) < .85_r_kind)then
+!   if(ges_prsl(i,j,k,ntguessig) < 90._r_kind)then
+     k8=k
+     exit k8_loop
+   endif
+  enddo k8_loop
+
+  k1_loop: do k=nsig,1,-1
+   if(ges_prsl(i,j,k,ntguessig) > ten)then
+     k1=k
+     exit k1_loop
+   endif
+  enddo k1_loop
+
+
+!!!!!!!!!!! setup betawgts !!!!!!!!!!!!!!!!!!!!!
+!  if(mype==19)write(0,*)'calculating betawgt'
+!  k8=18
+
+!WWWWWWWWWWWWWWWWWWWWWWWWWWW
+  k8=22
+  k1=nsig-9
+!WWWWWWWWWWWWWWWWWWWWWWWWWWW
+
+  beta2wgt=one
+  pih=atan(one)*two/float(k8-1)
+
+  do k=1,k8-1
+!  beta2wgt(k)=half+half*sin(pih*float(k-1))
+  beta2wgt(k)=0.1_r_kind+0.9_r_kind*sin(pih*float(k-1))
+  enddo
+  pih=one/(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,nsig,ntguessig)))
+  do k=k1+1,nsig
+!  beta2wgt(k)=one-half*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
+  beta2wgt(k)=one-0.9_r_kind*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
+  enddo
+
+  beta2_inv=one-beta1_inv
+
+  beta2wgt=beta2wgt*beta2_inv
+
+
+  do k=1,nsig
+  beta1wgt(k)=one-beta2wgt(k)
+  enddo
+
+
+  return
+
+end subroutine setup_ens_pwgt

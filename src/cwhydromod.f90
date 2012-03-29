@@ -131,7 +131,7 @@ type(gsi_bundle),intent(inout):: sval
 type(gsi_bundle),intent(in):: wbundle
 integer(i_kind),intent(in) :: nclouds
 real(r_kind),intent(in) :: sv_tsen(lat2,lon2,nsig)
-character(len=10),intent(in):: clouds(nclouds)
+character(len=max_varname_length),intent(in):: clouds(nclouds)
 
 ! Declare local variables
 integer(i_kind) i,j,k,ic,istatus
@@ -202,7 +202,7 @@ type(gsi_bundle),intent(in):: rval
 type(gsi_bundle),intent(inout):: wbundle
 integer(i_kind),intent(in) :: nclouds
 real(r_kind),intent(inout) :: rv_tsen(lat2,lon2,nsig)
-character(len=10),intent(in):: clouds(nclouds)
+character(len=max_varname_length),intent(in):: clouds(nclouds)
 
 ! Declare local variables
 integer(i_kind) i,j,k,ic,istatus

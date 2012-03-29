@@ -737,8 +737,10 @@ subroutine read_wrf_nmm_binary_guess(mype)
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
         end do
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
-        if (iret==0) ges_cwmr=clwmr
+        if (nguess>0) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
+           if (iret==0) ges_cwmr=clwmr
+        end if
 
         do i=1,lon2
            do j=1,lat2
@@ -1160,10 +1162,6 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  ifld,temp1(im/2,jm/2)
               if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
               if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
-! if(igtype(ifld) == 2) then
-! write(6,*)' at 1.1 in read_wrf_nmm_netcdf_guess, max,min temp1 = ',maxval(temp1),minval(temp1)
-! write(6,*)' at 1.1 in read_wrf_nmm_netcdf_guess, max,min tempa = ',maxval(tempa),minval(tempa)
-! end if
 
            else
               read(lendian_in)
@@ -1179,19 +1177,10 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         end do
         close(lendian_in)
      end do
-!    do kv=i_v,i_v+nsig-1
-!       if(mype == 0) write(6,*)' at 1.15, kv,mype,j,i,v=', &
-!            kv,mype,2,1,all_loc(2,1,kv)
-!    end do
 
 
 !    Next do conversion of units as necessary and
 !    reorganize into WeiYu's format--
-
-!    do kv=i_v,i_v+nsig-1
-!       if(mype == 0) write(6,*)' at 1.16, kv,mype,j,i,v=', &
-!            kv,mype,2,1,all_loc(2,1,kv)
-!    end do
 
      do it=1,nfldsig
 
@@ -1231,8 +1220,6 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
            do i=1,lon2
               do j=1,lat2
-!                if(mype == 0.and.j == 2.and.i == 1) write(6,*)' at 1.2, k,mype,j,i,u,v=', &
-!                     k,mype,j,i,all_loc(j,i,ku),all_loc(j,i,kv)
                  ges_u(j,i,k,it) = all_loc(j,i,ku)
                  ges_v(j,i,k,it) = all_loc(j,i,kv)
                  ges_q(j,i,k,it)   = all_loc(j,i,kq)
@@ -1252,8 +1239,10 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
         end do
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
-        if (iret==0) ges_cwmr=clwmr
+        if (nguess>0) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
+           if (iret==0) ges_cwmr=clwmr
+        end if
 
         do i=1,lon2
            do j=1,lat2

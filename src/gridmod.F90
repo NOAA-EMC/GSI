@@ -70,6 +70,7 @@ module gridmod
 !   2010-11-14 pagowski - added CMAQ
 !   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
 !   2011-11-14 whitaker - added a fix to sign_pole for large domain (rlat0max > 37N and rlat0min < 37S)
+!   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
 !
 !
 ! !AUTHOR: 
@@ -914,7 +915,7 @@ contains
 ! !USES:
 
     use constants, only: zero, one, three, deg2rad,pi,half, two,r0_01
-    use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a8
+    use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a8,ratio_x,ratio_y
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -957,6 +958,7 @@ contains
 !   2005-05-24  pondeca - add the surface analysis option
 !   2006-04-06  middlecoff - changed inges from 21 to lendian_in so it can be set to little endian.
 !   2009-01-02  todling - remove unused vars
+!   2012-01-24  parrish  - correct bug in definition of region_dx, region_dy.
 !
 ! !REMARKS:
 !   language: f90
@@ -986,7 +988,7 @@ contains
     real(r_kind),allocatable::glat_an(:,:),glon_an(:,:)
     real(r_kind),allocatable:: dx_an(:,:),dy_an(:,:)
     character(6) filename
-    integer(i_kind) ihr,i0,j0,nskip
+    integer(i_kind) ihr,i0,j0,nskip,ihr1,ihr2,ihrmid
     real(r_kind),allocatable::gxtemp(:,:),gytemp(:,:)
     real(r_kind),allocatable::gxtemp_an(:,:),gytemp_an(:,:)
 
@@ -1014,16 +1016,19 @@ contains
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
           if(fexist) then
+             if (ihr < 0) ihr1=i
              ihr=i
-             exit
           end if
        end do
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (WRFNMM) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
+       ihr2 = ihr
+       ihrmid = (ihr1+ihr2)/2
 
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig, &
@@ -1189,15 +1194,18 @@ contains
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
           if(fexist) then
+             if (ihr < 0) ihr1=i
              ihr=i
-             exit
           end if
        end do
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (WRF MASS CORE) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
+       ihr2 = ihr
+       ihrmid = (ihr1+ihr2)/2
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt
@@ -1305,16 +1313,19 @@ contains
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
           if(fexist) then
+             if (ihr < 0) ihr1=i
              ihr=i
-             exit
           end if
        end do
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (NEMS NMMB) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
+       ihr2 = ihr
+       ihrmid = (ihr1+ihr2)/2
 
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
@@ -1442,8 +1453,10 @@ contains
        gytemp=dy_nmm
        call nmmb_h_to_a8(gxtemp,dx_an)
        call nmmb_h_to_a8(gytemp,dy_an)
-       dx_an=grid_ratio_nmmb*dx_an
-       dy_an=grid_ratio_nmmb*dy_an
+                       if(mype==0) write(6,*)' in init_reg_glob_ll, ratio_x,ratio_y,grid_ratio_nmmb=',&
+                                                                    ratio_x,ratio_y,grid_ratio_nmmb
+       dx_an=ratio_x*dx_an
+       dy_an=ratio_y*dy_an
        deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
 
        do k=1,nlon
@@ -1478,8 +1491,8 @@ contains
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
           if(fexist) then!
+             if (ihr < 0) ihr1=i
              ihr=i
-             exit
           end if
        end do
     
@@ -1487,12 +1500,15 @@ contains
           write(6,*)' no input file available for regional cmaq analysis.  program stops'
           call stop2(99)
        end if
+       ihr2 = ihr
+       ihrmid = (ihr1+ihr2)/2
 
        if(diagnostic_reg.and.mype==0) then    
           write(6,*)' in read_cmaq_grid lendian_in=',lendian_in
           write(6,*)' in read_cmaq_grid, lendian_in=',lendian_in
        endif
     
+       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind(lendian_in)
        read(lendian_in) nskip
@@ -1610,15 +1626,18 @@ contains
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
           if(fexist) then
+             if (ihr < 0) ihr1=i
              ihr=i
-             exit
           end if
        end do
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (SURFACE) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
+       ihr2 = ihr
+       ihrmid = (ihr1+ihr2)/2
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
+       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig

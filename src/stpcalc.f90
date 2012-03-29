@@ -12,6 +12,7 @@ module stpcalcmod
 !   2005-11-21  Derber - remove interfaces and clean up code
 !   2008-12-02  Todling - remove stpcalc_tl
 !   2009-08-12  lueken  - updated documentation
+!   2012-02-08  kleist  - consolidate weak constaints into one module stpjcmod.
 !
 ! subroutines included:
 !   sub stpcalc
@@ -198,22 +199,20 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   use kinds, only: r_kind,i_kind,r_quad
   use mpimod, only: mype
   use constants, only: zero,one_quad,zero_quad
-  use gsi_4dvar, only: nobs_bins, ltlint
+  use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use jfunc, only: iout_iter,nclen,xhatsave,yhatsave,&
        l_foto,xhat_dt,dhat_dt,nvals_len
-  use jcmod, only: ljcpdry
+  use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use obsmod, only: yobs,nobs_type
-  use stplimqmod, only: stplimq
-  use stplimgmod, only: stplimg
-  use stplimvmod, only: stplimv
-  use stplimpmod, only: stplimp
-  use stpjcpdrymod, only: stpjcpdry
+  use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,&
+       stpjcdfi,stpjcpdry
   use bias_predictors, only: predictors
   use control_vectors, only: control_vector,qdot_prod_sub,cvars2d
   use state_vectors, only: allocate_state,deallocate_state
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: assignment(=)
+  use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
   use mpeu_util, only: getindex
   use timermod, only: timer_ini,timer_fnl
@@ -240,7 +239,7 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,ibin,ipenloc,ier,istatus
+  integer(i_kind) i,j,mm1,ii,ibin,ipenloc,ier,istatus,it
   integer(i_kind) istp_use,nstep,nsteptot
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
@@ -326,8 +325,19 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      call stp3dvar(dval(1),dhat_dt)
   end if
 
+! Penalty, b, c for JcDFI
+  if (ljcdfi .and. nobs_bins>1) then
+    call stpjcdfi(dval,sval,pstart(1,2),pstart(2,2),pstart(3,2))
+  end if
+
 ! Penalty, b, c for dry pressure
-  if (ljcpdry) call stpjcpdry(dval(1),sval(1),pstart(1,3),pstart(2,3),pstart(3,3))
+  if (ljcpdry .and. .not.ljc4tlevs) then
+     call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3))
+  else if (ljcpdry .and. ljc4tlevs) then
+     do ibin=1,nobs_bins
+        call stpjcpdry(dval(ibin),sval(ibin),pstart(1,3),pstart(2,3),pstart(3,3))
+     end do
+  end if
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
   stepsize: do ii=1,istp_iter
@@ -364,7 +374,18 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    Do nonlinear terms
 
 !    penalties for moisture constraint
-     if(.not.ltlint) call stplimq(dval(1),sval(1),sges,pbc(1,4),pbc(1,5),nstep)
+     if(.not.ltlint .and. .not.ljc4tlevs) then
+        call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
+     else if (.not.ltlint .and. ljc4tlevs) then
+        do ibin=1,nobs_bins
+           if (nobs_bins /= nfldsig) then
+              it=ntguessig
+           else
+              it=ibin
+           end if
+           call stplimq(dval(ibin),sval(ibin),sges,pbc(1,4),pbc(1,5),nstep,it)
+        end do
+     end if
 
 !    penalties for gust constraint
      if(.not.ltlint .and. getindex(cvars2d,'gust')>0) & 
