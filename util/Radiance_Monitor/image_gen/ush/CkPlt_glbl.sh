@@ -164,12 +164,13 @@ export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
 #  file.
 #-------------------------------------------------------------
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
+   PDY=`echo $PDATE|cut -c1-8`
 
-   test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
+   test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
    
    for test in ${test_list}; do
       this_file=`basename $test`
-      tmp=`echo "$this_file" | cut -d. -f1`
+      tmp=`echo "$this_file" | cut -d. -f2`
       echo $tmp
       SATYPE_LIST="$SATYPE_LIST $tmp"
    done

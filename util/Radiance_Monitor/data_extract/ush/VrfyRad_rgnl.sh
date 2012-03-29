@@ -89,6 +89,11 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
+tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
+rm -rf $tmpdir
+mkdir -p $tmpdir
+cd $tmpdir
+
 #------------------------------------------------------------------
 #  define data file sources depending on $RUN_ENVIR
 #
@@ -138,7 +143,7 @@ else
    exit 1
 fi
 
-tmpdir=${WORKverf_rad}/check_rad${SUFFIX}_${PDATE}
+tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -154,48 +159,48 @@ export radstat=$DATDIR/radstat.${PDATE}
 
 data_available=0
 
-#if [ -s $DATDIR/radstat.$PDATE -a -s $DATDIR/satang.$PDATE ]; then
-#   if [ -s $DATDIR/satbias.$PDATE ]; then
 if [ -s $radstat -a -s $satang -a -s $biascr ]; then
-#   if [ -s $biascr ]; then
-      data_available=1
+   data_available=1
 
-      export MP_SHARED_MEMORY=yes
-      export MEMORY_AFFINITY=MCM
+   export MP_SHARED_MEMORY=yes
+   export MEMORY_AFFINITY=MCM
 
-      export envir=prod
-      export RUN_ENVIR=dev
-      export USE_ANL=0
+   export envir=prod
+   export RUN_ENVIR=dev
+   export USE_ANL=0
 
-      export PDY=`echo $PDATE|cut -c1-8`
-      export CYC=`echo $PDATE|cut -c9-10`
-      export cyc=$CYC
+   export PDY=`echo $PDATE|cut -c1-8`
+   export CYC=`echo $PDATE|cut -c9-10`
+   export cyc=$CYC
 
-      export job=ndas_vrfyrad_${PDY}${cyc}
-      export SENDSMS=NO
-      export DATA_IN=/stmp/wx20es
-      export DATA=/stmp/$LOGNAME/radmon_regional
-      export jlogfile=/stmp/wx20es/jlogfile_${SUFFIX}
-      export HOMEgfs=/global/save/wx20es/RadMon/util/Radiance_Monitor/nwprod
-      export TANKverf=/u/$LOGNAME/nbns/stats/regional/${SUFFIX}
-      export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
-      export USER_CLASS=dev
+   export job=ndas_vrfyrad_${PDY}${cyc}
+   export SENDSMS=NO
+   export DATA_IN=/stmp/wx20es
+   export DATA=/stmp/$LOGNAME/radmon_regional
+   export jlogfile=/stmp/wx20es/jlogfile_${SUFFIX}
+   export TANKverf=/u/$LOGNAME/nbns/stats/regional/${SUFFIX}
+   export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
+   export USER_CLASS=dev
+   export DO_DIAG_RPT=1
+   export DO_DATA_RPT=0
 
-      export VERBOSE=YES
-      export satype_file=${TANKverf}/info/SATYPE.txt
+   export VERBOSE=YES
+   export satype_file=${TANKverf}/info/SATYPE.txt
+   if [[ -s ${TANKverf}/info/radmon_base.tar.Z ]]; then
+      export base_file=${TANKverf}/info/radmon_base.tar
+   fi
 
-      #--------------------------------------------------------------------
-      # Export listvar
-      export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,listvar
+   #--------------------------------------------------------------------
+   # Export listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,listvar
 
-      #------------------------------------------------------------------
-      #   Submit data processing jobs.
+   #------------------------------------------------------------------
+   #   Submit data processing jobs.
 
-      $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/data_extract.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/data_extract.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
 
-      ${SCRIPTS}/set_prodate.sh $SUFFIX ${DATA_MAP} ${PDATE}
+   ${SCRIPTS}/set_prodate.sh $SUFFIX ${DATA_MAP} ${PDATE}
 
-#   fi
 fi
 
 #--------------------------------------------------------------------

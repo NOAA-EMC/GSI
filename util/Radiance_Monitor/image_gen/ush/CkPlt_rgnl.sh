@@ -148,12 +148,12 @@ if [[ $PLOT -eq 1 ]]; then
    echo $USE_STATIC_SATYPE
    export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
-
-      test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
+      PDY=`echo $PDATE|cut -c1-8`
+      test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
 
       for test in ${test_list}; do
          this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f1`
+         tmp=`echo "$this_file" | cut -d. -f2`
          echo $tmp
          SATYPE_LIST="$SATYPE_LIST $tmp"
       done
@@ -196,9 +196,8 @@ if [[ $PLOT -eq 1 ]]; then
   #   Set environment variables to export to subsequent scripts
 
   export WEBDIRL=${PTMP_USER}/stats/regional/${SUFFIX}
-  export FIXDIR=/nwprod/fix
 
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,WEBDIRL,EXEDIR,FIXDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACOUNT,RADMON_DATA_EXTRACT,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,WEBDIRL,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACOUNT,RADMON_DATA_EXTRACT,listvar
 
 
   #------------------------------------------------------------------

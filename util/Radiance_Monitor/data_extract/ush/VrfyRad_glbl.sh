@@ -87,7 +87,7 @@ if [[ $RUN_ENVIR = dev ]]; then
 
    total=`expr $count - $complete`
 
-   if [[ $total -ne 0 ]]; then
+   if [[ $total -gt 0 ]]; then
       exit 3
    else
       rm -f ${LOADLQ}/${jobname}*
@@ -190,14 +190,16 @@ if [[ -s ${radstat} ]]; then
    export DATA_IN=/stmp/wx20es
    export DATA=/stmp/$LOGNAME/radmon
    export jlogfile=/stmp/wx20es/jlogfile
-   export HOMEgfs=/global/save/wx20es/RadMon/util/Radiance_Monitor/nwprod
    export TANKverf=/u/$LOGNAME/nbns/stats/${SUFFIX}
    export LOGDIR=/ptmp/$LOGNAME/logs/radopr
 
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt
-  
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,listvar
+   if [[ -s ${TANKverf}/info/radmon_base.tar.Z ]]; then
+      export base_file=${TANKverf}/info/radmon_base.tar 
+   fi
+
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.

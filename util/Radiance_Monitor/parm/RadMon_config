@@ -63,7 +63,7 @@
   export RADMON_IMAGE_GEN=${MY_GSI}/util/Radiance_Monitor/image_gen
   export RADMON_PARM=${MY_GSI}/util/Radiance_Monitor/parm
   export DATA_MAP=${RADMON_PARM}/data_map
-
+  export HOMEgfs=${MY_GSI}/util/Radiance_Monitor/nwprod
 #
 #  Utilities
 #

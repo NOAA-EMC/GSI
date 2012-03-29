@@ -57,6 +57,13 @@ for var in ${executables}; do
    fi
 done
 
+cd ${top_level}/nwprod/sorc/make_base.fd
+make ${mode}  
+if [[ $mode = all ]]; then
+   cp -f make_base ${top_level}/nwprod/exec/.
+fi
+
+
 #------------------------------------------------------------------
 #  make image generation executables
 #------------------------------------------------------------------

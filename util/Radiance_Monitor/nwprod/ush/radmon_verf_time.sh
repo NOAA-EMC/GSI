@@ -77,7 +77,7 @@
 #     programs   : $NCP
 #                  $time_exec
 #
-#     fixed data : radmon_base.tar.Z
+#     fixed data : radmon_base_${SUFFIX}.tar.Z
 #
 #     input data : $data_file
 #                  
@@ -121,6 +121,7 @@ LOGSCRIPT=${LOGSCRIPT:-}
 ERRSCRIPT=${ERRSCRIPT:-}
 ENDSCRIPT=${ENDSCRIPT:-}
 
+base_file=${base_file:-$FIXgfs/radmon_base.tar}
 report=report.txt
 disclaimer=disclaimer.txt
 region=region.txt
@@ -175,10 +176,11 @@ if [[ ! -s ./${time_exec} ]]; then
 fi
 
 if [[ $DO_DATA_RPT -eq 1 ]]; then
-   $NCP ${FIXgfs}/radmon_base.tar.Z ./
-   uncompress radmon_base.tar.Z
-   tar -xf radmon_base.tar
-   if [[ ! -s radmon_base.tar ]]; then
+#   $NCP ${FIXgfs}/radmon_base_${SUFFIX}.tar.Z ./
+   $NCP ${base_file}* ./
+   uncompress ${base_file}.Z
+   tar -xf ${base_file}
+   if [[ ! -s ${base_file} ]]; then
       err=9
    fi
 fi
