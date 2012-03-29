@@ -57,6 +57,8 @@ subroutine compute_derived(mype,init_pass)
 !   2011-07-15  zhu     - add cwgues for regional; update efr_ql 
 !   2011-11-01  eliu    - assign cwgues for global
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
+!   2012-02-08  kleist  - add ges_qsat, add uvflag arg in call to strong_bal_correction,
+!                         compute ges_qsat over nfldsig bins for limq (when nobs_bins /=0)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -80,6 +82,7 @@ subroutine compute_derived(mype,init_pass)
   use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
        ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
        ges_gust,ges_vis,ges_pblh,&
+       ges_qsat, &
        tropprs,ges_prsl,ntguessig,&
        nfldsig,&
        ges_teta,fact_tv, &
@@ -269,7 +272,7 @@ subroutine compute_derived(mype,init_pass)
 
               call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
                                          ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it),&
-                                         ges_ps(1,1,it),.true.,fullfield,.false.)
+                                         ges_ps(1,1,it),.true.,fullfield,.false.,.true.)
            end if
           end if	! (init_pass)
         end if
@@ -341,6 +344,14 @@ subroutine compute_derived(mype,init_pass)
   ice=.true.
   call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
            nsig,ice,iderivative)
+
+! Now load over nfldsig bins for limq (when nobs_bins /= zero)
+  iderivative = 0
+  do it=1,nfldsig
+    call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+           nsig,ice,iderivative)
+  end do
+
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH

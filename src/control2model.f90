@@ -54,6 +54,7 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
+use constants, only: max_varname_length
 implicit none
   
 ! Declare passed variables  
@@ -67,7 +68,7 @@ real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
 type(gsi_bundle) :: wbundle
 integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
 character(len=10),allocatable,dimension(:) :: gases
-character(len=10),allocatable,dimension(:) :: clouds
+character(len=max_varname_length),allocatable,dimension(:) :: clouds
 
 ! Note: The following does not aim to get all variables in
 !       the state and control vectors, but rather the ones

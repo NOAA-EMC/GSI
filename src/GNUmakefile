@@ -199,6 +199,7 @@ SRCS_UTIL =	$(wildcard \
 	constants.f90 \
         control_vectors.f90 \
 	egrid2agrid_mod.f90 \
+        ensctl2state.f90 \
 	fgrid2agrid_mod.f90 \
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
@@ -371,13 +372,9 @@ SRCS_SOLVER =	$(wildcard \
 	intdw.f90 \
 	intgps.f90 \
 	intgust.f90 \
-	intjcpdry.f90 \
+        intjcmod.f90 \
 	intjo.f90 \
 	intlag.f90 \
-	intlimq.f90 \
-	intlimq.f90 \
-	intlimv.f90 \
-	intlimp.f90 \
 	intoz.f90 \
 	intpblh.f90 \
 	intpcp.f90 \
@@ -516,6 +513,7 @@ SRCS_SOLVER =	$(wildcard \
         sqrtmin.f90 \
 	sst_retrieval.f90 \
 	state2control.f90 \
+        state2ensctl.f90 \
 	statsco.f90 \
 	statsconv.f90 \
 	statsoz.f90 \
@@ -528,11 +526,7 @@ SRCS_SOLVER =	$(wildcard \
 	stpgps.f90 \
 	stpgust.f90 \
 	stpjo.f90 \
-	stpjcpdry.f90 \
-	stplimq.f90 \
-	stplimg.f90 \
-	stplimv.f90 \
-	stplimp.f90 \
+        stpjcmod.f90 \
 	stpoz.f90 \
 	stppblh.f90 \
 	stppcp.f90 \

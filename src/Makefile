@@ -243,6 +243,7 @@ clean:
 	deter_sfc_mod.f90 \
 	egrid2agrid_mod.f90 \
 	enorm_state.f90 \
+	ensctl2state.f90 \
 	evaljgrad.f90 \
 	evaljcdfi.f90 \
 	evaljo.f90 \
@@ -252,10 +253,12 @@ clean:
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
 	general_read_gfsatm.f90 \
+        general_read_nmmb.f90 \
 	general_specmod.f90 \
 	general_spectral_transforms.f90 \
 	general_sub2grid_mod.f90 \
 	general_transform.f90 \
+        general_tll2xy_mod.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
@@ -264,7 +267,10 @@ clean:
 	get_derivatives2.f90 \
 	get_gefs_ensperts_dualres.f90 \
 	get_gefs_for_regional.f90 \
+        get_nmmb_ensperts.f90 \
+        get_pseudo_ensperts.f90 \
 	get_wrf_mass_ensperts_netcdf.F90 \
+        get_wrf_nmm_ensperts.F90 \
 	get_semimp_mats.f90 \
 	getprs.f90 \
 	getsiga.f90 \
@@ -302,13 +308,9 @@ clean:
 	intdw.f90 \
 	intgps.f90 \
 	intgust.f90 \
-	intjcpdry.f90 \
+        intjcmod.f90 \
 	intjo.f90 \
 	intlag.f90 \
-	intlimq.f90 \
-	intlimg.f90 \
-	intlimv.f90 \
-	intlimp.f90 \
 	intoz.f90 \
 	intpblh.f90 \
 	intpcp.f90 \
@@ -429,6 +431,7 @@ clean:
 	smoothzrf.f90 \
 	sqrtmin.f90 \
 	state2control.f90 \
+	state2ensctl.f90 \
 	state_vectors.f90 \
 	statsco.f90 \
 	statsconv.f90 \
@@ -443,11 +446,7 @@ clean:
 	stpgps.f90 \
 	stpgust.f90 \
 	stpjo.f90 \
-	stpjcpdry.f90 \
-	stplimq.f90 \
-	stplimg.f90 \
-	stplimv.f90 \
-	stplimp.f90 \
+        stpjcmod.f90 \
 	stpoz.f90 \
 	stppblh.f90 \
 	stppcp.f90 \

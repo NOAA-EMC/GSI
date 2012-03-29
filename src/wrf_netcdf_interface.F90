@@ -96,16 +96,16 @@ subroutine convert_netcdf_mass
   call ext_ncd_ioinit(sysdepinfo,status)
   call set_wrf_debug_level ( 5 )
   
-  n_loop: do n=1,7 ! loop over forecast hours in assim interval
+  n_loop: do n=1,9 ! loop over forecast hours in assim interval
 
-     if(n==1)then
+     if(n==nhr_assimilation)then
         flnm1 = 'wrf_inout'
      else
         write(flnm1,'("wrf_inou",i1.1)')n
      endif
 
      call ext_ncd_open_for_read( trim(flnm1), 0, 0, "", dh1, Status)
-     if(n==1)then
+     if(n==nhr_assimilation)then
         if ( Status /= 0 )then
            write(6,*)'CONVERT_NETCDF_MASS:  problem with flnm1 = ',&
                 trim(flnm1),', Status = ', Status
@@ -120,7 +120,7 @@ subroutine convert_netcdf_mass
      endif
 
   
-     write(filename,'("sigf",i2.2)') n+nhr_assimilation-1
+     write(filename,'("sigf",i2.2)') n
      open(iunit,file=filename,form='unformatted')
 
      write(6,*)' dh1  = ',dh1         !DEDE
@@ -1003,16 +1003,16 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   call set_wrf_debug_level ( 1 )
   
 
-  n_loop: do n=1,7 ! loop over forecast hours in assim interval
+  n_loop: do n=1,9 ! loop over forecast hours in assim interval
 
-     if(n==1)then
+     if(n==nhr_assimilation)then
         flnm1 = 'wrf_inout'
      else
         write(flnm1,'("wrf_inou",i1.1)')n
      endif
    
      call ext_ncd_open_for_read( trim(flnm1), 0, 0, "", dh1, Status)
-     if(n==1)then
+     if(n==nhr_assimilation)then
         if ( Status /= 0 )then
            write(6,*)'CONVERT_NETCDF_NMM:  problem with flnm1 = ',&
                 trim(flnm1),', Status = ', Status
@@ -1027,7 +1027,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      endif
   
   
-     write(filename,'("sigf",i2.2)') n+nhr_assimilation-1
+     write(filename,'("sigf",i2.2)') n
      open(iunit,file=filename,form='unformatted')
 
 

@@ -12,6 +12,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
 ! program history log:
 !   2010-02-25  parrish
 !   2010-03-29  kleist     - modifications to allow for st/vp perturbations instead of u,v
+!   2012-01-17  wu         - increase character length for variable "filename"
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid
@@ -52,7 +53,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
 !   Declare passed variables
     type(sub2grid_info)                   ,intent(in   ) :: grd
     type(spec_vars)                       ,intent(in   ) :: sp
-    character(24)                         ,intent(in   ) :: filename
+    character(*)                          ,intent(in   ) :: filename
     integer(i_kind)                       ,intent(in   ) :: mype
     logical                               ,intent(in   ) :: uvflag
     integer(i_kind)                       ,intent(  out) :: iret_read
@@ -180,12 +181,14 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
                    spec_work(i)=sp%test_mask(i)*sigdata%q(i,k,n)
                    if(sp%factsml(i))spec_work(i)=zero
                 end do
-                call general_sptez_s(sp,spec_work,grid,1)
+                call general_sptez_s(sp,spec_work,grid_q(1,1,n),1)
              end do
 
 !            Convert input thermodynamic variable to dry temperature
              call sigio_cnvtdv8(grd%nlon*nlatm2,grd%nlon*nlatm2,1,idvc5,&
                   idvm5,ntracer,iret,grid,grid_q,cp5,1)
+                            iret_read=iret_read+iret
+                            if (iret_read /= 0) goto 1000
 
 !            Convert dry temperature to virtual
              do j=1,nlatm2

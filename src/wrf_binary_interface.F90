@@ -1877,8 +1877,8 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         hdrbuf4(i)=buf(locbyte)
      end do
 
-     if(lenrec==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
-                                       irecs,hdrbuf(2),int_dom_ti_char,int_field
+!     if(lenrec==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
+!                                       irecs,hdrbuf(2),int_dom_ti_char,int_field
      if(lenrec==2048_i_long.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
 
 !    bring in next full record, so we can unpack datestr, varname, and domainend
@@ -1897,7 +1897,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
                     datahandle,element,dumstr,strdata,loccode)
            varname_all(irecs)=trim(element)
            datestr_all(irecs)=trim(strdata)
-           write(6,*)' irecs,varname,datestr = ',irecs,trim(varname_all(irecs)),trim(datestr_all(irecs))
+!           write(6,*)' irecs,varname,datestr = ',irecs,trim(varname_all(irecs)),trim(datestr_all(irecs))
 
         else
 
@@ -1910,8 +1910,8 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
            datestr_all(irecs)=trim(datestr)
            memoryorder_all(irecs)=trim(memoryorder)
            domainend_all(1:3,irecs)=domainend(1:3)
-           write(6,*)' irecs,datestr,domend,varname = ', &
-                 irecs,trim(datestr_all(irecs)),domainend_all(1:3,irecs),trim(varname_all(irecs))
+!           write(6,*)' irecs,datestr,domend,varname = ', &
+!                 irecs,trim(datestr_all(irecs)),domainend_all(1:3,irecs),trim(varname_all(irecs))
 
         end if
 

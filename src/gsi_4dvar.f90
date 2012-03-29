@@ -19,6 +19,7 @@ module gsi_4dvar
 !			  gsi_4dcoupler_init_traj() from gsimain_initialize(),
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !   2011-07-10 guo/zhang- add liauon
+!   2012-02-08 kleist   - add new features for 4dvar with ensemble/hybrid.
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -65,6 +66,15 @@ module gsi_4dvar
 !
 !   idmodel           - Run w/ identity GCM TLM and ADM; test mode
 !
+!   l4densvar         - Logical flag for 4d-ensemble-var option
+!   ens4d_nhr         - Time between time levels for ensemble (currently same as nhr_obsbins)
+!   ens4d_fhrlevs     - Forecast length for each time level for ensemble perturbations
+!                       this variable defines the assumed filenames for ensemble
+!   ens4d_nstarthr    - Integer namelist option for first time level for ensemble
+!                       this should generally match with min_offset
+!   ibin_anl          - Analysis update bin.  This will be one for any 3D of 4DVAR mode, but
+!                       will be set to center of window for 4D-ens mode
+!
 ! attributes:
 !   language: f90
 !   machine:
@@ -91,6 +101,7 @@ module gsi_4dvar
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
   public :: jsiga,ltcost,iorthomax,liauon
+  public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -104,6 +115,7 @@ module gsi_4dvar
   logical         :: lanczosave
   logical         :: ltcost
   logical         :: liauon
+  logical         :: l4densvar
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -114,6 +126,9 @@ module gsi_4dvar
   integer(i_kind) :: nwrvecs
   integer(i_kind) :: iorthomax
   integer(i_kind) :: jsiga
+  integer(i_kind) :: ens4d_nhr,ens4d_nstarthr,ibin_anl
+  integer(i_kind),allocatable,dimension(:) :: ens4d_fhrlevs
+
   real(r_kind) :: iwinbgn, winlen, winoff, winsub, hr_obsbin
 
 ! --------------------------------------------------------------------
@@ -129,6 +144,8 @@ subroutine init_4dvar ()
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2012-01-13  m. tong - remove regional block setting nhr_assimilation=3 and min_offset=90
+!                         (related to fixing fgat for regional ??)
 !
 !   input argument list:
 !
@@ -152,6 +169,7 @@ lbfgsmin = .false.
 ltlint = .false.
 ltcost = .false.
 liauon = .false.
+l4densvar = .false.
 
 nhr_assimilation=6
 min_offset=180
@@ -166,6 +184,10 @@ iwrtinc=-1
 nwrvecs=-1
 jsiga  =-1
 iorthomax=0
+
+ens4d_nhr=3
+ens4d_nstarthr=3
+ibin_anl=1
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
@@ -194,12 +216,14 @@ subroutine setup_4dvar(miter,mype)
 !
 !$$$ end documentation block
 
+use hybrid_ensemble_parameters, only: ntlevs_ens
+use jcmod, only: ljc4tlevs
 implicit none
 integer(i_kind),intent(in   ) :: mype
 integer(i_kind),intent(in   ) :: miter
 
 ! local variables
-integer(i_kind) :: ibin,ierr
+integer(i_kind) :: ibin,ierr,k
 
 winlen = real(nhr_assimilation,r_kind)
 winoff = real(min_offset/60._r_kind,r_kind)
@@ -210,6 +234,8 @@ else
    if (l4dvar) then
 !     Should depend on resolution of TLM, etc...
       hr_obsbin = one
+   else if(l4densvar) then
+      hr_obsbin = one   
    else
       hr_obsbin = winlen
    end if
@@ -226,8 +252,8 @@ IF (hr_obsbin<winlen) THEN
 ELSE
    ibin = 0
 ENDIF
-
 nobs_bins = ibin + 1
+if (mype==0)  write(6,*) 'GSI_4DVAR:  nobs_bins = ',nobs_bins
 
 ! Setup weak constraint 4dvar
 if (nhr_subwin<=0) nhr_subwin = nhr_assimilation
@@ -257,18 +283,48 @@ endif
 !      call stop2(134)
 !   endif
 !endif
-if (iwrtinc>0 .neqv. l4dvar) then
+if ( iwrtinc>0 .and. ((.not.l4dvar) .and. (.not.l4densvar)) ) then
    write(6,*)'SETUP_4DVAR: iwrtinc l4dvar inconsistent',iwrtinc,l4dvar
    call stop2(135)
+end if
+
+if (l4densvar) then
+   ntlevs_ens=nobs_bins
+   ens4d_nhr=nhr_obsbin
+
+   if (mype==0)  write(6,*)'SETUP_4DVAR: 4densvar mode, resetting nsubwin to 1'
+   nsubwin=1
+
+   if (mype==0)  write(6,*)'SETUP_4DVAR: allocate array containing time levels for 4d ensemble'
+   allocate(ens4d_fhrlevs(ntlevs_ens))
+
+! Set up the time levels (nobs_bins) for the ensemble
+   do k=1,ntlevs_ens
+      ens4d_fhrlevs(k) = ens4d_nstarthr + (k-1)*ens4d_nhr
+      if (mype==0)  write(6,*)'SETUP_4DVAR: timelevel, ens4d_fhrlevs = ',k,ens4d_fhrlevs(k)
+   enddo
+
+   ibin_anl = (nhr_assimilation/2)+1
+   if (mype==0) write(6,*)'SETUP_4DVAR: 4densvar mode, ibin_anl and nobs_bins = ',ibin_anl,nobs_bins
+else
+   ntlevs_ens=1
+   if (l4dvar .and. mype==0) write(6,*)'SETUP_4DVAR: option to run hybrid 4dvar chosen.  nobs_bins,ntlevs_ens = ',nobs_bins,ntlevs_ens
+endif !l4densvar
+
+if( (.not.l4dvar) .and. (.not.l4densvar) ) then
+   nobs_bins=1
+   ljc4tlevs=.false.
 end if
 
 ! Prints
 if (mype==0) then
    write(6,*)'SETUP_4DVAR: l4dvar=',l4dvar
+   write(6,*)'SETUP_4DVAR: l4densvar=',l4densvar
    write(6,*)'SETUP_4DVAR: winlen=',winlen
    write(6,*)'SETUP_4DVAR: winoff=',winoff
    write(6,*)'SETUP_4DVAR: hr_obsbin=',hr_obsbin
    write(6,*)'SETUP_4DVAR: nobs_bins=',nobs_bins
+   write(6,*)'SETUP_4DVAR: ntlevs_ens=',ntlevs_ens
    write(6,*)'SETUP_4DVAR: nsubwin,nhr_subwin=',nsubwin,nhr_subwin
    write(6,*)'SETUP_4DVAR: lsqrtb=',lsqrtb
    write(6,*)'SETUP_4DVAR: lbicg=',lbicg
@@ -283,6 +339,8 @@ if (mype==0) then
    write(6,*)'SETUP_4DVAR: nwrvecs=',nwrvecs
    write(6,*)'SETUP_4DVAR: iorthomax=',iorthomax
    write(6,*)'SETUP_4DVAR: liauon=',liauon
+   write(6,*)'SETUP_4DVAR: ljc4tlevs=',ljc4tlevs
+   write(6,*)'SETUP_4DVAR: ibin_anl=',ibin_anl
 endif
 
 end subroutine setup_4dvar
@@ -365,6 +423,7 @@ subroutine clean_4dvar()
 
 implicit none
 ! no-op left
+   if (l4densvar) deallocate(ens4d_fhrlevs)
 end subroutine clean_4dvar
 ! --------------------------------------------------------------------
 end module gsi_4dvar

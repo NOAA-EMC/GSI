@@ -75,6 +75,7 @@ contains
     use kinds, only: i_kind,r_kind
     use constants, only: izero,ione
     use mpimod, only: mpi_integer4,mpi_rtype
+    use hybrid_ensemble_parameters, only: l_hyb_ens,regional_ensemble_option
     implicit none
 
 !   Declare passed variables
@@ -90,8 +91,14 @@ contains
        if (mype==izero) then
           if (netcdf) then
              call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
+             if (l_hyb_ens .and. regional_ensemble_option == 2)then
+                call convert_netcdf_nmm_ens
+             end if
           else
              call convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
+             if (l_hyb_ens .and. regional_ensemble_option == 2)then
+                call convert_binary_nmm_ens
+             end if
           end if
        end if
        call mpi_barrier(mpi_comm_world,ierror)

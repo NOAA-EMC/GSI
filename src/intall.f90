@@ -12,6 +12,8 @@ module intallmod
 !   2005-11-21  Derber - remove interface and clean up code
 !   2008-11-26  Todling - remove intall_tl
 !   2009-08-13  lueken - update documentation
+!   2012-02-08  kleist - changes related to 4d-ensemble-var additions and consolidation of 
+!                   int... individual modules to one intjcmod
 !
 ! subroutines included:
 !   sub intall
@@ -163,24 +165,22 @@ subroutine intall(sval,sbias,rval,rbias)
 !
 !$$$
   use kinds, only: i_kind
-  use gsi_4dvar, only: nobs_bins, ltlint
+  use gsi_4dvar, only: nobs_bins,ltlint,ibin_anl
   use constants, only: zero
-  use jcmod, only: ljcpdry
+  use jcmod, only: ljcpdry,ljc4tlevs,ljcdfi
   use jfunc, only: l_foto,dhat_dt
   use obsmod, only: yobs
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
-  use intlimqmod, only: intlimq
-  use intlimgmod, only: intlimg
-  use intlimvmod, only: intlimv
-  use intlimpmod, only: intlimp
-  use intjcpdrymod, only: intjcpdry
+  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,&
+      intjcpdry,intjcdfi
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
   use control_vectors, only: cvars2d
   use mpeu_util, only: getindex
+  use guess_grids, only: ntguessig,nfldsig
   implicit none
 
 ! Declare passed variables
@@ -190,7 +190,7 @@ subroutine intall(sval,sbias,rval,rbias)
   type(predictors), intent(inout) :: rbias
 
 ! Declare local variables
-  integer(i_kind) :: ibin,ii
+  integer(i_kind) :: ibin,ii,it
 
 !******************************************************************************
 ! Initialize timer
@@ -215,7 +215,18 @@ subroutine intall(sval,sbias,rval,rbias)
   end do
 
 ! RHS for moisture constraint
-  if (.not.ltlint) call intlimq(rval(1),sval(1))
+  if (.not.ltlint .and. .not.ljc4tlevs) then
+     call intlimq(rval(ibin_anl),sval(ibin_anl),ntguessig)
+  else if (.not.ltlint .and. ljc4tlevs) then
+     do ibin=1,nobs_bins
+        if (nobs_bins /= nfldsig) then
+           it=ntguessig
+        else
+           it=ibin
+        end if
+        call intlimq(rval(ibin),sval(ibin),it)
+     end do
+  end if
 
 ! RHS for gust constraint
   if ((.not.ltlint) .and. (getindex(cvars2d,'gust')>0)) &
@@ -230,7 +241,18 @@ subroutine intall(sval,sbias,rval,rbias)
      call intlimp(rval(1),sval(1))
 
 ! RHS for dry ps constraint
-  if (ljcpdry) call intjcpdry(rval(1),sval(1))
+  if (ljcpdry .and. .not.ljc4tlevs) then
+    call intjcpdry(rval(ibin_anl),sval(ibin_anl))
+  else if (ljcpdry .and. ljc4tlevs) then
+    do ibin=1,nobs_bins
+       call intjcpdry(rval(ibin),sval(ibin))
+    end do
+  end if
+
+! RHS for Jc DFI
+  if (ljcdfi .and. nobs_bins>1) then
+     call intjcdfi(rval,sval)
+  end if
 
 ! RHS calculation for Jc and other 3D-Var terms
   call int3dvar(rval(1),dhat_dt)
