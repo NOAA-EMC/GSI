@@ -166,7 +166,13 @@ export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
    PDY=`echo $PDATE|cut -c1-8`
 
-   test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
+   if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
+      test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
+   else
+      test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
+   fi
+
+   test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
    
    for test in ${test_list}; do
       this_file=`basename $test`

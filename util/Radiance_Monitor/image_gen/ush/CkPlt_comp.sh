@@ -119,6 +119,7 @@ while read line; do
          if [[ $suff1 -gt 0 ]]; then
             export SUFFIX1=$suffix1
             export TANKDIR1=${TANKDIR}/${SUFFIX1}
+            export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
             prodate1=`${SCRIPTS}/get_prodate.sh ${SUFFIX1} ${DATA_MAP}`
          else
             exit
@@ -128,6 +129,7 @@ while read line; do
          if [[ $suff2 -gt 0 ]]; then
             export SUFFIX2=$suffix2
             export TANKDIR2=${TANKDIR}/${SUFFIX2}
+            export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
             prodate2=`${SCRIPTS}/get_prodate.sh ${SUFFIX2} ${DATA_MAP}`
          else
             exit
@@ -137,6 +139,7 @@ while read line; do
          if [[ $suff3 -gt 0 ]]; then
             export SUFFIX3=$suffix3
             export TANKDIR3=${TANKDIR}/${SUFFIX3}
+            export IMGNDIR3=${IMGNDIR}/${SUFFIX3}
             prodate3=`${SCRIPTS}/get_prodate.sh ${SUFFIX3} ${DATA_MAP}`
          fi
 
@@ -176,12 +179,17 @@ while read line; do
          #  file.
          #-------------------------------------------------------------
          if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
-   
-            test_list=`ls $TANKDIR1/angle/*.${PDATE}.ieee_d*`
+  
+            PDY=`echo $PDATE|cut -c1-8` 
+            if [[ -d ${TANKDIR1}/radmon.${PDY} ]]; then
+               test_list=`ls ${TANKDIR1}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
+            else
+               test_list=`ls $TANKDIR1/angle/*.${PDATE}.ieee_d*`
+            fi
 
             for test in ${test_list}; do
                this_file=`basename $test`
-               tmp=`echo "$this_file" | cut -d. -f1`
+               tmp=`echo "$this_file" | cut -d. -f2`
                echo $tmp
                SATYPE_LIST="$SATYPE_LIST $tmp"
             done
