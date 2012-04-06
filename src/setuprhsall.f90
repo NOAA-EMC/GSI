@@ -77,6 +77,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-10-14  pagowski - added pm2_5 conventional obs
 !   2011-02-16      zhu - add gust,vis,pblh
 !   2011-04-07  todling - newpc4pred now in radinfo
+!   2012-01-11  Hu      - add load_gsdgeop_hgt to compute 2d subdomain pbl heights from the guess fields
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -96,7 +97,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,fv,zero_quad
-  use guess_grids, only: load_prsges,load_geop_hgt
+  use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tv,ges_q,ges_tsen
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
        nchan_total,ndat,obs_setup,&
@@ -295,6 +296,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !       call load_fact10
 !    endif
   endif
+
+! Compute 2d subdomain pbl heights from the guess fields
+   call load_gsdpbl_hgt(mype)
 
 ! Compute derived quantities on grid
   call compute_derived(mype,init_pass)

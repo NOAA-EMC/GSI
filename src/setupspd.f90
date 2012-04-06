@@ -52,6 +52,8 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                         diagnostic file: local terrain height, dominate surface
 !                         type, station provider name, and station subprovider name
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2012-01-12  hu      - add code to get vertical grid coordinate ibased on height for
+!                         260 (nacelle) and 261 (tower) 
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -77,6 +79,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig,ges_tv,ges_lnprsl, &
            ges_ps,comp_fact10,sfcmod_gfs,sfcmod_mm5
+  use guess_grids, only: ges_z, geop_hgtl
   use gridmod, only: nsig,get_ij,twodvar_regional
   use qcmod, only: npres_print,ptop,pbot
   use constants, only: one,grav,rd,zero,four,tiny_r_kind, &
@@ -145,6 +148,11 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(spd_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
+  logical z_height
+  real(r_kind) zsges,dstn
+  real(r_kind),dimension(nsig):: zges
+  real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,pobl
+  integer(i_kind) k1,k2
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -316,40 +324,98 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
      end if
 
-     presw = ten*exp(dpres)
-     dpres = dpres-log(psges)
      nty=ictype(ikx)
-     drpx=zero
-     if(nty >= 280 .and. nty < 290)then
-        dpresave=dpres
-        dpres=-goverrd*data(ihgt,i)/tges(1)
-        if(nty < 283)drpx=abs(dpres-dpresave)*factw*thirty
-     end if
 
-     prsfc=psges
-     prsln2=log(exp(prsltmp(1))/prsfc)
-     sfcchk=log(psges)
-     if(dpres <= prsln2)then
+     z_height = .false.
+     if ( nty == 260 .or. nty == 261) z_height = .true.
+
+!    Process observations reported with height differently than those
+!    reported with pressure.  Type 260=nacelle 261=tower wind spd are
+!    encoded in NCEP prepbufr files with geometric height above
+!    sea level. 
+     
+     if (z_height) then
+        
+        drpx = zero
+        dpres = data(ihgt,i)
+        dstn = data(istnelv,i)
+        call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+             1,1,mype,nfldsig)
+
+!       Get guess surface elevation and geopotential height profile
+!       at observation location.
+        call tintrp2a(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
+             1,nsig,mype,nfldsig)
+
+!       Convert observation height (in dpres) from meters to grid relative
+!       units.  Save the observation height in zob for later use.
+        zob = dpres
+        call grdcrd(dpres,1,zges,nsig,1)
         factw=one
+        rlow=zero
+        rhgh=zero
+
+!       Compute observation pressure (only used for diagnostics)
+!       Set indices of model levels below (k1) and above (k2) observation.
+        if (dpres<one) then
+           z1=zero;    p1=log(psges)
+           z2=zges(1); p2=prsltmp(1)
+        elseif (dpres>nsig) then
+           z1=zges(nsig-1); p1=prsltmp(nsig-1)
+           z2=zges(nsig);   p2=prsltmp(nsig)
+           drpx = 1.e6_r_kind
+        else
+           k=dpres
+           k1=min(max(1,k),nsig)
+           k2=max(1,min(k+1,nsig))
+           z1=zges(k1); p1=prsltmp(k1)
+           z2=zges(k2); p2=prsltmp(k2)
+        endif
+
+        dz21     = z2-z1
+        dlnp21   = p2-p1
+        dz       = zob-z1
+        pobl     = p1 + (dlnp21/dz21)*dz
+        presw    = ten*exp(pobl)
+
+!    Process observations with reported pressure
      else
-        dx10=-goverrd*ten/tges(1)
-        if (dpres < dx10)then
-           factw=(dpres-dx10+factw*(prsln2-dpres))/(prsln2-dx10)
+
+        presw = ten*exp(dpres)
+        dpres = dpres-log(psges)
+        drpx=zero
+        if(nty >= 280 .and. nty < 290)then
+           dpresave=dpres
+           dpres=-goverrd*data(ihgt,i)/tges(1)
+           if(nty < 283)drpx=abs(dpres-dpresave)*factw*thirty
         end if
-     end if
+
+        prsfc=psges
+        prsln2=log(exp(prsltmp(1))/prsfc)
+        sfcchk=log(psges)
+        if(dpres <= prsln2)then
+           factw=one
+        else
+           dx10=-goverrd*ten/tges(1)
+           if (dpres < dx10)then
+              factw=(dpres-dx10+factw*(prsln2-dpres))/(prsln2-dx10)
+           end if
+        end if
 
 !    Put obs pressure in correct units to get grid coord. number
-     dpres=log(exp(dpres)*prsfc)
-     call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+        dpres=log(exp(dpres)*prsfc)
+        call grdcrd(dpres,1,prsltmp(1),nsig,-1)
 
 !    Get approx k value of sfc by using surface pressure of 1st ob
-     call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
+        call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
 
 
 !    Check to see if observations is below what is seen to be the surface
-     rlow=max(sfcchk-dpres,zero)
+        rlow=max(sfcchk-dpres,zero)
 
-     rhgh=max(dpres-r0_001-rsig,zero)
+        rhgh=max(dpres-r0_001-rsig,zero)
+
+     endif  ! end of process observations with reported pressure
 
      if(luse(i))then
         awork(1) = awork(1) + one

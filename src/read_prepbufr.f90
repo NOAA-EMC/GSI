@@ -143,6 +143,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          apply_hilbertcurve,destroy_hilbertcurve
   use jfunc, only: tsensible
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
+                           destroy_aircraft_rjlists
 
   implicit none
 
@@ -248,7 +250,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(8,1):: sstdat
   real(r_double),dimension(2,10):: metarcld
   real(r_double),dimension(1,10):: metarwth
-  real(r_double),dimension(1,1) :: metarvis
+  real(r_double),dimension(2,1) :: metarvis
   real(r_double),dimension(4,1) :: geoscld
   real(r_double),dimension(1):: satqc
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg 
@@ -277,7 +279,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data levstr  /'POB'/ 
   data metarcldstr /'CLAM HOCB'/      ! cloud amount and cloud base height
   data metarwthstr /'PRWE'/           ! present weather
-  data metarvisstr /'HOVI'/           ! visibility
+  data metarvisstr /'HOVI TDO'/       ! visibility and dew point
   data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
 
   data lunin / 13 /
@@ -319,7 +321,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(visob) then
      nreal=21
   else if(metarcldobs) then
-     nreal=23
+     nreal=24
   else if(geosctpobs) then
      nreal=8
   else 
@@ -509,6 +511,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(tob)call ufbqcd(lunin,'VIRTMP',vtcd)
 
   call init_rjlists
+  call init_aircraft_rjlists
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
@@ -707,7 +710,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               metarvis=1.e11_r_kind
               call ufbint(lunin,metarcld,2,10,metarcldlevs,metarcldstr)
               call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
-              call ufbint(lunin,metarvis,1,1,iret,metarvisstr)
+              call ufbint(lunin,metarvis,2,1,iret,metarvisstr)
               if(levs /= 1 ) then
                  write(6,*) 'READ_PREPBUFR: error in Metar observations, levs sould be 1 !!!'
                  call stop2(110)
@@ -1041,6 +1044,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if((kx>=192.and.kx<=195) .and. psob )usage=r100
 
               if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage)
+              if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
+                 call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
+              endif
 
               if(ncnumgrp(nc) > 0 .and. .not.lhilbert )then                 ! default cross validation on
                  if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
@@ -1184,6 +1190,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  woe=obserr(5,k)
                  if (inflate_error) woe=woe*r1_2
                  elev=r20
+                 oelev=obsdat(4,k)
+                 if(kx == 260 .or. kx == 261) elev = oelev ! Nacelle and tower wind speed
 
                  cdata_all(1,iout)=woe                     ! wind error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -1464,6 +1472,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(21,iout)=timeobs     !  time observation
                  cdata_all(22,iout)=usage
                  cdata_all(23,iout)=0.0_r_kind  ! reserved for distance between obs and grid
+!     Calculate dewpoint depression from surface obs, to be used later
+!         with haze and ceiling logic to exclude dust-caused ceiling obs
+!         from cloud analysis
+                 if(metarvis(2,1)  < 1.e10_r_kind) then
+                    cdata_all(24,iout)=obsdat(3,1)-metarvis(2,1)  ! temperature - dew point
+                 else
+                    cdata_all(24,iout)=-99999.0_r_kind  ! temperature - dew point
+                 endif
 ! NESDIS cloud products
               else if(geosctpobs) then
                  cdata_all(1,iout)=rstation_id    !  station ID
@@ -1540,6 +1556,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   deallocate(cdata_out)
   call destroy_rjlists
+  call destroy_aircraft_rjlists
   if (lhilbert) call destroy_hilbertcurve
 
 900 continue

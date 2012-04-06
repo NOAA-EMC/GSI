@@ -70,6 +70,7 @@ subroutine update_guess(sval,sbias)
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-09-20  hclin   - enforce non-negative aerosol fields
 !   2011-11-01  eliu    - generalize met-guess updates for global/regional
+!   2011-10-01  Hu      - GSD limitation of Q over ocean
 !
 !   input argument list:
 !    sval
@@ -110,6 +111,8 @@ subroutine update_guess(sval,sbias)
   use gsi_chemguess_mod, only: gsi_chemguess_bundle
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use mpeu_util, only: getindex
+  use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q
+  use gsd_update_mod, only: gsd_limit_ocean_q
 
   implicit none
 
@@ -139,6 +142,8 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_oz     =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2daux =>NULL()
+
+  real(r_kind),dimension(lat2,lon2,nsig):: qinc
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -222,12 +227,34 @@ subroutine update_guess(sval,sbias)
      call gsi_bundlegetpointer (sval(ii),'q' ,p_q ,istatus)
      call gsi_bundlegetpointer (sval(ii),'tv',p_tv,istatus)
      call gsi_bundlegetpointer (sval(ii),'oz',p_oz,istatus)
+! GSD modification for moisture
+     if(is_q>0) then
+        if(l_gsd_limit_ocean_q) then
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    qinc(i,j,k)=p_q(i,j,k)
+                 end do
+              end do
+           end do
+           call gsd_limit_ocean_q(qinc)
+        else
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),qmin)
+                 end do
+              end do
+           end do
+        endif
+     endif
+
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
               if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + p_u(i,j,k)
               if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + p_v(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),qmin) 
+!              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),qmin) 
               if(is_t > 0) then
                  if (.not.twodvar_regional .or. .not.tsensible) then
                     ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + p_tv(i,j,k)

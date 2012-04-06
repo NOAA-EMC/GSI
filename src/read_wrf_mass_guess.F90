@@ -849,7 +849,10 @@ subroutine read_wrf_mass_binary_guess(mype)
                     ges_qr(j,i,k) = all_loc(j,i,kqr)
                     ges_qs(j,i,k) = all_loc(j,i,kqs)
                     ges_qg(j,i,k) = all_loc(j,i,kqg)
-                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+!                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+                    ges_tten(j,i,k,it) = -20.0_r_single
+                    if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
+
                  endif
 
               end do
@@ -1395,7 +1398,10 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                     ges_qr(j,i,k) = all_loc(j,i,kqr)
                     ges_qs(j,i,k) = all_loc(j,i,kqs)
                     ges_qg(j,i,k) = all_loc(j,i,kqg)
-                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+!                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
+                    ges_tten(j,i,k,it) = -20.0_r_single
+                    if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
+
                  endif
               end do
            end do

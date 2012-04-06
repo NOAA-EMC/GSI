@@ -46,6 +46,9 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !   2011-03-28 s.liu  -   add subtype to radial wind observation and limit the use
 !                           of level2.5 and level3 data in Conus domain for NMM and NMMB
 !   2011-08-01  lueken  - remove deter_zsfc_model (placed in deter_sfc_mod) and fix indentation
+!   2012-01-11 m.Hu  -   add subtype to radial wind observation and limit the use
+!                           of level2.5 and level3 data in Conus domain for ARW
+!
 !
 !   input argument list:
 !     infile   - file from which to read BUFR data
@@ -74,7 +77,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   use obsmod, only: iadate
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
-  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
+  use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,ges_prslavg
@@ -830,7 +833,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
      if (dlon_earth<zero ) dlon_earth=dlon_earth+r360
 
-     if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+     if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional.or.wrf_mass_regional) then
         if(loop==1) then 
            if(dlon_earth>230.0_r_kind .and.  &
               dlat_earth <54.0_r_kind)then
@@ -1016,7 +1019,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
         error = erradar_inflate*radar_obs(7,k)
 
 !    Increase error for lev2.5 and lev3
-        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional.or.wrf_mass_regional) then
            if(dlon_earth*rad2deg>230.0_r_kind .and.  &
               dlat_earth*rad2deg <54.0_r_kind)then
               error = error+r10
