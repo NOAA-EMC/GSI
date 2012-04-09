@@ -78,6 +78,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2011-02-16      zhu - add gust,vis,pblh
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2012-01-11  Hu      - add load_gsdgeop_hgt to compute 2d subdomain pbl heights from the guess fields
+!   2012-04-08  Hu      - add code to skip the observations that are not used in minimization
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -439,6 +440,17 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             Set up conventional pbl height data
               else if(obstype=='pblh' .and. getindex(svars2d,'pblh')>0) then
                  call setuppblh(lunin,mype,bwork,awork(1,i_pblh),nele,nobs,is,conv_diagsave)
+
+!             skip this kind of data because they are not used in the var analysis
+              else if(obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
+                      obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
+                      obstype == 'larccld' ) then
+                 read(lunin,iostat=ier)
+                 if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
+
+!
+              else
+                 write(6,*) 'Warning, unknown data type in setuprhsall,', obstype
 
               end if
 
