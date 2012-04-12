@@ -78,7 +78,7 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
   equivalence(cstation1,rstation_id)
 
   real(r_kind)    ::     spval_p
-  parameter (spval_p = 99999.)
+  parameter (spval_p = 99999._r_kind)
 
 
 !
@@ -126,7 +126,7 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 
         if(ihaze > 0 .or. idust > 0 ) then
 !           write(*,'(a,a8,3F10.1)') 'dust or haze report at station ',rstation_id, (cdata(17+j,i),j=1,1)
-           cg_dewpdep = 100. * cdata(24,i)  ! 100. = dry adiabatic lapse rate in m/K
+           cg_dewpdep = 100._r_kind * cdata(24,i)  ! 100. = dry adiabatic lapse rate in m/K
            DO j=1,3
               cldamt =  cdata(5+j,i)         ! cloud amount
               cldhgt =  int(cdata(11+j,i))   ! cloud bottom height

@@ -766,11 +766,7 @@ endif    !   itype=120
 !!! find ddiff       
 
 ! Compute innovations
-!           ddiff=qob-qges
             ddiff=diffsfc*(0.3_r_kind + 0.7_r_kind*ratio_PBL_height)
-!        write(*,'(a,a8,9f8.2)') 'add PBL_pseudo_Surfobs Q ',    &
-!              station_id, dpres,ddiff*1000.0,qob*1000.0,qges*1000.0,data(ier2,i),qsges*1000.0,&
-!               diffsfc*1000.0,ratio_PBL_height
 
            error=one/(data(ier2,i)*qsges)
 

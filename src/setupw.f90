@@ -623,10 +623,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! QC PBL profiler  227 and 223, 224
      if(itype==227 .or. itype==223 .or. itype==224) then
-        if(abs(uob) < 1.0 .and. abs(vob) <1.0 )  then
+        if(abs(uob) < 1.0_r_kind .and. abs(vob) <1.0_r_kind )  then
            muse(i)=.false.
-           data(iqc,i)=10.0
-           data(iuse,i)=101.0
+           data(iqc,i)=10.0_r_kind
+           data(iuse,i)=101.0_r_kind
         endif
      endif
 

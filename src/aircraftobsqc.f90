@@ -76,9 +76,9 @@ subroutine init_aircraft_rjlists
   integer(i_kind) aircraft_unit,m
   character(80) cstring
 
-  integer(i_kind), parameter::nmax=500_i_kind
+  integer(i_kind), parameter::nmax=500
 
-  data aircraft_unit / 20_i_kind /
+  data aircraft_unit / 20 /
 !**************************************************************************
   nwrjs_aircraft=0
   ntrjs_aircraft=0
@@ -171,7 +171,7 @@ subroutine get_aircraft_usagerj(kx,obstype,c_station_id,usage_rj)
 
   usage_rj0=usage_rj
 
-  if (kx<190_i_kind) then  !<==mass obs
+  if (kx<190) then  !<==mass obs
 
      if(obstype=='t' .and. (ntrjs_aircraft > 0) ) then
         do m=1,ntrjs_aircraft
@@ -195,7 +195,7 @@ subroutine get_aircraft_usagerj(kx,obstype,c_station_id,usage_rj)
         enddo
      end if
 
-  elseif (kx>=190_i_kind) then !<==wind obs
+  elseif (kx>=190) then !<==wind obs
 
      if(obstype=='uv' .and. (nwrjs_aircraft > 0) ) then
         do m=1,nwrjs_aircraft

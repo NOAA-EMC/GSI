@@ -180,7 +180,7 @@ contains
     l_cleanSnow_WarmTs = .false.                      ! .true. = turn on limitation of using snow when Ts>5
     l_conserve_thetaV  = .false.                      ! .true. = turn on conserving thetaV
     r_cleanSnow_WarmTs_threshold = 8.0_r_kind         ! Ts threshold for cleaning snow
-    i_conserve_thetaV_iternum = 3_i_kind              ! iteration number for conserving thetaV
+    i_conserve_thetaV_iternum = 3                     ! iteration number for conserving thetaV
     l_cld_bld          = .false.                      ! .true. = turn on GOES cloud building
     cld_bld_hgt        = 1200.0_r_kind                ! Height (meters) below which to build clouds
 

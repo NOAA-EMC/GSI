@@ -376,7 +376,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
      if(istat_NASALaRC == 1 ) then
         DO j=2,lat2-1
            DO i=2,lon2-1
-             if(sat_ctp(i,j) < -99990.0) then   ! missing value is -999999.0
+             if(sat_ctp(i,j) < -99990.0_r_kind) then   ! missing value is -999999.0
                 sat_ctp(i,j) = nasalarc_cld(i,j,1)
                 sat_tem(i,j) = nasalarc_cld(i,j,2)
                 w_frac(i,j)  = nasalarc_cld(i,j,3)

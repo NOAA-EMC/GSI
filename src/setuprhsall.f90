@@ -111,7 +111,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
-  use gridmod, only: nsig,twodvar_regional
+  use gridmod, only: nsig,twodvar_regional,wrf_mass_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use jfunc, only: jiter,jiterstart,miter,first,last
   use qcmod, only: npres_print
@@ -299,7 +299,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   endif
 
 ! Compute 2d subdomain pbl heights from the guess fields
-   call load_gsdpbl_hgt(mype)
+   if (wrf_mass_regional) then
+      call load_gsdpbl_hgt(mype)
+   endif
 
 ! Compute derived quantities on grid
   call compute_derived(mype,init_pass)
