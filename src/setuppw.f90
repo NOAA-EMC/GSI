@@ -312,7 +312,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              1,1,mype,nfldsig)
         
         ! Calculate difference in PW from station elevation to model surface elevation
-        pw_diff = (zges - data(istnelv,i)) * (prsitmp(1)*1000.0*qges(1)) / (rd*tvges(1))
+        pw_diff = (zges - data(istnelv,i)) * (prsitmp(1)*r1000*qges(1)) / (rd*tvges(1))
         
         ! Compute innovation
         ddiff = dpw - pw_diff - pwges
