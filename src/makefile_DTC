@@ -426,7 +426,7 @@ LIBsys          = $(MYLIBsys)
 	tintrp3.o \
 	tpause.o \
 	tpause_t.o \
-        tune_gsdpbl_height.o \
+        tune_pbl_height.o \
 	turbl.o \
 	turbl_ad.o \
 	turbl_tl.o \

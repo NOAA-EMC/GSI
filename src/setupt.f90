@@ -31,7 +31,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use jfunc, only: jiter,last,jiterstart,miter
 
   use guess_grids, only: nfldsig, hrdifsig,ges_ps,ges_lnprsl,ges_tv,ges_q,&
-       ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll,gsdpbl_height
+       ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll,pbl_height
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two,cg_term
@@ -801,11 +801,11 @@ endif    !   itype=120
         diffsfc=ddiff
         dthetav=ddiff*(r1000/prestsfc)**rd_over_cp_mass
 
-        call tintrp2a(gsdpbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
              1,1,mype,nfldsig)
 !
         if (dthetav< -1.0_r_kind) then
-           call tune_gsdpbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
+           call tune_pbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
         endif
 !
         ratio_PBL_height = (prest - thisPBL_height) * pblH_ration

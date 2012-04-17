@@ -48,7 +48,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
   use gridmod, only: pt_ll,eta1_ll,aeta1_ll
   use gridmod, only: regional,wrf_mass_regional,regional_time
   use gridmod, only: nsig,lat2,lon2,istart,jstart,twodvar_regional
-  use guess_grids, only: gsdpbl_height, load_gsdpbl_hgt
+  use guess_grids, only: pbl_height, load_gsdpbl_hgt
   use obsmod,  only: obs_setup,nsat1,ndat,dtype
   use guess_grids, only: ntguessig,ntguessfc
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten

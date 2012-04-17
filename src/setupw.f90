@@ -25,7 +25,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: get_ijk,nsig,twodvar_regional,regional,rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
-  use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll,gsdpbl_height
+  use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll,pbl_height
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
            three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400
   use constants, only: grav_ratio,flattening,deg2rad, &
@@ -1135,7 +1135,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         prestsfc=prest
         dudiffsfc=dudiff
         dvdiffsfc=dvdiff
-        call tintrp2a(gsdpbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
              1,1,mype,nfldsig)
         ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
         if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height

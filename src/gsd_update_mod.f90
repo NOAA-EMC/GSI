@@ -57,7 +57,7 @@ subroutine gsd_limit_ocean_q(qinc)
   
 ! Declare passed variables
   integer(i_kind) is_q
-  real(r_kind),dimension(lat2,lon2,nsig), intent(in) :: qinc
+  real(r_kind),dimension(lat2,lon2,nsig), intent(inout) :: qinc
 
 ! Declare local variables
   logical ice
@@ -103,9 +103,9 @@ subroutine gsd_limit_ocean_q(qinc)
                  if(rhgues(i,j,k) < 0.6_r_kind .and. k <=4 .and. qinc_rh < zero) then
                     qinc_rh=qinc_rh*rhgues(i,j,k)/1.0_r_kind
                  endif
-                 ges_q(i,j,k,it)=max(ges_q(i,j,k,it)+qinc_rh*qsatg(i,j,k),1.e-10_r_kind) 
+                 qinc(i,j,k)=qinc_rh*qsatg(i,j,k) 
               else
-                 ges_q(i,j,k,it)=max(ges_q(i,j,k,it)+qinc(i,j,k),1.e-10_r_kind) 
+                 qinc(i,j,k)=qinc(i,j,k) 
               end if   ! isli(i,j,1)
            end do
         end do

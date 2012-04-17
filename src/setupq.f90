@@ -90,7 +90,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
-  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl,gsdpbl_height
+  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl,pbl_height
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
@@ -736,7 +736,7 @@ endif    !   itype=120
            muse(i) .and. dpres > -1.0_r_kind ) then
         prestsfc=prest
         diffsfc=ddiff
-        call tintrp2a(gsdpbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
                 1,1,mype,nfldsig)
         ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
         if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height

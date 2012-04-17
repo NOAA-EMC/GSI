@@ -483,7 +483,7 @@ clean:
 	tintrp3.f90 \
 	tpause.f90 \
 	tpause_t.F90 \
-        tune_gsdpbl_height.f90 \
+        tune_pbl_height.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \
 	turbl_tl.f90 \

@@ -132,7 +132,7 @@ module guess_grids
   public :: ges_ps_lon,ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
-  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,gsdpbl_height
+  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
   public :: ges_gust,ges_vis,ges_pblh,ges_qsat
   public :: use_compress,nsig_ext,gpstop
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
@@ -235,7 +235,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_gust   ! wind gust speed
   real(r_kind),allocatable,dimension(:,:,:):: ges_vis    ! visibility
   real(r_kind),allocatable,dimension(:,:,:):: ges_pblh   ! pbl height
-  real(r_kind),allocatable,dimension(:,:,:):: gsdpbl_height  !  GSD PBL height in hPa
+  real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
                                                          ! Guess Fields ...
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsi  ! interface pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl  ! layer midpoint pressure
@@ -497,7 +497,7 @@ contains
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
             ges_gust(lat2,lon2,nfldsig),ges_vis(lat2,lon2,nfldsig),&
             ges_pblh(lat2,lon2,nfldsig), &
-            gsdpbl_height(lat2,lon2,nfldsig),stat=istatus)
+            pbl_height(lat2,lon2,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #endif /* HAVE_ESMF */
@@ -539,7 +539,7 @@ contains
                 ges_gust(i,j,n)=zero
                 ges_vis(i,j,n)=zero
                 ges_pblh(i,j,n)=zero
-                gsdpbl_height(i,j,n)=zero
+                pbl_height(i,j,n)=zero
              end do
           end do
        end do
@@ -983,9 +983,9 @@ contains
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error, istatus=',&
          istatus
-       deallocate(gsdpbl_height,stat=istatus)
+       deallocate(pbl_height,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GES_GRIDS(gsdpbl_height,..):  deallocate error, istatus=',&
+         write(6,*)'DESTROY_GES_GRIDS(pbl_height,..):  deallocate error, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
     if(update_pint) then
@@ -1702,23 +1702,23 @@ contains
 !  q_bk = water vapor mixing ratio
 
 
-             gsdpbl_height(i,j,jj) = zero
+             pbl_height(i,j,jj) = zero
              thsfc = thetav(1)
              k=1
-             DO while (abs(gsdpbl_height(i,j,jj)) < 0.0001_r_kind)
+             DO while (abs(pbl_height(i,j,jj)) < 0.0001_r_kind)
                if( thetav(k) > thsfc + 1.0_r_kind ) then
-                 gsdpbl_height(i,j,jj) = float(k) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
+                 pbl_height(i,j,jj) = float(k) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
                              max((thetav(k)-thetav(k-1)),0.01_r_kind)
                endif
                k=k+1
              ENDDO
-             if(abs(gsdpbl_height(i,j,jj)) < 0.0001_r_kind) gsdpbl_height(i,j,jj)=two
-             k=int(gsdpbl_height(i,j,jj))
+             if(abs(pbl_height(i,j,jj)) < 0.0001_r_kind) pbl_height(i,j,jj)=two
+             k=int(pbl_height(i,j,jj))
              if( k < 1 .or. k > nsig-1) then
-                write(6,*) ' Error in PBL height calculation ',mype,i,j,gsdpbl_height(i,j,jj)
+                write(6,*) ' Error in PBL height calculation ',mype,i,j,pbl_height(i,j,jj)
              endif
-             d=gsdpbl_height(i,j,jj) - k
-             gsdpbl_height(i,j,jj) = pbk(k) * (one-d) + pbk(k+1) * d
+             d=pbl_height(i,j,jj) - k
+             pbl_height(i,j,jj) = pbk(k) * (one-d) + pbk(k+1) * d
 
           end do
        end do
