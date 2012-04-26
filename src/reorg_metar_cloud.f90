@@ -9,6 +9,7 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 !
 ! PROGRAM HISTORY LOG:
 !    2010-04-21  Hu  initial
+!    2011-10-21  Hu  add code to delete dust and haze report
 !
 !  input argument list:
 !     cdata     - METRA cloud observation
@@ -69,10 +70,17 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
   integer(i_kind) :: i,j,k,i1,j1,ic,ista
   integer(i_kind) ::  ista_min
   real(r_kind) ::  min_dist, dist
+  real(r_kind) ::  awx, cg_dewpdep, cldamt,cldhgt,cl_base_ista
+  integer(i_kind) ::  idust,ihaze
 
   real(r_double) rstation_id
   character(8) :: cstation1,cc,ci
   equivalence(cstation1,rstation_id)
+
+  real(r_kind)    ::     spval_p
+  parameter (spval_p = 99999._r_kind)
+
+
 !
 ! 
   isprd=int(metar_impact_radius + half)
@@ -99,6 +107,51 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
       endif
     ENDDO  !  ic
   ENDDO  !  i
+!
+! Check Haze and Dust station
+!
+  DO i=1,ndata
+     rstation_id=cdata(1,i)
+     if(cdata(22,i) < 50 ) then
+        idust=0
+        ihaze=0
+        DO j=1,3
+           awx  = cdata(17+j,i)        ! weather
+           if(awx==5._r_kind  .or. awx==105._r_kind .or. awx==104._r_kind) ihaze=ihaze+1
+           if( (awx >=6._r_kind .and. awx <= 9._r_kind) .or.     &
+               (awx >=30._r_kind .and. awx <= 35._r_kind) .or.   &
+               (awx ==76._r_kind .or. awx == 111._r_kind)        &
+             )     idust=idust+1
+        ENDDO ! j
+
+        if(ihaze > 0 .or. idust > 0 ) then
+!           write(*,'(a,a8,3F10.1)') 'dust or haze report at station ',rstation_id, (cdata(17+j,i),j=1,1)
+           cg_dewpdep = 100._r_kind * cdata(24,i)  ! 100. = dry adiabatic lapse rate in m/K
+           DO j=1,3
+              cldamt =  cdata(5+j,i)         ! cloud amount
+              cldhgt =  int(cdata(11+j,i))   ! cloud bottom height
+              if(abs(cldamt) < spval_p .and. abs(cldhgt) < spval_p) then
+                 if( (cldamt > 3.5_r_kind .and. cldamt < 9.5_r_kind ) .or. abs(cldamt-12._r_kind) < 0.0001_r_kind  ) then
+                    cl_base_ista = cldhgt
+!   Check - compare estimated cloud base from dewpoint depression (calc above as cg_dewpdep)
+!             with ceiling height AGL.  We allow a slop room of 200m extra.  Stan B. and John B.-31Aug2011 
+                    if (cg_dewpdep > -10._r_kind .and. (cg_dewpdep-300._r_kind > cl_base_ista )) then
+                       cdata(22,i)=200
+                       write (6,'(a,a,3(a,f10.1))') 'Dust-ceiling IDed ', rstation_id,   &
+                                     ' dewpoint depr *100=',cg_dewpdep, 'ceiling=',cl_base_ista
+                    end if
+                    if (cg_dewpdep < -990._r_kind) then
+                       cdata(22,i)=200
+                       write (6,*) 'Dust-ceiling possible, could not calc dewpoint, do not use ceiling ',rstation_id
+                    end if
+                 endif ! cloud ceiling
+              endif
+           ENDDO ! j
+        endif  ! ihaze > 0 .or. idust > 0
+     endif 
+  ENDDO  !  i
+
+!
 !
 !  find the nearest METAR station for each grid point
 !

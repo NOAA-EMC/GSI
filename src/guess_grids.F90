@@ -90,6 +90,7 @@ module guess_grids
 !   2011-11-01  eliu    - modified condition to allocate/deallocate arrays related to 
 !                         cloud water tendencies and derivatives 
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
+!   2012-01-11  Hu      - add GSD PBL height
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -111,6 +112,7 @@ module guess_grids
   public :: destroy_gesfinfo
   public :: load_prsges
   public :: load_geop_hgt
+  public :: load_gsdpbl_hgt
   public :: add_rtm_layers
   public :: load_fact10
   public :: comp_fact10
@@ -130,7 +132,7 @@ module guess_grids
   public :: ges_ps_lon,ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
-  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll
+  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
   public :: ges_gust,ges_vis,ges_pblh,ges_qsat
   public :: use_compress,nsig_ext,gpstop
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
@@ -233,7 +235,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_gust   ! wind gust speed
   real(r_kind),allocatable,dimension(:,:,:):: ges_vis    ! visibility
   real(r_kind),allocatable,dimension(:,:,:):: ges_pblh   ! pbl height
-
+  real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
                                                          ! Guess Fields ...
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsi  ! interface pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl  ! layer midpoint pressure
@@ -494,7 +496,8 @@ contains
             ges_q(lat2,lon2,nsig,nfldsig),&
             ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
             ges_gust(lat2,lon2,nfldsig),ges_vis(lat2,lon2,nfldsig),&
-            ges_pblh(lat2,lon2,nfldsig),stat=istatus)
+            ges_pblh(lat2,lon2,nfldsig), &
+            pbl_height(lat2,lon2,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 #endif /* HAVE_ESMF */
@@ -536,6 +539,7 @@ contains
                 ges_gust(i,j,n)=zero
                 ges_vis(i,j,n)=zero
                 ges_pblh(i,j,n)=zero
+                pbl_height(i,j,n)=zero
              end do
           end do
        end do
@@ -978,6 +982,10 @@ contains
          stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error, istatus=',&
+         istatus
+       deallocate(pbl_height,stat=istatus)
+    if (istatus/=0) &
+         write(6,*)'DESTROY_GES_GRIDS(pbl_height,..):  deallocate error, istatus=',&
          istatus
 #endif /* HAVE_ESMF */
     if(update_pint) then
@@ -1636,6 +1644,88 @@ contains
 
     return
   end subroutine load_geop_hgt
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE: load_gsdpbl_hgt --- Populate PBL height
+!
+! !INTERFACE:
+!
+  subroutine load_gsdpbl_hgt(mype)
+
+! !USES:
+
+    use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
+    use gridmod, only: lat2, lon2, nsig, &
+         twodvar_regional
+
+    implicit none
+
+! !INPUT PARAMETERS:
+
+
+! !DESCRIPTION: populate guess geopotential height
+!
+!
+! !REVISION HISTORY:
+!   2011-06-06  Ming Hu
+!
+! !REMARKS:
+!   language: f90
+!   machine:  JET
+!
+! !AUTHOR:
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind)              , intent(in   ) :: mype
+    integer(i_kind) i,j,k,jj
+    real(r_kind),dimension(nsig):: thetav
+    real(r_kind),dimension(nsig):: pbk
+    real(r_kind) :: thsfc, d
+
+    if (twodvar_regional) return
+
+!   Compute geopotential height at midpoint of each layer
+    do jj=1,nfldsig
+       do j=1,lon2
+          do i=1,lat2
+
+             do k=1,nsig
+                pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
+                thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
+             end do
+!  q_bk = water vapor mixing ratio
+
+
+             pbl_height(i,j,jj) = zero
+             thsfc = thetav(1)
+             k=1
+             DO while (abs(pbl_height(i,j,jj)) < 0.0001_r_kind)
+               if( thetav(k) > thsfc + 1.0_r_kind ) then
+                 pbl_height(i,j,jj) = float(k) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
+                             max((thetav(k)-thetav(k-1)),0.01_r_kind)
+               endif
+               k=k+1
+             ENDDO
+             if(abs(pbl_height(i,j,jj)) < 0.0001_r_kind) pbl_height(i,j,jj)=two
+             k=int(pbl_height(i,j,jj))
+             if( k < 1 .or. k > nsig-1) then
+                write(6,*) ' Error in PBL height calculation ',mype,i,j,pbl_height(i,j,jj)
+             endif
+             d=pbl_height(i,j,jj) - k
+             pbl_height(i,j,jj) = pbk(k) * (one-d) + pbk(k+1) * d
+
+          end do
+       end do
+    end do
+
+    return
+  end subroutine load_gsdpbl_hgt
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !

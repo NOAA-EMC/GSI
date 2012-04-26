@@ -33,6 +33,7 @@ LIBcrtm   = -L$(CORELIB) -lcrtm
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBnemsio = -L$(CORELIB) -lnemsio
+LIBrrcld  = -L$(CORELIB) -lgsdcloud
 
 # --------------------------
 # Default Baselibs Libraries
@@ -73,6 +74,7 @@ LIBsys          = $(MYLIBsys)
   OBJS	= \
 	adjtest.o \
 	aeroinfo.o \
+        aircraftobsqc.o \
 	anberror.o \
 	anbkerror.o \
 	aniso_ens_util.o \
@@ -101,7 +103,7 @@ LIBsys          = $(MYLIBsys)
 	calctends_no_ad.o \
 	calctends_no_tl.o \
 	chemmod.o \
-        cloud_efr.o \
+	cloud_efr.o \
 	clw_mod.o \
 	cmaq_routines.o \
         co_mop_ak.o  \
@@ -119,13 +121,14 @@ LIBsys          = $(MYLIBsys)
 	convinfo.o \
 	convthin.o \
 	crtm_interface.o \
+	cwhydromod.o \
 	cvsection.o \
-        cwhydromod.o \
 	deter_nst.o \
 	deter_sfc_mod.o \
 	dtast.o \
 	egrid2agrid_mod.o \
 	enorm_state.o \
+	ensctl2state.o \
 	evaljgrad.o \
 	evaljcdfi.o \
 	evaljo.o \
@@ -135,9 +138,11 @@ LIBsys          = $(MYLIBsys)
 	fill_nmm_grid2.o \
 	fpvsx_ad.o \
 	general_read_gfsatm.o \
+	general_read_nmmb.o \
 	general_specmod.o \
 	general_spectral_transforms.o \
 	general_sub2grid_mod.o \
+	general_tll2xy_mod.o \
 	general_transform.o \
 	gengrid_vars.o \
 	genqsat.o \
@@ -147,7 +152,10 @@ LIBsys          = $(MYLIBsys)
 	get_derivatives2.o \
 	get_gefs_ensperts_dualres.o \
 	get_gefs_for_regional.o \
+	get_nmmb_ensperts.o \
+	get_pseudo_ensperts.o \
 	get_semimp_mats.o \
+	get_wrf_nmm_ensperts.o \
 	getprs.o \
 	getsiga.o \
 	get_wrf_mass_ensperts_netcdf.o \
@@ -161,6 +169,7 @@ LIBsys          = $(MYLIBsys)
 	gscond_ad.o \
 	gsd_terrain_match_surfTobs.o \
 	gsdcloudanalysis.o \
+        gsd_update_mod.o \
 	gsi_4dvar.o \
 	gsi_4dcouplermod.o \
 	gsi_bundlemod.o \
@@ -185,13 +194,9 @@ LIBsys          = $(MYLIBsys)
 	intdw.o \
 	intgps.o \
 	intgust.o \
-	intjcpdry.o \
+	intjcmod.o \
 	intjo.o \
 	intlag.o \
-	intlimg.o \
-	intlimp.o \
-	intlimq.o \
-        intlimv.o   \
 	intoz.o \
 	intpblh.o \
 	intpcp.o \
@@ -234,7 +239,6 @@ LIBsys          = $(MYLIBsys)
 	m_tick.o \
 	mpeu_mpif.o \
 	mpeu_util.o \
-	missing_routines.o \
 	mod_nmmb_to_a.o \
 	mod_strong.o \
 	mod_vtrans.o \
@@ -372,6 +376,7 @@ LIBsys          = $(MYLIBsys)
 	sqrtmin.o \
 	sst_retrieval.o \
 	state2control.o \
+	state2ensctl.o \
 	state_vectors.o \
 	statsco.o \
 	statsconv.o \
@@ -385,11 +390,8 @@ LIBsys          = $(MYLIBsys)
 	stpdw.o \
 	stpgps.o \
 	stpgust.o \
+	stpjcmod.o \
 	stpjo.o \
-	stpjcpdry.o \
-	stplimq.o \
-	stplimg.o \
-	stplimp.o \
 	stpoz.o \
 	stppblh.o \
 	stppcp.o \
@@ -405,7 +407,6 @@ LIBsys          = $(MYLIBsys)
 	stpt.o \
 	stptcp.o \
 	stpvis.o \
-        stplimv.o \
 	stpw.o \
 	strong_bal_correction.o \
 	strong_baldiag_inc.o \
@@ -415,7 +416,7 @@ LIBsys          = $(MYLIBsys)
 	sub2grid.o \
 	support_2dvar.o \
 	stub_set_crtm_aerosol.o \
-        stub_pertmod.o \
+	stub_pertmod.o \
         stub_timermod.o \
 	tendsmod.o \
 	test_obsens.o \
@@ -425,6 +426,7 @@ LIBsys          = $(MYLIBsys)
 	tintrp3.o \
 	tpause.o \
 	tpause_t.o \
+        tune_pbl_height.o \
 	turbl.o \
 	turbl_ad.o \
 	turbl_tl.o \
@@ -435,6 +437,7 @@ LIBsys          = $(MYLIBsys)
 	unhalf_nmm_grid2.o \
 	update_guess.o \
 	update_geswtend.o \
+	ut_gsibundle.o \
 	wind_fft.o \
 	wrf_binary_interface.o \
 	wrf_mass_guess_mod.o \
@@ -464,7 +467,7 @@ $(LIB):	 $(OBJS)
 	$(AR) -ruv $(LIB) $(OBJS)
 
 $(EXE_FILE):  $(OBJS) $(LIB) gsimain.o
-	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys)
+	$(F90) $(LDFLAGS) -o gsi.exe gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBnemsio) $(LIBw3) $(LIBbacio) $(LIBbufr) $(LIBsp) $(LIBmpeu) $(LIBwrf) $(LIBnetcdf) $(LIBsys) $(LIBrrcld)
 	cp $(EXE_FILE) $(COREBIN)
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)

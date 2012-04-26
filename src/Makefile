@@ -190,6 +190,7 @@ clean:
   SRCSF90C = \
 	adjtest.f90 \
 	aeroinfo.f90 \
+        aircraftobsqc.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
 	aniso_ens_util.f90 \
@@ -284,6 +285,7 @@ clean:
 	gscond_ad.f90 \
 	gsd_terrain_match_surfTobs.f90 \
 	gsdcloudanalysis.F90 \
+        gsd_update_mod.f90 \
 	gsi_4dvar.f90 \
 	gsi_4dcouplermod.f90 \
 	gsi_bundlemod.F90 \
@@ -481,6 +483,7 @@ clean:
 	tintrp3.f90 \
 	tpause.f90 \
 	tpause_t.F90 \
+        tune_pbl_height.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \
 	turbl_tl.f90 \

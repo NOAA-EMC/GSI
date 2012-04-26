@@ -851,7 +851,7 @@ subroutine convert_netcdf_mass
        write(6,*)' staggering=',staggering
        write(6,*)' start_index=',start_index
        write(6,*)' end_index=',end_index
-    call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
             start_index,end_index,               & !dom
@@ -881,8 +881,6 @@ subroutine convert_netcdf_mass
             start_index,end_index,               & !mem
             start_index,end_index,               & !pat
             ierr                                 )
-       field3=-20.0_r_single
-       field3(:,:,nsig_regional)=-10.0_r_single
        do k=1,nsig_regional
           write(6,*)' k,max,min,mid TTEN=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                    field3(nlon_regional/2,nlat_regional/2,k)
@@ -1665,6 +1663,7 @@ subroutine update_netcdf_mass
 !   2008-03-29  Hu  - bug fix: replace XICE with SEAICE and 
 !                              comment out update for SMOIS (the actually 
 !                              variable is Landmask there).
+!   2012-01-09  Hu  - add code to update START_TIME to analysis time
 !
 !   input argument list:
 !
@@ -1684,6 +1683,8 @@ subroutine update_netcdf_mass
   use guess_grids, only: ntguessig
 
   implicit none
+
+  include 'netcdf.inc'
 
 ! Declare local parameters
 
@@ -2163,6 +2164,15 @@ subroutine update_netcdf_mass
   deallocate(field1,field2,field2b,ifield2,field3,field3u,field3v)
   call ext_ncd_ioclose(dh1, Status)
   close(iunit)
+!
+!  update START_TIME to analysis time
+!
+  ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
+  IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_TEXT (dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT ', NF_STRERROR(ierr)
+  ierr = NF_CLOSE(dh1)
+  IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
   
 end subroutine update_netcdf_mass
 

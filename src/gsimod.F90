@@ -97,7 +97,13 @@
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
-                            metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
+                            metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs, &
+                            l_sfcobserror_ramp_t, l_sfcobserror_ramp_q, &
+                            l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,l_PBL_pseudo_SurfobsUV, &
+                            pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
+                            l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
+                            l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold, &
+                            i_conserve_thetaV_iternum,l_cld_bld, cld_bld_hgt
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -664,9 +670,35 @@
 !      dfi_radar_latent_heat_time_period     -   DFI forward integration window in minutes
 !      metar_impact_radius  - metar low cloud observation impact radius in grid number
 !      l_gsd_terrain_match_surfTobs - if .true., GSD terrain match for surface temperature observation
+!      l_sfcobserror_ramp_t  - namelist logical for adjusting surface temperature observation error
+!      l_sfcobserror_ramp_q  - namelist logical for adjusting surface moisture observation error
+!      l_PBL_pseudo_SurfobsT  - if .true. produce pseudo-obs in PBL layer based on surface obs T
+!      l_PBL_pseudo_SurfobsQ  - if .true. produce pseudo-obs in PBL layer based on surface obs Q
+!      l_PBL_pseudo_SurfobsUV - if .true. produce pseudo-obs in PBL layer based on surface obs UV
+!      pblH_ration - percent of the PBL height within which to add pseudo-obs (default:0.75)
+!      pps_press_incr - pressure increase for each additional pseudo-obs 
+!                       on top of previous level (default:30hPa)
+!      l_gsd_limit_ocean_q      - if .true. do GSD limitation of Q over ocean
+!      l_pw_hgt_adjust      - if .true. do GSD PW adjustment for model vs. obs station height
+!      l_limit_pw_innov     - if .true. do GSD limitation of PW obs
+!      max_innov_pct        - sets limit of PW ob to a percent of the background value (0-1)
+!      l_cleanSnow_WarmTs   - if .true. do GSD limitation of using retrieved snow over warn area
+!                                               (Ts > r_cleanSnow_WarmTs_threshold) 
+!      r_cleanSnow_WarmTs_threshold - threshold for using retrieved snow over warn area
+!      l_conserve_thetaV    - if .true. conserve thetaV during moisture adjustment in cloud analysis
+!      i_conserve_thetaV_iternum    - iteration number for conserving thetaV during moisture adjustment
+!      l_cld_bld            - if .true. do GSD GOES cloud building
+!      cld_bld_hgt          - sets limit below which GOES cloud building occurs (default:1200m)
+!
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowCloud, &
-                                l_gsd_terrain_match_surfTobs
+                                l_gsd_terrain_match_surfTobs, &
+                                l_sfcobserror_ramp_t,l_sfcobserror_ramp_q, &
+                                l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,l_PBL_pseudo_SurfobsUV, &
+                                pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
+                                l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
+                                l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold,  &
+                                i_conserve_thetaV_iternum,l_cld_bld, cld_bld_hgt
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&

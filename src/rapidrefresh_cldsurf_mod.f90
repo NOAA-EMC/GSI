@@ -22,6 +22,35 @@ module rapidrefresh_cldsurf_mod
 !                                      that indicate low cloud base
 !   def l_gsd_terrain_match_surfTobs - namelist logical for GSD terrain
 !                                       match for  surface temperature observation
+!   def l_sfcobserror_ramp_t  - namelist logical for adjusting surface temperature observation error
+!   def l_sfcobserror_ramp_q  - namelist logical for adjusting surface moisture observation error
+!   def l_PBL_pseudo_SurfobsT - namelist logical for producing pseudo-obs in PBL 
+!                                       layer based on surface obs T
+!   def l_PBL_pseudo_SurfobsQ - namelist logical for producing pseudo-obs in PBL 
+!                                       layer based on surface obs Q
+!   def l_PBL_pseudo_SurfobsUV - namelist logical for producing pseudo-obs in PBL 
+!                                       layer based on surface obs UV
+!   def pblH_ration - percent of the PBL height within which to add 
+!                                       pseudo-obs (default:0.75)
+!   def pps_press_incr - pressure increase for each additional pseudo-obs 
+!                                       on top of previous level (default:30hPa)
+!   def l_gsd_limit_ocean_q      - namelist logical for doing GSD limitation of Q over ocean
+!   def l_pw_hgt_adjust      - namelist logical for doing precipitable water (PW) height adjustment
+!                                       based on obs vs. model height
+!   def l_limit_pw_innov     - namelist logical for limiting size of PW innovation
+!   def max_innov_pct        - namelist real for limit size of PW innovation to percent
+!                                       of background value (value = 0 to 1)
+!   def l_cleanSnow_WarmTs   - namelist logical for doing GSD limitation of using
+!                                       retrieved snow over warn area (Ts > 5C)
+!   def l_conserve_thetaV    - namelist logical for conserving thetaV during moisture
+!                                       adjustment in cloud analysis
+!   def r_cleanSnow_WarmTs_threshold - namelist threshold for using retrieved snow over warn area
+!
+!   def i_conserve_thetaV_iternum    - namelist iteration number for conserving 
+!                                           thetaV during moisture adjustment
+!   def l_cld_bld            - namelist logical for GOES cloud building
+!   def cld_bld_hgt          - namelist real for height limit, below which you build clouds
+!                                       (default = 1200 meters)
 !
 ! attributes:
 !   language: f90
@@ -29,7 +58,7 @@ module rapidrefresh_cldsurf_mod
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind
+  use kinds, only: r_kind, i_kind
   implicit none
 
 ! set default to private
@@ -41,13 +70,46 @@ module rapidrefresh_cldsurf_mod
   public :: metar_impact_radius
   public :: metar_impact_radius_lowCloud
   public :: l_gsd_terrain_match_surfTobs
+  public :: l_sfcobserror_ramp_t
+  public :: l_sfcobserror_ramp_q
+  public :: l_PBL_pseudo_SurfobsT
+  public :: l_PBL_pseudo_SurfobsQ
+  public :: l_PBL_pseudo_SurfobsUV
+  public :: pblH_ration
+  public :: pps_press_incr
+  public :: l_gsd_limit_ocean_q
+  public :: l_pw_hgt_adjust
+  public :: l_limit_pw_innov
+  public :: max_innov_pct
+  public :: l_cleanSnow_WarmTs
+  public :: l_conserve_thetaV
+  public :: r_cleanSnow_WarmTs_threshold
+  public :: i_conserve_thetaV_iternum
+  public :: l_cld_bld
+  public :: cld_bld_hgt
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
   real(r_kind)  metar_impact_radius
   real(r_kind)  metar_impact_radius_lowCloud
   logical l_gsd_terrain_match_surfTobs
-
+  logical l_sfcobserror_ramp_t
+  logical l_sfcobserror_ramp_q
+  logical l_PBL_pseudo_SurfobsT
+  logical l_PBL_pseudo_SurfobsQ
+  logical l_PBL_pseudo_SurfobsUV
+  logical l_gsd_limit_ocean_q
+  real(r_kind)  pblH_ration
+  real(r_kind)  pps_press_incr
+  logical l_pw_hgt_adjust
+  logical l_limit_pw_innov
+  real(r_kind) max_innov_pct
+  logical l_cleanSnow_WarmTs
+  logical l_conserve_thetaV
+  real(r_kind)    r_cleanSnow_WarmTs_threshold
+  integer(i_kind) i_conserve_thetaV_iternum
+  logical l_cld_bld
+  real(r_kind) cld_bld_hgt
 
 contains
 
@@ -103,6 +165,24 @@ contains
       enddo
       l_cloud_analysis = all(have_hmeteor)
     end if
+
+    l_sfcobserror_ramp_t  = .false.  ! .true. = turn on GSD surface temperature observation error adjustment
+    l_sfcobserror_ramp_q  = .false.  ! .true. = turn on GSD surface moisture observation error adjustment
+    l_PBL_pseudo_SurfobsT  = .false.                  ! .true. = turn on PBL pseudo-obs T
+    l_PBL_pseudo_SurfobsQ  = .false.                  ! .true. = turn on PBL pseudo-obs Q
+    l_PBL_pseudo_SurfobsUV = .false.                  ! .true. = turn on PBL pseudo-obs UV
+    pblH_ration = 0.75_r_kind                         ! in percent
+    pps_press_incr = 30.0_r_kind                      ! in hPa
+    l_gsd_limit_ocean_q    = .false.                      ! .true. = turn on limitation of Q over ocean
+    l_pw_hgt_adjust    = .false.                      ! .true. = turn on PW obs height adjustment
+    l_limit_pw_innov   = .false.                      ! .true. = turn on limit for size of PW innovation
+    max_innov_pct      = 0.1_r_kind                   ! in percent of background PW
+    l_cleanSnow_WarmTs = .false.                      ! .true. = turn on limitation of using snow when Ts>5
+    l_conserve_thetaV  = .false.                      ! .true. = turn on conserving thetaV
+    r_cleanSnow_WarmTs_threshold = 8.0_r_kind         ! Ts threshold for cleaning snow
+    i_conserve_thetaV_iternum = 3                     ! iteration number for conserving thetaV
+    l_cld_bld          = .false.                      ! .true. = turn on GOES cloud building
+    cld_bld_hgt        = 1200.0_r_kind                ! Height (meters) below which to build clouds
 
     return
   end subroutine init_rapidrefresh_cldsurf

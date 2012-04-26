@@ -61,6 +61,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-05-06  Su      - modify the observation gross check error
 !   2011-08-09  pondeca - correct bug in qcgross use
 !   2011-12-14  wu      - add code for rawinsonde level enhancement ( ext_sonde )
+!   2011-10-14  Hu      - add code for adjusting surface moisture observation error
+!   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
+!                                       layer based on surface obs Q
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -87,7 +90,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
-  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl
+  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl,pbl_height
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
@@ -98,6 +101,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: icsubtype
   use converr, only: ptabl 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
+  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr
   implicit none
 
 ! Declare passed variables
@@ -128,12 +133,12 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) qob,qges,qsges
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
-  real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact
+  real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
   real(r_kind) psges,sfcchk,ddiff,errorx
   real(r_kind) cg_q,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2,qcgross
   real(r_kind) grsmlt,ratio,val2,obserror
   real(r_kind) obserrlm,residual,ressw2,scale,ress,huge_error
-  real(r_kind) val,valqc,rwgt
+  real(r_kind) val,valqc,rwgt,prest
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nele,nobs):: data
@@ -166,6 +171,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(q_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+  real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -272,6 +278,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
          itype=ictype(ikx)
          rstation_id     = data(id,i)
         error=data(ier2,i)
+        
+        prest=r10*exp(dpres)     ! in mb
      endif ! (in_curbin)
 
 !    Link observation to appropriate observation bin
@@ -338,6 +346,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           1,nsig,mype,nfldsig)
 
      presq=r10*exp(dpres)
+     itype=ictype(ikx)
      dprpx=zero
      if(itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
         dprpx=abs(one-exp(dpres-log(psges)))*r10
@@ -375,6 +384,13 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    amount of extrapolation.
 
      rlow=max(sfcchk-dpres,zero)
+! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
+     if(l_sfcobserror_ramp_q) then
+        ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)
+     else
+        ramp=rlow
+     endif
+
      rhgh=max(dpres-r0_001-rsig,zero)
      
      if(luse(i))then
@@ -383,7 +399,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
 
-     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*rlow)
+     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*ramp*0.001_r_kind)
 
 !    Check to see if observations is above the top of the model (regional mode)
      if (dpres > rsig) ratio_errors=zero
@@ -714,6 +730,62 @@ endif    !   itype=120
 
 !!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
 
+!!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
+     if( .not. last .and. l_PBL_pseudo_SurfobsQ .and.         &
+         ( itype==181 .or. itype==183 .or.itype==187 )  .and. &
+           muse(i) .and. dpres > -1.0_r_kind ) then
+        prestsfc=prest
+        diffsfc=ddiff
+        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+                1,1,mype,nfldsig)
+        ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
+        if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
+        prest = prest - pps_press_incr
+        DO while (prest > thisPBL_height)
+           ratio_PBL_height=1.0_r_kind-(prestsfc-prest)/(prestsfc-thisPBL_height)
+              allocate(qtail(ibin)%head%llpoint,stat=istat)
+              if(istat /= 0)write(6,*)' failure to write qtail%llpoint '
+              qtail(ibin)%head => qtail(ibin)%head%llpoint
+
+!!! find qob 
+           qob = data(iqob,i)
+
+!    Put obs pressure in correct units to get grid coord. number
+           dpres=log(prest/r10)
+           call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+
+
+! Interpolate guess moisture to observation location and time
+           call tintrp3(ges_q,qges,dlat,dlon,dpres,dtime, &
+                             hrdifsig,1,mype,nfldsig)
+           call tintrp3(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+                       1,mype,nfldsig)
+
+!!! Set (i,j,k) indices of guess gridpoint that bound obs location
+           call get_ijk(mm1,dlat,dlon,dpres,qtail(ibin)%head%ij(1),qtail(ibin)%head%wij(1))
+!!! find ddiff       
+
+! Compute innovations
+            ddiff=diffsfc*(0.3_r_kind + 0.7_r_kind*ratio_PBL_height)
+
+           error=one/(data(ier2,i)*qsges)
+
+           qtail(ibin)%head%res     = ddiff
+           qtail(ibin)%head%err2    = error**2
+           qtail(ibin)%head%raterr2 = ratio_errors**2
+           qtail(ibin)%head%time    = dtime
+           qtail(ibin)%head%b       = cvar_b(ikx)
+           qtail(ibin)%head%pg      = cvar_pg(ikx)
+           qtail(ibin)%head%luse    = luse(i)
+
+           qtail(ibin)%head%diags => obsdiags(i_q_ob_type,ibin)%tail
+
+           prest = prest - pps_press_incr
+
+        ENDDO
+
+     endif  ! 181,183,187
+!!!!!!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!!!!!!!!
 
 ! End of loop over observations
   end do

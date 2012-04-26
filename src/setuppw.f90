@@ -45,6 +45,8 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2007-08-28      su  - modify gross check error 
 !   2008-12-03  todling - changed handle of tail%time
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
+!   2011-11-19  Hofmann - doing precipitable water (PW) height adjustment
+!                                       based on obs vs. model height
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -63,21 +65,22 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
-  use guess_grids, only: ges_q,ges_prsi,hrdifsig,nfldsig
+  use guess_grids, only: ges_q,ges_prsi,hrdifsig,nfldsig, ges_z, ges_tv
   use gridmod, only: lat2,lon2,nsig,get_ij
   use obsmod, only: pwhead,pwtail,rmiss_single,i_pw_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: pw_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use constants, only: zero,one,tpwcon,r1000, &
+  use constants, only: zero,one,tpwcon,r1000,r10, &
        tiny_r_kind,three,half,two,cg_term,huge_single,&
-       wgtlim,r10
+       wgtlim, rd
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use rapidrefresh_cldsurf_mod, only: l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct
   implicit none
 
 ! Declare passed variables
@@ -98,7 +101,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind):: pwges,grsmlt,dlat,dlon,dtime,obserror, &
        obserrlm,residual,ratio,dpw
-  real(r_kind) error,ddiff
+  real(r_kind) error,ddiff, pw_diff, newdiff
   real(r_kind) ressw2,ress,scale,val2,val,valqc
   real(r_kind) rat_err2,exp_arg,term,ratio_errors,rwgt
   real(r_kind) cg_pw,wgross,wnotgross,wgt,arg
@@ -108,7 +111,9 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(lat2,lon2,nfldsig)::rp2
   real(r_kind),dimension(nsig+1):: prsitmp
+  real(r_kind),dimension(nsig):: qges, tvges
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
+  real(r_kind) zges
 
   integer(i_kind) ikxx,nn,istat,ibin,ioff
   integer(i_kind) i,nchar,nreal,k,j,jj,ii,l,mm1
@@ -281,6 +286,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
  
+     ! Interpolate model PW to obs location
      call tintrp2a(rp2,pwges,dlat,dlon,dtime, &
         hrdifsig,1,1,mype,nfldsig)
 
@@ -288,8 +294,34 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime, &
          hrdifsig,1,nsig+1,mype,nfldsig)
 
-! Compute innovations
-     ddiff=dpw-pwges
+     if(.not.l_pw_hgt_adjust) then
+        ! Compute innovation
+        ddiff = dpw - pwges
+     else
+
+        ! Interpolate model q to obs location
+        call tintrp2a(ges_q,qges,dlat,dlon,dtime, &
+             hrdifsig,1,nsig,mype,nfldsig)
+        
+        ! Interpolate model T_v to obs location
+        call tintrp2a(ges_tv,tvges,dlat,dlon,dtime, &
+             hrdifsig,1,nsig,mype,nfldsig)
+        
+        ! Interpolate model z to obs location
+        call tintrp2a(ges_z,zges,dlat,dlon,dtime,hrdifsig,&
+             1,1,mype,nfldsig)
+        
+        ! Calculate difference in PW from station elevation to model surface elevation
+        pw_diff = (zges - data(istnelv,i)) * (prsitmp(1)*r1000*qges(1)) / (rd*tvges(1))
+        
+        ! Compute innovation
+        ddiff = dpw - pw_diff - pwges
+     end if
+
+     if (l_limit_pw_innov) then
+        ! Limit size of PW innovation to a percent of the background value
+        ddiff = sign(min(abs(ddiff),max_innov_pct*pwges),ddiff)
+     end if
 
 !    Gross checks using innovation
 

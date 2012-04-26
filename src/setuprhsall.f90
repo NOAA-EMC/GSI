@@ -77,6 +77,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2010-10-14  pagowski - added pm2_5 conventional obs
 !   2011-02-16      zhu - add gust,vis,pblh
 !   2011-04-07  todling - newpc4pred now in radinfo
+!   2012-01-11  Hu      - add load_gsdgeop_hgt to compute 2d subdomain pbl heights from the guess fields
+!   2012-04-08  Hu      - add code to skip the observations that are not used in minimization
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -96,7 +98,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,fv,zero_quad
-  use guess_grids, only: load_prsges,load_geop_hgt
+  use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tv,ges_q,ges_tsen
   use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
        nchan_total,ndat,obs_setup,&
@@ -109,7 +111,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
-  use gridmod, only: nsig,twodvar_regional
+  use gridmod, only: nsig,twodvar_regional,wrf_mass_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use jfunc, only: jiter,jiterstart,miter,first,last
   use qcmod, only: npres_print
@@ -296,6 +298,11 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    endif
   endif
 
+! Compute 2d subdomain pbl heights from the guess fields
+   if (wrf_mass_regional) then
+      call load_gsdpbl_hgt(mype)
+   endif
+
 ! Compute derived quantities on grid
   call compute_derived(mype,init_pass)
 
@@ -435,6 +442,17 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !             Set up conventional pbl height data
               else if(obstype=='pblh' .and. getindex(svars2d,'pblh')>0) then
                  call setuppblh(lunin,mype,bwork,awork(1,i_pblh),nele,nobs,is,conv_diagsave)
+
+!             skip this kind of data because they are not used in the var analysis
+              else if(obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
+                      obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
+                      obstype == 'larccld' ) then
+                 read(lunin,iostat=ier)
+                 if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
+
+!
+              else
+                 write(6,*) 'Warning, unknown data type in setuprhsall,', obstype
 
               end if
 

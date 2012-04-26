@@ -25,7 +25,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: get_ijk,nsig,twodvar_regional,regional,rotate_wind_xy2ll
   use guess_grids, only: nfldsig,hrdifsig,geop_hgtl,sfcmod_gfs
   use guess_grids, only: ges_u,ges_v,tropprs,ges_ps,ges_z,sfcmod_mm5
-  use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll
+  use guess_grids, only: ges_tv,ges_lnprsl,comp_fact10,pt_ll,pbl_height
   use constants, only: zero,half,one,tiny_r_kind,two,cg_term, &
            three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400
   use constants, only: grav_ratio,flattening,deg2rad, &
@@ -34,6 +34,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use converr, only: ptabl
+  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsUV, pblH_ration,pps_press_incr
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
@@ -119,7 +120,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-03-08  parrish - for regional=.true., convert wind components in rdiagbuf from grid relative
 !                           to earth relative, using subroutine rotate_wind_xy2ll.
 !   2011-05-05  su      - ome quality control for satellite satellite winds 
+!   2012-01-10  hu      - add additional quality control for PBL profiler 223, 224, 227 
 !   2011-12-14  wu      - add code for rawinsonde level enhancement ( ext_sonde )
+!   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
+!                                       layer based on surface obs UV
 !
 ! REMARKS:
 !   language: f90
@@ -198,6 +202,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(w_ob_type),pointer :: my_head
   type(obs_diag),pointer :: my_diag
+  real(r_kind) :: thisPBL_height,ratio_PBL_height,prest,prestsfc,dudiffsfc,dvdiffsfc
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -615,6 +620,15 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      dudiff=uob-ugesin
      dvdiff=vob-vgesin
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
+
+! QC PBL profiler  227 and 223, 224
+     if(itype==227 .or. itype==223 .or. itype==224) then
+        if(abs(uob) < 1.0_r_kind .and. abs(vob) <1.0_r_kind )  then
+           muse(i)=.false.
+           data(iqc,i)=10.0_r_kind
+           data(iuse,i)=101.0_r_kind
+        endif
+     endif
 
 !    VADWND and aircraft winds quality control
      if( itype ==224 .and. presw < 226.0_r_kind) then
@@ -1112,8 +1126,72 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      cato=cat
 
 !!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
-! End of loop over observations
+
+!!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
+     if( .not. last .and. l_PBL_pseudo_SurfobsUV .and.        &
+         ( itype==281 .or. itype==283 .or.itype==287 )  .and. &
+           muse(i) .and. dpres > -1.0_r_kind ) then
+        prest=presw     ! in mb
+        prestsfc=prest
+        dudiffsfc=dudiff
+        dvdiffsfc=dvdiff
+        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+             1,1,mype,nfldsig)
+        ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
+        if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
+        prest = prest - pps_press_incr
+        DO while (prest > thisPBL_height)
+           ratio_PBL_height=1.0_r_kind-(prestsfc-prest)/(prestsfc-thisPBL_height)
+
+           allocate(wtail(ibin)%head%llpoint,stat=istat)
+           if(istat /= 0)write(6,*)' failure to write wtail%llpoint '
+           wtail(ibin)%head => wtail(ibin)%head%llpoint
+
+!!! find uob and vob 
+           uob = data(iuob,i)
+           vob = data(ivob,i)
+
+
+!    Put obs pressure in correct units to get grid coord. number
+           dpres=log(prest/r10)
+           call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+
+!    Interpolate guess u and v to observation location and time.
+
+           call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
+              hrdifsig,1,mype,nfldsig)
+           call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
+              hrdifsig,1,mype,nfldsig)
+
+!!! Set (i,j,k) indices of guess gridpoint that bound obs location
+           call get_ijk(mm1,dlat,dlon,dpres,wtail(ibin)%head%ij(1),wtail(ibin)%head%wij(1))
+!!! find ddiff
+
+           dudiff = dudiffsfc*(0.5_r_kind + 0.5_r_kind*ratio_PBL_height)
+           dvdiff = dvdiffsfc*(0.5_r_kind + 0.5_r_kind*ratio_PBL_height)
+
+           error=one/data(ier2,i)
+
+           wtail(ibin)%head%ures=dudiff
+           wtail(ibin)%head%vres=dvdiff
+           wtail(ibin)%head%err2=error**2
+           wtail(ibin)%head%raterr2=ratio_errors **2
+           wtail(ibin)%head%time = dtime
+           wtail(ibin)%head%b=cvar_b(ikx)
+           wtail(ibin)%head%pg=cvar_pg(ikx)
+           wtail(ibin)%head%luse=luse(i)
+           wtail(ibin)%head%diagu => obsptr
+           wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
+
+           prest = prest - pps_press_incr
+
+        ENDDO
+
+     endif  ! 281,283,287
+!!!!!!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!!!!!!!!
+
   end do
+! End of loop over observations
 
 
 ! Write information to diagnostic file
