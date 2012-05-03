@@ -57,7 +57,8 @@ fi
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
+#area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
+area=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 echo $area
 
 if [[ $area = glb ]]; then
@@ -74,10 +75,10 @@ fi
 mkdir -p $TANKDIR
 mkdir -p $LOGSverf_rad
 
-export SCRIPTS=$USHverf_rad
 export MAKE_CTL=1
 export MAKE_DATA=0
-export USE_ANL=`${SCRIPTS}/get_anl.sh ${SUFFIX} ${DATA_MAP}`
+#export USE_ANL=`${SCRIPTS}/get_anl.sh ${SUFFIX} ${DATA_MAP}`
+export USE_ANL=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
 export RUN_ENVIR=dev
 
 #---------------------------------------------------------------
@@ -85,8 +86,10 @@ export RUN_ENVIR=dev
 # date in the data_map file and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${RADMON_PARM}/data_map`
-export DATDIR=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+#PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${RADMON_PARM}/data_map`
+PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+#export DATDIR=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+export DATDIR=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
    
 ctr=0
 need_radstat=1

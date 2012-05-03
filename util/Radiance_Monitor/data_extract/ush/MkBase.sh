@@ -51,15 +51,15 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
-echo SCRIPTS = ${SCRIPTS}
+#echo SCRIPTS = ${SCRIPTS}
 
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-DATA_MAP=${top_parm}/data_map
 echo DATA_MAP = $DATA_MAP
 
-area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
+#area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
+area=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 echo $area
 
 if [[ $area = glb ]]; then
@@ -74,7 +74,9 @@ fi
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-EDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+#EDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+EDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+EDATE=2012032000
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
@@ -92,7 +94,6 @@ cd $tmpdir
 #-------------------------------------------------------------------
 #  Loop over $SATYPE and build base files for each
 #-------------------------------------------------------------------
-#SATYPE=airs_aqua
 SATYPE=`cat ${TANKDIR}/info/SATYPE.txt`
 for type in ${SATYPE}; do
 
@@ -128,21 +129,25 @@ for type in ${SATYPE}; do
             $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
          $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
       fi
-
-#      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
-#      if [[ -s ./${type}.${cdate}.ieee_d.Z ]]; then
-#        uncompress ./${type}.${cdate}.ieee_d.Z
-#      fi
 
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
 
 
-   $NCP $TANKDIR/time/${type}.ctl* ./
+   day=`echo $EDATE | cut -c1-8 `
+   test_file=${TANKDIR}/radmon.${day}/time.${type}.ctl
+ 
+   if [[ -s ${test_file} ]]; then
+      $NCP $TANKDIR/radmon.${day}/time.${type}.ctl ${type}.ctl
+   elif [[ -s ${test_file}.Z ]]; then
+      $NCP $TANKDIR/radmon.${day}/time.${type}.ctl.Z ${type}.ctl.Z
+   else
+      $NCP $TANKDIR/time/${type}.ctl* ./
+   fi
 
    uncompress *.Z
 

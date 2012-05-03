@@ -4,69 +4,13 @@
 #
 #  Exports variable definitions common to the glbl data extract scripts.
 #
-#  NOTE:  changes will need to be made to the definitions in this file
-#         to support your particular instance of the package.
-#
-#    DATDIR will need to point to the location of your diagnostic
-#           files.
-#        
-#    MAIL_TO and MAIL_CC to direct/supress data integrity messages.  
-#
-#    DO_DIAG_* queues data integrity checking.  Initially they should be
-#           set to 0 (off), at least until the package has enough data
-#           to render meaniful reports.  
-#
 #----------------------------------------------------------------------
 
-export SUFFIX=${SUFFIX:-opr}
-export RUN_ENVIR=${RUN_ENVIR:-dev}
+export TANKDIR=${TANKverf_rad}/${SUFFIX}
 
-
-if [[ $RUN_ENVIR = prod ]]; then
-   echo prod
-   export USER_CLASS=${USER_CLASS:-prod}
-   export MAIL_TO="sdm@noaa.gov"
-   export MAIL_CC="edward.safford@noaa.gov russ.treadon@noaa.gov, john.derber@noaa.gov, andrew.collard@noaa.gov"
-   export USE_ANL=1
-   export DO_DIAG_RPT=1
-   export DO_DATA_RPT=1
-   export DO_DRIFT_RPT=1
-elif [[ $RUN_ENVIR = para ]]; then
-   echo para
-   export USER_CLASS=${USER_CLASS:-"dev"}
-   export MAIL_TO=
-   export MAIL_CC=
-   export USE_ANL=0
-else
-   echo dev
-   export USER_CLASS=${USER_CLASS:-"dev"}
-   export USE_ANL=1
-   export MAIL_TO="edward.safford@noaa.gov"
-   export MAIL_CC="russ.treadon@noaa.gov, john.derber@noaa.gov, andrew.collard@noaa.gov"
-   export DO_DIAG_RPT=1
-   export DO_DATA_RPT=1
-   export DO_DRIFT_RPT=1
-fi
-
-export ACOUNT=${ACOUNT:-"GDAS-MTN"}
-export USE_ANL=${USE_ANL:-0}
-export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}
-export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
-export DO_DATA_RPT=${DO_DATA_RPT:-0}
-export DO_DRIFT_RPT=${DO_DRIFT_RPT:-0}
-
-export U_USER=/u/${LOGIN}
 export PTMP_USER=/ptmp/${LOGIN}
 export STMP_USER=/stmp/${LOGIN}
 
-export SCRIPTS=${USHverf_rad}
-export EXEDIR=${EXECverf_rad}
-export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
-export TANKDIR=${TANKverf_rad}/${SUFFIX}
-export WORKDIR=${WORKverf_rad}/radmon_${SUFFIX}
 
-export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
 
-export DISCLAIMER="${SCRIPTS}/disclaimer.txt"
-export REGION="${SCRIPTS}/region.txt"
 

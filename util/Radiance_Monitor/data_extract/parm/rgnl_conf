@@ -5,58 +5,13 @@
 #  This script defines and exports variables used by 
 #  the regional scripts.
 #
-#  Modify MAIL_TO and MAIL_CC to channel/supress error
-#  message output.
-#
-#  Log:
-#  09/2010  safford  adapted from radopr_conf
 #-------------------------------------------------------
 
 export DIR_SUFFIX=regional
 
-export EXEDIR=${EXECverf_rad}
-export LOGDIR=${LOGSverf_rad}/${DIR_SUFFIX}/rad${SUFFIX}
 export TANKDIR=${TANKverf_rad}/${DIR_SUFFIX}/${SUFFIX}
-export WORKDIR=${WORKverf_rad}/radmon_${SUFFIX}
 
-export DISCLAIMER="${SCRIPTS}/disclaimer.txt"
-
-
-export RUN_ENVIR=${RUN_ENVIR:-dev}
-
-if [[ $RUN_ENVIR = prod ]]; then
-   echo prod
-   export USER_CLASS=${USER_CLASS:-"prod"}
-   export MAIL_TO=
-   export MAIL_CC="edward.safford@noaa.gov"
-   export DO_DIAG_RPT=1
-   export DO_DATA_RPT=1
-elif [[ $RUN_ENVIR = para ]]; then
-   echo para
-   export USER_CLASS=${USER_CLASS:-"dev"}
-   export MAIL_TO=
-   export MAIL_CC=
-else
-   echo dev
-   export USER_CLASS=${USER_CLASS:-"dev"}
-   export DO_DIAG_RPT=1
-   export DO_DATA_RPT=1
-   export DO_DRIFT_RPT=1
-   export MAIL_TO="edward.safford@noaa.gov"
-   export MAIL_CC=
-fi
-
-export ACOUNT=${ACOUNT:-RDAS-MTN}
-
-export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
-export DO_DATA_RPT=${DO_DATA_RPT:-0}
-export DO_DRIFT_RPT=${DO_DRIFT_RPT:-0}
-
-export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}
-
-export U_USER=/u/${LOGIN}
 export PTMP_USER=/ptmp/${LOGIN}
 export STMP_USER=/stmp/${LOGIN}
 
-export IMGNDIR=${MY_TANKDIR}/imgn/${DIR_SUFFIX}/${SUFFIX}
 

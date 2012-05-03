@@ -77,13 +77,15 @@ cd $tmpdir
 # data_map file and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
-export PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+#export PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+export PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
  
 #---------------------------------------------------------------
 # Locate required files.
 #---------------------------------------------------------------
 export DATDIR=${PTMP_USER}/regional
-export com=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+#export com=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+export com=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
 
 biascr=$DATDIR/satbias.${PDATE}
 satang=$DATDIR/satang.${PDATE}
@@ -95,7 +97,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
 
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
-   /bin/sh ${SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
+   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
    if [ -s $radstat -a -s $satang -a -s $biascr ]; then
       need_radstat=0
@@ -106,11 +108,6 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
 
 done
 
-
-tmpdir=${WORKverf_rad}/make_ctl_${SUFFIX}
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
 
 export biascr=$biascr
 export satang=$satang
@@ -139,10 +136,10 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
 
    export job=ndas_make_ctl_${PDY}${cyc}
    export SENDSMS=NO
-   export DATA_IN=/stmp/wx20es
-   export DATA=/stmp/$LOGNAME/radmon_regional
-   export jlogfile=/stmp/wx20es/jlogfile_${SUFFIX}
-   export TANKverf=/u/$LOGNAME/nbns/stats/regional/${SUFFIX}
+   export DATA_IN=${WORKverf_rad}
+   export DATA=${WORKverf_rad}/radmon_regional
+   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
    export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
    export USER_CLASS=dev
    export DO_DIAG_RPT=0

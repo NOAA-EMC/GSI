@@ -10,18 +10,22 @@ named entirely in lower case are utility scripts which are used by the
 camel case scripts; they should not be called directly by the user.
 
 There are two sets of scripts; one for the global, and one for the
-regional.  They are similar, but not identical in functioning.  
+regional.  They are similar, but not identical in function.  
 
 The top level scripts are VrfyRad_glbl.sh and VrfyRad_rgnl.sh scripts.
 They poll for new diagnostic files and, if a new diag file is found, they 
-submit ../nwprod/jobs/JGDAS_VRFYRAD.sms.prod to peform the data extraction.
+submit ../nwprod/jobs/JGDAS_VRFYRAD.sms.prod to peform the data extraction 
+and optional data validation.  
 
-VrfyRad_glbl.sh takes 2 parameters as input:  the desired suffix, and the 
-running environment ("dev", "para", or "prod").
+The VrfyRad_*.sh scripts take 2 parameters as input:  the desired suffix, and
+the running environment ("dev", "para", or "prod", though "prod" should only
+be used in the production environment).  Suffix is the identifier for a data
+source, typically an experiment name from a parallel (i.e.  es_pri, nrx, etc.).
+Each suffix used should have an entry in the ../../parms/data_map file.  
 
 The resulting data files are saved in $TANKDIR/${SUFFIX} and 
 $TANKDIR/regional/${SUFFIX} directories.   $TANKDIR is defined within the 
-*_conf files in the parm directory.
+*_conf files in the parm directory. 
 
 The RunVrfy.sh script may be used as a batch processor.  It can be used 
 to process data for a given suffix (source) in 3 ways:

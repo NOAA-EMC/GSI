@@ -26,12 +26,11 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX=$1
-RUN_ENVIR=$2
+export SUFFIX=$1
+export RUN_ENVIR=$2
 
 echo SUFFIX    = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
-echo VRFYRAD_DIR = $VRFYRAD_DIR
 
 if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; then
   echo  ${RUN_ENVIR} does not match dev, para, or prod.
@@ -103,10 +102,23 @@ if [[ $RUN_ENVIR = dev ]]; then
 
 
    #--------------------------------------------------------------------
+   # Get and export settings for $SUFFIX.
+   #--------------------------------------------------------------------
+   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
+   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
+   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
+   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
+  
+   #--------------------------------------------------------------------
    # Get date of cycle to process.
    #--------------------------------------------------------------------
-
-   pdate=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
    qdate=`${NDATE} +06 $pdate`
    export PDATE=${qdate}
  
@@ -118,9 +130,9 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
 
    export DATDIR=${PTMP_USER}/regional
-   export com=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+   export com=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
 
-   /bin/sh ${SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
+   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
 
 elif [[ ${RUN_ENVIR} = para || ${RUN_ENVIR} = prod ]]; then
@@ -136,17 +148,12 @@ elif [[ ${RUN_ENVIR} = para || ${RUN_ENVIR} = prod ]]; then
    sdate=`echo ${PDATE}|cut -c1-8`
    export CYA=`echo ${PDATE}|cut -c9-10`
 
-   /bin/sh $SCRIPTS/getbestndas_radstat.sh $PDATE $DATDIR $com
+   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh $PDATE $DATDIR $com
 
 else
    echo RUN_ENVIR = $RUN_ENVIR
    exit 1
 fi
-
-tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
 
 export biascr=$DATDIR/satbias.${PDATE}
 export satang=$DATDIR/satang.${PDATE}
@@ -164,25 +171,17 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
 
    export MP_SHARED_MEMORY=yes
    export MEMORY_AFFINITY=MCM
-
    export envir=prod
-   export RUN_ENVIR=dev
-   export USE_ANL=0
 
    export PDY=`echo $PDATE|cut -c1-8`
-   export CYC=`echo $PDATE|cut -c9-10`
-   export cyc=$CYC
+   export cyc=`echo $PDATE|cut -c9-10`
 
    export job=ndas_vrfyrad_${PDY}${cyc}
    export SENDSMS=NO
-   export DATA_IN=/stmp/wx20es
+   export DATA_IN=${WORKverf_rad}
    export DATA=/stmp/$LOGNAME/radmon_regional
-   export jlogfile=/stmp/wx20es/jlogfile_${SUFFIX}
-   export TANKverf=/u/$LOGNAME/nbns/stats/regional/${SUFFIX}
-   export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
-   export USER_CLASS=dev
-   export DO_DIAG_RPT=1
-   export DO_DATA_RPT=0
+   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
 
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt
@@ -192,14 +191,17 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
 
    #--------------------------------------------------------------------
    # Export listvar
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
    $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/data_extract.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
 
-   ${SCRIPTS}/set_prodate.sh $SUFFIX ${DATA_MAP} ${PDATE}
+   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
+   if [[ $rc != 0 ]]; then
+      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
+   fi
 
 fi
 

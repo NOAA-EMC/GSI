@@ -32,7 +32,6 @@ this_dir=`dirname $0`
 
 export SUFFIX=$1
 export RUN_ENVIR=$2
-jobname=data_extract_${SUFFIX}
 
 echo SUFFIX = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
@@ -44,11 +43,14 @@ if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; th
   exit 1
 fi
 
+jobname=data_extract_${SUFFIX}
 
 #--------------------------------------------------------------------
 # Set environment variables
 #--------------------------------------------------------------------
 export RAD_AREA=glb
+export MAKE_CTL=${MAKE_CTL:-1}
+export MAKE_DATA=${MAKE_DATA:-1}
 
 if [[ $RUN_ENVIR = para || $RUN_ENVIR = prod ]]; then
    this_dir=${VRFYRAD_DIR}
@@ -68,10 +70,9 @@ fi
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/glbl_conf
 
-echo IMGNDIR = $IMGNDIR
 
 mkdir -p $TANKDIR
-mkdir -p $LOGSverf_rad
+mkdir -p $LOGDIR
 
 
 #--------------------------------------------------------------------
@@ -94,11 +95,6 @@ if [[ $RUN_ENVIR = dev ]]; then
    fi
 fi
 
-export SCRIPTS=$USHverf_rad
-export MAKE_CTL=1
-export MAKE_DATA=1
-#export USE_ANL=0
-export USE_ANL=`${SCRIPTS}/get_anl.sh ${SUFFIX} ${DATA_MAP}`
 
 #------------------------------------------------------------------
 #  define data file sources depending on $RUN_ENVIR
@@ -107,17 +103,32 @@ export USE_ANL=`${SCRIPTS}/get_anl.sh ${SUFFIX} ${DATA_MAP}`
 #------------------------------------------------------------------
 if [[ $RUN_ENVIR = dev ]]; then
 
+   #--------------------------------------------------------------------
+   # Get and export settings for $SUFFIX.
+   #--------------------------------------------------------------------
+   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
+   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
+   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
+   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
+
    #---------------------------------------------------------------
    # Get date of cycle to process.
    #---------------------------------------------------------------
-   pdate=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+
    qdate=`${NDATE} +06 $pdate`
    export PDATE=${qdate}
 
    export PDY=`echo $PDATE|cut -c1-8`
    export CYC=`echo $PDATE|cut -c9-10`
  
-   export DATDIR=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+   export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
 
    #---------------------------------------------------------------
    # Locate required files.             
@@ -157,7 +168,6 @@ else
    export PDATE=$CDATE
    export PDY=`echo $PDATE|cut -c1-8`
    export CYC=`echo $PDATE|cut -c9-10`
-   export MAKE_CTL=0
 
    export biascr=$DATDIR/biascr.gdas.${CDATE}  
    export satang=$DATDIR/satang.gdas.${CDATE}
@@ -171,7 +181,8 @@ fi
 
 
 #--------------------------------------------------------------------
-#  Process if radstat file exists.
+# If data is available, export variables, and submit driver for
+# radiance monitoring jobs.
 #--------------------------------------------------------------------
 data_available=0
 
@@ -180,39 +191,39 @@ if [[ -s ${radstat} ]]; then
 
    export MP_SHARED_MEMORY=yes
    export MEMORY_AFFINITY=MCM
-
    export envir=prod
-   export RUN_ENVIR=dev
    
    export cyc=$CYC
    export job=gdas_vrfyrad_${PDY}${cyc}
-   export SENDSMS=NO
-   export DATA_IN=/stmp/wx20es
-   export DATA=/stmp/$LOGNAME/radmon
-   export jlogfile=/stmp/wx20es/jlogfile
-   export TANKverf=/u/$LOGNAME/nbns/stats/${SUFFIX}
-   export LOGDIR=/ptmp/$LOGNAME/logs/radopr
+   export SENDSMS=${SENDSMS:-NO}
+   export DATA_IN=${WORKverf_rad}
+   export DATA=${DATA:-/stmp/$LOGNAME/radmon}
+   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export TANKverf=${MY_TANKDIR}/stats/${SUFFIX}
 
-   export VERBOSE=YES
+   export VERBOSE=${VERBOSE:-YES}
    export satype_file=${TANKverf}/info/SATYPE.txt
-   if [[ -s ${TANKverf}/info/radmon_base.tar.Z ]]; then
+   if [[ -s ${TANKverf}/info/radmon_base.tar.Z || -s ${TANKverf}/info/radmon_base.tar ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar 
    fi
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
    $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
-   ${SCRIPTS}/set_prodate.sh $SUFFIX ${DATA_MAP} ${PDATE}
+   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
+   if [[ $rc != 0 ]]; then
+      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
+   fi
+
 fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
 #--------------------------------------------------------------------
-
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=5
