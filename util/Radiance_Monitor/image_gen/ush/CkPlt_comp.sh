@@ -120,7 +120,9 @@ while read line; do
             export SUFFIX1=$suffix1
             export TANKDIR1=${TANKDIR}/${SUFFIX1}
             export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
-            prodate1=`${SCRIPTS}/get_prodate.sh ${SUFFIX1} ${DATA_MAP}`
+#            prodate1=`${SCRIPTS}/get_prodate.sh ${SUFFIX1} ${DATA_MAP}`
+            prodate1=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} prodate`
+
          else
             exit
          fi
@@ -130,7 +132,8 @@ while read line; do
             export SUFFIX2=$suffix2
             export TANKDIR2=${TANKDIR}/${SUFFIX2}
             export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
-            prodate2=`${SCRIPTS}/get_prodate.sh ${SUFFIX2} ${DATA_MAP}`
+#            prodate2=`${SCRIPTS}/get_prodate.sh ${SUFFIX2} ${DATA_MAP}`
+            prodate2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX2} prodate`
          else
             exit
          fi
@@ -140,7 +143,8 @@ while read line; do
             export SUFFIX3=$suffix3
             export TANKDIR3=${TANKDIR}/${SUFFIX3}
             export IMGNDIR3=${IMGNDIR}/${SUFFIX3}
-            prodate3=`${SCRIPTS}/get_prodate.sh ${SUFFIX3} ${DATA_MAP}`
+#            prodate3=`${SCRIPTS}/get_prodate.sh ${SUFFIX3} ${DATA_MAP}`
+            prodate3=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX3} prodate`
          fi
 
          #--------------------------------------------------------------
@@ -170,7 +174,8 @@ while read line; do
          #-------------------------------------------------------------
          #  Get the SATYPE for SUFFIX
          #
-         export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
+#         export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
+         export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
 
          #-------------------------------------------------------------
          #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -222,7 +227,7 @@ while read line; do
             #------------------------------------------------------------------
             # Export variables and submit plot script
             #------------------------------------------------------------------
-            export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,listvar
+            export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,listvar
 
 
             #------------------------------------------------------------------

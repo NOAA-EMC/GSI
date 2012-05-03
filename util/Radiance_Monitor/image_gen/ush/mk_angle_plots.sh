@@ -106,7 +106,7 @@ done
   #-----------------------------------------------------------------
   # Loop over satellite types.  Submit poe job to make plots.
   #
-  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,listvars
+  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,listvars
   list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
   suffix=a
   cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
@@ -124,6 +124,7 @@ done
   ((nprocs=(ntasks+1)/2))
 
   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
 
   #----------------------------------------------------------------------------
@@ -152,13 +153,15 @@ done
 
        echo "$SCRIPTS/plot_angle.sh $SATYPE3 $suffix ${list[$ii]}" >> $cmdfile
        (( test=ii+1 ))
-       (( test=test%2 ))
+       (( test=test%3 ))
 
        if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
           ntasks=`cat $cmdfile|wc -l `
           ((nprocs=(ntasks+1)/2))
 
           $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
           (( batch=batch+1 ))
           suffix="airs_${batch}"
           cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
@@ -197,13 +200,14 @@ done
 
        echo "$SCRIPTS/plot_angle.sh $SATYPE3 $suffix ${list[$ii]}" >> $cmdfile
        (( test=ii+1 ))
-       (( test=test%2 ))
+       (( test=test%3 ))
 
        if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
           ntasks=`cat $cmdfile|wc -l `
           ((nprocs=(ntasks+1)/2))
 
           $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
           (( batch=batch+1 ))
           suffix="iasi_metop_${batch}"
           cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}

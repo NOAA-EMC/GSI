@@ -101,34 +101,34 @@ EOF
       timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
+#--------------------------------------------------------------------
+# Delete data files
+
+   rm -f ${type}.ieee_d
+   rm -f ${type}.ctl
+
+done
 
 #--------------------------------------------------------------------
 # Copy images to server (rzdm)
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcor"
-   for var in ${PTYPE}; do
-      scp ${type}.${var}*.png  ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcor
-   done
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcor"
+#for var in ${PTYPE}; do
+#   scp ${type}.${var}*.png  ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcor
+#done
+scp *.png  ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcor
 
-
-#--------------------------------------------------------------------
-# Delete images and data files
-
-   for var in ${PTYPE}; do
-      rm -f ${type}.${var}*.png
-   done
-   rm -f ${type}.ieee_d
-   rm -f ${type}.ctl
-
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
 done
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir  
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------
@@ -140,10 +140,10 @@ complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
 
 running=`expr $count - $complete`
 
-if [[ $running -eq 1 ]]; then
-   cd ${PLOT_WORK_DIR}
-   cd ../
-   rm -rf ${PLOT_WORK_DIR}
-fi
+#if [[ $running -eq 1 ]]; then
+#   cd ${PLOT_WORK_DIR}
+#   cd ../
+#   rm -rf ${PLOT_WORK_DIR}
+#fi
 
 exit

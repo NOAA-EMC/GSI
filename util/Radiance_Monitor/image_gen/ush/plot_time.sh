@@ -116,15 +116,6 @@ echo ${tmpdir}/${type}_${var}.gs
    done
 
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/time"
-   for var in ${PTYPE}; do
-      scp ${type}.${var}*.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
-   done
-
-
-   for var in ${PTYPE}; do
-      rm -f ${type}.${var}*.png
-   done
 
    rm -f ${type}.ieee_d
    rm -f ${type}.${PDATE}.ieee_d
@@ -132,6 +123,17 @@ echo ${tmpdir}/${type}_${var}.gs
 
 done
 
+
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/time"
+#for var in ${PTYPE}; do
+#   scp ${type}.${var}*.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
+#done
+
+scp *.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
+
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
+done
 
 
 #--------------------------------------------------------------------

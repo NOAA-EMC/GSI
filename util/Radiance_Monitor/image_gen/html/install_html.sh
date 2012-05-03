@@ -10,7 +10,7 @@ set -ax
 #
 
 function usage {
-  echo "Usage:  install_html.sh suffix glb/rgn"
+  echo "Usage:  install_html.sh suffix"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
 }
@@ -191,7 +191,7 @@ for satype in $SATYPE; do
 	 echo WARNING ==> unable to parse $sat into recognizable satellite name
       fi
    else
-      sat=`echo $sat | tr -s 'a-z' 'A-Z'`
+      sat=`echo $sat | tr 'a-z' 'A-Z'`
    fi
 
 

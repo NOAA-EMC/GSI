@@ -1,0 +1,25 @@
+Radiance Monitor, image_gen scripts
+
+The scripts in this directory are used to generate images for specified 
+data sources using the data files created by the data_extract portion of this
+package. 
+
+The scripts named in "camel case" (mixed case) may be called directly.  Those
+named entirely in lower case are utility scripts which are used by the 
+camel case scripts; they should not be called directly by the user.
+
+There are two sets of scripts; one for the global, and one for the
+regional.  They are similar, but not identical in function.  
+
+The top level scripts are CkPlt_glbl.sh and CkPlt_rgnl.sh scripts.  They
+poll the ../../parm/data_map file to see if new data has arrived since the 
+last plot time (cycle).  If new data is available they run the lower level scripts
+to set up the environement, move data and control files into work directories, 
+and call the GrADS scripts (located in ../gscripts) to create image files.  The
+image files are then sent to the specified web server by scp.  See the 
+../parm/plot_rad_conf file for web server settings. 
+
+There is also a CkPlt_comp.sh script which can do comparison plots between 2 or 3
+data sources.  The sources must be of the same type (global or regional).  See the
+../parm/plot_comp_config file for details on setting up the comparison plots.
+

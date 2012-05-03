@@ -82,7 +82,7 @@ for type in ${SATYPE2}; do
             $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
          $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
       fi
      
@@ -122,21 +122,23 @@ EOF
       timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-#--------------------------------------------------------------------
-# Copy image files to server (rzdm).  Delete images and data files.
-
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/angle"
-   for var in ${PTYPE}; do
-      scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
-   done
-
-   for var in ${PTYPE}; do
-      rm -f ${type}.${var}*.png
-   done
-
    rm -f ${type}*.ieee_d
    rm -f ${type}.ctl
 
+done
+
+#--------------------------------------------------------------------
+# Copy image files to server (rzdm).  Delete images and data files.
+
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/angle"
+
+#for var in ${PTYPE}; do
+#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
+#done
+scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
+
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
 done
 
 
@@ -159,10 +161,10 @@ complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
 
 running=`expr $count - $complete`
 
-if [[ $running -eq 1 ]]; then
-   cd ${PLOT_WORK_DIR}
-   cd ../
-   rm -rf ${PLOT_WORK_DIR}
-fi
+#if [[ $running -eq 1 ]]; then
+#   cd ${PLOT_WORK_DIR}
+#   cd ../
+#   rm -rf ${PLOT_WORK_DIR}
+#fi
 
 exit

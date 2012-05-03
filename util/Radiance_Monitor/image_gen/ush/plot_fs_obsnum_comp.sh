@@ -46,14 +46,12 @@ if [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
 else
    $NCP $TANKDIR1/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
 fi
-uncompress ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
 
 if [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
    $NCP ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
 else
    $NCP $TANKDIR2/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
 fi
-uncompress ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
 
 if [[ $suff3 -gt 0 ]]; then
    if [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
@@ -61,8 +59,8 @@ if [[ $suff3 -gt 0 ]]; then
    else
       $NCP $TANKDIR3/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
    fi
-   uncompress ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
 fi
+uncompress ${workdir}/*.Z
 
 #------------------------------------------------------------------
 #   Copy a control file over, update the time, rename according 

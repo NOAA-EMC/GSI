@@ -112,7 +112,7 @@ done
   # Loop over satellite types.  Submit poe job to make plots.  Each task handles
   # a single satellite type
 
-  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,listvars
+  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,listvars
   suffix=a
   cmdfile=cmdfile_pbcor_${suffix}
   jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -127,8 +127,10 @@ done
 
   ntasks=`cat $cmdfile|wc -l `
   ((nprocs=(ntasks+1)/2))
+  echo $nprocs
 
   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
 
   #--------------------------------------------------------------------------
@@ -161,6 +163,8 @@ done
      ((nprocs=(ntasks+1)/2))
 
      $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#     $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+  fi
   fi
 
 

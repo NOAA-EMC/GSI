@@ -78,7 +78,7 @@ fi
    done
 
 
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,U_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,listvars
 
 
 #-------------------------------------------------------------------
@@ -102,8 +102,10 @@ fi
    ntasks=`cat $cmdfile|wc -l `
    ((nprocs=(ntasks+1)/2))
 
-   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
+$SUB -a $ACOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
 
 #-------------------------------------------------------------------
 #-------------------------------------------------------------------
@@ -124,7 +126,7 @@ fi
   mkdir -p $PLOT_WORK_DIR
   cd $PLOT_WORK_DIR
 
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,U_USER,USER_CLASS,SUB,SUFFIX,NPREDR,SATYPE,NCP,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,SATYPE,NCP,listvars
 
 
 #-------------------------------------------------------------------
@@ -144,7 +146,7 @@ fi
 #-------------------------------------------------------------------
 #  Look over satellite types.  Submit plot job for each type.
 #
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,U_USER,USER_CLASS,SUB,SUFFIX,NPREDR,SATYPE,NCP,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,SATYPE,NCP,listvars
 
    list="count penalty omgnbc total omgbc"
    suffix=a
@@ -163,6 +165,7 @@ fi
       ((nprocs=(ntasks+1)/2))
 
       $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#      $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $nprocs/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
 
 #---------------------------------------------------------------------------
@@ -195,6 +198,7 @@ fi
       ntasks=`cat $cmdfile|wc -l `
       ((nprocs=(ntasks+1)/2))
       $SUB -a $ACOUNT -e $listvars -j plot_${SUFFIX}_time_${suffix} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#      $SUB -a $ACOUNT -e $listvars -j plot_${SUFFIX}_time_${suffix} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $nprocs/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
    fi
 

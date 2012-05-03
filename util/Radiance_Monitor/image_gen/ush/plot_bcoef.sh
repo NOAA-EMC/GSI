@@ -89,20 +89,21 @@ EOF
    done 
 
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcoef"
-   for var in $list; do
-      scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
-   done
-
-   for var in $list; do
-      rm -f ${type}.${var}*.png
-   done
 
    rm -f ${type}.ieee_d
    rm -f ${type}.ctl
 
 done
 
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcoef"
+#for var in $list; do
+#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
+#done
+scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
+
+for var in $list; do
+   rm -f ${type}.${var}*.png
+done
 
 
 #--------------------------------------------------------------------

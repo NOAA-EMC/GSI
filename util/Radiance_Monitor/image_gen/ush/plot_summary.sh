@@ -9,11 +9,13 @@
 set -ax
 export list=$listvars
 
-SATYPE2=$1
+#SATYPE2=$1
+SATYPE2=$SATYPE
 
 #------------------------------------------------------------------
 # Set environment variables.
-tmpdir=${STMP_USER}/plot_summary_${SUFFIX}_${SATYPE2}.$PDATE
+#tmpdir=${STMP_USER}/plot_summary_${SUFFIX}_${SATYPE2}.$PDATE
+tmpdir=${STMP_USER}/plot_summary_${SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -78,15 +80,18 @@ EOF
 
    timex $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/summary"
-   scp ${type}.summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
 
    rm -f ${type}.ctl 
    rm -f ${type}*.ieee_d
-   rm -f ${type}.summary.png
 
 done
 
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/summary"
+#scp ${type}.summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+
+scp *summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+
+rm -f *.summary.png
 
 
 #--------------------------------------------------------------------

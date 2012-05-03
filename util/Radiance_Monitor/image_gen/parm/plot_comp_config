@@ -27,7 +27,7 @@
 # contains data for the operational NDAS.
 #----------------------------------------------------------------
 #plot_fs_obsnum_comp.sh 2011112312 glb ges opr oex fud
-#plot_fs_obsnum_comp.sh 2011102806 glb ges opr oex
-plot_fs_obsnum_comp.sh 2011112312 glb anl opr oex fud
+plot_fs_obsnum_comp.sh 2012042612 glb ges opr d12q3s 
+#plot_fs_obsnum_comp.sh 2011112312 glb anl opr oex fud
 #plot_fs_obsnum_comp.sh 2011031600 glb ges opr oex fud
 #plot_fs_obsnum_comp.sh 2011022300 rgn ges nrx xrn
