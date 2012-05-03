@@ -27,7 +27,7 @@ program make_base
   real,allocatable,dimension(:,:):: min_penalty, max_penalty
 
   integer num_sdv, counter
-  real total_sdv, avg_sdv, diff_count, diff_total, diff_pen
+  real total_sdv, avg_sdv, diff_count, diff_total, diff_pen, temp
   
   character(10) date, new_date, cycle
   character(40) ctl_var1, ctl_var2, dummy
@@ -205,11 +205,23 @@ program make_base
 !
 !  accumulate sums and min/max values
 !
+   do ii=1,nfile
+      do k=1,nregion
+         do j=1,n_chan
+            if( (count(j,k,ii) > 0.0) .AND. (iuse(j) > 0) ) then
+               temp = penalty(j,k,ii)/count(j,k,ii)
+               penalty(j,k,ii) = temp
+               write(6,*)'penalty(j,k,ii),count(j,k,ii)',j,k,ii,penalty(j,k,ii), count(j,k,ii)
+            end if
+         end do
+      end do
+   end do
+
    write(6,*) ' number of files read = ', counter-1
    do ii=1,nfile
       do k=1,nregion
          do j=1,n_chan
-            if( (count(j,k,ii) /= rmiss) .AND. (iuse(j) > 0) ) then
+            if( (count(j,k,ii) > 0.0) .AND. (iuse(j) > 0) ) then
                total_count(j,k)   = total_count(j,k) + count(j,k,ii)          
                total_penalty(j,k) = total_penalty(j,k) + penalty(j,k,ii)
                file_ctr(j,k)      = file_ctr(j,k) + 1
@@ -252,6 +264,7 @@ program make_base
           if( total_count(j,k) > 0 ) then
              avg_count(j,k) = total_count(j,k) / file_ctr(j,k)
              avg_penalty(j,k) = total_penalty(j,k) / file_ctr(j,k)
+             write(6,*)'total_penalty(j,k), file_ctr(j,k), avg_penalty(j,k)= ',j,k,total_penalty(j,k),file_ctr(j,k),avg_penalty(j,k)
 
              diff_total = 0.0
              do ii=1,nfile 

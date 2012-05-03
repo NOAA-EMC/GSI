@@ -176,7 +176,6 @@ if [[ ! -s ./${time_exec} ]]; then
 fi
 
 if [[ $DO_DATA_RPT -eq 1 ]]; then
-#   $NCP ${FIXgfs}/radmon_base_${SUFFIX}.tar.Z ./
    $NCP ${base_file}* ./
    uncompress ${base_file}.Z
    tar -xf ${base_file}
