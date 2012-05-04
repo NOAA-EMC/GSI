@@ -24,7 +24,7 @@ set -ax
 echo start CkPlt_glbl.sh
 
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -ne 1 ]]; then
    usage
    exit 1
 fi
