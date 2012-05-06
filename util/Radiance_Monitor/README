@@ -31,8 +31,11 @@ after the diagnostic file is created.  There are two ways to run the data extrac
 In RadMon/data_extract/ush/ there are two scripts named VrfyRad_glbl.sh and 
 VrfyRad_rgnl.sh.  These can be run from a cron or command line.  They function by 
 setting up the environment variables to run RadMon/nwprod/jobs/JGDAS_VRFYRAD.sms.prod.  
+
+{edit this}
 Alternately the JGDAS_VRFYRAD.sms.prod job can be included in the vrfy.sh step in your 
 parallel.
+{end edit}
 
 4.  Go to the RadMon/image_gen/html directory and run install_html.sh.  This will build
 the web site using the web settings specified in step 2, and the available 

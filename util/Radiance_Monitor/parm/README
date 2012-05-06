@@ -20,7 +20,11 @@ default values. In order to add a new data source (termed SUFFIX within
 the package's scripts), you only need to add an xml element with an area,
 imgdate, and prodate element, and those other fields for which the default
 value is not desireable.  The element name for your source can be any
-length (but cannot include any spaces).  For example, if I had a global parallel 
+length (but cannot include any spaces).  The first character of an element 
+may be a letter, the underscore, or colon.  Additional (optional) characters 
+can be: a letter, a digit, underscore, colon, period, or dash.
+
+For example, if I had a global parallel 
 that I named pr4ed, my xml element would look like this:
 
 <pr4ed>
