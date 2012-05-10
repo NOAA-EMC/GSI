@@ -560,9 +560,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      write(iout_iter,201) (outstp(i),i=1,nsteptot)
      write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
   end if
-200 format(' stepsize estimates = ',6(e24.18,1x))
-201 format(' stepsize guesses = ',(8(e12.6,1x)))
-202 format(' penalties        = ',(8(e12.6,1x)))
+200 format(' stepsize estimates = ',6(e25.18,1x))
+201 format(' stepsize guesses = ',(8(e13.6,1x)))
+202 format(' penalties        = ',(8(e13.6,1x)))
 
 ! If convergence or failure of stepsize calculation return
   if (end_iter) then

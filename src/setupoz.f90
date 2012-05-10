@@ -292,7 +292,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      dtime=data(itime,i)
 
      call dtime_check(dtime, in_curbin, in_anybin)
-     if(.not.in_anybin) return
+     if(.not.in_anybin) cycle
 
      if(in_curbin) then
         dlat=data(ilat,i)
@@ -623,7 +623,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   end do   ! end do i=1,nobs
 
 ! If requested, write to diagnostic file
-  if (ozone_diagsave) then
+  if (ozone_diagsave .and. ii>0) then
      filex=obstype
      write(string,100) jiter
 100  format('_',i2.2)
@@ -1140,7 +1140,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   end do   ! end do i=1,nobs
 
 ! If requested, write to diagnostic file
-  if (ozone_diagsave) then
+  if (ozone_diagsave .and. ii>0) then
      filex=obstype
      write(string,100) jiter
 100  format('_',i2.2)

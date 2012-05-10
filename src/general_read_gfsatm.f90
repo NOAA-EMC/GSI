@@ -36,6 +36,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     use gridmod, only: &
          ncepgfs_head,idpsfc5,idthrm5,&
          ntracer,idvc5,cp5,idvm5
+    use ncepgfs_io, only: read_sigma
     use general_sub2grid_mod, only: sub2grid_info
     use general_specmod, only: spec_vars
     use mpimod, only: npe
@@ -43,6 +44,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
          sigio_srohdc,sigio_axdata
     use ncepgfs_io, only: sigio_cnvtdv8
+    use gsi_io, only: mype_io
 
     implicit none
     
@@ -81,16 +83,8 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     iret_read=0
     nlatm2=grd%nlat-2
 
-!   Read NCEP gfs guess file using appropriate io module
-    call sigio_srohdc(lunges,filename,sighead,sigdata,iret_read)
-    gfshead%fhour   = sighead%fhour
-    gfshead%idate   = sighead%idate
-    gfshead%levs    = sighead%levs
-    gfshead%ntrac   = sighead%ntrac
-    gfshead%ncldt   = sighead%ncldt
-    gfshead%lonb    = grd%nlon
-    gfshead%latb    = nlatm2
-
+!   Do IO on a single task, bcast data to other tasks.
+    call read_sigma(lunges,filename,gfshead,sigdata,mype_io,mype,iret_read)
     if (iret_read /= 0) goto 1000
 
 
@@ -390,10 +384,10 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     
 !   Deallocate sigio data array
     call sigio_axdata(sigdata,iret)
-    iret_read=iret_read+iret
+
 
 !   Print date/time stamp 
-    if(mype==0) then
+    if(mype==mype_io) then
        write(6,700) gfshead%lonb,gfshead%latb,gfshead%levs,&
             gfshead%fhour,gfshead%idate
 700    format('READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
@@ -408,7 +402,6 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
     if (mype==0) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
          filename,' from unit ',lunges,'.   iret_read=',iret_read
     call sigio_axdata(sigdata,iret)
-    iret_read=iret_read+iret
 
     
 !   End of routine.  Return

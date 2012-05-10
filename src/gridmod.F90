@@ -14,6 +14,7 @@ module gridmod
   use kinds, only: i_byte,r_kind,r_single,i_kind
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
+  use omp_lib
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -443,6 +444,7 @@ contains
 ! !USES:
 
     use mpeu_util, only: getindex
+    use omp_lib
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -480,7 +482,6 @@ contains
 !-------------------------------------------------------------------------
     integer(i_kind) i,k,nlon_b,inner_vars,num_fields
     integer(i_kind) n3d,n2d,nvars,tid,nth
-    integer(i_kind) :: omp_get_max_threads
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
 
@@ -606,13 +607,11 @@ contains
        displs_g(i)  =grd_a%displs_g(i)
     end do
 
-#ifdef ibm_sp
 !#omp parallel private(nth,tid)
     nth = omp_get_max_threads()
 !#omp end parallel
     nthreads=nth
     if(mype == 0)write(6,*) 'INIT_GRID_VARS:  number of threads ',nthreads
-#endif
     allocate(jtstart(nthreads),jtstop(nthreads))
     do tid=1,nthreads
        call looplimits(tid-1, nthreads, 1, lon2, jtstart(tid), jtstop(tid))

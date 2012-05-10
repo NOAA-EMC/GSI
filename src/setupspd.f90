@@ -494,7 +494,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Loop over pressure level groupings and obs to accumulate statistics
 ! as a function of observation type.
      do k = 1,npres_print
-        if(luse(i) .and.presw >=ptop(k) .and. presw<=pbot(k))then
+        if(luse(i) .and.presw >ptop(k) .and. presw<=pbot(k))then
            ress  = scale*ddiff
            ressw = ress*ress
            nn=1
@@ -655,7 +655,7 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:spd',i_spd_ob_type)
      write(7)'spd',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

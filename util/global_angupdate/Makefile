@@ -2,7 +2,7 @@ SHELL=/bin/sh
 
 #==============================================================================
 #
-# GLOBAL_ANGUPDATE Makefile
+# GSI Makefile
 #
 # <Usage>
 #   0) Export this makefile name to a variable 'MAKE_FILE' as 
@@ -11,27 +11,104 @@ SHELL=/bin/sh
 #      'makeairs' for instance, then call this makefile by typing
 #      'make -f makeairs' instead of 'make'.
 #
-#   1) To make a GLOBAL_ANGUPDATE executable file, type
+#  0a) Modify the include link to either use compile.config.ibm
+#      or compile.config.sgi for compilation on the ibm sp or sgi
+#
+#   1) To make a GSI executable file, type
 #         > make  or  > make all
 #
-#   2) To make a GLOBAL_ANGUPDATE executable file with debug options, type
+#   2) To make a GSI executable file with debug options, type
 #         > make debug
 #
-#   3) To copy the GLOBAL_ANGUPDATE load module to installing directory, type
+#   3) To copy the GSI load module to installing directory, type
 #         > make install
 #      . Specify the directory to a variable 'INSTALL_DIR' below.
 #
 #   4) To crean up files created by make, type
 #         > make clean
 #
+#   5) To create a library, libgsi.a, in the lib directory, type
+#         > make library
 #
 #
+# Created by Y.Tahara in May,2002
+# Edited by D.Kleist Oct. 2003
 #==============================================================================
-
 
 #-----------------------------------------------------------------------------
 #                          -- Parent make (calls child make) --
 #-----------------------------------------------------------------------------
+
+# -----------------------------------------------------------
+# Default configuration, possibily redefined in Makefile.conf
+# -----------------------------------------------------------
+
+ARCH	 = `uname -s`
+SED      = sed
+DASPERL  = /usr/bin/perl
+COREROOT = ../../..
+COREBIN  = $(COREROOT)/bin
+CORELIB  = $(COREROOT)/lib
+COREINC  = $(COREROOT)/include
+COREETC  = $(COREROOT)/etc
+
+
+# -------------
+# General Rules
+# -------------
+
+CP              = /bin/cp -p
+RM              = /bin/rm -f
+MKDIR           = /bin/mkdir -p
+AR              = ar cq
+PROTEX          = protex -f # -l
+ProTexMake      = protex -S # -l
+LATEX           = pdflatex
+DVIPS           = dvips
+
+# Preprocessing
+# -------------
+_DDEBUG =
+_D      = $(_DDEBUG)
+
+# ---------
+# Libraries
+# ---------
+LIBmpeu   = -L$(CORELIB) -lmpeu
+LIBbfr    = -L$(CORELIB) -lbfr
+LIBw3     = -L$(CORELIB) -lw3
+LIBsp     = -L$(CORELIB) -lsp
+LIBbacio  = -L$(CORELIB) -lbacio
+LIBsfcio  = -L$(CORELIB) -lsfcio
+LIBsigio  = -L$(CORELIB) -lsigio
+LIBcrtm   = -L$(CORELIB) -lcrtm_2.0.5
+LIBtransf = -L$(CORELIB) -ltransf
+LIBhermes = -L$(CORELIB) -lhermes
+LIBgfio   = -L$(CORELIB) -lgfio
+
+# --------------------------
+# Default Baselibs Libraries
+# --------------------------
+INChdf          = -I$(BASEDIR)/$(ARCH)/include/hdf
+LIBhdf          = -L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
+LIBnetcdf       = -L$(BASEDIR)/$(ARCH)/lib -lnetcdf
+LIBwrf          = -L$(BASEDIR)/$(ARCH)/lib -lwrflib
+LIBwrfio_int    = -L$(BASEDIR)/$(ARCH)/lib -lwrfio_int
+LIBwrfio_netcdf = -L$(BASEDIR)/$(ARCH)/lib -lwrfio_nf
+
+# ------------------------
+# Default System Libraries
+# ------------------------
+LIBmpi          = -lmpi
+LIBsys          = 
+
+
+#------------
+# Include machine dependent compile & load options
+#------------
+  MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
 
 # -------------
 # This makefile
@@ -97,7 +174,9 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- rm -f $(EXE_FILE) *.o *.mod *.MOD *.lst loadmap.txt log.make.$(EXE_FILE)
+	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
+	- $(RM) loadmap.txt log.make.$(EXE_FILE)
+	- $(MAKE) -f ${MAKE_FILE} doclean
 
 
 #-----------------------------------------------------------------------------
@@ -108,14 +187,15 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = main.f90 kinds.F90 read_diag.f90 determine_time_levels.f90
+  SRCSF90C = main.F90 kinds.F90 read_diag.f90 determine_time_levels.f90
 
   SRCSF77 =
 
-  SRCSC =
+  SRCSC = 
 
-  SRCS = $(SRCSF90C) $(SRCF77) $(SRCSC)
+  SRCS = $(SRCSF90C) $(SRCSF77) $(SRCSC)
 
+  DOCSRCS = *.f90 *.F90
 
 # ------------
 # Object files
@@ -130,12 +210,13 @@ clean:
 # Default compiling rules
 # -----------------------
 
-.SUFFIXES : .F90 .f90 .f .c
+.SUFFIXES :
+.SUFFIXES : .F90 .f90 .f .c .o
 
 .F90.o  :
 	@echo
 	@echo '---> Compiling $<'
-	$(CF) $(FFLAGS) -c $<
+	$(CF) $(FFLAGS) $(_D) -c $<
 
 .f90.o  :
 	@echo
@@ -145,96 +226,23 @@ clean:
 .f.o  :
 	@echo
 	@echo '---> Compiling $<'
-	$(CF) $(FFLAGFIX) -c $<
+	$(CF) $(FFLAGS_f) -c $<
 
 .c.o  :
 	@echo
 	@echo '---> Compiling $<'
 	$(CC) $(CFLAGS) -c $<
 
-
-# -----------------
-# Exceptional rules
-# -----------------
-
-	@echo
-	@echo '---> Compiling $<'
-	$(CF) $(FFLAGR) -c $(*).f90
-
-
 # ------------
 # Dependencies
 # ------------
-main.o :  kinds.o read_diag.o
+  MAKE_DEPEND = Makefile.dependency
+include $(MAKE_DEPEND)
 
 # ----
-# Link
-# ----
 
-$(EXE_FILE) : $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
-
-
-# ----------------------------
-# Fortran compiler and options
-# ----------------------------
-
- CF	= ncepmpxlf95
-
-#--- Normal mode options
-
-  FFLAGS_F90	= -qsuffix=f=f90:cpp=F90 -WF,-D_REAL8_
-  FFLAGS_COM_N	= -I ./ -qarch=auto -qmaxmem=-1 -q64
-
-  FFLAGS_N	= -O3 -qstrict $(FFLAGS_F90) $(FFLAGS_COM_N)
-
-#--- Debug mode options
-
-  FFLAGS_COM_D	= $(FFLAGS_COM_N) \
-		  -O0 -qdbg -qfullpath \
-		  -qsigtrap=xl__trcedump \
-		  -qinitauto=7FF7FFFF \
-		  -qflttrap=overflow:zero:enable \
-		  -qcheck \
-		  -qwarn64 \
-		  -qflag=i:i
-
-  FFLAGS_D	= $(FFLAGS_F90) $(FFLAGS_COM_D)
-
-
-# ----------------------
-# C Compiler and options
-# ----------------------
-
-  CC		= ncepcc
-
-#--- Normal mode options
-
-  CFLAGS_N	= -I ./ -O3
-
-#--- Debug mode options
-
-  CFLAGS_D	= -I ./ -g
-
-
-# ------------------
-# Linker and options
-# ------------------
-
-  LD		= $(CF)
-
-#--- Normal mode options
-
-  LIBS_N= -L/nwprod/lib -lw3_4
-
-  LDFLAGS_N	= -lessl -lmass -bloadmap:loadmap.txt \
-                  -bdatapsize:64K -bstackpsize:64K
-
-#--- Debug mode options
-
-  LIBS_D	= $(LIBS_N) -lhmd
-
-  LDFLAGS_D	= $(LDFLAGS_N)
+$(EXE_FILE) :  $(OBJS) main.o
+	$(LD) $(LDFLAGS) -o $@ main.o $(OBJS) $(LIBS)
 
 
 # ------------------------
@@ -246,23 +254,36 @@ all :
 	@echo
 	@echo '==== COMPILE ================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
-		"FFLAGS=$(FFLAGS_N)" "FFLAGR=$(FFLAGR_N)" "FFLAGFIX=$(FFLAGFIX_N)" \
+		"FFLAGS=$(FFLAGS_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS)
+		$(OBJS) main.o
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
 		"LIBS=$(LIBS_N)" "LDFLAGS=$(LDFLAGS_N)" \
 		$(EXE_FILE)
 
+library :
+	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode
+	@echo
+	@echo '==== COMPILE ================================================='
+	@$(MAKE) -f $(MAKE_FILE) \
+		"FFLAGS=$(FFLAGS_N)" \
+		"CFLAGS=$(CFLAGS_N)" \
+		$(OBJS) main.o
+	@echo
+	@echo '==== CREATING LIBRARY ========================================'
+	$(MAKE) lib
+	mv $(LIB) ../lib
+
 debug :
 	@$(MAKE) -f $(MAKE_FILE) "COMP_MODE=$@" check_mode
 	@echo
 	@echo '==== COMPILE ================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
-		"FFLAGS=$(FFLAGS_D)" "FFLAGR=$(FFLAGR_D)" "FFLAGFIX=$(FFLAGFIX_D)" \
+		"FFLAGS=$(FFLAGS_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS)
+		$(OBJS) imain.o
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -274,12 +295,15 @@ check_mode :
 	  if [ '$(COMP_MODE)' != `head -n 1 $(LOG_FILE)` ]; then \
 	    echo ;\
 	    echo "### COMPILE MODE WAS CHANGED ###" ;\
-	    make clean ;\
+	    $(MAKE) -f $(MAKE_FILE) clean ;\
 	  fi ;\
 	else \
 	  echo ;\
 	  echo "### NO LOG FILE ###" ;\
-	  make clean ;\
+	  $(MAKE) -f $(MAKE_FILE) clean ;\
 	fi
 	@echo $(COMP_MODE) > $(LOG_FILE)
+
+doclean:
+	- $(RM) *.tex *.dvi *.aux *.toc *.log *.ps *.pdf
 

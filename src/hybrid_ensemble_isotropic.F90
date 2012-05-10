@@ -1418,7 +1418,7 @@ end subroutine normal_new_factorization_rf_y
        call general_suba2sube(grd_a1,grd_e1,p_e2a, &
             reshape(qvar3d,(/size(qvar3d,1),size(qvar3d,2),size(qvar3d,3),1/)),qvar3d_ens,regional)
     end if
-!$omp parallel do schedule(dynamic,1) private(n,ii,i,j,k)
+!$omp parallel do schedule(dynamic,1) private(n,ii,i,j,k,w3,istatus)
     do m=1,ntlevs_ens
        do n=1,n_ens
           call gsi_bundlegetpointer(en_perts(n,m),'q',w3,istatus)
@@ -2441,7 +2441,7 @@ subroutine init_sf_xy(jcap_in)
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,ii,j,k,l,n,nn,jcap
+  integer(i_kind) i,ii,j,k,l,n,jcap
   real(r_kind),allocatable::g(:),gsave(:),errmax(:)
   real(r_kind) factor
   real(r_kind) rkm(grd_ens%nlat),f(grd_ens%nlat,grd_ens%nlon),f0(grd_ens%nlat,grd_ens%nlon)
@@ -2589,7 +2589,6 @@ subroutine init_sf_xy(jcap_in)
         factor=one
         if(l >  0) factor=half
         do n=l,sp_loc%jcap
-           nn=nn+2
            ii=ii+1
            spectral_filter(ii,k)=factor*g(2*n+1)
            ii=ii+1
@@ -2663,7 +2662,7 @@ subroutine sf_xy(f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end
@@ -2672,7 +2671,8 @@ subroutine sf_xy(f,k_start,k_end)
   real(r_kind) g(sp_loc%nc)
   integer(i_kind) k
 
-!$omp parallel do schedule(dynamic,1) private(k,g)
+!  Cannot get this loop to thread properly on Zeus - remove threading for now.
+!!$omp parallel do schedule(dynamic,1) private(k,g)
   do k=k_start,k_end
      call general_s2g0_ad(grd_ens,sp_loc,g,f(:,k))
      g(:)=g(:)*spectral_filter(:,k_index(k))
@@ -2712,7 +2712,7 @@ subroutine sqrt_sf_xy(z,f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end
@@ -2758,7 +2758,7 @@ subroutine sqrt_sf_xy_ad(z,f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end

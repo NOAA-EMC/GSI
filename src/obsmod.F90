@@ -242,6 +242,8 @@ module obsmod
 !                          .true. - uses iextra,jextra to append information to diag file
 !                          .false. - write out standard diag file (default)
 !   def ext_sonde    - logical for extended forward model on sonde data
+!   bmiss            - parameter to define missing value from bufr
+!                      [10e10 on IBM CCS, 10e08 elsewhere]
 !
 ! attributes:
 !   langauge: f90
@@ -302,6 +304,7 @@ module obsmod
   public :: aeroptr,aerolptr,pm2_5ptr
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
+  public :: bmiss
 !
   public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
   public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
@@ -316,6 +319,13 @@ module obsmod
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
+
+! Set bufr missing value
+#ifdef ibm_sp
+  real(r_kind), parameter:: bmiss = 1.0e11_r_kind
+#else
+  real(r_kind), parameter:: bmiss = 1.0e9_r_kind
+#endif
 
 ! Declare types
 

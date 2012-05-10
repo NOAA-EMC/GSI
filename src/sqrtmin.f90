@@ -253,7 +253,7 @@ call inquire_cv
 ! Finalize timer
 call timer_fnl('sqrtmin')
 
-888 format(2A,3(1X,ES24.18))
+888 format(2A,3(1X,ES25.18))
 
 return
 end subroutine sqrtmin

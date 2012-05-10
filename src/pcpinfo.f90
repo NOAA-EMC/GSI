@@ -193,7 +193,8 @@ contains
     
     if (mype==mype_pcp) then
        open(iout_pcp)
-       write(iout_pcp,*)'PCPINFO_READ:  npcptype=',npcptype
+       write(iout_pcp,110) npcptype
+110    format('PCPINFO_READ:  npcptype=',1x,i6)
     endif
     rewind(lunin)
     j=0

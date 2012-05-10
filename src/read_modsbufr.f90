@@ -49,7 +49,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
       tll2xy,txy2ll,rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype
-  use obsmod, only: oberrflg
+  use obsmod, only: oberrflg,bmiss
   use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
@@ -78,8 +78,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_kind),parameter:: r24   = 24.0_r_kind
   real(r_kind),parameter:: r60   = 60.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
-
-  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
 
 ! Declare local variables
   logical outside

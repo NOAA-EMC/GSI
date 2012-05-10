@@ -541,8 +541,8 @@ subroutine pcgsoi()
         write(iout_iter,110) jiter,iter,penalty,gnorm(1),stp,b
         write(iout_iter,120) jiter,iter,penx,gnormx,step(istep)
 
-110     format(' penalty,grad ,a,b= ',i3,i4,1x,4(e24.18,1x),2(g12.6,1x))
-120     format(' pnorm,gnorm, step? ',i3,i4,1x,2(e24.18,1x),a5)
+110     format(' penalty,grad ,a,b= ',i3,i4,1x,4(e25.18,1x),2(g13.6,1x))
+120     format(' pnorm,gnorm, step? ',i3,i4,1x,2(e25.18,1x),a5)
      endif
 999  format(A,2(1X,I3),5(1X,ES25.18))
 9991 format(A,2(1X,I3),6(1X,ES25.18))
@@ -578,10 +578,10 @@ subroutine pcgsoi()
            end if
         end if
 101     format(' PCGSOI: WARNING **** Stopping inner iteration ***')
-100     format(' Penalty increase or constant ',I3,1x,i4,1x,2(e24.18,1x))
-105     format(' PCGSOI: WARNING **** Reset to steepest descent, gnorm(2),gsave,b= ',3(e24.18,1x))
-130     format(' gnorm ', e24.18,' less than ',e24.18)
-131     format(' penalty ', e24.18,' less than ',e24.18)
+100     format(' Penalty increase or constant ',I3,1x,i4,1x,2(e25.18,1x))
+105     format(' PCGSOI: WARNING **** Reset to steepest descent, gnorm(2),gsave,b= ',3(e25.18,1x))
+130     format(' gnorm ', e25.18,' less than ',e25.18)
+131     format(' penalty ', e25.18,' less than ',e25.18)
 140     format(' Stepsize calculation terminates inner iteration - probable convergence')
 141     format(' Stepsize calculation terminates inner iteration - probable error')
         exit inner_iteration

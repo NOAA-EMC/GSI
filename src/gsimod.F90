@@ -772,7 +772,7 @@
   call init_jcvars
   call init_strongvars
   call initialize_superob_radar
-  call init_io(mype)
+  call init_io(mype,npe-1)
   call init_vtrans
   call init_obsens
   call init_hybrid_ensemble_parameters

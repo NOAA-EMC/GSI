@@ -36,9 +36,11 @@ module gsi_io
   implicit none
 
   integer(i_kind):: lendian_in,lendian_out
+  integer(i_kind):: mype_io
 
   private
   public lendian_in, lendian_out
+  public mype_io
   public init_io
   public read_bias
   public write_bias
@@ -56,7 +58,7 @@ module gsi_io
 
 contains
 
-  subroutine init_io(mype)
+  subroutine init_io(mype,iope)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_io                initialize quanities related 
@@ -70,6 +72,7 @@ contains
 !
 !   input argument list:
 !     mype     - mpi task id
+!     iope     - io server mpi task id
 !
 !   output argument list:
 !
@@ -83,6 +86,7 @@ contains
 
 !   Declare passed variables
     integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: iope
 
 
 !   Set unit numbers reserved for little endian input and output
@@ -91,6 +95,10 @@ contains
 
     if (mype==izero) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
        ' and lendian_out=',lendian_out,' for little endian i/o'
+
+!   Set mpi io task
+    mype_io=iope
+    if (mype==mype_io) write(6,*)'INIT_IO:  set IO server task to mype_io=',mype_io
 
   end subroutine init_io
 

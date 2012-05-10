@@ -307,7 +307,7 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
   irp=ir
 411 irp=irp+ione
   if(irp>nrr)then
-     write(6,'(" irp,r,rs(nrr)=",i5,2(1x,e12.6))') irp,r,rs(nrr)
+     write(6,'(" irp,r,rs(nrr)=",i5,2(1x,e13.6))') irp,r,rs(nrr)
      goto 800
   endif
   if(rs(irp)<=r)goto 411

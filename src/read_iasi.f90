@@ -157,6 +157,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanlr,jstart
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind),allocatable,dimension(:) :: nrec
 
 
 ! Work variables for time
@@ -338,12 +339,15 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Allocate arrays to hold data
   nele=nreal+nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
   next=0
+  irec=0
+  nrec=999999
   do while(ireadmg(lnbufr,subset,idate)>=0)
      next=next+1
+     irec=irec+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr)==0)
@@ -357,6 +361,26 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         else
            bad_line = -1
+        endif
+        ifov = nint(linele(1))               ! field of view
+
+!    IASI fov ranges from 1 to 120.   Current angle dependent bias
+!    correction has a maximum of 90 scan positions.   Geometry
+!    of IASI scan allows us to remap 1-120 to 1-60.   Variable
+!    ifovn below contains the remapped IASI fov.  This value is
+!    passed on to and used in setuprad
+        ifovn = (ifov-1)/2 + 1
+        iscn = nint(linele(2))               ! scan line
+
+!    Remove data on edges
+        if (.not. use_edges .and. &
+             (ifovn < radedge_min .OR. ifovn > radedge_max )) cycle read_loop
+
+!    Check field of view (FOVN) and satellite zenith angle (SAZA)
+        if( ifov <= 0 .or. ifov > 120) then
+           write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+              ' STRANGE OBS INFO(FOVN,SLNM):', ifov, iscn
+           cycle read_loop
         endif
 
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
@@ -454,22 +478,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Observational info
         sat_zenang  = allspot(10)            ! satellite zenith angle
-        ifov = nint(linele(1))               ! field of view
 
-!    IASI fov ranges from 1 to 120.   Current angle dependent bias
-!    correction has a maximum of 90 scan positions.   Geometry
-!    of IASI scan allows us to remap 1-120 to 1-60.   Variable
-!    ifovn below contains the remapped IASI fov.  This value is
-!    passed on to and used in setuprad
-        ifovn = (ifov-1)/2 + 1
-        iscn = nint(linele(2))               ! scan line
-
-!    Remove data on edges
-        if (.not. use_edges .and. &
-             (ifovn < radedge_min .OR. ifovn > radedge_max )) cycle read_loop
-
-!    Check field of view (FOVN) and satellite zenith angle (SAZA)
-        if( ifov <= 0 .or. ifov > 120 .or. sat_zenang > 90._r_kind ) then
+!    Check  satellite zenith angle (SAZA)
+        if(sat_zenang > 90._r_kind ) then
            write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
               ' STRANGE OBS INFO(FOVN,SLNM,SAZA):', ifov, iscn, allspot(10)
            cycle read_loop
@@ -582,13 +593,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
               call crtm_planck_temperature(sensorindex,i,radiance,temperature(i))
               if(temperature(i) < tbmin .or. temperature(i) > tbmax ) then
-                 temperature(i) = min(tbmax,max(zero,temperature(i)))
+                 temperature(i) = tbmin
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
 !                write(6,*)'READ_IASI:  skipped',i,temperature(i),allchan(2,1),allchan(2,i-1)
               endif
            else           ! error with channel number or radiance
 !             write(6,*)'READ_IASI:  iasi chan error',i,allchan(1,i), allchan(2,i)
-              temperature(i) = min(tbmax,max(zero,temperature(i)))
+              temperature(i) = tbmin
               if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
            endif
         end do
@@ -662,6 +673,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(l+nreal,itx) = temperature(l)   ! brightness temerature
         end do
 
+        nrec(itx)=irec
 
      enddo read_loop
   enddo
@@ -676,7 +688,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -702,7 +714,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
 
-  deallocate(data_all) ! Deallocate data arrays
+  deallocate(data_all,nrec) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
 ! Deallocate arrays and nullify pointers.

@@ -604,8 +604,8 @@ call inquire_cv
 ! Finalize timer
 call timer_fnl('pcglanczos')
 
-888 format(2A,3(1X,ES24.18))
-999 format(2A,2(1X,I3),3(1X,ES24.18))
+888 format(2A,3(1X,ES25.18))
+999 format(2A,2(1X,I3),3(1X,ES25.18))
 
 return
 end subroutine pcglanczos

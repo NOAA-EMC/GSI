@@ -1,6 +1,6 @@
 subroutine combine_radobs(mype_sub,mype_root,&
      npe_sub,mpi_comm_sub,nele,itxmax,nread,ndata,&
-     data_all,data_crit)
+     data_all,data_crit,nrec)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    combine_radobs        merge input from multiple tasks
@@ -51,6 +51,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
   integer(i_kind)                    ,intent(in   ) :: nele
   integer(i_kind)                    ,intent(in   ) :: mpi_comm_sub
   integer(i_kind)                    ,intent(inout) :: nread,ndata
+  integer(i_kind),dimension(itxmax)  ,intent(in   ) :: nrec
   real(r_kind),dimension(itxmax)     ,intent(inout) :: data_crit
   real(r_kind),dimension(nele,itxmax),intent(inout) :: data_all
 
@@ -88,12 +89,9 @@ subroutine combine_radobs(mype_sub,mype_root,&
            ndata=ndata+1
            if(data_crit_min(k) /= data_crit(k)) then
               data_crit(ndata)=1.e10_r_kind
-              do l=1,nele
-                 data_all_in(l,ndata)=zero
-              end do
            else
               ndata1=ndata1+1
-              data_crit(ndata)=data_crit(k)
+              data_crit(ndata)=real(nrec(k))
               do l=1,nele
                  data_all_in(l,ndata)=data_all(l,k)
               end do
@@ -104,9 +102,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 
 !    Following code only in the unlikely circumstance that 2 min crit's in one grid box are identical
      if(ndata /= ndata2)then
-        do i=1,ndata
-           data_crit(i)=data_crit(i)+float(mype_sub)
-        end do
+        if(mype_sub == 0)write(6,*) ' min crits same',ndata,ndata2
         call mpi_allreduce(data_crit,data_crit_min,ndata,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
         do k=1,ndata

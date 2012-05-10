@@ -51,7 +51,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
       checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv
-  use obsmod, only: offtime_data
+  use obsmod, only: offtime_data,bmiss
   use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: iadatebgn,iadateend,l4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
@@ -77,7 +77,6 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
-  real(r_kind),parameter:: bmiss = 1.0e11_r_kind
 
 ! Declare local variables
   logical outside,iuse,assim,clrsky,allsky
@@ -90,6 +89,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
@@ -206,35 +206,26 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   allocate(hdr(nhdr))
 
 
-! Check the data time
-  write(6,*)'READ_SEVIRI: bufr file date is ',idate,infile
-  IF (idate<iadatebgn.OR.idate>iadateend) THEN
-     if(offtime_data) then
-       write(6,*)'***READ_SEVIRI analysis and data file date differ, but use anyway'
-     else
-       write(6,*)'***READ_SEVIRI ERROR*** ',&
-          'incompatable analysis and observation date/time'
-     end if
-     write(6,*)'Analysis start  :',iadatebgn
-     write(6,*)'Analysis end    :',iadateend
-     write(6,*)'Observation time:',idate
-     if(.not.offtime_data) go to 900
-  ENDIF
-
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
-  next=0
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
+  if(jsatid == 'm08') kidsat = 55
+  if(jsatid == 'm09') kidsat = 56
+  if(jsatid == 'm10') kidsat = 57
 
+  nrec=999999
+  irec=0
+  next=0
 ! Big loop over bufr file
   do while (ireadmg(lnbufr,subset,idate) >= 0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0     
      if(next /= mype_sub)cycle
@@ -243,57 +234,13 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !       Read through each record
         call ufbint(lnbufr,hdr,nhdr,1,iret,hdrsevi)
-        if(jsatid == 'm08') kidsat = 55
-        if(jsatid == 'm09') kidsat = 56
-        if(jsatid == 'm10') kidsat = 57
-        if(hdr(1) /= kidsat) cycle read_loop
-
-        call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
-        call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
-
-        allchnmiss=.true.
-        do n=4,11
-           if(datasev2(1,n)<500.)  then
-              allchnmiss=.false.
-           end if
-        end do
-        if(allchnmiss) then
-           cycle read_loop
-        end if
-
-        nread=nread+nchanl
- 
-        rclrsky=bmiss
-        do n=1,ncld
-           if(datasev1(1,n)>= zero .and. datasev1(1,n) <= 100.0_r_kind ) then
-              rclrsky=datasev1(1,n)
-!             first QC filter out data with less clear sky fraction
-              if ( rclrsky < r70 ) cycle read_loop
-           end if
-        end do
-
+        if(nint(hdr(1)) /= kidsat) cycle read_loop
         if (clrsky) then     ! asr bufr has no sza
 !          remove the obs whose satellite zenith angles larger than 65 degree
            if ( hdr(ilzah) > r65 ) cycle read_loop
         end if
 
-!       Compare relative obs time with window.  If obs 
-!       falls outside of window, don't use this obs
-        idate5(1) = hdr(2)     ! year
-        idate5(2) = hdr(3)     ! month
-        idate5(3) = hdr(4)     ! day
-        idate5(4) = hdr(5)     ! hours
-        idate5(5) = hdr(6)     ! minutes
-        call w3fs21(idate5,nmind)
-        t4dv = (real((nmind-iwinbgn),r_kind) + real(hdr(7),r_kind)*r60inv)*r60inv
-        if (l4dvar) then
-           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
-        else
-           sstime = real(nmind,r_kind) + real(hdr(7),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
-           if (abs(tdiff)>twind) cycle read_loop
-        endif
-
+ 
 !       Convert obs location from degrees to radians
         if (hdr(ilonh)>=r360) hdr(ilonh)=hdr(ilonh)-r360
         if (hdr(ilonh)< zero) hdr(ilonh)=hdr(ilonh)+r360
@@ -328,14 +275,50 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
            call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
+!       Compare relative obs time with window.  If obs 
+!       falls outside of window, don't use this obs
+        idate5(1) = hdr(2)     ! year
+        idate5(2) = hdr(3)     ! month
+        idate5(3) = hdr(4)     ! day
+        idate5(4) = hdr(5)     ! hours
+        idate5(5) = hdr(6)     ! minutes
+        call w3fs21(idate5,nmind)
+        t4dv = (real((nmind-iwinbgn),r_kind) + real(hdr(7),r_kind)*r60inv)*r60inv
         if (l4dvar) then
+           if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            crit1=0.01_r_kind
         else
+           sstime = real(nmind,r_kind) + real(hdr(7),r_kind)*r60inv
+           tdiff=(sstime-gstime)*r60inv
+           if (abs(tdiff)>twind) cycle read_loop
            timedif = 6.0_r_kind*abs(tdiff)        ! range:  0 to 18
            crit1=0.01_r_kind+timedif
         endif
+
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
+
+        nread=nread+nchanl
+
+        call ufbrep(lnbufr,datasev1,1,ncld,iret,'NCLDMNT')
+        rclrsky=bmiss
+        do n=1,ncld
+           if(datasev1(1,n)>= zero .and. datasev1(1,n) <= 100.0_r_kind ) then
+              rclrsky=datasev1(1,n)
+!             first QC filter out data with less clear sky fraction
+              if ( rclrsky < r70 ) cycle read_loop
+           end if
+        end do
+
+        call ufbrep(lnbufr,datasev2,1,nbrst,iret,'TMBRST')
+
+        allchnmiss=.true.
+        do n=4,11
+           if(datasev2(1,n)<500.)  then
+              allchnmiss=.false.
+           end if
+        end do
+        if(allchnmiss) cycle read_loop
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
 !       mask.  
@@ -351,13 +334,12 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
            ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
-
         crit1=crit1+rlndsea(isflg)
 !       call checkob(dist1,crit1,itx,iuse)
 !       if(.not. iuse)cycle read_loop
 
-!       Set common predictor parameters
 
+!       Set common predictor parameters
 !test
         pred=zero
 !test        
@@ -367,9 +349,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         call finalcheck(dist1,crit1,itx,iuse)
 
         if(.not. iuse)cycle read_loop
-  
+
         iscan = nint(hdr(ilzah))+1.001_r_kind ! integer scan position HLIU check this
- 
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -434,6 +415,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
               data_all(k+nreal,itx)=datasev2(1,jj)      ! all-sky radiance for chn 4,5,6,7,8,9,10,11
            end if
         end do
+        nrec(itx)=irec
 
 !    End of satellite read block
      enddo read_loop
@@ -441,42 +423,40 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   call closbf(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
-
-! If no observations read, jump to end of routine.
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
   if (mype_sub==mype_root.and.ndata>0) then
 
-  do n=1,ndata
+    do n=1,ndata
      do k=1,nchanl
         if(data_all(k+nreal,n) > tbmin .and. &
            data_all(k+nreal,n) < tbmax)nodata=nodata+1
      end do
      itt=nint(data_all(maxinfo,n))
      super_val(itt)=super_val(itt)+val_sev
-  end do
+    end do
 
-! Write retained data to local file
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+!   Write retained data to local file
+    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+    write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
   endif
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
 900 continue
   call destroygrids
 
 ! Print data counts
-  write(6,9000) infile,sis,nread,rmesh,ndata
-9000 format(' READ_SEVIRI:  infile=',a10,&
-        '   sis=',a20,&
-        '   nread=',i10, &
-        '   rmesh=',f7.3,'   ndata=',i10)
+! write(6,9000) infile,sis,nread,rmesh,ndata
+!000 format(' READ_SEVIRI:  infile=',a10,&
+!       '   sis=',a20,&
+!       '   nread=',i10, &
+!       '   rmesh=',f7.3,'   ndata=',i10)
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_SEVIRI:  ',&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax

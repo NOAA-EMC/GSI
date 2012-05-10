@@ -161,6 +161,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
 
+  integer(i_kind),allocatable,dimension(:):: nrec
   real(r_double),allocatable,dimension(:):: data1b8
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
@@ -315,6 +316,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
 ! Loop to read bufr file
+  irec=0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0 .AND. iob < maxobs)
 
      read_loop: do while (ireadsb(lnbufr)==0 .and. iob < maxobs)
@@ -449,8 +451,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
+  nrec=999999
   ObsLoop: do iob = 1, num_obs  
 
      rsat       => rsat_save(iob)
@@ -680,6 +683,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      do i=1,nchanl
         data_all(i+nreal,itx)=bt_in(i)
      end do
+     nrec(itx)=iob
 
   end do ObsLoop
 
@@ -697,7 +701,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(iscan)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+       nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! 
   if(mype_sub==mype_root)then
@@ -717,7 +721,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   end if
      
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
   call destroygrids

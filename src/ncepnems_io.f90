@@ -602,7 +602,7 @@ contains
 
 !   Print date/time stamp 
     if ( mype == 0 ) write(6, &
-       '(a,'': ges read/scatter,lonb,latb,levs= '',3i6,'',hour= '',f3.1,'',idate= '',4i5)') &
+       '(a,'': ges read/scatter,lonb,latb,levs= '',3i6,'',hour= '',f4.1,'',idate= '',4i5)') &
        trim(my_name),lonb,latb,levs,fhour,odate
 
   end subroutine read_atm_
@@ -820,7 +820,7 @@ contains
 !
 !   Print date/time stamp
     if ( mype == 0 ) write(6, &
-       '(a,'': sfc read,nlon,nlat= '',2i6,'',hour= '',f3.1,'',idate= '',4i5)') &
+       '(a,'': sfc read,nlon,nlat= '',2i6,'',hour= '',f4.1,'',idate= '',4i5)') &
        trim(my_name),lonb,latb,fhour,odate
 
   end subroutine read_sfc_
@@ -1022,7 +1022,7 @@ contains
 !
 !   Print date/time stamp
     if ( mype == 0 ) &
-       write(6,'(a,'': nst sfc read, nlon,nlat= '', 2i6, '', hour= '',f3.1,'', idate= '',4i5)') &
+       write(6,'(a,'': nst sfc read, nlon,nlat= '', 2i6, '', hour= '',f4.1,'', idate= '',4i5)') &
           trim(my_name),lonb,latb,fhour,odate
   end subroutine read_sfc_nst_
 
@@ -1461,7 +1461,7 @@ contains
 !
        deallocate(rwork1d)
 !
-       write(6,'(a,'': atm anal written for lonb,latb,levs= '',3i6,'',valid hour= '',f3.1,'',idate= '',4i5)') &
+       write(6,'(a,'': atm anal written for lonb,latb,levs= '',3i6,'',valid hour= '',f4.1,'',idate= '',4i5)') &
           trim(my_name),lonb,latb,levs,fhour,odate
     endif
 
@@ -1697,7 +1697,7 @@ contains
        call nemsio_close(gfileo,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(filename),null,'close',istop,iret)
 
-       write(6,'(a,'': sfc anal written for lonb,latb= '',2i6,'',valid hour= '',f3.1,'',idate= '',4i5)') &
+       write(6,'(a,'': sfc anal written for lonb,latb= '',2i6,'',valid hour= '',f4.1,'',idate= '',4i5)') &
           trim(my_name),lonb,latb,fhour,odate
     endif
   end subroutine write_sfc_
@@ -2059,7 +2059,7 @@ contains
        call nemsio_close(gfileo_nst,iret=iret)
        if (iret /= 0) call error_msg(0,trim(my_name),trim(fname_nst),null,'close',istop,iret)
 
-       write(6,'(a,'': sfc_nst anal written for lonb,latb= '',2i6,'',valid hour= '',f3.1,'',idate= '',4i5)') &
+       write(6,'(a,'': sfc_nst anal written for lonb,latb= '',2i6,'',valid hour= '',f4.1,'',idate= '',4i5)') &
           trim(my_name),lonb,latb,fhour,odate
     endif
   end subroutine write_sfc_nst_

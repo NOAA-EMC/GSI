@@ -92,11 +92,14 @@ subroutine statspcp(aivals,ndata)
      fhour  = kdt*deltim/r3600
      rtime  = one/(r3600*fhour)
      rmmhr  = r1000*rtime * r3600
-     write(iout_pcp,*)'deltim,dtphys =',deltim,dtphys
-     write(iout_pcp,*)'nsphys,dtp,dtf=',nsphys,dtp,dtf
-     write(iout_pcp,*)'frain,fhour   =',frain,fhour
-     write(iout_pcp,*)'rtime,rmmhr   =',rtime,rmmhr
-     write(iout_pcp,*)'kdt           =',kdt
+     write(iout_pcp,100)'deltim,dtphys=',deltim,dtphys
+     write(iout_pcp,100)'dtp,dtf      =',dtp,dtf
+     write(iout_pcp,100)'frain,fhour  =',frain,fhour
+     write(iout_pcp,100)'rtime,rmmhr  =',rtime,rmmhr
+     write(iout_pcp,110)'nsphys,kdt   =',nsphys,kdt
+100  format(a14,1x,2(g25.18,1x))
+110  format(a14,1x,2(i6,1x))
+
   endif
 
 
@@ -169,7 +172,7 @@ subroutine statspcp(aivals,ndata)
              pcpnbc0-pcpsas0,pcpbc0
         write(iout_pcp,2013)dtype(is),'toss',itoss,pcpobs1,pcpnbc1,pcpsas1,&
              pcpnbc1-pcpsas1,pcpbc1
-2013    format(a10,1x,a4,1x,i6,1x,5(g18.12,1x))
+2013    format(a10,1x,a4,1x,i6,1x,5(g19.12,1x))
         
      
      
@@ -186,7 +189,7 @@ subroutine statspcp(aivals,ndata)
 !    If precipitation observation has nonzero number of obs, generate output
      if (inum > izero .and. display(is)) then
         write(iout_pcp,2012) dtype(is),aivals(15,is)
-2012    format(A10,'  penalty     = ',g18.12)
+2012    format(A10,'  penalty     = ',g19.12)
         
      end if
   end do
@@ -194,9 +197,9 @@ subroutine statspcp(aivals,ndata)
 ! Print total precipitation penalty
   write(iout_pcp,*)' '
   write(iout_pcp,3000)penalty_all
-3000 format('pcp total   penalty_all  =',g24.18)
+3000 format('pcp total   penalty_all  =',g25.18)
   write(iout_pcp,3001)qcpenalty_all
-3001 format('pcp total qcpenalty_all  =',g24.18)
+3001 format('pcp total qcpenalty_all  =',g25.18)
   write(iout_pcp,3002)ntossqc
 3002 format('pcp total failed nonlinqc=',i8)
 
@@ -223,7 +226,7 @@ subroutine statspcp(aivals,ndata)
         endif
         write(iout_pcp,1102) dtype(is),dplat(is),isum,icerr,&
              aivals(16,is),aivals(13,is),aivals(15,is),aivals(14,is),sdv
-1102    format(a10,1x,a10,1x,2(i6,1x),6(g16.10,1x))
+1102    format(a10,1x,a10,1x,2(i6,1x),6(g17.10,1x))
      else
         rpen(is)   = zero
         qcpen(is)  = zero
@@ -244,7 +247,7 @@ subroutine statspcp(aivals,ndata)
              rpen(i),cpen(i),qcpen(i),qccpen(i)
      endif
   end do
-1115 format('o-g',1x,i2.2,1x,'pcp',2x,a10,2x,3(i9,2x),4(g11.5,1x))
+1115 format('o-g',1x,i2.2,1x,'pcp',2x,a10,2x,3(i9,2x),4(g12.5,1x))
   
   
 ! Close output unit

@@ -202,7 +202,7 @@ subroutine general_sptranf_s(sp_a,sp_b,wave,grid,idir)
 !     Mark Iredell coded up Joe's idea below.
 
   if(idir>0) then
-!$omp parallel do private(j,i,ii,jj,ijn,ijs,g)
+!!$omp parallel do private(j,i,ii,jj,ijn,ijs,g)
      do j=sp_a%jb,sp_a%je
         call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -218,7 +218,7 @@ subroutine general_sptranf_s(sp_a,sp_b,wave,grid,idir)
            grid(ijs)=g(ii,2)
         enddo
      enddo
-!$omp end parallel do
+!!$omp end parallel do
 
 ! Transform grid to wave
 !  ***WARNING***
@@ -461,7 +461,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
   integer(i_kind),dimension(2):: mp
   real(r_kind),dimension(sp_b%ncd2*2,2):: w
   real(r_kind),dimension(2*(sp_b%jcap+1),2):: wtop
-  real(r_kind),dimension(sp_b%imax,2,2):: g
+  real(r_kind),dimension(sp_b%imax,2):: g
   real(r_kind),dimension(sp_b%ncd2*2,2):: winc
 
 ! Set parameters
@@ -484,29 +484,40 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
      call spdz2uv(sp_b%iromb,sp_b%jcap,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
           waved,wavez, &
           w(1,1),w(1,2),wtop(1,1),wtop(1,2))
-!$omp parallel do private(j,i,ii,jj,ijn,ijs,g)
+!!$omp parallel sections private(j,i,ii,jj,ijn,ijs,g)
+!!$omp section
      do j=sp_a%jb,sp_a%je
         call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
              sp_b%afft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
              sp_b%pln(1,j),sp_b%plntop(1,j),mp, &
-             w(1,1),wtop(1,1),g(1,1,1),idir)
-        call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
-             sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
-             sp_b%afft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
-             sp_b%pln(1,j),sp_b%plntop(1,j),mp, &
-             w(1,2),wtop(1,2),g(1,1,2),idir)
+             w(1,1),wtop(1,1),g,idir)
         do i=1,sp_a%imax
            ii   = sp_b%imax/sp_a%imax*(i-1)+1
            jj   = j-sp_a%jb
            ijn = i + jj*sp_a%jn
            ijs = i + jj*sp_a%js + sp_a%ioffset
-           gridu(ijn)=g(ii,1,1)
-           gridu(ijs)=g(ii,2,1)
-           gridv(ijn)=g(ii,1,2)
-           gridv(ijs)=g(ii,2,2)
+           gridu(ijn)=g(ii,1)
+           gridu(ijs)=g(ii,2)
         enddo
      enddo
+!!$omp section
+     do j=sp_a%jb,sp_a%je
+        call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
+             sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
+             sp_b%afft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
+             sp_b%pln(1,j),sp_b%plntop(1,j),mp, &
+             w(1,2),wtop(1,2),g,idir)
+        do i=1,sp_a%imax
+           ii   = sp_b%imax/sp_a%imax*(i-1)+1
+           jj   = j-sp_a%jb
+           ijn = i + jj*sp_a%jn
+           ijs = i + jj*sp_a%js + sp_a%ioffset
+           gridv(ijn)=g(ii,1)
+           gridv(ijs)=g(ii,2)
+        enddo
+     enddo
+!!$omp end parallel sections
 
 !  Transform grid to wave
 !  ***WARNING***
@@ -525,29 +536,42 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
      else
         w=zero
         wtop=zero
+!!$omp parallel sections private(j,i,jj,ijn,ijs,g)
+!!$omp section
         do j=sp_a%jb,sp_a%je
            if(sp_a%wlat(j)>zero) then
               do i=1,sp_a%imax
                  jj   = j-sp_a%jb
                  ijn = i + jj*sp_a%jn
                  ijs = i + jj*sp_a%js + sp_a%ioffset
-                 g(i,1,1)=gridu(ijn)/sp_a%clat(j)**2
-                 g(i,2,1)=gridu(ijs)/sp_a%clat(j)**2
-                 g(i,1,2)=gridv(ijn)/sp_a%clat(j)**2
-                 g(i,2,2)=gridv(ijs)/sp_a%clat(j)**2
+                 g(i,1)=gridu(ijn)/sp_a%clat(j)**2
+                 g(i,2)=gridu(ijs)/sp_a%clat(j)**2
               enddo
               call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
                    sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
                    sp_a%afft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
                    sp_a%pln(1,j),sp_a%plntop(1,j),mp, &
-                   w(1,1),wtop(1,1),g(1,1,1),idir)
+                   w(1,1),wtop(1,1),g,idir)
+           endif
+        enddo
+!!$omp section
+        do j=sp_a%jb,sp_a%je
+           if(sp_a%wlat(j)>zero) then
+              do i=1,sp_a%imax
+                 jj   = j-sp_a%jb
+                 ijn = i + jj*sp_a%jn
+                 ijs = i + jj*sp_a%js + sp_a%ioffset
+                 g(i,1)=gridv(ijn)/sp_a%clat(j)**2
+                 g(i,2)=gridv(ijs)/sp_a%clat(j)**2
+              enddo
               call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
                    sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
                    sp_a%afft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
                    sp_a%pln(1,j),sp_a%plntop(1,j),mp, &
-                   w(1,2),wtop(1,2),g(1,1,2),idir)
+                   w(1,2),wtop(1,2),g,idir)
            endif
         enddo
+!!$omp end parallel sections
         call spuv2dz(sp_a%iromb,sp_a%jcap,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
              w(1,1),w(1,2),wtop(1,1),wtop(1,2), &
              winc(1,1),winc(1,2))

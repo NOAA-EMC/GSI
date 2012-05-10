@@ -119,10 +119,10 @@ subroutine q_diag(mype)
      if(qrms0(2,3)>zero) rhrms_sat=sqrt(qrms0(2,2)/qrms0(2,3))
      write(iout_iter,100) nint(qrms0(1,3)),qrms_neg,nint(qrms0(1,3)),rhrms_neg, &
                           nint(qrms0(2,3)),qrms_sat,nint(qrms0(2,3)),rhrms_sat
-100  format(' Q_DIAG:  NEG Q  COUNT,RMS=',i9,1x,g12.6,/, &
-            '          NEG RH COUNT,RMS=',i9,1x,g12.6,/, &
-            '     SUPERSAT Q  COUNT,RMS=',i9,1x,g12.6,/, &
-            '     SUPERSAT RH COUNT,RMS=',i9,1x,g12.6)
+100  format(' Q_DIAG:  NEG Q  COUNT,RMS=',i9,1x,g13.6,/, &
+            '          NEG RH COUNT,RMS=',i9,1x,g13.6,/, &
+            '     SUPERSAT Q  COUNT,RMS=',i9,1x,g13.6,/, &
+            '     SUPERSAT RH COUNT,RMS=',i9,1x,g13.6)
 
      call load_grid(work_ps,grid_ps)
      call load_grid(work_pw,grid_pw)
@@ -146,7 +146,7 @@ subroutine q_diag(mype)
      globpw=globpw
      pdryini=globps-globpw
      write(iout_iter,110) globps,globpw,pdryini
-110  format(' Q_DIAG:  mean_ps, mean_pw, pdryini=',3(g12.6,1x))
+110  format(' Q_DIAG:  mean_ps, mean_pw, pdryini=',3(g13.6,1x))
   end if
 
   return

@@ -524,7 +524,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   endif
 
 !! write information to diagnostic file
-  if(conv_diagsave) then
+  if(conv_diagsave .and.ii>0) then
      write(7)cvar,nchar,nrealdiag,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)

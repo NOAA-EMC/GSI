@@ -555,7 +555,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
         do k = 1,npres_print
-           if(presw >=ptop(k) .and. presw<=pbot(k))then
+           if(presw >ptop(k) .and. presw<=pbot(k))then
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ddiff          ! bias
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
@@ -703,7 +703,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:rw',i_rw_ob_type)
      write(7)' rw',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

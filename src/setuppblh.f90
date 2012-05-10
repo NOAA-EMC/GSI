@@ -38,7 +38,7 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: pblhhead,pblhtail,rmiss_single,i_pblh_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: pblh_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,bmiss
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
@@ -65,7 +65,6 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local variables
   
-  real(r_kind), parameter:: miss_obs = 10.e10_r_kind
   real(r_double) rstation_id
 
   real(r_kind) pblhges,dlat,dlon,ddiff,dtime,error,wflate
@@ -130,7 +129,7 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check for missing data  !need obs value and error
   do i=1,nobs
-    if (abs(data(ipblh,i)-miss_obs) .lt. 10.0_r_kind)  then
+    if (abs(data(ipblh,i)-bmiss) .lt. 10.0_r_kind)  then
        muse(i)=.false.
        data(ipblh,i)=rmiss_single   ! for diag output
     end if
@@ -454,7 +453,7 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:pblh',i_pblh_ob_type)
      write(7)'pbl',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

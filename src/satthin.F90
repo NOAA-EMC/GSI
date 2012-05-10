@@ -80,6 +80,7 @@ module satthin
 !   def zs_full        - model terrain elevation
 !   def score_crit     - "best" quality obs score in thinning grid box
 !   def use_all        - parameter for turning satellite thinning algorithm off
+!   def itx_all        - combined (i,j) index of observation when thinning is off
 !   def tref_full      - sea reference temperature
 !   def dt_cool_full   - sea cooling amount across sub-layer
 !   def z_c_full       - sub-layer thickness
@@ -122,6 +123,7 @@ module satthin
   public :: c_0_full,c_d_full,w_0_full,w_d_full
 
   integer(i_kind) mlat,superp,maxthin,itxmax
+  integer(i_kind), save:: itx_all
   integer(i_kind),dimension(0:51):: istart_val
   
   integer(i_kind),allocatable,dimension(:):: mlon
@@ -320,6 +322,7 @@ contains
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
+    itx_all=0
     if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
       itxmax=1e7
@@ -434,6 +437,7 @@ contains
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use ncepnems_io, only: read_nemssfc
     use sfcio_module, only: sfcio_realfill
+    use gsi_io, only: mype_io
 
     implicit none
 
@@ -524,7 +528,7 @@ contains
                    soil_type_full,soil_temp_full(:,:,it),&
                    soil_moi_full(:,:,it),isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
              else
-                call read_gfssfc(filename,mype,&
+                call read_gfssfc(filename,mype_io,mype,&
                    fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
                    veg_type_full(1,1),veg_frac_full(1,1,it), &
                    soil_type_full(1,1),soil_temp_full(1,1,it),&
@@ -539,7 +543,7 @@ contains
                    fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
                    dum,dum,dum,dum,dum,isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
              else
-                call read_gfssfc(filename,mype,&
+                call read_gfssfc(filename,mype_io,mype,&
                    fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
                    dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
              end if
@@ -930,12 +934,14 @@ contains
     if(use_all .or. ithin <= 0)then
        iuse=.true.
        itt=1
-       if(itx < itxmax) then
-          itx=itx+1
+       dist1=one
+       if(itx_all < itxmax) then
+          itx_all=itx_all+1
        else
           iuse = .false.
           write(6,*)'MAP2TGRID:  ndata > maxobs when reading data for ',sis,itxmax
        end if
+       itx=itx_all
        return
     end if
 

@@ -6363,12 +6363,12 @@ DO i1=1,m1,20
       j1=MAX(-mah1,ione-i)
       j2=MIN(mah2,m2-i)
       nj1=j1+mah1
-      IF(nj1==izero   )PRINT '(1x,i3,6(1x,e11.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==ione    )PRINT '(1x,i3,12x,5(1x,e11.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==2_i_kind)PRINT '(1x,i3,24x,4(1x,e11.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==3_i_kind)PRINT '(1x,i3,36x,3(1x,e11.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==4_i_kind)PRINT '(1x,i3,48x,2(1x,e11.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==5_i_kind)PRINT '(1x,i3,60x,1(1x,e11.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==izero   )PRINT '(1x,i3,6(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==ione    )PRINT '(1x,i3,12x,5(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==2_i_kind)PRINT '(1x,i3,24x,4(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==3_i_kind)PRINT '(1x,i3,36x,3(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==4_i_kind)PRINT '(1x,i3,48x,2(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==5_i_kind)PRINT '(1x,i3,60x,1(1x,e12.5))',i,(a(i,j),j=j1,j2)
    ENDDO
    READ(*,*)
 ENDDO

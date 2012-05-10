@@ -174,7 +174,7 @@ call deallocate_cv(grtry)
 call deallocate_cv(xtry)
 call deallocate_cv(dirx)
 
-999 format(2A,2(1X,I3),3(1X,ES24.18))
+999 format(2A,2(1X,I3),3(1X,ES25.18))
 
 call timer_fnl('pcgsqrt')
 return

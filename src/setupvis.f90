@@ -36,7 +36,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use guess_grids, only: hrdifsig,ges_lnprsl,ges_vis,ges_ps,nfldsig,ges_z,ntguessig
   use obsmod, only: vishead,vistail,rmiss_single,i_vis_ob_type,obsdiags,&
-                    lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
+                    lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use obsmod, only: vis_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -65,7 +65,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local variables
   
-  real(r_kind), parameter:: miss_obs = 10.e10_r_kind
   real(r_double) rstation_id
 
   real(r_kind) visges,dlat,dlon,ddiff,dtime,error,wflate
@@ -141,7 +140,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check for missing data  !need obs value and error
   do i=1,nobs
-    if (abs(data(ivis,i)-miss_obs) .lt. 100.0_r_kind)  then
+    if (abs(data(ivis,i)-bmiss) .lt. 100.0_r_kind)  then
        muse(i)=.false.
        data(ivis,i)=rmiss_single   ! for diag output
        data(iobshgt,i)=rmiss_single! for diag output
@@ -481,7 +480,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:vis',i_vis_ob_type)
      write(7)'vis',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

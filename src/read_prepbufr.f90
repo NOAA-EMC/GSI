@@ -131,7 +131,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
       id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t,use_prepb_satwnd
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
-  use obsmod, only: blacklst,offtime_data
+  use obsmod, only: blacklst,offtime_data,bmiss
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc
@@ -157,6 +157,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
 
 ! Declare local parameters
+  real(r_kind),parameter:: r0_01 = 0.01_r_kind
   real(r_kind),parameter:: r0_75 = 0.75_r_kind
   real(r_kind),parameter:: r0_7 = 0.7_r_kind
   real(r_kind),parameter:: r1_2 = 1.2_r_kind
@@ -171,7 +172,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),parameter:: r1200= 1200.0_r_kind
   real(r_kind),parameter:: convert= 1.0e-6_r_kind
   real(r_kind),parameter:: emerr= 0.2_r_kind
-  real(r_kind),parameter:: bmiss= 10.e10_r_kind
+  real(r_kind),parameter:: r0_1_bmiss=one_tenth*bmiss
+  real(r_kind),parameter:: r0_01_bmiss=r0_01*bmiss
   character(80),parameter:: cspval= '88888888'
 
   integer(i_kind),parameter:: mxtb=5000000
@@ -702,12 +704,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(uvob)then
               nread=nread+levs
            else if(sstob)then 
-              sstdat=1.e11_r_kind
+              sstdat=bmiss
               call ufbint(lunin,sstdat,8,1,levs,sststr)
            else if(metarcldobs) then
-              metarcld=1.e11_r_kind
-              metarwth=1.e11_r_kind
-              metarvis=1.e11_r_kind
+              metarcld=bmiss
+              metarwth=bmiss
+              metarvis=bmiss
               call ufbint(lunin,metarcld,2,10,metarcldlevs,metarcldstr)
               call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
               call ufbint(lunin,metarvis,2,1,iret,metarvisstr)
@@ -716,7 +718,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  call stop2(110)
               endif
            else if(geosctpobs) then
-              geoscld=1.e11_r_kind
+              geoscld=bmiss
               call ufbint(lunin,geoscld,4,1,levs,geoscldstr)
            endif
 
@@ -866,7 +868,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(psob) then
                  qm=pqm(k)
               else if(qob) then
-                 if(obsdat(2,k) > 1.0e9_r_kind)cycle loop_k_levs
+                 if(obsdat(2,k) > r0_01_bmiss)cycle loop_k_levs
                  qm=qqm(k)
               else if(pwob) then
                  pwq=nint(qcmark(7,k))
@@ -1445,25 +1447,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(2,iout)=dlon           !  grid relative longitude
                  cdata_all(3,iout)=dlat           !  grid relative latitude
                  cdata_all(4,iout)=stnelev        !  station  elevation
-                 if(metarvis(1,1) < 1.e10_r_kind) then
+                 if(metarvis(1,1) < r0_1_bmiss) then
                     cdata_all(5,iout)=metarvis(1,1)  !  visibility (m)
                  else
                     cdata_all(5,iout) = -99999.0_r_kind
                  endif
                  do kk=1, 6
-                    if(metarcld(1,kk) < 1.e10_r_kind) then
+                    if(metarcld(1,kk) < r0_1_bmiss) then
                        cdata_all(5+kk,iout) =metarcld(1,kk)  !  cloud amount
                     else
                        cdata_all(5+kk,iout) = -99999.0_r_kind
                     endif
-                    if(metarcld(2,kk) < 1.e10_r_kind) then
+                    if(metarcld(2,kk) < r0_1_bmiss) then
                        cdata_all(11+kk,iout)=metarcld(2,kk)  !  cloud bottom height (m)
                     else
                        cdata_all(11+kk,iout)= -99999.0_r_kind
                     endif
                  enddo
                  do kk=1, 3
-                    if(metarwth(1,kk) < 1.e10_r_kind) then
+                    if(metarwth(1,kk) < r0_1_bmiss) then
                        cdata_all(17+kk,iout)=metarwth(1,kk)  !  weather
                     else
                        cdata_all(17+kk,iout)= -99999.0_r_kind

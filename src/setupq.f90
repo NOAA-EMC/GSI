@@ -386,7 +386,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      rlow=max(sfcchk-dpres,zero)
 ! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
      if(l_sfcobserror_ramp_q) then
-        ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)
+        ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)*0.001_r_kind
      else
         ramp=rlow
      endif
@@ -399,7 +399,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
 
-     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*ramp*0.001_r_kind)
+     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*ramp)
 
 !    Check to see if observations is above the top of the model (regional mode)
      if (dpres > rsig) ratio_errors=zero
@@ -508,7 +508,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
         do k = 1,npres_print
-           if(presq >= ptopq(k) .and. presq <= pbotq(k))then
+           if(presq > ptopq(k) .and. presq <= pbotq(k))then
  
               bwork(k,ikx,1,nn)  = bwork(k,ikx,1,nn)+one             ! count
               bwork(k,ikx,2,nn)  = bwork(k,ikx,2,nn)+ress            ! (o-g)
@@ -792,7 +792,7 @@ endif    !   itype=120
   
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:q',i_q_ob_type)
      write(7)'  q',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

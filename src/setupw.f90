@@ -16,7 +16,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: wtail,whead,rmiss_single,perturb_obs,oberror_tune,&
        i_w_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,ext_sonde
+       time_offset,ext_sonde,bmiss
   use obsmod, only: w_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -142,7 +142,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r20=20.0_r_kind
   real(r_kind),parameter:: r50=50.0_r_kind
   real(r_kind),parameter:: r200=200.0_r_kind
-  real(r_kind),parameter:: r1e10=1.e10_r_kind
+  real(r_kind),parameter:: r0_1_bmiss=0.1_r_kind*bmiss
 
   character(len=*),parameter:: myname='setupw'
 
@@ -268,7 +268,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
-100 format(10f8.2)
 
   dup=one
   do k=1,nobs
@@ -380,11 +379,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    pressure have a missing value (ie, large) value for the reported 
 !    height.  The logic below determines whether to process type 221 
 !    wind observations using height or pressure as the vertical coordinate.
-!    If height is not bad (less than 1e10), we use height in the
+!    If height is not bad (less than r0_1_bmiss), we use height in the
 !    forward model.  Otherwise, use reported pressure.
 
      z_height = .false.
-     if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r1e10)) z_height = .true.
+     if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
 
 !    Process observations reported with height differently than those
 !    reported with pressure.  Type 223=profiler and 224=vadwnd are 
@@ -521,7 +520,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         dz       = zob-z1
         pobl     = p1 + (dlnp21/dz21)*dz
         presw    = ten*exp(pobl)
- 
+
 !       Determine location in terms of grid units for midpoint of
 !       first layer above surface
         sfcchk=zero
@@ -534,7 +533,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         presw = ten*exp(dpres)
         dpres = dpres-log(psges)
         drpx=zero
-       
+
         prsfc=psges
         prsln2=log(exp(prsltmp(1))/prsfc)
         dpressave=dpres
@@ -847,7 +846,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
         do k = 1,npres_print
-           if(presw >=ptop(k) .and. presw<=pbot(k))then
+           if(presw >ptop(k) .and. presw<=pbot(k))then
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+spdb           ! speed bias
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
@@ -1195,7 +1194,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:w',i_w_ob_type)
      write(7)' uv',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

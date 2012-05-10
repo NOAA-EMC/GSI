@@ -510,7 +510,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! as a function of observation type.
 
         do k = 1,npres_print
-           if(presw >= ptop(k) .and. presw <= pbot(k)) then   
+           if(presw > ptop(k) .and. presw <= pbot(k)) then   
               ress =scale*ddiff
               ressw=ress*ress
               val2 =val*val
@@ -672,7 +672,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show('setupdw','diagsave:dw',i_dw_ob_type)
      write(7)' dw',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

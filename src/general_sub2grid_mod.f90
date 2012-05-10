@@ -1289,7 +1289,7 @@ module general_sub2grid_mod
 
 
 ! Load temp array in desired order
-!$omp parallel do  schedule(dynamic,1) private(k,iskip,iloc,n,i,ilat,jlon,ii)
+!$omp parallel do  schedule(dynamic,1) private(k,iskip,iloc,n,i,ilat,jlon,ii,ioffset)
       do k=s%kbegin_loc,s%kend_loc
          iskip=0
          iloc=0

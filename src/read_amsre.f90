@@ -153,6 +153,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     :: dlon_earth,dlat_earth
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
+  integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind):: irec,isub,next
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
@@ -323,11 +324,14 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 ! Allocate local array to contain observation information
   nele=nreal+nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
   next=0
+  nrec=999999
+  irec=0
   do while(ireadmg(lnbufr,subset,idate)>=0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -435,6 +439,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         crit1 = 0.01_r_kind+timedif 
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if (.not.iuse) cycle read_loop
+
 !    QC:  "Score" observation.  We use this information to identify "best" obs
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -606,6 +611,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         do l=1,nchanl
            data_all(l+nreal,itx) = tbob_org(l)
         end do
+        nrec(itx)=irec
 
 
      enddo read_loop
@@ -616,7 +622,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -642,7 +648,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   
   endif
 
-  deallocate(data_all) ! Deallocate data arrays
+  deallocate(data_all,nrec) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &

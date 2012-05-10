@@ -237,43 +237,43 @@ contains
     
 ! Set pressure level groupings.  There are npres_print groupings
     ptop(1) = r1000       ;    pbot(1)=  1200.0_r_kind
-    ptop(2) = 900.0_r_kind;    pbot(2)=  999.9_r_kind
-    ptop(3) = 800.0_r_kind;    pbot(3)=  899.9_r_kind
-    ptop(4) = 600.0_r_kind;    pbot(4)=  799.9_r_kind
-    ptop(5) = 400.0_r_kind;    pbot(5)=  599.9_r_kind
-    ptop(6) = h300        ;    pbot(6)=  399.9_r_kind
-    ptop(7) = 250.0_r_kind;    pbot(7)=  299.9_r_kind
-    ptop(8) = 200.0_r_kind;    pbot(8)=  249.9_r_kind
-    ptop(9) = 150.0_r_kind;    pbot(9)=  199.9_r_kind
-    ptop(10)= 100.0_r_kind;    pbot(10)= 149.9_r_kind
-    ptop(11)= 50.0_r_kind ;    pbot(11)= 99.9_r_kind
+    ptop(2) = 900.0_r_kind;    pbot(2)=  ptop(1)
+    ptop(3) = 800.0_r_kind;    pbot(3)=  ptop(2)
+    ptop(4) = 600.0_r_kind;    pbot(4)=  ptop(3)
+    ptop(5) = 400.0_r_kind;    pbot(5)=  ptop(4)
+    ptop(6) = h300        ;    pbot(6)=  ptop(5)
+    ptop(7) = 250.0_r_kind;    pbot(7)=  ptop(6)
+    ptop(8) = 200.0_r_kind;    pbot(8)=  ptop(7)
+    ptop(9) = 150.0_r_kind;    pbot(9)=  ptop(8)
+    ptop(10)= 100.0_r_kind;    pbot(10)= ptop(9)
+    ptop(11)= 50.0_r_kind ;    pbot(11)= ptop(10)
     ptop(12)= zero        ;    pbot(12)= 2000.0_r_kind
 
     ptopq(1)=  r1000       ;   pbotq(1)=  1200.0_r_kind
-    ptopq(2)=  950.0_r_kind;   pbotq(2)=  999.9_r_kind
-    ptopq(3)=  900.0_r_kind;   pbotq(3)=  949.9_r_kind
-    ptopq(4)=  850.0_r_kind;   pbotq(4)=  899.9_r_kind
-    ptopq(5)=  800.0_r_kind;   pbotq(5)=  849.9_r_kind
-    ptopq(6)=  700.0_r_kind;   pbotq(6)=  799.9_r_kind
-    ptopq(7)=  600.0_r_kind;   pbotq(7)=  699.9_r_kind
-    ptopq(8)=  500.0_r_kind;   pbotq(8)=  599.9_r_kind
-    ptopq(9)=  400.0_r_kind;   pbotq(9)=  499.9_r_kind
-    ptopq(10)= h300        ;   pbotq(10)= 399.9_r_kind
-    ptopq(11)= zero        ;   pbotq(11)= 299.9_r_kind
+    ptopq(2)=  950.0_r_kind;   pbotq(2)=  ptopq(1)
+    ptopq(3)=  900.0_r_kind;   pbotq(3)=  ptopq(2)
+    ptopq(4)=  850.0_r_kind;   pbotq(4)=  ptopq(3)
+    ptopq(5)=  800.0_r_kind;   pbotq(5)=  ptopq(4)
+    ptopq(6)=  700.0_r_kind;   pbotq(6)=  ptopq(5)
+    ptopq(7)=  600.0_r_kind;   pbotq(7)=  ptopq(6)
+    ptopq(8)=  500.0_r_kind;   pbotq(8)=  ptopq(7)
+    ptopq(9)=  400.0_r_kind;   pbotq(9)=  ptopq(8)
+    ptopq(10)= h300        ;   pbotq(10)= ptopq(9)
+    ptopq(11)= zero        ;   pbotq(11)= ptopq(10)
     ptopq(12)= zero        ;   pbotq(12)= 2000.0_r_kind
 
     ptopo3(1) = 120.0_r_kind;  pboto3(1) = h300
-    ptopo3(2) =  70.0_r_kind;  pboto3(2) = 119.9_r_kind
-    ptopo3(3) =  40.0_r_kind;  pboto3(3) =  69.9_r_kind
-    ptopo3(4) =  25.0_r_kind;  pboto3(4) =  39.9_r_kind
-    ptopo3(5) =  12.0_r_kind;  pboto3(5) =  24.99_r_kind
-    ptopo3(6) =   7.0_r_kind;  pboto3(6) =  11.99_r_kind
-    ptopo3(7) =  four       ;  pboto3(7) =   6.99_r_kind
-    ptopo3(8) =   2.5_r_kind;  pboto3(8) =   3.99_r_kind
-    ptopo3(9) =   1.2_r_kind;  pboto3(9) =  2.499_r_kind
-    ptopo3(10) =  0.7_r_kind;  pboto3(10) =  1.199_r_kind
-    ptopo3(11) =  0.4_r_kind;  pboto3(11) =  0.699_r_kind
-    ptopo3(12) = zero       ;  pboto3(12) = 2000.0_r_kind
+    ptopo3(2) =  70.0_r_kind;  pboto3(2) = ptopo3(1)
+    ptopo3(3) =  40.0_r_kind;  pboto3(3) = ptopo3(2)
+    ptopo3(4) =  25.0_r_kind;  pboto3(4) = ptopo3(3)
+    ptopo3(5) =  12.0_r_kind;  pboto3(5) = ptopo3(4)
+    ptopo3(6) =   7.0_r_kind;  pboto3(6) = ptopo3(5)
+    ptopo3(7) =  four       ;  pboto3(7) = ptopo3(6)
+    ptopo3(8) =   2.5_r_kind;  pboto3(8) = ptopo3(7)
+    ptopo3(9) =   1.2_r_kind;  pboto3(9) = ptopo3(8)
+    ptopo3(10) =  0.7_r_kind;  pboto3(10)= ptopo3(9)
+    ptopo3(11) =  0.4_r_kind;  pboto3(11)= ptopo3(10)
+    ptopo3(12) = zero       ;  pboto3(12)= 2000.0_r_kind
 
     dfact    = zero
     dfact1   = three

@@ -551,7 +551,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
         do k = 1,npres_print
-           if(prest >=ptop(k) .and. prest <= pbot(k))then
+           if(prest >ptop(k) .and. prest <= pbot(k))then
               bwork(k,ikx,1,nn)  = bwork(k,ikx,1,nn)+one            ! count
               bwork(k,ikx,2,nn)  = bwork(k,ikx,2,nn)+ress           ! (o-g)
               bwork(k,ikx,3,nn)  = bwork(k,ikx,3,nn)+ressw2         ! (o-g)**2
@@ -877,7 +877,7 @@ endif    !   itype=120
 
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      write(7)'  t',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)

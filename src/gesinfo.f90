@@ -394,7 +394,7 @@ subroutine gesinfo(mype)
         end do
         k=nsig+1
         write(6,110) k,ak5(k),bk5(k),ck5(k)
-110     format(3x,'k,ak,bk,ck,tref=',i3,1x,4(g18.12,1x))
+110     format(3x,'k,ak,bk,ck,tref=',i3,1x,4(g19.12,1x))
      endif
 
 

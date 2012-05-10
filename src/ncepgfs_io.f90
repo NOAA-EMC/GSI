@@ -45,6 +45,8 @@ module ncepgfs_io
   implicit none
 
   private
+  public read_sigma
+  public read_sfc
   public read_gfs
   public read_gfs_chem
   public read_gfssfc
@@ -93,6 +95,7 @@ contains
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use cloud_efr, only: cloud_calc_gfs,set_cloud_lower_bound    
+    use gsi_io, only: mype_io
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -126,9 +129,9 @@ contains
 
           write(filename,100) ifilesig(it)
 100       format('sigf',i2.2)
-          call read_gfsatm(filename,mype,sp_a,sp_b,&
+          call read_gfsatm(filename,mype_io,mype,sp_a,sp_b,&
                ges_z(1,1,it),ges_ps(1,1,it),&
-               ges_vor(1,1,1,it),ges_div(1,1,1,i),&
+               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
                ges_u(1,1,1,it),ges_v(1,1,1,it),&
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
@@ -159,7 +162,7 @@ contains
           l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
 
           write(filename,100) ifilesig(it)
-          call read_gfsatm(filename,mype,sp_a,sp_a,&
+          call read_gfsatm(filename,mype_io,mype,sp_a,sp_a,&
                ges_z(1,1,it),ges_ps(1,1,it),&
                ges_vor(1,1,1,it),ges_div(1,1,1,it),&
                ges_u(1,1,1,it),ges_v(1,1,1,it),&
@@ -283,7 +286,6 @@ subroutine write_co2_grid(a,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use constants, only: izero
   use gridmod, only: nlat,nlon,nsig,lat2,lon2
   use file_utility, only : get_lun
   implicit none
@@ -301,10 +303,10 @@ subroutine write_co2_grid(a,mype)
 
 ! gather stuff to processor 0
   do k=1,nsig
-     call gather_stuff2(a(1,1,k),ag(1,1,k),mype,izero)
+     call gather_stuff2(a(1,1,k),ag(1,1,k),mype,0)
   end do
 
-  if (mype==izero) then
+  if (mype==0) then
      write(6,*) 'WRITE OUT CO2'
 ! load single precision arrays
      do k=1,nsig
@@ -327,7 +329,176 @@ subroutine write_co2_grid(a,mype)
   return
 end subroutine write_co2_grid
 
-  subroutine read_gfsatm(filename,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
+  subroutine read_sigma(lunges,filename,gfshead,sigdata,iope,mype,iret)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    read_sigma
+!
+!   prgrmmr: whitaker
+!
+! abstract: read a ncep GFS spectral sigma file on a specified task,
+!           broadcast data to other tasks.
+!
+! program history log:
+!   2012-01-24  whitaker - create routine
+!
+!   input argument list:
+!     lunges             - unit number to use for IO
+!     mype               - mpi task id
+!     filename           - gfs spectral file to read
+!     iope               - mpi task to perform IO
+!
+!   output argument list:
+!     sigdata (inout)    - sigio data structure to hold data
+!     gfshead (inout)    - gfs header structure to hole metadata
+!     iret               - return code (0 for sucessful completion)
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+    use sigio_module, only: sigio_srohdc,sigio_head,sigio_data
+    use kinds, only: i_kind,r_single,r_kind
+    use gridmod, only: ncepgfs_head
+    use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
+    character(24),intent(in) :: filename
+    type(sigio_head):: sighead
+    type(sigio_data), intent(inout):: sigdata
+    integer(i_kind), intent(inout) :: iret
+    integer(i_kind), intent(in) :: iope,mype,lunges
+    type(ncepgfs_head), intent(inout):: gfshead
+    integer(i_kind) nc,idate(4),levs,ntrac,ncldt,latb,lonb
+    real(r_single) fhour
+    ! read a file on a specified task, broadcast data to other tasks.
+    ! iope is task that does IO for this file.
+    if (mype == iope) then
+        call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
+        if (iret /= 0) print *,'error in read_sigma',trim(filename),iret
+        nc = (sighead%jcap+1)*(sighead%jcap+2)
+        levs = sighead%levs
+        idate = sighead%idate
+        ntrac = sighead%ntrac
+        ncldt = sighead%ncldt
+        fhour = sighead%fhour
+        lonb = sighead%lonb
+        latb = sighead%latb
+    endif
+    call mpi_bcast(nc,1,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(levs,1,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(ntrac,1,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(ncldt,1,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
+    gfshead%fhour   = fhour
+    gfshead%idate   = idate
+    gfshead%lonb    = lonb
+    gfshead%latb    = latb
+    gfshead%levs    = levs
+    gfshead%ntrac   = ntrac
+    gfshead%ncldt   = ncldt
+    if (mype /= iope) then
+        ! allocate data structure for non-IO tasks.
+        allocate(sigdata%hs(nc),sigdata%ps(nc),&
+             sigdata%t(nc,levs),sigdata%d(nc,levs),sigdata%z(nc,levs),&
+             sigdata%q(nc,levs,ntrac))
+    endif
+    call mpi_bcast(sigdata%ps(1),nc,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sigdata%hs(1),nc,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sigdata%t(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sigdata%z(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sigdata%d(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sigdata%q(1,1,1),nc*levs*ntrac,mpi_real4,iope,mpi_comm_world,iret)
+  end subroutine read_sigma
+
+  subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    read_sfc
+!
+!   prgrmmr: whitaker
+!
+! abstract: read a ncep GFS surface file on a specified task,
+!           broadcast data to other tasks.
+!
+! program history log:
+!   2012-01-24  whitaker - create routine
+!
+!   input argument list:
+!     lunges             - unit number to use for IO
+!     mype               - mpi task id
+!     filename           - gfs surface file to read
+!     iope               - mpi task to perform IO
+!
+!   output argument list:
+!     sfcdata (inout)    - sfc data structure to hold data
+!     sfchead (inout)    - sfc header structure to hold metadata
+!     iret               - return code (0 for sucessful completion)
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+    ! read data from sfc file on a single task, bcast data to other tasks.
+    use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data
+    use kinds, only: i_kind,r_single,r_kind
+    use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
+    character(24),intent(in) :: filename
+    type(sfcio_head), intent(inout) :: sfchead
+    type(sfcio_data), intent(inout):: sfcdata
+    integer(i_kind), intent(inout) :: iret
+    integer(i_kind), intent(in) :: iope,mype,lunges
+    integer(i_kind) idate(4),latb,lonb
+    real(r_single) fhour
+    ! read a file on a specified task, broadcast data to other tasks.
+    ! iope is task that does IO for this file.
+    if (mype == iope) then
+        call sfcio_srohdc(lunges,filename,sfchead,sfcdata,iret)
+        if (iret /= 0) print *,'error in read_sfc',trim(filename),iret
+        idate = sfchead%idate
+        lonb = sfchead%lonb
+        latb = sfchead%latb
+        fhour = sfchead%fhour
+    endif
+    call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
+    call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
+    sfchead%fhour   = fhour
+    sfchead%idate   = idate
+    sfchead%latb   = latb
+    sfchead%lonb   = lonb
+    if (mype /= iope) then
+       allocate(&
+         sfcdata%tsea(lonb,latb),&
+         sfcdata%smc(lonb,latb,1),&
+         sfcdata%sheleg(lonb,latb),&
+         sfcdata%stc(lonb,latb,1),&
+         sfcdata%slmsk(lonb,latb),&
+         sfcdata%zorl(lonb,latb),&
+         sfcdata%vfrac(lonb,latb),&
+         sfcdata%f10m(lonb,latb),&
+         sfcdata%vtype(lonb,latb),&
+         sfcdata%stype(lonb,latb),&
+         sfcdata%orog(lonb,latb))
+    endif
+    call mpi_bcast(sfcdata%tsea(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%smc(1,1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%stc(1,1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%sheleg(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%zorl(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%vfrac(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%slmsk(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%f10m(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%vtype(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%stype(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+    call mpi_bcast(sfcdata%orog(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
+  end subroutine read_sfc
+
+  subroutine read_gfsatm(filename,iope,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
        g_tv,g_q,g_cwmr,g_oz,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -364,6 +535,7 @@ end subroutine write_co2_grid
 !
 !   input argument list:
 !     inges    - unit number of guess coefs
+!     iope     - mpi task handling i/o
 !     mype     - mpi task id
 !
 !   output argument list:
@@ -383,9 +555,9 @@ end subroutine write_co2_grid
          ntracer,idvc5,cp5,idvm5,reload
     use general_specmod, only: spec_vars
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
-    use constants, only: izero,ione,zero,one,fv
+    use constants, only: zero,one,fv
     use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
-         sigio_srohdc,sigio_axdata
+         sigio_axdata
     implicit none
     
 !   Declare local parameters
@@ -394,6 +566,7 @@ end subroutine write_co2_grid
 
 !   Declare passed variables
     character(24)                         ,intent(in   ) :: filename
+    integer(i_kind)                       , intent(in  ) :: iope
     integer(i_kind)                       ,intent(in   ) :: mype
     integer(i_kind)                       ,intent(  out) :: iret_read
     real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: g_z,g_ps
@@ -405,9 +578,9 @@ end subroutine write_co2_grid
     integer(i_kind):: iret,nlatm2,ij,n,ii1,l,m
     integer(i_kind) i,j,k,icount,icount_prev,mm1
     integer(i_kind) mype_hs,mype_ps
-    real(r_kind),dimension(nlon,nlat-2_i_kind):: grid,grid_u,grid_v,&
+    real(r_kind),dimension(nlon,nlat-2):: grid,grid_u,grid_v,&
          grid_vor,grid_div,grid2
-    real(r_kind),dimension(nlon,nlat-2_i_kind,ntracer):: grid_q
+    real(r_kind),dimension(nlon,nlat-2,ntracer):: grid_q
     real(r_kind),dimension(sp_b%nc):: spec_work,spec_vor,spec_div
     real(r_kind),dimension(sp_a%nc):: spec2_work,spec2_vor,spec2_div
     real(r_kind),dimension(itotsub):: work,work_vor,work_div,&
@@ -422,24 +595,17 @@ end subroutine write_co2_grid
 
 !******************************************************************************  
 !   Initialize variables used below
-    mm1=mype+ione
-    mype_hs=izero
-    mype_ps=npe-ione
-    iret_read=izero
-    nlatm2=nlat-2_i_kind
+    mm1=mype+1
+    mype_hs=0
+    mype_ps=npe-1
+    iret_read=0
+    nlatm2=nlat-2
 
 
 !   Read NCEP gfs guess file using appropriate io module
-    call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
-    gfshead%fhour   = sighead%fhour
-    gfshead%idate   = sighead%idate
-    gfshead%levs    = sighead%levs
-    gfshead%ntrac   = sighead%ntrac
-    gfshead%ncldt   = sighead%ncldt
-    gfshead%lonb    = nlon
-    gfshead%latb    = nlatm2
-
-    if (iret /= izero) goto 1000
+!   Do IO on task iope, bcast data to other tasks.
+    call read_sigma(lunges,filename,gfshead,sigdata,iope,mype,iret)
+    if (iret /= 0) goto 1000
 
 
 !   Process guess fields according to type of input file.   NCEP_SIGIO files
@@ -453,7 +619,7 @@ end subroutine write_co2_grid
           spec_work(i)=sigdata%hs(i)
           if(sp_b%factsml(i))spec_work(i)=zero
        end do
-       call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
+       call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
        call fill_ns(grid,work)
     endif
     call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
@@ -471,11 +637,11 @@ end subroutine write_co2_grid
           spec_work(i)=sigdata%ps(i)
           if(sp_b%factsml(i))spec_work(i)=zero
        end do
-       call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
+       call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
        call fill_ns(grid,work)
        
 !      If ln(ps), take exponential to convert to ps in cb
-       if (idpsfc5 /= 2_i_kind) then
+       if (idpsfc5 /= 2) then
           do i=1,itotsub
              work(i)=exp(work(i))
           end do
@@ -491,16 +657,16 @@ end subroutine write_co2_grid
 !   Finally, the grids are loaded into guess arrays used later in the 
 !   code.
     sub=zero
-    icount=izero
-    icount_prev=ione
+    icount=0
+    icount_prev=1
     do k=1,gfshead%levs
-       icount=icount+ione
-       if (mype==mod(icount-ione,npe)) then
+       icount=icount+1
+       if (mype==mod(icount-1,npe)) then
           do i=1,sp_b%nc
              spec_work(i)=sigdata%t(i,k)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
 
 !         SIGIO has three possible thermodynamic variables
 !         Variable idthrm5 indicates the type
@@ -511,7 +677,7 @@ end subroutine write_co2_grid
 
 !         If needed, convert T or h to Tv
 
-          if (idthrm5==2_i_kind .or. idthrm5==3_i_kind) then
+          if (idthrm5==2 .or. idthrm5==3) then
 
 !            Convert tracers from spectral coefficients to grid
              do n=1,ntracer
@@ -519,12 +685,12 @@ end subroutine write_co2_grid
                    spec_work(i)=sigdata%q(i,k,n)
                    if(sp_b%factsml(i))spec_work(i)=zero
                 end do
-                call general_sptez_s_b(sp_a,sp_b,spec_work,grid_q(1,1,n),ione)
+                call general_sptez_s_b(sp_a,sp_b,spec_work,grid_q(1,1,n),1)
              end do
 
 !            Convert input thermodynamic variable to dry temperature
-             call sigio_cnvtdv8(nlon*nlatm2,nlon*nlatm2,ione,idvc5,&
-                  idvm5,ntracer,iret,grid,grid_q,cp5,ione)
+             call sigio_cnvtdv8(nlon*nlatm2,nlon*nlatm2,1,idvc5,&
+                  idvm5,ntracer,iret,grid,grid_q,cp5,1)
 
 !            Convert dry temperature to virtual
              do j=1,nlatm2
@@ -539,11 +705,11 @@ end subroutine write_co2_grid
           call fill_ns(grid,work)
        endif
 
-       if (mod(icount,npe)==izero .or. icount==gfshead%levs) then
+       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
           call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
                sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
                mpi_comm_world,ierror)
-          icount_prev=icount+ione
+          icount_prev=icount+1
        endif
     end do
     call reload(sub,g_tv)
@@ -555,13 +721,13 @@ end subroutine write_co2_grid
     sub_div=zero
     sub_u=zero
     sub_v=zero
-    icount=izero
-    icount_prev=ione
+    icount=0
+    icount_prev=1
     do k=1,gfshead%levs
-       icount=icount+ione
+       icount=icount+1
 
 !      The work in the loop below is spread over all mpi tasks
-       if (mype==mod(icount-ione,npe)) then
+       if (mype==mod(icount-1,npe)) then
 
 !         Convert spectral coefficients of div and vor to grid space
           do i=1,sp_b%nc
@@ -572,9 +738,9 @@ end subroutine write_co2_grid
                 spec_vor(i)=zero
              end if
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_div,grid_div,ione)
-          call general_sptez_s_b(sp_a,sp_b,spec_vor,grid_vor,ione)
-          call general_sptez_v_b(sp_a,sp_b,spec_div,spec_vor,grid_u,grid_v,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_div,grid_div,1)
+          call general_sptez_s_b(sp_a,sp_b,spec_vor,grid_vor,1)
+          call general_sptez_v_b(sp_a,sp_b,spec_div,spec_vor,grid_u,grid_v,1)
           
           call fill_ns(grid_div,work_div)
           call fill_ns(grid_vor,work_vor)
@@ -583,7 +749,7 @@ end subroutine write_co2_grid
        endif
 
 !      Periodically exchange vor,div,u,v between all mpi tasks.
-       if (mod(icount,npe)==izero .or. icount==gfshead%levs) then
+       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
           call mpi_alltoallv(work_vor,ijn_s,displs_s,mpi_rtype,&
                sub_vor(1,icount_prev),irc_s,ird_s,mpi_rtype,&
                mpi_comm_world,ierror)
@@ -596,7 +762,7 @@ end subroutine write_co2_grid
           call mpi_alltoallv(work_v,ijn_s,displs_s,mpi_rtype,&
                sub_v(1,icount_prev),irc_s,ird_s,mpi_rtype,&
                mpi_comm_world,ierror)
-          icount_prev=icount+ione
+          icount_prev=icount+1
        endif
     end do
     
@@ -609,23 +775,23 @@ end subroutine write_co2_grid
 
 !   Specific humidity
     sub=zero
-    icount=izero
-    icount_prev=ione
+    icount=0
+    icount_prev=1
     do k=1,gfshead%levs
-       icount=icount+ione
-       if (mype==mod(icount-ione,npe)) then
+       icount=icount+1
+       if (mype==mod(icount-1,npe)) then
           do i=1,sp_b%nc
              spec_work(i)=sigdata%q(i,k,1)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
           call fill_ns(grid,work)
        endif
-       if (mod(icount,npe)==izero .or. icount==gfshead%levs) then
+       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
           call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
                sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
                mpi_comm_world,ierror)
-          icount_prev=icount+ione
+          icount_prev=icount+1
        endif
     end do
     call reload(sub,g_q)
@@ -633,48 +799,48 @@ end subroutine write_co2_grid
 
 !   Ozone mixing ratio
     sub=zero
-    icount=izero
-    icount_prev=ione
+    icount=0
+    icount_prev=1
     do k=1,gfshead%levs
-       icount=icount+ione
-       if (mype==mod(icount-ione,npe)) then
+       icount=icount+1
+       if (mype==mod(icount-1,npe)) then
           do i=1,sp_b%nc
              spec_work(i)=sigdata%q(i,k,2)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
           call fill_ns(grid,work)
        endif
-       if (mod(icount,npe)==izero .or. icount==gfshead%levs) then
+       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
           call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
                sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
                mpi_comm_world,ierror)
-          icount_prev=icount+ione
+          icount_prev=icount+1
        endif
     end do
     call reload(sub,g_oz)
     
 
 !   Cloud condensate mixing ratio.
-    if (gfshead%ntrac>2_i_kind .or. gfshead%ncldt>=ione) then
+    if (gfshead%ntrac>2 .or. gfshead%ncldt>=1) then
        sub=zero
-       icount=izero
-       icount_prev=ione
+       icount=0
+       icount_prev=1
        do k=1,gfshead%levs
-          icount=icount+ione
-          if (mype==mod(icount-ione,npe)) then
+          icount=icount+1
+          if (mype==mod(icount-1,npe)) then
              do i=1,sp_b%nc
                 spec_work(i)=sigdata%q(i,k,3)
                 if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
              call fill_ns(grid,work)
           endif
-          if (mod(icount,npe)==izero .or. icount==gfshead%levs) then
+          if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
              call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
                   sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
                   mpi_comm_world,ierror)
-             icount_prev=icount+ione
+             icount_prev=icount+1
           endif
        end do
        call reload(sub,g_cwmr)
@@ -694,7 +860,7 @@ end subroutine write_co2_grid
 
 
 !   Print date/time stamp 
-    if(mype==izero) then
+    if(mype==iope) then
        write(6,700) gfshead%lonb,gfshead%latb,gfshead%levs,&
             gfshead%fhour,gfshead%idate
 700    format('READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
@@ -706,7 +872,7 @@ end subroutine write_co2_grid
 
 !   ERROR detected while reading file
 1000 continue
-    if (mype==izero) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
+    if (mype==iope) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
          filename,' from unit ',lunges,'.   iret=',iret
     call sigio_axdata(sigdata,iret)
     iret_read=iret_read+iret
@@ -718,7 +884,7 @@ end subroutine write_co2_grid
 
 
 
-  subroutine read_gfssfc(filename,mype,fact10,sfct,sno,veg_type,&
+  subroutine read_gfssfc(filename,iope,mype,fact10,sfct,sno,veg_type,&
        veg_frac,soil_type,soil_temp,soil_moi,isli,sfc_rough,terrain)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -739,6 +905,7 @@ end subroutine write_co2_grid
 !
 !   input argument list:
 !     filename - name of surface guess file
+!     iope     - mpi task handling i/o
 !     mype     - mpi task id
 !
 !   output argument list:
@@ -764,11 +931,12 @@ end subroutine write_co2_grid
     use gridmod, only: nlat_sfc,nlon_sfc
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_axdata
-    use constants, only: izero,ione,zero
+    use constants, only: zero
     implicit none
 
 !   Declare passed variables
     character(24)                               ,intent(in   ) :: filename
+    integer(i_kind)                             ,intent(in   ) :: iope
     integer(i_kind)                             ,intent(in   ) :: mype
     integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
     real(r_kind)   ,dimension(nlat_sfc,nlon_sfc),intent(  out) :: fact10,sfct,sno,&
@@ -776,43 +944,43 @@ end subroutine write_co2_grid
 
 !   Declare local parameters
     integer(sfcio_intkind):: lunges = 11
-    integer(i_kind),parameter:: nsfc=11_i_kind
+    integer(i_kind),parameter:: nsfc=11
 
 !   Declare local variables
     integer(i_kind) i,j,k,latb,lonb,mm1
-    integer(sfcio_intkind):: irets
+    integer(sfcio_intkind):: irets,iret
     real(r_kind) sumn,sums
     real(r_kind),allocatable,dimension(:,:,:):: work,sfcges
 
     type(sfcio_head):: sfc_head
     type(sfcio_data):: sfc_data
 
-    mm1=mype+ione
+    mm1=mype+1
 !-----------------------------------------------------------------------------
 !   Read surface file
-    call sfcio_srohdc(lunges,filename,sfc_head,sfc_data,irets)
+    call read_sfc(lunges,filename,sfc_head,sfc_data,iope,mype,irets)
 
 
 !   Check for possible problems
-    if (irets /= izero) then
+    if (irets /= 0) then
        write(6,*)'READ_GFSSFC:  ***ERROR*** problem reading ',filename,&
             ', irets=',irets
-       call sfcio_axdata(sfc_data,irets)
+       call sfcio_axdata(sfc_data,iret)
        call stop2(80)
     endif
     latb=sfc_head%latb
     lonb=sfc_head%lonb
-    if ( (latb /= nlat_sfc-2_i_kind) .or. &
+    if ( (latb /= nlat_sfc-2) .or. &
          (lonb /= nlon_sfc) ) then
        write(6,*)'READ_GFSSFC:  ***ERROR*** inconsistent grid dimensions.  ',&
-            ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2_i_kind,' -vs- sfc file lonb,latb=',&
+            ', nlon,nlat-2=',nlon_sfc,nlat_sfc-2,' -vs- sfc file lonb,latb=',&
                lonb,latb
-       call sfcio_axdata(sfc_data,irets)
+       call sfcio_axdata(sfc_data,iret)
        call stop2(80)
     endif
 
 !   Load surface fields into local work array
-    allocate(work(lonb,latb,nsfc),sfcges(latb+2_i_kind,lonb,nsfc))
+    allocate(work(lonb,latb,nsfc),sfcges(latb+2,lonb,nsfc))
     do k=1,nsfc
        do j=1,latb
           do i=1,lonb
@@ -835,6 +1003,7 @@ end subroutine write_co2_grid
           work(i,j,11) = sfc_data%orog  (i,j)    ! terrain
        end do
     end do
+    call sfcio_axdata(sfc_data,iret)
 
 !   Fill surface guess array
     do k=1,nsfc
@@ -853,9 +1022,9 @@ end subroutine write_co2_grid
 !      Transfer from local work array to surface guess array
        do j = 1,lonb
           sfcges(1,j,k)=sums
-          sfcges(latb+2_i_kind,j,k)=sumn
-          do i=2,latb+ione
-             sfcges(i,j,k) = work(j,latb+2_i_kind-i,k)
+          sfcges(latb+2,j,k)=sumn
+          do i=2,latb+1
+             sfcges(i,j,k) = work(j,latb+2-i,k)
           end do
        end do
 
@@ -866,7 +1035,7 @@ end subroutine write_co2_grid
     deallocate(work)
 !   Load data into output arrays
     do j=1,lonb
-       do i=1,latb+2_i_kind
+       do i=1,latb+2
           sfct(i,j)      = sfcges(i,j,1)
           soil_moi(i,j)  = sfcges(i,j,2)
           sno(i,j)       = sfcges(i,j,3)
@@ -883,7 +1052,7 @@ end subroutine write_co2_grid
     deallocate(sfcges)
 
 !   Print date/time stamp
-    if(mype==izero) then
+    if(mype==iope) then
        write(6,700) latb,lonb,sfc_head%fhour,sfc_head%idate
 700    format('READ_GFSSFC:  ges read/scatter, nlat,nlon=',&
             2i6,', hour=',f10.1,', idate=',4i5)
@@ -927,7 +1096,7 @@ end subroutine write_co2_grid
     use gridmod, only: itotsub,nlat_sfc,nlon_sfc
     use nstio_module, only: nstio_srohdc,nstio_head,nstio_data
 
-    use constants, only: izero,zero,two
+    use constants, only: zero,two
     implicit none
 
 !   Declare passed variables
@@ -949,7 +1118,7 @@ end subroutine write_co2_grid
     call nstio_srohdc(lun_nst,trim(filename),nst_head,nst_data,irets)
 
 !   Check for possible problems
-    if (irets /= izero) then
+    if (irets /= 0) then
        write(6,*)'READ_GFSNST:  ***ERROR*** problem reading ',filename,&
             ', irets=',irets
        call stop2(80)
@@ -1024,7 +1193,7 @@ end subroutine write_co2_grid
     deallocate(nstges)
 
 !   Print date/time stamp
-    if(mype==izero) then
+    if(mype==0) then
        write(6,700) latb,lonb,nst_head%fhour,nst_head%idate
 700    format('READ_GFSNST:  ges read, nlat,nlon=',&
             2i6,', hour=',f10.1,', idate=',4i5)
@@ -1066,7 +1235,6 @@ end subroutine write_co2_grid
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use constants, only: izero
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
          ges_tv,ges_q,ges_oz,ges_prsl,&
          ges_u,ges_v,ges_prsi,dsfct,isli2
@@ -1129,7 +1297,7 @@ end subroutine write_co2_grid
        filename='sfcinc.gsi'
        call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
     else
-      if ( nst_gsi > izero ) then
+      if ( nst_gsi > 0 ) then
         file_sfc = 'sfcanl'
         file_nst = 'nstanl'
         call write_gfs_sfc_nst(file_sfc,file_nst,mype,mype_sfc,dsfct(1,1,ntguessfc))
@@ -1206,7 +1374,7 @@ end subroutine write_co2_grid
 ! !USES:
     use kinds, only: r_kind,i_kind,r_single
     
-    use constants, only: izero,ione,zero_single,r1000,fv,one,zero
+    use constants, only: zero_single,r1000,fv,one,zero
   
     use mpimod, only: mpi_rtype,mpi_rtype4
     use mpimod, only: mpi_comm_world
@@ -1263,7 +1431,7 @@ end subroutine write_co2_grid
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_prsl ! layer midpoint pressure
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_u    ! zonal wind
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_v    ! meridional wind
-    real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: sub_prsi ! interface  pressure
+    real(r_kind),dimension(lat2,lon2,nsig+1)   ,intent(in   ) :: sub_prsi ! interface  pressure
 
     type(spec_vars)                            ,intent(in   ) :: sp_a
     type(spec_vars)                            ,intent(in   ) :: sp_b
@@ -1271,8 +1439,8 @@ end subroutine write_co2_grid
 
 !-------------------------------------------------------------------------
 
-    integer(i_kind),parameter::  lunges = 11_i_kind
-    integer(i_kind),parameter::  lunanl = 51_i_kind
+    integer(i_kind),parameter::  lunges = 11
+    integer(i_kind),parameter::  lunanl = 51
 
     character(5):: string
     character(6):: fname_ges
@@ -1286,7 +1454,7 @@ end subroutine write_co2_grid
     real(r_kind),dimension(lat1*lon1,nsig,ntracer):: qsm
     real(r_kind),dimension(max(iglobal,itotsub)):: work1
     real(r_kind),dimension(max(iglobal,itotsub),nsig):: work1_k
-    real(r_kind),dimension(nlon,nlat-2_i_kind):: grid,grid2
+    real(r_kind),dimension(nlon,nlat-2):: grid,grid2
     real(r_kind),dimension(sp_b%nc):: spec_work
     real(r_kind),dimension(sp_a%nc):: spec_work_sm
 
@@ -1302,28 +1470,28 @@ end subroutine write_co2_grid
 
 !*************************************************************************
 !   Initialize local variables
-    mm1=mype+ione
-    nlatm2=nlat-2_i_kind
+    mm1=mype+1
+    nlatm2=nlat-2
 
 !   Set mpi tasks and tags for PE's to do grid transformations
-    pe_stride   = max(izero,(npe-2_i_kind)/6)
+    pe_stride   = max(0,(npe-2)/6)
 
-    mype_th   = min(2_i_kind,npe-ione)
-    itag_th   = 10000_i_kind
+    mype_th   = min(2,npe-1)
+    itag_th   = 10000
     mype_sh   = mype_th+pe_stride
-    itag_sh   = 10001_i_kind
+    itag_sh   = 10001
     mype_oz   = mype_sh+pe_stride
-    itag_oz   = 10002_i_kind
+    itag_oz   = 10002
     mype_clc  = mype_oz+pe_stride
-    itag_clc  = 10003_i_kind
+    itag_clc  = 10003
     mype_div  = mype_clc+pe_stride
-    itag_div  = 10004_i_kind
+    itag_div  = 10004
     mype_vort = mype_div+pe_stride
-    itag_vort = 10005_i_kind
+    itag_vort = 10005
 
 !   Strip off boundary points from subdomains
-    call strip(sub_z   ,hsm       ,ione)
-    call strip(sub_ps  ,psm       ,ione)
+    call strip(sub_z   ,hsm       ,1)
+    call strip(sub_ps  ,psm       ,1)
     call strip(sub_vor ,vorsm     ,nsig)
     call strip(sub_div ,divsm     ,nsig)
     call strip(sub_tv  ,tvsm      ,nsig)
@@ -1350,7 +1518,7 @@ end subroutine write_co2_grid
             itag_sh,mpi_comm_world,ierror)
        call mpi_send(sigdata%q(1,1,2),sp_b%nc*nsig,mpi_rtype4,mype_oz,&
             itag_oz,mpi_comm_world,ierror)
-       if (ntracer>2_i_kind .or. ncloud>=ione) then
+       if (ntracer>2 .or. ncloud>=1) then
           call mpi_send(sigdata%q(1,1,3),sp_b%nc*nsig,mpi_rtype4,mype_clc,&
                itag_clc,mpi_comm_world,ierror)
        endif
@@ -1377,7 +1545,7 @@ end subroutine write_co2_grid
        gfshead%jcap    = sighead%jcap
        gfshead%lonb    = nlon
        gfshead%latb    = nlatm2
-       gfshead%idrt    = 4_i_kind
+       gfshead%idrt    = 4
        
 !      Write header to analysis file
        call sigio_swopen(lunanl,filename,iret)
@@ -1399,7 +1567,7 @@ end subroutine write_co2_grid
                itag_oz,mpi_comm_world,status,ierror)
        endif
        if (mype==mype_clc) then
-          if (ntracer>2_i_kind .or. ncloud>=ione) then
+          if (ntracer>2 .or. ncloud>=1) then
              allocate (temp(sp_b%nc,nsig),stat=istat)
              call mpi_recv(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                   itag_clc,mpi_comm_world,status,ierror)
@@ -1424,7 +1592,7 @@ end subroutine write_co2_grid
 !   we have three possibilities:  Tv, sensible temperature (T), or 
 !   enthalpy (h=CpT)
 
-    if (idthrm5==2_i_kind .or. idthrm5==3_i_kind) then
+    if (idthrm5==2 .or. idthrm5==3) then
 
 !      Convert Tv to T
        do k=1,nsig
@@ -1434,8 +1602,8 @@ end subroutine write_co2_grid
        end do
 
 !      If CpT is requested, call function to make conversion
-       if (idthrm5==3_i_kind) call sigio_cnvtdv8(lat1*lon1,lat1*lon1,&
-            nsig,idvc5,idvm5,ntracer,iret,tvsm,qsm,cp5,-ione)
+       if (idthrm5==3) call sigio_cnvtdv8(lat1*lon1,lat1*lon1,&
+            nsig,idvc5,idvm5,ntracer,iret,tvsm,qsm,cp5,-1)
     endif
 
 
@@ -1458,7 +1626,7 @@ end subroutine write_co2_grid
             mype_oz,mpi_comm_world,ierror)
     end do
 !   Cloud condensate mixing ratio
-    if (ntracer>2_i_kind .or. ncloud>=ione) then
+    if (ntracer>2 .or. ncloud>=1) then
        do k=1,nsig
           call mpi_gatherv(qsm(1,k,3),ijn(mm1),mpi_rtype,&
                work1_k(1,k),ijn,displs_g,mpi_rtype,&
@@ -1497,10 +1665,10 @@ end subroutine write_co2_grid
           spec_work(i) = sigdata%hs(i)
           if(sp_b%factsml(i))spec_work(i)=zero
        end do
-       call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+       call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
        grid=grid-grid2
-       call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-       call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+       call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+       call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
        do i=1,sp_b%nc
           sigdata%hs(i)=sigdata%hs(i)+spec_work(i)
           if(sp_b%factsml(i))sigdata%hs(i)=zero_single
@@ -1509,7 +1677,7 @@ end subroutine write_co2_grid
 
 !   Surface pressure.  
 !   NCEP SIGIO outputs surface pressure or ln(surface pressure)
-    if (idpsfc5 /= 2_i_kind) then
+    if (idpsfc5 /= 2) then
        do i=1,lat1*lon1
           psm(i)=log(psm(i))
        end do
@@ -1523,10 +1691,10 @@ end subroutine write_co2_grid
           spec_work(i) = sigdata%ps(i)
           if(sp_b%factsml(i))spec_work(i)=zero
        end do
-       call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+       call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
        grid=grid-grid2
-       call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-       call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+       call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+       call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
        do i=1,sp_b%nc
           sigdata%ps(i)=sigdata%ps(i)+spec_work(i)
           if(sp_b%factsml(i))sigdata%ps(i)=zero_single
@@ -1535,23 +1703,25 @@ end subroutine write_co2_grid
 
 !   Thermodynamic variable
     if (mype==mype_th) then
-!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
+!  Following line turned off because does not work properly on Zeus
+!!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
        do k=1,nsig
           call load_grid(work1_k(1,k),grid)
           do i=1,sp_b%nc
              spec_work(i) = temp(i,k)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
           grid=grid-grid2
-          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+          call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
           do i=1,sp_b%nc
              temp(i,k)=temp(i,k)+spec_work(i)
              if(sp_b%factsml(i))temp(i,k)=zero_single
           end do
        end do
-!$omp end parallel do
+!  Following line turned off because does not work properly on Zeus
+!!$omp end parallel do
 !send temperature back to mype_out
        call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
             itag_th,mpi_comm_world,ierror)
@@ -1559,23 +1729,25 @@ end subroutine write_co2_grid
 
 !   Specific humidity
     if (mype==mype_sh) then
-!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
+!  Following line turned off because does not work properly on Zeus
+!!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
        do k=1,nsig
           call load_grid(work1_k(1,k),grid)
           do i=1,sp_b%nc
              spec_work(i) = temp(i,k)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
           grid=grid-grid2
-          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+          call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
           do i=1,sp_b%nc
              temp(i,k) =temp(i,k)+spec_work(i)
              if(sp_b%factsml(i))temp(i,k)=zero_single
           end do
        end do
-!$omp end parallel do
+!  Following line turned off because does not work properly on Zeus
+!!$omp end parallel do
 !send sh back to mype_out
        call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
             itag_sh,mpi_comm_world,ierror)
@@ -1583,49 +1755,53 @@ end subroutine write_co2_grid
 
 !   Ozone
     if (mype==mype_oz) then
-!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
+!  Following line turned off because does not work properly on Zeus
+!!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
        do k=1,nsig
           call load_grid(work1_k(1,k),grid)
           do i=1,sp_b%nc
              spec_work(i) = temp(i,k)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
           grid=grid-grid2
-          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+          call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
           do i=1,sp_b%nc
              temp(i,k) =temp(i,k) + spec_work(i)
              if(sp_b%factsml(i))temp(i,k)=zero_single
           end do
        end do
-!$omp end parallel do
+!  Following line turned off because does not work properly on Zeus
+!!$omp end parallel do
 !send sh back to mype_out
        call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
             itag_oz,mpi_comm_world,ierror)
     endif
 
 !   Cloud condensate mixing ratio
-    if (ntracer>2_i_kind .or. ncloud>=ione) then
+    if (ntracer>2 .or. ncloud>=1) then
        if (mype==mype_clc) then
-!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
+!  Following line turned off because does not work properly on Zeus
+!!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
           do k=1,nsig
              call load_grid(work1_k(1,k),grid)
              do i=1,sp_b%nc
                 spec_work(i) = temp(i,k)
                 if(sp_b%factsml(i))spec_work(i)=zero
              end do
-             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+             call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
              call load_grid(work1_k(1,k),grid)
              grid=grid-grid2
-             call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-             call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+             call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+             call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
              do i=1,sp_b%nc
                 temp(i,k) =temp(i,k)+spec_work(i)
                 if(sp_b%factsml(i))temp(i,k)=zero_single
              end do
           end do
-!$omp end parallel do
+!  Following line turned off because does not work properly on Zeus
+!!$omp end parallel do
 !send sh back to mype_out
           call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
                itag_clc,mpi_comm_world,ierror)
@@ -1634,46 +1810,50 @@ end subroutine write_co2_grid
 
 !   Horizontal divergence and voriticy
     if (mype==mype_div) then
-!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
+!  Following line turned off because does not work properly on Zeus
+!!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
        do k=1,nsig
           do i=1,sp_b%nc
              spec_work(i) = temp(i,k)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
           call load_grid(work1_k(1,k),grid)
           grid=grid-grid2
-          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+          call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
           do i=1,sp_b%nc
              temp(i,k) = temp(i,k) + spec_work(i)
              if(sp_b%factvml(i))temp(i,k)=zero_single
           end do
        end do
-!$omp end parallel do
+!  Following line turned off because does not work properly on Zeus
+!!$omp end parallel do
 !send sh back to mype_out
        call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
             itag_div,mpi_comm_world,ierror)
     endif
 
     if (mype==mype_vort) then
-!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
+!  Following line turned off because does not work properly on Zeus
+!!$omp parallel do private(k,grid,i,spec_work,grid2,spec_work_sm)
        do k=1,nsig
           do i=1,sp_b%nc
              spec_work(i) = temp(i,k)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,ione)
+          call general_sptez_s_b(sp_a,sp_b,spec_work,grid2,1)
           call load_grid(work1_k(1,k),grid)
           grid=grid-grid2
-          call general_sptez_s(sp_a,spec_work_sm,grid,-ione)
-          call sppad(izero,sp_a%jcap,spec_work_sm,izero,sp_b%jcap,spec_work)
+          call general_sptez_s(sp_a,spec_work_sm,grid,-1)
+          call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
           do i=1,sp_b%nc
              temp(i,k) =temp(i,k) + spec_work(i)
              if(sp_b%factvml(i))temp(i,k)=zero_single
           end do
        end do
-!$omp end parallel do
+!  Following line turned off because does not work properly on Zeus
+!!$omp end parallel do
        call mpi_send(temp,sp_b%nc*nsig,mpi_rtype4,mype_out,&
             itag_vort,mpi_comm_world,ierror)
     endif
@@ -1690,7 +1870,7 @@ end subroutine write_co2_grid
        call mpi_recv(sigdata%q(1,1,2),sp_b%nc*nsig,mpi_rtype4,mype_oz,&
             itag_oz,mpi_comm_world,status,ierror)
 !receive cloud condensate mixing ratio from mype_clc
-       if (ntracer>2_i_kind .or. ncloud>=ione) then
+       if (ntracer>2 .or. ncloud>=1) then
           call mpi_recv(sigdata%q(1,1,3),sp_b%nc*nsig,mpi_rtype4,mype_clc,&
                itag_clc,mpi_comm_world,status,ierror)
        endif
@@ -1710,7 +1890,7 @@ end subroutine write_co2_grid
             gfshead%levs,gfshead%fhour,gfshead%idate
 110    format('WRITE_GFSATM:  NCEP ',a5,&
             ' atm anal written for jcap,latb,lonb,levs= ',4i6,&
-            ' valid hour,idate= ',f3.1,4(i4,1x))
+            ' valid hour,idate= ',f4.1,4(i4,1x))
     endif
 
     return
@@ -1805,7 +1985,7 @@ end subroutine write_co2_grid
     
     use obsmod, only: iadate
     
-    use constants, only: izero,ione,zero_single
+    use constants, only: zero_single
     
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
@@ -1849,14 +2029,14 @@ end subroutine write_co2_grid
 !*****************************************************************************
 
 !   Initialize local variables
-    mm1=mype+ione
-    nlatm2=nlat-2_i_kind
+    mm1=mype+1
+    nlatm2=nlat-2
 
 !   Gather skin temperature information from all tasks.  
     do j=1,lon1
-       jp1 = j+ione
+       jp1 = j+1
        do i=1,lat1
-          ip1 = i+ione
+          ip1 = i+1
           sfcsub(i,j)=dsfct(ip1,jp1)
        end do
     end do
@@ -1874,7 +2054,7 @@ end subroutine write_co2_grid
           grid(ilon,ilat)=sfcall(i)
        end do
        do j=1,nlat
-          jj=nlat-j+ione
+          jj=nlat-j+1
           do i=1,nlon
              buffer(i,j)=grid(i,jj)
           end do
@@ -1886,7 +2066,7 @@ end subroutine write_co2_grid
 
 !      Read surface guess file
        call sfcio_srohdc(ioges,fname_ges,head,data,iret)
-       if (iret /= izero) then
+       if (iret /= 0) then
           write(6,*)'WRITE_GFSSFC:  ***ERROR*** problem reading ',fname_ges,&
                ', iret=',iret
           call sfcio_axdata(data,iret)
@@ -1904,7 +2084,7 @@ end subroutine write_co2_grid
        else
           do j=1,latb
              do i=1,lonb
-                buffer2(i,j)=buffer(i,j+ione)
+                buffer2(i,j)=buffer(i,j+1)
              end do
           end do
        endif
@@ -1933,7 +2113,7 @@ end subroutine write_co2_grid
 
        write(6,100) lonb,latb,houra,iadate(1:4),iret
 100    format(' WRITE_GFSSFC:  sfc analysis written  for ',&
-            2i6,1x,f3.1,4(i4,1x),' with iret=',i2)
+            2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 
     endif
     
@@ -1968,7 +2148,7 @@ end subroutine write_co2_grid
 
     use obsmod, only: iadate
 
-    use constants, only: zero_single,izero,zero,ione,two
+    use constants, only: zero_single,zero,two
 
     use guess_grids, only: isli2
     use radinfo, only: nst_gsi
@@ -2117,7 +2297,7 @@ end subroutine write_co2_grid
 !
        do j=1,nlat
          do i=1,nlon
-           if ( isli(i,j) > izero ) then
+           if ( isli(i,j) > 0 ) then
              buffer(i,j)=zero
            endif
          end do
@@ -2171,7 +2351,7 @@ end subroutine write_co2_grid
 
        do j=1,latb
          do i=1,lonb
-           if ( nint(data_sfc%slmsk(i,j)) > izero ) then
+           if ( nint(data_sfc%slmsk(i,j)) > 0) then
              buffer2(i,j)=zero
            endif
          end do
@@ -2187,10 +2367,10 @@ end subroutine write_co2_grid
 !
 !      update tsea (in the surface file) When Tr analysis is on
 !
-       if ( nst_gsi > 2_i_kind ) then
+       if ( nst_gsi > 2 ) then
          do j=1,latb
             do i=1,lonb
-              if ( nint(data_sfc%slmsk(i,j)) == izero ) then
+              if ( nint(data_sfc%slmsk(i,j)) == 0) then
                 data_sfc%tsea(i,j) = max(data_nst%tref(i,j)+buffer2(i,j)+two*data_nst%xt(i,j)/data_nst%xz(i,j)-data_nst%dt_cool(i,j),271.0_r_kind)
               endif
             end do
@@ -2198,7 +2378,7 @@ end subroutine write_co2_grid
        else
          do j=1,latb
             do i=1,lonb
-              if ( nint(data_sfc%slmsk(i,j)) == izero ) then
+              if ( nint(data_sfc%slmsk(i,j)) == 0) then
                 data_nst%tref(i,j) = data_sfc%tsea(i,j)           ! keep tref as tsea before analysis
               endif
               data_sfc%tsea(i,j) = max(data_sfc%tsea(i,j)+buffer2(i,j),271.0_r_kind)
@@ -2211,7 +2391,7 @@ end subroutine write_co2_grid
 
        write(6,100) lonb,latb,houra,iadate(1:4),iret
 100    format(' WRITE_GFSSFC:  sfc analysis written  for ',&
-            2i6,1x,f3.1,4(i4,1x),' with iret=',i2)
+            2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 
 
 
@@ -2225,10 +2405,10 @@ end subroutine write_co2_grid
 !
 !      update tref (in the nst file) When Tr analysis is on
 !
-       if ( nst_gsi > 2_i_kind ) then
+       if ( nst_gsi > 2 ) then
          do j=1,latb
             do i=1,lonb
-               if ( nint(data_nst%slmsk(i,j)) == izero ) then
+               if ( nint(data_nst%slmsk(i,j)) == 0) then
                  data_nst%tref(i,j) = max(data_nst%tref(i,j)+buffer2(i,j),271.0_r_kind)
                else
                  data_nst%tref(i,j) = data_sfc%tsea(i,j)
@@ -2242,7 +2422,7 @@ end subroutine write_co2_grid
 
        write(6,101) lonb,latb,houra,iadate(1:4),iret
 101    format(' WRITE_GFSNST:  nst analysis written  for ',&
-            2i6,1x,f3.1,4(i4,1x),' with iret=',i2)
+            2i6,1x,f4.1,4(i4,1x),' with iret=',i2)
 
 !      Deallocate local work arrays
        call sfcio_axdata(data_sfc,iret)
@@ -2284,7 +2464,6 @@ end subroutine write_co2_grid
 
 ! !USES:
     use kinds, only: r_kind,i_kind
-    use constants, only: izero,ione
     implicit none
 ! !INPUT PARAMETERS:
     integer(i_kind)              ,intent(in   ) :: nx      ! number of grid points in zonal direction 
@@ -2303,10 +2482,10 @@ end subroutine write_co2_grid
 !*****************************************************************************
 
 !   Loop to transfer array contents
-    ij=izero
+    ij=0
     do j=1,ny
        do i=1,nx
-          ij=ij+ione
+          ij=ij+1
           grid_2d(i,j)=grid_1d(ij)
        end do
     end do
@@ -2350,7 +2529,7 @@ end subroutine write_co2_grid
 
 ! !USES:
     use kinds, only: r_kind,i_kind,r_single
-    use constants, only: izero,ione,zero,one
+    use constants, only: zero,one
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     
     implicit none
@@ -2377,27 +2556,27 @@ end subroutine write_co2_grid
 !   Loop over all points to get interpolated value
     do j=1,ns_lat
        dlat=rlats_sfc(j)
-       call grdcrd(dlat,ione,rlats,na_lat,ione)
+       call grdcrd(dlat,1,rlats,na_lat,1)
        iy=int(dlat)
-       iy=min(max(ione,iy),na_lat)
+       iy=min(max(1,iy),na_lat)
        dy  =dlat-iy
        dy1 =one-dy
-       iyp=min(na_lat,iy+ione)
+       iyp=min(na_lat,iy+1)
 
 
        do i=1,ns_lon
           dlon=rlons_sfc(i)
-          call grdcrd(dlon,ione,rlons,na_lon,ione)
+          call grdcrd(dlon,1,rlons,na_lon,1)
           ix=int(dlon)
           dx  =dlon-ix
           dx=max(zero,min(dx,one))
           dx1 =one-dx
           w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
 
-          ix=min(max(izero,ix),na_lon)
-          ixp=ix+ione
-          if(ix==izero) ix=na_lon
-          if(ixp==na_lon+ione) ixp=ione
+          ix=min(max(0,ix),na_lon)
+          ixp=ix+1
+          if(ix==0) ix=na_lon
+          if(ixp==na_lon+1) ixp=1
           bout=w00*a(ix,iy)+w01*a(ix,iyp)+w10*a(ixp,iy)+w11*a(ixp,iyp)
           b(i,j)=bout
 
@@ -2439,7 +2618,7 @@ end subroutine write_co2_grid
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use constants, only: izero,zero,one,fv
+    use constants, only: zero,one,fv
     implicit none
     integer(i_kind),intent(in   ) :: im,ix,km,idvc,idvm,ntrac,cnflg
     integer(i_kind),intent(  out) :: iret
@@ -2448,10 +2627,10 @@ end subroutine write_co2_grid
     integer(i_kind) :: thermodyn_id, n
     real(r_kind) :: xcp(ix,km), sumq(ix,km)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    iret=izero
-    thermodyn_id = mod(IDVM/10,10_i_kind)
+    iret=0
+    thermodyn_id = mod(IDVM/10,10)
 !
-    if (thermodyn_id == 3_i_kind .and. idvc == 3_i_kind) then
+    if (thermodyn_id == 3 .and. idvc == 3) then
        xcp(1:im,:)  = zero
        sumq(1:im,:) = zero
        do n=1,NTRAC
@@ -2465,7 +2644,7 @@ end subroutine write_co2_grid
     else
        xcp(1:im,:) = one + fv*Q(1:im,:,1)        ! Virt factor
     endif
-    if (cnflg > izero) then
+    if (cnflg > 0) then
        t(1:im,:) = t(1:im,:) / xcp(1:im,:)
     else
        t(1:im,:) = t(1:im,:) * xcp(1:im,:)

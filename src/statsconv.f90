@@ -191,7 +191,7 @@ subroutine statsconv(mype,&
         end do
 
 !       Write statistics  gross checks
-        write(iout_uv,*)' number ssm/i winds that fail nonlinear qc =',numfailqc_ssmi
+        write(iout_uv,920)' number ssm/i winds that fail nonlinear qc =',numfailqc_ssmi
         write(iout_uv,925) 'wind',numgross,numfailqc
 !       Write statistics regarding penalties                   
         if(ntot > 0)then
@@ -326,9 +326,9 @@ subroutine statsconv(mype,&
         numfail2_gps=nint(awork(23,i_gps))
         numfail3_gps=nint(awork(24,i_gps))
         write(iout_gps,925)'gps',numgross,numfailqc
-        write(iout_gps,*)' number of gps obs failed stats qc in NH =',numfail1_gps
-        write(iout_gps,*)' number of gps obs failed stats qc in SH =',numfail2_gps
-        write(iout_gps,*)' number of gps obs failed stats qc in TR =',numfail3_gps
+        write(iout_gps,920)' number of gps obs failed stats qc in NH =',numfail1_gps
+        write(iout_gps,920)' number of gps obs failed stats qc in SH =',numfail2_gps
+        write(iout_gps,920)' number of gps obs failed stats qc in TR =',numfail3_gps
 
         numlow        = nint(awork(2,i_gps))
         numhgh        = nint(awork(3,i_gps))
@@ -388,7 +388,7 @@ subroutine statsconv(mype,&
         grsmlt=five
         numgrsq=nint(awork(4,i_q))
         numfailqc=nint(awork(21,i_q))
-        write(iout_q,*)'  (scaled as precent of guess specific humidity)'
+        write(iout_q,924)'  (scaled as precent of guess specific humidity)'
         write(iout_q,925) 'q',numgrsq,numfailqc
         write(iout_q,975) grsmlt,'q',awork(5,i_q)
         numlow      = nint(awork(2,i_q))
@@ -920,17 +920,19 @@ subroutine statsconv(mype,&
 
 ! Format statements used above
 111 format('obs lev   num     rms         bias        sumges       sumobs        cpen')
-240 format(' num(',A1,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g11.5,1x))
-241 format(' num(',A1,') = ',i6,' at lev ',i4,' upen,vpen,cupen,cvpen = ',6(g11.5,1x))
+240 format(' num(',A1,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g12.5,1x))
+241 format(' num(',A1,') = ',i6,' at lev ',i4,' upen,vpen,cupen,cvpen = ',6(g12.5,1x))
 900 format(' number of ',a5,' obs extrapolated above',&
          ' top sigma layer=',i8,/,10x,' number extrapolated below',&
          ' bottom sigma layer=',i8)
 905 format(' number of ',a5,' obs with station elevation > 2km = ',i8,/, &
          ' number with abs(guess topography-station elevation) > 200m = ',i8)
+920 format(a44,i7)
+924 format(a50)
 925 format(' number of ',a5,' obs that failed gross test = ',I5,' nonlin qc test = ',I5)
-949 format(' number of ',a5,' obs = ',i6,' pen= ',e24.18,' cpen= ',g12.6)
+949 format(' number of ',a5,' obs = ',i6,' pen= ',e25.18,' cpen= ',g13.6)
 950 format(' type ',a7,' jiter ',i3,' nread ',i7,' nkeep ',i7,' num ',i7)
-951 format(' type ',a7,' pen= ',e24.18,' qcpen= ',e24.18,' r= ',g12.6,' qcr= ',g12.6)
+951 format(' type ',a7,' pen= ',e25.18,' qcpen= ',e25.18,' r= ',g13.6,' qcr= ',g13.6)
 952 format(t5,'it',t13,'sat',t21,'# read',t32,'# keep',t42,'# assim',&
          t52,'penalty',t67,'cpen')
 975 format(' grsmlt=',f7.1,' number of bad ',a5,' obs=',f8.0)
