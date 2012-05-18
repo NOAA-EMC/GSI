@@ -50,7 +50,7 @@ fi
 #--------------------------------------------------------------
 #  Get the area for this SUFFIX from the data_map file
 #
-export AREA=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
+AREA=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 if [[ $AREA == "" ]]; then
    echo "ERROR:  Suffix $SUFFIX not found in ${DATA_MAP} file."
    exit
@@ -78,7 +78,7 @@ cd $workdir
 #--------------------------------------------------------------
 #  source glbl/rgnl_conf to get the satype list
 #
-use_static_satype=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
+use_static_satype=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
 if [[ $use_static_satype == "" ]]; then
    echo "ERROR:  Suffix $SUFFIX not found in ${DATA_MAP} file."
    exit
