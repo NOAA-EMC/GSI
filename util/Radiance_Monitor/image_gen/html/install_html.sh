@@ -107,12 +107,35 @@ if [[ $use_static_satype -eq 0 ]]; then
 
    data_found=0
    while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
-      test=`ls $TANKDIR/angle/*.${PDATE}*.ieee_d* | wc -l`
-      if [[ $test -gt 0 ]]; then
-         data_found=1
+      PDY=`echo $PDATE|cut -c1-8`
+
+      if [[ -d $TANKDIR/radmon.${PDY} ]]; then
+         test00=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
+         test06=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
+         test12=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
+         test18=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
+         if [[ $test00 -gt 0 ]]; then
+            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
+            data_found=1
+         elif [[ $test06 -gt 0 ]]; then
+            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
+            data_found=1
+         elif [[ $test12 -gt 0 ]]; then
+            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
+            data_found=1
+         elif [[ $test18 -gt 0 ]]; then
+            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
+            data_found=1
+         fi
       else
-         PDATE=`$NDATE -24 $PDATE`
-         echo PDATE = $PDATE
+        test=`ls $TANKDIR/angle/*.${PDATE}*.ieee_d* | wc -l`
+        if [[ $test -gt 0 ]]; then
+           test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
+           data_found=1
+        else
+           PDATE=`$NDATE -24 $PDATE`
+           echo PDATE = $PDATE
+        fi
       fi
    done
 
@@ -128,11 +151,14 @@ if [[ $use_static_satype -eq 0 ]]; then
    #  all unique sat_instrument combinations.  That is the 
    #  SATYPE list for this source.
    # 
-   test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
+#   test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
 
    for test in ${test_list}; do
       this_file=`basename $test`
       tmp=`echo "$this_file" | cut -d. -f1`
+      if [[ $tmp == "angle" ]]; then
+         tmp=`echo "$this_file" | cut -d. -f2`
+      fi 
       echo $tmp
       SATYPE_LIST="$SATYPE_LIST $tmp"
    done
