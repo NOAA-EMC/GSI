@@ -245,22 +245,16 @@ ${SCRIPTS}/plot_update.sh
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-export MAIL_CC=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
+do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
 
-logfile_dir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} logfile_dir`
+if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
+   export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
+   export MAIL_CC=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
 
-#if [[ $SUFFIX == "opr" || $SUFFIX == "ncoprs" ]]; then
-#   export MAIL_TO="edward.safford@noaa.gov"
-#   if [[ $SUFFIX == "opr" ]]; then
-#      export MAIL_CC="russ.treadon@noaa.gov, john.derber@noaa.gov, andrew.collard@noaa.gov"
-#      logfile=${LOGDIR}/data_extract.${sdate}.${CYA}.log
-#   else
-#      export MAIL_CC="russ.treadon@noaa.gov"
-#      logfile=`ls /com/output/para/${PDY}/gdas_verfrad_${CYA}.*`
-#   fi
+   logfile_dir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} logfile_dir`
 
-   logfile=`ls ${logfile_dir}/para/${PDY}/gdas_verfrad_${CYA}.*`
+   logfile=`ls ${logfile_dir}/${PDY}/gdas_verfrad_${CYA}.*`
    if [[ ! -s $logfile ]]; then
       logfile=${LOGDIR}/data_extract.${sdate}.${CYA}.log
    fi
@@ -268,7 +262,7 @@ logfile_dir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} logfile_dir`
    if [[ -s $logfile ]]; then
       ${SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
    fi
-#fi
+fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
