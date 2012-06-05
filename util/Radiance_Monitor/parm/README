@@ -1,5 +1,10 @@
 The RadMon package can be configured for your particular data source by 
-modifying the data_map.xml and RadMon_config files in this directory.  
+modifying the data_map.xml and RadMon_config files in this directory.  "Data 
+source" in this useage means your set of gsi output data, most particularly 
+the radiance diagnostic file.  This could be from a parallel experiment (yours or 
+someone else's) or operational data.  It is possible to use and plot more than one
+data source at a time as long as they all have unique identifiers assigned.
+
 
 RadMon_config
 
@@ -92,7 +97,14 @@ do_diag_rpt:       Switch to enable diagnostic file reports.  0 = off, 1 = on.
 
 hpss_dir:          Location on hpss system to which archives may be journaled.
 
-imgdate:           Date of last cycle for which the package generated images.
+imgdate:           Date of last cycle for which the package generated images.   
+
+                   As an example, a date of 2012050100 would indicate that image generation
+                   was performed for the 2012050100 cycle.  With this as the imgdate the
+                   next cycle that the image generation would attempt to process would be
+                   2012050106.  In order for that to work, the prodate would have to be
+                   2012050106 or later (see prodate below).
+
 
 logfile_dir:       Location of logfiles from the data extraction step.  This 
                    location is needed the do_data_rpt and/or do_diag_rpt are set 
@@ -109,6 +121,11 @@ prodate:           Date of last cycle processed, meaning for which data has been
                    the data extraction step is run as part of the parallel.  The 
                    image generation will poll for new data files and execute if files
                    newer than the last imagedate are found.  
+
+                   As an example, a date of 2012050100 would indicate that data extraction
+                   was performed for the 2012050100 cycle.  With this as the prodate the
+                   next cycle that the data extraction would attempt to process would be
+                   2012050106.
 
 radstat_location:  Location of the directory containing the radstat files.  Note that
                    these are commonly stored in day directories which the package 
