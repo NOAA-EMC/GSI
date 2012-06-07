@@ -35,8 +35,22 @@
     $config = $xs->XMLin($fh, KeyAttr => {source => name} );
 #    print Dumper( $config->{$source} );
 
+#   Print the contents of the field if it's found.
+#   Note that the hash tree gets a little confused with "" 
+#   contents of elements and returns "HASH[number]" instead
+#   of "" if the element exists but has no contents.  Catch
+#   that condition with the =~ m/HASH/ check
+#
+#   If the element is not found then get the default element
+#   and output it's value for the requested field.
+
     if( exists( $config->{$source}->{$field} )) {
-       print "$config->{$source}->{$field}";
+       if( $config->{$source}->{$field} =~ m/HASH/ ) {
+          print "";
+       }
+       else {
+          print "$config->{$source}->{$field}";
+       }
     }
     else {
        if( $config->{$source}->{ 'area' } eq "glb" ) {
@@ -45,6 +59,13 @@
        }
        else {
           $source = "regional_default";
-          print "$config->{$source}->{$field}";
+          if( exists( $config->{$source}->{$field} )) {
+             if( $config->{$source}->{$field} =~ m/HASH/ ) {
+                print "";
+             }
+             else {
+                print "$config->{$source}->{$field}";
+             }
+          }
        }
     }
