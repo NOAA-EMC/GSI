@@ -13,6 +13,9 @@ subroutine compute_qvar3d
 ! 2010-05-28 todling - obtain variable id's on the fly (add getindex)
 ! 2011-08-17 zhu  - add handling of dssv(:,:,:,nrf3_cw) for regional when total condensate is control variable 
 ! 2011-11-01 eliu - add qmin 
+! 2012-02-08 kleist  - add computation of ges_qsat over nfldsig bins
+! 2012-02-08 parrish - remove integer constants izero, ione
+! 2012-02-08 parrish - replace nn_i_kind with nn, for nn any integer.
 !
 !   input argument list:
 !
@@ -30,8 +33,8 @@ subroutine compute_qvar3d
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig,lat1,lon1,istart,ltosi,ltosj,iglobal, &
                      itotsub,ijn,displs_g,nlat,regional
-  use constants, only: izero,zero,ione,one,fv,r100,qmin
-  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl
+  use constants, only: zero,one,fv,r100,qmin
+  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl,ges_qsat
   use mpeu_util, only: getindex
   use mpimod, only: npe,mpi_integer,mpi_rtype,mpi_sum,mpi_comm_world,mype
   use gsi_metguess_mod,  only: gsi_metguess_get,gsi_metguess_bundle
@@ -94,8 +97,14 @@ subroutine compute_qvar3d
 
   ice=.true.
   call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2,nsig,ice,iderivative)
-  allocate(rhgues(lat2,lon2,nsig))
 
+  iderivative = 0
+  do it=1,nfldsig
+    call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+           nsig,ice,iderivative)
+  end do
+
+  allocate(rhgues(lat2,lon2,nsig))
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2

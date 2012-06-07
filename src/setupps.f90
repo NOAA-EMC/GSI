@@ -634,7 +634,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Write information to diagnostic file
 
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:ps',i_ps_ob_type)
      write(7)' ps',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

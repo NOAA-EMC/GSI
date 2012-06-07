@@ -148,11 +148,11 @@ idig= int(-log(zz3+tiny(zz3))/log(10.0_r_kind))
 
 if (mype==0) then
    write(6,'(A)')' ADTEST            0.123456789012345678'
-   write(6,'(A,ES24.18)')' ADTEST <F*F.Y,X>= ',zz1
-   write(6,'(A,ES24.18)')' ADTEST <F.Y,F.Y>= ',zz2
+   write(6,'(A,ES25.18)')' ADTEST <F*F.Y,X>= ',zz1
+   write(6,'(A,ES25.18)')' ADTEST <F.Y,F.Y>= ',zz2
    write(6,'(A,i3,   A)')' ADTEST ',idig,' digits are identical'
-   write(6,'(A,ES24.18)')' ADTEST rel. err.= ',zz3
-   write(6,'(A,ES24.18)')' ADTEST mach.eps = ',epsilon(zz3)
+   write(6,'(A,ES25.18)')' ADTEST rel. err.= ',zz3
+   write(6,'(A,ES25.18)')' ADTEST mach.eps = ',epsilon(zz3)
 endif
 
 ! Release local variables

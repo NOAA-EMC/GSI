@@ -519,13 +519,11 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !  Create structures for radiative transfer
 
  call crtm_atmosphere_create(atmosphere(1),msig,n_absorbers,n_clouds,n_aerosols_crtm)
- call crtm_atmosphere_create(atmosphere_k(:,1),msig,n_absorbers,n_clouds,n_aerosols_crtm)
 !_RTod-NOTE if(r_kind==r_single .and. crtm_kind/=r_kind) then ! take care of case: GSI(single); CRTM(double)
 !_RTod-NOTE    call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels,tolerance=1.0e-5_crtm_kind)
 !_RTod-NOTE else
 !_RTod-NOTE: the following will work in single precision but issue lots of msg and remove more obs than needed
     call crtm_surface_create(surface(1),channelinfo(sensorindex)%n_channels)
-    call crtm_surface_create(surface_k(:,1),channelinfo(sensorindex)%n_channels)
 !_RTod-NOTE endif
  call crtm_rtsolution_create(rtsolution,msig)
  call crtm_rtsolution_create(rtsolution_k,msig)
@@ -670,8 +668,6 @@ subroutine destroy_crtm
      write(6,*)' ***ERROR** destroying rtsolution_k.'
   if (ANY(crtm_options_associated(options))) &
      write(6,*)' ***ERROR** destroying options.'
-  call crtm_atmosphere_destroy(atmosphere_k(:,1))
-  call crtm_surface_destroy(surface_k(:,1))
   deallocate(rtsolution,atmosphere_k,surface_k,rtsolution_k)
   if(n_aerosols>0)then
      deallocate(aero_names)
@@ -707,6 +703,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! program history log:
 !   2010-08-17  derber - modify from intrppx and add threading
 !   2011-02-23  todling/da silva - revisit interface to fill in aerosols
+!   2011-03-25  yang   - turn off the drop-off of co2 amount when using climatological CO2
 !   2011-05-03  todling - merge with Min-Jeong's MW cloudy radiance; combine w/ metguess
 !                         (did not include tendencies since they were calc but not used)
 !   2011-05-17  auligne/todling - add handling for hydrometeors
@@ -1516,11 +1513,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
 
 ! Add in a drop-off to absorber amount in the stratosphere to be in more
-! agreement with ECMWF profiles.  This should be replaced when climatological fields
-! are introduced.
-     if (atmosphere(1)%level_pressure(k) < 200.0_r_kind) &
-         atmosphere(1)%absorber(k,3) = atmosphere(1)%absorber(k,3) * &
-        (0.977_r_kind + 0.000115_r_kind * atmosphere(1)%pressure(k))
+! agreement with ECMWF profiles.  The drop-off is removed when climatological CO2 fields
+! are used.
+     if(igfsco2==0)then
+        if (atmosphere(1)%level_pressure(k) < 200.0_r_kind) &
+            atmosphere(1)%absorber(k,3) = atmosphere(1)%absorber(k,3) * &
+           (0.977_r_kind + 0.000115_r_kind * atmosphere(1)%pressure(k))
+     endif
   end do
 
 ! Set clouds for CRTM

@@ -33,6 +33,7 @@ module satthin
 !			- added an an array size assertion on istart_val(:).
 !   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
 !   2011-05-26  todling - add create_nst
+!   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -79,6 +80,7 @@ module satthin
 !   def zs_full        - model terrain elevation
 !   def score_crit     - "best" quality obs score in thinning grid box
 !   def use_all        - parameter for turning satellite thinning algorithm off
+!   def itx_all        - combined (i,j) index of observation when thinning is off
 !   def tref_full      - sea reference temperature
 !   def dt_cool_full   - sea cooling amount across sub-layer
 !   def z_c_full       - sub-layer thickness
@@ -121,6 +123,7 @@ module satthin
   public :: c_0_full,c_d_full,w_0_full,w_d_full
 
   integer(i_kind) mlat,superp,maxthin,itxmax
+  integer(i_kind), save:: itx_all
   integer(i_kind),dimension(0:51):: istart_val
   
   integer(i_kind),allocatable,dimension(:):: mlon
@@ -319,6 +322,7 @@ contains
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
+    itx_all=0
     if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
       itxmax=1e7
@@ -433,6 +437,7 @@ contains
     use ncepgfs_io, only: read_gfssfc,sfc_interpolate
     use ncepnems_io, only: read_nemssfc
     use sfcio_module, only: sfcio_realfill
+    use gsi_io, only: mype_io
 
     implicit none
 
@@ -523,7 +528,7 @@ contains
                    soil_type_full,soil_temp_full(:,:,it),&
                    soil_moi_full(:,:,it),isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
              else
-                call read_gfssfc(filename,mype,&
+                call read_gfssfc(filename,mype_io,mype,&
                    fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
                    veg_type_full(1,1),veg_frac_full(1,1,it), &
                    soil_type_full(1,1),soil_temp_full(1,1,it),&
@@ -538,7 +543,7 @@ contains
                    fact10_full(:,:,it),sst_full(:,:,it),sno_full(:,:,it), &
                    dum,dum,dum,dum,dum,isli_full,sfc_rough_full(:,:,it),zs_full_gfs)
              else
-                call read_gfssfc(filename,mype,&
+                call read_gfssfc(filename,mype_io,mype,&
                    fact10_full(1,1,it),sst_full(1,1,it),sno_full(1,1,it), &
                    dum,dum,dum,dum,dum,isli_full(1,1),sfc_rough_full(1,1,it),zs_full_gfs)
              end if
@@ -832,6 +837,7 @@ contains
 !            reading of observations.
 !
 ! program history log:
+!   2012-01-31  hchuang - add nemsio function for read NST
 !
 !   input argument list:
 !
@@ -843,9 +849,10 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use gridmod, only: nlat,nlon,nlat_sfc,nlon_sfc
+    use gridmod, only: nlat,nlon,nlat_sfc,nlon_sfc,use_gfs_nemsio
     use guess_grids, only: ntguesnst,nfldnst,ifilenst
     use ncepgfs_io, only: read_gfsnst
+    use ncepnems_io, only: read_nemsnst
 
     implicit none
 
@@ -864,11 +871,17 @@ contains
     do it=1,nfldnst
       write(filename,200)ifilenst(it)
 200   format('nstf',i2.2)
-      call read_gfsnst(filename,mype,&
-           tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
-           dt_warm_full(1,1,it), z_w_full(1,1,it), &
-           c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
-
+       if ( use_gfs_nemsio ) then
+          call read_nemsnst(filename,mype,&
+             tref_full(:,:,it),dt_cool_full(:,:,it),z_c_full(:,:,it), &
+             dt_warm_full(:,:,it), z_w_full(:,:,it), &
+             c_0_full(:,:,it),c_d_full(:,:,it),w_0_full(:,:,it),w_d_full(:,:,it))
+       else
+          call read_gfsnst(filename,mype,&
+             tref_full(1,1,it),dt_cool_full(1,1,it),z_c_full(1,1,it), &
+             dt_warm_full(1,1,it), z_w_full(1,1,it), &
+             c_0_full(1,1,it),c_d_full(1,1,it),w_0_full(1,1,it),w_d_full(1,1,it))
+       end if
     end do
 
   end subroutine getnst
@@ -921,12 +934,14 @@ contains
     if(use_all .or. ithin <= 0)then
        iuse=.true.
        itt=1
-       if(itx < itxmax) then
-          itx=itx+1
+       dist1=one
+       if(itx_all < itxmax) then
+          itx_all=itx_all+1
        else
           iuse = .false.
           write(6,*)'MAP2TGRID:  ndata > maxobs when reading data for ',sis,itxmax
        end if
+       itx=itx_all
        return
     end if
 

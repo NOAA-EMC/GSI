@@ -51,6 +51,7 @@ program main
 
 ! Declare local parameters
   integer,parameter:: lnangl = 11
+  integer,parameter:: lnmlst = 12
   integer,parameter:: lndiag = 21
   integer,parameter:: lntemp = 51 
   integer,parameter:: lnupdt = 52
@@ -123,8 +124,16 @@ program main
 
 
 ! Read and echo namelist input
+#ifdef ibm_sp
   read(5,setup)
   read(5,obs_input)
+#else
+  open(unit=lnmlst,file='global_angupdate.namelist')
+  read(lnmlst,setup)
+  read(lnmlst,obs_input)
+  close(lnmlst)
+#endif
+
   rsize=zero
   if (nsize>0) rsize=one/float(nsize)
   if (outask) then

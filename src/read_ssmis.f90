@@ -134,6 +134,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: ichan, instr
   integer(i_kind) isflg_1,isflg_2,isflg_3,isflg_4
   integer(i_kind),dimension(5):: iobsdate
+  integer(i_kind),allocatable,dimension(:)::nrec
   real(r_kind) sfcr,r07
   real(r_kind) pred
   real(r_kind) rsat,sstime,tdiff,t4dv
@@ -155,7 +156,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(2,2):: bufrhm
   real(r_double),dimension(2,29)::bufrloc
   real(r_double),dimension(2,maxchanl):: bufrtbb
-  real(r_kind) :: MILLI = 0.001_r_kind
 
 ! For qc
   real(r_kind):: flgch
@@ -255,7 +255,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! to hold all data for given satellite
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
   if (isfcalc == 1) then
      instr=25  ! circular fov, use as default
@@ -282,8 +282,11 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
 ! Big loop to read data file
+  nrec=999999
+  irec=0
   next=0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next/=mype_sub) cycle
@@ -294,13 +297,13 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
            "SAID SECO SLNM FOVN RSURF RAINF ORBN" )
 
 !       Extract satellite id.  If not the one we want, read next record
-        said = int( bufrinit(1) + MILLI ) 
+        said = nint(bufrinit(1)) 
         if( said /= bufsat) cycle read_subset
         
         rsat=bufsat
         
         fovn = bufrinit(4)
-        ifov = int(fovn+MILLI)
+        ifov = nint(fovn)
 
         if(ifov>nscan) then
 !           write(6,*) 'READ_SSMIS(',obstype,'): unreliable FOV number fovn=',fovn, &
@@ -343,9 +346,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !       BUFR read 3/3
         call ufbrep(lnbufr,bufrloc,  2,29,      nlv,"CLAT CLON" )
-        call ufbrep(lnbufr,bufrtbb,  2,maxchanl,nlv,"CHNM TMBR" )
-!       call ufbrep(lnbufr,bufrinfo, 1,3,       nlv,"SELV" )
-!       call ufbrep(lnbufr,bufrlleaa,2,28,      nlv,"RAIA BEARAZ" )
         
 !       Regional case
         dlat_earth = bufrloc(1,1)  !degrees
@@ -380,12 +380,23 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
            call grdcrd(dlon,1,rlons,nlon,1)
         endif
 
+        if (l4dvar) then
+           crit1 = 0.01_r_kind
+        else
+           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
+           crit1 = 0.01_r_kind+timedif
+        endif
+!       Map obs to thinning grid
+        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        if(.not. iuse)cycle read_loop
+
 !       Transfer observed brightness temperature to work array.  
 !       If any temperature exceeds limits, reset observation 
 !       to "bad" value
+        call ufbrep(lnbufr,bufrtbb,  2,maxchanl,nlv,"CHNM TMBR" )
         iskip=0
         do jc=1,maxchanl
-           bch=int( bufrtbb(1,jc)+MILLI ) !ch index from bufr
+           bch=nint( bufrtbb(1,jc) ) !ch index from bufr
            if(bch/=jc) cycle read_loop
            tbob(jc) = bufrtbb(2,jc)
            if(tbob(jc)<tbmin .or. tbob(jc)>tbmax) then
@@ -398,14 +409,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         if(iskip>=maxchanl)  cycle read_loop!if all ch for any position are bad, skip 
 
         flgch = iskip*two   !used for thinning priority range 0-14
-        if (l4dvar) then
-           crit1 = 0.01_r_kind+ flgch
-        else
-           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
-           crit1 = 0.01_r_kind+timedif + flgch
-        endif
-!       Map obs to thinning grid
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+        crit1 = crit1 + flgch
+        call checkob(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
 
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -518,6 +523,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         do jc=1,maxchanl
            data_all(nreal+jc,itx) = tbob(jc)
         end do
+        nrec(itx)=irec
 
      end do read_loop
   end do read_subset
@@ -527,7 +533,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -554,7 +560,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
 1000 continue

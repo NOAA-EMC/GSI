@@ -28,6 +28,9 @@ subroutine control2state(xhat,sval,bval)
 !   2011-05-15  auligne/todling - generalized cloud handling
 !   2011-07-12   zhu     - add do_cw_to_hydro and cwhydromod for cloudy radiance assimilation
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro
+!   2012-02-08  kleist   - remove call to strong_bk, ensemble_forward_model, 
+!                             ensemble_forward_model_dual_res, and related parameters
+
 !
 !   input argument list:
 !     xhat - Control variable
@@ -46,9 +49,6 @@ use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb
 use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
 use jfunc, only: nsclen,npclen,nrclen
-use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
-use balmod, only: strong_bk
-use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
 use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -60,7 +60,7 @@ use gsi_bundlemod, only: assignment(=)
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use constants, only : max_varname_length,izero
+use constants, only : max_varname_length
 implicit none
   
 ! Declare passed variables  
@@ -72,15 +72,14 @@ type(predictors)    , intent(inout) :: bval
 character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,im,jm,km,ic,id,ngases,nclouds,istatus
-real(r_kind),dimension(:,:,:),allocatable:: u,v
+integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus
 type(gsi_bundle):: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
 !       the state and control vectors, but rather the ones
 !       this routines knows how to handle.
 ! Declare required local control variables
-integer(i_kind), parameter :: ncvars = 6 
+integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
@@ -91,7 +90,7 @@ real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
 
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 7 
+integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
                                'u   ', 'v   ', 'p3d ', 'q   ', 'tsen', 'ql  ','qi  ' /)
@@ -102,7 +101,7 @@ real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
 
-logical :: do_strong_bk,do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
+logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 
 !******************************************************************************
 
@@ -114,10 +113,6 @@ if (nsubwin/=1 .and. .not.l4dvar) then
    write(6,*)trim(myname),': error 3dvar',nsubwin,l4dvar
    call stop2(107)
 end if
-
-im=xhat%step(1)%grid%im
-jm=xhat%step(1)%grid%jm
-km=xhat%step(1)%grid%km
 
 ! Inquire about cloud-vars 
 call gsi_metguess_get('clouds::3d',nclouds,istatus)
@@ -146,13 +141,12 @@ ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
-do_strong_bk     =lc_ps.and.lc_sf.and.lc_vp .and.lc_t
 do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
 do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
-do_cw_to_hydro=.false. 
+do_cw_to_hydro=.false.
 if (regional) then
    do_cw_to_hydro=lc_cw.and.ls_ql.and.ls_qi
 else
@@ -196,32 +190,6 @@ do jj=1,nsubwin
    if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
    if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
 
-! If this is ensemble run, then add ensemble contribution sum(a_en(k)*xe(k)),  where a_en(k) are the ensemble
-!   control variables and xe(k), k=1,n_ens are the ensemble perturbations.
-   if(l_hyb_ens) then
-      if(uv_hyb_ens) then
-!        Convert streamfunction and velocity potential to u,v
-         if (do_getuv) then
-            allocate(u(im,jm,km))
-            allocate(v(im,jm,km))
-            call getuv(u,v,cv_sf,cv_vp,0)
-            call gsi_bundleputvar ( wbundle, 'sf', u, istatus )
-            call gsi_bundleputvar ( wbundle, 'vp', v, istatus )
-            deallocate(v)
-            deallocate(u)
-         endif
-      end if
-      if(dual_res) then
-         call ensemble_forward_model_dual_res(wbundle,xhat%aens(jj,:))
-      else
-         call ensemble_forward_model(wbundle,xhat%aens(jj,:))
-      end if
-!     Apply strong constraint to sum of static background and ensemble background combinations to
-!     reduce imbalances introduced by ensemble localization in addition to known imbalances from
-!     static background
-      if(do_strong_bk) call strong_bk(cv_sf,cv_vp,cv_ps,cv_t)
-   end if
-
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_p3d)
 
@@ -232,14 +200,7 @@ do jj=1,nsubwin
    if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
 
 !  Convert streamfunction and velocity potential to u,v
-   if(do_getuv) then
-      if(l_hyb_ens.and.uv_hyb_ens) then
-         call gsi_bundlegetvar ( wbundle, 'sf', sv_u, istatus )
-         call gsi_bundlegetvar ( wbundle, 'vp', sv_v, istatus )
-      else
-         call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
-      end if
-   end if
+   if(do_getuv) call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
 
 !  Convert log(vis) to vis
    if (icvis >0)  call logvis_to_vis(cv_vis,sv_vis)
@@ -255,15 +216,15 @@ do jj=1,nsubwin
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)
 !     e.g. cw-to-ql&qi
-      if (.not. do_tv_to_tsen) then 
+      if (.not. do_tv_to_tsen) then
          allocate(sv_tsen(lat2,lon2,nsig))
          call tv_to_tsen(cv_t,sv_q,sv_tsen)
-      end if 
+      end if
       call cw2hydro_tl(sval(jj),wbundle,sv_tsen,clouds,nclouds)
       if (.not. do_tv_to_tsen) deallocate(sv_tsen)
    else
 !     Case when cloud-vars map one-to-one (cv-to-sv), take care of them together
-!     e.g. cw-to-cw 
+!     e.g. cw-to-cw
       do ic=1,nclouds
          id=getindex(cvars3d,clouds(ic))
          if (id>0) then

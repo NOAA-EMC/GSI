@@ -276,7 +276,8 @@ contains
   
        if (mype==mype_aero) then
           open(iout_aero)
-          write(iout_aero,*)'AEROINFO_READ:  jpch_aero=',jpch_aero
+          write(iout_aero,110) jpch_aero
+110       format('AEROINFO_READ:  jpch_aero=',1x,i6)
        endif
        rewind(lunin)
        j=0

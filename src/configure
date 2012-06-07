@@ -19,17 +19,41 @@
 
 c=`basename $0 .sh`
 
-# Node > OS
+type=${1:-"unknown"}
+echo $type
+
+
+# If type=clean, remove soft links and exit
+# -----------------------------------------
+if [ "$type" = "clean" ]; then
+   if [ -r makefile ]; then
+      echo "$c:  remove makefile" 1>&2
+      rm makefile
+   fi
+   if [ -r Makefile.conf ]; then
+      echo "$c:  remove Makefile.conf" 1>&2
+      rm Makefile.conf
+   fi
+   exit
+fi
+
+
+# Set makeconf based on user input
 # ---------------------------------------
+makeconf="Makefile.conf.$type"
+
 
 # Node specific configuration
 # ---------------------------------------
-makeconf="Makefile.conf.`uname -n | awk '{print $1}'`"
+if [ ! -r ${makeconf} ]; then
+  echo "$c: cannot find ${makeconf} in `pwd`" 1>&2
+  makeconf="Makefile.conf.`uname -n | awk '{print $1}'`"
+fi  
 
 # Machine specific
 # ----------------
 if [ ! -r ${makeconf} ]; then
-  echo "$c: not using site specific ${makeconf} in `pwd`" 1>&2
+  echo "$c: cannot find ${makeconf} in `pwd`" 1>&2
   machine="`uname -m | awk '{print $1}'`"
   machine=`echo $machine | tr "[a-z]" "[A-Z]"`
   compiler=$F90
@@ -40,14 +64,8 @@ fi
 # Site specific configuration
 # ---------------------------
 if [ ! -r ${makeconf} ]; then
-#  echo "$c: cannot find site specific ${makeconf}" 1>&2
+  echo "$c: cannot find ${makeconf} in `pwd`" 1>&2
   makeconf="Makefile.conf.`uname -s | awk '{print $1}'`"
-  # if all are failed, make a simple one
-  # ---------------------------------------
-  if [ `uname -s` = "AIX" ]; then
-    echo "Linking Makefile to makefile" 1>&2
-    ln -sf Makefile makefile
-  fi
 fi
 
 # if the OS is UNICOS, it does not follow the convention
@@ -60,18 +78,12 @@ if [ ! -r ${makeconf} ]; then
   fi
 fi
 
-# if all are failed, make a simple one
-# ---------------------------------------
-if [ ! -r ${makeconf} ]; then
-  echo "$c: cannot find ${makeconf} in `pwd` " 1>&2
-
-  makeconf="Makefile.conf.unknown"
-  if [ ! -r ${makeconf} ]; then
-    touch ${makeconf}
-  fi
+# Create soft link for Makefile.conf
+# ------------------------------------------------------
+if [ -r Makefile.conf ]; then
+   echo "$c:  remove Makefile.conf" 1>&2
+   rm Makefile.conf
 fi
-
-rm -f Makefile.conf
 ln -s ${makeconf} Makefile.conf
 
 echo "$c: using ${makeconf} in `pwd`" 1>&2

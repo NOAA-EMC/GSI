@@ -13,6 +13,7 @@ module mod_strong
 !
 ! program history log:
 !   2007-02-15 parrish
+!   2012-02-08 kleist - add option hybens_inmc_option to control how TLNMC is applied
 !
 ! Subroutines Included:
 !   sub init_strongvars  - set default namelist variable values
@@ -45,7 +46,12 @@ module mod_strong
 !                          from balanced to unbalanced gravity modes
 !   def baldiag_full     - flag to toggle balance diagnostics for the full fields
 !   def baldiag_inc      - flag to toggle balance diagnostics for the analysis increment
-!
+!   def hybens_inmc_option - Integer option for Incremental Normal Mode Constraint (inmc) / TLNMC
+!                            when in hybrid ensemble mode:
+!                          =0: no constraint at all (if jcstrong=.false.)
+!                          =1: TLNMC on static contribution to increment (or if non-hybrid)
+!                          =2: TLNMC on total increment (single time level only, or 3D mode)
+!                          =3: TLNMC on total increment over all nobs_bins (if 4D mode)
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
@@ -80,9 +86,10 @@ implicit none
 ! set passed variables to public
   public :: nstrong,baldiag_full,jcstrong,baldiag_inc,period_width,period_max,scheme
   public :: jcstrong_option
+  public :: hybens_inmc_option
 
   integer(i_kind) nstrong
-  integer(i_kind) jcstrong_option
+  integer(i_kind) jcstrong_option,hybens_inmc_option
   real(r_kind) period_max,period_width
   logical jcstrong,baldiag_full,baldiag_inc
   character(1) scheme
@@ -116,6 +123,7 @@ contains
 
     jcstrong=.false.
     jcstrong_option=1
+    hybens_inmc_option=0
     nstrong=0
     period_max=1000000._r_kind
     period_width=one_tenth

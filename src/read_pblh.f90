@@ -37,7 +37,7 @@
            ithin_conv,rmesh_conv,pmesh_conv, &
            id_bias_ps,id_bias_t,conv_bias_ps,conv_bias_t
       use gsi_4dvar, only: l4dvar,time_4dvar,winlen
-      use obsmod, only: iadate,offtime_data
+      use obsmod, only: iadate,offtime_data,bmiss
       use deter_sfc_mod, only: deter_sfc2
       implicit none
 
@@ -65,7 +65,6 @@
 
       real(r_kind) hdr(MXNM), plv(MXNM,MXRP), olv(MXNM,MXRP,MXRP)
       real(r_kind) clv(MXNM,MXRP,MXRP), slv(MXNM,MXRP,MXRP)
-      real(r_kind) bmiss/10.e10/
       real(r_kind),allocatable,dimension(:,:):: cdata_all
 
       character(10) date

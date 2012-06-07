@@ -16,7 +16,7 @@
   use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
      init_obsmod_dflts,create_obsmod_vars,write_diag,reduce_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
-     dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune, &
+     dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
      lwrite_peakwt,use_limit
@@ -25,7 +25,8 @@
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
                        lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
-                       idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon
+                       idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon, &
+		       l4densvar,ens4d_nstarthr
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
@@ -63,10 +64,10 @@
      rtma_subdomain_option,nsmooth,nsmooth_shapiro,&
      pf2aP1,pf2aP2,pf2aP3,afact0,covmap,lreadnorm
   use compact_diffs, only: noq,init_compact_diffs
-  use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer
+  use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer,ljc4tlevs
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
-  use mod_strong, only: jcstrong,jcstrong_option,nstrong,&
+  use mod_strong, only: jcstrong,jcstrong_option,nstrong,hybens_inmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
@@ -90,11 +91,19 @@
   use lag_traj,only   : lag_stepduration
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
+                         regional_ensemble_option,merge_two_grid_ensperts, &
+                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
-                         readin_localization
+                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
-                            metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs
+                            metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs, &
+                            l_sfcobserror_ramp_t, l_sfcobserror_ramp_q, &
+                            l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,l_PBL_pseudo_SurfobsUV, &
+                            pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
+                            l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
+                            l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold, &
+                            i_conserve_thetaV_iternum,l_cld_bld, cld_bld_hgt
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -209,6 +218,19 @@
 !  05-21-2011 todling   add call to setservice
 !  06-01-2011 guo/zhang add liauon
 !  07-27-2011 todling   add use_prepb_satwnd to control usage of satwnd's in prepbufr files
+!  11-14-2011  wu       add logical switch to use extended forward model for sonde data
+!  01-16-2012 m. tong   add parameter pseudo_hybens to turn on pseudo ensemble hybrid
+!  01-17-2012 wu        add switches: gefs_in_regional,full_ensemble,betaflg,pwgtflg
+!  01-18-2012 parrish   add integer parameter regional_ensemble_option to select ensemble source.
+!                                 =1: use GEFS internally interpolated to ensemble grid.
+!                                 =2: ensembles are WRF NMM format.
+!                                 =3: ensembles are ARW netcdf format.
+!                                 =4: ensembles are NEMS NMMB format.
+!  02-07-2012 tong      remove parameter gefs_in_regional and reduce regional_ensemble_option to
+!                       4 options
+!  02-08-2012 kleist    add parameters to control new 4d-ensemble-var features.
+!  02-17-2012 tong      add parameter merge_two_grid_ensperts to merge ensemble perturbations
+!                       from two forecast domains to analysis domain  
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -335,8 +357,10 @@
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
-!     use_prepb_satwnd - allow using satwnd's from prepbufr (historical) files
-
+!     use_prepb_satwnd - allow using satwnd's from prepbufr (historical) file
+!     l4densvar - logical to turn on ensemble 4dvar
+!     ens4d_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
+!
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
@@ -363,7 +387,7 @@
        idmodel,iwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd
+       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -476,9 +500,12 @@
 !     ljpdry      - when .t. uses dry pressure constraint on increment
 !     bamp_jcpdry - parameter for pdry_jc
 !     eps_eer     - Errico-Ehrendofer parameter for q-term in energy norm
+!     ljc4tlevs    - when true and in 4D mode, apply any weak constraints over all time levels
+!                   instead of just at a single time
 !
 
-  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag,ljcpdry,bamp_jcpdry,eps_eer
+  namelist/jcopts/ljcdfi,alphajc,switch_on_derivatives,tendsflag,ljcpdry,bamp_jcpdry,eps_eer,&
+      ljc4tlevs
 
 ! STRONGOPTS (strong dynamic constraint)
 !     jcstrong - if .true., strong contraint on
@@ -497,10 +524,16 @@
 !     nvmodes_keep - number of vertical modes to use in implicit normal mode initialization
 !     baldiag_full 
 !     baldiag_inc
+!     hybens_inmc_option : integer flag for strong constraint (various capabilities for hybrid)
+!                   =0: no TLNMC (consistent with jcstrong=.false.)
+!                   =1: TLNMC on static increment only (or if non-hybrid run)
+!                   =2: TLNMC on total increment for single time level only (or 3DHybrid)
+!                       if 4D mode, TLNMC applied to increment in center of window
+!                   =3: TLNMC on total increment over all time levels (if in 4D mode)
 
   namelist/strongopts/jcstrong,jcstrong_option,nstrong, &
                       period_max,period_width,nvmodes_keep, &
-		      baldiag_full,baldiag_inc
+		      baldiag_full,baldiag_inc,hybens_inmc_option
 
 ! OBSQC (observation quality control variables):
 !
@@ -546,8 +579,9 @@
 !      time_window(ndat)- time window for each input data file
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
+!      ext_sonde        - logical for extended forward model on sonde data
 
-  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max,ext_sonde
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -610,17 +644,61 @@
 !     s_ens_v             - vertical localization scale (grid units for now)
 !                              s_ens_h, s_ens_v, and beta1_inv are tunable parameters.
 !     readin_localization - flag to read (.true.)external localization information file
+!     eqspace_ensgrid     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
+!                               poles.  if .false., then gaussian grid assumed for ensemble (global only)
+!     pseudo_hybens    - if true, turn on pseudo ensemble hybrid for HWRF
+!     merge_two_grid_ensperts  - if true, merge ensemble perturbations from two forecast domains
+!                                to analysis domain (one way to deal with hybrid DA for HWRF moving nest)
+!     regional_ensemble_option - integer, used to select type of ensemble to read in for regional
+!                              application.  Currently takes values from 1 to 4.
+!                                 =1: use GEFS internally interpolated to ensemble grid.
+!                                 =2: ensembles are WRF NMM format
+!                                 =3: ensembles are ARW netcdf format.
+!                                 =4: ensembles are NEMS NMMB format.
+!     full_ensemble    - if true, first ensemble perturbation on first guess istead of on ens mean
+!     betaflg          - if true, use vertical weighting on beta1_inv and beta2_inv
+!     pwgtflg          - if true, use vertical integration function on ensemble contribution of Psfc
+!     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
+!                            default value = 1  (dual resolution off)
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
-                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,oz_univ_static
+                pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
+                jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,grid_ratio_ens, &
+                oz_univ_static,write_ens_sprd
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
 !      dfi_radar_latent_heat_time_period     -   DFI forward integration window in minutes
 !      metar_impact_radius  - metar low cloud observation impact radius in grid number
 !      l_gsd_terrain_match_surfTobs - if .true., GSD terrain match for surface temperature observation
+!      l_sfcobserror_ramp_t  - namelist logical for adjusting surface temperature observation error
+!      l_sfcobserror_ramp_q  - namelist logical for adjusting surface moisture observation error
+!      l_PBL_pseudo_SurfobsT  - if .true. produce pseudo-obs in PBL layer based on surface obs T
+!      l_PBL_pseudo_SurfobsQ  - if .true. produce pseudo-obs in PBL layer based on surface obs Q
+!      l_PBL_pseudo_SurfobsUV - if .true. produce pseudo-obs in PBL layer based on surface obs UV
+!      pblH_ration - percent of the PBL height within which to add pseudo-obs (default:0.75)
+!      pps_press_incr - pressure increase for each additional pseudo-obs 
+!                       on top of previous level (default:30hPa)
+!      l_gsd_limit_ocean_q      - if .true. do GSD limitation of Q over ocean
+!      l_pw_hgt_adjust      - if .true. do GSD PW adjustment for model vs. obs station height
+!      l_limit_pw_innov     - if .true. do GSD limitation of PW obs
+!      max_innov_pct        - sets limit of PW ob to a percent of the background value (0-1)
+!      l_cleanSnow_WarmTs   - if .true. do GSD limitation of using retrieved snow over warn area
+!                                               (Ts > r_cleanSnow_WarmTs_threshold) 
+!      r_cleanSnow_WarmTs_threshold - threshold for using retrieved snow over warn area
+!      l_conserve_thetaV    - if .true. conserve thetaV during moisture adjustment in cloud analysis
+!      i_conserve_thetaV_iternum    - iteration number for conserving thetaV during moisture adjustment
+!      l_cld_bld            - if .true. do GSD GOES cloud building
+!      cld_bld_hgt          - sets limit below which GOES cloud building occurs (default:1200m)
+!
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowCloud, &
-                                l_gsd_terrain_match_surfTobs
+                                l_gsd_terrain_match_surfTobs, &
+                                l_sfcobserror_ramp_t,l_sfcobserror_ramp_q, &
+                                l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,l_PBL_pseudo_SurfobsUV, &
+                                pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
+                                l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
+                                l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold,  &
+                                i_conserve_thetaV_iternum,l_cld_bld, cld_bld_hgt
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
@@ -694,7 +772,7 @@
   call init_jcvars
   call init_strongvars
   call initialize_superob_radar
-  call init_io(mype)
+  call init_io(mype,npe-1)
   call init_vtrans
   call init_obsens
   call init_hybrid_ensemble_parameters
@@ -760,9 +838,10 @@
   if (l4dvar) then
      if(reduce_diag) &
      call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)
-  else 
-     ljcdfi=.false.
-  endif
+  end if 
+
+  if( (.not.l4dvar) .and. (.not.l4densvar) ) ljcdfi=.false.
+ 
   if (l4dvar.and.lsensrecompute) then
      lobsensfc  =lobsensfc  .and.(jiterstart==jiterend)
      lobsensjb  =lobsensjb  .and.(jiterstart==jiterend)
@@ -801,7 +880,6 @@
      call stop2(328)
   end if
 
-
 !  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
   if(jcstrong_option==4) then
      if(2*nvmodes_keep>npe) then
@@ -812,6 +890,24 @@
      end if
   end if
 
+  if (.not.jcstrong) then
+     hybens_inmc_option=0
+     if(mype==0) write(6,*)' TLNMC turned off, set hybens_inmc_option to 0'
+  else if (jcstrong .and. (.not.l_hyb_ens) ) then
+     hybens_inmc_option=1
+     if(mype==0) write(6,*)' TLNMC option turned on in non-hybrid mode, set hybens_inmc_option to 1'
+  end if
+
+  if (hybens_inmc_option==2 .or. hybens_inmc_option==3) then
+     if (.not.l_hyb_ens .or. .not.jcstrong) then
+	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,jcstrong,hybens_inmc_option
+        call die(myname_,'jcstrong options inconsistent, check namelist settings',99)
+     end if
+  else if (hybens_inmc_option<0 .or. hybens_inmc_option>3) then
+     if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for hybens_inmc_option: ',hybens_inmc_option
+     if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
+     hybens_inmc_option=0
+  end if
 
 ! Ensure time window specified in obs_input does not exceed 
 ! specified maximum value
@@ -925,6 +1021,17 @@
      call stop2(329)
   endif
 
+! Only allow 4d-ensemble-var in global mode, for now
+  if (l4densvar .and. regional) then
+     call die(myname_,'4d-ensemble-var not yet available for regional applications',99)
+  end if
+
+  if (l4densvar .and. (.not.ljc4tlevs) ) then
+     if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time levels not activated with 4Densvar'
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended, limq/pdry will only be applied to center of window '
+     end if
+  end if
 
 ! Optionally read in namelist for single observation run
   if (oneobtest) then

@@ -204,7 +204,7 @@ if (lobsensfc) then
    zjx=dot_product(fcsens,fcsens)
    if (mype==0) write(6,888)'init_fc_sens: Norm fcsens=',sqrt(zjx)
 endif
-888 format(A,3(1X,ES24.18))
+888 format(A,3(1X,ES25.18))
 
 ! Define short name for obs types
 cobtype( i_ps_ob_type)   ="spr  "

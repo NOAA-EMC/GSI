@@ -166,7 +166,8 @@ contains
   
     if (mype==mype_oz) then
        open(iout_oz)
-       write(iout_oz,*)'OZINFO_READ:  jpch_oz=',jpch_oz
+       write(iout_oz,110) jpch_oz
+110    format('OZINFO_READ:  jpch_oz=',1x,i6)
     endif
     rewind(lunin)
     j=0

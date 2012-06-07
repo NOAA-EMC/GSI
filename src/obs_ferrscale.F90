@@ -216,7 +216,7 @@ if (lferrscale) then
    zjx=dot_product(ferrin,ferrin)
    if (mype==izero) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
 endif
-888 format(A,3(1X,ES24.18))
+888 format(A,3(1X,ES25.18))
 
 return
 end subroutine get_ferr_scale
@@ -266,7 +266,7 @@ if (lferrscale) then
 !_RT    call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
 !_RT #endif /* GEOS_PERT */
 endif
-888 format(A,3(1X,ES24.18))
+888 format(A,3(1X,ES25.18))
 
 return
 end subroutine put_ferr_scale
@@ -436,7 +436,7 @@ do ii=1,nobs_bins
    call deallocate_state(sval(ii))
 end do
 
-999 format(2A,5(1X,ES24.18))
+999 format(2A,5(1X,ES25.18))
 
 return
 end subroutine hrm1h_ferr_scale

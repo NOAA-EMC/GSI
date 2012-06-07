@@ -516,7 +516,7 @@ if(.not.in_curbin) cycle
 
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:sst',i_sst_ob_type)
      write(7)'sst',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

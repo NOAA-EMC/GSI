@@ -67,6 +67,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
+  use obsmod, only: bmiss
   implicit none
 
 
@@ -94,7 +95,6 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
-  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
   real(r_kind),parameter :: ngac=409.0_r_kind,nfov=90.0_r_kind,cut_spot=11.0_r_kind
   character(len=80),parameter ::  &
      headr='YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAID FOVN SAZA SOZA CLAVR'
@@ -134,6 +134,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_double), dimension(13) :: hdr
   real(r_double), dimension(3,5) :: bufrf
   integer(i_kind) lnbufr,ireadsb,ireadmg,iskip,irec,isub,next
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
   integer(i_kind) ntest
@@ -205,7 +206,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
   open(lnbufr,file=infile,form='unformatted')         ! open bufr data file
 
@@ -214,9 +215,12 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   call openbf (lnbufr,'IN',lnbufr)
 
   next=0
+  nrec=999999
+  irec=0
 ! Read BUFR AVHRR GAC 1b data
   do while (ireadmg(lnbufr,subset,idate) >= 0)
      next=next+1
+     irec=irec+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
      read_loop: do while (ireadsb(lnbufr) == 0)
@@ -418,6 +422,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         do k=1,nchanl
            data_all(k+nreal,itx)= bufrf(3,2+k) ! Tb for avhrr ch-3, ch-4 and ch-5
         end do
+        nrec(itx)=irec
 
 !    End of satellite read block
 
@@ -425,7 +430,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   enddo
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! write(6,*) 'READ_AVHRR:  total number of obs, nread,ndata : ',nread,ndata
 
@@ -449,7 +454,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate arrays
 900 continue

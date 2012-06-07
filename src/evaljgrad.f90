@@ -258,7 +258,7 @@ do ii=1,nobs_bins
    call deallocate_state(sval(ii))
 end do
 
-999 format(2A,5(1X,ES24.18))
+999 format(2A,5(1X,ES25.18))
 
 return
 contains
@@ -382,7 +382,7 @@ subroutine adtest_show_(x,p,q,y)
         "() -- n, (    q,p=Mx), qq, pp =" ,size(p),dpq,dqq,dpp
   write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
         "() -- m, (y=M'q,   x), yy, xx =",size(x),dxy,dyy,dxx
-  write(stdout,'(1x,2a,2x,1x,1p,1e12.5,2(1x,f11.9),2x,i4)') trim(myname_), &
+  write(stdout,'(1x,2a,2x,1x,1p,1e12.5,2(1x,f12.9),2x,i4)') trim(myname_), &
         "() -- pq-xy, pq/xy,pq/xy-1,#d =",dpq-dxy,cpq,rpq,ipq
 end subroutine adtest_show_
 end subroutine evaljgrad

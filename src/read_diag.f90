@@ -331,7 +331,15 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
 
 ! Read header (channel part)
   do ich=1, header_fix%nchan
-     read(ftin,IOSTAT=iflag) header_chan(ich)
+     read(ftin,IOSTAT=iflag) & !header_chan(ich)
+        header_chan(ich)%freq, &
+        header_chan(ich)%polar, &
+        header_chan(ich)%wave, &
+        header_chan(ich)%varch, &
+        header_chan(ich)%tlapmean, &
+        header_chan(ich)%iuse, &
+        header_chan(ich)%nuchan, &
+        header_chan(ich)%iochan
      if (iflag/=0) return
   end do
 

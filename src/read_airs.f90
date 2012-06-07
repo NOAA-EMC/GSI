@@ -196,6 +196,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: ifov, ioff, ilat, ilon, instr, ichan
   logical          :: outside,iuse,assim,lluse,valid
   integer(i_kind)  :: i, l, ll, iskip
+  integer(i_kind),allocatable,dimension(:)::nrec
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg, expansion
   integer(i_kind):: idomsfc(1)
@@ -368,11 +369,14 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Allocate arrays to hold data
   nele=nreal+nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
+  nrec=999999
   next=0
+  irec=0
   do while(ireadmg(lnbufr,subset,idate)>=0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -383,6 +387,27 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbrep(lnbufr,allspot,12,3,iret,allspotlist)
 
         if(iret /= 3) cycle read_loop
+
+        sat_aziang=allspot(11,ix)
+        if (abs(sat_aziang) > r360) then
+!          write(6,*)  'READ_AIRS: bad azimuth angle ',sat_aziang
+           cycle read_loop
+        endif
+
+!       Remove data on edges
+        ifov = nint( allspot(12,ix) )
+        if (.not. use_edges .and. &
+             (ifov < radedge_min .OR. ifov > radedge_max )) cycle read_loop
+
+!       Check observational info
+        sat_zenang  = allspot(10,ix) 
+        if( ifov < 0 .or. ifov > 100 .or. abs(sat_zenang) > 360._r_kind ) then
+
+           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+              ' STRANGE OBS INFO(FOV,SAZA):', allspot(12,ix), allspot(10,ix)
+           cycle read_loop
+
+        endif
 
         dlat_earth = allspot(8,ix)
         dlon_earth = allspot(9,ix)
@@ -407,11 +432,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         dlat_earth = dlat_earth * deg2rad
         dlon_earth = dlon_earth * deg2rad
 
-        sat_aziang=allspot(11,ix)
-        if (abs(sat_aziang) > r360) then
-           write(6,*)  'READ_AIRS: bad azimuth angle ',sat_aziang
-           cycle read_loop
-        endif
 
 !       If regional, map obs lat,lon to rotated grid.
         if(regional)then
@@ -480,20 +500,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
         if(.not. iuse)cycle read_loop
 
-!       Check observational info
-        sat_zenang  = allspot(10,ix) 
-        ifov = nint( allspot(12,ix) )
-        if( ifov < 0 .or. ifov > 100 .or. abs(sat_zenang) > 360._r_kind ) then
-
-           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS INFO(FOV,SAZA):', allspot(12,ix), allspot(10,ix)
-           cycle read_loop
-
-        endif
-
-!       Remove data on edges
-        if (.not. use_edges .and. &
-             (ifov < radedge_min .OR. ifov > radedge_max )) cycle read_loop
 
 !      "Score" observation.  We use this information to identify "best" obs
 !       Locate the observation on the analysis grid.  Get sst and land/sea/ice
@@ -511,12 +517,10 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         if (isfcalc == 1) then
            call fov_check(ifov,instr,ichan,valid)
            if (.not. valid) cycle read_loop
-        endif
 
 !       When isfcalc is one, calculate surface fields based on the fov's size/shape.
 !       Otherwise, use bilinear interpolation.
 
-        if (isfcalc == 1) then
            call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg, &
               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -542,37 +546,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            cycle read_loop
         endif
 
-!       Read the quality flag. Will catch "popped" channels
-        call ufbrep(lnbufr,airflag,1,n_totchanp4,iret,'ACQF')
-        if( iret /= n_totchanp4)then
-           write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-                iret, ' QUALITY FLAG DATA IS READ INSTEAD OF ',n_totchanp4
-           cycle read_loop
-        endif
-
-!       check for missing channels (if key channel reject)
-        iskip = 0
-        do l=1+ioffset,nchanl+ioffset
-           ll=(l-ioffset)+ioff
-           lluse = iuse_rad(ll) >= 0
-           if( lluse .and. (allchan(l)<tbmin .or. allchan(l)>tbmax) ) then
-              iskip = iskip + 1
-              if(airs) then
-                 if(l == ichsst) cycle read_loop
-              else if(amsua)then
-                 ll=l-ioffset
-                 if (ll == 1 .or. ll == 2 .or. ll == 3 .or. ll == 4 .or. &
-                     ll == 6 .or. ll == 15)cycle read_loop
-              else
-                 ll=l-ioffset
-                 if(ll == 1 .or. ll == 2)cycle read_loop
-              end if
-           endif
-        end do
-
-        if( iskip >= nchanl )cycle read_loop
-
-
 !       Set common predictor parameters
 
         sat_zenang  = sat_zenang  * deg2rad
@@ -581,7 +554,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Read AQUASPOT
         call ufbint(lnbufr,aquaspot,2,1,iret,'SOZA SOLAZI')
         sol_zenang = aquaspot(1)
-
 
         if(amsua)then
 
@@ -697,14 +669,50 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         end if
 
-     
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
         crit1 = crit1+pred 
+        call checkob(dist1,crit1,itx,iuse)
+        if(.not. iuse)cycle read_loop
+
+!       check for missing channels (if key channel reject)
+        iskip = 0
+        do l=1+ioffset,nchanl+ioffset
+           ll=(l-ioffset)+ioff
+           lluse = iuse_rad(ll) >= 0
+           if( lluse .and. (allchan(l)<tbmin .or. allchan(l)>tbmax) ) then
+              iskip = iskip + 1
+              if(airs) then
+                 if(l == ichsst) cycle read_loop
+              else if(amsua)then
+                 ll=l-ioffset
+                 if (ll == 1 .or. ll == 2 .or. ll == 3 .or. ll == 4 .or. &
+                     ll == 6 .or. ll == 15)cycle read_loop
+              else
+                 ll=l-ioffset
+                 if(ll == 1 .or. ll == 2)cycle read_loop
+              end if
+           endif
+        end do
+
+        if( iskip >= nchanl )cycle read_loop
 
 !       Map obs to grids
         call finalcheck(dist1,crit1,itx,iuse)
-
         if(.not. iuse)cycle read_loop
+
+!       Replace popped AIRS channel Tb with zero  (should be moved before iskip)
+        if (airs) then
+!          Read the quality flag. Will catch "popped" channels
+           call ufbrep(lnbufr,airflag,1,n_totchanp4,iret,'ACQF')
+           if( iret /= n_totchanp4)then
+             write(6,*)'READ_AIRS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+                iret, ' QUALITY FLAG DATA IS READ INSTEAD OF ',n_totchanp4
+             cycle read_loop
+           endif
+           do l=1,nchanl
+              if (airflag(l+ioffset_acqf) /= zero) allchan(l+ioffset) = zero
+           end do
+        endif
 
         sol_aziang = aquaspot(2)
         lza = (start + float(ifov-1)*step)*deg2rad
@@ -767,12 +775,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(l+nreal,itx) = allchan(l+ioffset)   ! brightness temerature
         end do
 
-!       Replace popped AIRS channel Tb with zero
-        if (airs) then
-           do l=1,nchanl
-              if (airflag(l+ioffset_acqf) /= zero) data_all(l+nreal,itx) = zero
-           end do
-        endif
+        nrec(itx)=irec
 
      enddo read_loop
   enddo
@@ -781,7 +784,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -808,7 +811,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 1000 continue
 
-  deallocate(data_all) ! Deallocate data arrays
+  deallocate(data_all,nrec) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
   call closbf(lnbufr)  ! Close bufr file
 

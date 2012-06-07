@@ -408,7 +408,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                ratio_errors*error_lat >=tiny_r_kind) nn=3
         end if
         do k = 1,npres_print
-           if(dpres >= ptop(k) .and. dpres <= pbot(k))then
+           if(dpres > ptop(k) .and. dpres <= pbot(k))then
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one          !count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ress         !(o-g)     (in km)
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw        !(o-g)**2  (in km^2)
@@ -584,7 +584,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show('setuplag','diagsave:lag',i_lag_ob_type)
      write(7)'lag',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

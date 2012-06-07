@@ -83,7 +83,8 @@ module obsmod
 !   2010-10-15 pagowski  - add pm2_5 in-situ
 !   2010-10-20 hclin     - use 1d wij for aod in channels
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
-!   2011=11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
+!   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
+!   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -240,6 +241,9 @@ module obsmod
 !                          function to diag file
 !                          .true. - uses iextra,jextra to append information to diag file
 !                          .false. - write out standard diag file (default)
+!   def ext_sonde    - logical for extended forward model on sonde data
+!   bmiss            - parameter to define missing value from bufr
+!                      [10e10 on IBM CCS, 10e08 elsewhere]
 !
 ! attributes:
 !   langauge: f90
@@ -281,7 +285,7 @@ module obsmod
   public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
-  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel
+  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: perturb_fact,dtbduv_on,ndatmax,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
@@ -300,6 +304,7 @@ module obsmod
   public :: aeroptr,aerolptr,pm2_5ptr
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
+  public :: bmiss
 !
   public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
   public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
@@ -314,6 +319,13 @@ module obsmod
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
+
+! Set bufr missing value
+#ifdef ibm_sp
+  real(r_kind), parameter:: bmiss = 1.0e11_r_kind
+#else
+  real(r_kind), parameter:: bmiss = 1.0e9_r_kind
+#endif
 
 ! Declare types
 
@@ -1210,6 +1222,7 @@ module obsmod
   logical lread_obs_skip
   logical lwrite_predterms
   logical lwrite_peakwt
+  logical ext_sonde
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1279,6 +1292,7 @@ contains
     endif
     blacklst  = .false.
     lobserver = .false.     ! when .t., calculate departure vectors only
+    ext_sonde = .false.     ! .false. = do not use extended forward model for sonde
 
 !   Specify unit numbers to which to write data counts, indication of quality control
 !   decisions, and statistics summary of innovations.  For radiance data also write

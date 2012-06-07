@@ -951,7 +951,7 @@ if (LMPCGL) call lanczos_precond(xsens,-2)
 
 zzz=dot_product(xsens,xsens)
 if (mype==0) write(6,888)'congrad_ad: Norm output=',sqrt(zzz)
-888 format(A,3(1X,ES24.18))
+888 format(A,3(1X,ES25.18))
 
 !--- finalize timer
 call timer_fnl('congrad_ad')

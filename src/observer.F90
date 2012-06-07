@@ -119,6 +119,7 @@ subroutine guess_init_
 !   2010-04-20  todling - add call to create tracer grid
 !   2010-05-19  todling - update interface to read_guess
 !   2010-06-25  treadon - pass mlat into create_jfunc
+!   2011-05-24  yang    - pass iadate(3) (day of the month) into read_guess
 !
 !   input argument list:
 !     mype - mpi task id
@@ -161,7 +162,7 @@ subroutine guess_init_
 #endif /*/ HAVE_ESMF */
 
 ! Read model guess fields.
-  call read_guess(iadate(1),iadate(2),mype)
+  call read_guess(iadate(1),iadate(2),iadate(3),mype)
 
 ! Set length of control vector and other control vector constants
   call set_pointer

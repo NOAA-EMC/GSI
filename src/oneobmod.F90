@@ -119,7 +119,7 @@ contains
 !$$$
     use constants, only: ione, zero, one, five, one_tenth, r100, r0_01
     use gsi_io, only: lendian_in
-    use obsmod, only: offtime_data,iadate
+    use obsmod, only: offtime_data,iadate,bmiss
     implicit none
 
     real(r_kind),parameter:: r20=20.0_r_kind
@@ -133,7 +133,6 @@ contains
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
     integer(i_kind) n,k,iret
-    real(r_kind):: bmiss=10.e10_r_kind
     real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'

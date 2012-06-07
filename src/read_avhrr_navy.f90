@@ -77,6 +77,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
+  use obsmod, only: bmiss
   implicit none
 
 
@@ -104,8 +105,6 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
 
-  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
-
 
 ! Declare local variables  
   logical outside,iuse,assim
@@ -123,6 +122,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nreal,nele,itt
   integer(i_kind) nlat_sst,nlon_sst,irec,isub,next
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dlon,dlat,timedif,sfcr
   real(r_kind) dlon_earth,dlat_earth
@@ -206,7 +206,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
   open(lnbufr,file=infile,form='unformatted')         ! open bufr data file
 
@@ -225,7 +225,9 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   next=0
 
 ! Read BUFR Navy data
+  irec=0
   do while (ireadmg(lnbufr,subset,idate) >= 0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -415,6 +417,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         do k=1,nchanl
            data_all(k+maxinfo,itx)= bufrf(16+k)  ! Tb for avhrr ch-3, ch-4 and ch-5
         end do
+        nrec(itx)=irec
 
 !    End of satellite read block
 
@@ -428,7 +431,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 700 continue
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Now that we've identified the "best" observations, pull out best obs
@@ -449,7 +452,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate arrays
 900 continue

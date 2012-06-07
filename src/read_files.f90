@@ -406,7 +406,7 @@ subroutine read_files(mype)
 ! Broadcast guess file information to all tasks
   call mpi_bcast(time_atm,2*nfldsig,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(time_sfc,2*nfldsfc,mpi_rtype,npem1,mpi_comm_world,ierror)
-  call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
+  if (nst_gsi > 0) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(iamana,3,mpi_rtype,npem1,mpi_comm_world,ierror)
   call mpi_bcast(i_ges,2,mpi_itype,npem1,mpi_comm_world,ierror)
   nlon_sfc=i_ges(1)

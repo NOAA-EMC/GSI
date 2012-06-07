@@ -107,6 +107,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
@@ -190,12 +191,15 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
   next=0
+  nrec=999999
+  irec=0
 
 ! Big loop over bufr file
   do while(IREADMG(lnbufr,subset,idate) >= 0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -372,12 +376,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
            data_all(k+31,itx)=dataimg(3,k+1)
            data_all(k+nreal,itx)=dataimg(1,k+1)
         end do
+        nrec(itx)=irec
 
      enddo read_loop
   enddo
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
 
@@ -395,7 +400,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
 900 continue

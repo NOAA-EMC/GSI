@@ -65,6 +65,7 @@
   use constants, only: zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
+  use obsmod, only: bmiss
 
   implicit none
 
@@ -97,7 +98,6 @@
   real(r_kind) scli,sclw,dlon,dlat,scnt,sfcr
   real(r_kind) dlat_earth,dlon_earth
   real(r_kind) scnv,stdv,spcp,tdiff,sstime,t4dv
-  real(r_kind) bmiss
   real(r_kind),dimension(0:3)::sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
@@ -113,7 +113,6 @@
 
 
   data lnbufr /10/
-  data bmiss / 10e10_r_kind /
 
 
 !**************************************************************************

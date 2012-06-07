@@ -70,12 +70,8 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
   logical :: lhere
   integer(i_kind) :: lenb,iret
   character(len=256) command, fname
-  
 
-#ifdef ibm_sp
-  inquire(file=trim(filename),exist=lhere,size=lbytes)
-  lexist = lhere .and. lbytes>0_i_llong
-#else
+#ifdef _INTEL_11_0_083_
   lenb=0; lbytes = lenb
   inquire(file=trim(filename),exist=lhere)
   if(lhere)then
@@ -87,8 +83,13 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
     close(999)
     lbytes=lenb
   endif
-  lexist = lhere .and. lbytes>0_i_llong
+#else
+  inquire(file=trim(filename),exist=lhere,size=lbytes)
 #endif
+  lexist=.false.
+  if(lhere)then
+     lexist=lbytes>0_i_llong
+  end if
   return
 end subroutine gsi_inquire
 
@@ -148,8 +149,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 
   idate=0
 ! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
-!       Anyone else on a Linux Cluster willing to try?
-#ifdef ibm_sp
+#ifdef _INTEL_11_0_083_
+  return
+#else 
+! Use routine ad usual
   if(lexist .and. trim(dtype) /= 'tcp')then
       lnbufr = 15
       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
@@ -170,57 +173,60 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
          write(6,*)'Observation time:',idate
          if(.not.offtime_data) lexist=.false.
       endif
-      kidsat=0
-      if(jsatid == 'metop-a')kidsat=4
-      if(jsatid == 'metop-b')kidsat=5
-      if(jsatid == 'metop-c')kidsat=6
-      if(jsatid == 'n08')kidsat=200
-      if(jsatid == 'n09')kidsat=201
-      if(jsatid == 'n10')kidsat=202
-      if(jsatid == 'n11')kidsat=203
-      if(jsatid == 'n12')kidsat=204
-      if(jsatid == 'n14')kidsat=205
-      if(jsatid == 'n15')kidsat=206
-      if(jsatid == 'n16')kidsat=207
-      if(jsatid == 'n17')kidsat=208
-      if(jsatid == 'n18')kidsat=209
-      if(jsatid == 'n19')kidsat=223
-      if(jsatid == 'npp')kidsat=224
-      if(jsatid == 'f08')kidsat=241
-      if(jsatid == 'f10')kidsat=243
-      if(jsatid == 'f11')kidsat=244
-      if(jsatid == 'f13')kidsat=246
-      if(jsatid == 'f14')kidsat=247
-      if(jsatid == 'f15')kidsat=248
-      if(jsatid == 'f16')kidsat=249
-      if(jsatid == 'f17')kidsat=250
-      if(jsatid == 'g08' .or. jsatid == 'g08_prep')kidsat=252
-      if(jsatid == 'g09' .or. jsatid == 'g09_prep')kidsat=253
-      if(jsatid == 'g10' .or. jsatid == 'g10_prep')kidsat=254
-      if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255
-      if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256
-      if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257
-      if(jsatid == 'g14' .or. jsatid == 'g14_prep')kidsat=258
-      if(jsatid == 'g15' .or. jsatid == 'g15_prep')kidsat=259
-      if(jsatid == 'n05')kidsat=705
-      if(jsatid == 'n06')kidsat=706
-      if(jsatid == 'n07')kidsat=707
-      if(jsatid == 'tirosn')kidsat=708
-      if ( jsatid == 'terra' ) kidsat = 783
-      if ( jsatid == 'aqua'  ) kidsat = 784
-
       if(lexist)then
+       kidsat=0
+       if(jsatid == 'metop-a')kidsat=4
+       if(jsatid == 'metop-b')kidsat=5
+       if(jsatid == 'metop-c')kidsat=6
+       if(jsatid == 'm08')kidsat = 55 
+       if(jsatid == 'm09')kidsat = 56 
+       if(jsatid == 'm10')kidsat = 57 
+       if(jsatid == 'n08')kidsat=200
+       if(jsatid == 'n09')kidsat=201
+       if(jsatid == 'n10')kidsat=202
+       if(jsatid == 'n11')kidsat=203
+       if(jsatid == 'n12')kidsat=204
+       if(jsatid == 'n14')kidsat=205
+       if(jsatid == 'n15')kidsat=206
+       if(jsatid == 'n16')kidsat=207
+       if(jsatid == 'n17')kidsat=208
+       if(jsatid == 'n18')kidsat=209
+       if(jsatid == 'n19')kidsat=223
+       if(jsatid == 'npp')kidsat=224
+       if(jsatid == 'f08')kidsat=241
+       if(jsatid == 'f10')kidsat=243
+       if(jsatid == 'f11')kidsat=244
+       if(jsatid == 'f13')kidsat=246
+       if(jsatid == 'f14')kidsat=247
+       if(jsatid == 'f15')kidsat=248
+       if(jsatid == 'f16')kidsat=249
+       if(jsatid == 'f17')kidsat=250
+       if(jsatid == 'g08' .or. jsatid == 'g08_prep')kidsat=252
+       if(jsatid == 'g09' .or. jsatid == 'g09_prep')kidsat=253
+       if(jsatid == 'g10' .or. jsatid == 'g10_prep')kidsat=254
+       if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255
+       if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256
+       if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257
+       if(jsatid == 'g14' .or. jsatid == 'g14_prep')kidsat=258
+       if(jsatid == 'g15' .or. jsatid == 'g15_prep')kidsat=259
+       if(jsatid == 'n05')kidsat=705
+       if(jsatid == 'n06')kidsat=706
+       if(jsatid == 'n07')kidsat=707
+       if(jsatid == 'tirosn')kidsat=708
+       if ( jsatid == 'terra' ) kidsat = 783
+       if ( jsatid == 'aqua'  ) kidsat = 784
+
        if(kidsat /= 0)then
-        lexist=.false.
-        do while(ireadmg(lnbufr,subset,idate2) >= 0)
+        lexist = .false.
+        satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
            if(ireadsb(lnbufr)==0)then
               call ufbint(lnbufr,satid,1,1,iret,'SAID')
            end if
            if(nint(satid) == kidsat) then
              lexist=.true.
-             exit
+             exit satloop
            end if
-        end do
+        end do satloop
        else if(trim(filename) == 'prepbufr')then  ! RTod: wired-in filename is not a good idea
          lexist = .false.
          fileloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -247,45 +253,45 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
-    else if(trim(dtype) == 'pm2_5')then
-       if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
-          lexist=.true.
-       else
-          lexist = .false.
-          fileloopanow:do while(ireadmg(lnbufr,subset,idate2) >= 0)
-             do while(ireadsb(lnbufr)>=0)
-                if (subset == 'ANOWPM') then
-                   call ufbint(lnbufr,rtype,1,1,iret,'TYP')
-                   kx=nint(rtype)
-                else if ( (subset == 'NC008031') .or. &
-                       (subset == 'NC008032' ) ) then
-                   call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
-                   kx=nint(rtype)
-                   if (kx/=code_pm25_bufr) then
-                      cycle
+       else if(trim(dtype) == 'pm2_5')then
+          if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
+             lexist=.true.
+          else
+             lexist = .false.
+             fileloopanow:do while(ireadmg(lnbufr,subset,idate2) >= 0)
+                do while(ireadsb(lnbufr)>=0)
+                   if (subset == 'ANOWPM') then
+                      call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+                      kx=nint(rtype)
+                   else if ( (subset == 'NC008031') .or. &
+                          (subset == 'NC008032' ) ) then
+                      call ufbint(lnbufr,rtype,1,1,iret,'TYPO')
+                      kx=nint(rtype)
+                      if (kx/=code_pm25_bufr) then
+                         cycle
+                      else
+                         kx=code_pm25_prepbufr
+                      endif
                    else
-                      kx=code_pm25_prepbufr
+                      cycle
                    endif
-                else
-                   cycle
-                endif
-                
-                do nc=1,nconvtype
-                   if(trim(ioctype(nc)) == trim(dtype) .and. &
-                        kx == ictype(nc) .and. icuse(nc) > minuse)then
-                      lexist = .true.
-                      exit fileloopanow
-                   end if
+                   
+                   do nc=1,nconvtype
+                      if(trim(ioctype(nc)) == trim(dtype) .and. &
+                           kx == ictype(nc) .and. icuse(nc) > minuse)then
+                         lexist = .true.
+                         exit fileloopanow
+                      end if
+                   end do
                 end do
-             end do
-          enddo fileloopanow
-       endif
+             enddo fileloopanow
+          endif
 
-       if (lexist) then
-          write(6,*)'found pm2_5 in anow bufr'
-       else
-          write(6,*)'did not find pm2_5 in anow bufr'
-       endif
+          if (lexist) then
+             write(6,*)'found pm2_5 in anow bufr'
+          else
+             write(6,*)'did not find pm2_5 in anow bufr'
+          endif
            
        end if
       end if
@@ -295,7 +301,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   else
       write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype,' not used '
   end if
-#endif /* ibm_sp */
+#endif /* non _INTEL_11_0_083_ */
   return
 end subroutine read_obs_check
 
@@ -415,8 +421,8 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse
-    logical,dimension(ndat):: belong,parallel_read
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri
+    logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
     character(10):: obstype,platid
     character(13):: string,infile
@@ -486,6 +492,7 @@ subroutine read_obs(ndata,mype)
 !   type type of GPS data (if present)
     ii=0
     ref_obs = .false.    !.false. = assimilate GPS bending angle
+    ears_possible = .false.
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
        amsre= index(obstype,'amsre') /= 0
@@ -494,25 +501,50 @@ subroutine read_obs(ndata,mype)
        hirs = index(obstype,'hirs') /= 0
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
+       seviri = index(obstype,'seviri') /= 0
 !  Control parallel read for each ob type (currently just rad obs).  
 !  To remove parallel read comment out line.
-       if(hirs .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(sndr .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(avhrr .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(amsre .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(ssmis .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'ssmi' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'airs' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'amsub' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'hsb' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'iasi' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'cris' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'amsua' .and. dthin(i) > 0)parallel_read(i)= .true.
+       ithin=dthin(i)
+       if(ithin > 0 )then
+         if(dmesh(ithin) > one)then
+          if(hirs)then
+             parallel_read(i)= .true.
+          else if(obstype == 'amsua')then
+             parallel_read(i)= .true.
+          else if(obstype == 'airs' )then
+             parallel_read(i)= .true.
+          else if(obstype == 'iasi')then
+             parallel_read(i)= .true.
+          else if(obstype == 'amsub')then
+             parallel_read(i)= .true.
+          else if(obstype == 'mhs' )then
+             parallel_read(i)= .true.
+          else if(sndr )then
+             parallel_read(i)= .true.
 ! N.B. ATMS must be run on one processor for the filtering code to work.
-!       if(obstype == 'atms' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'mhs' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'goes_img' .and. dthin(i) > 0)parallel_read(i)= .true.
-       if(obstype == 'ssu' .and. dthin(i) > 0)parallel_read(i)= .true.
+          else if(obstype == 'atms')then
+!              parallel_read(i)= .true.
+          else if(ssmis)then
+             parallel_read(i)= .true.
+          else if(seviri)then
+             parallel_read(i)= .true.
+          else if(obstype == 'cris' )then
+             parallel_read(i)= .true.
+          else if(avhrr)then
+             parallel_read(i)= .true.
+          else if(amsre)then
+             parallel_read(i)= .true.
+          else if(obstype == 'goes_img' )then
+             parallel_read(i)= .true.
+          else if(obstype == 'hsb' )then
+             parallel_read(i)= .true.
+          else if(obstype == 'ssmi' )then
+             parallel_read(i)= .true.
+          else if(obstype == 'ssu' )then
+             parallel_read(i)= .true.
+          end if
+        end if
+       end if
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -525,8 +557,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'gust' .or. obstype=='vis' .or. &
            obstype == 'pblh') then
           ditype(i) = 'conv'
-       else if( hirs   .or. sndr      .or.  &
-               obstype == 'seviri'    .or.  &
+       else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
                obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
@@ -589,29 +620,24 @@ subroutine read_obs(ndata,mype)
           nuse=.true.
        end if
 
-       if(.not. nuse)then
-          if(mype == 0)write(6,*) 'data type ',dsis(i), &
-                'not used in info file -- do not read file ',dfile(i)
-       end if
+       if(nuse)then
 
-
+          ears_possible(i) = ditype(i) == 'rad'  .and.       & 
+                  (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
+                   obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
+                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. dplat(i) == 'metop-a') 
 !   Inquire data set to deterimine if input data available and size of dataset
-       ii=ii+1
-       if (ii>npem1) ii=0
-       if(mype==ii)then
-          if(nuse)then
+          ii=ii+1
+          if (ii>npem1) ii=0
+          if(mype==ii)then
              call gsi_inquire(lenbytes,lexist,dfile(i),mype)
              call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
              
              len4file=lenbytes/4
-             if (ditype(i) == 'rad'  .and.           &
-                  dplat(i) /= 'aqua' .and. dplat(i) /= 'metop-a' .and. &
-                  (obstype == 'amsua' .or.  obstype == 'amsub' .or.     &
-                  obstype == 'mhs' )) then
-!                   obstype == 'mhs'   .or. hirs )) then
+             if (ears_possible(i))then
 
                 call gsi_inquire(lenbytes,lexistears,trim(dfile(i))//'ears',mype)
-                call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+                call read_obs_check (lexistears,trim(dfile(i))//'ears',dplat(i),dtype(i),minuse)
 
                 lexist=lexist .or. lexistears
                 len4file=len4file+lenbytes/4
@@ -633,6 +659,9 @@ subroutine read_obs(ndata,mype)
                 end if
              end if
           end if
+       else
+          if(mype == 0)write(6,*) 'data type ',dsis(i), &
+                'not used in info file -- do not read file ',dfile(i)
        end if
     end do
 
@@ -743,49 +772,56 @@ subroutine read_obs(ndata,mype)
     use_prsl_full=.false.
     use_hgtl_full=.false.
     use_sfc=.false.
+    use_prsl_full_proc=.false.
+    use_hgtl_full_proc=.false.
     do i=1,ndat
-       if(belong(i) .and. ditype(i) =='conv')then
-          obstype=dtype(i)                  
+       if(ditype(i) =='conv')then
+          obstype=dtype(i)
           if(obstype /= 'dw' .and. obstype /= 'rw' .and. obstype /= 'srw')then
              use_prsl_full=.true.
-          end if
-          if(obstype == 'rw')then
+             if(belong(i))use_prsl_full_proc=.true.
+          else if(obstype == 'rw')then
              use_hgtl_full=.true.
+             if(belong(i))use_hgtl_full_proc=.true.
           end if
-       else if(belong(i) .and. (ditype(i) == 'rad' .or. ditype(i)=='pcp'))then
-          use_sfc=.true.
+       else if(ditype(i) == 'rad' .or. ditype(i)=='pcp')then
+          if(belong(i))use_sfc=.true.
        end if
     end do
 !   Get guess 3d pressure on full grid
-    if(use_prsl_full)allocate(prsl_full(nlat,nlon,nsig))
-    do k=1,nsig
-       call strip(ges_prsl(1,1,k,ntguessig),prslsm,1)
-       call mpi_allgatherv(prslsm,ijn(mype+1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
-       if(use_prsl_full)then
-          call reorder(work1,1,1)
-          do ii=1,iglobal
-             i=ltosi(ii)
-             j=ltosj(ii)
-             prsl_full(i,j,k)=work1(ii)
-          end do
-       end if
-    end do
+    if(use_prsl_full)then
+       if(use_prsl_full_proc)allocate(prsl_full(nlat,nlon,nsig))
+       do k=1,nsig
+          call strip(ges_prsl(1,1,k,ntguessig),prslsm,1)
+          call mpi_allgatherv(prslsm,ijn(mype+1),mpi_rtype,&
+               work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
+          if(use_prsl_full_proc)then
+             call reorder(work1,1,1)
+             do ii=1,iglobal
+                i=ltosi(ii)
+                j=ltosj(ii)
+                prsl_full(i,j,k)=work1(ii)
+             end do
+          end if
+       end do
+    end if
 !   Get guess 3d geopotential height on full grid
-    if(use_hgtl_full)allocate(hgtl_full(nlat,nlon,nsig))    
-    do k=1,nsig
-       call strip(geop_hgtl(1,1,k,ntguessig),hgtlsm,1)
-       call mpi_allgatherv(hgtlsm,ijn(mype+1),mpi_rtype,&
-            work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
-       if(use_hgtl_full)then
-          call reorder(work1,1,1)
-          do ii=1,iglobal
-             i=ltosi(ii)
-             j=ltosj(ii)
-             hgtl_full(i,j,k)=work1(ii)
-          end do
-        end if
-    end do
+    if(use_hgtl_full)then
+       if(use_hgtl_full_proc)allocate(hgtl_full(nlat,nlon,nsig))
+       do k=1,nsig
+          call strip(geop_hgtl(1,1,k,ntguessig),hgtlsm,1)
+          call mpi_allgatherv(hgtlsm,ijn(mype+1),mpi_rtype,&
+               work1,ijn,displs_g,mpi_rtype,mpi_comm_world,ierror)
+          if(use_hgtl_full_proc)then
+             call reorder(work1,1,1)
+             do ii=1,iglobal
+                i=ltosi(ii)
+                j=ltosj(ii)
+                hgtl_full(i,j,k)=work1(ii)
+             end do
+           end if
+       end do
+    end if
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,use_sfc)
     if(use_sfc) call prt_guessfc2('sfcges2')
@@ -934,8 +970,7 @@ subroutine read_obs(ndata,mype)
                   obstype == 'ssu' )) then
                 llb=1
                 lll=1
-                if((obstype == 'amsua' .or. obstype == 'amsub' .or. obstype == 'mhs') .and. &
-                   (platid /= 'metop-a' .or. platid /='metop-b' .or. platid /= 'metop-c'))lll=2
+                if(ears_possible(i))lll=2
                 call read_bufrtovs(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),llb,lll)
@@ -1088,8 +1123,8 @@ subroutine read_obs(ndata,mype)
        endif
 
     end do
-    if(use_prsl_full)deallocate(prsl_full)
-    if(use_hgtl_full)deallocate(hgtl_full)
+    if(use_prsl_full_proc)deallocate(prsl_full)
+    if(use_hgtl_full_proc)deallocate(hgtl_full)
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc

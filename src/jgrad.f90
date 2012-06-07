@@ -227,7 +227,7 @@ do ii=1,nobs_bins
    call deallocate_state(sval(ii))
 end do
 
-999 format(2A,5(1X,ES24.18))
+999 format(2A,5(1X,ES25.18))
 
 return
 end subroutine jgrad

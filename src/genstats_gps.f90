@@ -355,7 +355,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !          Loop over pressure level groupings and obs to accumulate
 !          statistics as a function of observation type.
            do k = 1,npres_print
-              if(pressure>=ptop(k) .and. pressure<=pbot(k))then
+              if(pressure>ptop(k) .and. pressure<=pbot(k))then
                  ress=data_rinc*scale
                  ressw2=ress*ress
                  nn=1

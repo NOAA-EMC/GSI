@@ -1,4 +1,4 @@
-subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
+subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -21,6 +21,7 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 ! program history log:
 !   2007-02-15  parrish
 !   2008-08-10  derber - update to output correction to psi and chi for global
+!   2012-02-08  kleist - add uvflag to argument list
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency (subdomains)
@@ -63,7 +64,7 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
-  logical                               ,intent(in   ) :: bal_diagnostic,update,fullfield
+  logical                               ,intent(in   ) :: bal_diagnostic,update,fullfield,uvflag
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: u_t,v_t,t_t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
@@ -73,13 +74,13 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 
 !    slow global option:
 
-     call strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
+     call strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
 
   elseif(jcstrong_option==2) then
 
 !    faster global option:
 
-     call strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
+     call strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
 
   elseif(jcstrong_option==3) then
 
@@ -100,7 +101,7 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 
 end subroutine strong_bal_correction
 
-subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -123,6 +124,7 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 ! program history log:
 !   2007-02-15  parrish
 !   2008-08-10  derber - update to output correction to psi and chi for global
+!   2012-02-08  kleist - add uvflag to argument list
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency (subdomains)
@@ -164,6 +166,7 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps
+  logical,intent(in):: uvflag
 
   logical update
 
@@ -171,13 +174,13 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 
 !    slow global option:
 
-     call strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+     call strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
   elseif(jcstrong_option==2) then
 
 !    faster global option:
 
-     call strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+     call strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
   elseif(jcstrong_option==3) then
 

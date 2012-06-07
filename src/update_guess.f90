@@ -70,6 +70,7 @@ subroutine update_guess(sval,sbias)
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-09-20  hclin   - enforce non-negative aerosol fields
 !   2011-11-01  eliu    - generalize met-guess updates for global/regional
+!   2011-10-01  Hu      - GSD limitation of Q over ocean
 !
 !   input argument list:
 !    sval
@@ -110,6 +111,8 @@ subroutine update_guess(sval,sbias)
   use gsi_chemguess_mod, only: gsi_chemguess_bundle
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use mpeu_util, only: getindex
+  use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q
+  use gsd_update_mod, only: gsd_limit_ocean_q
 
   implicit none
 
@@ -222,6 +225,13 @@ subroutine update_guess(sval,sbias)
      call gsi_bundlegetpointer (sval(ii),'q' ,p_q ,istatus)
      call gsi_bundlegetpointer (sval(ii),'tv',p_tv,istatus)
      call gsi_bundlegetpointer (sval(ii),'oz',p_oz,istatus)
+! GSD modification for moisture
+     if(is_q>0) then
+        if(l_gsd_limit_ocean_q) then
+           call gsd_limit_ocean_q(p_q)
+        endif
+     endif
+
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2

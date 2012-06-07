@@ -335,6 +335,7 @@ contains
     if(num_radars_max<=0) then
        if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  NO RADARS KEPT IN radar_bufr_read_all, ',&
             'continue without level 2 data'
+       call closbf(inbufr)
        return
     end if
     call mpi_reduce(num_radars,num_radars_min,1,mpi_integer4,mpi_min,0,mpi_comm_world,ierror)

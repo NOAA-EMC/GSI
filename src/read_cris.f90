@@ -119,6 +119,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: jstart
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
   integer(i_kind)   :: nchanl
+  integer(i_kind),allocatable,dimension(:)::nrec
 
 
 ! Work variables for time
@@ -301,13 +302,15 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! against the BUFR contents later.
   nchanl = ChannelInfo(1) % n_channels
   nele=nreal+nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
   allocate(temperature(nchanl))
   allocate(allchan(2,nchanl))
 
 ! Big loop to read data file
   next=0
+  irec=0
   message_loop: do while(ireadmg(lnbufr,subset,idate)>=0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -336,6 +339,38 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            bad_line = -1
         endif
 
+        ifov = nint(linele(1))               ! field of view
+        ifor = nint(linele(6))               ! field of regard
+
+!  CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
+!  per field-of-regard.  The field-of-regard ranges from 1 to 30.  For reference, FOV 
+!  pattern within the FOR is :
+!                FOV#      7 8 9|7 8 9
+!                FOV#      4 5 6|4 5 6
+!                FOV#      1 2 3|1 2 3 (spacecraft velocity up the screen)
+!                ----------------------
+!                FOR#        x    x+1
+!  FORs are scanned from left limb (FOR=1) to right limb (FOR=30)
+!
+!  For now, we will simply choose IFOV=5.  See Fig. 58 of CrIS SDR ATBD (Rev. D) for a picture.
+
+
+!    Only use central IFOV
+        if (ifov /= 5) cycle read_loop
+
+!    Remove data on edges
+        if (.not. use_edges .and. &
+             (ifor < radedge_min .OR. ifor > radedge_max )) cycle read_loop
+
+        iscn = nint(linele(2))               ! scan line
+
+!    Check field of view (FOVN), field-of-regard (FORN), and satellite zenith angle (SAZA)
+        if( ifov < 1 .or. ifov > 9  .or. & ! FOVN not betw. 1 & 9
+            ifor < 1 .or. ifor > 30 )then  ! FORN not betw. 1 & 30
+           write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
+              ' STRANGE OBS INFO(FOVN,FORN,SLNM):', ifov, ifor, iscn
+           cycle read_loop
+        endif
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
 
@@ -431,36 +466,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Observational info
         sat_zenang  = allspot(10)            ! satellite zenith angle
-        ifov = nint(linele(1))               ! field of view
-        ifor = nint(linele(6))               ! field of regard
-
-!  CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
-!  per field-of-regard.  The field-of-regard ranges from 1 to 30.  For reference, FOV 
-!  pattern within the FOR is :
-!                FOV#      7 8 9|7 8 9
-!                FOV#      4 5 6|4 5 6
-!                FOV#      1 2 3|1 2 3 (spacecraft velocity up the screen)
-!                ----------------------
-!                FOR#        x    x+1
-!  FORs are scanned from left limb (FOR=1) to right limb (FOR=30)
-!
-!  For now, we will simply choose IFOV=5.  See Fig. 58 of CrIS SDR ATBD (Rev. D) for a picture.
-
-        iscn = nint(linele(2))               ! scan line
-
-!    Only use central IFOV
-        if (ifov /= 5) cycle read_loop
-
-!    Remove data on edges
-        if (.not. use_edges .and. &
-             (ifor < radedge_min .OR. ifor > radedge_max )) cycle read_loop
-
-!    Check field of view (FOVN), field-of-regard (FORN), and satellite zenith angle (SAZA)
-        if( ifov < 1 .or. ifov > 9  .or. & ! FOVN not betw. 1 & 9
-            ifor < 1 .or. ifor > 30 .or. & ! FORN not betw. 1 & 30
-            sat_zenang > 90._r_kind ) then
+!    Check satellite zenith angle (SAZA)
+        if(sat_zenang > 90._r_kind ) then
            write(6,*)'READ_CRIS:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
-              ' STRANGE OBS INFO(FOVN,FORN,SLNM,SAZA):', ifov, ifor, iscn, allspot(10)
+              ' STRANGE OBS INFO(SAZA):', allspot(10)
            cycle read_loop
         endif
         if ( ifor <= 15 ) sat_zenang = -sat_zenang
@@ -624,6 +633,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         do l=1,nchanl
            data_all(l+nreal,itx) = temperature(l)   ! brightness temerature
         end do
+        nrec(itx)=irec
 
 
      enddo read_loop
@@ -639,7 +649,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -665,7 +675,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
 
-  deallocate(data_all) ! Deallocate data arrays
+  deallocate(data_all,nrec) ! Deallocate data arrays
   deallocate(temperature)
   deallocate(allchan)
   call destroygrids    ! Deallocate satthin arrays

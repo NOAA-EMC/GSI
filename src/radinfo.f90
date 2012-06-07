@@ -499,7 +499,8 @@ contains
 
     if (mype==mype_rad) then
        open(iout_rad)
-       write(iout_rad,*)'RADINFO_READ:  jpch_rad=',jpch_rad
+       write(iout_rad,120) jpch_rad
+120    format('RADINFO_READ:  jpch_rad=',1x,i6)
     endif
     rewind(lunin)
     j=0

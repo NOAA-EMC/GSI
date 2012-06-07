@@ -84,6 +84,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
+  use obsmod, only: bmiss
 
   implicit none
 
@@ -131,6 +132,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind):: iskip
   integer(i_kind):: lnbufr
   integer(i_kind):: ilat,ilon
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) sfcr
 
@@ -162,7 +164,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind):: dlat,dlon,dlon_earth,dlat_earth
   real(r_kind):: ssmi_def_ang,ssmi_zen_ang  ! default and obs SSM/I zenith ang
   logical  do85GHz, ch6, ch7
-  real(r_kind):: bmiss=10.e10_r_kind
 
 !**************************************************************************
 ! Initialize variables
@@ -237,11 +238,14 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! Allocate arrays to hold data
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
+  nrec=999999
+  irec=0
   next=0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
@@ -468,6 +472,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            do i=1,nchanl
               data_all(i+nreal,itx)=tbob(i)
            end do
+           nrec(itx)=irec
         end do  scan_loop    !js_loop end
 
      end do read_loop
@@ -478,7 +483,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
   write(6,*) 'READ_SSMI: after combine_obs, nread,ndata is ',nread,ndata
 
@@ -506,7 +511,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   endif
 
 ! Deallocate data arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 
 ! Deallocate satthin arrays

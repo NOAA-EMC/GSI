@@ -180,6 +180,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) instr,ichan,icw4crtm
   integer(i_kind) error_status,ier
   integer(i_kind) radedge_min, radedge_max
+  integer(i_kind),allocatable,dimension(:)::nrec
   character(len=20),dimension(1):: sensorlist
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
@@ -442,9 +443,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Allocate arrays to hold all data for given satellite
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-  allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl))
+  hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
+  hdr2b ='SAZA SOZA BEARAZ SOLAZI'
+  allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl),nrec(itxmax))
 
 
+  irec=0
 ! Big loop over standard data feed and possible ears data
   do llll=llb,lll
 
@@ -499,19 +503,30 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !    Loop to read bufr file
      next=0
      read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+        irec=irec+1
         next=next+1
         if(next == npe_sub)next=0
         if(next/=mype_sub)cycle
         read_loop: do while (ireadsb(lnbufr)==0)
 
 !          Read header record.  (llll=1 is normal feed, 2=EARS data)
-           hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
-           rsat=bfr1bhdr(1) 
            ksatid=nint(bfr1bhdr(1))
            if(ksatid /= kidsat) cycle read_subset
+           rsat=bfr1bhdr(1) 
+
+!          If msu, drop obs from first (1) and last (11) scan positions
+           ifov = nint(bfr1bhdr(2))
+           if (use_edges) then 
+              if (msu .and. (ifov==1 .or. ifov==11)) cycle read_loop
+           else if ((ifov < radedge_min .OR. ifov > radedge_max )) then
+              cycle read_loop
+           end if
+
+           ! Check that ifov is not out of range of cbias dimension
+           if (ifov < 1 .OR. ifov > 90) cycle read_loop
 
 !          Extract observation location and other required information
            if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
@@ -529,7 +544,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            dlon_earth_deg = dlon_earth
            dlat_earth = dlat_earth*deg2rad
            dlon_earth = dlon_earth*deg2rad
-           
 
 !          Regional case
            if(regional)then
@@ -569,17 +583,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if(abs(tdiff) > twind) cycle read_loop
            endif
 
-!          If msu, drop obs from first (1) and last (11) scan positions
-           ifov = nint(bfr1bhdr(2))
-           if (use_edges) then 
-              if (msu .and. (ifov==1 .or. ifov==11)) cycle read_loop
-           else if ((ifov < radedge_min .OR. ifov > radedge_max )) then
-              cycle read_loop
-           end if
-
-           ! Check that ifov is not out of range of cbias dimension
-           if (ifov < 1 .OR. ifov > 90) cycle read_loop
-
            nread=nread+nchanl
 
            if (l4dvar) then
@@ -590,9 +593,41 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit1 = 0.01_r_kind+terrain + (llll-1)*500.0_r_kind + timedif 
+           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           if(.not. iuse)cycle read_loop
 
-           hdr2b ='SAZA SOZA BEARAZ SOLAZI'
            call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
+
+!          Set common predictor parameters
+           ifovmod=ifov
+
+!          Account for assymetry due to satellite build error
+           if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
+              ifovmod=ifovmod+1
+
+           panglr=(start+float(ifovmod-1)*step)*deg2rad
+           lzaest = asin(rato*sin(panglr))
+           if( msu .or. hirs2 .or. ssu)then
+              lza = lzaest
+           else
+              lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
+              if((amsua .and. ifovmod <= 15) .or.        &
+                 (amsub .and. ifovmod <= 45) .or.        &
+                 (mhs   .and. ifovmod <= 45) .or.        &
+                 (hirs  .and. ifovmod <= 28) )   lza=-lza
+           end if
+
+!  Check for errors in satellite zenith angles 
+           if(abs(lzaest-lza)*rad2deg > one) then
+              write(6,*)' READ_BUFRTOVS WARNING uncertainty in lza ', &
+                 lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
+              cycle read_loop
+           end if
+
+           if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
+              write(6,*)'READ_BUFRTOVS WARNING lza error ',bfr2bhdr(1),panglr
+              cycle read_loop
+           end if
 
            sat_aziang=bfr2bhdr(3)
            if (abs(sat_aziang) > r360) then
@@ -637,7 +672,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            end do
            if (iskip >= nchanl) cycle read_loop
 !          Map obs to thinning grid
-           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           crit1 = crit1 + 10._r_kind*float(iskip)
+           call checkob(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
 !          Determine surface properties based on 
@@ -656,12 +692,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if (isfcalc == 1) then
               call fov_check(ifov,instr,ichan,valid)
               if (.not. valid) cycle read_loop
-           end if
 
 !          When isfcalc is one, calculate surface fields based on size/shape of fov.
 !          Otherwise, use bilinear method.
 
-           if (isfcalc == 1) then
               call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
                  dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
                  sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
@@ -671,40 +705,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
 
 
-           crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip)
+           crit1 = crit1 + rlndsea(isflg) 
            call checkob(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
-!          Set common predictor parameters
-           ifovmod=ifov
-
-!          Account for assymetry due to satellite build error
-           if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
-              ifovmod=ifovmod+1
-
-           panglr=(start+float(ifovmod-1)*step)*deg2rad
-           lzaest = asin(rato*sin(panglr))
-           if( msu .or. hirs2 .or. ssu)then
-              lza = lzaest
-           else
-              lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
-              if((amsua .and. ifovmod <= 15) .or.        &
-                 (amsub .and. ifovmod <= 45) .or.        &
-                 (mhs   .and. ifovmod <= 45) .or.        &
-                 (hirs  .and. ifovmod <= 28) )   lza=-lza
-           end if
-
-!  Check for errors in satellite zenith angles 
-           if(abs(lzaest-lza)*rad2deg > one) then
-              write(6,*)' READ_BUFRTOVS WARNING uncertainty in lza ', &
-                 lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
-              cycle read_loop
-           end if
-
-           if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
-              write(6,*)'READ_BUFRTOVS WARNING lza error ',bfr2bhdr(1),panglr
-              cycle read_loop
-           end if
 
 !          Set data quality predictor
            if (msu) then
@@ -806,7 +810,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
            crit1 = crit1+pred 
            call finalcheck(dist1,crit1,itx,iuse)
-
            if(.not. iuse)cycle read_loop
 
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
@@ -868,6 +871,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            do i=1,nchanl
               data_all(i+nreal,itx)=data1b8(i)
            end do
+           nrec(itx)=irec
 
 
 !       End of bufr read loops
@@ -892,7 +896,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !  end of llll loop
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! 
   if(mype_sub==mype_root)then
@@ -912,7 +916,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end if
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
   call destroygrids

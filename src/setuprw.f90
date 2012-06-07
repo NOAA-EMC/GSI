@@ -47,6 +47,8 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-03-28  s.liu     - add subtype to radial wind
 !   2011-05-25  s.liu/parrish     - correct error in height assigned to radial wind
+!   2012-02-08  wu      - bug fix to keep from using below ground radar obs, with extra printout
+!                           added to identify which obs are below ground.  
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -298,8 +300,11 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
           1,1,mype,nfldsig)
+     if(zsges>=dpres)then
+        write(6,*) 'SETUPRW: zsges = ',zsges,'is greater than dpres ',dpres,'. Rejecting ob.'
+        cycle
+     endif
      dpres=dpres-zsges
-     if(dpres<zero) cycle     !  temporary fix to prevent out of bounds array reference in zges,prsltmp
      call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
           1,1,mype,nfldsig)
      call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
@@ -550,7 +555,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            if(ratio_errors*error >=tiny_r_kind)nn=3
         end if
         do k = 1,npres_print
-           if(presw >=ptop(k) .and. presw<=pbot(k))then
+           if(presw >ptop(k) .and. presw<=pbot(k))then
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ddiff          ! bias
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
@@ -698,7 +703,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:rw',i_rw_ob_type)
      write(7)' rw',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)

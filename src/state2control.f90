@@ -27,6 +27,7 @@ subroutine state2control(rval,bval,grad)
 !   2011-05-15  auligne/todling - generalized cloud handling
 !   2011-07-12  zhu      - add do_cw_to_hydro_ad and cw2hydro_ad
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro_ad
+!   2012-02-08  kleist   - remove strong_bk_ad and ensemble_forward_model_ad and related parameters
 !
 !   input argument list:
 !     rval - State variable
@@ -36,17 +37,13 @@ subroutine state2control(rval,bval,grad)
 !
 !$$$
 use kinds, only: i_kind,r_kind
-use constants, only: zero,izero
+use constants, only: zero
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
 use jfunc, only: nsclen,npclen
-use hybrid_ensemble_parameters, only: l_hyb_ens,uv_hyb_ens,dual_res
-use balmod, only: strong_bk_ad
-use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
-use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
 use cwhydromod, only: cw2hydro_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -70,14 +67,13 @@ type(control_vector), intent(inout) :: grad
 character(len=*),parameter::myname='state2control'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: ii,jj,i,j,k,im,jm,km,ic,id,ngases,nclouds,istatus
-real(r_kind),dimension(:,:,:),allocatable:: u,v
+integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
 type(gsi_bundle) :: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
 !       the state and control vectors, but rather the ones
 !       this routines knows how to handle.
-integer(i_kind), parameter :: ncvars = 6 
+integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis
 character(len=3), parameter :: mycvars(ncvars) = (/  &
@@ -87,7 +83,7 @@ real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
 
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 7 
+integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
                                'u   ', 'v   ', 'p3d ', 'q   ', 'tsen', 'ql  ', 'qi  ' /)
@@ -99,7 +95,7 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
 
 logical :: musthave ! for now, pointers to meteorl variables must be defined
-logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_strong_bk_ad,do_cw_to_hydro_ad
+logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_cw_to_hydro_ad
 
 !******************************************************************************
 
@@ -108,16 +104,12 @@ if (lsqrtb) then
    call stop2(311)
 end if
 
-im=grad%step(1)%grid%im
-jm=grad%step(1)%grid%jm
-km=grad%step(1)%grid%km
-
 ! Inquire about clouds
 call gsi_metguess_get ('clouds::3d',nclouds,istatus)
 if (nclouds>0) then
    allocate(clouds(nclouds))
    call gsi_metguess_get ('clouds::3d',clouds,istatus)
-end if
+endif
 
 ! Inquire about chemistry
 call gsi_chemguess_get('dim',ngases,istatus)
@@ -143,7 +135,6 @@ do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
 do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_p3d.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_p3d
-do_strong_bk_ad     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
 
 do_cw_to_hydro_ad=.false.
 if (regional) then
@@ -237,14 +228,7 @@ do jj=1,nsubwin
 
 !  Convert RHS calculations for u,v to st/vp for application of
 !  background error
-   if (do_getuv) then
-      if(l_hyb_ens.and.uv_hyb_ens) then
-         call gsi_bundleputvar ( wbundle, 'sf', rv_u, istatus )
-         call gsi_bundleputvar ( wbundle, 'vp', rv_v, istatus )
-      else
-         call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
-      end if
-   end if
+   if (do_getuv) call getuv(rv_u,rv_v,cv_sf,cv_vp,1)
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
@@ -258,33 +242,6 @@ do jj=1,nsubwin
 
 !  Adjoint of convert logvis to vis
    if(icvis >0) call logvis_to_vis_ad(cv_vis,rv_vis)
-
-!  If this is ensemble run, then add ensemble contribution sum(a(k)*xe(k)),  where a(k) are the ensemble
-!    control variables and xe(k), k=1,n_ens are the ensemble perturbations.
-   if(l_hyb_ens) then
-!     Adjoint apply strong constraint to sum of static background and ensemble background combinations to
-!     reduce imbalances introduced by ensemble localization in addition to known imbalances from
-!     static background
-      if(do_strong_bk_ad) call strong_bk_ad(cv_sf,cv_vp,cv_ps,cv_t)
-      if(dual_res) then
-         call ensemble_forward_model_ad_dual_res(wbundle,grad%aens(jj,:))
-      else
-         call ensemble_forward_model_ad(wbundle,grad%aens(jj,:))
-      end if
-      if(do_getuv) then
-         if(uv_hyb_ens) then
-            allocate(u(im,jm,km))
-            allocate(v(im,jm,km))
-            call gsi_bundlegetvar ( wbundle, 'sf', u, istatus )
-            call gsi_bundlegetvar ( wbundle, 'vp', v, istatus )
-            call gsi_bundleputvar ( wbundle, 'sf', zero, istatus )
-            call gsi_bundleputvar ( wbundle, 'vp', zero, istatus )
-            call getuv(u,v,cv_sf,cv_vp,1)
-            deallocate(v)
-            deallocate(u)
-         end if
-      end if
-   end if
 
 !  Adjoint of transfer variables
 

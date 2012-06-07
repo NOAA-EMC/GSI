@@ -87,6 +87,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
+  use obsmod, only: bmiss
 
   implicit none
 
@@ -110,7 +111,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
-  real(r_kind),parameter:: bmiss = 1.0E11_r_kind
   character(80),parameter:: hdstr = &
      'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
   character(80),parameter:: hdstr5 = &
@@ -131,6 +131,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) nele,iscan,nmind
   integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
   integer(i_kind),dimension(5):: idate5
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dlon,dlat,timedif,emiss,sfcr
   real(r_kind) dlon_earth,dlat_earth
@@ -240,13 +241,16 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 ! Allocate arrays to hold data
   nreal  = maxinfo + nstinfo
   nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax))
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
+  nrec=999999
   next=0
+  irec=0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
 !    Time offset
      if(next == 0)call time_4dvar(idate,toff)
+     irec=irec+1
      next=next+1
      if(next == npe_sub)next=0
      if(next/=mype_sub)cycle
@@ -393,9 +397,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !       If not goes data over ocean , read next bufr record
         if(isflg /= 0) cycle read_loop
 
-        crit1 = crit1 + rlndsea(isflg)  
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
+!   Following lines comment out because only using data over ocean
+!       crit1 = crit1 + rlndsea(isflg)  
+!       call checkob(dist1,crit1,itx,iuse)
+!       if(.not. iuse)cycle read_loop
 
 !       Set data quality predictor
         iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
@@ -414,7 +419,6 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
-
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -476,6 +480,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         do k=1,nchanl
            data_all(k+nreal,itx)=grad(k)
         end do
+        nrec(itx)=irec
 
 
      end do read_loop
@@ -487,7 +492,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
@@ -513,7 +518,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   
   endif
 
-  deallocate(data_all) ! Deallocate data arrays
+  deallocate(data_all,nrec) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &

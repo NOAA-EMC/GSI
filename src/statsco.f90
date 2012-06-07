@@ -158,7 +158,7 @@ subroutine statsco(stats_co,bwork,awork,ndata)
 1102 format(1x,i4,i4,1x,a20,2i7,1x,f8.3,1x,6(f11.7,1x))
 1109 format(t5,'it',t11,'sat',t22,'inst',t36,'# read',t46,'# keep',t55,'# assim',&
           t63,'penalty',t78,'cpen',t88,'qcpen',t101,'qcfail')
-1115 format('o-g',1x,i2.2,1x,'co ',a10,1x,a10,1x,3(i9,1x),3(g11.5,1x),i8)
+1115 format('o-g',1x,i2.2,1x,'co ',a10,1x,a10,1x,3(i9,1x),3(g12.5,1x),i8)
 
 ! End of carbon monoxide diagnostic print block.
 
@@ -207,13 +207,13 @@ subroutine statsco(stats_co,bwork,awork,ndata)
 
   close(iout_co)
 
-240 format(' num(',A,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g11.5,1x))
+240 format(' num(',A,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g12.5,1x))
 925 format(' number of ',a5,' obs that failed gross test = ',I5,' nonlin qc test = ',I5)
 900 format(' number of ',a5,' obs extrapolated above',&
          ' top sigma layer=',i8,/,10x,' number extrapolated below',&
          ' bottom sigma layer=',i8)
 950 format(' type ',a5,' jiter ',i3,' nread ',i7,' nkeep ',i7,' num ',i7)
-951 format(' type ',a5,' pen= ',e24.18,' qcpen= ',g12.6,' r= ',g12.6,' qcr= ',g12.6)
+951 format(' type ',a5,' pen= ',e25.18,' qcpen= ',g13.6,' r= ',g13.6,' qcr= ',g13.6)
 
 ! End of routine
   return

@@ -95,6 +95,7 @@ subroutine pcgsoi()
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2011-04-25  eL akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
+!   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
 !
 ! input argument list:
 !
@@ -137,7 +138,7 @@ subroutine pcgsoi()
   use timermod, only: timer_ini,timer_fnl
   use projmethod_support, only: init_mgram_schmidt, &
                                 mgram_schmidt,destroy_mgram_schmidt
-  use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
+  use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en,ntlevs_ens
   use hybrid_ensemble_isotropic, only: beta12mult
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
@@ -166,6 +167,7 @@ subroutine pcgsoi()
   real(r_kind) :: fjcost_e
   type(control_vector) :: xhat,gradx,grady,gradw,dirx,diry,dirw,ydiff,xdiff,wdiff
   type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
+  type(gsi_bundle) :: eval(ntlevs_ens)
   type(gsi_bundle) :: mval(nsubwin)
   type(predictors) :: sbias, rbias
   logical:: lanlerr
@@ -252,6 +254,10 @@ subroutine pcgsoi()
      if (l4dvar) then
 !       Convert from control space to model space
         call control2state(xhat,mval,sbias)
+        if (l_hyb_ens) then
+           call ensctl2state(xhat,mval,eval)
+           mval(1)=eval(1)
+        end if
 
 !       Perform test of AGCM TLM and ADM
         call gsi_4dcoupler_grtests(mval,sval,nsubwin,nobs_bins)
@@ -259,10 +265,19 @@ subroutine pcgsoi()
 !       Run TL model to fill sval
         call model_tl(mval,sval,llprt)
      else
-
 !       Convert from control space directly to physical
 !       space for comparison with obs.
-        call control2state(xhat,sval,sbias)
+        call control2state(xhat,mval,sbias)
+        if (l_hyb_ens) then
+           call ensctl2state(xhat,mval,eval)
+           do ii=1,nobs_bins
+              sval(ii)=eval(ii)
+           end do
+        else
+           do ii=1,nobs_bins
+              sval(ii)=mval(1)
+           end do
+        end if
      end if
 
      if (iter<=1 .and. print_diag_pcg) then
@@ -284,17 +299,30 @@ subroutine pcgsoi()
 !       Run adjoint model
         call model_ad(mval,rval,llprt)
 
+        if (l_hyb_ens) then
+           eval(1)=mval(1)
+           call state2ensctl(eval,mval,gradx)
+        end if
 !       Adjoint of convert control var to physical space
         call state2control(mval,rbias,gradx)
      else
 
 !       Convert to control space directly from physical space.
-        if (nobs_bins>1) then
-           do ii=nobs_bins,2,-1
-              call self_add(rval(1),rval(ii))
+        if (l_hyb_ens) then
+           do ii=1,nobs_bins
+              eval(ii)=rval(ii)
            end do
+           call state2ensctl(eval,mval,gradx)
+        else
+           mval(1)=rval(1)
+           if (nobs_bins > 1 ) then
+              do ii=2,nobs_bins
+                 call self_add(mval(1),rval(ii))
+              enddo
+           end if
         end if
-        call state2control(rval,rbias,gradx)
+        call state2control(mval,rbias,gradx)
+
      end if
 
 !    Print initial Jo table
@@ -447,6 +475,10 @@ subroutine pcgsoi()
      if (l4dvar) then
 !       Convert from control space to model space
         call control2state(dirx,mval,rbias)
+        if (l_hyb_ens) then
+           call ensctl2state(dirx,mval,eval)
+           mval(1)=eval(1)
+        end if
 
 !       Run TL model to fill rval
 !       The TLM being linear, rval could be updated in the same way as the
@@ -456,7 +488,18 @@ subroutine pcgsoi()
      else
 
 !       Convert search direction form control space to physical space
-        call control2state(dirx,rval,rbias)
+        call control2state(dirx,mval,rbias)
+        if (l_hyb_ens) then
+           call ensctl2state(dirx,mval,eval)
+           do ii=1,nobs_bins
+              rval(ii)=eval(ii)
+           end do
+        else
+           do ii=1,nobs_bins
+              rval(ii)=mval(1)
+           end do
+        end if
+
      end if
 
 !    Calculate stepsize
@@ -498,8 +541,8 @@ subroutine pcgsoi()
         write(iout_iter,110) jiter,iter,penalty,gnorm(1),stp,b
         write(iout_iter,120) jiter,iter,penx,gnormx,step(istep)
 
-110     format(' penalty,grad ,a,b= ',i3,i4,1x,4(e24.18,1x),2(g12.6,1x))
-120     format(' pnorm,gnorm, step? ',i3,i4,1x,2(e24.18,1x),a5)
+110     format(' penalty,grad ,a,b= ',i3,i4,1x,4(e25.18,1x),2(g13.6,1x))
+120     format(' pnorm,gnorm, step? ',i3,i4,1x,2(e25.18,1x),a5)
      endif
 999  format(A,2(1X,I3),5(1X,ES25.18))
 9991 format(A,2(1X,I3),6(1X,ES25.18))
@@ -535,10 +578,10 @@ subroutine pcgsoi()
            end if
         end if
 101     format(' PCGSOI: WARNING **** Stopping inner iteration ***')
-100     format(' Penalty increase or constant ',I3,1x,i4,1x,2(e24.18,1x))
-105     format(' PCGSOI: WARNING **** Reset to steepest descent, gnorm(2),gsave,b= ',3(e24.18,1x))
-130     format(' gnorm ', e24.18,' less than ',e24.18)
-131     format(' penalty ', e24.18,' less than ',e24.18)
+100     format(' Penalty increase or constant ',I3,1x,i4,1x,2(e25.18,1x))
+105     format(' PCGSOI: WARNING **** Reset to steepest descent, gnorm(2),gsave,b= ',3(e25.18,1x))
+130     format(' gnorm ', e25.18,' less than ',e25.18)
+131     format(' penalty ', e25.18,' less than ',e25.18)
 140     format(' Stepsize calculation terminates inner iteration - probable convergence')
 141     format(' Stepsize calculation terminates inner iteration - probable error')
         exit inner_iteration
@@ -561,7 +604,18 @@ subroutine pcgsoi()
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
      if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
-     call control2state(xhat,sval,sbias)
+     call control2state(xhat,mval,sbias)
+     if (l_hyb_ens) then
+        call ensctl2state(xhat,mval,eval)
+        do ii=1,nobs_bins
+           sval(ii)=eval(ii)
+        end do
+     else
+        do ii=1,nobs_bins
+           sval(ii)=mval(1)
+        end do
+     end if
+
      call penal(sval(1))
      xhatsave=zero
      yhatsave=zero
@@ -583,21 +637,47 @@ subroutine pcgsoi()
   llprt=(mype==0)
   if (l4dvar) then
      call control2state(xhat,mval,sbias)
+     if (l_hyb_ens) then
+        call ensctl2state(xhat,mval,eval)
+        mval(1)=eval(1)
+     end if
      call model_tl(mval,sval,llprt)
   else
-     call control2state(xhat,sval,sbias)
+     call control2state(xhat,mval,sbias)
+     if (l_hyb_ens) then
+        call ensctl2state(xhat,mval,eval)
+        do ii=1,nobs_bins
+           sval(ii)=eval(ii)
+        end do
+     else
+        do ii=1,nobs_bins
+           sval(ii)=mval(1)
+        end do
+     end if
   end if
   call intall(sval,sbias,rval,rbias)
   if (l4dvar) then
      call model_ad(mval,rval,llprt)
+     if (l_hyb_ens) then
+        eval(1)=mval(1)
+        call state2ensctl(eval,mval,gradx)
+     end if
      call state2control(mval,rbias,gradx)
   else
-     if (nobs_bins>1) then
-        do ii=nobs_bins,2,-1
-           call self_add(rval(1),rval(ii))
+     if (l_hyb_ens) then
+        do ii=1,nobs_bins
+          eval(ii)=rval(ii)
         end do
+        call state2ensctl(eval,mval,gradx)
+     else
+        mval(1)=rval(1)
+        if (nobs_bins > 1 ) then
+           do ii=2,nobs_bins
+              call self_add(mval(1),rval(ii))
+           enddo
+        end if
      end if
-     call state2control(rval,rbias,gradx)
+     call state2control(mval,rbias,gradx)
   end if
 
 ! Multiply by background error
@@ -696,6 +776,7 @@ subroutine pcgsoi()
       if(jiter == miter)call write_all(-1,mype)
   endif
   call prt_guess('analysis')
+  call prt_state_norms(sval(1),'wwww')
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -756,11 +837,13 @@ subroutine init_
   end do
   call allocate_preds(sbias)
   call allocate_preds(rbias)
-  if (l4dvar) then
-     do ii=1,nsubwin
-        call allocate_state(mval(ii))
-     end do
-  end if
+  do ii=1,nsubwin
+     call allocate_state(mval(ii))
+  end do
+
+  do ii=1,ntlevs_ens
+     call allocate_state(eval(ii))
+  end do
 
   gradx=zero
   grady=zero
@@ -835,11 +918,12 @@ subroutine clean_
      call deallocate_state(sval(ii))
      call deallocate_state(rval(ii))
   end do
-  if (l4dvar) then
-     do ii=1,nsubwin
-        call deallocate_state(mval(ii))
-     end do
-  end if
+  do ii=1,nsubwin
+     call deallocate_state(mval(ii))
+  end do
+  do ii=1,ntlevs_ens
+     call deallocate_state(eval(ii))
+  end do
   if(l_foto)then
      call deallocate_state(xhat_dt)
   end if

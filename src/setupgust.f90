@@ -39,7 +39,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: gusthead,gusttail,rmiss_single,i_gust_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: gust_ob_type
-  use obsmod, only: obs_diag
+  use obsmod, only: obs_diag,bmiss
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
@@ -67,7 +67,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   external:: stop2
 
 ! Declare local variables
-  real(r_kind), parameter:: miss_obs=10.e10_r_kind
   logical,parameter::  closest_obs=.true.
   
   real(r_double) rstation_id
@@ -161,7 +160,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Check for missing data
   if (.not. oneobtest) then
   do i=1,nobs
-    if (abs(data(igust,i)-miss_obs) .lt. 100.)  then
+    if (abs(data(igust,i)-bmiss) .lt. 100.)  then
        muse(i)=.false.
        data(igust,i)=rmiss_single   ! for diag output
     end if
@@ -645,7 +644,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! Write information to diagnostic file
-  if(conv_diagsave)then
+  if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:gust',i_gust_ob_type)
      write(7)'gst',nchar,nreal,ii,mype
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
