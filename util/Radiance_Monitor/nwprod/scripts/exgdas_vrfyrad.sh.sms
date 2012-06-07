@@ -120,7 +120,7 @@ export TANKverf_rad=${TANKverf}/radmon.${PDY}
 export biascr=${biascr:-$COMOUT/gdas1.t${cyc}z.abias}
 export satang=${satang:-$COMOUT/gdas1.t${cyc}z.satang}
 export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
-export satype_file=${satype_file:-$FIXgfs/radmon_satype.txt}
+export satype_file=${satype_file:-gdas_radmon_satype.txt}
 export INISCRIPT=${INISCRIPT}
 export ERRSCRIPT=${ERRSCRIPT:-'eval [[ $err = 0 ]]'}
 export LOGSCRIPT=${LOGSCRIPT}
@@ -187,9 +187,11 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    rm radstat.$PDATE
 
    #------------------------------------------------------------------
-   #  Get SATYPE.  This is the list of sat/instrument sources.  
-   #  If there is a SATYPE FILE already then use it.  Otherwise get
-   #  the list from the $radstat file.
+   #  SATYPE is the list of expected satellite/instrument sources
+   #  in the radstat file.  It should be stored in the $TANKverf 
+   #  directory.  If it isn't there then use the $FIXgfs copy.  In all 
+   #  cases write it back out to the radmon.$PDY directory.  Add any
+   #  new sources to the list before writing back out.
    #------------------------------------------------------------------
 
    radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $10 "_" $11 }'`
@@ -197,34 +199,47 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
       echo $radstat_satype
    fi
 
-   if [[ ! -s ${satype_file} ]]; then
-      export SATYPE=$radstat_satype
-      echo $SATYPE > ${satype_file}
-      if [[ "$VERBOSE" = "YES" ]]; then
-         echo " ${satype_file} not found.  Adding it now using radstat file contents."
+
+   qdate=`$NDATE -06 $PDATE`
+   pday=`echo $qdate | cut -c1-8`
+
+   if [[ ! -s ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
+      if [[ ! -s ${FIXgfs}/${satype_file} ]]; then 
+         export SATYPE=$radstat_satype
+         if [[ "$VERBOSE" = "YES" ]]; then
+            echo " ${satype_file} not found.  Adding it now using radstat file contents."
+         fi
+      else
+         export SATYPE=`cat ${FIXgfs}/${satype_file}`
       fi
    else
-      export SATYPE=`cat ${satype_file}`
-
-      #-------------------------------------------------------------
-      #  Update the SATYPE if any new sat/instrument was 
-      #  found in $radstat_satype.
-      #-------------------------------------------------------------
-      satype_changes=0
-      new_satype=$SATYPE
-      for type in ${radstat_satype}; do
-         test=`echo $SATYPE | grep $type | wc -l`
-
-         if [[ $test -eq 0 ]]; then
-            if [[ "$VERBOSE" = "YES" ]]; then
-               echo "Found $type in radstat file but not in SATYPE list.  Adding it now."
-            fi
-            new_satype="$new_satype $type"
-            echo $type >> ${satype_file}
-         fi
-      done
+      export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
    fi
 
+
+
+   #-------------------------------------------------------------
+   #  Update the SATYPE if any new sat/instrument was 
+   #  found in $radstat_satype.  Write the SATYPE contents back 
+   #  to $TANKverf/radmon.$PDY.
+   #-------------------------------------------------------------
+   satype_changes=0
+   new_satype=$SATYPE
+   for type in ${radstat_satype}; do
+      test=`echo $SATYPE | grep $type | wc -l`
+
+      if [[ $test -eq 0 ]]; then
+         if [[ "$VERBOSE" = "YES" ]]; then
+            echo "Found $type in radstat file but not in SATYPE list.  Adding it now."
+         fi
+         new_satype="$new_satype $type"
+      fi
+   done
+    
+   if [[ ! -s ${TANKverf}/radmon.${PDY}/${satype_file} ]]; then
+      echo $new_satype > ${TANKverf}/radmon.${PDY}/${satype_file}
+   fi
+    
  
    #------------------------------------------------------------------
    # Rename the diag files and uncompress
