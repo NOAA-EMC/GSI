@@ -88,25 +88,25 @@ while (chn<=nchan)
    'set x 'chn
 
    'define rterm1=1/count'
-   'define rterm2=1/(count-1)'
+*   'define rterm2=1/(count-1)'
 
    if (field = omgnbc)
      'define avg=omgnbc/count'
-     'define svar=count*omgnbc2-omgbc*omgbc)*rterm1*rterm2'
+     'define svar=(omgnbc2*rterm1) - (avg*avg)'
    endif
    if (field = total)
      'define avg=total/count'
-     'define svar=count*total2-total*total)*rterm1*rterm2'
+     'define svar=(total2*rterm1) - (avg*avg)'
    endif
    if (field = omgbc)
      'define avg=omgbc/count'
-     'define svar=count*omgbc2-omgbc*omgbc)*rterm1*rterm2'
+     'define svar=(omgbc2*rterm1) - (avg*avg)'
    endif
 
    'define sdv=sqrt(svar)'
    'undefine svar'
    'undefine rterm1'
-   'undefine rterm2' 
+*   'undefine rterm2' 
 
    chi=chn
    if (i=1) 
@@ -253,7 +253,7 @@ y2=y3+0.05
       'printim 'outfile' 'xsize' 'ysize' white'
 *      say 'output to file 'outfile
       if (debug=1) 
-         say 'press any key to continue
+         say 'press any key to continue'
          pull var
       endif
       i=1
