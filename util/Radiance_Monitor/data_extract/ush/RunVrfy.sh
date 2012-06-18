@@ -4,7 +4,14 @@
 #  RunVrfy.sh
 #
 #  Run the verification and data extract.
-#  This only runs as RUN_ENVIR "dev", not as "para" or "prod"
+#
+#  This script will run the data extraction for a given source in a
+#  loop.  The loop can be from the existing prodate in the 
+#  data_map.xml file until the available radstat data is exhausted,
+#  from the input start date until available data is exhausted, or
+#  from the start to the stop date.
+# 
+#  This runs as RUN_ENVIR "dev" by default.              
 #--------------------------------------------------------------------
 
 function usage {
@@ -24,7 +31,6 @@ if [[ $nargs -lt 1 ]]; then
    exit 1
 fi
 
-
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -32,17 +38,11 @@ SUFFIX=$1
 START_DATE=$2
 END_DATE=$3
 
-#
-# assume for the moment that all runs will be dev
-#
-RUN_ENVIR=dev
+RUN_ENVIR=${RUN_ENVIR:-dev}
 
 echo SUFFIX     = $SUFFIX
 echo START_DATE = $START_DATE
 echo END_DATE   = $END_DATE
-
-#echo RUN_ENVIR = $RUN_ENVIR
-#echo VRFYRAD_DIR = $VRFYRAD_DIR
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -58,13 +58,10 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
-echo SCRIPTS = ${SCRIPTS}
-
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
-echo $area
+area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 
 log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log
 err_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.err
@@ -77,7 +74,7 @@ fi
 
 
 #--------------------------------------------------------------------
-# If end date is present, confirm the start is before end date.
+# If end date was specified, confirm the start is before end date.
 #--------------------------------------------------------------------
 end_len=`echo ${#END_DATE}`
 if [[ ${end_len} -gt 0 ]]; then
@@ -96,9 +93,9 @@ fi
 start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -gt 0 ]]; then
    pdate=`${NDATE} -06 $START_DATE`
-   ${SCRIPTS}/set_prodate.sh ${SUFFIX} ${DATA_MAP} ${pdate}
+   ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
 else
-   pdate=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
    START_DATE=`${NDATE} +06 $pdate`
 fi
 
@@ -116,8 +113,8 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   count=`ls ${LOADLQ}/verf*_$SUFFIX* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/verf*_$SUFFIX* | wc -l`
+   count=`ls ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
+   complete=`grep "COMPLETED" ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
    running=`expr $count - $complete`
 
    if [[ $running -ne 0 ]]; then
@@ -137,7 +134,7 @@ while [[ $done -eq 0 ]]; do
       # Run the verification/extraction script
       #-----------------------------------------------------------------
       echo Processing ${cdate}
-      ${SCRIPTS}/${vrfy_script} ${SUFFIX} ${RUN_ENVIR} 1>${log_file} 2>${err_file}
+      ${USHverf_rad}/${vrfy_script} ${SUFFIX} ${RUN_ENVIR} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------
       # done is true (1) if the vrfy_script produced an error code, or
@@ -160,5 +157,5 @@ while [[ $done -eq 0 ]]; do
 done 
 
 
-echo end RunVrfy.sh
+echo "end RunVrfy.sh"
 exit 

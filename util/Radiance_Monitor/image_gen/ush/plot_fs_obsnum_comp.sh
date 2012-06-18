@@ -39,16 +39,28 @@ cd ${workdir}
 #------------------------------------------------------------------
 #   Copy the data files over and rename according to SUFFIX 
 #------------------------------------------------------------------
-$NCP $TANKDIR1/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
-uncompress ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
+PDY=`echo $PDATE|cut -c1-8`
 
-$NCP $TANKDIR2/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
-uncompress ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
+if [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
+   $NCP ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
+else
+   $NCP $TANKDIR1/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
+fi
+
+if [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
+   $NCP ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
+else
+   $NCP $TANKDIR2/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
+fi
 
 if [[ $suff3 -gt 0 ]]; then
-   $NCP $TANKDIR3/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
-   uncompress ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
+   if [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
+      $NCP ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
+   else
+      $NCP $TANKDIR3/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
+   fi
 fi
+uncompress ${workdir}/*.Z
 
 #------------------------------------------------------------------
 #   Copy a control file over, update the time, rename according 
@@ -57,15 +69,21 @@ fi
 ctldir=
 if [[ -s ${IMGNDIR1}/time/${type}${anl}.ctl.Z || -s ${IMGNDIR1}/time/${type}${anl}.ctl ]]; then
    ctldir="${IMGNDIR1}/time" 
+elif [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}${anl}.ctl.Z || -s ${TANKDIR1}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
+   ctldir=${TANKDIR1}/radmon.${PDY}
 elif [[ -s ${TANKDIR1}/time/${type}${anl}.ctl.Z || -s ${TANKDIR1}/time/${type}${anl}.ctl ]]; then
    ctldir=${TANKDIR1}/time 
 elif [[ -s ${IMGNDIR2}/time/${type}${anl}.ctl.Z || -s ${IMGNDIR2}/time/${type}${anl}.ctl ]]; then
    ctldir=${IMGNDIR2}/time 
+elif [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}${anl}.ctl.Z || -s ${TANKDIR2}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
+   ctldir=${TANKDIR2}/radmon.${PDY}
 elif [[ -s ${TANKDIR2}/time/${type}${anl}.ctl.Z || -s ${TANKDIR2}/time/${type}${anl}.ctl ]]; then
    ctldir=${TANKDIR2}/time 
 elif [[ $suff3 -gt 0 ]]; then
    if [[ -s ${IMGNDIR3}/time/${type}${anl}.ctl.Z || -s ${IMGNDIR3}/time/${type}${anl}.ctl ]]; then
       ctldir=${IMGNDIR3}/time 
+   elif [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}${anl}.ctl.Z || -s ${TANKDIR3}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
+      ctldir=${TANKDIR3}/radmon.${PDY}
    elif [[ -s ${TANKDIR3}/time/${type}${anl}.ctl.Z || -s ${TANKDIR3}/time/${type}${anl}.ctl ]]; then
       ctldir=${TANKDIR3}/time 
    fi
@@ -75,7 +93,14 @@ fi
 
 nctldir=${#ctldir}
 if [[ ${nctldir} -gt 0 ]]; then 
-   $NCP ${ctldir}/${type}${anl}.ctl* ${workdir}/.
+   if [[ -s ${ctldir}/time.${type}${anl}.ctl.Z ]]; then 
+      $NCP ${ctldir}/time.${type}${anl}.ctl.Z ${workdir}/${type}${anl}.ctl.Z
+   elif [[ -s ${ctldir}/time.${type}${anl}.ctl ]]; then
+      $NCP ${ctldir}/time.${type}${anl}.ctl ${workdir}/${type}${anl}.ctl
+   else
+      $NCP ${ctldir}/${type}${anl}.ctl* ${workdir}/.
+   fi
+
    if [[ -s ${workdir}/${type}${anl}.ctl.Z ]]; then
       uncompress ${workdir}/${type}${anl}.ctl.Z
    fi

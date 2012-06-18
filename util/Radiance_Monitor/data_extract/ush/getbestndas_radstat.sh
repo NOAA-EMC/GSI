@@ -15,14 +15,17 @@ rm -f $tmpdir/satbias.*
 rm -f datem00
 rm -f datem12
 
-echo $DATE > datem00
+echo $DATE > $tmpdir/datem00
 DATEM12=`/nwprod/util/exec/ndate +12 $DATE`
-echo $DATEM12 > datem12
+echo $DATEM12 > $tmpdir/datem12
 
-PDY00=`cut -c 1-8 datem00`
-HH00=`cut -c 9-10 datem00`
-PDY12=`cut -c 1-8 datem12`
-HH12=`cut -c 9-10 datem12`
+PDY00=`cut -c 1-8 $tmpdir/datem00`
+HH00=`cut -c 9-10 $tmpdir/datem00`
+PDY12=`cut -c 1-8 $tmpdir/datem12`
+HH12=`cut -c 9-10 $tmpdir/datem12`
+
+rm -f $tmpdir/datem00
+rm -f $tmpdir/datem12
 
 case $HH00 in
  00) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12

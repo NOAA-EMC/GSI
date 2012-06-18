@@ -53,7 +53,12 @@ echo ctldir = $ctldir
 
 
 #--------------------------------------------------------------------
-# Create plots and place on RZDM
+# Loop over satellite types.  Copy data files, create plots and
+# place on the web server.
+#
+# Data file location may either be in angle, bcoef, bcor, and time
+# subdirectories under $TANKDIR, or in the Operational organization
+# of radmon.YYYYMMDD directories under $TANKDIR.
 
 for type in ${SATYPE2}; do
    $NCP $ctldir/${type}*.ctl* ./
@@ -66,13 +71,24 @@ for type in ${SATYPE2}; do
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
-      $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
-      if [[ -s ./${type}.${cdate}.ieee_d.Z ]]; then
-        uncompress ./${type}.${cdate}.ieee_d.Z
+      day=`echo $cdate | cut -c1-8 `
+
+      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+         test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
+         if [[ -s $test_file ]]; then
+            $NCP ${test_file} ./${type}.${cdate}.ieee_d
+         elif [[ -s ${test_file}.Z ]]; then
+            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         fi
       fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+         $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
+      fi
+
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
+   uncompress ./*.ieee_d.Z
 
      for var in ${PTYPE}; do
      echo $var
@@ -100,15 +116,6 @@ echo ${tmpdir}/${type}_${var}.gs
    done
 
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/time"
-   for var in ${PTYPE}; do
-      scp ${type}.${var}*.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
-   done
-
-
-   for var in ${PTYPE}; do
-      rm -f ${type}.${var}*.png
-   done
 
    rm -f ${type}.ieee_d
    rm -f ${type}.${PDATE}.ieee_d
@@ -116,6 +123,17 @@ echo ${tmpdir}/${type}_${var}.gs
 
 done
 
+
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/time"
+#for var in ${PTYPE}; do
+#   scp ${type}.${var}*.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
+#done
+
+scp *.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
+
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
+done
 
 
 #--------------------------------------------------------------------

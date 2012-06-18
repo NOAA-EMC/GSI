@@ -9,11 +9,13 @@
 set -ax
 export list=$listvars
 
-SATYPE2=$1
+#SATYPE2=$1
+SATYPE2=$SATYPE
 
 #------------------------------------------------------------------
 # Set environment variables.
-tmpdir=${STMP_USER}/plot_summary_${SUFFIX}_${SATYPE2}.$PDATE
+#tmpdir=${STMP_USER}/plot_summary_${SUFFIX}_${SATYPE2}.$PDATE
+tmpdir=${STMP_USER}/plot_summary_${SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -49,8 +51,22 @@ for type in ${SATYPE2}; do
    uncompress *.ctl.Z
 
    cdate=$bdate
+
    while [[ $cdate -le $edate ]]; do
-      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
+      day=`echo $cdate | cut -c1-8 `
+
+      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+         test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
+         if [[ -s $test_file ]]; then
+            $NCP ${test_file} ./${type}.${cdate}.ieee_d
+         elif [[ -s ${test_file}.Z ]]; then
+            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         fi
+      fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+         $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
+      fi
+#      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
@@ -64,15 +80,18 @@ EOF
 
    timex $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/summary"
-   scp ${type}.summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
 
    rm -f ${type}.ctl 
    rm -f ${type}*.ieee_d
-   rm -f ${type}.summary.png
 
 done
 
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/summary"
+#scp ${type}.summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+
+scp *summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+
+rm -f *.summary.png
 
 
 #--------------------------------------------------------------------

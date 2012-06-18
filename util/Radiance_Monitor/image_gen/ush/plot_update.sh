@@ -23,50 +23,34 @@ cd $tmpdir
 #------------------------------------------------------------------
 # Store the processing date
 #------------------------------------------------------------------
-#next_cycle=`$NDATE +6 $PDATE`
-#echo $next_cycle > ./dum
-#$NCP ./dum $IMGNDIR/cycle/imgdate
-#${SCRIPTS}/set_imgdate.sh ${SUFFIX} ${DATA_MAP} ${next_cycle} 
-${SCRIPTS}/set_imgdate.sh ${SUFFIX} ${DATA_MAP} ${PDATE} 
+   rc=`${SCRIPTS}/update_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate ${PDATE}`
+   echo rc = $rc
+   if [[ $rc != 0 ]]; then
+      echo "ERROR:  Update to $DATA_MAP, $SUFFIX, imgdate with $PDATE failed"
+   fi 
 
 #------------------------------------------------------------------
-#  Archive yesterday's files to hpss and remove those archived 
-#  files older than 120 days.
+#  Archive yesterday's files to hpss 
 #
 #  Do this after the 06 cycle; don't want to lengthen the 00 
 #  processing any further.
 #------------------------------------------------------------------
+MAKE_TAPE_ARCHIVE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_archive`
 
-if [[ ${MAKE_TAPE_ARCHIVE} = "1" ]]; then
+CYCLE=`echo $PDATE|cut -c9-10`
+
+if [[ ${MAKE_TAPE_ARCHIVE} = "1" && ${CYCLE} = "06" ]]; then
+   HPSSDIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} hpss_dir`
+   HPSSDIR=${HPSSDIR}/${SUFFIX}
+
    YSTRD=`$NDATE -24 $PDATE`
    TARDATE=`echo $YSTRD|cut -c1-8`
 
-   ONEYEAR=`$NDATE -8760 $YSTRD`
-
-   CYCLE=`echo $PDATE|cut -c9-10`
+#   ONEYEAR=`$NDATE -8760 $YSTRD`
    DAY=`echo $PDATE|cut -c7-8`
-   SUB_DIRS="angle bcoef bcor time"
 
+   htar -cvf ${HPSSDIR}/radmon.${TARDATE}.tar ${TANKDIR}/radmon.${TARDATE}
 
-#------------------------------------------------------------------
-#  Create daily tape backup of data files and
-#  remove old backup files older than a year.
-#------------------------------------------------------------------
-   if [[ "$CYCLE" = "06" ]]; then
-      for dir in ${SUB_DIRS}; do
-         cd ${TANKDIR}/${dir}
-         if [[ "$dir" = "time" ]]; then
-           htar -cvf ${HPSSDIR}/${dir}/${TARDATE}.tar *.${TARDATE}*.ieee_d* bad_*.${TARDATE}* 
-           if [[ "DAY" = "01" ]]; then
-              htar -cvf ${HPSSDIR}/${dir}/${TARDATE}.base.tar *.base
-              hsi "rm ${HPSSDIR}/${dir}/${ONEYEAR}.base.tar"
-           fi
-         else
-           htar -cvf ${HPSSDIR}/${dir}/${TARDATE}.tar *.${TARDATE}*.ieee_d* 
-         fi
-         hsi "rm ${HPSSDIR}/${dir}/${ONEYEAR}.tar*"
-      done 
-   fi
 fi
 
 #------------------------------------------------------------------

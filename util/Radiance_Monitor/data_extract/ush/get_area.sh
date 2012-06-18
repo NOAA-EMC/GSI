@@ -1,1 +1,0 @@
-../../image_gen/ush/get_area.sh

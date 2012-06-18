@@ -1,24 +1,32 @@
 #!/bin/sh
 
 #--------------------------------------------------------------------
-#  MkCtl_rgnl
+#  MkCtl_rgnl.sh
 #
-#  Create control files for regional (NDAS) radiance diagnostic data.
-#  The control files will be placed in the $TANKDIR subdirectories.
+#    This script generates the control files for a given suffix
+#    (source), using the JGDAS_VRFYRAD.sms.prod job.  The resulting
+#    control files are stored in $TANKDIR.
+#
+#    This script is designed to be run manually, and should only be
+#    necessary if the user had previously overriden the default
+#    settings and switched off the control file generation done by
+#    the VrfyRad_*.sh scripts.
+#
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  MkCtl_rgnl.sh suffix run_envir"
-  echo "            File name for MkCtl_rgnl.sh can be full or relative path"
-  echo "            Suffix is the indentifier for this data source."
-  echo "            The run_envir maybe dev, para."
+  echo "Usage:  MkCtl_rgnl.sh suffix"
+  echo "            File name for MkCtl_rgnl.sh may be full or relative path"
+  echo "            Suffix is the indentifier for this data source, and should"
+  echo "             correspond to an entry in the ../../parm/data_map file."
 }
+
 
 set -ax
 echo start MkCtl_rgnl.sh
 
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -ne 1 ]]; then
    usage
    exit 1
 fi
@@ -28,11 +36,13 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-RUN_ENVIR=$2
+export RUN_ENVIR=dev
 
 echo SUFFIX    = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
-echo VRFYRAD_DIR = $VRFYRAD_DIR
+
+
+jobname=make_ctl_${SUFFIX}
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -41,182 +51,129 @@ export RAD_AREA=rgn
 export MAKE_CTL=1
 export MAKE_DATA=0
 
-if [[ $RUN_ENVIR = para || $RUN_ENVIR = prod ]]; then
-   this_dir=${VRFYRAD_DIR}
-fi
-
-
 top_parm=${this_dir}/../../parm
 
 if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
 else
    echo "Unable to source RadMon_config file in ${top_parm}"
-   exit
+   exit 2 
 fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/rgnl_conf
 
-#--------------------------------------------------------------------
-#  Empty out the MAIL variables.  If we're just building control
-#  files we don't need any mail notifications.
-#--------------------------------------------------------------------
-export MAIL_TO=
-export MAIL_CC=
-
-
 mkdir -p $TANKDIR
 mkdir -p $LOGDIR
+
 
 tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
+#--------------------------------------------------------------------
+# Get date of cycle to process.  Start with the last time in the 
+# data_map file and work backwards until we find a diag file to use
+# or run out of the $ctr.
+#--------------------------------------------------------------------
+#export PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
+export PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+ 
+#---------------------------------------------------------------
+# Locate required files.
+#---------------------------------------------------------------
+export DATDIR=${PTMP_USER}/regional
+#export com=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
+export com=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+
+biascr=$DATDIR/satbias.${PDATE}
+satang=$DATDIR/satang.${PDATE}
+radstat=$DATDIR/radstat.${PDATE}
+
+ctr=0
 need_radstat=1
-
-#------------------------------------------------------------------
-#  define data file sources depending on $RUN_ENVIR
-#
-#  need to idenfity correct output location(s) for binary files
-#------------------------------------------------------------------
-if [[ $RUN_ENVIR = dev ]]; then
-
-   export com=`get_datadir ${SUFFIX} ${RADMON_PARM}/data_map`
-
-   export DATDIR=${PTMP_USER}/regional
-
-   #--------------------------------------------------------------------
-   # Get date of cycle to process.
-   #--------------------------------------------------------------------
-   export PDATE=`get_prodate ${SUFFIX} ${RADMON_PARM}/data_map`
-
-   ctr=0
-   while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
-
-      sdate=`echo $PDATE|cut -c1-8`
-      export CYA=`echo $PDATE|cut -c9-10`
-
-      #---------------------------------------------------------------
-      # Locate required files or reset PDATE and try again.
-      #---------------------------------------------------------------
-
-      /bin/sh $SCRIPTS/getbestndas_radstat.sh $PDATE $DATDIR $com
-
-      if [[ -s $DATDIR/radstat.$PDATE ]]; then
-         need_radstat=0
-      else
-         export PDATE=`ndate -06 $PDATE`
-         ctr=$(( $ctr + 1 ))
-      fi
-
-   done
-
-elif [[ $RUN_ENVIR = para ]]; then
-
-   
-   export DATDIR=${PTMP_USER}/regional
-   export com=$COMOUT
-   export PDATE=$CDATE
+while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
 
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
-   ctr=0
+   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
-   #---------------------------------------------------------------
-   # Locate required files or reset PDATE and try again.
-   #---------------------------------------------------------------
-   while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
-      /bin/sh $SCRIPTS/getbestndas_radstat.sh $PDATE $DATDIR $com
+   if [ -s $radstat -a -s $satang -a -s $biascr ]; then
+      need_radstat=0
+   else
+      export PDATE=`ndate -06 $PDATE`
+      ctr=$(( $ctr + 1 ))
+   fi
 
-      if [[ -s $DATDIR/radstat.$PDATE ]]; then
-         need_radstat=0
-      else
-         export PDATE=`ndate -06 $PDATE`
-         ctr=$(( $ctr + 1 ))
-      fi
+done
 
-   done
 
-else
-   export MAKE_CTL=0
-   echo RUN_ENVIR = $RUN_ENVIR
-   cd ${WORKDIR}
-   cd ..
-   rm -rf ${WORKDIR}
-   exit 0
-fi
-
+export biascr=$biascr
+export satang=$satang
+export radstat=$radstat
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
 # radiance monitoring jobs.
 #--------------------------------------------------------------------
 
-if [ -s $DATDIR/radstat.$PDATE -a -s $DATDIR/satang.$PDATE ];then
-   if [ -s $DATDIR/satbias.$PDATE ]; then
+data_available=0
 
+if [ -s $radstat -a -s $satang -a -s $biascr ]; then
+   data_available=1
 
-      #------------------------------------------------------------------
-      # Set up WORKDIR.
+   export MP_SHARED_MEMORY=yes
+   export MEMORY_AFFINITY=MCM
 
-      mkdir -p $WORKDIR
-      cd $WORKDIR
+   export envir=prod
+   export RUN_ENVIR=dev
+   export USE_ANL=0
 
+   export PDY=`echo $PDATE|cut -c1-8`
+   export CYC=`echo $PDATE|cut -c9-10`
+   export cyc=$CYC
 
-      #--------------------------------------------------------------------
-      # Copy data files file to local data directory.  Untar radstat file.  
-      # Change DATDIR definition.
+   export job=ndas_make_ctl_${PDY}${cyc}
+   export SENDSMS=NO
+   export DATA_IN=${WORKverf_rad}
+   export DATA=${WORKverf_rad}/radmon_regional
+   export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
+   export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
+   export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
+   export USER_CLASS=dev
+   export DO_DIAG_RPT=0
+   export DO_DATA_RPT=0
 
-      datdirl=${WORKDIR}/datrad_regional.$SUFFIX
-      rm -rf $datdirl
-      mkdir -p $datdirl
-
-      export CYA=`echo $PDATE|cut -c9-10`
-      $NCP $DATDIR/radstat.$PDATE $datdirl/radstat.$PDATE
-      $NCP $DATDIR/satbias.$PDATE   $datdirl/biascr.$PDATE
-      $NCP $DATDIR/satang.$PDATE   $datdirl/satang.$PDATE
-
-      cd $datdirl
-      tar -xvf radstat.$PDATE
-      rm radstat.$PDATE
-      rm -f *anl*
-
-      export DATDIR=$datdirl
-
-
-      #--------------------------------------------------------------------
-      # Export variables
-      export listvar=MAKE_CTL,MAKE_DATA,RAD_AREA,MAIL_TO,MAIL_CC,DISCLAIMER,DO_DIAG_RPT,PDATE,NDATE,DATDIR,TANKDIR,LOADLQ,EXEDIR,LOGDIR,WORKDIR,SCRIPTS,USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,ACOUNT,listvar
-
-
-      #------------------------------------------------------------------
-      #   Submit data processing jobs.
-
-      rm $LOGDIR/angle.log
-      $SUB -a $ACOUNT -e $listvar -j MkCtl_angle_${SUFFIX} -q dev -g ${USER_CLASS}  -t 0:10:00 -o $LOGDIR/mkctl_angle.log $SCRIPTS/verf_angle.sh
-
-      rm $LOGDIR/bcoef.log
-      $SUB -a $ACOUNT -e $listvar -j MkCtl_bcoef_${SUFFIX} -q dev  -g ${USER_CLASS}  -t 0:10:00 -o $LOGDIR/mkctl_bcoef.log $SCRIPTS/verf_bcoef.sh
-
-      rm $LOGDIR/bcor.log
-      $SUB -a $ACOUNT -e $listvar -j MkCtl_bcor_${SUFFIX} -q dev  -g ${USER_CLASS} -t 0:10:00 -o $LOGDIR/mkctl_bcor.log $SCRIPTS/verf_bcor.sh
-
-      rm $LOGDIR/time.log
-      $SUB -a $ACOUNT -e $listvar -j MkCtl_time_${SUFFIX} -q dev -g ${USER_CLASS}  -t 0:10:00 -o $LOGDIR/mkctl_time.log $SCRIPTS/verf_time.sh
-
+   export VERBOSE=YES
+   export satype_file=${TANKverf}/info/SATYPE.txt
+   if [[ -s ${TANKverf}/info/radmon_base.tar.Z ]]; then
+      export base_file=${TANKverf}/info/radmon_base.tar
    fi
-else
-   echo unable to locate a radstat file, check starting PDATE or DATDIR assignment.
+
+   #--------------------------------------------------------------------
+   # Export listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,MAKE_DATA,MAKE_CTL,listvar
+
+   #------------------------------------------------------------------
+   #   Submit data processing jobs.
+
+   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+
 fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
 #--------------------------------------------------------------------
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
+
+exit_value=0
+if [[ ${data_available} -ne 1 ]]; then
+   echo No data available for ${SUFFIX}
+   exit_value=5
+fi
 
 echo end MkCtl_rgnl.sh
-exit
+exit ${exit_value}

@@ -20,7 +20,8 @@ echo $SAT
 #------------------------------------------------------------------
 # Set up tempdir and link data and ctl files.  
 
-if [[ ${PID} = "iasi_1" || ${PID} = "iasi_2" ]]; then
+pid_test=`echo $PID | tail -c -3`
+if [[ ${pid_test} = "_1" || ${pid_test} = "_2" ]]; then
    tmpdir=${DATADIR}/horiz_${SUFFIX}.${PID}.${PDATE}
 else
    tmpdir=${DATADIR}/horiz_${SUFFIX}.${SAT}.${PDATE}
@@ -70,22 +71,23 @@ done
 #------------------------------------------------------------------
 #   Transfer image files to server
 
-ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/horiz"
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/horiz"
 
-if [[ ${PID} = "iasi_1" || ${PID} = "iasi_2" ]]; then
-   nums="_1 _2 _3 _4 _5 _6 _7 _8 _9"
+#if [[ ${PID} = "iasi_1" || ${PID} = "iasi_2" ]]; then
+#   nums="_1 _2 _3 _4 _5 _6 _7 _8 _9"
 
-   for var in ${PTYPE}; do
-      for num in ${nums}; do
-         scp ${SAT}.${var}${num}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
-      done
-   done
+#   for var in ${PTYPE}; do
+#      for num in ${nums}; do
+#         scp ${SAT}.${var}${num}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
+#      done
+#   done
+#else
+#   for var in ${PTYPE}; do
+#      scp ${SAT}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
+#   done
+#fi
 
-else
-   for var in ${PTYPE}; do
-      scp ${SAT}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
-   done
-fi
+scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
 
 #--------------------------------------------------------------------
 # Delete images and data files in $tmpdir

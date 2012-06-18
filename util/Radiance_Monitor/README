@@ -1,0 +1,47 @@
+README RadMon package 
+
+The RadMon (radiance monitoring) package can be used to extract certain information
+from radiance diagnostic files and visualize the results by plotting the data using
+GrADS.  The package also may optionally perform data validation and error checking
+and report problems using email.
+
+The package is organized in two main pieces, the data_extract and image_gen.  There
+is also an nwprod directory, which contains the major components of the 
+data_extract portion.  (Part of the data extract has been submitted to OPS for 
+so that it may run as part of each cycle.  This was a subset of what is now in the 
+nwprod directory, which reflects the required opporational organization.)  
+
+There is also a parm directory containing configuration files used by the entire 
+package.  The data_extract and image_gen directories also have parm diretories,
+containing configuration files specific to the data extraction and image generation
+functions.
+
+In order to get the package running you must peform these steps:
+
+
+1.  Run the makeall.sh script.  This script may be used to make all the executables 
+in the package and place them in the correct exec directories.  It may be run with 
+a "clean" parameter which performs a make clean on all source code directories.
+
+2.  Go to the RadMon/parms directory and modify the RadMon_config and data_map.xml files.  
+Please see the README file in that directory for instructions.
+
+3.  Run the data extraction to create the binary data files.  This can be done any time 
+after the diagnostic file is created.  There are two ways to run the data extraction.  
+In RadMon/data_extract/ush/ there are two scripts named VrfyRad_glbl.sh and 
+VrfyRad_rgnl.sh.  These can be run from a cron or command line.  They function by 
+setting up the environment variables to run RadMon/nwprod/jobs/JGDAS_VRFYRAD.sms.prod.  
+
+{edit this}
+Alternately the JGDAS_VRFYRAD.sms.prod job can be included in the vrfy.sh step in your 
+parallel.
+{end edit}
+
+4.  Go to the RadMon/image_gen/html directory and run install_html.sh.  This will build
+the web site using the web settings specified in step 2, and the available 
+satellite/instrument sources from step 3.
+
+5.  Run the image generation.  This can be done after the binary files are created.  In
+RadMon/image_gen/ush there are two scripts, CkPlt_glbl.sh and CkPlt_rgnl.sh.  These can
+be run from the command line or as a cron.  They create the images using GrADS and 
+push them to the web server.

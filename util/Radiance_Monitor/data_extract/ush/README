@@ -5,19 +5,47 @@ The scripts in this directory are used to set up the environments, run the
 appropriate executables, and move the resulting data and log files to the 
 desired directories.
 
+The scripts named in "camel case" (mixed case) may be called directly.  Those
+named entirely in lower case are utility scripts which are used by the 
+camel case scripts; they should not be called directly by the user.
+
 There are two sets of scripts; one for the global, and one for the
-regional.  They are similar, but not identical in functioning.  
+regional.  They are similar, but not identical in function.  
 
 The top level scripts are VrfyRad_glbl.sh and VrfyRad_rgnl.sh scripts.
-They poll for new diagnostic files and calls the lower level data 
-extraction scripts if a new diag file is found. 
+They poll for new diagnostic files and, if a new diag file is found, they 
+submit ../nwprod/jobs/JGDAS_VRFYRAD.sms.prod to peform the data extraction 
+and optional data validation.  
 
-VrfyRad_glbl.sh takes 2 parameters as input:  the desired suffix, and the 
-running environment ("dev", "para", or "prod").
+The VrfyRad_*.sh scripts take 2 parameters as input:  the desired suffix, and
+the running environment ("dev", "para", or "prod", though "prod" should only
+be used in the production environment).  Suffix is the identifier for a data
+source, typically an experiment name from a parallel (i.e.  es_pri, nrx, etc.).
+Each suffix used should have an entry in the ../../parms/data_map file.  
 
 The resulting data files are saved in $TANKDIR/${SUFFIX} and 
 $TANKDIR/regional/${SUFFIX} directories.   $TANKDIR is defined within the 
-*_conf files in the parm directory.
+*_conf files in the parm directory. 
+
+The RunVrfy.sh script may be used as a batch processor.  It can be used 
+to process data for a given suffix (source) in 3 ways:
+  1.  Between explicit starting and ending dates.
+  2.  From a specified starting date until it runs out of data.
+  3.  From the last date processed in the ../../parm/data_map file 
+      until it runs out of data. 
+The calling sequence is > RunVrfy.sh suffix [start date] [end date].
+The suffix must match an entry in the ../../parm/data_map file.
+
+The MkBase.sh script is used to create the base history files which are
+used by the data validation reports.  If you do not wish to turn on data error
+reporting (generally only needed for operational data, not experimental
+parallels), then this script won't need to be run.
+
+The MkCtl_glbl.sh and MkCtl_rgnl.sh scripts are utility scripts that 
+generate the control files for a given suffix (source).  The control files
+are created by default during normal data extraction, and the are used to
+by the image generation scripts. Unless you wish to modify the defaults, 
+these scripts won't need to be run.
 
 See the README in the parms directory for default settings information.
  

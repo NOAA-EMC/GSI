@@ -1,0 +1,155 @@
+The RadMon package can be configured for your particular data source by 
+modifying the data_map.xml and RadMon_config files in this directory.  "Data 
+source" in this useage means your set of gsi output data, most particularly 
+the radiance diagnostic file.  This could be from a parallel experiment (yours or 
+someone else's) or operational data.  It is possible to use and plot more than one
+data source at a time as long as they all have unique identifiers assigned.
+
+
+RadMon_config
+
+Modify the MY_RADMON to point to the top level directory containing the RadMon package. 
+If you've checked out the entire GSI then the RadMon package is found in the 
+utils/Radiance_Monitor directory.
+
+Modify the MY_TANDIR variable to point to the place you want to store data files.  
+
+Modify the three web resource variables.
+
+
+
+data_map.xml
+
+There are two entries, global_default and regional_default that provide 
+default values. In order to add a new data source (termed SUFFIX within 
+the package's scripts), you only need to add an xml element with an area,
+imgdate, and prodate element, and those other fields for which the default
+value is not desireable.  The element name for your source can be any
+length (but cannot include any spaces).  The first character of an element 
+may be a letter, the underscore, or colon.  Additional (optional) characters 
+can be: a letter, a digit, underscore, colon, period, or dash.
+
+For example, if I had a global parallel 
+that I named pr4ed, my xml element would look like this:
+
+<pr4ed>
+   <area>glb</area>
+   <prodate>2012042700</prodate>
+   <imgdate>2012042700</imgdate>
+</pr4ed>
+
+It should be at the same level of the document as the default elements.  
+Without including child elements the document would look like this:
+
+<opt>
+   <pr4ed></pr4ed>
+   <global_default></global_default>
+   <regional_default></regional_default>
+</opt> 
+
+The element order (pr4ed, global_default, etc) does not matter.  Nor does the 
+order of child elements matter (that's one of the strengths of xml!).  Don't 
+worry if the element order changes from cycle to cycle.  The manipulating 
+perl scripts use a very lightweight perl module (XML::Simple), which is 
+effective but does not guarantee element order will be maintained.  
+
+
+Default values
+
+This is the full listing of global_default element.  A description of the
+child element functions follows below.  The fields have the same meaning for
+the regional_default element.
+
+<global_default>
+    <account>GDAS-MTN</account>
+    <anl>0</anl>
+    <area>glb</area>
+    <do_archive>0</do_archive>
+    <do_data_rpt>0</do_data_rpt>
+    <do_diag_rpt>0</do_diag_rpt>
+    <hpss_dir></hpss_dir>
+    <imgdate></imgdate>
+    <logfile_dir></logfile_dir>
+    <mail_to></mail_to>
+    <mail_cc></mail_cc>
+    <prodate></prodate>
+    <radstat_location>/com/gfs/prod</radstat_location>
+    <run_envir>dev</run_envir>
+    <static_satype>0</static_satype>
+    <use_mail>0</use_mail>
+    <user_class>dev</user_class>
+  </global_default>
+
+
+account:           Account used for loadleveler submissions for this data source.
+
+anl    :           Switch to create analysis data files.  0 = off, 1 = on
+
+area   :           glb or rgn for global or regional.  This is the only required element
+                   which must be specified for new data sources.
+
+do_archive:        Switch to journal the data files to tape.  0 = off, 1 = on.
+                   If set to 1 ensure that hpss_dir points to the correct place.
+
+do_data_rpt:       Switch to enable data integrity reports.  0 = off, 1 = on.
+
+do_diag_rpt:       Switch to enable diagnostic file reports.  0 = off, 1 = on.
+
+hpss_dir:          Location on hpss system to which archives may be journaled.
+
+imgdate:           Date of last cycle for which the package generated images.   
+
+                   As an example, a date of 2012050100 would indicate that image generation
+                   was performed for the 2012050100 cycle.  With this as the imgdate the
+                   next cycle that the image generation would attempt to process would be
+                   2012050106.  In order for that to work, the prodate would have to be
+                   2012050106 or later (see prodate below).
+
+
+logfile_dir:       Location of logfiles from the data extraction step.  This 
+                   location is needed the do_data_rpt and/or do_diag_rpt are set 
+                   to 1 (on) and the use_mail option is set to 0 (off).
+
+mail_to:           Comma delimited list of email address(es) to which error reports 
+                   should be sent.  
+
+mail_cc:           Comma separated list of email address(es) to which error reports 
+                   should be cc-ed.
+
+prodate:           Date of last cycle processed, meaning for which data has been 
+                   extracted from the diagnostic file.  This may be set to "auto" if
+                   the data extraction step is run as part of the parallel.  The 
+                   image generation will poll for new data files and execute if files
+                   newer than the last imagedate are found.  
+
+                   As an example, a date of 2012050100 would indicate that data extraction
+                   was performed for the 2012050100 cycle.  With this as the prodate the
+                   next cycle that the data extraction would attempt to process would be
+                   2012050106.
+
+radstat_location:  Location of the directory containing the radstat files.  Note that
+                   these are commonly stored in day directories which the package 
+                   will find, hence the default /com/gfs/prod will be the place from
+                   which the package will look for gdas.[YYYYMMDD] directories, using
+                   the prodate + 6 hours (next cycle) to identify the proper day file.
+
+run_envir:         The runtime environment the package should use.  The options are
+                   dev, para, and prod, but this is an almost deprecated feature, and
+                   dev should suffice for most needs.
+
+static_satype:     Switch to use a static list of available satellite/instruments for
+                   this data source.  This should be set to 1 if you wish to run the 
+                   diagnostic report (which sends an email warning if any expected 
+                   sat/instruments are not in a given diagnostic file).
+
+use_mail:          Switch to mail error reports with the data extraction step.  If 
+                   this is set to 0, and error reporting is set to 1, then error 
+                   reports will be dumped to the log file and extracted and mailed as 
+                   part of the image generation step.
+
+user_class:        User class which loadleveler should use.
+
+
+The xml file must be correctly formed in order to work within the package.  Any xml
+file can be loaded into a web browser and displayed if it is correctly formed.  Almost 
+all browsers will identify improperly formed xml files.

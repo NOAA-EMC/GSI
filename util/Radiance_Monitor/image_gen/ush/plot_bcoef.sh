@@ -45,7 +45,13 @@ echo ctldir = $ctldir
 
 
 #--------------------------------------------------------------------
-# Create plots and place on server (rzdm).
+# Loop over satellite types.  Copy data files, create plots and
+# place on the web server.
+#
+# Data file location may either be in angle, bcoef, bcor, and time
+# subdirectories under $TANKDIR, or in the Operational organization
+# of radmon.YYYYMMDD directories under $TANKDIR.
+
 
 for type in ${SATYPE}; do
 
@@ -54,7 +60,19 @@ for type in ${SATYPE}; do
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
-      $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
+      day=`echo $cdate | cut -c1-8 `
+
+      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+         test_file=${TANKDIR}/radmon.${day}/bcoef.${type}.${cdate}.ieee_d
+         if [[ -s $test_file ]]; then
+            $NCP ${test_file} ./${type}.${cdate}.ieee_d
+         elif [[ -s ${test_file}.Z ]]; then
+            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         fi
+      fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+         $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
+      fi
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
@@ -71,20 +89,21 @@ EOF
    done 
 
 
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcoef"
-   for var in $list; do
-      scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
-   done
-
-   for var in $list; do
-      rm -f ${type}.${var}*.png
-   done
 
    rm -f ${type}.ieee_d
    rm -f ${type}.ctl
 
 done
 
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcoef"
+#for var in $list; do
+#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
+#done
+scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
+
+for var in $list; do
+   rm -f ${type}.${var}*.png
+done
 
 
 #--------------------------------------------------------------------

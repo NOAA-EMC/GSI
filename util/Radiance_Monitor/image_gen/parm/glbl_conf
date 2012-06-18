@@ -2,23 +2,11 @@
 #
 #  glbl_conf
 #
-#  Contains definitions for export for processing glbl 
-#  images.
+#  Contains definitions for internal reference used 
+#  to produce images from glbl data sources.
 #
-#  Users may need to edit the MAKE_TAPE_ARCHIVE switch, 
-#  and the HPSSDIR.
+#  Users should not need need to edit this file.
 #-------------------------------------------------------
-
-# MAKE_TAPE_ARCHIVE is a switch that controls journaling the data files
-# to tape after the images are generated.  This is only to provide a backup
-# copy of the data, and does not affect the data files in MY_TANKDIR.
-#
-# The HPSSDIR is your archive directory on the hpss machine.  IT must exist
-# if the transfer is to work correctly.
-#
-  export MAKE_TAPE_ARCHIVE=0
-  export HPSSDIR=/hpssuser/g01/${USER}/nbns/stats/${SUFFIX}
-
 
 #
 # web server resources
@@ -26,9 +14,9 @@
 export WEBDIR=${WEBDIR}/${SUFFIX}/pngs
 
 
-export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
-export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
-
+#
+# internal package reference
+#
 export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
 export TANKDIR=${MY_TANKDIR}/stats/${SUFFIX}
 
@@ -39,12 +27,3 @@ export TANKDIR=${MY_TANKDIR}/stats/${SUFFIX}
 export PLOT_ANGLE_COUNT=plot_angle_count.glb.gs
 export PLOT_ANGLE_SEP=plot_angle_sep.glb.gs
 
-#
-# default settings
-#
-export SUFFIX=${SUFFIX:-opr}
-export RUN_ENVIR=${RUN_ENVIR:-dev}
-export USER_CLASS=${USER_CLASS:-dev}
-export ACOUNT=${ACOUNT:-RDAS-MTN}
-
-export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-0}

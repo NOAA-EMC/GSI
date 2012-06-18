@@ -12,11 +12,10 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  CkPlt_rgnl.sh suffix run_envir"
+  echo "Usage:  CkPlt_rgnl.sh suffix"
   echo "            File name for CkPlt_rgnl.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in"
   echo "              TANKDIR/stats directory."
-  echo "            The run_envir maybe dev, para, or prod."
 }
 
 
@@ -24,7 +23,7 @@ set -ax
 echo start CkPlt_rgnl.sh
 
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -ne 1 ]]; then
    usage
    exit 1
 fi
@@ -33,10 +32,10 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-RUN_ENVIR=$2
+#RUN_ENVIR=$2
 
 echo SUFFIX    = ${SUFFIX}
-echo RUN_ENVIR = ${RUN_ENVIR}
+#echo RUN_ENVIR = ${RUN_ENVIR}
 
 
 #--------------------------------------------------------------------
@@ -55,6 +54,7 @@ fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
+
 
 tmpdir=${STMP_USER}/plot_rgnl_rad${SUFFIX}
 rm -rf $tmpdir
@@ -109,11 +109,13 @@ fi
 # $PRODATE.
 #--------------------------------------------------------------------
 
-export PRODATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
-export IMGDATE=`${SCRIPTS}/get_imgdate.sh ${SUFFIX} ${DATA_MAP}`
+export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
 
 export PDATE=`$NDATE +6 $IMGDATE`
 echo $PRODATE  $PDATE
+
+
 
 
 #--------------------------------------------------------------------
@@ -145,15 +147,22 @@ fi
 
 if [[ $PLOT -eq 1 ]]; then
 
-   echo $USE_STATIC_SATYPE
-   export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
-   if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
+   export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+   export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+   export ACOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
 
-      test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
+   if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
+      PDY=`echo $PDATE|cut -c1-8`
+
+      if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
+         test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
+      else
+         test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
+      fi
 
       for test in ${test_list}; do
          this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f1`
+         tmp=`echo "$this_file" | cut -d. -f2`
          echo $tmp
          SATYPE_LIST="$SATYPE_LIST $tmp"
       done
@@ -195,10 +204,7 @@ if [[ $PLOT -eq 1 ]]; then
   #--------------------------------------------------------------------
   #   Set environment variables to export to subsequent scripts
 
-  export WEBDIRL=${PTMP_USER}/stats/regional/${SUFFIX}
-  export FIXDIR=/nwprod/fix
-
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,WEBDIRL,EXEDIR,FIXDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACOUNT,RADMON_DATA_EXTRACT,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACOUNT,RADMON_DATA_EXTRACT,DATA_MAP,listvar
 
 
   #------------------------------------------------------------------

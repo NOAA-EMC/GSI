@@ -5,18 +5,18 @@
 # This parameter file set up the environment variables used in
 # scripts to run the radiance monitor package components.
 #
-# Before running please see the notes below regarding 
-# MY_GSI, MY_TANKDIR, USER_CLASS, and ACOUNT.
-# 
 ##################################################################
 
   echo "begin RadMon_config"
 
 #
-# MY_GSI should point to your working directory which contains the 
-# copied or checked out instance of the GSI.
+# MY_RADMON should point to your working directory which contains the 
+# top level directory to the RadMon package.  If you checked out the package
+# as part of the GSI point to the GSI's util/Radiance_Monitor directory. If
+# you checked out only the Radiance_Monitor portion of the branch then
+# MY_RADMON should point to that.
 #
-  export MY_GSI=/global/save/${USER}/safford_radmon
+  MY_RADMON=/global/save/${USER}/GSI/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -27,26 +27,21 @@
   export MY_TANKDIR=/u/${USER}/nbns
 
 #
-#  USER_CLASS is the class which is used for job submissions.  It has
-#  defaults, which are based on the specified RUN_ENVIR in the data_map
-#  table.  Prod runs as prod, both para and dev run as class dev by 
-#  default.  If you need to override those defaults, to run as devonprod
-#  for example, then uncomment USER_CLASS below and set it as needed.
-# 
-#  export USER_CLASS=""
-
-#  
-#  ACOUNT is the account under which job summissions will be run.  It has
-#  defaults, global data sources use GDAS-MTN, and regional sources use
-#  RDAS-MTN.  If you need to run as a different account then uncomment
-#  and edit the ACOUNT variable below.
+#  Web server resources include the sever name (WEB_SVR), the user name
+#  on the web server (WEB_USER), and location of the top level directory
+#  for the html on the web server (WEBDIR).
 #
-#  export ACOUNT=""
+  export WEB_SVR=rzdm
+  export WEB_USER=my_account_on_server
+  export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/${WEB_USER}
 
+
+###############################################################################
 ###############################################################################
 #  The definitions below are for internal reference and shouldn't need to be  #
 #  edited, unless you wish to put the log or work files somewhere other than  #
 #  ptmp and stmp.                                                             #
+###############################################################################
 ###############################################################################
 
 #
@@ -59,13 +54,13 @@
 #
 #  Definitions for internal reference
 #
-  export RADMON_DATA_EXTRACT=${MY_GSI}/util/Radiance_Monitor/data_extract
-  export RADMON_IMAGE_GEN=${MY_GSI}/util/Radiance_Monitor/image_gen
-  export RADMON_PARM=${MY_GSI}/util/Radiance_Monitor/parm
-  export DATA_MAP=${RADMON_PARM}/data_map
-
+  export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
+  export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
+  export RADMON_PARM=${MY_RADMON}/parm
+  export DATA_MAP=${RADMON_PARM}/data_map.xml
+  export HOMEgfs=${MY_RADMON}/nwprod
 #
-#  Utilities
+#  Utilities used by the RadMon package
 #
   export NCP=/bin/cp                          
   export UTILS_BIN=/u/wx20mi/bin             

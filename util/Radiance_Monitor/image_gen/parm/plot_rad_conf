@@ -5,38 +5,26 @@
 #  Contains definitions for export for image processing 
 #  common to all scripts.
 #
-#  Customize the WEB_* resources for your account.
 #-------------------------------------------------------
 
-
-#-------------------------------------------------------
-# web server resources
-#
-export WEB_SVR=rzdm
-export WEB_USER=esafford
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/${WEB_USER}
 
 
 #-------------------------------------------------------
 # Internal reference definitions.  These should not
 # be edited. 
 #
-export U_USER=/u/${USER}
 export PTMP_USER=/ptmp/${USER}
 export STMP_USER=/stmp/${USER}
 
-export RADWEB_DIR=${RADMON_IMAGE_GEN}
-
-export SCRIPTS=${RADWEB_DIR}/ush
-export PARM=${RADWEB_DIR}/parm
-export GSCRIPTS=${RADWEB_DIR}/gscripts
-export EXEDIR=${RADWEB_DIR}/exec
+export SCRIPTS=${RADMON_IMAGE_GEN}/ush
+export PARM=${RADMON_IMAGE_GEN}/parm
+export GSCRIPTS=${RADMON_IMAGE_GEN}/gscripts
+export EXEDIR=${RADMON_IMAGE_GEN}/exec
 
 export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
+export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
 
 export STNMAP=/usrx/local/grads/bin/stnmap
 export GRADS=/usrx/local/grads/bin/grads
-
-export DISCLAIMER="${SCRIPTS}/disclaimer.txt"
-export REGION="${SCRIPTS}/region.txt"
 

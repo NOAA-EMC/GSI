@@ -46,25 +46,28 @@ $NCP $EXEDIR/horiz.${RAD_AREA}.x  ./horiz.x
 #
 #   Run horiz.x program to build the data files for each cycle
 
+datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+
 for date in ${DATES}; do
    sdate=`echo $date | cut -c1-8`
    cycle=`echo $date | cut -c9-10`
 
    if [[ $RAD_AREA = "glb" ]]; then
 
-      datdir=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${RADMON_PARM}/data_map`
-    
+#      datdir=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${RADMON_PARM}/data_map`
+      
       if [[ -d ${datdir}/gdas.${sdate} ]]; then
-         datdir=${datdir}/gdas.${sdate}
-         radstat=${datdir}/gdas1.t${cycle}z.radstat
+#         datdir=${datdir}/gdas.${sdate}
+         radstat=${datdir}/gdas.${sdate}/gdas1.t${cycle}z.radstat
       else
-         radstat=$datdir/radstat.gdas.${date}
+         radstat=${datdir}/radstat.gdas.${date}
       fi
 
       $NCP ${radstat} ${date}.radstat
 
    else
-      /bin/sh ${RADMON_DATA_EXTRACT}/ush/getbestndas_radstat.sh $date $DATADIR /com/nam/prod
+#      /bin/sh ${RADMON_DATA_EXTRACT}/ush/getbestndas_radstat.sh $date $DATADIR /com/nam/prod
+      /bin/sh ${RADMON_DATA_EXTRACT}/ush/getbestndas_radstat.sh $date $DATADIR $datdir
       mv ./radstat.${date} ${date}.radstat
    fi
 
@@ -135,10 +138,14 @@ use_iasi_metop=0
 export PTYPE="obs cor obsges obsnbc"
 
 for sat in ${SATYPE}; do
-   if [[ $sat = "iasi_metop-a" ]]; then
-      use_iasi_metop=1
-   elif [[ $sat = "airs_aqua" ]]; then
-      use_airs_aqua=1
+   nchanl=`grep "title" ${sat}.ctl |cut -c27-32`
+   if [[ $nchanl -ge 200 ]]; then
+      bigSATLIST=" $sat $bigSATLIST "
+#   fi
+#   if [[ $sat = "iasi_metop-a" ]]; then
+#      use_iasi_metop=1
+#   elif [[ $sat = "airs_aqua" ]]; then
+#      use_airs_aqua=1
    else
       SATLIST=" $sat $SATLIST " 
    fi
@@ -155,68 +162,105 @@ done
 ntasks=`cat $cmdfile|wc -l`
 jobname=plot_${SUFFIX}_horiz_${PID}
 
-export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
+export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
 
 $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
 
-#$SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -ilevel 2 -labelio yes -newjob YES
 
-if [[ $use_airs_aqua -eq 1 ]]; then
-   export SATLIST="airs_aqua"
-   PID="airs"
+#------------
 
-   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
-   rm -f $cmdfile
+for sat in ${bigSATLIST}; do
+   export SATLIST=$sat
 
->$cmdfile
-   for sat in ${SATLIST}; do
-      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
-   done
-
-   ntasks=`cat $cmdfile|wc -l`
-   jobname=plot_${SUFFIX}_horiz_${PID}
-   
-   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 2:00:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-
-fi
-
-if [[ $use_iasi_metop -eq 1 ]]; then
-   export SATLIST="iasi_metop-a"
+#  --------
    export PTYPE="obs cor"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
-   PID="iasi_1"
+   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
 
+   PID="${sat}_1"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
-   rm -f $cmdfile
 
+   rm -f $cmdfile
 >$cmdfile
-   for sat in ${SATLIST}; do
-      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
-   done
+   echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_horiz_${PID}
    
    $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
 
-
-   PID="iasi_2"
+#  --------
+   PID="${sat}_2"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
-   rm -f $cmdfile
    export PTYPE="obsges obsnbc"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
+   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
 
+   rm -f $cmdfile
 >$cmdfile
-   for sat in ${SATLIST}; do
-      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
-   done
+   echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_horiz_${PID}
    
    $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
 
-fi
+done 
+
+#if [[ $use_airs_aqua -eq 1 ]]; then
+#   export SATLIST="airs_aqua"
+#   PID="airs"
+#
+#   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
+#   rm -f $cmdfile
+#
+#>$cmdfile
+#   for sat in ${SATLIST}; do
+#      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+#   done
+#
+#   ntasks=`cat $cmdfile|wc -l`
+#   jobname=plot_${SUFFIX}_horiz_${PID}
+#   
+#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 2:00:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
+#
+#fi
+
+#if [[ $use_iasi_metop -eq 1 ]]; then
+#   export SATLIST="iasi_metop-a"
+#   export PTYPE="obs cor"
+#   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
+#   PID="iasi_1"
+#
+#   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
+#   rm -f $cmdfile
+#
+#>$cmdfile
+#   for sat in ${SATLIST}; do
+#      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+#   done
+#
+#   ntasks=`cat $cmdfile|wc -l`
+#   jobname=plot_${SUFFIX}_horiz_${PID}
+#   
+#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
+#
+#
+#   PID="iasi_2"
+#   cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
+#   rm -f $cmdfile
+#   export PTYPE="obsges obsnbc"
+#   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACOUNT,PTYPE,SATLIST,SUFFIX,listvars
+#
+#>$cmdfile
+#   for sat in ${SATLIST}; do
+#      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+#   done
+#
+#   ntasks=`cat $cmdfile|wc -l`
+#   jobname=plot_${SUFFIX}_horiz_${PID}
+#   
+#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
+#
+#fi
 
 
 echo finish mk_horiz_plots.sh

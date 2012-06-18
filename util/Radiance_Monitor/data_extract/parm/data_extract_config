@@ -17,5 +17,9 @@
   export PARMverf_rad=$HOMEverf_rad/parm
   export USHverf_rad=$HOMEverf_rad/ush
   export SCRIPTS=${USHverf_rad} 
+  export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+
+  export PTMP_USER=/ptmp/${LOGIN}
+  export STMP_USER=/stmp/${LOGIN}
 
   echo "end data_extract_config"

@@ -119,7 +119,10 @@ while read line; do
          if [[ $suff1 -gt 0 ]]; then
             export SUFFIX1=$suffix1
             export TANKDIR1=${TANKDIR}/${SUFFIX1}
-            prodate1=`${SCRIPTS}/get_prodate.sh ${SUFFIX1} ${DATA_MAP}`
+            export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
+#            prodate1=`${SCRIPTS}/get_prodate.sh ${SUFFIX1} ${DATA_MAP}`
+            prodate1=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} prodate`
+
          else
             exit
          fi
@@ -128,7 +131,9 @@ while read line; do
          if [[ $suff2 -gt 0 ]]; then
             export SUFFIX2=$suffix2
             export TANKDIR2=${TANKDIR}/${SUFFIX2}
-            prodate2=`${SCRIPTS}/get_prodate.sh ${SUFFIX2} ${DATA_MAP}`
+            export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
+#            prodate2=`${SCRIPTS}/get_prodate.sh ${SUFFIX2} ${DATA_MAP}`
+            prodate2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX2} prodate`
          else
             exit
          fi
@@ -137,7 +142,9 @@ while read line; do
          if [[ $suff3 -gt 0 ]]; then
             export SUFFIX3=$suffix3
             export TANKDIR3=${TANKDIR}/${SUFFIX3}
-            prodate3=`${SCRIPTS}/get_prodate.sh ${SUFFIX3} ${DATA_MAP}`
+            export IMGNDIR3=${IMGNDIR}/${SUFFIX3}
+#            prodate3=`${SCRIPTS}/get_prodate.sh ${SUFFIX3} ${DATA_MAP}`
+            prodate3=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX3} prodate`
          fi
 
          #--------------------------------------------------------------
@@ -167,7 +174,8 @@ while read line; do
          #-------------------------------------------------------------
          #  Get the SATYPE for SUFFIX
          #
-         export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
+#         export USE_STATIC_SATYPE=`${SCRIPTS}/get_satype.sh ${SUFFIX} ${DATA_MAP}`
+         export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
 
          #-------------------------------------------------------------
          #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -176,12 +184,17 @@ while read line; do
          #  file.
          #-------------------------------------------------------------
          if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
-   
-            test_list=`ls $TANKDIR1/angle/*.${PDATE}.ieee_d*`
+  
+            PDY=`echo $PDATE|cut -c1-8` 
+            if [[ -d ${TANKDIR1}/radmon.${PDY} ]]; then
+               test_list=`ls ${TANKDIR1}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
+            else
+               test_list=`ls $TANKDIR1/angle/*.${PDATE}.ieee_d*`
+            fi
 
             for test in ${test_list}; do
                this_file=`basename $test`
-               tmp=`echo "$this_file" | cut -d. -f1`
+               tmp=`echo "$this_file" | cut -d. -f2`
                echo $tmp
                SATYPE_LIST="$SATYPE_LIST $tmp"
             done
@@ -214,7 +227,7 @@ while read line; do
             #------------------------------------------------------------------
             # Export variables and submit plot script
             #------------------------------------------------------------------
-            export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,U_USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,DISCLAIMER,listvar
+            export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,listvar
 
 
             #------------------------------------------------------------------

@@ -61,42 +61,36 @@ uncompress *.ctl.Z
 
 
 #--------------------------------------------------------------------
-# Loop over satellite types.  Create plots and place on RZDM
+# Loop over satellite types.  Copy data files, create plots and 
+# place on the web server. 
+#
+# Data file location may either be in angle, bcoef, bcor, and time 
+# subdirectories under $TANKDIR, or in the Operational organization
+# of radmon.YYYYMMDD directories under $TANKDIR. 
 
 for type in ${SATYPE2}; do
 
-   icnt=0
    cdate=$bdate
    while [[ $cdate -le $edate ]] ; do
-      test_file=$TANKDIR/angle/${type}.${cdate}.ieee_d
-      if [[ -s $test_file ]]; then
-         icnt=` expr $icnt + 1 `
+      day=`echo $cdate | cut -c1-8 `
 
-         $NCP ${test_file} $tmpdir/${type}.${cdate}.ieee_d
-      elif [[ -s ${test_file}.Z ]]; then
-         icnt=` expr $icnt + 1 `
-         $NCP ${test_file}.Z $tmpdir/${type}.${cdate}.ieee_d.Z
-         uncompress $tmpdir/${type}.${cdate}.ieee_d.Z
+      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
+         test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
+         if [[ -s $test_file ]]; then
+            $NCP ${test_file} ./${type}.${cdate}.ieee_d
+         elif [[ -s ${test_file}.Z ]]; then
+            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         fi
       fi
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+         $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
+      fi
+     
       adate=`$NDATE +6 $cdate`
       cdate=$adate
+
    done
-   nfile=$icnt
-
-   nstep=$(grep "xdef" ${type}.ctl | cut -c6-9)
-   nchan=$(grep "ydef" ${type}.ctl | cut -c5-9)
-   nregion=$(grep "zdef" ${type}.ctl | cut -c5-7)
-
-cat << EOF > input
- &INPUT
- satname='${type}',
- nfile=${nfile},
- nregion=${nregion},
- n_chan=${nchan},
- nstep=${nstep},
- /
-EOF
-
+   uncompress $tmpdir/*.ieee_d.Z
 
    for var in ${PTYPE}; do
       echo $var
@@ -128,21 +122,23 @@ EOF
       timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-#--------------------------------------------------------------------
-# Copy image files to server (rzdm).  Delete images and data files.
-
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/angle"
-   for var in ${PTYPE}; do
-      scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
-   done
-
-   for var in ${PTYPE}; do
-      rm -f ${type}.${var}*.png
-   done
-
    rm -f ${type}*.ieee_d
    rm -f ${type}.ctl
 
+done
+
+#--------------------------------------------------------------------
+# Copy image files to server (rzdm).  Delete images and data files.
+
+#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/angle"
+
+#for var in ${PTYPE}; do
+#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
+#done
+scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
+
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
 done
 
 
@@ -165,10 +161,10 @@ complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
 
 running=`expr $count - $complete`
 
-if [[ $running -eq 1 ]]; then
-   cd ${PLOT_WORK_DIR}
-   cd ../
-   rm -rf ${PLOT_WORK_DIR}
-fi
+#if [[ $running -eq 1 ]]; then
+#   cd ${PLOT_WORK_DIR}
+#   cd ../
+#   rm -rf ${PLOT_WORK_DIR}
+#fi
 
 exit
