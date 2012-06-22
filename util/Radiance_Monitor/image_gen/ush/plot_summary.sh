@@ -86,10 +86,15 @@ EOF
 
 done
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/summary"
-#scp ${type}.summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
 
-scp *summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+#--------------------------------------------------------------------
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
+
+if [[ ! -d ${IMGNDIR}/summary ]]; then
+   mkdir -p ${IMGNDIR}/summary
+fi
+$NCP -r *summary.png ${IMGNDIR}/summary/.
 
 rm -f *.summary.png
 

@@ -110,13 +110,13 @@ EOF
 done
 
 #--------------------------------------------------------------------
-# Copy images to server (rzdm)
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcor"
-#for var in ${PTYPE}; do
-#   scp ${type}.${var}*.png  ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcor
-#done
-scp *.png  ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcor
+if [[ ! -d ${IMGNDIR}/bcor ]]; then
+   mkdir -p ${IMGNDIR}/bcor
+fi
+cp -r *.png  ${IMGNDIR}/bcor
 
 for var in ${PTYPE}; do
    rm -f ${type}.${var}*.png
@@ -126,9 +126,9 @@ done
 #--------------------------------------------------------------------
 # Clean $tmpdir  
 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------
