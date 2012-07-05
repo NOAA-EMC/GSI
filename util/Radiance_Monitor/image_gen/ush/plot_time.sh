@@ -124,12 +124,14 @@ echo ${tmpdir}/${type}_${var}.gs
 done
 
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/time"
-#for var in ${PTYPE}; do
-#   scp ${type}.${var}*.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
-#done
+#--------------------------------------------------------------------
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
 
-scp *.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
+if [[ ! -d ${IMGNDIR}/time ]]; then
+   mkdir -p ${IMGNDIR}/time
+fi
+cp -r *.png  ${IMGNDIR}/time
 
 for var in ${PTYPE}; do
    rm -f ${type}.${var}*.png

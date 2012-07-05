@@ -128,14 +128,13 @@ EOF
 done
 
 #--------------------------------------------------------------------
-# Copy image files to server (rzdm).  Delete images and data files.
+# Copy image files to $IMGNDIR to set up for mirror to web server.  
+# Delete images and data files.
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/angle"
-
-#for var in ${PTYPE}; do
-#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
-#done
-scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
+if [[ ! -d ${IMGNDIR}/angle ]]; then
+   mkdir -p ${IMGNDIR}/angle
+fi
+cp -r *.png  ${IMGNDIR}/angle
 
 for var in ${PTYPE}; do
    rm -f ${type}.${var}*.png

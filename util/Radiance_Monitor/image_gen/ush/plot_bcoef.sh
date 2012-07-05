@@ -95,11 +95,15 @@ EOF
 
 done
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/bcoef"
-#for var in $list; do
-#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
-#done
-scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/bcoef
+
+#--------------------------------------------------------------------
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
+
+if [[ ! -d ${IMGNDIR}/bcoef ]]; then
+   mkdir -p ${IMGNDIR}/bcoef
+fi
+cp -r *.png  ${IMGNDIR}/bcoef
 
 for var in $list; do
    rm -f ${type}.${var}*.png
