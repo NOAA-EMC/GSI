@@ -40,8 +40,9 @@ program bcoef
   integer               :: nchanl               = 19
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
+  integer               :: little_endian        = 1
   namelist /input/ satname,npredr,nchanl,iyy,imm,idd,ihh,idhh,&
-       incr,suffix,imkctl,imkdata,retrieval
+       incr,suffix,imkctl,imkdata,retrieval,little_endian
 
   data luname,lungrd,lunctl / 5, 51, 52 /
   data lncoef,lndiag /  21, 22 /
@@ -229,7 +230,7 @@ program bcoef
      write(6,*)'call create_ctl_bcoef'
      call create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
           incr,ctl_file,lunctl,rmiss,satname,satype,dplat,&
-          nu_chan,use,penalty,frequency,wavenumbr)
+          nu_chan,use,penalty,frequency,wavenumbr,little_endian)
   else
      write(6,*) 'imkctl =',imkctl
   endif

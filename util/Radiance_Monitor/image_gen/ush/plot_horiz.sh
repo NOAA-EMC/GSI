@@ -31,7 +31,7 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-ln ${DATADIR}/${SAT}.* ${tmpdir}/. 
+ln -s ${DATADIR}/${SAT}.* ${tmpdir}/. 
 
 
 #------------------------------------------------------------------
@@ -42,8 +42,9 @@ ln ${DATADIR}/${SAT}.* ${tmpdir}/.
 #  Loop over satellite types.  Submit plot job for each type.
 
 $NCP ${GSCRIPTS}/cbarnew.gs ./
-STNMAP="/usrx/local/grads/bin/stnmap"
-GRADS="/usrx/local/grads/bin/grads"
+#STNMAP="/usrx/local/grads/bin/stnmap"
+STNMAP="/apps/grads/2.0.1a/bin/stnmap"
+#GRADS="/usrx/local/grads/bin/grads"
 
 
 $STNMAP -i ${SAT}.ctl
@@ -63,31 +64,21 @@ cat << EOF > ${cmdfile}
 ${GRADS} -blc run ${SAT}_${var}.gs
 EOF
 
-   timex $GRADS -blc "run ${SAT}_${var}.gs"
+#   timex $GRADS -blc "run ${SAT}_${var}.gs"
+   $GRADS -blc "run ${SAT}_${var}.gs"
 done
 
 
 
 #------------------------------------------------------------------
-#   Transfer image files to server
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/horiz"
+if [[ ! -d ${IMGNDIR}/horiz ]]; then
+   mkdir -p ${IMGNDIR}/horiz
+fi
+$NCP -r *.png  ${IMGNDIR}/horiz
 
-#if [[ ${PID} = "iasi_1" || ${PID} = "iasi_2" ]]; then
-#   nums="_1 _2 _3 _4 _5 _6 _7 _8 _9"
-
-#   for var in ${PTYPE}; do
-#      for num in ${nums}; do
-#         scp ${SAT}.${var}${num}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
-#      done
-#   done
-#else
-#   for var in ${PTYPE}; do
-#      scp ${SAT}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
-#   done
-#fi
-
-scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
 
 #--------------------------------------------------------------------
 # Delete images and data files in $tmpdir
@@ -108,11 +99,11 @@ scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/horiz
 #   running).
 #
 
-cd $tmpdir
-cd ..
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ..
+#rm -rf $tmpdir
 
-cat ${LOADLQ}/plot_${SUFFIX}_horiz* 
+#cat ${LOADLQ}/plot_${SUFFIX}_horiz* 
 
 #count=`ls ${LOADLQ}/plot_${SUFFIX}* | wc -l`
 #complete=`grep "COMPLETED" ${LOADLQ}/plot_${SUFFIX}* | wc -l`

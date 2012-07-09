@@ -77,8 +77,8 @@ done
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to angle subdir.
 #
-
   export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plotangle_${SUFFIX}"
+
   if [ -d $PLOT_WORK_DIR ] ; then
      rm -f $PLOT_WORK_DIR
   fi
@@ -123,9 +123,9 @@ done
   ntasks=`cat $cmdfile|wc -l `
   ((nprocs=(ntasks+1)/2))
 
-  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-#  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
+$QSUB -A ada -l procs=${nprocs},walltime=0:50:00 -v $listvar -o $LOGDIR/plot_angle_${suffix}.log -e $LOGDIR/plot_angle_${suffix}.err ${cmdfile}
 
   #----------------------------------------------------------------------------
   #  airs_aqua
@@ -159,8 +159,10 @@ done
           ntasks=`cat $cmdfile|wc -l `
           ((nprocs=(ntasks+1)/2))
 
-          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+##          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
+$QSUB -A ada -l procs=${nprocs},walltime=0:40:00 -v $listvar -o $LOGDIR/plot_angle_${suffix}.log -e $LOGDIR/plot_angle_${suffix}.err ${cmdfile}
 
           (( batch=batch+1 ))
           suffix="airs_${batch}"
@@ -206,8 +208,11 @@ done
           ntasks=`cat $cmdfile|wc -l `
           ((nprocs=(ntasks+1)/2))
 
-          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+##          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
+$QSUB -A ada -l procs=${nprocs},walltime=0:40:00 -v $listvar -o $LOGDIR/plot_angle_${suffix}.log -e $LOGDIR/plot_angle_${suffix}.err ${cmdfile}
+
           (( batch=batch+1 ))
           suffix="iasi_metop_${batch}"
           cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}

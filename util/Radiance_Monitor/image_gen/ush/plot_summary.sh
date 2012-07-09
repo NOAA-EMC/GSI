@@ -48,7 +48,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
 
    $NCP $ctldir/${type}.ctl* ./
-   uncompress *.ctl.Z
+#   uncompress *.ctl.Z
 
    cdate=$bdate
 
@@ -70,7 +70,7 @@ for type in ${SATYPE2}; do
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   uncompress *.ieee_d.Z
+#   uncompress *.ieee_d.Z
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
@@ -78,7 +78,8 @@ cat << EOF > ${type}.gs
 'quit'
 EOF
 
-   timex $GRADS -bpc "run ${tmpdir}/${type}.gs"
+#   timex $GRADS -bpc "run ${tmpdir}/${type}.gs"
+   $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
 
    rm -f ${type}.ctl 
@@ -86,10 +87,14 @@ EOF
 
 done
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/summary"
-#scp ${type}.summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+#--------------------------------------------------------------------
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
 
-scp *summary.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/summary/
+if [[ ! -d ${IMGNDIR}/summary ]]; then
+   mkdir -p ${IMGNDIR}/summary
+fi
+$NCP -r *summary.png ${IMGNDIR}/summary/.
 
 rm -f *.summary.png
 
@@ -97,9 +102,9 @@ rm -f *.summary.png
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 exit

@@ -1,11 +1,7 @@
-;dirs=[ '/export/lnx403/wd20ca/trial_stats']
 dirs='/ptmp/wx23adc/Diags/'+['prAMSRE/',$
     'prAMSRE_active']
 
-date=['2010051100','2010051106','2010051112','2010051118',$
-      '2010051200','2010051206','2010051212','2010051218',$
-      '2010051300','2010051306','2010051312','2010051318',$
-      '2010051400','2010051406','2010051412']
+date=['2010051100','2010051106']
 num_dates=size(date) & num_dates=num_dates(1)
 
 outfile='AMSRE_Active_'+date(0)+'-'+date(num_dates-1)+'.ps'
@@ -47,25 +43,46 @@ instruments=['airs_aqua',$
 ;             'ssmi_f13',$
              'ssmi_f15']
 
-write_save=1
-read_save=1
+write_save=0  ; Save observations in an IDL save file (quicker to read in 
+              ; next time).
+read_save=0   ; Read from a previously-written IDL save file.
 
-iplot_ges=1
-iplot_anl=1
-land=0
+iplot_ges=1  ; 1 means plot guess statistics
+iplot_anl=1  ; 1 means plot analysis statistics
+
+surface=0    ; (0=All, 1=Sea, 2=Land, 3=Snow and Ice)
 
 ;---------------------------------------------------------------------
+; Edit above this line
+;---------------------------------------------------------------------
+
 
 if (!d.name eq 'PS') then begin
   device,ysize=9,yoffset=1,/inches,/color,$
            filename=outfile
 endif else begin
-  window,0,ysize=1000,retain=2
+  window,0,ysize=800,retain=2
 endelse
+
+Surface_Text='xxxx'
+case surface of 
+0: Surface_Text='; All Surfaces'
+1: Surface_Text='; Sea'
+2: Surface_Text='; Land'
+3: Surface_Text='; Snow and Ice'
+else:
+endcase
+
+if (Surface_Text eq 'xxxx') then begin
+   print,'Surface type ',surface,' is not supported'
+   stop
+endif
 
 set_filled_circle
 
 !p.multi=[0,1,3]
+
+ans=' '
 
 colour_setup
 common colours
@@ -88,16 +105,26 @@ for iinst=0,num_instr-1 do begin
   ierr1=FILE_TEST(file)
   if (ierr1 ne 1 and ierr ne 1) then begin
      print,'WARNING: '+file+' not found'
+     nobs_in = 0L
   endif else if (ierr eq 1 and read_save eq 1) then begin
      restore,file+'.sav'
   endif else begin
-     read_diags,file,obs_in,meta_in,nobs_in,nchan,chaninfo=chaninfo
+     read_diags,file,obs,meta,nobs_in,nchan,chaninfo=chaninfo
      if (write_save eq 1) then $ 
-       save,file=file+'.sav',obs_in,meta_in,nobs_in,nchan,chaninfo
+       save,file=file+'.sav',obs,meta,nobs_in,nchan,chaninfo
   endelse 
-  obs=obs_in
-  meta=meta_in
-  nobs=nobs_in
+
+; Obtain sums
+   sumsq_bc_ges   = dblarr(nchan)  & sumsq_bc_ges(*)  = 0.0D
+   sum_bc_ges     = dblarr(nchan)  & sum_bc_ges(*)    = 0.0D
+   sumsq_nbc_ges  = dblarr(nchan)  & sumsq_nbc_ges(*) = 0.0D
+   sum_nbc_ges    = dblarr(nchan)  & sum_nbc_ges(*)   = 0.0D
+   num_tmp_ges    = lonarr(nchan)
+   diag_stats,obs,meta,nchan,$
+       sum_bc_ges,sumsq_bc_ges,sum_nbc_ges,sumsq_nbc_ges,num_tmp_ges,$
+       surface=surface
+
+   nobs=nobs_in
 
 
   if (num_dates gt 1) then begin
@@ -107,15 +134,18 @@ for iinst=0,num_instr-1 do begin
       ierr1=FILE_TEST(file)
       if (ierr1 ne 1 and ierr ne 1) then begin
          print,'WARNING: '+file+' not found'
+         nobs_in = 0L
       endif else if (ierr eq 1 and read_save eq 1) then begin
          restore,file+'.sav'
       endif else begin
-        read_diags,file,obs_in,meta_in,nobs_in,nchan,chaninfo=chaninfo
+        read_diags,file,obs,meta,nobs_in,nchan,chaninfo=chaninfo
         if (write_save eq 1) then $
-           save,file=file+'.sav',obs_in,meta_in,nobs_in,nchan,chaninfo
+           save,file=file+'.sav',obs,meta,nobs_in,nchan,chaninfo
       endelse 
-      obs=[obs,obs_in]
-      meta=[meta,meta_in]
+; Add to sums
+      diag_stats,obs,meta,nchan,$
+         sum_bc_ges,sumsq_bc_ges,sum_nbc_ges,sumsq_nbc_ges,num_tmp_ges,$
+         surface=surface
       nobs=nobs+nobs_in
     endfor
   endif
@@ -127,72 +157,116 @@ for iinst=0,num_instr-1 do begin
 
 ; we need to get the number of channels from the first call to the
 ; diag reading routine for each instrument
+
     if (iexpt eq 0) then begin
-       sd_bc_ges   = fltarr(num_expts,nchan)
-       bias_bc_ges = fltarr(num_expts,nchan)
-       sd_nbc_ges   = fltarr(num_expts,nchan)
-       bias_nbc_ges = fltarr(num_expts,nchan)
-       sd_bc_anl   = fltarr(num_expts,nchan)
-       bias_bc_anl = fltarr(num_expts,nchan)
-       sd_nbc_anl   = fltarr(num_expts,nchan)
-       bias_nbc_anl = fltarr(num_expts,nchan)
-       num          = lonarr(num_expts,nchan)
-       num_in       = lonarr(num_expts)
-       iuse         = lonarr(num_expts,nchan)
+       sd_bc_ges    = dblarr(num_expts,nchan) & sd_bc_ges(*,*)      = 0.0D
+       bias_bc_ges  = dblarr(num_expts,nchan) & bias_bc_ges(*,*)    = 0.0D
+       sd_nbc_ges   = dblarr(num_expts,nchan) & sd_nbc_ges(*,*)     = 0.0D
+       bias_nbc_ges = dblarr(num_expts,nchan) & bias_nbc_ges(*,*)   = 0.0D
+       sd_bc_anl    = dblarr(num_expts,nchan) & sd_bc_anl  (*,*)    = 0.0D
+       bias_bc_anl  = dblarr(num_expts,nchan) & & bias_bc_anl (*,*) = 0.0D
+       sd_nbc_anl   = dblarr(num_expts,nchan) & sd_nbc_anl  (*,*)   = 0.0D
+       bias_nbc_anl = dblarr(num_expts,nchan) & bias_nbc_anl(*,*)   = 0.0D
+       num_ges      = lonarr(num_expts,nchan) & num_ges(*,*)        = 0L     
+       num_anl      = lonarr(num_expts,nchan) & num_anl(*,*)        = 0L      
+       num_in       = lonarr(num_expts)       & num_in(*)           = 0L         
+       iuse         = lonarr(num_expts,nchan) & iuse(*,*)           = 0L
     endif
     num_in(iexpt)=nobs
 
-; Obtain stats for bias-corrected observations
-    diag_stats,obs,meta,nobs,nchan,1,sd,bias,num=num1,land=land
-    sd_bc_ges(iexpt,*)=sd
-    bias_bc_ges(iexpt,*)=bias
-    num(iexpt,*)=num1
-; Obtain stats for unbias-corrected observations
-    diag_stats,obs,meta,nobs,nchan,0,sd,bias,land=land
-    sd_nbc_ges(iexpt,*)=sd
-    bias_nbc_ges(iexpt,*)=bias
-    iuse(iexpt,*)=chaninfo.iuse(*)
+  iuse(iexpt,*)=chaninfo.iuse(*)
 
 ; Now do stats WRT analysis
   if (iplot_anl eq 1) then begin
     file=dirs(iexpt)+'/diag_'+instruments(iinst)+'_anl.'+date(0)
     ierr=FILE_TEST(file+'.sav')
-    if (ierr eq 1) then begin
+    ierr1=FILE_TEST(file)
+    if (ierr1 ne 1 and ierr ne 1) then begin
+       print,'WARNING: '+file+' not found'
+       nobs_in = 0L
+    endif else if (ierr eq 1 and read_save eq 1) then begin
        restore,file+'.sav'
     endif else begin
-       read_diags,file,obs_in,meta_in,nobs_in,nchan,chaninfo=chaninfo
-       save,file=file+'.sav',obs_in,meta_in,nobs_in,nchan,chaninfo
+       read_diags,file,obs,meta,nobs_in,nchan,chaninfo=chaninfo        
+       if (write_save eq 1) then $ 
+         save,file=file+'.sav',obs,meta,nobs_in,nchan,chaninfo
     endelse 
-    obs=obs_in
-    meta=meta_in
-    nobs=nobs_in
+; Obtain sums
+   sumsq_bc_anl   = dblarr(nchan)  & sumsq_bc_anl(*)  = 0.0D
+   sum_bc_anl     = dblarr(nchan)  & sum_bc_anl(*)    = 0.0D
+   sumsq_nbc_anl  = dblarr(nchan)  & sumsq_nbc_anl(*) = 0.0D
+   sum_nbc_anl    = dblarr(nchan)  & sum_nbc_anl(*)   = 0.0D
+   num_tmp_anl    = lonarr(nchan)
+   diag_stats,obs,meta,nchan,$
+       sum_bc_anl,sumsq_bc_anl,sum_nbc_anl,sumsq_nbc_anl,num_tmp_anl,$
+       surface=surface
+
+   nobs=nobs_in
 
 
     if (num_dates gt 1) then begin
       for idate=1,num_dates-1 do begin
         file=dirs(iexpt)+'/diag_'+instruments(iinst)+'_anl.'+date(idate)
         ierr=FILE_TEST(file+'.sav')
-        if (ierr eq 1) then begin
+        ierr1=FILE_TEST(file)
+        if (ierr1 ne 1 and ierr ne 1) then begin
+          print,'WARNING: '+file+' not found'
+          nobs_in = 0L
+        endif else if (ierr eq 1 and read_save eq 1) then begin
            restore,file+'.sav'
         endif else begin
-          read_diags,file,obs_in,meta_in,nobs_in,nchan,chaninfo=chaninfo
-          save,file=file+'.sav',obs_in,meta_in,nobs_in,nchan,chaninfo
+          read_diags,file,obs,meta,nobs_in,nchan,chaninfo=chaninfo
+          if (write_save eq 1) then $ 
+            save,file=file+'.sav',obs,meta,nobs_in,nchan,chaninfo
         endelse 
-        obs=[obs,obs_in]
-        meta=[meta,meta_in]
+        diag_stats,obs,meta,nchan,$
+          sum_bc_anl,sumsq_bc_anl,sum_nbc_anl,sumsq_nbc_anl,num_tmp_anl,$
+          surface=surface
         nobs=nobs+nobs_in
       endfor
     endif
 
-; Obtain stats for bias-corrected observations
-      diag_stats,obs,meta,nobs,nchan,1,sd,bias,land=land
-      sd_bc_anl(iexpt,*)=sd
-      bias_bc_anl(iexpt,*)=bias
-; Obtain stats for unbias-corrected observations
-      diag_stats,obs,meta,nobs,nchan,0,sd,bias,land=land
-      sd_nbc_anl(iexpt,*)=sd
-      bias_nbc_anl(iexpt,*)=bias
-    endif
+   endif  
+   iuse(iexpt,*)=chaninfo.iuse(*)
+
+   if (iplot_ges eq 1) then begin
+
+      num_ges(iexpt,*) = num_tmp_ges
+
+      nz=where(num_tmp_ges gt 0L,ct)
+
+      if (ct gt 0) then begin
+
+        tmp = sum_bc_ges(nz) / float(num_tmp_ges(nz))
+        bias_bc_ges(iexpt,nz) = tmp
+        sd_bc_ges(iexpt,nz) = sqrt(abs(sumsq_bc_ges(nz)/float(num_tmp_ges(nz)) - tmp*tmp))
+
+        tmp = sum_nbc_ges(nz) / float(num_tmp_ges(nz))
+        bias_nbc_ges(iexpt,nz) = tmp
+        sd_nbc_ges(iexpt,nz) = sqrt(abs(sumsq_nbc_ges(nz)/float(num_tmp_ges(nz)) - tmp*tmp))
+
+     endif
+
+   endif 
+
+   if (iplot_anl eq 1) then begin
+
+     num_anl(iexpt,*) = num_tmp_anl
+
+     nz=where(num_tmp_anl gt 0L,ct)
+
+     if (ct gt 0) then begin
+       tmp = sum_bc_anl(nz) / float(num_tmp_anl(nz))
+       bias_bc_anl(iexpt,nz) = tmp
+       sd_bc_anl(iexpt,nz) = sqrt(abs(sumsq_bc_anl(nz)/float(num_tmp_anl(nz)) - tmp*tmp))
+
+       tmp = sum_nbc_anl(nz) / float(num_tmp_anl(nz))
+       bias_nbc_anl(iexpt,nz) = tmp
+       sd_nbc_anl(iexpt,nz) = sqrt(abs(sumsq_nbc_anl(nz)/float(num_tmp_anl(nz)) - tmp*tmp))
+
+     endif
+
+   endif 
 
   endfor
 
@@ -203,9 +277,15 @@ for iinst=0,num_instr-1 do begin
   ymin=min(tmp)
 
   ichan=indgen(nchan)+1
+
+  if (iinst gt 0 and !d.name eq 'X') then begin
+     print,'Hit ENTER for next instrument'
+     read,ans
+  endif
+
   plot,[1,nchan],[ymin,ymax],xs=1,xtitle='Channel Number',ytitle='Departure',$
     title='Statistics before bias correction '+instruments(iinst)+' '+$
-           date(0)+'-'+date(num_dates-1),/nodata
+           date(0)+'-'+date(num_dates-1)+surface_text,/nodata
   
   for iexpt=0,num_expts-1 do begin
     icol_off=iexpt*2
@@ -225,7 +305,7 @@ for iinst=0,num_instr-1 do begin
     if (iplot_ges eq 1) then xyouts,0.1,0.97-iexpt*0.02,Expt_Name(iexpt)+' (Ges)',$
       /normal,charthick=2,color=colors(icol_off)
     if (iplot_anl eq 1) then xyouts,0.25,0.97-iexpt*0.02,Expt_Name(iexpt)+' (Anal)',$
-      /normal,charthick=2,color=colors(icol_off)
+      /normal,charthick=2,color=colors(icol_off+1)
   endfor
   oplot,[0,nchan+1],[0,0]
   
@@ -242,7 +322,7 @@ for iinst=0,num_instr-1 do begin
   ichan=indgen(nchan)+1
   plot,[1,nchan],[ymin,ymax],xs=1,xtitle='Channel Number',ytitle='Departure',$
     title='Statistics after bias correction '+instruments(iinst)+' '+$
-           date(0)+'-'+date(num_dates-1),/nodata
+           date(0)+'-'+date(num_dates-1)+surface_text,/nodata
   
   for iexpt=0,num_expts-1 do begin
     icol_off=iexpt*2
@@ -266,15 +346,14 @@ for iinst=0,num_instr-1 do begin
   ymax=max(num_in)
   plot,[1,nchan],[ymin,ymax],xs=1,xtitle='Channel Number',ytitle='Number',$
     title='Data Numbers for '+instruments(iinst)+' '+$
-           date(0)+'-'+date(num_dates-1),/nodata
+           date(0)+'-'+date(num_dates-1)+surface_text,/nodata
   
   for iexpt=0,num_expts-1 do begin
     icol_off=iexpt*2
-    if (iplot_ges eq 0) then begin
-      oplot,ichan,num(iexpt,*),color=colors(icol_off+1),min_value=-100
-    endif else begin
-      oplot,ichan,num(iexpt,*),color=colors(icol_off),min_value=-100
-    endelse
+    if (iplot_anl eq 1) then $
+      oplot,ichan,num_anl(iexpt,*),color=colors(icol_off+1),min_value=-100
+    if (iplot_ges eq 1) then $
+      oplot,ichan,num_ges(iexpt,*),color=colors(icol_off),min_value=-100
     oplot,[ichan(0),ichan(nchan-1)],num_in(iexpt)*[1,1],color=colors(icol_off),min_value=-100
     if (ct gt 0) then begin
       ypos=(ymin + iexpt*0.02*(ymax-ymin))+fltarr(ct)

@@ -54,6 +54,8 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag for little endian machine
+#                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -111,6 +113,7 @@ MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 bcor_exec=radmon_bcor.${RAD_AREA}
 err=0
 
@@ -172,9 +175,11 @@ cat << EOF > input
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      timex ./${bcor_exec} < input >   stdout.$type
+#      timex ./${bcor_exec} < input >   stdout.$type
+      ./${bcor_exec} < input >   stdout.$type
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi

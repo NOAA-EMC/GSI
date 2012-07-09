@@ -50,8 +50,9 @@ program angle
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag,iscan / 5, 51, 52, 21, 31 /
   data lunang / 22 /
@@ -284,8 +285,8 @@ program angle
   if ( imkctl == 1 ) then
      write(6,*)'call create_ctl_angle'
      call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
-          ctl_file,lunctl,rmiss,satname,satype,dplat,1,&
-          nu_chan,use,error,frequency,wavenumbr,nstep,start,step)
+          ctl_file,lunctl,rmiss,satname,satype,dplat,1,nu_chan,&
+          use,error,frequency,wavenumbr,nstep,start,step,little_endian)
   endif
 
 

@@ -64,11 +64,11 @@ done
 start_date=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
-   if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
-     uncompress ${imgndir}/${type}.ctl.Z
-   fi
+#   if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
+#     uncompress ${imgndir}/${type}.ctl.Z
+#   fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
-   compress ${imgndir}/${type}.ctl
+#   compress ${imgndir}/${type}.ctl
 done
 
 
@@ -77,7 +77,9 @@ done
 #
 
 rm $LOGDIR/plot_bcoef.log
-$SUB -a $ACOUNT -e $listvar -j plot_${SUFFIX}_bcoef -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o $LOGDIR/plot_bcoef.log $SCRIPTS/plot_bcoef.sh
+#$SUB -a $ACOUNT -e $listvar -j plot_${SUFFIX}_bcoef -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o $LOGDIR/plot_bcoef.log $SCRIPTS/plot_bcoef.sh
+
+$QSUB -A ada -l procs=1,walltime=0:50:00 -v $listvar -o $LOGDIR/plot_bcoef.log -e $LOGDIR/plot_bcoef.err $SCRIPTS/plot_bcoef.sh 
 
 
 exit

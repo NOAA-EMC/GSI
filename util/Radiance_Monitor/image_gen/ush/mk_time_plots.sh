@@ -70,11 +70,11 @@ fi
    start_date=`$NDATE -720 $PDATE`
 
    for type in ${SATYPE}; do
-      if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
-        uncompress ${imgndir}/${type}.ctl.Z
-      fi
+#      if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
+#        uncompress ${imgndir}/${type}.ctl.Z
+#      fi
       ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
-      compress ${imgndir}/${type}.ctl
+#      compress ${imgndir}/${type}.ctl
    done
 
 
@@ -102,10 +102,12 @@ fi
    ntasks=`cat $cmdfile|wc -l `
    ((nprocs=(ntasks+1)/2))
 
-#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-#   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+##   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+##   $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:20:00 -o $LOGDIR/plot_summary.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
-$SUB -a $ACOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
+#$SUB -a $ACOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
+
+$QSUB -A ada -l procs=$nprocs,walltime=0:20:00 -v $listvar -o $LOGDIR/plot_summary.log -e $LOGDIR/plot_summary.err $SCRIPTS/plot_summary.sh
 
 #-------------------------------------------------------------------
 #-------------------------------------------------------------------
@@ -164,8 +166,10 @@ $SUB -a $ACOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0
       ntasks=`cat $cmdfile|wc -l `
       ((nprocs=(ntasks+1)/2))
 
-      $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-#      $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $nprocs/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#      $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+##      $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $nprocs/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
+$QSUB -A ada -l procs=$nprocs,walltime=1:00:00 -v $listvars -o $LOGDIR/plot_time_${suffix}.log -e $LOGDIR/plot_time_${suffix}.err $cmdfile
 
 
 #---------------------------------------------------------------------------
@@ -197,8 +201,10 @@ $SUB -a $ACOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0
       done
       ntasks=`cat $cmdfile|wc -l `
       ((nprocs=(ntasks+1)/2))
-      $SUB -a $ACOUNT -e $listvars -j plot_${SUFFIX}_time_${suffix} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-#      $SUB -a $ACOUNT -e $listvars -j plot_${SUFFIX}_time_${suffix} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $nprocs/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+#      $SUB -a $ACOUNT -e $listvars -j plot_${SUFFIX}_time_${suffix} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+##      $SUB -a $ACOUNT -e $listvars -j plot_${SUFFIX}_time_${suffix} -u $USER -t 1:00:00 -o $LOGDIR/plot_time_${suffix}.log -p $nprocs/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
+$QSUB -A ada -l procs=$nprocs,walltime=1:00:00 -v $listvars -o $LOGDIR/plot_time_${suffix}.log -e $LOGDIR/plot_time_${suffix}.err $cmdfile
 
    fi
 

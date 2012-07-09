@@ -64,6 +64,8 @@
 #			defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag for little endian machine
+#                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -146,9 +148,14 @@ SATYPE=${SATYPE:-}
 MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 time_exec=radmon_time.${RAD_AREA}
 gesanl=ges
 err=0 
+
+# hack
+DO_DATA_RPT=0
+DO_DIAG_RPT=0
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
@@ -222,9 +229,11 @@ cat << EOF > input
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-        timex ./${time_exec} < input >   ${stdout_file}
+#        timex ./${time_exec} < input >   ${stdout_file}
+        ./${time_exec} < input >   ${stdout_file}
         if [[ $? -ne 0 ]]; then
             fail=`expr $fail + 1`
         fi
@@ -236,19 +245,19 @@ EOF
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${time_file}
             mv ${time_file} $TANKverf_rad/.
-            compress -f $TANKverf_rad/${time_file}
+#            compress -f $TANKverf_rad/${time_file}
          fi
 
          if [[ -s ${ctl_file} ]]; then
             $NCP ${ctl_file} ${time_ctl}
             mv ${time_ctl}  ${TANKverf_rad}/.
-            compress -f ${TANKverf_rad}/${time_ctl}
+#            compress -f ${TANKverf_rad}/${time_ctl}
          fi
 
          if [[ -s ${stdout_file} ]]; then
             $NCP ${stdout_file} ${time_stdout}
             mv ${time_stdout}  ${TANKverf_rad}/.
-            compress -f ${TANKverf_rad}/${time_stdout}
+#            compress -f ${TANKverf_rad}/${time_stdout}
          fi
 
       done

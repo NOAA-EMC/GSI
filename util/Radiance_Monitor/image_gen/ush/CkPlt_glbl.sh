@@ -79,39 +79,41 @@ mkdir -p $LOGDIR
 count=`ls ${LOADLQ}/plot*_$SUFFIX* | wc -l`
 complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
 
-running=`expr $count - $complete`
+#running=`expr $count - $complete`
+#
+#if [[ $running -ne 0 ]]; then
+#   echo plot jobs still running for $SUFFIX, must exit
+#   cd $tmpdir
+#   cd ../
+#   rm -rf $tmpdir
+#   exit
+#else
+#   rm -f ${LOADLQ}/plot*_${SUFFIX}*
+#fi
 
-if [[ $running -ne 0 ]]; then
-   echo plot jobs still running for $SUFFIX, must exit
-   cd $tmpdir
-   cd ../
-   rm -rf $tmpdir
-   exit
-else
-   rm -f ${LOADLQ}/plot*_${SUFFIX}*
-fi
-
-running=0
-count=`ls ${LOADLQ}/verf*_$SUFFIX* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/verf*_$SUFFIX* | wc -l`
-
-running=`expr $count - $complete`
-
-if [[ $running -ne 0 ]]; then
-   echo verf jobs still running for $SUFFIX, must exit
-   cd $tmpdir
-   cd ../
-   rm -rf $tmpdir
-   exit
-fi
+#running=0
+#count=`ls ${LOADLQ}/verf*_$SUFFIX* | wc -l`
+#complete=`grep "COMPLETED" ${LOADLQ}/verf*_$SUFFIX* | wc -l`
+#
+#running=`expr $count - $complete`
+#
+#if [[ $running -ne 0 ]]; then
+#   echo verf jobs still running for $SUFFIX, must exit
+#   cd $tmpdir
+#   cd ../
+#   rm -rf $tmpdir
+#   exit
+#fi
 
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Exit if available data has already
 # been plotted ($PDATE -gt $PRODATE).
 #--------------------------------------------------------------------
-export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
+#export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+export PRODATE=2012010300
+#export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
+export IMGDATE=2012010218
 
 export PDATE=`$NDATE +6 $IMGDATE`
 
@@ -163,10 +165,12 @@ mkdir $PLOT_WORK_DIR
 cd $PLOT_WORK_DIR
 
 
-export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-export ACOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+#export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+export USE_STATIC_SATYPE=0
+#export ACOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+#export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+export RUN_ENVIR=dev
+#export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
 
 
 #-------------------------------------------------------------
@@ -222,31 +226,36 @@ fi
 #------------------------------------------------------------------
 # Export variables
 #------------------------------------------------------------------
-export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,RADMON_PARM,DATA_MAP,listvar
+export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,QSUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,RADMON_PARM,DATA_MAP,listvar
 
 
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
-${SCRIPTS}/mk_angle_plots.sh
+#${SCRIPTS}/mk_angle_plots.sh
 
-${SCRIPTS}/mk_bcoef_plots.sh
+#${SCRIPTS}/mk_bcoef_plots.sh
 
-${SCRIPTS}/mk_bcor_plots.sh
+#${SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
-  $SUB -a $ACOUNT -e $listvar -j plot_horiz_${SUFFIX} -q dev -g ${USER_CLASS} -t 0:20:00 -o $LOGDIR/horiz.log ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+#  $SUB -a $ACOUNT -e $listvar -j plot_horiz_${SUFFIX} -q dev -g ${USER_CLASS} -t 0:20:00 -o $LOGDIR/horiz.log ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+
+  $QSUB -A ada -l procs=1,walltime=0:20:00 -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
+
 fi
 
-${SCRIPTS}/mk_time_plots.sh
+#${SCRIPTS}/mk_time_plots.sh
 
-${SCRIPTS}/plot_update.sh
+#${SCRIPTS}/plot_update.sh
 
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+#do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+do_diag_rpt=0
+#do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+do_data_rpt=0
 
 if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
    export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`

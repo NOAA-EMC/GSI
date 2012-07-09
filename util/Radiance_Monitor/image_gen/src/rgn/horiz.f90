@@ -122,6 +122,7 @@ program horiz
 
 ! Create GrADS control file
   write(6,*)'call create_ctl_horiz'
+  write(6,*)'iyy, imm, idd, ihh, idhh = ', iyy, imm, idd, ihh, idhh
   call create_ctl_horiz(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,incr,&
        ctl_file,lunctl,rmiss,satname,io_chan,nu_chan,frequency,&
        wavenumbr,error,iuse,satype,dplat)

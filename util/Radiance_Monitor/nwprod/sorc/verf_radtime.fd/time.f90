@@ -67,8 +67,9 @@ program time
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -232,10 +233,9 @@ program time
      endif
 
      call create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
-!          incr,ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
           incr,ctl_file,lunctl,rmiss,dfile,satype,dplat,nregion,&
           region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use(1,1),&
-          error(1,1),frequency(1,1),wavenumbr)
+          error(1,1),frequency(1,1),wavenumbr,little_endian)
   endif
 
   nwater = 0; nnwater=0

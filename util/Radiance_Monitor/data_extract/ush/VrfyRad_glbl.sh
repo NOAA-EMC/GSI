@@ -27,6 +27,22 @@ if [[ $nargs -ne 2 ]]; then
    exit 1
 fi
 
+#---------
+uname_line=`uname -a`
+my_os=`echo $uname_line | awk '{print tolower($1)}'`
+#echo my_os = $my_os
+
+if [[ $my_os = "aix" ]]; then
+   export LITTLE_ENDIAN=0
+else
+   export LITTLE_ENDIAN=1
+fi
+
+echo endian = $LITTLE_ENDIAN
+#---------
+
+
+
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -82,18 +98,18 @@ mkdir -p $LOGDIR
 # If we're good to go clean out the $LOADLQ directory and proceed.
 #--------------------------------------------------------------------
 
-if [[ $RUN_ENVIR = dev ]]; then
-   count=`ls ${LOADLQ}/${jobname}* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
-
-   total=`expr $count - $complete`
-
-   if [[ $total -gt 0 ]]; then
-      exit 3
-   else
-      rm -f ${LOADLQ}/${jobname}*
-   fi
-fi
+#if [[ $RUN_ENVIR = dev ]]; then
+#   count=`ls ${LOADLQ}/${jobname}* | wc -l`
+#   complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
+#
+#   total=`expr $count - $complete`
+#
+#   if [[ $total -gt 0 ]]; then
+#      exit 3
+#   else
+#      rm -f ${LOADLQ}/${jobname}*
+#   fi
+#fi
 
 
 #------------------------------------------------------------------
@@ -106,21 +122,33 @@ if [[ $RUN_ENVIR = dev ]]; then
    #--------------------------------------------------------------------
    # Get and export settings for $SUFFIX.
    #--------------------------------------------------------------------
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
+#   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+   export USER_CLASS=
+#   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+   export ACOUNT=ada
+#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+   export USE_STATIC_SATYPE=0
+#   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
+   export USE_ANL=0
+#   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+   export DO_DIAG_RPT=0
+#   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+   export DO_DATA_RPT=0
+#   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+   export RUN_ENVIR=prod
+#   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
+   export USE_MAIL=0
+#   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
+   export MAIL_TO=
+#   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
+   export MAIL_CC=
 
    #---------------------------------------------------------------
    # Get date of cycle to process.
    #---------------------------------------------------------------
-   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+#   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+#   pdate=2012010806
+   pdate=2012010300
 
    qdate=`${NDATE} +06 $pdate`
    export PDATE=${qdate}
@@ -128,8 +156,9 @@ if [[ $RUN_ENVIR = dev ]]; then
    export PDY=`echo $PDATE|cut -c1-8`
    export CYC=`echo $PDATE|cut -c9-10`
  
-   export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
-
+#   export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+   export DATDIR="/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/mydata"
+#   export DATDIR="/scratch2/portfolios/NCEPDEV/ptmp/Andrew.Collard/prHS_radstat"
    #---------------------------------------------------------------
    # Locate required files.             
    #---------------------------------------------------------------
@@ -208,7 +237,8 @@ if [[ -s ${radstat} ]]; then
    export job=gdas_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-/stmp/$LOGNAME/radmon}
+#   export DATA=${DATA:-/stmp/$LOGNAME/radmon}
+   export DATA=${DATA:-$stmp/$LOGNAME/radmon}
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
    export TANKverf=${MY_TANKDIR}/stats/${SUFFIX}
 
@@ -218,17 +248,19 @@ if [[ -s ${radstat} ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar 
    fi
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,LITTLE_ENDIAN,ptmp,stmp,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+#   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
-   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-   if [[ $rc != 0 ]]; then
-      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
-   fi
+    $QSUB -A ada -l procs=1,walltime=0:10:00 -v $listvar -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+ 
+#   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
+#   if [[ $rc != 0 ]]; then
+#      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
+#   fi
 
 fi
 

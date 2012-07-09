@@ -106,14 +106,18 @@ function usage {
   found_tdef=0
   while read line; do
 
-    tdef=`echo $line | nawk '{print $1}'`
+#    tdef=`echo $line | nawk '{print $1}'`
+    tdef=`echo $line | awk '{print $1}'`
 
     if [[ $tdef == "tdef" ]]; then
 #      echo "found tdef"
 #      echo "$line"
-      v2=`echo $line | nawk '{print $2}'`
-      v3=`echo $line | nawk '{print $3}'`
-      v5=`echo $line | nawk '{print $5}'`
+#      v2=`echo $line | nawk '{print $2}'`
+      v2=`echo $line | awk '{print $2}'`
+#      v3=`echo $line | nawk '{print $3}'`
+      v3=`echo $line | awk '{print $3}'`
+#      v5=`echo $line | nawk '{print $5}'`
+      v5=`echo $line | awk '{print $5}'`
 
       ndate="${ihh}Z${idd}${smon}${iyy}"
       newline="${tdef} ${v2} ${v3} ${ndate} ${v5}"

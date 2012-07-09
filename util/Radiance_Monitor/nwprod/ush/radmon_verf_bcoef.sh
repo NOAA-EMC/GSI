@@ -54,6 +54,8 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag for LE machine
+#                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -110,6 +112,7 @@ MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 err=0
 bcoef_exec=radmon_bcoef.${RAD_AREA}
 
@@ -172,9 +175,11 @@ cat << EOF > input
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      timex ./${bcoef_exec} < input >   stdout.$type
+#      timex ./${bcoef_exec} < input >   stdout.$type
+      ./${bcoef_exec} < input >   stdout.$type
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
@@ -187,19 +192,19 @@ EOF
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${bcoef_file}
          mv ${bcoef_file} $TANKverf_rad/.
-         compress -f $TANKverf_rad/${bcoef_file}
+#         compress -f $TANKverf_rad/${bcoef_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${bcoef_ctl}
          mv ${bcoef_ctl}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${bcoef_ctl}
+#         compress -f ${TANKverf_rad}/${bcoef_ctl}
       fi
 
       if [[ -s ${stdout_file} ]]; then
          mv ${stdout_file} ${bcoef_stdout}
          mv ${bcoef_stdout}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${bcoef_stdout}
+#         compress -f ${TANKverf_rad}/${bcoef_stdout}
       fi
 
 

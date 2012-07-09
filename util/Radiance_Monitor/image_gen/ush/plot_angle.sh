@@ -12,6 +12,7 @@ export list=$listvars
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
+GRADS=/apps/grads/2.0.1a/bin/grads
 
 plot_angle_count=plot_angle_count.${RAD_AREA}.gs
 plot_angle_sep=plot_angle_sep.${RAD_AREA}.gs
@@ -57,7 +58,8 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
   $NCP $ctldir/${type}.ctl* ./
 done
-uncompress *.ctl.Z
+#uncompress *.ctl.Z
+#gunzip *.ctl.Z
 
 
 #--------------------------------------------------------------------
@@ -90,7 +92,7 @@ for type in ${SATYPE2}; do
       cdate=$adate
 
    done
-   uncompress $tmpdir/*.ieee_d.Z
+#   uncompress $tmpdir/*.ieee_d.Z
 
    for var in ${PTYPE}; do
       echo $var
@@ -119,7 +121,8 @@ cat << EOF > ${type}_${var}.gs
 EOF
       fi
 
-      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+#      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
    rm -f ${type}*.ieee_d
@@ -128,38 +131,37 @@ EOF
 done
 
 #--------------------------------------------------------------------
-# Copy image files to server (rzdm).  Delete images and data files.
+# Copy image files to $IMGNDIR to set up for mirror to web server.  
+# Delete images and data files.
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/angle"
+if [[ ! -d ${IMGNDIR}/angle ]]; then
+   mkdir -p ${IMGNDIR}/angle
+fi
+cp -r *.png  ${IMGNDIR}/angle
 
 #for var in ${PTYPE}; do
-#   scp ${type}.${var}*.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
+#   rm -f ${type}.${var}*.png
 #done
-scp *.png    ${WEB_USER}@${WEB_SVR}:${WEBDIR}/angle
-
-for var in ${PTYPE}; do
-   rm -f ${type}.${var}*.png
-done
 
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------
 # If this is the last angle plot job to finish then rm PLOT_WORK_DIR.
 # 
-echo ${LOADLQ}
+#echo ${LOADLQ}
 
-count=`ls ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
+#count=`ls ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
+#complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
 
-running=`expr $count - $complete`
+#running=`expr $count - $complete`
 
 #if [[ $running -eq 1 ]]; then
 #   cd ${PLOT_WORK_DIR}

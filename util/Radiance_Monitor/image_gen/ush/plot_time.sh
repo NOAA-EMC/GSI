@@ -112,7 +112,8 @@ cat << EOF > ${type}_${var}.gs
 EOF
 fi
 echo ${tmpdir}/${type}_${var}.gs
-      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+#      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done
 
 
@@ -124,23 +125,26 @@ echo ${tmpdir}/${type}_${var}.gs
 done
 
 
-#ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/time"
+#--------------------------------------------------------------------
+# Copy image files to $IMGNDIR to set up for mirror to web server.
+# Delete images and data files.
+
+if [[ ! -d ${IMGNDIR}/time ]]; then
+   mkdir -p ${IMGNDIR}/time
+fi
+cp -r *.png  ${IMGNDIR}/time
+
+
 #for var in ${PTYPE}; do
-#   scp ${type}.${var}*.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
+#   rm -f ${type}.${var}*.png
 #done
-
-scp *.png   ${WEB_USER}@${WEB_SVR}:${WEBDIR}/time/
-
-for var in ${PTYPE}; do
-   rm -f ${type}.${var}*.png
-done
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 #--------------------------------------------------------------------
 # If this is the last time/summary plot job to finish then rm PLOT_WORK_DIR.

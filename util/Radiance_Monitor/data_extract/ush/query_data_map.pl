@@ -5,7 +5,7 @@
 #
 #  This script returns a requested field from the data_map.xml file.
 #  It takes three items as input:
-#    1. data_map.xml file (full or relative path)
+#    1. data_map.xml file name (full or relative path)
 #    2. suffix identifying the data source (an element in the 
 #       data_map.xml file)
 #    3. requested field, one of the xml child elements of the 
@@ -44,28 +44,18 @@
 #   If the element is not found then get the default element
 #   and output it's value for the requested field.
 
-    if( exists( $config->{$source}->{$field} )) {
-       if( $config->{$source}->{$field} =~ m/HASH/ ) {
-          print "";
-       }
-       else {
-          print "$config->{$source}->{$field}";
-       }
-    }
-    else {
+    if( ! exists( $config->{$source}->{$field} )) {
        if( $config->{$source}->{ 'area' } eq "glb" ) {
           $source = "global_default";
-          print "$config->{$source}->{$field}";
        }
        else {
           $source = "regional_default";
-          if( exists( $config->{$source}->{$field} )) {
-             if( $config->{$source}->{$field} =~ m/HASH/ ) {
-                print "";
-             }
-             else {
-                print "$config->{$source}->{$field}";
-             }
-          }
        }
+    }
+
+    if( $config->{$source}->{$field} =~ m/HASH/ ) {
+       print "";
+    }
+    else {
+       print "$config->{$source}->{$field}";
     }

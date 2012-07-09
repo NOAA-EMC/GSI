@@ -54,6 +54,8 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag to indicate LE machine
+#                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -111,6 +113,8 @@ MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+
 err=0
 angle_exec=radmon_angle.${RAD_AREA}
 scaninfo=scaninfo.txt
@@ -177,9 +181,11 @@ cat << EOF > input
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
   gesanl='${gesanl}',
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      timex ${angle_exec} < input >   ${stdout_file}
+#      timex ${angle_exec} < input >   ${stdout_file}
+      ./${angle_exec} < input >   ${stdout_file}
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
@@ -189,19 +195,19 @@ EOF
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${angl_file}
          mv ${angl_file} $TANKverf_rad/.
-         compress -f $TANKverf_rad/${angl_file}
+#         compress -f $TANKverf_rad/${angl_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${angl_ctl}
          mv ${angl_ctl}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${angl_ctl}
+#         compress -f ${TANKverf_rad}/${angl_ctl}
       fi 
 
       if [[ -s ${stdout_file} ]]; then
          mv ${stdout_file} ${angl_stdout}
          mv ${angl_stdout}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${angl_stdout}
+#         compress -f ${TANKverf_rad}/${angl_stdout}
       fi
 
 

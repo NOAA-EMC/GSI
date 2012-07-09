@@ -57,8 +57,9 @@ program angle
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag,iscan / 5, 51, 52, 21, 31 /
   data lunang / 22 /
@@ -127,6 +128,7 @@ program angle
   write(6,*)'ctl_file =',ctl_file
   write(6,*)'imkctl    =',imkctl
   write(6,*)'imkdata   =',imkdata
+  write(6,*)'little_endian =', little_endian
 
 
 ! Open unit to diagnostic file.  Read portion of 
@@ -398,7 +400,7 @@ program angle
      call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
        ctl_file,lunctl,rmiss,dfile,satype,dplat,surf_nregion,&
        surf_region,surf_rlonmin,surf_rlonmax,surf_rlatmin,surf_rlatmax,&
-       nu_chan,use, error, frequency,wavenumbr,nstep,start,step)
+       nu_chan,use, error, frequency,wavenumbr,nstep,start,step, little_endian)
   else
      write(6,*) 'imkctl =',imkctl
   endif

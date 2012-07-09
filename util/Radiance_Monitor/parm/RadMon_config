@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-  MY_RADMON=/global/save/${USER}/GSI/util/Radiance_Monitor
+  MY_RADMON=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/Radmon_265/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,7 +24,7 @@
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-  export MY_TANKDIR=/u/${USER}/nbns
+  export MY_TANKDIR=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
@@ -47,9 +47,14 @@
 #
 #  Log and work space definitions
 #
-  export LOGSverf_rad=/ptmp/$LOGNAME/logs    
-  export WORKverf_rad=/stmp/$LOGNAME         
-  export LOADLQ=/stmp/loadlq/$LOGNAME
+#export  ptmp=/ptmp
+export  ptmp=/scratch2/portfolios/NCEPDEV/ptmp
+#export  stmp=/stmp
+export  stmp=/scratch2/portfolios/NCEPDEV/stmp
+  
+  export LOGSverf_rad=$ptmp/$LOGNAME/logs    
+  export WORKverf_rad=$stmp/$LOGNAME         
+  export LOADLQ=$stmp/loadlq/$LOGNAME
 
 #
 #  Definitions for internal reference
@@ -66,6 +71,10 @@
   export UTILS_BIN=/u/wx20mi/bin             
   export LLQ=${UTILS_BIN}/llq2		    
   export SUB=${UTILS_BIN}/sub              
-  export NDATE=/nwprod/util/exec/ndate    
+  export QSUB=/apps/torque/default/bin/qsub
+
+#  export NDATE=/nwprod/util/exec/ndate    
+#  export NDATE=/NCEPPROD/nwprod/util/exec/ndate
+  export NDATE=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
 
   echo "end RadMon_config"

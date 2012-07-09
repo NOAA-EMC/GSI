@@ -37,6 +37,8 @@
 #                   defaults to 'eval [[ $err = 0 ]]'
 #     ENDSCRIPT     Postprocessing script
 #                   defaults to none
+#     LITTLE_ENDIAN Flag to indicate LE machine
+#                   defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     RAD_AREA      flag for global or regional
@@ -194,7 +196,8 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
 
-   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $10 "_" $11 }'`
+#   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $10 "_" $11 }'`
+   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $11 "_" $12 }'`
    if [[ "$VERBOSE" = "YES" ]]; then
       echo $radstat_satype
    fi
@@ -245,8 +248,11 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    # Rename the diag files and uncompress
    #------------------------------------------------------------------
    for type in ${SATYPE}; do
-      mv diag_${type}_ges.${PDATE}.Z  ${type}.Z
-      uncompress ./${type}.Z
+#      mv diag_${type}_ges.${PDATE}.Z  ${type}.Z
+      mv diag_${type}_ges.${PDATE}.gz ${type}.gz
+#      mv diag_${type}_ges.${PDATE}  ${type}
+#      uncompress ./${type}.Z
+      gunzip ./${type}.gz
    done
 
 
@@ -288,11 +294,11 @@ if [[ "$VERBOSE" = "YES" ]]; then
    echo "end exgdas_vrfyrad.sh.sms, exit value = ${err}"
 fi
 
-if [[ ! "$RUN_ENVIR" = "prod" ]]; then
-   cd $DATA
-   cd ..
-   rm -rf $DATA
-fi
+#if [[ ! "$RUN_ENVIR" = "prod" ]]; then
+#   cd $DATA
+#   cd ..
+#   rm -rf $DATA
+#fi
 
 if [[ ${err} -ne 0 ]]; then
    export err

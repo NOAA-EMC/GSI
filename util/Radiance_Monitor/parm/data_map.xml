@@ -40,4 +40,8 @@
     <user_class>dev</user_class>
     <mail_to></mail_to>
   </global_default>
+  <opr>
+    <prodate>2012010118</prodate>
+    <radstat_location>/scratch2/portfolios/NCEPDEV/ptmp/Andrew.Collard/prHS_radstat</radstat_location>
+  </opr>
 </opt>

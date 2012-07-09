@@ -135,15 +135,15 @@ fi
       bound=""
 
       echo $myline
-      satname=`echo $myline | nawk '{print $1}'`
+      satname=`echo $myline | awk '{print $1}'`
       echo satname = $satname
-      channel=`echo $myline | nawk '{print $3}'`
+      channel=`echo $myline | awk '{print $3}'`
       echo channel = $channel
-      region=`echo $myline | nawk '{print $5}'`
+      region=`echo $myline | awk '{print $5}'`
       echo region = $region
-      value1=`echo $myline | nawk '{print $7}'`
+      value1=`echo $myline | awk '{print $7}'`
       echo value1 = $value1
-      bound=`echo $myline | nawk '{print $9}'`
+      bound=`echo $myline | awk '{print $9}'`
 
 #
 #     Check findings against diag_report.  If the satellite/instrument is on the 
@@ -156,7 +156,7 @@ fi
       diag_match_len=0 
 
       if [[ $have_diag_rpt == 1 ]]; then
-         diag_match=`nawk "/$satname/" $diag_rpt`
+         diag_match=`awk "/$satname/" $diag_rpt`
          diag_match_len=`echo ${#diag_match}`
       fi
 
@@ -164,16 +164,16 @@ fi
       if [[ $diag_match_len == 0 ]]; then  
 
          if [[ $type == "chan" ]]; then
-            match=`nawk "/$satname/ && /channel=  $channel/" $file2`
+            match=`awk "/$satname/ && /channel=  $channel/" $file2`
          else
-            match=`nawk "/$satname/ && /channel=  $channel / && /region=  $region /" $file2`
+            match=`awk "/$satname/ && /channel=  $channel / && /region=  $region /" $file2`
          fi
          match_len=`echo ${#match}`
 
          if [[ $match_len > 0 ]]; then
             echo $match_len
-            value2=`echo $match | nawk '{print $7}'`
-            bound2=`echo $match | nawk '{print $9}'`
+            value2=`echo $match | awk '{print $7}'`
+            bound2=`echo $match | awk '{print $9}'`
 
             if [[ $type == "chan" ]]; then
                tmpa="$satname  channel= $channel"

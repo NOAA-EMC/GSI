@@ -41,7 +41,8 @@ program bcor
   integer		:: nchanl		= 19
   integer		:: imkctl		= 1
   integer		:: imkdata	        = 1
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,suffix,imkctl,imkdata,retrieval
+  integer               :: little_endian        = 1
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,suffix,imkctl,imkdata,retrieval,little_endian
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -159,7 +160,7 @@ program bcor
      write(6,*)'call create_ctl_bcor'
      call create_ctl_bcor(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
           incr,ctl_file,lunctl,rmiss,satname,satype,dplat,1,&
-          nu_chan,use,error,frequency,wavenumbr)
+          nu_chan,use,error,frequency,wavenumbr,little_endian)
   endif  
 
 ! Loop to read entries in diagnostic file
