@@ -362,7 +362,7 @@ end subroutine write_co2_grid
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: ncepgfs_head
     use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
-    character(24),intent(in) :: filename
+    character(*),intent(in) :: filename
     type(sigio_head):: sighead
     type(sigio_data), intent(inout):: sigdata
     integer(i_kind), intent(inout) :: iret

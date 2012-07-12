@@ -125,13 +125,15 @@ subroutine convert_binary_mass
 ! Inquire about cloud guess fields
   call gsi_metguess_get('dim',nguess,istatus)
 
-  n_loop: do n=1,7
+  n_loop: do n=1,9  ! loop over forecast hours in assim interval
 
-     if(n==1)then
+     if(n==nhr_assimilation)then
         wrfges = 'wrf_inout'
      else
         write(wrfges,'("wrf_inou",i1.1)')n
      endif
+
+     write(filename,'("sigf",i2.2)')n
 
      open(in_unit,file=wrfges,form='unformatted')
      write(6,*)' convert_binary_mass: in_unit,lendian_out=',in_unit,lendian_out
@@ -139,7 +141,7 @@ subroutine convert_binary_mass
    
 ! Check for valid input file
      read(in_unit,iostat=status_hdr)hdrbuf
-     if(n==1)then
+     if(n==nhr_assimilation)then
         if(status_hdr /= 0) then
            write(6,*)'CONVERT_BINARY_MASS:  problem with wrfges = ',&
                 trim(wrfges),', Status = ',status_hdr
@@ -153,7 +155,6 @@ subroutine convert_binary_mass
         endif
      end if
 
-     write(filename,'("sigf",i2.2)')n+nhr_assimilation-1
      open(lendian_out,file=filename,form='unformatted')
      rewind lendian_out
 
@@ -675,15 +676,15 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 ! Inquire about cloud guess fields
   call gsi_metguess_get('dim',nguess,istatus)
 
-  n_loop: do n=1,7
+  n_loop: do n=1,9
 
-     if(n==1)then
+     if(n==nhr_assimilation)then
         wrfges = 'wrf_inout'
      else
         write(wrfges,'("wrf_inou",i1.1)')n
      endif
 
-     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
+     write(fileout,'("sigf",i2.2)')n
 
      open(in_unit,file=trim(wrfges),form='unformatted')
      write(6,*)' convert_binary_nmm: in_unit,lendian_out=',in_unit,lendian_out
@@ -691,7 +692,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 
 !    Check for valid input file
      read(in_unit,iostat=status_hdr)hdrbuf
-     if(n==1)then
+     if(n==nhr_assimilation)then
         if(status_hdr /= 0) then
            write(6,*)'CONVERT_BINARY_NMM:  problem with wrfges = ',&
                 trim(wrfges),', Status = ',status_hdr
@@ -1251,16 +1252,16 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      call stop2(74)
   end if
   
-  n_loop: do n=1,7
+  n_loop: do n=1,9
 
-     if(n==1)then
+     if(n==nhr_assimilation)then
         wrfges = 'wrf_inout'
      else
         write(wrfges,'("wrf_inou",i1.1)')n
      endif
      call nemsio_open(gfile,wrfges,'READ',iret=iret)
      write(6,*)' convert_nems_nmmb: nemsio_open, file name, iret=',trim(wrfges),iret
-     if(n==1) then
+     if(n==nhr_assimilation) then
         if(iret/=0) then
            write(6,*)'CONVERT_NEMS_NMMB:  problem with wrfges = ',&
                  trim(wrfges),', Status = ',iret
@@ -1274,7 +1275,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
            cycle n_loop
         end if
      end if
-     write(fileout,'("sigf",i2.2)')n+nhr_assimilation-1
+     write(fileout,'("sigf",i2.2)')n
      write(6,*)' convert_nems_nmmb: in_unit,out_unit=',trim(wrfges),',',trim(fileout)
      open(lendian_out,file=trim(fileout),form='unformatted')
      rewind lendian_out
