@@ -48,13 +48,13 @@ subroutine wrwrfmassa_binary(mype)
        dsfct,&
        ntguessfc,ntguessig,ifilesig,ges_tsen
   use wrf_mass_guess_mod, only: ges_tten
+  use wrf_mass_guess_mod, only: destroy_cld_grids
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use wrf_mass_guess_mod, only: destroy_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
 
@@ -1294,10 +1294,10 @@ subroutine wrwrfmassa_netcdf(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
        ges_q,ges_u,ges_v,ges_tsen
   use wrf_mass_guess_mod, only: ges_tten
-  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
        aeta1_ll,strip_single

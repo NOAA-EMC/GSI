@@ -43,15 +43,15 @@ SUBROUTINE  gsdcloudanalysis(mype)
 !
 ! 
   use constants, only: zero,one,rad2deg,fv
-    use constants, only: rd_over_cp, h1000
+  use constants, only: rd_over_cp, h1000
   use kinds,   only: r_single,i_kind, r_kind
   use gridmod, only: pt_ll,eta1_ll,aeta1_ll
   use gridmod, only: regional,wrf_mass_regional,regional_time
   use gridmod, only: nsig,lat2,lon2,istart,jstart,twodvar_regional
-  use guess_grids, only: pbl_height, load_gsdpbl_hgt
-  use obsmod,  only: obs_setup,nsat1,ndat,dtype
-  use guess_grids, only: ntguessig,ntguessfc
+  Use obsmod,  only: obs_setup,nsat1,ndat,dtype
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten
+  use guess_grids, only: pbl_height, load_gsdpbl_hgt
+  use guess_grids, only: ntguessig,ntguessfc
   use guess_grids, only: ges_q,ges_z,ges_ps,ges_tv,ges_tsen
   use jfunc, only: tsensible
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,  &

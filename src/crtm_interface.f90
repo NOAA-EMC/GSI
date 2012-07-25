@@ -143,6 +143,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind),save :: ip25, indx_p25, indx_dust1, indx_dust2
   logical        ,save :: lcf4crtm
   logical        ,save :: lcw4crtm
+  integer(i_kind), parameter :: min_n_absorbers = 2
 
   type(crtm_atmosphere_type),save,dimension(1)   :: atmosphere
   type(crtm_surface_type),save,dimension(1)      :: surface
@@ -165,6 +166,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
      COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
 
 contains
+
 subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -180,6 +182,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !   2011-05-03  todling - merge with Min-Jeong's MW cloudy radiance; combine w/ metguess
 !   2011-05-20  mccarty - add atms wmo_sat_id hack (currently commented out)
 !   2011-07-20  zhu     - modified codes for lcw4crtm
+!   2012-03-12  yang    - modify to use ch4,n2o,and co
 !
 !   input argument list:
 !     init_pass    - state of "setup" processing
@@ -204,28 +207,37 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   use gsi_metguess_mod,  only: gsi_metguess_get
   use crtm_module, only: mass_mixing_ratio_units,co2_id,o3_id,crtm_init, &
       toa_pressure,max_n_layers, &
-      volume_mixing_ratio_units,h2o_id
+      volume_mixing_ratio_units,h2o_id,ch4_id,n2o_id,co_id
   use radinfo, only: crtm_coeffs_path
   use radinfo, only: radjacindxs,radjacnames
   use aeroinfo, only: aerojacindxs,aerojacnames
   use guess_grids, only: ges_tsen,ges_q,ges_prsl,nfldsig
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
-  use constants, only: zero,tiny_r_kind
+  use constants, only: zero,tiny_r_kind,max_varname_length
 
   implicit none
 
+! argument 
   integer(i_kind),intent(in) :: nchanl,mype_diaghdr,mype
   character(20)  ,intent(in) :: isis
   character(10)  ,intent(in) :: obstype
   logical        ,intent(in) :: init_pass
 
+! local parameters
   character(len=*), parameter :: myname_=myname//'crtm_interface'
-  integer(i_kind) ier,ii,error_status,iderivative
-  logical ice,Load_AerosolCoeff,Load_CloudCoeff
-  integer(i_kind),parameter::  n_absorbers = 3
-  character(len=20),dimension(1):: sensorlist
-  integer(i_kind) icf4crtm,icw4crtm,indx,iii,icloud4crtm
+
+! local variables
+  integer(i_kind) :: ier,ii,error_status,iderivative
+  logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
+  character(len=20),dimension(1) :: sensorlist
+  integer(i_kind) :: icf4crtm,icw4crtm,indx,iii,icloud4crtm
+  character(len=max_varname_length),allocatable,dimension(:) :: gases
+! ...all "additional absorber" variables
+  integer(i_kind) :: j, n_gases
+  integer(i_kind) :: ig
+  integer(i_kind) :: n_absorbers
+
 
   isst=-1
   ivs=-1
@@ -415,17 +427,17 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
     iclr_sky      =  7 ! index of clear sky amount
  endif
 
-! Get pointer to CO2
-! NOTE: for now, not to rock the boat, this takes CO2 from 1st time slot
-!       eventually this could do the time interpolation by taking CO2 from
-!       two proper time slots.
 
- ico2=-1
- if(size(gsi_chemguess_bundle)>0) & ! check to see if bundle's allocated
- call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',ico2,ier)
+! get the number of trace gases present in the chemguess bundle
+ n_gases=0
+ if(size(gsi_chemguess_bundle)>0) then
+    call gsi_chemguess_get('dim',n_gases,ier)
+    if (ier /=0 ) write(6,*) 'ERROR: chemguess get error'
+ endif
+ n_absorbers = min_n_absorbers + n_gases
+
 
 ! Are there aerosols to affect CRTM?
-
  call gsi_chemguess_get ('aerosols_4crtm::3d',n_aerosols_crtm,ier)
  ip25 = -1
  if (n_aerosols_crtm>0) then
@@ -542,7 +554,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! Turn off antenna correction
 
- options(1)% use_antenna_correction = .false.
+ options(1)%use_antenna_correction = .false.
 
 ! Check for consistency with information in crtm for number of channels
 
@@ -564,22 +576,38 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 
  atmosphere(1)%n_layers = msig
-!  atmosphere%level_temperature_input = 0
  atmosphere(1)%absorber_id(1) = H2O_ID
  atmosphere(1)%absorber_id(2) = O3_ID
- atmosphere(1)%absorber_id(3) = CO2_ID
  atmosphere(1)%absorber_units(1) = MASS_MIXING_RATIO_UNITS
  atmosphere(1)%absorber_units(2) = VOLUME_MIXING_RATIO_UNITS
- atmosphere(1)%absorber_units(3) = VOLUME_MIXING_RATIO_UNITS
  atmosphere(1)%level_pressure(0) = TOA_PRESSURE
+
+
+! Currently all considered trace gases affect CRTM. Load trace gases into CRTM atmosphere
+ if (n_gases>0) then
+    allocate(gases(n_gases))
+    call gsi_chemguess_get('gsinames',gases,ier)
+    do ig=1,n_gases
+       j = min_n_absorbers + ig
+       select case(trim(gases(ig)))
+         case('co2'); atmosphere(1)%absorber_id(j) = CO2_ID
+         case('ch4'); atmosphere(1)%absorber_id(j) = CH4_ID
+         case('n2o'); atmosphere(1)%absorber_id(j) = N2O_ID
+         case('co') ; atmosphere(1)%absorber_id(j) = CO_ID
+         case default
+           write(6,*) 'INIT_CRTM:  invalid absorber  TERMINATE PROGRAM ', trim(gases(ig)) 
+           call stop2(71)
+       end select
+       atmosphere(1)%absorber_units(j) = VOLUME_MIXING_RATIO_UNITS
+    enddo
+    deallocate(gases)
+ endif
 
 !  Allocate structure for _k arrays (jacobians)
 
  do ii=1,nchanl
-
     atmosphere_k(ii,1) = atmosphere(1)
     surface_k(ii,1)   = surface(1)
-
  end do
 
 ! Mapping land surface type of NMM to CRTM
@@ -710,6 +738,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-07-05  zhu - add cloud_efr & cloudefr; add cloud_efr & jcloud in the interface of Set_CRTM_Cloud
 !   2011-07-05  zhu - rewrite cloud_cont & cwj when total cloud condensate is control variable (lcw4crtm)
+!   2012-03-12  veldelst-- add a internal interpolation function (option)
+!   2012-04-25  yang - modify to use trace gas chem_bundle. Trace gas variables are 
+!                       invoked by the global_anavinfo.ghg.l64.txt
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -756,7 +787,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
       ges_ps,ges_prsl,ges_prsi,tropprs,dsfct,add_rtm_layers, &
       hrdifsig,nfldsig,hrdifsfc,nfldsfc,ntguessfc,ges_tv,isli2,sno2, &
       efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
-  use ncepgfs_ghg, only: co2vmr_def
+  use ncepgfs_ghg, only: co2vmr_def,ch4vmr_def,n2ovmr_def,covmr_def
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_chemguess_mod, only: gsi_chemguess_bundle   ! for now, a common block
   use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -765,6 +796,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gridmod, only: istart,jstart,nlon,nlat,lon1
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
+  use constants, only: max_varname_length
+
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
   use set_crtm_cloudmod, only: set_crtm_cloud
@@ -798,7 +831,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),parameter:: small_wind = 1.e-3_r_kind
 
 ! Declare local variables  
-  integer(i_kind):: ier,ii,igfsco2,kk,kk2,i,itype,leap_day,day_of_year
+  integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
+  integer(i_kind):: ig,n_gases
   integer(i_kind):: j,k,m1,ix,ix1,ixp,iy,iy1,iyp,m,iii
   integer(i_kind):: itsig,itsigp,itsfc,itsfcp
   integer(i_kind):: istyp00,istyp01,istyp10,istyp11
@@ -806,6 +840,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind),dimension(msig) :: klevel
 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
+  real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
   real(r_kind):: sst00,sst01,sst10,sst11,total_od,term,uu5,vv5, ps
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
@@ -817,7 +852,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
   real(r_kind),allocatable,dimension(:)::auxt,auxp
-  real(r_kind),dimension(nsig)  :: poz,co2
+  real(r_kind),dimension(nsig)  :: poz
   real(r_kind),dimension(nsig)  :: rh,qs,qclr
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
@@ -828,14 +863,18 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind) tem4, cf
   real(r_kind),dimension(nsig) :: ugkg_kgm2
   real(r_kind),allocatable,dimension(:,:,:):: cwj
+  real(r_kind),allocatable,dimension(:,:) :: tgas1d
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::co2ges_itsig =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::co2ges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::tgasges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::tgasges_itsigp=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsigp=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::cloudges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::cloudges_itsigp=>NULL()
+  character(len=max_varname_length),allocatable,dimension(:) :: gases
+
+
 
   logical :: sea,icmask
 
@@ -875,7 +914,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   dely1=one-dely
 
   w00=delx1*dely1; w10=delx*dely1; w01=delx1*dely; w11=delx*dely
-
+  w_weights = (/w00,w10,w01,w11/)
 
 
 ! Get time interpolation factors for sigma files
@@ -1061,20 +1100,55 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   endif
 
 !$omp section
-  igfsco2=0
-  if(ico2>0) then
-     call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
-     if(igfsco2>0)then
-        if(size(gsi_chemguess_bundle)==1) then
-           call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',co2ges_itsig ,ier)
-        else
-           call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),'co2',co2ges_itsig ,ier)
-           call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),'co2',co2ges_itsigp,ier)
-        endif
-     endif
-  endif
+!       check trace gases
+ call gsi_chemguess_get('dim',n_gases,ier)
+ if (ier /= 0 ) write (6,*) 'ERROR: chemguess_get error'
+ if (n_gases > 0 ) then
+    allocate(gases(n_gases))
+    allocate (tgas1d(nsig,n_gases))
+    call gsi_chemguess_get('gsinames',gases,ier)
 
-! Space-time interpolation of ozone(poz), co2 and aerosol fields from sigma files
+    do ig=1,n_gases
+       if(size(gsi_chemguess_bundle)==1) then
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(1), gases(ig),tgasges_itsig ,ier)
+          do k=1,nsig
+! choice:  use the internal interpolation function
+!        or just explicitly code, not sure which one is efficient
+!            tgas1d(k,ig) = crtm_interface_interp(tgasges_itsig(ix:ixp,iy:iyp,:),&
+!                                                 w_weights, &
+!                                                 1.0_r_kind)
+             tgas1d(k,ig) =(tgasges_itsig(ix ,iy ,k)*w00+ &
+                            tgasges_itsig(ixp,iy ,k)*w10+ &
+                            tgasges_itsig(ix ,iyp,k)*w01+ &
+                            tgasges_itsig(ixp,iyp,k)*w11)
+          enddo
+       else
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsig ),gases(ig),tgasges_itsig ,ier)
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(itsigp),gases(ig),tgasges_itsigp,ier)
+          do k=1,nsig
+!            tgas1d(k,ig) = crtm_interface_interp(tgasges_itsig(ix:ixp,iy:iyp,k),&
+!                                                 w_weights, &
+!                                                 dtsig) + &
+!                           crtm_interface_interp(tgasges_itsigp(ix:ixp,iy:iyp,k),&
+!                                                 w_weights, &
+!                                                 dtsigp)
+              
+
+             tgas1d(k,ig) =(tgasges_itsig (ix ,iy ,k)*w00+ &
+                           tgasges_itsig (ixp,iy ,k)*w10+ &
+                           tgasges_itsig (ix ,iyp,k)*w01+ &
+                           tgasges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                          (tgasges_itsigp(ix ,iy ,k)*w00+ &
+                           tgasges_itsigp(ixp,iy ,k)*w10+ &
+                           tgasges_itsigp(ix ,iyp,k)*w01+ &
+                           tgasges_itsigp(ixp,iyp,k)*w11)*dtsigp
+          enddo
+       endif
+    enddo
+ endif
+
+    
+! Space-time interpolation of ozone(poz) and aerosol fields from sigma files
   do k=1,nsig
      poz(k)=((ges_oz(ix ,iy ,k,itsig )*w00+ &
               ges_oz(ixp,iy ,k,itsig )*w10+ &
@@ -1088,31 +1162,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !    Ensure ozone is greater than ozsmall
 
      poz(k)=max(ozsmall,poz(k))
-
-!    Get information for how to use CO2 and interpolate CO2
-
-     co2(k) = co2vmr_def
-     if(ico2>0) then
-        if(igfsco2>0)then
-           if(size(gsi_chemguess_bundle)==1) then
-              co2(k) =(co2ges_itsig(ix ,iy ,k)*w00+ &
-                       co2ges_itsig(ixp,iy ,k)*w10+ &
-                       co2ges_itsig(ix ,iyp,k)*w01+ &
-                       co2ges_itsig(ixp,iyp,k)*w11)
-           else
-              co2(k) =(co2ges_itsig (ix ,iy ,k)*w00+ &
-                       co2ges_itsig (ixp,iy ,k)*w10+ &
-                       co2ges_itsig (ix ,iyp,k)*w01+ &
-                       co2ges_itsig (ixp,iyp,k)*w11)*dtsig + &
-                      (co2ges_itsigp(ix ,iy ,k)*w00+ &
-                       co2ges_itsigp(ixp,iy ,k)*w10+ &
-                       co2ges_itsigp(ix ,iyp,k)*w01+ &
-                       co2ges_itsigp(ixp,iyp,k)*w11)*dtsigp
-           endif
-        endif
-     endif
-
-!  Interpolate aerosols
 
      if(n_aerosols>0)then
         if(size(gsi_chemguess_bundle)==1) then
@@ -1151,8 +1200,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      endif
 
 
-  end do
+  end do   ! END K level interpolation
 
+!fourth omp  make sure the above all are at the same OMP
 !$omp section 
 
 ! Find tropopause height at observation
@@ -1243,6 +1293,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   call add_rtm_layers(prsi,prsl,prsi_rtm,prsl_rtm,klevel)
 
+!fifth omp
 !$omp section 
 
 !    Set surface type flag.  (Same logic as in subroutine deter_sfc)
@@ -1476,7 +1527,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         atmosphere(1)%absorber(k,1)  = r1000*q(kk2)*c3(kk2)
      endif
      atmosphere(1)%absorber(k,2)     = poz(kk2)
-     atmosphere(1)%absorber(k,3)     = co2(kk2)
+     if (n_gases > 0 ) then
+        do ig=1,n_gases
+           j=min_n_absorbers+ ig
+           atmosphere(1)%absorber(k,j)     = tgas1d(kk2,ig)
+        enddo
+     endif
 
      if (n_aerosols>0) then
         aero_conc(k,:)=aero(kk2,:)
@@ -1510,15 +1566,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2
            end do
         endif
-     endif
-
-! Add in a drop-off to absorber amount in the stratosphere to be in more
-! agreement with ECMWF profiles.  The drop-off is removed when climatological CO2 fields
-! are used.
-     if(igfsco2==0)then
-        if (atmosphere(1)%level_pressure(k) < 200.0_r_kind) &
-            atmosphere(1)%absorber(k,3) = atmosphere(1)%absorber(k,3) * &
-           (0.977_r_kind + 0.000115_r_kind * atmosphere(1)%pressure(k))
      endif
   end do
 
@@ -1717,8 +1764,25 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         enddo
      enddo
   endif
-  
-  return
+  if (n_gases >0 ) deallocate (tgas1d)
+  if (n_gases >0 ) deallocate (gases)
+  contains
+
+    pure function crtm_interface_interp(a,w,dtsig) result(intresult)
+      real(r_kind), intent(in) :: a(:,:)
+      real(r_kind), intent(in) :: w(:,:)
+      real(r_kind), intent(in) :: dtsig
+      real(r_kind) :: intresult
+      integer :: i, j, n
+      n = size(a,dim=1)
+      intresult = 0.0_r_kind
+      do j = 1, n
+        do i = 1, n
+          intresult = intresult + a(i,j)*w(i,j)
+        enddo
+      enddo
+      intresult = intresult * dtsig
+    end function crtm_interface_interp
   end subroutine call_crtm
 
   end module crtm_interface
