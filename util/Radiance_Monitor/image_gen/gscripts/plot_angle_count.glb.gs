@@ -10,10 +10,13 @@ function plotangle (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+plot_all_regions=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
+
 platform=plotfile
 
+say 'plot_all_Regions = 'plot_all_regions
 say 'process 'field' from 'plotfile
 
 debug=0
@@ -37,6 +40,10 @@ satnum=subwrd(lin1,5)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
 nregion=subwrd(lin5,9)
+if (plot_all_regions = 0)
+   nregion=1
+endif
+
 '!rm -f xsize.txt'
 '!cat 'plotfile'.ctl |grep "xdef" > xsize.txt'
 result=read(xsize.txt)

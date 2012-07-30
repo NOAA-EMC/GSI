@@ -57,7 +57,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE}; do
 
    $NCP $ctldir/${type}.ctl* ./
-   uncompress ${type}.ctl.Z
+   ${UNCOMPRESS} ${type}.ctl.${COMPRESS_SUFF}
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
@@ -67,17 +67,17 @@ for type in ${SATYPE}; do
          test_file=${TANKDIR}/radmon.${day}/bcoef.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
+            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
          $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
       fi
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   uncompress *.ieee_d.Z
+   ${UNCOMPRESS} *.ieee_d.${COMPRESS_SUFF}
 
    list="mean atmpath clw lapse2 lapse"
    for var in $list; do
@@ -86,14 +86,13 @@ cat << EOF > ${type}_${var}.gs
 'run ${GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
 'quit'
 EOF
-#      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 
 
-#   rm -f ${type}.ieee_d
-#   rm -f ${type}.ctl
+   rm -f ${type}.ieee_d
+   rm -f ${type}.ctl
 
 done
 

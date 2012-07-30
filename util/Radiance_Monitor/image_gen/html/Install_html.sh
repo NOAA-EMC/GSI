@@ -98,8 +98,10 @@ if [[ $use_static_satype -eq 0 ]]; then
    #  Find the first date with data.  Start at today and work
    #  backwards.  Stop after 90 days and exit.
    #
-   PDATE=`date +%Y%m%d`
-   PDATE=${PDATE}00
+#   PDATE=`date +%Y%m%d`
+#   PDATE=${PDATE}00
+
+   PDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
    echo PDATE= $PDATE
 
    limit=`$NDATE -2160 $PDATE`		# 90 days

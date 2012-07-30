@@ -8,8 +8,9 @@ function plottime (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+plot_all_regions=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
 platform=plotfile
 
 *say 'process 'field' from 'plotfile
@@ -37,7 +38,9 @@ lin1=sublin(result,1)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
 nregion=subwrd(lin5,6)
-
+if (plot_all_regions = 0)
+   nregion=1
+endif
 
 *say 'nchan='nchan
 *say 'nregion='nregion

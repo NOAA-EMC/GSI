@@ -14,7 +14,6 @@ SATYPE2=$SATYPE
 
 #------------------------------------------------------------------
 # Set environment variables.
-#tmpdir=${STMP_USER}/plot_summary_${SUFFIX}_${SATYPE2}.$PDATE
 tmpdir=${STMP_USER}/plot_summary_${SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
@@ -48,7 +47,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
 
    $NCP $ctldir/${type}.ctl* ./
-#   uncompress *.ctl.Z
+   ${UNCOMPRESS} *.ctl.${COMPRESS_SUFF}
 
    cdate=$bdate
 
@@ -59,18 +58,17 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
+            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
          $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
       fi
-#      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-#   uncompress *.ieee_d.Z
+   ${UNCOMPRESS} *.ieee_d.${COMPRESS_SUFF}
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
@@ -78,8 +76,7 @@ cat << EOF > ${type}.gs
 'quit'
 EOF
 
-#   timex $GRADS -bpc "run ${tmpdir}/${type}.gs"
-   $GRADS -bpc "run ${tmpdir}/${type}.gs"
+   $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
 
    rm -f ${type}.ctl 
@@ -102,9 +99,9 @@ rm -f *.summary.png
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 exit

@@ -32,7 +32,8 @@
 #  for the html on the web server (WEBDIR).
 #
   export WEB_SVR=rzdm
-  export WEB_USER=my_account_on_server
+#  export WEB_USER=my_account_on_server
+  export WEB_USER=esafford
   export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/${WEB_USER}
 
 
@@ -45,36 +46,89 @@
 ###############################################################################
 
 #
+#
+#  Determine operating system and endian-ness.  This assumes that the only OSes 
+#  in use are AIX or LINUX and any hardware that is not x86_* is a big
+#  endian machine. 
+#
+uname_line=`uname -a`
+export MY_OS=`echo $uname_line | awk '{print tolower($1)}'`
+echo MY_OS = $MY_OS
+
+machine_line=`uname -m`
+my_machine=`echo $machine_line | awk '{print tolower($1)}'`
+
+if [[ $my_machine = "x86_64" ]]; then
+   export LITTLE_ENDIAN=1
+else
+   export LITTLE_ENDIAN=0
+fi
+
+echo endian = $LITTLE_ENDIAN
+
+
+#
 #  Log and work space definitions
 #
-#export  ptmp=/ptmp
-export  ptmp=/scratch2/portfolios/NCEPDEV/ptmp
-#export  stmp=/stmp
-export  stmp=/scratch2/portfolios/NCEPDEV/stmp
+if [[ $MY_OS = "aix" ]]; then
+   export  PTMP=/ptmp
+   export  STMP=/stmp
+else
+   export  PTMP=/scratch2/portfolios/NCEPDEV/ptmp
+   export  STMP=/scratch2/portfolios/NCEPDEV/stmp
+fi
   
-  export LOGSverf_rad=$ptmp/$LOGNAME/logs    
-  export WORKverf_rad=$stmp/$LOGNAME         
-  export LOADLQ=$stmp/loadlq/$LOGNAME
+export LOGSverf_rad=$PTMP/$LOGNAME/logs    
+export WORKverf_rad=$STMP/$LOGNAME         
+
+
+#
+#  Job queue check definition
+#
+if [[ $MY_OS = "aix" ]]; then
+  export LOADLQ=$STMP/loadlq/$LOGNAME
+#  <need more here>>
+else
+  export CHECKQ="showq -u $LOGNAME"
+fi
+
 
 #
 #  Definitions for internal reference
 #
-  export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
-  export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
-  export RADMON_PARM=${MY_RADMON}/parm
-  export DATA_MAP=${RADMON_PARM}/data_map.xml
-  export HOMEgfs=${MY_RADMON}/nwprod
+export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
+export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
+export RADMON_PARM=${MY_RADMON}/parm
+export DATA_MAP=${RADMON_PARM}/data_map.xml
+export HOMEgfs=${MY_RADMON}/nwprod
+
+
 #
 #  Utilities used by the RadMon package
 #
-  export NCP=/bin/cp                          
-  export UTILS_BIN=/u/wx20mi/bin             
-  export LLQ=${UTILS_BIN}/llq2		    
-  export SUB=${UTILS_BIN}/sub              
-  export QSUB=/apps/torque/default/bin/qsub
+export NCP=/bin/cp                          
 
-#  export NDATE=/nwprod/util/exec/ndate    
-#  export NDATE=/NCEPPROD/nwprod/util/exec/ndate
-  export NDATE=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
+if [[ $MY_OS = "aix" ]]; then
+   export UTILS_BIN=/u/wx20mi/bin             
+   export LLQ=${UTILS_BIN}/llq2		    
+   export SUB=${UTILS_BIN}/sub              
+   export NWPROD=/nwprod
+   export NDATE=$NWPROD/util/exec/ndate    
+   export COMPRESS_SUFF="Z"
+   export COMPRESS=compress
+   export UNCOMPRESS=uncompress
+   export TIMEX=/usr/bin/timex
+else
+   export UTILS_BIN=
+   export LLQ=
+   export SUB=/apps/torque/default/bin/qsub
+   export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
+   export NDATE=$NWPROD/util/exec/ndate
+   export COMPRESS_SUFF="gz"
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export TIMEX=
+fi
 
-  echo "end RadMon_config"
+
+echo "end RadMon_config"

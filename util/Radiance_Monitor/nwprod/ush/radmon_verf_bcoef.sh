@@ -178,8 +178,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-#      timex ./${bcoef_exec} < input >   stdout.$type
-      ./${bcoef_exec} < input >   stdout.$type
+      $TIMEX ./${bcoef_exec} < input >   stdout.$type
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
@@ -192,19 +191,19 @@ EOF
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${bcoef_file}
          mv ${bcoef_file} $TANKverf_rad/.
-#         compress -f $TANKverf_rad/${bcoef_file}
+         ${COMPRESS} -f $TANKverf_rad/${bcoef_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${bcoef_ctl}
          mv ${bcoef_ctl}  ${TANKverf_rad}/.
-#         compress -f ${TANKverf_rad}/${bcoef_ctl}
+         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_ctl}
       fi
 
       if [[ -s ${stdout_file} ]]; then
          mv ${stdout_file} ${bcoef_stdout}
          mv ${bcoef_stdout}  ${TANKverf_rad}/.
-#         compress -f ${TANKverf_rad}/${bcoef_stdout}
+         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_stdout}
       fi
 
 

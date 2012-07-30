@@ -196,8 +196,11 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
 
-#   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $10 "_" $11 }'`
-   radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $11 "_" $12 }'`
+   if [[ $MY_OS = 'aix' ]]; then
+      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $10 "_" $11 }'`
+   else
+      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $11 "_" $12 }'`
+   fi
    if [[ "$VERBOSE" = "YES" ]]; then
       echo $radstat_satype
    fi
@@ -248,11 +251,8 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    # Rename the diag files and uncompress
    #------------------------------------------------------------------
    for type in ${SATYPE}; do
-#      mv diag_${type}_ges.${PDATE}.Z  ${type}.Z
-      mv diag_${type}_ges.${PDATE}.gz ${type}.gz
-#      mv diag_${type}_ges.${PDATE}  ${type}
-#      uncompress ./${type}.Z
-      gunzip ./${type}.gz
+      mv diag_${type}_ges.${PDATE}.${COMPRESS_SUFF} ${type}.${COMPRESS_SUFF}
+      ${UNCOMPRESS} ./${type}.${COMPRESS_SUFF}
    done
 
 

@@ -48,7 +48,7 @@ err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
 
 
 /usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
-   esafford@rzdm.ncep.noaa.gov:${WEBDIR}/
+   ${WEB_USER}@rzdm.ncep.noaa.gov:${WEBDIR}/
 
 echo end Transfer.sh
 exit

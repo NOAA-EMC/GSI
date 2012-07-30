@@ -40,7 +40,8 @@ echo SUFFIX    = ${SUFFIX}
 
 
 #--------------------------------------------------------------------
-# Set environment variables
+# Run config files to load environment variables, 
+# set default plot conditions
 #--------------------------------------------------------------------
 RAD_AREA=glb
 
@@ -56,15 +57,8 @@ fi
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${RADMON_IMAGE_GEN}/parm/glbl_conf
 
-tmpdir=${STMP_USER}/plot_rad${SUFFIX}
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
-
 export PLOT=1
 export PLOT_HORIZ=0
-
-mkdir -p $LOGDIR
 
 
 #--------------------------------------------------------------------
@@ -76,44 +70,43 @@ mkdir -p $LOGDIR
 # all verf jobs have been completed.
 #--------------------------------------------------------------------
 
-count=`ls ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+if [[ $MY_OS = "aix" ]]; then
+   count=`ls ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+   running=`expr $count - $complete`
+else
+   running=`qstat -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+fi
 
-#running=`expr $count - $complete`
-#
-#if [[ $running -ne 0 ]]; then
-#   echo plot jobs still running for $SUFFIX, must exit
-#   cd $tmpdir
-#   cd ../
-#   rm -rf $tmpdir
-#   exit
-#else
-#   rm -f ${LOADLQ}/plot*_${SUFFIX}*
-#fi
+running=0
+if [[ $running -ne 0 ]]; then
+   echo "Plot jobs still running for $SUFFIX, must exit"
+   exit
+fi
 
-#running=0
-#count=`ls ${LOADLQ}/verf*_$SUFFIX* | wc -l`
-#complete=`grep "COMPLETED" ${LOADLQ}/verf*_$SUFFIX* | wc -l`
-#
-#running=`expr $count - $complete`
-#
-#if [[ $running -ne 0 ]]; then
-#   echo verf jobs still running for $SUFFIX, must exit
-#   cd $tmpdir
-#   cd ../
-#   rm -rf $tmpdir
-#   exit
-#fi
+if [[ $MY_OS = "aix" ]]; then
+   rm -f ${LOADLQ}/plot*_${SUFFIX}*
+fi
+
+
+#--------------------------------------------------------------------
+#  Create tmpdir and LOGDIR
+#--------------------------------------------------------------------
+
+tmpdir=${STMP_USER}/plot_rad${SUFFIX}
+rm -rf $tmpdir
+mkdir -p $tmpdir
+cd $tmpdir
+
+mkdir -p $LOGDIR
 
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Exit if available data has already
 # been plotted ($PDATE -gt $PRODATE).
 #--------------------------------------------------------------------
-#export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-export PRODATE=2012010300
-#export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
-export IMGDATE=2012010218
+export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
 
 export PDATE=`$NDATE +6 $IMGDATE`
 
@@ -165,13 +158,11 @@ mkdir $PLOT_WORK_DIR
 cd $PLOT_WORK_DIR
 
 
-#export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-export USE_STATIC_SATYPE=0
-#export ACOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-#export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-export RUN_ENVIR=dev
-#export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-
+export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+export PLOT_ALL_REGIONS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_all_regions`
 
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -226,7 +217,7 @@ fi
 #------------------------------------------------------------------
 # Export variables
 #------------------------------------------------------------------
-export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,QSUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACOUNT,RADMON_PARM,DATA_MAP,listvar
+export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,listvar
 
 
 #------------------------------------------------------------------
@@ -239,10 +230,14 @@ export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_
 #${SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
-#  $SUB -a $ACOUNT -e $listvar -j plot_horiz_${SUFFIX} -q dev -g ${USER_CLASS} -t 0:20:00 -o $LOGDIR/horiz.log ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
-
-  $QSUB -A ada -l procs=1,walltime=0:20:00 -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
-
+   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+   export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,listvar
+   jobname="plot_horiz_${SUFFIX}"
+   if [[ $MY_OS = "aix" ]]; then
+      $SUB -a $ACCOUNT -e $listvar -j ${jobame} -q dev -g ${USER_CLASS} -t 0:20:00 -o $LOGDIR/horiz.log ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+   else
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
+   fi
 fi
 
 #${SCRIPTS}/mk_time_plots.sh
@@ -252,10 +247,8 @@ fi
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-#do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-do_diag_rpt=0
-#do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-do_data_rpt=0
+do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
 
 if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
    export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`

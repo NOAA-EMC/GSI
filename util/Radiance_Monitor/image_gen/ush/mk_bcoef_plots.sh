@@ -29,19 +29,19 @@ PDY=`echo $PDATE|cut -c1-8`
 for type in ${SATYPE}; do
    found=0
 
-   if [[ -s ${imgndir}/${type}.ctl.Z || -s ${imgndir}/${type}.ctl ]]; then
+   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.Z ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.Z ${imgndir}/${type}.ctl.Z
-      if [[ ! -s ${imgndir}/${type}.ctl.Z ]]; then
+   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${COMPRESS_SUFF} ]]; then
+      $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${COMPRESS_SUFF} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+      if [[ ! -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
          $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
       fi
       allmissing=0
       found=1
 
-   elif [[ -s ${tankdir}/${type}.ctl.Z || -s ${tankdir}/${type}.ctl  ]]; then
+   elif [[ -s ${tankdir}/${type}.ctl.${COMPRESS_SUFF} || -s ${tankdir}/${type}.ctl  ]]; then
       $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
       allmissing=0
       found=1
@@ -51,6 +51,8 @@ for type in ${SATYPE}; do
    fi
 done
 
+# TESTING
+#export SATYPE="sndrd1_g15"
 
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the bcoef control
@@ -64,22 +66,27 @@ done
 start_date=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
-#   if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
-#     uncompress ${imgndir}/${type}.ctl.Z
-#   fi
+   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
+     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+   fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
-#   compress ${imgndir}/${type}.ctl
+   ${COMPRESS} ${imgndir}/${type}.ctl
 done
+
 
 
 #-------------------------------------------------------------------
 # submit plot job
 #
 
-rm $LOGDIR/plot_bcoef.log
-#$SUB -a $ACOUNT -e $listvar -j plot_${SUFFIX}_bcoef -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o $LOGDIR/plot_bcoef.log $SCRIPTS/plot_bcoef.sh
+jobname="plot_${SUFFIX}_bcoef"
+logfile="$LOGDIR/plot_bcoef.log"
+rm ${logfile}
 
-$QSUB -A ada -l procs=1,walltime=0:50:00 -v $listvar -o $LOGDIR/plot_bcoef.log -e $LOGDIR/plot_bcoef.err $SCRIPTS/plot_bcoef.sh 
-
+if [[ $MY_OS = "aix" ]]; then
+   $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o ${logfile} $SCRIPTS/plot_bcoef.sh
+else
+   $SUB -A $ACCOUNT -l procs=1,walltime=0:50:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
+fi
 
 exit

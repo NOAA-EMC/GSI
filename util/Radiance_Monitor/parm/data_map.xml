@@ -1,47 +1,52 @@
 <?xml version='1.0' standalone='yes'?>
 <opt>
-  <regional_default>
-    <mail_cc></mail_cc>
-    <prodate></prodate>
-    <imgdate></imgdate>
-    <area>rgn</area>
-    <run_envir>dev</run_envir>
-    <run_envir>dev</run_envir>
-    <account>RDAS-MTN</account>
-    <do_archive>0</do_archive>
-    <do_diag_rpt>0</do_diag_rpt>
-    <static_satype>0</static_satype>
-    <do_data_rpt>0</do_data_rpt>
-    <use_mail>0</use_mail>
-    <logfile_dir></logfile_dir>
-    <hpss_dir></hpss_dir>
-    <radstat_location>/com/nam/prod</radstat_location>
-    <anl>0</anl>
-    <user_class>dev</user_class>
-    <mail_to></mail_to>
-  </regional_default>
   <global_default>
-    <mail_cc></mail_cc>
-    <prodate></prodate>
-    <imgdate></imgdate>
-    <area>glb</area>
-    <run_envir>dev</run_envir>
-    <run_envir>dev</run_envir>
     <account>GDAS-MTN</account>
-    <do_archive>0</do_archive>
-    <do_diag_rpt>0</do_diag_rpt>
-    <static_satype>0</static_satype>
-    <do_data_rpt>0</do_data_rpt>
-    <use_mail>0</use_mail>
-    <logfile_dir></logfile_dir>
-    <hpss_dir></hpss_dir>
-    <radstat_location>/com/gfs/prod</radstat_location>
     <anl>0</anl>
-    <user_class>dev</user_class>
+    <area>glb</area>
+    <do_archive>0</do_archive>
+    <do_data_rpt>0</do_data_rpt>
+    <do_diag_rpt>0</do_diag_rpt>
+    <hpss_dir></hpss_dir>
+    <imgdate></imgdate>
+    <logfile_dir></logfile_dir>
+    <mail_cc></mail_cc>
     <mail_to></mail_to>
+    <prodate></prodate>
+    <radstat_location>/com/gfs/prod</radstat_location>
+    <run_envir>dev</run_envir>
+    <run_envir>dev</run_envir>
+    <static_satype>0</static_satype>
+    <use_mail>0</use_mail>
+    <user_class>dev</user_class>
+    <plot_all_regions>1</plot_all_regions>
   </global_default>
-  <opr>
-    <prodate>2012010118</prodate>
-    <radstat_location>/scratch2/portfolios/NCEPDEV/ptmp/Andrew.Collard/prHS_radstat</radstat_location>
-  </opr>
+  <regional_default>
+    <account>RDAS-MTN</account>
+    <anl>0</anl>
+    <area>rgn</area>
+    <do_archive>0</do_archive>
+    <do_data_rpt>0</do_data_rpt>
+    <do_diag_rpt>0</do_diag_rpt>
+    <hpss_dir></hpss_dir>
+    <imgdate></imgdate>
+    <logfile_dir></logfile_dir>
+    <mail_cc></mail_cc>
+    <mail_to></mail_to>
+    <prodate></prodate>
+    <radstat_location>/com/nam/prod</radstat_location>
+    <run_envir>dev</run_envir>
+    <run_envir>dev</run_envir>
+    <static_satype>0</static_satype>
+    <use_mail>0</use_mail>
+    <user_class>dev</user_class>
+  </regional_default>
+  <xyz>
+    <account>ada</account>
+    <area>glb</area>
+    <imgdate>2012010318</imgdate>
+    <prodate>2012010400</prodate>
+    <radstat_location>/scratch2/portfolios/NCEPDEV/global/save/${LOGNAME}/mydata</radstat_location>
+    <plot_all_regions>0</plot_all_regions>
+  </xyz>
 </opt>

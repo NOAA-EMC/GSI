@@ -149,7 +149,7 @@ if [[ $PLOT -eq 1 ]]; then
 
    export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
    export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+   export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
 
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
       PDY=`echo $PDATE|cut -c1-8`
@@ -204,7 +204,7 @@ if [[ $PLOT -eq 1 ]]; then
   #--------------------------------------------------------------------
   #   Set environment variables to export to subsequent scripts
 
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACOUNT,RADMON_DATA_EXTRACT,DATA_MAP,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,listvar
 
 
   #------------------------------------------------------------------
@@ -215,7 +215,7 @@ if [[ $PLOT -eq 1 ]]; then
      rm ${logfile}
 
      jobname=mk_plot_horiz_${SUFFIX}
-     ${SUB} -a ${ACOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+     ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
   fi
 
   ${SCRIPTS}/mk_angle_plots.sh

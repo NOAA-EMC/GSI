@@ -42,7 +42,8 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
       fi
 
       rm -f Makefile.conf
-      ln -s Makefile.conf.${my_os} Makefile.conf
+#      ln -s Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
       make ${mode}
@@ -62,7 +63,8 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
       fi
 
       rm -f Makefile.conf
-      ln -s Makefile.conf.${my_os} Makefile.conf
+#      ln -s Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
       make ${mode}
@@ -75,7 +77,8 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
 
    cd ${top_level}/nwprod/sorc/make_base.fd
    rm -f Makefile.conf
-   ln -s Makefile.conf.${my_os} Makefile.conf
+#   ln -s Makefile.conf.${my_os} Makefile.conf
+   ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
    make ${mode}  
    if [[ $mode = all ]]; then
       cp -f make_base ${top_level}/nwprod/exec/.
@@ -91,7 +94,8 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    echo "Making image_gen/src/glb:"
    for var in ${executables}; do
       rm -f Makefile.conf
-      ln -s Makefile.conf.${my_os} Makefile.conf
+#      ln -s Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
       make -f makefile.${var} ${mode}
@@ -102,7 +106,8 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    echo "Making image_gen/src/rgn:"
    for var in ${executables}; do
       rm -f Makefile.conf
-      ln -s Makefile.conf.${my_os} Makefile.conf
+#      ln -s Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
       make -f makefile.${var} ${mode}

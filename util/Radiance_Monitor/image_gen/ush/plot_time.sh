@@ -62,11 +62,8 @@ echo ctldir = $ctldir
 
 for type in ${SATYPE2}; do
    $NCP $ctldir/${type}*.ctl* ./
-   if [[ -s ./${type}.ctl.Z ]]; then
-      echo uncompressing ${type}.ctl.Z
-      uncompress ./${type}.ctl.Z
-   else
-      echo nothing to uncompress
+   if [[ -s ./${type}.ctl.${COMPRESS_SUFF} ]]; then
+      ${UNCOMPRESS} ./${type}.ctl.${COMPRESS_SUFF}
    fi
 
    cdate=$bdate
@@ -77,43 +74,42 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
+            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
          $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
       fi
 
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   uncompress ./*.ieee_d.Z
+   ${UNCOMPRESS} ./*.ieee_d.${COMPRESS_SUFF}
 
      for var in ${PTYPE}; do
      echo $var
       if [ "$var" =  'count' ]; then 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_time_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 elif [ "$var" =  'penalty' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_time_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 else
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_time_sep} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_time_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 fi
 echo ${tmpdir}/${type}_${var}.gs
-#      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done
 
 
@@ -142,9 +138,9 @@ cp -r *.png  ${IMGNDIR}/time
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 #--------------------------------------------------------------------
 # If this is the last time/summary plot job to finish then rm PLOT_WORK_DIR.

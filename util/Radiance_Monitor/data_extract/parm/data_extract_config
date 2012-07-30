@@ -19,9 +19,7 @@
   export SCRIPTS=${USHverf_rad} 
   export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
 
-#  export PTMP_USER=/ptmp/${LOGIN}
-  export PTMP_USER=$ptmp/${LOGIN}
-#  export STMP_USER=/stmp/${LOGIN}
-  export STMP_USER=$stmp/${LOGIN}
+  export PTMP_USER=$PTMP/${LOGIN}
+  export STMP_USER=$STMP/${LOGIN}
 
   echo "end data_extract_config"

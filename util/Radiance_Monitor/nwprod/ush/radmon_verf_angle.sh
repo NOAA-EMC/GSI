@@ -184,8 +184,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-#      timex ${angle_exec} < input >   ${stdout_file}
-      ./${angle_exec} < input >   ${stdout_file}
+      $TIMEX ${angle_exec} < input >   ${stdout_file}
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
@@ -195,19 +194,19 @@ EOF
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${angl_file}
          mv ${angl_file} $TANKverf_rad/.
-#         compress -f $TANKverf_rad/${angl_file}
+         ${COMPRESS} -f $TANKverf_rad/${angl_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${angl_ctl}
          mv ${angl_ctl}  ${TANKverf_rad}/.
-#         compress -f ${TANKverf_rad}/${angl_ctl}
+         ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
       fi 
 
       if [[ -s ${stdout_file} ]]; then
          mv ${stdout_file} ${angl_stdout}
          mv ${angl_stdout}  ${TANKverf_rad}/.
-#         compress -f ${TANKverf_rad}/${angl_stdout}
+         ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
       fi
 
 

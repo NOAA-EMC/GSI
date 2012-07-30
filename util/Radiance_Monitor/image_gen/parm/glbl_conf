@@ -17,7 +17,8 @@ export WEBDIR=${WEBDIR}/${SUFFIX}/pngs
 #
 # internal package reference
 #
-export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
+export TOP_IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
+export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}/pngs
 export TANKDIR=${MY_TANKDIR}/stats/${SUFFIX}
 
 

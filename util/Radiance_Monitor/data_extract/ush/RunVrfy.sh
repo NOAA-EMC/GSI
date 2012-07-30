@@ -113,9 +113,13 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   count=`ls ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
-   running=`expr $count - $complete`
+   if [[ $MY_OS = "aix" ]]; then
+      count=`ls ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
+      complete=`grep "COMPLETED" ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
+      running=`expr $count - $complete`
+   else
+      running=`qstat -u $LOGNAME | wc -l`
+   fi
 
    if [[ $running -ne 0 ]]; then
       #----------------------------------------------------

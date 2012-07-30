@@ -140,7 +140,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    export DATA=${WORKverf_rad}/radmon_regional
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
    export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
-   export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
+   export LOGDIR=$PTMP/$LOGNAME/logs/radnrx
    export USER_CLASS=dev
    export DO_DIAG_RPT=0
    export DO_DATA_RPT=0
@@ -158,7 +158,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
-   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
 
 fi
 

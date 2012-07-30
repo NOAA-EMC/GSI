@@ -217,7 +217,7 @@ contains
     use kinds, only: i_kind,r_kind
     use mpimod, only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
-    use ncepgfs_ghg, only: read_gfsco2
+    use ncepgfs_ghg, only: read_gfsco2,read_ch4n2oco
     use guess_grids, only: ges_ps,nfldsig,ntguessig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
@@ -233,15 +233,20 @@ contains
     integer(i_kind), intent(in):: idd
 
 !   Declare local variables
-    integer(i_kind) igfsco2,i,j,k,n,ier
+    integer(i_kind)            :: i,j,k,n,ier
+    integer(i_kind)            :: ico24crtm,ich44crtm,in2o4crtm,ico4crtm
+    character(len=3) :: char_ghg
     real(r_kind),dimension(lat2):: xlats
-    real(r_kind),dimension(lat2,lon2,nsig+1)::prsi
     real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
-    real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::p_ch4=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::p_n2o=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::p_co=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_co2=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_ch4=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_n2o=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)::ptr3d_co=>NULL()
 
     if(.not.associated(gsi_chemguess_bundle)) return
-    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
-    if(ier/=0) return
 
 !   Get subdomain latitude array
     j = mype + 1
@@ -249,28 +254,84 @@ contains
        n = min(max(1, istart(j)+i-2), nlat)
        xlats(i) = rlats(n)
     enddo
+!!NOTE: NEED TO CHANGE THIS BLOCK, THE CHECK AND READ OF TRACE GASES ARE HARDWIRED !!!!!!
+!!      WILL CHANGE THE CODE FOLLOWING WHAT I DID IN crtm_interface.f90            !!!!!!
 
-    call gsi_chemguess_get ( 'i4crtm::co2', igfsco2, ier )
-    call read_gfsco2 ( iyear,month,idd,igfsco2,xlats, &
+! check whether CO2 exist
+    call gsi_chemguess_get ( 'i4crtm::co2', ico24crtm, ier )
+    if(ier/=0) write(6,*) '$$$$$$no co2'
+    if (ico24crtm > 0 ) then
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
+       if(ier/=0) write(6,*) '$$$$$$no co2' 
+       call read_gfsco2 (iyear,month,idd,ico24crtm,xlats,&
                        lat2,lon2,nsig,mype,  &
                        p_co2 )
+! Approximation: assign three time slots (nfldsig) of ghg with same values
+       do n=2,nfldsig
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d_co2,ier)
+          ptr3d_co2 = p_co2
+       enddo
+       char_ghg='co2'
+! take comment out for printing out the interpolated tracer gas fields.
+!        call write_ghg_grid (ptr3d_co2,char_ghg,mype)
+    endif
 
-
-! Approximation: assign three time slots (nfldsig) of CO2 with same values 
-    do n=2,nfldsig
-       call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d,ier)
-       ptr3d = p_co2
-    enddo
-
-! For checking the co2 field read and interpolated in read_gfsco2, uncomment the next line
-!      call write_co2_grid (ptr3d,mype)
-
+! check whether CH4 data exist
+    call gsi_chemguess_get ( 'i4crtm::ch4', ich44crtm, ier )
+    if(ier/=0) write(6,*) '$$$$$$no ch4'
+    if (ich44crtm > 0 ) then
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'ch4',p_ch4,ier)
+       if(ier/=0) write(6,*) '$$$$$$no ch4'
+       char_ghg='ch4'
+       call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
+                       lat2,lon2,nsig,mype,  &
+                       p_ch4 )
+       do n=2,nfldsig
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'ch4',ptr3d_ch4,ier)
+          ptr3d_ch4 = p_ch4
+       enddo
+! take comment out for printing out the interpolated tracer gas fields.
+!         call write_ghg_grid (ptr3d_ch4,char_ghg,mype)
+    endif
+! check whether N2O data exist
+    call gsi_chemguess_get ( 'i4crtm::n2o', in2o4crtm, ier )
+    if(ier/=0) write(6,*) '$$$$$$no n2o'
+    if (in2o4crtm > 0 ) then
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'n2o',p_n2o,ier)
+       if(ier/=0) write(6,*) '$$$$$$no n2o'
+       char_ghg='n2o'
+       call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
+                       lat2,lon2,nsig,mype,  &
+                       p_n2o )
+       do n=2,nfldsig
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'n2o',ptr3d_n2o,ier)
+          ptr3d_n2o = p_n2o
+       enddo
+! take comment out for printing out the interpolated tracer gas fields.
+!        call write_ghg_grid (ptr3d_n2o,char_ghg,mype)
+    endif
+! check whether CO data exist
+    call gsi_chemguess_get ( 'i4crtm::co', ico4crtm, ier )
+    if(ier/=0) write(6,*) '$$$$$$no co'
+    if (ico4crtm > 0 ) then
+       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',p_co,ier)
+       if(ier/=0) write(6,*) '$$$$$$no co'
+       char_ghg='co'
+       call read_ch4n2oco ( iyear,month,idd,char_ghg,xlats,&
+                       lat2,lon2,nsig,mype,  &
+                       p_co )
+       do n=2,nfldsig
+          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co',ptr3d_co,ier)
+          ptr3d_co = p_co
+       enddo
+! take comment out for printing out the interpolated tracer gas fields.
+!        call write_ghg_grid (ptr3d_co,char_ghg,mype)
+    endif
   end subroutine read_gfs_chem
-!
-subroutine write_co2_grid(a,mype)
+subroutine write_ghg_grid(a,char_ghg,mype)
 !$$$  subroutine documentation block
 !
-! subprogram:    write_co2_grid
+! subprogram:    write_ghg_grid
 !
 !   prgrmmr:  yang: follow write_bkgvars_grid
 !
@@ -293,6 +354,7 @@ subroutine write_co2_grid(a,mype)
   integer(i_kind)                       ,intent(in   ) :: mype
 
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: a
+  character(len=3),intent(in) :: char_ghg
 
   character(255):: grdfile
 
@@ -305,9 +367,8 @@ subroutine write_co2_grid(a,mype)
   do k=1,nsig
      call gather_stuff2(a(1,1,k),ag(1,1,k),mype,0)
   end do
-
   if (mype==0) then
-     write(6,*) 'WRITE OUT CO2'
+     write(6,*) 'WRITE OUT INTERPOLATED',char_ghg
 ! load single precision arrays
      do k=1,nsig
         do j=1,nlon
@@ -318,16 +379,16 @@ subroutine write_co2_grid(a,mype)
      end do
 
 ! Create byte-addressable binary file for grads
-     grdfile='climco2_grd'
+     grdfile=trim(char_ghg)//'clim_grd'
      ncfggg=len_trim(grdfile)
      lu=get_lun()
      call baopenwt(lu,grdfile(1:ncfggg),iret)
      call wryte(lu,4*nlat*nlon*nsig,a4)
      call baclose(lu,iret)
   end if
-   
+
   return
-end subroutine write_co2_grid
+end subroutine write_ghg_grid
 
   subroutine read_sigma(lunges,filename,gfshead,sigdata,iope,mype,iret)
 !$$$  subprogram documentation block

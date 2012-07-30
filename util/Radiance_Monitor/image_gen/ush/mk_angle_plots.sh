@@ -12,9 +12,8 @@
 
 set -ax
 date
-export list=$listvar
+#export list=$listvar
 
-echo ${LOADLQ}
 imgndir=${IMGNDIR}/angle
 tankdir=${TANKDIR}/angle
 
@@ -32,19 +31,19 @@ PDY=`echo $PDATE|cut -c1-8`
 for type in ${SATYPE}; do
    found=0
 
-   if [[ -s ${imgndir}/${type}.ctl.Z || -s ${imgndir}/${type}.ctl ]]; then
+   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl.Z ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl.Z ${imgndir}/${type}.ctl.Z
-      if [[ ! -s ${imgndir}/${type}.ctl.Z ]]; then
+   elif [[ -s ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl.${COMPRESS_SUFF} ]]; then
+      $NCP ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl.${COMPRESS_SUFF} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+      if [[ ! -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
          $NCP ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl ${imgndir}/${type}.ctl
       fi
       allmissing=0
       found=1
 
-   elif [[ -s ${tankdir}/${type}.ctl.Z || -s ${tankdir}/${type}.ctl  ]]; then
+   elif [[ -s ${tankdir}/${type}.ctl.${COMPRESS_SUFF} || -s ${tankdir}/${type}.ctl  ]]; then
       $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
       allmissing=0
       found=1
@@ -59,6 +58,9 @@ if [[ $allmissing = 1 ]]; then
    exit
 fi
 
+# TESTING
+#export SATYPE="iasi_metop-a sndrd1_g15 sndrd2_g15"
+#export SATYPE="sndrd1_g15"
 
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the angle control 
@@ -66,12 +68,24 @@ fi
 
 thirtydays=`$NDATE -720 $PDATE`
 for type in ${SATYPE}; do
-   if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
-     uncompress ${imgndir}/${type}.ctl.Z
+   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
+     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${thirtydays}
-   compress ${imgndir}/${type}.ctl
+
 done
+
+
+for sat in ${SATYPE}; do
+   nchanl=`cat ${imgndir}/${sat}.ctl | awk '/title/{print $NF}'`
+   if [[ $nchanl -ge 100 ]]; then
+      bigSATLIST=" $sat $bigSATLIST "
+   else         
+      SATLIST=" $sat $SATLIST "
+   fi
+done
+
+${COMPRESS} ${imgndir}/*.ctl
 
 
 #-------------------------------------------------------------------
@@ -87,141 +101,118 @@ done
 
 
   #-----------------------------------------------------------------
-  #  extract airs_aqua and iasi_metop-a from SATYPE for separate submissions.
+  # Loop over satellite types.  Submit job to make plots.
   #
-  use_airs_aqua=0
-  use_iasi_metop=0
+set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
 
-  for sat in ${SATYPE}; do
-    if [[ $sat = "airs_aqua" ]]; then
-      use_airs_aqua=1
-    elif [[ $sat = "iasi_metop-a" ]]; then
-      use_iasi_metop=1
-    else
-      SATYPE3="$sat $SATYPE3"
-    fi
-  done 
+  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
+  if [[ $MY_OS = "aix" ]]; then	    # CCS/aix platform
+     suffix=a
+     cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+     jobname=plot_${SUFFIX}_ang_${suffix}
+     logfile=$LOGDIR/plot_angle_${suffix}.log
 
-  #-----------------------------------------------------------------
-  # Loop over satellite types.  Submit poe job to make plots.
-  #
-  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,listvars
-  list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
-  suffix=a
-  cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-  jobname=plot_${SUFFIX}_angle_${suffix}
+     rm -f $cmdfile
+     rm -f $logfile
 
-  rm -f $cmdfile
-
-  rm $LOGDIR/plot_angle_${suffix}.log
+     rm $LOGDIR/plot_angle_${suffix}.log
 >$cmdfile
-  for type in ${SATYPE3}; do
-    echo "$SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
-  done
+     for type in ${SATLIST}; do
+       echo "$SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
+     done
 
-  ntasks=`cat $cmdfile|wc -l `
-  ((nprocs=(ntasks+1)/2))
+     ntasks=`cat $cmdfile|wc -l `
 
-#  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+     $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
-$QSUB -A ada -l procs=${nprocs},walltime=0:50:00 -v $listvar -o $LOGDIR/plot_angle_${suffix}.log -e $LOGDIR/plot_angle_${suffix}.err ${cmdfile}
+  else				# Zeus/linux platform
+     list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
+     for sat in ${SATLIST}; do
+        suffix=${sat} 
+        cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+        jobname=plot_${SUFFIX}_ang_${suffix}
+        logfile=${LOGDIR}/plot_angle_${suffix}.log
 
-  #----------------------------------------------------------------------------
-  #  airs_aqua
-  #   
-  #    There is so much airs data that we submit a job for each type of 
-  #    plot to make.
-  #   
-  #    Submit these jobs if airs_aqua was included in the $SATYPE list.
-  #    The $use_airs_aqua var is the flag for this condition.
-  #
+        rm -f $cmdfile
+        rm -f $logfile
 
-  if [[ $use_airs_aqua -eq 1 ]]; then
+        echo "$SCRIPTS/plot_angle.sh $sat $suffix '$list'" >> $cmdfile
 
-    SATYPE3="airs_aqua"
-    set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
+        if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
+           wall_tm="0:30:00"
+        else
+           wall_tm="0:40:00"
+        fi
 
-    ii=0
-    batch=1
-    suffix="airs_${batch}"
-    cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-    jobname=plot_${SUFFIX}_angle_${suffix}
-    rm -f $cmdfile
-
-    while [[ $ii -le ${#list[@]}-1 ]]; do
-
-       echo "$SCRIPTS/plot_angle.sh $SATYPE3 $suffix ${list[$ii]}" >> $cmdfile
-       (( test=ii+1 ))
-       (( test=test%3 ))
-
-       if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
-          ntasks=`cat $cmdfile|wc -l `
-          ((nprocs=(ntasks+1)/2))
-
-#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-##          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-
-$QSUB -A ada -l procs=${nprocs},walltime=0:40:00 -v $listvar -o $LOGDIR/plot_angle_${suffix}.log -e $LOGDIR/plot_angle_${suffix}.err ${cmdfile}
-
-          (( batch=batch+1 ))
-          suffix="airs_${batch}"
-          cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-          jobname=plot_${SUFFIX}_angle_${suffix}
-          rm -f $cmdfile
-       fi
-       (( ii=ii+1 ))
-
-    done
-
+        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} ${cmdfile}
+     done
   fi
 
 
+
   #----------------------------------------------------------------------------
-  #  iasi_metop-a
-  #
-  #    There is so much iasi data that we submit a job for each 
-  #    type of plot to make.
-  #
-  #    Submit these jobs if iasi_metop-a was included in $SATYPE list.
-  #    The $use_iasi_metop var is the flag for this condition.
-  #
+  #  bigSATLIST
+  #   
+  #    There is so much data for some sat/instrument sources that a separate 
+  #    job for each is necessary.
+  #   
 
-  if [[ $use_iasi_metop -eq 1 ]]; then
-    SATYPE3="iasi_metop-a"
-    set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
+echo starting $bigSATLIST
+set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
 
-    ii=0
-    batch=1
-    suffix="iasi_metop_${batch}"
-    cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-    jobname=plot_${SUFFIX}_angle_${suffix}
-    rm -f $cmdfile
+for sat in ${bigSATLIST}; do
+   echo processign $sat in $bigSATLIST
 
-    while [[ $ii -le ${#list[@]}-1 ]]; do
+   if [[ $MY_OS = "aix" ]]; then 	# CCS/aix, submit 4 job for each $sat
+      batch=1
+      echo "test aix"
 
-       echo "$SCRIPTS/plot_angle.sh $SATYPE3 $suffix ${list[$ii]}" >> $cmdfile
-       (( test=ii+1 ))
-       (( test=test%3 ))
+      while [[ $ii -le ${#list[@]}-1 ]]; do
+         suffix="${sat}_${batch}"
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+         jobname=plot_${SUFFIX}_ang_${suffix}
+         logfile=${LOGDIR}/plot_angle_${suffix}.log
 
-       if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
-          ntasks=`cat $cmdfile|wc -l `
-          ((nprocs=(ntasks+1)/2))
+         echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+         (( test=ii+1 ))
+         (( test=test%3 ))
 
-#          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-##          $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_angle_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+         if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
+            ntasks=`cat $cmdfile|wc -l `
+#           ((nprocs=(ntasks+1)/2))
 
-$QSUB -A ada -l procs=${nprocs},walltime=0:40:00 -v $listvar -o $LOGDIR/plot_angle_${suffix}.log -e $LOGDIR/plot_angle_${suffix}.err ${cmdfile}
+            $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
-          (( batch=batch+1 ))
-          suffix="iasi_metop_${batch}"
-          cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-          jobname=plot_${SUFFIX}_angle_${suffix}
-          rm -f $cmdfile
-       fi
-       (( ii=ii+1 ))
+            (( batch=batch+1 ))
+         fi
+         (( ii=ii+1 ))
+      done
 
-    done
-  fi
+   else					# Zeus/Linux, submit 1 job for each sat/list item
+      ii=0
+      suffix="${sat}"
+
+      while [[ $ii -le ${#list[@]}-1 ]]; do
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}_${list[$ii]}
+         logfile=${LOGDIR}/plot_angle_${suffix}_${list[$ii]}.log
+         jobname=plot_${SUFFIX}_ang_${suffix}_${list[$ii]}
+
+         echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+
+         if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
+            wall_tm="0:40:00"
+         else
+            wall_tm="2:00:00"
+         fi
+
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
+
+         (( ii=ii+1 ))
+      done
+   fi
+
+done
+
 
 exit

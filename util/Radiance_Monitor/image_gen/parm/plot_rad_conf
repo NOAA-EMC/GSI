@@ -13,10 +13,8 @@
 # Internal reference definitions.  These should not
 # be edited. 
 #
-#export PTMP_USER=/ptmp/${USER}
-export PTMP_USER=${ptmp}/${USER}
-#export STMP_USER=/stmp/${USER}
-export STMP_USER=${stmp}/${USER}
+export PTMP_USER=${PTMP}/${USER}
+export STMP_USER=${STMP}/${USER}
 
 export SCRIPTS=${RADMON_IMAGE_GEN}/ush
 export PARM=${RADMON_IMAGE_GEN}/parm
@@ -27,6 +25,11 @@ export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
 export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
 export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
 
-export STNMAP=/usrx/local/grads/bin/stnmap
-#export GRADS=/usrx/local/grads/bin/grads
-export GRADS=/apps/grads/2.0.1a/bin/grads
+if [[ $MY_OS = "aix" ]]; then
+   export GRADS=/usrx/local/grads/bin/grads
+   export STNMAP=/usrx/local/grads/bin/stnmap
+else
+   export GRADS=/apps/grads/2.0.1a/bin/grads
+   export STNMAP=/apps/grads/2.0.1a/bin/stnmap
+fi
+

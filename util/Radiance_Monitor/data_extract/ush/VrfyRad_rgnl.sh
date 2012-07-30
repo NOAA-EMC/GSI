@@ -105,7 +105,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    # Get and export settings for $SUFFIX.
    #--------------------------------------------------------------------
    export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+   export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
    export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
    export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
    export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
@@ -196,7 +196,11 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
-   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/data_extract.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   if [[ $MY_OS = "aix" ]]; then
+      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/data_extract.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   else
+      $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvars -j oe -o $LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
+   fi
 
    rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
    if [[ $rc != 0 ]]; then

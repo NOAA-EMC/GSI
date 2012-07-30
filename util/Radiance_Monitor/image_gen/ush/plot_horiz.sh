@@ -42,11 +42,6 @@ ln -s ${DATADIR}/${SAT}.* ${tmpdir}/.
 #  Loop over satellite types.  Submit plot job for each type.
 
 $NCP ${GSCRIPTS}/cbarnew.gs ./
-#STNMAP="/usrx/local/grads/bin/stnmap"
-STNMAP="/apps/grads/2.0.1a/bin/stnmap"
-#GRADS="/usrx/local/grads/bin/grads"
-
-
 $STNMAP -i ${SAT}.ctl
 
 for var in ${PTYPE}; do
@@ -64,8 +59,8 @@ cat << EOF > ${cmdfile}
 ${GRADS} -blc run ${SAT}_${var}.gs
 EOF
 
-#   timex $GRADS -blc "run ${SAT}_${var}.gs"
-   $GRADS -blc "run ${SAT}_${var}.gs"
+   $TIMEX $GRADS -blc "run ${SAT}_${var}.gs"
+#   $GRADS -blc "run ${SAT}_${var}.gs"
 done
 
 

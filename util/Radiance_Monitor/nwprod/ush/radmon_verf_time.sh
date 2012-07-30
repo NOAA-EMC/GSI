@@ -184,7 +184,7 @@ fi
 
 if [[ $DO_DATA_RPT -eq 1 ]]; then
    $NCP ${base_file}* ./
-   uncompress ${base_file}.Z
+   ${UNCOMPRESS} ${base_file}.${COMPRESS_SUFF}
    tar -xf ${base_file}
    if [[ ! -s ${base_file} ]]; then
       err=9
@@ -232,8 +232,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-#        timex ./${time_exec} < input >   ${stdout_file}
-        ./${time_exec} < input >   ${stdout_file}
+        $TIMEX ./${time_exec} < input >   ${stdout_file}
         if [[ $? -ne 0 ]]; then
             fail=`expr $fail + 1`
         fi
@@ -245,19 +244,19 @@ EOF
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${time_file}
             mv ${time_file} $TANKverf_rad/.
-#            compress -f $TANKverf_rad/${time_file}
+            ${COMPRESS} -f $TANKverf_rad/${time_file}
          fi
 
          if [[ -s ${ctl_file} ]]; then
             $NCP ${ctl_file} ${time_ctl}
             mv ${time_ctl}  ${TANKverf_rad}/.
-#            compress -f ${TANKverf_rad}/${time_ctl}
+            ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
          fi
 
          if [[ -s ${stdout_file} ]]; then
             $NCP ${stdout_file} ${time_stdout}
             mv ${time_stdout}  ${TANKverf_rad}/.
-#            compress -f ${TANKverf_rad}/${time_stdout}
+            ${COMPRESS} -f ${TANKverf_rad}/${time_stdout}
          fi
 
       done

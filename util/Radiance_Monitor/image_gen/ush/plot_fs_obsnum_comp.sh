@@ -141,7 +141,7 @@ cat << EOF > ${workdir}/${plotscript}
 EOF
    fi
 
-   timex $GRADS -bpc "run ${workdir}/${plotscript}"
+   $TIMEX $GRADS -bpc "run ${workdir}/${plotscript}"
 
    #------------------------------------------------------------------
    #  copy to web server

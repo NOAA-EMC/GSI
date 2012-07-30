@@ -178,7 +178,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-#      timex ./${bcor_exec} < input >   stdout.$type
+      $TIMEX ./${bcor_exec} < input >   stdout.$type
       ./${bcor_exec} < input >   stdout.$type
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
@@ -192,19 +192,19 @@ EOF
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${bcor_file}
          mv ${bcor_file} $TANKverf_rad/.
-         compress -f $TANKverf_rad/${bcor_file}
+         ${COMPRESS} -f $TANKverf_rad/${bcor_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${bcor_ctl}
          mv ${bcor_ctl}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${bcor_ctl}
+         ${COMPRESS} -f ${TANKverf_rad}/${bcor_ctl}
       fi
 
       if [[ -s ${stdout_file} ]]; then
          mv ${stdout_file} ${bcor_stdout}
          mv ${bcor_stdout}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${bcor_stdout}
+         ${COMPRESS} -f ${TANKverf_rad}/${bcor_stdout}
       fi
 
    done

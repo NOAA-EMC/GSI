@@ -9,10 +9,12 @@ function plottime (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+plot_all_regions=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
 platform=plotfile
 
+say 'plot_all_Regions = 'plot_all_regions
 
 say 'process 'field' from 'plotfile
 *'open amsua.016.ctl'
@@ -61,7 +63,14 @@ endif
 lin1=sublin(result,1)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
+*
+*  If plot_all_regions is 0 (false) then set to plot region 1 (global) only
+*
 nregion=subwrd(lin5,9)
+
+if (plot_all_regions = 0)
+   nregion=1
+endif
 
 '!rm -f xsize.txt'
 '!cat 'plotfile'.ctl |grep "xdef" > xsize.txt'

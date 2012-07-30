@@ -181,7 +181,7 @@ cat << EOF > input
  /
 EOF
 
-   timex make_base < input > stdout.${type}.base
+   $TIMEX make_base < input > stdout.${type}.base
 
    #-------------------------------------------------------------------
    #  Copy base file back to $tmpdir 

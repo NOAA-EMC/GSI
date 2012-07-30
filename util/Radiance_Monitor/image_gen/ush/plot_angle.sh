@@ -12,16 +12,18 @@ export list=$listvars
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
-GRADS=/apps/grads/2.0.1a/bin/grads
 
 plot_angle_count=plot_angle_count.${RAD_AREA}.gs
 plot_angle_sep=plot_angle_sep.${RAD_AREA}.gs
 
 
 #------------------------------------------------------------------
-# Set environment variables.
+# Create $tmpdir.
 
-if [[ "$SATYPE2" = 'airs_aqua' || "$SATYPE2" = 'iasi_metop-a' ]]; then
+word_count=`echo $PTYPE | wc -w`
+echo word_count = $word_count
+
+if [[ $word_count -le 1 ]]; then
    tmpdir=${PLOT_WORK_DIR}/plot_angle_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}.${PTYPE}
 else
    tmpdir=${PLOT_WORK_DIR}/plot_angle_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
@@ -58,8 +60,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
   $NCP $ctldir/${type}.ctl* ./
 done
-#uncompress *.ctl.Z
-#gunzip *.ctl.Z
+${UNCOMPRESS} *.ctl.${COMPRESS_SUFF}
 
 
 #--------------------------------------------------------------------
@@ -80,11 +81,11 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
+            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
          $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
       fi
      
@@ -92,7 +93,7 @@ for type in ${SATYPE2}; do
       cdate=$adate
 
    done
-#   uncompress $tmpdir/*.ieee_d.Z
+   ${UNCOMPRESS} $tmpdir/*.ieee_d.${COMPRESS_SUFF}
 
    for var in ${PTYPE}; do
       echo $var
@@ -100,7 +101,7 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 
@@ -108,7 +109,7 @@ EOF
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 
@@ -116,13 +117,12 @@ EOF
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_sep} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
       fi
 
-#      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
-      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
    rm -f ${type}*.ieee_d
@@ -139,18 +139,18 @@ if [[ ! -d ${IMGNDIR}/angle ]]; then
 fi
 cp -r *.png  ${IMGNDIR}/angle
 
-#for var in ${PTYPE}; do
-#   rm -f ${type}.${var}*.png
-#done
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
+done
 
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------

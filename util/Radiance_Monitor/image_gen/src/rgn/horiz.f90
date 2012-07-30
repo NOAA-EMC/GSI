@@ -35,7 +35,9 @@ program horiz
 ! Namelist with defaults
   logical               :: retrieval            = .false.
   integer               :: nchanl               = 19
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,suffix,retrieval
+  integer               :: little_endian        = 1
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
+            suffix,retrieval,little_endian
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -125,7 +127,7 @@ program horiz
   write(6,*)'iyy, imm, idd, ihh, idhh = ', iyy, imm, idd, ihh, idhh
   call create_ctl_horiz(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,incr,&
        ctl_file,lunctl,rmiss,satname,io_chan,nu_chan,frequency,&
-       wavenumbr,error,iuse,satype,dplat)
+       wavenumbr,error,iuse,satype,dplat,little_endian)
 
 ! Loop to read entries in diagnostic file
   iflag = 0

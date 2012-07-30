@@ -14,6 +14,11 @@ set -ax
 date
 export list=$listvar
 
+#
+# testing
+#export SATYPE="iasi_metop-a"
+#export SATYPE="sndrd1_g15"
+
 imgndir=${IMGNDIR}/bcor
 tankdir=${TANKDIR}/bcor
 
@@ -32,19 +37,19 @@ PDY=`echo $PDATE|cut -c1-8`
 for type in ${SATYPE}; do
    found=0
 
-   if [[ -s ${imgndir}/${type}.ctl.Z || -s ${imgndir}/${type}.ctl ]]; then
+   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.Z ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.Z ${imgndir}/${type}.ctl.Z
-      if [[ ! -s ${imgndir}/${type}.ctl.Z ]]; then
+   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${COMPRESS_SUFF} ]]; then
+      $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${COMPRESS_SUFF} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+      if [[ ! -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
          $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl ${imgndir}/${type}.ctl
       fi
       allmissing=0
       found=1
 
-   elif [[ -s ${tankdir}/${type}.ctl.Z || -s ${tankdir}/${type}.ctl  ]]; then
+   elif [[ -s ${tankdir}/${type}.ctl.${COMPRESS_SUFF} || -s ${tankdir}/${type}.ctl  ]]; then
       $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
       allmissing=0
       found=1
@@ -72,12 +77,22 @@ fi
 start_date=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
-   if [[ -s ${imgndir}/${type}.ctl.Z ]]; then
-     uncompress ${imgndir}/${type}.ctl.Z
+   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
+     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
-   compress ${imgndir}/${type}.ctl
 done
+
+for sat in ${SATYPE}; do
+   nchanl=`cat ${imgndir}/${sat}.ctl | awk '/title/{print $NF}'`
+   if [[ $nchanl -ge 100 ]]; then
+      bigSATLIST=" $sat $bigSATLIST "      
+   else         
+      SATLIST=" $sat $SATLIST "
+   fi
+done
+
+${COMPRESS} ${imgndir}/*.ctl
 
 
 #------------------------------------------------------------------
@@ -95,60 +110,13 @@ done
 
 
   #-------------------------------------------------------------------------
-  #  extract airs_aqua from SATYPE for separate submission
-  #
-  use_airs_aqua=0
+  # Loop over satellite/instruments.  Submit poe job to make plots.  Each task handles
+  # a single satellite/insrument.
 
-  for sat in ${SATYPE}; do
-    if [[ $sat = "airs_aqua" ]]; then
-      use_airs_aqua=1
-    else
-      SATYPE3="$sat $SATYPE3"
-    fi
-  done
+  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
-
-  #-------------------------------------------------------------------------
-  # Loop over satellite types.  Submit poe job to make plots.  Each task handles
-  # a single satellite type
-
-  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,listvars
-  suffix=a
-  cmdfile=cmdfile_pbcor_${suffix}
-  jobname=plot_${SUFFIX}_bcor_${suffix}
-
-  rm -f $cmdfile
-  rm $LOGDIR/plot_bcor_${suffix}.log
-
->$cmdfile
-  for type in ${SATYPE3}; do
-     echo "$SCRIPTS/plot_bcor.sh $type $suffix '$plot_list'" >> $cmdfile
-  done
-
-  ntasks=`cat $cmdfile|wc -l `
-  ((nprocs=(ntasks+1)/2))
-  echo $nprocs
-
-#  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-##  $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-
-$QSUB -A ada -l procs=$nprocs,walltime=1:00:00 -v $listvars -o $LOGDIR/plot_bcor_${suffix}.log -e $LOGDIR/plot_bcor_${suffix}.err $cmdfile
-
-
-  #--------------------------------------------------------------------------
-  #  airs_aqua
-  #  
-  #    There is so much airs data that we submit a separate poe 
-  #    job to handle each plot type for the airs data.
-  #
-  #    Submit these jobs if airs_aqua was included in $SATYPE list.
-  #    The $use_airs_aqua var is the flag for this condition.
-  #
-  #--------------------------------------------------------------------------
-  if [[ $use_airs_aqua -eq 1 ]]; then
-
-     SATYPE3="airs_aqua"
-     suffix=airs
+  if [[ $MY_OS = "aix" ]]; then		#CCS/aix
+     suffix=a
      cmdfile=cmdfile_pbcor_${suffix}
      jobname=plot_${SUFFIX}_bcor_${suffix}
 
@@ -156,19 +124,85 @@ $QSUB -A ada -l procs=$nprocs,walltime=1:00:00 -v $listvars -o $LOGDIR/plot_bcor
      rm $LOGDIR/plot_bcor_${suffix}.log
 
 >$cmdfile
-     for type in ${SATYPE3}; do 
-        for var in $plot_list; do
-           echo "$SCRIPTS/plot_bcor.sh $type $var $var" >> $cmdfile
-        done
+     for sat in ${SATLIST}; do
+        echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
      done
+
      ntasks=`cat $cmdfile|wc -l `
      ((nprocs=(ntasks+1)/2))
 
-#     $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-##     $SUB -a $ACOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $nprocs/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-$QSUB -A ada -l procs=$nprocs,walltime=0:50:00 -v $listvars -o $LOGDIR/plot_bcor_${suffix}.log -e $LOGDIR/plot_bcor_${suffix}.err $cmdfile
-  fi
+     $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o $LOGDIR/plot_bcor_${suffix}.log -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
+  else					#Zeus/linux
+     for sat in ${SATLIST}; do
+        suffix=${sat}
+        cmdfile=cmdfile_pbcor_${sat}
+        jobname=plot_${SUFFIX}_bcor_${sat}
+        logfile=${LOGDIR}/plot_bcor_${sat}.log
+
+        rm -f $cmdfile
+        rm -f $logfile
+
+        echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
+
+        if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
+           wall_tm="0:20:00"
+        else
+           wall_tm="0:40:00"
+        fi
+
+        $SUB -A $ACCOUNT -l procs=${ntasks},walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+     done
   fi
 
+  #--------------------------------------------------------------------------
+  #  bigSATLIST
+  #  
+  #    Some satellite/instrument sources have so many channels that a separate
+  #    job to handle each plot type is the fastest solution.
+  #
+  #--------------------------------------------------------------------------
+  for sat in ${bigSATLIST}; do
+     suffix=$sat
+
+     if [[ $MY_OS = "aix" ]]; then		# CCS/aix
+
+        cmdfile=cmdfile_pbcor_${suffix}
+        jobname=plot_${SUFFIX}_bcor_${suffix}
+        logfile=${LOGDIR}_bcor_${suffix}.log
+
+        rm -f $cmdfile
+        rm ${logfile}
+
+>$cmdfile
+        for var in $plot_list; do
+           echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+        done
+        ntasks=`cat $cmdfile|wc -l `
+#        ((nprocs=(ntasks+1)/2))
+
+        $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+
+     else					# zeus/linux
+        for var in $plot_list; do
+           cmdfile=cmdfile_pbcor_${suffix}_${var}
+           jobname=plot_${SUFFIX}_bcor_${suffix}_${var}
+           logfile=${LOGDIR}_bcor_${suffix}_${var}.log
+
+           rm -f ${cmdfile}
+           rm -f ${logfile}
+
+           echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+           if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then            
+              wall_tm="0:20:00"
+           else
+              wall_tm="0:50:00"
+           fi
+
+           $SUB -A $ACCOUNT -l procs=${ntasks},walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+
+        done
+     fi
+  done
 
 exit
