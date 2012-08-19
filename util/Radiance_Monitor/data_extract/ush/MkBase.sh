@@ -115,9 +115,9 @@ else
          SATYPE_LIST="$SATYPE_LIST $tmp"
       done
    fi
+   SATYPE=$SATYPE_LIST
 fi
 
-SATYPE=$SATYPE_LIST
 echo $SATYPE
 
 
