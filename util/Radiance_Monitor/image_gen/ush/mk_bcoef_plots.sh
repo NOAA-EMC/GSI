@@ -29,19 +29,19 @@ PDY=`echo $PDATE|cut -c1-8`
 for type in ${SATYPE}; do
    found=0
 
-   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} || -s ${imgndir}/${type}.ctl ]]; then
+   if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${COMPRESS_SUFF} ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${COMPRESS_SUFF} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
-      if [[ ! -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
+   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${Z} ]]; then
+      $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${PDY}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
       fi
       allmissing=0
       found=1
 
-   elif [[ -s ${tankdir}/${type}.ctl.${COMPRESS_SUFF} || -s ${tankdir}/${type}.ctl  ]]; then
+   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
       $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
       allmissing=0
       found=1
@@ -66,8 +66,8 @@ done
 start_date=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
-   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
-     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+   if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
+     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
    ${COMPRESS} ${imgndir}/${type}.ctl

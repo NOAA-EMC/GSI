@@ -251,8 +251,8 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    # Rename the diag files and uncompress
    #------------------------------------------------------------------
    for type in ${SATYPE}; do
-      mv diag_${type}_ges.${PDATE}.${COMPRESS_SUFF} ${type}.${COMPRESS_SUFF}
-      ${UNCOMPRESS} ./${type}.${COMPRESS_SUFF}
+      mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
+      ${UNCOMPRESS} ./${type}.${Z}
    done
 
 

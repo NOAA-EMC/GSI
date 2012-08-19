@@ -7,7 +7,7 @@
 #------------------------------------------------------------------
 
 set -ax
-export list=$listvars
+export list=$listvar
 
 SATYPE2=$1
 PVAR=$2
@@ -60,7 +60,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
   $NCP $ctldir/${type}.ctl* ./
 done
-${UNCOMPRESS} *.ctl.${COMPRESS_SUFF}
+${UNCOMPRESS} *.ctl.${Z}
 
 
 #--------------------------------------------------------------------
@@ -81,11 +81,11 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
-            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
       fi
      
@@ -93,7 +93,7 @@ for type in ${SATYPE2}; do
       cdate=$adate
 
    done
-   ${UNCOMPRESS} $tmpdir/*.ieee_d.${COMPRESS_SUFF}
+   ${UNCOMPRESS} $tmpdir/*.ieee_d.${Z}
 
    for var in ${PTYPE}; do
       echo $var
@@ -125,8 +125,8 @@ EOF
       $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-   rm -f ${type}*.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}*.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -137,20 +137,20 @@ done
 if [[ ! -d ${IMGNDIR}/angle ]]; then
    mkdir -p ${IMGNDIR}/angle
 fi
-cp -r *.png  ${IMGNDIR}/angle
+$NCP *.png  ${IMGNDIR}/angle/.
 
-for var in ${PTYPE}; do
-   rm -f ${type}.${var}*.png
-done
+#for var in ${PTYPE}; do
+#   rm -f ${type}.${var}*.png
+#done
 
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------

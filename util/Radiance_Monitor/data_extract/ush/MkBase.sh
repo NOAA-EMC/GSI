@@ -59,7 +59,7 @@ fi
 echo DATA_MAP = $DATA_MAP
 
 #area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
-area=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 echo $area
 
 if [[ $area = glb ]]; then
@@ -74,9 +74,8 @@ fi
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-#EDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
-EDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-EDATE=2012032000
+EDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+#EDATE=2012032000
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
@@ -92,9 +91,39 @@ mkdir -p $tmpdir
 cd $tmpdir
 
 #-------------------------------------------------------------------
+#  Find or build $SATYPE list for this data source
+#-------------------------------------------------------------------
+if [[ -e ${TANKDIR}/info/SATYPE.txt ]]; then
+   SATYPE=`cat ${TANKDIR}/info/SATYPE.txt`
+else
+   PDY=`echo $EDATE|cut -c1-8`
+
+   if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
+      test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${EDATE}.ieee_d*`
+      for test in ${test_list}; do
+         this_file=`basename $test`
+         tmp=`echo "$this_file" | cut -d. -f2`
+         echo $tmp
+         SATYPE_LIST="$SATYPE_LIST $tmp"
+      done
+   else
+      test_list=`ls ${TANKDIR}/angle/*.${EDATE}.ieee_d*`
+      for test in ${test_list}; do
+         this_file=`basename $test`
+         tmp=`echo "$this_file" | cut -d. -f1`
+         echo $tmp
+         SATYPE_LIST="$SATYPE_LIST $tmp"
+      done
+   fi
+fi
+
+SATYPE=$SATYPE_LIST
+echo $SATYPE
+
+
+#-------------------------------------------------------------------
 #  Loop over $SATYPE and build base files for each
 #-------------------------------------------------------------------
-SATYPE=`cat ${TANKDIR}/info/SATYPE.txt`
 for type in ${SATYPE}; do
 
    #-------------------------------------------------------------------
@@ -125,11 +154,11 @@ for type in ${SATYPE}; do
          test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
       fi
 
@@ -143,13 +172,13 @@ for type in ${SATYPE}; do
  
    if [[ -s ${test_file} ]]; then
       $NCP $TANKDIR/radmon.${day}/time.${type}.ctl ${type}.ctl
-   elif [[ -s ${test_file}.Z ]]; then
-      $NCP $TANKDIR/radmon.${day}/time.${type}.ctl.Z ${type}.ctl.Z
+   elif [[ -s ${test_file}.${Z} ]]; then
+      $NCP $TANKDIR/radmon.${day}/time.${type}.ctl.${Z} ${type}.ctl.${Z}
    else
       $NCP $TANKDIR/time/${type}.ctl* ./
    fi
 
-   uncompress *.Z
+   ${UNCOMPRESS} *.${Z}
 
    #-------------------------------------------------------------------
    #  Get the number of channels for this $type
@@ -204,9 +233,12 @@ done
 cd $tmpdir
 basefile=radmon_base.tar
 tar -cvf ${basefile} *.base
-compress ${basefile}
+${COMPRESS} ${basefile}
 
-$NCP ${basefile}.Z ${TANKDIR}/info/.
+if [[ ! -d ${TANKDIR}/info ]]; then
+   mkdir -p ${TANKDIR}/info
+fi
+$NCP ${basefile}.${Z} ${TANKDIR}/info/.
 
 #-------------------------------------------------------------------
 #  Clean up $tmpdir

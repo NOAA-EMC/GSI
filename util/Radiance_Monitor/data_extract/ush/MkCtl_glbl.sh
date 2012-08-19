@@ -57,7 +57,6 @@ fi
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-#area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
 area=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 echo $area
 
@@ -86,7 +85,7 @@ export RUN_ENVIR=dev
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
 PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-export DATDIR=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
    
 ctr=0
 need_radstat=1
@@ -111,7 +110,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
       export radstat=$DATDIR/radstat.gdas.${PDATE}
       need_radstat=0
    else
-      export PDATE=`ndate -06 $PDATE`
+      export PDATE=`$NDATE -06 $PDATE`
       ctr=$(( $ctr + 1 ))
    fi
 done

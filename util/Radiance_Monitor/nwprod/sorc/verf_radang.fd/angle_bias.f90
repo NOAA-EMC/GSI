@@ -181,12 +181,14 @@ program angle
    open(iscan,file='scaninfo.txt',form='formatted')
   do 
    read(iscan,1000,IOSTAT=iflag) cflg,satscan_sis,start,step,nstep
+   write(6,*) 'satscan_sis,start,step,nstep=',satscan_sis,start,step,nstep
    if( iflag /= 0 ) exit
    if(trim(satname) == trim(satscan_sis)) exit
   enddo
-1000 format(a1,a20,2f10.2,i10)
+!1000 format(a1,a20,2f10.2,i10)
+1000 format(a1,a20,2f10.3,i10)
 
-  write(6,*) satscan_sis,start,step,nstep
+  write(6,*) 'satscan_sis,start,step,nstep=',satscan_sis,start,step,nstep
 
 
 ! Allocate arrays to hold observational information
@@ -386,7 +388,7 @@ program angle
   open(lunang,file='satang.txt',form='formatted')
   call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
   close(lunang)
-  write(6,*)'read satang.txt'
+  write(6,*)'read satang.txt, nstep, '
 
   ! Create Control file
   if ( imkctl == 1 ) then

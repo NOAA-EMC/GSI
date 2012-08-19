@@ -114,9 +114,9 @@ if [[ $MY_OS = "aix" ]]; then
    export SUB=${UTILS_BIN}/sub              
    export NWPROD=/nwprod
    export NDATE=$NWPROD/util/exec/ndate    
-   export COMPRESS_SUFF="Z"
    export COMPRESS=compress
    export UNCOMPRESS=uncompress
+   export Z="Z"
    export TIMEX=/usr/bin/timex
 else
    export UTILS_BIN=
@@ -124,9 +124,9 @@ else
    export SUB=/apps/torque/default/bin/qsub
    export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod
    export NDATE=$NWPROD/util/exec/ndate
-   export COMPRESS_SUFF="gz"
    export COMPRESS=gzip
    export UNCOMPRESS="gunzip -f"
+   export Z="gz"
    export TIMEX=
 fi
 

@@ -64,7 +64,8 @@ endif
 lin1=sublin(result,1)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
-nregion=subwrd(lin5,9)
+*nregion=subwrd(lin5,9)
+nregion=1
 
 '!rm -f xsize.txt'
 '!cat 'plotfile'.ctl |grep "xdef" > xsize.txt'

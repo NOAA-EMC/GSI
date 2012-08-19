@@ -44,7 +44,6 @@ if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; th
   exit 1
 fi
 
-jobname=data_extract_${SUFFIX}
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -77,6 +76,7 @@ mkdir -p $TANKDIR
 mkdir -p $LOGDIR
 
 
+jobname=${DATA_EXTRACT_JOBNAME}
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Are any earlier verf jobs still 
 # running?  If so, exit this script and wait for job to finish.  
@@ -205,7 +205,7 @@ fi
 #--------------------------------------------------------------------
 data_available=0
 
-if [[ -s ${radstat} ]]; then
+if [[ -e ${radstat} ]]; then
    data_available=1                                         
 
    export MP_SHARED_MEMORY=yes
@@ -228,7 +228,7 @@ if [[ -s ${radstat} ]]; then
 
    export JOBNAME=${jobname}
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.

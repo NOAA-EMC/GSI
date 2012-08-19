@@ -266,9 +266,9 @@ extra='">'
 end_option='</OPTION>'
 
 while read line; do
-   sat=`echo $line | nawk '{print $1}'`
-   ins=`echo $line | nawk '{print $2}'`
-   satype=`echo $line | nawk '{print $3}'`
+   sat=`echo $line | awk '{print $1}'`
+   ins=`echo $line | awk '{print $2}'`
+   satype=`echo $line | awk '{print $3}'`
 
    hline='<OPTION VALUE="'
    hline=${hline}${satype}
@@ -361,27 +361,42 @@ if [[ $SUFFIX == "opr" || $SUFFIX == "nrx" ]]; then
    mv -f ${tmp_menu} menu.html.${AREA}
 fi
 
- 
-#--------------------------------------------------------------
-#  make the starting directory on the server and copy the
-#  html files to it.
-#
+
 $NCP ${RADMON_IMAGE_GEN}/html/index.html.$AREA .
 html_files="bcoef bcor_angle  bcor horiz index intro menu summary time"
 
-ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
-for file in $html_files; do
-   scp ${file}.html.${AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
-done
-
-
 #--------------------------------------------------------------
-#  make the image directories
+#  If we're running on the CCS (aix), push the html files to 
+#  the web server.  If we're on zeus (linux) move the html to
+#  the $IMGNDIR so they can be pulled from the server.
+#  Make the starting directory on the server and copy the
+#  html files to it.
 #
-subdirs="angle bcoef bcor horiz summary time"
-for dir in $subdirs; do
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}/pngs/${dir}"
-done
+if [[ $MY_OS = "aix" ]]; then
+   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
+   for file in $html_files; do
+      scp ${file}.html.${AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
+   done
+
+   subdirs="angle bcoef bcor horiz summary time"
+   for dir in $subdirs; do
+      ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}/pngs/${dir}"
+   done
+else
+   if [[ ! -d ${IMGNDIR} ]]; then
+      mkdir -p ${IMGNDIR}
+   fi
+   imgndir=`dirname ${IMGNDIR}`
+
+   for file in $html_files; do
+      $NCP ${file}.html.${AREA} ${imgndir}/${file}.html
+   done
+   
+   subdirs="angle bcoef bcor horiz summary time"
+   for dir in $subdirs; do
+      mkdir -p ${IMGNDIR}/${dir}
+   done
+fi
 
 cd $workdir
 cd ../

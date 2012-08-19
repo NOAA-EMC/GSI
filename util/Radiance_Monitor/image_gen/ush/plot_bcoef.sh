@@ -57,7 +57,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE}; do
 
    $NCP $ctldir/${type}.ctl* ./
-   ${UNCOMPRESS} ${type}.ctl.${COMPRESS_SUFF}
+   ${UNCOMPRESS} ${type}.ctl.${Z}
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
@@ -67,17 +67,17 @@ for type in ${SATYPE}; do
          test_file=${TANKDIR}/radmon.${day}/bcoef.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
-            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
       fi
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   ${UNCOMPRESS} *.ieee_d.${COMPRESS_SUFF}
+   ${UNCOMPRESS} *.ieee_d.${Z}
 
    list="mean atmpath clw lapse2 lapse"
    for var in $list; do

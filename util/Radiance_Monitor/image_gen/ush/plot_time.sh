@@ -62,8 +62,8 @@ echo ctldir = $ctldir
 
 for type in ${SATYPE2}; do
    $NCP $ctldir/${type}*.ctl* ./
-   if [[ -s ./${type}.ctl.${COMPRESS_SUFF} ]]; then
-      ${UNCOMPRESS} ./${type}.ctl.${COMPRESS_SUFF}
+   if [[ -s ./${type}.ctl.${Z} ]]; then
+      ${UNCOMPRESS} ./${type}.ctl.${Z}
    fi
 
    cdate=$bdate
@@ -74,18 +74,18 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${COMPRESS_SUFF} ]]; then
-            $NCP ${test_file}.${COMPRESS_SUFF} ./${type}.${cdate}.ieee_d.${COMPRESS_SUFF}
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${COMPRESS_SUFF} ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
       fi
 
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   ${UNCOMPRESS} ./*.ieee_d.${COMPRESS_SUFF}
+   ${UNCOMPRESS} ./*.ieee_d.${Z}
 
      for var in ${PTYPE}; do
      echo $var

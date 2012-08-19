@@ -21,7 +21,7 @@
 #  been returned before use.
 #
 #-------------------------------------------------------------------
-    use Data::Dumper;
+#    use Data::Dumper;
     use IO::File;
 
     require XML::Simple;

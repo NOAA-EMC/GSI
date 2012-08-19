@@ -35,19 +35,19 @@ PDY=`echo $PDATE|cut -c1-8`
 for type in ${SATYPE}; do
    found=0
 
-   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} || -s ${imgndir}/${type}.ctl ]]; then
+   if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/time.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/time.${type}.ctl.${COMPRESS_SUFF} ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/time.${type}.ctl.${COMPRESS_SUFF} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
-      if [[ ! -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
+   elif [[ -s ${TANKDIR}/radmon.${PDY}/time.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/time.${type}.ctl.${Z} ]]; then
+      $NCP ${TANKDIR}/radmon.${PDY}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${PDY}/time.${type}.ctl ${imgndir}/${type}.ctl
       fi
       allmissing=0
       found=1
 
-   elif [[ -s ${tankdir}/${type}.ctl.${COMPRESS_SUFF} || -s ${tankdir}/${type}.ctl  ]]; then
+   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
       $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
       allmissing=0
       found=1
@@ -75,8 +75,8 @@ fi
    start_date=`$NDATE -720 $PDATE`
 
    for type in ${SATYPE}; do
-      if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
-        ${UNCOMPRESS} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+      if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
+        ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
       fi
       ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
    done
@@ -92,7 +92,7 @@ fi
 
    ${COMPRESS} ${imgndir}/*.ctl
 
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
 
 #-------------------------------------------------------------------
@@ -119,7 +119,7 @@ fi
    if [[ $MY_OS = "aix" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:10:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -145,7 +145,7 @@ fi
 #-------------------------------------------------------------------
 #  Look over satellite types.  Submit plot job for each type.
 #
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
    list="count penalty omgnbc total omgbc"
 
@@ -185,7 +185,7 @@ fi
             wall_tm="0:40:00"
          fi
 
-         $SUB -A $ACCOUNT -l procs=${ntasks},walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
       done
    fi
 
@@ -232,7 +232,7 @@ fi
 
             echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
 
-            $SUB -A $ACCOUNT -l procs=${ntasks},walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
          done
       fi
    done

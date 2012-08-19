@@ -32,16 +32,14 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-#RUN_ENVIR=$2
-
 echo SUFFIX    = ${SUFFIX}
-#echo RUN_ENVIR = ${RUN_ENVIR}
 
 
 #--------------------------------------------------------------------
 # Set environment variables
 #--------------------------------------------------------------------
 export RAD_AREA=rgn
+export PLOT_ALL_REGIONS=
 
 top_parm=${this_dir}/../../parm
 
@@ -66,9 +64,6 @@ export PLOT_HORIZ=0
 
 mkdir -p $LOGDIR
 
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
 
 #--------------------------------------------------------------------
 # Check status of plot jobs.  If any are still running then exit
@@ -76,10 +71,14 @@ cd $tmpdir
 # in the $LOADLQ directory.
 #--------------------------------------------------------------------
 
-count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-
-running=`expr $count - $complete`
+running=0
+if [[ $MY_OS = "aix" ]]; then
+   count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
+   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+   running=`expr $count - $complete`
+else
+   running=`qstat -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+fi
 
 if [[ $running -ne 0 ]]; then
    echo plot jobs still running for $SUFFIX, must exit
@@ -87,22 +86,12 @@ if [[ $running -ne 0 ]]; then
    cd ../
    rm -rf $tmpdir
    exit
-else
+fi
+
+if [[ $MY_OS = "aix" ]]; then
    rm -f ${LOADLQ}/*plot*_${SUFFIX}*
 fi
 
-running=0
-count=`ls ${LOADLQ}/verf*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/verf*_$SUFFIX* | wc -l`
-
-running=`expr $count - $complete`
-if [[ $running -ne 0 ]]; then
-   echo verf jobs still running for $SUFFIX, must exit
-   cd $tmpdir
-   cd ../
-   rm -rf $tmpdir
-   exit
-fi
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Exit if images are up to current
@@ -114,8 +103,6 @@ export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
 
 export PDATE=`$NDATE +6 $IMGDATE`
 echo $PRODATE  $PDATE
-
-
 
 
 #--------------------------------------------------------------------
@@ -191,8 +178,7 @@ if [[ $PLOT -eq 1 ]]; then
  
    fi
 
-   echo $SATYPE
-
+ 
   #------------------------------------------------------------------
   # Set environment variables.
 
@@ -204,7 +190,8 @@ if [[ $PLOT -eq 1 ]]; then
   #--------------------------------------------------------------------
   #   Set environment variables to export to subsequent scripts
 
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,listvar
+  export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_OS,datdir,listvar
 
 
   #------------------------------------------------------------------
@@ -215,7 +202,11 @@ if [[ $PLOT -eq 1 ]]; then
      rm ${logfile}
 
      jobname=mk_plot_horiz_${SUFFIX}
-     ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+     if [[ $MY_OS = "aix" ]]; then
+        ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+     else
+        $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
+     fi
   fi
 
   ${SCRIPTS}/mk_angle_plots.sh

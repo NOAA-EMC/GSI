@@ -12,6 +12,7 @@
     <logfile_dir></logfile_dir>
     <mail_cc></mail_cc>
     <mail_to></mail_to>
+    <plot_all_regions>1</plot_all_regions>
     <prodate></prodate>
     <radstat_location>/com/gfs/prod</radstat_location>
     <run_envir>dev</run_envir>
@@ -19,8 +20,14 @@
     <static_satype>0</static_satype>
     <use_mail>0</use_mail>
     <user_class>dev</user_class>
-    <plot_all_regions>1</plot_all_regions>
   </global_default>
+  <mno>
+    <account>ada</account>
+    <area>rgn</area>
+    <imgdate>2012081600</imgdate>
+    <prodate>2012081612</prodate>
+    <radstat_location>/scratch2/portfolios/NCEPDEV/meso/noscrub/Eric.Rogers/com/nam/test</radstat_location>
+  </mno>
   <regional_default>
     <account>RDAS-MTN</account>
     <anl>0</anl>
@@ -45,8 +52,8 @@
     <account>ada</account>
     <area>glb</area>
     <imgdate>2012010318</imgdate>
-    <prodate>2012010400</prodate>
-    <radstat_location>/scratch2/portfolios/NCEPDEV/global/save/${LOGNAME}/mydata</radstat_location>
     <plot_all_regions>0</plot_all_regions>
+    <prodate>2012010418</prodate>
+    <radstat_location>/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/mydata</radstat_location>
   </xyz>
 </opt>

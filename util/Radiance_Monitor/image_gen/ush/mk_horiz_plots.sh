@@ -75,18 +75,18 @@ fi
    fi
 
    for sat in ${SATYPE}; do
-      if [[ -s ./${sat}.${COMPRESS_SUFF} ]]; then		#  rm previous files 
-         rm -f ./${sat}.${COMPRESS_SUFF}
+      if [[ -s ./${sat}.${Z} ]]; then		#  rm previous files 
+         rm -f ./${sat}.${Z}
       fi
    done
 
    tar -xvf ${date}.radstat
    for sat in ${SATYPE}; do
-      mv diag_${sat}_ges.${date}.${COMPRESS_SUFF} ${sat}.${COMPRESS_SUFF}
-      ${UNCOMPRESS} ${sat}.${COMPRESS_SUFF}
+      mv diag_${sat}_ges.${date}.${Z} ${sat}.${Z}
+      ${UNCOMPRESS} ${sat}.${Z}
    done
 
-   rm -f $diag_*.${date}.${COMPRESS_SUFF}
+   rm -f $diag_*.${date}.${Z}
    rm -f ${date}.radstat
 
 
@@ -154,7 +154,7 @@ done
 #---------------------------------------------------------------------------
 #  submit the plot jobs
 #
-export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,listvars
+export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
 if [[ $MY_OS = "aix" ]]; then				# CCS/aix
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
@@ -194,7 +194,7 @@ for sat in ${bigSATLIST}; do
 
 #  --------
    export PTYPE="obs cor"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,listvars
+   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    PID="${sat}_1"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
@@ -216,7 +216,7 @@ for sat in ${bigSATLIST}; do
    PID="${sat}_2"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
    export PTYPE="obsges obsnbc"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,listvars
+   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    rm -f $cmdfile
 >$cmdfile

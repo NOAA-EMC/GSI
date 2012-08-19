@@ -77,15 +77,13 @@ cd $tmpdir
 # data_map file and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
-#export PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
-export PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+export PDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
  
 #---------------------------------------------------------------
 # Locate required files.
 #---------------------------------------------------------------
 export DATDIR=${PTMP_USER}/regional
-#export com=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
-export com=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+export com=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
 
 biascr=$DATDIR/satbias.${PDATE}
 satang=$DATDIR/satang.${PDATE}
@@ -102,7 +100,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
    if [ -s $radstat -a -s $satang -a -s $biascr ]; then
       need_radstat=0
    else
-      export PDATE=`ndate -06 $PDATE`
+      export PDATE=`$NDATE -06 $PDATE`
       ctr=$(( $ctr + 1 ))
    fi
 

@@ -37,19 +37,19 @@ PDY=`echo $PDATE|cut -c1-8`
 for type in ${SATYPE}; do
    found=0
 
-   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} || -s ${imgndir}/${type}.ctl ]]; then
+   if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${COMPRESS_SUFF} ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${COMPRESS_SUFF} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
-      if [[ ! -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
+   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${Z} ]]; then
+      $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl ${imgndir}/${type}.ctl
       fi
       allmissing=0
       found=1
 
-   elif [[ -s ${tankdir}/${type}.ctl.${COMPRESS_SUFF} || -s ${tankdir}/${type}.ctl  ]]; then
+   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
       $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
       allmissing=0
       found=1
@@ -77,8 +77,8 @@ fi
 start_date=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
-   if [[ -s ${imgndir}/${type}.ctl.${COMPRESS_SUFF} ]]; then
-     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${COMPRESS_SUFF}
+   if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
+     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
 done
@@ -113,7 +113,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   # Loop over satellite/instruments.  Submit poe job to make plots.  Each task handles
   # a single satellite/insrument.
 
-  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,COMPRESS_SUFF,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
+  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
   if [[ $MY_OS = "aix" ]]; then		#CCS/aix
      suffix=a
@@ -169,7 +169,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
         cmdfile=cmdfile_pbcor_${suffix}
         jobname=plot_${SUFFIX}_bcor_${suffix}
-        logfile=${LOGDIR}_bcor_${suffix}.log
+        logfile=${LOGDIR}/plot_bcor_${suffix}.log
 
         rm -f $cmdfile
         rm ${logfile}
@@ -187,7 +187,7 @@ ${COMPRESS} ${imgndir}/*.ctl
         for var in $plot_list; do
            cmdfile=cmdfile_pbcor_${suffix}_${var}
            jobname=plot_${SUFFIX}_bcor_${suffix}_${var}
-           logfile=${LOGDIR}_bcor_${suffix}_${var}.log
+           logfile=${LOGDIR}/plot_bcor_${suffix}_${var}.log
 
            rm -f ${cmdfile}
            rm -f ${logfile}

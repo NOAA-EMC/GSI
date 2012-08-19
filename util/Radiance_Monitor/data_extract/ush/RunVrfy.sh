@@ -118,7 +118,7 @@ while [[ $done -eq 0 ]]; do
       complete=`grep "COMPLETED" ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
       running=`expr $count - $complete`
    else
-      running=`qstat -u $LOGNAME | wc -l`
+      running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`
    fi
 
    if [[ $running -ne 0 ]]; then

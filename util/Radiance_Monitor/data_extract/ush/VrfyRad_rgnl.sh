@@ -39,7 +39,6 @@ if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; th
   exit 1
 fi
 
-jobname=data_extract_${SUFFIX}
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -68,6 +67,8 @@ fi
 mkdir -p $TANKDIR
 mkdir -p $LOGDIR
 
+jobname=${DATA_EXTRACT_JOBNAME}
+
 
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Are any earlier verf jobs still
@@ -77,15 +78,21 @@ mkdir -p $LOGDIR
 #--------------------------------------------------------------------
 
 if [[ ${RUN_ENVIR} = dev ]]; then
-   count=`ls ${LOADLQ}/${jobname}* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
-   running=`expr $count - $complete`
-
-   if [[ $running -gt 0 ]]; then
-      exit 3
+   if [[ $MY_OS = "aix" ]]; then
+      count=`ls ${LOADLQ}/${jobname}* | wc -l`
+      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
+      total=`expr $count - $complete`
    else
-      rm -f ${LOADLQ}/${jobname}*
+      total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
    fi
+
+   if [[ $total -gt 0 ]]; then
+      exit 3
+   fi
+fi
+
+if [[ $MY_OS = "aix" ]]; then
+   rm -f ${LOADLQ}/${jobname}*
 fi
 
 tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
@@ -191,15 +198,18 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
 
    #--------------------------------------------------------------------
    # Export listvar
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,listvar
+   export JOBNAME=$jobname
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,JOBNAME,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
+   logfile=$LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log
+
    if [[ $MY_OS = "aix" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/data_extract.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${logfile} -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
    else
-      $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvars -j oe -o $LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
+      $SUB -A $ACCOUNT -l walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
    fi
 
    rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
