@@ -1611,7 +1611,7 @@ subroutine setup_ens_pwgt
   use balmod, only: wgvk
   use mpimod, only: mype
   use constants,only: zero,one,ten,two,half
-  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt
+  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res
   implicit none
   integer(i_kind) k,i,j
   real(r_kind) sum
@@ -1629,6 +1629,7 @@ subroutine setup_ens_pwgt
 
 !!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
 !!!! weigh with balanced projection for pressure
+  if (.not.dual_res) then
      pwgt=zero
      do j=1,lon2
         do i=1,lat2
@@ -1642,6 +1643,7 @@ subroutine setup_ens_pwgt
            enddo
         enddo
      enddo
+  end if
 !!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
 
   i=grd_ens%lat2/2
