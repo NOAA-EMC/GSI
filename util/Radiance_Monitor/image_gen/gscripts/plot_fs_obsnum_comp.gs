@@ -31,13 +31,13 @@ if (data = anl)
    'define sdvnbc1='calcsdv(count.1,omanbc.1,omanbc2.1)
 
    'define avgbc2=omabc.2/count.2'
-   'define sdvbc2='calcsdv(omabc.2,omabc2.2,count.2)
+   'define sdvbc2='calcsdv(count.2,omabc.2,omabc2.2)
    'define avgnbc2=omanbc.2/count.2'
    'define sdvnbc2='calcsdv(count.2,omanbc.2,omanbc2.2)
 
    if (exp3 !="")
       'define avgbc3=omabc.3/count.3'
-      'define sdvbc3='calcsdv(omabc.3,omabc2.3,count.3)
+      'define sdvbc3='calcsdv(count.3,omabc.3,omabc2.3)
       'define avgnbc3=omanbc.3/count.3'
       'define sdvnbc3='calcsdv(count.3,omanbc.3,omanbc2.3)
    endif
@@ -53,13 +53,13 @@ else
    'define sdvnbc1='calcsdv(count.1,omgnbc.1,omgnbc2.1)
 
    'define avgbc2=omgbc.2/count.2'
-   'define sdvbc2='calcsdv(omgbc.2,omgbc2.2,count.2)
+   'define sdvbc2='calcsdv(count.2,omgbc.2,omgbc2.2)
    'define avgnbc2=omgnbc.2/count.2'
    'define sdvnbc2='calcsdv(count.2,omgnbc.2,omgnbc2.2)
 
    if (exp3 !="")
       'define avgbc3=omgbc.3/count.3'
-      'define sdvbc3='calcsdv(omgbc.3,omgbc2.3,count.3)
+      'define sdvbc3='calcsdv(count.3,omgbc.3,omgbc2.3)
       'define avgnbc3=omgnbc.3/count.3'
       'define sdvnbc3='calcsdv(count.3,omgnbc.3,omgnbc2.3)
    endif

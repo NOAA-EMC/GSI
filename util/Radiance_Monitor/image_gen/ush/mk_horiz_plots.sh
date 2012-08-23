@@ -209,7 +209,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_OS = "aix" ]]; then
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=1:20:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
 
 #  --------
@@ -228,7 +228,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_OS = "aix" ]]; then
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=1:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
 
 done 
