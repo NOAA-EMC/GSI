@@ -93,6 +93,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r200=200.0_r_kind
   real(r_kind),parameter:: r250=250.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
+  real(r_kind),parameter:: r600=600.0_r_kind
   real(r_kind),parameter:: r700=700.0_r_kind
   real(r_kind),parameter:: r199=199.0_r_kind
   real(r_kind),parameter:: r299=299.0_r_kind
@@ -113,6 +114,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(8) subset
   character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
+  character(8) c_station_id
 
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
@@ -166,9 +168,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
+  real(r_kind)  pbar8,hgt8,tbar8,thetabar8
+  real(r_double) rstation_id
+
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
   equivalence(r_sprvstg(1,1),c_sprvstg)
+  equivalence(rstation_id,c_station_id)
 
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA GCLONG SCCF SWQM'/ 
   data obstr/'HAMD PRLC WDIR WSPD'/ 
@@ -486,6 +492,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
             .or. obsdat(4) > 100000000.0_r_kind) cycle loop_readsb
            if(ppb >r10000) ppb=ppb/r100
            if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
+           if (twodvar_regional .and. ppb <r600) cycle loop_readsb
 !   reject the data with bad quality mark from SDM
            if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb      
 !       Compare relative obs time with window.  If obs 
@@ -760,7 +767,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            usage = 0 
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
-           if(qm == 15 .or. qm == 12 .or. qm == 9)usage=r100
+           if((qm == 15 .or. qm == 12 .or. qm == 9) .and. .not.twodvar_regional)usage=r100
+
+
            if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
            if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
            if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
@@ -773,6 +782,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(itype==257) then;  c_prvstg='MODIS'    ;  c_sprvstg='IR'       ; endif
            if(itype==258) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVCTOP'   ; endif
            if(itype==259) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVDLAYER' ; endif
+
+           c_station_id='SATWND'
 
 ! Get information from surface file necessary for conventional data here
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
@@ -863,6 +874,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  vdisterrmax=max(vdisterrmax,disterr)
               end if
            endif
+
+           pbar8=exp(dlnpob)*10._r_kind
+           call w3fa03(pbar8,hgt8,tbar8,thetabar8)
+
            cdata_all(1,iout)=woe                  ! wind error
            cdata_all(2,iout)=dlon                 ! grid relative longitude
            cdata_all(3,iout)=dlat                 ! grid relative latitude
@@ -890,6 +905,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(perturb_obs)then
               cdata_all(24,iout)=ran01dom()*perturb_fact ! u perturbation
               cdata_all(25,iout)=ran01dom()*perturb_fact ! v perturbation
+           endif
+
+           if(twodvar_regional) then
+              cdata_all(5,iout)=hgt8                 ! height of observation
+              cdata_all(8,iout)=rstation_id          ! station id
+              cdata_all(11,iout)=pbar8               !
            endif
 
         enddo  loop_readsb
