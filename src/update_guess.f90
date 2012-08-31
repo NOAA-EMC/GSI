@@ -327,7 +327,7 @@ subroutine update_guess(sval,sbias)
            do j=1,lon2
               do i=1,lat2
                  ges_vis(i,j,it) = ges_vis(i,j,it) + ptr2daux(i,j)
-                 if (ges_vis(i,j,it)<=zero) ges_vis(i,j,it)=1.0e-4_r_kind
+                 if (ges_vis(i,j,it)<=zero) ges_vis(i,j,it)=0.1_r_kind
                  if (ges_vis(i,j,it)>20000.0_r_kind) ges_vis(i,j,it)=20000.0_r_kind
               end do
            end do
