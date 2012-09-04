@@ -17,11 +17,8 @@ mode=${1:-all}
 
 top_level=`pwd`
 
-#uname_line=`uname -s`
 my_os=`uname -s`
-#set -A my_system ${uname_line}
 
-#my_os=`echo ${my_system[0]} | tr '[:upper:]' '[:lower:]'`
 my_os=`echo ${my_os} | tr '[:upper:]' '[:lower:]'`
 
 if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
@@ -42,7 +39,6 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
       fi
 
       rm -f Makefile.conf
-#      ln -s Makefile.conf.${my_os} Makefile.conf
       ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
@@ -63,7 +59,6 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
       fi
 
       rm -f Makefile.conf
-#      ln -s Makefile.conf.${my_os} Makefile.conf
       ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
@@ -77,7 +72,6 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
 
    cd ${top_level}/nwprod/sorc/make_base.fd
    rm -f Makefile.conf
-#   ln -s Makefile.conf.${my_os} Makefile.conf
    ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
    make ${mode}  
    if [[ $mode = all ]]; then
@@ -94,7 +88,6 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    echo "Making image_gen/src/glb:"
    for var in ${executables}; do
       rm -f Makefile.conf
-#      ln -s Makefile.conf.${my_os} Makefile.conf
       ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}
@@ -106,7 +99,6 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    echo "Making image_gen/src/rgn:"
    for var in ${executables}; do
       rm -f Makefile.conf
-#      ln -s Makefile.conf.${my_os} Makefile.conf
       ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
 
       echo make ${var} ${mode}

@@ -4,9 +4,12 @@
 #
 #  CkPlt_comp.sh
 #
-#  This script reads the plot_comp_config file in the ../parm directory
-#  and plots the requested comparision plots.  Data may be plotted 
-#  from either global or regional sources.
+#  This script plots the requested comparision plots for the specified
+#  suffix (data source).  Data may be plotted from either global or 
+#  regional sources.
+#
+#  The entry for the suffix in the ../../parm/data_map.xml file should
+#  include entries for the desired comparision source(s).
 #
 #  Supported plots include:
 #    plot_fs_obsnum_comp.sh

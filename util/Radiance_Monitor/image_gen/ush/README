@@ -20,8 +20,7 @@ image files are then sent to the specified web server by scp.  See the
 ../parm/plot_rad_conf file for web server settings. 
 
 There is also a CkPlt_comp.sh script which can do comparison plots between 2 or 3
-data sources.  The sources must be of the same type (global or regional).  See the
-../parm/plot_comp_config file for details on setting up the comparison plots.
+data sources.  The sources must be of the same type (global or regional).  
 
 FILE TRANSFERS:  
 ==== =========
@@ -40,7 +39,7 @@ web server.  The rsync utility can then be used to mirror the files in the $IMGN
 to the web server's pngs directory.  
 
 The Transfer.sh script can be used to accomplish the rsync mirroring.  It may be run
-as a cron or from the command line, and takes the SUFFIX as it's only argument.  Whe 
+as a cron or from the command line, and takes a SUFFIX as it's only argument.  When
 run it will copy any files in $IMGNDIR that are newer than the web server's versions.  
 If there are no differences between the files in $IMGNDIR and the web server then no
 file transfers are made.  This is an example of a cron entry to run Transfer.sh once
