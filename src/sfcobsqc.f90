@@ -425,8 +425,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
           do m=1,nwbaccpts(ibin)
              ch8(1:8)=csta_windbin(m,ibin)(1:8)
              nlen=len_trim(ch8)
-             if ((trim(c_station_id) == trim(ch8)) .or. &
-                 ((kx==288.or.kx==295).and.c_station_id(1:nlen)==ch8(1:nlen))) then
+             if (c_station_id(1:nlen)==ch8(1:nlen)) then
                 usage_rj=usage_rj0
                 exit
              endif
@@ -443,8 +442,8 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
               if (kx/=288.and.kx/=295) then
                  usage_rj=r5000
               else
-                 if (usage_rj==usage_rj0)    usage_rj=r6100 !ob is in at least one of the above two uselists
-                 if (usage_rj==r6000)        usage_rj=r6200 !ob is in none of the above two uselists
+                 if (usage_rj==usage_rj0)    usage_rj=r6100 !ob is in at least one of the above three uselists
+                 if (usage_rj==r6000)        usage_rj=r6200 !ob is in none of the above three uselists
               endif
               exit
            endif
@@ -499,7 +498,7 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
         ch8(1:8)=w_rjlist(m)(1:8)
         nlen=len_trim(ch8)
         if ((trim(c_station_id) == trim(ch8)) .or. &
-            (c_station_id(1:nlen)==ch8(1:nlen))) then
+            ((kx==288.or.kx==295).and.c_station_id(1:nlen)==ch8(1:nlen))) then
             if (gustqm==0) then
                gustqm=3
             else
