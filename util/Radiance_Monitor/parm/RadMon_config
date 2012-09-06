@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-  MY_RADMON=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/Radmon_265/util/Radiance_Monitor
+  MY_RADMON=
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,17 +24,16 @@
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-  export MY_TANKDIR=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford
+export MY_TANKDIR=
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-  export WEB_SVR=rzdm
-#  export WEB_USER=my_account_on_server
-  export WEB_USER=esafford
-  export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/${WEB_USER}
+export WEB_SVR=
+export WEB_USER=
+export WEBDIR=
 
 
 ###############################################################################
@@ -45,38 +44,16 @@
 ###############################################################################
 ###############################################################################
 
-#
-#
-#  Determine operating system and endian-ness.  This assumes that the only OSes 
-#  in use are AIX or LINUX and any hardware that is not x86_* is a big
-#  endian machine. 
-#
-uname_line=`uname -a`
-export MY_OS=`echo $uname_line | awk '{print tolower($1)}'`
-echo MY_OS = $MY_OS
-
-machine_line=`uname -m`
-my_machine=`echo $machine_line | awk '{print tolower($1)}'`
-
-if [[ $my_machine = "x86_64" ]]; then
-   export LITTLE_ENDIAN=1
-else
-   export LITTLE_ENDIAN=0
-fi
-
+export MY_OS=
+export LITTLE_ENDIAN=
 echo endian = $LITTLE_ENDIAN
 
 
 #
 #  Log and work space definitions
 #
-if [[ $MY_OS = "aix" ]]; then
-   export  PTMP=/ptmp
-   export  STMP=/stmp
-else
-   export  PTMP=/scratch2/portfolios/NCEPDEV/ptmp
-   export  STMP=/scratch2/portfolios/NCEPDEV/stmp
-fi
+export PTMP=
+export STMP=
   
 export LOGSverf_rad=$PTMP/$LOGNAME/logs    
 export WORKverf_rad=$STMP/$LOGNAME         
