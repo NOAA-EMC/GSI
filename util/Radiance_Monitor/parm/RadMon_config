@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-  MY_RADMON=
+export MY_RADMON=
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
