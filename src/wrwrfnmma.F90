@@ -1310,7 +1310,7 @@ subroutine wrwrfnmma_netcdf(mype)
   
   allocate(temp1(im*jm))
 
-  if(mype == 0) write(6,*)' at 2 in wrwrfnmma'
+! if(mype == 0) write(6,*)' at 2 in wrwrfnmma'
 
 
   if(mype == 0) then
@@ -1324,7 +1324,7 @@ subroutine wrwrfnmma_netcdf(mype)
   it=ntguessig
 
 ! Create all_loc from ges_*
-  if(mype == 0) write(6,*)' at 3 in wrwrfnmma'
+! if(mype == 0) write(6,*)' at 3 in wrwrfnmma'
   all_loc=zero_single
   kt=i_t-1
   kq=i_q-1
@@ -1338,8 +1338,8 @@ subroutine wrwrfnmma_netcdf(mype)
      do i=1,lon1+2
         do j=1,lat1+2
            all_loc(j,i,ku)=ges_u(j,i,k,it)
-           if(k == 1.and.abs(all_loc(j,i,ku)) > 1.e15_r_single) &
-                write(6,*)' at 3.01 in wrwrfnmma, j,i,ku,all_loc(j,i,ku)=',j,i,ku,all_loc(j,i,ku)
+!          if(k == 1.and.abs(all_loc(j,i,ku)) > 1.e15_r_single) &
+!               write(6,*)' at 3.01 in wrwrfnmma, j,i,ku,all_loc(j,i,ku)=',j,i,ku,all_loc(j,i,ku)
            all_loc(j,i,kv)=ges_v(j,i,k,it)
            all_loc(j,i,kq)=ges_q(j,i,k,it)
            all_loc(j,i,kt)=ges_tsen(j,i,k,it)   ! sensible temperature
@@ -1432,29 +1432,29 @@ subroutine wrwrfnmma_netcdf(mype)
   end if
   
 ! Update pd
-  if(mype == 0) write(6,*)' at 6 in wrwrfnmma'
+! if(mype == 0) write(6,*)' at 6 in wrwrfnmma'
 
   allocate(tempa(itotsub),tempb(itotsub))
   tempa=0.0_r_single
   tempb=0.0_r_single
   if(mype == 0) read(lendian_in)temp1
-  if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+! if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
   call strip_single(all_loc(1,1,i_pd),strp,1)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
-     if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+!    if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-     if(mype == 0) write(6,*)' at 6.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
+!    if(mype == 0) write(6,*)' at 6.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
      do i=1,iglobal
         tempa(i)=tempa(i)-tempb(i)
      end do
-     if(mype == 0) write(6,*)' at 6.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+!    if(mype == 0) write(6,*)' at 6.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
      if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-     if(mype == 0) write(6,*)' at 6.5 in wrwrfnmma'
+!    if(mype == 0) write(6,*)' at 6.5 in wrwrfnmma'
      if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-     if(mype == 0) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+!    if(mype == 0) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      write(lendian_out)temp1
   end if
 
@@ -1505,7 +1505,7 @@ subroutine wrwrfnmma_netcdf(mype)
         write(lendian_out)temp1
      end if
   end do
-  if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
+! if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
 
 
 ! Update q
@@ -1536,25 +1536,25 @@ subroutine wrwrfnmma_netcdf(mype)
      call strip_single(all_loc(1,1,ku),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
+!    if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
      if(mype == 0) then
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
-        if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
-             k,maxval(temp1),minval(temp1)
-        if(mype == 0) write(6,*)' at 7.22 in wrwrfnmma,k,max,min(tempb)=',&
-             k,maxval(tempb),minval(tempb)
+!       if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
+!            k,maxval(temp1),minval(temp1)
+!       if(mype == 0) write(6,*)' at 7.22 in wrwrfnmma,k,max,min(tempb)=',&
+!            k,maxval(tempb),minval(tempb)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
-        if(mype == 0) write(6,*)' at 7.3 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
+!       if(mype == 0) write(6,*)' at 7.3 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
-        if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
+!       if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if
   end do
-  if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
+! if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
 
 ! Update v
   kv=i_v-1
@@ -1598,15 +1598,15 @@ subroutine wrwrfnmma_netcdf(mype)
 ! SST
   if(update_regsfc) then
      if(mype == 0) read(lendian_in)temp1
-     if (mype==0)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+!    if (mype==0)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      call strip_single(all_loc(1,1,i_sst),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
-        if(mype == 0) write(6,*)' at 9.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+!       if(mype == 0) write(6,*)' at 9.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-        if(mype == 0) write(6,*)' at 9.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
+!       if(mype == 0) write(6,*)' at 9.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
         do i=1,iglobal
            if(tempb(i) < r225) then
               tempa(i)=zero_single
@@ -1614,11 +1614,11 @@ subroutine wrwrfnmma_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        if(mype == 0) write(6,*)' at 9.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+!       if(mype == 0) write(6,*)' at 9.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(mype == 0) write(6,*)' at 9.5 in wrwrfnmma'
+!       if(mype == 0) write(6,*)' at 9.5 in wrwrfnmma'
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if(mype == 0) write(6,*)' at 9.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+!       if(mype == 0) write(6,*)' at 9.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if     !endif mype==0
   else
@@ -1639,7 +1639,7 @@ subroutine wrwrfnmma_netcdf(mype)
 ! Update SKIN TEMP
   if(update_regsfc) then
      if(mype == 0) read(lendian_in)temp1
-     if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+!    if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      call strip_single(all_loc(1,1,i_skt),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)

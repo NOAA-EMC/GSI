@@ -9,7 +9,7 @@ subroutine evaljcdfi(svalue,pjc,rvalue)
 !   2009-01-18  todling  - carry sommation in quad precision
 !   2009-08-14  lueken   - update documentation
 !   2010-05-14  todling  - update to use gsi_bundle
-!   2011-08-01  lueken   - replace F90 with f90 (no machine logic) and replaced izero/ione with 0/1
+!   2011-08-01  lueken   - replace F90 with f90 (no machine logic) 
 !
 !   input argument list:
 !    svalue

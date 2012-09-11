@@ -11,7 +11,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! program history log: 
 
 !    2010-03-30  Tangborn, initial code.
-!    2011-08-01  Lueken  - replaced F90 with f90 (no machine logic), removed _i_kind, fixed indentation
+!    2011-08-01  Lueken  - replaced F90 with f90 (no machine logic), fixed indentation
 
 !   input argument list:
 !     obstype  - observation type to process

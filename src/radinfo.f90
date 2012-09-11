@@ -75,6 +75,7 @@ module radinfo
   public :: passive_bc
   public :: radstart,radstep
   public :: newpc4pred
+  public :: biaspredvar
   public :: radjacnames,radjacindxs,nsigradjac
   public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
   public :: radedge1, radedge2
@@ -150,6 +151,7 @@ module radinfo
   character(len=20),allocatable,dimension(:):: radjacnames
   integer(i_kind),  allocatable,dimension(:):: radjacindxs
 
+  real(r_kind) :: biaspredvar
   logical,save :: newpc4pred ! controls preconditioning due to sat-bias correction term 
 
 contains
@@ -184,14 +186,16 @@ contains
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
+    use constants, only: one_tenth
 
     implicit none
 
-    jpch_rad = 0          ! total number of channels over all instruments & satellites
-    retrieval = .false.   ! .true. = apply physical SST retrieval with AVHRR data
-    diag_rad = .true.     ! .true.=generate radiance diagnostic file
-    mype_rad = 0          ! mpi task to collect and print radiance use information on/from
-    npred=5               ! number of bias correction predictors
+    biaspredvar = one_tenth ! berror var for radiance bias coeffs
+    jpch_rad = 0            ! total number of channels over all instruments & satellites
+    retrieval = .false.     ! .true. = apply physical SST retrieval with AVHRR data
+    diag_rad = .true.       ! .true.=generate radiance diagnostic file
+    mype_rad = 0            ! mpi task to collect and print radiance use information on/from
+    npred=5                 ! number of bias correction predictors
 
     nst_gsi   = 0          ! 0 = no nst info at all in gsi
                            ! 1 = read nst info but not applied
@@ -1187,7 +1191,7 @@ contains
    character(50):: fdiag_rad,dname,fname
 
    integer(i_kind):: ix,ii,iii,iich,ndatppe
-   integer(i_kind):: i,j,jj,n_chan,k
+   integer(i_kind):: i,j,jj,n_chan,k,lunout
    integer(i_kind):: ierror_code
    integer(i_kind):: istatus,ispot,iuseqc
    integer(i_kind):: np,new_chan,nc
@@ -1215,6 +1219,8 @@ contains
    type(diag_data_fix_list   )         :: data_fix
    type(diag_data_chan_list  ),pointer :: data_chan(:)
    type(diag_data_extra_list ),pointer :: data_extra(:,:)
+
+   data lunout / 53 / 
 
 !************************************************************************
 !  Return if no new channels AND update_tlapmean=.false.
@@ -1584,6 +1590,17 @@ contains
 
       deallocate(tsum0,tsum,tlap0,tlap1,tlap2,tcnt)
    end if
+
+   if (mype==mype_rad) then  
+      if (any(inew_rad) .or. any(update_tlapmean)) then
+         open(lunout,file='satbias_out.int',form='formatted')
+         do j=1,jpch_rad
+            write(lunout,'(I5,1x,a20,1x,i5,2e15.6,1x,I5/2(4x,10f12.6/))')j,nusis(j),nuchan(j),&
+                      tlapmean(j),tsum_tlapmean(j),count_tlapmean(j),(predx(ii,j),ii=1,npred)
+         end do
+         close(lunout)
+      end if
+   end if 
 
 !  End of program
    return

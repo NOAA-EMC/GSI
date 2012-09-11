@@ -131,27 +131,22 @@ subroutine convert_netcdf_mass
      read(DateStr1,'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') iyear,imonth,iday,ihour,iminute,isecond
      write(6,*)' iy,m,d,h,m,s=',iyear,imonth,iday,ihour,iminute,isecond
 
-     write(6,*)' dh1  = ',dh1         !DEDE
+!    write(6,*)' dh1  = ',dh1         !DEDE
 
 !-------------  get grid info
-     write(6,*)'before rmse var T'   !DEDE
+!    write(6,*)'before rmse var T'   !DEDE
 
      rmse_var='T'
 
-     write(6,*)'after rmse var T'   !DEDE
+!    write(6,*)'after rmse var T'   !DEDE
 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )                !DEDE
 
-     write(6,*)' dh1  = ',dh1         !DEDE
-     write(6,*)'rmse_var = ',trim(rmse_var)
-     write(6,*)'ndim1 = ',ndim1
-     write(6,*)'ordering = ',trim(ordering)
-     write(6,*)'staggering = ',trim(staggering)
-     write(6,*)'start_index = ',start_index
-     write(6,*)'end_index = ',end_index
-     write(6,*)'WrfType = ',WrfType
-     write(6,*)'ierr  = ',ierr   !DEDE
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1 = ',ndim1,' dh1 = ',dh1
+     write(6,*)' WrfType = ',WrfType,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
 
      nlon_regional=end_index(1)
      nlat_regional=end_index(2)
@@ -167,13 +162,10 @@ subroutine convert_netcdf_mass
      rmse_var='P_TOP'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           pt_regional,WRF_REAL,0,0,0,ordering,          &
           staggering, dimnames ,               &
@@ -189,13 +181,10 @@ subroutine convert_netcdf_mass
      rmse_var='ZNU'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -211,13 +200,10 @@ subroutine convert_netcdf_mass
      rmse_var='ZNW'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field1,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,                    &
@@ -233,13 +219,10 @@ subroutine convert_netcdf_mass
      rmse_var='RDX'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           rdx,WRF_REAL,0,0,0,ordering,          &
           staggering, dimnames ,               &
@@ -252,13 +235,10 @@ subroutine convert_netcdf_mass
      rmse_var='RDY'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           rdy,WRF_REAL,0,0,0,ordering,          &
           staggering, dimnames ,               &
@@ -271,13 +251,10 @@ subroutine convert_netcdf_mass
      rmse_var='MAPFAC_M'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -298,13 +275,10 @@ subroutine convert_netcdf_mass
      rmse_var='XLAT'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -323,13 +297,10 @@ subroutine convert_netcdf_mass
      rmse_var='XLONG'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -348,13 +319,10 @@ subroutine convert_netcdf_mass
      rmse_var='MUB'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -367,13 +335,10 @@ subroutine convert_netcdf_mass
      rmse_var='MU'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2b,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -389,13 +354,10 @@ subroutine convert_netcdf_mass
      rmse_var='PHB'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -411,13 +373,10 @@ subroutine convert_netcdf_mass
      rmse_var='T'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -435,13 +394,10 @@ subroutine convert_netcdf_mass
      rmse_var='QVAPOR'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -458,13 +414,10 @@ subroutine convert_netcdf_mass
      rmse_var='U'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3u,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -481,13 +434,10 @@ subroutine convert_netcdf_mass
      rmse_var='V'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3v,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -504,13 +454,10 @@ subroutine convert_netcdf_mass
      rmse_var='LANDMASK'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -527,13 +474,10 @@ subroutine convert_netcdf_mass
      rmse_var='SEAICE'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -547,13 +491,10 @@ subroutine convert_netcdf_mass
      rmse_var='SST'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -567,13 +508,10 @@ subroutine convert_netcdf_mass
      rmse_var='IVGTYP'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           ifield2,WrfType,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -587,13 +525,10 @@ subroutine convert_netcdf_mass
      rmse_var='ISLTYP'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           ifield2,WrfType,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -607,13 +542,10 @@ subroutine convert_netcdf_mass
      rmse_var='VEGFRA'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -627,13 +559,10 @@ subroutine convert_netcdf_mass
      rmse_var='SNOW'    !
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -647,13 +576,10 @@ subroutine convert_netcdf_mass
      rmse_var='U10'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -667,13 +593,10 @@ subroutine convert_netcdf_mass
      rmse_var='V10'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -687,13 +610,10 @@ subroutine convert_netcdf_mass
      rmse_var='SMOIS'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -709,13 +629,10 @@ subroutine convert_netcdf_mass
      rmse_var='TSLB'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -731,13 +648,10 @@ subroutine convert_netcdf_mass
      rmse_var='TSK'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
-     write(6,*)' rmse_var=',trim(rmse_var)
-     write(6,*)' ordering=',ordering
-     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-     write(6,*)' ndim1=',ndim1
-     write(6,*)' staggering=',staggering
-     write(6,*)' start_index=',start_index
-     write(6,*)' end_index=',end_index
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
      call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
           field2,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -752,13 +666,10 @@ subroutine convert_netcdf_mass
        rmse_var='QCLOUD'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
-       write(6,*)' ordering=',ordering
-       write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-       write(6,*)' ndim1=',ndim1
-       write(6,*)' staggering=',staggering
-       write(6,*)' start_index=',start_index
-       write(6,*)' end_index=',end_index
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
@@ -775,13 +686,10 @@ subroutine convert_netcdf_mass
        rmse_var='QRAIN'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
-       write(6,*)' ordering=',ordering
-       write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-       write(6,*)' ndim1=',ndim1
-       write(6,*)' staggering=',staggering
-       write(6,*)' start_index=',start_index
-       write(6,*)' end_index=',end_index
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
@@ -798,13 +706,10 @@ subroutine convert_netcdf_mass
        rmse_var='QSNOW'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
-       write(6,*)' ordering=',ordering
-       write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-       write(6,*)' ndim1=',ndim1
-       write(6,*)' staggering=',staggering
-       write(6,*)' start_index=',start_index
-       write(6,*)' end_index=',end_index
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
@@ -821,13 +726,10 @@ subroutine convert_netcdf_mass
        rmse_var='QICE'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
-       write(6,*)' ordering=',ordering
-       write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-       write(6,*)' ndim1=',ndim1
-       write(6,*)' staggering=',staggering
-       write(6,*)' start_index=',start_index
-       write(6,*)' end_index=',end_index
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
@@ -844,13 +746,10 @@ subroutine convert_netcdf_mass
        rmse_var='QGRAUP'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
-       write(6,*)' ordering=',ordering
-       write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-       write(6,*)' ndim1=',ndim1
-       write(6,*)' staggering=',staggering
-       write(6,*)' start_index=',start_index
-       write(6,*)' end_index=',end_index
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
@@ -867,13 +766,10 @@ subroutine convert_netcdf_mass
        rmse_var='RAD_TTEN_DFI'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
-       write(6,*)' rmse_var=',trim(rmse_var)
-       write(6,*)' ordering=',ordering
-       write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
-       write(6,*)' ndim1=',ndim1
-       write(6,*)' staggering=',staggering
-       write(6,*)' start_index=',start_index
-       write(6,*)' end_index=',end_index
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
             field3,WRF_REAL,0,0,0,ordering,           &
             staggering, dimnames ,               &
@@ -1646,10 +1542,10 @@ end subroutine convert_netcdf_nmm
 subroutine update_netcdf_mass
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    update_netcdf_mass     create internal binary file from netcdf format wrf restart file
+! subprogram:    update_netcdf_mass  create netcdf format wrf restart file from internal binary file.
 !   prgmmr:
 !
-! abstract: create internal binary file from netcdf format wrf restart file
+! abstract: create netcdf format wrf restart file from internal binary file
 !
 ! program history log:
 !   2004-11-05  treadon - add return code 75 for error stop
@@ -1664,6 +1560,7 @@ subroutine update_netcdf_mass
 !                              comment out update for SMOIS (the actually 
 !                              variable is Landmask there).
 !   2012-01-09  Hu  - add code to update START_TIME to analysis time
+!   2012-04-13  Whitaker - clip positive definite quantities to tiny_single
 !
 !   input argument list:
 !
@@ -1676,11 +1573,12 @@ subroutine update_netcdf_mass
 !$$$ end documentation block
 
   use kinds, only: r_single,i_kind,r_kind
-  use constants, only: h300
+  use constants, only: h300,tiny_single
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use guess_grids, only: ntguessig
+  use obsmod, only: iadate
 
   implicit none
 
@@ -1690,7 +1588,7 @@ subroutine update_netcdf_mass
 
   character(len=120) :: flnm1,flnm2
   character(len=19)  :: DateStr1
-  integer(i_kind)            :: dh1
+  integer(i_kind)            :: dh1,iw3jdn
 
   integer(i_kind) :: iunit
 
@@ -1895,6 +1793,7 @@ subroutine update_netcdf_mass
   write(6,*)' staggering=',staggering
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
+  where (field3 < tiny_single) field3 = tiny_single
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
        field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
@@ -2036,6 +1935,7 @@ subroutine update_netcdf_mass
     write(6,*)' staggering=',staggering
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
+    where (field3 < tiny_single) field3 = tiny_single
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
          field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
@@ -2059,6 +1959,7 @@ subroutine update_netcdf_mass
     write(6,*)' staggering=',staggering
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
+    where (field3 < tiny_single) field3 = tiny_single
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
          field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
@@ -2082,6 +1983,7 @@ subroutine update_netcdf_mass
     write(6,*)' staggering=',staggering
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
+    where (field3 < tiny_single) field3 = tiny_single
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
          field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
@@ -2105,6 +2007,7 @@ subroutine update_netcdf_mass
     write(6,*)' staggering=',staggering
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
+    where (field3 < tiny_single) field3 = tiny_single
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
          field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
@@ -2128,6 +2031,7 @@ subroutine update_netcdf_mass
     write(6,*)' staggering=',staggering
     write(6,*)' start_index=',start_index
     write(6,*)' end_index1=',end_index1
+    where (field3 < tiny_single) field3 = tiny_single
     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
          field3,WRF_REAL,0,0,0,ordering,           &
          staggering, dimnames ,               &
@@ -2164,13 +2068,21 @@ subroutine update_netcdf_mass
   deallocate(field1,field2,field2b,ifield2,field3,field3u,field3v)
   call ext_ncd_ioclose(dh1, Status)
   close(iunit)
-!
-!  update START_TIME to analysis time
-!
+  !
+  !  reopen, update global attributes.
+  !
   ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
   IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
-  ierr = NF_PUT_ATT_TEXT (dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
-  IF (ierr .NE. NF_NOERR) print *,'PUT ', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len_trim(DateStr1),DateStr1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(iadate(4)))
+  IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iadate(1))
+  IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
+  ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
   ierr = NF_CLOSE(dh1)
   IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
   
@@ -2179,10 +2091,10 @@ end subroutine update_netcdf_mass
 subroutine update_netcdf_nmm
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    update_netcdf_nmm   create internal binary file from netcdf format wrf restart file
+! subprogram:    update_netcdf_nmm   create netcdf format wrf restart from internal binary file.
 !   pgrmmr:
 !
-! abstract: create internal binary file from netcdf format wrf restart file
+! abstract: create netcdf format wrf restart from internal binary file.
 !
 ! program history log:
 !   2004-11-05  treadon - add return code 75 for error stop
@@ -2191,6 +2103,7 @@ subroutine update_netcdf_nmm
 !   2005-12-09  middlecoff - initialize character variable staggering and removed staggering1,staggering2
 !   2009-08-14  lueken - update documentation
 !   2012-01-14  zhu    - add cloud hydrometeors
+!   2012-04-20  Whitaker - update NSTART_HOUR variable in HWRF restart file.
 !
 !   input argument list:
 !
@@ -2203,16 +2116,18 @@ subroutine update_netcdf_nmm
 !$$$ end documentation block
 
   use kinds, only: r_single,i_kind,r_kind
+  use constants, only: tiny_single
   use regional_io, only: update_pint
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use guess_grids, only: ntguessig
+  use obsmod, only: iadate
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
-! include 'netcdf.inc'
+  include 'netcdf.inc'
 
   character(len=120) :: flnm1,flnm2
   character(len=19)  :: DateStr1
@@ -2247,11 +2162,12 @@ subroutine update_netcdf_nmm
   character (len=31) :: rmse_var
   integer(i_kind) :: nallo
 
-  integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
+  integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond,iw3jdn
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   real(r_single) pt_regional,pdtop_regional,dy_nmm
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:)
   integer(i_kind),allocatable::ifield2(:,:)
+  integer(i_kind),allocatable::ifield1(:)
   integer(i_kind) wrf_real
   data iunit / 15 /
   wrf_real=104
@@ -2319,6 +2235,7 @@ subroutine update_netcdf_nmm
   allocate(field3(nlon_regional,nlat_regional,nallo))
   allocate(ifield2(nlon_regional,nlat_regional))
   allocate(field1(max(nlon_regional,nlat_regional,nsig_regional)))
+  allocate(ifield1(max(nlon_regional,nlat_regional,nsig_regional)))
   
   read(iunit) ! iyear,imonth,iday,ihour,iminute,isecond, &
        !        nlon_regional,nlat_regional,nsig_regional, &
@@ -2424,6 +2341,7 @@ subroutine update_netcdf_nmm
   write(6,*)' staggering=',staggering
   write(6,*)' start_index=',start_index
   write(6,*)' end_index1=',end_index1
+  where (field3 < tiny_single) field3 = tiny_single
   call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
        field3,WRF_REAL,0,0,0,ordering,           &
        staggering, dimnames ,               &
@@ -2499,6 +2417,7 @@ subroutine update_netcdf_nmm
      write(6,*)' staggering=',staggering
      write(6,*)' start_index=',start_index
      write(6,*)' end_index1=',end_index1
+     where (field3 < tiny_single) field3 = tiny_single
      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -2522,6 +2441,7 @@ subroutine update_netcdf_nmm
      write(6,*)' staggering=',staggering
      write(6,*)' start_index=',start_index
      write(6,*)' end_index1=',end_index1
+     where (field3 < tiny_single) field3 = tiny_single
      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -2545,6 +2465,7 @@ subroutine update_netcdf_nmm
      write(6,*)' staggering=',staggering
      write(6,*)' start_index=',start_index
      write(6,*)' end_index1=',end_index1
+     where (field3 < tiny_single) field3 = tiny_single
      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -2568,6 +2489,7 @@ subroutine update_netcdf_nmm
      write(6,*)' staggering=',staggering
      write(6,*)' start_index=',start_index
      write(6,*)' end_index1=',end_index1
+     where (field3 < tiny_single) field3 = tiny_single
      call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
           field3,WRF_REAL,0,0,0,ordering,           &
           staggering, dimnames ,               &
@@ -2578,8 +2500,47 @@ subroutine update_netcdf_nmm
   end if
 
   close(iunit)
-  deallocate(field1,field2,ifield2,field3)
+
+  rmse_var='NSTART_HOUR'
+  call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+  write(6,*)' rmse_var=',trim(rmse_var)
+  write(6,*)' ordering=',ordering
+  write(6,*)' WrfType=',WrfType
+  write(6,*)' ndim1=',ndim1
+  write(6,*)' staggering=',staggering
+  write(6,*)' start_index=',start_index
+  write(6,*)' end_index1=',end_index1
+  ifield1(1) = iadate(4)
+  call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          ifield1,WrfType,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+  if (ierr .ne. 0) then
+   write(6,*) '**error updating NSTART_HOUR (only needed for HWRF restart file)**'
+  endif
+  deallocate(field1,field2,ifield1,ifield2,field3)
   call ext_ncd_ioclose(dh1, Status)
+  !
+  !  reopen, update global attributes.
+  !
+  ierr = NF_OPEN(trim(flnm1), NF_WRITE, dh1)
+  IF (ierr .NE. NF_NOERR) print *, 'OPEN ',NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'START_DATE',len_trim(DateStr1),DateStr1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT START_DATE', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_TEXT(dh1,NF_GLOBAL,'SIMULATION_START_DATE',len_trim(DateStr1),DateStr1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT SIMULATION_START_DATE', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_REAL(dh1,NF_GLOBAL,'GMT',NF_FLOAT,1,float(iadate(4)))
+  IF (ierr .NE. NF_NOERR) print *,'PUT GMT', NF_STRERROR(ierr)
+  ierr = NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULYR',NF_INT,1,iadate(1))
+  IF (ierr .NE. NF_NOERR) print *,'PUT JULYR', NF_STRERROR(ierr)
+  ierr=NF_PUT_ATT_INT(dh1,NF_GLOBAL,'JULDAY',NF_INT,1,iw3jdn(iyear,imonth,iday)-iw3jdn(iyear,1,1)+1)
+  IF (ierr .NE. NF_NOERR) print *,'PUT JULDAY', NF_STRERROR(ierr)
+  ierr = NF_CLOSE(dh1)
+  IF (ierr .NE. NF_NOERR) print *, 'CLOSE ',NF_STRERROR(ierr)
   
 end subroutine update_netcdf_nmm
 

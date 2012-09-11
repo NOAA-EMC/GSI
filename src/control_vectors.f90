@@ -247,7 +247,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   m_allocs=0
   m_deallocs=0
 
-  call inquire_cv
+! call inquire_cv
 
   return
 end subroutine setup_control_vectors

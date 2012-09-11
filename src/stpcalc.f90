@@ -31,7 +31,7 @@ PUBLIC stpcalc
 contains
 
 subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
-                   diry,penalty,pjcost,end_iter)
+                   diry,penalty,penaltynew,pjcost,pjcostnew,end_iter)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -178,10 +178,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !
 !   output argument list:
 !     xhat
-!     stpinout - final estimate of stepsize
-!     penalty  - penalty
-!     end_iter - end iteration flag false if stepsize successful
-!     pjcost
+!     stpinout    - final estimate of stepsize
+!     penalty     - penalty current solution
+!     penaltynew  - estimate of penalty for new solution
+!     end_iter    - end iteration flag false if stepsize successful
+!     pjcost      - 4 major penalty terms current solution
+!     pjcostnew   - 4 major penalty terms estimate new solution
 !
 ! remarks:
 !     The part of xhat and dirx containing temps and psfc are values before strong initialization,
@@ -221,8 +223,8 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 ! Declare passed variables
   real(r_kind)        ,intent(inout) :: stpinout
   logical             ,intent(inout) :: end_iter
-  real(r_kind)        ,intent(  out) :: penalty
-  real(r_kind)        ,intent(  out) :: pjcost(4)
+  real(r_kind)        ,intent(  out) :: penalty,penaltynew
+  real(r_kind)        ,intent(  out) :: pjcost(4),pjcostnew(4)
 
   type(control_vector),intent(inout) :: xhat
   type(control_vector),intent(in   ) :: dirx,diry
@@ -239,17 +241,17 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   real(r_quad),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,ibin,ipenloc,ier,istatus,it
+  integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,ier,istatus,it
   integer(i_kind) istp_use,nstep,nsteptot
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
-  real(r_quad),dimension(ipen):: bsum,csum
-  real(r_kind),dimension(ipen):: stpx   
+  real(r_kind),dimension(istp_iter):: stprat
+  real(r_quad),dimension(ipen):: bsum,csum,psum
   real(r_kind) delpen
-  real(r_kind) outpensave,stprat
+  real(r_kind) outpensave
   real(r_kind),dimension(4)::sges
   real(r_kind),dimension(ioutpen):: outpen,outstp
   real(r_kind),pointer,dimension(:,:,:):: xhat_dt_t,xhat_dt_q,xhat_dt_tsen
@@ -331,17 +333,20 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end if
 
 ! Penalty, b, c for dry pressure
-  if (ljcpdry .and. .not.ljc4tlevs) then
-     call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3))
-  else if (ljcpdry .and. ljc4tlevs) then
-     do ibin=1,nobs_bins
-        call stpjcpdry(dval(ibin),sval(ibin),pstart(1,3),pstart(2,3),pstart(3,3))
-     end do
+  if(ljcpdry)then
+    if (.not.ljc4tlevs) then
+       call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3))
+    else 
+       do ibin=1,nobs_bins
+          call stpjcpdry(dval(ibin),sval(ibin),pstart(1,3),pstart(2,3),pstart(3,3))
+       end do
+    end if
   end if
 
 ! iterate over number of stepsize iterations (istp_iter - currently set to a maximum of 5)
   stepsize: do ii=1,istp_iter
 
+     iis=ii
 !    Delta stepsize
      dels=one_tenth_quad ** ii
   
@@ -374,30 +379,32 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 !    Do nonlinear terms
 
 !    penalties for moisture constraint
-     if(.not.ltlint .and. .not.ljc4tlevs) then
-        call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
-     else if (.not.ltlint .and. ljc4tlevs) then
-        do ibin=1,nobs_bins
-           if (nobs_bins /= nfldsig) then
-              it=ntguessig
-           else
-              it=ibin
-           end if
-           call stplimq(dval(ibin),sval(ibin),sges,pbc(1,4),pbc(1,5),nstep,it)
-        end do
+     if(.not. ltlint)then
+        if(.not.ljc4tlevs) then
+           call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
+        else 
+           do ibin=1,nobs_bins
+              if (nobs_bins /= nfldsig) then
+                 it=ntguessig
+              else
+                 it=ibin
+              end if
+              call stplimq(dval(ibin),sval(ibin),sges,pbc(1,4),pbc(1,5),nstep,it)
+           end do
+        end if
+
+!       penalties for gust constraint
+        if(getindex(cvars2d,'gust')>0) & 
+        call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
+
+!       penalties for vis constraint
+        if(getindex(cvars2d,'vis')>0) &
+        call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
+
+!       penalties for pblh constraint
+        if(getindex(cvars2d,'pblh')>0) &
+        call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
      end if
-
-!    penalties for gust constraint
-     if(.not.ltlint .and. getindex(cvars2d,'gust')>0) & 
-     call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
-
-!    penalties for vis constraint
-     if(.not.ltlint .and. getindex(cvars2d,'vis')>0) &
-     call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
-
-!    penalties for pblh constraint
-     if(.not.ltlint .and. getindex(cvars2d,'pblh')>0) &
-     call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
 
 !    penalties for Jo
      pbcjo=zero_quad
@@ -435,23 +442,16 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      end do
 
 !    estimate and sum b and c
+!    estimate stepsize contributions for each term
      bcoef=0.25_r_quad/(dels*stp(ii-1))
      ccoef=0.5_r_quad/(dels*dels*stp(ii-1)*stp(ii-1))
-     bsum=zero_quad
-     csum=zero_quad
-     do i=1,ipen
-        bsum(i)=bsum(i)+bcoef*(pbc(2,i)-pbc(3,i))
-        csum(i)=csum(i)+ccoef*(pbc(2,i)+pbc(3,i))
-     end do
-
-!    estimate stepsize contributions for each term
      bx=zero_quad
      cx=zero_quad
-     stpx=zero
      do i=1,ipen
+        bsum(i)=bcoef*(pbc(2,i)-pbc(3,i))
+        csum(i)=ccoef*(pbc(2,i)+pbc(3,i))
         bx=bx+bsum(i)
         cx=cx+csum(i)
-        if(csum(i) > 1.e-20_r_kind)stpx(i)=bsum(i)/csum(i)
      end do
 
 !    estimate of stepsize
@@ -481,7 +481,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         if(mype == 0)then
            if(ii == 1)write(iout_iter,100) (pbc(ipenloc,i),i=1,ipen)
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
-           write(iout_iter,101) (stpx(i),i=1,ipen)
            write(iout_iter,105) (bsum(i),i=1,ipen)
            write(iout_iter,110) (csum(i),i=1,ipen)
         end if
@@ -495,7 +494,6 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
      if(cx < 1.e-20_r_kind .or. stp(ii) <= zero_quad) then
         if(mype == 0) then
           write(iout_iter,*) ' entering negative stepsize option',stp(ii)
-          write(iout_iter,101) (stpx(i),i=1,ipen)
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
         end if
@@ -519,13 +517,12 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Write out detailed results to iout_iter
      if(ii == 1 .and. mype == 0) then
-        write(iout_iter,100) (pbc(1,i) + pbc(ipenloc,i),i=1,ipen)
-        write(iout_iter,101) (stpx(i),i=1,ipen)
+        write(iout_iter,100) (pbc(1,i)+pbc(ipenloc,i),i=1,ipen)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
      endif
 100  format(' J=',3e25.18/,(3x,3e25.18))
-101  format(' S=',3e25.18/,(3x,3e25.18))
+101  format('EJ=',3e25.18/,(3x,3e25.18))
 105  format(' b=',3e25.18/,(3x,3e25.18))
 110  format(' c=',3e25.18/,(3x,3e25.18))
 130  format('***WARNING***  negative or small cx inner', &
@@ -535,21 +532,36 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
 !    Check for convergence in stepsize estimation
      istp_use=ii
-     stprat=zero
+     stprat(ii)=zero
      if(stp(ii) > zero)then
-        stprat=abs((stp(ii)-stp(ii-1))/stp(ii))
+        stprat(ii)=abs((stp(ii)-stp(ii-1))/stp(ii))
      end if
-     if(mype == 0)write(6,*)' stprat ',stprat
-     if(stprat < 1.e-4_r_kind) exit stepsize
+     if(stprat(ii) < 1.e-4_r_kind) exit stepsize
 
   end do stepsize
 
-! Check for final stepsize negative (probable error)
   stpinout=stp(istp_use)
+! Estimate terms in penalty
+  if(mype == 0)then
+    do i=1,ipen
+      psum(i)=pbc(1,i)+(stp(iis-1)-stp(iis))*(2.0_r_quad*bsum(i)+ &
+                       (stp(iis-1)-stp(iis))*csum(i))
+    end do
+    write(iout_iter,101) (psum(i),i=1,ipen)
+  end if
+  pjcostnew(1) = psum(1)                                 ! Jb
+  pjcostnew(3) = psum(2)+psum(3)                         ! Jc
+  pjcostnew(4) = psum(4)+psum(5)+psum(6)+psum(7)+psum(8) ! Jl
+  pjcostnew(2) = zero
+  do i=1,nobs_type
+     pjcostnew(2) = pjcostnew(2)+psum(8+i)               ! Jo
+  end do
+  penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
+
+! Check for final stepsize negative (probable error)
   if(stpinout <= zero)then
      if(mype == 0)then
         write(iout_iter,130) ii,bx,cx,stp(ii)
-        write(iout_iter,101) (stpx(i),i=1,ipen)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
      end if
@@ -557,12 +569,14 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   end if
   if(mype == 0)then
      write(iout_iter,200) (stp(i),i=0,istp_use)
+     write(iout_iter,199) (stprat(ii),ii=1,istp_use)
      write(iout_iter,201) (outstp(i),i=1,nsteptot)
      write(iout_iter,202) (outpen(i)-outpen(1),i=1,nsteptot)
   end if
+199 format(' stepsize stprat    = ',6(e25.18,1x))
 200 format(' stepsize estimates = ',6(e25.18,1x))
-201 format(' stepsize guesses = ',(8(e13.6,1x)))
-202 format(' penalties        = ',(8(e13.6,1x)))
+201 format(' stepsize guesses   = ',(10(e13.6,1x)))
+202 format(' penalties          = ',(10(e13.6,1x)))
 
 ! If convergence or failure of stepsize calculation return
   if (end_iter) then

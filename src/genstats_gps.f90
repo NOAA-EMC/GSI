@@ -30,8 +30,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !                       - consider failure of gross check, obs-binning structures, QC for CL profiles)
 !                       - reorganize high_gps structure
 !                       - modify dimension of diagnostic structure
-!   2010-07-23 treadon  - add ratio_error=zero to reqional QC block, replace (izero,ione) with (0,1),
-!                         remove _i_kind suffix from integer constants, clean up use statements
+!   2010-07-23 treadon  - add ratio_error=zero to reqional QC block, replace ,
 !   2010-08-17 treadon  - convert high_gps from m to km one time only; break out regional
 !                         QC as separate if/then block (global will bypass); replace 
 !                         ratio_errors_reg with logical toss

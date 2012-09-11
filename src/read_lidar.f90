@@ -36,8 +36,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 !   2011-04-15  mccarty - change maxdat back to 20, kx in setupdw taken from ictype
 !   2011-05-05  mccarty - cleaned up unnecessary print statement
 !   2011-05-26  mccarty - remove dwlerror logic (moved to setupdw) 
-!   2011-08-01  lueken  - added module use deter_sfc_mod, remove _i_kind,
-!                         replace izero/ione with 0/1
+!   2011-08-01  lueken  - added module use deter_sfc_mod
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

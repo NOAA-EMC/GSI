@@ -10,7 +10,6 @@ subroutine general_read_nmmb(grd,filename,mype,g_z,g_ps,g_u,g_v,g_tv,g_tsen,g_q,
 !
 ! program history log:
 !   2011-07-01  carley     - Initial adaptation
-!   2012-02-10  carley     - remove ione and izero
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid

@@ -35,7 +35,6 @@ subroutine statsconv(mype,&
 !   2009-03-05  meunier - add lagrangean data
 !   2011-01-06  cucurull - replace gps_ref/gps_bnd with gps due to a change in the convinfo files gps structure
 !                        - maintain dtype information in the output file, add ctype
-!                        - clean up "_i_kind", "ione", "izero"
 !
 !   input argument list:
 !     mype     - mpi task number

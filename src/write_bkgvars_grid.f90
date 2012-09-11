@@ -27,7 +27,6 @@ subroutine write_bkgvars_grid(a,b,c,d,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_single
-  use constants, only: izero
   use gridmod, only: nlat,nlon,nsig,lat2,lon2
   implicit none
 
@@ -48,13 +47,13 @@ subroutine write_bkgvars_grid(a,b,c,d,mype)
 
 ! gather stuff to processor 0
   do k=1,nsig
-     call gather_stuff2(a(1,1,k),ag(1,1,k),mype,izero)
-     call gather_stuff2(b(1,1,k),bg(1,1,k),mype,izero)
-     call gather_stuff2(c(1,1,k),cg(1,1,k),mype,izero)
+     call gather_stuff2(a(1,1,k),ag(1,1,k),mype,0)
+     call gather_stuff2(b(1,1,k),bg(1,1,k),mype,0)
+     call gather_stuff2(c(1,1,k),cg(1,1,k),mype,0)
   end do
-  call gather_stuff2(d,dg,mype,izero)
+  call gather_stuff2(d,dg,mype,0)
 
-  if (mype==izero) then
+  if (mype==0) then
      write(6,*) 'WRITE OUT NEW VARIANCES'
 ! load single precision arrays
      do k=1,nsig
@@ -75,12 +74,12 @@ subroutine write_bkgvars_grid(a,b,c,d,mype)
 ! Create byte-addressable binary file for grads
      grdfile='bkgvar_rewgt.grd'
      ncfggg=len_trim(grdfile)
-     call baopenwt(22_i_kind,grdfile(1:ncfggg),iret)
-     call wryte(22_i_kind,4*nlat*nlon*nsig,a4)
-     call wryte(22_i_kind,4*nlat*nlon*nsig,b4)
-     call wryte(22_i_kind,4*nlat*nlon*nsig,c4)
-     call wryte(22_i_kind,4*nlat*nlon,d4)
-     call baclose(22_i_kind,iret)
+     call baopenwt(22,grdfile(1:ncfggg),iret)
+     call wryte(22,4*nlat*nlon*nsig,a4)
+     call wryte(22,4*nlat*nlon*nsig,b4)
+     call wryte(22,4*nlat*nlon*nsig,c4)
+     call wryte(22,4*nlat*nlon,d4)
+     call baclose(22,iret)
   end if
    
   return

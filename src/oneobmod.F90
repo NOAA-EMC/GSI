@@ -117,7 +117,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione, zero, one, five, one_tenth, r100, r0_01
+    use constants, only: zero, one, five, one_tenth, r100, r0_01
     use gsi_io, only: lendian_in
     use obsmod, only: offtime_data,iadate,bmiss
     implicit none
@@ -152,8 +152,8 @@ contains
     pob=obpres
 ! set default values for this routine
     ludx=22
-    nobs=ione
-    nlev=ione
+    nobs=1
+    nlev=1
     subset='ADPUPA'
     sid='SID00001'
     qob=r100
@@ -213,7 +213,7 @@ contains
           err(3,k)=toe(k,n)
        enddo
        call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
+       call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
        call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
        call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
        call ufbint(lendian_in,err,10,nlev,iret,errstr)
@@ -237,7 +237,7 @@ contains
           err(4,k)=woe(k,n)
        enddo
        call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10,ione,iret,hdrstr)
+       call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
        call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
        call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
        call ufbint(lendian_in,err,10,nlev,iret,errstr)
@@ -267,7 +267,7 @@ contains
 !   machine:  ?
 !
 !$$$
-    use constants, only: izero, ione, zero, one
+    use constants, only: zero, one
     implicit none
 
     integer(i_kind) lumk                          ! output unit
@@ -279,8 +279,8 @@ contains
 2   format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
 
     lumk = 22
-    ilev = ione               ! ilev > 24 is passive
-    isnd = ione
+    ilev = 1               ! ilev > 24 is passive
+    isnd = 1
     ppmv = one                ! dummy value 
 
 !    obdattim=2000010100
@@ -290,10 +290,10 @@ contains
     ildat(1) = obdattim  / 1000000            ! year
     ildat(2) = mod(obdattim,1000000)/10000    ! month
     ildat(3) = mod(obdattim,10000)/100        ! day
-    ildat(4) = izero
+    ildat(4) = 0
     ildat(5) = mod(obdattim,100)              ! hour
 
-    ildat(6:8) = izero                               ! (no minute/sec in obdattim)
+    ildat(6:8) = 0                               ! (no minute/sec in obdattim)
 
     call w3movdat(rlnc,ildat,jldat)
 

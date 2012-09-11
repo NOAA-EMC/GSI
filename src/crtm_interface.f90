@@ -131,7 +131,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind),save :: iclr_sky,isst_navy,idata_type,isst_hires,iclavr
   integer(i_kind),save :: itref,idtw,idtc,itz_tr
   integer(i_kind),save :: sensorindex
-  integer(i_kind),save :: ico2,ier
+  integer(i_kind),save :: ico2,ier,ico24crtm
   integer(i_kind),save :: n_aerosols_jac     ! number of aerosols in jocabian
   integer(i_kind),save :: n_aerosols         ! number of aerosols considered
   integer(i_kind),save :: n_aerosols_crtm    ! number of aerosols seen by CRTM
@@ -166,8 +166,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
      COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
 
 contains
-
-subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
+subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_crtm initializes things for use with call to crtm from setuprad
@@ -185,7 +184,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 !   2012-03-12  yang    - modify to use ch4,n2o,and co
 !
 !   input argument list:
-!     init_pass    - state of "setup" processing
 !     mype_diaghdr - processor to produce output from crtm
 !     mype         - current processor        
 !     nchanl       - number of channels    
@@ -222,7 +220,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   integer(i_kind),intent(in) :: nchanl,mype_diaghdr,mype
   character(20)  ,intent(in) :: isis
   character(10)  ,intent(in) :: obstype
-  logical        ,intent(in) :: init_pass
 
 ! local parameters
   character(len=*), parameter :: myname_=myname//'crtm_interface'
@@ -464,7 +461,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
  sensorlist(1)=isis
  if( crtm_coeffs_path /= "" ) then
-    if(init_pass .and. mype==mype_diaghdr) write(6,*)'INIT_CRTM: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+    if(mype==mype_diaghdr) write(6,*)'INIT_CRTM: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff, &
@@ -584,6 +581,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
 
 
 ! Currently all considered trace gases affect CRTM. Load trace gases into CRTM atmosphere
+ ico2=-1
  if (n_gases>0) then
     allocate(gases(n_gases))
     call gsi_chemguess_get('gsinames',gases,ier)
@@ -599,9 +597,12 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
            call stop2(71)
        end select
        atmosphere(1)%absorber_units(j) = VOLUME_MIXING_RATIO_UNITS
+       if (trim(gases(ig))=='co2') ico2=j
     enddo
     deallocate(gases)
  endif
+ ico24crtm=-1
+ if (ico2>0) call gsi_chemguess_get ( 'i4crtm::co2', ico24crtm, ier )
 
 !  Allocate structure for _k arrays (jacobians)
 
@@ -1566,6 +1567,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2
            end do
         endif
+     endif
+
+!    Add in a drop-off to absorber amount in the stratosphere to be in more
+!    agreement with ECMWF profiles.  The drop-off is removed when climatological CO2 fields
+!    are used.
+     if(ico24crtm==0)then
+        if (atmosphere(1)%level_pressure(k) < 200.0_r_kind) &
+            atmosphere(1)%absorber(k,ico2) = atmosphere(1)%absorber(k,ico2) * &
+           (0.977_r_kind + 0.000115_r_kind * atmosphere(1)%pressure(k))
      endif
   end do
 

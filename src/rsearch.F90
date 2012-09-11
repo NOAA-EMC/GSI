@@ -58,7 +58,7 @@ subroutine rsearch(km1,z1,km2,z2,l2)
 !$$$ end documentation block
 
   use kinds, only: r_kind,r_double,i_kind,i_long
-  use constants, only: ione,one
+  use constants, only: one
   implicit none
 
   integer(i_kind),intent(in   ) :: km1,km2
@@ -105,7 +105,7 @@ subroutine rsearch(km1,z1,km2,z2,l2)
         call dbsrch(z2,incx,n,z1,incy,m,indx,rc,iopt)
      endif
      do k2=1,km2
-        l2(k2)=km1+ione-indx(k2)
+        l2(k2)=km1+1-indx(k2)
      enddo
   endif
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -126,7 +126,7 @@ subroutine rsearch(im,km1,ixz1,kxz1,z1,km2,ixz2,kxz2,z2,ixl2,kxl2,l2)
 !   for intervals that surround another given search set of real numbers.
 !   The sequences may be monotonic in either direction; the real numbers
 !   may be single or double precision; the input sequences and sets
-!   and the output locations may be arbitrarily dimensioned.
+!   and the output locations may be arbitrarily dimenshoned.
 !
 ! program history log:
 !   1999-01-05  mark iredell
@@ -189,45 +189,44 @@ subroutine rsearch(im,km1,ixz1,kxz1,z1,km2,ixz2,kxz2,z2,ixl2,kxl2,l2)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione
   implicit none
  
   integer(i_kind),intent(in   ) :: im,km1,ixz1,kxz1,km2,ixz2,kxz2,ixl2,kxl2
-  real(r_kind)   ,intent(in   ) :: z1(ione+(im-ione)*ixz1+(km1-ione)*kxz1)
-  real(r_kind)   ,intent(in   ) :: z2(ione+(im-ione)*ixz2+(km2-ione)*kxz2)
-  integer(i_kind),intent(  out) :: l2(ione+(im-ione)*ixl2+(km2-ione)*kxl2)
+  real(r_kind)   ,intent(in   ) :: z1(1+(im-1)*ixz1+(km1-1)*kxz1)
+  real(r_kind)   ,intent(in   ) :: z2(1+(im-1)*ixz2+(km2-1)*kxz2)
+  integer(i_kind),intent(  out) :: l2(1+(im-1)*ixl2+(km2-1)*kxl2)
 
   integer(i_kind) i,k2,l
   real(r_kind) z
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ! Find the surrounding input interval for each output point.
   do i=1,im
-     if(z1(ione+(i-ione)*ixz1)<=z1(ione+(i-ione)*ixz1+(km1-ione)*kxz1)) then
+     if(z1(1+(i-1)*ixz1)<=z1(1+(i-1)*ixz1+(km1-1)*kxz1)) then
 
 !       Input coordinate is monotonically ascending.
         do k2=1,km2
-           z=z2(ione+(i-ione)*ixz2+(k2-ione)*kxz2)
-           l=izero
+           z=z2(1+(i-1)*ixz2+(k2-1)*kxz2)
+           l=0
            do
-              if(z<z1(ione+(i-ione)*ixz1+l*kxz1)) exit
-              l=l+ione
+              if(z<z1(1+(i-1)*ixz1+l*kxz1)) exit
+              l=l+1
               if(l==km1) exit
            enddo
-           l2(ione+(i-ione)*ixl2+(k2-ione)*kxl2)=l
+           l2(1+(i-1)*ixl2+(k2-1)*kxl2)=l
         enddo
 
      else
 
 !    Input coordinate is monotonically descending.
         do k2=1,km2
-           z=z2(ione+(i-ione)*ixz2+(k2-ione)*kxz2)
-           l=izero
+           z=z2(1+(i-1)*ixz2+(k2-1)*kxz2)
+           l=0
            do
-              if(z>z1(ione+(i-ione)*ixz1+l*kxz1)) exit
-              l=l+ione
+              if(z>z1(1+(i-1)*ixz1+l*kxz1)) exit
+              l=l+1
               if(l==km1) exit
            enddo
-           l2(ione+(i-ione)*ixl2+(k2-ione)*kxl2)=l
+           l2(1+(i-1)*ixl2+(k2-1)*kxl2)=l
         enddo
      endif
 

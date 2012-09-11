@@ -60,7 +60,7 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,one
+  use constants, only: one
   use balmod, only: rllat1,llmax
   use berror, only: dssv,dssvs
   use gridmod, only: nsig,regional,lat2,lon2
@@ -110,11 +110,11 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
         end do
      else
         if (mvars>=2) then
-           if (iflg == izero) then
+           if (iflg == 0) then
 !          Break skin temperature into components
                do i=1,lon2
                   do j=1,lat2
-                     if(isli2(j,i) == ione) then
+                     if(isli2(j,i) == 1) then
                         slndt(j,i)=ptr2d(j,i)*dssvs(j,i,nc2d+1)
                      else if(isli2(j,i) == 2) then
                         sicet(j,i)=ptr2d(j,i)*dssvs(j,i,nc2d+2)
@@ -127,7 +127,7 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 !          Combine sst,slndt, and sicet into skin temperature field
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i) == ione) then
+                    if(isli2(j,i) == 1) then
                        ptr2d(j,i)=slndt(j,i)*dssvs(j,i,nc2d+1)
                     else if(isli2(j,i) == 2) then
                        ptr2d(j,i)=sicet(j,i)*dssvs(j,i,nc2d+2)

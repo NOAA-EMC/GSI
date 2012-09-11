@@ -168,15 +168,15 @@ module ncepgfs_ghg
    integer(i_kind) :: i, j, k, ilon, ilat, ires
    integer(i_kind) :: ii,jj,kk
    integer(i_kind) :: luco2 = 43         ! data file unit, may be as an input param
-   integer(i_kind) ::            ndpm(12)
-   integer(i_kind) ::            ndmax
+   integer(i_kind) :: ndpm(12)
+   integer(i_kind) :: ndmax
    logical         :: file_exist
    character(len=100):: cline = ' '
    character(len=8)  :: cform = '(24f7.2)'      ! data format (nmxlon*f7.2)
    Character(len=20) :: cfile  = 'global_co2_data.txt'
 
-   data ndpm /31_i_kind, 28_i_kind, 31_i_kind, 30_i_kind, 31_i_kind, 30_i_kind, &
-              31_i_kind, 31_i_kind, 30_i_kind, 31_i_kind, 30_i_kind, 31_i_kind/
+   data ndpm /31, 28, 31, 30, 31, 30, &
+              31, 31, 30, 31, 30, 31/
 
 
 ! --- ... begin 
@@ -306,17 +306,12 @@ module ncepgfs_ghg
          do j=1, nmxlat
             read (luco2,cform) (co2_sav2(i,j,k), i=1,nmxlon)
          enddo
-         if ( mype == 0 ) then
-            write(6,*) '   CHECK: at Month+1 CO2 data ',  &
-                    'data used for year, month, level:',iyear,month,k
-            write(6,*) co2_sav2(1,:,k)
-         endif
       enddo
 ! Linearly interpolate month means into the values for analysis day
       ndmax=ndpm(month)
 ! For leap year February: ndmax=29
       if (month ==2 ) then
-         if( mod(iyear,4) == 0_i_kind .and. iyear >= 1900_i_kind) ndmax= 29
+         if( mod(iyear,4) == 0 .and. iyear >= 1900) ndmax= 29
       endif
       do k=1,nlev
          do j=1,nmxlat
@@ -327,6 +322,15 @@ module ncepgfs_ghg
             enddo
          enddo
       enddo
+      i=nmxlon/2+1
+      j=nmxlat/2+1
+      if ( mype == 0 ) then
+        write(6,*) 'ncep_ghg: CO2 data ',  &
+                    'data used for year, month,i,j:',iyear,month,i,j
+        do k=1,nlev
+            write(6,*) ' Level = ',k,' CO2 = ',co2_Tintrp(i,j,k)
+        enddo
+      endif
 
 ! Interpolate the co2_Tintrp into a subdomain's grid
       do i = 1, lat2
@@ -464,8 +468,8 @@ module ncepgfs_ghg
       inquire (file=cfile, exist=file_exist)
       if ( .not. file_exist ) then
 			if ( mype == 0 ) then
-				write(6,*) '   Can not find the input data source file'
-				write(6,*) ' *** Stopped in subroutine read_gfsghg !!'
+				write(6,*) '   Can not find ',trim(char_ghg),' data source file'
+				write(6,*) ' *** Stopped in subroutine read_ch4n2oco !!'
 			endif
          call stop2(332) 
 
@@ -476,6 +480,8 @@ module ncepgfs_ghg
       open (lughg,file=cfile,form='formatted',status='old',iostat=ierr)
 		if (ierr /= 0) then
 			if ( mype == 0 ) then
+                                write(6,*) '   error opening file = '//cfile
+                                write(6,*) ' *** Stopped in subroutine read_ch4n2oco !!'
 			endif
       	call stop2(332) 
 		endif
@@ -485,7 +491,7 @@ module ncepgfs_ghg
 		if (ierr /= 0) then
 			if ( mype == 0 ) then
 				write(6,*) '   error reading  file = '//cfile
-				write(6,*) '   *** Stopped in subroutine read_gfsghg !!'
+				write(6,*) '   *** Stopped in subroutine read_ch4n2oco !!'
                         endif
 			call stop2(332)
 		endif

@@ -104,7 +104,6 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !   2004-10-28  treadon - replace tiny with tiny_r_kind
 !   2004-11-22  derber - remove weight, add logical for boundary point
 !   2004-12-22  treadon - add outer loop number to name of diagnostic file
-!   2005-02-02  treadon - remove unused parameter ione
 !   2005-03-09  parrish - nonlinear qc change to account for inflated obs error
 !   2005-03-16  derber  - save observation time
 !   2005-04-11  treadon - add logical to toggle on/off nonlinear qc code

@@ -159,7 +159,7 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
@@ -175,7 +175,7 @@
      v2(iy)=zero
   enddo
   do jiy=-nbh1,nbh2
-     do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
+     do iy=max(1,1-jiy),min(n1y,n2y-jiy)
         v2(iy)=v2(iy)+a(iy,jiy)*v1(jiy+iy)
      enddo
   end do
@@ -218,7 +218,6 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -230,13 +229,13 @@
   integer(i_kind) jy,iy
 
   do jy=1,ny
-     do iy=jy+ione,min(ny,jy+nbh1)
+     do iy=jy+1,min(ny,jy+nbh1)
         v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
      enddo
      v(jy) =a(jy,0)*v(jy)
   end do
   do jy=ny,2,-1
-     do iy=max(ione,jy-nbh2),jy-ione
+     do iy=max(1,jy-nbh2),jy-1
         v(iy) =v(iy) -a(iy,jy-iy)*v(jy)
      enddo
   enddo
@@ -277,7 +276,6 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -289,14 +287,14 @@
   integer(i_kind) iy,jy
 
   do iy=1,ny
-     do jy=iy+ione,min(ny,iy+nbh2)
+     do jy=iy+1,min(ny,iy+nbh2)
         v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
      enddo
      v(iy) =v(iy) *a(iy,0)
   enddo
 
   do iy=ny,2,-1
-     do jy=max(ione,iy-nbh1),iy-ione
+     do jy=max(1,iy-nbh1),iy-1
         v(jy) =v(jy) -v(iy) *a(iy,jy-iy)
      enddo
   enddo
@@ -334,7 +332,7 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Delcare passed variables
@@ -352,7 +350,7 @@
   enddo
 
   do jiy=-nbh1,nbh2
-     do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
+     do iy=max(1,1-jiy),min(n1y,n2y-jiy)
         jy=jiy+iy
         aij=a(iy,jiy)
         v2(jy)=v2(jy)+v1(iy)*aij
@@ -398,7 +396,6 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -411,8 +408,8 @@
   integer(i_kind) nxhp,ix,nxp,ix1,ix2
   real(r_kind),dimension(nx):: v1,v2
 
-  nxhp=nxh+ione
-  nxp=nx+ione
+  nxhp=nxh+1
+  nxp=nx+1
 
 !  treat odd-symmetry component of input:
   do ix=1,nxh
@@ -470,7 +467,7 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
@@ -486,7 +483,7 @@
       v2(ix)=zero
   enddo
   do jix=-nbh1,nbh2
-     do ix=max(ione,ione-jix),min(n1x,n2x-jix)
+     do ix=max(1,1-jix),min(n1x,n2x-jix)
         ix1=jix+ix
         v2(ix)=v2(ix)+a(ix,jix)*v1(ix1)
      enddo
@@ -529,7 +526,6 @@
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -541,14 +537,14 @@
   integer(i_kind) jx,ix,ix1
 
   do jx=1,nx
-     do ix=jx+ione,min(nx,jx+nbh1)
+     do ix=jx+1,min(nx,jx+nbh1)
         ix1=jx-ix
         v(ix)=v(ix)-a(ix,ix1)*v(jx)
      end do
      v(jx)=a(jx,0)*v(jx)
   end do
   do jx=nx,2,-1
-     do ix=max(ione,jx-nbh2),jx-ione
+     do ix=max(1,jx-nbh2),jx-1
         ix1=jx-ix
         v(ix)=v(ix)-a(ix,ix1)*v(jx)
      enddo

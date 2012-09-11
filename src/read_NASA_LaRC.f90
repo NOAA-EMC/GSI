@@ -41,7 +41,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 !_____________________________________________________________________
 !
   use kinds, only: r_kind,r_double,i_kind
-  use constants, only: zero,one,izero,ione
+  use constants, only: zero,one
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
@@ -70,8 +70,8 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB'
 
-    INTEGER(i_kind),PARAMETER ::  MXBF = 160000_i_kind
-    INTEGER(i_kind) :: ibfmsg = MXBF/4_i_kind
+    INTEGER(i_kind),PARAMETER ::  MXBF = 160000
+    INTEGER(i_kind) :: ibfmsg = MXBF/4
 
     character(8) subset,sid
     integer(i_kind) :: lunin,idate
@@ -80,10 +80,10 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
     INTEGER(i_kind)  ::  maxlvl,nlon,nlat
     INTEGER(i_kind)  ::  numlvl,numLaRC
     INTEGER(i_kind)  ::  n,k,iret
-    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000_i_kind
+    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=450000_i_kind 
+    INTEGER(i_kind),PARAMETER  ::  maxobs=450000 
 
     REAL(r_kind),allocatable :: LaRCcld_in(:,:)   ! 3D reflectivity in column
 
@@ -98,47 +98,47 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 !            END OF DECLARATIONS....start of program
 !
    LaRCobs = .false.
-   ikx=izero
+   ikx=0
    do i=1,nconvtype
-       if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== ione) then
+       if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== 1) then
            LaRCobs =.true.
            ikx=i
        endif
    end do
 
-   nchanl= izero
-   nread = izero
-   ndata = izero
-   ifn = 15_i_kind
+   nchanl= 0
+   nread = 0
+   ndata = 0
+   ifn = 15
 !
    if(LaRCobs) then
-      lunin = 10_i_kind            
-      maxlvl= 5_i_kind
-      allocate(LaRCcld_in(maxlvl+2_i_kind,maxobs))
+      lunin = 10            
+      maxlvl= 5
+      allocate(LaRCcld_in(maxlvl+2,maxobs))
 
       OPEN  ( UNIT = lunin, FILE = trim(infile),form='unformatted',err=200)
       CALL OPENBF  ( lunin, 'IN', lunin )
-      CALL DATELEN  ( 10_i_kind )
+      CALL DATELEN  ( 10 )
 
-      nmsg=izero
-      nrep=izero
-      ntb = izero
-      msg_report: do while (ireadmg(lunin,subset,idate) == izero)
-         nmsg=nmsg+ione
+      nmsg=0
+      nrep=0
+      ntb = 0
+      msg_report: do while (ireadmg(lunin,subset,idate) == 0)
+         nmsg=nmsg+1
          if (nmsg>nmsgmax) then
             write(6,*)'read_NASA_LaRC: messages exceed maximum ',nmsgmax
             call stop2(50)
          endif
-         loop_report: do while (ireadsb(lunin) == izero)
-            ntb = ntb+ione
-            nrep(nmsg)=nrep(nmsg)+ione
+         loop_report: do while (ireadsb(lunin) == 0)
+            ntb = ntb+1
+            nrep(nmsg)=nrep(nmsg)+1
             if (ntb>maxobs) then
                 write(6,*)'read_NASA_LaRC: reports exceed maximum ',maxobs
                 call stop2(50)
             endif
 
 !    Extract type, date, and location information
-            call ufbint(lunin,hdr,5_i_kind,ione,iret,hdrstr)
+            call ufbint(lunin,hdr,5,1,iret,hdrstr)
 ! check time window in subset
             if (l4dvar) then
                t4dv=hdr(4)
@@ -157,7 +157,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
             endif
 
 ! read in observations
-            call ufbint(lunin,obs,ione,maxlvl,iret,obsstr)
+            call ufbint(lunin,obs,1,maxlvl,iret,obsstr)
             numlvl=iret
 
             LaRCcld_in(1,ntb)=hdr(2)*10.0_r_kind       ! observation location, grid index i
@@ -173,12 +173,12 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
       write(6,*)'read_NASALaRC: messages/reports = ',nmsg,'/',ntb
       numLaRC=ntb
 !
-      ilon=ione
-      ilat=2_i_kind
+      ilon=1
+      ilat=2
       nread=numLaRC
       ndata=numLaRC
-      nreal=maxlvl+2_i_kind
-      if(numLaRC > izero ) then
+      nreal=maxlvl+2
+      if(numLaRC > 0 ) then
           write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
           write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numLaRC)
           deallocate(LaRCcld_in)

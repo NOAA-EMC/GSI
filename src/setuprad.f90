@@ -169,7 +169,7 @@
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
       two,three,cg_term,wgtlim,r100,r10,r0_01
-  use jfunc, only: jiter,miter
+  use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
@@ -211,7 +211,7 @@
   integer(i_kind) kk,n,nlev,kval,ibin,ioff,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
-  integer(i_kind) ioz,ius,ivs
+  integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
@@ -379,7 +379,7 @@
         if (iuse_rad(j)< -1 .or. (channel_passive .and.  &
            .not.rad_diagsave)) tnoise(jc)=r1e10
         if (passive_bc .and. channel_passive) tnoise(jc)=varch(j)
-        if (iuse_rad(j)>-1) l_may_be_passive=.true.
+        if (iuse_rad(j)>0) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
 
         tnoise_cld(jc)=varch_cld(j)
@@ -388,7 +388,6 @@
         if (passive_bc .and. (iuse_rad(j)==-1)) tnoise_cld(jc)=varch_cld(j)
      end if
   end do
-  if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
   if(nchanl > jc) write(6,*)'SETUPRAD:  channel number reduced for ', &
      obstype,nchanl,' --> ',jc
   if(jc == 0) then
@@ -402,9 +401,13 @@
      if(nobs >0)read(lunin)                    
      goto 135
   endif
+  if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
 
+!  Logic to turn off print of reading coefficients if not first interation or not mype_diaghdr or not init_pass
+  iwrmype=-99
+  if(mype==mype_diaghdr(is) .and. init_pass .and. jiterstart == jiter)iwrmype = mype_diaghdr(is)
 ! Initialize radiative transfer and pointers to values in data_s
-  call init_crtm(init_pass,mype_diaghdr(is),mype,nchanl,isis,obstype)
+  call init_crtm(iwrmype,mype,nchanl,isis,obstype)
 
 ! Get indexes of variables in jacobian to handle exceptions down below
   ioz =getindex(radjacnames,'oz')

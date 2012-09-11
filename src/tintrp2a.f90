@@ -15,7 +15,6 @@ subroutine tintrp2a(f,g,dx,dy,obstime,gridtime, &
 !   2003-12-22  kleist, modified to perform 2-d interpolation over a
 !                      specified number of vertical levels
 !   2004-05-18  kleist, documentation
-!   2005-02-02  treadon - use ione from constants
 !   2006-04-03  derber  - optimize
 !   2008-04-03  safford - rm unused vars
 !   2009-01-23  todling - dim on gridtime is nflds
@@ -66,15 +65,15 @@ subroutine tintrp2a(f,g,dx,dy,obstime,gridtime, &
      delx=dx(i)-float(ix1)
      dely=dy(i)-float(iy1)
      delx=max(zero,min(delx,one))
-     ix=ix1-istart(m1)+2_i_kind
-     iy=iy1-jstart(m1)+2_i_kind
+     ix=ix1-istart(m1)+2
+     iy=iy1-jstart(m1)+2
      if(iy<1) then
         iy1=iy1+nlon
-        iy=iy1-jstart(m1)+2_i_kind
+        iy=iy1-jstart(m1)+2
      end if
      if(iy>lon1+1) then
         iy1=iy1-nlon
-        iy=iy1-jstart(m1)+2_i_kind
+        iy=iy1-jstart(m1)+2
      end if
      ixp=ix+1; iyp=iy+1
      if(ix1==nlat) then

@@ -12,7 +12,7 @@
 
 ! !USES:
 
-  use kinds, only: i_kind
+  use kinds, only: i_kind,r_kind
   use obsmod, only: dmesh,dval,dthin,dtype,dfile,dplat,dsfcalc,ndat,&
      init_obsmod_dflts,create_obsmod_vars,write_diag,reduce_diag,oberrflg,&
      time_window,perturb_obs,perturb_fact,sfcmodel,destroy_obsmod_vars,dsis,ndatmax,&
@@ -30,7 +30,7 @@
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
-                       use_edges,passive_bc,newpc4pred,final_rad_vars
+                       biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars
   use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
@@ -53,7 +53,7 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
-     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt
+     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
@@ -94,7 +94,7 @@
                          regional_ensemble_option,merge_two_grid_ensperts, &
                          full_ensemble,pseudo_hybens,betaflg,pwgtflg,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
-                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens
+                         readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowCloud,l_gsd_terrain_match_surfTobs, &
@@ -353,6 +353,8 @@
 !     newpc4pred  - option for additional preconditioning for pred coeff.
 !     passive_bc  - option to turn on bias correction for passive (monitored) channels
 !     use_edges   - option to exclude radiance data on scan edges
+!     biaspredvar - set background error variance for radiance bias coeffs
+!     (default 0.1K)
 !     use_compress - option to turn on the use of compressibility factors in geopotential heights
 !     nsig_ext - number of layers above the model top which are necessary to compute the bending angle for gpsro
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
@@ -380,14 +382,15 @@
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
        crtm_coeffs_path, &
        berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &
-       lobsdiagsave, &
+       biaspredvar,lobsdiagsave, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,iorthomax,ladtest,lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,iwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
-       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr
+       lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
+       step_start,diag_precon
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -660,10 +663,11 @@
 !     pwgtflg          - if true, use vertical integration function on ensemble contribution of Psfc
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
+!     enspreproc - flag to read(.true.) pre-processed ensemble data already
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,grid_ratio_ens, &
-                oz_univ_static,write_ens_sprd
+                oz_univ_static,write_ens_sprd,enspreproc
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -839,6 +843,12 @@
      if(reduce_diag) &
      call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)
   end if 
+
+! Diagonal preconditioning is necessary for new bias correction
+  if(newpc4pred .and. .not. diag_precon)then
+    diag_precon=.true.
+    step_start=8.e-4_r_kind
+  end if
 
   if( (.not.l4dvar) .and. (.not.l4densvar) ) ljcdfi=.false.
  

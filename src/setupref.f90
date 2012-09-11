@@ -83,8 +83,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !                      - remove observation dianostics structure (I moved this structure to genstats.f90
 !                        a while back and shouldn't have been coded here again!)
 !  2010-07-22 treadon  - remove last check for gpshead allocate
-!  2010-07-23 treadon  - clean up use statements, replace (izero,ione) with (0,1),
-!                        remove _i_kind suffix from integer constants
+!  2010-07-23 treadon  - clean up use statements
 !  2010-10-25 cucurull - add quality control options for C/NOFS satellite
 !  2011-01-05 cucurull - add gpstop to reject anything above this value 
 !  2011-01-13 lueken   - corrected init_pass and last_pass indentation
