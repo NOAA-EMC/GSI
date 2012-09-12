@@ -151,7 +151,7 @@ ${COMPRESS} ${imgndir}/*.ctl
            wall_tm="0:40:00"
         fi
 
-        $SUB -A $ACCOUNT -l procs=${ntasks},walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
      done
   fi
 
@@ -199,7 +199,7 @@ ${COMPRESS} ${imgndir}/*.ctl
               wall_tm="0:50:00"
            fi
 
-           $SUB -A $ACCOUNT -l procs=${ntasks},walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+           $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
 
         done
      fi
