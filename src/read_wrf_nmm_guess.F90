@@ -1158,8 +1158,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                     end do
                  end do
               end if
-              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')&
-                 ifld,temp1(im/2,jm/2)
+!             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)'),ifld,temp1(im/2,jm/2)
               if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
               if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
 

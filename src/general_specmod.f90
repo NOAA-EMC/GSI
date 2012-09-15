@@ -164,7 +164,7 @@ contains
     sp%jcap=jcap
     sp%nc=(jcap+1)*(jcap+2)
     sp%jcap_trunc=jcap
-    sp%nc_trunc=(sp%jcap_trunc+1)*(sp%jcap_trunc+2_i_kind)
+    sp%nc_trunc=(sp%jcap_trunc+1)*(sp%jcap_trunc+2)
     sp%ncd2=sp%nc/2
     sp%iromb=0
     sp%idrt=4

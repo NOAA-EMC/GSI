@@ -26,7 +26,7 @@ module converr
 !$$$ end documentation block
 
 use kinds, only:r_kind,i_kind,r_single
-use constants, only: izero,ione,zero
+use constants, only: zero
 use obsmod, only : oberrflg 
 implicit none
 
@@ -76,11 +76,11 @@ contains
      etabl=1.e9_r_kind
       
      
-     ietabl=19_i_kind
+     ietabl=19
      open(ietabl,file='errtable',form='formatted')
      rewind ietabl
      etabl=1.e9_r_kind
-     lcount=izero
+     lcount=0
      loopd : do 
         read(ietabl,100,IOSTAT=iflag) itypex
         if( iflag /= 0 ) exit loopd
@@ -92,7 +92,7 @@ contains
         end do
      end do   loopd
 
-     if(lcount<=0 .and. mype==izero) then
+     if(lcount<=0 .and. mype==0) then
         write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'
         oberrflg=.false.
      else
@@ -101,7 +101,7 @@ contains
         ptabl=zero
         ptabl(1)=etabl(120,1,1)
         do k=2,33
-           ptabl(k)=half*(etabl(120,k-ione,1)+etabl(120,k,1))
+           ptabl(k)=half*(etabl(120,k-1,1)+etabl(120,k,1))
         enddo
         ptabl(34)=etabl(120,33,1)
      endif

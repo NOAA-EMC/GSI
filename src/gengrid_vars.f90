@@ -30,7 +30,7 @@ subroutine gengrid_vars
   use kinds, only: r_kind,i_kind
   use gridmod, only: sinlon,coslon,region_lat,rbs2,&
        rlons,rlats,corlats,nlon,nlat,regional,wgtlats,sp_a
-  use constants, only: ione,zero,half,one,four,pi,two,omega
+  use constants, only: zero,half,one,four,pi,two,omega
   implicit none
 
 ! Declare local variables
@@ -64,13 +64,13 @@ subroutine gengrid_vars
 
 ! Load grid lat,lon arrays.  rbs2 is used in pcp.
      do i=1,nlon
-        rlons(i)=float(i-ione)*dlon
+        rlons(i)=float(i-1)*dlon
         coslon(i)=cos(rlons(i))
         sinlon(i)=sin(rlons(i))
      end do
 
      do i=sp_a%jb,sp_a%je
-        i1=i+ione
+        i1=i+1
         rlats(i1)=-asin(sp_a%slat(i))
         rbs2(i1)=one/cos(rlats(i1))**2
         wgtlats(i1)=sp_a%wlat(i)

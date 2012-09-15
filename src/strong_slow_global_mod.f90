@@ -8,7 +8,6 @@ module strong_slow_global_mod
 ! program history log:
 !   2008-04-04  safford - add module doc block
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
-!   2012-02-12  parrish - remove use of izero, ione
 !
 ! subroutines included;
 !    init_strongvars_1                    --

@@ -32,7 +32,7 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: grav,zero,quarter,half,one,two,four,five,izero,&
+  use constants, only: grav,zero,quarter,half,one,two,four,five,&
        fv,rd,rd_over_cp,r1000
   implicit none
 
@@ -108,13 +108,13 @@ subroutine compute_fact10(u,v,t,q,ps,prsi1,prsi2,skint,z0rl,islimsk,f10m)
 
 
 !  COMPUTE STABILITY DEPENDENT EXCHANGE COEFFICIENTS
-   if (islimsk == izero) then
+   if (islimsk == 0) then
       ustar = sqrt(grav * z0 / charnok)
    end if
 !  COMPUTE STABILITY INDICES (RB AND HLINF)
    z0max = min(z0,one*z1)
    ztmax = z0max
-   if (islimsk == izero) then
+   if (islimsk == 0) then
       restar=ustar*z0max/vis
       restar=max(restar,1.e-6_r_kind)
 

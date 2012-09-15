@@ -13,7 +13,6 @@ module mpimod
 ! !USES:
 
   use kinds, only: i_kind
-  use constants, only: izero,ione
 
 #ifdef ibm_sp
 ! Include standard mpi includes file.
@@ -136,8 +135,8 @@ module mpimod
 ! the number of processors used to decompose the latitudinal dimension.
 ! By construction, nPE = nxPE * nyPE.
 ! 
-  integer(i_kind) :: nxpe=-ione     ! optional layout information
-  integer(i_kind) :: nype=-ione     ! optional layout information
+  integer(i_kind) :: nxpe=-1     ! optional layout information
+  integer(i_kind) :: nype=-1     ! optional layout information
 
 
 ! communication arrays...set up in init_mpi_vars
@@ -291,28 +290,28 @@ contains
        irduv_g(npe),iscuv_s(npe),isduv_s(npe),ircuv_s(npe),&
        irduv_s(npe))
 
-    mm1=mype+ione
+    mm1=mype+1
     nuvlevs=nsig/npe
-    if(mod(nsig,npe)/=izero) nuvlevs=nuvlevs+ione
+    if(mod(nsig,npe)/=0) nuvlevs=nuvlevs+1
 
 
 ! redefine kchk for uv/stvp distribution
-    if (mod(nsig,npe)==izero) then
+    if (mod(nsig,npe)==0) then
        kchk=npe
     else
        kchk=mod(nsig,npe)
     end if
 
-    levscnt=izero
+    levscnt=0
     do n=1,npe
        if(n<=kchk) then
           kk=nuvlevs
        else
-          kk=nuvlevs-ione
+          kk=nuvlevs-1
        end if
 
        do k=1,kk
-          levscnt=levscnt+ione
+          levscnt=levscnt+1
           if ( n==mm1 .and. levscnt<=nsig ) then
              nnnuvlevs=kk
           end if
@@ -322,41 +321,41 @@ contains
 ! Initialize slab/subdomain communicators, redefined in
 ! init_commvars
     do n=1,npe
-       iscnt_g(n)   = izero
-       isdsp_g(n)   = izero
-       ircnt_g(n)   = izero
-       irdsp_g(n)   = izero
-       iscnt_s(n)   = izero
-       isdsp_s(n)   = izero
-       ircnt_s(n)   = izero
-       irdsp_s(n)   = izero
+       iscnt_g(n)   = 0
+       isdsp_g(n)   = 0
+       ircnt_g(n)   = 0
+       irdsp_g(n)   = 0
+       iscnt_s(n)   = 0
+       isdsp_s(n)   = 0
+       ircnt_s(n)   = 0
+       irdsp_s(n)   = 0
 
-       iscbal_g(n)  = izero
-       isdbal_g(n)  = izero
-       ircbal_g(n)  = izero
-       irdbal_g(n)  = izero
-       iscbal_s(n)  = izero
-       isdbal_s(n)  = izero
-       ircbal_s(n)  = izero
-       irdbal_s(n)  = izero
+       iscbal_g(n)  = 0
+       isdbal_g(n)  = 0
+       ircbal_g(n)  = 0
+       irdbal_g(n)  = 0
+       iscbal_s(n)  = 0
+       isdbal_s(n)  = 0
+       ircbal_s(n)  = 0
+       irdbal_s(n)  = 0
  
-       iscvec_g(n)  = izero
-       isdvec_g(n)  = izero
-       ircvec_g(n)  = izero
-       irdvec_g(n)  = izero
-       iscvec_s(n)  = izero
-       isdvec_s(n)  = izero
-       ircvec_s(n)  = izero
-       irdvec_s(n)  = izero
+       iscvec_g(n)  = 0
+       isdvec_g(n)  = 0
+       ircvec_g(n)  = 0
+       irdvec_g(n)  = 0
+       iscvec_s(n)  = 0
+       isdvec_s(n)  = 0
+       ircvec_s(n)  = 0
+       irdvec_s(n)  = 0
 
-       iscuv_g(n)   = izero
-       isduv_g(n)   = izero
-       ircuv_g(n)   = izero
-       irduv_g(n)   = izero
-       iscuv_s(n)   = izero
-       isduv_s(n)   = izero
-       ircuv_s(n)   = izero
-       irduv_s(n)   = izero
+       iscuv_g(n)   = 0
+       isduv_g(n)   = 0
+       ircuv_g(n)   = 0
+       irduv_g(n)   = 0
+       iscuv_s(n)   = 0
+       isduv_s(n)   = 0
+       ircuv_s(n)   = 0
+       irduv_s(n)   = 0
 
     end do
     allocate(lu_gs(nsig),lv_gs(nsig),ku_gs(nsig),kv_gs(nsig),kt_gs(nsig),kp_gs(nsig+1))
@@ -364,49 +363,49 @@ contains
 ! Distribute variables as evenly as possible over the tasks
 ! start by defining starting points for each variable
     allocate(ns(nvars+1))
-    ns(1)=ione
+    ns(1)=1
     do k=2,nrf+1
        if (nrf_3d(k-1)) then
           ns(k)=ns(k-1)+nsig
        else
-          ns(k)=ns(k-1)+ione
+          ns(k)=ns(k-1)+1
        end if
     end do
     if (nvars>nrf) then
-       ns(nvars)=ns(nrf+1)+ione
-       ns(nvars+1)=ns(nrf+2)+ione
+       ns(nvars)=ns(nrf+1)+1
+       ns(nvars+1)=ns(nrf+2)+1
     end if
 
 ! Need to use a variable to know which tasks have a full nsig1o 
 ! array, and which one have the last level irrelevant
-    if (mod(vlevs,npe)==izero) then
+    if (mod(vlevs,npe)==0) then
        kchk=npe
     else
        kchk=mod(vlevs,npe)
     end if
 
-    nvar_id=izero
-    levs_id=izero
-    nvar_pe=-999_i_kind
+    nvar_id=0
+    levs_id=0
+    nvar_pe=-999
 
 ! Define which variable/level each task has for the
 ! global slabs (levs_id,nvar_id)
-    varcnt=izero
+    varcnt=0
     do n=1,npe
        if(n<=kchk) then
           kk=nsig1o
        else
-          kk=nsig1o-ione
+          kk=nsig1o-1
        end if
        do k=1,kk
-          varcnt=varcnt+ione
-          nvar_pe(varcnt,1)=n-ione
+          varcnt=varcnt+1
+          nvar_pe(varcnt,1)=n-1
           nvar_pe(varcnt,2)=k
           if (n==mm1) then
              do i=1,nvars
                 if (varcnt>=ns(i) .and. varcnt<ns(i+1)) then
                    nvar_id(k)=i
-                   levs_id(k)=varcnt-ns(i)+ione
+                   levs_id(k)=varcnt-ns(i)+1
                 end if
              end do
           end if ! end if for task id
@@ -415,9 +414,9 @@ contains
 
     deallocate(ns)
 
-    nnnn1o=izero
+    nnnn1o=0
     do k=1,nsig1o
-       if (levs_id(k)/=izero) nnnn1o=nnnn1o+ione
+       if (levs_id(k)/=0) nnnn1o=nnnn1o+1
     end do
 
 

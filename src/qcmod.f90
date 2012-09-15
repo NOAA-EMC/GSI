@@ -1672,7 +1672,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
   logical         :: latms, latms_surfaceqc
 
-  if (nchanl == 22_i_kind) then
+  if (nchanl == 22) then
       latms  = .true.    ! If there are 22 channels passed along, it's atms
       ich238 =  1
       ich314 =  2

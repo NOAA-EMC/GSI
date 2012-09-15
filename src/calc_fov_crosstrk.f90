@@ -56,14 +56,14 @@
 
  private
 
- integer(i_kind) , parameter, public    :: npoly = 30_i_kind
- integer(i_kind) , parameter, private   :: maxinstr = 18_i_kind
- integer(i_kind) , dimension(maxinstr), private:: maxfov = (/ 2048_i_kind,2048_i_kind,2048_i_kind, &
-                                                              56_i_kind,56_i_kind,56_i_kind, &
-                                                              56_i_kind,56_i_kind, 8_i_kind, &
-                                                              11_i_kind,30_i_kind,90_i_kind, &
-                                                              90_i_kind,96_i_kind,96_i_kind, &
-                                                              96_i_kind,90_i_kind,30_i_kind /)
+ integer(i_kind) , parameter, public    :: npoly = 30
+ integer(i_kind) , parameter, private   :: maxinstr = 18
+ integer(i_kind) , dimension(maxinstr), private:: maxfov = (/ 2048,2048,2048, &
+                                                              56,56,56, &
+                                                              56,56, 8, &
+                                                              11,30,90, &
+                                                              90,96,96, &
+                                                              96,90,30 /)
 
  real(r_kind) , dimension(:), allocatable, private :: alongtrackangle
  real(r_kind) , dimension(:), allocatable, private :: crosstrackangle
@@ -762,7 +762,7 @@
 !
 !$$$
 
- use constants, only                 : ione, pi, half, one, two
+ use constants, only                 : pi, half, one, two
 
  implicit none
 
@@ -777,7 +777,7 @@
  real(r_kind)                       :: ata, cta, atf, ctf, ratio, height    
 
  valid=.true.
- if (instr < ione .or. instr > maxinstr) then
+ if (instr < 1 .or. instr > maxinstr) then
     write(6,*) "INSTRUMENT_INIT: INSTRUMENT NUMBER OF: ", instr, " IS OUT OF RANGE."
     valid=.false.
     return
@@ -803,7 +803,7 @@
  allocate (eccen(1:maxfov(instr)))
  
  do i = 1, npoly
-    psi(i) = two*pi*float(i-ione)/float(npoly-ione) ! Will connect Npoly points
+    psi(i) = two*pi*float(i-1)/float(npoly-1) ! Will connect Npoly points
  enddo
  
 ! Precompute angles and sizes for speed. For accurate representation of fov, 
@@ -832,7 +832,7 @@
 ! according to the aix compiler.
 
  nullify(amsucoeff)
- if (instr == 11_i_kind) then  ! amsu-a sensor
+ if (instr == 11) then  ! amsu-a sensor
     select case (trim(satid))
        case('n15')
           amsucoeff=>amsucoeff_15
@@ -865,7 +865,7 @@
 ! according to the aix compiler.
 
  nullify(mhscoeff)
- if (instr == 13_i_kind) then  ! mhs sensor
+ if (instr == 13) then  ! mhs sensor
     select case (trim(satid))
        case('n18')
           mhscoeff=>mhscoeff_18
@@ -1002,7 +1002,7 @@
 !
 !$$$
 
- use constants, only : ione, rad2deg, one
+ use constants, only : rad2deg, one
 
  implicit none
 
@@ -1022,8 +1022,8 @@
  real(r_kind):: psip(npoly), r(npoly), cosc(npoly), c(npoly), sinb(npoly), b(npoly)
 
  fov = ifov
- if(instr == 18_i_kind) then   ! iasi
-    fov = (ifov-ione)/4_i_kind + ione
+ if(instr == 18) then   ! iasi
+    fov = (ifov-1)/4 + 1
  endif
 
  pos_ang = satellite_azimuth
@@ -1116,7 +1116,7 @@
 !
 !$$$
 
- use constants, only  :  ione, pi, rad2deg, zero, half, one, two, three
+ use constants, only  :  pi, rad2deg, zero, half, one, two, three
 
  implicit none
 
@@ -1174,7 +1174,7 @@
  crosstrackangle = -999._r_kind
 
 !Nadir angles of center and crosstrack extremes of fov
- nadirangle   = halfscan(instr) - (fov-ione)*degscan(instr) + assymetry(instr)
+ nadirangle   = halfscan(instr) - (fov-1)*degscan(instr) + assymetry(instr)
  nadirangle_m = nadirangle - fovangle(instr)*half
  nadirangle_p = nadirangle + fovangle(Instr)*half
  
@@ -1339,7 +1339,7 @@
 !
 !$$$
 
- use constants, only  : ione, one, zero, half, two, pi, deg2rad, rad2deg, one_tenth
+ use constants, only  : one, zero, half, two, pi, deg2rad, rad2deg, one_tenth
 
  implicit none
 
@@ -1386,8 +1386,8 @@
  real(r_kind)  :: sataz   ! satellite azimuth, used in computing psi
 
  fov = ifov
- if(instr == 18_i_kind) then
-    fov = (ifov-ione)/4_i_kind + ione
+ if(instr == 18) then
+    fov = (ifov-1)/4 + 1
  endif
 
  fovanglesize = fovangle(instr)
@@ -1435,7 +1435,7 @@
    
     inside = one  ! for other instruments
 
-    if(instr == 11_i_kind) then ! AMSUA
+    if(instr == 11) then ! AMSUA
        px = amsucoeff(0,1,ichan) + amsucoeff(1,1,ichan)*x    + amsucoeff(2,1,ichan)*x**2 &
 	                         + amsucoeff(3,1,ichan)*x**3 + amsucoeff(4,1,ichan)*x**4 &
                                  + amsucoeff(5,1,ichan)*x**5 + amsucoeff(6,1,ichan)*x**6 &
@@ -1454,7 +1454,7 @@
        inside = p  
     endif ! amsuA
 
-    if(instr == 13_i_kind) then ! mhs
+    if(instr == 13) then ! mhs
        px = mhscoeff(0,1,ichan) + mhscoeff(1,1,ichan)*x    + mhscoeff(2,1,ichan)*x**2 &
                                 + mhscoeff(3,1,ichan)*x**3 + mhscoeff(4,1,ichan)*x**4 &
                                 + mhscoeff(5,1,ichan)*x**5 + mhscoeff(6,1,ichan)*x**6 &
@@ -1503,7 +1503,6 @@
 !   machine:  ibm RS/6000 SP
 !
 !$$$
- use constants, only              : ione
  implicit none
 
 ! Declare passed variables
@@ -1514,13 +1513,13 @@
  integer(i_kind):: ifov
 
  ifov = fov
- if(instr == 18_i_kind) then   ! iasi
-    ifov = (fov-ione)/4_i_kind + ione
+ if(instr == 18) then   ! iasi
+    ifov = (fov-1)/4 + 1
  endif
 
 ! test for fov in range
  valid=.true.
- if (ifov < ione) then 
+ if (ifov < 1) then 
     write(6,*) "FOV_CHECK: ERROR, FOV NUMBER LESS THAN ONE "
     valid=.false.
     return

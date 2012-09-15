@@ -3409,7 +3409,7 @@ subroutine hybens_localization_setup
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
 	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
-         readin_localization,nval_lenz_en
+         pwgtflg,readin_localization,nval_lenz_en
   use gridmod,only: regional
   use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
          normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
@@ -3477,7 +3477,7 @@ subroutine hybens_localization_setup
      call init_sf_xy(jcap_ens)
   end if
 
-  call setup_ens_pwgt
+  if (pwgtflg) call setup_ens_pwgt
 
 !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
 !     and triggered by lsqrtb.

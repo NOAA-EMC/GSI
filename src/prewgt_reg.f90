@@ -74,7 +74,7 @@ subroutine prewgt_reg(mype)
   use control_vectors, only: cvars => nrf_var
   use gridmod, only: lon2,lat2,nsig,nnnn1o,regional_ozone,&
        region_dx,region_dy,nlon,nlat,istart,jstart,region_lat
-  use constants, only: ione,zero,half,one,two,four,rad2deg,zero_quad
+  use constants, only: zero,half,one,two,four,rad2deg,zero_quad
   use guess_grids, only: ges_prslavg,ges_psfcavg,ges_oz
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
   use mpeu_util, only: getindex
@@ -141,14 +141,14 @@ subroutine prewgt_reg(mype)
   nrf2_sst = getindex(cvars2d,'sst')
 
 ! Read dimension of stats file
-  inerr=22_i_kind
+  inerr=22
   call berror_get_dims_reg(msig,mlat,inerr)
 
 ! Allocate arrays in stats file
   allocate ( corz(1:mlat,1:nsig,1:nc3d) )
   allocate ( corp(1:mlat,nc2d) )
-  allocate ( hwll(0:mlat+ione,1:nsig,1:nc3d),hwllp(0:mlat+ione,nvars-nc3d) )
-  allocate ( vz(1:nsig,0:mlat+ione,1:nc3d) )
+  allocate ( hwll(0:mlat+1,1:nsig,1:nc3d),hwllp(0:mlat+1,nvars-nc3d) )
+  allocate ( vz(1:nsig,0:mlat+1,1:nc3d) )
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
@@ -168,11 +168,11 @@ subroutine prewgt_reg(mype)
      cnt=zero_quad
      do k=1,nsig
         do j=2,lon2-1
-           jl=j+jstart(mm1)-2_i_kind
-           jl=min0(max0(ione,jl),nlon)
+           jl=j+jstart(mm1)-2
+           jl=min0(max0(1,jl),nlon)
            do i=2,lat2-1
-              il=i+istart(mm1)-2_i_kind
-              il=min0(max0(ione,il),nlat)
+              il=i+istart(mm1)-2
+              il=min0(max0(1,il),nlat)
               ix=region_lat(il,jl)*rad2deg+half+90._r_kind
               ozmz(ix,k)=ozmz(ix,k)+ges_oz(i,j,k,1)*ges_oz(i,j,k,1)
               cnt(ix,k)=cnt(ix,k)+one
@@ -207,13 +207,13 @@ subroutine prewgt_reg(mype)
 
 ! Normalize vz with del sigmma and convert to vertical grid units!
   dlsig(1)=rlsig(1)-rlsig(2)
-  do k=2,nsig-ione
-     dlsig(k)=half*(rlsig(k-ione)-rlsig(k+ione))
+  do k=2,nsig-1
+     dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
   enddo
-  dlsig(nsig)=rlsig(nsig-ione)-rlsig(nsig)
+  dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
 
   do n=1,nc3d
-     do j=0,mlat+ione
+     do j=0,mlat+1
         do k=1,nsig
            vz(k,j,n)=vz(k,j,n)*dlsig(k)
         end do
@@ -256,14 +256,14 @@ subroutine prewgt_reg(mype)
            end do
         end do
         do j=1,lon2
-           jl=j+jstart(mm1)-2_i_kind
-           jl=min0(max0(ione,jl),nlon)
+           jl=j+jstart(mm1)-2
+           jl=min0(max0(1,jl),nlon)
            do i=1,lat2
-              il=i+istart(mm1)-2_i_kind
-              il=min0(max0(ione,il),nlat)
+              il=i+istart(mm1)-2
+              il=min0(max0(1,il),nlat)
               d=region_lat(il,jl)*rad2deg+90._r_kind
               l=int(d)
-              l2=l+ione
+              l2=l+1
               dl2=d-float(l)
               dl1=one-dl2
               do k=1,nsig
@@ -331,7 +331,7 @@ subroutine prewgt_reg(mype)
 
   psfc015=r015*ges_psfcavg
   do l=1,nnnn1o
-     ks(l)=nsig+ione
+     ks(l)=nsig+1
      if(cvars(nvar_id(l))=='sf' .or. cvars(nvar_id(l))=='SF'.or. &
         cvars(nvar_id(l))=='vp' .or. cvars(nvar_id(l))=='VP')then
         k_loop: do k=1,nsig
@@ -350,7 +350,7 @@ subroutine prewgt_reg(mype)
   do i=1,nx
      do j=1,ny
         fact=one/(one+(one-sl(j,i))*bw)
-        slw((i-ione)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
+        slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
         sli(j,i,1,1)=region_dy(j,i)*fact
         sli(j,i,2,1)=region_dx(j,i)*fact
      enddo
@@ -366,7 +366,7 @@ subroutine prewgt_reg(mype)
      k1=levs_id(k)
      n=nvar_id(k)
 
-     nn=-ione
+     nn=-1
      do ii=1,nc3d
         if (nrf3_loc(ii)==n) then 
            nn=ii
@@ -376,7 +376,7 @@ subroutine prewgt_reg(mype)
                  fact=one/hwll(l,k1,nn)
                  do i=1,nx
                     do j=1,ny
-                       slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                       slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                        sli(j,i,1,k)=sli(j,i,1,1)*fact
                        sli(j,i,2,k)=sli(j,i,2,1)*fact
                     enddo
@@ -385,11 +385,11 @@ subroutine prewgt_reg(mype)
                  do i=1,nx
                     do j=1,ny
                        l=int(rllat(j,i))
-                       lp=min0(l+ione,llmax)
+                       lp=min0(l+1,llmax)
                        dl2=rllat(j,i)-float(l)
                        dl1=one-dl2
                        fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
-                       slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                       slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                        sli(j,i,1,k)=sli(j,i,1,1)*fact
                        sli(j,i,2,k)=sli(j,i,2,1)*fact
                     enddo
@@ -404,7 +404,7 @@ subroutine prewgt_reg(mype)
               fact=one/hwl
               do i=1,nx
                  do j=1,ny
-                    slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                    slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                     sli(j,i,1,k)=sli(j,i,1,1)*fact
                     sli(j,i,2,k)=sli(j,i,2,1)*fact
                  enddo
@@ -414,22 +414,22 @@ subroutine prewgt_reg(mype)
         end if
      end do
 
-     if (nn==-ione) then 
+     if (nn==-1) then 
         do ii=1,nc2d
            if (nrf2_loc(ii)==n .or. n>nrf) then 
               nn=ii
               if (n>nrf) nn=n-nc3d
               cc=one 
               if (nn==nrf2_sst) cc=two
-              if (nn==nc2d+ione .or. nn==nc2d+2_i_kind) cc=four
+              if (nn==nc2d+1 .or. nn==nc2d+2) cc=four
               do i=1,nx
                  do j=1,ny
                     l=int(rllat(j,i))
-                    lp=min0(l+ione,llmax)
+                    lp=min0(l+1,llmax)
                     dl2=rllat(j,i)-float(l)
                     dl1=one-dl2
                     fact=cc/(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
-                    slw((i-ione)*ny+j,k)=slw((i-ione)*ny+j,1)*fact**2
+                    slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                     sli(j,i,1,k)=sli(j,i,1,1)*fact
                     sli(j,i,2,k)=sli(j,i,2,1)*fact
                  end do

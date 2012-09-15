@@ -478,8 +478,8 @@ subroutine prt_guesschem(sgrep)
   enddo
 
 ! Gather contributions
-  call mpi_allgather(zloc,3*nvars+1_i_kind,mpi_rtype, &
-                   & zall,3*nvars+1_i_kind,mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(zloc,3*nvars+1,mpi_rtype, &
+                   & zall,3*nvars+1,mpi_rtype, mpi_comm_world,ierror)
 
   if (mype==0) then
      zmin=zero

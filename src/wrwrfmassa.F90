@@ -48,13 +48,13 @@ subroutine wrwrfmassa_binary(mype)
        dsfct,&
        ntguessfc,ntguessig,ifilesig,ges_tsen
   use wrf_mass_guess_mod, only: ges_tten
+  use wrf_mass_guess_mod, only: destroy_cld_grids
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,eta1_ll,pt_ll,itotsub,iglobal,update_regsfc,&
        aeta1_ll
   use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use gsi_io, only: lendian_in
   use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
-  use wrf_mass_guess_mod, only: destroy_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
 
@@ -1281,6 +1281,7 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2010-03-29  hu     - add code to gether cloud/hydrometeor fields and write out
 !   2010-04-01  treadon - move strip_single to gridmod
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
+!   2012-04-13  whitaker - don't call GSI_BundleGetPointer if nguess = 0
 !
 !   input argument list:
 !     mype     - pe number
@@ -1294,10 +1295,10 @@ subroutine wrwrfmassa_netcdf(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use guess_grids, only: ntguessfc,ntguessig,ifilesig,dsfct,ges_ps,&
        ges_q,ges_u,ges_v,ges_tsen
   use wrf_mass_guess_mod, only: ges_tten
-  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: pt_ll,eta1_ll,lat2,iglobal,itotsub,update_regsfc,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,&
        aeta1_ll,strip_single
@@ -1390,6 +1391,7 @@ subroutine wrwrfmassa_netcdf(mype)
 
   if(mype == 0) then
      write(filename,'("sigf",i2.2)')ifilesig(ntguessig)
+     print *,'update ',trim(filename)
      open (lendian_in,file=filename,form='unformatted')
      open (lendian_out,file='siganl',form='unformatted')
      rewind lendian_in ; rewind lendian_out
@@ -1397,15 +1399,17 @@ subroutine wrwrfmassa_netcdf(mype)
 
 ! Convert analysis variables to MASS variables
 ! get pointer to relevant instance of cloud-related backgroud
-  ier=0
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
-  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
-  if (ier/=0) then
-      write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
-      if (l_cloud_analysis .or. nguess>0) call stop2(999)
+  if (nguess>0) then
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+     if (ier/=0) then
+         write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
+         if (l_cloud_analysis .or. nguess>0) call stop2(999)
+     endif
   endif
 
   

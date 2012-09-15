@@ -18,7 +18,6 @@ module egrid2agrid_mod
 !   2011-07-26  todling  - generalize single/double prec and rank interface
 !   2012-02-08  parrish  - add single/double prec and rank interface for routines egrid2agrid,
 !                            egrid2agrid_ad, and agrid2egrid, to be used for regional dual resolution.
-!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
 !
 ! subroutines included:
 !   sub init_egrid2agrid         - initialize interpolation variables and constants to defaults
@@ -255,7 +254,6 @@ module egrid2agrid_mod
 !                           this routine when optional logical variable e2a_only is present and true.
 !                           Even though hbig is not used in this case, it can be very large (it was
 !                           4.7Gb for a high res nems-nmmb window run by Ed Colon, which seg-faulted).
-!   2012-02-08  parrish - remove references to izero, ione
 !
 !   input argument list:
 !     e2a           - structure variable with previous/default interpolation information

@@ -29,7 +29,7 @@ module obs_ferrscale
 
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind, i_kind
-use constants, only: izero, ione, zero
+use constants, only: zero
 use gsi_4dvar, only: nobs_bins, idmodel, lsqrtb
 use mpimod, only: mype
 use state_vectors, only: allocate_state,deallocate_state,prt_state_norms,dot_product
@@ -202,7 +202,7 @@ integer(i_kind) ,intent(inout) :: nymd,nhms
 real(r_kind) :: zjx
 integer(i_kind) :: ierr
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'get_ferr_scale: read forecast error vector'
 endif
 
@@ -214,7 +214,7 @@ if (lferrscale) then
 !_RT       call pgcm2gsi(ferrin,'tlm',ierr,nymd_in=nymd,nhms_in=nhms,filename=fnerri)
 !_RT #endif /* GEOS_PERT */
    zjx=dot_product(ferrin,ferrin)
-   if (mype==izero) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
+   if (mype==0) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
 endif
 888 format(A,3(1X,ES25.18))
 
@@ -254,14 +254,14 @@ integer(i_kind) ,intent(in   ) :: nymd,nhms
 real(r_kind) :: zjx
 integer(i_kind) :: ierr
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'put_ferr_scale: store scaled forecast error vector'
 endif
 
 ! Write out scaled forecast error to file
 if (lferrscale) then
    zjx=dot_product(ferrout,ferrout)
-   if (mype==izero) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
+   if (mype==0) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
 !_RT #ifdef GEOS_PERT
 !_RT    call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
 !_RT #endif /* GEOS_PERT */
@@ -327,7 +327,7 @@ character(len=255) :: seqcalls
 
 !**********************************************************************
 
-llprt=(mype==izero.and.nprt>=2_i_kind)
+llprt=(mype==0.and.nprt>=2)
 llouter=.false.
 seqcalls = trim(calledby)//'::'//trim(myname)
 
@@ -351,7 +351,7 @@ do ii=1,nsubwin
    mval(ii)=zero
 enddo
 call self_add(mval(1),xout)
-if (nprt>=2_i_kind) then
+if (nprt>=2) then
     call prt_state_norms(mval(1),'mval(ii=1)')
 endif
 
@@ -364,7 +364,7 @@ else
    enddo
 end if
 
-if (nprt>=2_i_kind) then
+if (nprt>=2) then
    do ii=1,nobs_bins
       call prt_state_norms(sval(ii),'sval')
    enddo
@@ -393,7 +393,7 @@ if (l_do_adjoint) then
 
    zjc=zero_quad
 
-   if (nprt>=2_i_kind) then
+   if (nprt>=2) then
       do ii=1,nobs_bins
          call prt_state_norms(rval(ii),'rval')
       enddo
@@ -409,7 +409,7 @@ if (l_do_adjoint) then
       enddo
    end if
 
-   if (nprt>=2_i_kind) then
+   if (nprt>=2) then
       do ii=1,nsubwin
          call prt_state_norms(mval(ii),'mval')
       enddo
@@ -420,8 +420,8 @@ if (l_do_adjoint) then
    call self_add(xout,mval(1))
 
 !  Print diagnostics
-   if (nprt>=2_i_kind) call prt_state_norms(xout,'xout')
-   if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost Jb,Jo,Jc,Jl=',&
+   if (nprt>=2) call prt_state_norms(xout,'xout')
+   if (nprt>=1.and.mype==0) write(6,999)trim(seqcalls),': grepcost Jb,Jo,Jc,Jl=',&
                                       zjb,zjo,zjc,zjl
 endif
 

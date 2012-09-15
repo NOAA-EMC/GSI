@@ -89,7 +89,7 @@ enddo
 
 coslat=HUGE(coslat)
 do ii=2,lat2-1
-   ilat=istart(mype+1)+ii-2_i_kind
+   ilat=istart(mype+1)+ii-2
    if (ilat<1.or.ilat>nlat) then
       write(6,*)'enorm_state: error ilat',ilat
       call stop2(124)

@@ -44,7 +44,7 @@ subroutine statspcp(aivals,ndata)
   use pcpinfo, only: dtphys,deltim
   use obsmod, only: dtype,ndat,iout_pcp,dplat,ditype
   use jfunc, only: jiter,first
-  use constants, only: izero,ione,zero,half,one,two,r1000,r3600
+  use constants, only: zero,half,one,two,r1000,r3600
   implicit none
 
 ! Declare passed variables
@@ -84,11 +84,11 @@ subroutine statspcp(aivals,ndata)
 
 ! On first outer iteration, write constant parameters
   if (first ) then
-     nsphys = max(int(two*deltim/dtphys+0.9999_r_kind),ione)
+     nsphys = max(int(two*deltim/dtphys+0.9999_r_kind),1)
      dtp    = two*deltim/nsphys
      dtf    = half*dtp
      frain  = dtf/dtp
-     kdt    = ione
+     kdt    = 1
      fhour  = kdt*deltim/r3600
      rtime  = one/(r3600*fhour)
      rmmhr  = r1000*rtime * r3600
@@ -117,7 +117,7 @@ subroutine statspcp(aivals,ndata)
      display(is) = ditype(is) == 'pcp' 
 
 !    If precipitation observation has nonzero number of obs, generate output
-     if (inum > izero .and. display(is)) then
+     if (inum > 0 .and. display(is)) then
         inumw   = nint(aivals(1,is))
         itotal  = nint(aivals(3,is))
         
@@ -147,12 +147,12 @@ subroutine statspcp(aivals,ndata)
 2001 format(a7,1x,a7,1x,5(a18,1x),a6)
   penalty_all=zero
   qcpenalty_all=zero
-  ntossqc=izero
+  ntossqc=0
   do is=1,ndat
      inum    = nint(aivals(2,is))
 
 !    If precipitation observation has nonzero number of obs, generate output
-     if (inum > izero .and. display(is)) then
+     if (inum > 0 .and. display(is)) then
         rterm=zero
         if (aivals(25,is) > zero) rterm=one/aivals(25,is)
         pcpobs0 = aivals(21,is)*rterm
@@ -187,7 +187,7 @@ subroutine statspcp(aivals,ndata)
      inum    = nint(aivals(2,is))
 
 !    If precipitation observation has nonzero number of obs, generate output
-     if (inum > izero .and. display(is)) then
+     if (inum > 0 .and. display(is)) then
         write(iout_pcp,2012) dtype(is),aivals(15,is)
 2012    format(A10,'  penalty     = ',g19.12)
         
@@ -207,7 +207,7 @@ subroutine statspcp(aivals,ndata)
 ! Print counts, bias, rms, stndev as a function of observation type
   do is = 1,ndat
      isum = nint(aivals(11,is))
-     if (isum > izero .and. display(is)) then
+     if (isum > 0 .and. display(is)) then
         rpen(is) = aivals(15,is)
         qcpen(is) = aivals(39,is)
         rsum  = one/float(isum)
@@ -218,7 +218,7 @@ subroutine statspcp(aivals,ndata)
         aivals(14,is) = sqrt(aivals(14,is))
         cpen(is) = aivals(15,is)
         qccpen(is) = aivals(39,is)
-        if (isum > ione) then
+        if (isum > 1) then
            sdv = sqrt(aivals(14,is)*aivals(14,is)- &
                 aivals(13,is)*aivals(13,is))
         else

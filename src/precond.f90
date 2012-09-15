@@ -1,4 +1,4 @@
-subroutine precond(grady,gradw)
+subroutine precond(grady)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -15,7 +15,7 @@ subroutine precond(grady,gradw)
 !     grady    - input field  
 !
 !   output
-!     gradw    - additional preconditioner structure * grady 
+!     grady    - additional preconditioner structure * grady 
 !
 ! attributes:
 !   language: f90
@@ -25,32 +25,36 @@ subroutine precond(grady,gradw)
   use kinds, only: i_kind
   use berror, only: vprecond
   use gsi_4dvar, only: lsqrtb
+  use radinfo, only: newpc4pred
   use control_vectors, only: control_vector
   use timermod, only: timer_ini,timer_fnl
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(in):: grady
-  type(control_vector),intent(inout):: gradw
+  type(control_vector),intent(inout):: grady
 
 ! Declare local variables
   integer(i_kind) i
 
-  if (lsqrtb) then
-    write(6,*)'precond: not for use with lsqrtb'
-    call stop2(334)
-  end if
-
-! Initialize timer
-  call timer_ini('precond')
-
-  DO i=1,grady%lencv
-    gradw%values(i)=grady%values(i)*vprecond(i)
-  ENDDO
+! if(newpc4pred)then
+    if (lsqrtb) then
+      write(6,*)'precond: not for use with lsqrtb'
+      call stop2(334)
+    end if
 
 
-! Finalize timer
-  call timer_fnl('precond')
+!   Initialize timer
+    call timer_ini('precond')
+
+    do i=1,grady%lencv
+      grady%values(i)=grady%values(i)*vprecond(i)
+    enddo
+
+!   Finalize timer
+    call timer_fnl('precond')
+! end if
+
+
 
   return
 end subroutine precond

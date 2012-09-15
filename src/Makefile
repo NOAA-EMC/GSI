@@ -266,7 +266,6 @@ clean:
 	gesinfo.f90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
-	get_gefs_ensperts_dualres.f90 \
 	get_gefs_for_regional.f90 \
         get_nmmb_ensperts.f90 \
         get_pseudo_ensperts.f90 \
@@ -403,7 +402,6 @@ clean:
 	raflib.f90 \
 	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_co.f90 \
 	read_diag.f90 \
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
@@ -507,6 +505,7 @@ clean:
 	zrnmi_mod.f90
 
   SRCSF90C_NOSWAP = \
+	get_gefs_ensperts_dualres.f90 \
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \

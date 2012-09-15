@@ -28,7 +28,7 @@ subroutine penal(xhat)
 !$$$
   use kinds, only: r_single,r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_rtype,mype
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   use gsi_4dvar, only: nobs_bins
   use obsmod, only: qhead,qptr,thead,tptr,whead,wptr,pshead,psptr
   use converr, only:etabl
@@ -77,10 +77,10 @@ subroutine penal(xhat)
            n=qptr%kx
            itype=ictype(n)
 
-           if(itype==120_i_kind)then
+           if(itype==120)then
               k1=qptr%k1
            else
-              k1=ione 
+              k1=1 
            endif
  
            err2=qptr%raterr2*qptr%err2
@@ -95,7 +95,7 @@ subroutine penal(xhat)
            penalty(k1,n)=penalty(k1,n)+(val-qptr%res)**2*err2
            qptr => qptr%llpoint
         end do
-!       if(mype==29_i_kind)write(0,*)'q2 trace,pen=',trace(k1,n),penalty(k1,n),k1,n
+!       if(mype==29)write(0,*)'q2 trace,pen=',trace(k1,n),penalty(k1,n),k1,n
 
 !       Temperature
         tptr => thead(ibin)%head
@@ -103,10 +103,10 @@ subroutine penal(xhat)
            n=tptr%kx
            itype=ictype(n)
 
-           if(itype==120_i_kind)then
+           if(itype==120)then
               k1=tptr%k1
            else
-              k1=ione
+              k1=1
            endif
 
            err2=tptr%raterr2*tptr%err2
@@ -127,7 +127,7 @@ subroutine penal(xhat)
         do while (associated(psptr))
            n=psptr%kx
            itype=ictype(n)
-           k1=ione
+           k1=1
 
            err2=psptr%raterr2*psptr%err2
 !          err=sqrt(err2)
@@ -146,10 +146,10 @@ subroutine penal(xhat)
            n=wptr%kx
            itype=ictype(n)
 
-           if(itype==220_i_kind .or. itype==223_i_kind .or. itype==233_i_kind .or. itype==245_i_kind)then
+           if(itype==220 .or. itype==223 .or. itype==233 .or. itype==245)then
               k1=wptr%k1
            else
-              k1=ione
+              k1=1
            endif
  
            err2=wptr%raterr2*wptr%err2
@@ -184,10 +184,10 @@ subroutine penal(xhat)
            n=qptr%kx
            itype=ictype(n)
 
-           if(itype==120_i_kind)then
+           if(itype==120)then
               k1=qptr%k1
            else
-              k1=ione
+              k1=1
            endif
 
            err2=qptr%raterr2*qptr%err2
@@ -203,17 +203,17 @@ subroutine penal(xhat)
            qptr => qptr%llpoint
         end do
      
-!       if(mype==29_i_kind)write(0,*)'q2 trace,pen=',trace(k1,n),cat_num(k1,n),k1,n
+!       if(mype==29)write(0,*)'q2 trace,pen=',trace(k1,n),cat_num(k1,n),k1,n
 !       Temperature
         tptr => thead(ibin)%head
         do while (associated(tptr))
            n=tptr%kx
            itype=ictype(n)
 
-           if(itype==120_i_kind)then
+           if(itype==120)then
               k1=tptr%k1
            else
-              k1=ione
+              k1=1
            endif
 
            err2=tptr%raterr2*tptr%err2
@@ -233,7 +233,7 @@ subroutine penal(xhat)
         do while (associated(psptr))
            n=psptr%kx
            itype=ictype(n)
-           k1=ione
+           k1=1
 
            err2=psptr%raterr2*psptr%err2
 !          err=sqrt(err2)
@@ -251,10 +251,10 @@ subroutine penal(xhat)
            n=wptr%kx
            itype=ictype(n)
 
-           if(itype==220_i_kind .or. itype==223_i_kind .or. itype==233_i_kind .or. itype==245_i_kind)then
+           if(itype==220 .or. itype==223 .or. itype==233 .or. itype==245)then
               k1=wptr%k1
            else
-              k1=ione
+              k1=1
            endif
 
            err2=wptr%raterr2*wptr%err2
@@ -288,7 +288,7 @@ subroutine penal(xhat)
           mpi_comm_world,ierror)
      call mpi_allreduce(cat_num,tcat_num,ncat,mpi_rtype,mpi_sum, &
           mpi_comm_world,ierror)
-     if(mype==izero)then
+     if(mype==0)then
         do n=1,nconvtype 
            write(233,*)'obs type=',ictype(n),trim(ioctype(n))
            do k=1,33
@@ -320,20 +320,20 @@ subroutine penal(xhat)
 !       Update etabl
         do i=1,nconvtype 
            if(trim(ioctype(i))=='t')then
-              m=2_i_kind
+              m=2
            elseif(trim(ioctype(i))=='q')then
-              m=3_i_kind
+              m=3
            elseif(trim(ioctype(i))=='uv')then
-              m=4_i_kind
+              m=4
            elseif(trim(ioctype(i))=='ps')then
-              m=5_i_kind
+              m=5
            else
               cycle
            endif
            l=ictype(i)
 
 !          Enough obs to define the vertical profile
-           if((l==120_i_kind.and.m/=5_i_kind) .or. l==220_i_kind .or. l==223_i_kind .or. l==233_i_kind .or. l==245_i_kind)then
+           if((l==120.and.m/=5) .or. l==220 .or. l==223 .or. l==233 .or. l==245)then
               write(235,*)l,trim(ioctype(i)),'33'
               do k=1,33
                  if( etabl(l,k,m) < 1.e8_r_single) etabl(l,k,m)=etabl(l,k,m)*so(k,i)

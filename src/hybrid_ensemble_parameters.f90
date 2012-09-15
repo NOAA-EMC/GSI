@@ -97,6 +97,8 @@ module hybrid_ensemble_parameters
 !     full_ensemble: if true, first ensemble member perturbed on first guess
 !                    if false, first member perturbed on ensemble mean as the rest of the menbers
 !     grid_ratio_ens: ratio of ensemble grid resolution to analysis resolution (default value is 1)
+!     enspreproc:      if .true., read in preprocessed ensemble members (in
+!                      files already subsetted for subdomains on each task).
 !=====================================================================================================
 !
 !
@@ -178,6 +180,7 @@ module hybrid_ensemble_parameters
 !   def pwgt                - vertical integration function for beta2_inv a_en on Psfc
 !   def pwgtflg             - logical switch to use vertical integration function for ensemble contribution on Psfc
 !   def grid_ratio_ens:     - ratio of ensemble grid resolution to analysis resolution (default value is 1)
+!   def enspreproc           - flag to read (.true.) already subsetted ensemble data.
 !
 ! attributes:
 !   language: f90
@@ -218,8 +221,10 @@ module hybrid_ensemble_parameters
   public :: write_ens_sprd
   public :: nval_lenz_en
   public :: ntlevs_ens
+  public :: enspreproc
 
   logical l_hyb_ens,uv_hyb_ens,oz_univ_static
+  logical enspreproc
   logical aniso_a_en
   logical full_ensemble,pwgtflg,betaflg
   logical generate_ens
@@ -288,6 +293,7 @@ subroutine init_hybrid_ensemble_parameters
   write_ens_sprd=.false.
   readin_localization=.false.
   eqspace_ensgrid=.false.
+  enspreproc=.false.
   n_ens=0
   nlat_ens=0
   jcap_ens=0

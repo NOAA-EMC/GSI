@@ -356,7 +356,7 @@ subroutine read_2d_files(mype)
   if(nhr_half*2<nhr_assimilation) nhr_half=nhr_half+1
   npem1=npe-1
 
-  print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=',nhr_assimilation,nhr_half,time_offset
+  if(mype == 0)print*,'in read_2d_files: nhr_assimilation,nhr_half,time_offset=',nhr_assimilation,nhr_half,time_offset
 
   do i=1,202
      time_ges(i) = 999._r_kind
@@ -550,12 +550,12 @@ subroutine read_2d_guess(mype)
 
 
   num_doubtful_sfct=0
-  if(mype==0) write(6,*)' at 0 in read_2d_guess'
+! if(mype==0) write(6,*)' at 0 in read_2d_guess'
 
 
 ! Big section of operations done only on first outer iteration
 
-  if(mype==0) write(6,*)' at 0.1 in read_2d_guess'
+! if(mype==0) write(6,*)' at 0.1 in read_2d_guess'
 
   im=nlon_regional
   jm=nlat_regional
@@ -565,19 +565,19 @@ subroutine read_2d_guess(mype)
   num_2d_fields=21! Adjust once exact content of RTMA restart file is known
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, num_2d_fields=",i6)')num_2d_fields
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, nfldsig       =",i6)')nfldsig
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_2d_fields=",i6)')num_2d_fields
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, nfldsig       =",i6)')nfldsig
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_fields=",i6)')num_all_fields
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, npe           =",i6)')npe
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
   do
      num_all_pad=num_loc_groups*npe
      if(num_all_pad >= num_all_fields) exit
      num_loc_groups=num_loc_groups+1
   end do
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_pad   =",i6)')num_all_pad
-  if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_all_pad   =",i6)')num_all_pad
+! if(mype==0) write(6,'(" at 1 in read_2d_guess, num_loc_groups=",i6)')num_loc_groups
 
   allocate(all_loc(lat1+2,lon1+2,num_all_pad))
   allocate(jsig_skip(num_2d_fields))
@@ -694,7 +694,7 @@ subroutine read_2d_guess(mype)
   do it=1,nfldsig
      write(filename,'("sigf",i2.2)')ifilesig(it)
      open(nfcst,file=filename,form='unformatted') ; rewind nfcst
-     write(6,*)'READ_2d_GUESS:  open nfcst=',nfcst,' to file=',filename
+     if(mype == 0)write(6,*)'READ_2d_GUESS:  open nfcst=',nfcst,' to file=',filename
 
 !    Read, interpolate, and distribute 2D restart fields
      do ifld=1,num_2d_fields
@@ -707,7 +707,7 @@ subroutine read_2d_guess(mype)
         if(mype==mod(icount-1,npe)) then
            if(igtype(ifld)==1 .or. igtype(ifld)==2 .or. igtype(ifld)==3) then
               read(nfcst)((temp1(i,j),i=1,im),j=1,jm)
-              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+              if(mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
               call fill_mass_grid2t(temp1,im,jm,tempa,1)
            end if
            if(igtype(ifld) < 0) then
@@ -717,7 +717,7 @@ subroutine read_2d_guess(mype)
                     temp1(i,j)=itemp1(i,j)
                  end do
               end do
-              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+              if(mype == 0)write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
               call fill_mass_grid2t(temp1,im,jm,tempa,1)
            end if
         else
@@ -778,10 +778,10 @@ subroutine read_2d_guess(mype)
         end do
      end do
 
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_moi)=', &
-        minval(soil_moi),maxval(soil_moi)
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_temp)=', &
-        minval(soil_temp),maxval(soil_temp)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_moi)=', &
+!       minval(soil_moi),maxval(soil_moi)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_temp)=', &
+!       minval(soil_temp),maxval(soil_temp)
 
 
 !    Convert sensible temp to virtual temp
@@ -851,19 +851,19 @@ subroutine read_2d_guess(mype)
 
      call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
           0,mpi_comm_world,ierror)
-     if(mype==0)     write(6,*)' in read_2d_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(sfct)=', &
-          minval(sfct),maxval(sfct)
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(veg_type)=', &
-          minval(veg_type),maxval(veg_type)
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(veg_frac)=', &
-          minval(veg_frac),maxval(veg_frac)
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_type)=', &
-          minval(soil_type),maxval(soil_type)
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(isli)=', &
-          minval(isli),maxval(isli)
-     if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_gust)=', &
-          minval(ges_gust),maxval(ges_gust)
+!    if(mype==0)     write(6,*)' in read_2d_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(sfct)=', &
+!         minval(sfct),maxval(sfct)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(veg_type)=', &
+!         minval(veg_type),maxval(veg_type)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(veg_frac)=', &
+!         minval(veg_frac),maxval(veg_frac)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(soil_type)=', &
+!         minval(soil_type),maxval(soil_type)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(isli)=', &
+!         minval(isli),maxval(isli)
+!    if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_gust)=', &
+!         minval(ges_gust),maxval(ges_gust)
 
      deallocate(all_loc,jsig_skip,igtype,identity)
      deallocate(temp1,itemp1,temp1u,temp1v)
@@ -968,7 +968,7 @@ subroutine wr2d_binary(mype)
   allocate(temp1_ps(im*jm))
   allocate(temp1_prh(im*jm))
 
-  if(mype == 0) write(6,*)' at 2 in wr2d_binary'
+! if(mype == 0) write(6,*)' at 2 in wr2d_binary'
 
   iog=15
   ioan=66
@@ -985,7 +985,7 @@ subroutine wr2d_binary(mype)
   it=ntguessig
 
 ! Create all_loc from ges_*
-  if(mype == 0) write(6,*)' at 3 in wr2d_binary'
+! if(mype == 0) write(6,*)' at 3 in wr2d_binary'
   all_loc=zero_single
   kt=i_t-1
   kq=i_q-1
@@ -1025,7 +1025,7 @@ subroutine wr2d_binary(mype)
   end if
 
 ! Update psfc
-  if(mype == 0) write(6,*)' at 6 in wr2d_binary'
+! if(mype == 0) write(6,*)' at 6 in wr2d_binary'
 
   allocate(tempa(itotsub),tempb(itotsub))
   if(mype == 0) then
@@ -1184,12 +1184,12 @@ subroutine wr2d_binary(mype)
 ! SST
   if(update_regsfc) then
      if (mype==0) read(iog)temp1
-     if (mype==0) write(6,*)' at 9.1 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
+!    if (mype==0) write(6,*)' at 9.1 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
      call strip_single(all_loc(1,1,i_sst),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
-        if(mype == 0) write(6,*)' at 9.2 in wr2d_binary,max,min(tempa)=',maxval(tempa),minval(tempa)
+!       if(mype == 0) write(6,*)' at 9.2 in wr2d_binary,max,min(tempa)=',maxval(tempa),minval(tempa)
         call fill_mass_grid2t(temp1,im,jm,tempb,2)
         do i=1,iglobal
            if(tempb(i) < (r225)) then
@@ -1198,9 +1198,9 @@ subroutine wr2d_binary(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-        if(mype == 0) write(6,*)' at 9.4 in wr2d_binary,max,min(tempa)=',maxval(tempa),minval(tempa)
+!       if(mype == 0) write(6,*)' at 9.4 in wr2d_binary,max,min(tempa)=',maxval(tempa),minval(tempa)
         call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(6,*)' at 9.6 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
+!       write(6,*)' at 9.6 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(ioan)temp1
      end if     !endif mype==0
   else
@@ -1221,7 +1221,7 @@ subroutine wr2d_binary(mype)
 ! Update SKIN TEMP
   if(update_regsfc) then
      if (mype==0) read(iog)temp1
-     if (mype==0) write(6,*)' at 10.0 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
+!    if (mype==0) write(6,*)' at 10.0 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
      call strip_single(all_loc(1,1,i_skt),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
@@ -1698,7 +1698,6 @@ subroutine grid_to_latlon0(xx8,yy8,rlat8,rlon8)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: izero
   implicit none
 
   real(r_kind),intent(in   ) :: xx8,yy8
@@ -1717,7 +1716,7 @@ subroutine grid_to_latlon0(xx8,yy8,rlat8,rlon8)
 
   if (lambconform) then 
      call w3fb12(xx8,yy8,alat18,elon18,da8,elonv8,alatan8,rlat8,rlon8,ierr)
-     if (ierr > izero) then
+     if (ierr > 0) then
        print*,'in grid_to_latlon0: trouble,xx8,yy8,rlat8,rlon8,ierr=',&
                                            xx8,yy8,rlat8,rlon8,ierr
      endif
@@ -1901,7 +1900,7 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero,zero_single,half,rad2deg,deg2rad
+  use constants, only: zero,zero_single,half,rad2deg,deg2rad
 
   implicit none
 
@@ -1953,9 +1952,9 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
 
   if (slmin < 0.75_r_single) then
   
-     is=max(ione,(istart-ineighbour))
+     is=max(1,(istart-ineighbour))
      ie=min((istart+ineighbour),nx)
-     js=max(ione,(jstart-jneighbour))
+     js=max(1,(jstart-jneighbour))
      je=min((jstart+jneighbour),ny)
 
      ris=float(is)
@@ -2174,6 +2173,8 @@ subroutine init_hilbertcurve(maxobs)
 !   machine:
 !
 !$$$ end documentation block
+  use mpimod, only: mype
+
   implicit none
 
   integer(i_kind),intent(in   ) :: maxobs
@@ -2202,15 +2203,17 @@ subroutine init_hilbertcurve(maxobs)
      close(55)
   endif
 
-  print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
-  print*,'in init_hilbertcurve: usagecv=',usagecv
-  print*,'in init_hilbertcurve: ngrps_tob=',ngrps_tob
-  print*,'in init_hilbertcurve: ngrps_uvob=',ngrps_uvob
-  print*,'in init_hilbertcurve: ngrps_spdob=',ngrps_spdob
-  print*,'in init_hilbertcurve: ngrps_psob=',ngrps_psob
-  print*,'in init_hilbertcurve: ngrps_qob=',ngrps_qob
-  print*,'in init_hilbertcurve: ngrps_pwob=',ngrps_pwob
-  print*,'in init_hilbertcurve: ngrps_sstob=',ngrps_sstob
+  if(mype == 0)then
+    print*,'in init_hilbertcurve: random_cvgrp=',random_cvgrp
+    print*,'in init_hilbertcurve: usagecv=',usagecv
+    print*,'in init_hilbertcurve: ngrps_tob=',ngrps_tob
+    print*,'in init_hilbertcurve: ngrps_uvob=',ngrps_uvob
+    print*,'in init_hilbertcurve: ngrps_spdob=',ngrps_spdob
+    print*,'in init_hilbertcurve: ngrps_psob=',ngrps_psob
+    print*,'in init_hilbertcurve: ngrps_qob=',ngrps_qob
+    print*,'in init_hilbertcurve: ngrps_pwob=',ngrps_pwob
+    print*,'in init_hilbertcurve: ngrps_sstob=',ngrps_sstob
+  end if
 
   ncross=0
 
@@ -2260,7 +2263,7 @@ subroutine accum_hilbertcurve(usage,cstation,cprovider,csubprovider, &
 !   machine:
 !
 !$$$ end documentation block
-  use constants, only: izero,ione,rad2deg
+  use constants, only: rad2deg
   use convinfo, only: ncnumgrp,ncgroup
   use  gridmod, only: nlon,nlat
 
