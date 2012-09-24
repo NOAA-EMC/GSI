@@ -168,7 +168,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
-  real(r_kind)  pbar8,hgt8,tbar8,thetabar8
   real(r_double) rstation_id
 
 ! equivalence to handle character names
@@ -717,11 +716,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                2 sea ice
 !                3 snow
 !                4 mixed
-           if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
-              if(hdrdat(2) >20.0_r_kind) then 
-                 call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-!                if (isflg /= 0) cycle loop_readsb 
-                 qm=15
+           if( .not. twodvar_regional) then
+              if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
+                 if(hdrdat(2) >20.0_r_kind) then 
+                    call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
+!                   if (isflg /= 0) cycle loop_readsb 
+                    qm=15
+                 endif
               endif
            endif
        
@@ -767,9 +768,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            usage = 0 
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
-           if((qm == 15 .or. qm == 12 .or. qm == 9) .and. .not.twodvar_regional)usage=r100
-
-
+           if(qm == 15 .or. qm == 12 .or. qm == 9)usage=r100
            if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
            if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
            if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
@@ -874,10 +873,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  vdisterrmax=max(vdisterrmax,disterr)
               end if
            endif
-
-           pbar8=exp(dlnpob)*10._r_kind
-           call w3fa03(pbar8,hgt8,tbar8,thetabar8)
-
            cdata_all(1,iout)=woe                  ! wind error
            cdata_all(2,iout)=dlon                 ! grid relative longitude
            cdata_all(3,iout)=dlat                 ! grid relative latitude
@@ -885,7 +880,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(5,iout)=ee                   !  quality information 
            cdata_all(6,iout)=uob                  ! u obs
            cdata_all(7,iout)=vob                  ! v obs 
-           cdata_all(8,iout)=ndata                ! station id 
+           cdata_all(8,iout)=rstation_id          ! station id 
            cdata_all(9,iout)=t4dv                 ! time
            cdata_all(10,iout)=nc                  ! index of type in convinfo file
            cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality mark infor  
@@ -905,12 +900,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(perturb_obs)then
               cdata_all(24,iout)=ran01dom()*perturb_fact ! u perturbation
               cdata_all(25,iout)=ran01dom()*perturb_fact ! v perturbation
-           endif
-
-           if(twodvar_regional) then
-              cdata_all(5,iout)=hgt8                 ! height of observation
-              cdata_all(8,iout)=rstation_id          ! station id
-              cdata_all(11,iout)=pbar8               !
            endif
 
         enddo  loop_readsb
