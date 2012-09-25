@@ -221,26 +221,26 @@ export listvar=RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,WEB_SVR,WEB_USER,WEBD
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
-#${SCRIPTS}/mk_angle_plots.sh
+${SCRIPTS}/mk_angle_plots.sh
 
-#${SCRIPTS}/mk_bcoef_plots.sh
+${SCRIPTS}/mk_bcoef_plots.sh
 
-#${SCRIPTS}/mk_bcor_plots.sh
+${SCRIPTS}/mk_bcor_plots.sh
 
-#if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
-#   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
-#   export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_OS,listvar
-#   jobname="plot_horiz_${SUFFIX}"
-#   if [[ $MY_OS = "aix" ]]; then
-#      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o $LOGDIR/horiz.log ${SCRIPTS}/mk_horiz_plots.sh
-#   else
-#      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
-#   fi
-#fi
+if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
+   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+   export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_OS,listvar
+   jobname="plot_horiz_${SUFFIX}"
+   if [[ $MY_OS = "aix" ]]; then
+      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o $LOGDIR/horiz.log ${SCRIPTS}/mk_horiz_plots.sh
+   else
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
+   fi
+fi
 
 ${SCRIPTS}/mk_time_plots.sh
 
-#${SCRIPTS}/plot_update.sh
+${SCRIPTS}/plot_update.sh
 
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there

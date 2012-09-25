@@ -264,7 +264,7 @@ subroutine glbsoi(mype)
            endif
         else
 !          Set up additional preconditioning information
-           if (newpc4pred) call pcinfo
+           call pcinfo
 
 !          Standard run
            if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
@@ -304,7 +304,7 @@ subroutine glbsoi(mype)
 !    If requested, write obs-anl information to output files
      if (write_diag(jiter)) then 
         call setuprhsall(ndata,mype,.true.,.true.)
-        if (.not. lsqrtb .and. newpc4pred) call pcinfo
+        if (.not. lsqrtb) call pcinfo
         if (any(ditype=='rad') .and. passive_bc) call prad_bias
      end if
 

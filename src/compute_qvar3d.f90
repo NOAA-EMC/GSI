@@ -14,8 +14,6 @@ subroutine compute_qvar3d
 ! 2011-08-17 zhu  - add handling of dssv(:,:,:,nrf3_cw) for regional when total condensate is control variable 
 ! 2011-11-01 eliu - add qmin 
 ! 2012-02-08 kleist  - add computation of ges_qsat over nfldsig bins
-! 2012-02-08 parrish - remove integer constants izero, ione
-! 2012-02-08 parrish - replace nn_i_kind with nn, for nn any integer.
 !
 !   input argument list:
 !

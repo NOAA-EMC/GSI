@@ -78,7 +78,6 @@ subroutine init_rjlists
 !
 !$$$ end documentation block
 
-  use constants, only: izero,ione
   implicit none
 
 ! Declare passed variables
@@ -102,16 +101,16 @@ subroutine init_rjlists
  inquire(file='mesonetuselist',exist=listexist)
  if(listexist) then
     open (meso_unit,file='mesonetuselist',form='formatted')
-    ncount=izero
+    ncount=0
     do m=1,3
        read(meso_unit,*,end=131) cstring
     enddo
 130 continue
-    ncount=ncount+ione
+    ncount=ncount+1
     read(meso_unit,*,end=131) cprovider(ncount)
     goto 130
 131 continue
-    nprov=ncount-ione
+    nprov=ncount-1
     print*,'mesonetuselist: nprov=',nprov
  endif
  close(meso_unit)
@@ -120,16 +119,16 @@ subroutine init_rjlists
  inquire(file='w_rejectlist',exist=wlistexist)
  if(wlistexist) then
     open (meso_unit,file='w_rejectlist',form='formatted')
-    ncount=izero
+    ncount=0
     do m=1,3
        read(meso_unit,*,end=141) cstring
     enddo
 140 continue
-    ncount=ncount+ione
+    ncount=ncount+1
     read(meso_unit,*,end=141) w_rjlist(ncount)
     goto 140
 141 continue
-    nwrjs=ncount-ione
+    nwrjs=ncount-1
     print*,'w_rejectlist: nwrjs=',nwrjs
  endif
  close(meso_unit)
@@ -138,16 +137,16 @@ subroutine init_rjlists
  inquire(file='t_rejectlist',exist=tlistexist)
  if(tlistexist) then
     open (meso_unit,file='t_rejectlist',form='formatted')
-    ncount=izero
+    ncount=0
     do m=1,3
        read(meso_unit,*,end=151) cstring
     enddo
 150 continue
-    ncount=ncount+ione
+    ncount=ncount+1
     read(meso_unit,*,end=151) t_rjlist(ncount)
     goto 150
 151 continue
-    ntrjs=ncount-ione
+    ntrjs=ncount-1
     print*,'t_rejectlist: ntrjs=',ntrjs
  endif
  close(meso_unit)
@@ -156,16 +155,16 @@ subroutine init_rjlists
  inquire(file='p_rejectlist',exist=plistexist)
  if(plistexist) then
     open (meso_unit,file='p_rejectlist',form='formatted')
-    ncount=izero
+    ncount=0
     do m=1,3
        read(meso_unit,*,end=161) cstring
     enddo
 160 continue
-    ncount=ncount+ione
+    ncount=ncount+1
     read(meso_unit,*,end=161) p_rjlist(ncount)
     goto 160
 161 continue
-    nprjs=ncount-ione
+    nprjs=ncount-1
     print*,'p_rejectlist: nprjs=',nprjs
  endif
  close(meso_unit)
@@ -174,16 +173,16 @@ subroutine init_rjlists
  inquire(file='q_rejectlist',exist=qlistexist)
  if(qlistexist) then
     open (meso_unit,file='q_rejectlist',form='formatted')
-    ncount=izero
+    ncount=0
     do m=1,3
        read(meso_unit,*,end=171) cstring
     enddo
 170 continue
-    ncount=ncount+ione
+    ncount=ncount+1
     read(meso_unit,*,end=171) q_rjlist(ncount)
     goto 170
 171 continue
-    nqrjs=ncount-ione
+    nqrjs=ncount-1
     print*,'q_rejectlist: nqrjs=',nqrjs
  endif
  close(meso_unit)
@@ -192,13 +191,13 @@ subroutine init_rjlists
  inquire(file='mesonet_stnuselist',exist=listexist2)
  if(listexist2) then
     open (meso_unit,file='mesonet_stnuselist',form='formatted')
-    ncount=izero
+    ncount=0
 180 continue
-    ncount=ncount+ione
+    ncount=ncount+1
     read(meso_unit,'(a5,a80)',end=181) csta_winduse(ncount),cstring
     goto 180
 181 continue
-    nsta_mesowind_use=ncount-ione
+    nsta_mesowind_use=ncount-1
     print*,'mesonet_stnuselist: nsta_mesowind_use=',nsta_mesowind_use
  endif
  close(meso_unit)

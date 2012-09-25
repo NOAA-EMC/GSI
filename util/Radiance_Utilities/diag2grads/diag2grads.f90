@@ -154,7 +154,7 @@ program diag2grads
 
 
 ! Set GrADS data id with sat id
-  write(id,*) idsat
+  write(id,'(i8)') idsat
 
 
 ! Compute total minutes for the first diagnostic file

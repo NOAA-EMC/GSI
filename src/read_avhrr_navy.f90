@@ -44,7 +44,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
-!   2011-08-01  lueken  - added module use deter_sfc_mod and removed _i_kind
+!   2011-08-01  lueken  - added module use deter_sfc_mod  
 !
 !   input argument list:
 !     mype     - mpi task id

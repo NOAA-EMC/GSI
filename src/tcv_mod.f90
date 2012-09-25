@@ -100,7 +100,6 @@ contains
 !
 ! program history log:
 !   2009-02-02  kleist
-!   2010-09-08  treadon - replace (izero,ione) with (0,1)
 !
 !   input argument list:
 !     lunin    - integer unit from which to read tc-vitals ascii data
@@ -175,8 +174,6 @@ contains
 ! program history log:
 !   2009-02-02  kleist
 !   2010-03-30  treadon - loop tcvitals read from 1 to nums
-!   2010-09-08  treadon - replace (izero,ione) with (0,1); remove _i_kind 
-!                         suffix from integer constants
 !
 !   input argument list:
 !     nums     - integer number of storms to read

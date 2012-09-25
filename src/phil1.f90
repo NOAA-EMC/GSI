@@ -78,7 +78,6 @@ subroutine getvalsets_s(nob, mskip,xhskip,xh,next, firsta,firstb)
 !
 !$$$ end documentation block
 !=============================================================================
-use constants, only: izero,ione
 implicit none
 
 integer(i_kind),                  intent(IN   ) :: nob,mskip
@@ -94,20 +93,20 @@ integer(i_kind), dimension(mskip)              :: this_b
 real(r_kind)                                   :: xhwait,xha
 real(r_kind),dimension(mskip)                  :: xhb
 !=============================================================================
-firstb=izero      ! <- initialize B lists to empty sets
+firstb=0      ! <- initialize B lists to empty sets
 xhb=-xhskip
 this_old_a=firsta ! <- initialize present item in original A-list to firsta
-this_new_a=izero  ! <- initialize present item in new A-list to null item
+this_new_a=0  ! <- initialize present item in new A-list to null item
 do icycle=1,2+nob/mskip
    do iskip=1,mskip ! <- Loop through different validation subsets (B-lists)
       xhwait=xhb(iskip)+xhskip ! <- Qualifying new B-list xh must >= xhwait.
       trial: do itrial=1,nob ! <- Keep trying to find a qualifying item from A.
-         if(this_old_a==izero)then
+         if(this_old_a==0)then
 ! Original A-list comes to an end, so it is appropriate to terminate....:
             do jskip=1,mskip
-               if(firstb(jskip)/= izero)next(this_b(jskip))=izero ! <-  ..the B-lists..
+               if(firstb(jskip)/= 0)next(this_b(jskip))=0 ! <-  ..the B-lists..
             enddo
-            if(this_new_a/=izero)next(this_new_a)=izero ! <- ..and the new A-list.
+            if(this_new_a/=0)next(this_new_a)=0 ! <- ..and the new A-list.
             return ! <- Proper subr. completion is ONLY via this return.
          endif
 
@@ -117,7 +116,7 @@ do icycle=1,2+nob/mskip
          xha=xh(this_old_a)
 
 ! New item always qualifies if B-list is still empty:
-         if(firstb(iskip)==izero)then ! B-list still empty:
+         if(firstb(iskip)==0)then ! B-list still empty:
             firstb(iskip)=this_old_a
             exit trial ! B-list now non-empty; exit trial-loop
          endif
@@ -131,7 +130,7 @@ do icycle=1,2+nob/mskip
 
 ! Since the conditions for extending this B-list are not met by this_new_A,
 ! stick this item on the end of the residual  "new" A-list instead:
-         if(this_new_a==izero)then ! New A-list still empty.
+         if(this_new_a==0)then ! New A-list still empty.
             firsta=this_old_a  ! <- New A-list is now non-empty.
          else
             next(this_new_a)=this_old_a ! <- New A-list already non-empty.

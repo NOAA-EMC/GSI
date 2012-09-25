@@ -41,7 +41,7 @@
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-18  safford - rm unused vars
 !   2011-04-01  li      - update argument list to deter_sfc
-!   2011-08-01  lueken  - added module use deter_sfc_mod and removed _i_kind
+!   2011-08-01  lueken  - added module use deter_sfc_mod 
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

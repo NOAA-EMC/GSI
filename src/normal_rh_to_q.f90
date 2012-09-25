@@ -29,7 +29,6 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
   use jfunc, only: dqdrh,dqdp,dqdt,qoption
   use gridmod, only: lat2,lon2,nsig
 
@@ -37,13 +36,13 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
 
   real(r_kind),intent(in   ) :: rhnorm(lat2,lon2,nsig)
   real(r_kind),intent(in   ) :: t(lat2,lon2,nsig)
-  real(r_kind),intent(in   ) :: p(lat2,lon2,nsig+ione)  
+  real(r_kind),intent(in   ) :: p(lat2,lon2,nsig+1)  
   real(r_kind),intent(  out) :: q(lat2,lon2,nsig)
   
   integer(i_kind) i,j,k
 
 ! Convert normalized rh to q
-  if(qoption==ione) then
+  if(qoption==1) then
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -58,7 +57,7 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
           do i=1,lat2
              q(i,j,k) = dqdrh(i,j,k)*rhnorm(i,j,k) &
                   +dqdt(i,j,k)*t(i,j,k) &
-                  -dqdp(i,j,k)*(p(i,j,k)+p(i,j,k+ione))
+                  -dqdp(i,j,k)*(p(i,j,k)+p(i,j,k+1))
           end do
        end do
      end do
@@ -102,19 +101,19 @@ subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
   use kinds, only: r_kind,i_kind
   use jfunc, only: dqdrh,dqdp,dqdt,qoption
   use gridmod, only: lat2,lon2,nsig
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
   real(r_kind),intent(inout) :: rhnorm(lat2,lon2,nsig)
   real(r_kind),intent(inout) :: t(lat2,lon2,nsig)
-  real(r_kind),intent(inout) :: p(lat2,lon2,nsig+ione)
+  real(r_kind),intent(inout) :: p(lat2,lon2,nsig+1)
   real(r_kind),intent(inout) :: q(lat2,lon2,nsig)
   
 ! local variables:
   integer(i_kind) i,j,k
   
 ! Adjoint of convert normalized rh to q
-  if(qoption==ione) then
+  if(qoption==1) then
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
@@ -128,10 +127,10 @@ subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
         do j=1,lon2
            do i=1,lat2
               rhnorm(i,j,k)=rhnorm(i,j,k)+dqdrh(i,j,k)*q(i,j,k)
-              t(i,j,k     ) = t(i,j,k     ) + dqdt(i,j,k)*q(i,j,k)
-              p(i,j,k     ) = p(i,j,k     ) - dqdp(i,j,k)*q(i,j,k)
-              p(i,j,k+ione) = p(i,j,k+ione) - dqdp(i,j,k)*q(i,j,k)
-              q(i,j,k     ) = zero
+              t(i,j,k  ) = t(i,j,k  ) + dqdt(i,j,k)*q(i,j,k)
+              p(i,j,k  ) = p(i,j,k  ) - dqdp(i,j,k)*q(i,j,k)
+              p(i,j,k+1) = p(i,j,k+1) - dqdp(i,j,k)*q(i,j,k)
+              q(i,j,k  ) = zero
            end do
         end do
      end do

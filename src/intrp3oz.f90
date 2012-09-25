@@ -40,13 +40,13 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
   use kinds, only: r_kind,i_kind
   use guess_grids, only: nfldsig,hrdifsig,ges_prsi
   use gridmod, only: lat2,lon2,nlat,nlon,nsig,lon1,istart,jstart
-  use constants, only: ione, zero, one, rozcon
+  use constants, only: zero, one, rozcon
   implicit none
 
 ! Declare passed variables
   integer(i_kind)                               ,intent(in   ) :: n,mype,nlevs
   real(r_kind),dimension(n)                     ,intent(in   ) :: dx,dy,obstime
-  real(r_kind),dimension(nlevs-ione,n)          ,intent(in   ) :: dz
+  real(r_kind),dimension(nlevs-1,n)             ,intent(in   ) :: dz
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig),intent(in   ) :: f
   real(r_kind),dimension(nlevs,n)               ,intent(  out) :: g
 
@@ -61,7 +61,7 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
 !*************************************************************************
 ! Initialize variables
   g=zero
-  mm1=mype+ione
+  mm1=mype+1
 
 
 ! Loop over number of observations.
@@ -73,18 +73,18 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
 !    and the observation.
 
      ix1=dx(i); iy1=dy(i)
-     ix1=max(ione,min(ix1,nlat))
+     ix1=max(1,min(ix1,nlat))
      delx=dx(i)-ix1; dely=dy(i)-iy1; delx=max(zero,min(delx,one))
-     ix=ix1-istart(mm1)+2_i_kind; iy=iy1-jstart(mm1)+2_i_kind
-     if(iy<ione) then
+     ix=ix1-istart(mm1)+2; iy=iy1-jstart(mm1)+2
+     if(iy<1) then
         iy1=iy1+nlon
-        iy=iy1-jstart(mm1)+2_i_kind
+        iy=iy1-jstart(mm1)+2
      end if
-     if(iy>lon1+ione) then
+     if(iy>lon1+1) then
         iy1=iy1-nlon
-        iy=iy1-jstart(mm1)+2_i_kind
+        iy=iy1-jstart(mm1)+2
      end if
-     ixp=ix+ione; iyp=iy+ione
+     ixp=ix+1; iyp=iy+1
      if(ix1==nlat) then
         ixp=ix
      end if
@@ -95,16 +95,16 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
 !    the observation time.
 
      if(obstime(i) > hrdifsig(1) .and. obstime(i) < hrdifsig(nfldsig))then
-        do j=1,nfldsig-ione
-           if(obstime(i) > hrdifsig(j) .and. obstime(i) <= hrdifsig(j+ione))then
+        do j=1,nfldsig-1
+           if(obstime(i) > hrdifsig(j) .and. obstime(i) <= hrdifsig(j+1))then
               itsig=j
-              itsigp=j+ione
-              dtsig=((hrdifsig(j+ione)-obstime(i))/(hrdifsig(j+ione)-hrdifsig(j)))
+              itsigp=j+1
+              dtsig=((hrdifsig(j+1)-obstime(i))/(hrdifsig(j+1)-hrdifsig(j)))
            end if
         end do
      else if(obstime(i) <=hrdifsig(1))then
-        itsig=ione
-        itsigp=ione
+        itsig=1
+        itsigp=1
         dtsig=one
      else
         itsig=nfldsig
@@ -116,8 +116,8 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
 !    Given horizontal (spatial) and temporal interpolate weights, loop 
 !    over the number of layered ozone observations at the given location
 
-     dz1=nsig+ione
-     do k=1,nlevs-ione
+     dz1=nsig+1
+     do k=1,nlevs-1
         pob = dz(k,i)
         iz1 = dz1
         if (iz1>nsig) iz1=nsig
@@ -126,14 +126,14 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
            delz=one
            if (kk==iz1) delz=dz1-iz1
            if (kk==iz2) delz=delz-pob+iz2
-           delp1=ges_prsi(ix ,iy ,kk,itsig )-ges_prsi(ix ,iy ,kk+ione,itsig )
-           delp2=ges_prsi(ixp,iy ,kk,itsig )-ges_prsi(ixp,iy ,kk+ione,itsig )
-           delp3=ges_prsi(ix ,iyp,kk,itsig )-ges_prsi(ix ,iyp,kk+ione,itsig )
-           delp4=ges_prsi(ixp,iyp,kk,itsig )-ges_prsi(ixp,iyp,kk+ione,itsig )
-           delp5=ges_prsi(ix ,iy ,kk,itsigp)-ges_prsi(ix ,iy ,kk+ione,itsigp)
-           delp6=ges_prsi(ixp,iy ,kk,itsigp)-ges_prsi(ixp,iy ,kk+ione,itsigp)
-           delp7=ges_prsi(ix ,iyp,kk,itsigp)-ges_prsi(ix ,iyp,kk+ione,itsigp)
-           delp8=ges_prsi(ixp,iyp,kk,itsigp)-ges_prsi(ixp,iyp,kk+ione,itsigp)
+           delp1=ges_prsi(ix ,iy ,kk,itsig )-ges_prsi(ix ,iy ,kk+1,itsig )
+           delp2=ges_prsi(ixp,iy ,kk,itsig )-ges_prsi(ixp,iy ,kk+1,itsig )
+           delp3=ges_prsi(ix ,iyp,kk,itsig )-ges_prsi(ix ,iyp,kk+1,itsig )
+           delp4=ges_prsi(ixp,iyp,kk,itsig )-ges_prsi(ixp,iyp,kk+1,itsig )
+           delp5=ges_prsi(ix ,iy ,kk,itsigp)-ges_prsi(ix ,iy ,kk+1,itsigp)
+           delp6=ges_prsi(ixp,iy ,kk,itsigp)-ges_prsi(ixp,iy ,kk+1,itsigp)
+           delp7=ges_prsi(ix ,iyp,kk,itsigp)-ges_prsi(ix ,iyp,kk+1,itsigp)
+           delp8=ges_prsi(ixp,iyp,kk,itsigp)-ges_prsi(ixp,iyp,kk+1,itsigp)
            g(k,i)=g(k,i) + &
                 ((f(ix ,iy ,kk,itsig )*w00*rozcon*delp1 &
                 + f(ixp,iy ,kk,itsig )*w10*rozcon*delp2 &
@@ -151,14 +151,14 @@ subroutine intrp3oz(f,g,dx,dy,dz,obstime,n,nlevs,mype)
 !    ozone observation
 
      do kk=1,nsig
-        delp1=ges_prsi(ix ,iy ,kk,itsig )-ges_prsi(ix ,iy ,kk+ione,itsig )
-        delp2=ges_prsi(ixp,iy ,kk,itsig )-ges_prsi(ixp,iy ,kk+ione,itsig )
-        delp3=ges_prsi(ix ,iyp,kk,itsig )-ges_prsi(ix ,iyp,kk+ione,itsig )
-        delp4=ges_prsi(ixp,iyp,kk,itsig )-ges_prsi(ixp,iyp,kk+ione,itsig )
-        delp5=ges_prsi(ix ,iy ,kk,itsigp)-ges_prsi(ix ,iy ,kk+ione,itsigp)
-        delp6=ges_prsi(ixp,iy ,kk,itsigp)-ges_prsi(ixp,iy ,kk+ione,itsigp)
-        delp7=ges_prsi(ix ,iyp,kk,itsigp)-ges_prsi(ix ,iyp,kk+ione,itsigp)
-        delp8=ges_prsi(ixp,iyp,kk,itsigp)-ges_prsi(ixp,iyp,kk+ione,itsigp)
+        delp1=ges_prsi(ix ,iy ,kk,itsig )-ges_prsi(ix ,iy ,kk+1,itsig )
+        delp2=ges_prsi(ixp,iy ,kk,itsig )-ges_prsi(ixp,iy ,kk+1,itsig )
+        delp3=ges_prsi(ix ,iyp,kk,itsig )-ges_prsi(ix ,iyp,kk+1,itsig )
+        delp4=ges_prsi(ixp,iyp,kk,itsig )-ges_prsi(ixp,iyp,kk+1,itsig )
+        delp5=ges_prsi(ix ,iy ,kk,itsigp)-ges_prsi(ix ,iy ,kk+1,itsigp)
+        delp6=ges_prsi(ixp,iy ,kk,itsigp)-ges_prsi(ixp,iy ,kk+1,itsigp)
+        delp7=ges_prsi(ix ,iyp,kk,itsigp)-ges_prsi(ix ,iyp,kk+1,itsigp)
+        delp8=ges_prsi(ixp,iyp,kk,itsigp)-ges_prsi(ixp,iyp,kk+1,itsigp)
         g(nlevs,i)=g(nlevs,i) + &
               (f(ix ,iy ,kk,itsig )*w00*rozcon*delp1 &
              + f(ixp,iy ,kk,itsig )*w10*rozcon*delp2 &

@@ -34,7 +34,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
 !
 !$$$
 
-  use constants,only: izero,ione,rd_over_cp,two,rd_over_g,half,zero,one,three,grav
+  use constants,only: rd_over_cp,two,rd_over_g,half,zero,one,three,grav
   use kinds,only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,nsig_hlf
   use turblmod, only: use_pbl
@@ -47,19 +47,19 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
 
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: pges
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: tges,oges
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t,u,v
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: termu,termv,termt
-  integer(i_kind)                            ,intent(in   ) :: jstart,jstop  
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: pges
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: tges,oges
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t,u,v
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: termu,termv,termt
+  integer(i_kind)                         ,intent(in   ) :: jstart,jstop  
 
 ! Declare local variables
   real(r_kind),dimension(nsig_hlf):: dzi_tl,t_bck,o_bck
   real(r_kind),dimension(nsig_hlf):: dudz_bck,dvdz_bck,dodz_bck,ri_bck,rf_bck
   real(r_kind),dimension(nsig_hlf):: rdudz_bck,rdvdz_bck,sm_bck,sh_bck,rdzl_bck,rdzi_bck
   real(r_kind),dimension(nsig_hlf):: u_tl,v_tl,o_tl,zl_tl,t_tl,rssq,rofbck,rshbck
-  real(r_kind),dimension(nsig_hlf+ione):: km_bck,kh_bck,p_bck,zi_bck,km_tl,kh_tl,zi_tl,p_tl
+  real(r_kind),dimension(nsig_hlf+1):: km_bck,kh_bck,p_bck,zi_bck,km_tl,kh_tl,zi_tl,p_tl
   real(r_kind),dimension(2:nsig_hlf):: dzl_tl,dodz_tl,dudz_tl,dvdz_tl,ri_tl
   real(r_kind),dimension(2:nsig_hlf):: rf_tl,sh_tl,sm_tl,lmix_tl
   real(r_kind):: a1,a2,ax,bx,px,rpx,zx,ssq
@@ -84,8 +84,8 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            rdzl_bck(k)=rdzl(i,j,k)
            zi_bck(k)=zi(i,j,k)
         end do
-        p_bck(nsig_hlf+ione) =pges(i,j,nsig_hlf+ione)
-        zi_bck(nsig_hlf+ione)=zi  (i,j,nsig_hlf+ione)
+        p_bck(nsig_hlf+1) =pges(i,j,nsig_hlf+1)
+        zi_bck(nsig_hlf+1)=zi  (i,j,nsig_hlf+1)
 
         do k=1,nsig_hlf
            dodz_bck(k)=dodz(i,j,k)
@@ -98,14 +98,14 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            km_bck(k)=km(i,j,k)
            kh_bck(k)=kh(i,j,k)
         end do
-        km_bck(nsig_hlf+ione)=zero
-        kh_bck(nsig_hlf+ione)=zero
+        km_bck(nsig_hlf+1)=zero
+        kh_bck(nsig_hlf+1)=zero
       
         do k=2,nsig_hlf
            ssq=dudz_bck(k)**2+dvdz_bck(k)**2
-           lssq(k)=ione
+           lssq(k)=1
            if(ssq < eps_m) then
-              lssq(k)=izero
+              lssq(k)=0
               ssq = eps_m
            end if
            rssq(k)=one/ssq
@@ -124,26 +124,26 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            v_tl(k)=v(i,j,k)
            p_tl(k)=prs(i,j,k)
         end do
-        p_tl (nsig_hlf+ione) =prs (i,j,nsig_hlf+ione)
+        p_tl (nsig_hlf+1) =prs (i,j,nsig_hlf+1)
 
 ! perturbations of potential temperature and heigh increment
 
         do k=1,nsig_hlf
-           rpbck=one/(p_bck(k)+p_bck(k+ione))
+           rpbck=one/(p_bck(k)+p_bck(k+1))
            px=rd_over_cp*rpbck
            alph1=o_bck(k)/t_bck(k)
            alph2=-o_bck(k)*px
            o_tl(k)=alph1* t_tl(k)+&
                    alph2*(p_tl(k)+&
-                          p_tl(k+ione))
+                          p_tl(k+1))
            rpx=two*rpbck
            a1=rd_over_g*rpx
            a2=a1*t_bck(k)*rpx
-           alph= a2*p_bck(k+ione)
+           alph= a2*p_bck(k+1)
            beta=-a2*p_bck(k)
-           gamm=-a1*(p_bck(k+ione)-p_bck(k))
+           gamm=-a1*(p_bck(k+1)-p_bck(k))
            dzi_tl(k)=alph*p_tl(k)+&
-                     beta*p_tl(k+ione)+&
+                     beta*p_tl(k+1)+&
                      gamm*t_tl(k)
         end do
 
@@ -151,15 +151,15 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
 
         zi_tl(1)=zero
         do k=1,nsig_hlf
-           zi_tl(k+ione)=zi_tl(k)+dzi_tl(k)
+           zi_tl(k+1)=zi_tl(k)+dzi_tl(k)
         end do
 
         do k=1,nsig_hlf
-           zl_tl(k)=half*(zi_tl(k)+zi_tl(k+ione))
+           zl_tl(k)=half*(zi_tl(k)+zi_tl(k+1))
         end do
 
         do k=2,nsig_hlf
-           dzl_tl(k)=zl_tl(k)-zl_tl(k-ione)
+           dzl_tl(k)=zl_tl(k)-zl_tl(k-1)
         end do
 
 ! perturbation of vertical derivatives
@@ -167,21 +167,21 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
         do k=2,nsig_hlf
            rdzlbk=rdzl_bck(k)
            zx=dzl_tl(k)*rdzlbk
-           dudz_tl(k)=(u_tl(k)-u_tl(k-ione))*rdzlbk - & 
+           dudz_tl(k)=(u_tl(k)-u_tl(k-1))*rdzlbk - & 
                       dudz_bck(k)*zx
-           dvdz_tl(k)=(v_tl(k)-v_tl(k-ione))*rdzlbk - & 
+           dvdz_tl(k)=(v_tl(k)-v_tl(k-1))*rdzlbk - & 
                       dvdz_bck(k)*zx
-           dodz_tl(k)=(o_tl(k)-o_tl(k-ione))*rdzlbk - & 
+           dodz_tl(k)=(o_tl(k)-o_tl(k-1))*rdzlbk - & 
                       dodz_bck(k)*zx
         end do
 
 ! perturbation of Richardson number
 
         do k=2,nsig_hlf
-           if(ri_int(i,j,k)==ione) then
+           if(ri_int(i,j,k)==1) then
               ri_tl(k) = zero
            else
-              rtbck = one/(t_bck(k)+t_bck(k-ione))
+              rtbck = one/(t_bck(k)+t_bck(k-1))
               alph=-ri_bck(k)*two*lssq(k)
               alph1=alph*rdudz_bck(k)
               alph2=alph*rdvdz_bck(k)
@@ -190,7 +190,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
               ri_tl(k)=alph1*dudz_tl(k)+&
                        alph2*dvdz_tl(k)+&
                        beta* dodz_tl(k)+&
-                       gamm*(t_tl(k)+t_tl(k-ione))
+                       gamm*(t_tl(k)+t_tl(k-1))
            end if
         end do
 
@@ -198,7 +198,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
 ! perturbation of flux Richardson number, sh, sm and lmix
 
         do k=2,nsig_hlf
-           if(ri_int(i,j,k)==ione) then
+           if(ri_int(i,j,k)==1) then
               rf_tl(k)=zero
               sh_tl(k)=zero
               sm_tl(k)=zero
@@ -219,7 +219,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
         do k=2,nsig_hlf
            kmbk=km_bck(k)
            khbk=kh_bck(k)
-           if(ri_int(i,j,k)==ione) then
+           if(ri_int(i,j,k)==1) then
               km_tl(k)=zero
               kh_tl(k)=zero
            else
@@ -262,8 +262,8 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            hrdzbk=half*rdzibk
            ardzbk=ax*hrdzbk
            zx= dzi_tl(k)*rdzibk
-           kmaz_bck=(km_bck(k)+km_bck(k+ione))*hrdzbk
-           khaz_bck=(kh_bck(k)+kh_bck(k+ione))*ardzbk
+           kmaz_bck=(km_bck(k)+km_bck(k+1))*hrdzbk
+           khaz_bck=(kh_bck(k)+kh_bck(k+1))*ardzbk
    
            termu(i,j,k)=termu(i,j,k)-zx*dudtm(i,j,k)
            termv(i,j,k)=termv(i,j,k)-zx*dvdtm(i,j,k)
@@ -271,25 +271,25 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            kmaz_tl=zero
            khaz_tl=zero
            if(k<nsig_hlf) then
-              kmaz_tl =kmaz_tl+km_tl (k+ione)*hrdzbk
-              khaz_tl =khaz_tl+kh_tl (k+ione)*ardzbk
+              kmaz_tl =kmaz_tl+km_tl (k+1)*hrdzbk
+              khaz_tl =khaz_tl+kh_tl (k+1)*ardzbk
            end if
-           if(k>ione) then
+           if(k>1) then
               kmaz_tl= kmaz_tl+km_tl (k)*hrdzbk
               khaz_tl= khaz_tl+kh_tl (k)*ardzbk
            end if
            if(k<nsig_hlf) then
               termu(i,j,k)=termu(i,j,k)+&
-                 kmaz_bck*dudz_tl(k+ione) +&
-                 kmaz_tl*dudz_bck(k+ione)
+                 kmaz_bck*dudz_tl(k+1) +&
+                 kmaz_tl*dudz_bck(k+1)
               termv(i,j,k)=termv(i,j,k)+&
-                 kmaz_bck*dvdz_tl(k+ione) +&
-                 kmaz_tl*dvdz_bck(k+ione)
+                 kmaz_bck*dvdz_tl(k+1) +&
+                 kmaz_tl*dvdz_bck(k+1)
               termt(i,j,k)=termt(i,j,k)+&
-                 khaz_bck*dodz_tl(k+ione) +&
-                 khaz_tl*dodz_bck(k+ione)
+                 khaz_bck*dodz_tl(k+1) +&
+                 khaz_tl*dodz_bck(k+1)
            end if
-           if(k>ione) then
+           if(k>1) then
               termu(i,j,k)=termu(i,j,k)-&
                    kmaz_bck*dudz_tl(k) -&
                    kmaz_tl*dudz_bck(k)

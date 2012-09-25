@@ -87,7 +87,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,c0,tiny_r_kind,el2orc,factor1,factor2,pcpeff3,h300,&
+  use constants, only: c0,tiny_r_kind,el2orc,factor1,factor2,pcpeff3,h300,&
        elocp,pcpeff2,pcpeff0,pcpeff1,epsm1,delta,eps,zero,one_tenth,one,two,three,cp,hvap,&
        half,rd,grav,r1000,r3600
   implicit none  
@@ -438,14 +438,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      acrt(i) = zero
      psfc(i) = zero
      hmax(i) = zero
-     kb(i) = izero
+     kb(i) = 0
      hkbo(i) = zero
      qkbo(i) = zero
-     kbcon(i) = izero
+     kbcon(i) = 0
      pbcdif(i) = zero
      hmin(i) = zero
-     lmin(i) = izero
-     jmin(i) = izero
+     lmin(i) = 0
+     jmin(i) = 0
      pwavo(i) = zero
      aa1(i) = zero
      vshear(i) = zero
@@ -467,7 +467,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      xk(i) = zero
      xmb(i) = zero
      xmb0(i) = zero
-     ktcon(i) = izero
+     ktcon(i) = 0
      edtx(i) = zero
      edtx1(i) = zero
      edtx10(i) = zero
@@ -479,12 +479,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      xlamdet0(i)=zero
      xlamdet1(i)=zero
      xlamd(i) = zero
-     kbdtr(i) = izero
+     kbdtr(i) = 0
      pdot(i) = zero
      cldwrk(i) = zero
-     kbot(i) = km+ione
-     ktop(i) = izero
-     kuo(i) = izero
+     kbot(i) = km+1
+     ktop(i) = 0
+     kuo(i) = 0
      rn1(i) = zero
      aa10(i) = zero
      rn11(i) = zero
@@ -545,9 +545,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      kbm(i)   = km
      kmax(i)  = km
      do k = 1, km
-        if (sl(k,i)  >  0.45_r_kind) kbmax(i) = k + ione
-        if (sl(k,i)  >  0.7_r_kind)  kbm(i)   = k + ione
-        if (sl(k,i)  >  0.04_r_kind) kmax(i)  = k + ione
+        if (sl(k,i)  >  0.45_r_kind) kbmax(i) = k + 1
+        if (sl(k,i)  >  0.7_r_kind)  kbm(i)   = k + 1
+        if (sl(k,i)  >  0.04_r_kind) kmax(i)  = k + 1
      enddo
   end do
 ! kbm=10, kbmax=14, kmax=25 (=23 if sl(k) > 06)
@@ -606,10 +606,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !     restore similar results.
   do i = 1,im
      do k = 2, kmax(i)
-        dlnsig  = log(sl(k,i) / sl(k-ione,i))
+        dlnsig  = log(sl(k,i) / sl(k-1,i))
         term1   = dlnsig * rd / grav
-        term2   = half * (tvo(k,i) + tvo(k-ione,i))
-        zo(k,i) = zo(k-ione,i) - term1*term2
+        term2   = half * (tvo(k,i) + tvo(k-1,i))
+        zo(k,i) = zo(k-1,i) - term1*term2
      enddo
   enddo
 
@@ -625,7 +625,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! this is the level where updraft starts
   do i = 1, im
      hmax(i) = heo(1,i)
-     kb(i) = ione
+     kb(i) = 1
   enddo
   do i = 1,im
      do k = 2, kbm(i)
@@ -645,27 +645,27 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !      do i = 1,im
 !         do k = 2, kbmax(i)
 !            if (heso(k,i) < hmin(i)) then
-!               lmin(i) = k + ione
+!               lmin(i) = k + 1
 !               hmin(i) = heso(k,i)
 !            endif
 !         enddo
 !      enddo
   do i = 1,im
-     do k = 1, kmax(i) - ione
-        dz = half * (zo(k+ione,i) - zo(k,i))
-        dp = half * (p(k+ione,i) - p(k,i))
-        call fpvsx_ad(to(k+ione,i),es0,adt,es0_ad,.false.)
+     do k = 1, kmax(i) - 1
+        dz = half * (zo(k+1,i) - zo(k,i))
+        dp = half * (p(k+1,i) - p(k,i))
+        call fpvsx_ad(to(k+1,i),es0,adt,es0_ad,.false.)
         es = 10._r_kind*es0
-        pprime = p(k+ione,i) + epsm1 * es
+        pprime = p(k+1,i) + epsm1 * es
         qs     = eps * es / pprime
         dqsdp  = - qs / pprime
-        desdt = es * (factor1 / to(k+ione,i) + factor2 / (to(k+ione,i)**2))
-        dqsdt = qs * p(k+ione,i) * desdt / (es * pprime)
-        gamma = el2orc * qeso(k+ione,i) / (to(k+ione,i)**2)
+        desdt = es * (factor1 / to(k+1,i) + factor2 / (to(k+1,i)**2))
+        dqsdt = qs * p(k+1,i) * desdt / (es * pprime)
+        gamma = el2orc * qeso(k+1,i) / (to(k+1,i)**2)
         dt    = (grav * dz + hvap * dqsdp * dp) / (cp * (one + gamma))
         dq    = dqsdt * dt + dqsdp * dp
-        tol(k,i) = to(k+ione,i) + dt
-        qol0(k,i) = qo(k+ione,i) + dq
+        tol(k,i) = to(k+1,i) + dt
+        qol0(k,i) = qo(k+1,i) + dq
         if (qol0(k,i)>zero) then
            qol(k,i) = qol0(k,i)
         else
@@ -675,17 +675,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   end do
 
   do i = 1,im
-     do k = 1,kmax(i)-ione
-        po    = half * (p(k,i) + p(k+ione,i))
+     do k = 1,kmax(i)-1
+        po    = half * (p(k,i) + p(k+1,i))
         call fpvsx_ad(tol(k,i),es0,adt,es0_ad,.false.)
         esl   = 10.0_r_kind*es0
         qesol(k,i) = eps*esl / (po + epsm1*esl)
-        heol(k,i)  = half * grav * (zo(k,i) + zo(k+ione,i)) + &
+        heol(k,i)  = half * grav * (zo(k,i) + zo(k+1,i)) + &
              cp * tol(k,i) + hvap * qol(k,i)
-        hesol(k,i) = half * grav * (zo(k,i) + zo(k+ione,i)) + &
+        hesol(k,i) = half * grav * (zo(k,i) + zo(k+1,i)) + &
              cp * tol(k,i) + hvap * qesol(k,i)
-        uol(k,i)   = half * (uo(k,i) + uo(k+ione,i))
-        vol(k,i)   = half * (vo(k,i) + vo(k+ione,i))
+        uol(k,i)   = half * (uo(k,i) + uo(k+1,i))
+        vol(k,i)   = half * (vo(k,i) + vo(k+1,i))
      enddo
   enddo
   do i = 1, im
@@ -731,12 +731,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! determine entrainment rate between kb and kbcon
   do i = 1, im
      alpha = alphas
-     if (nint(slimsk(i)) == ione) alpha = alphal
-     if (kb(i)==ione) then
-        dz = half * (zo(kbcon(i),i) + zo(kbcon(i)-ione,i)) - zo(1,i)
+     if (nint(slimsk(i)) == 1) alpha = alphal
+     if (kb(i)==1) then
+        dz = half * (zo(kbcon(i),i) + zo(kbcon(i)-1,i)) - zo(1,i)
      else
-        dz = half * (zo(kbcon(i),i) + zo(kbcon(i)-ione,i)) &
-             - half * (zo(kb(i),i) + zo(kb(i)-ione,i))
+        dz = half * (zo(kbcon(i),i) + zo(kbcon(i)-1,i)) &
+             - half * (zo(kb(i),i) + zo(kb(i)-1,i))
      endif
      if (kbcon(i)/=kb(i)) then
         xlamb(i) = -log(alpha) / dz
@@ -755,14 +755,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
      do k = kbmax(i), 2, -1
         if (k < kbcon(i) .and. k >= kb(i)) then
-           dz       = half * (zo(k+ione,i) - zo(k-ione,i))
-           eta(k,i) = eta(k+ione,i) * exp(-xlamb(i) * dz)
+           dz       = half * (zo(k+1,i) - zo(k-1,i))
+           eta(k,i) = eta(k+1,i) * exp(-xlamb(i) * dz)
            etau(k,i)= eta(k,i)
         endif
      enddo
   enddo
   do i = 1, im
-     if (kb(i)==ione .and. kbcon(i) > ione) then
+     if (kb(i)==1 .and. kbcon(i) > 1) then
         dz = half * (zo(2,i) - zo(1,i))
         eta(1,i) = eta(2,i) * exp(-xlamb(i) * dz)
         etau(1,i)= eta(1,i)
@@ -779,16 +779,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Cloud property below cloud base is modified by the entrainment proces
   do i = 1,im
-     do k = 2, kmax(i) - ione
+     do k = 2, kmax(i) - 1
         if (k > kb(i) .and. k <= kbcon(i)) then
-           factor = eta(k-ione,i) / eta(k,i)
+           factor = eta(k-1,i) / eta(k,i)
            onemf = one - factor
-           hcko(k,i) = factor * hcko(k-ione,i) + onemf * &
-                half * (heol(k,i) + heol(k+ione,i))
-           ucko(k,i) = factor * ucko(k-ione,i) + onemf * &
-                half * (uol(k,i) + uol(k+ione,i))
-           vcko(k,i) = factor * vcko(k-ione,i) + onemf * &
-                half * (vol(k,i) + vol(k+ione,i))
+           hcko(k,i) = factor * hcko(k-1,i) + onemf * &
+                half * (heol(k,i) + heol(k+1,i))
+           ucko(k,i) = factor * ucko(k-1,i) + onemf * &
+                half * (uol(k,i) + uol(k+1,i))
+           vcko(k,i) = factor * vcko(k-1,i) + onemf * &
+                half * (vol(k,i) + vol(k+1,i))
         endif
         if (k > kbcon(i)) then
            hcko(k,i) = hcko(kbcon(i),i)
@@ -812,7 +812,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Determine cloud top
   do i = 1, im
      flg(i) = .true.
-     ktcon(i) = ione
+     ktcon(i) = 1
   enddo
   do i = 1,im
      do k = 2, kmax(i)
@@ -835,7 +835,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      if(cnvflg(i)) then
         do k = kbcon(i), kbmax(i)
            if(heol(k,i) < hmin(i)) then
-              lmin(i) = k + ione
+              lmin(i) = k + 1
               hmin(i) = heol(k,i)
            endif
         enddo
@@ -844,9 +844,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   
 ! Make sure jmin is within the cloud      
   do i = 1, im
-     jmin(i) = min(lmin(i),ktcon(i)-ione)
-     jmin(i) = max(jmin(i),kbcon(i)+ione)
-     if (ktcon(i) < kbcon(i)) jmin(i) = ione
+     jmin(i) = min(lmin(i),ktcon(i)-1)
+     jmin(i) = max(jmin(i),kbcon(i)+1)
+     if (ktcon(i) < kbcon(i)) jmin(i) = 1
   enddo
 
   do i = 1, im
@@ -863,10 +863,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !  to level of neutral buoyancy (ktcon)
 
   do i=1,im
-     do k=2,kmax(i)-ione
+     do k=2,kmax(i)-1
         if (k > jmin(i) .and. k <= ktcon(i)) then
-           sumz(k,i) = sumz(k-ione,i) + half * (zo(k+ione,i) - zo(k-ione,i))
-           sumh(k,i) = sumh(k-ione,i) + half * (zo(k+ione,i) - zo(k-ione,i)) &
+           sumz(k,i) = sumz(k-1,i) + half * (zo(k+1,i) - zo(k-1,i))
+           sumh(k,i) = sumh(k-1,i) + half * (zo(k+1,i) - zo(k-1,i)) &
                 * heol(k,i)
         endif
      end do
@@ -874,7 +874,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Select cloud from ensemble
   do i=1,im
-     kt2(i) = nint(xkt2(i)*float(ktcon(i)-jmin(i))-half) + jmin(i) + ione
+     kt2(i) = nint(xkt2(i)*float(ktcon(i)-jmin(i))-half) + jmin(i) + 1
      tem1 = hcko(jmin(i),i) - hesol(kt2(i),i)
      tem2 = sumz(kt2(i),i) * hesol(kt2(i),i) - sumh(kt2(i),i)
      if (abs(tem2)  >  0.000001_r_kind) then
@@ -941,19 +941,19 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Cloud property above cloud top is modified by the detrainment process
   do i=1,im
      if (dwnflg(i)) then
-        do k=2,kmax(i)-ione
+        do k=2,kmax(i)-1
            if (k > jmin(i) .and. k <= kt2(i)) then
-              dz = half * (zo(k+ione,i) - zo(k-ione,i))
+              dz = half * (zo(k+1,i) - zo(k-1,i))
 !   To simplify matters, we will take the linear approach here
-              eta(k,i)  = eta(k-ione,i)  * (one + xlamdet(i) * dz)
-              etau(k,i) = etau(k-ione,i) * (one +(xlamdet(i)+xlambu)* dz)
+              eta(k,i)  = eta(k-1,i)  * (one + xlamdet(i) * dz)
+              etau(k,i) = etau(k-1,i) * (one +(xlamdet(i)+xlambu)* dz)
            endif
         end do
      else
-        do k=2,kmax(i)-ione
+        do k=2,kmax(i)-1
            if (k > jmin(i) .and. k <= ktcon(i)) then
-              dz = half * (zo(k+ione,i) - zo(k-ione,i))
-              etau(k,i) = etau(k-ione,i) * (one + xlambu * dz)
+              dz = half * (zo(k+1,i) - zo(k-1,i))
+              etau(k,i) = etau(k-1,i) * (one + xlambu * dz)
            endif
         end do
      endif
@@ -980,20 +980,20 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Adjustment to hckod by detraining cloud
   do i = 1,im
-     do k = 2,kmax(i)-ione
+     do k = 2,kmax(i)-1
         if (k > kbcon(i) .and. k <= ktcon(i)) then
-           factor = eta(k-ione,i) / eta(k,i)
+           factor = eta(k-1,i) / eta(k,i)
            onemf  = one - factor
-           fuv    = etau(k-ione,i)/etau(k,i)
+           fuv    = etau(k-1,i)/etau(k,i)
            onemfu = one - fuv
-           heol2  = half*(heol(k,i) + heol(k+ione,i))
-           hckod(k,i) = factor*hckod(k-ione,i) + onemf*heol2
+           heol2  = half*(heol(k,i) + heol(k+1,i))
+           hckod(k,i) = factor*hckod(k-1,i) + onemf*heol2
            
-           uol2       = half*(uol(k,i)+uol(k+ione,i))
-           uckod(k,i) = fuv * uckod(k-ione,i) + onemfu*uol2
+           uol2       = half*(uol(k,i)+uol(k+1,i))
+           uckod(k,i) = fuv * uckod(k-1,i) + onemfu*uol2
            
-           vol2       = half*(vol(k,i)+vol(k+ione,i))
-           vckod(k,i) = fuv * vckod(k-ione,i) + onemfu*vol2
+           vol2       = half*(vol(k,i)+vol(k+1,i))
+           vckod(k,i) = fuv * vckod(k-1,i) + onemfu*vol2
            
         endif
      end do
@@ -1001,7 +1001,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Load hckod and hcko into hcko1 and calculate dbyo
   do i=1,im
-     do k=2,kmax(i)-ione
+     do k=2,kmax(i)-1
         if (k > kb(i).and.k <= kbcon(i)) then
            hcko1(k,i) = hcko(k,i)
         elseif (k > kbcon(i).and.k <= ktcon(i)) then
@@ -1033,10 +1033,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
      do k = 1, kmax(i)
         if (k > kb(i) .and. k < ktcon(i)) then
-           factor = eta(k-ione,i) / eta(k,i)
+           factor = eta(k-1,i) / eta(k,i)
            onemf  = one - factor
-           temp   = factor * qcko(k-ione,i) + onemf * &
-                half * (qol(k,i) + qol(k+ione,i))
+           temp   = factor * qcko(k-1,i) + onemf * &
+                half * (qol(k,i) + qol(k+1,i))
            qcko0(k,i) = temp
            gamma  = el2orc * qesol(k,i) / (tol(k,i)**2)
            qrch   = qesol(k,i) &
@@ -1046,9 +1046,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 !          Below LFC check if there is excess moisture to release latent heat
            if (dq > zero) then
-              dz   = half * (zo(k+ione,i) - zo(k-ione,i))
-              dz1  = (zo(k,i) - zo(k-ione,i))
-              etah = half * (eta(k,i) + eta(k-ione,i))
+              dz   = half * (zo(k+1,i) - zo(k-1,i))
+              dz1  = (zo(k,i) - zo(k-1,i))
+              etah = half * (eta(k,i) + eta(k-1,i))
               qlk  = dq / (eta(k,i) + etah * c0 * dz)
               aa1(i)    = aa1(i) - dz1 * grav * qlk
               pwo(k,i)  = etah * c0 * dz * qlk
@@ -1063,20 +1063,20 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   enddo
 
 ! This section is for cloud liquid water
-  if (ncloud > izero) then
+  if (ncloud > 0) then
      do i=1,im
         k = ktcon(i)
         if (cnvflg(i)) then
            gamma = el2orc * qesol(k,i) / (tol(k,i)**2)
            qrch = qesol(k,i) &
                 + gamma * dbyo(k,i) / (hvap * (one + gamma))
-           dq = qcko(k-ione,i) - qrch
-           qcko00(k-ione,i) = qcko(k-ione,i)
+           dq = qcko(k-1,i) - qrch
+           qcko00(k-1,i) = qcko(k-1,i)
 
 !          Check if there is excess moisture to release latent heat
            if(dq > zero) then
               qlko_ktcon(i) = dq
-              qcko(k-ione,i) = qrch
+              qcko(k-1,i) = qrch
            endif
         endif
      end do
@@ -1087,18 +1087,18 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
      do k = 1, kmax(i)
         if (k > kbcon(i) .and. k <= ktcon(i)) then
-           dz1    = zo(k,i) - zo(k-ione,i)
-           gamma  = el2orc * qesol(k-ione,i) / (tol(k-ione,i)**2)
+           dz1    = zo(k,i) - zo(k-1,i)
+           gamma  = el2orc * qesol(k-1,i) / (tol(k-1,i)**2)
            rfact  =  one + delta * cp * gamma &
-                * tol(k-ione,i) / hvap
+                * tol(k-1,i) / hvap
            term1 = dz1*grav/cp
-           term2 = one/tol(k-ione,i)
-           term3 = dbyo(k-ione,i)
+           term2 = one/tol(k-1,i)
+           term3 = dbyo(k-1,i)
            term4 = one/(one+gamma)
            term5 = rfact
            aa1(i) = aa1(i) + term1*term2*term3*term4*term5
            
-           dqs    = qesol(k-ione,i) - qol(k-ione,i)
+           dqs    = qesol(k-1,i) - qol(k-1,i)
            if (dqs > zero) then
               aa1(i) = aa1(i)+ dz1 * grav * delta * dqs
            endif
@@ -1128,8 +1128,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
      do k = 1, kmax(i)
         if (k >= kb(i) .and. k <= ktcon(i)) then
-           termu = (uol(k+ione,i) - uol(k,i))**2
-           termv = (vol(k+ione,i) - vol(k,i))**2
+           termu = (uol(k+1,i) - uol(k,i))**2
+           termv = (vol(k+1,i) - vol(k,i))**2
            if (termu+termv > tiny_r_kind) then
               shear = rcs(i) * sqrt(termu+termv)
            else
@@ -1166,12 +1166,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1, im
      kbdtr(i) = kbcon(i)
      beta = betas
-     if (nint(slimsk(i)) == ione) beta = betal
+     if (nint(slimsk(i)) == 1) beta = betal
      kbdtr(i) = kbcon(i)
-     kbdtr(i) = max(kbdtr(i),ione)
+     kbdtr(i) = max(kbdtr(i),1)
      xlamd(i) = zero
-     if (kbdtr(i) > ione) then
-        dz = half * zo(kbdtr(i),i) + half * zo(kbdtr(i)-ione,i) &
+     if (kbdtr(i) > 1) then
+        dz = half * zo(kbdtr(i),i) + half * zo(kbdtr(i)-1,i) &
              - zo(1,i)
         xlamd(i) = log(beta) / dz
      endif
@@ -1186,16 +1186,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
      do k = kbmax(i), 2, -1
         if (k < kbdtr(i)) then
-           dz = half * (zo(k+ione,i) - zo(k-ione,i))
-           etad(k,i) = etad(k+ione,i) * exp(xlamd(i) * dz)
+           dz = half * (zo(k+1,i) - zo(k-1,i))
+           etad(k,i) = etad(k+1,i) * exp(xlamd(i) * dz)
         endif
      enddo
   enddo
-  k = ione
+  k = 1
   do i = 1, im
-     if (kbdtr(i) > ione) then
+     if (kbdtr(i) > 1) then
         dz = half * (zo(2,i) - zo(1,i))
-        etad(k,i) = etad(k+ione,i) * exp(xlamd(i) * dz)
+        etad(k,i) = etad(k+1,i) * exp(xlamd(i) * dz)
      endif
   enddo
 
@@ -1215,7 +1215,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      vcdo(i) = vol(jmn,i)
   enddo
   do i = 1,im
-     do k = kmax(i)-ione, 1, -1
+     do k = kmax(i)-1, 1, -1
         if (k < jmin(i)) then
            dq    = qesol(k,i)
            dt    = tol(k,i)
@@ -1224,11 +1224,11 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term5 = (one/hvap) * gamma
            term6 = one/(one+gamma)
            qrcdo(k,i) = dq + term5*term6*dh
-           detad = etad(k+ione,i) - etad(k,i)
-           if (k < jmin(i)-ione) then
-              term1 = etad(k+ione,i)*qcdo(i)
+           detad = etad(k+1,i) - etad(k,i)
+           if (k < jmin(i)-1) then
+              term1 = etad(k+1,i)*qcdo(i)
               term2 = etad(k,i) * qrcdo(k,i)
-              term3 = detad*half*(qrcdo(k,i)+qrcdo(k+ione,i))
+              term3 = detad*half*(qrcdo(k,i)+qrcdo(k+1,i))
               pwdo(k,i) = term1 - term2 - term3
            endif
            pwevo(i) = pwevo(i) + pwdo(k,i)
@@ -1244,7 +1244,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! evaporate (pwev)
   do i = 1, im
      edtmax = edtmaxl
-     if (nint(slimsk(i)) == izero) edtmax = edtmaxs
+     if (nint(slimsk(i)) == 0) edtmax = edtmaxs
      if (dwnflg2(i)) then
         if (pwevo(i) < zero) then
            edto1(i) = -edto(i) * pwavo(i) / pwevo(i)
@@ -1264,14 +1264,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Downdraft cloudwork functions
 !round reverse order of loop --> get slightly different result
   do i = 1,im
-     do k = kmax(i)-ione, 1, -1
+     do k = kmax(i)-1, 1, -1
         if (dwnflg2(i) .and. k < jmin(i)) then
-           gamma = el2orc * qesol(k+ione,i) / tol(k+ione,i)**2
+           gamma = el2orc * qesol(k+1,i) / tol(k+1,i)**2
            dhh   = hcdo(i)
-           dt    = tol(k+ione,i)
+           dt    = tol(k+1,i)
            dg    = gamma
-           dh    = hesol(k+ione,i)
-           dz    = zo(k,i) - zo(k+ione,i)
+           dh    = hesol(k+1,i)
+           dz    = zo(k,i) - zo(k+1,i)
            
            term1 = edto1(i)
            term2 = dz
@@ -1282,7 +1282,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            aa1(i) = aa1(i) &
                 + term1*term2*term3*term4*term5*term6
            
-           dqs   = qesol(k+ione,i)-qol(k+ione,i)
+           dqs   = qesol(k+1,i)-qol(k+1,i)
            if (dqs > zero) then
               aa1(i)= aa1(i) + edto1(i)*dz*grav*delta*dqs
            endif
@@ -1316,7 +1316,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      enddo
   enddo
   do i = 1, im
-     if (ktcon(i)/=ione) then
+     if (ktcon(i)/=1) then
         dp = 100.0_r_kind * psfc(i) * del(1,i)
         dellah(1,i) = edto1(i) * etad(1,i) * (hcdo(i) &
              - heol(1,i)) * grav / dp
@@ -1332,37 +1332,37 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Changed due to subsidence and entrainment
 !round reverse order of loop yields different results
   do i = 1,im
-     do k = 2, kmax(i)-ione
-        if ( k < ktcon(i) .and. ktcon(i)/=ione ) then
+     do k = 2, kmax(i)-1
+        if ( k < ktcon(i) .and. ktcon(i)/=1 ) then
            aup = one
            if (k <= kb(i)) aup = zero
            adw = one
            if (k > jmin(i)) adw = zero
            dv1   = heol(k,i)
-           dv2   = half * (heol(k,i) + heol(k+ione,i))
-           dv3   = heol(k-ione,i)
+           dv2   = half * (heol(k,i) + heol(k+1,i))
+           dv3   = heol(k-1,i)
            dv1q  = qol(k,i)
-           dv2q  = half * (qol(k,i) + qol(k+ione,i))
-           dv3q  = qol(k-ione,i)
+           dv2q  = half * (qol(k,i) + qol(k+1,i))
+           dv3q  = qol(k-1,i)
            
            dv1u  = uol(k,i)
-           dv2u  = half * (uol(k,i) + uol(k+ione,i))
-           dv3u  = uol(k-ione,i)
+           dv2u  = half * (uol(k,i) + uol(k+1,i))
+           dv3u  = uol(k-1,i)
            
            dv1v  = vol(k,i)
-           dv2v  = half * (vol(k,i) + vol(k+ione,i))
-           dv3v  = vol(k-ione,i)
+           dv2v  = half * (vol(k,i) + vol(k+1,i))
+           dv3v  = vol(k-1,i)
            
            
            dp    = 100.0_r_kind * psfc(i) * del(k,i)
-           detau = eta(k,i) - eta(k-ione,i)
-           detad = etad(k,i) - etad(k-ione,i)
+           detau = eta(k,i) - eta(k-1,i)
+           detad = etad(k,i) - etad(k-1,i)
            
            term1 = aup*eta(k,i) - adw*edto1(i)*etad(k,i)
            term2 = aup*detau
-           term3 = aup*eta(k-ione,i) - adw*edto1(i)*etad(k-ione,i)
+           term3 = aup*eta(k-1,i) - adw*edto1(i)*etad(k-1,i)
            term4 = adw*edto1(i)*detad
-           termq = half*(qrcdo(k,i)+qrcdo(k-ione,i))
+           termq = half*(qrcdo(k,i)+qrcdo(k-1,i))
            
            dellah(k,i) = dellah(k,i) + (grav/dp) * &
                 (term1*dv1 - term3*dv3 - term2*dv2 + term4*hcdo(i))
@@ -1380,24 +1380,24 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Cloud top
   do i = 1, im
-     if (ktcon(i)/=ione) then
+     if (ktcon(i)/=1) then
         indx = ktcon(i)
         dp   = 100.0_r_kind * psfc(i) * del(indx,i)
-        dv1  = heol(indx-ione,i)
-        dellah(indx,i) = eta(indx-ione,i) * &
-             (hcko1(indx-ione,i) - dv1) * grav / dp
-        dvq1 = qol(indx-ione,i)
-        dellaq(indx,i) = eta(indx-ione,i) * &
-             (qcko(indx-ione,i) - dvq1) * grav / dp
+        dv1  = heol(indx-1,i)
+        dellah(indx,i) = eta(indx-1,i) * &
+             (hcko1(indx-1,i) - dv1) * grav / dp
+        dvq1 = qol(indx-1,i)
+        dellaq(indx,i) = eta(indx-1,i) * &
+             (qcko(indx-1,i) - dvq1) * grav / dp
         
-        dvu1 = uol(indx-ione,i)
-        dellau(indx,i) = eta(indx-ione,i) * &
-             (ucko(indx-ione,i) - dvu1) * grav / dp
-        dvv1 = vol(indx-ione,i)
-        dellav(indx,i) = eta(indx-ione,i) * &
-             (vcko(indx-ione,i) - dvv1) * grav / dp
+        dvu1 = uol(indx-1,i)
+        dellau(indx,i) = eta(indx-1,i) * &
+             (ucko(indx-1,i) - dvu1) * grav / dp
+        dvv1 = vol(indx-1,i)
+        dellav(indx,i) = eta(indx-1,i) * &
+             (vcko(indx-1,i) - dvv1) * grav / dp
 !cloud liquid water
-        dellal(i) = eta(indx-ione,i) * qlko_ktcon(i) *grav/dp
+        dellal(i) = eta(indx-1,i) * qlko_ktcon(i) *grav/dp
         
      endif
   enddo
@@ -1405,7 +1405,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Final changed variable per unit mass flux
   do i = 1,im
      do k = 1, kmax(i)
-        if ( k <= ktcon(i) .and. ktcon(i)/=ione ) then
+        if ( k <= ktcon(i) .and. ktcon(i)/=1 ) then
            xqo0(k,i) = dellaq(k,i) * mbdt + qo0(k,i)
            if (xqo0(k,i)>zero) then
               xqo(k,i) = xqo0(k,i)
@@ -1445,30 +1445,30 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   enddo
   do i = 1,im
      do k = 2, kmax(i)
-        dlnsig = log(sl(k,i) / sl(k-ione,i))
+        dlnsig = log(sl(k,i) / sl(k-1,i))
         term1 = dlnsig * rd / grav
-        term2 = half * (xtvo(k,i) + xtvo(k-ione,i))
-        xzo(k,i) = xzo(k-ione,i) - term1*term2
+        term2 = half * (xtvo(k,i) + xtvo(k-1,i))
+        xzo(k,i) = xzo(k-1,i) - term1*term2
      enddo
   enddo
 
 ! Moist static energy
   do i = 1,im
-     do k = 1, kmax(i) - ione
-        dz     = half * (xzo(k+ione,i) - xzo(k,i))
-        dp     = half * (p(k+ione,i) - p(k,i))
-        call fpvsx_ad(xto(k+ione,i),es0,adt,es0_ad,.false.)
+     do k = 1, kmax(i) - 1
+        dz     = half * (xzo(k+1,i) - xzo(k,i))
+        dp     = half * (p(k+1,i) - p(k,i))
+        call fpvsx_ad(xto(k+1,i),es0,adt,es0_ad,.false.)
         es     = 10.0_r_kind*es0
-        pprime = p(k+ione,i) + epsm1 * es
+        pprime = p(k+1,i) + epsm1 * es
         qs     = eps * es / pprime
         dqsdp  = - qs / pprime
-        desdt = es * (factor1 / xto(k+ione,i) + factor2 / (xto(k+ione,i)**2))
-        dqsdt = qs * p(k+ione,i) * desdt / (es * pprime)
-        gamma = el2orc * xqeso(k+ione,i) / (xto(k+ione,i)**2)
+        desdt = es * (factor1 / xto(k+1,i) + factor2 / (xto(k+1,i)**2))
+        dqsdt = qs * p(k+1,i) * desdt / (es * pprime)
+        gamma = el2orc * xqeso(k+1,i) / (xto(k+1,i)**2)
         dt    = (grav * dz + hvap * dqsdp * dp) / (cp * (one + gamma))
         dq    = dqsdt * dt + dqsdp * dp
-        xtol(k,i) = xto(k+ione,i) + dt
-        xqol0(k,i) = xqo(k+ione,i) + dq
+        xtol(k,i) = xto(k+1,i) + dt
+        xqol0(k,i) = xqo(k+1,i) + dq
         if (xqol0(k,i)>zero) then
            xqol(k,i) = xqol0(k,i)
         else
@@ -1477,14 +1477,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      end do
   end do
   do i = 1,im
-     do k = 1,kmax(i)-ione
-        po    = half * (p(k,i) + p(k+ione,i))
+     do k = 1,kmax(i)-1
+        po    = half * (p(k,i) + p(k+1,i))
         call fpvsx_ad(xtol(k,i),es0,adt,es0_ad,.false.)
         esl   = 10.0_r_kind*es0
         xqesol(k,i) = eps*esl / (po + epsm1*esl)
-        xheo(k,i)   = half * grav * (xzo(k,i) + xzo(k+ione,i)) + &
+        xheo(k,i)   = half * grav * (xzo(k,i) + xzo(k+1,i)) + &
              cp * xtol(k,i) + hvap * xqol(k,i)
-        xheso(k,i)  = half * grav * (xzo(k,i) + xzo(k+ione,i)) + &
+        xheso(k,i)  = half * grav * (xzo(k,i) + xzo(k+1,i)) + &
              cp * xtol(k,i) + hvap * xqesol(k,i)
      enddo
   enddo
@@ -1504,12 +1504,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Moisture and cloud work functions
   do i = 1,im
-     do k = 2, kmax(i) - ione
+     do k = 2, kmax(i) - 1
         if (k > kb(i) .and. k <= ktcon(i)) then
-           factor = eta(k-ione,i) / eta(k,i)
+           factor = eta(k-1,i) / eta(k,i)
            onemf  = one - factor
-           xhcko(k,i) = factor * xhcko(k-ione,i) + onemf * &
-                half * (xheo(k,i) + xheo(k+ione,i))
+           xhcko(k,i) = factor * xhcko(k-1,i) + onemf * &
+                half * (xheo(k,i) + xheo(k+1,i))
         endif
      enddo
   enddo
@@ -1519,14 +1519,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      xpwav(i) = zero
   end do
   do i = 1,im
-     do k = 2,kmax(i)-ione
+     do k = 2,kmax(i)-1
         if (k > kb(i) .and. k < ktcon(i)) then
 
 !          xtemp calculation
-           factor = eta(k-ione,i)/eta(k,i)
+           factor = eta(k-1,i)/eta(k,i)
            onemf  = one - factor
-           termq  = half*(xqol(k,i) + xqol(k+ione,i))
-           xtemp  = factor*xqcko(k-ione,i) + onemf*termq
+           termq  = half*(xqol(k,i) + xqol(k+1,i))
+           xtemp  = factor*xqcko(k-1,i) + onemf*termq
            xtemp0(k,i) = xtemp
 
 !          xqrch calculation
@@ -1544,9 +1544,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 !          actions dependent upon sign of dq
            if (dq > zero) then
-              dz   = half * (xzo(k+ione,i) - xzo(k-ione,i))
-              dz1  = xzo(k,i) - xzo(k-ione,i)
-              etah = half * (eta(k,i) + eta(k-ione,i))
+              dz   = half * (xzo(k+1,i) - xzo(k-1,i))
+              dz1  = xzo(k,i) - xzo(k-1,i)
+              etah = half * (eta(k,i) + eta(k-1,i))
               qlk  = dq / (eta(k,i) + etah * c0 * dz)
               xqc  = qlk + xqrch
               xqcko(k,i) = xqc
@@ -1562,21 +1562,21 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   end do
 !
   do i = 1,im
-     do k = 2,kmax(i)-ione
+     do k = 2,kmax(i)-1
         if (k > kbcon(i) .and. k <= ktcon(i)) then
-           dz1   = xzo(k,i) - xzo(k-ione,i)
-           gamma = el2orc * xqesol(k-ione,i) / (xtol(k-ione,i)**2)
+           dz1   = xzo(k,i) - xzo(k-1,i)
+           gamma = el2orc * xqesol(k-1,i) / (xtol(k-1,i)**2)
            rfact =  one + delta * cp * gamma &
-                * xtol(k-ione,i) / hvap
-           xdby  = xhcko(k-ione,i) - xheso(k-ione,i)
+                * xtol(k-1,i) / hvap
+           xdby  = xhcko(k-1,i) - xheso(k-1,i)
            term1 = dz1 * (grav/cp)
-           term2 = one/xtol(k-ione,i)
+           term2 = one/xtol(k-1,i)
            term3 = xdby
            term4 = one/(one+gamma)
            term5 = rfact
            xaa0(i) = xaa0(i) &
                 + term1*term2*term3*term4*term5
-           dqs = xqesol(k-ione,i) - xqol(k-ione,i)
+           dqs = xqesol(k-1,i) - xqol(k-1,i)
            if (dqs > zero) then
               xaa0(i) = xaa0(i)+ dz1 * grav * delta * dqs
            endif
@@ -1597,7 +1597,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      endif
   enddo
   do i = 1,im
-     do k = kmax(i)-ione, 1, -1
+     do k = kmax(i)-1, 1, -1
         if (dwnflg2(i) .and. k < jmin(i)) then
            dq = xqesol(k,i)
            dt = xtol(k,i)
@@ -1608,10 +1608,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            
            xqrcd(k,i) = dq + term5*term6*dh
            
-           detad = etad(k+ione,i) - etad(k,i)
-           term1 = etad(k+ione,i)*xqrcd(k+ione,i)
+           detad = etad(k+1,i) - etad(k,i)
+           term1 = etad(k+1,i)*xqrcd(k+1,i)
            term2 = etad(k,i)*xqrcd(k,i)
-           term3 = detad * half * (xqrcd(k,i) + xqrcd(k+ione,i))
+           term3 = detad * half * (xqrcd(k,i) + xqrcd(k+1,i))
            xpwd = term1 - term2 - term3
            xpwev(i) = xpwev(i) + xpwd
         endif
@@ -1620,7 +1620,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
   do i = 1, im
      edtmax = edtmaxl
-     if (nint(slimsk(i)) == izero) edtmax = edtmaxs
+     if (nint(slimsk(i)) == 0) edtmax = edtmaxs
      if (dwnflg2(i)) then
         if (xpwev(i) >= zero) then
            edtx1(i) = zero
@@ -1640,14 +1640,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !round reverse order of loop yields slightly difference results
 !      difference only in q and rn, not t
   do i = 1,im
-     do k = kmax(i)-ione, 1, -1
+     do k = kmax(i)-1, 1, -1
         if (dwnflg2(i) .and. k < jmin(i)) then
-           gamma   = el2orc * xqesol(k+ione,i) / xtol(k+ione,i)**2
+           gamma   = el2orc * xqesol(k+1,i) / xtol(k+1,i)**2
            dhh     = xhcd(i)
-           dt      = xtol(k+ione,i)
+           dt      = xtol(k+1,i)
            dg      = gamma
-           dh      = xheso(k+ione,i)
-           dz      = xzo(k,i) - xzo(k+ione,i)
+           dh      = xheso(k+1,i)
+           dz      = xzo(k,i) - xzo(k+1,i)
            
            term1 = edtx1(i)
            term2 = dz
@@ -1655,7 +1655,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term4 = dhh-dh
            term5 = one/(one+dg)
            term6 = one + delta*cp*dg*dt/hvap
-           dqs = xqesol(k+ione,i)-xqol(k+ione,i)
+           dqs = xqesol(k+1,i)-xqol(k+1,i)
            
            xaa0(i) = xaa0(i) &
                 + term1*term2*term3*term4*term5*term6
@@ -1676,16 +1676,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      elseif (p(ktcon(i),i) > pcrit(1))then
         acrt(i) = acrit(1)
      else
-        k =  int((850.0_r_kind - p(ktcon(i),i))/50.0_r_kind) + 2_i_kind
-        k = min(k,15_i_kind)
-        k = max(k,2_i_kind)
-        acrt(i) = acrit(k)+(acrit(k-ione)-acrit(k))* &
-             (p(ktcon(i),i)-pcrit(k))/(pcrit(k-ione)-pcrit(k))
+        k =  int((850.0_r_kind - p(ktcon(i),i))/50.0_r_kind) + 2
+        k = min(k,15)
+        k = max(k,2)
+        acrt(i) = acrit(k)+(acrit(k-1)-acrit(k))* &
+             (p(ktcon(i),i)-pcrit(k))/(pcrit(k-1)-pcrit(k))
      endif
   enddo
   do i = 1, im
      acrtfct(i) = one
-     if (nint(slimsk(i)) == ione) then
+     if (nint(slimsk(i)) == 1) then
         w1 = w1l
         w2 = w2l
         w3 = w3l
@@ -1758,7 +1758,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         dellal1(i)   = zero
         dellalk(k,i) = zero
         dellalk(k,i) = dellal(i)
-        if (k <= ktcon(i) .and. ktcon(i)/=ione) then
+        if (k <= ktcon(i) .and. ktcon(i)/=1) then
            dellat     = (dellah(k,i)-hvap*dellaq(k,i))/cp
            to2(k,i)   = to(k,i) + dellat*xmb(i)*dt2
            qo2(k,i)   = qo0(k,i) + dellaq(k,i)*xmb(i)*dt2
@@ -1767,7 +1767,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            call fpvsx_ad(to2(k,i),es0,adt,es0_ad,.false.)
            es         = 10.0_r_kind*es0
            qeso2(k,i) = eps*es / (p(k,i)+epsm1*es)
-           if (k==ktcon(i) .and. ncloud > izero .and. cnvflg(i)) then
+           if (k==ktcon(i) .and. ncloud > 0 .and. cnvflg(i)) then
               dp = 100.0_r_kind * psfc(i) * del(k,i)
               cwmo2(k,i) = cwmo(k,i) + dellalk(k,i) * xmb(i) * dt2
               dellal1(i) = dellalk(k,i)*xmb(i)*dp/grav
@@ -1797,7 +1797,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !round different results when reverse loop
   do i = 1,im
      do k = kmax(i), 1, -1
-        if (k <= ktcon(i) .and. ktcon(i)/=ione) then
+        if (k <= ktcon(i) .and. ktcon(i)/=1) then
            aup = one
            if (k <= kb(i)) aup = zero
            adw = one
@@ -1820,7 +1820,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         delq2 = zero
 
 !       Accumulate precipitation from cloud level
-        if (k <= ktcon(i) .and. ktcon(i)/=ione) then
+        if (k <= ktcon(i) .and. ktcon(i)/=1) then
            aup = one
            if (k <= kb(i)) aup = zero
            adw = one
@@ -1836,7 +1836,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
 !       Check if any falling precipitation will evaporate
         if (flg(i) .and. k <= ktcon(i)) then
-!               if (nint(slimsk(i)) == ione) then
+!               if (nint(slimsk(i)) == 1) then
 !                  evef = 0.07_r_kind
 !               else
 !                  evef = edt(i)*evfact
@@ -1916,7 +1916,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !    Load various diagostic output arrays
      ktop(i)   = ktcon(i)
      kbot(i)   = kbcon(i)
-     kuo(i)    = ione
+     kuo(i)    = 1
      cldwrk(i) = aa1(i)
   end do
 
@@ -2007,7 +2007,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         if (flg(i) .and. k <= ktcon(i)) then
 !
 !           Redo nlm
-!           if (nint(slimsk(i)) == ione) then
+!           if (nint(slimsk(i)) == 1) then
 !              evef = 0.07_r_kind
 !           else
 !              evef = edt(i)*evfact
@@ -2091,7 +2091,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            qo2_ad(k,i) = qo2_ad(k,i) + term2_ad
 
            evef_ad = evef_ad + term1_ad
-!           if (nint(slimsk(i)) == ione) then
+!           if (nint(slimsk(i)) == 1) then
 !              evef_ad = zero
 !           else
 !              edt_ad(i) = edt_ad(i) + evef_ad*evfact
@@ -2107,7 +2107,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         endif
 !
 !       Adjoint of layer rain calculation
-        if (k <= ktcon(i) .and. ktcon(i)/=ione) then
+        if (k <= ktcon(i) .and. ktcon(i)/=1) then
 !
 !          Redo nlm
            aup = one
@@ -2145,7 +2145,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of intial total precipitation calculation
   do i = 1,im
      do k = 1,kmax(i)
-        if (k <= ktcon(i) .and. ktcon(i)/=ione) then
+        if (k <= ktcon(i) .and. ktcon(i)/=1) then
 !
 !          Redo nlm
            aup = one
@@ -2171,7 +2171,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      do k = km,1,-1
         dellal1_ad(i) = zero
         dellal1_ad(i) = dellal1_ad(i) + dellal_ad(i)
-        if (k <= ktcon(i) .and. ktcon(i)/=ione) then
+        if (k <= ktcon(i) .and. ktcon(i)/=1) then
 !
 !          Redo nlm
            dellat = (dellah(k,i)-hvap*dellaq(k,i))/cp
@@ -2183,7 +2183,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            es_ad     = zero
            es0_ad    = zero
 
-           if (k==ktcon(i) .and. ncloud > izero .and. cnvflg(i)) then
+           if (k==ktcon(i) .and. ncloud > 0 .and. cnvflg(i)) then
               dp = 100.0_r_kind*psfc(i)*del(k,i)
 
               dellalk_ad(k,i) = dellalk_ad(k,i) + &
@@ -2333,7 +2333,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
 !
 !    Redo nlm 
-     if (nint(slimsk(i)) == ione) then
+     if (nint(slimsk(i)) == 1) then
         w1 = w1l
         w2 = w2l
         w3 = w3l
@@ -2380,16 +2380,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of xaa0 downdraft cloudwork function calculation
   do i = 1,im
-     do k = 1,kmax(i)-ione
+     do k = 1,kmax(i)-1
         if (dwnflg2(i) .and. k < jmin(i)) then
 !
 !          Redo nlm calculations
-           GAMMA = EL2ORC * XQESOL(k+ione,i) / XTOL(k+ione,i)**2
+           GAMMA = EL2ORC * XQESOL(k+1,i) / XTOL(k+1,i)**2
            DHH   = XHCD(I)
-           DT    = XTOL(k+ione,i)
+           DT    = XTOL(k+1,i)
            DG    = GAMMA
-           DH    = XHESO(k+ione,i)
-           dz    = xzo(k,i) - xzo(k+ione,i)
+           DH    = XHESO(k+1,i)
+           dz    = xzo(k,i) - xzo(k+1,i)
 !
            term1 = edtx1(i)
            term2 = dz
@@ -2397,7 +2397,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term4 = (dhh-dh)
            term5 = one/(one+dg)
            term6 = one + delta*cp*dg*dt/hvap
-           dqs = xqesol(k+ione,i) - xqol(k+ione,i)
+           dqs = xqesol(k+1,i) - xqol(k+1,i)
 
 !
 !          Adjoint of tlm code
@@ -2421,8 +2421,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term5_ad = term1*term2*term3*term4*term6*xaa0_ad(i)
            term6_ad = term1*term2*term3*term4*term5*xaa0_ad(i)
 
-           xqol_ad(k+ione,i)   = xqol_ad(k+ione,i)   - dqs_ad
-           xqesol_ad(k+ione,i) = xqesol_ad(k+ione,i) + dqs_ad
+           xqol_ad(k+1,i)   = xqol_ad(k+1,i)   - dqs_ad
+           xqesol_ad(k+1,i) = xqesol_ad(k+1,i) + dqs_ad
 
 !     
            dt_ad  = (delta*cp/hvap) * dg*term6_ad
@@ -2434,17 +2434,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            dz_ad  = dz_ad  + term2_ad
            edtx1_ad(i) = edtx1_ad(i) + term1_ad 
 
-           xzo_ad(k,i)       = xzo_ad(k,i)   + dz_ad
-           xzo_ad(k+ione,i)  = xzo_ad(k+ione,i) - dz_ad
-           xheso_ad(k+ione,i)= xheso_ad(k+ione,i) + dh_ad
-           gamma_ad          = dg_ad
-           xtol_ad(k+ione,i) = xtol_ad(k+ione,i) + dt_ad
-           xhcd_ad(i)        = xhcd_ad(i)   + dhh_ad
-           xtol_ad(k+ione,i) = xtol_ad(k+ione,i) &
-                - two*el2orc*xqesol(k+ione,i)/xtol(k+ione,i)**3 &
+           xzo_ad(k,i)    = xzo_ad(k,i)   + dz_ad
+           xzo_ad(k+1,i)  = xzo_ad(k+1,i) - dz_ad
+           xheso_ad(k+1,i)= xheso_ad(k+1,i) + dh_ad
+           gamma_ad       = dg_ad
+           xtol_ad(k+1,i) = xtol_ad(k+1,i) + dt_ad
+           xhcd_ad(i)     = xhcd_ad(i)   + dhh_ad
+           xtol_ad(k+1,i) = xtol_ad(k+1,i) &
+                - two*el2orc*xqesol(k+1,i)/xtol(k+1,i)**3 &
                 * gamma_ad
-           xqesol_ad(k+ione,i) = xqesol_ad(k+ione,i) + &
-                el2orc*gamma_ad/xtol(k+ione,i)**2
+           xqesol_ad(k+1,i) = xqesol_ad(k+1,i) + &
+                el2orc*gamma_ad/xtol(k+1,i)**2
         endif
      end do
   end do
@@ -2452,7 +2452,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of final edtx1 calculation
   do i = 1,im
      edtmax = edtmaxl
-     if (nint(slimsk(i)) == izero) edtmax = edtmaxs
+     if (nint(slimsk(i)) == 0) edtmax = edtmaxs
      if (dwnflg2(i)) then
         if (xpwev(i) >= zero) then
 !          do nothing since tlm is zero
@@ -2478,7 +2478,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of downdraft xpwev calculation
   do i = 1,im
-     do k = 1,kmax(i)-ione
+     do k = 1,kmax(i)-1
         if (dwnflg2(i) .and. k < jmin(i)) then
 !
 !          Redo nlm
@@ -2488,10 +2488,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            dh = xhcd(i) - xheso(k,i)
            term5 = (one/hvap) * gamma
            term6 = one/(one+gamma)
-           detad = etad(k+ione,i) - etad(k,i)
-           term1 = etad(k+ione,i)*xqrcd(k+ione,i)
+           detad = etad(k+1,i) - etad(k,i)
+           term1 = etad(k+1,i)*xqrcd(k+1,i)
            term2 = etad(k,i)*xqrcd(k,i)
-           term3 = detad * half * (xqrcd(k,i) + xqrcd(k+ione,i))
+           term3 = detad * half * (xqrcd(k,i) + xqrcd(k+1,i))
 !
 !          Adjoint of tlm code
            xpwd_ad  = zero
@@ -2512,19 +2512,18 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term2_ad = term2_ad - xpwd_ad
            term3_ad = term3_ad - xpwd_ad
 
-           xqrcd_ad(k+ione,i) = xqrcd_ad(k+ione,i) + etad(k+ione,i)*term1_ad
-           etad_ad(k+ione,i)  = etad_ad(k+ione,i)  + term1_ad*xqrcd(k+ione,i)
+           xqrcd_ad(k+1,i) = xqrcd_ad(k+1,i) + etad(k+1,i)*term1_ad
+           etad_ad(k+1,i)  = etad_ad(k+1,i)  + term1_ad*xqrcd(k+1,i)
 
-           xqrcd_ad(k,i)      = xqrcd_ad(k,i) + etad(k,i)*term2_ad
-           etad_ad(k,i)       = etad_ad(k,i)  + term2_ad*xqrcd(k,i)
+           xqrcd_ad(k,i)   = xqrcd_ad(k,i) + etad(k,i)*term2_ad
+           etad_ad(k,i)    = etad_ad(k,i)  + term2_ad*xqrcd(k,i)
 
-           detad_ad           = detad_ad &
-                + term3_ad*half*(xqrcd(k,i)+xqrcd(k+ione,i))
-           xqrcd_ad(k,i)      = xqrcd_ad(k,i) + detad*half*term3_ad
-           xqrcd_ad(k+ione,i) = xqrcd_ad(k+ione,i) + detad*half*term3_ad
+           detad_ad        = detad_ad + term3_ad*half*(xqrcd(k,i)+xqrcd(k+1,i))
+           xqrcd_ad(k,i)   = xqrcd_ad(k,i) + detad*half*term3_ad
+           xqrcd_ad(k+1,i) = xqrcd_ad(k+1,i) + detad*half*term3_ad
 
-           etad_ad(k,i)       = etad_ad(k,i) - detad_ad
-           etad_ad(k+ione,i)  = etad_ad(k+ione,i) + detad_ad
+           etad_ad(k,i)    = etad_ad(k,i) - detad_ad
+           etad_ad(k+1,i)  = etad_ad(k+1,i) + detad_ad
 
            dh_ad    = dh_ad    + term5*term6*xqrcd_ad(k,i)
            term6_ad = term6_ad + term5*dh*xqrcd_ad(k,i)
@@ -2559,20 +2558,20 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of xaa0 calculations
 !
   do i = 1,im
-     do k = kmax(i)-ione,2,-1
+     do k = kmax(i)-1,2,-1
         if (k > kbcon(i).and.k <= ktcon(i)) then
 !
 !          Recalculate nlm 
-           dz1   = xzo(k,i) - xzo(k-ione,i)
-           gamma = el2orc*xqesol(k-ione,i)/xtol(k-ione,i)**2
-           rfact =  one + delta*cp*gamma*xtol(k-ione,i)/hvap
-           xdby  = xhcko(k-ione,i) - xheso(k-ione,i)
+           dz1   = xzo(k,i) - xzo(k-1,i)
+           gamma = el2orc*xqesol(k-1,i)/xtol(k-1,i)**2
+           rfact =  one + delta*cp*gamma*xtol(k-1,i)/hvap
+           xdby  = xhcko(k-1,i) - xheso(k-1,i)
            term1 = dz1 * (grav/cp)
-           term2 = one/xtol(k-ione,i)
+           term2 = one/xtol(k-1,i)
            term3 = xdby
            term4 = one/(one+gamma)
            term5 = rfact
-           dqs   = xqesol(k-ione,i) - xqol(k-ione,i)
+           dqs   = xqesol(k-1,i) - xqol(k-1,i)
 !
 !          Zero local adjoint variables
            dqs_ad = zero
@@ -2591,8 +2590,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
               dqs_ad   = dqs_ad + grav*delta * dz1*xaa0_ad(i)
               dz1_ad   = dz1_ad + grav*delta * dqs*xaa0_ad(i)
            endif
-           xqol_ad(k-ione,i)   = xqol_ad(k-ione,i)   - dqs_ad
-           xqesol_ad(k-ione,i) = xqesol_ad(k-ione,i) + dqs_ad
+           xqol_ad(k-1,i)   = xqol_ad(k-1,i)   - dqs_ad
+           xqesol_ad(k-1,i) = xqesol_ad(k-1,i) + dqs_ad
 
            term5_ad = term5_ad + term1*term2*term3*term4*xaa0_ad(i)
            term4_ad = term4_ad + term1*term2*term3*xaa0_ad(i)*term5
@@ -2603,25 +2602,25 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            rfact_ad = rfact_ad + term5_ad
            gamma_ad = gamma_ad - one/(one+gamma)**2 * term4_ad
            xdby_ad  = xdby_ad + term3_ad
-           xtol_ad(k-ione,i) = xtol_ad(k-ione,i) &
-                - one/(xtol(k-ione,i)**2) * term2_ad
+           xtol_ad(k-1,i) = xtol_ad(k-1,i) &
+                - one/(xtol(k-1,i)**2) * term2_ad
            dz1_ad   = dz1_ad + term1_ad * (grav/cp)
            
-           xheso_ad(k-ione,i) = xheso_ad(k-ione,i) - xdby_ad
-           xhcko_ad(k-ione,i) = xhcko_ad(k-ione,i) + xdby_ad
+           xheso_ad(k-1,i) = xheso_ad(k-1,i) - xdby_ad
+           xhcko_ad(k-1,i) = xhcko_ad(k-1,i) + xdby_ad
 
-           xtol_ad(k-ione,i) = xtol_ad(k-ione,i) &
+           xtol_ad(k-1,i) = xtol_ad(k-1,i) &
                 + (delta*cp/hvap)*gamma*rfact_ad
            gamma_ad = gamma_ad &
-                + (delta*cp/hvap)*rfact_ad*xtol(k-ione,i)
+                + (delta*cp/hvap)*rfact_ad*xtol(k-1,i)
 
-           xtol_ad(k-ione,i) = xtol_ad(k-ione,i) &
-                - two*el2orc*xqesol(k-ione,i)/(xtol(k-ione,i)**3) &
+           xtol_ad(k-1,i) = xtol_ad(k-1,i) &
+                - two*el2orc*xqesol(k-1,i)/(xtol(k-1,i)**3) &
                 * gamma_ad
-           xqesol_ad(k-ione,i) = xqesol_ad(k-ione,i) &
-                + el2orc*gamma_ad/xtol(k-ione,i)**2
+           xqesol_ad(k-1,i) = xqesol_ad(k-1,i) &
+                + el2orc*gamma_ad/xtol(k-1,i)**2
 
-           xzo_ad(k-ione,i) = xzo_ad(k-ione,i) - dz1_ad
+           xzo_ad(k-1,i) = xzo_ad(k-1,i) - dz1_ad
            xzo_ad(k,i   )   = xzo_ad(k,i)      + dz1_ad
 
         endif
@@ -2631,13 +2630,13 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of xpwav calculation and initial xaa0 calculation
 !
   do i = 1,im
-     do k = kmax(i)-ione,2,-1
+     do k = kmax(i)-1,2,-1
         if (k > kb(i) .and. k < ktcon(i)) then
 !
 !          Redo nlm
-           factor = eta(k-ione,i)/eta(k,i)
+           factor = eta(k-1,i)/eta(k,i)
            onemf  = one - factor
-           termq  = half*(xqol(k,i) + xqol(k+ione,i))
+           termq  = half*(xqol(k,i) + xqol(k+1,i))
            gamma  = el2orc*xqesol(k,i)/xtol(k,i)**2
            xdby   = xhcko(k,i) - xheso(k,i)
            xtemp  = xtemp0(k,i)
@@ -2664,9 +2663,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            if (dq > zero) then
 !
 !             Redo nlm calculations
-              dz   = half * (xzo(k+ione,i) - xzo(k-ione,i))
-              dz1  = xzo(k,i) - xzo(k-ione,i)
-              etah = half * (eta(k,i) + eta(k-ione,i))
+              dz   = half * (xzo(k+1,i) - xzo(k-1,i))
+              dz1  = xzo(k,i) - xzo(k-1,i)
+              etah = half * (eta(k,i) + eta(k-1,i))
               qlk  = dq / (eta(k,i) + etah * c0 * dz)
 !
 !             Adjoint code
@@ -2693,12 +2692,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                    * qlk_ad
               dq_ad = dq_ad + qlk_ad/(eta(k,i)+etah*c0*dz)
 
-              eta_ad(k-ione,i) = eta_ad(k-ione,i) + half*etah_ad
-              eta_ad(k,i)      = eta_ad(k,i)      + half*etah_ad
-              xzo_ad(k-ione,i) = xzo_ad(k-ione,i) - dz1_ad
-              xzo_ad(k,i)      = xzo_ad(k,i)      + dz1_ad
-              xzo_ad(k-ione,i) = xzo_ad(k-ione,i) - half*dz_ad
-              xzo_ad(k+ione,i) = xzo_ad(k+ione,i) + half*dz_ad
+              eta_ad(k-1,i) = eta_ad(k-1,i) + half*etah_ad
+              eta_ad(k,i)   = eta_ad(k,i)      + half*etah_ad
+              xzo_ad(k-1,i) = xzo_ad(k-1,i) - dz1_ad
+              xzo_ad(k,i)   = xzo_ad(k,i)      + dz1_ad
+              xzo_ad(k-1,i) = xzo_ad(k-1,i) - half*dz_ad
+              xzo_ad(k+1,i) = xzo_ad(k+1,i) + half*dz_ad
            else
               xtemp_ad = xtemp_ad + xqcko_ad(k,i)
            endif
@@ -2731,17 +2730,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !          Adjoint of xtemp calculation
            termq_ad = termq_ad + onemf*xtemp_ad
            onemf_ad = onemf_ad + xtemp_ad*termq
-           xqcko_ad(k-ione,i) = xqcko_ad(k-ione,i) + factor*xtemp_ad
-           factor_ad = factor_ad + xtemp_ad*xqcko(k-ione,i)
+           xqcko_ad(k-1,i) = xqcko_ad(k-1,i) + factor*xtemp_ad
+           factor_ad = factor_ad + xtemp_ad*xqcko(k-1,i)
 
-           xqol_ad(k+ione,i) = xqol_ad(k+ione,i) + half*termq_ad
-           xqol_ad(k,i)      = xqol_ad(k,i)      + half*termq_ad
+           xqol_ad(k+1,i) = xqol_ad(k+1,i) + half*termq_ad
+           xqol_ad(k,i)   = xqol_ad(k,i)      + half*termq_ad
 
            factor_ad = factor_ad - onemf_ad
 
            eta_ad(k,i) = eta_ad(k,i) &
-                - eta(k-ione,i)/eta(k,i)**2 * factor_ad
-           eta_ad(k-ione,i) = eta_ad(k-ione,i) + factor_ad/eta(k,i)
+                - eta(k-1,i)/eta(k,i)**2 * factor_ad
+           eta_ad(k-1,i) = eta_ad(k-1,i) + factor_ad/eta(k,i)
 !
         endif
      end do
@@ -2749,29 +2748,29 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of xhcko calculation
   do i = 1,im
-     do k = kmax(i)-ione,2,-1
+     do k = kmax(i)-1,2,-1
         if (k > kb(i).and.k <= ktcon(i)) then
 !
 !          Recalculate nlm
-           factor = eta(k-ione,i)/eta(k,i)
+           factor = eta(k-1,i)/eta(k,i)
            onemf  = one - factor
 !
 !          Adjoint of tlm code
            onemf_ad  = zero
            factor_ad = zero
 
-           xheo_ad(k+ione,i) = xheo_ad(k+ione,i) + onemf*half*xhcko_ad(k,i)
-           xheo_ad(k,i)      = xheo_ad(k,i)      + onemf*half*xhcko_ad(k,i)
+           xheo_ad(k+1,i) = xheo_ad(k+1,i) + onemf*half*xhcko_ad(k,i)
+           xheo_ad(k,i)   = xheo_ad(k,i)   + onemf*half*xhcko_ad(k,i)
            onemf_ad = onemf_ad + &
-                xhcko_ad(k,i) * half*(xheo(k,i)+xheo(k+ione,i))
-           xhcko_ad(k-ione,i) = xhcko_ad(k-ione,i) + factor*xhcko_ad(k,i)
-           factor_ad = factor_ad + xhcko_ad(k,i)*xhcko(k-ione,i)
+                xhcko_ad(k,i) * half*(xheo(k,i)+xheo(k+1,i))
+           xhcko_ad(k-1,i) = xhcko_ad(k-1,i) + factor*xhcko_ad(k,i)
+           factor_ad = factor_ad + xhcko_ad(k,i)*xhcko(k-1,i)
 
            factor_ad = factor_ad - onemf_ad
 
            eta_ad(k,i) = eta_ad(k,i) - &
-                (eta(k-ione,i)/eta(k,i)**2) * factor_ad
-           eta_ad(k-ione,i) = eta_ad(k-ione,i) + factor_ad/eta(k,i)
+                (eta(k-1,i)/eta(k,i)**2) * factor_ad
+           eta_ad(k-1,i) = eta_ad(k-1,i) + factor_ad/eta(k,i)
         endif
      end do
   end do
@@ -2797,10 +2796,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of xheo and xheso calculation below k=kmax
   do i = 1,im
-     do k = kmax(i)-ione,1,-1
+     do k = kmax(i)-1,1,-1
 !
 !       Redo nlm calculation
-        po    = half * (p(k,i) + p(k+ione,i))
+        po    = half * (p(k,i) + p(k+1,i))
         call fpvsx_ad(xtol(k,i),es0,adt,es0_ad,.false.)
         esl = 10.0_r_kind*es0
 !
@@ -2808,18 +2807,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         esl_ad = zero
         es0_ad = zero
 
-        xqesol_ad(k,i)    = xqesol_ad(k,i)    + hvap *xheso_ad(k,i)
-        xtol_ad(k,i)      = xtol_ad(k,i)      + cp   *xheso_ad(k,i)
-        xzo_ad(k+ione,i)  = xzo_ad(k+ione,i)  + half*grav*xheso_ad(k,i)
-        xzo_ad(k,i)       = xzo_ad(k,i)       + half*grav*xheso_ad(k,i)
+        xqesol_ad(k,i) = xqesol_ad(k,i) + hvap *xheso_ad(k,i)
+        xtol_ad(k,i)   = xtol_ad(k,i)   + cp   *xheso_ad(k,i)
+        xzo_ad(k+1,i)  = xzo_ad(k+1,i)  + half*grav*xheso_ad(k,i)
+        xzo_ad(k,i)    = xzo_ad(k,i)    + half*grav*xheso_ad(k,i)
 
-        xqol_ad(k,i)      = xqol_ad(k,i)      + hvap *xheo_ad(k,i)
-        xtol_ad(k,i)      = xtol_ad(k,i)      + cp   *xheo_ad(k,i)
-        xzo_ad(k+ione,i)  = xzo_ad(k+ione,i)  + half*grav*xheo_ad(k,i)
-        xzo_ad(k,i)       = xzo_ad(k,i)       + half*grav*xheo_ad(k,i)
+        xqol_ad(k,i)   = xqol_ad(k,i)   + hvap *xheo_ad(k,i)
+        xtol_ad(k,i)   = xtol_ad(k,i)   + cp   *xheo_ad(k,i)
+        xzo_ad(k+1,i)  = xzo_ad(k+1,i)  + half*grav*xheo_ad(k,i)
+        xzo_ad(k,i)    = xzo_ad(k,i)    + half*grav*xheo_ad(k,i)
 
-        esl_ad = esl_ad &
-             - eps*esl/((po+epsm1*esl)**2) &
+        esl_ad = esl_ad - eps*esl/((po+epsm1*esl)**2) &
              *epsm1*xqesol_ad(k,i)
         esl_ad = esl_ad &
              + eps*xqesol_ad(k,i)/(po+epsm1*esl)
@@ -2834,19 +2832,19 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of xtol and xqol calculations
   do i = 1,im
-     do k = kmax(i)-ione,1,-1
+     do k = kmax(i)-1,1,-1
 !
 !       Redo nlm calculations
-        dz     = half * (xzo(k+ione,i) - xzo(k,i))
-        dp     = half * (p(k+ione,i) - p(k,i))
-        call fpvsx_ad(xto(k+ione,i),es0,adt,es0_ad,.false.)
+        dz     = half * (xzo(k+1,i) - xzo(k,i))
+        dp     = half * (p(k+1,i) - p(k,i))
+        call fpvsx_ad(xto(k+1,i),es0,adt,es0_ad,.false.)
         es     = 10.0_r_kind*es0
-        pprime = p(k+ione,i) + epsm1 * es
+        pprime = p(k+1,i) + epsm1 * es
         qs     = eps * es / pprime
         dqsdp  = - qs / pprime
-        desdt  = ES * (FACTOR1 / xto(k+ione,i) + FACTOR2 / (xto(k+ione,i)**2))
-        dqsdt  = qs * p(k+ione,i) * desdt / (es * pprime)
-        gamma  = el2orc * xqeso(k+ione,i) / (xto(k+ione,i)**2)
+        desdt  = ES * (FACTOR1 / xto(k+1,i) + FACTOR2 / (xto(k+1,i)**2))
+        dqsdt  = qs * p(k+1,i) * desdt / (es * pprime)
+        gamma  = el2orc * xqeso(k+1,i) / (xto(k+1,i)**2)
         dt     = (grav * dz + hvap*dqsdp*dp) / (cp*(one+gamma))
         dq     = dqsdt * dt + dqsdp * dp
 !           
@@ -2869,10 +2867,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         else
            xqol0_ad(k,i) = zero
         endif
-        xqo_ad(k+ione,i) = xqo_ad(k+ione,i) + xqol0_ad(k,i)
+        xqo_ad(k+1,i) = xqo_ad(k+1,i) + xqol0_ad(k,i)
         dq_ad = dq_ad + xqol0_ad(k,i)
 
-        xto_ad(k+ione,i) = xto_ad(k+ione,i) + xtol_ad(k,i)
+        xto_ad(k+1,i) = xto_ad(k+1,i) + xtol_ad(k,i)
         dt_ad = dt_ad + xtol_ad(k,i)
 
         dqsdp_ad = dqsdp_ad + dq_ad*dp
@@ -2885,23 +2883,23 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         dqsdp_ad = dqsdp_ad + hvap*dt_ad*dp/(cp*(one+gamma))
         dz_ad    = dz_ad + grav*dt_ad/(cp*(one+gamma))
 
-        xto_ad(k+ione,i) = xto_ad(k+ione,i) - &
-             two*el2orc*xqeso(k+ione,i)/(xto(k+ione,i)**3) * gamma_ad
-        xqeso_ad(k+ione,i) = xqeso_ad(k,i) + &
-             el2orc*gamma_ad/(xto(k+ione,i)**2)
+        xto_ad(k+1,i) = xto_ad(k+1,i) - &
+             two*el2orc*xqeso(k+1,i)/(xto(k+1,i)**3) * gamma_ad
+        xqeso_ad(k+1,i) = xqeso_ad(k,i) + &
+             el2orc*gamma_ad/(xto(k+1,i)**2)
 
         rterm = one/(es*pprime)
-        pprime_ad = pprime_ad - (qs*p(k+ione,i)*desdt)*rterm**2 * &
+        pprime_ad = pprime_ad - (qs*p(k+1,i)*desdt)*rterm**2 * &
              es*dqsdt_ad
-        es_ad     = es_ad - (qs*p(k+ione,i)*desdt)*rterm**2 * &
+        es_ad     = es_ad - (qs*p(k+1,i)*desdt)*rterm**2 * &
              dqsdt_ad*pprime
-        desdt_ad  = desdt_ad + p(k+ione,i)*qs*dqsdt_ad*rterm
-        qs_ad     = qs_ad + p(k+ione,i)*dqsdt_ad*desdt*rterm
+        desdt_ad  = desdt_ad + p(k+1,i)*qs*dqsdt_ad*rterm
+        qs_ad     = qs_ad + p(k+1,i)*dqsdt_ad*desdt*rterm
 
         es_ad = es_ad + &
-             desdt_ad*(factor1/xto(k+ione,i) + factor2/(xto(k+ione,i)**2))
-        xto_ad(k+ione,i) = xto_ad(k+ione,i) - desdt_ad * &
-             (es/(xto(k+ione,i)**2)) * (factor1+two*factor2/xto(k+ione,i))
+             desdt_ad*(factor1/xto(k+1,i) + factor2/(xto(k+1,i)**2))
+        xto_ad(k+1,i) = xto_ad(k+1,i) - desdt_ad * &
+             (es/(xto(k+1,i)**2)) * (factor1+two*factor2/xto(k+1,i))
 
         pprime_ad = pprime_ad + (qs/(pprime**2))*dqsdp_ad
         qs_ad     = qs_ad - dqsdp_ad/pprime
@@ -2914,11 +2912,11 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         es0_ad = es0_ad + 10*es_ad
 
         adt = zero
-        call fpvsx_ad(xto(k+ione,i),es0,adt,es0_ad,adjoint)
-        xto_ad(k+ione,i) = xto_ad(k+ione,i) + adt
+        call fpvsx_ad(xto(k+1,i),es0,adt,es0_ad,adjoint)
+        xto_ad(k+1,i) = xto_ad(k+1,i) + adt
 
-        xzo_ad(k,i)      = xzo_ad(k,i)      - half*dz_ad
-        xzo_ad(k+ione,i) = xzo_ad(k+ione,i) + half*dz_ad
+        xzo_ad(k,i)   = xzo_ad(k,i)   - half*dz_ad
+        xzo_ad(k+1,i) = xzo_ad(k+1,i) + half*dz_ad
             
      end do
   end do
@@ -2928,16 +2926,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      do k = kmax(i),2,-1
 !          
 !       Redo nlm calculations
-        DLNSIG = LOG(SL(K,i) / SL(K-ione,i))
+        DLNSIG = LOG(SL(K,i) / SL(K-1,i))
         term1  = dlnsig * rd / grav
 !
 !       Adjoint of tlm code
         term2_ad = zero
 
         term2_ad = term2_ad - term1*xzo_ad(k,i)
-        xzo_ad(k-ione,i) = xzo_ad(k-ione,i) + xzo_ad(k,i)
+        xzo_ad(k-1,i) = xzo_ad(k-1,i) + xzo_ad(k,i)
 
-        xtvo_ad(k-ione,i) = xtvo_ad(k-ione,i) + half*term2_ad
+        xtvo_ad(k-1,i) = xtvo_ad(k-1,i) + half*term2_ad
         xtvo_ad(k,i)      = xtvo_ad(k,i)      + half*term2_ad
      end do
   end do
@@ -2978,7 +2976,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      do k = kmax(i),1,-1
         dellat_ad = zero
 
-        if ( k <= ktcon(i) .and. ktcon(i)/=ione )  then
+        if ( k <= ktcon(i) .and. ktcon(i)/=1 )  then
            to_ad(k,i) = to_ad(k,i) + xto_ad(k,i)
            dellat_ad  = dellat_ad + xto_ad(k,i)*mbdt
 
@@ -3001,15 +2999,15 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of dellah and dellaq calculations at cloud top
   do i = 1,im
-     if (ktcon(i)/=ione) then
+     if (ktcon(i)/=1) then
         indx = ktcon(i)
 !
 !       Redo nlm calculations
         dp   = 100.0_r_kind * psfc(i)*del(indx,i)
-        dv1  = heol(indx-ione,i)
-        dvq1 = qol(indx-ione,i)
-        dvu1 = uol(indx-ione,i)
-        dvv1 = vol(indx-ione,i)
+        dv1  = heol(indx-1,i)
+        dvq1 = qol(indx-1,i)
+        dvu1 = uol(indx-1,i)
+        dvv1 = vol(indx-1,i)
 !
 !       Adjoint of tlm code
         dvv1_ad = zero
@@ -3018,42 +3016,42 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         dv1_ad  = zero
 
         qlko_ktcon_ad(i) = qlko_ktcon_ad(i)       + &
-             eta(indx-ione,i)*dellal_ad(i) *grav/dp
-        eta_ad(indx-ione,i) = eta_ad(indx-ione,i) + &
+             eta(indx-1,i)*dellal_ad(i) *grav/dp
+        eta_ad(indx-1,i) = eta_ad(indx-1,i) + &
              dellal_ad(i)    *qlko_ktcon(i)*grav/dp
 
 
         dvv1_ad = dvv1_ad &
-             - eta(indx-ione,i) * dellav_ad(indx,i) * (grav/dp)
-        vcko_ad(indx-ione,i) = vcko_ad(indx-ione,i) &
-             + eta(indx-ione,i) * dellav_ad(indx,i) * (grav/dp)
-        eta_ad (indx-ione,i) = eta_ad (indx-ione,i) &
-             + dellav_ad(indx,i)*(vcko(indx-ione,i)-dvv1)*(grav/dp)
-        vol_ad (indx-ione,i) = vol_ad (indx-ione,i) + dvv1_ad
+             - eta(indx-1,i) * dellav_ad(indx,i) * (grav/dp)
+        vcko_ad(indx-1,i) = vcko_ad(indx-1,i) &
+             + eta(indx-1,i) * dellav_ad(indx,i) * (grav/dp)
+        eta_ad (indx-1,i) = eta_ad (indx-1,i) &
+             + dellav_ad(indx,i)*(vcko(indx-1,i)-dvv1)*(grav/dp)
+        vol_ad (indx-1,i) = vol_ad (indx-1,i) + dvv1_ad
 
         dvu1_ad = dvu1_ad &
-             - eta(indx-ione,i) * dellau_ad(indx,i) * (grav/dp)
-        ucko_ad(indx-ione,i) = ucko_ad(indx-ione,i) &
-             + eta(indx-ione,i) * dellau_ad(indx,i) * (grav/dp)
-        eta_ad (indx-ione,i) = eta_ad (indx-ione,i) &
-             + dellau_ad(indx,i)*(ucko(indx-ione,i)-dvu1)*(grav/dp)
-        uol_ad (indx-ione,i) = uol_ad (indx-ione,i) + dvu1_ad
+             - eta(indx-1,i) * dellau_ad(indx,i) * (grav/dp)
+        ucko_ad(indx-1,i) = ucko_ad(indx-1,i) &
+             + eta(indx-1,i) * dellau_ad(indx,i) * (grav/dp)
+        eta_ad (indx-1,i) = eta_ad (indx-1,i) &
+             + dellau_ad(indx,i)*(ucko(indx-1,i)-dvu1)*(grav/dp)
+        uol_ad (indx-1,i) = uol_ad (indx-1,i) + dvu1_ad
 
         dvq1_ad = dvq1_ad &
-             - eta(indx-ione,i) * dellaq_ad(indx,i) * (grav/dp) 
-        qcko_ad(indx-ione,i) = qcko_ad(indx-ione,i) &
-             + eta(indx-ione,i) * dellaq_ad(indx,i) * (grav/dp)
-        eta_ad (indx-ione,i) = eta_ad (indx-ione,i) &
-             + dellaq_ad(indx,i)*(qcko(indx-ione,i)-dvq1)*(grav/dp)
-        qol_ad (indx-ione,i) = qol_ad (indx-ione,i) + dvq1_ad
+             - eta(indx-1,i) * dellaq_ad(indx,i) * (grav/dp) 
+        qcko_ad(indx-1,i) = qcko_ad(indx-1,i) &
+             + eta(indx-1,i) * dellaq_ad(indx,i) * (grav/dp)
+        eta_ad (indx-1,i) = eta_ad (indx-1,i) &
+             + dellaq_ad(indx,i)*(qcko(indx-1,i)-dvq1)*(grav/dp)
+        qol_ad (indx-1,i) = qol_ad (indx-1,i) + dvq1_ad
 
         dv1_ad = dv1_ad &
-             - eta(indx-ione,i) * dellah_ad(indx,i) * (grav/dp)
-        hcko1_ad(indx-ione,i) = hcko1_ad(indx-ione,i) &
-             + eta(indx-ione,i) * dellah_ad(indx,i) * (grav/dp)
-        eta_ad  (indx-ione,i) = eta_ad  (indx-ione,i) &
-             + dellah_ad(indx,i)*(hcko1(indx-ione,i)-dv1)*(grav/dp)
-        heol_ad (indx-ione,i) = heol_ad (indx-ione,i) + dv1_ad
+             - eta(indx-1,i) * dellah_ad(indx,i) * (grav/dp)
+        hcko1_ad(indx-1,i) = hcko1_ad(indx-1,i) &
+             + eta(indx-1,i) * dellah_ad(indx,i) * (grav/dp)
+        eta_ad  (indx-1,i) = eta_ad  (indx-1,i) &
+             + dellah_ad(indx,i)*(hcko1(indx-1,i)-dv1)*(grav/dp)
+        heol_ad (indx-1,i) = heol_ad (indx-1,i) + dv1_ad
 
      endif
   end do
@@ -3061,8 +3059,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of dellah and dellaq calculations within cloud
 !
   do i = 1,im
-     do k = kmax(i)-ione,2,-1
-        if ( k < ktcon(i) .and. ktcon(i)/=ione ) then
+     do k = kmax(i)-1,2,-1
+        if ( k < ktcon(i) .and. ktcon(i)/=1 ) then
 !
 !          Redo nlm calculations
            aup = one
@@ -3071,28 +3069,28 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            if (k > jmin(i)) adw = zero
 !
            dv1   = heol(k,i)
-           dv2   = half * (heol(k,i) + heol(k+ione,i))
-           dv3   = heol(k-ione,i)
+           dv2   = half * (heol(k,i) + heol(k+1,i))
+           dv3   = heol(k-1,i)
            dv1q  = qol(k,i)
-           dv2q  = half * (qol(k,i) + qol(k+ione,i))
-           dv3q  = qol(k-ione,i)
+           dv2q  = half * (qol(k,i) + qol(k+1,i))
+           dv3q  = qol(k-1,i)
 
            DV1u  = uOL(k,i)
-           DV2u  = half * (uOL(k,i) + uOL(k+ione,i))
-           DV3u  = uOL(k-ione,i)
+           DV2u  = half * (uOL(k,i) + uOL(k+1,i))
+           DV3u  = uOL(k-1,i)
            DV1v  = vOL(k,i)
-           DV2v  = half * (vOL(k,i) + vOL(k+ione,i))
-           DV3v  = vOL(k-ione,i)
+           DV2v  = half * (vOL(k,i) + vOL(k+1,i))
+           DV3v  = vOL(k-1,i)
 
            dp    = 100.0_r_kind * psfc(i) * del(k,i)
-           detau = eta(k,i) - eta(k-ione,i)
-           detad = etad(k,i) - etad(k-ione,i)              
+           detau = eta(k,i) - eta(k-1,i)
+           detad = etad(k,i) - etad(k-1,i)              
 !
            term1 = aup*eta(k,i) - adw*edto1(i)*etad(k,i)
            term2 = aup*detau
-           term3 = aup*eta(k-ione,i) - adw*edto1(i)*etad(k-ione,i)
+           term3 = aup*eta(k-1,i) - adw*edto1(i)*etad(k-1,i)
            term4 = adw*edto1(i)*detad
-           termq = half*(qrcdo(k,i)+qrcdo(k-ione,i))
+           termq = half*(qrcdo(k,i)+qrcdo(k-1,i))
 !
 !          Initialize loop local adjoint variables to zero
            termq_ad = zero
@@ -3152,15 +3150,15 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            dv1_ad     = dv1_ad     + (grav/dp)*term1*dellah_ad(k,i)
            term1_ad   = term1_ad   + (grav/dp)*dv1  *dellah_ad(k,i)
 !
-           qrcdo_ad(k-ione,i) = qrcdo_ad(k-ione,i) + half*termq_ad
-           qrcdo_ad(k,i)      = qrcdo_ad(k,i)      + half*termq_ad
+           qrcdo_ad(k-1,i) = qrcdo_ad(k-1,i) + half*termq_ad
+           qrcdo_ad(k,i)   = qrcdo_ad(k,i)      + half*termq_ad
 
            detad_ad    = detad_ad + adw*edto1(i)*term4_ad
            edto1_ad(i) = edto1_ad(i) + adw*term4_ad*detad
 
-           etad_ad(k-ione,i)  = etad_ad(k-ione,i) - adw*edto1(i)*term3_ad
-           edto1_ad(i)        = edto1_ad(i) - adw*term3_ad*etad(k-ione,i)
-           eta_ad(k-ione,i)   = eta_ad(k-ione,i) + aup*term3_ad
+           etad_ad(k-1,i)  = etad_ad(k-1,i) - adw*edto1(i)*term3_ad
+           edto1_ad(i)     = edto1_ad(i) - adw*term3_ad*etad(k-1,i)
+           eta_ad(k-1,i)   = eta_ad(k-1,i) + aup*term3_ad
            
            detau_ad = detau_ad + aup*term2_ad
 
@@ -3168,31 +3166,31 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            edto1_ad(i)  = edto1_ad(i)  - adw*term1_ad*etad(k,i)
            eta_ad(k,i)  = eta_ad(k,i) + aup*term1_ad
 
-           etad_ad(k-ione,i) = etad_ad(k-ione,i) - detad_ad
-           etad_ad(k,i)      = etad_ad(k,i)      + detad_ad
+           etad_ad(k-1,i) = etad_ad(k-1,i) - detad_ad
+           etad_ad(k,i)   = etad_ad(k,i)   + detad_ad
 
-           eta_ad(k-ione,i) = eta_ad(k-ione,i) - detau_ad
-           eta_ad(k,i)      = eta_ad(k,i)      + detau_ad
+           eta_ad(k-1,i) = eta_ad(k-1,i) - detau_ad
+           eta_ad(k,i)   = eta_ad(k,i)   + detau_ad
 
-           uol_ad(k-ione,i) = uol_ad(k-ione,i) + dv3u_ad
-           uol_ad(k+ione,i) = uol_ad(k+ione,i) + half*dv2u_ad
-           uol_ad(k,i)      = uol_ad(k,i)      + half*dv2u_ad
-           uol_ad(k,i)      = uol_ad(k,i)      + dv1u_ad
+           uol_ad(k-1,i) = uol_ad(k-1,i) + dv3u_ad
+           uol_ad(k+1,i) = uol_ad(k+1,i) + half*dv2u_ad
+           uol_ad(k,i)   = uol_ad(k,i)   + half*dv2u_ad
+           uol_ad(k,i)   = uol_ad(k,i)   + dv1u_ad
 
-           vol_ad(k-ione,i) = vol_ad(k-ione,i) + dv3v_ad
-           vol_ad(k+ione,i) = vol_ad(k+ione,i) + half*dv2v_ad
-           vol_ad(k,i)      = vol_ad(k,i)      + half*dv2v_ad
-           vol_ad(k,i)      = vol_ad(k,i)      + dv1v_ad
+           vol_ad(k-1,i) = vol_ad(k-1,i) + dv3v_ad
+           vol_ad(k+1,i) = vol_ad(k+1,i) + half*dv2v_ad
+           vol_ad(k,i)   = vol_ad(k,i)   + half*dv2v_ad
+           vol_ad(k,i)   = vol_ad(k,i)   + dv1v_ad
 
-           qol_ad(k-ione,i) = qol_ad(k-ione,i) + dv3q_ad
-           qol_ad(k+ione,i) = qol_ad(k+ione,i) + half*dv2q_ad
-           qol_ad(k,i)      = qol_ad(k,i)      + half*dv2q_ad
-           qol_ad(k,i)      = qol_ad(k,i)      + dv1q_ad
+           qol_ad(k-1,i) = qol_ad(k-1,i) + dv3q_ad
+           qol_ad(k+1,i) = qol_ad(k+1,i) + half*dv2q_ad
+           qol_ad(k,i)   = qol_ad(k,i)   + half*dv2q_ad
+           qol_ad(k,i)   = qol_ad(k,i)   + dv1q_ad
 
-           heol_ad(k-ione,i) = heol_ad(k-ione,i) + dv3_ad
-           heol_ad(k+ione,i) = heol_ad(k+ione,i) + half*dv2_ad
-           heol_ad(k,i)      = heol_ad(k,i)      + half*dv2_ad
-           heol_ad(k,i)      = heol_ad(k,i)      + dv1_ad
+           heol_ad(k-1,i) = heol_ad(k-1,i) + dv3_ad
+           heol_ad(k+1,i) = heol_ad(k+1,i) + half*dv2_ad
+           heol_ad(k,i)   = heol_ad(k,i)   + half*dv2_ad
+           heol_ad(k,i)   = heol_ad(k,i)   + dv1_ad
 !
         endif
      end do
@@ -3200,7 +3198,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !     
 ! Adjoint of dellah and dellaq calculations at k=1
   do i = 1,im
-     if (ktcon(i)/=ione) then
+     if (ktcon(i)/=1) then
         dp = 100.0_r_kind * psfc(i) * del(1,i)
 
         vol_ad(1,i) = vol_ad(1,i) &
@@ -3260,16 +3258,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of downdraft cloudwork function calculation
   do i = 1,im
-     do k = 1,kmax(i)-ione
+     do k = 1,kmax(i)-1
         if (dwnflg2(i) .and. k < jmin(i)) then
 !
 !          Redo nlm calculations
-           GAMMA = EL2ORC * QESOL(k+ione,i) / TOL(k+ione,i)**2
+           GAMMA = EL2ORC * QESOL(k+1,i) / TOL(k+1,i)**2
            DHH   = HCDO(I)
-           DT    = TOL(k+ione,i)
+           DT    = TOL(k+1,i)
            DG    = GAMMA
-           DH    = HESOL(k+ione,i)
-           dz    = zo(k,i) - zo(k+ione,i)
+           DH    = HESOL(k+1,i)
+           dz    = zo(k,i) - zo(k+1,i)
 !
            term1 = edto1(i)
            term2 = dz
@@ -3278,7 +3276,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term5 = one/(one+dg)
            term6 = one + delta*cp*dg*dt/hvap
 !     
-           dqs = qesol(k+ione,i) - qol(k+ione,i)
+           dqs = qesol(k+1,i) - qol(k+1,i)
 !
 !          Adjoint of tlm code
            dqs_ad = zero
@@ -3293,8 +3291,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
               edto1_ad(i) = edto1_ad(i) + dz*grav*delta*dqs * aa1_ad(i)
            endif
                   
-           qol_ad(k+ione,i)   = qol_ad  (k+ione,i) - dqs_ad
-           qesol_ad(k+ione,i) = qesol_ad(k+ione,i) + dqs_ad
+           qol_ad(k+1,i)   = qol_ad  (k+1,i) - dqs_ad
+           qesol_ad(k+1,i) = qesol_ad(k+1,i) + dqs_ad
 ! 
            term1_ad = term2*term3*term4*term5*term6 * aa1_ad(i)
            term2_ad = term1*term3*term4*term5*term6 * aa1_ad(i)
@@ -3312,16 +3310,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            dz_ad  = dz_ad + term2_ad
            edto1_ad(i) = edto1_ad(i) + term1_ad
 !
-           zo_ad(k,i)        = zo_ad(k,i)      + dz_ad
-           zo_ad(k+ione,i)   = zo_ad(k+ione,i) - dz_ad
-           hesol_ad(k+ione,i)= hesol_ad(k+ione,i) + dh_ad
-           gamma_ad          = dg_ad
-           tol_ad(k+ione,i)  = tol_ad(k+ione,i) + dt_ad
-           hcdo_ad(i)        = hcdo_ad(i) + dhh_ad
-           tol_ad(k+ione,i)  = tol_ad(k+ione,i) &
-                - two*el2orc*qesol(k+ione,i)/tol(k+ione,i)**3 * gamma_ad
-           qesol_ad(k+ione,i)= qesol_ad(k+ione,i) + &
-                el2orc*gamma_ad/tol(k+ione,i)**2
+           zo_ad(k,i)     = zo_ad(k,i)   + dz_ad
+           zo_ad(k+1,i)   = zo_ad(k+1,i) - dz_ad
+           hesol_ad(k+1,i)= hesol_ad(k+1,i) + dh_ad
+           gamma_ad       = dg_ad
+           tol_ad(k+1,i)  = tol_ad(k+1,i) + dt_ad
+           hcdo_ad(i)     = hcdo_ad(i) + dhh_ad
+           tol_ad(k+1,i)  = tol_ad(k+1,i) &
+                - two*el2orc*qesol(k+1,i)/tol(k+1,i)**3 * gamma_ad
+           qesol_ad(k+1,i)= qesol_ad(k+1,i) + &
+                el2orc*gamma_ad/tol(k+1,i)**2
         endif
      end do
   end do
@@ -3329,7 +3327,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of final edto1 calculation
   do i = 1,im
      edtmax = edtmaxl
-     if (nint(slimsk(i)) == izero) edtmax = edtmaxs
+     if (nint(slimsk(i)) == 0) edtmax = edtmaxs
      if (dwnflg2(i)) then
         if (pwevo(i) < zero) then
            if (edto10(i) > edtmax) then
@@ -3359,7 +3357,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of pwevo, pwdo, qrcdo calculation
   do i = 1,im
-     do k = 1,kmax(i)-ione
+     do k = 1,kmax(i)-1
         if (k < jmin(i)) then
 !
 !          Recalculate part of foward model
@@ -3369,7 +3367,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            dh    = hcdo(i) - hesol(k,i)
            term5 = (one/hvap) * gamma
            term6 = one/(one+gamma)
-           detad = etad(k+ione,i) - etad(k,i)               
+           detad = etad(k+1,i) - etad(k,i)               
 !
 !          Adjoint of forward tlm
            term1_ad = zero
@@ -3377,22 +3375,22 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            term3_ad = zero
            pwdo_ad(k,i) = pwdo_ad(k,i) + pwevo_ad(i)
 
-           if (k < jmin(i)-ione) then
+           if (k < jmin(i)-1) then
               term1_ad = term1_ad + pwdo_ad(k,i)
               term2_ad = term2_ad - pwdo_ad(k,i)
               term3_ad = term3_ad - pwdo_ad(k,i)
 
-              qrcdo_ad(k+ione,i) = qrcdo_ad(k+ione,i) + detad*half*term3_ad
+              qrcdo_ad(k+1,i) = qrcdo_ad(k+1,i) + detad*half*term3_ad
               qrcdo_ad(k,i) = qrcdo_ad(k,i) + detad*half*term3_ad
-              detad_ad = +half*(qrcdo(k,i)+qrcdo(k+ione,i))*term3_ad
+              detad_ad = +half*(qrcdo(k,i)+qrcdo(k+1,i))*term3_ad
               qrcdo_ad(k,i) = qrcdo_ad(k,i) + etad(k,i)*term2_ad
               etad_ad(k,i) = etad_ad(k,i) + qrcdo(k,i)*term2_ad
-              qcdo_ad(i) =qcdo_ad(i) +term1_ad*etad(k+ione,i)
-              etad_ad(k+ione,i) =etad_ad(k+ione,i) +term1_ad*qcdo(i)
+              qcdo_ad(i) =qcdo_ad(i) +term1_ad*etad(k+1,i)
+              etad_ad(k+1,i) =etad_ad(k+1,i) +term1_ad*qcdo(i)
            endif
 
-           etad_ad(k,i)      = etad_ad(k,i)      - detad_ad
-           etad_ad(k+ione,i) = etad_ad(k+ione,i) + detad_ad
+           etad_ad(k,i)   = etad_ad(k,i)      - detad_ad
+           etad_ad(k+1,i) = etad_ad(k+1,i) + detad_ad
 
            dh_ad    = term5 * term6 * qrcdo_ad(k,i)
            term6_ad = term5 * qrcdo_ad(k,i) * dh
@@ -3432,20 +3430,20 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   end do
 !
 ! Adjoint of etad (downdraft entrainment) calculation at k=1
-  k = ione
+  k = 1
   do i = 1,im
      dz_ad = zero
-     if (kbdtr(i) > ione) then
+     if (kbdtr(i) > 1) then
 !
 !       Redo nlm
         dz = half * (zo(2,i)-zo(1,i))
 !
 !       Adjoint of tlm code.
         dz_ad = dz_ad + &
-             etad(k+ione,i)*exp(xlamd(i)*dz) * xlamd(i)*etad_ad(k,i)
+             etad(k+1,i)*exp(xlamd(i)*dz) * xlamd(i)*etad_ad(k,i)
         xlamd_ad(i) = xlamd_ad(i) + &
-             etad(k+ione,i)*exp(xlamd(i)*dz) * dz*etad_ad(k,i)
-        etad_ad(k+ione,i) = etad_ad(k+1,i) + &
+             etad(k+1,i)*exp(xlamd(i)*dz) * dz*etad_ad(k,i)
+        etad_ad(k+1,i) = etad_ad(k+1,i) + &
              exp(xlamd(i)*dz) * etad_ad(k,i)
 
         zo_ad(1,i) = zo_ad(1,i) - half*dz_ad
@@ -3460,18 +3458,18 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         if (k < kbdtr(i)) then
 !
 !          Redo nlm
-           dz = half * (zo(k+ione,i)-zo(k-ione,i))
+           dz = half * (zo(k+1,i)-zo(k-1,i))
 !
 !          Adjoint of tlm code.
            dz_ad = dz_ad + &
-                etad(k+ione,i)*exp(xlamd(i)*dz) * xlamd(i)*etad_ad(k,i)
+                etad(k+1,i)*exp(xlamd(i)*dz) * xlamd(i)*etad_ad(k,i)
            xlamd_ad(i) = xlamd_ad(i) + &
-                etad(k+ione,i)*exp(xlamd(i)*dz) * dz*etad_ad(k,i)
-           etad_ad(k+ione,i) = etad_ad(k+1,i) + &
+                etad(k+1,i)*exp(xlamd(i)*dz) * dz*etad_ad(k,i)
+           etad_ad(k+1,i) = etad_ad(k+1,i) + &
                 exp(xlamd(i)*dz) * etad_ad(k,i)
            
-           zo_ad(k-ione,i) = zo_ad(k-ione,i) - half*dz_ad
-           zo_ad(k+ione,i) = zo_ad(k+ione,i) + half*dz_ad
+           zo_ad(k-1,i) = zo_ad(k-1,i) - half*dz_ad
+           zo_ad(k+1,i) = zo_ad(k+1,i) + half*dz_ad
         endif
      end do
   end do
@@ -3480,17 +3478,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   do i = 1,im
      dz_ad = zero
      beta = betas
-     if (nint(slimsk(i)) == ione) beta = betal
-     if (kbdtr(i) > ione) then
+     if (nint(slimsk(i)) == 1) beta = betal
+     if (kbdtr(i) > 1) then
 !
 !       Redo nlm calculations
-        dz = half * (zo(kbdtr(i),i) + zo(kbdtr(i)-ione,i)) &
+        dz = half * (zo(kbdtr(i),i) + zo(kbdtr(i)-1,i)) &
              - zo(1,i)
 !
 !       Adjoint code
         dz_ad = dz_ad - log(beta)/(dz*dz)*xlamd_ad(i)
         zo_ad(1,i) = zo_ad(1,i) - dz_ad
-        zo_ad(kbdtr(i)-ione,i) = zo_ad(kbdtr(i)-ione,i) + half*dz_ad
+        zo_ad(kbdtr(i)-1,i) = zo_ad(kbdtr(i)-1,i) + half*dz_ad
         zo_ad(kbdtr(i),i)      = zo_ad(kbdtr(i),i)      + half*dz_ad
      endif
   end do
@@ -3548,8 +3546,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            shear_ad = shear_ad + vshear_ad(i)
 !
 !          Redo nlm calculations
-           termu = (uol(k+ione,i) - uol(k,i))**2
-           termv = (vol(k+ione,i) - vol(k,i))**2
+           termu = (uol(k+1,i) - uol(k,i))**2
+           termv = (vol(k+1,i) - vol(k,i))**2
 !
 !          Adjoint code for uol and vol
            if (termu+termv > tiny_r_kind) then
@@ -3564,14 +3562,14 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            endif
 
            vol_ad(k,i)      = vol_ad(k,i)      &
-                - two*(vol(k+ione,i)-vol(k,i))*termv_ad
-           vol_ad(k+ione,i) = vol_ad(k+ione,i) &  
-                + two*(vol(k+ione,i)-vol(k,i))*termv_ad
+                - two*(vol(k+1,i)-vol(k,i))*termv_ad
+           vol_ad(k+1,i) = vol_ad(k+1,i) &  
+                + two*(vol(k+1,i)-vol(k,i))*termv_ad
 
            uol_ad(k,i)      = uol_ad(k,i)      &
-                - two*(uol(k+ione,i)-uol(k,i))*termu_ad
-           uol_ad(k+ione,i) = uol_ad(k+ione,i) &  
-                + two*(uol(k+ione,i)-uol(k,i))*termu_ad
+                - two*(uol(k+1,i)-uol(k,i))*termu_ad
+           uol_ad(k+1,i) = uol_ad(k+1,i) &  
+                + two*(uol(k+1,i)-uol(k,i))*termu_ad
 
         endif
      end do
@@ -3601,15 +3599,15 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         if (k > kbcon(i).and.k <= ktcon(i)) then
 !
 !          Recalculate part of forward model
-           dz1   = zo(k,i) - zo(k-ione,i)
-           gamma = el2orc * qesol(k-ione,i) / (tol(k-ione,i)**2)
-           rfact =  one + delta*cp*gamma*tol(k-ione,i)/hvap
+           dz1   = zo(k,i) - zo(k-1,i)
+           gamma = el2orc * qesol(k-1,i) / (tol(k-1,i)**2)
+           rfact =  one + delta*cp*gamma*tol(k-1,i)/hvap
            term1 = dz1*grav/cp
-           term2 = one/tol(k-ione,i)
-           term3 = dbyo(k-ione,i)
+           term2 = one/tol(k-1,i)
+           term3 = dbyo(k-1,i)
            term4 = one/(one+gamma)
            term5 = rfact
-           dqs = qesol(k-ione,i) - qol(k-ione,i)
+           dqs = qesol(k-1,i) - qol(k-1,i)
 !
 !          Adjoint of forward model tlm
            dqs_ad = zero
@@ -3619,8 +3617,8 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
               dz1_ad   = dz1_ad + aa1_ad(i) * grav*delta*dqs
            endif
 
-           qol_ad(k-ione,i)   = qol_ad  (k-ione,i) - dqs_ad
-           qesol_ad(k-ione,i) = qesol_ad(k-ione,i) + dqs_ad
+           qol_ad(k-1,i)   = qol_ad  (k-1,i) - dqs_ad
+           qesol_ad(k-1,i) = qesol_ad(k-1,i) + dqs_ad
 
            term5_ad = term1*term2*term3*term4*aa1_ad(i)
            term4_ad = term1*term2*term3*term5*aa1_ad(i)
@@ -3630,31 +3628,31 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
            rfact_ad = term5_ad
            gamma_ad = -one/((one+gamma)**2) * term4_ad
-           dbyo_ad(k-ione,i) = dbyo_ad(k-ione,i) + term3_ad
-           tol_ad(k-ione,i) = tol_ad(k-ione,i) - &
-                (one/(tol(k-ione,i)**2)) * term2_ad
+           dbyo_ad(k-1,i) = dbyo_ad(k-1,i) + term3_ad
+           tol_ad(k-1,i) = tol_ad(k-1,i) - &
+                (one/(tol(k-1,i)**2)) * term2_ad
            dz1_ad = dz1_ad + term1_ad*grav/cp
 
-           tol_ad(k-ione,i) = tol_ad(k-ione,i) + &
+           tol_ad(k-1,i) = tol_ad(k-1,i) + &
                 delta*cp*gamma*rfact_ad/hvap
            gamma_ad = gamma_ad + &
-                delta*cp*rfact_ad*tol(k-ione,i)/hvap
+                delta*cp*rfact_ad*tol(k-1,i)/hvap
 
-           tol_ad(k-ione,i) = tol_ad(k-ione,i) - &
-                two*el2orc*qesol(k-ione,i)/(tol(k-ione,i)**3)* &
+           tol_ad(k-1,i) = tol_ad(k-1,i) - &
+                two*el2orc*qesol(k-1,i)/(tol(k-1,i)**3)* &
                 gamma_ad
-           qesol_ad(k-ione,i) = qesol_ad(k-ione,i) + &
-                el2orc*gamma_ad/(tol(k-ione,i)**2)
+           qesol_ad(k-1,i) = qesol_ad(k-1,i) + &
+                el2orc*gamma_ad/(tol(k-1,i)**2)
 
-           zo_ad(k,i)      = zo_ad(k,i)      + dz1_ad
-           zo_ad(k-ione,i) = zo_ad(k-ione,i) - dz1_ad
+           zo_ad(k,i)   = zo_ad(k,i)   + dz1_ad
+           zo_ad(k-1,i) = zo_ad(k-1,i) - dz1_ad
 
         endif
      end do
   end do
 
 ! Adjoint of section is for cloud liquid water
-  if (ncloud > izero) then
+  if (ncloud > 0) then
      do i=1,im
         k = ktcon(i)
         if (cnvflg(i)) then
@@ -3663,7 +3661,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            gamma = EL2ORC * QESOl(K,i) / (TOl(K,i)**2)
            QRCH = QESOl(K,i) &
                 + GAMMA * DBYO(K,i) / (HVAP * (one + GAMMA))
-           DQ = qcko00(K-ione,i) - QRCH
+           DQ = qcko00(K-1,i) - QRCH
 
 !          Adjoint of tangent linear model
            dq_ad   = zero
@@ -3671,12 +3669,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            gamma_ad= zero
            
            if (dq > zero) then
-              qrch_ad = qrch_ad + qcko_ad(k-ione,i)
+              qrch_ad = qrch_ad + qcko_ad(k-1,i)
               dq_ad   = dq_ad + qlko_ktcon_ad(i)
            endif
 
            qrch_ad = qrch_ad - dq_ad
-           qcko_ad(k-ione,i) = qcko_ad(k-ione,i) + dq_ad
+           qcko_ad(k-1,i) = qcko_ad(k-1,i) + dq_ad
 
            gamma_ad = gamma_ad + &
                 qrch_ad*dbyo(k,i)/(hvap*(one+gamma)*(one+gamma))
@@ -3700,7 +3698,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         if (k > kb(i).and.k < ktcon(i)) then
 !
 !          Recalculate part of forward model
-           factor = eta(k-ione,i)/eta(k,i)
+           factor = eta(k-1,i)/eta(k,i)
            onemf  = one - factor
            temp   = qcko0(k,i)
            gamma  = el2orc*qesol(k,i)/(tol(k,i)**2) 
@@ -3711,9 +3709,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            if (dq > zero) then
 !
 !             Redo nlm
-              dz   = half*(zo(k+ione,i)-zo(k-ione,i))
-              dz1  = zo(k,i) - zo(k-ione,i)
-              etah = half*(eta(k,i)+eta(k-ione,i))
+              dz   = half*(zo(k+1,i)-zo(k-1,i))
+              dz1  = zo(k,i) - zo(k-1,i)
+              etah = half*(eta(k,i)+eta(k-1,i))
               qlk  = dq/(eta(k,i) + etah*c0*dz)
 !
 !             Adjoint of tlm
@@ -3742,13 +3740,13 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
                    qlk_ad
               dq_ad = qlk_ad/(eta(k,i)+etah*c0*dz)
               
-              eta_ad(k-ione,i) = eta_ad(k-ione,i) + half*etah_ad
-              eta_ad(k,i)      = eta_ad(k,i)      + half*etah_ad
+              eta_ad(k-1,i) = eta_ad(k-1,i) + half*etah_ad
+              eta_ad(k,i)   = eta_ad(k,i)      + half*etah_ad
                    
-              zo_ad(k-ione,i) = zo_ad(k-ione,i) - dz1_ad
-              zo_ad(k,i)      = zo_ad(k,i)      + dz1_ad
-              zo_ad(k-ione,i) = zo_ad(k-ione,i) - half*dz_ad
-              zo_ad(k+ione,i) = zo_ad(k+ione,i) + half*dz_ad
+              zo_ad(k-1,i) = zo_ad(k-1,i) - dz1_ad
+              zo_ad(k,i)   = zo_ad(k,i)      + dz1_ad
+              zo_ad(k-1,i) = zo_ad(k-1,i) - half*dz_ad
+              zo_ad(k+1,i) = zo_ad(k+1,i) + half*dz_ad
 
            else
               qc_ad   = zero
@@ -3778,18 +3776,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            qesol_ad(k,i) = qesol_ad(k,i) + &
                 el2orc/(tol(k,i)**2)*gamma_ad
               
-           qol_ad(k+ione,i) = qol_ad(k+ione,i) + onemf*half*temp_ad
-           qol_ad(k,i)      = qol_ad(k,i)      + onemf*half*temp_ad
-           onemf_ad = temp_ad*half*(qol(k,i)+qol(k+ione,i))
-           qcko_ad(k-ione,i) = qcko_ad(k-ione,i) + factor*temp_ad
-           factor_ad = temp_ad*qcko(k-ione,i)
+           qol_ad(k+1,i) = qol_ad(k+1,i) + onemf*half*temp_ad
+           qol_ad(k,i)   = qol_ad(k,i)   + onemf*half*temp_ad
+           onemf_ad = temp_ad*half*(qol(k,i)+qol(k+1,i))
+           qcko_ad(k-1,i) = qcko_ad(k-1,i) + factor*temp_ad
+           factor_ad = temp_ad*qcko(k-1,i)
               
            factor_ad = factor_ad - onemf_ad
                    
            eta_ad(k,i)      = eta_ad(k,i)      - &
-                (eta(k-ione,i)/(eta(k,i)**2))*factor_ad
-           eta_ad(k-ione,i) = eta_ad(k-ione,i) + &
-                (one/eta(k,i))*factor_ad
+                (eta(k-1,i)/(eta(k,i)**2))*factor_ad
+           eta_ad(k-1,i) = eta_ad(k-1,i) + (one/eta(k,i))*factor_ad
 
         endif
      end do
@@ -3804,7 +3801,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of hcko,hckod transfer to hcko1 and dbyo calculation
   do i = 1,im
-     do k = kmax(i)-ione,2,-1
+     do k = kmax(i)-1,2,-1
         if (k > kb(i)) then
            hesol_ad(k,i) = hesol_ad(k,i) - dbyo_ad(k,i)
            hcko1_ad(k,i) = hcko1_ad(k,i) + dbyo_ad(k,i)
@@ -3826,17 +3823,17 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of modification of hcko1 by detrainment process
   do i = 1,im
-     do k = kmax(i)-ione,2,-1
+     do k = kmax(i)-1,2,-1
         if (k > kbcon(i) .and. k <= ktcon(i)) then
 !
 !          Redo nlm calculations
-           factor = eta(k-ione,i)/eta(k,i)
+           factor = eta(k-1,i)/eta(k,i)
            onemf  = one - factor
-           fuv    = etau(k-ione,i)/etau(k,i)
+           fuv    = etau(k-1,i)/etau(k,i)
            onemfu = one - fuv
-           heol2  = half*(heol(k,i) + heol(k+ione,i))
-           uol2   = half*(uol(k,i)+uol(k+ione,i))
-           vol2   = half*(vol(k,i)+vol(k+ione,i))
+           heol2  = half*(heol(k,i) + heol(k+1,i))
+           uol2   = half*(uol(k,i)+uol(k+1,i))
+           vol2   = half*(vol(k,i)+vol(k+1,i))
 !
 !          Adjoint code
            fuv_ad    = zero
@@ -3849,32 +3846,32 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
            vol2_ad   = vol2_ad + onemfu*vckod_ad(k,i)
            onemfu_ad = onemfu_ad + vckod_ad(k,i)*vol2
-           vckod_ad(k-ione,i) = vckod_ad(k-ione,i) + fuv*vckod_ad(k,i)
-           fuv_ad = fuv_ad + vckod_ad(k,i)*vckod(k-ione,i)
+           vckod_ad(k-1,i) = vckod_ad(k-1,i) + fuv*vckod_ad(k,i)
+           fuv_ad = fuv_ad + vckod_ad(k,i)*vckod(k-1,i)
 
            uol2_ad   = uol2_ad + onemfu*ukcod_ad(k,i)
            onemfu_ad = onemfu_ad + ukcod_ad(k,i)*uol2
-           ukcod_ad(k-ione,i) = ukcod_ad(k-ione,i) + fuv*ukcod_ad(k,i)
-           fuv_ad = fuv_ad + ukcod_ad(k,i)*uckod(k-ione,i)
+           ukcod_ad(k-1,i) = ukcod_ad(k-1,i) + fuv*ukcod_ad(k,i)
+           fuv_ad = fuv_ad + ukcod_ad(k,i)*uckod(k-1,i)
            
            heol2_ad = heol2_ad + onemf*hckod_ad(k,i)
            onemf_ad = onemf_ad + heol2*hckod_ad(k,i)
-           hckod_ad(k-ione,i) = hckod_ad(k-ione,i) + factor*hckod_ad(k,i)
-           factor_ad = factor_ad + hckod(k-ione,i)*hckod_ad(k,i)
+           hckod_ad(k-1,i) = hckod_ad(k-1,i) + factor*hckod_ad(k,i)
+           factor_ad = factor_ad + hckod(k-1,i)*hckod_ad(k,i)
                
-           heol_ad(k,i)      = heol_ad(k,i)      + half*heol2_ad
-           heol_ad(k+ione,i) = heol_ad(k+ione,i) + half*heol2_ad
+           heol_ad(k,i)   = heol_ad(k,i)   + half*heol2_ad
+           heol_ad(k+1,i) = heol_ad(k+1,i) + half*heol2_ad
 
            fuv_ad = fuv_ad - onemfu_ad
-           etau_ad(k-ione,i) = etau_ad(k-ione,i) + fuv_ad/etau(k,i)
+           etau_ad(k-1,i) = etau_ad(k-1,i) + fuv_ad/etau(k,i)
            etau_ad(k,i) = etau_ad(k,i) -  fuv_ad * &
-                etau(k-ione,i)/(etau(k,i)**2)
+                etau(k-1,i)/(etau(k,i)**2)
 
            factor_ad = factor_ad - onemf_ad
 
            eta_ad(k,i) = eta_ad(k,i) - &
-                factor_ad*(eta(k-ione,i)/(eta(k,i)**2))
-           eta_ad(k-ione,i) = eta_ad(k-ione,i) + factor_ad/eta(k,i)
+                factor_ad*(eta(k-1,i)/(eta(k,i)**2))
+           eta_ad(k-1,i) = eta_ad(k-1,i) + factor_ad/eta(k,i)
         endif
      end do
   end do
@@ -3893,48 +3890,48 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of eta calculation
   do i = 1,im
      if (dwnflg(i)) then
-        do k = kmax(i)-ione,2,-1
+        do k = kmax(i)-1,2,-1
            if (k > jmin(i) .and. k <= kt2(i)) then
 
 !             Redo nlm calculation                  
-              dz = half*(zo(k+ione,i)-zo(k-ione,i))
+              dz = half*(zo(k+1,i)-zo(k-1,i))
 
 !             Adjoint code
               dz_ad = zero
 
-              dz_ad = dz_ad + etau(k-ione,i) * &
+              dz_ad = dz_ad + etau(k-1,i) * &
                    (xlamdet(i)+xlambu)*etau_ad(k,i)
 
               xlamdet_ad(i) = xlamdet_ad(i) + & 
-                   etau(k-ione,i)*etau_ad(k,i)*dz
+                   etau(k-1,i)*etau_ad(k,i)*dz
 
-              etau_ad(k-ione,i) = etau_ad(k-ione,i) + & 
+              etau_ad(k-1,i) = etau_ad(k-1,i) + & 
                    etau_ad(k,i)*(one+(xlamdet(i)+xlambu)*dz)
 
-              dz_ad = dz_ad + eta(k-ione,i)*xlamdet(i)*eta_ad(k,i)
+              dz_ad = dz_ad + eta(k-1,i)*xlamdet(i)*eta_ad(k,i)
 
               xlamdet_ad(i) = xlamdet_ad(i) + &
-                   eta(k-ione,i)*eta_ad(k,i)*dz
+                   eta(k-1,i)*eta_ad(k,i)*dz
 
-              eta_ad(k-ione,i) = eta_ad(k-ione,i) + &
+              eta_ad(k-1,i) = eta_ad(k-1,i) + &
                    eta_ad(k,i)*(one+xlamdet(i)*dz)
 
-              zo_ad(k-ione,i) = zo_ad(k-ione,i) - half*dz_ad
-              zo_ad(k+ione,i) = zo_ad(k+ione,i) + half*dz_ad
+              zo_ad(k-1,i) = zo_ad(k-1,i) - half*dz_ad
+              zo_ad(k+1,i) = zo_ad(k+1,i) + half*dz_ad
            endif
         end do
      else
-        do k=kmax(i)-ione,2,-1
+        do k=kmax(i)-1,2,-1
            if (k > jmin(i) .and. k <= ktcon0(i)) then
 
 !             Redo nlm calculation                  
-              DZ = half * (ZO(k+ione,i) - ZO(k-ione,i))
+              DZ = half * (ZO(k+1,i) - ZO(k-1,i))
 
 !             Adjoint code
               dz_ad = zero
 
-              dz_ad = dz_ad + etau(k-ione,i)*xlambu*etau_ad(k,i)
-              etau_ad(k-ione,i) = etau_ad(k-ione,i) + &
+              dz_ad = dz_ad + etau(k-1,i)*xlambu*etau_ad(k,i)
+              etau_ad(k-1,i) = etau_ad(k-1,i) + &
                    etau_ad(k,i)*(one+xlambu*dz)
            endif
         end do
@@ -3993,18 +3990,18 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   end do
 
   do i=1,im
-     do k=kmax(i)-ione,2,-1
+     do k=kmax(i)-1,2,-1
         if (k > jmin(i) .and. k <= ktcon0(i)) then
 
            heol_ad(k,i)      = heol_ad(k,i) + &
-                half * (zo(k+ione,i) - zo(k-ione,i)) * sumh_ad(k,i)
-           zo_ad(k-ione,i)   = zo_ad(k-ione,i)   - half*sumh_ad(k,i)*heol(k,i)
-           zo_ad(k+ione,i)   = zo_ad(k+ione,i)   + half*sumh_ad(k,i)*heol(k,i)
-           sumh_ad(k-ione,i) = sumh_ad(k-ione,i) + sumh_ad(k,i)
+                half * (zo(k+1,i) - zo(k-1,i)) * sumh_ad(k,i)
+           zo_ad(k-1,i)   = zo_ad(k-1,i)   - half*sumh_ad(k,i)*heol(k,i)
+           zo_ad(k+1,i)   = zo_ad(k+1,i)   + half*sumh_ad(k,i)*heol(k,i)
+           sumh_ad(k-1,i) = sumh_ad(k-1,i) + sumh_ad(k,i)
            
-           zo_ad(k-ione,i)   = zo_ad(k-ione,i)   - half*sumz_ad(k,i)
-           zo_ad(k+ione,i)   = zo_ad(k+ione,i)   + half*sumz_ad(k,i)
-           sumz_ad(k-ione,i) = sumz_ad(k-ione,i) + sumz_ad(k,i)
+           zo_ad(k-1,i)   = zo_ad(k-1,i)   - half*sumz_ad(k,i)
+           zo_ad(k+1,i)   = zo_ad(k+1,i)   + half*sumz_ad(k,i)
+           sumz_ad(k-1,i) = sumz_ad(k-1,i) + sumz_ad(k,i)
         endif
      end do
   end do
@@ -4012,7 +4009,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of cloud property below cloud base is modified by the 
 ! entrainment process
   do i=1,im
-     do k=kmax(i)-ione,2,-1
+     do k=kmax(i)-1,2,-1
 
 !       Adjoint of last if-then block in tlm
         if (k > kbcon(i)) then
@@ -4025,40 +4022,37 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         if (k > kb(i).and.k <= kbcon(i)) then
 !
 !          Redo nlm calculations
-           factor = eta0(k-ione,i)/eta0(k,i)
+           factor = eta0(k-1,i)/eta0(k,i)
            onemf  = one - factor
 !
 !          Adjoint code
            factor_ad = zero
            onemf_ad = zero
 
-           vol_ad(k+ione,i) = vol_ad(k+ione,i) + onemf*half*vcko_ad(k,i)
-           vol_ad(k,i)      = vol_ad(k,i)      + onemf*half*vcko_ad(k,i)
-           onemf_ad = onemf_ad + vcko_ad(k,i)*half* &
-                (vol(k,i)+vol(k+ione,i))
-           vcko_ad(k-ione,i) = vcko_ad(k-ione,i) + factor*vcko_ad(k,i)
-           factor_ad = factor_ad + vcko_ad(k,i)*vcko0(k-ione,i)
+           vol_ad(k+1,i) = vol_ad(k+1,i) + onemf*half*vcko_ad(k,i)
+           vol_ad(k,i)   = vol_ad(k,i)      + onemf*half*vcko_ad(k,i)
+           onemf_ad = onemf_ad + vcko_ad(k,i)*half* (vol(k,i)+vol(k+1,i))
+           vcko_ad(k-1,i) = vcko_ad(k-1,i) + factor*vcko_ad(k,i)
+           factor_ad = factor_ad + vcko_ad(k,i)*vcko0(k-1,i)
 
-           uol_ad(k+ione,i) = uol_ad(k+ione,i) + onemf*half*ucko_ad(k,i)
-           uol_ad(k,i)      = uol_ad(k,i)      + onemf*half*ucko_ad(k,i)
-           onemf_ad = onemf_ad + ucko_ad(k,i)*half* &
-                (uol(k,i)+uol(k+ione,i))
-           ucko_ad(k-ione,i) = ucko_ad(k-ione,i) + factor*ucko_ad(k,i)
-           factor_ad = factor_ad + ucko_ad(k,i)*ucko0(k-ione,i)
+           uol_ad(k+1,i) = uol_ad(k+1,i) + onemf*half*ucko_ad(k,i)
+           uol_ad(k,i)   = uol_ad(k,i)   + onemf*half*ucko_ad(k,i)
+           onemf_ad = onemf_ad + ucko_ad(k,i)*half* (uol(k,i)+uol(k+1,i))
+           ucko_ad(k-1,i) = ucko_ad(k-1,i) + factor*ucko_ad(k,i)
+           factor_ad = factor_ad + ucko_ad(k,i)*ucko0(k-1,i)
 
-           heol_ad(k+ione,i) = heol_ad(k+ione,i) + onemf*half*hcko_ad(k,i)
-           heol_ad(k,i)      = heol_ad(k,i)      + onemf*half*hcko_ad(k,i)
-           onemf_ad = onemf_ad + hcko_ad(k,i)*half* &
-                (heol(k,i)+heol(k+ione,i))
-           hcko_ad(k-ione,i) = hcko_ad(k-ione,i) + factor*hcko_ad(k,i)
-           factor_ad = factor_ad + hcko_ad(k,i)*hcko0(k-ione,i)
+           heol_ad(k+1,i) = heol_ad(k+1,i) + onemf*half*hcko_ad(k,i)
+           heol_ad(k,i)   = heol_ad(k,i)      + onemf*half*hcko_ad(k,i)
+           onemf_ad = onemf_ad + hcko_ad(k,i)*half*(heol(k,i)+heol(k+1,i))
+           hcko_ad(k-1,i) = hcko_ad(k-1,i) + factor*hcko_ad(k,i)
+           factor_ad = factor_ad + hcko_ad(k,i)*hcko0(k-1,i)
                
 
            factor_ad = factor_ad - onemf_ad
                
            eta_ad(k,i) = eta_ad(k,i) - factor_ad* &
-                eta0(k-ione,i)/(eta0(k,i)*eta0(k,i))
-           eta_ad(k-ione,i) = eta_ad(k-ione,i) + factor_ad/eta0(k,i)
+                eta0(k-1,i)/(eta0(k,i)*eta0(k,i))
+           eta_ad(k-1,i) = eta_ad(k-1,i) + factor_ad/eta0(k,i)
         endif
      end do
   end do
@@ -4074,7 +4068,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of updraft mass flux calculation
   do i = 1,im
      dz_ad = zero
-     if (kb(i)==ione .and. kbcon(i) > ione) then
+     if (kb(i)==1 .and. kbcon(i) > 1) then
         dz = half*(zo(2,i)-zo(1,i))
         eta_ad(1,i) = eta_ad(1,i) + etau_ad(1,i)
         dz_ad = dz_ad - &
@@ -4092,16 +4086,16 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      do k = 2,kbmax(i)
         dz_ad = zero
         if (k < kbcon(i).and.k >= kb(i)) then
-           dz = half * (zo(k+ione,i) - zo(k-ione,i))
+           dz = half * (zo(k+1,i) - zo(k-1,i))
            eta_ad(k,i) = eta_ad(k,i) + etau_ad(k,i)
-           dz_ad = dz_ad - eta0(k+ione,i)*exp(-xlamb(i)*dz) * &
+           dz_ad = dz_ad - eta0(k+1,i)*exp(-xlamb(i)*dz) * &
                 xlamb(i)*eta_ad(k,i)
            xlamb_ad(i) = xlamb_ad(i) - &
-                eta0(k+ione,i)*exp(-xlamb(i)*dz)*dz*eta_ad(k,i)
-           eta_ad(k+ione,i) = eta_ad(k+ione,i) + eta_ad(k,i)* &
+                eta0(k+1,i)*exp(-xlamb(i)*dz)*dz*eta_ad(k,i)
+           eta_ad(k+1,i) = eta_ad(k+1,i) + eta_ad(k,i)* &
                 exp(-xlamb(i)*dz)
-           zo_ad(k-ione,i) = zo_ad(k-ione,i) - half*dz_ad
-           zo_ad(k+ione,i) = zo_ad(k+ione,i) + half*dz_ad
+           zo_ad(k-1,i) = zo_ad(k-1,i) - half*dz_ad
+           zo_ad(k+1,i) = zo_ad(k+1,i) + half*dz_ad
         endif
      end do
   end do
@@ -4111,12 +4105,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 !    Recalculate nlm
      alpha = alphas
-     if (nint(slimsk(i)) == ione) alpha = alphal
-     if (kb(i)==ione) then
-        dz = half * (zo(kbcon(i),i)+zo(kbcon(i)-ione,i)) - zo(1,i)
+     if (nint(slimsk(i)) == 1) alpha = alphal
+     if (kb(i)==1) then
+        dz = half * (zo(kbcon(i),i)+zo(kbcon(i)-1,i)) - zo(1,i)
      else
-        dz = half*(zo(kbcon(i),i)+zo(kbcon(i)-ione,i)) - &
-             half*(zo(kb(i),i)  +zo(kb(i)-ione,i))
+        dz = half*(zo(kbcon(i),i)+zo(kbcon(i)-1,i)) - &
+             half*(zo(kb(i),i)  +zo(kb(i)-1,i))
      endif
 !
 !    Adjoint of tlm code.
@@ -4126,15 +4120,15 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
      else
         dz_ad = zero
      endif
-     if (kb(i)==ione) then
-        zo_ad(1,i)             = zo_ad(1,i)             - dz_ad
-        zo_ad(kbcon(i)-ione,i) = zo_ad(kbcon(i)-ione,i) + half*dz_ad
-        zo_ad(kbcon(i),i)      = zo_ad(kbcon(i),i)      + half*dz_ad
+     if (kb(i)==1) then
+        zo_ad(1,i)          = zo_ad(1,i)             - dz_ad
+        zo_ad(kbcon(i)-1,i) = zo_ad(kbcon(i)-1,i) + half*dz_ad
+        zo_ad(kbcon(i),i)   = zo_ad(kbcon(i),i)      + half*dz_ad
      else
-        zo_ad(kb(i)-ione,i)    = zo_ad(kb(i)-ione,i)    - half*dz_ad
-        zo_ad(kb(i),i)         = zo_ad(kb(i),i)         - half*dz_ad
-        zo_ad(kbcon(i),i)      = zo_ad(kbcon(i),i)      + half*dz_ad
-        zo_ad(kbcon(i)-ione,i) = zo_ad(kbcon(i)-ione,i) + half*dz_ad
+        zo_ad(kb(i)-1,i)    = zo_ad(kb(i)-1,i)    - half*dz_ad
+        zo_ad(kb(i),i)      = zo_ad(kb(i),i)         - half*dz_ad
+        zo_ad(kbcon(i),i)   = zo_ad(kbcon(i),i)      + half*dz_ad
+        zo_ad(kbcon(i)-1,i) = zo_ad(kbcon(i)-1,i) + half*dz_ad
      endif
   end do
 !
@@ -4161,10 +4155,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of heol and hesol calculation below kmax      
   do i = 1,im
 
-     do k = kmax(i)-ione,1,-1
+     do k = kmax(i)-1,1,-1
 !
 !       Make necessary nlm calculations
-        PO  = half * (P(k,i) + P(k+ione,i))
+        PO  = half * (P(k,i) + P(k+1,i))
         call fpvsx_ad(tol(k,i),es0,adt,es0_ad,.false.)
         esl = 10.0_r_kind*es0
 
@@ -4174,21 +4168,21 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         esl_ad = zero
 !
 !       Adjoint of tlm code
-        vo_ad(k+ione,i)  = vo_ad(k+ione,i) + half*vol_ad(k,i)
-        vo_ad(k,i)       = vo_ad(k,i)      + half*vol_ad(k,i)
+        vo_ad(k+1,i)  = vo_ad(k+1,i) + half*vol_ad(k,i)
+        vo_ad(k,i)    = vo_ad(k,i)   + half*vol_ad(k,i)
 
-        uo_ad(k+ione,i)  = uo_ad(k+ione,i) + half*uol_ad(k,i)
-        uo_ad(k,i)       = uo_ad(k,i)      + half*uol_ad(k,i)
+        uo_ad(k+1,i)  = uo_ad(k+1,i) + half*uol_ad(k,i)
+        uo_ad(k,i)    = uo_ad(k,i)   + half*uol_ad(k,i)
 
-        qesol_ad(k,i)    = qesol_ad(k,i)   + hvap*hesol_ad(k,i)
-        tol_ad(k,i)      = tol_ad(k,i)     + cp*hesol_ad(k,i)
-        zo_ad(k+ione,i)  = zo_ad(k+ione,i) + half*grav*hesol_ad(k,i)
-        zo_ad(k,i)       = zo_ad(k,i)      + half*grav*hesol_ad(k,i)
+        qesol_ad(k,i) = qesol_ad(k,i)+ hvap*hesol_ad(k,i)
+        tol_ad(k,i)   = tol_ad(k,i)  + cp*hesol_ad(k,i)
+        zo_ad(k+1,i)  = zo_ad(k+1,i) + half*grav*hesol_ad(k,i)
+        zo_ad(k,i)    = zo_ad(k,i)   + half*grav*hesol_ad(k,i)
 
-        qol_ad(k,i)      = qol_ad(k,i)     + hvap*heol_ad(k,i)
-        tol_ad(k,i)      = tol_ad(k,i)     + cp*heol_ad(k,i)
-        zo_ad(k+ione,i)  = zo_ad(k+ione,i) + half*grav*heol_ad(k,i)
-        zo_ad(k,i)       = zo_ad(k,i)      + half*grav*heol_ad(k,i)
+        qol_ad(k,i)   = qol_ad(k,i)  + hvap*heol_ad(k,i)
+        tol_ad(k,i)   = tol_ad(k,i)  + cp*heol_ad(k,i)
+        zo_ad(k+1,i)  = zo_ad(k+1,i) + half*grav*heol_ad(k,i)
+        zo_ad(k,i)    = zo_ad(k,i)   + half*grav*heol_ad(k,i)
 
         esl_ad = esl_ad - eps*esl/((po+epsm1*esl)**2) * &
              epsm1 * qesol_ad(k,i)
@@ -4207,20 +4201,20 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !
 ! Adjoint of tol and qol calculation
   do i = 1,im
-     do k = kmax(i)-ione,1,-1
+     do k = kmax(i)-1,1,-1
 !
 !       Make necessary nlm calculations
-        DZ    = half * (ZO(k+ione,i) - ZO(k,i))
-        DP    = half * (P(k+ione,i) - P(k,i))
-!       ES    = 10.0_r_kind * FESB(TO(k+ione,i))
-        call fpvsx_ad(to(k+ione,i),es0,adt,es0_ad,.false.)
+        DZ    = half * (ZO(k+1,i) - ZO(k,i))
+        DP    = half * (P(k+1,i) - P(k,i))
+!       ES    = 10.0_r_kind * FESB(TO(k+1,i))
+        call fpvsx_ad(to(k+1,i),es0,adt,es0_ad,.false.)
         es = 10.0_r_kind*es0
-        PPRIME= P(k+ione,i) + EPSM1 * ES
+        PPRIME= P(k+1,i) + EPSM1 * ES
         QS    = EPS * ES / PPRIME
         DQSDP = - QS / PPRIME
-        DESDT = ES * (FACTOR1 / TO(k+ione,i) + FACTOR2 / (TO(k+ione,i)**2))
-        DQSDT = QS * P(k+ione,i) * DESDT / (ES * PPRIME)
-        GAMMA = EL2ORC * QESO(k+ione,i) / (TO(k+ione,i)**2)
+        DESDT = ES * (FACTOR1 / TO(k+1,i) + FACTOR2 / (TO(k+1,i)**2))
+        DQSDT = QS * P(k+1,i) * DESDT / (ES * PPRIME)
+        GAMMA = EL2ORC * QESO(k+1,i) / (TO(k+1,i)**2)
         DT    = (GRAV * DZ + HVAP * DQSDP * DP) / (CP * (one + GAMMA))
 !
 !       Initialize local ajm variables to zero
@@ -4243,10 +4237,10 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
            qol0_ad(k,i) = zero
         endif
 
-        qo_ad(k+ione,i) = qo_ad(k+ione,i) + qol0_ad(k,i)
+        qo_ad(k+1,i) = qo_ad(k+1,i) + qol0_ad(k,i)
         dq_ad = dq_ad + qol0_ad(k,i)
 
-        to_ad(k+ione,i) = to_ad(k+ione,i) + tol_ad(k,i)
+        to_ad(k+1,i) = to_ad(k+1,i) + tol_ad(k,i)
         dt_ad = dt_ad + tol_ad(k,i)
 
         dqsdp_ad = dqsdp_ad + dq_ad*dp
@@ -4259,23 +4253,21 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
         dqsdp_ad = dqsdp_ad + hvap*dt_ad*dp/(cp*(one+gamma))
         dz_ad    = dz_ad + grav*dt_ad/(cp*(one+gamma))
 
-        to_ad(k+ione,i) = to_ad(k+ione,i) - &
-             two*el2orc*qeso(k+ione,i)/(to(k+ione,i)**3) * gamma_ad
-        qeso_ad(k+ione,i) = qeso_ad(k,i) + & 
-             el2orc*gamma_ad/(to(k+ione,i)**2)
+        to_ad(k+1,i) = to_ad(k+1,i) - &
+             two*el2orc*qeso(k+1,i)/(to(k+1,i)**3) * gamma_ad
+        qeso_ad(k+1,i) = qeso_ad(k,i) + & 
+             el2orc*gamma_ad/(to(k+1,i)**2)
 
         rterm = one/(es*pprime)
-        pprime_ad = pprime_ad - (qs*p(k+ione,i)*desdt)*rterm**2 * &
-             es*dqsdt_ad
-        es_ad     = es_ad - (qs*p(k+ione,i)*desdt)*rterm**2 * &
-             dqsdt_ad*pprime
-        desdt_ad  = desdt_ad + p(k+ione,i)*qs*dqsdt_ad*rterm
-        qs_ad     = qs_ad + p(k+ione,i)*dqsdt_ad*desdt*rterm
+        pprime_ad = pprime_ad - (qs*p(k+1,i)*desdt)*rterm**2 * es*dqsdt_ad
+        es_ad     = es_ad - (qs*p(k+1,i)*desdt)*rterm**2 * dqsdt_ad*pprime
+        desdt_ad  = desdt_ad + p(k+1,i)*qs*dqsdt_ad*rterm
+        qs_ad     = qs_ad + p(k+1,i)*dqsdt_ad*desdt*rterm
 
-        to_ad(k+ione,i) = to_ad(k+ione,i) + desdt_ad * es * &
-             (-one*factor1/(to(k+ione,i)**2) - two*factor2/(to(k+ione,i)**3))
+        to_ad(k+1,i) = to_ad(k+1,i) + desdt_ad * es * &
+             (-one*factor1/(to(k+1,i)**2) - two*factor2/(to(k+1,i)**3))
         es_ad = es_ad + desdt_ad * &
-             (factor1/to(k+ione,i) + factor2/(to(k+ione,i)**2))
+             (factor1/to(k+1,i) + factor2/(to(k+1,i)**2))
 
         pprime_ad = pprime_ad + (qs/(pprime**2))*dqsdp_ad
         qs_ad     = qs_ad - dqsdp_ad/pprime
@@ -4287,11 +4279,11 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 
         es0_ad = es0_ad + 10.0_r_kind*es_ad
         adt=zero
-        call fpvsx_ad(to(k+ione,i),es0,adt,es0_ad,.false.)
-        to_ad(k+ione,i) = to_ad(k+ione,i) + adt
+        call fpvsx_ad(to(k+1,i),es0,adt,es0_ad,.false.)
+        to_ad(k+1,i) = to_ad(k+1,i) + adt
 
-        zo_ad(k,i)      = zo_ad(k,i)      - half*dz_ad
-        zo_ad(k+ione,i) = zo_ad(k+ione,i) + half*dz_ad
+        zo_ad(k,i)   = zo_ad(k,i)      - half*dz_ad
+        zo_ad(k+1,i) = zo_ad(k+1,i) + half*dz_ad
  
      end do
   end do
@@ -4313,12 +4305,12 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 ! Adjoint of zo calculation
   do i = 1,im
      do k = kmax(i),2,-1
-        dlnsig = log(sl(k,i)/sl(k-ione,i))
+        dlnsig = log(sl(k,i)/sl(k-1,i))
         term1  = dlnsig * rd / grav
-        zo_ad(k-ione,i) = zo_ad(k-ione,i) + zo_ad(k,i)
+        zo_ad(k-1,i) = zo_ad(k-1,i) + zo_ad(k,i)
         term2_ad = -one*term1*zo_ad(k,i)
-        tvo_ad(k-ione,i) = tvo_ad(k-ione,i) + half*term2_ad
-        tvo_ad(k,i)      = tvo_ad(k,i)      + half*term2_ad
+        tvo_ad(k-1,i) = tvo_ad(k-1,i) + half*term2_ad
+        tvo_ad(k,i)   = tvo_ad(k,i)      + half*term2_ad
      end do
   end do
 !

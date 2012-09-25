@@ -29,7 +29,7 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use gridmod, only: idsl5
-  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
+  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens,enspreproc
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
@@ -45,6 +45,8 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_gridcreate
   implicit none
 
+  real(r_single),dimension(grd_ens%lat2,grd_ens%lon2):: scr2
+  real(r_single),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: scr3
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
   real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
@@ -61,6 +63,7 @@ subroutine get_gefs_ensperts_dualres
   integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,il,jl,mm1,iderivative,im,jm,km,m
   character(70) filename
   logical ice
+  integer(i_kind) :: lunges=11
 
   allocate(en_bar(ntlevs_ens))
   call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
@@ -95,18 +98,46 @@ subroutine get_gefs_ensperts_dualres
 
      do n=1,n_ens
 
-        if(.not.l4densvar) then
-           write(filename,100) n
- 100       format('sigf06_ens_mem',i3.3)
-        else
-           write(filename,103) ens4d_fhrlevs(m), n
- 103       format('sigf',i2.2,'_ens_mem',i3.3)
-        endif
-! Use read_gfs routine to get ensemble members
-! *** NOTE ***
-! For now, everything is assumed to be at the same resolution
-       if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',filename
-       call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+       if (enspreproc) then
+          ! read pre-processed ensemble data (one file for each bin that has all
+          ! the ensemble members for a subdomain).
+          if(l4densvar) then
+             write(filename,103) n, ens4d_fhrlevs(m), mype
+ 103         format('ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
+          else
+             write(filename,103) n, 6, mype
+          end if
+          if (mype==0)write(6,*) 'READ PRE-PROCESSED ENS FILE: ',trim(filename)
+          open(lunges,file=filename,form='unformatted',iostat=iret)
+          if (iret /= 0) go to 104
+          read(lunges,err=104) scr2; ps = scr2
+          read(lunges,err=104) scr2; z = scr2
+          read(lunges,err=104) scr3; u = scr3
+          read(lunges,err=104) scr3; v = scr3
+          read(lunges,err=104) scr3; tv = scr3
+          read(lunges,err=104) scr3; q = scr3
+          read(lunges,err=104) scr3; oz = scr3
+          read(lunges,err=104) scr3; cwmr = scr3
+          close(lunges)
+          go to 105
+ 104      continue
+          iret = -1
+          beta1_inv=one
+          if (mype==0) &
+             write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
+          cycle
+ 105      continue
+       else
+          ! read from spectral file on root task, broadcast to other tasks.
+          if (l4densvar) then
+             write(filename,106) ens4d_fhrlevs(m), n
+ 106         format('sigf',i2.2,'_ens_mem',i3.3)
+          else
+             write(filename,106) 6, n
+          endif
+          if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
+          call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+       endif
 
 ! Check read return code.  Revert to static B if read error detected
        if (iret/=0) then

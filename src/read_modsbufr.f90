@@ -22,7 +22,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
-!   2011-08-01  lueken  - added module use deter_sfc_mod, removed_i_kind, fixed indentation
+!   2011-08-01  lueken  - added module use deter_sfc_mod, fixed indentation
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
