@@ -20,7 +20,7 @@
 #         output from this script.  If diagnostic print messages 
 #         are left uncommented then results will become undefined.
 #-------------------------------------------------------------------
-    use Data::Dumper;
+#    use Data::Dumper;
     use IO::File;
 
     require XML::Simple;

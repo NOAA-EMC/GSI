@@ -25,7 +25,7 @@ cd $tmpdir
 plot_time_count=plot_time_count.${RAD_AREA}.gs
 echo plot_time_count = $plot_time_count
 
-plot_time_sep=plot_time_sep.gs
+plot_time_sep=plot_time_sep.${RAD_AREA}.gs
 echo plot_time_sep = $plot_time_sep
 
 

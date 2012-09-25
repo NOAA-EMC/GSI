@@ -248,11 +248,13 @@ y2=y3+0.05
       'draw string 0.2 'yy' variable:  'type
       yy=yy-0.25
       'draw string 0.2 'yy' valid   :  'date1' to 'date2
+
       if (nregion > 1) 
          outfile=plotfile'.'field'_region'region'_fr'fr'.png'
       else 
          outfile=plotfile'.'field'_fr'fr'.png'
       endif
+
       'printim 'outfile' 'xsize' 'ysize' white'
 *      say 'output to file 'outfile
       if (debug=1) 

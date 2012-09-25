@@ -86,7 +86,7 @@ rm ${logfile}
 if [[ $MY_OS = "aix" ]]; then
    $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o ${logfile} $SCRIPTS/plot_bcoef.sh
 else
-   $SUB -A $ACCOUNT -l procs=1,walltime=1:10:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
+   $SUB -A $ACCOUNT -l procs=1,walltime=1:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
 fi
 
 exit
