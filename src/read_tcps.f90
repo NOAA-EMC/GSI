@@ -11,7 +11,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 !   2009-02-02  kleist
 !   2010-09-08  treadon - add station_id and destroy_tcv_card; increase
 !                         maxdat to 10; remove i_kind suffix from integer 
-!                         constants; replace (izero,ione) with (0,1)
+!                         constants; 
 !
 !   input argument list:
 !     infile   - unit from which to read ascii file

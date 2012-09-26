@@ -215,7 +215,7 @@ real(r_quad)                :: pcostq
 real(r_kind)                :: zbeta(2:kmaxit+1),zdelta(kmaxit),zv(kmaxit+1,kmaxit+1),&
    zbnds(kmaxit),zritz(kmaxit+1),zsave(kmaxit+1,4),&
    zqg0(kmaxit+1),zsstwrk(2*kmaxit)
-real(r_kind)                :: zdla, zeta
+real(r_kind)                :: zdla, zeta, preduc_norm
 real(r_kind)                :: zbndlm, zgnorm, znorm2l1, zreqrd, ztheta1
 integer(i_kind)             :: ingood,itheta1,jm,imaxevecs,ii,jj,jk,isize,iii,jjj
 integer(i_kind)             :: kminit, kmaxevecs,iunit,iprt
@@ -360,11 +360,10 @@ Lanczos_loop : DO
 
    if (LMPCGL) call lanczos_precond(zww,+2)
 
-   preduc = SQRT(DOT_PRODUCT(zww,zww))
-   if (mype==0) write (6,*)'grepmin Estimated gradient norm=',preduc
+   preduc_norm = SQRT(DOT_PRODUCT(zww,zww))
+   preduc = preduc_norm/zgnorm
+   if (mype==0) write (6,*)'Estimated gradient norm=',preduc_norm,' Estimated reduction = ',preduc
 
-   preduc = preduc/zgnorm
-   if (mype==0) write (6,*)'Estimated reduction in norm of gradient is: ',preduc
 
 !--- determine eigenvalues and eigenvectors of the tri-diagonal problem
    if((LDECOMP .or. (iter==kmaxit)) .and. lsavevecs) then 

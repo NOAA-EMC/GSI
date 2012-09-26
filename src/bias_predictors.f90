@@ -26,7 +26,7 @@ module bias_predictors
 !$$$ end documentation block
 
 use kinds, only: r_kind,i_kind
-use constants, only : izero,ione,zero
+use constants, only : zero
 
 implicit none
 save
@@ -124,10 +124,10 @@ subroutine allocate_preds(yst)
   ALLOCATE(yst%values(nrclen))
   yst%values = zero
 
-  ii=izero
-  yst%predr => yst%values(ii+ione:ii+nsclen)
+  ii=0
+  yst%predr => yst%values(ii+1:ii+nsclen)
   ii=ii+nsclen
-  yst%predp => yst%values(ii+ione:ii+npclen)
+  yst%predp => yst%values(ii+1:ii+npclen)
   ii=ii+npclen
 
   if (ii/=nrclen) then

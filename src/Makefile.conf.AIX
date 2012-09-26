@@ -9,9 +9,8 @@ COREINC   = /nwprod/lib/incmod
 INCsfcio  = $(COREINC)/sfcio_4
 INCsigio  = $(COREINC)/sigio_4
 INCnemsio = $(COREINC)/nemsio
-##INCcrtm   = $(COREINC)/crtm_2.0.5
+INCcrtm   = $(COREINC)/crtm_2.0.5
 
-INCcrtm = /global/save/wx20ml/CRTM_REL-2.0.5/include
 LIBcrtm = /global/save/wx20ml/CRTM_REL-2.0.5/lib/libCRTM.a
 
 WRFPATH=/nwprod/sorc/nam_nmm_real_fcst.fd
@@ -110,8 +109,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 #--- Normal mode options
 
   LIBS_N        =   -L/nwprod/lib -lnemsio -lw3_d -lsp_d -lbufr_v10.1.0_d_64 -lbacio_4 -lmpitrace \
-                    -lsigio_4 -lsfcio_4 -lnetcdf_64 \
-                    $(LIBcrtm) $(WRFLIB)
+                    -lsigio_4 -lsfcio_4 -lnetcdf_64 -lcrtm_2.0.5\
+                    $(WRFLIB)
 
   LDFLAGS_N     = -lessl_r -lmass -bloadmap:loadmap.txt \
                   -bdatapsize:64K -bstackpsize:64K $(OMP) $(PROF)

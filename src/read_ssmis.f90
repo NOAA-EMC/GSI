@@ -47,7 +47,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
-!   2011-08-01  lueken  - added module use deter_sfc_mod and remove _i_kind
+!   2011-08-01  lueken  - added module use deter_sfc_mod 
 !   2011-09-02  gayno - add processing of future satellites for FOV-based
 !                       surface field calculation and improved its error handling
 !                       (isfcalc=1)

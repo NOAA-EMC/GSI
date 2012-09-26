@@ -103,7 +103,7 @@ subroutine intt_(thead,rval,sval)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: half,one,zero,izero,tiny_r_kind,cg_term,r3600
+  use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n,latlon11,latlon1n1

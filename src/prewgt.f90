@@ -91,7 +91,7 @@ subroutine prewgt(mype)
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
        nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g,&
        strip
-  use constants, only: izero,ione,zero,quarter,half,one,two,three,&
+  use constants, only: zero,quarter,half,one,two,three,&
        rearth_equator,pi,r1000,r400
   use guess_grids, only: isli2
   use smooth_polcarf, only: norsp,setup_smooth_polcas
@@ -120,7 +120,7 @@ subroutine prewgt(mype)
   real(r_kind),dimension(lat2,lon2)::temp
   real(r_kind),dimension(nlat,nlon):: sl,factx
   real(r_kind),dimension(-nf:nf,-nf:nf) :: fact1,fact2
-  real(r_kind),dimension(mr:nlat-2_i_kind):: rs
+  real(r_kind),dimension(mr:nlat-2):: rs
   real(r_kind),dimension(lat1*lon1)::zsm
   real(r_kind),dimension(itotsub)::work1
   real(r_kind),dimension(ny,nx,3):: scsli
@@ -157,19 +157,19 @@ subroutine prewgt(mype)
   ndy=(nlat-ny)/2
   nxe=nlon/8
   nor=norh*2
-  mm1=mype+ione
+  mm1=mype+1
   nlathh=nlat/4
-  nf2p=2*nf+ione
+  nf2p=2*nf+1
 
   if(nc2d>0) then
-     allocate(hwllp(0:nlat+ione,nc2d))
+     allocate(hwllp(0:nlat+1,nc2d))
      allocate(corp(nlat,nc2d))
      allocate(hwllinp(nlat,nc2d))
   endif
 
   if(nc3d>0)then
-     allocate(vz(nsig,0:nlat+ione,nc3d))
-     allocate(hwll(0:nlat+ione,nsig,nc3d))
+     allocate(vz(nsig,0:nlat+1,nc3d))
+     allocate(hwll(0:nlat+1,nsig,nc3d))
      allocate(corz(nlat,nsig,nc3d))
      allocate(hwllin(nlat,nsig,nc3d))
      allocate(vscalesin(nsig,nlat,nc3d))
@@ -190,25 +190,25 @@ subroutine prewgt(mype)
 ! nrf2_sti  = getindex(cvarsmd,'sti')
 
 ! Setup blending
-  mm=4_i_kind
+  mm=4
   call blend(mm,iblend)
 
-  nolp=nr+ione+(ny-nlat)/2
+  nolp=nr+1+(ny-nlat)/2
 !  nbuf=nolp/4
-  nbuf=izero
+  nbuf=0
   nmix=nolp-nbuf*2
-  dxx=1._r_double/(nmix+ione)
+  dxx=1._r_double/(nmix+1)
   bl2=0._r_double
-  k=izero
+  k=0
   do i=1,nmix
-     k=k+ione
+     k=k+1
      x=i*dxx
      y=0._r_double
      y=real(iblend(mm),r_double)
-     do j=mm-ione,0,-1
+     do j=mm-1,0,-1
         y=x*y+real(iblend(j),r_double)
      enddo
-     y=y*x**(mm+ione)
+     y=y*x**(mm+1)
      bl2(k)=1._r_double-y
   enddo
   if(minval(bl2)<zero) then
@@ -220,19 +220,19 @@ subroutine prewgt(mype)
   end do
   
   nmix=(nx-nlon)
-  dxx=one/(nmix+ione)
+  dxx=one/(nmix+1)
   ndx=(nx-nlon)
   bl=zero
   k=ndx-nmix
   do i=1,nmix
-     k=k+ione
+     k=k+1
      x=i*dxx
      y=zero
      y=real(iblend(mm),r_kind)
-     do j=mm-ione,0,-1
+     do j=mm-1,0,-1
         y=x*y+real(iblend(j),r_kind)
      enddo
-     y=y*x**(mm+ione)
+     y=y*x**(mm+1)
      bl(k)=one-y
   enddo
   if(minval(bl)<zero) then
@@ -255,7 +255,7 @@ subroutine prewgt(mype)
         end do
      end do
 
-     call strip(temp,zsm,ione)
+     call strip(temp,zsm,1)
 
      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
         work1,ijn,displs_g,mpi_rtype,&
@@ -273,7 +273,7 @@ subroutine prewgt(mype)
            if(sl(i,j) > one)sl(i,j)=zero
         enddo
      enddo
-     call smoothww(nlat,nlon,sl,half,2_i_kind,ione)
+     call smoothww(nlat,nlon,sl,half,2,1)
      do j=1,nlon
         do i=1,nlat
            sl(i,j)=min(max(sl(i,j),zero),one)
@@ -338,7 +338,7 @@ subroutine prewgt(mype)
         hzscl(i)=hzscl(i)+hzscl(i)*randfct(nc2d+nc3d+i)
      end do
      vs=vs+vs*randfct(nc2d+nc3d+3+1)
-     if (mype==izero) then
+     if (mype==0) then
         write(6,*) 'PREWGT: REDEFINE AS = ',as3d,as2d
         write(6,*) 'PREWGT: REDEFINE HZSCL = ',hzscl
         write(6,*) 'PREWGT: REDEFINE VS = ',vs
@@ -384,9 +384,9 @@ subroutine prewgt(mype)
   if(nrf3_sf>0.and.nrf3_vp>0) then
      do k=1,nsig
         do i=1,lat2
-           ix=istart(mm1)+i-2_i_kind
-           ix=max(ix,2_i_kind)
-           ix=min(nlat-ione,ix)
+           ix=istart(mm1)+i-2
+           ix=max(ix,2)
+           ix=min(nlat-1,ix)
            do j=1,lon2
               sfvar(i,j,k)=corz(ix,k,nrf3_sf)
               vpvar(i,j,k)=corz(ix,k,nrf3_vp)
@@ -397,9 +397,9 @@ subroutine prewgt(mype)
   if(nrf3_t>0) then
      do k=1,nsig
         do i=1,lat2
-           ix=istart(mm1)+i-2_i_kind
-           ix=max(ix,2_i_kind)
-           ix=min(nlat-ione,ix)
+           ix=istart(mm1)+i-2
+           ix=max(ix,2)
+           ix=min(nlat-1,ix)
            do j=1,lon2
               tvar(i,j,k)=corz(ix,k,nrf3_t)
            end do
@@ -409,9 +409,9 @@ subroutine prewgt(mype)
 
   if(nrf2_ps>0) then
      do i=1,lat2
-        ix=istart(mm1)+i-2_i_kind
-        ix=max(ix,2_i_kind)
-        ix=min(nlat-ione,ix)
+        ix=istart(mm1)+i-2
+        ix=max(ix,2)
+        ix=min(nlat-1,ix)
         do j=1,lon2
            psvar(i,j)=corp(ix,nrf2_ps)
         end do
@@ -482,13 +482,13 @@ subroutine prewgt(mype)
               else if(mvars>=2 .and. isli2(j,i)==2)then
                  dssvs(j,i,nc2d+2)= atsfc_sdv(2)          ! ice surface temperature
               else
-                 jx=istart(mm1)+j-2_i_kind
-                 jx=max(jx,2_i_kind)
-                 jx=min(nlat-ione,jx)
-                 ix=jstart(mm1)+i-2_i_kind
-                 if (ix==izero) ix=nlon
-                 ix=max(ix,ione)
-                 if (ix==nlon+ione) ix=ione
+                 jx=istart(mm1)+j-2
+                 jx=max(jx,2)
+                 jx=min(nlat-1,jx)
+                 ix=jstart(mm1)+i-2
+                 if (ix==0) ix=nlon
+                 ix=max(ix,1)
+                 if (ix==nlon+1) ix=1
                  ix=min(nlon,ix)
                  dssvs(j,i,n)=corsst(jx,ix)*as2d(n)        ! sea surface temperature
               end if
@@ -510,29 +510,29 @@ subroutine prewgt(mype)
   call setwts(wtaxs,wtxrs,inaxs,inxrs,rs,df,nor,nxe,nf,mr,nr)
 
 ! set up smooth_polcas if desired (norsp > 0)
-  if(norsp>izero) call setup_smooth_polcas
+  if(norsp>0) call setup_smooth_polcas
 
 ! load arrays which are in correct units, to be used to
 ! define the scales below
   do j=1,nlon
-     do i=2,nlat-ione
+     do i=2,nlat-1
         factx(i,j)=one/(one+(one-sl(i,j))*bw)
      end do
      factx(1,j)=factx(2,j)
-     factx(nlat,j)=factx(nlat-ione,j)
+     factx(nlat,j)=factx(nlat-1,j)
   end do
 
   wlipi=nlon/pi2
   wlipih=nlon/pi2*half*samp*samp
   do j=1,nx
      jjj=j-ndx
-     if(jjj<ione)jjj=nlon+jjj
+     if(jjj<1)jjj=nlon+jjj
      if(jjj>nlon)jjj=jjj-nlon
      do i=1,ny
         iii=i+ndy
-        scsli(i,j,1)=(rlats(iii+ione)-rlats(iii-ione))*wlipih*cos(rlats(iii))* &
+        scsli(i,j,1)=(rlats(iii+1)-rlats(iii-1))*wlipih*cos(rlats(iii))* &
                      factx(iii,jjj)**2
-        scsli(i,j,2)=(rlats(iii     )-rlats(iii-ione))*wlipi*factx(iii,jjj)
+        scsli(i,j,2)=(rlats(iii     )-rlats(iii-1))*wlipi*factx(iii,jjj)
         scsli(i,j,3)=cos(rlats(iii))*factx(iii,jjj)
      enddo
   enddo
@@ -540,16 +540,16 @@ subroutine prewgt(mype)
   nxg=nxe+norh
   nrr=ubound(rs,1)	! was nf*3/2
   ndx=(nx-nlon)/2
-  call polcasl(factx,fact1,fact2,ione,nf,mr,nrr,nor,rs,df,nxe,nxg)
+  call polcasl(factx,fact1,fact2,1,nf,mr,nrr,nor,rs,df,nxe,nxg)
   fact1(0,0)=quarter*(fact1(1,0)+fact1(0,1)+fact1(-1,0)+fact1(0,-1))
   fact2(0,0)=quarter*(fact2(1,0)+fact2(0,1)+fact2(-1,0)+fact2(0,-1))
 
   df2=df*df
   do j=-nf,nf
-     jm=j-ione
+     jm=j-1
      j2=j*j
      do i=-nf,nf
-        im=i-ione
+        im=i-1
         i2=i*i
         scs12(i,j,1)=(samp/(one+(i2+j2)*df2))**2*fact1(i,j)**2
         scs12(i,j,2)=one/(one+((im*im+i2)*half+j2)*df2)*fact1(i,j)
@@ -579,20 +579,20 @@ subroutine prewgt(mype)
 !!!$omp parallel do  schedule(dynamic,1) private(k,k1,j,ii,iii,jjj,i,n,nn,factx,fact1,fact2)
   do k=1,nnnn1o
      k1=levs_id(k)
-     if (k1==izero) then
+     if (k1==0) then
         do j=1,nlon
-           do i=2,nlat-ione
+           do i=2,nlat-1
               factx(i,j)=zero
            end do
         end do
      else 
         n=nvar_id(k)
-        nn=-ione
+        nn=-1
         do ii=1,nc3d
            if (nrf3_loc(ii)==n) then
               nn=ii
               do j=1,nlon
-                 do i=2,nlat-ione
+                 do i=2,nlat-1
                     factx(i,j)=s2u/hwll(i,k1,nn)
                  end do
               end do
@@ -600,26 +600,26 @@ subroutine prewgt(mype)
            end if
         end do
 
-        if (nn==-ione) then
+        if (nn==-1) then
            do ii=1,nc2d
               if (nrf2_loc(ii)==n .or. n>nrf) then
                  nn=ii
                  if (n>nrf) nn=n-nc3d
                  if (nn==nrf2_sst) then
                     do j=1,nlon
-                       do i=2,nlat-ione
+                       do i=2,nlat-1
                           factx(i,j)=s2u/hsst(i,j)
                        end do
                     end do
                  else if (nn>nc2d) then 
                     do j=1,nlon
-                       do i=2,nlat-ione
+                       do i=2,nlat-1
                           factx(i,j)=two*s2u/minhsst
                        end do
                     end do
                  else  
                     do j=1,nlon
-                       do i=2,nlat-ione
+                       do i=2,nlat-1
                           factx(i,j)=s2u/hwllp(i,nn)
                        end do
                     end do
@@ -631,20 +631,20 @@ subroutine prewgt(mype)
      endif    ! end if over nvar_id
      do j=1,nlon
         factx(1,j)=factx(2,j)
-        factx(nlat,j)=factx(nlat-ione,j)
+        factx(nlat,j)=factx(nlat-1,j)
      end do
 
-     call polcasl(factx,fact1,fact2,ione,nf,mr,nrr,nor,rs,df,nxe,nxg)
+     call polcasl(factx,fact1,fact2,1,nf,mr,nrr,nor,rs,df,nxe,nxg)
      fact1(0,0)=quarter*(fact1(1,0)+fact1(0,1)+fact1(-1,0)+fact1(0,-1))
      fact2(0,0)=quarter*(fact2(1,0)+fact2(0,1)+fact2(-1,0)+fact2(0,-1))
 ! first sli
      do j=1,nx
         jjj=j-ndx
-        if(jjj < ione)jjj=jjj+nlon
+        if(jjj < 1)jjj=jjj+nlon
         if(jjj > nlon)jjj=jjj-nlon
         do i=1,ny
            iii=i+ndy
-           slw((j-ione)*ny+i,k)=scsli(i,j,1)*factx(iii,jjj)**2
+           slw((j-1)*ny+i,k)=scsli(i,j,1)*factx(iii,jjj)**2
            sli(i,j,1,k)=scsli(i,j,2)*factx(iii,jjj)        
            sli(i,j,2,k)=scsli(i,j,3)*factx(iii,jjj)        
         enddo
@@ -652,8 +652,8 @@ subroutine prewgt(mype)
 ! now load sli1/sli2 
      do j=-nf,nf
         do i=-nf,nf
-           slw2((j+nf)*nf2p+nf+ione+i,k)=scs12(i,j,1)*fact1(i,j)**2
-           slw1((j+nf)*nf2p+nf+ione+i,k)=scs12(i,j,1)*fact2(i,j)**2
+           slw2((j+nf)*nf2p+nf+1+i,k)=scs12(i,j,1)*fact1(i,j)**2
+           slw1((j+nf)*nf2p+nf+1+i,k)=scs12(i,j,1)*fact2(i,j)**2
            sli2(i,j,1,k)=scs12(i,j,2)*fact1(i,j)
            sli1(i,j,1,k)=scs12(i,j,2)*fact2(i,j)
            sli2(i,j,2,k)=scs12(i,j,3)*fact1(i,j)
@@ -716,7 +716,6 @@ subroutine blend(n,iblend)
 !
 !$$$
   use kinds, only: i_kind
-  use constants, only: izero,ione
   implicit none
 
 ! Declare passed variables
@@ -724,26 +723,26 @@ subroutine blend(n,iblend)
   integer(i_kind),dimension(0:n),intent(  out) :: iblend
 
 ! Declare local parameters
-  integer(i_kind),parameter:: nn=12_i_kind
+  integer(i_kind),parameter:: nn=12
 
 ! Declare local variables
   integer(i_kind) np,i,j,ib
   integer(i_kind),dimension(0:nn):: ipascal(0:nn)
 
   if(n>nn)stop
-  np=n+ione
+  np=n+1
   do i=0,n
-    ipascal(i)=izero
+    ipascal(i)=0
   enddo
 
-  ipascal(0)=ione
+  ipascal(0)=1
   do i=0,n
      do j=i,1,-1
-        ipascal(j)=ipascal(j)-ipascal(j-ione)
+        ipascal(j)=ipascal(j)-ipascal(j-1)
      enddo
   enddo
 
-  ib=ione
+  ib=1
   do i=1,n
      ib=(ib*2*(2*i+1))/i
   enddo
@@ -781,14 +780,14 @@ subroutine get_randoms(count,randnums)
   use kinds, only: r_kind,i_kind
   use obsmod, only: iadate
   use berror, only: pert_berr_fct
-  use constants, only: ione, one, two
+  use constants, only: one, two
   implicit none
 
   integer(i_kind)              ,intent(in   ) :: count
   real(r_kind),dimension(count),intent(  out) :: randnums
 
   integer(i_kind),allocatable,dimension(:):: numrnds
-  real(r_kind),dimension(count+ione):: temps
+  real(r_kind),dimension(count+1):: temps
   real(r_kind):: rseed
 
   integer(i_kind) i,ksize
@@ -813,7 +812,7 @@ subroutine get_randoms(count,randnums)
 ! Set range to be +/- factor
 ! and don't use first random number generated based on date
   do i=1,count
-     randnums(i) = pert_berr_fct*(one - two*temps(i+ione))
+     randnums(i) = pert_berr_fct*(one - two*temps(i+1))
   end do
 
   return

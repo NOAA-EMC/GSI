@@ -388,7 +388,7 @@ subroutine general_read_gfsatm(grd,sp,filename,mype,uvflag,g_z,g_ps,g_vor,g_div,
 
 !   Print date/time stamp 
     if(mype==mype_io) then
-       write(6,700) gfshead%lonb,gfshead%latb,gfshead%levs,&
+       write(6,700) grd%nlon,nlatm2,gfshead%levs,&
             gfshead%fhour,gfshead%idate
 700    format('READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
             3i6,', hour=',f10.1,', idate=',4i5)

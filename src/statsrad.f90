@@ -42,7 +42,7 @@ subroutine statsrad(aivals,stats,ndata)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   use obsmod, only: dtype,iout_rad,ndat,dplat,ditype
   use radinfo, only: varch,iuse_rad,nuchan,jpch_rad,nusis
   use jfunc, only: jiter
@@ -72,7 +72,7 @@ subroutine statsrad(aivals,stats,ndata)
 ! Loop over all observational data types
   penalty_all=zero
   qcpenalty_all=zero
-  nlgross_all=izero
+  nlgross_all=0
   idisplay=.false.
   do is=1,ndat
 
@@ -84,7 +84,7 @@ subroutine statsrad(aivals,stats,ndata)
         qcpenalty_all=qcpenalty_all+aivals(39,is)
         nlgross_all = nlgross_all + nint(aivals(2,is))
         idisplay(is) = .true.
-        if(iobs2 > izero)then
+        if(iobs2 > 0)then
 
            nlgross = nint(aivals(2,is))
            iland   = nint(aivals(3,is))
@@ -117,9 +117,9 @@ subroutine statsrad(aivals,stats,ndata)
 ! Print counts, bias, rms, stndev as a function of channel.
   do i = 1,jpch_rad
      iasim = nint(stats(1,i))
-     if (iasim > izero) then
+     if (iasim > 0) then
         svar = varch(i)
-        if (iuse_rad(i) < ione) svar=-svar
+        if (iuse_rad(i) < 1) svar=-svar
         rsum = one/float(iasim)
         icerr = nint(stats(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)
@@ -129,7 +129,7 @@ subroutine statsrad(aivals,stats,ndata)
            stats(j,i) = stats(j,i)*rsum
         end do
         stats(4,i) = sqrt(stats(4,i))
-        if (iasim > ione) then
+        if (iasim > 1) then
            stdev  = sqrt(stats(4,i)*stats(4,i)-stats(3,i)*stats(3,i))
         else
            stdev = zero
@@ -148,7 +148,7 @@ subroutine statsrad(aivals,stats,ndata)
         rpenal = aivals(40,i)
         cpen=zero
         qcpen=zero
-        if (iobs2 > izero) then
+        if (iobs2 > 0) then
            cpen=rpenal/aivals(38,i)
            qcpen=qcpenal/aivals(38,i)
         end if

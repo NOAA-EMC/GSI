@@ -47,7 +47,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !
-!   2011-08-01  lueken  - added module use deter_sfc_mod and removed _i_kind
+!   2011-08-01  lueken  - added module use deter_sfc_mod 
 !   input argument list:
 !     mype     - mpi task id
 !     val_ssmi - weighting factor applied to super obs

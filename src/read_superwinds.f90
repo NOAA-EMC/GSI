@@ -30,7 +30,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !                           rotation angles for a small number of winds whose rotation angle was interpolated
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
-!   2011-08-01  lueken  - add module use deter_sfc_mod, remove _i_kind, replace izero/ione with 0/1
+!   2011-08-01  lueken  - add module use deter_sfc_mod
 !
 !   input argument list:
 !     nread    - counter for all data on this pe

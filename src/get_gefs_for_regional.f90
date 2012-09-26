@@ -1629,9 +1629,12 @@ subroutine setup_ens_pwgt
 
 !!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
 !!!! weigh with balanced projection for pressure
+! jsw:  this won't work for dual resolution
+! since wgvk is defined on analysis grid (lon2,lat2)
+! and pwgt is defined on ensemble grid (grd_ens%lon2,grd_ens%lat2).
      pwgt=zero
-     do j=1,lon2
-        do i=1,lat2
+     do j=1,grd_ens%lon2
+        do i=1,grd_ens%lat2
            sum=zero
            do k=1,nsig
               sum=sum+wgvk(i,j,k)

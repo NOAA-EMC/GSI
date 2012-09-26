@@ -52,7 +52,7 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
 ! all entries are defined explicitly
 !==============================================
   use kinds, only: r_kind,i_kind
-  use constants, only: ione, zero, half
+  use constants, only: zero, half
   implicit none
 
 !==============================================
@@ -83,12 +83,12 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
   real(r_kind) cb_ad(km,ix)
   real(r_kind) cg_ad(km,ix)
   real(r_kind) db_ad(km,ix)
-  real(r_kind) dot_ad(km+ione,ix)
+  real(r_kind) dot_ad(km+1,ix)
   real(r_kind) cb(km,ix)
   real(r_kind) cg(km,ix)
   real(r_kind) db(km,ix)
   real(r_kind) dlam(ix)
-  real(r_kind) dot(km+ione,ix)
+  real(r_kind) dot(km+1,ix)
   real(r_kind) dphi(ix)
   integer(i_kind) i
   integer(i_kind) ip1
@@ -126,7 +126,7 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
 ! FUNCTION AND TAPE COMPUTATIONS
 !----------------------------------------------
   do i = 1, im
-     do k = 1, km+ione
+     do k = 1, km+1
         dot(k,i) = zero
      end do
   end do
@@ -144,20 +144,20 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
      cb(1,i) = del(1,i)*cg(1,i)
   end do
   do i = 1, im
-     do k = 1, km-ione
-        db(k+ione,i) = db(k,i)+del(k+ione,i)*div_i(k+ione,i)
-        cb(k+ione,i) = cb(k,i)+del(k+ione,i)*cg   (k+ione,i)
+     do k = 1, km-1
+        db(k+1,i) = db(k,i)+del(k+1,i)*div_i(k+1,i)
+        cb(k+1,i) = cb(k,i)+del(k+1,i)*cg   (k+1,i)
      end do
   end do
   do i = 1, im
-     do k = 1, km-ione
-        dot(k+ione,i) = dot(k,i)+del(k,i)*(db(km,i)+cb(km,i)-div_i(k,i)- &
+     do k = 1, km-1
+        dot(k+1,i) = dot(k,i)+del(k,i)*(db(km,i)+cb(km,i)-div_i(k,i)- &
              cg(k,i))
      end do
   end do
   do i = 1, im
      do k = 1, km
-        vvel_o(k,i) = sl(k,i)*(cg(k,i)-cb(km,i)-db(km,i))-half*(dot(k+ione, &
+        vvel_o(k,i) = sl(k,i)*(cg(k,i)-cb(km,i)-db(km,i))-half*(dot(k+1, &
              i)+dot(k,i))
         vvel_o(k,i) = vvel_o(k,i)*ps_i(i)
      end do
@@ -174,29 +174,29 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
         cb_ad(km,i) = cb_ad(km,i)-vvel_o_ad(k,i)*sl(k,i)
         cg_ad(k,i) = cg_ad(k,i)+vvel_o_ad(k,i)*sl(k,i)
         db_ad(km,i) = db_ad(km,i)-vvel_o_ad(k,i)*sl(k,i)
-        dot_ad(k+ione,i) = dot_ad(k+ione,i)-half*vvel_o_ad(k,i)
+        dot_ad(k+1,i) = dot_ad(k+1,i)-half*vvel_o_ad(k,i)
         dot_ad(k,i) = dot_ad(k,i)-half*vvel_o_ad(k,i)
         vvel_o_ad(k,i) = zero
      end do
   end do
   do i = 1, im
-     do k = km-ione, 1, -1
-        cb_ad(km,i) = cb_ad(km,i)+dot_ad(k+ione,i)*del(k,i)
-        cg_ad(k,i) = cg_ad(k,i)-dot_ad(k+ione,i)*del(k,i)
-        db_ad(km,i) = db_ad(km,i)+dot_ad(k+ione,i)*del(k,i)
-        div_i_ad(k,i) = div_i_ad(k,i)-dot_ad(k+ione,i)*del(k,i)
-        dot_ad(k,i) = dot_ad(k,i)+dot_ad(k+ione,i)
-        dot_ad(k+ione,i) = zero
+     do k = km-1, 1, -1
+        cb_ad(km,i) = cb_ad(km,i)+dot_ad(k+1,i)*del(k,i)
+        cg_ad(k,i) = cg_ad(k,i)-dot_ad(k+1,i)*del(k,i)
+        db_ad(km,i) = db_ad(km,i)+dot_ad(k+1,i)*del(k,i)
+        div_i_ad(k,i) = div_i_ad(k,i)-dot_ad(k+1,i)*del(k,i)
+        dot_ad(k,i) = dot_ad(k,i)+dot_ad(k+1,i)
+        dot_ad(k+1,i) = zero
      end do
   end do
   do i = 1, im
-     do k = km-ione, 1, -1
-        cg_ad(k+ione,i) = cg_ad(k+ione,i)+cb_ad(k+ione,i)*del(k+ione,i)
-        cb_ad(k,i) = cb_ad(k,i)+cb_ad(k+ione,i)
-        cb_ad(k+ione,i) = zero
-        div_i_ad(k+ione,i) = div_i_ad(k+ione,i)+db_ad(k+ione,i)*del(k+ione,i)
-        db_ad(k,i) = db_ad(k,i)+db_ad(k+ione,i)
-        db_ad(k+ione,i) = zero
+     do k = km-1, 1, -1
+        cg_ad(k+1,i) = cg_ad(k+1,i)+cb_ad(k+1,i)*del(k+1,i)
+        cb_ad(k,i) = cb_ad(k,i)+cb_ad(k+1,i)
+        cb_ad(k+1,i) = zero
+        div_i_ad(k+1,i) = div_i_ad(k+1,i)+db_ad(k+1,i)*del(k+1,i)
+        db_ad(k,i) = db_ad(k,i)+db_ad(k+1,i)
+        db_ad(k+1,i) = zero
      end do
   end do
   do i = 1, im

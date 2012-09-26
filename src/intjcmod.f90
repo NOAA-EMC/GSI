@@ -366,8 +366,10 @@ subroutine intjcpdry(rval,sval)
   call gsi_bundlegetpointer(rval,'ql',rql,istatus);iql=istatus+iql
   call gsi_bundlegetpointer(rval,'qi',rqi,istatus);iqi=istatus+iqi
   call gsi_bundlegetpointer(rval,'ps',rp, istatus);ier=istatus+ier
-  if (mype==0) write(6,*)'intjcpdry: checking ier+icw*(iql+iql)=', ier+icw*(iql+iql)
-  if(ier+icw*(iql+iql)/=0)return
+  if(ier+icw*(iql+iqi)/=0)then
+    if (mype==0) write(6,*)'intjcpdry: checking ier+icw*(iql+iqi)=', ier+icw*(iql+iqi)
+    return
+  end if
 
   dmass(1)=zero_quad
   rcon=one_quad/(two_quad*float(nlon))

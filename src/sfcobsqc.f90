@@ -94,7 +94,6 @@ subroutine init_rjlists
 !
 !$$$ end documentation block
 
-  use constants, only: izero,ione
   implicit none
 
 ! Declare passed variables
@@ -193,7 +192,7 @@ subroutine init_rjlists
     read(meso_unit,'(a5,a80)',end=181) csta_winduse(ncount),cstring
     goto 180
 181 continue
-    nsta_mesowind_use=ncount-ione
+    nsta_mesowind_use=ncount-1
     print*,'mesonet_stnuselist: nsta_mesowind_use=',nsta_mesowind_use
  endif
  close(meso_unit)
