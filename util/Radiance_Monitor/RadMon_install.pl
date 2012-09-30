@@ -196,5 +196,19 @@
    close $in;
    move "$radmon_config.new", $radmon_config;
 
+
+   # 
+   #   Update the default account settings in the data_map.xml file.
+   #
+   my $glbl_account = "GDAS_MTN";
+   my $rgnl_account = "RDAS_MTN";
+   if( $arch eq "linux" ) {
+      $glbl_account = "ada";
+      $rgnl_account = "ada";
+   }
+
+   `/usr/bin/perl ./image_gen/ush/update_data_map.pl ./parm/data_map.xml global_default account $glbl_account`; 
+   `/usr/bin/perl ./image_gen/ush/update_data_map.pl ./parm/data_map.xml regional_default account $rgnl_account`; 
+   
    exit 0;
 

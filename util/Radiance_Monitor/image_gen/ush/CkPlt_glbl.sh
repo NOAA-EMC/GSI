@@ -14,17 +14,21 @@
 
 
 function usage {
-  echo "Usage:  CkPlt_glbl.sh suffix"
+  echo "Usage:  CkPlt_glbl.sh suffix [plot_date]"
   echo "            File name for CkPlt_glbl.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
+  echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot" 
+  echo "              will be for the specified cycle, provided data files are available."
+  echo "              If not included, the plot cycle will be the imgdate (found in"
+  echo "              Radiance_Monitor/parm/data_map.xml) + 6 hrs"
 }
 
 set -ax
 echo start CkPlt_glbl.sh
 
 nargs=$#
-if [[ $nargs -ne 1 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
@@ -33,11 +37,16 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-#RUN_ENVIR=$2
 
 echo SUFFIX    = ${SUFFIX}
-#echo RUN_ENVIR = ${RUN_ENVIR}
 
+#--------------------------------------------------------------------
+#  Set plot_time if it is included as an argument.
+#--------------------------------------------------------------------
+plot_time=
+if [[ $nargs -eq 2 ]]; then
+   plot_time=$2
+fi
 
 #--------------------------------------------------------------------
 # Run config files to load environment variables, 
@@ -75,7 +84,8 @@ if [[ $MY_OS = "aix" ]]; then
    complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
    running=`expr $count - $complete`
 else
-   running=`qstat -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+#   running=`qstat -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+   running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
 fi
 
 if [[ $running -ne 0 ]]; then
@@ -103,11 +113,19 @@ mkdir -p $LOGDIR
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Exit if available data has already
 # been plotted ($PDATE -gt $PRODATE).
+#
+# If plot_time has been specified via command line argument, then 
+# set PDATE to it.  Otherwise, use the IMGDATE from the DATA_MAP file
+# and add 6 hrs to determine the next cycle.
 #--------------------------------------------------------------------
 export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
 
-export PDATE=`$NDATE +6 $IMGDATE`
+if [[ $plot_time != "" ]]; then
+   export PDATE=$plot_time
+else
+   export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
+   export PDATE=`$NDATE +6 $IMGDATE`
+fi
 
 echo $PRODATE  $PDATE
 
@@ -240,7 +258,13 @@ fi
 
 ${SCRIPTS}/mk_time_plots.sh
 
-${SCRIPTS}/plot_update.sh
+#------------------------------------------------------------------
+#  Run the plot_update.sh script if no $plot_time was specified on 
+#  the command line
+#------------------------------------------------------------------
+if [[ $plot_time = "" ]]; then
+   ${SCRIPTS}/plot_update.sh
+fi
 
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
