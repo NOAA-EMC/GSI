@@ -901,7 +901,7 @@
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((iuse_rad(m)>=0) .or. (sensor_passive .and. iuse_rad(m)==-1)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
