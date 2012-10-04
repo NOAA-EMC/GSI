@@ -218,6 +218,11 @@ contains
              dlat_e=dlat_e*rad2deg
              dlon_e=dlon_e*rad2deg
              if (dlon_e < zero) dlon_e = dlon_e + r360
+!>>emily
+             if (dlon_e < zero) dlon_e = dlon_e + r360
+             if (dlon_e > r360) dlon_e = dlon_e - r360
+             if (dlon_e > r360) dlon_e = dlon_e - r360
+!<<emily
              rlat_min = min(rlat_min,dlat_e)
              rlat_max = max(rlat_max,dlat_e)
              rlon_min = min(rlon_min,dlon_e)
