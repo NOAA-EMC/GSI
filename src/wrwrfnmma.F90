@@ -68,7 +68,7 @@ subroutine wrwrfnmma_binary(mype)
   real(r_single),allocatable::all_loc(:,:,:)
   integer(i_kind),allocatable::igtype(:),kdim(:),kord(:)
   integer(kind=mpi_offset_kind),allocatable::offset(:)
-  integer(kind=mpi_offset_kind) this_offset,offset_start_date
+  integer(kind=mpi_offset_kind) this_offset,offset_start_date,offset_nstart_hour
   integer(i_kind),allocatable::length(:)
   integer(i_kind) this_length,length_start_date
   character(6) filename
@@ -106,6 +106,7 @@ subroutine wrwrfnmma_binary(mype)
   real(r_single),allocatable:: pdbg0(:),tbg0(:,:),qbg0(:,:),cwmbg0(:,:),ubg0(:,:),vbg0(:,:)
   real(r_single),allocatable:: pdba0(:),tba0(:,:),qba0(:,:),cwmba0(:,:),uba0(:,:),vba0(:,:)
   integer(i_kind) bdim
+  integer(i_kind) nstart_hour
 
 !   1. get offsets etc only for records to be updated
 
@@ -191,6 +192,19 @@ subroutine wrwrfnmma_binary(mype)
   if(mype==0)  then
      call update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
      call mpi_file_write_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
+  end if
+
+!    update NSTART_HOUR for wrf restart file
+  read(lendian_in) n_position
+  offset_nstart_hour=n_position
+  if(offset_nstart_hour > 0)then
+     call mpi_file_read_at(mfcst,offset_nstart_hour,nstart_hour,1,mpi_integer4,status,ierror)
+     if(mype==0)print *,'nstart_hour=', nstart_hour
+     if(mype==0)  then
+        nstart_hour=ihour
+        print *,'new nstart_hour=', nstart_hour
+        call mpi_file_write_at(mfcst,offset_nstart_hour,nstart_hour,1,mpi_integer4,status,ierror)
+     end if
   end if
 
   if(mype==0) write(6,*)' in read_wrf_nmm_binary_guess, wrfanl=',trim(wrfanl)

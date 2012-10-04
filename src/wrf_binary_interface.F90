@@ -666,6 +666,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   integer(i_kind) nguess,istatus
+  integer(i_kind) nstart_hour
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   real(r_single) dy_nmm
   integer(i_kind) k,n
@@ -754,7 +755,18 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
           iyear,imonth,iday,ihour,iminute,isecond
      write(6,*)' convert_binary_nmm: nlon,lat,sig_regional=',&
           nlon_regional,nlat_regional,nsig_regional
-  
+
+!                  NSTART_HOUR
+     call retrieve_index(index,'NSTART_HOUR',varname_all,nrecs)
+     if(index<0)then
+        write(6,*)' ***WARNING*** NSTART_HOUR is not found, only need to be updated for WRF restart file'
+     else
+        call retrieve_field(in_unit,wrfges,nstart_hour,start_block(index+1),end_block(index+1), &
+                                  start_byte(index+1),end_byte(index+1))
+        write(6,*)' convert_binary_nmm: nstart_hour=',nstart_hour
+     end if 
+
+
 !                  dlmd_regional
      call retrieve_index(index,'DLMD',varname_all,nrecs)
      if(index<0) stop
@@ -930,6 +942,15 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      if(index<0) stop
      n_position=file_offset(index)
      write(lendian_out)n_position    ! offset for START_DATE record
+
+!      index for NSTART_HOUR record 
+     call retrieve_index(index,'NSTART_HOUR',varname_all,nrecs)
+     if(index<0)then
+        n_position=-99
+     else
+        n_position=file_offset(index+1)
+     end if
+     write(lendian_out)n_position    ! offset for NSTART_HOUR record
 
 !                  PD
      call retrieve_index(index,'PD',varname_all,nrecs)

@@ -214,6 +214,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         read(lendian_in) wrfges
         if(mype==0) write(6,*)' in read_wrf_nmm_binary_guess, wrfges=',trim(wrfges)
         read(lendian_in) ! n_position          !  offset for START_DATE record
+        read(lendian_in) ! n_position          !  offset for NSTART_HOUR record
         
         i=0
         i=i+1 ; i_pd=i                                                ! pd
