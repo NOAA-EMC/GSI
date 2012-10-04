@@ -184,7 +184,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      $TIMEX ${angle_exec} < input >   ${stdout_file}
+      $TIMEX ./${angle_exec} < input >   ${stdout_file}
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
