@@ -345,7 +345,7 @@ done
 #
 $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
 
-mk_intro.sh 
+./mk_intro.sh 
 
 
 #--------------------------------------------------------------
