@@ -197,9 +197,9 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
 
    if [[ $MY_OS = 'aix' ]]; then
-      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $10 "_" $11 }'`
+      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $10 "_" $11 }'`
    else
-      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | awk '{ print $11 "_" $12 }'`
+      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
    fi
    if [[ "$VERBOSE" = "YES" ]]; then
       echo $radstat_satype

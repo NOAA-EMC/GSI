@@ -79,7 +79,7 @@ done
 
 
 for sat in ${SATYPE}; do
-   nchanl=`cat ${imgndir}/${sat}.ctl | awk '/title/{print $NF}'`
+   nchanl=`cat ${imgndir}/${sat}.ctl | gawk '/title/{print $NF}'`
    if [[ $nchanl -ge 100 ]]; then
       bigSATLIST=" $sat $bigSATLIST "
    else         

@@ -266,9 +266,9 @@ extra='">'
 end_option='</OPTION>'
 
 while read line; do
-   sat=`echo $line | awk '{print $1}'`
-   ins=`echo $line | awk '{print $2}'`
-   satype=`echo $line | awk '{print $3}'`
+   sat=`echo $line | gawk '{print $1}'`
+   ins=`echo $line | gawk '{print $2}'`
+   satype=`echo $line | gawk '{print $3}'`
 
    hline='<OPTION VALUE="'
    hline=${hline}${satype}

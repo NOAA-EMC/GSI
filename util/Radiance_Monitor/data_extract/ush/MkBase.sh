@@ -184,14 +184,14 @@ for type in ${SATYPE}; do
    #  Get the number of channels for this $type
    #-------------------------------------------------------------------
    line=`cat ${type}.ctl | grep title`
-   nchan=`echo $line|awk '{print $4}'`
+   nchan=`echo $line|gawk '{print $4}'`
    echo channels = $nchan
 
    #-------------------------------------------------------------------
    #  Cut out the iuse flags from the ctl file and dump them
    #  into the channel.txt file for make_base executable to access
    #-------------------------------------------------------------------
-   awk '/iuse/{print $8}' ${type}.ctl >> channel.txt
+   gawk '/iuse/{print $8}' ${type}.ctl >> channel.txt
 
    #-------------------------------------------------------------------
    #  Copy the executable and run it 

@@ -142,7 +142,7 @@ PID="a"
 export PTYPE="obs cor obsges obsnbc"
 
 for sat in ${SATYPE}; do
-   nchanl=`cat ${sat}.ctl | awk '/title/{print $NF}'`
+   nchanl=`cat ${sat}.ctl | gawk '/title/{print $NF}'`
    if [[ $nchanl -ge 80 ]]; then
       bigSATLIST=" $sat $bigSATLIST "
    else
