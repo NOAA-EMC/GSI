@@ -17,6 +17,7 @@ module lag_traj
 ! module history log:
 !   2009-03-11  meunier
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic),
+!                         remove _i_kind, replace izero.ione with 0/1,
 !                         and remove double &
 !
 ! Subroutines Included: (public)

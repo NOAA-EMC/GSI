@@ -41,7 +41,7 @@ subroutine obs_para(ndata,mype)
 !
 !$$$
   use kinds, only: i_kind
-  use constants, only: zero
+  use constants, only: izero,ione,zero
   use jfunc, only: factqmin,factqmax
   use mpimod, only: npe
   use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1, &
@@ -63,11 +63,11 @@ subroutine obs_para(ndata,mype)
 ! Begin obs_para here
 !
 ! Distribute observations as a function of pe number.
-  nsat1=0
-  mype_diaghdr = -999
-  mm1=mype+1
-  ndatax_all=0
-  lunout=55
+  nsat1=izero
+  mype_diaghdr = -999_i_kind
+  mm1=mype+ione
+  ndatax_all=izero
+  lunout=55_i_kind
 
 !
 ! Set number of obs on each pe for each data type
@@ -75,7 +75,7 @@ subroutine obs_para(ndata,mype)
   rewind lunout
   do is=1,ndat
 
-     if(dtype(is) /= ' ' .and. ndata(is,1) > 0)then
+     if(dtype(is) /= ' ' .and. ndata(is,1) > izero)then
 
         ndatax_all=ndatax_all + ndata(is,1)
 
@@ -101,10 +101,10 @@ subroutine obs_para(ndata,mype)
 ! If there are no obs available, turn off moisture constraint.  
 ! If the user still wants the moisture constraint active when no obs are
 ! present, comment out the block of code below.
-  if (ndatax_all == 0) then
+  if (ndatax_all == izero) then
      factqmin=zero
      factqmax=zero
-     if (mype==0) write(6,*)'OBS_PARA:  ***WARNING*** no observations to be  ',&
+     if (mype==izero) write(6,*)'OBS_PARA:  ***WARNING*** no observations to be  ',&
           ' assimilated. reset factqmin,factqmax=',factqmin,factqmax
   endif
 
@@ -149,6 +149,7 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
   use mpimod, only: npe
   implicit none
@@ -178,14 +179,14 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   do k=1,npe
 
 !    ibw,ibe,ibs,ibn west,east,south and north boundaries of total region
-     ibw(k)=jstart(k)-1
-     ibe(k)=jstart(k)+jlon1(k)-1
-     ibs(k)=istart(k)-1
-     ibn(k)=istart(k)+ilat1(k)-1
+     ibw(k)=jstart(k)-ione
+     ibe(k)=jstart(k)+jlon1(k)-ione
+     ibs(k)=istart(k)-ione
+     ibn(k)=istart(k)+ilat1(k)-ione
 
   end do
 
-  lunin=11
+  lunin=11_i_kind
   open(lunin,file=obsfile,form='unformatted')
   read(lunin)obstype,isis,nreal,nchanl,lat_data,lon_data
   if(obstype /=obstypeall) &
@@ -200,26 +201,26 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
 
   allocate(luse(ndata),nprocs(ndata))
   luse=.false.
-  nprocs=999999
-  nobs_s=0
+  nprocs=999999_i_kind
+  nobs_s=izero
 
 ! Loop over all observations.  Locate each observation with respect
 ! to subdomains.
   do n=1,ndata
      lat=obs_data(lat_data,n)
-     lat=min(max(1,lat),nlat)
+     lat=min(max(ione,lat),nlat)
 
      klim=max(mm1,mype_diag)
      do k=1,klim
         if(lat>=ibs(k).and.lat<=ibn(k)) then
            lon=obs_data(lon_data,n)
-           lon=min(max(0,lon),nlon)
+           lon=min(max(izero,lon),nlon)
            if((lon >= ibw(k).and. lon <=ibe(k))  .or.  &
-              (lon == 0   .and. ibe(k) >=nlon) .or.  &
-              (lon == nlon    .and. ibw(k) <=1) .or. periodic_s(k)) then
-              nobs_s(k)=nobs_s(k)+1
+              (lon == izero   .and. ibe(k) >=nlon) .or.  &
+              (lon == nlon    .and. ibw(k) <=ione) .or. periodic_s(k)) then
+              nobs_s(k)=nobs_s(k)+ione
               nprocs(n)=min(nprocs(n),k)
-              mype_diag=min(mype_diag,k-1)
+              mype_diag=min(mype_diag,k-ione)
               if(k == mm1)luse(n)=.true.
            end if
         end if
@@ -228,14 +229,14 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   ndata_s = nobs_s(mm1)
      
 
-  if(ndata_s > 0)then
+  if(ndata_s > izero)then
      allocate(data1_s(nn_obs,ndata_s),luse_s(ndata_s))
-     ndatax=0
+     ndatax=izero
      do n=1,ndata
 
         if(luse(n))then
 
-           ndatax=ndatax+1
+           ndatax=ndatax+ione
            luse_s(ndatax)= mm1 == nprocs(n)
 
            do jj= 1,nn_obs
@@ -288,6 +289,7 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   use lag_fields, only: orig_lag_num
   implicit none
 
@@ -305,9 +307,9 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
   character(10):: obstype
   character(20):: isis
 
-  ndata_s=0
+  ndata_s=izero
 
-  lunin=11
+  lunin=11_i_kind
   open(lunin,file=obsfile,form='unformatted')
   read(lunin)obstype,isis,nreal,nchanl,num_data
   if(obstype /=obstypeall) &
@@ -330,22 +332,22 @@ subroutine dislag(ndata,mm1,lunout,obsfile,obstypeall,ndata_s)
 
 !    Does the observation belong to the subdomain for this task?
      num=int(obs_data(num_data,n),i_kind)  
-     if ((mm1-1)==orig_lag_num(num,2)) then
-        ndata_s=ndata_s+1
+     if ((mm1-ione)==orig_lag_num(num,2)) then
+        ndata_s=ndata_s+ione
         luse(n)=.true.
         luse_x(n)=.true.  ! Never on another subdomain
      end if
 
   end do use
 
-  if(ndata_s > 0)then
+  if(ndata_s > izero)then
      allocate(data1_s(nn_obs,ndata_s),luse_s(ndata_s))
-     ndatax=0
+     ndatax=izero
      do n=1,ndata
 
         if(luse(n))then
 
-           ndatax=ndatax+1
+           ndatax=ndatax+ione
            luse_s(ndatax)=luse_x(n)
  
            do jj= 1,nn_obs

@@ -205,6 +205,7 @@ subroutine sub2fslab(fsub,fslab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block\
+  use constants, only: ione,izero
   use fgrid2agrid_mod, only: agrid2fgrid
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -242,7 +243,7 @@ subroutine sub2fslab(fsub,fslab)
   work_slndt(:,:)=fsub(:,:,1)
   work_sicet(:,:)=fsub(:,:,1)
 
-  iflg=1
+  iflg=ione
   call sub2grid(hfine,work,work_sst,work_slndt,work_sicet,iflg)
 
   do k=1,nsig1o
@@ -281,6 +282,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use constants, only: ione,izero
   use patch2grid_mod, only: grid2patch
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -320,7 +322,7 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
   work_slndt(:,:)=fsub(:,:,1)
   work_sicet(:,:)=fsub(:,:,1)
 
-  iflg=1
+  iflg=ione
   call sub2grid(hfine,work,work_sst,work_slndt,work_sicet,iflg)
 
   do k=1,nsig1o
@@ -357,7 +359,7 @@ subroutine sub2fslabdz(fsub,fslab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: zero, one
+  use constants, only: ione,zero, one
   implicit none
 
 ! Declare passed variables
@@ -369,8 +371,8 @@ subroutine sub2fslabdz(fsub,fslab)
   integer(i_kind):: k,kp,km
 
   do k=1,nsig
-     km=max(1,k-1)
-     kp=min(nsig,k+1)
+     km=max(ione,k-ione)
+     kp=min(nsig,k+ione)
      if (twodvar_regional) then; dzi=zero
      else;                       dzi=one/real(kp-km,r_kind)
      end if
@@ -406,7 +408,7 @@ subroutine sub2fslabdz_glb(fsub,fslb0,fslb2,fslb3)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
-  use constants, only: one
+  use constants, only: ione,one
   implicit none
 
 ! Declare passed variables
@@ -420,8 +422,8 @@ subroutine sub2fslabdz_glb(fsub,fslb0,fslb2,fslb3)
   integer(i_kind):: k,kp,km
 
   do k=1,nsig
-     km=max(1,k-1)
-     kp=min(nsig,k+1)
+     km=max(ione,k-ione)
+     kp=min(nsig,k+ione)
      dzi=one/real(kp-km,r_kind)
      fsubdz(:,:,k)=dzi*(fsub(:,:,kp)-fsub(:,:,km))
   end do
@@ -458,6 +460,7 @@ subroutine sub2slab2d(fsub,slab)
 !   machine:  ibm RS/6000 SP
 !
 !$$$ end documentation block
+  use constants, only: ione,izero
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
@@ -494,7 +497,7 @@ subroutine sub2slab2d(fsub,slab)
   work_slndt(:,:)=fsub(:,:)
   work_sicet(:,:)=fsub(:,:)
 
-  iflg=1
+  iflg=ione
   call sub2grid(slab,work,work_sst,work_slndt,work_sicet,iflg)
 
   return

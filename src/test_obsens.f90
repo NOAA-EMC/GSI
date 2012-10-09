@@ -25,7 +25,7 @@ subroutine test_obsens(xincr,xsens)
 !$$$ end documentation block
 ! ------------------------------------------------------------------------------
 use kinds, only: i_kind,r_quad
-use constants, only: zero
+use constants, only: izero,ione,zero
 use jfunc, only: xhatsave
 use obsmod, only: lsaveobsens,l_do_adjoint
 use mpimod, only: mype
@@ -47,10 +47,10 @@ if (.not.(lobsensincr.or.iobsconv>0)) then
 end if
 
 ! Apply R^{-1} H and save output in obsdiags
-if (iobsconv>0) then
+if (iobsconv>izero) then
    lsaveobsens=.true.
    l_do_adjoint=.false.
-   nprt=1
+   nprt=ione
    lupdfgs=.false.
    call allocate_cv(gwork)
    gwork=zero
@@ -72,7 +72,7 @@ zx=dot_product(xincr,xincr,r_quad)
 zb=dot_product(xsens,xhatsave,r_quad)
 
 ! Observations impact validation
-if (mype==0) then
+if (mype==izero) then
    write(6,'(A)')'Incr sensitivity to obs. 0.123456789012345678'
    write(6,'(A,ES25.18)')'Incr sensit  <dF/dy,d>= ',zy
    write(6,'(A,ES25.18)')'Incr sensit  <b,dx>   = ',zb

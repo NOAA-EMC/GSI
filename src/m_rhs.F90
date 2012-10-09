@@ -78,7 +78,7 @@ contains
 subroutine rhs_alloc(aworkdim2)
   	! supporting information
   use kinds, only: i_kind
-  use constants, only: zero
+  use constants, only: zero,izero
 
   	! run-time dimensional information
   use obsmod  , only: ndat
@@ -131,7 +131,7 @@ _ENTRY_(myname_)
   rhs_stats_oz =zero
   rhs_toss_gps =zero
 
-  nchan_total      =0
+  nchan_total      =izero
 _EXIT_(myname_)
 end subroutine rhs_alloc
 

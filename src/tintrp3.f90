@@ -11,6 +11,7 @@ subroutine tintrp3(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
 !   1998-04-05  weiyu yang
 !   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
 !   2004-05-18  kleist, documentation
+!   2005-02-02  treadon - use ione from constants
 !   2008-04-03  safford - rm unused vars         
 !   2009-01-23  todling - dim on gridtime is nflds
 !
@@ -59,15 +60,15 @@ subroutine tintrp3(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
      dely=dy(i)-float(iy1)
      delz=dz(i)-float(iz)
      delx=max(zero,min(delx,one)); delz=max(zero,min(delz,one))
-     ix=ix1-istart(m1)+2
-     iy=iy1-jstart(m1)+2
+     ix=ix1-istart(m1)+2_i_kind
+     iy=iy1-jstart(m1)+2_i_kind
      if(iy<1) then
         iy1=iy1+nlon
-        iy=iy1-jstart(m1)+2
+        iy=iy1-jstart(m1)+2_i_kind
      end if
      if(iy>lon1+1) then
         iy1=iy1-nlon
-        iy=iy1-jstart(m1)+2
+        iy=iy1-jstart(m1)+2_i_kind
      end if
      ixp=ix+1; iyp=iy+1
      izp=min(iz+1,nsig)

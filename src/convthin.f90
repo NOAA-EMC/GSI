@@ -94,7 +94,7 @@ contains
     use_all=.false.
     if(abs(rmesh) <= one)then
        use_all=.true.
-       itxmax=2.e6
+       itxmax=2.e6_i_kind
        return
     end if
 
@@ -113,7 +113,7 @@ contains
     delat = dlat_grid/mlat
     delonx= dlon_grid/mlonx
     dgv  = delat*half
-    mlat=max(2,mlat);   mlonx=max(2,mlonx)
+    mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
 
     allocate(mlon(mlat),glat(mlat),glon(mlonx,mlat),hll(mlonx,mlat))
 
@@ -129,7 +129,7 @@ contains
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
           mlonj   = nint(mlonx*factor)	
-          mlon(j) = max(2,mlonj)
+          mlon(j) = max(2_i_kind,mlonj)
           delon = dlon_grid/mlon(j)
        else
           delon = factor*rmesh
