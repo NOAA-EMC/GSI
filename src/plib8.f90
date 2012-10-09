@@ -158,7 +158,7 @@ MODULE MODULE_pmat1
 
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants,only: izero,ione,zero,one
+use constants,only: zero,one
 IMPLICIT NONE
 
 ! set default to private
@@ -994,28 +994,28 @@ REAL(r_kind),    INTENT(INOUT) :: c(0:)
 INTEGER(i_kind)                :: m,mcp, j
 REAL(r_kind)                   :: s
 
-m=SIZE(a)-ione
+m=SIZE(a)-1
 mcp=mcmax(a,b,m)
 c(mcp:m) = zero
 DO j=mcp,1,-1
-   s = SUM(a(j-ione:0:-1)*b(0:j-ione))
-   c(j-ione)=s
+   s = SUM(a(j-1:0:-1)*b(0:j-1))
+   c(j-1)=s
 ENDDO
 RETURN
 ENTRY madpp(a,b,c)
-m=SIZE(a)-ione
+m=SIZE(a)-1
 mcp=mcmax(a,b,m)
 DO j=mcp,1,-1
-   s = SUM(a(j-ione:0:-1)*b(0:j-ione))
-   c(j-ione)=c(j-ione)+s
+   s = SUM(a(j-1:0:-1)*b(0:j-1))
+   c(j-1)=c(j-1)+s
 ENDDO
 RETURN
 ENTRY msbpp(a,b,c)
-m=SIZE(a)-ione
+m=SIZE(a)-1
 mcp=mcmax(a,b,m)
 DO j=mcp,1,-1
-   s = SUM(a(j-ione:0:-1)*b(0:j-ione))
-   c(j-ione)=c(j-ione)-s
+   s = SUM(a(j-1:0:-1)*b(0:j-1))
+   c(j-1)=c(j-1)-s
 ENDDO
 RETURN
 CONTAINS
@@ -1049,12 +1049,12 @@ REAL(r_kind),    INTENT(IN   ) :: a(0:m), b(0:m)
 INTEGER(i_kind)             :: mmx_res
 INTEGER(i_kind)             :: ma, mb
 
-mmx_res=izero                     ! default for when ALL elements of c are zero
+mmx_res=0                     ! default for when ALL elements of c are zero
 DO ma=m,0,-1                      ! seek last nonzero coefficient of polynomial a
    IF(a(ma) /= zero)THEN
       DO mb=m,0,-1                  ! seek last nonzero coefficient of polynomial b
          IF(b(mb) /= zero)THEN
-            mmx_res=MIN(m,ma+mb)+ione ! hence, 1+last non-0 element of their product
+            mmx_res=MIN(m,ma+mb)+1 ! hence, 1+last non-0 element of their product
             RETURN
          ENDIF
       ENDDO
@@ -1096,25 +1096,25 @@ REAL(r_kind), INTENT(  OUT) :: b(0:)
 INTEGER(i_kind)           :: m, i
 REAL(r_kind)              :: s, b0
 
-m=SIZE(a)-ione
+m=SIZE(a)-1
 DO i=1,m        ! possibly with coincident storage for a and b
-   b(i-ione)=i*a(i)
+   b(i-1)=i*a(i)
 ENDDO
 b(m)=zero
 RETURN
 ENTRY intp(a,b) ! Symbolically integrate polynomial
-m=SIZE(a)-ione
+m=SIZE(a)-1
 DO i=m,1,-1     ! possibly with coincident storage for a and b
-   b(i)=a(i-ione)/i
+   b(i)=a(i-1)/i
 ENDDO
 b(0)=zero
 RETURN
 ENTRY invp(a,b) ! Invert polynomial or power-series
-m=SIZE(a)-ione
+m=SIZE(a)-1
 b0=one/a(0)     ! storage of a and b must not be the same
 b(0)=b0
 DO i=1,m
-   s = SUM(b(i-ione:0:-1)*a(1:i))
+   s = SUM(b(i-1:0:-1)*a(1:i))
    b(i)=-b0*s
 ENDDO
 END SUBROUTINE difp
@@ -1152,28 +1152,28 @@ REAL(r_kind), INTENT(INOUT) :: c(0:)
 INTEGER(i_kind)            :: m,mcp, j
 REAL(r_kind)               :: s
 
-m=SIZE(a)-ione
+m=SIZE(a)-1
 mcp=mcmax(a,b,m)
 c(mcp:m) = zero
 DO j=mcp,1,-1
-   s = SUM(a(j-ione:0:-1)*b(0:j-ione))
-   c(j-ione)=s
+   s = SUM(a(j-1:0:-1)*b(0:j-1))
+   c(j-1)=s
 ENDDO
 RETURN
 ENTRY dmadpp(a,b,c)
-m=SIZE(a)-ione
+m=SIZE(a)-1
 mcp=mcmax(a,b,m)
 DO j=mcp,1,-1
-   s = SUM(a(j-ione:0:-1)*b(0:j-ione))
-   c(j-ione)=c(j-ione)+s
+   s = SUM(a(j-1:0:-1)*b(0:j-1))
+   c(j-1)=c(j-1)+s
 ENDDO
 RETURN
 ENTRY dmsbpp(a,b,c)
-m=SIZE(a)-ione
+m=SIZE(a)-1
 mcp=mcmax(a,b,m)
 DO j=mcp,1,-1
-   s = SUM(a(j-ione:0:-1)*b(0:j-ione))
-   c(j-ione)=c(j-ione)-s
+   s = SUM(a(j-1:0:-1)*b(0:j-1))
+   c(j-1)=c(j-1)-s
 ENDDO
 RETURN
 CONTAINS
@@ -1208,12 +1208,12 @@ REAL(r_kind)   ,  INTENT(IN   ) :: a(0:m), b(0:m)
 INTEGER(i_kind)              :: mmx_res
 INTEGER(i_kind)              :: ma, mb
 
-mmx_res=izero                     ! default for when all elements of c are zero
+mmx_res=0                     ! default for when all elements of c are zero
 DO ma=m,0,-1                      ! seek last nonzero coefficient of polynomial a
    IF(a(ma) /= zero)THEN
       DO mb=m,0,-1                  ! seek last nonzero coefficient of polynomial b
          IF(b(mb) /= zero)THEN
-            mmx_res=MIN(m,ma+mb)+ione ! hence, 1+last non-0 element of their product
+            mmx_res=MIN(m,ma+mb)+1 ! hence, 1+last non-0 element of their product
             RETURN
          ENDIF
       ENDDO
@@ -1258,25 +1258,25 @@ REAL(r_kind), INTENT(INOUT) :: b(0:)
 INTEGER(i_kind)            :: m, i
 REAL(r_kind)               :: s, b0
 
-m=SIZE(a)-ione
+m=SIZE(a)-1
 DO i=1,m         ! possibly with coincident storage for a and b
-   b(i-ione)=i*a(i)
+   b(i-1)=i*a(i)
 ENDDO
 b(m)=zero
 RETURN
 ENTRY dintp(a,b) ! Symbolically integrate polynomial
-m=SIZE(a)-ione
+m=SIZE(a)-1
 DO i=m,1,-1      ! possibly with coincident storage for a and b
-   b(i)=a(i-ione)/i
+   b(i)=a(i-1)/i
 ENDDO
 b(0)=zero
 RETURN
 ENTRY dinvp(a,b) ! Invert polynomial or power-series
-m=SIZE(a)-ione
+m=SIZE(a)-1
 b0=one/a(0)      ! storage of a and b must not be the same
 b(0)=b0
 DO i=1,m
-   s = SUM(b(i-ione:0:-1)*a(1:i))
+   s = SUM(b(i-1:0:-1)*a(1:i))
    b(i)=-b0*s
 ENDDO
 END SUBROUTINE ddifp
@@ -1379,23 +1379,23 @@ SUBROUTINE mulcc(a,b,c,m)
 implicit none
 
 INTEGER(i_kind), INTENT(IN   ) :: m
-REAL(r_kind)   , INTENT(INOUT) :: a(0:m-ione), b(0:m-ione), c(0:m-ione)
+REAL(r_kind)   , INTENT(INOUT) :: a(0:m-1), b(0:m-1), c(0:m-1)
 
 INTEGER(i_kind)                :: mm, j
 
-c(0:m-ione) = zero
+c(0:m-1) = zero
 ENTRY madcc(a,b,c,m)
-mm=m-ione
+mm=m-1
 DO j=0,mm
-   c(j:m-ione) = c(j:m-ione) + a(0:m-j-ione)*b(j)
-   c(0:j-ione) = c(0:j-ione) + a(m-j:m-ione)*b(j)
+   c(j:m-1) = c(j:m-1) + a(0:m-j-1)*b(j)
+   c(0:j-1) = c(0:j-1) + a(m-j:m-1)*b(j)
 ENDDO
 RETURN
 ENTRY msbcc(a,b,c,m)
-mm=m-ione
+mm=m-1
 DO j=0,mm
-   c(j:m-ione) = c(j:m-ione) - a(0:m-j-ione)*b(j)
-   c(0:j-ione) = c(0:j-ione) - a(m-j:m-ione)*b(j)
+   c(j:m-1) = c(j:m-1) - a(0:m-j-1)*b(j)
+   c(0:j-1) = c(0:j-1) - a(m-j:m-1)*b(j)
 ENDDO
 END SUBROUTINE mulcc
 
@@ -1427,23 +1427,23 @@ SUBROUTINE dmulcc(a,b,c,m)  ! Multiply circulant matrices of period M
 implicit none
 
 INTEGER(i_kind), INTENT(IN   ) :: m
-REAL(r_kind)   , INTENT(INOUT) :: a(0:m-ione), b(0:m-ione), c(0:m-ione)
+REAL(r_kind)   , INTENT(INOUT) :: a(0:m-1), b(0:m-1), c(0:m-1)
 
 INTEGER(i_kind)                :: mm, j
 
-c(0:m-ione) = zero
+c(0:m-1) = zero
 ENTRY dmadcc(a,b,c,m)
-mm=m-ione
+mm=m-1
 DO j=0,mm
-   c(j:m-ione) = c(j:m-ione) + a(0:m-j-ione)*b(j)
-   c(0:j-ione) = c(0:j-ione) + a(m-j:m-ione)*b(j)
+   c(j:m-1) = c(j:m-1) + a(0:m-j-1)*b(j)
+   c(0:j-1) = c(0:j-1) + a(m-j:m-1)*b(j)
 ENDDO
 RETURN
 ENTRY dmsbcc(a,b,c,m)
-mm=m-ione
+mm=m-1
 DO j=0,mm
-   c(j:m-ione) = c(j:m-ione) - a(0:m-j-ione)*b(j)
-   c(0:j-ione) = c(0:j-ione) - a(m-j:m-ione)*b(j)
+   c(j:m-1) = c(j:m-1) - a(0:m-j-1)*b(j)
+   c(0:j-1) = c(0:j-1) - a(m-j:m-1)*b(j)
 ENDDO
 END SUBROUTINE dmulcc
 
@@ -1477,10 +1477,10 @@ REAL(r_kind),INTENT(INOUT) :: a(:,:)
 
 INTEGER(i_kind)           :: m,j
 
-m=SIZE(a,1); DO j=1,m; a(j+ione:m,j) = zero; ENDDO; RETURN
+m=SIZE(a,1); DO j=1,m; a(j+1:m,j) = zero; ENDDO; RETURN
 
 ENTRY zeru(a)       ! Zero out the strictly upper triangle of elements
-m=SIZE(a,1); DO j=1,m; a(1:j-ione,j) = zero; ENDDO
+m=SIZE(a,1); DO j=1,m; a(1:j-1,j) = zero; ENDDO
 END SUBROUTINE zerl
 
 
@@ -1513,10 +1513,10 @@ REAL(r_kind),INTENT(INOUT) :: a(:,:)
 
 INTEGER(i_kind)           :: m,j
 
-m=SIZE(a,1); DO j=1,m; a(j+ione:m,j) = zero; ENDDO; RETURN
+m=SIZE(a,1); DO j=1,m; a(j+1:m,j) = zero; ENDDO; RETURN
 
 ENTRY dzeru(a)      ! Zero out the strictly upper triangle of elements
-m=SIZE(a,1); DO j=1,m; a(1:j-ione,j) = zero; ENDDO
+m=SIZE(a,1); DO j=1,m; a(1:j-1,j) = zero; ENDDO
 END SUBROUTINE dzerl
 
 
@@ -1569,8 +1569,8 @@ DO i=1,m
 ENDDO
 d=one
 ipiv(m)=m
-DO j=1,m-ione
-   jp=j+ione
+DO j=1,m-1
+   jp=j+1
    abig=s(j)*ABS(a(j,j))
    ibig=j
    DO i=jp,m
@@ -1589,7 +1589,7 @@ DO j=1,m-ione
    ENDIF
    ajj=a(j,j)
    IF(ajj == zero)THEN
-      jm=j-ione
+      jm=j-1
       PRINT '(" failure in ldum:"/" matrix singular, rank=",i3)',jm
       STOP
    ENDIF
@@ -1652,8 +1652,8 @@ DO i=1,m
 ENDDO
 d=one
 ipiv(m)=m
-DO j=1,m-ione
-   jp=j+ione
+DO j=1,m-1
+   jp=j+1
    abig=s(j)*ABS(a(j,j))
    ibig=j
    DO i=jp,m
@@ -1672,7 +1672,7 @@ DO j=1,m-ione
    ENDIF
    ajj=a(j,j)
    IF(ajj == zero)THEN
-      jm=j-ione
+      jm=j-1
       PRINT '(" Failure in dldum:"/" matrix singular, rank=",i3)',jm
       STOP
    ENDIF
@@ -1730,13 +1730,13 @@ DO k=1,mm !loop over columns of b
       l=ipiv(i)
       s=b(l,k)
       b(l,k)=b(i,k)
-      s = s - SUM(b(1:i-ione,k)*a(i,1:i-ione))
+      s = s - SUM(b(1:i-1,k)*a(i,1:i-1))
       b(i,k)=s
    ENDDO
    b(m,k)=b(m,k)/a(m,m)
-   DO i=m-ione,1,-1
+   DO i=m-1,1,-1
       aiii=one/a(i,i)
-      b(i,k) = b(i,k) - SUM(b(i+ione:m,k)*a(i,i+ione:m))
+      b(i,k) = b(i,k) - SUM(b(i+1:m,k)*a(i,i+1:m))
       b(i,k)=b(i,k)*aiii
    ENDDO
 ENDDO
@@ -1787,13 +1787,13 @@ DO k=1,mm !loop over columns of b
       l=ipiv(i)
       s=b(l,k)
       b(l,k)=b(i,k)
-      s = s - SUM(b(1:i-ione,k)*a(i,1:i-ione))
+      s = s - SUM(b(1:i-1,k)*a(i,1:i-1))
       b(i,k)=s
    ENDDO
    b(m,k)=b(m,k)/a(m,m)
-   DO i=m-ione,1,-1
+   DO i=m-1,1,-1
       aiii=one/a(i,i)
-      b(i,k) = b(i,k) - SUM(b(i+ione:m,k)*a(i,i+ione:m))
+      b(i,k) = b(i,k) - SUM(b(i+1:m,k)*a(i,i+1:m))
       b(i,k)=b(i,k)*aiii
    ENDDO
 ENDDO
@@ -1843,13 +1843,13 @@ DO i=1,m
    l=ipiv(i)
    s=b(l)
    b(l)=b(i)
-   s = s - SUM(b(1:i-ione)*a(i,1:i-ione))
+   s = s - SUM(b(1:i-1)*a(i,1:i-1))
    b(i)=s
 ENDDO
 b(m)=b(m)/a(m,m)
-DO i=m-ione,1,-1
+DO i=m-1,1,-1
    aiii=one/a(i,i)
-   b(i) = b(i) - SUM(b(i+ione:m)*a(i,i+ione:m))
+   b(i) = b(i) - SUM(b(i+1:m)*a(i,i+1:m))
    b(i)=b(i)*aiii
 ENDDO
 END SUBROUTINE udlmv
@@ -1898,13 +1898,13 @@ DO i=1,m
    l=ipiv(i)
    s=b(l)
    b(l)=b(i)
-   s = s - SUM(b(1:i-ione)*a(i,1:i-ione))
+   s = s - SUM(b(1:i-1)*a(i,1:i-1))
    b(i)=s
 ENDDO
 b(m)=b(m)/a(m,m)
-DO i=m-ione,1,-1
+DO i=m-1,1,-1
    aiii=one/a(i,i)
-   b(i) = b(i) - SUM(b(i+ione:m)*a(i,i+ione:m))
+   b(i) = b(i) - SUM(b(i+1:m)*a(i,i+1:m))
    b(i)=b(i)*aiii
 ENDDO
 END SUBROUTINE dudlmv
@@ -1947,7 +1947,7 @@ implicit none
 
 REAL(r_kind), INTENT(INOUT) :: w(:,:), ab(:)
 
-INTEGER(i_kind), PARAMETER  :: nit=20_i_kind
+INTEGER(i_kind), PARAMETER  :: nit=20
 REAL(r_kind)                :: d1(SIZE(w,1)), d2(SIZE(w,1)), &
                                w2(SIZE(w,1),SIZE(w,1)),v(SIZE(w,1))
 INTEGER(i_kind)             :: i, j, it, jt, ipiv(SIZE(w,1)), nc
@@ -2105,7 +2105,7 @@ implicit none
 
 REAL(r_kind), INTENT(INOUT) :: w(:,:), ab(:)
 
-INTEGER(i_kind), PARAMETER     :: nit=20_i_kind
+INTEGER(i_kind), PARAMETER     :: nit=20
 REAL(r_kind)                   :: d1(SIZE(w,1)), d2(SIZE(w,1)), &
                                   w2(SIZE(w,1),SIZE(w,1)),v(SIZE(w,1))
 INTEGER(i_kind)                :: i, j, it, jt, ipiv(SIZE(w,1)), nc
@@ -2452,8 +2452,8 @@ INTEGER(i_kind)             :: m,j, jm, jp, i
 REAL(r_kind)                :: s, bjji
 m=SIZE(a,1)
 DO j=1,m
-  jm=j-ione
-  jp=j+ione
+  jm=j-1
+  jp=j+1
   s = a(j,j) - SUM(b(j,1:jm)*b(j,1:jm))
   IF(S <= zero)THEN
     PRINT '(" L1LM detects non-positivity at diagonal index",i2)',J
@@ -2504,8 +2504,8 @@ REAL(r_kind) :: s, bjji
 
 m=SIZE(a,1)
 DO j=1,m
-   jm=j-ione
-   jp=j+ione
+   jm=j-1
+   jp=j+1
    s = a(j,j) - SUM(b(j,1:jm)*b(j,1:jm))
    IF(s <= zero)THEN
       PRINT '(" L1LM detects non-positivity at diagonal index",i2)',J
@@ -2558,8 +2558,8 @@ REAL(r_kind) :: bjji
 
 m=SIZE(a,1)
 DO j=1,m
-   jm=j-ione
-   jp=j+ione
+   jm=j-1
+   jp=j+1
    d(j)=a(j,j) - SUM(b(1:jm,j)*b(j,1:jm))
   
    b(j,j) = one
@@ -2613,7 +2613,7 @@ INTEGER(i_kind)             :: m,j, jm, jp, i
 REAL(r_kind)                :: bjji
 
 m=SIZE(a,1)
-DO j=1,m; jm=j-ione; jp=j+ione
+DO j=1,m; jm=j-1; jp=j+1
    d(j)=a(j,j) - SUM(b(1:jm,j)*b(j,1:jm))
    b(j,j) = one
    IF(d(j) == zero)THEN
@@ -2672,10 +2672,10 @@ CALL ldlm(a,a,d)
 !  DIAGONAL ELEMENTS), AND INVERT THE DIAGONAL PART OF A (ASSUMING
 !  ZERO OFF-DIAGONAL ELEMENTS). PUT TRANSPOSE OF LOWER, TIMES DIAGONAL,
 !  INTO UPPER PART OF A.
-DO k=1,m; kp=k+ione
+DO k=1,m; kp=k+1
    a(k,k)=one/d(k)
    DO i=kp,m
-      a(i,k) = a(i,k) + SUM(a(kp:i-ione,k)*a(i,kp:i-ione)) ! really??
+      a(i,k) = a(i,k) + SUM(a(kp:i-1,k)*a(i,kp:i-1)) ! really??
       a(i,k) =-a(i,k)
    ENDDO
 ENDDO
@@ -2684,15 +2684,15 @@ ENDDO
 !  TIMES THE DIAGONAL PART (ASSUMING ZERO OFF-DIAGS), TIMES THE LOWER
 !  PART. THIS PRODUCT IS THE SYMMETRIC INVERSE OF THE ORIGINAL B.
 DO i=2,m
-   a(1:i-ione,i) = a(i,1:i-ione) * a(i,i) ! Really?
+   a(1:i-1,i) = a(i,1:i-1) * a(i,i) ! Really?
 ENDDO
 DO i=1,m
-   ip=i+ione
-   DO j=1,i-ione
-      a(j,i) = a(j,i) + SUM(a(ip:ip+m-i-ione,i)*a(j,ip:ip+m-i-ione))
+   ip=i+1
+   DO j=1,i-1
+      a(j,i) = a(j,i) + SUM(a(ip:ip+m-i-1,i)*a(j,ip:ip+m-i-1))
       a(i,j) = a(j,i)
    ENDDO
-   a(i,i) = a(i,i) + SUM(a(ip:ip+m-i-ione,i)*a(i,ip:ip+m-i-ione))
+   a(i,i) = a(i,i) + SUM(a(ip:ip+m-i-1,i)*a(i,ip:ip+m-i-1))
 ENDDO
 END SUBROUTINE invh
 
@@ -2739,10 +2739,10 @@ CALL ldlm_d(a,a,d)
 !  ZERO OFF-DIAGONAL ELEMENTS). PUT TRANSPOSE OF LOWER, TIMES DIAGONAL,
 !  INTO UPPER PART OF A.
 DO k=1,m
-   kp=k+ione
+   kp=k+1
    a(k,k)=one/d(k)
    DO i=kp,m
-      a(i,k) = a(i,k) + SUM(a(kp:i-ione,k)*a(i,kp:i-ione)) ! really??
+      a(i,k) = a(i,k) + SUM(a(kp:i-1,k)*a(i,kp:i-1)) ! really??
       a(i,k) =-a(i,k)
    ENDDO
 ENDDO
@@ -2751,15 +2751,15 @@ ENDDO
 !  TIMES THE DIAGONAL PART (ASSUMING ZERO OFF-DIAGS), TIMES THE LOWER
 !  PART. THIS PRODUCT IS THE SYMMETRIC INVERSE OF THE ORIGINAL B.
 DO i=2,m
-   a(1:i-ione,i) = a(i,1:i-ione) * a(i,i) ! really?
+   a(1:i-1,i) = a(i,1:i-1) * a(i,i) ! really?
 ENDDO
 DO i=1,m
-   ip=i+ione
-   DO j=1,i-ione
-      a(j,i) = a(j,i) + SUM(a(ip:ip+m-i-ione,i)*a(j,ip:ip+m-i-ione))
+   ip=i+1
+   DO j=1,i-1
+      a(j,i) = a(j,i) + SUM(a(ip:ip+m-i-1,i)*a(j,ip:ip+m-i-1))
       a(i,j) = a(j,i)
    ENDDO
-   a(i,i) = a(i,i) + SUM(a(ip:ip+m-i-ione,i)*a(i,ip:ip+m-i-ione))
+   a(i,i) = a(i,i) + SUM(a(ip:ip+m-i-1,i)*a(i,ip:ip+m-i-1))
 ENDDO
 END SUBROUTINE dinvh
 
@@ -2796,10 +2796,10 @@ REAL(r_kind)                :: s
 
 m=SIZE(a,1)
 DO j=m,1,-1
-   a(1:j-ione,j) = zero
+   a(1:j-1,j) = zero
    a(j,j)=one/a(j,j)
-   DO i=j+ione,m
-      s = SUM(a(j:i-ione,j)*a(i,j:i-ione))
+   DO i=j+1,m
+      s = SUM(a(j:i-1,j)*a(i,j:i-1))
       a(i,j)=-a(i,i)*s
    ENDDO
 ENDDO
@@ -2836,10 +2836,10 @@ INTEGER(i_kind)             :: m,j, i
 REAL(r_kind)                :: s
 m=SIZE(a,1)
 DO j=m,1,-1
-   a(1:j-ione,j) = zero
+   a(1:j-1,j) = zero
    a(j,j)=one/a(j,j)
-   DO i=j+ione,m
-      s = SUM(a(j:i-ione,j)*a(i,j:i-ione))
+   DO i=j+1,m
+      s = SUM(a(j:i-1,j)*a(i,j:i-1))
       a(i,j)=-a(i,i)*s
    ENDDO
 ENDDO
@@ -2879,10 +2879,10 @@ REAL(r_kind), INTENT(INOUT):: u(:)
 
 INTEGER(i_kind)            :: m,i, j, jp
 
-DO i=1,SIZE(a,1);    u(i)=(u(i) - SUM(u(1:i-ione)*a(i,1:i-ione)))/a(i,i); ENDDO
+DO i=1,SIZE(a,1);    u(i)=(u(i) - SUM(u(1:i-1)*a(i,1:i-1)))/a(i,i); ENDDO
 RETURN
 ENTRY linuv(a,u); m=SIZE(a,1)
-DO j=m,1,-1; jp=j+ione; u(j)=(u(j) - SUM(a(jp:m,j)*u(jp:m)))  /a(j,j); ENDDO
+DO j=m,1,-1; jp=j+1; u(j)=(u(j) - SUM(a(jp:m,j)*u(jp:m)))  /a(j,j); ENDDO
 END SUBROUTINE linlv
 
 
@@ -2917,10 +2917,10 @@ REAL(r_kind), INTENT(INOUT) :: u(:)
 
 INTEGER(i_kind) :: m,i, j, jp
 
-DO i=1,SIZE(a,1); u(i)= (u(i) - SUM(u(1:i-ione)*a(i,1:i-ione)))/a(i,i); ENDDO
+DO i=1,SIZE(a,1); u(i)= (u(i) - SUM(u(1:i-1)*a(i,1:i-1)))/a(i,i); ENDDO
 RETURN
 ENTRY dlinuv(a,u); m=SIZE(a,1)
-DO j=m,1,-1; jp=j+ione; u(j) = (u(j) - SUM(a(jp:m,j)*u(jp:m)))/a(j,j); ENDDO
+DO j=m,1,-1; jp=j+1; u(j) = (u(j) - SUM(a(jp:m,j)*u(jp:m)))/a(j,j); ENDDO
 END SUBROUTINE dlinlv
 
 
@@ -2954,7 +2954,7 @@ INTEGER(i_kind), INTENT(IN   ) :: n       ! of N and output as B
 REAL(r_kind),    INTENT(IN   ) :: a(0:)
 REAL(r_kind),    INTENT(  OUT) :: b(0:)
 
-REAL(r_kind),DIMENSION(0:SIZE(a)-ione):: t; INTEGER(i_kind) :: k
+REAL(r_kind),DIMENSION(0:SIZE(a)-1):: t; INTEGER(i_kind) :: k
 
 b(0)=one; b(1:) = zero; DO k=1,n; CALL mulpp(a,b,t); b=t; ENDDO
 END SUBROUTINE powp
@@ -2990,7 +2990,7 @@ INTEGER(i_kind), INTENT(IN   ) :: n      ! of N and output as B
 REAL(r_kind)   , INTENT(IN   ) :: a(0:)
 REAL(r_kind)   , INTENT(  OUT) :: b(0:)
 
-REAL(r_kind),DIMENSION(0:SIZE(a)-ione):: t; INTEGER(i_kind) :: k
+REAL(r_kind),DIMENSION(0:SIZE(a)-1):: t; INTEGER(i_kind) :: k
 
 B(0)=one; b(1:) = zero; DO k=1,n; CALL mulpp_d(a,b,t); b=t; ENDDO
 END SUBROUTINE dpowp
@@ -3028,7 +3028,7 @@ REAL(r_kind),INTENT(  OUT) :: s2
 
 INTEGER(i_kind) m,k
 
-m=SIZE(a)-ione; s2=a(m); DO k=m-ione,0,-1; s2=s2*s1+a(k); ENDDO
+m=SIZE(a)-1; s2=a(m); DO k=m-1,0,-1; s2=s2*s1+a(k); ENDDO
 END SUBROUTINE polps
 
 
@@ -3064,7 +3064,7 @@ REAL(r_kind),INTENT(  OUT) :: s2
 
 INTEGER(i_kind) m,k
 
-m=SIZE(a)-ione; s2=a(m); DO k=m-ione,0,-1; s2=s2*s1+a(k); ENDDO
+m=SIZE(a)-1; s2=a(m); DO k=m-1,0,-1; s2=s2*s1+a(k); ENDDO
 END SUBROUTINE dpolps
 
 
@@ -3096,11 +3096,11 @@ implicit none
 
 REAL(r_kind),INTENT(INOUT) :: a(0:),b(0:),c(0:)
 
-REAL(r_kind),DIMENSION(0:SIZE(a)-ione):: t
+REAL(r_kind),DIMENSION(0:SIZE(a)-1):: t
 INTEGER(i_kind) m,k
 
-m=SIZE(a)-ione; c(0)=a(m); c(1:m) = zero
-DO k=m-ione,0,-1; CALL mulpp(b,c,t); c=t; c(0)=c(0)+a(k); ENDDO
+m=SIZE(a)-1; c(0)=a(m); c(1:m) = zero
+DO k=m-1,0,-1; CALL mulpp(b,c,t); c=t; c(0)=c(0)+a(k); ENDDO
 END SUBROUTINE polpp
 
 
@@ -3132,12 +3132,12 @@ implicit none
 
 REAL(r_kind),INTENT(INOUT) :: a(0:),b(0:),c(0:)
 
-REAL(r_kind),DIMENSION(0:SIZE(a)-ione):: t
+REAL(r_kind),DIMENSION(0:SIZE(a)-1):: t
 INTEGER(i_kind) m,k
 
-m=SIZE(a)-ione
+m=SIZE(a)-1
 c(0)=a(m); c(1:m) = zero
-DO k=m-ione,0,-1; CALL mulpp_d(b,c,t); c=t; c(0)=c(0)+a(k); ENDDO
+DO k=m-1,0,-1; CALL mulpp_d(b,c,t); c=t; c(0)=c(0)+a(k); ENDDO
 END SUBROUTINE dpolpp
 
 
@@ -3243,23 +3243,23 @@ CALL ldum(a,ipiv,d)
 
 ! Invert upper triangular portion U in place:
 DO i=1,m; a(i,i)=one/a(i,i); ENDDO
-DO i=1,m-ione
-   DO j=i+ione,m; a(i,j)=-a(j,j)*DOT_PRODUCT(a(i:j-ione,j),a(i,i:j-ione)); ENDDO
+DO i=1,m-1
+   DO j=i+1,m; a(i,j)=-a(j,j)*DOT_PRODUCT(a(i:j-1,j),a(i,i:j-1)); ENDDO
 ENDDO
 
 ! Invert lower triangular portion L in place:
-DO j=1,m-ione; jp=j+ione
-   DO i=jp,m; a(i,j)=-a(i,j)-DOT_PRODUCT(a(jp:i-ione,j),a(i,jp:i-ione)); ENDDO
+DO j=1,m-1; jp=j+1
+   DO i=jp,m; a(i,j)=-a(i,j)-DOT_PRODUCT(a(jp:i-1,j),a(i,jp:i-1)); ENDDO
 ENDDO
 
 !  Form the product of U**-1 and L**-1 in place
-DO j=1,m-ione; jp=j+ione
+DO j=1,m-1; jp=j+1
    DO i=1,j; a(i,j)=a(i,j)+DOT_PRODUCT(a(jp:m,j),a(i,jp:m)); ENDDO
    DO i=jp,m; a(i,j)=DOT_PRODUCT(a(i:m,j),a(i,i:m));         ENDDO
 ENDDO
 
 !  Permute columns according to ipiv
-DO j=m-ione,1,-1; l=ipiv(j); CALL swpvv(a(:,j),a(:,l)); ENDDO
+DO j=m-1,1,-1; l=ipiv(j); CALL swpvv(a(:,j),a(:,l)); ENDDO
 END SUBROUTINE invmt
 
 
@@ -3301,23 +3301,23 @@ CALL ldum_d(a,ipiv,d)
 
 ! Invert upper triangular portion U in place:
 DO i=1,m; a(i,i)=one/a(i,i); ENDDO
-DO i=1,m-ione
-   DO j=i+ione,m; a(i,j)=-a(j,j)*DOT_PRODUCT(a(i:j-ione,j),a(i,i:j-ione)); ENDDO
+DO i=1,m-1
+   DO j=i+1,m; a(i,j)=-a(j,j)*DOT_PRODUCT(a(i:j-1,j),a(i,i:j-1)); ENDDO
 ENDDO
 
 ! Invert lower triangular portion L in place:
-DO j=1,m-ione; jp=j+ione
-   DO i=jp,m; a(i,j)=-a(i,j)-DOT_PRODUCT(a(jp:i-ione,j),a(i,jp:i-ione)); ENDDO
+DO j=1,m-1; jp=j+1
+   DO i=jp,m; a(i,j)=-a(i,j)-DOT_PRODUCT(a(jp:i-1,j),a(i,jp:i-1)); ENDDO
 ENDDO
 
 !  Form the product of U**-1 and L**-1 in place
-DO j=1,m-ione; jp=j+ione
+DO j=1,m-1; jp=j+1
    DO i=1,j; a(i,j)=a(i,j)+DOT_PRODUCT(a(jp:m,j),a(i,jp:m)); ENDDO
    DO i=jp,m; a(i,j)=DOT_PRODUCT(a(i:m,j),a(i,i:m));         ENDDO
 ENDDO
 
 !  Permute columns according to ipiv
-DO j=m-ione,1,-1; l=ipiv(j); CALL swpvv_d(a(:,j),a(:,l)); ENDDO
+DO j=m-1,1,-1; l=ipiv(j); CALL swpvv_d(a(:,j),a(:,l)); ENDDO
 END SUBROUTINE dinvmt
 
 
@@ -3572,7 +3572,7 @@ MODULE MODULE_pmat2
 USE MODULE_pmat1
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: izero,ione,zero,one,two
+use constants, only: zero,one,two
 IMPLICIT NONE
 
 ! set default to private
@@ -3768,7 +3768,7 @@ REAL(r_kind),DIMENSION(na)         :: za0,pa
 REAL(r_kind),DIMENSION(nb)         :: zb0,pb
 REAL(r_kind),DIMENSION(na+nb)      :: ab
 !=============================================================================
-na1=na+ione; nab=na+nb
+na1=na+1; nab=na+nb
 za0=za-z0  ; zb0=zb-z0
 pa=one;     pb=-one
 w=zero;     ab=zero
@@ -3825,7 +3825,7 @@ REAL(r_kind), DIMENSION(na)         :: za0,pa
 REAL(r_kind), DIMENSION(nb)         :: zb0,pb
 REAL(r_kind), DIMENSION(na+nb)      :: ab
 !=============================================================================
-na1=na+ione; nab=na+nb
+na1=na+1; nab=na+nb
 za0=za-z0  ; zb0=zb-z0
 pa=one;     pb=-one
 w=zero;     ab=zero
@@ -3882,12 +3882,12 @@ REAL(r_kind), DIMENSION(na)         :: za0,pa
 REAL(r_kind), DIMENSION(nb)         :: zb0,pb
 REAL(r_kind), DIMENSION(na+nb)      :: ab
 !=============================================================================
-na1=na+ione; nab=na+nb
+na1=na+1; nab=na+nb
 za0=za-z0  ; zb0=zb-z0
 pa=one;     pb=-one
 w=zero;     ab=zero
 w(1,1:na)=one; ab(1)=one
-DO i=3,nab; w(i,1:na)   =pa*(i-2_i_kind); pa=pa*za0; ENDDO
+DO i=3,nab; w(i,1:na)   =pa*(i-2); pa=pa*za0; ENDDO
 DO i=2,nab; w(i,na1:nab)=pb;              pb=pb*zb0; ENDDO
 CALL inv_d(w,ab)
 a=ab(1:na); b=ab(na1:nab)
@@ -3940,12 +3940,12 @@ REAL(r_kind), DIMENSION(na)         :: za0,pa
 REAL(r_kind), DIMENSION(nb)         :: zb0,pb
 REAL(r_kind), DIMENSION(na+nb)      :: ab
 !=============================================================================
-na1=na+ione; nab=na+nb
+na1=na+1; nab=na+nb
 za0=za-z0  ; zb0=zb-z0
 pa=one;     pb=-one
 w=zero;     ab=zero
 w(1,1:na)=one; ab(1)=one
-DO i=3,nab; w(i,1:na)   =pa*(i-2_i_kind); pa=pa*za0; ENDDO
+DO i=3,nab; w(i,1:na)   =pa*(i-2); pa=pa*za0; ENDDO
 DO i=2,nab; w(i,na1:nab)=pb;              pb=pb*zb0; ENDDO
 CALL inv(w,ab)
 a=ab(1:na); b=ab(na1:nab)
@@ -3997,12 +3997,12 @@ REAL(r_kind), DIMENSION(na)         :: za0,pa
 REAL(r_kind), DIMENSION(nb)         :: zb0,pb
 REAL(r_kind), DIMENSION(na+nb)      :: ab
 !=============================================================================
-na1=na+ione; nab=na+nb
+na1=na+1; nab=na+nb
 za0=za-z0  ; zb0=zb-z0
 pa=one;     pb=-one
 w=zero;     ab=zero
 w(1,1:na)=one; ab(1)=one
-DO i=4,nab; w(i,1:na)   =pa*(i-2_i_kind)*(i-3_i_kind); pa=pa*za0; ENDDO
+DO i=4,nab; w(i,1:na)   =pa*(i-2)*(i-3); pa=pa*za0; ENDDO
 DO i=2,nab; w(i,na1:nab)=pb;                           pb=pb*zb0; ENDDO
 CALL inv_d(w,ab)
 a=ab(1:na); b=ab(na1:nab)
@@ -4054,12 +4054,12 @@ REAL(r_kind), DIMENSION(na)         :: za0,pa
 REAL(r_kind), DIMENSION(nb)         :: zb0,pb
 REAL(r_kind), DIMENSION(na+nb)      :: ab
 !=============================================================================
-na1=na+ione; nab=na+nb
+na1=na+1; nab=na+nb
 za0=za-z0  ; zb0=zb-z0
 pa=one;     pb=-one
 w=zero;     ab=zero
 w(1,1:na)=one; ab(1)=one
-DO i=4,nab; w(i,1:na)   =pa*(i-2_i_kind)*(i-3_i_kind); pa=pa*za0; ENDDO
+DO i=4,nab; w(i,1:na)   =pa*(i-2)*(i-3); pa=pa*za0; ENDDO
 DO i=2,nab; w(i,na1:nab)=pb;                           pb=pb*zb0; ENDDO
 CALL inv(w,ab)
 a=ab(1:na); b=ab(na1:nab)
@@ -4098,8 +4098,8 @@ REAL(r_kind)   , INTENT(INOUT) :: a(m1,-mah1:mah2)
 
 INTEGER(i_kind)                :: j
 
-IF(m2-m1+mah1 < izero)STOP 'In CLIB, form of band matrix implies redundant rows'
-DO j=1,mah1; a(1:min(m1,j),-j)=zero; ENDDO; DO j=m2-m1+ione,mah2; a(max(ione,m2-j+ione):m1,j)=zero; ENDDO
+IF(m2-m1+mah1 < 0)STOP 'In CLIB, form of band matrix implies redundant rows'
+DO j=1,mah1; a(1:min(m1,j),-j)=zero; ENDDO; DO j=m2-m1+1,mah2; a(max(1,m2-j+1):m1,j)=zero; ENDDO
 END SUBROUTINE clib
 
 
@@ -4135,8 +4135,8 @@ REAL(r_kind)   , INTENT(INOUT) :: a(m1,-mah1:mah2)
 
 INTEGER(i_kind)                :: j
 
-IF(m2-m1+mah1 < izero)STOP 'In CLIB_d, form of band matrix implies redundant rows'
-DO j=1,mah1; a(1:min(m1,j),-j)=zero; ENDDO; DO j=m2-m1+ione,mah2; a(max(ione,m2-j+ione):m1,j)=zero; ENDDO
+IF(m2-m1+mah1 < 0)STOP 'In CLIB_d, form of band matrix implies redundant rows'
+DO j=1,mah1; a(1:min(m1,j),-j)=zero; ENDDO; DO j=m2-m1+1,mah2; a(max(1,m2-j+1):m1,j)=zero; ENDDO
 END SUBROUTINE dclib
 
 
@@ -4172,12 +4172,12 @@ SUBROUTINE cad1b(a,m1,mah1,mah2,mirror2)
 implicit none
 
 INTEGER(i_kind),  INTENT(IN   ) :: m1,mah1,mah2,mirror2
-REAL(r_kind),     INTENT(INOUT) :: a(0:m1-ione,-mah1:mah2)
+REAL(r_kind),     INTENT(INOUT) :: a(0:m1-1,-mah1:mah2)
 
 INTEGER(i_kind)                :: i,i2,jm,jp,jpmax
 
 IF(mirror2+mah1 > mah2)STOP 'In cad1b, mah2 insufficient'
-DO i=0,m1-ione; i2=i*2; jpmax=mirror2+mah1-i2; IF(jpmax <= -mah1)EXIT
+DO i=0,m1-1; i2=i*2; jpmax=mirror2+mah1-i2; IF(jpmax <= -mah1)EXIT
    DO jm=-mah1,mah2; jp=mirror2-jm-i2; IF(jp <= jm)EXIT
       a(i,jp)=a(i,jp)+a(i,jm) ! Reflect and add
       a(i,jm)=zero            ! zero the exterior part
@@ -4189,7 +4189,7 @@ ENTRY     csb1b(a,m1,mah1,mah2,mirror2)
 !=============================================================================
 ! Like cad1b, but for antisymmetric operand
 IF(mirror2+mah1 > mah2)STOP 'In csb1b, mah2 insufficient'
-DO i=0,m1-ione; i2=i*2; jpmax=mirror2+mah1-i2; IF(jpmax < -mah1)EXIT
+DO i=0,m1-1; i2=i*2; jpmax=mirror2+mah1-i2; IF(jpmax < -mah1)EXIT
    DO jm=-mah1,mah2; jp=mirror2-jm-i2; IF(jp < jm)EXIT
       a(i,jp)=a(i,jp)-a(i,jm) ! Reflect and subtract
       a(i,jm)=zero            ! zero the exterior part
@@ -4229,13 +4229,13 @@ SUBROUTINE cad2b(a,m1,m2,mah1,mah2,mirror2)
 implicit none
 
 INTEGER(i_kind),  INTENT(IN   ) :: m1,m2,mah1,mah2,mirror2
-REAL(r_kind),     INTENT(INOUT) :: a(ione-m1:0,m1-m2-mah1:m1-m2+mah2)
+REAL(r_kind),     INTENT(INOUT) :: a(1-m1:0,m1-m2-mah1:m1-m2+mah2)
 
 INTEGER(i_kind)                :: i,i2,jm,jp,jmmin,nah1,nah2,mirror,j0
 
 nah1=mah1+m2-m1; nah2=mah2+m1-m2 ! Effective 2nd-index bounds of A
 IF(mirror2-nah1 > -nah2)STOP 'In cad2b, mah1 insufficient'
-DO i=0,ione-m1,-1; i2=i*2; jmmin=mirror2-nah2-i2; IF(jmmin >= nah2)EXIT
+DO i=0,1-m1,-1; i2=i*2; jmmin=mirror2-nah2-i2; IF(jmmin >= nah2)EXIT
    DO jp=nah2,nah1,-1; jm=mirror2-jp-i2; IF(jm >= jp)EXIT
       a(i,jm)=a(i,jm)+a(i,jp) ! Reflect and add
       a(i,jp)=zero            ! zero the exterior part
@@ -4247,7 +4247,7 @@ ENTRY    csb2b(a,m1,m2,mah1,mah2,mirror2)
 !=============================================================================
 nah1=mah1+m2-m1; nah2=mah2+m1-m2 ! Effective 2nd-index bounds of A
 IF(mirror2-nah1 > -nah2)STOP 'In csb2b, mah1 insufficient'
-DO i=0,ione-m1,-1; i2=i*2; jmmin=mirror2-nah2-i2; IF(jmmin > nah2)EXIT
+DO i=0,1-m1,-1; i2=i*2; jmmin=mirror2-nah2-i2; IF(jmmin > nah2)EXIT
    DO jp=nah2,nah1,-1; jm=mirror2-jp-i2; IF(jm > jp)EXIT
       a(i,jm)=a(i,jm)-a(i,jp) ! Reflect and subtract
       a(i,jp)=zero            ! zero the exterior part
@@ -4260,7 +4260,7 @@ nah1=mah1+m2-m1; nah2=mah2+m1-m2 ! Effective 2nd-index bounds of A
 IF(mirror2-nah1 > -nah2)STOP 'In cex2b, mah1 insufficient'
 mirror=mirror2/2
 IF(mirror*2 /= mirror2)STOP 'In cex2b, mirror2 is not even'
-DO i=0,ione-m1,-1; i2=i*2; jmmin=mirror2-nah2-i2; IF(jmmin >= nah2)EXIT
+DO i=0,1-m1,-1; i2=i*2; jmmin=mirror2-nah2-i2; IF(jmmin >= nah2)EXIT
    j0=mirror-i
    DO jp=nah2,nah1,-1; jm=mirror2-jp-i2; IF(jm >= jp)EXIT
       a(i,jm)=a(i,jm)-a(i,jp)    ! Reflect and subtract
@@ -4312,13 +4312,13 @@ INTEGER(i_kind)                 :: j, i
 
 CALL clib(b,mah2,mah1,m2,m1)
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); b(j+i,-j)=a(i,j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); b(j+i,-j)=a(i,j); ENDDO
 ENDDO
 RETURN
 ENTRY	 conbt(a,b,m1,m2,mah1,mah2)
 CALL clib(b,mah2,mah1,m2,m1)
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); b(j+i,-j)=-a(i,j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); b(j+i,-j)=-a(i,j); ENDDO
 ENDDO
 END SUBROUTINE copbt
 
@@ -4358,7 +4358,7 @@ REAL(r_kind),     DIMENSION(m1,-mah1:mah2),INTENT(  OUT) :: aband
 INTEGER(i_kind)                                          :: i1,i2, i, j
 
 CALL clib(aband,m1,m2,mah1,mah2)
-DO j=1,m1; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=1,m1; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    DO i=i1,i2; aband(i,j)= afull(i,j+i); ENDDO
 ENDDO
 RETURN
@@ -4366,7 +4366,7 @@ RETURN
 ENTRY      conmb(afull,aband,m1,m2,mah1,mah2)
 !=============================================================================
 CALL clib(aband,m1,m2,mah1,mah2)
-DO j=1,m1; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=1,m1; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    DO i=i1,i2; aband(i,j)=-afull(i,j+i); ENDDO
 ENDDO
 END SUBROUTINE copmb
@@ -4407,7 +4407,7 @@ REAL(r_kind),     DIMENSION(m1,m2),        INTENT(  OUT) :: afull
 INTEGER(i_kind)                                          :: i1,i2, i, j
 
 afull=zero
-DO j=1,m1; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=1,m1; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    DO i=i1,i2; afull(i,j+i)= aband(i,j); ENDDO
 ENDDO
 RETURN
@@ -4415,7 +4415,7 @@ RETURN
 ENTRY      conbm(aband,afull,m1,m2,mah1,mah2)
 !=============================================================================
 afull=zero
-DO j=1,m1; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=1,m1; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    DO i=i1,i2; afull(i,j+i)=-aband(i,j); ENDDO
 ENDDO
 END SUBROUTINE copbm
@@ -4462,7 +4462,7 @@ ENTRY      madbb(a,b,c,m1,m2,mah1,mah2,mbh1,mbh2,mch1,mch2)
 nch1=mah1+mbh1; nch2=mah2+mbh2
 IF(nch1 /= mch1 .OR. nch2 /= mch2)STOP 'In MULBB, dimensions inconsistent'
 DO j=-mah1,mah2
-   DO k=-mbh1,mbh2; jpk=j+k; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+   DO k=-mbh1,mbh2; jpk=j+k; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
       c(i1:i2,jpk)=c(i1:i2,jpk)+a(i1:i2,j)*b(j+i1:j+i2,k)
    ENDDO
 ENDDO
@@ -4507,7 +4507,7 @@ INTEGER(i_kind)                 :: nch1, nch2, j, k, jpk, i1,i2
 nch1=mah1+mbh1; nch2=mah2+mbh2
 IF(nch1 /= mch1 .OR. nch2 /= mch2)STOP 'In MSBBB, dimensions inconsistent'
 DO j=-mah1,mah2
-   DO k=-mbh1,mbh2; jpk=j+k; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+   DO k=-mbh1,mbh2; jpk=j+k; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
       c(i1:i2,jpk)=c(i1:i2,jpk)-a(i1:i2,j)*b(j+i1:j+i2,k)
    ENDDO
 ENDDO
@@ -4561,7 +4561,7 @@ REAL(r_kind)                  :: ajj, ajji, aij
 DO j=1,m
    imost=MIN(m,j+mah1)
    jmost=MIN(m,j+mah2)
-   jp=j+ione
+   jp=j+1
    ajj=a(j,0)
    IF(ajj == zero)THEN
       PRINT '(" Failure in LDUB:"/" Matrix requires pivoting or is singular")'
@@ -4615,7 +4615,7 @@ REAL(r_kind)                   :: ajj, ajji, aij
 DO j=1,m
    imost=MIN(m,j+mah1)
    jmost=MIN(m,j+mah2)
-   jp=j+ione
+   jp=j+1
    ajj=a(j,0)
    IF(ajj == zero)THEN
       PRINT '(" Fails in LDUB_d:"/" Matrix requires pivoting or is singular")'
@@ -4681,8 +4681,8 @@ REAL(r_kind)                   :: ajj, ajji, aij
 DO j=1,m
    imost=MIN(m,j+mah1)
    jmost=MIN(m,j+mah2)
-   jleast=MAX(ione,j-mah1)
-   jp=j+ione
+   jleast=MAX(1,j-mah1)
+   jp=j+1
    ajj=a(j,0)
    IF(ajj == zero)STOP 'failure in L1UBB'
    ajji=one/ajj
@@ -4746,8 +4746,8 @@ REAL(r_kind)                   :: ajj, ajji, aij
 DO j=1,m
    imost=MIN(m,j+mah1)
    jmost=MIN(m,j+mah2)
-   jleast=MAX(ione,j-mah1)
-   jp=j+ione
+   jleast=MAX(1,j-mah1)
+   jp=j+1
    ajj=a(j,0)
    IF(ajj == zero)STOP 'failure in DL1UBB'
    AJJI=one/AJJ
@@ -4815,8 +4815,8 @@ REAL(r_kind)    :: ajj, ajji, aij
 DO j=1,m
    imost=MIN(m,j+mah1)
    jmost=MIN(m,j+mah2)
-   jleast=MAX(izero,j-mah1)
-   jp=j+ione
+   jleast=MAX(0,j-mah1)
+   jp=j+1
    ajj=a(j,0)
    IF(ajj == zero)STOP 'failure in L1UEB'
    ajji=one/ajj
@@ -4884,8 +4884,8 @@ REAL(r_kind)                      :: ajj, ajji, aij
 DO j=1,m
    imost=MIN(m,j+mah1)
    jmost=MIN(m,j+mah2)
-   jleast=MAX(izero,j-mah1)
-   jp=j+ione
+   jleast=MAX(0,j-mah1)
+   jp=j+1
    ajj=a(j,0)
    IF(ajj == zero)STOP 'failure in L1UEB_d'
    ajji=one/ajj
@@ -4936,7 +4936,7 @@ REAL(r_kind),     INTENT(  OUT) :: b(m,-mah:0)
 INTEGER(i_kind)                 :: i, j,jmi
 REAL(r_kind)                    :: s
 
-CALL clib(b,m,m,mah,izero)
+CALL clib(b,m,m,mah,0)
 DO j=1,m
    s=a(j,0)-DOT_PRODUCT(b(j,-mah:-1),b(j,-mah:-1))
    IF(s <= zero)THEN
@@ -4944,8 +4944,8 @@ DO j=1,m
       STOP
    ENDIF
    s=SQRT(s); b(j,0)=s; s=one/s
-   DO i=j+ione,MIN(m,j+mah); jmi=j-i
-      b(i,jmi)=s*(a(i,jmi)-DOT_PRODUCT(b(i,-mah:jmi-ione),b(j,-mah-jmi:-1)))
+   DO i=j+1,MIN(m,j+mah); jmi=j-i
+      b(i,jmi)=s*(a(i,jmi)-DOT_PRODUCT(b(i,-mah:jmi-1),b(j,-mah-jmi:-1)))
    ENDDO
 ENDDO
 END SUBROUTINE L1LB
@@ -4988,8 +4988,8 @@ REAL(r_kind),     INTENT(  OUT) :: d(m)
 INTEGER(i_kind)                 :: i, j,k,jmi,lj,li
 REAL(r_kind)                    :: s,t
 
-CALL clib(b,m,m,mah,izero); b(:,0)=one
-DO j=1,m; lj=MAX(-mah,ione-j)
+CALL clib(b,m,m,mah,0); b(:,0)=one
+DO j=1,m; lj=MAX(-mah,1-j)
    s=a(j,0)
    do k=lj,-1
       s=s-b(j,k)**2*d(k+j)
@@ -4999,9 +4999,9 @@ DO j=1,m; lj=MAX(-mah,ione-j)
       STOP
    ENDIF
    d(j)=s; s=one/s
-   DO i=j+ione,MIN(m,j+mah); jmi=j-i; li=MAX(-mah,ione-i); lj=li-jmi
+   DO i=j+1,MIN(m,j+mah); jmi=j-i; li=MAX(-mah,1-i); lj=li-jmi
       t=a(i,jmi)
-      do k=li,jmi-ione
+      do k=li,jmi-1
          t=t-b(i,k)*b(j,k-jmi)*d(i+k)
       enddo
       b(i,jmi)=s*t
@@ -5048,8 +5048,8 @@ REAL(r_kind)   ,  INTENT(  OUT) :: d(m)
 INTEGER(i_kind)                 :: i, j,k,jmi,lj,li
 REAL(r_kind)                    :: s,t
 
-CALL clib_d(b,m,m,mah,izero); b(:,0)=one
-DO j=1,m; lj=MAX(-mah,ione-j)
+CALL clib_d(b,m,m,mah,0); b(:,0)=one
+DO j=1,m; lj=MAX(-mah,1-j)
    s=a(j,0)
    do k=lj,-1
       s=s-b(j,k)**2*d(k+j)
@@ -5059,11 +5059,11 @@ DO j=1,m; lj=MAX(-mah,ione-j)
       STOP
    ENDIF
    d(j)=s; s=one/s
-   DO i=j+ione,MIN(m,j+mah); jmi=j-i;  
-      li=MAX(-mah,ione-i); 
+   DO i=j+1,MIN(m,j+mah); jmi=j-i;  
+      li=MAX(-mah,1-i); 
       lj=li-jmi; 
       t=a(i,jmi)
-      do k=li,jmi-ione
+      do k=li,jmi-1
          t=t-b(i,k)*b(j,k-jmi)*d(i+k)
       enddo
       b(i,jmi)=s*t
@@ -5202,14 +5202,14 @@ v2 = zero
 !=============================================================================
 ENTRY	 madbv(a,v1,v2, m1,m2,mah1,mah2)
 !=============================================================================
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    v2(i1:i2) = v2(i1:i2) + a(i1:i2,j)*v1(j+i1:j+i2)
 ENDDO
 RETURN
 !=============================================================================
 ENTRY	 msbbv(a,v1,v2, m1,m2,mah1,mah2)
 !=============================================================================
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    v2(i1:i2) = v2(i1:i2) - a(i1:i2,j)*v1(j+i1:j+i2)
 ENDDO
 END SUBROUTINE mulbv
@@ -5259,14 +5259,14 @@ v2=zero
 ENTRY	 madbx(a,v1,v2, m1,m2,mah1,mah2,my)
 !=============================================================================
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(i,:)=v2(i,:)+a(i,j)*v1(i+j,:); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(i,:)=v2(i,:)+a(i,j)*v1(i+j,:); ENDDO
 ENDDO
 RETURN
 !=============================================================================
 ENTRY	 msbbx(a,v1,v2, m1,m2,mah1,mah2,my)
 !=============================================================================
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(i,:)=v2(i,:)-a(i,j)*v1(i+j,:); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(i,:)=v2(i,:)-a(i,j)*v1(i+j,:); ENDDO
 ENDDO
 END SUBROUTINE mulbx
 
@@ -5313,12 +5313,12 @@ INTEGER(i_kind)                 :: i,j
 v2(1:mx,1:m1) = zero
 ENTRY	 madby(a,v1,v2, m1,m2,mah1,mah2,mx)
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(:,i)=v2(:,i)+a(i,j)*v1(:,i+j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(:,i)=v2(:,i)+a(i,j)*v1(:,i+j); ENDDO
 ENDDO
 RETURN
 ENTRY	 msbby(a,v1,v2, m1,m2,mah1,mah2,mx)
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(:,i)=v2(:,i)-a(i,j)*v1(:,i+j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(:,i)=v2(:,i)-a(i,j)*v1(:,i+j); ENDDO
 ENDDO
 END SUBROUTINE mulby
 
@@ -5365,14 +5365,14 @@ v2=zero
 !=============================================================================
 ENTRY	 madvb(v1,a,v2, m1,m2,mah1,mah2)
 !=============================================================================
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    v2(j+i1:j+i2)=v2(j+i1:j+i2)+v1(i1:i2)*a(i1:i2,j)
 ENDDO
 RETURN
 !=============================================================================
 ENTRY	 msbvb(v1,a,v2, m1,m2,mah1,mah2)
 !=============================================================================
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    v2(j+i1:j+i2)=v2(j+i1:j+i2)-v1(i1:i2)*a(i1:i2,j)
 ENDDO
 END SUBROUTINE mulvb
@@ -5422,14 +5422,14 @@ v2=zero
 ENTRY	 madxb(v1,a,v2, m1,m2,mah1,mah2,my)
 !=============================================================================
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(j+i,:)=v2(j+i,:)+v1(i,:)*a(i,j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(j+i,:)=v2(j+i,:)+v1(i,:)*a(i,j); ENDDO
 ENDDO
 RETURN
 !=============================================================================
 ENTRY	 msbxb(v1,a,v2, m1,m2,mah1,mah2,my)
 !=============================================================================
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(j+i,:)=v2(j+i,:)-v1(i,:)*a(i,j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(j+i,:)=v2(j+i,:)-v1(i,:)*a(i,j); ENDDO
 ENDDO
 END SUBROUTINE mulxb
 
@@ -5476,12 +5476,12 @@ INTEGER(i_kind)                 :: i,j
 v2=zero
 ENTRY	 madyb(v1,a,v2, m1,m2,mah1,mah2,mx)
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(:,j+i)=v2(:,j+i)+v1(:,i)*a(i,j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(:,j+i)=v2(:,j+i)+v1(:,i)*a(i,j); ENDDO
 ENDDO
 RETURN
 ENTRY	 msbyb(v1,a,v2, m1,m2,mah1,mah2,mx)
 DO j=-mah1,mah2
-   DO i=MAX(ione,ione-j),MIN(m1,m2-j); v2(:,j+i)=v2(:,j+i)-v1(:,i)*a(i,j); ENDDO
+   DO i=MAX(1,1-j),MIN(m1,m2-j); v2(:,j+i)=v2(:,j+i)-v1(:,i)*a(i,j); ENDDO
 ENDDO
 END SUBROUTINE mulyb
 
@@ -5525,21 +5525,21 @@ REAL(r_kind),     INTENT(INOUT) :: a(m1,-mah1:mah2),b(m1,-mah1:mah2)
 INTEGER(i_kind)                :: j, i1,i2
 
 CALL clib(b,m1,m2,mah1,mah2)
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    b(i1:i2,j)=a(i1:i2,j)*d(j+i1:j+i2)
 ENDDO
 RETURN
 !=============================================================================
 ENTRY	 madbd(a,d,b,m1,m2,mah1,mah2)
 !=============================================================================
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    b(i1:i2,j) = b(i1:i2,j)+a(i1:i2,j)*d(j+i1:j+i2)
 ENDDO
 RETURN
 !=============================================================================
 ENTRY	 msbbd(a,d,b,m1,m2,mah1,mah2)
 !=============================================================================
-DO j=-mah1,mah2; i1=MAX(ione,ione-j); i2=MIN(m1,m2-j)
+DO j=-mah1,mah2; i1=MAX(1,1-j); i2=MIN(m1,m2-j)
    b(i1:i2,j) = b(i1:i2,j)-a(i1:i2,j)*d(j+i1:j+i2)
 ENDDO
 END SUBROUTINE mulbd
@@ -5716,11 +5716,11 @@ REAL(r_kind)                   :: vj
 
 DO j=1,m
    vj=v(j)
-   DO i=j+ione,MIN(m,j+mah1); v(i)=v(i)-a(i,j-i)*vj; ENDDO; v(j)=a(j,0)*vj
+   DO i=j+1,MIN(m,j+mah1); v(i)=v(i)-a(i,j-i)*vj; ENDDO; v(j)=a(j,0)*vj
 ENDDO
 DO j=m,2,-1
    vj=v(j)
-   DO i=MAX(ione,j-mah2),j-ione; v(i)=v(i)-a(i,j-i)*vj; ENDDO
+   DO i=MAX(1,j-mah2),j-1; v(i)=v(i)-a(i,j-i)*vj; ENDDO
 ENDDO
 END SUBROUTINE udlbv
 
@@ -5767,11 +5767,11 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: jx, ix
 
 DO jx=1,mx
-   DO ix=jx+ione,MIN(mx,jx+mah1); v(ix,:) = v(ix,:) - a(ix,jx-ix)*v(jx,:); ENDDO
+   DO ix=jx+1,MIN(mx,jx+mah1); v(ix,:) = v(ix,:) - a(ix,jx-ix)*v(jx,:); ENDDO
    v(jx,:) = a(jx,0) * v(jx,:)
 ENDDO
 DO jx=mx,2,-1
-   DO ix=MAX(ione,jx-mah2),jx-ione; v(ix,:) = v(ix,:) - a(ix,jx-ix)*v(jx,:); ENDDO
+   DO ix=MAX(1,jx-mah2),jx-1; v(ix,:) = v(ix,:) - a(ix,jx-ix)*v(jx,:); ENDDO
 ENDDO
 END SUBROUTINE udlbx
 
@@ -5818,11 +5818,11 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: iy, jy
 
 DO jy=1,my
-   DO iy=jy+ione,MIN(my,jy+mah1); v(:,iy) = v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
+   DO iy=jy+1,MIN(my,jy+mah1); v(:,iy) = v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
    v(:,jy)=a(jy,0)*v(:,jy)
 ENDDO
 DO jy=my,2,-1
-   DO iy=MAX(ione,jy-mah2),jy-ione; v(:,iy)=v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
+   DO iy=MAX(1,jy-mah2),jy-1; v(:,iy)=v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
 ENDDO
 END SUBROUTINE udlby
 
@@ -5868,12 +5868,12 @@ REAL(r_kind)                   :: vi
 
 DO i=1,m
    vi=v(i)
-   DO j=i+ione,MIN(m,i+mah2); v(j)=v(j)-vi*a(i,j-i); ENDDO
+   DO j=i+1,MIN(m,i+mah2); v(j)=v(j)-vi*a(i,j-i); ENDDO
    v(i)=vi*a(i,0)
 ENDDO
 DO i=m,2,-1
    vi=v(i)
-   DO j=MAX(ione,i-mah1),i-ione; v(j)=v(j)-vi*a(i,j-i); ENDDO
+   DO j=MAX(1,i-mah1),i-1; v(j)=v(j)-vi*a(i,j-i); ENDDO
 ENDDO
 END SUBROUTINE udlvb
 
@@ -5920,11 +5920,11 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: ix, jx
 
 DO ix=1,mx
-   DO jx=ix+ione,MIN(mx,ix+mah2); v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
+   DO jx=ix+1,MIN(mx,ix+mah2); v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
    v(ix,:)=v(ix,:)*a(ix,0)
 ENDDO
 DO ix=mx,2,-1
-   DO jx=MAX(ione,ix-mah1),ix-ione; v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
+   DO jx=MAX(1,ix-mah1),ix-1; v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
 ENDDO
 END SUBROUTINE udlxb
 
@@ -5970,11 +5970,11 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: iy, jy
 
 DO iy=1,my
-   DO jy=iy+ione,MIN(my,iy+mah2); v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
+   DO jy=iy+1,MIN(my,iy+mah2); v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
    v(:,iy)=v(:,iy)*a(iy,0)
 ENDDO
 DO iy=my,2,-1
-   DO jy=MAX(ione,iy-mah1),iy-ione; v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
+   DO jy=MAX(1,iy-mah1),iy-1; v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
 ENDDO
 END SUBROUTINE udlyb
 
@@ -6021,11 +6021,11 @@ REAL(r_kind)                   :: vj
 
 DO j=1,m
    vj=v(j)
-   DO i=j+ione,MIN(m,j+mah1); v(i)=v(i)-a(i,j-i)*vj; ENDDO
+   DO i=j+1,MIN(m,j+mah1); v(i)=v(i)-a(i,j-i)*vj; ENDDO
 ENDDO
 DO j=m,2,-1
    vj=v(j)
-   DO i=MAX(ione,j-mah2),j-ione; v(i)=v(i)-a(i,j-i)*vj; ENDDO
+   DO i=MAX(1,j-mah2),j-1; v(i)=v(i)-a(i,j-i)*vj; ENDDO
 ENDDO
 END SUBROUTINE u1lbv
 
@@ -6072,10 +6072,10 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: ix, jx
 
 DO jx=1,mx
-   DO ix=jx+ione,MIN(mx,jx+mah1); v(ix,:)=v(ix,:)-a(ix,jx-ix)*v(jx,:); ENDDO
+   DO ix=jx+1,MIN(mx,jx+mah1); v(ix,:)=v(ix,:)-a(ix,jx-ix)*v(jx,:); ENDDO
 ENDDO
 DO jx=mx,2,-1
-   DO ix=MAX(ione,jx-mah2),jx-ione; v(ix,:)=v(ix,:)-a(ix,jx-ix)*v(jx,:); ENDDO
+   DO ix=MAX(1,jx-mah2),jx-1; v(ix,:)=v(ix,:)-a(ix,jx-ix)*v(jx,:); ENDDO
 ENDDO
 END SUBROUTINE u1lbx
 
@@ -6122,10 +6122,10 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: iy, jy
 
 DO jy=1,my
-   DO iy=jy+ione,MIN(my,jy+mah1); v(:,iy)=v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
+   DO iy=jy+1,MIN(my,jy+mah1); v(:,iy)=v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
 ENDDO
 DO jy=my,2,-1
-   DO iy=MAX(ione,jy-mah2),jy-ione; v(:,iy)=v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
+   DO iy=MAX(1,jy-mah2),jy-1; v(:,iy)=v(:,iy)-a(iy,jy-iy)*v(:,jy); ENDDO
 ENDDO
 END SUBROUTINE u1lby
 
@@ -6172,11 +6172,11 @@ REAL(r_kind)                  :: vi
 
 DO i=1,m
    vi=v(i)
-   DO j=i+ione,MIN(m,i+mah2); v(j)=v(j)-vi*a(i,j-i); ENDDO
+   DO j=i+1,MIN(m,i+mah2); v(j)=v(j)-vi*a(i,j-i); ENDDO
 ENDDO
 DO i=m,2,-1
    vi=v(i)
-   DO j=MAX(ione,i-mah1),i-ione; v(j)=v(j)-vi*a(i,j-i); ENDDO
+   DO j=MAX(1,i-mah1),i-1; v(j)=v(j)-vi*a(i,j-i); ENDDO
 ENDDO
 END SUBROUTINE u1lvb
 
@@ -6223,10 +6223,10 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: ix, jx
 
 DO ix=1,mx
-   DO jx=ix+ione,MIN(mx,ix+mah2); v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
+   DO jx=ix+1,MIN(mx,ix+mah2); v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
 ENDDO
 DO ix=mx,2,-1
-   DO jx=MAX(ione,ix-mah1),ix-ione;  v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
+   DO jx=MAX(1,ix-mah1),ix-1;  v(jx,:)=v(jx,:)-v(ix,:)*a(ix,jx-ix); ENDDO
 ENDDO
 END SUBROUTINE u1lxb
 
@@ -6273,10 +6273,10 @@ REAL(r_kind),     INTENT(INOUT) :: v(mx,my)
 INTEGER(i_kind)                :: iy, jy
 
 DO iy=1,my
-   DO jy=iy+ione,MIN(my,iy+mah2); v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
+   DO jy=iy+1,MIN(my,iy+mah2); v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
 ENDDO
 DO iy=my,2,-1
-   DO jy=MAX(ione,iy-mah1),iy-ione;  v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
+   DO jy=MAX(1,iy-mah1),iy-1;  v(:,jy)=v(:,jy)-v(:,iy)*a(iy,jy-iy); ENDDO
 ENDDO
 END SUBROUTINE u1lyb
 
@@ -6357,18 +6357,18 @@ REAL(r_kind),     INTENT(IN   ) :: a(m1,-mah1:mah2)
 INTEGER(i_kind)              :: i1, i2, i, j1, j2, j, nj1
 
 DO i1=1,m1,20
-   i2=MIN(i1+19_i_kind,m1)
+   i2=MIN(i1+19,m1)
    PRINT '(7x,6(i2,10x))',(j,j=-mah1,mah2)
    DO i=i1,i2
-      j1=MAX(-mah1,ione-i)
+      j1=MAX(-mah1,1-i)
       j2=MIN(mah2,m2-i)
       nj1=j1+mah1
-      IF(nj1==izero   )PRINT '(1x,i3,6(1x,e12.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==ione    )PRINT '(1x,i3,12x,5(1x,e12.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==2_i_kind)PRINT '(1x,i3,24x,4(1x,e12.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==3_i_kind)PRINT '(1x,i3,36x,3(1x,e12.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==4_i_kind)PRINT '(1x,i3,48x,2(1x,e12.5))',i,(a(i,j),j=j1,j2)
-      IF(nj1==5_i_kind)PRINT '(1x,i3,60x,1(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==0)PRINT '(1x,i3,6(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==1)PRINT '(1x,i3,12x,5(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==2)PRINT '(1x,i3,24x,4(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==3)PRINT '(1x,i3,36x,3(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==4)PRINT '(1x,i3,48x,2(1x,e12.5))',i,(a(i,j),j=j1,j2)
+      IF(nj1==5)PRINT '(1x,i3,60x,1(1x,e12.5))',i,(a(i,j),j=j1,j2)
    ENDDO
    READ(*,*)
 ENDDO
@@ -6404,7 +6404,7 @@ module module_fitcons
 !============================================================================
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: ione,zero,one,two,three,five
+use constants, only: zero,one,two,three,five
 implicit none
 
 ! set default to private
@@ -6417,13 +6417,13 @@ implicit none
   public :: qco,dco,ldsig4,ldsig,nohp,sigc,nohm,no,sigb,noh,ico,wt,dwt
   public :: nop,hunit2,nom,nnit,rcrit,q,hunit,dwt1,wt1,q1,hunit1
 
-integer(i_kind),parameter         :: noh=3_i_kind,    nohm=noh-ione,   nohp=noh+ione,&
-                                     no=noh*2, nom=no-ione,     nop=no+ione,   nnit=7_i_kind
+integer(i_kind),parameter         :: noh=3,    nohm=noh-1,   nohp=noh+1,&
+                                     no=noh*2, nom=no-1,     nop=no+1,   nnit=7
 real(r_kind),parameter            :: sigc=three,  sigb=two
 real(r_kind),dimension(no)        :: hunit,q,wt,dwt
 real(r_kind),dimension(nom)       :: hunit1,hunit2,q1,wt1,dwt1
 real(r_kind),dimension(-noh:noh)  :: qco
-real(r_kind),dimension(-ione-noh:noh):: ico,dco
+real(r_kind),dimension(-1-noh:noh):: ico,dco
 real(r_kind)                      :: rcrit,ldsig,ldsig4
 !============================================================================
 
@@ -6646,7 +6646,7 @@ subroutine coefrf(sig,nu,n,m,bnf,lnf)
 use module_pmat2
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: ione,zero,half,one
+use constants, only: zero,half,one
 implicit none
 
 integer(i_kind),              intent(IN   ) :: n,m
@@ -6654,7 +6654,7 @@ real(r_kind), dimension(n),   intent(IN   ) :: sig,nu
 real(r_kind), dimension(n),   intent(  OUT) :: bnf
 real(r_kind), dimension(m,n), intent(  OUT) :: lnf
 !-------------------------------------------------------------------------- 
-integer(i_kind), parameter                  :: irmax=6_i_kind
+integer(i_kind), parameter                  :: irmax=6
 real(r_kind), dimension(n,-m:m)             :: s
 real(r_kind), dimension(n,-m:0)             :: sl
 real(r_kind), dimension(n,-m:m,m)           :: k,l
@@ -6674,19 +6674,19 @@ k=zero
 !-------------------------------------------------------------------------
 ! Set k(:, -1:1, 1) to be the K-matrix of (4.8)--(4.10) of NCEP O.N. 431: 
 !--------------------------------------------------------------------------
-do i=1,n-ione
-   k(i     , 0,1)=k(i     ,0,1)+eta(i+ione)/eta(i     )
-   k(i+ione, 0,1)=k(i+ione,0,1)+eta(i     )/eta(i+ione)
-   k(i     , 1,1)=-one
-   k(i+ione,-1,1)=-one
+do i=1,n-1
+   k(i  , 0,1)=k(i  ,0,1)+eta(i+1)/eta(i  )
+   k(i+1, 0,1)=k(i+1,0,1)+eta(i  )/eta(i+1)
+   k(i  , 1,1)=-one
+   k(i+1,-1,1)=-one
 enddo
 
 !-------------------------------------------------------------------------
 ! Set k(:, : , ir) to be the original K-matrix raised to the power of (ir):
 !--------------------------------------------------------------------------
 do ir=2,m
-   il=ir-ione
-   call mulbb(k(:,-1:1,1),k(:,-il:il,il),k(:,-ir:ir,ir),n,n,ione,ione,il,il,ir,ir)
+   il=ir-1
+   call mulbb(k(:,-1:1,1),k(:,-il:il,il),k(:,-ir:ir,ir),n,n,1,1,il,il,ir,ir)
 enddo
 
 !-------------------------------------------------------------------------
@@ -6714,7 +6714,7 @@ enddo
 do i1=2,m
    do ir=m,i1,-1
       l(:,-ir:ir,ir)=zero
-      do ik=1,ir-i1+ione
+      do ik=1,ir-i1+1
          il=ir-ik
          call madbb(k(:,-ik:ik,ik),l(:,-il:il,il),l(:,-ir:ir,ir), &
               n,n,ik,ik,il,il,ir,ir)
@@ -6766,7 +6766,6 @@ subroutine ldlb1i(nol,lnf,bnf,                                              &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -6785,7 +6784,7 @@ do i=its,ite
    nola=min(nol,i-its)
    do l=nola,1,-1
       s=lnf(l,i)
-      do m=l+ione,nola
+      do m=l+1,nola
          s=s-lnf(m,i)*bnf(i-m)*lnf(m-l,i-l)
       enddo
       lnf(l,i)=s/bnf(i-l)
@@ -6833,7 +6832,6 @@ subroutine ldlb2i(nol,lnf,bnf,                                              &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -6853,7 +6851,7 @@ do j=jts,jte
       nola=min(nol,i-its)
       do l=nola,1,-1
          s=lnf(l,i,j)
-         do m=l+ione,nola
+         do m=l+1,nola
             s=s-lnf(m,i,j)*bnf(i-m,j)*lnf(m-l,i-l,j)
          enddo
          lnf(l,i,j)=s/bnf(i-l,j)
@@ -6902,7 +6900,6 @@ subroutine ldlb2j(nol,lnf,bnf,                                              &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -6922,7 +6919,7 @@ do j=jts,jte
    do i=its,ite
       do l=nola,1,-1
          s=lnf(l,i,j)
-         do m=l+ione,nola
+         do m=l+1,nola
             s=s-lnf(m,i,j)*bnf(i,j-m)*lnf(m-l,i,j-l)
          enddo
          lnf(l,i,j)=s/bnf(i,j-l)
@@ -6971,7 +6968,6 @@ subroutine ldlb3i(nol,lnf,bnf,                                              &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -6992,7 +6988,7 @@ do j=jts,jte
          nola=min(nol,i-its)
          do l=nola,1,-1
             s=lnf(l,i,k,j)
-            do m=l+ione,nola
+            do m=l+1,nola
                s=s-lnf(m,i,k,j)*bnf(i-m,k,j)*lnf(m-l,i-l,k,j)
             enddo
             lnf(l,i,k,j)=s/bnf(i-l,k,j)
@@ -7042,7 +7038,6 @@ subroutine ldlb3j(nol,lnf,bnf,                                              &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7063,7 +7058,7 @@ do j=jts,jte
       do i=its,ite
          do l=nola,1,-1
             s=lnf(l,i,k,j)
-            do m=l+ione,nola
+            do m=l+1,nola
                s=s-lnf(m,i,k,j)*bnf(i,k,j-m)*lnf(m-l,i,k,j-l)
             enddo
             lnf(l,i,k,j)=s/bnf(i,k,j-l)
@@ -7115,7 +7110,6 @@ SUBROUTINE hbnrf1i(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7131,7 +7125,7 @@ SUBROUTINE hbnrf1i(a,nol,lnf,bnf,                                           &
 !----------------------------------------------------------------------------
   INTEGER(i_kind)                :: i,l,nola
 !============================================================================
-DO i=its+ione,ite
+DO i=its+1,ite
    nola=MIN(nol,i-its)
    DO l=1,nola
       a(i)=a(i)-lnf(l,i)*a(i-l)
@@ -7140,7 +7134,7 @@ ENDDO
 DO i=its,ite
    a(i)=bnf(i)*a(i)
 ENDDO
-DO i=ite-ione,its,-1
+DO i=ite-1,its,-1
    nola=MIN(nol,ite-i)
    DO l=1,nola
       a(i)=a(i)-lnf(l,i+l)*a(i+l)
@@ -7185,7 +7179,6 @@ SUBROUTINE hbnrf2i(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7202,7 +7195,7 @@ SUBROUTINE hbnrf2i(a,nol,lnf,bnf,                                           &
   INTEGER(i_kind)                :: i,j,l,nola
 !============================================================================
 DO j=jts,jte
-   DO i=its+ione,ite
+   DO i=its+1,ite
       nola=MIN(nol,i-its)
       DO l=1,nola
          a(i,j)=a(i,j)-lnf(l,i,j)*a(i-l,j)
@@ -7211,7 +7204,7 @@ DO j=jts,jte
    DO i=its,ite
       a(i,j)=bnf(i,j)*a(i,j)
    ENDDO
-   DO i=ite-ione,its,-1
+   DO i=ite-1,its,-1
       nola=MIN(nol,ite-i)
       DO l=1,nol
          a(i,j)=a(i,j)-lnf(l,i+l,j)*a(i+l,j)
@@ -7257,7 +7250,6 @@ SUBROUTINE hbnrf2j(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7273,7 +7265,7 @@ SUBROUTINE hbnrf2j(a,nol,lnf,bnf,                                           &
 !----------------------------------------------------------------------------
   INTEGER(i_kind)                :: i,j,l,nola
 !============================================================================
-DO j=jts+ione,jte
+DO j=jts+1,jte
    nola=MIN(nol,j-jts)
    DO i=its,ite
       DO l=1,nola
@@ -7286,7 +7278,7 @@ DO j=jts,jte
       a(i,j)=bnf(i,j)*a(i,j)
    ENDDO
 ENDDO
-DO j=jte-ione,jts,-1
+DO j=jte-1,jts,-1
    nola=MIN(nol,jte-j)
    DO i=its,ite
       DO l=1,nola
@@ -7333,7 +7325,6 @@ SUBROUTINE hbnrf3i(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7351,7 +7342,7 @@ SUBROUTINE hbnrf3i(a,nol,lnf,bnf,                                           &
 !============================================================================
 DO j=jts,jte
    DO k=kts,kte
-      DO i=its+ione,ite
+      DO i=its+1,ite
          nola=MIN(nol,i-its)
          DO l=1,nola
             a(i,k,j)=a(i,k,j)-lnf(l,i,k,j)*a(i-l,k,j)
@@ -7360,7 +7351,7 @@ DO j=jts,jte
       DO i=its,ite
          a(i,k,j)=bnf(i,k,j)*a(i,k,j)
       ENDDO
-      DO i=ite-ione,its,-1
+      DO i=ite-1,its,-1
          nola=MIN(nol,ite-i)
          DO l=1,nola
             a(i,k,j)=a(i,k,j)-lnf(l,i+l,k,j)*a(i+l,k,j)
@@ -7407,7 +7398,6 @@ SUBROUTINE hbnrf3j(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7423,7 +7413,7 @@ SUBROUTINE hbnrf3j(a,nol,lnf,bnf,                                           &
 !----------------------------------------------------------------------------
   INTEGER(i_kind)                :: i,j,k,l,nola
 !============================================================================
-DO j=jts+ione,jte
+DO j=jts+1,jte
    nola=MIN(nol,j-jts)
    DO k=kts,kte
       DO i=its,ite
@@ -7440,7 +7430,7 @@ DO j=jts,jte
       ENDDO
    ENDDO
 ENDDO
-DO j=jte-ione,jts,-1
+DO j=jte-1,jts,-1
    nola=MIN(nol,jte-j)
    DO k=kts,kte
       DO i=its,ite
@@ -7489,7 +7479,6 @@ SUBROUTINE vbnrf1k(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7505,7 +7494,7 @@ SUBROUTINE vbnrf1k(a,nol,lnf,bnf,                                           &
 !----------------------------------------------------------------------------
   INTEGER(i_kind)                :: k,l,nola
 !============================================================================
-DO k=kts+ione,kte
+DO k=kts+1,kte
    nola=MIN(nol,k-kts)
    DO l=1,nola
       a(k)=a(k)-lnf(l,k)*a(k-l)
@@ -7514,7 +7503,7 @@ ENDDO
 DO k=kts,kte
    a(k)=bnf(k)*a(k)
 ENDDO
-DO k=kte-ione,kts,-1
+DO k=kte-1,kts,-1
    nola=MIN(nol,kte-k)
    DO l=1,nola
       a(k)=a(k)-lnf(l,k+l)*a(k+l)
@@ -7559,7 +7548,6 @@ SUBROUTINE vbnrf2k(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7575,7 +7563,7 @@ SUBROUTINE vbnrf2k(a,nol,lnf,bnf,                                           &
 !----------------------------------------------------------------------------
   INTEGER(i_kind)                :: i,k,l,nola
 !============================================================================
-DO k=kts+ione,kte
+DO k=kts+1,kte
    nola=MIN(nol,k-kts)
    DO i=its,ite
       DO l=1,nola
@@ -7588,7 +7576,7 @@ DO k=kts,kte
       a(i,k)=bnf(i,k)*a(i,k)
    ENDDO
 ENDDO
-DO k=kte-ione,kts,-1
+DO k=kte-1,kts,-1
    nola=MIN(nol,kte-k)
    DO i=its,ite
       DO l=1,nola
@@ -7635,7 +7623,6 @@ SUBROUTINE vbnrf3k(a,nol,lnf,bnf,                                           &
 !$$$ end documentation block
   use kinds, only: i_kind
   use kinds, only: r_kind => r_double
-  use constants, only: ione
   IMPLICIT NONE
 
   INTEGER(i_kind), INTENT(IN   ) :: nol
@@ -7652,7 +7639,7 @@ SUBROUTINE vbnrf3k(a,nol,lnf,bnf,                                           &
   INTEGER(i_kind)                :: i,j,k,l,nola
 !============================================================================
 DO j=jts,jte
-   DO k=kts+ione,kte
+   DO k=kts+1,kte
       nola=MIN(nol,k-kts)
       DO i=its,ite
          DO l=1,nola
@@ -7665,7 +7652,7 @@ DO j=jts,jte
          a(i,k,j)=bnf(i,k,j)*a(i,k,j)
       ENDDO
    ENDDO
-   DO k=kte-ione,kts,-1
+   DO k=kte-1,kts,-1
       nola=MIN(nol,kte-k)
       DO i=its,ite
          DO l=1,nola
@@ -7982,7 +7969,7 @@ subroutine rfit(ng,sig,nu, ns,nw,ssig,snu,ins1,wts)
 
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: izero,ione,zero,one
+use constants, only: zero,one
 use module_fitcons
 implicit none
 
@@ -7999,7 +7986,7 @@ real(r_kind)   , dimension(-nohm:ng+noh)       :: dcdg
 real(r_kind)   , dimension(-noh:ng+noh)        :: cofg,cofs
 real(r_kind)   , dimension(ng)                 :: dsdg,dhdg
 !============================================================================
-nw=izero
+nw=0
 do i=1,ng
    dcdg(i)=one/sig(i)
    if(sig(i) <= sigb)then
@@ -8027,7 +8014,7 @@ enddo
 ! Apply mirror-symmetry to extrapolate beyond ends:
 !----------------------------------------------------------------------------
 do l=1,noh
-   dcdg(ione-l)=dcdg(l); dcdg(ng+l)=dcdg(ng+ione-l)
+   dcdg(1-l)=dcdg(l); dcdg(ng+l)=dcdg(ng+1-l)
 enddo
 
 !----------------------------------------------------------------------------
@@ -8036,15 +8023,15 @@ enddo
 !----------------------------------------------------------------------------
 cofg(0)=zero
 do i=1,ng
-   cofg(i)=cofg(i-ione)+dot_product(qco,dcdg(i-noh:i+noh))
+   cofg(i)=cofg(i-1)+dot_product(qco,dcdg(i-noh:i+noh))
 enddo
 do l=1,noh
    cofg(  -l)=-cofg(   l)
    cofg(ng+l)=-cofg(ng-l)+2*cofg(ng)
 enddo
 
-im=izero
-ns=izero
+im=0
+ns=0
 !----------------------------------------------------------------------------
 ! loop over noncontiguous segments where it is numerically beneficial
 ! to employ a grid of relatively coarse resolution. The adoption of each
@@ -8064,13 +8051,13 @@ ns=izero
 !----------------------------------------------------------------------------
 cofs(0)=zero
 do k=1,ng 
-   do i1=im+ione,ng
-      if(i1< ng-3_i_kind .and. dhdg(i1) /= zero)exit
+   do i1=im+1,ng
+      if(i1< ng-3 .and. dhdg(i1) /= zero)exit
 !----------------------------------------------------------------------------
 ! working s-grid continues to track the original g-grid; Set indices and 
 ! weight for the trivial "interpolation" between these coincident grids:
 !----------------------------------------------------------------------------
-      ns=ns+ione
+      ns=ns+1
       ins1(i1)=-ns
       cofs(ns)=cofg(i1)
    enddo
@@ -8080,16 +8067,16 @@ do k=1,ng
 ! the s-grid and g-grids may part company, seek the other end, im, of this
 ! possible segment:
 !----------------------------------------------------------------------------
-   do im=i1+ione,ng
+   do im=i1+1,ng
       if(dhdg(im) == zero)exit
    enddo
-   im=im-ione
-   if(im < i1+4_i_kind)then
+   im=im-1
+   if(im < i1+4)then
 !----------------------------------------------------------------------------
 ! Segment too short to be viable; keep s-grid and g-grids synchronized:
 !----------------------------------------------------------------------------
       do i=i1,im
-         ns=ns+ione
+         ns=ns+1
          ins1(i)=-ns
          cofs(ns)=cofg(i)
       enddo
@@ -8103,12 +8090,12 @@ do k=1,ng
 ! from these (and neighboring) s-points back to the g-points of the segment:
 !----------------------------------------------------------------------------
       call jfit(ng,i1,im,ns,nw,cofg,dsdg,dhdg,cofs,ins1,wts)
-      if(ns<izero) return
+      if(ns<0) return
    endif
 enddo
-if(ns<no .and. nw>izero)then ! <- s-grid too short; use copy of g-grid instead
+if(ns<no .and. nw>0)then ! <- s-grid too short; use copy of g-grid instead
    wts(:,1:nw)=zero
-   nw=izero
+   nw=0
    do i=1,ng
       ins1(i)=-i
       cofs(i)=cofg(i)
@@ -8170,7 +8157,7 @@ subroutine jfit(ng,ig1,igm,ns,iw,cofg,dsdg,dhdg,cofs,ins1,wts)
 
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: izero,ione,zero,half,one,two
+use constants, only: zero,half,one,two
 use module_fitcons
 implicit none
 
@@ -8197,14 +8184,14 @@ sm=sum(dsdg(ig1:igm))
 ! g-grid within this segment on the basis of the number of grid points that
 ! could potentially be eliminated (we require a saving > 3 per segment):
 !---------------------------------------------------------------------------
-if(sm > igm-ig1-2_i_kind)then
+if(sm > igm-ig1-2)then
 !----------------------------------------------------------------------------
 ! This putative s-grid segment reduces the total number of grid points by an
 ! insufficient amount to justify the additional interpolations. Therefore,
 ! keep the original g-grid instead for this segment, and return:
 !---------------------------------------------------------------------------
    do i=ig1,igm
-      ns=ns+ione
+      ns=ns+1
       ins1(i)=-ns
       cofs(ns)=cofg(i)
    enddo
@@ -8220,7 +8207,7 @@ endif
 ! (3) use Newton iterations to find the accurate interpolation formulae
 !     that enable c(s) to be interpolated from the given c(g).
 !----------------------------------------------------------------------------
-ig0=ig1-ione
+ig0=ig1-1
 is0=ns; ism=sm
 !----------------------------------------------------------------------------
 ! Fractional remainder of sm, divided by the definite integral of dh/dg
@@ -8242,8 +8229,8 @@ enddo
 ! ig0=ig1-1 and igm.)
 !----------------------------------------------------------------------------
 do l=1,noh
-   dsdgt(ig1-l)=dsdgt(ig0     +l)
-   dsdgt(igm+l)=dsdgt(igm+ione-l)
+   dsdgt(ig1-l)=dsdgt(ig0  +l)
+   dsdgt(igm+l)=dsdgt(igm+1-l)
 enddo
 ism=is0+ism ! This integer also becomes (within round-off) the value, sofg(igm)
 !----------------------------------------------------------------------------
@@ -8254,7 +8241,7 @@ sofg(ig0)=is0; sofg(igm)=ism
 ! Get s(g) inside the segment by performing a numerical quadrature of dsdgt:
 !----------------------------------------------------------------------------
 do i=ig1,igm
-   sofg(i)=sofg(i-ione)+dot_product(qco,dsdgt(i-noh:i+noh))
+   sofg(i)=sofg(i-1)+dot_product(qco,dsdgt(i-noh:i+noh))
 enddo
 !----------------------------------------------------------------------------
 ! Mirror-extrapolate s(g) as an odd-symmetry function at segment end points.
@@ -8266,7 +8253,7 @@ do l=1,noh
    sofg(igm+l)=two*ism-sofg(igm-l)
 enddo
 do i=ig1,igm
-   iw=iw+ione ; wts(:,iw)=zero
+   iw=iw+1 ; wts(:,iw)=zero
    r=dot_product(ico,sofg(i-nohp:i+noh))+half
    ie=r            ! Take integer part...
    ins1(i)=ie-nohm ! ...hence the index of the first point in the stencil...
@@ -8280,15 +8267,15 @@ do i=ig1,igm
 ! domain interior, even though this may entail padding innermost end of
 ! the stencil with useless zeroes:
 !----------------------------------------------------------------------------
-   L=ione-INS1(I)
-   IF(L > izero)THEN ! FOLD LEFT OVERLAP OF L ELEMENTS BACK INSIDE: 
-      WTS(1:L,IW)      =WTS(L:1:-1,IW)+WTS(L+ione:L*2,IW) ! FOLD INTO 1ST L
-      WTS(L+ione:NO-L,IW) =WTS(L*2+ione:NO,IW)            ! SHIFT THE REST LEFT
+   L=1-INS1(I)
+   IF(L > 0)THEN ! FOLD LEFT OVERLAP OF L ELEMENTS BACK INSIDE: 
+      WTS(1:L,IW)      =WTS(L:1:-1,IW)+WTS(L+1:L*2,IW) ! FOLD INTO 1ST L
+      WTS(L+1:NO-L,IW) =WTS(L*2+1:NO,IW)            ! SHIFT THE REST LEFT
       WTS(NOP-L:NO,IW)=zero ! SET TRAILING L ELEMENTS TO ZERO
-      INS1(I)=ione          ! RESET INDEX OF FIRST POINT OF STENCIL
+      INS1(I)=1          ! RESET INDEX OF FIRST POINT OF STENCIL
    ENDIF
    l=ins1(i)+nom-ism
-   if(l > izero)then ! Fold right overlap of L elements back inside:
+   if(l > 0)then ! Fold right overlap of L elements back inside:
       wts(nop-l:no,iw)=wts(no:nop-l:-1,iw)+wts(nop-l*2:no-l,iw) ! Fold last L
       wts(l+1:no-l,iw)=wts(1:no-l*2,iw)                         ! Shift right
       wts(1:l,iw)=zero   ! Set first L elements to zero
@@ -8304,17 +8291,17 @@ ns=ism
 ! s- and g-grids are the ones NOT staggered wrt the domain boundaries.)
 !----------------------------------------------------------------------------
 ie=ig0
-do i=is0+ione,ism-ione ! Loop over s-grid target points interior to this segment
+do i=is0+1,ism-1 ! Loop over s-grid target points interior to this segment
    et=i
 !----------------------------------------------------------------------------
 ! Find the g-grid interval containing this target: 
 !----------------------------------------------------------------------------
-   do iep=ie+ione,igm-ione;  if(sofg(iep) > et)exit; enddo
-   do ie=iep-ione,ig1,-ione; if(sofg(ie) <= et)exit; enddo
+   do iep=ie+1,igm-1;  if(sofg(iep) > et)exit; enddo
+   do ie=iep-1,ig1,-1; if(sofg(ie) <= et)exit; enddo
 
    ie1=ie-nohm;   ien=ie+noh   ! <-- Set the interpolation stencil range:
 
-   r=(et-sofg(ie))/(sofg(ie+ione)-sofg(ie)) ! Linearly estimate interval fraction
+   r=(et-sofg(ie))/(sofg(ie+1)-sofg(ie)) ! Linearly estimate interval fraction
 
 !----------------------------------------------------------------------------
 ! Perform Newton-Raphson iterations to refine interval fraction, r:
@@ -8329,7 +8316,7 @@ do i=is0+ione,ism-ione ! Loop over s-grid target points interior to this segment
    enddo
  ! stop 'Too many Newton iterations'           ! <- It never convergenced! 
    write(6,*)' Too many Newton iterations'           ! <- It never convergenced! 
-   ns=-ione
+   ns=-1
    return
 1  wt=wt+dr*dwt                                ! <- Final refinement to wt
    cofs(i)=dot_product(wt, cofg(ie1:ien))      ! <- Interpolate c(s)
@@ -8369,10 +8356,10 @@ subroutine stog(ns,ng,ins1,wts, as,ag)
 
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: izero,ione,zero
+use constants, only: zero
 implicit none
 
-integer(i_kind), parameter                      :: noh=3_i_kind,no=noh*2,nom=no-ione
+integer(i_kind), parameter                      :: noh=3,no=noh*2,nom=no-1
 integer(i_kind),                  intent(IN   ) :: ns,ng
 integer(i_kind), dimension(ng),   intent(IN   ) :: ins1
 real(r_kind)   , dimension(no,ng),intent(IN   ) :: wts
@@ -8381,12 +8368,12 @@ real(r_kind)   , dimension(ng),   intent(  OUT) :: ag
 !----------------------------------------------------------------------------
 integer(i_kind)                                 :: i,is,iw
 !============================================================================
-iw=izero
+iw=0
 ag=zero
 do i=1,ng
    is=ins1(i)
-   if(is>izero)then
-      iw=iw+ione
+   if(is>0)then
+      iw=iw+1
       ag(i)=dot_product(wts(:,iw),as(is:is+nom))
    else
       ag(i)=as(-is)
@@ -8426,10 +8413,10 @@ subroutine stogt(ns,ng,ins1,wts, as,ag)
 
 use kinds, only: i_kind
 use kinds, only: r_kind => r_double
-use constants, only: izero,ione,zero
+use constants, only: zero
 implicit none
 
-integer(i_kind), parameter                      :: noh=3_i_kind,no=noh*2,nom=no-ione
+integer(i_kind), parameter                      :: noh=3,no=noh*2,nom=no-1
 integer(i_kind),                  intent(IN   ) :: ns,ng
 integer(i_kind), dimension(ng),   intent(IN   ) :: ins1
 real(r_kind)   , dimension(no,ng),intent(IN   ) :: wts
@@ -8438,12 +8425,12 @@ real(r_kind)   , dimension(ng),   intent(IN   ) :: ag
 !----------------------------------------------------------------------------
 integer(i_kind)                                 :: i,is,iw
 !============================================================================
-iw=izero
+iw=0
 as=zero
 do i=1,ng
    is=ins1(i)
-   if(is>izero)then
-      iw=iw+ione
+   if(is>0)then
+      iw=iw+1
       as(is:is+nom)=as(is:is+nom)+wts(:,iw)*ag(i)
    else
       as(-is)=as(-is)+ag(i)

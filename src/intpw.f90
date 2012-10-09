@@ -87,7 +87,7 @@ subroutine intpw_(pwhead,rval,sval)
   use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: ione,zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -137,10 +137,10 @@ subroutine intpw_(pwhead,rval,sval)
      i3(1)=pwptr%ij(3)
      i4(1)=pwptr%ij(4)
      do k=2,nsig
-        i1(k)=i1(k-ione)+latlon11
-        i2(k)=i2(k-ione)+latlon11
-        i3(k)=i3(k-ione)+latlon11
-        i4(k)=i4(k-ione)+latlon11
+        i1(k)=i1(k-1)+latlon11
+        i2(k)=i2(k-1)+latlon11
+        i3(k)=i3(k-1)+latlon11
+        i4(k)=i4(k-1)+latlon11
      end do
      
      val=zero

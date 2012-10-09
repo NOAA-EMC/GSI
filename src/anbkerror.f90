@@ -302,7 +302,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
                 if(isli2(i,j) == 1) then
                    slndt(i,j)=skint(i,j)
 !          If ice
-                else if(isli2(i,j) == 2_i_kind) then
+                else if(isli2(i,j) == 2) then
                    sicet(i,j)=skint(i,j)
 !          Else treat as a water point
                 else
@@ -315,7 +315,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
                 if(isli2(i,j) == 1) then
                    skint(i,j)=slndt(i,j)
 !          Ice, load ice temp into skint
-                else if(isli2(i,j) == 2_i_kind) then
+                else if(isli2(i,j) == 2) then
                    skint(i,j)=sicet(i,j)
 !          Treat as a water point, load sst into skint
                 else
@@ -562,7 +562,7 @@ subroutine vert_smther(g,nsmooth,nsmooth_shapiro)
               gaux(1:nsig)=g(i,j,1:nsig)
               do k=1,nsig
                  kp=min(k+1,nsig) ; km=max(1,k-1)
-                 kp3=min(k+3_i_kind,nsig) ; km3=max(1,k-3)
+                 kp3=min(k+3,nsig) ; km3=max(1,k-3)
                  g(i,j,k)=.28125_r_kind*(gaux(kp)+gaux(km))+half*gaux(k)-.03125_r_kind*(gaux(kp3)+gaux(km3))
               enddo
            enddo
@@ -646,7 +646,7 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
               gaux(1:nsig)=zero
               do k=1,nsig
                  kp=min(k+1,nsig) ; km=max(1,k-1)
-                 kp3=min(k+3_i_kind,nsig) ; km3=max(1,k-3)
+                 kp3=min(k+3,nsig) ; km3=max(1,k-3)
                  gaux(km3)=gaux(km3)-.03125_r_kind*g(i,j,k)
                  gaux(kp3)=gaux(kp3)-.03125_r_kind*g(i,j,k)
                  gaux(k)=gaux(k)+half*g(i,j,k)

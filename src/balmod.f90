@@ -21,7 +21,6 @@ module balmod
 !   2010-03-04  zhu  - add horizontally interpolated agvk,wgvk,bvk for regional
 !   2012-02-08  kleist - remove ref to l_hyb_ens in subroutines balance, tbalance, strong_bk, 
 !                          and strong_bk_ad.  add new parameter hybens_inmc_option.
-!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
 !
 ! subroutines included:
 !   sub create_balance_vars      - create arrays for balance vars

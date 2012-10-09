@@ -214,45 +214,44 @@ subroutine intall(sval,sbias,rval,rbias)
      call intjo(yobs(ibin),rval(ibin),rbias,sval(ibin),sbias,ibin)
   end do
 
+  if(.not.ltlint)then
 ! RHS for moisture constraint
-  if (.not.ltlint .and. .not.ljc4tlevs) then
-     call intlimq(rval(ibin_anl),sval(ibin_anl),ntguessig)
-  else if (.not.ltlint .and. ljc4tlevs) then
-     do ibin=1,nobs_bins
-        if (nobs_bins /= nfldsig) then
-           it=ntguessig
-        else
-           it=ibin
-        end if
-        call intlimq(rval(ibin),sval(ibin),it)
-     end do
-  end if
+     if (.not.ljc4tlevs) then
+        call intlimq(rval(ibin_anl),sval(ibin_anl),ntguessig)
+     else
+        do ibin=1,nobs_bins
+           if (nobs_bins /= nfldsig) then
+              it=ntguessig
+           else
+              it=ibin
+           end if
+           call intlimq(rval(ibin),sval(ibin),it)
+        end do
+     end if
 
 ! RHS for gust constraint
-  if ((.not.ltlint) .and. (getindex(cvars2d,'gust')>0)) &
-     call intlimg(rval(1),sval(1))
+     if (getindex(cvars2d,'gust')>0)call intlimg(rval(1),sval(1))
 
 ! RHS for vis constraint
-  if ((.not.ltlint) .and. (getindex(cvars2d,'vis')>0)) &
-     call intlimv(rval(1),sval(1))
+     if (getindex(cvars2d,'vis')>0) call intlimv(rval(1),sval(1))
 
 ! RHS for pblh constraint
-  if ((.not.ltlint) .and. (getindex(cvars2d,'pblh')>0)) &
-     call intlimp(rval(1),sval(1))
+     if (getindex(cvars2d,'pblh')>0) call intlimp(rval(1),sval(1))
+  end if
 
 ! RHS for dry ps constraint
-  if (ljcpdry .and. .not.ljc4tlevs) then
-    call intjcpdry(rval(ibin_anl),sval(ibin_anl))
-  else if (ljcpdry .and. ljc4tlevs) then
-    do ibin=1,nobs_bins
-       call intjcpdry(rval(ibin),sval(ibin))
-    end do
+  if(ljcpdry)then
+    if (.not.ljc4tlevs) then
+      call intjcpdry(rval(ibin_anl),sval(ibin_anl))
+    else 
+      do ibin=1,nobs_bins
+         call intjcpdry(rval(ibin),sval(ibin))
+      end do
+    end if
   end if
 
 ! RHS for Jc DFI
-  if (ljcdfi .and. nobs_bins>1) then
-     call intjcdfi(rval,sval)
-  end if
+  if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
 
 ! RHS calculation for Jc and other 3D-Var terms
   call int3dvar(rval(1),dhat_dt)

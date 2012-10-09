@@ -8,6 +8,12 @@
 #                          -- Define macros --
 #-----------------------------------------------------------------------------
 
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
 
 # -------------
 # This makefile
@@ -154,84 +160,6 @@ write_station.o : write_station.f90 read_diag.o grads_hdr.o
 
 $(EXE_FILE) : $(OBJ_FILES)
 	$(LD) $(LDFLAGS) -o $@ $(OBJ_FILES) $(LIBS)
-
-
-# ----------------------------
-# Fortran compiler and options
-# ----------------------------
-
-  CF		= xlf90
-
-#--- Normal mode options
-
-  FFLAGS_F90	= -qsuffix=f=f90:cpp=F90 -WF,-D_REAL8_ -WF,-C -WF,-P -WF,-DNEWPRED=$(NEWPRED)
-  FFLAGS_FIX	= -qfixed
-
-  FFLAGS_COM_N	= -NS32704 -qmaxmem=-1 -O2 -Q
-
-  FFLAGS_N	= $(FFLAGS_F90) $(FFLAGS_COM_N) $(INCLUDES)
-  FFLAGFIX_N	= $(FFLAGS_FIX) $(FFLAGS_COM_N) $(INCLUDES)
-
-#--- Debug mode options
-
-  FFLAGS_COM_D	= -qmaxmem=-1 \
-			-qdbg -qfullpath \
-			-qlanglvl=90pure \
-			-qsigtrap=xl__trcedump \
-			-qcheck -qextchk -qwarn64 \
-			-qflag=i:i \
-			-qfloat=nans \
-			-qflttrap=overflow:zero:invalid:enable \
-			-qattr=full -qxref=full -qnolm \
-#			-qhalt=w \
-#			-qinitauto=7FF7FFFF \
-#			-qlist -qflag=i:i \
-
-  FFLAGS_D	= $(FFLAGS_F90) $(FFLAGS_COM_D) $(INCLUDES)
-  FFLAGFIX_D	= $(FFLAGS_FIX) $(FFLAGS_COM_D) $(INCLUDES)
-
-#--- Compile options for each source file
-
-  FFLAGS	= $(FFLAGS_D)
-  FFLAGFIX	= $(FFLAGFIX_D)
-
-
-# ----------------------
-# C compiler and options
-# ----------------------
-
-  CC		=  /usr/vac/bin/cc
-
-#--- Normal mode options
-
-  CFLAGS_N	= -I ./ -O2
-
-#--- Debug mode options
-
-  CFLAGS_D	= -I ./ -g
-
-#--- Compile options for each source
-
-  CFLAGS	= $(CFLAGS_D)
-
-
-# ------------------
-# Linker and options
-# ------------------
-
-  LD		= $(CF)
-
-#--- Normal mode options
-
-  LIBS_N	= -lessl -lmass                         
-
-  LDFLAGS_N	= -bloadmap:loadmap.txt
-
-#--- Debug mode options
-
-  LIBS_D	= $(LIBS_N)
-
-  LDFLAGS_D	= $(LDFLAGS_N)
 
 
 # ------------------------

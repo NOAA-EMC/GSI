@@ -180,8 +180,8 @@ subroutine read_wrf_mass_binary_guess(mype)
      end if
 
 !    Following is for convenient WRF MASS input
-     num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind
-     if(l_cloud_analysis .or. nguess>0) num_mass_fields=21_i_kind+5_i_kind*lm+2_i_kind+2_i_kind+6_i_kind*lm+2_i_kind
+     num_mass_fields=21+5*lm+2+2
+     if(l_cloud_analysis .or. nguess>0) num_mass_fields=21+5*lm+2+2+6*lm+2
      num_loc_groups=num_mass_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
@@ -327,7 +327,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               kord(i)=1
            end if
            offset(i)=n_position+iadd
-           igtype(i)=2_i_kind ; kdim(i)=lm
+           igtype(i)=2 ; kdim(i)=lm
            length(i)=(im+1)*jm
            if(mype == 0.and.k==1) write(6,*)' u i,igtype(i),offset(i),kord(i) = ', &
                                                              i,igtype(i),offset(i),kord(i)
@@ -344,7 +344,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               iadd=(k-1)*im*(jm+1)*4
               kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*(jm+1) ; igtype(i)=3_i_kind ; kdim(i)=lm
+           offset(i)=n_position+iadd ; length(i)=im*(jm+1) ; igtype(i)=3 ; kdim(i)=lm
            if(mype == 0.and.k==1) write(6,*)' v i,igtype(i),offset(i),kord(i) = ', &
                                                              i,igtype(i),offset(i),kord(i)
         end do
@@ -763,8 +763,8 @@ subroutine read_wrf_mass_binary_guess(mype)
            if(kdim(k)==1.or.kord(k)==1) then
               call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer,status,ierror)
               if(igtype(k)==1)     call expand_ibuf(ibuf(1,k),im     ,jm     ,im+1,jm+1)
-              if(igtype(k)==2_i_kind) call expand_ibuf(ibuf(1,k),im+1,jm     ,im+1,jm+1)
-              if(igtype(k)==3_i_kind) call expand_ibuf(ibuf(1,k),im     ,jm+1,im+1,jm+1)
+              if(igtype(k)==2) call expand_ibuf(ibuf(1,k),im+1,jm     ,im+1,jm+1)
+              if(igtype(k)==3) call expand_ibuf(ibuf(1,k),im     ,jm+1,im+1,jm+1)
            end if
         end do
 
@@ -781,10 +781,10 @@ subroutine read_wrf_mass_binary_guess(mype)
            else if(igtype(ifld) == -1) then
               call move_ibuf_ihg(ibuf(1,ifld),temp1,im+1,jm+1,im,jm)
               call fill_mass_grid2t(temp1,im,jm,tempa(1,ifld),1)
-           else if(igtype(ifld) == 2_i_kind) then
+           else if(igtype(ifld) == 2) then
               call move_ibuf_hg(ibuf(1,ifld),temp1u,im+1,jm+1,im+1,jm)
               call fill_mass_grid2u(temp1u,im,jm,tempa(1,ifld),1)
-           else if(igtype(ifld) == 3_i_kind) then
+           else if(igtype(ifld) == 3) then
               call move_ibuf_hg(ibuf(1,ifld),temp1v,im+1,jm+1,im,jm+1)
               call fill_mass_grid2v(temp1v,im,jm,tempa(1,ifld),1)
            end if
@@ -909,7 +909,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               if(all_loc(j,i,i_xice) /= zero_single) xice_this=one
               
               isli_this=0
-              if(xice_this==one) isli_this=2_i_kind
+              if(xice_this==one) isli_this=2
               if(xice_this==zero.and.sm_this==one) isli_this=1
               isli(j,i,it)=isli_this
 
@@ -939,7 +939,7 @@ subroutine read_wrf_mass_binary_guess(mype)
           0,mpi_comm_world,ierror)
      if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
      if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-     if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
+     if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
           minval(sfct),maxval(sfct)
      
      deallocate(all_loc,igtype,kdim,kord)
@@ -1104,8 +1104,8 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      lm=nsig
 
 !    Following is for convenient WRF MASS input
-     num_mass_fields=14_i_kind+4_i_kind*lm
-     if(l_cloud_analysis .or. nguess>0) num_mass_fields=14_i_kind+4_i_kind*lm+6_i_kind*lm+2_i_kind
+     num_mass_fields=14+4*lm
+     if(l_cloud_analysis .or. nguess>0) num_mass_fields=14+4*lm+6*lm+2
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -1142,7 +1142,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      if(l_cloud_analysis .or. nguess>0) then
         i=i+1 ; i_xlat=i                                                ! xlat
         write(identity(i),'("record ",i3,"--xlat")')i
-        jsig_skip(i)=3_i_kind     ! number of files to skip before getting to xlat
+        jsig_skip(i)=3     ! number of files to skip before getting to xlat
         igtype(i)=1
         i=i+1 ; i_xlon=i                                                ! xlon
         write(identity(i),'("record ",i3,"--xlon")')i
@@ -1152,8 +1152,8 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 
      i=i+1 ; i_psfc=i                                                ! psfc
      write(identity(i),'("record ",i3,"--psfc")')i
-     jsig_skip(i)=5_i_kind     ! number of files to skip before getting to psfc
-     if(l_cloud_analysis .or. nguess>0) jsig_skip(i)=0_i_kind ! number of files to skip before getting to psfc
+     jsig_skip(i)=5     ! number of files to skip before getting to psfc
+     if(l_cloud_analysis .or. nguess>0) jsig_skip(i)=0 ! number of files to skip before getting to psfc
      igtype(i)=1
      i=i+1 ; i_fis=i                                               ! sfc geopotential
      write(identity(i),'("record ",i3,"--fis")')i
@@ -1176,13 +1176,13 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      do k=1,lm
         i=i+1                                                       ! u(k)
         write(identity(i),'("record ",i3,"--u(",i2,")")')i,k
-        jsig_skip(i)=0 ; igtype(i)=2_i_kind
+        jsig_skip(i)=0 ; igtype(i)=2
      end do
      i_v=i+1
      do k=1,lm
         i=i+1                                                       ! v(k)
         write(identity(i),'("record ",i3,"--v(",i2,")")')i,k
-        jsig_skip(i)=0 ; igtype(i)=3_i_kind
+        jsig_skip(i)=0 ; igtype(i)=3
      end do
      i=i+1   ; i_sm=i                                              ! landmask
      write(identity(i),'("record ",i3,"--sm")')i
@@ -1295,17 +1295,17 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            if(mype==mod(icount-1,npe)) then
               if(igtype(ifld)==1) then
                  read(lendian_in)((temp1(i,j),i=1,im),j=1,jm)
-                 write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+!                write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
                  call fill_mass_grid2t(temp1,im,jm,tempa,1)
               end if
-              if(igtype(ifld)==2_i_kind) then
+              if(igtype(ifld)==2) then
                  read(lendian_in)((temp1u(i,j),i=1,im+1),j=1,jm)
-                 write(6,'(" ifld, temp1u(im/2,jm/2)=",i6,e15.5)')ifld,temp1u(im/2,jm/2)
+!                write(6,'(" ifld, temp1u(im/2,jm/2)=",i6,e15.5)')ifld,temp1u(im/2,jm/2)
                  call fill_mass_grid2u(temp1u,im,jm,tempa,1)
               end if
-              if(igtype(ifld)==3_i_kind) then
+              if(igtype(ifld)==3) then
                  read(lendian_in)((temp1v(i,j),i=1,im),j=1,jm+1)
-                 write(6,'(" ifld, temp1v(im/2,jm/2)=",i6,e15.5)')ifld,temp1v(im/2,jm/2)
+!                write(6,'(" ifld, temp1v(im/2,jm/2)=",i6,e15.5)')ifld,temp1v(im/2,jm/2)
                  call fill_mass_grid2v(temp1v,im,jm,tempa,1)
               end if
               if(igtype(ifld) < 0) then
@@ -1315,7 +1315,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                        temp1(i,j)=itemp1(i,j)
                     end do
                  end do
-                 write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
+!                write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
                  call fill_mass_grid2t(temp1,im,jm,tempa,1)
               end if
            else
@@ -1430,9 +1430,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            end do
         end do
         
-        if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(soil_moi)=', &
+        if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_moi)=', &
              minval(soil_moi),maxval(soil_moi)
-        if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(soil_temp)=', &
+        if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_temp)=', &
              minval(soil_temp),maxval(soil_temp)
 
 !       Convert potenital temperature to temperature
@@ -1464,7 +1464,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               if(all_loc(j,i,i_0+i_xice) /= zero_single) xice_this=one
               
               isli_this=0
-              if(xice_this==one) isli_this=2_i_kind
+              if(xice_this==one) isli_this=2
               if(xice_this==zero.and.sm_this==one) isli_this=1
               isli(j,i,it)=isli_this
               
@@ -1490,15 +1490,15 @@ subroutine read_wrf_mass_netcdf_guess(mype)
           0,mpi_comm_world,ierror)
      if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
      if(mype==0) write(6,*)' in read_wrf_mass_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-     if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
+     if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(sfct)=', &
           minval(sfct),maxval(sfct)
-     if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(veg_type)=', &
+     if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(veg_type)=', &
           minval(veg_type),maxval(veg_type)
-     if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(veg_frac)=', &
+     if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(veg_frac)=', &
           minval(veg_frac),maxval(veg_frac)
-     if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(soil_type)=', &
+     if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(soil_type)=', &
           minval(soil_type),maxval(soil_type)
-     if(mype==10_i_kind) write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
+     if(mype==10) write(6,*)' in read_wrf_mass_guess, min,max(isli)=', &
           minval(isli),maxval(isli)
      
      deallocate(all_loc,jsig_skip,igtype,identity)
@@ -1835,7 +1835,7 @@ subroutine transfer_jbuf2ibuf(jbuf,jbegin_loc,jend_loc,ibuf,kbegin_loc,kend_loc,
   integer(i_kind),intent(in   ) :: jbegin(0:npe),jend(0:npe-1)
   integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
   
-  integer(i_long) sendbuf(im_jbuf*lm_jbuf*(jend_loc-jbegin_loc+2_i_kind))
+  integer(i_long) sendbuf(im_jbuf*lm_jbuf*(jend_loc-jbegin_loc+2))
   integer(i_long) recvbuf(im_jbuf*jm_jbuf*(kend_loc-kbegin_loc+1))
   integer(i_long) recvcounts(0:npe-1),displs(0:npe)
   integer(i_kind) i,ipe,j,ierror,k,n,ii,k_t_start,k_t_end,sendcount

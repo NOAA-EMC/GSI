@@ -35,7 +35,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (4) add more elements (nstinfo) in data array
 !                         (5) add observation scoring for thinning
 !
-!   2011-08-01  lueken  - added module use deter_sfc_mod, remove _i_kind, fixed indentation
+!   2011-08-01  lueken  - added module use deter_sfc_mod, fixed indentation
 !   input argument list:
 !     mype     - mpi task id
 !     val_avhrr- weighting factor applied to super obs

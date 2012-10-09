@@ -30,7 +30,7 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: izero, ione, zero, half, one, two, one_tenth
+  use constants, only: zero, half, one, two, one_tenth
   implicit none
 
 ! Declare local parameters
@@ -43,14 +43,14 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
   real(r_kind)   ,intent(in   ) :: x1grid(n1grid)
 
   real(r_kind) x1in(2*n1grid)
-  real(r_kind) dx1gridi(-3:n1grid+3_i_kind)
-  real(r_kind) tl(max(64_i_kind,2*n1grid/lbig),lbig,lbig)
+  real(r_kind) dx1gridi(-3:n1grid+3)
+  real(r_kind) tl(max(64,2*n1grid/lbig),lbig,lbig)
   integer(i_kind) i1ref(2*n1grid)
   integer(i_kind) ix1sign(2*n1grid)
   real(r_kind) x1temp(2*n1grid),x1p(2*n1grid)
   integer(i_kind) iflag(2*n1grid)
-  real(r_kind) alocal(max(64_i_kind,2*n1grid/lbig)),blocal(max(64_i_kind,2*n1grid/lbig))
-  real(r_kind) xmaxlocal(max(64_i_kind,2*n1grid/lbig)),xminlocal(max(64_i_kind,2*n1grid/lbig))
+  real(r_kind) alocal(max(64,2*n1grid/lbig)),blocal(max(64,2*n1grid/lbig))
+  real(r_kind) xmaxlocal(max(64,2*n1grid/lbig)),xminlocal(max(64,2*n1grid/lbig))
   integer(i_kind), allocatable, dimension(:) :: ix1grid
   
   real(r_kind) delx1,dxa,dxb,dxc,dxd,dxe,dxf,dxg,dxfinei,dxmax,rhigh,rlow,x1ref,xlocal
@@ -60,19 +60,19 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
   
   nin=2*n1grid
   do n=1,n1grid
-     nm=max(ione,n-ione)
-     np=min(n1grid,n+ione)
-     delx1=x1grid(np)-x1grid(np-ione)
+     nm=max(1,n-1)
+     np=min(n1grid,n+1)
+     delx1=x1grid(np)-x1grid(np-1)
      x1in(n)=x1grid(n)+one_tenth*delx1
-     delx1=x1grid(nm+ione)-x1grid(nm)
+     delx1=x1grid(nm+1)-x1grid(nm)
      x1in(n1grid+n)=x1grid(n)-one_tenth*delx1
   end do
   
-  ntl=max(64_i_kind,nin/lbig)
+  ntl=max(64,nin/lbig)
   ! set ixi, the coordinate order counter
  
   do i=0,iord
-     ih=(i+ione)/2
+     ih=(i+1)/2
      if(2*ih==i) then
         ixi(i)=-ih
      else
@@ -86,55 +86,55 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
 
   iximx=maxval(ixi) ; iximn=minval(ixi)
   iximax=max(abs(iximx),abs(iximn))
-  nminleft=abs(iximn)+ione ; nmaxright=n1grid-iximax
-  if(iord==ione) then
+  nminleft=abs(iximn)+1 ; nmaxright=n1grid-iximax
+  if(iord==1) then
      xboundleft=x1grid(1)
      xboundright=x1grid(n1grid)
   else
-     xboundleft=x1grid(ione+iximax)-.49999_r_kind*(x1grid(ione+iximax)-x1grid(iximax))
+     xboundleft=x1grid(1+iximax)-.49999_r_kind*(x1grid(1+iximax)-x1grid(iximax))
      xboundright=x1grid(n1grid-iximax)+ &
-          .49999_r_kind*(x1grid(n1grid-iximax+ione)-x1grid(n1grid-iximax))
+          .49999_r_kind*(x1grid(n1grid-iximax+1)-x1grid(n1grid-iximax))
   end if
   if(x1grid(n1grid)>x1grid(1)) then
-     iflag=ione
+     iflag=1
      do n=1,nin
-        if(x1in(n)<=xboundleft.or.x1in(n)>=xboundright) iflag(n)=izero
+        if(x1in(n)<=xboundleft.or.x1in(n)>=xboundright) iflag(n)=0
      end do
   end if
   if(x1grid(n1grid)<x1grid(1)) then
-     iflag=ione
+     iflag=1
      do n=1,nin
-        if(x1in(n)>=xboundleft.or.x1in(n)<=xboundright) iflag(n)=izero
+        if(x1in(n)>=xboundleft.or.x1in(n)<=xboundright) iflag(n)=0
      end do
   end if
 
   !  set up uniform fine grid to use in finding interpolation coordinates
  
   dxmax=-huge(dxmax) ; dxmin=huge(dxmin)
-  do i=1,n1grid-ione
-     dxthis=x1grid(i+ione)-x1grid(i)
+  do i=1,n1grid-1
+     dxthis=x1grid(i+1)-x1grid(i)
      dx1gridi(i)=one/dxthis
      dxmax=max(dxthis,dxmax) ; dxmin=min(dxthis,dxmin)
   end do
   dx1gridi(-3:0)=dx1gridi(1)
-  dx1gridi(n1grid:n1grid+3_i_kind)=dx1gridi(n1grid-ione)
+  dx1gridi(n1grid:n1grid+3)=dx1gridi(n1grid-1)
   if(dxmax*dxmin<=zero) then
      write(6,*)' INTERPOLATION GRID NOT MONOTONIC IN SIMPIN1'
-     do i=1,n1grid-ione
-        write(6,*)' i,x1grid,dx=',i,x1grid(i),x1grid(i+ione)-x1grid(i)
+     do i=1,n1grid-1
+        write(6,*)' i,x1grid,dx=',i,x1grid(i),x1grid(i+1)-x1grid(i)
      end do
      stop
   end if
   dxminmin=min(abs(dxmax),abs(dxmin))
   dxfine=sign(dxminmin,dxmax)
   dxfinei=one/dxfine
-  n1fine=ione+ceiling((x1grid(n1grid)-x1grid(1))/dxfine)
+  n1fine=1+ceiling((x1grid(n1grid)-x1grid(1))/dxfine)
 !  write(6,*)' in simpin1, n1grid,n1fine=',n1grid,n1fine
   allocate (ix1grid(n1fine))
   ii=1
   do i=1,n1fine
-     x1ref=x1grid(1)+(i-ione)*dxfine
-     if(dxfinei*(x1ref-x1grid(ii+ione))>=-r0_001) ii=min(ii+ione,n1grid-ione)
+     x1ref=x1grid(1)+(i-1)*dxfine
+     if(dxfinei*(x1ref-x1grid(ii+1))>=-r0_001) ii=min(ii+1,n1grid-1)
      ix1grid(i)=ii
 !     write(6,)' x1fine,x1grid=',x1ref,x1grid(ix1grid(i))
   end do
@@ -144,23 +144,23 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
   rlow=-epsilon(rlow)
   rhigh=one+epsilon(rhigh)
   do n=1,nin
-     i1fine=ione+nint((x1in(n)-x1grid(1))*dxfinei)
-     i1fine=max(ione,min(i1fine,n1fine))
-     i1ref0=max(4_i_kind,min(ix1grid(i1fine),n1grid-4_i_kind))
-     dxa=(x1in(n)-x1grid(i1ref0-3_i_kind))*dx1gridi(i1ref0-3_i_kind)
-     dxb=(x1in(n)-x1grid(i1ref0-2_i_kind))*dx1gridi(i1ref0-2_i_kind)
-     dxc=(x1in(n)-x1grid(i1ref0-ione    ))*dx1gridi(i1ref0-ione    )
-     dxd=(x1in(n)-x1grid(i1ref0         ))*dx1gridi(i1ref0         )
-     dxe=(x1in(n)-x1grid(i1ref0+ione    ))*dx1gridi(i1ref0+ione    )
-     dxf=(x1in(n)-x1grid(i1ref0+2_i_kind))*dx1gridi(i1ref0+2_i_kind)
-     dxg=(x1in(n)-x1grid(i1ref0+3_i_kind))*dx1gridi(i1ref0+3_i_kind)
-     if(dxa<=rhigh) i1ref(n)=i1ref0-3_i_kind
-     if(dxb>=rlow.and.dxb<=rhigh) i1ref(n)=i1ref0-2_i_kind
-     if(dxc>=rlow.and.dxc<=rhigh) i1ref(n)=i1ref0-ione
+     i1fine=1+nint((x1in(n)-x1grid(1))*dxfinei)
+     i1fine=max(1,min(i1fine,n1fine))
+     i1ref0=max(4,min(ix1grid(i1fine),n1grid-4))
+     dxa=(x1in(n)-x1grid(i1ref0-3))*dx1gridi(i1ref0-3)
+     dxb=(x1in(n)-x1grid(i1ref0-2))*dx1gridi(i1ref0-2)
+     dxc=(x1in(n)-x1grid(i1ref0-1))*dx1gridi(i1ref0-1)
+     dxd=(x1in(n)-x1grid(i1ref0  ))*dx1gridi(i1ref0  )
+     dxe=(x1in(n)-x1grid(i1ref0+1))*dx1gridi(i1ref0+1)
+     dxf=(x1in(n)-x1grid(i1ref0+2))*dx1gridi(i1ref0+2)
+     dxg=(x1in(n)-x1grid(i1ref0+3))*dx1gridi(i1ref0+3)
+     if(dxa<=rhigh) i1ref(n)=i1ref0-3
+     if(dxb>=rlow.and.dxb<=rhigh) i1ref(n)=i1ref0-2
+     if(dxc>=rlow.and.dxc<=rhigh) i1ref(n)=i1ref0-1
      if(dxd>=rlow.and.dxd<=rhigh) i1ref(n)=i1ref0
-     if(dxe>=rlow.and.dxe<=rhigh) i1ref(n)=i1ref0+ione
-     if(dxf>=rlow.and.dxf<=rhigh) i1ref(n)=i1ref0+2_i_kind
-     if(dxg>=rlow) i1ref(n)=i1ref0+3_i_kind
+     if(dxe>=rlow.and.dxe<=rhigh) i1ref(n)=i1ref0+1
+     if(dxf>=rlow.and.dxf<=rhigh) i1ref(n)=i1ref0+2
+     if(dxg>=rlow) i1ref(n)=i1ref0+3
      i1ref(n)=max(nminleft,min(i1ref(n),nmaxright))
   end do
   deallocate (ix1grid)
@@ -171,25 +171,25 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
   do n=1,nin
      dxa=(x1in(n)-x1grid(i1ref(n)))*dx1gridi(i1ref(n))
      if(dxa>half) then
-        i1ref(n)=min(i1ref(n)+ione,nmaxright)
-        ix1sign(n)=-ione
+        i1ref(n)=min(i1ref(n)+1,nmaxright)
+        ix1sign(n)=-1
      end if
   end do
 
   ! get taylor matrices and invert
   
-  nstart=ione
+  nstart=1
   nend=min(nin,ntl)
   do while (nstart<=nend)
-     nthis=nend-nstart+ione
+     nthis=nend-nstart+1
      
 !  compute limits of local x coordinate
 
      xmaxlocal=-huge(xmaxlocal) ; xminlocal=huge(xminlocal)
      do i=0,iord
         do n=nstart,nend
-           if(iflag(n)>izero) then
-              nn=n-nstart+ione
+           if(iflag(n)>0) then
+              nn=n-nstart+1
               xlocal=x1grid(i1ref(n)+ix1sign(n)*ixi(i))-x1grid(i1ref(n))
               xmaxlocal(nn)=max(xmaxlocal(nn),xlocal)
               xminlocal(nn)=min(xminlocal(nn),xlocal)
@@ -199,8 +199,8 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
      alocal=zero
      blocal=zero
      do n=nstart,nend
-        if(iflag(n)>izero) then 
-           nn=n-nstart+ione
+        if(iflag(n)>0) then 
+           nn=n-nstart+1
            alocal(nn)=two/(xmaxlocal(nn)-xminlocal(nn))
            blocal(nn)=-one-two*xminlocal(nn)/(xmaxlocal(nn)-xminlocal(nn))
            alocalout(n)=alocal(nn)
@@ -212,21 +212,21 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
      do i=1,lbig
         tl(1:nthis,i,i)=one
      end do
-     l=izero
+     l=0
      do i=0,iord
-        l=l+ione
+        l=l+1
         x1temp(nstart:nend)=zero
         do n=nstart,nend
-           nn=n-nstart+ione
+           nn=n-nstart+1
            x1temp(n)=alocal(nn)*(x1grid(i1ref(n)+ix1sign(n)*ixi(i))-x1grid(i1ref(n))) &
                 +blocal(nn)
         end do
-        lp=izero
+        lp=0
         x1p(nstart:nend)=one
         do ip=0,iord
-           lp=lp+ione
+           lp=lp+1
            do n=nstart,nend
-              if(iflag(n)>izero) tl(n-nstart+ione,l,lp)=x1p(n)
+              if(iflag(n)>0) tl(n-nstart+1,l,lp)=x1p(n)
            end do
            x1p(nstart:nend)=x1p(nstart:nend)*x1temp(nstart:nend)
         end do
@@ -235,7 +235,7 @@ subroutine simpin1_init(ixi,tlout,alocalout,blocalout,iord,lbig,x1grid,n1grid)
      call vinvmm(tl,tl,lbig,lbig,lbig,nthis,ntl)
      
      do n=nstart,nend
-        nn=n-nstart+ione
+        nn=n-nstart+1
         do j=1,lbig
            do i=1,lbig
               tlout(i,j,n)=tl(nn,i,j)

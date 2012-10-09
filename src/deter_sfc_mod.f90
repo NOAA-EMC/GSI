@@ -1255,51 +1255,51 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
      sfcpct = zero
 
      jsli = isli_full(klat1 ,klon1 )
-     if(sno_full(klat1 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klat1 ,klon1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klon1 )
-     if(sno_full(klatp1 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klatp1 ,klon1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat1 ,klonp1)
-     if(sno_full(klat1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klat1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klonp1)
-     if(sno_full(klatp1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klatp1 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp2,klon1)
-     if(sno_full(klatp2 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klatp2 ,klon1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp2,klonp1)
-     if(sno_full(klatp2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klatp2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klon2)
-     if(sno_full(klatp1 ,klon2 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klatp1 ,klon2 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klatp1,klonp2)
-     if(sno_full(klatp1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klatp1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat1,klon2)
-     if(sno_full(klat1 ,klon2 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klat1 ,klon2 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat1,klonp2)
-     if(sno_full(klat1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klat1 ,klonp2 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat2,klon1)
-     if(sno_full(klat2 ,klon1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klat2 ,klon1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      jsli = isli_full(klat2,klonp1)
-     if(sno_full(klat2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3_i_kind
+     if(sno_full(klat2 ,klonp1 ,it) > one .and. jsli == 1)jsli=3
      sfcpct(jsli)=sfcpct(jsli)+one
 
      sfcpct=sfcpct/12.0_r_kind
@@ -1313,11 +1313,11 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
      else if(sfcpct(1) > 0.99_r_kind)then
         isflg = 1
      else if(sfcpct(2) > 0.99_r_kind)then
-        isflg = 2_i_kind
+        isflg = 2
      else if(sfcpct(3) > 0.99_r_kind)then
-        isflg = 3_i_kind
+        isflg = 3
      else
-        isflg = 4_i_kind
+        isflg = 4
      end if
 
      return

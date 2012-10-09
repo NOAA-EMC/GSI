@@ -44,7 +44,6 @@ subroutine grid2sub(workout,cstate,sst,slndt,sicet)
        latlon1n,latlon11,vlevs,reorder2,vectosub
   use control_vectors, only: nrf,nrf_var,nrf_3d
   use control_vectors, only: mvars  ! need to pass motley to avoid passing this via common
-  use constants, only: izero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none

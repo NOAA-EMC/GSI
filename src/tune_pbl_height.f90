@@ -53,15 +53,15 @@ subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))
 
-  ix=ix1-istart(m1)+2_i_kind
-  iy=iy1-jstart(m1)+2_i_kind
+  ix=ix1-istart(m1)+2
+  iy=iy1-jstart(m1)+2
   if(iy<1) then
      iy1=iy1+nlon
-     iy=iy1-jstart(m1)+2_i_kind
+     iy=iy1-jstart(m1)+2
   end if
   if(iy>lon1+1) then
      iy1=iy1-nlon
-     iy=iy1-jstart(m1)+2_i_kind
+     iy=iy1-jstart(m1)+2
   end if
   ixp=ix+1; iyp=iy+1
   if(ix1==nlat) then

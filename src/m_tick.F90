@@ -21,7 +21,6 @@ module m_tick
 !
 !$$$ end documentation block
 use kinds, only: i_kind
-use constants, only: izero,ione
 
 implicit none
 
@@ -107,27 +106,27 @@ contains
 ! Origin:     L.L. Takacs
 ! Revision:   S.-J. Lin Mar 2000
 
-       NSECF(N)   = N/10000*3600 + MOD(N,10000_i_kind)/100* 60 + MOD(N,100_i_kind)
-       NHMSF(N)   = N/3600*10000 + MOD(N,3600_i_kind )/ 60*100 + MOD(N, 60_i_kind)
+       NSECF(N)   = N/10000*3600 + MOD(N,10000)/100* 60 + MOD(N,100)
+       NHMSF(N)   = N/3600*10000 + MOD(N,3600 )/ 60*100 + MOD(N, 60)
 
        NSEC = NSECF(NHMS) + ndt
 
-       IF (NSEC>86400_i_kind)  THEN
-          DO WHILE (NSEC>86400_i_kind)
+       IF (NSEC>86400)  THEN
+          DO WHILE (NSEC>86400)
              NSEC = NSEC - 86400
-             NYMD = INCYMD (NYMD,ione)
+             NYMD = INCYMD (NYMD,1)
           ENDDO
        ENDIF
 
        IF (NSEC==86400)  THEN
-          NSEC = izero
-          NYMD = INCYMD (NYMD,ione)
+          NSEC = 0
+          NYMD = INCYMD (NYMD,1)
        ENDIF
 
-       IF (NSEC < izero)  THEN
-          DO WHILE (NSEC < izero)
-             NSEC = 86400_i_kind + NSEC
-             NYMD = INCYMD (NYMD,-ione)
+       IF (NSEC < 0)  THEN
+          DO WHILE (NSEC < 0)
+             NSEC = 86400 + NSEC
+             NYMD = INCYMD (NYMD,-1)
           ENDDO
        ENDIF
 
@@ -167,33 +166,33 @@ contains
 !     M        +/- 1 (DAY ADJUSTMENT)
 
       INTEGER(i_kind) NDPM(12)
-      DATA    NDPM /31_i_kind, 28_i_kind, 31_i_kind, 30_i_kind, 31_i_kind, 30_i_kind, &
-                    31_i_kind, 31_i_kind, 30_i_kind, 31_i_kind, 30_i_kind, 31_i_kind/
+      DATA    NDPM /31, 28, 31, 30, 31, 30, &
+                    31, 31, 30, 31, 30, 31/
       INTEGER(i_kind),intent(in):: NYMD, M
       INTEGER(i_kind) NY, NM, ND
 
       NY = NYMD / 10000
-      NM = MOD(NYMD,10000_i_kind) / 100
-      ND = MOD(NYMD,100_i_kind) + M
+      NM = MOD(NYMD,10000) / 100
+      ND = MOD(NYMD,100) + M
 
-      IF (ND==izero) THEN
-         NM = NM - ione
-         IF (NM==izero) THEN
-            NM = 12_i_kind
-            NY = NY - ione
+      IF (ND==0) THEN
+         NM = NM - 1
+         IF (NM==0) THEN
+            NM = 12
+            NY = NY - 1
          ENDIF
          ND = NDPM(NM)
-         IF (NM==2_i_kind .AND. leap_year(NY))  ND = 29_i_kind
+         IF (NM==2 .AND. leap_year(NY))  ND = 29
       ENDIF
 
-      IF (ND==29_i_kind .AND. NM==2_i_kind .AND. leap_year(ny))  GO TO 20
+      IF (ND==29 .AND. NM==2 .AND. leap_year(ny))  GO TO 20
 
       IF (ND>NDPM(NM)) THEN
-         ND = ione
-         NM = NM + ione
-         IF (NM>12_i_kind) THEN
-            NM = ione
-            NY = NY + ione
+         ND = 1
+         NM = NM + 1
+         IF (NM>12) THEN
+            NM = 1
+            NY = NY + 1
          ENDIF
       ENDIF
 
@@ -236,9 +235,9 @@ contains
 !
 ! No leap years prior to 1900
 !
-      parameter ( ny00 = 1900_i_kind )   ! The threshold for starting leap-year 
+      parameter ( ny00 = 1900 )   ! The threshold for starting leap-year 
 
-      if( mod(ny,4_i_kind) == izero .and. ny >= ny00 ) then
+      if( mod(ny,4) == 0 .and. ny >= ny00 ) then
          leap_year = .true.
       else
          leap_year = .false.

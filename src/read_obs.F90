@@ -148,12 +148,13 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   character(8) subset
 
   idate=0
+  if(trim(dtype) == 'tcp')return
 ! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
 #ifdef _INTEL_11_0_083_
   return
 #else 
-! Use routine ad usual
-  if(lexist .and. trim(dtype) /= 'tcp')then
+! Use routine as usual
+  if(lexist)then
       lnbufr = 15
       open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
       call openbf(lnbufr,'IN',lnbufr)
@@ -174,47 +175,91 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
          if(.not.offtime_data) lexist=.false.
       endif
       if(lexist)then
-       kidsat=0
-       if(jsatid == 'metop-a')kidsat=4
-       if(jsatid == 'metop-b')kidsat=5
-       if(jsatid == 'metop-c')kidsat=6
-       if(jsatid == 'm08')kidsat = 55 
-       if(jsatid == 'm09')kidsat = 56 
-       if(jsatid == 'm10')kidsat = 57 
-       if(jsatid == 'n08')kidsat=200
-       if(jsatid == 'n09')kidsat=201
-       if(jsatid == 'n10')kidsat=202
-       if(jsatid == 'n11')kidsat=203
-       if(jsatid == 'n12')kidsat=204
-       if(jsatid == 'n14')kidsat=205
-       if(jsatid == 'n15')kidsat=206
-       if(jsatid == 'n16')kidsat=207
-       if(jsatid == 'n17')kidsat=208
-       if(jsatid == 'n18')kidsat=209
-       if(jsatid == 'n19')kidsat=223
-       if(jsatid == 'npp')kidsat=224
-       if(jsatid == 'f08')kidsat=241
-       if(jsatid == 'f10')kidsat=243
-       if(jsatid == 'f11')kidsat=244
-       if(jsatid == 'f13')kidsat=246
-       if(jsatid == 'f14')kidsat=247
-       if(jsatid == 'f15')kidsat=248
-       if(jsatid == 'f16')kidsat=249
-       if(jsatid == 'f17')kidsat=250
-       if(jsatid == 'g08' .or. jsatid == 'g08_prep')kidsat=252
-       if(jsatid == 'g09' .or. jsatid == 'g09_prep')kidsat=253
-       if(jsatid == 'g10' .or. jsatid == 'g10_prep')kidsat=254
-       if(jsatid == 'g11' .or. jsatid == 'g11_prep')kidsat=255
-       if(jsatid == 'g12' .or. jsatid == 'g12_prep')kidsat=256
-       if(jsatid == 'g13' .or. jsatid == 'g13_prep')kidsat=257
-       if(jsatid == 'g14' .or. jsatid == 'g14_prep')kidsat=258
-       if(jsatid == 'g15' .or. jsatid == 'g15_prep')kidsat=259
-       if(jsatid == 'n05')kidsat=705
-       if(jsatid == 'n06')kidsat=706
-       if(jsatid == 'n07')kidsat=707
-       if(jsatid == 'tirosn')kidsat=708
-       if ( jsatid == 'terra' ) kidsat = 783
-       if ( jsatid == 'aqua'  ) kidsat = 784
+       if(jsatid == '')then
+         kidsat=0
+       else if(jsatid == 'metop-a')then
+         kidsat=4
+       else if(jsatid == 'metop-b')then
+         kidsat=5
+       else if(jsatid == 'metop-c')then
+         kidsat=6
+       else if(jsatid == 'm08')then
+         kidsat = 55 
+       else if(jsatid == 'm09')then
+         kidsat = 56 
+       else if(jsatid == 'm10')then
+         kidsat = 57 
+       else if(jsatid == 'n08')then
+         kidsat=200
+       else if(jsatid == 'n09')then
+         kidsat=201
+       else if(jsatid == 'n10')then
+         kidsat=202
+       else if(jsatid == 'n11')then
+         kidsat=203
+       else if(jsatid == 'n12')then
+         kidsat=204
+       else if(jsatid == 'n14')then
+         kidsat=205
+       else if(jsatid == 'n15')then
+         kidsat=206
+       else if(jsatid == 'n16')then
+         kidsat=207
+       else if(jsatid == 'n17')then
+         kidsat=208
+       else if(jsatid == 'n18')then
+         kidsat=209
+       else if(jsatid == 'n19')then
+         kidsat=223
+       else if(jsatid == 'npp')then
+         kidsat=224
+       else if(jsatid == 'f08')then
+         kidsat=241
+       else if(jsatid == 'f10')then
+         kidsat=243
+       else if(jsatid == 'f11')then
+         kidsat=244
+       else if(jsatid == 'f13')then
+         kidsat=246
+       else if(jsatid == 'f14')then
+         kidsat=247
+       else if(jsatid == 'f15')then
+         kidsat=248
+       else if(jsatid == 'f16')then
+         kidsat=249
+       else if(jsatid == 'f17')then
+         kidsat=250
+       else if(jsatid == 'g08' .or. jsatid == 'g08_prep')then
+         kidsat=252
+       else if(jsatid == 'g09' .or. jsatid == 'g09_prep')then
+         kidsat=253
+       else if(jsatid == 'g10' .or. jsatid == 'g10_prep')then
+         kidsat=254
+       else if(jsatid == 'g11' .or. jsatid == 'g11_prep')then
+         kidsat=255
+       else if(jsatid == 'g12' .or. jsatid == 'g12_prep')then
+         kidsat=256
+       else if(jsatid == 'g13' .or. jsatid == 'g13_prep')then
+         kidsat=257
+       else if(jsatid == 'g14' .or. jsatid == 'g14_prep')then
+         kidsat=258
+       else if(jsatid == 'g15' .or. jsatid == 'g15_prep')then
+         kidsat=259
+       else if(jsatid == 'n05')then
+         kidsat=705
+       else if(jsatid == 'n06')then
+         kidsat=706
+       else if(jsatid == 'n07')then
+         kidsat=707
+       else if(jsatid == 'tirosn')then
+         kidsat=708
+       else if ( jsatid == 'terra' ) then
+         kidsat = 783
+       else if ( jsatid == 'aqua'  ) then
+         kidsat = 784
+       else
+         kidsat = 0
+       end if
 
        if(kidsat /= 0)then
         lexist = .false.
@@ -297,9 +342,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
       end if
 
       call closbf(lnbufr)
-      write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype
+  end if
+  if(lexist)then
+      write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype,jsatid
   else
-      write(6,*)'read_obs_check: bufr file date is ',idate,trim(filename),' ',dtype,' not used '
+      write(6,*)'read_obs_check: bufr file ',dtype,jsatid,' not available ',trim(filename)
   end if
 #endif /* non _INTEL_11_0_083_ */
   return
@@ -502,49 +549,6 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
-!  Control parallel read for each ob type (currently just rad obs).  
-!  To remove parallel read comment out line.
-       ithin=dthin(i)
-       if(ithin > 0 )then
-         if(dmesh(ithin) > one)then
-          if(hirs)then
-             parallel_read(i)= .true.
-          else if(obstype == 'amsua')then
-             parallel_read(i)= .true.
-          else if(obstype == 'airs' )then
-             parallel_read(i)= .true.
-          else if(obstype == 'iasi')then
-             parallel_read(i)= .true.
-          else if(obstype == 'amsub')then
-             parallel_read(i)= .true.
-          else if(obstype == 'mhs' )then
-             parallel_read(i)= .true.
-          else if(sndr )then
-             parallel_read(i)= .true.
-! N.B. ATMS must be run on one processor for the filtering code to work.
-          else if(obstype == 'atms')then
-!              parallel_read(i)= .true.
-          else if(ssmis)then
-             parallel_read(i)= .true.
-          else if(seviri)then
-             parallel_read(i)= .true.
-          else if(obstype == 'cris' )then
-             parallel_read(i)= .true.
-          else if(avhrr)then
-             parallel_read(i)= .true.
-          else if(amsre)then
-             parallel_read(i)= .true.
-          else if(obstype == 'goes_img' )then
-             parallel_read(i)= .true.
-          else if(obstype == 'hsb' )then
-             parallel_read(i)= .true.
-          else if(obstype == 'ssmi' )then
-             parallel_read(i)= .true.
-          else if(obstype == 'ssu' )then
-             parallel_read(i)= .true.
-          end if
-        end if
-       end if
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -622,6 +626,49 @@ subroutine read_obs(ndata,mype)
 
        if(nuse)then
 
+!     Control parallel read for each ob type (currently just rad obs).  
+!     To remove parallel read comment out line.
+          ithin=dthin(i)
+          if(ithin > 0 )then
+            if(dmesh(ithin) > one)then
+             if(hirs)then
+                parallel_read(i)= .true.
+             else if(obstype == 'amsua')then
+                parallel_read(i)= .true.
+             else if(obstype == 'airs' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'iasi')then
+                parallel_read(i)= .true.
+             else if(obstype == 'amsub')then
+                parallel_read(i)= .true.
+             else if(obstype == 'mhs' )then
+                parallel_read(i)= .true.
+             else if(sndr )then
+                parallel_read(i)= .true.
+! N.B. ATMS must be run on one processor for the filtering code to work.
+             else if(obstype == 'atms')then
+!                 parallel_read(i)= .true.
+             else if(ssmis)then
+                parallel_read(i)= .true.
+             else if(seviri)then
+                parallel_read(i)= .true.
+             else if(obstype == 'cris' )then
+                parallel_read(i)= .true.
+             else if(avhrr)then
+                parallel_read(i)= .true.
+             else if(amsre)then
+                parallel_read(i)= .true.
+             else if(obstype == 'goes_img' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'hsb' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'ssmi' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'ssu' )then
+                parallel_read(i)= .true.
+             end if
+           end if
+          end if
           ears_possible(i) = ditype(i) == 'rad'  .and.       & 
                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
                    obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
@@ -642,10 +689,11 @@ subroutine read_obs(ndata,mype)
                 lexist=lexist .or. lexistears
                 len4file=len4file+lenbytes/4
              end if
+ 
+             if(lexist) then
 !      Initialize number of reader tasks to 1.  For the time being
 !      only allow number of reader tasks >= 1 for select obstype.
 
-             if(lexist) then
                 ntasks1(i)=1
                 if(parallel_read(i)) then
 
@@ -1114,7 +1162,7 @@ subroutine read_obs(ndata,mype)
 
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(a13,': file=',a10,&
+8000         format(1x,a13,': file=',a10,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)
