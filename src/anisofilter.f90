@@ -169,7 +169,7 @@ module anisofilter
   public :: isotropic_scales_subdomain_option
 ! set passed variables to public
   public :: theta0zf,theta0f,asp3_max,u0f,v0zf,v0f,u0zf,tx1_slab,hfilter,hfine,tx2_slab,asp2_max,asp1_max,tx3_slab
-  public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,asp20f,qlth_temp,psg,asp30f
+  public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,z0f2,asp20f,qlth_temp,psg,asp30f
   public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
   public :: r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
   public :: stpcode_statdata,rfact0h,ks,mlat,rllatf,ensamp
@@ -215,7 +215,7 @@ module anisofilter
   real(r_kind)  ,allocatable,dimension(:,:)    :: dxf,dyf,rllatf,hfilter
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: hfine
   real(r_single),allocatable,dimension(:,:,:,:):: aspect
-  real(r_single),allocatable,dimension(:,:,:)  :: theta0f,theta0zf,u0f,u0zf,v0f,v0zf,z0f,rh0f,vis0f ! for regional / zonal patch
+  real(r_single),allocatable,dimension(:,:,:)  :: theta0f,theta0zf,u0f,u0zf,v0f,v0zf,z0f,z0f2,rh0f,vis0f ! for regional / zonal patch
   real(r_kind)  ,allocatable,dimension(:,:)    :: asp10f,asp20f,asp30f ! for regional / zonal patch
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: psg
 
@@ -310,11 +310,17 @@ subroutine anprewgt_reg(mype)
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
+! Declare local parameters
+  real(r_single),parameter:: vis0fmin=6000._r_single
+  real(r_single),parameter:: vis0fmax=6000._r_single
+
+! Declare local variables
   integer(i_kind):: n,i,j,k,ivar,kvar,k1,l,lp,igauss,nlatf,nlonf,ierr
   real(r_kind):: dl1,dl2,factor,factoz,factk,anhswgtsum
   real(r_kind)  ,allocatable,dimension(:,:):: bckgvar,bckgvar0f,zaux,zsmooth
   real(r_single),allocatable,dimension(:,:):: bckgvar4,zsmooth4
   real(r_single),allocatable,dimension(:,:):: region_dx4,region_dy4,psg4
+  real(r_single) thisvis0f
 
   character(len=10):: chvarname
   character(len= 4):: clun
@@ -520,8 +526,8 @@ subroutine anprewgt_reg(mype)
                        else
                           factk=dl1*corp(l,n)+dl2*corp(lp,n)
                           if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then
-                             vis0f(i,j,1)=min(10000.0, max(100.0,vis0f(i,j,1)))
-                             factk=factk/(log(ten)*vis0f(i,j,1))
+                             thisvis0f=min(vis0fmax, max(vis0fmin,vis0f(i,j,1)))
+                             factk=factk/(log(ten)*thisvis0f)        !in other words,trust the smaller bckg vis values more than the larger ones
                           end if
                        end if
                        exit
@@ -606,7 +612,7 @@ subroutine anprewgt_reg(mype)
 ! deallocate(dxf,dyf,rllatf,theta0f,theta0zf)
   deallocate(corp,hwll,hwllp,vz,aspect)
   deallocate(dxf,dyf,theta0f,theta0zf)
-  deallocate(u0f,u0zf,v0f,v0zf,z0f,rh0f,vis0f,psg,rsliglb)
+  deallocate(u0f,u0zf,v0f,v0zf,z0f,z0f2,rh0f,vis0f,psg,rsliglb)
 
   deallocate(rfact0h,rfact0v)
   deallocate(hfine,hfilter)
@@ -694,6 +700,11 @@ subroutine get_aspect_reg_2d
            fx1= dyi*real(z0f(ip,j,k)-z0f(im,j,k),r_kind)
            fx2= dxi*real(z0f(i,jp,k)-z0f(i,jm,k),r_kind)
            fx3= zero
+
+           if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then !no land/water elev gradient artifact for visibility
+              fx1= dyi*real(z0f2(ip,j,k)-z0f2(im,j,k),r_kind)
+              fx2= dxi*real(z0f2(i,jp,k)-z0f2(i,jm,k),r_kind)
+           endif
 
            rltop=rltop_wind
            afact=zero
@@ -1050,7 +1061,7 @@ subroutine init_anisofilter_reg(mype)
   logical:: fexist
   integer(i_kind)           :: nlatf,nlonf
 
-  real(r_double) svpsi,svchi,svpsfc,svtemp,svshum
+  real(r_double) svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh
   real(r_kind) sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh
   real(r_kind) water_scalefactpsi,water_scalefactchi,water_scalefacttemp, &
                water_scalefactq,water_scalefactpsfc,water_scalefactgust, &
@@ -1064,7 +1075,7 @@ subroutine init_anisofilter_reg(mype)
           nhscale_pass, &
           rltop_wind,rltop_temp,rltop_q,rltop_psfc, &
           rltop_gust,rltop_vis,rltop_pblh, &
-          svpsi,svchi,svpsfc,svtemp,svshum, &
+          svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh, &
           sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh
 !*******************************************************************
 
@@ -1163,6 +1174,9 @@ subroutine init_anisofilter_reg(mype)
      svpsfc=0.70_r_double*two
      svtemp=one*two
      svshum=half*1.5_r_double*two
+     svgust=one
+     svvis=one
+     svpblh=one
 
      sclpsi =0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
      sclchi =0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
@@ -1211,15 +1225,15 @@ subroutine init_anisofilter_reg(mype)
               rfact0h(n)=sclpsfc
               water_scalefact(n)=water_scalefactpsfc
            case('gust','GUST')
-              an_amp(:,n) =1.00_r_double
+              an_amp(:,n) =svgust
               rfact0h(n)=sclgust
               water_scalefact(n)=water_scalefactgust
            case('vis','VIS')
-              an_amp(:,n) =1.00_r_double
+              an_amp(:,n) =svvis
               rfact0h(n)=sclvis 
               water_scalefact(n)=water_scalefactvis 
            case('pblh','PBLH')
-              an_amp(:,n) =1.00_r_double
+              an_amp(:,n) =svpblh
               rfact0h(n)=sclpblh
               water_scalefact(n)=water_scalefactpblh
         end select
@@ -1258,6 +1272,9 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: svpsfc=',svpsfc
         print*,'in init_anisofilter_reg: svtemp=',svtemp
         print*,'in init_anisofilter_reg: svshum=',svshum
+        print*,'in init_anisofilter_reg: svgust=',svgust
+        print*,'in init_anisofilter_reg: svvis=',svvis
+        print*,'in init_anisofilter_reg: svpblh=',svpblh
 
         print*,'in init_anisofilter_reg: sclpsi=',sclpsi
         print*,'in init_anisofilter_reg: sclchi=',sclchi
@@ -1274,7 +1291,7 @@ subroutine init_anisofilter_reg(mype)
 
   if (mype==0) then
      do i=1,nvars
-        print*,'in init_anisofilter_reg: i,rfact0h,rfact0v,afact0=',i,rfact0h(i),rfact0v(i),afact0(i)
+        print*,'in init_anisofilter_reg: i,rfact0h,rfact0v,afact0,an_amp(1,i)=',i,rfact0h(i),rfact0v(i),afact0(i),an_amp(1,i)
      enddo
   endif
 
@@ -1579,6 +1596,7 @@ subroutine get_background(mype)
   allocate(z0f(nlatf,nlonf,nsig1o),rh0f(nlatf,nlonf,nsig1o))
   allocate(psg(nlat ,nlon ,nsig1o),rsliglb(nlat,nlon,nsig1o))
   allocate(vis0f(nlatf,nlonf,nsig1o))
+  allocate(z0f2(nlatf,nlonf,nsig1o))
 
   it=ntguessig
 
@@ -1616,11 +1634,13 @@ subroutine get_background(mype)
      end do
   end do
   call sub2fslab2d(field(1,1,1),z0f )
+  call sub2fslab2d(ges_z(1,1,it),z0f2 )
 
   if(nsig1o>1) then
      do j=1,nlonf
         do i=1,nlatf
            z0f(i,j,2:nsig1o)=z0f(i,j,1)
+           z0f2(i,j,2:nsig1o)=z0f2(i,j,1)
         end do
      end do
   endif
@@ -1718,8 +1738,10 @@ subroutine get_background(mype)
   call raf_sm_reg(v0f ,ngauss_smooth)
   call raf_sm_reg(v0zf,ngauss_smooth)
 
-  if( (twodvar_regional.and.lsmoothterrain) .or. (.not.twodvar_regional)) &
+  if( (twodvar_regional.and.lsmoothterrain) .or. (.not.twodvar_regional)) then
      call raf_sm_reg(z0f ,ngauss_smooth)
+     call raf_sm_reg(z0f2 ,ngauss_smooth)
+  endif
 
   call raf_sm_reg(rh0f,ngauss_smooth)
   call raf_sm_reg(vis0f,ngauss_smooth)
@@ -3942,6 +3964,10 @@ subroutine get2berr_reg_subdomain_option(mype)
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
+! Declare local parameters
+  real(r_single),parameter:: vis0fmin=6000._r_single
+  real(r_single),parameter:: vis0fmax=6000._r_single
+
 ! Declare local variables
   integer(i_kind) n,i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
   integer(i_kind) iglob,jglob
@@ -3952,6 +3978,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_kind) fx2,fx1,fx3,dxi,dyi
   real(r_kind) asp1,asp2,asp3,factoz,afact
   real(r_kind) deta0,deta1
+  real(r_single) thisvis0f
 
   real(r_kind),allocatable,dimension(:,:,:):: bckgvar0f
   real(r_single),allocatable,dimension(:,:)::bckgvar4,bckgvar4a,zsmooth4,zsmooth4a
@@ -4018,6 +4045,11 @@ subroutine get2berr_reg_subdomain_option(mype)
            fx1= dyi*(z0f(iploc,jloc,k1)-z0f(imloc,jloc,k1))
            fx2= dxi*(z0f(iloc,jploc,k1)-z0f(iloc,jmloc,k1))
            fx3= zero
+
+           if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then !no land/water elev gradient artifact for visibility
+              fx1= dyi*(z0f2(iploc,jloc,k1)-z0f2(imloc,jloc,k1))
+              fx2= dxi*(z0f2(iloc,jploc,k1)-z0f2(iloc,jmloc,k1))
+           endif
 
            rltop=rltop_wind
            afact=zero
@@ -4194,8 +4226,8 @@ subroutine get2berr_reg_subdomain_option(mype)
                  if (nrf2_loc(n)==ivar) then
                     factk=dl1*corp(l,n)+dl2*corp(lp,n)
                     if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then
-                       vis0f(iloc,jloc,1)=min(10000.0, max(100.0,vis0f(iloc,jloc,1)))
-                       factk=factk/(log(ten)*vis0f(iloc,jloc,1))
+                       thisvis0f=min(vis0fmax, max(vis0fmin,vis0f(iloc,jloc,1)))
+                       factk=factk/(log(ten)*thisvis0f)        !in other words,trust the smaller bckg vis values more than the larger ones
                     end if
                     exit
                  end if
@@ -4290,7 +4322,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   deallocate(region_dy4,region_dx4)
   deallocate(corz,corp,hwll,hwllp,vz,aspect)
   deallocate(dxf,dyf,rllatf,theta0f)
-  deallocate(u0f,v0f,z0f)
+  deallocate(u0f,v0f,z0f,z0f2)
   deallocate(zsmooth4a,psg4a)
   deallocate(zsmooth4,psg4)
   deallocate(fltvals0)
@@ -4341,8 +4373,8 @@ subroutine get_background_subdomain_option(mype)
   integer(i_kind),allocatable::idvar0(:),kvar_start0(:),kvar_end0(:)
   character(80),allocatable::var_names0(:)
 
-  real(r_kind),allocatable,dimension(:,:,:)::field2
-  real(r_single),allocatable,dimension(:,:,:)::field
+  real(r_kind),allocatable,dimension(:,:,:)::field2,field3
+  real(r_single),allocatable,dimension(:,:,:)::field,fieldaux
 
   integer(i_long):: ngauss_smooth,npass_smooth,normal_smooth,ifilt_ord_smooth
   integer(i_long):: nsmooth_smooth,nsmooth_shapiro_smooth
@@ -4429,10 +4461,12 @@ subroutine get_background_subdomain_option(mype)
   it=ntguessig
 
   allocate(field(ips:ipe,jps:jpe,kps0:kpe0),field2(lat2,lon2,nsig))
+  allocate(fieldaux(ips:ipe,jps:jpe,kps0:kpe0),field3(lat2,lon2,nsig))
   allocate(theta0f(lat2,lon2,nsig))
   allocate(    u0f(lat2,lon2,nsig))
   allocate(    v0f(lat2,lon2,nsig))
   allocate(    z0f(lat2,lon2,nsig))
+  allocate(    z0f2(lat2,lon2,nsig))
   allocate(    vis0f(lat2,lon2,nsig))
   do n=1,4
  
@@ -4441,7 +4475,7 @@ subroutine get_background_subdomain_option(mype)
            jloc=j-jstart(mm1)+2
            do i=ips,ipe
               iloc=i-istart(mm1)+2
-              if (n==1)        field(i,j,k)=ges_tv(iloc,jloc,k,it)/(ges_prsl(iloc,jloc,k,it)/r100)**rd_over_cp
+              if (n==1)    field(i,j,k)=ges_tv(iloc,jloc,k,it)/(ges_prsl(iloc,jloc,k,it)/r100)**rd_over_cp
               if (n==2)    field(i,j,k)=ges_u(iloc,jloc,k,it)
               if (n==3)    field(i,j,k)=ges_v(iloc,jloc,k,it)
               if (n==4)    then
@@ -4450,6 +4484,7 @@ subroutine get_background_subdomain_option(mype)
                  else
                     field(i,j,k)=ges_z(iloc,jloc,it)
                  end if
+                 fieldaux(i,j,k)=ges_z(iloc,jloc,it)
               endif
            end do
         end do
@@ -4457,6 +4492,10 @@ subroutine get_background_subdomain_option(mype)
      if (n<=3 .or. (n==4 .and. lsmoothterrain)) then
         call raf_sm4(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
         call raf_sm4_ad(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+        if (n==4) then
+           call raf_sm4(fieldaux,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+           call raf_sm4_ad(fieldaux,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+        endif
      endif
      do k=kps0,kpe0
         do j=jps,jpe
@@ -4464,17 +4503,22 @@ subroutine get_background_subdomain_option(mype)
            do i=ips,ipe
               iloc=i-istart(mm1)+2
               field2(iloc,jloc,k)=field(i,j,k)
+              if (n==4) field3(iloc,jloc,k)=fieldaux(i,j,k)
            end do
         end do
      end do
      call halo_update_reg(field2,nsig)
+     if (n==4) call halo_update_reg(field3,nsig)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
               if (n==1)    theta0f(i,j,k)=field2(i,j,k)
               if (n==2)    u0f(i,j,k)=field2(i,j,k)
               if (n==3)    v0f(i,j,k)=field2(i,j,k)
-              if (n==4)    z0f(i,j,k)=field2(i,j,k)
+              if (n==4) then
+                  z0f(i,j,k)=field2(i,j,k)
+                  z0f2(i,j,k)=field3(i,j,k)
+              endif
            end do
         end do
      end do
@@ -4490,8 +4534,8 @@ subroutine get_background_subdomain_option(mype)
      end do
   end do
 
- deallocate(field)
- deallocate(field2)
+ deallocate(field,fieldaux)
+ deallocate(field2,field3)
  deallocate(aspect)
  deallocate(idvar0,kvar_start0,kvar_end0,var_names0)
 
