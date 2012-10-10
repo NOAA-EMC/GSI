@@ -840,7 +840,7 @@ subroutine read_2d_guess(mype)
               ges_gust(j,i,it)=all_loc(j,i,i_0+i_gust)
 
               ges_vis(j,i,it)=all_loc(j,i,i_0+i_vis)
-              if (ges_vis(j,i,it)<=zero) ges_vis(j,i,it)=1.0e-4_r_kind
+              if (ges_vis(j,i,it)<=zero) ges_vis(j,i,it)=0.1_r_kind
               if (ges_vis(j,i,it)>20000.0_r_kind) ges_vis(j,i,it)=20000.0_r_kind
 
               ges_pblh(j,i,it)=all_loc(j,i,i_0+i_pblh)
@@ -2146,6 +2146,8 @@ module hilbertcurve
   integer(i_kind) ngrps_qob
   integer(i_kind) ngrps_pwob
   integer(i_kind) ngrps_sstob
+  integer(i_kind) ngrps_gustob
+  integer(i_kind) ngrps_visob
 
   logical random_cvgrp
   real(r_kind) usagecv
@@ -2185,9 +2187,10 @@ subroutine init_hilbertcurve(maxobs)
 
   namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
-                    ngrps_pwob,ngrps_sstob
+                    ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob
 
   random_cvgrp=.false.
+  usagecv=3._r_kind
   ngrps_tob=5
   ngrps_uvob=8
   ngrps_spdob=0
@@ -2195,6 +2198,8 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_qob=5
   ngrps_pwob=0
   ngrps_sstob=0
+  ngrps_gustob=8
+  ngrps_visob=8
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
@@ -2214,6 +2219,8 @@ subroutine init_hilbertcurve(maxobs)
     print*,'in init_hilbertcurve: ngrps_pwob=',ngrps_pwob
     print*,'in init_hilbertcurve: ngrps_sstob=',ngrps_sstob
   end if
+  print*,'in init_hilbertcurve: ngrps_gustob=',ngrps_gustob
+  print*,'in init_hilbertcurve: ngrps_visob=',ngrps_visob
 
   ncross=0
 
@@ -2277,9 +2284,9 @@ subroutine accum_hilbertcurve(usage,cstation,cprovider,csubprovider, &
  
   logical goodkx
  
-  goodkx=(kx>=180.and.kx<=188).or.(kx>=280.and.kx<=288).or.&
-         (kx>=192.and.kx<=195).or.(kx>=292.and.kx<=295).and.&
-         usage<6._r_kind
+  goodkx= ( (kx>=180.and.kx<=188).or.(kx>=280.and.kx<=288).or.&
+            (kx>=192.and.kx<=195).or.(kx>=292.and.kx<=295) ) .and.&
+            usage<6._r_kind
     
 !!!      if(ncnumgrp(ikx) > 0 .and. usage < 6._r_kind) then
 !!!      if(usage < 6._r_kind) then
@@ -2304,7 +2311,8 @@ subroutine accum_hilbertcurve(usage,cstation,cprovider,csubprovider, &
 end subroutine accum_hilbertcurve
 
 subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdob, & 
-                              psob,kpsob,qob,kqob,pwob,kpwob,sstob,ksstob)
+                              psob,kpsob,qob,kqob,pwob,kpwob,sstob,ksstob, & 
+                              gustob,kgustob,visob,kvisob)
 !$$$  subprogram documentation block
 !                .      .    .                                      .
 ! subprogram:    apply_hilbertcurve
@@ -2316,8 +2324,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 !   2009-10-01  lueken - added subprogram doc block
 !
 !   input argument list:
-!    tob,uvob,spdob,psob,qob,pwob,sstob
-!    ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob
+!    tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+!    ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob,kgustob,kvisob
 !    maxobs,k1,k2
 !    cdata
 !
@@ -2336,8 +2344,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
 
 !Declare passed variables
-  logical        ,intent(in   ) :: tob,uvob,spdob,psob,qob,pwob,sstob
-  integer(i_kind),intent(in   ) :: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob
+  logical        ,intent(in   ) :: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+  integer(i_kind),intent(in   ) :: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob,kgustob,kvisob
   integer(i_kind),intent(in   ) :: maxobs,k1,k2
   real(r_kind)   ,intent(inout) :: cdata(k1:k2,maxobs)
 
@@ -2364,8 +2372,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
   allocate(hildlon(maxobs))
   allocate(hildlat(maxobs))
 
-      print*,'in apply_hilbertcurve: tob,uvob,spdob,psob,qob,pwob,sstob=',&
-                                     tob,uvob,spdob,psob,qob,pwob,sstob
+      print*,'in apply_hilbertcurve: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',&
+                                     tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
 
       nt=ncross
       if(nt.gt.0) then
@@ -2424,6 +2432,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
             if(qob)   ncnumgrp0=ngrps_qob
             if(pwob)  ncnumgrp0=ngrps_pwob
             if(sstob) ncnumgrp0=ngrps_sstob
+            if(gustob)ncnumgrp0=ngrps_gustob
+            if(visob) ncnumgrp0=ngrps_visob
           else
             ncnumgrp0=ncnumgrp(hilikx(ncross)) ! number of cross-validating datasets is
                                                ! chosen to be the last "number of groups" 
@@ -2457,6 +2467,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
               if(qob)   cdata(kqob,hili(i))=usage
               if(pwob)  cdata(kpwob,hili(i))=usage
               if(sstob) cdata(ksstob,hili(i))=usage
+              if(gustob)cdata(kgustob,hili(i))=usage
+              if(visob) cdata(kvisob,hili(i))=usage
 
               j=ipoint(i)
               do n=1,nt
@@ -2471,6 +2483,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
                     if(qob)   cdata(kqob,hil_i(n))=usage_dup
                     if(pwob)  cdata(kpwob,hil_i(n))=usage_dup
                     if(sstob) cdata(ksstob,hil_i(n))=usage_dup
+                    if(gustob)cdata(kgustob,hil_i(n))=usage_dup
+                    if(visob) cdata(kvisob,hil_i(n))=usage_dup
                  endif
               enddo
            endif
@@ -2481,7 +2495,7 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
       if(ncross.gt.0) then
         ! count number of obs in each cross-validation dataset
-        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob=',ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob
+        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
         ncvcount=0
         do n=1,ncnumgrp0
            do i=1,ncross
@@ -2498,6 +2512,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
         if(spdob) outfile='spdobs_allcv_groups'
         if(psob)  outfile='psobs_allcv_groups'
         if(qob)   outfile='qobs_allcv_groups'
+        if(gustob)outfile='gustobs_allcv_groups'
+        if(visob) outfile='visobs_allcv_groups'
 
         open (92,file=trim(outfile),form='unformatted')
 

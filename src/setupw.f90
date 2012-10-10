@@ -142,6 +142,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r20=20.0_r_kind
   real(r_kind),parameter:: r50=50.0_r_kind
   real(r_kind),parameter:: r200=200.0_r_kind
+  real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r0_1_bmiss=0.1_r_kind*bmiss
 
   character(len=*),parameter:: myname='setupw'
@@ -172,6 +173,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
+  real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   real(r_kind) dpreso,dpk,uint,ugint,vint,vgint
@@ -776,9 +778,26 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
      if (lowlevelsat .and. twodvar_regional) then
-        if (presw < 750._r_kind) then
+        if (abs(ten*psges-presw) > 200._r_kind) then
            error = zero
            ratio_errors = zero
+        endif
+     endif
+
+     if (twodvar_regional) then
+        if (lowlevelsat .or. itype==289 .or. itype==290) then
+            wdirdiffmax=45._r_kind
+          else
+           wdirdiffmax=100000._r_kind
+        endif
+        if (spdob > zero .and. (spdob-spdb) > zero) then
+           call getwdir(uob,vob,wdirob)
+           call getwdir(ugesin,vgesin,wdirgesin)
+           if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
+                          abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
+               error = zero
+               ratio_errors = zero
+           endif
         endif
      endif
 

@@ -21,6 +21,7 @@ module sfcobsqc
 !   sub init_rjlists
 !   sub get_usagerj
 !   sub get_gustqm
+!   readin_rjlists
 !   sub destroy_rjlists
 !
 ! variable definitions:
@@ -31,7 +32,7 @@ module sfcobsqc
 !
 !$$$ end documentation block
 
-  use kinds, only: i_kind,r_kind
+  use kinds, only: i_kind,r_kind,r_single,r_double
 
   implicit none
 
@@ -40,8 +41,15 @@ module sfcobsqc
   character(16),allocatable,dimension(:)::cprovider
   character(5),allocatable,dimension(:)::csta_winduse
   character(80),allocatable,dimension(:)::w_rjlist,t_rjlist,p_rjlist,q_rjlist
+  character(80),allocatable,dimension(:)::t_day_rjlist,t_night_rjlist
+  character(80),allocatable,dimension(:)::q_day_rjlist,q_night_rjlist
+  character(8),allocatable,dimension(:,:)::csta_windbin
 
   integer(i_kind) nprov,nwrjs,ntrjs,nprjs,nqrjs,nsta_mesowind_use
+  integer(i_kind) ntrjs_day,ntrjs_night
+  integer(i_kind) nqrjs_day,nqrjs_night
+  integer(i_kind) nbins
+  integer(i_kind),allocatable,dimension(:)::nwbaccpts
 
   logical listexist
   logical wlistexist
@@ -49,10 +57,18 @@ module sfcobsqc
   logical plistexist
   logical qlistexist
   logical listexist2
+  logical t_day_listexist
+  logical t_night_listexist
+  logical q_day_listexist
+  logical q_night_listexist
+  logical wbinlistexist
 
   public init_rjlists
   public get_usagerj
   public get_gustqm
+  public readin_rjlists
+  public get_sunangle
+  public get_wbinid
   public destroy_rjlists
 
 contains
@@ -84,9 +100,15 @@ subroutine init_rjlists
 
 ! Declare local variables
   integer(i_kind) meso_unit,ncount,m
+  integer(i_kind) ibin
+  real(r_single) aa1,aa2
   character(80) cstring
+  character(80) clistname
+  character(8) ach8,bch8
+  character(16) ch16
 
   integer(i_kind), parameter::nmax=100000
+  integer(i_kind) nmax2
 
   data meso_unit / 20 /
 !**************************************************************************
@@ -96,98 +118,71 @@ subroutine init_rjlists
   allocate(p_rjlist(nmax))
   allocate(q_rjlist(nmax))
   allocate(csta_winduse(nmax))
+  allocate(t_day_rjlist(nmax))
+  allocate(t_night_rjlist(nmax))
+  allocate(q_day_rjlist(nmax))
+  allocate(q_night_rjlist(nmax))
 
-!==> Read mesonet provider names from the uselist if it exists.
- inquire(file='mesonetuselist',exist=listexist)
- if(listexist) then
-    open (meso_unit,file='mesonetuselist',form='formatted')
-    ncount=0
-    do m=1,3
-       read(meso_unit,*,end=131) cstring
-    enddo
-130 continue
-    ncount=ncount+1
-    read(meso_unit,*,end=131) cprovider(ncount)
-    goto 130
-131 continue
-    nprov=ncount-1
-    print*,'mesonetuselist: nprov=',nprov
- endif
- close(meso_unit)
-!
-!==> Read in station names from the reject list for wind if it exists
- inquire(file='w_rejectlist',exist=wlistexist)
- if(wlistexist) then
-    open (meso_unit,file='w_rejectlist',form='formatted')
-    ncount=0
-    do m=1,3
-       read(meso_unit,*,end=141) cstring
-    enddo
-140 continue
-    ncount=ncount+1
-    read(meso_unit,*,end=141) w_rjlist(ncount)
-    goto 140
-141 continue
-    nwrjs=ncount-1
-    print*,'w_rejectlist: nwrjs=',nwrjs
- endif
- close(meso_unit)
-!
-!==> Read in station names from the reject list for temperature if it exists
- inquire(file='t_rejectlist',exist=tlistexist)
- if(tlistexist) then
-    open (meso_unit,file='t_rejectlist',form='formatted')
-    ncount=0
-    do m=1,3
-       read(meso_unit,*,end=151) cstring
-    enddo
-150 continue
-    ncount=ncount+1
-    read(meso_unit,*,end=151) t_rjlist(ncount)
-    goto 150
-151 continue
-    ntrjs=ncount-1
-    print*,'t_rejectlist: ntrjs=',ntrjs
- endif
- close(meso_unit)
-!
-!==> Read in station names from the reject list for surface pressure if it exists
- inquire(file='p_rejectlist',exist=plistexist)
- if(plistexist) then
-    open (meso_unit,file='p_rejectlist',form='formatted')
-    ncount=0
-    do m=1,3
-       read(meso_unit,*,end=161) cstring
-    enddo
-160 continue
-    ncount=ncount+1
-    read(meso_unit,*,end=161) p_rjlist(ncount)
-    goto 160
-161 continue
-    nprjs=ncount-1
-    print*,'p_rejectlist: nprjs=',nprjs
- endif
- close(meso_unit)
-!
-!==> Read in station names from the reject list for specific humidity if it exists
- inquire(file='q_rejectlist',exist=qlistexist)
- if(qlistexist) then
-    open (meso_unit,file='q_rejectlist',form='formatted')
-    ncount=0
-    do m=1,3
-       read(meso_unit,*,end=171) cstring
-    enddo
-170 continue
-    ncount=ncount+1
-    read(meso_unit,*,end=171) q_rjlist(ncount)
-    goto 170
-171 continue
-    nqrjs=ncount-1
-    print*,'q_rejectlist: nqrjs=',nqrjs
- endif
- close(meso_unit)
-!
-!==> Read in 'good' mesonet station names from the station uselist if it exists.
+!==> Read mesonet provider names from the uselist
+ clistname='mesonetuselist'
+ call readin_rjlists(clistname,listexist,cprovider,500,nprov)
+ print*,'mesonetuselist: listexist,nprov=',listexist,nprov
+
+
+ 
+!==> Read in station names from the reject list for wind
+ clistname='w_rejectlist'
+ call readin_rjlists(clistname,wlistexist,w_rjlist,nmax,nwrjs)
+ print*,'w_rejectlist: wlistexist,nwrjs=',wlistexist,nwrjs
+
+
+ 
+!==> Read in station names from the reject lists for temperature
+ clistname='t_rejectlist'
+ call readin_rjlists(clistname,tlistexist,t_rjlist,nmax,ntrjs)
+ print*,'t_rejectlist: tlistexist,ntrjs=',tlistexist,ntrjs
+
+
+ 
+ clistname='t_day_rejectlist'
+ call readin_rjlists(clistname,t_day_listexist,t_day_rjlist,nmax,ntrjs_day)
+ print*,'t_day_rejectlist: t_day_listexist,ntrjs_day=',t_day_listexist,ntrjs_day
+
+
+ 
+ clistname='t_night_rejectlist'
+ call readin_rjlists(clistname,t_night_listexist,t_night_rjlist,nmax,ntrjs_night)
+ print*,'t_night_rejectlist: t_night_listexist,ntrjs_night=',t_night_listexist,ntrjs_night
+
+
+ 
+!==> Read in station names from the reject list for surface pressure
+ clistname='p_rejectlist'
+ call readin_rjlists(clistname,plistexist,p_rjlist,nmax,nprjs)
+ print*,'p_rejectlist: plistexist,nprjs=',plistexist,nprjs
+
+
+ 
+!==> Read in station names from the reject lists for specific humidity
+ clistname='q_rejectlist'
+ call readin_rjlists(clistname,qlistexist,q_rjlist,nmax,nqrjs)
+ print*,'q_rejectlist: qlistexist,nqrjs=',qlistexist,nqrjs
+
+
+ 
+ clistname='q_day_rejectlist'
+ call readin_rjlists(clistname,q_day_listexist,q_day_rjlist,nmax,nqrjs_day)
+ print*,'q_day_rejectlist: q_day_listexist,nqrjs_day=',q_day_listexist,nqrjs_day
+
+  
+
+ clistname='q_night_rejectlist'
+ call readin_rjlists(clistname,q_night_listexist,q_night_rjlist,nmax,nqrjs_night)
+ print*,'q_night_rejectlist: q_night_listexist,nqrjs_night=',q_night_listexist,nqrjs_night
+
+
+ 
+!==> Read in 'good' mesonet station names from the station uselist
  inquire(file='mesonet_stnuselist',exist=listexist2)
  if(listexist2) then
     open (meso_unit,file='mesonet_stnuselist',form='formatted')
@@ -201,10 +196,47 @@ subroutine init_rjlists
     print*,'mesonet_stnuselist: nsta_mesowind_use=',nsta_mesowind_use
  endif
  close(meso_unit)
-!
+
+!==> Read in wind direction stratified wind accept lists
+ inquire(file='wbinuselist',exist=wbinlistexist)
+ print*,'wdirbinuselist: wbinuselist=',wbinlistexist
+
+ nbins=0
+ if(wbinlistexist) then
+    open (meso_unit,file='wbinuselist',form='formatted')
+    read(meso_unit,'(a16,i2)',end=191) ch16,nbins
+    allocate(nwbaccpts(max(1,nbins)))
+    nwbaccpts(:)=0
+190 continue    
+    read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=191) ach8,bch8,aa1,aa2,ibin
+    nwbaccpts(ibin)=nwbaccpts(ibin)+1 
+    goto 190
+191 continue
+    print*,'wdirbinuselist: number of bins=',nbins 
+    print*,'wdirbinuselist: (nwbaccpts(ibin),ibin=1,nbins)=',(nwbaccpts(ibin),ibin=1,nbins)
+
+    nmax2=maxval(nwbaccpts(:))
+    print*,'wdirbinuselist: maximum number of obs in a single bin=',nmax2
+
+    allocate(csta_windbin(max(1,nmax2),max(1,nbins)))
+
+    rewind(meso_unit)
+    read(meso_unit,'(a16,i2)',end=193) ch16,nbins
+    nwbaccpts(:)=0
+192 continue    
+    read(meso_unit,'(a8,3x,a8,3x,f7.4,2x,f9.4,3x,i2)',end=193) ach8,bch8,aa1,aa2,ibin
+    nwbaccpts(ibin)=nwbaccpts(ibin)+1 
+    csta_windbin(nwbaccpts(ibin),ibin)=ach8
+    goto 192
+193 continue
+ endif
+ close(meso_unit)
+
 end subroutine init_rjlists
 
-subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
+subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                       dlon,dlat,idate,dtime,udbl,vdbl,usage_rj)
+
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_usagerg
@@ -224,6 +256,11 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 !    obstype
 !    c_station_id
 !    c_prvstg,c_sprvstg
+!    dlon
+!    dlat
+!    idate
+!    udbl
+!    vdbl
 !
 !   output argument list:
 !    usage_rj
@@ -234,22 +271,31 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 !
 !$$$ end documentation block
 
+  use constants, only: zero_single
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
+  integer(i_kind),intent(in   ) :: idate
   character(10)  ,intent(in   ) :: obstype
   character(8)   ,intent(in   ) :: c_station_id
   character(8)   ,intent(in   ) :: c_prvstg,c_sprvstg
+  real(r_kind)   ,intent(in   ) :: dlon
+  real(r_kind)   ,intent(in   ) :: dlat
+  real(r_kind)   ,intent(in   ) :: dtime
+  real(r_double) ,intent(in   ) :: udbl,vdbl
   real(r_kind)   ,intent(inout) :: usage_rj
 
 ! Declare local variables
   integer(i_kind) m,nlen
+  integer(i_kind) ibin
   character(8)  ch8
   real(r_kind) usage_rj0
+  real(r_single) sunangle
 
 ! Declare local parameters
   real(r_kind),parameter:: r6    = 6.0_r_kind
   real(r_kind),parameter:: r5000 = 5000._r_kind
+  real(r_kind),parameter:: r5100 = 5100._r_kind
   real(r_kind),parameter:: r6000 = 6000._r_kind
   real(r_kind),parameter:: r6100 = 6100._r_kind
   real(r_kind),parameter:: r6200 = 6200._r_kind
@@ -260,7 +306,9 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
 
   if (kx<200) then  !<==mass obs
 
-     if(obstype=='t' .and. tlistexist ) then
+    if(obstype=='t') then
+
+      if(tlistexist ) then
         do m=1,ntrjs
            ch8(1:8)=t_rjlist(m)(1:8)
            nlen=len_trim(ch8)
@@ -270,7 +318,36 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
               exit
            endif
         enddo
-     elseif(obstype=='q' .and. qlistexist ) then
+      endif
+
+      if((t_day_listexist .or. t_night_listexist) .and. usage_rj==usage_rj0) then
+           call get_sunangle(idate,dtime,dlon,dlat,sunangle)
+           if (sunangle > zero_single) then
+              do m=1,ntrjs_day
+                 ch8(1:8)=t_day_rjlist(m)(1:8)
+                 nlen=len_trim(ch8)
+                 if ((trim(c_station_id) == trim(ch8)) .or. &
+                     ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
+                    usage_rj=r5100
+                    exit
+                 endif
+              enddo
+             else 
+              do m=1,ntrjs_night
+                 ch8(1:8)=t_night_rjlist(m)(1:8)
+                 nlen=len_trim(ch8)
+                 if ((trim(c_station_id) == trim(ch8)) .or. &
+                     ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
+                    usage_rj=r5100
+                    exit
+                 endif
+              enddo
+           endif 
+      endif
+
+     elseif(obstype=='q') then
+
+      if(qlistexist ) then
         do m=1,nqrjs
            ch8(1:8)=q_rjlist(m)(1:8)
            nlen=len_trim(ch8)
@@ -280,6 +357,33 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
               exit
            endif
         enddo
+      endif
+
+      if((q_day_listexist .or. q_night_listexist) .and. usage_rj==usage_rj0) then
+           call get_sunangle(idate,dtime,dlon,dlat,sunangle)
+           if (sunangle > zero_single) then
+              do m=1,nqrjs_day
+                 ch8(1:8)=q_day_rjlist(m)(1:8)
+                 nlen=len_trim(ch8)
+                 if ((trim(c_station_id) == trim(ch8)) .or. &
+                     ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
+                    usage_rj=r5100
+                    exit
+                 endif
+              enddo
+             else 
+              do m=1,nqrjs_night
+                 ch8(1:8)=q_night_rjlist(m)(1:8)
+                 nlen=len_trim(ch8)
+                 if ((trim(c_station_id) == trim(ch8)) .or. &
+                     ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then
+                    usage_rj=r5100
+                    exit
+                 endif
+              enddo
+           endif 
+      endif
+
      elseif(obstype=='ps' .and. plistexist ) then
         do m=1,nprjs
            ch8(1:8)=p_rjlist(m)(1:8)
@@ -291,12 +395,13 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
            endif
         enddo
      end if
+  endif
 
-  elseif (kx>=200) then !<==wind obs
+  if (kx>=200) then !<==wind obs
 
-     if ((kx==288.or.kx==295).and.(listexist.or.listexist2)) then  !note that uselist must precede rejectlist
+     if (kx==288.or.kx==295) then
         usage_rj=r6000
-        if (listexist) then
+        if (listexist) then !note that uselists must precede the rejectlist
            do m=1,nprov
 !             if (trim(c_prvstg//c_sprvstg) == trim(cprovider(m))) then
               if (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
@@ -306,13 +411,24 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
               endif
            enddo
         endif
-        if (listexist2) then
+        if (listexist2 .and. usage_rj/=usage_rj0) then
            do m=1,nsta_mesowind_use
               if (c_station_id(1:5) == csta_winduse(m)(1:5)) then
                  usage_rj=usage_rj0
                  exit
               endif
            enddo
+        endif
+        if(wbinlistexist .and. usage_rj/=usage_rj0) then
+          call get_wbinid(udbl,vdbl,nbins,ibin)
+          do m=1,nwbaccpts(ibin)
+             ch8(1:8)=csta_windbin(m,ibin)(1:8)
+             nlen=len_trim(ch8)
+             if (c_station_id(1:nlen)==ch8(1:nlen)) then
+                usage_rj=usage_rj0
+                exit
+             endif
+          enddo
         endif
      endif
 
@@ -325,8 +441,8 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage_rj)
               if (kx/=288.and.kx/=295) then
                  usage_rj=r5000
               else
-                 if (usage_rj==usage_rj0)    usage_rj=r6100 !ob is in at least one of the above two uselists
-                 if (usage_rj==r6000)        usage_rj=r6200 !ob is in none of the above two uselists
+                 if (usage_rj==usage_rj0)    usage_rj=r6100 !ob is in at least one of the above three uselists
+                 if (usage_rj==r6000)        usage_rj=r6200 !ob is in none of the above three uselists
               endif
               exit
            endif
@@ -381,7 +497,7 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
         ch8(1:8)=w_rjlist(m)(1:8)
         nlen=len_trim(ch8)
         if ((trim(c_station_id) == trim(ch8)) .or. &
-            (c_station_id(1:nlen)==ch8(1:nlen))) then
+            ((kx==288.or.kx==295).and.c_station_id(1:nlen)==ch8(1:nlen))) then
             if (gustqm==0) then
                gustqm=3
             else
@@ -392,6 +508,67 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
      enddo
   endif
 end subroutine get_gustqm
+
+
+subroutine readin_rjlists(clistname,fexist,clist,ndim,ncount)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    readin_rjlists
+!   prgmmr:
+!
+! abstract: read in accept or reject list
+!
+! program history log:
+!   2012-17-02  pondeca
+!
+!   input argument list:
+!   clistname
+!   ndim
+!
+!   output argument list:
+!   clist
+!   ncount
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: ndim
+  character(80),intent(in):: clistname
+
+  integer(i_kind),intent(out):: ncount
+  character(*),intent(out):: clist(ndim)
+  logical,intent(out)::fexist
+
+! Declare local variables
+  integer(i_kind) meso_unit,n,m
+  character(80) cstring
+
+  data meso_unit / 20 /
+!**************************************************************************
+ ncount=0
+
+ inquire(file=trim(clistname),exist=fexist)
+ if(fexist) then
+    open (meso_unit,file=trim(clistname),form='formatted')
+    do m=1,3
+       read(meso_unit,*,end=131) cstring
+    enddo
+    n=0
+130 continue
+    n=n+1
+    read(meso_unit,*,end=131) clist(n)
+    goto 130
+131 continue
+    ncount=n-1
+    close(meso_unit)
+ endif
+end subroutine readin_rjlists
 
 
 subroutine destroy_rjlists
@@ -422,6 +599,129 @@ subroutine destroy_rjlists
   deallocate(p_rjlist)
   deallocate(q_rjlist)
   deallocate(csta_winduse)
+  deallocate(t_day_rjlist)
+  deallocate(t_night_rjlist)
+  deallocate(q_day_rjlist)
+  deallocate(q_night_rjlist)
+  if(wbinlistexist) deallocate(nwbaccpts)
+  if(wbinlistexist) deallocate(csta_windbin)
 end subroutine destroy_rjlists
 
+
+subroutine get_sunangle(idate,dtime,dlon,dlat,sunangle) 
+
+  use constants, only: deg2rad
+  implicit none
+
+  integer(i_kind),intent(in)::idate
+  real(r_kind),intent(in)::dtime,dlon,dlat
+  real(r_single),intent(out)::sunangle
+
+  real(r_single),parameter:: s24 = 24._r_single
+  real(r_single),parameter:: s180 = 180._r_single
+  real(r_single),parameter:: s360 = 360._r_single
+
+  integer(i_kind) iyear,imonth,iday,ihour
+  integer(i_kind) iw3jdn
+  integer(i_kind) jday2,iyear3,imonth3,iday3,idaywk3,idayyr3
+  integer(i_kind) ndays
+  real(r_single) rlat,rlon
+  real(r_single) time
+  character(10) date
+
+  write(date,'( i10)') idate
+  read (date,'(i4,3i2)') iyear,imonth,iday,ihour
+  jday2=iw3jdn(iyear,imonth,iday)
+
+  time=real(ihour,kind=r_single)+real(dtime,kind=r_single)
+
+  if (time.gt.s24) then
+     time = time-s24
+     jday2=jday2+1
+   elseif (time.lt.0) then
+     time=time+s24
+     jday2=jday2-1
+  endif
+
+  call w3fs26(jday2,iyear3,imonth3,iday3,idaywk3,idayyr3)
+  !account for leap year
+  if(mod(iyear3,4).eq.0) then
+     ndays=366
+  else
+     ndays=365
+  endif
+
+  rlon=real(dlon/deg2rad,kind=r_single) ; if (rlon > s180) rlon=rlon-s360
+  rlat=real(dlat/deg2rad,kind=r_single)
+
+  call calcsun(idayyr3,ndays,time,rlat,rlon,sunangle)
+
+end subroutine get_sunangle
+
+subroutine get_wbinid(udbl,vdbl,nbins,ibin)
+
+  use constants, only: zero
+
+  implicit none
+
+  integer(i_kind),intent(in   ):: nbins
+  real(r_double) ,intent(in   ):: udbl,vdbl
+  integer(i_kind),intent(out  ):: ibin
+
+! Declare local variables
+  integer(i_kind) n
+  real(r_kind) binwidth
+  real(r_kind) ue,ve,wdir
+
+  real(r_kind),parameter::r360=360._r_kind
+
+  ue=real(udbl,kind=r_kind)
+  ve=real(vdbl,kind=r_kind)
+
+  binwidth=r360/real(max(1,nbins),kind=r_kind)
+
+  call getwdir(ue,ve,wdir)
+
+  if (wdir==zero .or. wdir==r360) then  
+     ibin=nbins
+   else
+     do n=1,nbins
+        if ( wdir >= float(n-1)*binwidth .and. wdir < float(n)*binwidth ) then 
+            ibin=n
+            exit
+         endif
+      enddo
+   endif
+
+end subroutine get_wbinid
+
 end module sfcobsqc
+
+subroutine calcsun (idayr,idaysy,baltm,xlon,ylat,solar)
+
+  implicit none
+
+  integer(4),intent(in)::idayr,idaysy
+  real(4),intent(in)::baltm,xlon,ylat
+  real(4),intent(out)::solar
+  real(4)::dangl,sdgl,cdgl,tsnoon,afy,safy,cafy,ssod,alon,sha,rlat
+
+  dangl = 6.2831853 * (real(idayr) - 79.)/real(idaysy)
+  sdgl = sin(dangl)
+  cdgl = cos(dangl)
+  !solar noon in utc
+  tsnoon = -.030*sdgl-.120*cdgl+.330*sdgl*cdgl+.0016*sdgl**2-.0008
+  !afy = angular fraction of year
+  afy=6.2831853*(real(idayr)-1. + (baltm/24.))/real(idaysy)
+  safy=sin(afy)
+  cafy=cos(afy)
+  !ssod = sin of dolar declination
+  ssod = 0.3978492*sin(4.88578+afy+(.033420*safy)-(0.001388*cafy)+(.000696*safy*cafy)+(.000028*(safy**2-cafy**2)))
+  alon=mod(720.+360.-xlon,360.)
+  !sha = solar hour angle
+  sha=0.0174532925*((15.*(tsnoon+baltm+36.))-alon)
+  rlat=0.0174532925*ylat
+  solar=57.29578*asin((ssod*sin(rlat))+sqrt(1.0-ssod**2)*cos(rlat)*cos(sha))
+  return
+
+end subroutine calcsun
