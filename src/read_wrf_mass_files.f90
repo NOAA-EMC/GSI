@@ -82,6 +82,7 @@ subroutine read_wrf_mass_files(mype)
      write(6,*)'READ_wrf_mass_FILES:  analysis date,minutes ',iadate,nminanl
 
 !    Check for consistency of times from sigma guess files.
+     in_unit=15
      iwan=0
      do i=0,99
         write(filename,100)i

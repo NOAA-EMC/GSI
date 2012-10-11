@@ -15,7 +15,7 @@
 
 set -ax
 date
-export list=$listvar
+#export list=$listvar
 
 function usage {
   echo "Usage:  MkBase.sh suffix 1>log 2>err"
@@ -26,12 +26,17 @@ function usage {
 }
 
 nargs=$#
-if [[ $nargs -ne 1 ]]; then
+if [[ $nargs -lt 1 && $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
 
-export SUFFIX=$1
+SUFFIX=$1
+
+if [[ $nargs -eq 2 ]]; then
+   SATYPE=$2
+   SINGLE_SAT=1
+fi
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -51,14 +56,12 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
-#echo SCRIPTS = ${SCRIPTS}
 
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
 echo DATA_MAP = $DATA_MAP
 
-#area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
 area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 echo $area
 
@@ -75,7 +78,6 @@ fi
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
 EDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-#EDATE=2012032000
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
@@ -91,31 +93,34 @@ mkdir -p $tmpdir
 cd $tmpdir
 
 #-------------------------------------------------------------------
-#  Find or build $SATYPE list for this data source
+#  If no single sat source was supplied at the command line then 
+#  find or build $SATYPE list for this data source.
 #-------------------------------------------------------------------
-if [[ -e ${TANKDIR}/info/SATYPE.txt ]]; then
-   SATYPE=`cat ${TANKDIR}/info/SATYPE.txt`
-else
-   PDY=`echo $EDATE|cut -c1-8`
-
-   if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-      test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${EDATE}.ieee_d*`
-      for test in ${test_list}; do
-         this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f2`
-         echo $tmp
-         SATYPE_LIST="$SATYPE_LIST $tmp"
-      done
+if [[ $SINGLE_SAT -eq 0 ]]; then
+   if [[ -e ${TANKDIR}/info/SATYPE.txt ]]; then
+      SATYPE=`cat ${TANKDIR}/info/SATYPE.txt`
    else
-      test_list=`ls ${TANKDIR}/angle/*.${EDATE}.ieee_d*`
-      for test in ${test_list}; do
-         this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f1`
-         echo $tmp
-         SATYPE_LIST="$SATYPE_LIST $tmp"
-      done
+      PDY=`echo $EDATE|cut -c1-8`
+
+      if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
+         test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${EDATE}.ieee_d*`
+         for test in ${test_list}; do
+            this_file=`basename $test`
+            tmp=`echo "$this_file" | cut -d. -f2`
+            echo $tmp
+            SATYPE_LIST="$SATYPE_LIST $tmp"
+         done
+      else
+         test_list=`ls ${TANKDIR}/angle/*.${EDATE}.ieee_d*`
+         for test in ${test_list}; do
+            this_file=`basename $test`
+            tmp=`echo "$this_file" | cut -d. -f1`
+            echo $tmp
+            SATYPE_LIST="$SATYPE_LIST $tmp"
+         done
+      fi
+      SATYPE=$SATYPE_LIST
    fi
-   SATYPE=$SATYPE_LIST
 fi
 
 echo $SATYPE
@@ -227,23 +232,58 @@ done
 
 
 #-------------------------------------------------------------------
-#  Pack all basefiles into a tar file and move it to $TANKDIR/info
+#  Pack all basefiles into a tar file and move it to $TANKDIR/info.
+#  If a SINGLE_SAT was supplied at the command line then copy the
+#  existing $basefile and add/replace the requested sat, leaving
+#  all others in the $basefile unchanged.
 #-------------------------------------------------------------------
-
-cd $tmpdir
-basefile=radmon_base.tar
-tar -cvf ${basefile} *.base
-${COMPRESS} ${basefile}
-
 if [[ ! -d ${TANKDIR}/info ]]; then
    mkdir -p ${TANKDIR}/info
 fi
+
+cd $tmpdir
+basefile=radmon_base.tar
+
+if [[ $SINGLE_SAT -eq 0 ]]; then
+   tar -cvf ${basefile} *.base
+else
+   newbase=$tmpdir/newbase
+   mkdir $newbase
+   cd $newbase
+
+   #  copy over existing $basefile
+   if [[ -e ${TANKDIR}/info/${basefile} || -e ${TANKDIR}/info/${basefile}.${Z} ]]; then
+      $NCP ${TANKDIR}/info/${basefile}* .
+      if [[ -e ${basefile}.${Z} ]]; then
+         $UNCOMPRESS ${basefile}.${Z}
+      fi
+      tar -xvf ${basefile}
+      rm ${basefile}
+   fi
+
+   #  copy new *.base file from $tmpdir and build new $basefile (tar file)
+   cp -f $tmpdir/*.base .
+   tar -cvf ${basefile} *.base
+   mv -f ${basefile} $tmpdir/.
+   cd $tmpdir
+# keep for testing
+#   rm -rf $newbase
+
+fi
+
+#  Remove the old version of the $basefile
+if [[ -e ${TANKDIR}/info/${basefile} || -e ${TANKDIR}/info/${basefile}.${Z} ]]; then
+   rm -f ${TANKDIR}/info/${basefile}*
+fi
+
+${COMPRESS} ${basefile}
 $NCP ${basefile}.${Z} ${TANKDIR}/info/.
 
 #-------------------------------------------------------------------
 #  Clean up $tmpdir
 #-------------------------------------------------------------------
-cd ..
-rm -rf $tmpdir
+# keep for testing
+#cd ..
+#rm -rf $tmpdir
 
 exit
