@@ -32,6 +32,10 @@ subroutine convert_binary_mass
 !   2010-11-16  tong - - add loop to read upto 7 wrf mass binary restart file and
 !                        write to temporary binary files (extend FGAT capability for
 !                        wrf mass binary format)
+!   2012-10-11  parrish - move line "write(filename,'("sigf",i2.2)')n+nhr_assimilation-1" so input names
+!                           sigfxx are properly defined for all values of n, not just n=1.
+!   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
+!                           subroutine to this file.
 !
 !   input argument list:
 !
@@ -133,6 +137,8 @@ subroutine convert_binary_mass
         write(wrfges,'("wrf_inou",i1.1)')n
      endif
 
+     write(filename,'("sigf",i2.2)')n+nhr_assimilation-1
+
      open(in_unit,file=wrfges,form='unformatted')
      write(6,*)' convert_binary_mass: in_unit,lendian_out=',in_unit,lendian_out
      write(6,*)' convert_binary_mass: in_unit,out_unit=',wrfges,',',filename
@@ -153,13 +159,16 @@ subroutine convert_binary_mass
         endif
      end if
 
-     write(filename,'("sigf",i2.2)')n+nhr_assimilation-1
      open(lendian_out,file=filename,form='unformatted')
      rewind lendian_out
 
 !   reopen for direct access reading of sequential file
 
      close(in_unit)
+
+!    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
+
+     call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
 
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
                     write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
@@ -620,6 +629,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                          grid ordering for input 3D fields
 !   2011-11-16  tong - increase number of multiple first guess upto 7
 !   2012-01-12  zhu     - add cloud hydrometoers
+!   2012-10-11  parrish - move line "write(filename,'("sigf",i2.2)')n+nhr_assimilation-1" so input names
+!                           sigfxx are properly defined for all values of n, not just n=1.
+!   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
+!                           subroutine to this file.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -711,7 +724,11 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !    reopen for direct access reading of sequential file
 
      close(in_unit)
- 
+
+!    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
+
+     call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
+
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
 
@@ -1599,6 +1616,8 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !   2004-11-29  parrish
 !   2005-02-17  todling, ifdef'ed wrf code out
 !   2006-04-06  middlecoff - replace fortran open,close with openfileread,closefile
+!   2012-10-11  parrish - add calls to to_native_endianness (when byte_swap=.true.) after all
+!                           direct access reads from wrf binary file (through subroutine next_buf)
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -1616,6 +1635,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !   do an initial read through of a wrf binary file, and get total number of sequential file records
 
   use kinds, only: i_byte,i_long,i_llong,i_kind
+  use native_endianness, only: byte_swap,to_native_endianness
   implicit none
 
   integer(i_kind),intent(in   ) :: in_unit
@@ -1631,8 +1651,11 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   integer(i_long) missing
   equivalence (missing,missing4(1))
   integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
-  integer(i_kind) i,loc_count,nreads
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,j,loc_count,nreads
   logical lastbuf
   integer(i_kind) ierr
 
@@ -1654,7 +1677,14 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
         lenrec4(i)=buf(locbyte)
      end do
      if(lenrec <= 0_i_long .and. lastbuf) go to 900
@@ -1662,7 +1692,14 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
-     if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+     if(locbyte > lrecl) then
+        call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(byte_swap) then
+           do j=1,lword
+              call to_native_endianness(buf4(j))
+           end do
+        end if
+     end if
 
      nrecs=nrecs+1
     
@@ -1673,7 +1710,14 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
      end do
      do i=1,4
         if(loc_count>=lenrec) exit
@@ -1681,18 +1725,39 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
      end do
      nextbyte=nextbyte-loc_count+lenrec
      locbyte=locbyte-loc_count+lenrec
      if(locbyte > lrecl .and. lastbuf) go to 900
-     if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+     if(locbyte > lrecl) then
+        call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(byte_swap) then
+           do j=1,lword
+              call to_native_endianness(buf4(j))
+           end do
+        end if
+     end if
      lensave=lenrec
      do i=1,4
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
         lenrec4(i)=buf(locbyte)
      end do
      if(lenrec /= lensave) go to 890
@@ -1727,6 +1792,83 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 
 end subroutine count_recs_wrf_binary_file
 
+subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    initialize_byte_swap_wrf_binary_file  set byte_swap
+!   prgmmr: parrish          org: np22                date: 2012-10-11
+!
+! abstract:  compare endian format of binary file wrfges and set variable byte_swap (a public variable in
+!              module native_endianness) true if file endian format is different from machine endian format,
+!              otherwise set byte_swap=false.
+!
+! program history log:
+!   2012-10-11  parrish
+!
+!   input argument list:
+!     in_unit          - fortran unit number where input file is opened through.
+!     wrfges           - binary input file name.
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: i_byte,i_long,i_llong,i_kind
+  use native_endianness, only: byte_swap
+  implicit none
+
+  integer(i_kind) ,intent(in   ) :: in_unit
+  character(9)    ,intent(in   ) :: wrfges
+
+  character(10) cwrfges
+  integer(i_llong) nextbyte,locbyte,thisblock
+  integer(i_byte) lenrec4(4)
+  integer(i_byte) lenrec4_swap(4)
+  integer(i_long) lenrec,lensave
+  integer(i_long) lenrec_swap
+  equivalence (lenrec4(1),lenrec)
+  equivalence (lenrec4_swap(1),lenrec_swap)
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_long) buf4(lword)
+  integer(i_byte) buf(lrecl)
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,nreads
+  logical lastbuf
+  integer(i_kind) ierr
+
+
+  cwrfges = wrfges
+  cwrfges(10:10) = char(0)
+  call openfileread (in_unit, ierr, cwrfges)
+! open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
+  nextbyte=0_i_llong
+  locbyte=lrecl
+  nreads=0
+  lastbuf=.false.
+
+!    get length of 1st record, then use to set byte_swap.
+
+     do i=1,4
+        nextbyte=nextbyte+1_i_llong
+        locbyte=locbyte+1_i_llong
+        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        lenrec4(i)=buf(locbyte)
+        lenrec4_swap(5-i)=buf(locbyte)
+     end do
+     byte_swap = lenrec <= 0 .or. lenrec > 4096
+     
+     write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
+     write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec,lenrec_swap
+
+  call closefile(in_unit,ierr)
+
+end subroutine initialize_byte_swap_wrf_binary_file
+
 subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
                                      datestr_all,varname_all,memoryorder_all,domainend_all, &
                                      start_block,end_block,start_byte,end_byte,file_offset)
@@ -1748,6 +1890,8 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 !   2006-04-06  middlecoff - replace fortran open,close with openfileread,closefile
 !   2007-04-12  parrish - add output variable memoryorder_all to be used with modifications
 !                          which allow any combination of ikj/ijk grid ordering for 3D fields.
+!   2012-10-11  parrish - add calls to to_native_endianness (when byte_swap=.true.) after all
+!                           direct access reads from wrf binary file (through subroutine next_buf)
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -1776,6 +1920,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
   use kinds, only: i_byte,i_long,i_llong,i_kind
 ! use module_internal_header_util, only: int_get_ti_header_char,int_get_write_field_header
+  use native_endianness, only: byte_swap,to_native_endianness
   implicit none
 
   integer(i_kind) ,intent(in   ) :: in_unit,nrecs
@@ -1796,8 +1941,11 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_long) missing
   equivalence (missing,missing4(1))
   integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
-  integer(i_kind) i,loc_count,nreads
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,j,loc_count,nreads
   logical lastbuf
   integer(i_byte) hdrbuf4(2048)
   integer(i_long) hdrbuf(512)
@@ -1844,7 +1992,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
         lenrec4(i)=buf(locbyte)
      end do
      if(lenrec <= 0_i_long .and. lastbuf) go to 900
@@ -1852,7 +2007,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
-     if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+     if(locbyte > lrecl) then
+        call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(byte_swap) then
+           do j=1,lword
+              call to_native_endianness(buf4(j))
+           end do
+        end if
+     end if
 
      irecs=irecs+1
      start_block(irecs)=thisblock
@@ -1873,7 +2035,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
         hdrbuf4(i)=buf(locbyte)
      end do
 
@@ -1887,7 +2056,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
            nextbyte=nextbyte+1_i_llong
            locbyte=locbyte+1_i_llong
            if(locbyte > lrecl .and. lastbuf) go to 900
-           if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(locbyte > lrecl) then
+              call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+              if(byte_swap) then
+                 do j=1,lword
+                    call to_native_endianness(buf4(j))
+                 end do
+              end if
+           end if
            hdrbuf4(i)=buf(locbyte)
         end do
 
@@ -1920,7 +2096,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
      nextbyte=nextbyte-loc_count+lenrec
      locbyte=locbyte-loc_count+lenrec
      if(locbyte > lrecl .and. lastbuf) go to 900
-     if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+     if(locbyte > lrecl) then
+        call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(byte_swap) then
+           do j=1,lword
+              call to_native_endianness(buf4(j))
+           end do
+        end if
+     end if
      end_block(irecs)=thisblock
      end_byte(irecs)=locbyte
      lensave=lenrec
@@ -1928,7 +2111,14 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
         if(locbyte > lrecl .and. lastbuf) go to 900
-        if(locbyte > lrecl) call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+        if(locbyte > lrecl) then
+           call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
+           if(byte_swap) then
+              do j=1,lword
+                 call to_native_endianness(buf4(j))
+              end do
+           end if
+        end if
         lenrec4(i)=buf(locbyte)
      end do
      if(lenrec /= lensave) go to 890
@@ -2152,6 +2342,8 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !
 ! program history log:
 !   2004-11-29  parrish
+!   2012-10-11  parrish - add calls to to_native_endianness (when byte_swap=.true.) after all
+!                           direct access reads from wrf binary file
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -2172,7 +2364,8 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !
 !$$$
 
-  use kinds, only: i_byte,i_kind
+  use kinds, only: i_byte,i_kind,i_llong,i_long
+  use native_endianness, only: byte_swap,to_native_endianness
   implicit none
 
   integer(i_kind),intent(in   ) :: in_unit
@@ -2181,8 +2374,11 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
   integer(i_byte),intent(  out) :: out(*)
 
   integer(i_kind),parameter:: lrecl=2**20
+  integer(i_llong),parameter:: lword=2**18
+  integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
-  integer(i_kind) i,ii,k,ibegin,iend,ierr
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2191,6 +2387,11 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
   ii=0
   do k=start_block,end_block
      read(in_unit,rec=k,iostat=ierr)buf
+     if(byte_swap) then
+        do j=1,lword
+           call to_native_endianness(buf4(j))
+        end do
+     end if
      ibegin=1 ; iend=lrecl
      if(k == start_block) ibegin=start_byte
      if(k == end_block) iend=end_byte
@@ -2264,6 +2465,8 @@ SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
   CALL int_unpack_string ( Data   , hdrbuf( i ), n ) ; i = i + n
   CALL int_unpack_string ( VarName  , hdrbuf( i ), n ) ; i = i + n
   hdrbufsize = hdrbuf(1)
+                       write(6,*)' in int_get_ti_header_char, hdrbufsize,itypesize,typesize=',&
+                                                              hdrbufsize,itypesize,typesize
 
   RETURN
 END SUBROUTINE int_get_ti_header_char
