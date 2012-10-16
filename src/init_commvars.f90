@@ -44,7 +44,7 @@ subroutine init_commvars(mype)
        ku_gs,kv_gs,kt_gs,kp_gs,nnnvsbal,irdvec_g,isdvec_g,ircvec_g, &
        iscvec_g,ircvec_s,isdvec_s,irdvec_s,iscvec_s,nlevsuv,nnnvsuv,lu_gs,lv_gs
   use control_vectors, only: nrf_var
-  use mod_strong, only: jcstrong
+  use mod_strong, only: l_tlnmc
 
   implicit none
 
@@ -246,7 +246,7 @@ subroutine init_commvars(mype)
   enddo
   do_balid_set=.true.
   if(any(ivars<0)) then
-     if(jcstrong) then
+     if(l_tlnmc) then
         if(mype==0) write(6,*) 'init_commvars: required variable for balance not found'
         call stop2(999)  ! _RTod: for now, abort, eventually need to be smarter
                          ! than this to allow bypass of classical meteo analysis

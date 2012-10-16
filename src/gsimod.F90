@@ -67,7 +67,7 @@
   use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer,ljc4tlevs
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
-  use mod_strong, only: jcstrong,jcstrong_option,nstrong,hybens_inmc_option,&
+  use mod_strong, only: l_tlnmc,tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
@@ -511,8 +511,7 @@
       ljc4tlevs
 
 ! STRONGOPTS (strong dynamic constraint)
-!     jcstrong - if .true., strong contraint on
-!     jcstrong_option - =1 for slow global strong constraint
+!     tlnmc_type -      =1 for slow global strong constraint
 !                       =2 for fast global strong constraint
 !                       =3 for regional strong constraint
 !                       =4 version 3 of regional strong constraint
@@ -527,16 +526,16 @@
 !     nvmodes_keep - number of vertical modes to use in implicit normal mode initialization
 !     baldiag_full 
 !     baldiag_inc
-!     hybens_inmc_option : integer flag for strong constraint (various capabilities for hybrid)
-!                   =0: no TLNMC (consistent with jcstrong=.false.)
+!     tlnmc_option : integer flag for strong constraint (various capabilities for hybrid)
+!                   =0: no TLNMC
 !                   =1: TLNMC on static increment only (or if non-hybrid run)
 !                   =2: TLNMC on total increment for single time level only (or 3DHybrid)
 !                       if 4D mode, TLNMC applied to increment in center of window
 !                   =3: TLNMC on total increment over all time levels (if in 4D mode)
 
-  namelist/strongopts/jcstrong,jcstrong_option,nstrong, &
-                      period_max,period_width,nvmodes_keep, &
-		      baldiag_full,baldiag_inc,hybens_inmc_option
+  namelist/strongopts/tlnmc_type,tlnmc_option, &
+                      nstrong,period_max,period_width,nvmodes_keep, &
+		      baldiag_full,baldiag_inc,tlnmc_option
 
 ! OBSQC (observation quality control variables):
 !
@@ -881,46 +880,39 @@
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
 
-! Check that regional=.true. if jcstrong_option > 2
-  if(jcstrong_option>2.and..not.regional) then
+! Check that regional=.true. if tlnmc_type > 2
+  if(tlnmc_type>2.and..not.regional) then
      if(mype==0) then
-        write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
+        write(6,*) ' tlnmc_type>2 not allowed except for regional=.true.'
         write(6,*) ' ERROR EXIT FROM GSI'
      end if
      call stop2(328)
   end if
 
-!  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
-  if(jcstrong_option==4) then
+!  tlnmc_type=4 currently requires that 2*nvmodes_keep <= npe
+  if(tlnmc_type==4) then
      if(2*nvmodes_keep>npe) then
-        if(mype==0) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+        if(mype==0) write(6,*)' tlnmc_type=4 and nvmodes_keep > npe'
         if(mype==0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
         nvmodes_keep=npe/2
         if(mype==0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
      end if
   end if
 
-  if (.not.jcstrong) then
-     hybens_inmc_option=0
-     if(mype==0) write(6,*)' TLNMC turned off, set hybens_inmc_option to 0'
-  else if (jcstrong .and. (.not.l_hyb_ens) ) then
-     hybens_inmc_option=1
-     if(mype==0) write(6,*)' TLNMC option turned on in non-hybrid mode, set hybens_inmc_option to 1'
-  else if (jcstrong .and. l_hyb_ens .and. hybens_inmc_option==0) then
-     hybens_inmc_option=2
-     if(mype==0) write(6,*)' TLNMC and hybrid ensemble options turned on, but hybens_inmc_option set to 0'
-     if(mype==0) write(6,*)' Forcing hybens_inmc_option to default of 2'
+  if (tlnmc_option>0 .and. tlnmc_option<4) then
+     l_tlnmc=.true.
+     if(mype==0) write(6,*)' valid TLNMC option chosen, setting l_tlnmc logical to true'
   end if
 
-  if (hybens_inmc_option==2 .or. hybens_inmc_option==3) then
-     if (.not.l_hyb_ens .or. .not.jcstrong) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,jcstrong,hybens_inmc_option
-        call die(myname_,'jcstrong options inconsistent, check namelist settings',99)
+  if (tlnmc_option==2 .or. tlnmc_option==3) then
+     if (.not.l_hyb_ens) then
+	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,tlnmc_option
+        call die(myname_,'tlnmc options inconsistent, check namelist settings',99)
      end if
-  else if (hybens_inmc_option<0 .or. hybens_inmc_option>3) then
-     if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for hybens_inmc_option: ',hybens_inmc_option
+  else if (tlnmc_option<0 .or. tlnmc_option>3) then
+     if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
      if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
-     hybens_inmc_option=0
+     tlnmc_option=0
   end if
 
 ! Ensure time window specified in obs_input does not exceed 
@@ -977,14 +969,13 @@
   endif
 
 
-! If strong constraint is turned off (jcstrong=.false.), 
-! force other strong constraint variables to zero
-  if ((.not.jcstrong) .and. nstrong/=0 ) then
+! If strong constraint is turned off, force other strong constraint variables to zero
+  if ((.not.l_tlnmc) .and. nstrong/=0 ) then
      nstrong=0
      if (mype==0) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
-          ' because jcstrong=',jcstrong
+          ' because TLNMC option is set to off= ',tlnmc_option
   endif
-  if (.not.jcstrong) then
+  if (.not.l_tlnmc) then
      baldiag_full=.false.
      baldiag_inc =.false.
   end if
@@ -995,7 +986,7 @@
 
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
-  if (jcstrong.or.l_foto) tendsflag=.true.
+  if (l_tlnmc.or.l_foto) tendsflag=.true.
   if (tendsflag) switch_on_derivatives=.true.
 
 

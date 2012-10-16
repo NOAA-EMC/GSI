@@ -125,7 +125,7 @@ subroutine pcgsoi()
   use mpimod, only: mype
   use intallmod, only: intall
   use stpcalcmod, only: stpcalc
-  use mod_strong, only: jcstrong,baldiag_inc
+  use mod_strong, only: l_tlnmc,baldiag_inc
   use adjtest, only : adtest
   use control_vectors, only: control_vector, allocate_cv, deallocate_cv,&
        prt_control_norms,dot_product,assignment(=)
@@ -600,7 +600,7 @@ subroutine pcgsoi()
 
 ! Update contributions of incremental values from current outer loop
 
-  if (jcstrong .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
+  if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
   llprt=(mype==0)
   if (l4dvar) then
