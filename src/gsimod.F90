@@ -906,6 +906,10 @@
   else if (jcstrong .and. (.not.l_hyb_ens) ) then
      hybens_inmc_option=1
      if(mype==0) write(6,*)' TLNMC option turned on in non-hybrid mode, set hybens_inmc_option to 1'
+  else if (jcstrong .and. l_hyb_ens .and. hybens_inmc_option==0) then
+     hybens_inmc_option=2
+     if(mype==0) write(6,*)' TLNMC and hybrid ensemble options turned on, but hybens_inmc_option set to 0'
+     if(mype==0) write(6,*)' Forcing hybens_inmc_option to default of 2'
   end if
 
   if (hybens_inmc_option==2 .or. hybens_inmc_option==3) then
