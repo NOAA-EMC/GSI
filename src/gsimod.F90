@@ -69,7 +69,7 @@
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: l_tlnmc,tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
+  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
@@ -397,7 +397,6 @@
 !     nsig     - number of sigma levels
 !     nlat     - number of latitudes
 !     nlon     - number of longitudes
-!     hybrid   - logical hybrid data file flag true=hybrid
 !     nlon_regional - 
 !     nlat_regional
 !     diagnostic_reg - logical for regional debugging
@@ -421,7 +420,7 @@
 !                  prior to calling radiative transfer model
 
 
-  namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
+  namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb
