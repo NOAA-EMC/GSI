@@ -12,6 +12,7 @@ subroutine get_gefs_for_regional
 !   2010-09-26  parrish, initial documentation
 !   2012-01-17  wu, clean up, add/setup option "full_ensemble"
 !   2012-02-08  parrish - a little more cleanup
+!   2012-10-11  wu      - dual resolution for options of regional hybens
 !
 !   input argument list:
 !
@@ -60,6 +61,7 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
+  real(r_kind),allocatable :: tmp_ens(:,:,:,:),tmp_anl(:,:,:,:),tmp_ens2(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
   real(r_kind),allocatable,dimension(:,:)::  sstbar,pbar_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:)::st_eg,vp_eg,t_eg,rh_eg,oz_eg,cw_eg
@@ -821,12 +823,7 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
 
 !wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 if(n==1 .and. full_ensemble)then
-   if( grd_mix%lon2 /= lon2 .or. grd_mix%lat2 /= lat2)then
-      if(mype == 0) write(6,*)' problem setup gefs ensenble dims are',lat2,lon2,nsig,grd_mix%lat2,grd_mix%lon2,grd_mix%nsig
-      if(mype == 0) write(6,*)' NEED TO ADD AGRID2EGRID to put NMMB increment on ensemble grid'
-      call stop2(555)
-   endif
-! Subtract guess from ensemble members
+
      allocate(qs(lat2,lon2,nsig))
      ice=.true.
      iderivative=0
@@ -838,8 +835,35 @@ if(n==1 .and. full_ensemble)then
         end do
      end do
      call genqsat(qs,ges_tsen(:,:,:,ntguessig),ges_prsl(:,:,:,ntguessig),lat2,lon2,nsig,ice,iderivative)
-!!!!!!!!!!! The first member is full perturbation based on regional first guess !!!!!!!!!!!!!!!
-! Subtract guess from ensemble member
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!! The first member is full perturbation based on regional first guess !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! put fist guess in ensemble grid & Subtract guess from 1st ensemble member (ensemble mean)
+
+  if (dual_res) then
+   allocate ( tmp_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+   allocate ( tmp_ens2(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+   allocate ( tmp_anl(lat2,lon2,nsig,1) )
+        tmp_anl(:,:,:,1)=qs(:,:,:)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+            tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
+             rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)/tmp_ens(:,:,:,1)
+            tmp_anl(:,:,:,1)=ges_u(:,:,:,ntguessig)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+             ut(:,:,:) = ut(:,:,:)-tmp_ens(:,:,:,1)
+            tmp_anl(:,:,:,1)=ges_v(:,:,:,ntguessig)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+             vt(:,:,:) = vt(:,:,:)-tmp_ens(:,:,:,1)
+            tmp_anl(:,:,:,1)=ges_tv(:,:,:,ntguessig)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+             tt(:,:,:) = tt(:,:,:)-tmp_ens(:,:,:,1)
+             tmp_anl(:,:,1,1)=ges_ps(:,:,ntguessig)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+           p_eg_nmmb(:,:,n) = p_eg_nmmb(:,:,n)-tmp_ens(:,:,1,1)
+    deallocate(tmp_anl,tmp_ens,tmp_ens2)
+   else
     do k=1,grd_ens%nsig
        do j=1,grd_ens%lon2
           do i=1,grd_ens%lat2
@@ -856,7 +880,10 @@ if(n==1 .and. full_ensemble)then
            p_eg_nmmb(i,j,n) = p_eg_nmmb(i,j,n)-ges_ps(i,j,ntguessig)
         end do
      end do
+   endif
+
      deallocate(qs)
+
 endif   ! n==1 .and. full_ensemble
 
 !wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
@@ -1592,7 +1619,8 @@ subroutine setup_ens_pwgt
 !
 !
 ! program history log:
-!   2011_06_14  wu, initial documentation
+!   2011_06_14  wu- initial documentation
+!   2012-10-16  wu- only setup if the options are on
 !
 !   input argument list:
 !
@@ -1604,20 +1632,23 @@ subroutine setup_ens_pwgt
 !
 !$$$ end documentation block
 
-  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg
+  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,regional
+  use general_sub2grid_mod, only: general_suba2sube
   use guess_grids, only: ges_prsl,ntguessig,ges_ps
   use balmod, only: wgvk
-  use mpimod, only: mype
+  use mpimod, only: mype,npe,mpi_comm_world,ierror,mpi_rtype,mpi_sum
   use constants,only: zero,one,ten,two,half
-  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt
+  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res
   implicit none
   integer(i_kind) k,i,j
   real(r_kind) sum
   integer(i_kind) k8,k1,kb,kk
   real(r_kind) pih
   real(r_kind) beta2_inv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
+  real(r_kind) rk81(2),rk810(2)
 
   if (.not.regional) then
      if (pwgtflg .or. betaflg) then 
@@ -1629,62 +1660,66 @@ subroutine setup_ens_pwgt
 
 !!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
 !!!! weigh with balanced projection for pressure
-! jsw:  this won't work for dual resolution
-! since wgvk is defined on analysis grid (lon2,lat2)
-! and pwgt is defined on ensemble grid (grd_ens%lon2,grd_ens%lat2).
+
+if (pwgtflg ) then 
+   allocate ( wgvk_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+   allocate ( wgvk_anl(lat2,lon2,nsig,1) )
+  if (dual_res) then
+     wgvk_anl(:,:,:,1)=wgvk(:,:,:)
+     call general_suba2sube(grd_a1,grd_e1,p_e2a,wgvk_anl,wgvk_ens,regional)
+  else
+     wgvk_ens(:,:,:,1)=wgvk(:,:,:)
+  end if
+
      pwgt=zero
      do j=1,grd_ens%lon2
         do i=1,grd_ens%lat2
            sum=zero
-           do k=1,nsig
-              sum=sum+wgvk(i,j,k)
+           do k=1,grd_ens%nsig
+              sum=sum+wgvk_ens(i,j,k,1)
            enddo
            if(sum /= zero)sum=one/sum
-           do k=1,nsig 
-              pwgt(i,j,k)=sum*wgvk(i,j,k)
+           do k=1,grd_ens%nsig
+              pwgt(i,j,k)=sum*wgvk_ens(i,j,k,1)
            enddo
         enddo
      enddo
+  deallocate(wgvk_ens,wgvk_anl)
+endif
 !!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
-
-  i=grd_ens%lat2/2
-  j=grd_ens%lon2/2
+if(betaflg) then
+  i=lat2/2
+  j=lon2/2
 
   k8_loop: do k=1,nsig
    if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j,ntguessig) < .85_r_kind)then
-!   if(ges_prsl(i,j,k,ntguessig) < 90._r_kind)then
-     k8=k
+     rk81(1)=k
      exit k8_loop
    endif
   enddo k8_loop
 
   k1_loop: do k=nsig,1,-1
    if(ges_prsl(i,j,k,ntguessig) > ten)then
-     k1=k
+     rk81(2)=k
      exit k1_loop
    endif
   enddo k1_loop
 
 
-!!!!!!!!!!! setup betawgts !!!!!!!!!!!!!!!!!!!!!
-!  if(mype==19)write(0,*)'calculating betawgt'
-!  k8=18
-
-!WWWWWWWWWWWWWWWWWWWWWWWWWWW
-  k8=22
-  k1=nsig-9
-!WWWWWWWWWWWWWWWWWWWWWWWWWWW
+! get domain mean k8 and k1
+      call mpi_allreduce(rk81,rk810,2,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+  k8=int(rk810(1)/float(npe))
+  k1=int(rk810(2)/float(npe))
 
   beta2wgt=one
   pih=atan(one)*two/float(k8-1)
 
+!!! hardwired numbers for beta profile; can be tuned differently  !!!!!!!!!!!!
   do k=1,k8-1
-!  beta2wgt(k)=half+half*sin(pih*float(k-1))
   beta2wgt(k)=0.1_r_kind+0.9_r_kind*sin(pih*float(k-1))
   enddo
   pih=one/(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,nsig,ntguessig)))
   do k=k1+1,nsig
-!  beta2wgt(k)=one-half*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
   beta2wgt(k)=one-0.9_r_kind*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
   enddo
 
@@ -1696,7 +1731,7 @@ subroutine setup_ens_pwgt
   do k=1,nsig
   beta1wgt(k)=one-beta2wgt(k)
   enddo
-
+endif
 
   return
 
