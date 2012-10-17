@@ -200,8 +200,8 @@
    # 
    #   Update the default account settings in the data_map.xml file.
    #
-   my $glbl_account = "GDAS_MTN";
-   my $rgnl_account = "RDAS_MTN";
+   my $glbl_account = "GDAS-MTN";
+   my $rgnl_account = "RDAS-MTN";
    if( $arch eq "linux" ) {
       $glbl_account = "ada";
       $rgnl_account = "ada";

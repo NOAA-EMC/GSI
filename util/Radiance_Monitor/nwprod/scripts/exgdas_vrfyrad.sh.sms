@@ -205,12 +205,20 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
       echo $radstat_satype
    fi
 
+   echo satype_file = $satype_file
+  
+   #    
+   #  Get previous cycle's date, and look for the satype_file.  Using the previous cycle
+   #  will get us the previous day's directory if the cycle being processed is 00z.
+   #
+   if [[ $CYC = "00" ]]; then
+      pday=${PDYm1}
+   else
+      pday=${PDY}
+   fi
 
-   qdate=`$NDATE -06 $PDATE`
-   pday=`echo $qdate | cut -c1-8`
-
-   if [[ ! -s ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
-      if [[ ! -s ${FIXgfs}/${satype_file} ]]; then 
+   if [[ ! -e ${TANKverf}/radmon.${pday}/${satype_file} ]]; then
+      if [[ ! -e ${FIXgfs}/${satype_file} ]]; then 
          export SATYPE=$radstat_satype
          if [[ "$VERBOSE" = "YES" ]]; then
             echo " ${satype_file} not found.  Adding it now using radstat file contents."
@@ -221,7 +229,6 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    else
       export SATYPE=`cat ${TANKverf}/radmon.${pday}/${satype_file}`
    fi
-
 
 
    #-------------------------------------------------------------
@@ -238,11 +245,22 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
          if [[ "$VERBOSE" = "YES" ]]; then
             echo "Found $type in radstat file but not in SATYPE list.  Adding it now."
          fi
+         satype_changes=1
          new_satype="$new_satype $type"
       fi
    done
-    
-   if [[ ! -s ${TANKverf}/radmon.${PDY}/${satype_file} ]]; then
+
+   #
+   #  If there is no satype_file in the current day's radmon.${PDY} directory or if changes
+   #  have occurred in the SATYPE list, then add/update the satype_file
+   #
+   if [[ ! -s ${TANKverf}/radmon.${PDY}/${satype_file} || $satype_changes -eq 1 ]]; then
+      if [[ ! -d ${TANKverf}/radmon.${PDY} ]]; then
+         mkdir -f ${TANKverf}/radmon.${PDY}
+      fi
+      if [[ -e ${TANKverf}/radmon.${PDY}/${satype_file} ]]; then
+         rm -f ${TANKverf}/radmon.${PDY}/${satype_file}
+      fi
       echo $new_satype > ${TANKverf}/radmon.${PDY}/${satype_file}
    fi
     

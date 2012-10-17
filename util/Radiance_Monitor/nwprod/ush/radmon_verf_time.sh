@@ -153,10 +153,6 @@ time_exec=radmon_time.${RAD_AREA}
 gesanl=ges
 err=0 
 
-# hack
-DO_DATA_RPT=0
-DO_DIAG_RPT=0
-
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
    echo "$(date) executing $0 $* >&2"

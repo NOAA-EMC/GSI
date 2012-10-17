@@ -79,9 +79,10 @@ jobname=${DATA_EXTRACT_JOBNAME}
 
 if [[ ${RUN_ENVIR} = dev ]]; then
    if [[ $MY_OS = "aix" ]]; then
-      count=`ls ${LOADLQ}/${jobname}* | wc -l`
-      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
-      total=`expr $count - $complete`
+#      count=`ls ${LOADLQ}/${jobname}* | wc -l`
+#      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
+#      total=`expr $count - $complete`
+      total=`llq -u ${LOGNAME} -f %jn | grep ${jobname} | wc -l`
    else
       total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
    fi
@@ -113,7 +114,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    #--------------------------------------------------------------------
    export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
    export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
    export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
    export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
    export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
@@ -151,6 +152,7 @@ elif [[ ${RUN_ENVIR} = para || ${RUN_ENVIR} = prod ]]; then
    export DATDIR=${PTMP_USER}/regional
    export com=`dirname ${COMOUT}`
    export PDATE=${CDATE}
+#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
 
    sdate=`echo ${PDATE}|cut -c1-8`
    export CYA=`echo ${PDATE}|cut -c9-10`
@@ -191,7 +193,17 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
 
    export VERBOSE=YES
-   export satype_file=${TANKverf}/info/SATYPE.txt
+   
+   if [[ $cyc = "00" ]]; then
+      mkdir -p ${TANKverf}/radmon.${PDY}
+      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
+      cp ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+   fi
+
+#   if [[ $USE_STATIC_SATYPE -eq 1 && -e ${TANKverf}/info/SATYPE.txt ]]; then
+#      export satype_file=${TANKverf}/info/SATYPE.txt
+#   fi
+
    if [[ -s ${TANKverf}/info/radmon_base.tar.Z ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar
    fi
@@ -199,7 +211,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #--------------------------------------------------------------------
    # Export listvar
    export JOBNAME=$jobname
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,JOBNAME,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
