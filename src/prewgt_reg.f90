@@ -42,6 +42,7 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
+!   2012-10-16  wu      - account for grid_ratio_nmmb in horizontal scales of background error covariance
 !
 !   input argument list:
 !     mype     - pe number
@@ -73,7 +74,7 @@ subroutine prewgt_reg(mype)
   use control_vectors, only: nrf,nc3d,nc2d,nvars,mvars !_RT ,nrf3_loc,nrf2_loc,nrf_var
   use control_vectors, only: cvars => nrf_var
   use gridmod, only: lon2,lat2,nsig,nnnn1o,regional_ozone,&
-       region_dx,region_dy,nlon,nlat,istart,jstart,region_lat
+       region_dx,region_dy,nlon,nlat,istart,jstart,region_lat,grid_ratio_nmmb
   use constants, only: zero,half,one,two,four,rad2deg,zero_quad
   use guess_grids, only: ges_prslavg,ges_psfcavg,ges_oz
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
@@ -104,7 +105,7 @@ subroutine prewgt_reg(mype)
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) samp2,dl1,dl2,d
-  real(r_kind) samp,hwl,cc
+  real(r_kind) samp,hwl,cc,gratio
   real(r_kind),dimension(nsig):: rate,dlsig,rlsig
   real(r_kind),dimension(nsig,nsig):: turn
   real(r_kind),dimension(ny,nx)::sl
@@ -127,6 +128,10 @@ subroutine prewgt_reg(mype)
 !        dy(i,j)=region_dy(i,j)
 !     end do
 !  end do
+
+! so that reproduce the result if grid_ratio_nmmb=1.412 ( with which the scales were tuned)
+    gratio = one
+   if(grid_ratio_nmmb < 1.4119 .or. grid_ratio_nmmb < 1.4121) gratio=grid_ratio_nmmb/1.412_r_kind
 
 ! Setup sea-land mask
   sl=one
@@ -350,9 +355,9 @@ subroutine prewgt_reg(mype)
   do i=1,nx
      do j=1,ny
         fact=one/(one+(one-sl(j,i))*bw)
-        slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
-        sli(j,i,1,1)=region_dy(j,i)*fact
-        sli(j,i,2,1)=region_dx(j,i)*fact
+        slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2*gratio**2
+        sli(j,i,1,1)=region_dy(j,i)*fact*gratio
+        sli(j,i,2,1)=region_dx(j,i)*fact*gratio
      enddo
   enddo
 
