@@ -221,7 +221,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    if [[ $MY_OS = "aix" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${logfile} -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
    else
-      $SUB -A $ACCOUNT -l walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
    fi
 
    rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
