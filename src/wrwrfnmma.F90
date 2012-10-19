@@ -54,7 +54,7 @@ subroutine wrwrfnmma_binary(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use native_endianness, only: byte_swap,to_native_endianness
+  use native_endianness, only: byte_swap
   implicit none
 
 ! Declare passed variables
@@ -74,6 +74,7 @@ subroutine wrwrfnmma_binary(mype)
   integer(kind=mpi_offset_kind) this_offset,offset_start_date
   integer(i_kind),allocatable::length(:)
   integer(i_kind) this_length,length_start_date
+  integer(i_llong) num_swap
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
   integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,i_f_rimef
@@ -489,13 +490,8 @@ subroutine wrwrfnmma_binary(mype)
      this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm+1
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
@@ -509,13 +505,8 @@ subroutine wrwrfnmma_binary(mype)
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
@@ -529,13 +520,8 @@ subroutine wrwrfnmma_binary(mype)
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
@@ -549,13 +535,8 @@ subroutine wrwrfnmma_binary(mype)
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
@@ -569,13 +550,8 @@ subroutine wrwrfnmma_binary(mype)
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
@@ -615,9 +591,8 @@ subroutine wrwrfnmma_binary(mype)
      if(kdim(k)==1.or.kord(k)==1) then
         call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
         if(byte_swap) then
-           do iii=1,length(k)
-              call to_native_endianness(ibuf(iii,k))
-           end do
+        num_swap=length(k)
+           call to_native_endianness_i4(ibuf(1,k),num_swap)
         end if
      end if
   end do
@@ -660,13 +635,8 @@ subroutine wrwrfnmma_binary(mype)
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
      this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm+1
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
@@ -681,13 +651,8 @@ subroutine wrwrfnmma_binary(mype)
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
      this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
@@ -700,13 +665,8 @@ subroutine wrwrfnmma_binary(mype)
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
      this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
@@ -719,13 +679,8 @@ subroutine wrwrfnmma_binary(mype)
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
      this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
@@ -738,13 +693,8 @@ subroutine wrwrfnmma_binary(mype)
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
      this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
      if(byte_swap) then
-        do jjj=jbegin(mype),jend(mype)
-           do lll=1,lm
-              do iii=1,im
-                 call to_native_endianness(jbuf(iii,lll,jjj))
-              end do
-           end do
-        end do
+        num_swap=this_length
+        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
      end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
@@ -758,13 +708,8 @@ subroutine wrwrfnmma_binary(mype)
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_cwm,i_cwm+lm-1)
         this_offset=offset(i_cwm)+(jbegin(mype)-1)*4*im*lm
         if(byte_swap) then
-           do jjj=jbegin(mype),jend(mype)
-              do lll=1,lm
-                 do iii=1,im
-                    call to_native_endianness(jbuf(iii,lll,jjj))
-                 end do
-              end do
-           end do
+        num_swap=this_length
+           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
         end if
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
@@ -776,13 +721,8 @@ subroutine wrwrfnmma_binary(mype)
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_ice,i_f_ice+lm-1)
         this_offset=offset(i_f_ice)+(jbegin(mype)-1)*4*im*lm
         if(byte_swap) then
-           do jjj=jbegin(mype),jend(mype)
-              do lll=1,lm
-                 do iii=1,im
-                    call to_native_endianness(jbuf(iii,lll,jjj))
-                 end do
-              end do
-           end do
+        num_swap=this_length
+           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
         end if
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
@@ -794,13 +734,8 @@ subroutine wrwrfnmma_binary(mype)
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_rain,i_f_rain+lm-1)
         this_offset=offset(i_f_rain)+(jbegin(mype)-1)*4*im*lm
         if(byte_swap) then
-           do jjj=jbegin(mype),jend(mype)
-              do lll=1,lm
-                 do iii=1,im
-                    call to_native_endianness(jbuf(iii,lll,jjj))
-                 end do
-              end do
-           end do
+        num_swap=this_length
+           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
         end if
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
@@ -810,9 +745,8 @@ subroutine wrwrfnmma_binary(mype)
   do k=kbegin(mype),kend(mype)
      if(kdim(k)==1.or.kord(k)==1) then
         if(byte_swap) then
-           do iii=1,length(k)
-              call to_native_endianness(ibuf(iii,k))
-           end do
+        num_swap=length(k)
+           call to_native_endianness_i4(ibuf(1,k),num_swap)
         end if
         call mpi_file_write_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
      end if

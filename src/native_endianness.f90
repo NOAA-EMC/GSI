@@ -14,9 +14,11 @@
 !
 ! program history log:
 !   2012-10-11  parrish - copy/modify original module native_endianness provided by Dusan Jovic, NCEP/EMC 2012
+!   2012-10-19  parrish - additional modifications to improve efficiency.  Remove interface and make
+!                          to_native_endianness to work only with integer(4) arguments.
+!                          Put to_native_endianness_i4 outside module.
 !
 ! subroutines included:
-!   to_native_endianness - reverse bytes of argument (output overwrites input)
 !
 ! functions included:
 !   is_little_endian - no argument--returns true for little-endian machine, false for big-endian machine
@@ -30,21 +32,13 @@
 !
 !$$$ end documentation block
 
- use kinds, only: i_byte,i_short,i_long,r_single,r_double
+ use kinds, only: i_byte,i_long
  implicit none
 
  private
 
  public byte_swap
- public to_native_endianness
  public is_little_endian
-
- interface to_native_endianness
-   module procedure to_native_endianness_i2
-   module procedure to_native_endianness_i4
-   module procedure to_native_endianness_r4
-   module procedure to_native_endianness_r8
- end interface to_native_endianness
 
  logical byte_swap
 
@@ -82,58 +76,13 @@
 
  end function is_little_endian
 
-!----------------------------------------------------------------------
-! convert 2-byte integer scalar from big-endian to native-endian
-!----------------------------------------------------------------------
-
- subroutine to_native_endianness_i2(i2)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    to_native_endianness_i2
-!   prgmmr: parrish          org: wx22                date: 2012-10-11
-!
-! abstract: swap bytes of argument.
-!
-! program history log:
-!   2012-10-11  parrish - add doc block
-!
-!   input argument list:
-!    i2 - input 2 byte integer argument
-!
-!   output argument list:
-!    i2 - output 2 byte integer argument with bytes in reverse order
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
- implicit none
-
- integer(i_short), intent(inout) :: i2
-
- integer(i_byte), dimension(2) :: byte_arr, byte_arr_tmp
- integer(i_long) :: i
-
- byte_arr_tmp = transfer (i2, byte_arr)
-
- do i = 1, 2
-   byte_arr(i) = byte_arr_tmp(3-i)
- end do
-
- i2 = transfer (byte_arr, i2)
-
- return
-
- end subroutine to_native_endianness_i2
-
+ end module native_endianness
 
 !----------------------------------------------------------------------
 ! convert 4-byte integer scalar from big-endian to native-endian
 !----------------------------------------------------------------------
 
- subroutine to_native_endianness_i4(i4)
+ subroutine to_native_endianness_i4(i4,num)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    to_native_endianness_i4
@@ -143,12 +92,16 @@
 !
 ! program history log:
 !   2012-10-11  parrish - add doc block
+!   2012-10-19  parrish - additional modifications to improve efficiency.  Remove interface and make
+!                          to_native_endianness to work only with integer(4) arguments.
+!                          Put to_native_endianness_i4 outside module.
 !
 !   input argument list:
-!    i4 - input 4 byte integer argument
+!    i4 - input 4 byte integer array
+!    num - length of array i4  (NOTE:  type of num must be i_llong (8 byte integer) )
 !
 !   output argument list:
-!    i4 - output 4 byte integer argument with bytes in reverse order
+!    i4 - output 4 byte integer array with bytes in reverse order
 !
 ! attributes:
 !   language: f90
@@ -156,116 +109,24 @@
 !
 !$$$ end documentation block
 
+ use kinds, only: i_byte,i_long,i_llong
  implicit none
 
- integer(i_long), intent(inout) :: i4
+ integer(i_llong), intent(in) :: num
+ integer(i_long), intent(inout) :: i4(num)
 
  integer(i_byte), dimension(4) :: byte_arr, byte_arr_tmp
- integer(i_long) :: i
+ integer(i_long) :: i,n
 
- byte_arr_tmp = transfer (i4, byte_arr)
-
- do i = 1, 4
-   byte_arr(i) = byte_arr_tmp(5-i)
+ do n=1,num
+    byte_arr_tmp = transfer (i4(n), byte_arr)
+    byte_arr(1)=byte_arr_tmp(4)
+    byte_arr(2)=byte_arr_tmp(3)
+    byte_arr(3)=byte_arr_tmp(2)
+    byte_arr(4)=byte_arr_tmp(1)
+    i4(n) = transfer (byte_arr, i4(n))
  end do
-
- i4 = transfer (byte_arr, i4)
 
  return
 
  end subroutine to_native_endianness_i4
-
-!----------------------------------------------------------------------
-! convert 4-byte real scalar from big-endian to native-endian
-!----------------------------------------------------------------------
-
- subroutine to_native_endianness_r4(r4)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    to_native_endianness_r4
-!   prgmmr: parrish          org: wx22                date: 2012-10-11
-!
-! abstract: swap bytes of argument.
-!
-! program history log:
-!   2012-10-11  parrish - add doc block
-!
-!   input argument list:
-!    r4 - input 4 byte floating point argument
-!
-!   output argument list:
-!    r4 - output 4 byte floating point argument with bytes in reverse order
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
- implicit none
-
- real(r_single), intent(inout) :: r4
-
- integer(i_byte), dimension(4) :: byte_arr, byte_arr_tmp
- integer :: i
-
- byte_arr_tmp = transfer (r4, byte_arr)
-
- do i = 1, 4
-   byte_arr(i) = byte_arr_tmp(5-i)
- end do
-
- r4 = transfer (byte_arr, r4)
-
- return
-
- end subroutine to_native_endianness_r4
-
-!----------------------------------------------------------------------
-! convert 8-byte real scalar from big-endian to native-endian
-!----------------------------------------------------------------------
-
- subroutine to_native_endianness_r8(r8)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    to_native_endianness_r4
-!   prgmmr: parrish          org: wx22                date: 2012-10-11
-!
-! abstract: swap bytes of argument.
-!
-! program history log:
-!   2012-10-11  parrish - add doc block
-!
-!   input argument list:
-!    r8 - input 8 byte floating point argument
-!
-!   output argument list:
-!    r8 - output 8 byte floating point argument with bytes in reverse order
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
- implicit none
-
- real(r_double), intent(inout) :: r8
-
- integer(i_byte), dimension(8) :: byte_arr, byte_arr_tmp
- integer(i_long) :: i
-
- byte_arr_tmp = transfer (r8, byte_arr)
-
- do i = 1, 8
-   byte_arr(i) = byte_arr_tmp(9-i)
- end do
-
- r8 = transfer (byte_arr, r8)
-
- return
-
- end subroutine to_native_endianness_r8
-
- end module native_endianness
-

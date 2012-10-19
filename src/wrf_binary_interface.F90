@@ -1616,7 +1616,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !   2004-11-29  parrish
 !   2005-02-17  todling, ifdef'ed wrf code out
 !   2006-04-06  middlecoff - replace fortran open,close with openfileread,closefile
-!   2012-10-11  parrish - add calls to to_native_endianness (when byte_swap=.true.) after all
+!   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file (through subroutine next_buf)
 !
 !   input argument list:
@@ -1635,7 +1635,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 !   do an initial read through of a wrf binary file, and get total number of sequential file records
 
   use kinds, only: i_byte,i_long,i_llong,i_kind
-  use native_endianness, only: byte_swap,to_native_endianness
+  use native_endianness, only: byte_swap
   implicit none
 
   integer(i_kind),intent(in   ) :: in_unit
@@ -1652,6 +1652,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   equivalence (missing,missing4(1))
   integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_llong) num_swap
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
@@ -1679,14 +1680,13 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
         lenrec4(i)=buf(locbyte)
      end do
+           if(byte_swap) then
+              num_swap=1
+              call to_native_endianness_i4(lenrec,num_swap)
+           end if
      if(lenrec <= 0_i_long .and. lastbuf) go to 900
      if(lenrec <= 0_i_long .and. .not.lastbuf) go to 885
      nextbyte=nextbyte+1_i_llong
@@ -1694,11 +1694,6 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-        if(byte_swap) then
-           do j=1,lword
-              call to_native_endianness(buf4(j))
-           end do
-        end if
      end if
 
      nrecs=nrecs+1
@@ -1712,11 +1707,6 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
      end do
      do i=1,4
@@ -1727,11 +1717,6 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
      end do
      nextbyte=nextbyte-loc_count+lenrec
@@ -1739,11 +1724,6 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-        if(byte_swap) then
-           do j=1,lword
-              call to_native_endianness(buf4(j))
-           end do
-        end if
      end if
      lensave=lenrec
      do i=1,4
@@ -1752,14 +1732,13 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
         lenrec4(i)=buf(locbyte)
      end do
+           if(byte_swap) then
+              num_swap=1
+              call to_native_endianness_i4(lenrec,num_swap)
+           end if
      if(lenrec /= lensave) go to 890
     
   end do
@@ -1890,7 +1869,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 !   2006-04-06  middlecoff - replace fortran open,close with openfileread,closefile
 !   2007-04-12  parrish - add output variable memoryorder_all to be used with modifications
 !                          which allow any combination of ikj/ijk grid ordering for 3D fields.
-!   2012-10-11  parrish - add calls to to_native_endianness (when byte_swap=.true.) after all
+!   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file (through subroutine next_buf)
 !
 !   input argument list:
@@ -1920,7 +1899,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
   use kinds, only: i_byte,i_long,i_llong,i_kind
 ! use module_internal_header_util, only: int_get_ti_header_char,int_get_write_field_header
-  use native_endianness, only: byte_swap,to_native_endianness
+  use native_endianness, only: byte_swap
   implicit none
 
   integer(i_kind) ,intent(in   ) :: in_unit,nrecs
@@ -1942,6 +1921,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   equivalence (missing,missing4(1))
   integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_llong) num_swap
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
@@ -1994,26 +1974,21 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
         lenrec4(i)=buf(locbyte)
      end do
+           if(byte_swap) then
+              num_swap=1
+              call to_native_endianness_i4(lenrec,num_swap)
+           end if
      if(lenrec <= 0_i_long .and. lastbuf) go to 900
      if(lenrec <= 0_i_long .and. .not. lastbuf) go to 885
+     if(mod(lenrec,4)/=0) go to 886
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-        if(byte_swap) then
-           do j=1,lword
-              call to_native_endianness(buf4(j))
-           end do
-        end if
      end if
 
      irecs=irecs+1
@@ -2037,14 +2012,13 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
         hdrbuf4(i)=buf(locbyte)
      end do
+           if(byte_swap) then
+              num_swap=2
+              call to_native_endianness_i4(hdrbuf,num_swap)
+           end if
 
 !     if(lenrec==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
 !                                       irecs,hdrbuf(2),int_dom_ti_char,int_field
@@ -2058,14 +2032,13 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
            if(locbyte > lrecl .and. lastbuf) go to 900
            if(locbyte > lrecl) then
               call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-              if(byte_swap) then
-                 do j=1,lword
-                    call to_native_endianness(buf4(j))
-                 end do
-              end if
            end if
            hdrbuf4(i)=buf(locbyte)
         end do
+           if(byte_swap) then
+              num_swap=(lenrec/4)-2
+              call to_native_endianness_i4(hdrbuf(3),num_swap)
+           end if
 
         if(hdrbuf(2) == int_dom_ti_char) then
 
@@ -2098,11 +2071,6 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-        if(byte_swap) then
-           do j=1,lword
-              call to_native_endianness(buf4(j))
-           end do
-        end if
      end if
      end_block(irecs)=thisblock
      end_byte(irecs)=locbyte
@@ -2113,14 +2081,13 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         if(locbyte > lrecl .and. lastbuf) go to 900
         if(locbyte > lrecl) then
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
-           if(byte_swap) then
-              do j=1,lword
-                 call to_native_endianness(buf4(j))
-              end do
-           end if
         end if
         lenrec4(i)=buf(locbyte)
      end do
+           if(byte_swap) then
+              num_swap=1
+              call to_native_endianness_i4(lenrec,num_swap)
+           end if
      if(lenrec /= lensave) go to 890
     
   end do
@@ -2132,6 +2099,12 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
 885 continue
   write(6,*)' problem in inventory_wrf_binary_file, lenrec has bad value before end of file'
+  write(6,*)'     lenrec =',lenrec
+  call closefile(in_unit,ierr)
+  return
+
+886 continue
+  write(6,*)' problem in inventory_wrf_binary_file, lenrec not a multiple of 4'
   write(6,*)'     lenrec =',lenrec
   call closefile(in_unit,ierr)
   return
@@ -2342,7 +2315,7 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !
 ! program history log:
 !   2004-11-29  parrish
-!   2012-10-11  parrish - add calls to to_native_endianness (when byte_swap=.true.) after all
+!   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
 !
 !   input argument list:
@@ -2365,7 +2338,7 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !$$$
 
   use kinds, only: i_byte,i_kind,i_llong,i_long
-  use native_endianness, only: byte_swap,to_native_endianness
+  use native_endianness, only: byte_swap
   implicit none
 
   integer(i_kind),intent(in   ) :: in_unit
@@ -2373,8 +2346,9 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
   integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
   integer(i_byte),intent(  out) :: out(*)
 
-  integer(i_kind),parameter:: lrecl=2**20
-  integer(i_llong),parameter:: lword=2**18
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_llong) num_swap
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
@@ -2384,13 +2358,17 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 
   write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
        start_block,end_block,start_byte,end_byte
+  if(mod(start_byte-1,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(start_byte-1,4) /= 0'
+  if(mod(end_byte,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(end_byte,4) /= 0'
   ii=0
   do k=start_block,end_block
      read(in_unit,rec=k,iostat=ierr)buf
      if(byte_swap) then
-        do j=1,lword
-           call to_native_endianness(buf4(j))
-        end do
+        ibegin=1 ; iend=lword
+        if(k == start_block) ibegin=1+(start_byte-1)/4
+        if(k == end_block) iend=end_byte/4
+        num_swap=iend-ibegin+1
+        call to_native_endianness_i4(buf4(ibegin),num_swap)
      end if
      ibegin=1 ; iend=lrecl
      if(k == start_block) ibegin=start_byte

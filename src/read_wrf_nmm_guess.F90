@@ -96,7 +96,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use mpeu_util, only: getindex
   use control_vectors, only: cvars3d
   use cloud_efr, only: cloud_calc
-  use native_endianness, only: byte_swap,to_native_endianness
+  use native_endianness, only: byte_swap
   implicit none
 
 ! Declare passed variables here
@@ -120,6 +120,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(kind=mpi_offset_kind) this_offset
   integer(i_kind),allocatable::length(:)
   integer(i_kind) this_length
+  integer(i_llong) num_swap
   character(9) wrfges
   character(6) filename 
   integer(i_kind) ifld,im,jm,lm,num_nmm_fields
@@ -534,13 +535,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,lm+1
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
@@ -555,13 +551,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,lm
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
@@ -576,13 +567,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,lm
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
@@ -597,13 +583,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,lm
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
@@ -618,13 +599,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,lm
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
@@ -639,13 +615,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,ksize
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im,jm,i_smc,i_smc)
@@ -660,13 +631,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
            if(byte_swap) then
-              do jjj=jbegin(mype),jend(mype)
-                 do lll=1,ksize
-                    do iii=1,im
-                       call to_native_endianness(jbuf(iii,lll,jjj))
-                    end do
-                 end do
-              end do
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im,jm,i_stc,i_stc)
@@ -682,13 +648,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
               call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                     status,ierror)
               if(byte_swap) then
-                 do jjj=jbegin(mype),jend(mype)
-                    do lll=1,lm
-                       do iii=1,im
-                          call to_native_endianness(jbuf(iii,lll,jjj))
-                       end do
-                    end do
-                 end do
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
               end if
               call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                    jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_cwm,i_cwm+lm-1)
@@ -703,13 +664,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
               call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                     status,ierror)
               if(byte_swap) then
-                 do jjj=jbegin(mype),jend(mype)
-                    do lll=1,lm
-                       do iii=1,im
-                          call to_native_endianness(jbuf(iii,lll,jjj))
-                       end do
-                    end do
-                 end do
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
               end if
               call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                    jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_ice,i_f_ice+lm-1)
@@ -724,13 +680,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
               call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                     status,ierror)
               if(byte_swap) then
-                 do jjj=jbegin(mype),jend(mype)
-                    do lll=1,lm
-                       do iii=1,im
-                          call to_native_endianness(jbuf(iii,lll,jjj))
-                       end do
-                    end do
-                 end do
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
               end if
               call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                    jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_rain,i_f_rain+lm-1)
@@ -745,13 +696,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
               call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                     status,ierror)
               if(byte_swap) then
-                 do jjj=jbegin(mype),jend(mype)
-                    do lll=1,lm
-                       do iii=1,im
-                          call to_native_endianness(jbuf(iii,lll,jjj))
-                       end do
-                    end do
-                 end do
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
               end if
               call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                    jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_rimef,i_f_rimef+lm-1)
@@ -764,9 +710,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            if(kdim(k)==1.or.kord(k)==1) then
               call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer,status,ierror)
               if(byte_swap) then
-                 do iii=1,length(k)
-                    call to_native_endianness(ibuf(iii,k))
-                 end do
+                 num_swap=length(k)
+                 call to_native_endianness_i4(ibuf(1,k),num_swap)
               end if
            end if
         end do
