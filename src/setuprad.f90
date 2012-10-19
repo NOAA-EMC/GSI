@@ -266,7 +266,6 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-  logical sensor_passive
   logical channel_passive
 
   logical,dimension(nobs):: luse
@@ -890,18 +889,12 @@
 !     For the case when all channels of a sensor are passive, all
 !     channels with iuse_rad=-1 or 0 are used in cloud detection.
 
-           sensor_passive=.true.
-           do i=1,nchanl
-              m=ich(i)
-              if (iuse_rad(m)>0) sensor_passive=.false.
-           end do
-
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((iuse_rad(m)>=0)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
@@ -996,21 +989,13 @@
 !     in the qc.  The loop below loads array varinv_use
 !     such that this condition is satisfied.  Array
 !     varinv_use is then used in the qc calculations.
-!     For the case when all channels of a sensor are passive, all
-!     channels with iuse_rad=-1 or 0 are used in cloud detection.
-
-           sensor_passive=.true.
-           do i=1,nchanl
-              m=ich(i)
-              if (iuse_rad(m)>0) sensor_passive=.false.
-           end do
 
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((iuse_rad(m)>=0)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
