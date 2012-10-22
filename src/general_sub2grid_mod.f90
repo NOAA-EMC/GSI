@@ -37,6 +37,16 @@ module general_sub2grid_mod
 !   2011-07-26  todling  - generalize single/double prec and rank interfaces
 !   2011-08-29  todling  - add rank11 for sub2grid and grid2sub interfaces (nned for hybrid stuff)
 !   2012-02-08  parrish  - add changes for regional dual resolution hybrid ensemble application.
+!   2012-06-06  parrish  - add general_gather2grid and general_scatter2sub.  These are to be used with
+!                           single 2-d fields when switching between subdomains spread across all processors
+!                           and full 2-d field on one processor (defined as additional user argument).
+!                           The usual single-double prec and rank interfaces are provided.
+!   2012-06-06  parrish  - add additional variables to type sub2grid_info.
+!                             nlevs_loc: number of active local full 2d fields 
+!                             nlevs_alloc:  number of allocated 2d fields.
+!                             lnames:    optional level index for each variable (assigned as user desires)
+!                             names:     optional names for each variable (assigned as desired)
+!   2012-06-25  parrish  - add subroutine general_sub2grid_destroy_info.
 !
 ! subroutines included:
 !   sub general_sub2grid_r_single  - convert from subdomains to grid for real single precision (4 byte)
@@ -61,7 +71,10 @@ module general_sub2grid_mod
 ! set subroutines to public
    public :: general_sub2grid
    public :: general_grid2sub
+   public :: general_gather2grid
+   public :: general_scatter2sub
    public :: general_sub2grid_create_info
+   public :: general_sub2grid_destroy_info
    public :: general_sube2suba
    public :: general_sube2suba_ad
    public :: general_suba2sube
@@ -84,6 +97,24 @@ module general_sub2grid_mod
      module procedure general_grid2sub_r_double_rank11
      module procedure general_grid2sub_r_double_rank41
      module procedure general_grid2sub_r_double_rank4
+   end interface
+
+   interface general_gather2grid
+     module procedure general_gather2grid_r_single_rank11
+     module procedure general_gather2grid_r_single_rank13
+     module procedure general_gather2grid_r_single_rank3
+     module procedure general_gather2grid_r_double_rank11
+     module procedure general_gather2grid_r_double_rank13
+     module procedure general_gather2grid_r_double_rank3
+   end interface
+
+   interface general_scatter2sub
+     module procedure general_scatter2sub_r_single_rank11
+     module procedure general_scatter2sub_r_single_rank31
+     module procedure general_scatter2sub_r_single_rank3
+     module procedure general_scatter2sub_r_double_rank11
+     module procedure general_scatter2sub_r_double_rank31
+     module procedure general_scatter2sub_r_double_rank3
    end interface
 
    interface general_suba2sube
@@ -127,6 +158,8 @@ module general_sub2grid_mod
       integer(i_kind) kend_alloc      ! kend_loc can = kbegin_loc - 1, for a processor not involved.
                                       !  this causes problems with array allocation:
                                       !  to correct this, use kend_alloc=max(kend_loc,kbegin_loc)
+      integer(i_kind) nlevs_loc       ! number of active local levels ( = kend_loc-kbegin_loc+1)
+      integer(i_kind) nlevs_alloc     ! number of allocatec local levels ( = kend_alloc-kbegin_loc+1)
       integer(i_kind) npe             ! total number of processors
       integer(i_kind) mype            ! local processor
       logical periodic                ! logical flag for periodic e/w domains
@@ -147,6 +180,8 @@ module general_sub2grid_mod
       integer(i_kind),pointer :: recvcounts_s(:)=> NULL()    !  for mpi_alltoallv (sub2grid)
       integer(i_kind),pointer ::     irc_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
       integer(i_kind),pointer ::     ird_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::     isc_g(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
+      integer(i_kind),pointer ::     isd_g(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
       integer(i_kind),pointer ::  displs_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
       integer(i_kind),pointer :: rdispls_s(:)   => NULL()    !  for mpi_alltoallv (sub2grid)
       integer(i_kind),pointer :: sendcounts_s(:)=> NULL()    !  for mpi_alltoallv (sub2grid)
@@ -156,6 +191,8 @@ module general_sub2grid_mod
       integer(i_kind),pointer :: ltosi_s(:)     => NULL()    !  lon index for reordering slab
       integer(i_kind),pointer :: kbegin(:)      => NULL()    !  starting slab index for each processor
       integer(i_kind),pointer :: kend(:)        => NULL()    !  ending slab index for each processor
+      integer(i_kind),pointer :: lnames(:,:)    => NULL()    !  optional level index for each variable
+      character(64),pointer   :: names(:,:)     => NULL()    !  optional variable names
       logical:: lallocated = .false.
     
 
@@ -165,7 +202,8 @@ module general_sub2grid_mod
 
    contains
 
-   subroutine general_sub2grid_create_info(s,inner_vars,nlat,nlon,nsig,num_fields,regional,vector)
+   subroutine general_sub2grid_create_info(s,inner_vars,nlat,nlon,nsig,num_fields,regional, &
+                                           vector,names,lnames)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_sub2grid_create_info populate info variable s
@@ -182,6 +220,7 @@ module general_sub2grid_mod
 !                           then periodic, periodic_s=.false. always.  this corrects a bug
 !                           in existing code.  (never a problem, except when npe=1).
 !   2011-04-07  todling - call general_deter_subdomain
+!   2012-06-06  parrish - add optional arrays names, lnames (see description below)
 !
 !   input argument list:
 !     s          - structure variable, waiting for all necessary information for
@@ -192,10 +231,12 @@ module general_sub2grid_mod
 !     nlon       - number of horizontal grid points in "longitude"
 !     nsig       - number of vertical levels for 1 3d variable.
 !     num_fields - total number of 2d fields to be processed.
+!     regional   - if true, then no periodicity in "longitude" direction
 !     vector     - optional logical array of length num_fields, set to true for
 !                    each field which will be a vector component.
 !                  if not present, s%vector = .false.
-!     regional   - if true, then no periodicity in "longitude" direction
+!     names      - optional character array containing variable name for each of the num_fields 2d arrays.
+!     lnames     - optional integer array containing level index for each of the num_fields 2d arrays.
 !
 !   output argument list:
 !     s          - structure variable, contains all necessary information for
@@ -211,13 +252,14 @@ module general_sub2grid_mod
       use mpimod, only: mpi_comm_world
       implicit none
 
-      type(sub2grid_info),intent(inout) :: s
-      integer(i_kind),    intent(in   ) :: inner_vars,nlat,nlon,nsig,num_fields
-      logical,            intent(in   ) :: regional 
-      logical,optional,   intent(in   ) :: vector(num_fields)
+      type(sub2grid_info),     intent(inout) :: s
+      integer(i_kind),         intent(in   ) :: inner_vars,nlat,nlon,nsig,num_fields
+      logical,                 intent(in   ) :: regional 
+      logical,optional,        intent(in   ) :: vector(num_fields)
+      character(64),optional,  intent(in   ) :: names(inner_vars,num_fields)
+      integer(i_kind),optional,intent(in   ) :: lnames(inner_vars,num_fields)
 
       integer(i_kind) i,ierror,j,k,num_loc_groups,nextra,mm1,n,ns
-      integer(i_kind),allocatable:: isc_g(:),isd_g(:)
 
       call mpi_comm_size(mpi_comm_world,s%npe,ierror)
       call mpi_comm_rank(mpi_comm_world,s%mype,ierror)
@@ -228,22 +270,31 @@ module general_sub2grid_mod
       s%nsig=nsig
       s%num_fields=num_fields
       if(s%lallocated) then
-         deallocate(s%periodic_s,s%ilat1,s%istart,s%jlon1,s%jstart,s%kbegin,s%kend,s%ijn)
-         deallocate(s%sendcounts,s%sdispls,s%recvcounts,s%rdispls)
-         deallocate(s%sendcounts_s,s%sdispls_s,s%recvcounts_s,s%rdispls_s)
-         deallocate(s%ltosi,s%ltosj,s%ltosi_s,s%ltosj_s)
-         deallocate(s%displs_s,s%irc_s,s%ird_s)
-         deallocate(s%displs_g)
-         deallocate(s%vector)
+         deallocate(s%periodic_s,s%vector,s%ilat1,s%jlon1,s%istart,s%jstart,s%recvcounts,s%displs_g)
+         deallocate(s%rdispls,s%sendcounts,s%sdispls,s%ijn,s%ltosj,s%ltosi,s%recvcounts_s)
+         deallocate(s%irc_s,s%ird_s,s%isc_g,s%isd_g,s%displs_s,s%rdispls_s,s%sendcounts_s,s%sdispls_s)
+         deallocate(s%ijn_s,s%ltosj_s,s%ltosi_s,s%kbegin,s%kend,s%lnames,s%names)
          s%lallocated=.false.
       end if
       allocate(s%periodic_s(s%npe),s%jstart(s%npe),s%istart(s%npe),s%ilat1(s%npe),s%jlon1(s%npe))
       allocate(s%ijn(s%npe),s%ijn_s(s%npe))
       allocate(s%vector(num_fields))
+      allocate(s%names(inner_vars,num_fields))
+      allocate(s%lnames(inner_vars,num_fields))
       if(present(vector)) then
          s%vector=vector
       else
          s%vector=.false.
+      end if
+      if(present(names)) then
+         s%names=names
+      else
+         s%names='X'
+      end if
+      if(present(lnames)) then
+         s%lnames=lnames
+      else
+         s%lnames=0
       end if
 
 !      first determine subdomains
@@ -252,14 +303,15 @@ module general_sub2grid_mod
       s%latlon11=s%lat2*s%lon2
       s%latlon1n=s%latlon11*s%nsig
 
-      allocate(isc_g(s%npe),isd_g(s%npe),s%displs_g(s%npe),s%displs_s(s%npe),s%ird_s(s%npe),s%irc_s(s%npe))
+      allocate(s%isc_g(s%npe),s%isd_g(s%npe),s%displs_g(s%npe),s%displs_s(s%npe))
+      allocate(s%ird_s(s%npe),s%irc_s(s%npe))
  
       s%ijn=s%ilat1*s%jlon1
       s%ijn_s=(s%ilat1+2)*(s%jlon1+2)
       mm1=s%mype+1
       do i=1,s%npe
          s%irc_s(i)=s%ijn_s(mm1)
-         isc_g(i)=s%ijn(mm1)
+         s%isc_g(i)=s%ijn(mm1)
       end do
 
 !        obtain ltosi,ltosj
@@ -269,11 +321,11 @@ module general_sub2grid_mod
          s%ltosj(i)=0
       end do
 !                       load arrays dealing with global grids
-      isd_g(1)=0
+      s%isd_g(1)=0
       s%displs_g(1)=0
       do n=1,s%npe
          if(n/=1) then
-            isd_g(n)=isd_g(n-1)+isc_g(n-1)
+            s%isd_g(n)=s%isd_g(n-1)+s%isc_g(n-1)
             s%displs_g(n)=s%displs_g(n-1)+s%ijn(n-1)
          end if
          do j=1,s%jlon1(n)
@@ -338,8 +390,6 @@ module general_sub2grid_mod
          end do  ! end do over npe
       endif
 
-      deallocate(isc_g,isd_g)
-
 !      next, determine vertical layout:
       allocate(s%kbegin(0:s%npe),s%kend(0:s%npe-1))
       num_loc_groups=s%num_fields/s%npe
@@ -363,6 +413,8 @@ module general_sub2grid_mod
       s%kbegin_loc=s%kbegin(s%mype)
       s%kend_loc=s%kend(s%mype)
       s%kend_alloc=max(s%kend_loc,s%kbegin_loc)
+      s%nlevs_loc=s%kend_loc-s%kbegin_loc+1
+      s%nlevs_alloc=s%kend_alloc-s%kbegin_loc+1
 
 !         get alltoallv indices for sub2grid
       allocate(s%sendcounts(0:s%npe-1),s%sdispls(0:s%npe))
@@ -395,6 +447,45 @@ module general_sub2grid_mod
       s%lallocated=.true.
 
    end subroutine general_sub2grid_create_info
+
+   subroutine general_sub2grid_destroy_info(s)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid_destroy_info deallocate variable s
+!   prgmmr: parrish          org: np22                date: 2010-02-12
+!
+! abstract: deallocate all components of type(sub2grid_info)  variable s.
+!
+! program history log:
+!   2012-06-18  parrish, initial documentation
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!
+!   output argument list:
+!     s          - returned with all allocatable pointers pointed to NULL and structure
+!                    variable s%lallocated set to .false.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use mpimod, only: mpi_comm_world
+      implicit none
+
+      type(sub2grid_info),     intent(inout) :: s
+
+      if(s%lallocated) then
+         deallocate(s%periodic_s,s%vector,s%ilat1,s%jlon1,s%istart,s%jstart,s%recvcounts,s%displs_g)
+         deallocate(s%rdispls,s%sendcounts,s%sdispls,s%ijn,s%ltosj,s%ltosi,s%recvcounts_s)
+         deallocate(s%irc_s,s%ird_s,s%isc_g,s%isd_g,s%displs_s,s%rdispls_s,s%sendcounts_s,s%sdispls_s)
+         deallocate(s%ijn_s,s%ltosj_s,s%ltosi_s,s%kbegin,s%kend,s%lnames,s%names)
+         s%lallocated=.false.
+      end if
+
+   end subroutine general_sub2grid_destroy_info
 
    subroutine general_deter_subdomain(npe,mype,nlat,nlon,regional, &
                     periodic,periodic_s,lon1,lon2,lat1,lat2,ilat1,istart,jlon1,jstart)
@@ -1477,6 +1568,692 @@ module general_sub2grid_mod
       call mpi_type_free(mpi_string,ierror)
 
    end subroutine general_grid2sub_r_double_rank4
+
+   subroutine general_gather2grid_r_single_rank11(s,sub_vars,grid_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_gather2grid_r_single_rank11  rank-1x1 interface to general_gather2grid
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_gather2grid_r_single_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode (contains one halo row)
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single),     intent(in   ) :: sub_vars(:)
+      real(r_single),    intent(  out)  :: grid_vars(:)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_single),pointer,dimension(:,:,:) :: sub_vars_r3
+      real(r_single),pointer,dimension(:,:,:) :: grid_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      sub_vars_r3  => rerank(sub_vars ,mold3,(/s%inner_vars,s%lat2,s%lon2/))
+      grid_vars_r3 => rerank(grid_vars,mold3,(/s%inner_vars,s%nlat,s%nlon/))
+
+      call general_gather2grid_r_single_rank3(s,sub_vars_r3,grid_vars_r3,gridpe)
+
+   end subroutine general_gather2grid_r_single_rank11
+
+   subroutine general_gather2grid_r_single_rank13(s,sub_vars,grid_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_gather2grid_r_single_rank13  rank-1x3 interface to general_gather2grid
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_gather2grid_r_single_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+! abstract: see general_sub2grid_r_single_rank4
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2011-07-26  todling, rank-1 interface
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode (contains one halo row)
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single),     intent(in   ) :: sub_vars(:)
+      real(r_single),     intent(  out) :: grid_vars(:,:,:)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_single),pointer,dimension(:,:,:) :: sub_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      sub_vars_r3  => rerank(sub_vars,mold3,(/s%inner_vars,s%lat2,s%lon2/))
+
+      call general_gather2grid_r_single_rank3(s,sub_vars_r3,grid_vars,gridpe)
+
+   end subroutine general_gather2grid_r_single_rank13
+
+   subroutine general_gather2grid_r_single_rank3(s,sub_vars,grid_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_gather2grid_r_single_rank3  gather subdomains to full horizontal grid
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: generalization of subroutine gather_stuff2 that used to be located in bkgvar_rewgt.f90.  
+!              Similar to general_sub2grid, but the difference is that it only works on a single 2d field and
+!              gathers together the subdomains from all processors to a single full 2-d grid on 
+!              user specified processor pe.  All vertical/variable related parts of the structure
+!              variable s are ignored.  This routine is also intended to be a straightforward
+!              replacement for the current messy mpi_allgatherv and associated code used for gathering
+!              subdomain variables to a single processor.
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode (contains one halo row)
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use mpimod, only: mpi_comm_world,mpi_real4
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single),     intent(in   ) :: sub_vars(s%inner_vars,s%lat2,s%lon2)
+      real(r_single),     intent(  out) :: grid_vars(s%inner_vars,s%nlat,s%nlon)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_single) :: sub_vars0(s%inner_vars,s%lat1,s%lon1)
+      real(r_single) :: work(s%inner_vars,s%itotsub) 
+      integer(i_kind) iloc,iskip,i,i0,ii,j,j0,n,ilat,jlon,ierror,ioffset
+      integer(i_long) mpi_string
+
+
+!    remove halo row
+
+      do j=2,s%lon2-1
+         j0=j-1
+         do i=2,s%lat2-1
+            i0=i-1
+            do ii=1,s%inner_vars
+               sub_vars0(ii,i0,j0)=sub_vars(ii,i,j)
+            end do
+         end do
+      end do
+
+      call mpi_type_contiguous(s%inner_vars,mpi_real4,mpi_string,ierror)
+      call mpi_type_commit(mpi_string,ierror)
+
+      call mpi_gatherv(sub_vars0,s%ijn(s%mype+1),mpi_string, &
+                        work,s%ijn,s%displs_g,mpi_string,gridpe,mpi_comm_world,ierror)
+
+      call mpi_type_free(mpi_string,ierror)
+
+      if(s%mype==gridpe) then
+
+! Load temp array in desired order
+
+         iskip=0
+         iloc=0
+         do n=1,s%npe
+            ioffset=iskip
+            do i=1,s%ijn(n)
+               iloc=iloc+1
+               ilat=s%ltosi(iloc)
+               jlon=s%ltosj(iloc)
+               do ii=1,s%inner_vars
+                  grid_vars(ii,ilat,jlon)=work(ii,i + ioffset)
+               end do
+            end do
+            iskip=iskip+s%ijn(n)
+         end do
+
+      end if
+
+   end subroutine general_gather2grid_r_single_rank3
+
+   subroutine general_gather2grid_r_double_rank11(s,sub_vars,grid_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_gather2grid_r_double_rank11 rank-1x1 interface
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_gather2grid_r_double_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: sub_vars(:)
+      real(r_double),     intent(  out) :: grid_vars(:)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_double),pointer,dimension(:,:,:) :: sub_vars_r3
+      real(r_double),pointer,dimension(:,:,:) :: grid_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      sub_vars_r3  => rerank(sub_vars, mold3,(/s%inner_vars,s%lat2,s%lon2/))
+      grid_vars_r3 => rerank(grid_vars,mold3,(/s%inner_vars,s%nlat,s%nlon/))
+
+      call general_gather2grid_r_double_rank3(s,sub_vars_r3,grid_vars_r3,gridpe)
+
+   end subroutine general_gather2grid_r_double_rank11
+
+   subroutine general_gather2grid_r_double_rank13(s,sub_vars,grid_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_gather2grid_r_double_rank13 rank-1x3 interface
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_gather2grid_r_double_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: sub_vars(:)
+      real(r_double),     intent(  out) :: grid_vars(:,:,:)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_double),pointer,dimension(:,:,:) :: sub_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      sub_vars_r3  => rerank(sub_vars,mold3,(/s%inner_vars,s%lat2,s%lon2/))
+
+      call general_gather2grid_r_double_rank3(s,sub_vars_r3,grid_vars,gridpe)
+
+   end subroutine general_gather2grid_r_double_rank13
+
+   subroutine general_gather2grid_r_double_rank3(s,sub_vars,grid_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_gather2grid_r_double_rank3  gather subdomains to full horizontal grid
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: generalization of subroutine gather_stuff2 that used to be located in bkgvar_rewgt.f90.  
+!              Similar to general_sub2grid, but the difference is that it only works on a single 2d field and
+!              gathers together the subdomains from all processors to a single full 2-d grid on 
+!              user specified processor pe.  All vertical/variable related parts of the structure
+!              variable s are ignored.  This routine is also intended to be a straightforward
+!              replacement for the current messy mpi_allgatherv and associated code used for gathering
+!              subdomain variables to a single processor.
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use mpimod, only: mpi_comm_world,mpi_real8
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: sub_vars(s%inner_vars,s%lat2,s%lon2)
+      real(r_double),    intent(  out)  :: grid_vars(s%inner_vars,s%nlat,s%nlon)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_double) :: sub_vars0(s%inner_vars,s%lat1,s%lon1)
+      real(r_double) :: work(s%inner_vars,max(s%iglobal,s%itotsub)) 
+      real(r_double) :: temp(s%inner_vars,max(s%iglobal,s%itotsub)) 
+      integer(i_kind) iloc,iskip,i,i0,ii,j,j0,n,ilat,jlon,ierror,ioffset
+      integer(i_long) mpi_string
+
+!    remove halo row
+
+      do j=2,s%lon2-1
+         j0=j-1
+         do i=2,s%lat2-1
+            i0=i-1
+            do ii=1,s%inner_vars
+               sub_vars0(ii,i0,j0)=sub_vars(ii,i,j)
+            end do
+         end do
+      end do
+
+      call mpi_type_contiguous(s%inner_vars,mpi_real8,mpi_string,ierror)
+      call mpi_type_commit(mpi_string,ierror)
+
+      call mpi_gatherv(sub_vars0,s%ijn(s%mype+1),mpi_string, &
+                        work,s%ijn,s%displs_g,mpi_string,gridpe,mpi_comm_world,ierror)
+
+      call mpi_type_free(mpi_string,ierror)
+
+
+      if(s%mype==gridpe) then
+
+! Load temp array in desired order
+         iskip=0
+         iloc=0
+         do n=1,s%npe
+            do i=1,s%ijn(n)
+               iloc=iloc+1
+               do ii=1,s%inner_vars
+                temp(ii,iloc)=work(ii,i + iskip)
+               end do
+            end do
+            iskip=iskip+s%ijn(n)
+         end do
+
+! Transfer array temp to output array grid_vars
+         do n=1,s%iglobal
+            ilat=s%ltosi(n)
+            jlon=s%ltosj(n)
+            do ii=1,s%inner_vars
+               grid_vars(ii,ilat,jlon)=temp(ii,n)
+            end do
+         end do
+
+      end if
+
+   end subroutine general_gather2grid_r_double_rank3
+
+   subroutine general_scatter2sub_r_single_rank11(s,grid_vars,sub_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_scatter2sub_r_single_rank11  rank 1x1 interface to general_scatter2sub
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_scatter2sub_r_single_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single), intent(in   )     :: grid_vars(:)
+      real(r_single),     intent(  out) :: sub_vars(:)
+      integer(i_kind),intent(in   )     :: gridpe
+
+      real(r_single),pointer,dimension(:,:,:) :: grid_vars_r3
+      real(r_single),pointer,dimension(:,:,:) :: sub_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      grid_vars_r3=> rerank(grid_vars,mold3,(/s%inner_vars,s%nlat,s%nlon/))
+      sub_vars_r3 => rerank(sub_vars, mold3,(/s%inner_vars,s%lat2,s%lon2/))
+
+      call general_scatter2sub_r_single_rank3(s,grid_vars_r3,sub_vars_r3,gridpe)
+
+   end subroutine general_scatter2sub_r_single_rank11
+
+   subroutine general_scatter2sub_r_single_rank31(s,grid_vars,sub_vars,gridpe) 
+!$$$  subprogram documentation block 
+!                .      .    .                                       .  
+! subprogram:    general_scatter2sub_r_single_rank31  rank 3x1 interface to general_scatter2sub
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_scatter2sub_r_single_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon)
+      real(r_single),     intent(  out) :: sub_vars(:)
+      integer(i_kind),intent(in   )     :: gridpe
+
+      real(r_single),pointer,dimension(:,:,:) :: sub_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      sub_vars_r3 => rerank(sub_vars,mold3,(/s%inner_vars,s%lat2,s%lon2/))
+
+      call general_scatter2sub_r_single_rank3(s,grid_vars,sub_vars_r3,gridpe)
+
+   end subroutine general_scatter2sub_r_single_rank31
+
+   subroutine general_scatter2sub_r_single_rank3(s,grid_vars,sub_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_scatter2sub_r_single_rank3  scatter one full horizontal grid to subdomains.
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: generalization of subroutine scatter_stuff2 that used to be located in bkgvar_rewgt.f90.  
+!              Similar to general_grid2sub, but the difference is that it only works on a single 2d field and
+!              scatters it to the subdomains on all processors from the user specified processor where the
+!              2d field resides.  All vertical/variable related parts of the structure
+!              variable s are ignored.  This routine is also intended to be a straightforward
+!              replacement for the current messy mpi_allscatterv and associated code used for scattering
+!              a 2-d field from a single processor to subdomains.
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use constants, only: zero
+      use mpimod, only: mpi_comm_world,mpi_real4
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon)
+      real(r_single),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2)
+      integer(i_kind),intent(in   )     :: gridpe
+
+      real(r_single) :: temp(s%inner_vars,s%itotsub)
+      integer(i_kind) ii,n,ilat,jlon,ierror
+      integer(i_long) mpi_string
+      integer(i_kind),dimension(s%npe)::iskip
+
+!     reorganize for eventual distribution to local domains
+
+      if(s%mype==gridpe) then
+
+         do n=1,s%itotsub
+            ilat=s%ltosi_s(n) ; jlon=s%ltosj_s(n)
+            do ii=1,s%inner_vars
+               temp(ii,n)=grid_vars(ii,ilat,jlon)
+            end do
+         end do
+
+      end if
+
+      call mpi_type_contiguous(s%inner_vars,mpi_real4,mpi_string,ierror)
+      call mpi_type_commit(mpi_string,ierror)
+
+      call mpi_scatterv(temp,s%ijn_s,s%displs_s,mpi_string, &
+                        sub_vars,s%ijn_s(s%mype+1),mpi_string,gridpe,mpi_comm_world,ierror)
+      call mpi_type_free(mpi_string,ierror)
+
+   end subroutine general_scatter2sub_r_single_rank3
+
+   subroutine general_scatter2sub_r_double_rank11(s,grid_vars,sub_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_scatter2sub_r_double_rank11  rank 1x1 interface to general_scatter2sub
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_scatter2sub_r_double_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: grid_vars(:)
+      real(r_double),     intent(  out) :: sub_vars(:)
+      integer(i_kind),intent(in   )     :: gridpe
+
+      real(r_double),pointer,dimension(:,:,:) :: grid_vars_r3
+      real(r_double),pointer,dimension(:,:,:) :: sub_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      grid_vars_r3 => rerank(grid_vars,mold3,(/s%inner_vars,s%nlat,s%nlon/))
+      sub_vars_r3  => rerank(sub_vars, mold3,(/s%inner_vars,s%lat2,s%lon2/))
+
+      call general_scatter2sub_r_double_rank3(s,grid_vars_r3,sub_vars_r3,gridpe)
+
+   end subroutine general_scatter2sub_r_double_rank11
+
+   subroutine general_scatter2sub_r_double_rank31(s,grid_vars,sub_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_scatter2sub_r_double_rank31  rank 3x1 interface to general_scatter2sub
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: see general_scatter2sub_r_single_rank3
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use kinds, only: r_single,i_kind
+      use m_rerank, only: rerank
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double),     intent(in   ) :: grid_vars(s%inner_vars,s%nlat,s%nlon)
+      real(r_double),     intent(  out) :: sub_vars(:)
+      integer(i_kind),    intent(in   ) :: gridpe
+
+      real(r_double),pointer,dimension(:,:,:) :: sub_vars_r3
+      integer(i_kind) mold3(2,2,2)
+
+      sub_vars_r3 => rerank(sub_vars,mold3,(/s%inner_vars,s%lat2,s%lon2/))
+
+      call general_scatter2sub_r_double_rank3(s,grid_vars,sub_vars_r3,gridpe)
+
+   end subroutine general_scatter2sub_r_double_rank31
+
+   subroutine general_scatter2sub_r_double_rank3(s,grid_vars,sub_vars,gridpe)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_scatter2sub_r_double_rank3  scatter one full horizontal grid to subdomains.
+!   prgmmr: parrish          org: np22                date: 2012-06-06
+!
+! abstract: generalization of subroutine scatter_stuff2 that used to be located in bkgvar_rewgt.f90.  
+!              Similar to general_grid2sub, but the difference is that it only works on a single 2d field and
+!              scatters it to the subdomains on all processors from the user specified processor where the
+!              2d field resides.  All vertical/variable related parts of the structure
+!              variable s are ignored.  This routine is also intended to be a straightforward
+!              replacement for the current messy mpi_allscatterv and associated code used for scattering
+!              a 2-d field from a single processor to subdomains.
+!
+! program history log:
+!   2012-06-06  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!     gridpe     - processor where output grid resides
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use constants, only: zero
+      use mpimod, only: mpi_comm_world,mpi_real8
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_double), intent(in   )     :: grid_vars(s%inner_vars,s%nlat,s%nlon)
+      real(r_double),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2)
+      integer(i_kind),intent(in   )     :: gridpe
+
+      real(r_double) :: temp(s%inner_vars,s%itotsub)
+      integer(i_kind) iloc,icount,i,ii,j,n,ilat,jlon,ierror
+      integer(i_long) mpi_string
+      integer(i_kind),dimension(s%npe)::iskip
+
+!     reorganize for eventual distribution to local domains
+
+      if(s%mype==gridpe) then
+
+         do n=1,s%itotsub
+            ilat=s%ltosi_s(n) ; jlon=s%ltosj_s(n)
+            do ii=1,s%inner_vars
+               temp(ii,n)=grid_vars(ii,ilat,jlon)
+            end do
+         end do
+
+      end if
+
+      call mpi_type_contiguous(s%inner_vars,mpi_real8,mpi_string,ierror)
+      call mpi_type_commit(mpi_string,ierror)
+
+      call mpi_scatterv(temp,s%ijn_s,s%displs_s,mpi_string, &
+                        sub_vars,s%ijn_s(s%mype+1),mpi_string,gridpe,mpi_comm_world,ierror)
+      call mpi_type_free(mpi_string,ierror)
+
+   end subroutine general_scatter2sub_r_double_rank3
 
    subroutine general_sube2suba_r_single_rank1(se,sa,p_e2a,sube_vars,suba_vars,regional)
 !$$$  subprogram documentation block

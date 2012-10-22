@@ -117,6 +117,7 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 ! program history log:
 !   2008-06-04  safford - complete documentation block, rm unused var k2
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2012-06-12  parrish - replace sub2grid2/grid2sub2 with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     prs      - 3d pressure
@@ -138,9 +139,9 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
-  use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
-  use control_vectors, only: nrf_var
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g2
   implicit none
 
 ! Declare passed variables
@@ -149,10 +150,12 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg,ips
-  real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) i,j,k
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hwork_g
+  real(r_kind),dimension(1,lat2,lon2,nsig+1):: p4
 
+  allocate(hwork(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
+  allocate(hwork_g(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
 
   if(regional)then
      if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
@@ -168,24 +171,40 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
         prs_x=zero ; prs_y=zero
      end if
   else
-     iflg=1
-     st=zero
-     vp=zero
-     t=zero
-     hwork=zero
-     do k=1,size(nrf_var)
-        if(trim(nrf_var(k))=='ps') ips=k
-     enddo
-     call sub2grid2(hwork,st,vp,prs,t,iflg)
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == ips)then
-           call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-           call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-        end if
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              p4(1,i,j,k)=prs(i,j,k)
+           end do
+        end do
      end do
-     call grid2sub2(hwork_x,st,vp,prs_x,t)
-     call grid2sub2(hwork_y,st,vp,prs_y,t)
+     call general_sub2grid(s2g2,p4,hwork)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlon(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_x(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlat(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_y(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
   end if
+
+!  clean work space
+  deallocate(hwork,hwork_g)
 
   return
 end subroutine getprs_horiz
@@ -309,6 +328,7 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 !   2008-06-04  safford - complete doc block
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
 !   2010-05-23  todling - unwired location of ps in control array
+!   2012-06-12  parrish - replace sub2grid2/grid2sub2 with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     prs      - 3d pressure
@@ -330,9 +350,9 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
-  use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: compact_dlat,compact_dlon
-  use control_vectors, only: nrf_var
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g2
   implicit none
 
 ! Declare passed variables
@@ -341,10 +361,12 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg,ips
-  real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) i,j,k
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hwork_g
+  real(r_kind),dimension(1,lat2,lon2,nsig+1):: p4
 
+  allocate(hwork(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
+  allocate(hwork_g(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
 
   if(regional)then
      if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
@@ -361,23 +383,40 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
         prs_y=zero
      end if
   else
-     do k=1,size(nrf_var)
-        if(trim(nrf_var(k))=='ps') ips=k
-     enddo
-     iflg=1
-     st=zero
-     vp=zero
-     t=zero
-     call sub2grid2(hwork,st,vp,prs,t,iflg)
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == ips)then
-           call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-           call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-        end if
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              p4(1,i,j,k)=prs(i,j,k)
+           end do
+        end do
      end do
-     call grid2sub2(hwork_x,st,vp,prs_x,t)
-     call grid2sub2(hwork_y,st,vp,prs_y,t)
-  endif
+     call general_sub2grid(s2g2,p4,hwork)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlon(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_x(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlat(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_y(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
+  end if
+
+!  clean work space
+  deallocate(hwork,hwork_g)
 
   return
 end subroutine getprs_horiz_tl
@@ -513,6 +552,7 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 !   2008-06-04  safford - complete doc block
 !   2008-09-05  lueken  - merged ed's changes into q1fy09
 !   2010-05-23  todling - unwired location of ps in control array
+!   2012-06-12  parrish - replace sub2grid2/grid2sub2 with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     prs_x      - dp/dx
@@ -537,9 +577,9 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
   use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
        cmaq_regional
-  use mpimod, only: nvarbal_id,nnnvsbal
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
-  use control_vectors, only: nrf_var
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g2
 
   implicit none
 
@@ -549,9 +589,12 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
   real(r_kind),dimension(lat2,lon2)       ,intent(inout) :: ps_x,ps_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg,ips
-  real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) i,j,k
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hwork_g
+  real(r_kind),dimension(1,lat2,lon2,nsig+1):: p4
+
+  allocate(hwork(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
+  allocate(hwork_g(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
 
 ! Adjoint of horizontal derivatives
   if (regional) then
@@ -566,32 +609,41 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
         end do
      end if
   else
-     do k=1,size(nrf_var)
-        if(trim(nrf_var(k))=='ps') ips=k
-     enddo
-     iflg=1
-     st=zero
-     vp=zero
-     t=zero
      hwork=zero
-     call sub2grid2(hwork_x,st,vp,prs_x,t,iflg)
-     call sub2grid2(hwork_y,st,vp,prs_y,t,iflg)
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == ips)then
-           call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-           call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-        end if
-     end do
-     call grid2sub2(hwork,st,vp,prs_x,t)
      do k=1,nsig+1
         do j=1,lon2
            do i=1,lat2
-              prs(i,j,k)=prs(i,j,k)+prs_x(i,j,k)
+              p4(1,i,j,k)=prs_x(i,j,k)
+           end do
+        end do
+     end do
+     call general_sub2grid(s2g2,p4,hwork_g)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call tcompact_dlon(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              p4(1,i,j,k)=prs_y(i,j,k)
+           end do
+        end do
+     end do
+     call general_sub2grid(s2g2,p4,hwork_g)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call tcompact_dlat(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs(i,j,k)=prs(i,j,k)+p4(1,i,j,k)
            end do
         end do
      end do
   end if
 
+!  clean work space
+  deallocate(hwork,hwork_g)
 
   return
 end subroutine getprs_horiz_ad

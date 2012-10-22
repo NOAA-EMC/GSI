@@ -8,6 +8,8 @@ module strong_slow_global_mod
 ! program history log:
 !   2008-04-04  safford - add module doc block
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
+!   2012-06-12  parrish - introduce general_sub2grid/general_grid2sub in place of mpi_all2allv calls.
+!                         remove all supporting code/constants needed for mpi_all2allv calls.
 !
 ! subroutines included;
 !    init_strongvars_1                    --
@@ -31,7 +33,7 @@ module strong_slow_global_mod
 
   use kinds, only: i_kind
   use gridmod, only: nsig
-  use mpimod, only: nuvlevs,nnnuvlevs
+  use general_commvars_mod, only: g3
   implicit none
 
 ! set default to private
@@ -91,6 +93,7 @@ subroutine initialize_strong_slow_global(mype)
 !
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block
+!   2012-06-12  parrish - replace nuvlevs with g3%nlevs_alloc
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -106,7 +109,7 @@ subroutine initialize_strong_slow_global(mype)
 
   integer(i_kind),intent(in   ) :: mype
 
-  allocate(mode_number(nuvlevs),mode_number0(nsig))
+  allocate(mode_number(g3%nlevs_alloc),mode_number0(nsig))
   call get_mode_number(mype)
 !---------mode_number > 0 for 1st copy of u,v,m, reserved for correction delu,delv,delm
 !---------mode_number < 0 for 2nd copy of u,v,m, reserved for grav part of tends, u_t_g,v_t_g,m_t_g
@@ -135,6 +138,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !   2010-03-31  treadon - replace specmod components with sp_a structure
 !   2011-06-09  guo     - added protections to 0/0 = NaN case on the text outputs
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
+!   2012-06-12  parrish - replace nuvlevs with g3%nlevs_alloc
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -184,9 +188,9 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t,vtilde_t,mtilde_t
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
-  real(r_kind),dimension(nlat,nlon,nuvlevs)::uwork,vwork,mwork
-  real(r_kind),dimension(nuvlevs)::rmstend_loc_uf,rmstend_g_loc_uf
-  real(r_kind),dimension(nuvlevs)::rmstend_loc_f,rmstend_g_loc_f
+  real(r_kind),dimension(nlat,nlon,g3%nlevs_alloc)::uwork,vwork,mwork
+  real(r_kind),dimension(g3%nlevs_alloc)::rmstend_loc_uf,rmstend_g_loc_uf
+  real(r_kind),dimension(g3%nlevs_alloc)::rmstend_loc_f,rmstend_g_loc_f
   real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f,gspeed
   real(r_kind) :: ri,r1
@@ -212,7 +216,7 @@ subroutine strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   rmstend_g_loc_uf=zero
   rmstend_loc_f=zero
   rmstend_g_loc_f=zero
-  do kk=1,nuvlevs
+  do kk=1,g3%nlevs_alloc
      mode=mode_number(kk)
      if(mode == 0) then
         do j=1,nlon
@@ -363,6 +367,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
 !                          input/output variables psi=u, chi=v.
 !   2010-03-31  treadon - replace specmod components with sp_a structure
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
+!   2012-06-12  parrish - replace nuvlevs with g3%nlevs_alloc
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -405,7 +410,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t2,vtilde_t2,mtilde_t2
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delutilde,delvtilde,delmtilde
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde_t_g,vtilde_t_g,mtilde_t_g
-  real(r_kind),dimension(nlat,nlon,nuvlevs)::uwork,vwork,mwork
+  real(r_kind),dimension(nlat,nlon,g3%nlevs_alloc)::uwork,vwork,mwork
   real(r_kind),dimension(sp_a%nc)::divhat,vorthat,mhat,deldivhat,delvorthat,delmhat
   real(r_kind)::gspeed
 
@@ -426,7 +431,7 @@ subroutine strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   call inmi_sub2grid(delvtilde,vtilde_t_g,vwork)
   call inmi_sub2grid(delmtilde,mtilde_t_g,mwork)
 
-  do kk=1,nuvlevs
+  do kk=1,g3%nlevs_alloc
      mode=mode_number(kk)
      if(mode == 0) then
         do j=1,nlon
@@ -505,6 +510,7 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork)
 ! program history log:
 !   2006-08-03  parrish
 !   2008-04-04  safford  - rm unused uses
+!   2012-06-12  parrish  - introduce general_sub2grid, replacing mpi_all2allv and related support code.
 !
 !   input argument list:
 !     utilde   - vertical tranformed variable on subdomains
@@ -521,40 +527,34 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork)
 
   use kinds, only: r_kind
   use constants, only: zero
-  use gridmod, only: lat2,iglobal,lon1,itotsub,lon2,lat1,ltosi,ltosj,nlon,nlat,&
-       strip,reorder
-  use mpimod, only: ierror,mpi_comm_world,&
-       isduv_g,iscuv_g,irduv_g,ircuv_g,mpi_rtype
+  use gridmod, only: lat2,lon2,nlon,nlat
   use mod_vtrans, only: nvmodes_keep
+  use general_sub2grid_mod, only: general_sub2grid
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(in   ) :: utilde,utilde2
-  real(r_kind),dimension(nlat,nlon,nuvlevs)     ,intent(  out) :: uwork
+  real(r_kind),dimension(nlat,nlon,g3%nlevs_alloc)     ,intent(  out) :: uwork
 
-  real(r_kind),dimension(lat2,lon2,nsig):: u
+  real(r_kind),dimension(lat2*lon2*nsig):: u
 
 ! Declare local variables
-  integer(i_kind) i,j,k,isize,mode
+  integer(i_kind) i,ii,j,k,mode
 
-  real(r_kind),dimension(lat1,lon1,nsig):: usm
-  real(r_kind),dimension(itotsub,nuvlevs):: work3
+  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%nlevs_alloc):: work3
 
 ! Initialize variables
-  isize=max(iglobal,itotsub)
 
 ! zero out work array
-  do k=1,nuvlevs
-     do j=1,isize
-        work3(j,k)=zero
-     end do
-  end do
+  work3=zero
 
 !  copy input array into bigger internal array
   do k=1,nsig
+     ii=lat2*lon2*(k-1)
      do j=1,lon2
         do i=1,lat2
-           u(i,j,k)=zero
+           ii=ii+1
+           u(ii)=zero
         end do
      end do
   end do
@@ -562,36 +562,32 @@ subroutine inmi_sub2grid(utilde,utilde2,uwork)
      mode=mode_number0(k)
      if(mode == 0) cycle
      if(mode >  0) then
+        ii=lat2*lon2*(k-1)
         do j=1,lon2
            do i=1,lat2
-              u(i,j,k)=utilde(i,j,mode)
+              ii=ii+1
+              u(ii)=utilde(i,j,mode)
            end do
         end do
      else
+        ii=lat2*lon2*(k-1)
         do j=1,lon2
            do i=1,lat2
-              u(i,j,k)=utilde2(i,j,-mode)
+              ii=ii+1
+              u(ii)=utilde2(i,j,-mode)
            end do
         end do
      end if
     
   end do
 
-!   begin strmfctn / vp to u/v section
-!   strip off endpoints of input arrays on subdomains
-!   note that right now, place in usm,vsm
-  call strip(u,usm,nsig)
 
-!   put on global slabs
-  call mpi_alltoallv(usm(1,1,1),iscuv_g,isduv_g,&
-       mpi_rtype,work3(1,1),ircuv_g,irduv_g,mpi_rtype,&
-       mpi_comm_world,ierror)
-
-!   reorder work arrays and transfer to output array
-  call reorder(work3,nuvlevs,nnnuvlevs)
-  do k=1,nnnuvlevs
-     do i=1,iglobal
-        uwork(ltosi(i),ltosj(i),k)=work3(i,k)
+  call general_sub2grid(g3,u,work3)
+  do k=1,g3%nlevs_loc
+     do j=1,nlon
+        do i=1,nlat
+           uwork(i,j,k)=work3(1,i,j,k)
+        end do
      end do
   end do
 
@@ -609,6 +605,7 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork)
 ! program history log:
 !   2006-08-03  parrish
 !   2008-04-04  safford - rm unused vars and uses
+!   2012-06-12  parrish  - introduce general_grid2sub, replacing mpi_all2allv and related support code.
 !
 !   input argument list:
 !     uwork    - input fields in horizontal slab mode
@@ -624,52 +621,52 @@ subroutine inmi_grid2sub(utilde,utilde2,uwork)
 !$$$
 
   use kinds, only: r_kind
-  use gridmod, only: lat2,iglobal,itotsub,lon2,nlat,nlon,ltosi_s,ltosj_s,&
-       reorder2
-  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,mpi_rtype
+  use constants, only: zero
+  use gridmod, only: lat2,lon2,nlat,nlon
   use mod_vtrans, only: nvmodes_keep
+  use general_sub2grid_mod, only: general_grid2sub
   implicit none
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nvmodes_keep),intent(  out) :: utilde,utilde2
-  real(r_kind),dimension(nlat,nlon,nuvlevs)     ,intent(in   ) :: uwork
+  real(r_kind),dimension(nlat,nlon,g3%nlevs_alloc)     ,intent(in   ) :: uwork
 
-  real(r_kind),dimension(lat2,lon2,nsig):: u
+  real(r_kind),dimension(lat2*lon2*nsig):: u
 
 ! Declare local variables
-  integer(i_kind) i,j,k,isize,mode
+  integer(i_kind) i,ii,j,k,mode
 
-  real(r_kind),dimension(itotsub,nuvlevs):: work3
+  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%nlevs_alloc):: work3
 
 ! Initialize variables
-  isize=max(iglobal,itotsub)
 
-  do k=1,nnnuvlevs
-     do i=1,itotsub
-        work3(i,k)=uwork(ltosi_s(i),ltosj_s(i),k)
+  work3=zero
+  do k=1,g3%nlevs_loc
+     do j=1,nlon
+        do i=1,nlat
+           work3(1,i,j,k)=uwork(i,j,k)
+        end do
      end do
   end do
-!   reorder the work array for the mpi communication
-  call reorder2(work3,nuvlevs,nnnuvlevs)
+  call general_grid2sub(g3,work3,u)
 
-!   get u back on subdomains
-  call mpi_alltoallv(work3(1,1),iscuv_s,isduv_s,&
-       mpi_rtype,u(1,1,1),ircuv_s,irduv_s,mpi_rtype,&
-       mpi_comm_world,ierror)
   do k=1,nsig
      mode=mode_number0(k)
      if(mode == 0) cycle
      if(mode >  0) then
+        ii=lat2*lon2*(k-1)
         do j=1,lon2
            do i=1,lat2
-              utilde(i,j,mode)=u(i,j,k)
+              ii=ii+1
+              utilde(i,j,mode)=u(ii)
            end do
         end do
      else
+        ii=lat2*lon2*(k-1)
         do j=1,lon2
            do i=1,lat2
-              utilde2(i,j,-mode)=u(i,j,k)
+              ii=ii+1
+              utilde2(i,j,-mode)=u(ii)
            end do
         end do
      end if
@@ -690,6 +687,7 @@ subroutine get_mode_number(mype)
 !
 ! program history log:
 !   2006-08-03  parrish
+!   2012-06-12  parrish - replace nuvlevs with g3%nlevs_alloc
 !
 !   input argument list:
 !     mype     - current processor number
@@ -722,9 +720,9 @@ subroutine get_mode_number(mype)
      kchk=mod(nsig,npe)
   end if
   if(mype+1 <= kchk) then
-     nuvlev_use=nuvlevs
+     nuvlev_use=g3%nlevs_alloc
   else
-     nuvlev_use=nuvlevs-1
+     nuvlev_use=g3%nlevs_alloc-1
   end if
   ii=0
   mode_number=0
@@ -760,6 +758,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend,mype)
 !
 ! program history log:
 !   2006-08-03  parrish
+!   2012-06-12  parrish - replace nuvlevs with g3%nlevs_alloc
 !
 !   input argument list:
 !     rmstend_loc - previously computed energy norms of vertical modes
@@ -780,7 +779,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend,mype)
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
-  real(r_kind)   ,intent(in   ) :: rmstend_loc(nuvlevs)
+  real(r_kind)   ,intent(in   ) :: rmstend_loc(g3%nlevs_alloc)
   real(r_kind)   ,intent(  out) :: rmstend(nvmodes_keep)
   integer(i_kind),intent(in   ) :: mype
 
@@ -795,9 +794,9 @@ subroutine gather_rmstends(rmstend_loc,rmstend,mype)
      kchk=mod(nsig,npe)
   end if
   if(mype+1 <= kchk) then
-     nuvlev_use=nuvlevs
+     nuvlev_use=g3%nlevs_alloc
   else
-     nuvlev_use=nuvlevs-1
+     nuvlev_use=g3%nlevs_alloc-1
   end if
   call mpi_allgather(nuvlev_use,1,mpi_integer,nuvlevs0,1,mpi_integer,mpi_comm_world,ierror)
   ndisp(1)=0
