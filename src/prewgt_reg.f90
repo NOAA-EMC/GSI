@@ -131,7 +131,7 @@ subroutine prewgt_reg(mype)
 
 ! so that reproduce the result if grid_ratio_nmmb=1.412 ( with which the scales were tuned)
     gratio = one
-   if(grid_ratio_nmmb < 1.4119 .or. grid_ratio_nmmb < 1.4121) gratio=grid_ratio_nmmb/1.412_r_kind
+   if(grid_ratio_nmmb < 1.4119 .or. grid_ratio_nmmb > 1.4121) gratio=grid_ratio_nmmb/1.412_r_kind
 
 ! Setup sea-land mask
   sl=one
