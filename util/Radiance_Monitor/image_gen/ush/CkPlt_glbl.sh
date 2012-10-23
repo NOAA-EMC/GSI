@@ -80,9 +80,10 @@ export PLOT_HORIZ=0
 #--------------------------------------------------------------------
 
 if [[ $MY_OS = "aix" ]]; then
-   count=`ls ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-   running=`expr $count - $complete`
+#   count=`ls ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+#   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+#   running=`expr $count - $complete`
+   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
 else
 #   running=`qstat -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`

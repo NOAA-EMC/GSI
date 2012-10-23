@@ -85,9 +85,10 @@ mkdir -p $LOGDIR
 
 running=0
 if [[ $MY_OS = "aix" ]]; then
-   count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-   running=`expr $count - $complete`
+#   count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
+#   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
+#   running=`expr $count - $complete`
+   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
 fi

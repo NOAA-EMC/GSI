@@ -354,7 +354,7 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    bad_pen=bad_pen.${PDATE}
    bad_chan=bad_chan.${PDATE}
 
-   qdate=`ndate -06 $PDATE`
+   qdate=`$NDATE -06 $PDATE`
    pday=`echo $qdate | cut -c1-8`
    
    prev_bad_pen=bad_pen.${qdate}

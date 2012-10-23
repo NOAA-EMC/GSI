@@ -209,6 +209,9 @@
 
    `/usr/bin/perl ./image_gen/ush/update_data_map.pl ./parm/data_map.xml global_default account $glbl_account`; 
    `/usr/bin/perl ./image_gen/ush/update_data_map.pl ./parm/data_map.xml regional_default account $rgnl_account`; 
-   
+
+   `./makeall.sh clean`;
+   `./makeall.sh`;
+ 
    exit 0;
 
