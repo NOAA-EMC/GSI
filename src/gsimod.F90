@@ -57,7 +57,7 @@
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
-     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj
+     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
      binom,normal,ngauss,rgauss,anhswgt,an_vs,&
      grid_ratio,grid_ratio_p,an_flen_u,an_flen_t,an_flen_z, &
@@ -427,6 +427,7 @@
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
+!     nhscrf   - number of horizontal scales for recursive filter
 !     hzscl(n) - scale factor for horizontal smoothing, n=1,number of scales (3 for now)
 !                specifies factor by which to reduce horizontal scales (i.e. 2 would
 !                then apply 1/2 of the horizontal scale
@@ -447,7 +448,7 @@
 !     bkgv_write - flag to turn on=.true. /off=.false. generation of binary file with reweighted variances
 !     fpsproj  - controls full nsig projection to surface pressure
 
-  namelist/bkgerr/vs,hzscl,hswgt,norh,ndeg,noq,bw,norsp,fstat,pert_berr,pert_berr_fct, &
+  namelist/bkgerr/vs,nhscrf,hzscl,hswgt,norh,ndeg,noq,bw,norsp,fstat,pert_berr,pert_berr_fct, &
 	bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj
 
 ! ANBKGERR (anisotropic background error related variables):
@@ -906,13 +907,20 @@
   if (tlnmc_option==2 .or. tlnmc_option==3) then
      if (.not.l_hyb_ens) then
 	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,tlnmc_option
-        call die(myname_,'tlnmc options inconsistent, check namelist settings',99)
+        call die(myname_,'tlnmc options inconsistent, check namelist settings',337)
      end if
   else if (tlnmc_option<0 .or. tlnmc_option>3) then
      if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
      if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
      tlnmc_option=0
   end if
+
+! Ensure valid number of horizontal scales
+  if (nhscrf<0 .or. nhscrf>3) then
+     if(mype==0) write(6,*)' GSIMOD: invalid specifications for number of horizontal scales nhscrf = ',nhscrf
+     call die(myname_,'invalid nhscrf, check namelist settings',336)
+  end if
+
 
 ! Ensure time window specified in obs_input does not exceed 
 ! specified maximum value

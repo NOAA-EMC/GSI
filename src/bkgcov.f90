@@ -45,12 +45,11 @@ subroutine bkgcov(cstate,nlevs)
   type(gsi_bundle),intent(inout) :: cstate
 
 ! Local Variables
-  integer(i_kind) i,j,n,nsloop,iflg,loc,n3d,istatus
+  integer(i_kind) i,j,n,iflg,loc,n3d,istatus
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
   real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
 
-  nsloop=3
   iflg=1
   n3d=cstate%n3d
 
@@ -77,7 +76,7 @@ subroutine bkgcov(cstate,nlevs)
   call sub2grid(hwork,cstate,sst,slndt,sicet,iflg)
 
 ! Apply horizontal smoother for number of horizontal scales
-  call smoothrf(hwork,nsloop,nlevs)
+  call smoothrf(hwork,nlevs)
 
 ! Put back onto subdomains
   call grid2sub(hwork,cstate,sst,slndt,sicet)
@@ -143,12 +142,10 @@ subroutine ckgcov(z,cstate,nlevs,nval_lenz)
   real(r_kind),dimension(nval_lenz),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,n3d,istatus
+  integer(i_kind) i,j,k,n3d,istatus
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
-
-  nsloop=3
 
   do j=1,lon2
      do i=1,lat2
@@ -159,7 +156,7 @@ subroutine ckgcov(z,cstate,nlevs,nval_lenz)
   end do
 
 ! Apply horizontal smoother for number of horizontal scales
-  call sqrt_smoothrf(z,hwork,nsloop,nlevs)
+  call sqrt_smoothrf(z,hwork,nlevs)
 
 ! Put back onto subdomains
   call grid2sub(hwork,cstate,sst,slndt,sicet)
@@ -227,11 +224,10 @@ subroutine ckgcov_ad(z,cstate,nlevs,nval_lenz)
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,iflg,n3d,istatus
+  integer(i_kind) i,j,k,iflg,n3d,istatus
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
   real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
 
-  nsloop=3
   iflg=1
 
   do j=1,lon2
@@ -258,7 +254,7 @@ subroutine ckgcov_ad(z,cstate,nlevs,nval_lenz)
   call sub2grid(hwork,cstate,sst,slndt,sicet,iflg)
 
 ! Apply horizontal smoother for number of horizontal scales
-  call sqrt_smoothrf_ad(z,hwork,nsloop,nlevs)
+  call sqrt_smoothrf_ad(z,hwork,nlevs)
 
   return
 end subroutine ckgcov_ad

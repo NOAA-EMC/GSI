@@ -517,6 +517,8 @@
 !          = 333 - mismatch between variable info file and background error fixed file
 !          = 334 - newpc4pred: not for use with lsqrtb
 !          = 335 - error reading radiance diagnostic file
+!          = 336 - invalid namlist setting for nhsrf
+!          = 337 - inconsitent tlnmc namelist settings
 !
 !
 ! remarks: resolution, unit numbers and several constants are
