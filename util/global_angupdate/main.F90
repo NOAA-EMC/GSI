@@ -103,7 +103,7 @@ program main
 
 
 ! Declare namelists for user input
-  namelist /setup/ jpch,nstep,nsize,wgtang,wgtlap,iuseqc,dtmax,&
+  namelist /setup/ jpch,nsize,wgtang,wgtlap,iuseqc,dtmax,&
        iyy1,imm1,idd1,ihh1,iyy2,imm2,idd2,ihh2,dth,ndat
 
   namelist /obs_input/ dtype,dplat,dsis
@@ -172,11 +172,6 @@ program main
 
 ! Allocate and initialize data arrays
   allocate(tsum(jpch),tlap1(jpch),tcnt(jpch))
-  allocate(csum(nstep,jpch),c_ang1(nstep,jpch))
-  allocate(count(nstep,jpch))
-  allocate(satsensor0(jpch),jchanum0(jpch),tlap0(jpch),c_ang0(nstep,jpch))
-  allocate(satsensor2(jpch),jchanum2(jpch),tlap2(jpch),c_ang2(nstep,jpch))
-  allocate(satsensor3(jpch),jchanum3(jpch),tlap3(jpch),c_ang3(nstep,jpch))
 
   do j=1,jpch
      tsum(j)=zero
@@ -186,6 +181,15 @@ program main
      tlap2(j)=zero
      tlap3(j)=zero
   end do
+
+! Read input satang file
+  open(lnangl,file='satbias_ang.in',form='formatted')
+  read(lnangl,*) nstep
+  allocate(csum(nstep,jpch),c_ang1(nstep,jpch))
+  allocate(count(nstep,jpch))
+  allocate(satsensor0(jpch),jchanum0(jpch),tlap0(jpch),c_ang0(nstep,jpch))
+  allocate(satsensor2(jpch),jchanum2(jpch),tlap2(jpch),c_ang2(nstep,jpch))
+  allocate(satsensor3(jpch),jchanum3(jpch),tlap3(jpch),c_ang3(nstep,jpch))
   do j=1,jpch
      do i=1,nstep
         csum(i,j)=zero
@@ -196,10 +200,6 @@ program main
         c_ang3(i,j)=zero
      end do
   end do
-
-
-! Read input satang file
-  open(lnangl,file='satbias_ang.in',form='formatted')
   do j=1,jpch
      read(lnangl,110,err=120,end=120) ich,satsensor0(j),&
           jchanum0(j),tlap0(j),(c_ang0(i,j),i=1,nstep)
@@ -658,6 +658,7 @@ program main
 
 !    Write updated satang statistics to output file
      open(lnupdt,file='satbias_ang.out',form='formatted')
+     write(lnupdt,'(I5)') nstep
      do j=1,jpch
         write(lnupdt,110) j,satsensor3(j),jchanum3(j),tlap3(j),(c_ang3(i,j),i=1,nstep)
      end do
