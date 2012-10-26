@@ -94,9 +94,9 @@ if [[ $running -ne 0 ]]; then
    exit
 fi
 
-if [[ $MY_OS = "aix" ]]; then
-   rm -f ${LOADLQ}/plot*_${SUFFIX}*
-fi
+#if [[ $MY_OS = "aix" ]]; then
+#   rm -f ${LOADLQ}/plot*_${SUFFIX}*
+#fi
 
 
 #--------------------------------------------------------------------

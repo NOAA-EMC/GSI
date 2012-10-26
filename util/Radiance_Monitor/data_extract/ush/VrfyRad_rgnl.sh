@@ -92,9 +92,9 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
-if [[ $MY_OS = "aix" ]]; then
-   rm -f ${LOADLQ}/${jobname}*
-fi
+#if [[ $MY_OS = "aix" ]]; then
+#   rm -f ${LOADLQ}/${jobname}*
+#fi
 
 tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
 rm -rf $tmpdir

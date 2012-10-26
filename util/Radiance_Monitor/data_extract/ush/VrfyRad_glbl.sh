@@ -99,9 +99,9 @@ if [[ $RUN_ENVIR = dev ]]; then
       exit 3
    fi
 
-   if [[ $MY_OS = "aix" ]]; then 
-      rm -f ${LOADLQ}/${jobname}*
-   fi
+#   if [[ $MY_OS = "aix" ]]; then 
+#      rm -f ${LOADLQ}/${jobname}*
+#   fi
 fi
 
 
