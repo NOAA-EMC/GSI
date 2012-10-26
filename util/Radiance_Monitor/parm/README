@@ -5,18 +5,10 @@ the radiance diagnostic file.  This could be from a parallel experiment (yours o
 someone else's) or operational data.  It is possible to use and plot more than one
 data source at a time as long as they all have unique identifiers assigned.
 
-
-RadMon_config
-
-Modify the MY_RADMON to point to the top level directory containing the RadMon package. 
-If you've checked out the entire GSI then the RadMon package is found in the 
-utils/Radiance_Monitor directory.
-
-Modify the MY_TANDIR variable to point to the place you want to store data files.  
-
-Modify the three web resource variables.
-
-
+First, run the RadMon_install.sh script, which is located in the directory one level 
+from here.  RadMon_install.sh will update the RadMon_config file and set some 
+defaults in the data_map.xml file based on the system you're running on (CCS or Zeus). 
+Once this script has run you will need to edit the data_map.xml file.
 
 data_map.xml
 
@@ -115,6 +107,10 @@ mail_to:           Comma delimited list of email address(es) to which error repo
 
 mail_cc:           Comma separated list of email address(es) to which error reports 
                    should be cc-ed.
+
+plot_all_regions:  Valid only with global sources, this may be set to 0 or 1.  0 means
+		   do not plot all of the 5 regions -- only plot region 1, which is global.
+                   1 means plot all regions, global, land, water, ice/snow, and mixed.
 
 prodate:           Date of last cycle processed, meaning for which data has been 
                    extracted from the diagnostic file.  This may be set to "auto" if
