@@ -319,7 +319,7 @@ subroutine compute_derived(mype,init_pass)
   if (getindex(cvars2d,'vis')>0) then
      do j=1,lon2
         do i=1,lat2
-           vgues(i,j)=max(10.0_r_kind,ges_vis(i,j,ntguessig))
+           vgues(i,j)=max(100.0_r_kind,ges_vis(i,j,ntguessig))
            dvisdlog(i,j)=log(ten)*ges_vis(i,j,ntguessig)  !d(vis)/d(log(vis))
         end do
      end do
@@ -327,7 +327,7 @@ subroutine compute_derived(mype,init_pass)
   if (getindex(cvars2d,'pblh')>0) then
      do j=1,lon2
         do i=1,lat2
-           pgues(i,j)=max(10.0_r_kind,ges_pblh(i,j,ntguessig))
+           pgues(i,j)=max(100.0_r_kind,ges_pblh(i,j,ntguessig))
         end do
      end do
   end if

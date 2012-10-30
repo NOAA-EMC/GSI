@@ -51,7 +51,7 @@
       erradar_inflate,use_poq7,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
-  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,niter,niter_no_qc,biascor,&
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start
   use state_vectors, only: init_anasv,final_anasv
@@ -366,7 +366,7 @@
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,factv,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        ndat,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
