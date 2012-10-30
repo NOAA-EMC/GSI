@@ -34,22 +34,25 @@
    elsif( $arch eq "linux" ) {
 
       #
-      # zeus login nodes are fe1-fe8
+      # zeus login nodes are fe1-fe8, and hostname command only returns the node name,
+      # while ccs and (perhaps) wcoss return [hostname].ncep.noaa.gov.  Keep only the
+      # actual hostname and see if it matches the node names for zeus, tide, or gyre.
       #
       my $host_zeus  = 0;
-      $host_zeus  = ` hostname | gawk '{split($0,a,"."); print a[1]}' | grep fe | wc -l`;   
-      if( $host_zeus == 1 ) {
+      my $host = "";
+      $host = ` hostname `;
+      chomp( $host );
+
+      if( $host =~ /\./ ) {
+         my @hostnames = split( '\.', $host );     
+         $host = $hostnames[0];
+      }
+
+      if( $host =~ /fe/ ) { 
          $machine = "zeus";
       } 
-      else {
-         my $host_tide = 0;
-         $host_tide = ` hostname | gawk '{split($0,a,"."); print a[1]}' | grep t | wc -l`;
-         my $host_gyre = 0;
-         $host_gyre = ` hostname | gawk '{split($0,a,"."); print a[1]}' | grep g | wc -l`;
-
-         if( $host_tide == 1 || $host_gyre == 1 ) {
-            $machine = "wcoss";
-         }
+      elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
+         $machine = "wcoss";
       }
    } 
 
