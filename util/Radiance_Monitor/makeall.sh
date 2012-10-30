@@ -17,12 +17,15 @@ mode=${1:-all}
 
 top_level=`pwd`
 
-my_os=`uname -s`
+machine=`get_hostname.pl`
+echo "machine = $machine"
 
-my_os=`echo ${my_os} | tr '[:upper:]' '[:lower:]'`
+#my_os=`uname -s`
+#
+#my_os=`echo ${my_os} | tr '[:upper:]' '[:lower:]'`
 
-if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
-   echo Building executables on ${my_os}
+if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
+   echo Building executables on ${machine}
    echo
 
    #------------------------------------------------------------------
@@ -39,7 +42,7 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
       fi
 
       rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       make ${mode}
@@ -59,7 +62,7 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
       fi
 
       rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       make ${mode}
@@ -72,7 +75,7 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
 
    cd ${top_level}/nwprod/sorc/make_base.fd
    rm -f Makefile.conf
-   ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
+   ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
    make ${mode}  
    if [[ $mode = all ]]; then
       cp -f make_base ${top_level}/nwprod/exec/.
@@ -88,7 +91,7 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    echo "Making image_gen/src/glb:"
    for var in ${executables}; do
       rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       make -f makefile.${var} ${mode}
@@ -99,7 +102,7 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    echo "Making image_gen/src/rgn:"
    for var in ${executables}; do
       rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${my_os} Makefile.conf
+      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
 
       echo make ${var} ${mode}
       make -f makefile.${var} ${mode}
@@ -107,7 +110,7 @@ if [[ ${my_os} = "linux" || ${my_os} = "aix" ]]; then
    done
 
 else
-   echo ${my_os} is not supported 
+   echo ${machine} is not supported 
 fi
 
 exit

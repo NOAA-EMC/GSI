@@ -5,7 +5,7 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for both the CCS and Zeus
+#  executables.  This script works for ccs, zeus, and wcoss
 #  machines.
 #
 #-------------------------------------------------------------------
@@ -13,27 +13,20 @@
    use IO::File;
    use File::Copy qw(move);
 
-   my $arch;
-   $arch = ` uname -s | tr '[:upper:]' '[:lower:]' `;
-   $arch =~ s/^\s+|\s+$//g;
-   my $my_os = "export MY_OS=$arch";
+   my $machine = `/usr/bin/perl get_hostname.pl`;
 
-   #
-   #  Support linux (Zeus) or aix (CCS)
-   #
-   if( $arch ne "linux" && $arch ne "aix" ) {
-      die( "only linux and aix are supported, $arch is not\n" );
+   if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss" ) {
+      die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
-   print "\n";
-   print "arch = $arch\n";
+   else {
+      print "machine = $machine\n";
+   }
 
-   my $machine;
-   $machine = ` uname -m | tr '[:upper:]' '[:lower:]' `; 
-   $machine =~ s/^\s+|\s+$//g;
-   print "machine = $machine\n";
-    
+   #
+   #  zeus is the only little endian machine
+   # 
    my $little_endian = "export LITTLE_ENDIAN=0";
-   if( $machine =~ "x86_64" ) {
+   if( $machine eq "zeus" ) {
       $little_endian = "export LITTLE_ENDIAN=1";   
    }
   
@@ -60,7 +53,7 @@
    #  TANKDIR location
    #
    my $user_name = $ENV{ 'USER' };
-   if( $arch eq "linux" ) {
+   if( $mahine eq "zeus" ) {
       $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
    } 
    else {
@@ -148,7 +141,7 @@
    #
    my $my_ptmp="export PTMP=/ptmp";
    my $my_stmp="export STMP=/stmp";
-   if( $arch eq "linux" ) {
+   if( $machine eq "zeus" ) {
       $my_ptmp="export PTMP=/scratch2/portfolios/NCEPDEV/ptmp";
       $my_stmp="export STMP=/scratch2/portfolios/NCEPDEV/stmp";
    } 
@@ -202,7 +195,7 @@
    #
    my $glbl_account = "GDAS-MTN";
    my $rgnl_account = "RDAS-MTN";
-   if( $arch eq "linux" ) {
+   if( $machine eq "zeus" ) {
       $glbl_account = "ada";
       $rgnl_account = "ada";
    }
