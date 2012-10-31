@@ -1039,9 +1039,13 @@ end subroutine get_gefs_for_regional
   SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN,   &
                                     psfc_out,generic,IME,JME, Ilook,Jlook )
 
-	
+
        use kinds, only: r_kind,i_kind
        IMPLICIT NONE
+
+       integer(i_kind),intent(in) :: IME,JME
+       integer(i_kind),intent(in) :: Ilook,Jlook
+       integer(i_kind),intent(in) :: generic
 
        real(r_kind),intent(in) :: TERRAIN_HGT_T(IME,JME)
        real(r_kind),intent(in) :: Z3D_IN(IME,JME,generic)
@@ -1049,13 +1053,9 @@ end subroutine get_gefs_for_regional
        real(r_kind),intent(in) :: PRESS3D_IN(IME,JME,generic)
        real(r_kind),intent(out) :: psfc_out(IME,JME)
 
-       integer(i_kind),intent(in) :: IME,JME
-       integer(i_kind),intent(in) :: Ilook,Jlook
-       integer(i_kind),intent(in) :: generic
-
        integer(i_kind) :: I,J,II,L,KINSERT,K,bot_lev,LL
        integer(i_kind) :: loopinc,iloopinc
-	
+
        real(r_kind) :: PSFC_IN(IME,JME),TOPO_IN(IME,JME)
        real(r_kind) :: dif1,dif2,dif3,dif4,dlnpdz,BOT_INPUT_HGT,BOT_INPUT_PRESS,dpdz,rhs
        real(r_kind) :: zin(generic),pin(generic)
@@ -1063,7 +1063,7 @@ end subroutine get_gefs_for_regional
        real(r_kind), allocatable:: dum2d(:,:),DUM2DB(:,:)
 
        character (len=132) :: message
-	
+
        logical :: DEFINED_PSFC(IME,JME), DEFINED_PSFCB(IME,JME)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
