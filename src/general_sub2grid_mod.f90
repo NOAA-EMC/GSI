@@ -162,6 +162,7 @@ module general_sub2grid_mod
       integer(i_kind) nlevs_alloc     ! number of allocatec local levels ( = kend_alloc-kbegin_loc+1)
       integer(i_kind) npe             ! total number of processors
       integer(i_kind) mype            ! local processor
+      integer(i_kind) nskip           ! # of processors skipped between full horizontal fields in grid mode.
       logical periodic                ! logical flag for periodic e/w domains
       logical,pointer :: periodic_s(:) => NULL()    ! logical flag for periodic e/w subdomain (all tasks)
       logical,pointer :: vector(:)     => NULL()    ! logical flag, true for vector variables
@@ -203,7 +204,7 @@ module general_sub2grid_mod
    contains
 
    subroutine general_sub2grid_create_info(s,inner_vars,nlat,nlon,nsig,num_fields,regional, &
-                                           vector,names,lnames)
+                                           vector,names,lnames,nskip,s_ref)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_sub2grid_create_info populate info variable s
@@ -221,6 +222,11 @@ module general_sub2grid_mod
 !                           in existing code.  (never a problem, except when npe=1).
 !   2011-04-07  todling - call general_deter_subdomain
 !   2012-06-06  parrish - add optional arrays names, lnames (see description below)
+!   2012-08-14  parrish - add optional parameter nskip to replicate Jim Taft's hardwired optimization changes
+!                          to specific mpi_all2allv calls.
+!   2012-10-29  parrish - add optional type(sub2grid_info) variable s_ref, which contains sub2grid 
+!                            information for same horizontal grid layout as will be in new
+!                            type(sub2grid_info) variable s, which is the output of this subroutine.
 !
 !   input argument list:
 !     s          - structure variable, waiting for all necessary information for
@@ -237,6 +243,12 @@ module general_sub2grid_mod
 !                  if not present, s%vector = .false.
 !     names      - optional character array containing variable name for each of the num_fields 2d arrays.
 !     lnames     - optional integer array containing level index for each of the num_fields 2d arrays.
+!     nskip      - optional variable, gives number of processes to skip between horizontal 2d fields.
+!                   Jim Taft has demonstrated large improvement in performance on zeus when threading
+!                   is available.
+!     s_ref      - optional type(sub2grid_info) variable with same horizontal dimensions/grid layout.
+!                   This is used to save memory space by pointing large arrays in s to those in s_ref
+!                   with the same values.
 !
 !   output argument list:
 !     s          - structure variable, contains all necessary information for
@@ -258,8 +270,11 @@ module general_sub2grid_mod
       logical,optional,        intent(in   ) :: vector(num_fields)
       character(64),optional,  intent(in   ) :: names(inner_vars,num_fields)
       integer(i_kind),optional,intent(in   ) :: lnames(inner_vars,num_fields)
+      integer(i_kind),optional,intent(in   ) :: nskip
+      type(sub2grid_info),optional,intent(inout) :: s_ref
 
-      integer(i_kind) i,ierror,j,k,num_loc_groups,nextra,mm1,n,ns
+      integer(i_kind) i,ierror,j,k,num_loc_groups,nextra,mm1,n,ns,npe_used,iadd
+      integer(i_kind),allocatable:: idoit(:)
 
       call mpi_comm_size(mpi_comm_world,s%npe,ierror)
       call mpi_comm_rank(mpi_comm_world,s%mype,ierror)
@@ -269,12 +284,14 @@ module general_sub2grid_mod
       s%iglobal=nlat*nlon
       s%nsig=nsig
       s%num_fields=num_fields
+      s%nskip=1
+      if(present(nskip)) s%nskip=nskip
       if(s%lallocated) then
-         deallocate(s%periodic_s,s%vector,s%ilat1,s%jlon1,s%istart,s%jstart,s%recvcounts,s%displs_g)
-         deallocate(s%rdispls,s%sendcounts,s%sdispls,s%ijn,s%ltosj,s%ltosi,s%recvcounts_s)
-         deallocate(s%irc_s,s%ird_s,s%isc_g,s%isd_g,s%displs_s,s%rdispls_s,s%sendcounts_s,s%sdispls_s)
-         deallocate(s%ijn_s,s%ltosj_s,s%ltosi_s,s%kbegin,s%kend,s%lnames,s%names)
-         s%lallocated=.false.
+         if(present(s_ref)) then
+            call general_sub2grid_destroy_info(s,s_ref)
+         else
+            call general_sub2grid_destroy_info(s)
+         end if
       end if
       allocate(s%periodic_s(s%npe),s%jstart(s%npe),s%istart(s%npe),s%ilat1(s%npe),s%jlon1(s%npe))
       allocate(s%ijn(s%npe),s%ijn_s(s%npe))
@@ -315,11 +332,16 @@ module general_sub2grid_mod
       end do
 
 !        obtain ltosi,ltosj
-      allocate(s%ltosi(s%nlat*s%nlon),s%ltosj(s%nlat*s%nlon))
-      do i=1,s%nlat*s%nlon
-         s%ltosi(i)=0
-         s%ltosj(i)=0
-      end do
+      if(present(s_ref)) then
+         s%ltosi => s_ref%ltosi
+         s%ltosj => s_ref%ltosj
+      else
+         allocate(s%ltosi(s%nlat*s%nlon),s%ltosj(s%nlat*s%nlon))
+         do i=1,s%nlat*s%nlon
+            s%ltosi(i)=0
+            s%ltosj(i)=0
+         end do
+      end if
 !                       load arrays dealing with global grids
       s%isd_g(1)=0
       s%displs_g(1)=0
@@ -328,14 +350,16 @@ module general_sub2grid_mod
             s%isd_g(n)=s%isd_g(n-1)+s%isc_g(n-1)
             s%displs_g(n)=s%displs_g(n-1)+s%ijn(n-1)
          end if
-         do j=1,s%jlon1(n)
-            ns=s%displs_g(n)+(j-1)*s%ilat1(n)
-            do i=1,s%ilat1(n)
-               ns=ns+1
-               s%ltosi(ns)=s%istart(n)+i-1
-               s%ltosj(ns)=s%jstart(n)+j-1
+         if(.not.present(s_ref)) then
+            do j=1,s%jlon1(n)
+               ns=s%displs_g(n)+(j-1)*s%ilat1(n)
+               do i=1,s%ilat1(n)
+                  ns=ns+1
+                  s%ltosi(ns)=s%istart(n)+i-1
+                  s%ltosj(ns)=s%jstart(n)+j-1
+               end do
             end do
-         end do
+         end if
       end do
 
 ! Load arrays dealing with subdomain grids
@@ -351,65 +375,81 @@ module general_sub2grid_mod
       s%itotsub=s%displs_s(s%npe)+s%ijn_s(s%npe)
 
 !        obtain ltosi_s,ltosj_s
-      allocate(s%ltosi_s(s%itotsub),s%ltosj_s(s%itotsub))
-      do i=1,s%itotsub
-         s%ltosi_s(i)=0
-         s%ltosj_s(i)=0
-      end do
-
-      if(regional)then
-
-         do n=1,s%npe
-            do j=1,s%jlon1(n)+2
-               ns=s%displs_s(n)+(j-1)*(s%ilat1(n)+2)
-               do i=1,s%ilat1(n)+2
-                  ns=ns+1
-                  s%ltosi_s(ns)=s%istart(n)+i-2
-                  s%ltosj_s(ns)=s%jstart(n)+j-2
-                  if(s%ltosi_s(ns)==0) s%ltosi_s(ns)=1
-                  if(s%ltosi_s(ns)==nlat+1) s%ltosi_s(ns)=s%nlat
-                  if(s%ltosj_s(ns)==0) s%ltosj_s(ns)=1
-                  if(s%ltosj_s(ns)==nlon+1) s%ltosj_s(ns)=s%nlon
-               end do
-            end do
-         end do  ! end do over npe
+      if(present(s_ref)) then
+         s%ltosi_s => s_ref%ltosi_s
+         s%ltosj_s => s_ref%ltosj_s
       else
-         do n=1,s%npe
-            do j=1,s%jlon1(n)+2
-               ns=s%displs_s(n)+(j-1)*(s%ilat1(n)+2)
-               do i=1,s%ilat1(n)+2
-                  ns=ns+1
-                  s%ltosi_s(ns)=s%istart(n)+i-2
-                  s%ltosj_s(ns)=s%jstart(n)+j-2
-                  if(s%ltosi_s(ns)==0) s%ltosi_s(ns)=1
-                  if(s%ltosi_s(ns)==nlat+1) s%ltosi_s(ns)=nlat
-                  if(s%ltosj_s(ns)==0) s%ltosj_s(ns)=nlon
-                  if(s%ltosj_s(ns)==nlon+1) s%ltosj_s(ns)=1
+         allocate(s%ltosi_s(s%itotsub),s%ltosj_s(s%itotsub))
+         do i=1,s%itotsub
+            s%ltosi_s(i)=0
+            s%ltosj_s(i)=0
+         end do
+      end if
+
+      if(.not.present(s_ref)) then
+         if(regional)then
+
+            do n=1,s%npe
+               do j=1,s%jlon1(n)+2
+                  ns=s%displs_s(n)+(j-1)*(s%ilat1(n)+2)
+                  do i=1,s%ilat1(n)+2
+                     ns=ns+1
+                     s%ltosi_s(ns)=s%istart(n)+i-2
+                     s%ltosj_s(ns)=s%jstart(n)+j-2
+                     if(s%ltosi_s(ns)==0) s%ltosi_s(ns)=1
+                     if(s%ltosi_s(ns)==nlat+1) s%ltosi_s(ns)=s%nlat
+                     if(s%ltosj_s(ns)==0) s%ltosj_s(ns)=1
+                     if(s%ltosj_s(ns)==nlon+1) s%ltosj_s(ns)=s%nlon
+                  end do
                end do
-            end do
-         end do  ! end do over npe
+            end do  ! end do over npe
+         else
+            do n=1,s%npe
+               do j=1,s%jlon1(n)+2
+                  ns=s%displs_s(n)+(j-1)*(s%ilat1(n)+2)
+                  do i=1,s%ilat1(n)+2
+                     ns=ns+1
+                     s%ltosi_s(ns)=s%istart(n)+i-2
+                     s%ltosj_s(ns)=s%jstart(n)+j-2
+                     if(s%ltosi_s(ns)==0) s%ltosi_s(ns)=1
+                     if(s%ltosi_s(ns)==nlat+1) s%ltosi_s(ns)=nlat
+                     if(s%ltosj_s(ns)==0) s%ltosj_s(ns)=nlon
+                     if(s%ltosj_s(ns)==nlon+1) s%ltosj_s(ns)=1
+                  end do
+               end do
+            end do  ! end do over npe
+         endif
       endif
 
 !      next, determine vertical layout:
+      allocate(idoit(0:s%npe-1))
+      idoit=0
+      npe_used=0
+      do n=0,s%npe-1,s%nskip
+         npe_used=npe_used+1
+         idoit(n)=1
+      end do
       allocate(s%kbegin(0:s%npe),s%kend(0:s%npe-1))
-      num_loc_groups=s%num_fields/s%npe
-      nextra=s%num_fields-num_loc_groups*s%npe
+      num_loc_groups=s%num_fields/npe_used
+      nextra=s%num_fields-num_loc_groups*npe_used
       s%kbegin(0)=1
-      if(nextra > 0) then
-         do k=1,nextra
-            s%kbegin(k)=s%kbegin(k-1)+1+num_loc_groups
-         end do
-      end if
-      do k=nextra+1,s%npe
-         s%kbegin(k)=s%kbegin(k-1)+num_loc_groups
+      k=0
+      iadd=1
+      do n=1,s%npe
+         k=k+idoit(n-1)
+         if(k>nextra) iadd=0
+         s%kbegin(n)=s%kbegin(n-1)+idoit(n-1)*(iadd+num_loc_groups)
       end do
       do k=0,s%npe-1
          s%kend(k)=s%kbegin(k+1)-1
       end do
       if(s%mype == 0) then
-         write(6,*)' in general_sub2grid_create_info, kbegin=',s%kbegin
-         write(6,*)' in general_sub2grid_create_info, kend= ',s%kend
+         do k=0,s%npe-1
+            write(6,*)' in general_sub2grid_create_info, k,kbegin,kend,nlevs_loc,nlevs_alloc=', &
+               k,s%kbegin(k),s%kend(k),s%kend(k)-s%kbegin(k)+1,max(s%kbegin(k),s%kend(k))-s%kbegin(k)+1
+         end do
       end if
+
       s%kbegin_loc=s%kbegin(s%mype)
       s%kend_loc=s%kend(s%mype)
       s%kend_alloc=max(s%kend_loc,s%kbegin_loc)
@@ -448,7 +488,7 @@ module general_sub2grid_mod
 
    end subroutine general_sub2grid_create_info
 
-   subroutine general_sub2grid_destroy_info(s)
+   subroutine general_sub2grid_destroy_info(s,s_ref)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_sub2grid_destroy_info deallocate variable s
@@ -476,12 +516,21 @@ module general_sub2grid_mod
       implicit none
 
       type(sub2grid_info),     intent(inout) :: s
+      type(sub2grid_info),optional,intent(in) :: s_ref
 
       if(s%lallocated) then
          deallocate(s%periodic_s,s%vector,s%ilat1,s%jlon1,s%istart,s%jstart,s%recvcounts,s%displs_g)
-         deallocate(s%rdispls,s%sendcounts,s%sdispls,s%ijn,s%ltosj,s%ltosi,s%recvcounts_s)
+         deallocate(s%rdispls,s%sendcounts,s%sdispls,s%ijn,s%recvcounts_s)
          deallocate(s%irc_s,s%ird_s,s%isc_g,s%isd_g,s%displs_s,s%rdispls_s,s%sendcounts_s,s%sdispls_s)
-         deallocate(s%ijn_s,s%ltosj_s,s%ltosi_s,s%kbegin,s%kend,s%lnames,s%names)
+         deallocate(s%ijn_s,s%kbegin,s%kend,s%lnames,s%names)
+         if(present(s_ref)) then
+            s%ltosj   => NULL()
+            s%ltosi   => NULL()
+            s%ltosj_s => NULL()
+            s%ltosi_s => NULL()
+         else
+            deallocate(s%ltosj,s%ltosi,s%ltosj_s,s%ltosi_s)
+         end if
          s%lallocated=.false.
       end if
 

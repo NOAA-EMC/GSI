@@ -101,6 +101,7 @@ contains
 !     character(len=8) names(4*nsig+2)
       character(len=64) names2(2,2*nsig+1)
       integer(i_kind) lnames2(2,2*nsig+1)
+              integer(i_kind) nskip
 
 
 !  create general_sub2grid structure variable s2g_raf, which is used in sub2grid.f90
@@ -182,7 +183,7 @@ contains
       inner_vars=1
       num_fields=size(cvars2d)+nsig*size(cvars3d)
 
-      call general_sub2grid_create_info(s2g_cv,inner_vars,nlat,nlon,nsig,num_fields,regional)
+      call general_sub2grid_create_info(s2g_cv,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2g_d, which is used in get_derivatives.f90
 
@@ -207,7 +208,7 @@ contains
          vector_s2g_d(i)=names_s2g_d(1,i) == 'sf'.or.names_s2g_d(1,i) == 'vp'
       end do
       call general_sub2grid_create_info(s2g_d,inner_vars,nlat,nlon,nsig,num_fields,regional, &
-                                        vector=vector_s2g_d,names=names_s2g_d)
+                                        vector=vector_s2g_d,names=names_s2g_d,s_ref=s2g_raf)
       deallocate(names_s2g_d,vector_s2g_d)
 
 !  create general_sub2grid structure variable g1, which is used in get_derivatives.f90
@@ -215,19 +216,19 @@ contains
       inner_vars=1
       num_fields=1
       n_one=1
-      call general_sub2grid_create_info(g1,inner_vars,nlat,nlon,n_one,num_fields,regional)
+      call general_sub2grid_create_info(g1,inner_vars,nlat,nlon,n_one,num_fields,regional,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable g3, which is used in bkgcov_rewgt.f90
 
       inner_vars=1
       num_fields=nsig
-      call general_sub2grid_create_info(g3,inner_vars,nlat,nlon,nsig,num_fields,regional)
+      call general_sub2grid_create_info(g3,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable g33p1
 
       inner_vars=1
       num_fields=3*nsig+1
-      call general_sub2grid_create_info(g33p1,inner_vars,nlat,nlon,nsig,num_fields,regional)
+      call general_sub2grid_create_info(g33p1,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2g4, which is used in get_derivatives2.f90
 
@@ -255,19 +256,21 @@ contains
          lnames2(2,kk)=0
 
       call general_sub2grid_create_info(s2g4,inner_vars,nlat,nlon,nsig,num_fields,regional, &
-                                names=names2,lnames=lnames2)
+                                names=names2,lnames=lnames2,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s2g2, used in getprs.f90
 
       num_fields=nsig+1
       inner_vars=1
-      call general_sub2grid_create_info(s2g2,inner_vars,nlat,nlon,nsig,num_fields,regional)
+    ! nskip=2
+      call general_sub2grid_create_info(s2g2,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
+    !                                   nskip=nskip)
 
 !  create general_sub2grid structure variable s2guv
 
       num_fields=nsig
       inner_vars=2
-      call general_sub2grid_create_info(s2guv,inner_vars,nlat,nlon,nsig,num_fields,regional)
+      call general_sub2grid_create_info(s2guv,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
 
    end subroutine init_general_commvars
 
@@ -297,15 +300,15 @@ contains
        implicit none
  
        deallocate(levs_id,nvar_id,nvar_pe)
+       call general_sub2grid_destroy_info(s2g_cv,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(s2g2,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(s2g4,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(s2guv,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(s2g_d,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(g1,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(g3,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(g33p1,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(s2g_raf)
-       call general_sub2grid_destroy_info(s2g_cv)
-       call general_sub2grid_destroy_info(s2g2)
-       call general_sub2grid_destroy_info(s2g4)
-       call general_sub2grid_destroy_info(s2guv)
-       call general_sub2grid_destroy_info(s2g_d)
-       call general_sub2grid_destroy_info(g1)
-       call general_sub2grid_destroy_info(g3)
-       call general_sub2grid_destroy_info(g33p1)
  
     end subroutine destroy_general_commvars
 
