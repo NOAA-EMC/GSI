@@ -53,7 +53,7 @@ program convert_satang
 !************************************************************************
 
   write(*,*) 'Enter number of scan positions for input file'
-  write(*,*) '     (-1 of specified in file)'
+  write(*,*) '     (-1 if specified in file)'
   read(*,*) nstep_in
   write(*,*) 'Enter number of scan positions for output file'
   read(*,*) nstep_out
