@@ -582,7 +582,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! This is moved to below where the radiances are read in.
 
      if (sfcpct(0)+sfcpct(1) > 0.9) &
-          crit1=crit1+0.1*(320.0_r_kind-temperature(127))
+          crit1=crit1+(320.0_r_kind-temperature(127))
 
 
 !    Map obs to grids

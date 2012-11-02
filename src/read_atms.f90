@@ -119,7 +119,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments, num_obs
   integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
-  integer(i_kind) ilat,ilon,ifovmod
+  integer(i_kind) ilat,ilon
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
   integer(i_kind):: error_status,ier
@@ -517,13 +517,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Check FOV and scan-edge usage
      if (.not. use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
           cycle ObsLoop
+     ! This line is for consistency with previous treatment
+     if (ifov <= 3 .OR. ifov >=94) cycle ObsLoop
 
-     ! For ATMS we shift the FOV number down by three as we can only use
-     ! 90 of the 96 positions right now because of the scan bias limitation.
-     ifovmod=ifov-3
-     ! Check that ifov is not out of range of cbias dimension
-     if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop
-     
      nread=nread+nchanl
      
 !    Transfer observed brightness temperature to work array.  If any
@@ -576,12 +572,12 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
 !    Remove angle dependent pattern (not mean).
      if (adp_anglebc .and. newpc4pred) then
-        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
-        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
+        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
+        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
      else
-        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
+        ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
              air_rad(ichan1)*cbias(45,ichan1)
-        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
+        ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
              air_rad(ichan2)*cbias(45,ichan2)   
      end if
      if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
@@ -597,12 +593,12 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !       This is taken straight from AMSU-A even though Ch 3 has a different polarisation
 !       and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
         if (adp_anglebc .and. newpc4pred) then
-           ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
-           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
+           ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
+           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)
         else
-           ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
+           ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
                 air_rad(ichan3)*cbias(45,ichan3)   
-           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
+           ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifov,ichan16)+ &
                 air_rad(ichan16)*cbias(45,ichan16)
         end if
         pred = abs(ch1-ch16)
@@ -645,7 +641,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      data_all(5 ,itx)= lza                       ! local zenith angle
      data_all(6 ,itx)= satazi                    ! local azimuth angle
      data_all(7 ,itx)= panglr                    ! look angle
-     data_all(8 ,itx)= ifovmod                   ! scan position
+     data_all(8 ,itx)= ifov                      ! scan position
      data_all(9 ,itx)= solzen                    ! solar zenith angle
      data_all(10,itx)= solazi                    ! solar azimuth angle
      data_all(11,itx) = sfcpct(0)                ! sea percentage of
