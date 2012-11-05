@@ -180,7 +180,9 @@ fi
 
 if [[ $DO_DATA_RPT -eq 1 ]]; then
    $NCP ${base_file}* ./
-   ${UNCOMPRESS} ${base_file}.${Z}
+   if [[ -e ${base_file}.${Z} ]]; then
+      ${UNCOMPRESS} ${base_file}.${Z}
+   fi
    tar -xf ${base_file}
    if [[ ! -s ${base_file} ]]; then
       err=9

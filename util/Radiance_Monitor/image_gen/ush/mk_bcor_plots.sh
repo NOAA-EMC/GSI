@@ -115,7 +115,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
-  if [[ $MY_OS = "aix" ]]; then		#CCS/aix
+  if [[ $MY_MACHINE = "ccs" ]]; then		#CCS/aix
      suffix=a
      cmdfile=cmdfile_pbcor_${suffix}
      jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -165,7 +165,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   for sat in ${bigSATLIST}; do
      suffix=$sat
 
-     if [[ $MY_OS = "aix" ]]; then		# CCS/aix
+     if [[ $MY_MACHINE = "ccs" ]]; then		# CCS/aix
 
         cmdfile=cmdfile_pbcor_${suffix}
         jobname=plot_${SUFFIX}_bcor_${suffix}

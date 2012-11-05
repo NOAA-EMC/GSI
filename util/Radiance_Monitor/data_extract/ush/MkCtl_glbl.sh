@@ -148,7 +148,7 @@ if [[ -s ${radstat} ]]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/make_ctl.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    else
       $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvar -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod

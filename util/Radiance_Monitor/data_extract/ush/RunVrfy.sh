@@ -113,7 +113,7 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
 #      count=`ls ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
 #      complete=`grep "COMPLETED" ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
 #      running=`expr $count - $complete`

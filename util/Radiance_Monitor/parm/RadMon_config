@@ -39,12 +39,11 @@ export WEBDIR=
 ###############################################################################
 ###############################################################################
 #  The definitions below are for internal reference and shouldn't need to be  #
-#  edited, unless you wish to put the log or work files somewhere other than  #
-#  ptmp and stmp.                                                             #
+#  edited, once they are set up by the RadMon_install.sh script.              #
 ###############################################################################
 ###############################################################################
 
-export MY_OS=
+export MY_MACHINE=
 export LITTLE_ENDIAN=
 echo endian = $LITTLE_ENDIAN
 
@@ -62,7 +61,7 @@ export WORKverf_rad=$STMP/$LOGNAME
 #
 #  Job queue check definition
 #
-if [[ $MY_OS = "aix" ]]; then
+if [[ $MY_MACHINE = "ccs" ]]; then
   export LOADLQ=$STMP/loadlq/$LOGNAME
 #  <need more here>>
 else
@@ -85,7 +84,7 @@ export HOMEgfs=${MY_RADMON}/nwprod
 #
 export NCP=/bin/cp                          
 
-if [[ $MY_OS = "aix" ]]; then
+if [[ $MY_MACHINE = "ccs" ]]; then
    export UTILS_BIN=/u/wx20mi/bin             
    export LLQ=${UTILS_BIN}/llq2		    
    export SUB=${UTILS_BIN}/sub              

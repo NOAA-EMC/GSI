@@ -17,12 +17,8 @@ mode=${1:-all}
 
 top_level=`pwd`
 
-machine=`get_hostname.pl`
+machine=`./get_hostname.pl`
 echo "machine = $machine"
-
-#my_os=`uname -s`
-#
-#my_os=`echo ${my_os} | tr '[:upper:]' '[:lower:]'`
 
 if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    echo Building executables on ${machine}

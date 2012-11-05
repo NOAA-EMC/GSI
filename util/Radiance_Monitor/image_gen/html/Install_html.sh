@@ -372,7 +372,7 @@ html_files="bcoef bcor_angle  bcor horiz index intro menu summary time"
 #  Make the starting directory on the server and copy the
 #  html files to it.
 #
-if [[ $MY_OS = "aix" ]]; then
+if [[ $MY_MACHINE = "ccs" ]]; then
    ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
    for file in $html_files; do
       scp ${file}.html.${AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html

@@ -109,7 +109,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
   list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
-  if [[ $MY_OS = "aix" ]]; then	    # CCS/aix platform
+  if [[ $MY_MACHINE = "ccs" ]]; then	    # CCS/aix platform
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
      jobname=plot_${SUFFIX}_ang_${suffix}
@@ -165,7 +165,7 @@ set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl cl
 for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST
 
-   if [[ $MY_OS = "aix" ]]; then 	# CCS/aix, submit 4 job for each $sat
+   if [[ $MY_MACHINE = "ccs" ]]; then 	# CCS/aix, submit 4 job for each $sat
       batch=1
       ii=0
 

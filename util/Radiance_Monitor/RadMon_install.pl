@@ -14,6 +14,7 @@
    use File::Copy qw(move);
 
    my $machine = `/usr/bin/perl get_hostname.pl`;
+   my $my_machine="export MY_MACHINE=$machine";
 
    if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
@@ -29,7 +30,12 @@
    if( $machine eq "zeus" ) {
       $little_endian = "export LITTLE_ENDIAN=1";   
    }
-  
+
+   my $my_os = "linux";
+   if( $machine eq "ccs" ) {
+      my $my_os = "aix";
+   }
+
    #
    #  Idenfity basedir location of package
    #
@@ -174,6 +180,9 @@
       }
       elsif( $_ =~ "MY_OS=" ) {
          print $out "$my_os\n";
+      }
+      elsif( $_ =~ "MY_MACHINE=" ) {
+         print $out "$my_machine\n";
       }
       elsif( $_ =~ "PTMP=" ) {
          print $out "$my_ptmp\n";

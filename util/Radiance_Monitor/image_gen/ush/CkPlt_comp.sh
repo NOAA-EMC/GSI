@@ -217,7 +217,7 @@ done
 ntasks=`cat $cmdfile|wc -l`
 ((nprocs=(ntasks+1)/2))
 
-if [[ $MY_OS = "aix" ]]; then
+if [[ $MY_MACHINE = "ccs" ]]; then
    $SUB -a $ACCOUNT -e $listvar -j $jobname -u $USER -t 0:10:00 -o $logfile -p $ntasks/1/N -q dev -g $USER_CLASS  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 else
    $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -v $listvar -j oe -o $logfile $cmdfile

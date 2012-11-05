@@ -116,7 +116,7 @@ fi
    ntasks=`cat $cmdfile|wc -l `
    ((nprocs=(ntasks+1)/2))
 
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/plot_summary.log $SCRIPTS/plot_summary.sh
@@ -149,7 +149,7 @@ fi
 
    list="count penalty omgnbc total omgbc"
 
-   if [[ $MY_OS = "aix" ]]; then			# CCS/aix
+   if [[ $MY_MACHINE = "ccs" ]]; then			# CCS/aix
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
       jobname=plot_${SUFFIX}_tm_${suffix}
@@ -199,7 +199,7 @@ fi
 #---------------------------------------------------------------------------
    for sat in ${bigSATLIST}; do 
 
-      if [[ $MY_OS = "aix" ]]; then			# CCS/aix
+      if [[ $MY_MACHINE = "ccs" ]]; then			# CCS/aix
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${SUFFIX}_tm_${sat}
          logfile=${LOGDIR}/plot_time_${sat}.log

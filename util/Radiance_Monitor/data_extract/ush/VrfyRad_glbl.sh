@@ -85,7 +85,7 @@ jobname=${DATA_EXTRACT_JOBNAME}
 #--------------------------------------------------------------------
 
 if [[ $RUN_ENVIR = dev ]]; then
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
 
 #      count=`ls ${LOADLQ}/${jobname}* | wc -l`
 #      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
@@ -99,7 +99,7 @@ if [[ $RUN_ENVIR = dev ]]; then
       exit 3
    fi
 
-#   if [[ $MY_OS = "aix" ]]; then 
+#   if [[ $MY_MACHINE = "ccs" ]]; then 
 #      rm -f ${LOADLQ}/${jobname}*
 #   fi
 fi
@@ -236,12 +236,12 @@ if [[ -e ${radstat} ]]; then
 
    export JOBNAME=${jobname}
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,NDATE,DO_DIAG_RPT,DO_DATA_RPT,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NDATE,DO_DIAG_RPT,DO_DATA_RPT,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod

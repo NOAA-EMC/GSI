@@ -78,7 +78,7 @@ jobname=${DATA_EXTRACT_JOBNAME}
 #--------------------------------------------------------------------
 
 if [[ ${RUN_ENVIR} = dev ]]; then
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
 #      count=`ls ${LOADLQ}/${jobname}* | wc -l`
 #      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
 #      total=`expr $count - $complete`
@@ -92,7 +92,7 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
-#if [[ $MY_OS = "aix" ]]; then
+#if [[ $MY_MACHINE = "ccs" ]]; then
 #   rm -f ${LOADLQ}/${jobname}*
 #fi
 
@@ -211,14 +211,14 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #--------------------------------------------------------------------
    # Export listvar
    export JOBNAME=$jobname
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_OS,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
    logfile=$LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log
 
-   if [[ $MY_OS = "aix" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${logfile} -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 

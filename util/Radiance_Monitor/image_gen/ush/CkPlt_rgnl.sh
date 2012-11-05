@@ -84,7 +84,7 @@ mkdir -p $LOGDIR
 #--------------------------------------------------------------------
 
 running=0
-if [[ $MY_OS = "aix" ]]; then
+if [[ $MY_MACHINE = "ccs" ]]; then
 #   count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
 #   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
 #   running=`expr $count - $complete`
@@ -101,7 +101,7 @@ if [[ $running -ne 0 ]]; then
    exit
 fi
 
-#if [[ $MY_OS = "aix" ]]; then
+#if [[ $MY_MACHINE = "ccs" ]]; then
 #   rm -f ${LOADLQ}/*plot*_${SUFFIX}*
 #fi
 
@@ -212,7 +212,7 @@ if [[ $PLOT -eq 1 ]]; then
   #   Set environment variables to export to subsequent scripts
 
   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_OS,datdir,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_MACHINE,datdir,listvar
 
 
   #------------------------------------------------------------------
@@ -223,7 +223,7 @@ if [[ $PLOT -eq 1 ]]; then
      rm ${logfile}
 
      jobname=mk_plot_horiz_${SUFFIX}
-     if [[ $MY_OS = "aix" ]]; then
+     if [[ $MY_MACHINE = "ccs" ]]; then
         ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
      else
         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
