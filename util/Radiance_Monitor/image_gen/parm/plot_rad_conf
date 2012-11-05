@@ -25,7 +25,7 @@ export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
 export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
 export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
 
-if [[ $MY_OS = "aix" ]]; then
+if [[ $MY_MACHINE = "ccs" ]]; then
    export GRADS=/usrx/local/grads/bin/grads
    export STNMAP=/usrx/local/grads/bin/stnmap
 else
