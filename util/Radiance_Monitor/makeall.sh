@@ -28,6 +28,12 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    #  make data extract executables
    #------------------------------------------------------------------
 
+   if [[ ${machine} = "wcoss" ]]; then
+      echo loading module command for wcoss
+      . /usrx/local/Modules/default/init/ksh
+      module load ics
+   fi
+
    executables="angle bcoef bcor time"
    echo "Making global executables in data_extract/nwprod/sorc:"
    for var in ${executables}; do

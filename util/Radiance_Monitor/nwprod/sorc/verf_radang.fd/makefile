@@ -30,7 +30,9 @@ CMD = radmon_angle.glb
 all:  $(CMD)
 
 clean:
-	rm *.o *.mod *.glb
+	rm -f *.o
+	rm -f *.mod
+	rm -f *.glb
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
