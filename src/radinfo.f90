@@ -121,7 +121,7 @@ module radinfo
 
   real(r_kind),allocatable,dimension(:):: radstart    ! starting scan angle
   real(r_kind),allocatable,dimension(:):: radstep     ! step of scan angle
-  real(r_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
+  integer(i_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
 
   integer(i_kind),allocatable,dimension(:):: radedge1    ! cut-off of edge removal
   integer(i_kind),allocatable,dimension(:):: radedge2    ! cut-off of edge removal
@@ -186,7 +186,7 @@ contains
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-    use constants, only: one_tenth
+    use constants, only: one_tenth, one
 
     implicit none
 
@@ -980,7 +980,7 @@ contains
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
       else if (index(isis,'atms') /= 0) then
-         ifov=ifov+3
+         ifov=iscan+3
       else
          ifov=iscan
       end if
@@ -1023,7 +1023,7 @@ contains
      real(r_kind),dimension(npred):: pred
      
      pred=zero
-     do i=1,radnstep(j)
+     do i=1,min(radnstep(j),90)
         pred(npred)=rnad_pos(isis,i,j)*deg2rad
         do k=2,angord
            pred(npred-k+1)=pred(npred)**k
@@ -1337,9 +1337,9 @@ contains
 
 !     Allocate arrays and initialize
       if (mean_only) then 
-         np=1
+         np=3
       else
-         np=angord+1
+         np=angord+3
       end if
       if (new_chan/=0) then
          allocate(A(np,np,new_chan),b(np,new_chan))
@@ -1414,12 +1414,13 @@ contains
             errinv=data_chan(j)%errinv
             if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
 
+            tlaptmp=data_chan(j)%tlap
+            if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
             if (update_tlapmean(jj)) then
-               tlaptmp=data_chan(j)%tlap
-               if (header_fix%inewpc==0) tlaptmp=100.0_r_kind*tlaptmp
                tlap1(jj)=tlap1(jj)+(tlaptmp-tlap0(jj))*errinv
                tsum(jj) =tsum(jj)+errinv
                tcnt(jj) =tcnt(jj)+one
+               if (abs(tlapmean(jj)) < 0.001_r_kind) tlapmean(jj) = tlaptmp  
             end if
 
             if (inew_rad(jj)) then
@@ -1427,10 +1428,12 @@ contains
 !              Define predictor
                pred=zero
                pred(1) = one
+               pred(2) = (tlaptmp-tlapmean(jj))*(tlaptmp-tlapmean(jj))
+               pred(3) =  tlaptmp-tlapmean(jj)
                if (.not. mean_only) then
                   rnad = rnad_pos(satsens,ispot,io_chan(j))*deg2rad
                   do i=1,angord
-                     pred(i+1) = rnad**i
+                     pred(i+3) = rnad**i
                   end do
                end if
 
@@ -1509,9 +1512,11 @@ contains
             call linmm(AA,be,np,1,np,np)
 
             predx(1,ich(i))=be(1)
+            predx(4,ich(i))=be(2)
+            predx(5,ich(i))=be(3)
             if (.not. mean_only) then
                do j=1,angord
-                  predx(npred-j+1,ich(i))=be(j+1)
+                  predx(npred-j+1,ich(i))=be(j+3)
                end do
             end if
          end do ! end of new_chan
@@ -1522,8 +1527,8 @@ contains
          open(lntemp,file=dname,form='formatted')
          do i=1,new_chan
             if (iobs(i)<nthreshold) cycle
-            write(lntemp,210) ich(i),predx(1,ich(i)),(predx(npred-k+1,ich(i)),k=1,angord)
- 210        format(I5,1x,5e13.6)
+            write(lntemp,210) ich(i),predx(1,ich(i)),predx(4,ich(i)),predx(5,ich(i)),(predx(npred-k+1,ich(i)),k=1,angord)
+ 210        format(I5,1x,7e13.6)
          end do
          close(lntemp)
 
@@ -1543,7 +1548,7 @@ contains
 
 !  Combine the satellite/sensor specific predx together
    if (any(inew_rad)) then
-      allocate(predr(angord+1))
+      allocate(predr(angord+3))
       do i=1,ndat
          fname = 'init_' // trim(dtype(i)) // '_' // trim(dplat(i))
          inquire(file=fname,exist=lexist)
@@ -1554,10 +1559,12 @@ contains
             write(6,*) 'INIT_PREDX:  processing update file i=',i,' with fname=',trim(fname)
             open(lntemp,file=fname,form='formatted')
             do
-               read(lntemp,210,end=160) iich,(predr(k),k=1,angord+1)
+               read(lntemp,210,end=160) iich,(predr(k),k=1,angord+3)
                predx(1,iich)=predr(1)
+               predx(4,iich)=predr(2)
+               predx(5,iich)=predr(3)
                do j=1,angord
-                  predx(npred-j+1,iich)=predr(j+1)
+                  predx(npred-j+1,iich)=predr(j+3)
                end do
             end do
 160         continue
