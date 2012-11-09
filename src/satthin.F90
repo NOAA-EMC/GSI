@@ -34,6 +34,7 @@ module satthin
 !   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
 !   2011-05-26  todling - add create_nst
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
+!   2012-11-09  parrish - bug fix in makegvals
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -163,6 +164,7 @@ contains
 !                         on regional grid when domain includes north pole.
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2012-11-09  parrish - bug fix range of dlon_e
 !
 !   input argument list:
 !
@@ -218,6 +220,9 @@ contains
              dlat_e=dlat_e*rad2deg
              dlon_e=dlon_e*rad2deg
              if (dlon_e < zero) dlon_e = dlon_e + r360
+             if (dlon_e < zero) dlon_e = dlon_e + r360
+             if (dlon_e > r360) dlon_e = dlon_e - r360
+             if (dlon_e > r360) dlon_e = dlon_e - r360
              rlat_min = min(rlat_min,dlat_e)
              rlat_max = max(rlat_max,dlat_e)
              rlon_min = min(rlon_min,dlon_e)
