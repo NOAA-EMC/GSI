@@ -23,7 +23,7 @@ subroutine get_wrf_nmm_ensperts
 
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: netcdf,half_grid,filled_grid,regional
-    use hybrid_ensemble_isotropic, only: en_perts,nelen
+    use hybrid_ensemble_isotropic, only: en_perts,nelen,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass, &
                          rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
@@ -373,6 +373,27 @@ subroutine get_wrf_nmm_ensperts
 ! CALCULATE ENSEMBLE MEAN
     bar_norm = one/float(n_ens)
     en_bar%values=en_bar%values*bar_norm
+
+! Copy pbar to module array.  ps_bar may be needed for vertical localization
+! in terms of scale heights/normalized p/p
+    do ic2=1,nc2d
+
+       if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
+
+          call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+          if(istatus/=0) then
+             write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar in get_nmmb_ensperts'
+             call stop2(999)
+          end if
+          do j=1,grd_ens%lon2
+             do i=1,grd_ens%lat2
+                ps_bar(i,j,1)=x2(i,j)
+             end do
+          end do
+          exit
+       end if
+    end do
+
     call mpi_barrier(mpi_comm_world,ierror)
 !
 ! CALCULATE ENSEMBLE SPREAD

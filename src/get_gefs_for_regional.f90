@@ -12,6 +12,7 @@ subroutine get_gefs_for_regional
 !   2010-09-26  parrish, initial documentation
 !   2012-01-17  wu, clean up, add/setup option "full_ensemble"
 !   2012-02-08  parrish - a little more cleanup
+!   2012-10-11  wu      - dual resolution for options of regional hybens
 !
 !   input argument list:
 !
@@ -60,6 +61,7 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
+  real(r_kind),allocatable :: tmp_ens(:,:,:,:),tmp_anl(:,:,:,:),tmp_ens2(:,:,:,:)
   real(r_kind),allocatable,dimension(:,:,:)::stbar,vpbar,tbar,rhbar,ozbar,cwbar
   real(r_kind),allocatable,dimension(:,:)::  sstbar,pbar_nmmb
   real(r_kind),allocatable,dimension(:,:,:,:)::st_eg,vp_eg,t_eg,rh_eg,oz_eg,cw_eg
@@ -104,22 +106,22 @@ subroutine get_gefs_for_regional
   real(r_kind),allocatable,dimension(:)::glb_rhmin0,glb_rhmax0,reg_rhmin0,reg_rhmax0
   real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
   real(r_kind),allocatable,dimension(:)::glb_cwmin0,glb_cwmax0,reg_cwmin0,reg_cwmax0
-                                             character(len=50) :: fname
+  character(len=50) :: fname
   integer(i_kind) istatus
   real(r_kind) rdog,h,dz,this_tv
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
   logical add_bias_perturbation
   integer(i_kind) n_ens_temp
-logical point1,point2
-integer(i_kind) kk,n_in
-real(r_kind) pdiffmax,pmax,pdiffmax0,pmax0,pdiffmin,pdiffmin0
-real(r_kind),allocatable::psfc_out(:,:)
-integer(i_kind) ilook,jlook
+  logical point1,point2
+  integer(i_kind) kk,n_in
+  real(r_kind) pdiffmax,pmax,pdiffmax0,pmax0,pdiffmin,pdiffmin0
+  real(r_kind),allocatable::psfc_out(:,:)
+  integer(i_kind) ilook,jlook
 
-   real(r_kind) dlon,dlat,uob,vob,dlon_ens,dlat_ens
-   integer(i_kind) ii,jj,n1
-integer(i_kind) iimax,iimin,jjmax,jjmin
-   real(r_kind) ratio_x,ratio_y
+  real(r_kind) dlon,dlat,uob,vob,dlon_ens,dlat_ens
+  integer(i_kind) ii,jj,n1
+  integer(i_kind) iimax,iimin,jjmax,jjmin
+  real(r_kind) ratio_x,ratio_y
 
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
 
@@ -130,9 +132,9 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
   open(10,file='filelist',form='formatted',err=30)
   rewind (10) 
   do n=1,200
-  read(10,'(a)',err=20,end=40)filename 
+     read(10,'(a)',err=20,end=40)filename 
   enddo
-40  n_ens=n-1
+40 n_ens=n-1
 
 !    set n_ens_temp depending on if we want to add bias perturbation to the ensemble
 
@@ -277,12 +279,12 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
 
 !                begin loop over ensemble members
 
-   rewind(10)
+  rewind(10)
   do n=1,n_ens
-      read(10,'(a)',err=20,end=20)filename 
-      filename=trim(filename)
+     read(10,'(a)',err=20,end=20)filename 
+     filename=trim(filename)
 !     write(filename,100) n
-!100        format('sigf06_ens_mem',i3.3)
+!100  format('sigf06_ens_mem',i3.3)
 
 
 !!   allocate necessary space on global grid
@@ -406,52 +408,52 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
         end do
      end if
 !  !Compute geopotential height at interface between layers
-       allocate(zbarl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-       allocate(height(grd_mix%nsig))
-       rdog=rd/grav
-       do j=1,grd_mix%lon2
-          do i=1,grd_mix%lat2
-             k  = 1
-             kt=k+2*grd_mix%nsig
-             h  = rdog * work_sub(1,i,j,kt)
-             dz = h * log(pri(i,j,k)/prsl(i,j,k))
-             height(k) = work_sub(1,i,j,kz)+dz
+     allocate(zbarl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+     allocate(height(grd_mix%nsig))
+     rdog=rd/grav
+     do j=1,grd_mix%lon2
+        do i=1,grd_mix%lat2
+           k  = 1
+           kt=k+2*grd_mix%nsig
+           h  = rdog * work_sub(1,i,j,kt)
+           dz = h * log(pri(i,j,k)/prsl(i,j,k))
+           height(k) = work_sub(1,i,j,kz)+dz
 
-             do k=2,grd_mix%nsig
-                kt=k+2*grd_mix%nsig
-                h  = rdog * half * (work_sub(1,i,j,kt-1)+work_sub(1,i,j,kt))
-                dz = h * log(prsl(i,j,k-1)/prsl(i,j,k))
-                height(k) = height(k-1) + dz
-             end do
-             do k=1,grd_mix%nsig
-                zbarl(i,j,k)=height(k)
-             end do
-          end do
-       end do
-    deallocate(pri,height)
+           do k=2,grd_mix%nsig
+              kt=k+2*grd_mix%nsig
+              h  = rdog * half * (work_sub(1,i,j,kt-1)+work_sub(1,i,j,kt))
+              dz = h * log(prsl(i,j,k-1)/prsl(i,j,k))
+              height(k) = height(k-1) + dz
+           end do
+           do k=1,grd_mix%nsig
+              zbarl(i,j,k)=height(k)
+           end do
+        end do
+     end do
+     deallocate(pri,height)
 !! recompute pbar using routine Wan-Shu obtained from Matt Pyle:
 
- allocate(tt(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
- allocate(psfc_out(grd_mix%lat2,grd_mix%lon2))
-       do k=1,grd_mix%nsig
-          kt=k+2*grd_mix%nsig
-          do j=1,grd_mix%lon2
-             do i=1,grd_mix%lat2
-                tt(i,j,k)=work_sub(1,i,j,kt)
-             end do
-          end do
-       end do
-       mm1=mype+1
+     allocate(tt(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+     allocate(psfc_out(grd_mix%lat2,grd_mix%lon2))
+     do k=1,grd_mix%nsig
+        kt=k+2*grd_mix%nsig
+        do j=1,grd_mix%lon2
+           do i=1,grd_mix%lat2
+              tt(i,j,k)=work_sub(1,i,j,kt)
+           end do
+        end do
+     end do
+     mm1=mype+1
      ! !ilook=ide/2
      ! !jlook=jde/2
      ! !ilook=29
      ! !jlook=41
-                ilook=-1 ; jlook=-1
-       call compute_nmm_surfacep ( ges_z(:,:,ntguessig), zbarl,1000._r_kind*prsl,tt, &
-                                   psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
-                                   .true.,ilook,jlook)
-       deallocate(tt,zbarl)
-       psfc_out=.001_r_kind*psfc_out
+     ilook=-1 ; jlook=-1
+     call compute_nmm_surfacep ( ges_z(:,:,ntguessig), zbarl,1000._r_kind*prsl,tt, &
+                                 psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
+                                 ilook,jlook)
+     deallocate(tt,zbarl)
+     psfc_out=.001_r_kind*psfc_out
      !   psfc_out=ges_ps(:,:,ntguessig)
      !   write(0,*)' min,max ges_ps-psfc_out=',&
      !        minval(ges_ps(:,:,ntguessig)-psfc_out),maxval(ges_ps(:,:,ntguessig)-psfc_out)
@@ -497,10 +499,10 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
      deallocate(qs)
      deallocate(prsl)
 
-         iimax=0
-         iimin=grd_mix%nlat
-         jjmax=0
-         jjmin=grd_mix%nlon
+     iimax=0
+     iimin=grd_mix%nlat
+     jjmax=0
+     jjmin=grd_mix%nlon
      ratio_x=(nlon-one)/(grd_mix%nlon-one)
      ratio_y=(nlat-one)/(grd_mix%nlat-one)
      do k=1,grd_mix%nsig
@@ -513,10 +515,10 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
               jj=j+grd_mix%jstart(mm1)-2
               ii=min(grd_mix%nlat,max(1,ii))
               jj=min(grd_mix%nlon,max(1,jj))
-                           iimax=max(ii,iimax)
-                           iimin=min(ii,iimin)
-                           jjmax=max(jj,jjmax)
-                           jjmin=min(jj,jjmin)
+              iimax=max(ii,iimax)
+              iimin=min(ii,iimin)
+              jjmax=max(jj,jjmax)
+              jjmin=min(jj,jjmin)
               dlon_ens=float(jj)
               dlat_ens=float(ii)
               dlon=one+(dlon_ens-one)*ratio_x
@@ -651,61 +653,61 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
   end do
   deallocate(stbar,vpbar,rhbar,ozbar,cwbar)
 
-!   now obtain mean pressure prsl
-!    compute 3d pressure on interfaces
-     kap1=rd_over_cp+one
-     kapr=one/rd_over_cp
-     allocate(pri(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig+1))
-     pri=zero
-     k=1
-     k2=grd_mix%nsig+1
-     do j=1,grd_mix%lon2
-        do i=1,grd_mix%lat2
-           pri(i,j,k)=pbar_nmmb(i,j)
-           pri(i,j,k2)=zero
+! now obtain mean pressure prsl
+! compute 3d pressure on interfaces
+  kap1=rd_over_cp+one
+  kapr=one/rd_over_cp
+  allocate(pri(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig+1))
+  pri=zero
+  k=1
+  k2=grd_mix%nsig+1
+  do j=1,grd_mix%lon2
+     do i=1,grd_mix%lat2
+        pri(i,j,k)=pbar_nmmb(i,j)
+        pri(i,j,k2)=zero
+     end do
+  end do
+  if (sighead%idvc /= 3) then
+     do k=2,grd_mix%nsig
+        do j=1,grd_mix%lon2
+           do i=1,grd_mix%lat2
+              pri(i,j,k)=ak5(k)+bk5(k)*pbar_nmmb(i,j)
+           end do
         end do
      end do
-     if (sighead%idvc /= 3) then
-        do k=2,grd_mix%nsig
-           do j=1,grd_mix%lon2
-              do i=1,grd_mix%lat2
-                 pri(i,j,k)=ak5(k)+bk5(k)*pbar_nmmb(i,j)
-              end do
+  else
+     do k=2,grd_mix%nsig
+        do j=1,grd_mix%lon2
+           do i=1,grd_mix%lat2
+              trk=(half*(tbar(i,j,k-1)+tbar(i,j,k))/tref5(k))**kapr
+              pri(i,j,k)=ak5(k)+(bk5(k)*pbar_nmmb(i,j))+(ck5(k)*trk)
            end do
         end do
-     else
-        do k=2,grd_mix%nsig
-           do j=1,grd_mix%lon2
-              do i=1,grd_mix%lat2
-                 trk=(half*(tbar(i,j,k-1)+tbar(i,j,k))/tref5(k))**kapr
-                 pri(i,j,k)=ak5(k)+(bk5(k)*pbar_nmmb(i,j))+(ck5(k)*trk)
-              end do
-           end do
-        end do
-     end if
+     end do
+  end if
 
-!    Get 3d pressure field now at layer midpoints
-     allocate(prsl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-     if (sighead%idsl/=2) then
-        do j=1,grd_mix%lon2
-           do i=1,grd_mix%lat2
-              do k=1,grd_mix%nsig
-                 prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
-                           (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
-              end do
+! Get 3d pressure field now at layer midpoints
+  allocate(prsl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+  if (sighead%idsl/=2) then
+     do j=1,grd_mix%lon2
+        do i=1,grd_mix%lat2
+           do k=1,grd_mix%nsig
+              prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
+                        (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
            end do
         end do
-     else
-        do j=1,grd_mix%lon2
-           do i=1,grd_mix%lat2
-              do k=1,grd_mix%nsig
-                 prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
-              end do
+     end do
+  else
+     do j=1,grd_mix%lon2
+        do i=1,grd_mix%lat2
+           do k=1,grd_mix%nsig
+              prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
            end do
         end do
-     end if
-     deallocate(pri,pbar_nmmb,tbar)
-     deallocate(ak5,bk5,ck5,tref5)
+     end do
+  end if
+  deallocate(pri,pbar_nmmb,tbar)
+  deallocate(ak5,bk5,ck5,tref5)
 
 ! interpolate/extrapolate in vertical using yoshi's spline code.
 
@@ -820,44 +822,69 @@ integer(i_kind) iimax,iimin,jjmax,jjmin
      end do
 
 !wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
-if(n==1 .and. full_ensemble)then
-   if( grd_mix%lon2 /= lon2 .or. grd_mix%lat2 /= lat2)then
-      if(mype == 0) write(6,*)' problem setup gefs ensenble dims are',lat2,lon2,nsig,grd_mix%lat2,grd_mix%lon2,grd_mix%nsig
-      if(mype == 0) write(6,*)' NEED TO ADD AGRID2EGRID to put NMMB increment on ensemble grid'
-      call stop2(555)
-   endif
-! Subtract guess from ensemble members
-     allocate(qs(lat2,lon2,nsig))
-     ice=.true.
-     iderivative=0
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-           qs(i,j,k)=ges_q(i,j,k,ntguessig)
+     if(n==1 .and. full_ensemble)then
+
+        allocate(qs(lat2,lon2,nsig))
+        ice=.true.
+        iderivative=0
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 qs(i,j,k)=ges_q(i,j,k,ntguessig)
+              end do
            end do
         end do
-     end do
-     call genqsat(qs,ges_tsen(:,:,:,ntguessig),ges_prsl(:,:,:,ntguessig),lat2,lon2,nsig,ice,iderivative)
-!!!!!!!!!!! The first member is full perturbation based on regional first guess !!!!!!!!!!!!!!!
-! Subtract guess from ensemble member
-    do k=1,grd_ens%nsig
-       do j=1,grd_ens%lon2
-          do i=1,grd_ens%lat2
-             ut(i,j,k) = ut(i,j,k)-ges_u(i,j,k,ntguessig)
-             vt(i,j,k) = vt(i,j,k)-ges_v(i,j,k,ntguessig)
-             tt(i,j,k) = tt(i,j,k)-ges_tv(i,j,k,ntguessig)
-             rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)/qs(i,j,k)
-          end do
-       end do
-    end do
+        call genqsat(qs,ges_tsen(:,:,:,ntguessig),ges_prsl(:,:,:,ntguessig),lat2,lon2,nsig,ice,iderivative)
 
-     do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-           p_eg_nmmb(i,j,n) = p_eg_nmmb(i,j,n)-ges_ps(i,j,ntguessig)
-        end do
-     end do
-     deallocate(qs)
-endif   ! n==1 .and. full_ensemble
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!! The first member is full perturbation based on regional first guess !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! put fist guess in ensemble grid & Subtract guess from 1st ensemble member (ensemble mean)
+
+        if (dual_res) then
+           allocate ( tmp_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+           allocate ( tmp_ens2(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+           allocate ( tmp_anl(lat2,lon2,nsig,1) )
+           tmp_anl(:,:,:,1)=qs(:,:,:)
+           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+           tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
+           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
+           rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)/tmp_ens(:,:,:,1)
+           tmp_anl(:,:,:,1)=ges_u(:,:,:,ntguessig)
+           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+           ut(:,:,:) = ut(:,:,:)-tmp_ens(:,:,:,1)
+           tmp_anl(:,:,:,1)=ges_v(:,:,:,ntguessig)
+           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+           vt(:,:,:) = vt(:,:,:)-tmp_ens(:,:,:,1)
+           tmp_anl(:,:,:,1)=ges_tv(:,:,:,ntguessig)
+           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+           tt(:,:,:) = tt(:,:,:)-tmp_ens(:,:,:,1)
+           tmp_anl(:,:,1,1)=ges_ps(:,:,ntguessig)
+           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+           p_eg_nmmb(:,:,n) = p_eg_nmmb(:,:,n)-tmp_ens(:,:,1,1)
+           deallocate(tmp_anl,tmp_ens,tmp_ens2)
+        else
+           do k=1,grd_ens%nsig
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    ut(i,j,k) = ut(i,j,k)-ges_u(i,j,k,ntguessig)
+                    vt(i,j,k) = vt(i,j,k)-ges_v(i,j,k,ntguessig)
+                    tt(i,j,k) = tt(i,j,k)-ges_tv(i,j,k,ntguessig)
+                   rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)/qs(i,j,k)
+                 end do
+              end do
+           end do
+
+           do j=1,grd_ens%lon2
+              do i=1,grd_ens%lat2
+                 p_eg_nmmb(i,j,n) = p_eg_nmmb(i,j,n)-ges_ps(i,j,ntguessig)
+              end do
+           end do
+        endif
+
+        deallocate(qs)
+
+     endif   ! n==1 .and. full_ensemble
 
 !wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 
@@ -974,32 +1001,32 @@ endif   ! n==1 .and. full_ensemble
 
            case('ps','PS')
 
-                 do j=1,grd_ens%lon2
-                    do i=1,grd_ens%lat2
-                       w2(i,j) = p_eg_nmmb(i,j,n)*sig_norm
-                    end do
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    w2(i,j) = p_eg_nmmb(i,j,n)*sig_norm
                  end do
+              end do
 
            case('sst','SST')
 
 ! dtk: temporarily ignore sst perturbations in hybrid
-                 do j=1,grd_ens%lon2
-                    do i=1,grd_ens%lat2
-                       w2(i,j) = zero
-                    end do
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    w2(i,j) = zero
                  end do
+              end do
 
         end select
      end do
   end do
 
-     deallocate(vector)
-     deallocate(st_eg,vp_eg,t_eg,rh_eg)
-     deallocate(oz_eg,cw_eg,p_eg_nmmb)
-     deallocate(ges_prsl_e)
-     deallocate(xspli,yspli,xsplo,ysplo)
-     deallocate(prsl)
-     deallocate(ut,vt,tt,rht,ozt,cwt)
+  deallocate(vector)
+  deallocate(st_eg,vp_eg,t_eg,rh_eg)
+  deallocate(oz_eg,cw_eg,p_eg_nmmb)
+  deallocate(ges_prsl_e)
+  deallocate(xspli,yspli,xsplo,ysplo)
+  deallocate(prsl)
+  deallocate(ut,vt,tt,rht,ozt,cwt)
 
   return
 
@@ -1009,32 +1036,35 @@ endif   ! n==1 .and. full_ensemble
    call stop2(555)
 end subroutine get_gefs_for_regional
 
-  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN   &
-     &,                             psfc_out,generic,IME,JME,spectral, Ilook,Jlook )
+  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN,   &
+                                    psfc_out,generic,IME,JME, Ilook,Jlook )
 
-	
+
        use kinds, only: r_kind,i_kind
        IMPLICIT NONE
 
-       real(r_kind), allocatable:: dum2d(:,:),DUM2DB(:,:)
-       
-       integer(i_kind) :: IME,JME
-       integer(i_kind) :: Ilook,Jlook
-       integer(i_kind) :: I,J,II,generic,L,KINSERT,K,bot_lev,LL
+       integer(i_kind),intent(in) :: IME,JME
+       integer(i_kind),intent(in) :: Ilook,Jlook
+       integer(i_kind),intent(in) :: generic
+
+       real(r_kind),intent(in) :: TERRAIN_HGT_T(IME,JME)
+       real(r_kind),intent(in) :: Z3D_IN(IME,JME,generic)
+       real(r_kind),intent(in) :: T3D_IN(IME,JME,generic)
+       real(r_kind),intent(in) :: PRESS3D_IN(IME,JME,generic)
+       real(r_kind),intent(out) :: psfc_out(IME,JME)
+
+       integer(i_kind) :: I,J,II,L,KINSERT,K,bot_lev,LL
        integer(i_kind) :: loopinc,iloopinc
-	
-       real(r_kind) :: TERRAIN_HGT_T(IME,JME)
-       real(r_kind) :: Z3D_IN(IME,JME,generic)
-       real(r_kind) :: T3D_IN(IME,JME,generic)
-       real(r_kind) :: PRESS3D_IN(IME,JME,generic)
+
        real(r_kind) :: PSFC_IN(IME,JME),TOPO_IN(IME,JME)
-       real(r_kind) :: psfc_out(IME,JME)
        real(r_kind) :: dif1,dif2,dif3,dif4,dlnpdz,BOT_INPUT_HGT,BOT_INPUT_PRESS,dpdz,rhs
        real(r_kind) :: zin(generic),pin(generic)
 
+       real(r_kind), allocatable:: dum2d(:,:),DUM2DB(:,:)
+
        character (len=132) :: message
-	
-       logical :: DEFINED_PSFC(IME,JME), DEFINED_PSFCB(IME,JME), spectral
+
+       logical :: DEFINED_PSFC(IME,JME), DEFINED_PSFCB(IME,JME)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1043,412 +1073,412 @@ end subroutine get_gefs_for_regional
 !	write(0,*) 'JmE: ', JmE
 
        DO J=1,JME
-       DO I=1,IME
-          DEFINED_PSFC(I,J)=.FALSE.
-          DEFINED_PSFCB(I,J)=.FALSE.
-        IF (PRESS3D_IN(I,J,1) .ne. 200100.) THEN
-          PSFC_IN(I,J)=PRESS3D_IN(I,J,1)
-          TOPO_IN(I,J)=Z3D_IN(I,J,1)
-        ELSE
-          PSFC_IN(I,J)=PRESS3D_IN(I,J,2)
-          TOPO_IN(I,J)=Z3D_IN(I,J,2)
-        ENDIF
-       ENDDO
+          DO I=1,IME
+             DEFINED_PSFC(I,J)=.FALSE.
+             DEFINED_PSFCB(I,J)=.FALSE.
+             IF (PRESS3D_IN(I,J,1) /= 200100._r_kind) THEN
+                PSFC_IN(I,J)=PRESS3D_IN(I,J,1)
+                TOPO_IN(I,J)=Z3D_IN(I,J,1)
+             ELSE
+                PSFC_IN(I,J)=PRESS3D_IN(I,J,2)
+                TOPO_IN(I,J)=Z3D_IN(I,J,2)
+             ENDIF
+          ENDDO
        ENDDO
 
-!write(0,*) 'terrain_hgt_t in surfacep compute ', IME,JME
-!do J=JME,1,min(-(JME-1)/20,-1)
-!write(0,535) J,(TERRAIN_HGT_T(I,J),I=1,IME,max(1,(IME-1)/12))
-!enddo
+!       write(0,*) 'terrain_hgt_t in surfacep compute ', IME,JME
+!       do J=JME,1,min(-(JME-1)/20,-1)
+!          write(0,535) J,(TERRAIN_HGT_T(I,J),I=1,IME,max(1,(IME-1)/12))
+!       enddo
 
-!write(0,*) 'z3d_in(3) at same points:'
-!do J=JME,1,min(-(JME-1)/20,-1)
-!write(0,535) J,(Z3D_IN(I,J,3),I=1,IME,max(1,(IME-1)/12))
-!enddo
+!       write(0,*) 'z3d_in(3) at same points:'
+!       do J=JME,1,min(-(JME-1)/20,-1)
+!          write(0,535) J,(Z3D_IN(I,J,3),I=1,IME,max(1,(IME-1)/12))
+!       enddo
 ! 535	format(I4,' ::: ',18(f5.0,1x))
 
        ALLOCATE(DUM2D(IME,JME))
      
        DO J=1,JME
-        DO I=1,IME
-         DUM2D(I,J)=-9.
-        END DO
+          DO I=1,IME
+             DUM2D(I,J)=-9._r_kind
+          END DO
        END DO
 
        DO J=1,JmE
-        I_loop: DO I=1,ImE
+          I_loop: DO I=1,ImE
 
-         IF (PSFC_IN(I,J) .eq. 0.) THEN
-           write(0,*) 'QUITTING BECAUSE I,J, PSFC_IN: ', I,J,PSFC_IN(I,J)
+             IF (PSFC_IN(I,J) == 0._r_kind) THEN
+                write(0,*) 'QUITTING BECAUSE I,J, PSFC_IN: ', I,J,PSFC_IN(I,J)
 
-	STOP
-         ENDIF
+                STOP
+             ENDIF
 
-         BOT_INPUT_PRESS=PSFC_IN(I,J)
-         BOT_INPUT_HGT=TOPO_IN(I,J)
+             BOT_INPUT_PRESS=PSFC_IN(I,J)
+             BOT_INPUT_HGT=TOPO_IN(I,J)
 
 
-        IF (I .eq. Ilook .AND. J .eq. Jlook) THEN
+             IF (I == Ilook .AND. J == Jlook) THEN
 
-!	   write(0,*) ' TERRAIN_HGT_T: ', I,J, TERRAIN_HGT_T(I,J)
-	   write(0,*) ' PSFC_IN, TOPO_IN: ', &
-                            I, J, PSFC_IN(I,J),TOPO_IN(I,J)
+!	         write(0,*) ' TERRAIN_HGT_T: ', I,J, TERRAIN_HGT_T(I,J)
+                write(0,*) ' PSFC_IN, TOPO_IN: ', &
+                   I, J, PSFC_IN(I,J),TOPO_IN(I,J)
 
-           DO L=1,generic
-	     write(0,*) ' L,PRESS3D_IN, Z3D_IN: ', &
-                             I,J,L, PRESS3D_IN(I,J,L),Z3D_IN(I,J,L)
-           END DO
-         ENDIF
+                DO L=1,generic
+                   write(0,*) ' L,PRESS3D_IN, Z3D_IN: ', &
+                      I,J,L, PRESS3D_IN(I,J,L),Z3D_IN(I,J,L)
+                END DO
+             ENDIF
 
-!	do L=2,generic
-       DO L=generic,2,-1
+!             do L=2,generic
+             DO L=generic,2,-1
 
-         IF ( PRESS3D_IN(i,j,L) .gt. PSFC_IN(I,J) .AND.  &
-             Z3D_IN(I,J,L) .lt. TERRAIN_HGT_T(I,J) .AND. &
-             Z3D_IN(I,J,L+1) .gt. TERRAIN_HGT_T(I,J) ) THEN
+                IF ( PRESS3D_IN(i,j,L) > PSFC_IN(I,J) .AND.  &
+                         Z3D_IN(I,J,L) < TERRAIN_HGT_T(I,J) .AND. &
+                         Z3D_IN(I,J,L+1) > TERRAIN_HGT_T(I,J) ) THEN
 
-           BOT_INPUT_PRESS=PRESS3D_IN(i,j,L)
-           BOT_INPUT_HGT=Z3D_IN(I,J,L)
-
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-             write(0,*) 'BOT_INPUT_PRESS, BOT_INPUT_HGT NOW : ', &
+                   BOT_INPUT_PRESS=PRESS3D_IN(i,j,L)
+                   BOT_INPUT_HGT=Z3D_IN(I,J,L)
+ 
+                   IF (I == Ilook .and. J == Jlook) THEN
+                      write(0,*) 'BOT_INPUT_PRESS, BOT_INPUT_HGT NOW : ', &
                          Ilook,Jlook, BOT_INPUT_PRESS, BOT_INPUT_HGT
-           ENDIF
+                   ENDIF
 
-          ENDIF 
-       END DO	
+                ENDIF 
+             END DO	
 
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	write(0,*) 'enter this section, TERRAIN_HGT_T, BOT_INPUT_HGT: ', TERRAIN_HGT_T(I,J), BOT_INPUT_HGT
-           ENDIF
+             IF (I == Ilook .and. J == Jlook) THEN
+                write(0,*) 'enter this section, TERRAIN_HGT_T, BOT_INPUT_HGT: ', TERRAIN_HGT_T(I,J), BOT_INPUT_HGT
+             ENDIF
 
-        IF (TERRAIN_HGT_T(I,J) .eq. BOT_INPUT_HGT ) THEN
-           dum2d(I,J)=BOT_INPUT_PRESS
-           DEFINED_PSFC(I,J)=.TRUE.
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	   write(0,*) 'TERRAIN_HGT_T .eq. BOT_INPUT_HGT, set dum2d to: ', I,J, dum2d(I,J)
-           ENDIF
+             IF (TERRAIN_HGT_T(I,J) == BOT_INPUT_HGT ) THEN
+                dum2d(I,J)=BOT_INPUT_PRESS
+                DEFINED_PSFC(I,J)=.TRUE.
+                IF (I == Ilook .and. J == Jlook) THEN
+                   write(0,*) 'TERRAIN_HGT_T == BOT_INPUT_HGT, set dum2d to: ', I,J, dum2d(I,J)
+                ENDIF
 
-	! IF (BOT_INPUT_HGT .ne. 0. .and. (BOT_INPUT_HGT-INT(BOT_INPUT_HGT) .ne. 0.) ) THEN
-	!   write(0,*) 'with BOT_INPUT_HGT: ', BOT_INPUT_HGT, &
-        !                    'set dum2d to bot_input_pres: ', I,J,dum2d(I,J)
-        ! ENDIF
+	!        IF (BOT_INPUT_HGT /= 0._r_kind .and. (BOT_INPUT_HGT-INT(BOT_INPUT_HGT) /= 0._r_kind) ) THEN
+	!           write(0,*) 'with BOT_INPUT_HGT: ', BOT_INPUT_HGT, &
+        !              'set dum2d to bot_input_pres: ', I,J,dum2d(I,J)
+        !        ENDIF
 
-        ELSEIF (TERRAIN_HGT_T(I,J) .lt. BOT_INPUT_HGT ) THEN
+             ELSEIF (TERRAIN_HGT_T(I,J) < BOT_INPUT_HGT ) THEN
 
 !         target is below lowest possible input...extrapolate
 
-          IF ( BOT_INPUT_PRESS-PRESS3D_IN(I,J,2) .gt. 500. ) THEN
-            dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,2)) ) / &
-                     (BOT_INPUT_HGT-Z3D_IN(i,j,2))
-            IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-              write(0,*) 'I,J,dlnpdz(a): ', I,J,dlnpdz
-            ENDIF
+                IF ( BOT_INPUT_PRESS-PRESS3D_IN(I,J,2) > 500._r_kind ) THEN
+                   dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,2)) ) / &
+                      (BOT_INPUT_HGT-Z3D_IN(i,j,2))
+                   IF (I == Ilook .and. J == Jlook) THEN
+                      write(0,*) 'I,J,dlnpdz(a): ', I,J,dlnpdz
+                   ENDIF
 
-          ELSE
+                ELSE
 
 !! thin layer and/or just have lowest level - difference with 3rd level data
-            IF ( abs(BOT_INPUT_PRESS - PRESS3D_IN(i,j,3)) .gt. 290. ) THEN
+                   IF ( abs(BOT_INPUT_PRESS - PRESS3D_IN(i,j,3)) > 290._r_kind ) THEN
 
-              dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,3)) ) / &
-                      (BOT_INPUT_HGT-Z3D_IN(i,j,3))
+                      dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,3)) ) / &
+                         (BOT_INPUT_HGT-Z3D_IN(i,j,3))
 
-              IF (I .eq. Ilook .and. J .eq. Jlook) then
-               write(0,*) 'p diff: ', BOT_INPUT_PRESS, PRESS3D_IN(i,j,3)
-               write(0,*) 'z diff: ', BOT_INPUT_HGT, Z3D_IN(i,j,3)
-              ENDIF
+                      IF (I == Ilook .and. J == Jlook) then
+                         write(0,*) 'p diff: ', BOT_INPUT_PRESS, PRESS3D_IN(i,j,3)
+                         write(0,*) 'z diff: ', BOT_INPUT_HGT, Z3D_IN(i,j,3)
+                      ENDIF
 	
-            ELSE
+                   ELSE
 
 !! Loop up to level 7 looking for a sufficiently thick layer
 
-              FIND_THICK:  DO LL=4,7
-               IF( abs(BOT_INPUT_PRESS - PRESS3D_IN(i,j,LL)) .gt. 290.) THEN
-                 dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,LL)) ) / &
-                   (BOT_INPUT_HGT-Z3D_IN(i,j,LL))
-                EXIT FIND_THICK
-               ENDIF 
-              END DO FIND_THICK
+                      FIND_THICK:  DO LL=4,7
+                         IF( abs(BOT_INPUT_PRESS - PRESS3D_IN(i,j,LL)) > 290._r_kind) THEN
+                            dlnpdz= (log(BOT_INPUT_PRESS)-log(PRESS3D_IN(i,j,LL)) ) / &
+                               (BOT_INPUT_HGT-Z3D_IN(i,j,LL))
+                            EXIT FIND_THICK
+                         ENDIF 
+                      END DO FIND_THICK
 
-            ENDIF
+                   ENDIF
         
-          ENDIF
+                ENDIF
 
-        dum2d(I,J)= exp(log(BOT_INPUT_PRESS) + dlnpdz * &
-                        (TERRAIN_HGT_T(I,J) - BOT_INPUT_HGT) )
+                dum2d(I,J)= exp(log(BOT_INPUT_PRESS) + dlnpdz * &
+                    (TERRAIN_HGT_T(I,J) - BOT_INPUT_HGT) )
 
-           DEFINED_PSFC(I,J)=.TRUE.
+                DEFINED_PSFC(I,J)=.TRUE.
 
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	   write(0,*) 'here(b) set dum2d to: ', I,J, dum2d(I,J)
-           ENDIF
+                IF (I == Ilook .and. J == Jlook) THEN
+	           write(0,*) 'here(b) set dum2d to: ', I,J, dum2d(I,J)
+                ENDIF
 
-        ELSE ! target level bounded by input levels
+             ELSE ! target level bounded by input levels
 
-          DO L=2,generic-1
-            IF (TERRAIN_HGT_T(I,J) .gt. Z3D_IN(i,j,L) .AND. &
-                  TERRAIN_HGT_T(I,J) .lt. Z3D_IN(i,j,L+1) ) THEN
-               dlnpdz= (log(PRESS3D_IN(i,j,l))-log(PRESS3D_IN(i,j,L+1)) ) / &
-                       (Z3D_IN(i,j,l)-Z3D_IN(i,j,L+1))
-               dum2d(I,J)= log(PRESS3D_IN(i,j,l)) +   &
-                           dlnpdz * (TERRAIN_HGT_T(I,J) - Z3D_IN(i,j,L) )
-               dum2d(i,j)=exp(dum2d(i,j))
-           DEFINED_PSFC(I,J)=.TRUE.
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'here(c) set dum2d to: ', I,J, Dum2d(I,J)
-           ENDIF
-            ENDIF
-          ENDDO
+                DO L=2,generic-1
+                   IF (TERRAIN_HGT_T(I,J) > Z3D_IN(i,j,L) .AND. &
+                       TERRAIN_HGT_T(I,J) < Z3D_IN(i,j,L+1) ) THEN
+                      dlnpdz= (log(PRESS3D_IN(i,j,l))-log(PRESS3D_IN(i,j,L+1)) ) / &
+                         (Z3D_IN(i,j,l)-Z3D_IN(i,j,L+1))
+                      dum2d(I,J)= log(PRESS3D_IN(i,j,l)) +   &
+                         dlnpdz * (TERRAIN_HGT_T(I,J) - Z3D_IN(i,j,L) )
+                      dum2d(i,j)=exp(dum2d(i,j))
+                      DEFINED_PSFC(I,J)=.TRUE.
+                      IF (I == Ilook .and. J == Jlook) THEN
+	                 write(0,*) 'here(c) set dum2d to: ', I,J, Dum2d(I,J)
+                      ENDIF
+                   ENDIF
+                ENDDO
 
 !!! account for situation where BOT_INPUT_HGT < TERRAIN_HGT_T < Z3D_IN(:,2,:)
-          IF (dum2d(I,J) .eq. -9 .AND. BOT_INPUT_HGT .lt. TERRAIN_HGT_T(I,J) &
-              .AND. TERRAIN_HGT_T(I,J) .lt. Z3D_IN(I,J,2)) then
+                IF (dum2d(I,J) == -9._r_kind .AND. BOT_INPUT_HGT < TERRAIN_HGT_T(I,J) &
+                   .AND. TERRAIN_HGT_T(I,J) < Z3D_IN(I,J,2)) then
 
-          ! IF (mod(I,50) .eq. 0 .AND. mod(J,50) .eq. 0) THEN
-          !   write(0,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
-          !      I,J,BOT_INPUT_HGT, BOT_INPUT_PRESS, TERRAIN_HGT_T(I,J)
-          ! ENDIF
+          !         IF (mod(I,50) == 0 .AND. mod(J,50) == 0) THEN
+          !            write(0,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
+          !               I,J,BOT_INPUT_HGT, BOT_INPUT_PRESS, TERRAIN_HGT_T(I,J)
+          !         ENDIF
 
-            dlnpdz= (log(PSFC_IN(i,j))-log(PRESS3D_IN(i,j,2)) ) / &
-                    (TOPO_IN(i,j)-Z3D_IN(i,j,2))
-            dum2d(I,J)= log(PSFC_IN(i,j)) +   &
-                        dlnpdz * (TERRAIN_HGT_T(I,J) - TOPO_IN(i,j) )
-            dum2d(i,j)= exp(dum2d(i,j))
-           DEFINED_PSFC(I,J)=.TRUE.
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'here(d) set dum2d to: ', I,J, Dum2d(I,J)
-           ENDIF
-          ENDIF
+                   dlnpdz= (log(PSFC_IN(i,j))-log(PRESS3D_IN(i,j,2)) ) / &
+                      (TOPO_IN(i,j)-Z3D_IN(i,j,2))
+                   dum2d(I,J)= log(PSFC_IN(i,j)) +   &
+                      dlnpdz * (TERRAIN_HGT_T(I,J) - TOPO_IN(i,j) )
+                   dum2d(i,j)= exp(dum2d(i,j))
+                   DEFINED_PSFC(I,J)=.TRUE.
+                   IF (I == Ilook .and. J == Jlook) THEN
+	              write(0,*) 'here(d) set dum2d to: ', I,J, Dum2d(I,J)
+                   ENDIF
+                ENDIF
 
-          IF (dum2d(I,J) .eq. -9.) THEN
-            write(0,*) 'must have flukey situation in new ', I,J
-            write(0,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
-                       I,J,BOT_INPUT_HGT, BOT_INPUT_PRESS, TERRAIN_HGT_T(I,J)
+                IF (dum2d(I,J) == -9._r_kind) THEN
+                   write(0,*) 'must have flukey situation in new ', I,J
+                   write(0,*) 'I,J,BOT_INPUT_HGT, bot_pres, TERRAIN_HGT_T: ',  &
+                      I,J,BOT_INPUT_HGT, BOT_INPUT_PRESS, TERRAIN_HGT_T(I,J)
 
-            DO L=1,generic-1
-              IF ( TERRAIN_HGT_T(I,J) .eq. Z3D_IN(i,j,L) ) THEN
+                   DO L=1,generic-1
+                      IF ( TERRAIN_HGT_T(I,J) == Z3D_IN(i,j,L) ) THEN
 ! problematic with HGT_M substitution for "input" surface height?
-                dum2d(i,j)=PRESS3D_IN(I,J,L)
-                DEFINED_PSFC(I,J)=.TRUE.
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'here(e) set dum2d to: ', I,J, Dum2d(I,J)
-           ENDIF
-              ENDIF
-            ENDDO
+                         dum2d(i,j)=PRESS3D_IN(I,J,L)
+                         DEFINED_PSFC(I,J)=.TRUE.
+                         IF (I == Ilook .and. J == Jlook) THEN
+                            write(0,*) 'here(e) set dum2d to: ', I,J, Dum2d(I,J)
+                         ENDIF
+                      ENDIF
+                   ENDDO
 
-            IF ( TERRAIN_HGT_T(I,J) .eq. TOPO_IN(I,J)) THEN
-              dum2d(I,J)=PSFC_IN(I,J)
-              DEFINED_PSFC(I,J)=.TRUE.
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'here(f) set dum2d to: ', I,J, Dum2d(I,J)
-           ENDIF
-         !   write(0,*) 'matched input topo, psfc: ', I,J,TOPO_IN(I,J),PSFC_IN(I,J)
-            ENDIF
+                   IF ( TERRAIN_HGT_T(I,J) == TOPO_IN(I,J)) THEN
+                      dum2d(I,J)=PSFC_IN(I,J)
+                      DEFINED_PSFC(I,J)=.TRUE.
+                      IF (I == Ilook .and. J == Jlook) THEN
+	                 write(0,*) 'here(f) set dum2d to: ', I,J, Dum2d(I,J)
+                      ENDIF
+         !             write(0,*) 'matched input topo, psfc: ', I,J,TOPO_IN(I,J),PSFC_IN(I,J)
+                   ENDIF
 
-!            IF (dum2d(I,J) .eq. -9.) THEN
-!            ENDIF 
+!                   IF (dum2d(I,J) == -9._r_kind) THEN
+!                   ENDIF 
 
-          ENDIF
+                ENDIF
 
-	if (.not. defined_psfc(i,J)) then
-!write(0,*) 'switching to true here'
-          DEFINED_PSFC(I,J)=.TRUE.
-        endif
+                if (.not. defined_psfc(i,J)) then
+!                   write(0,*) 'switching to true here'
+                   DEFINED_PSFC(I,J)=.TRUE.
+                endif
 
-	  IF (I .eq. Ilook .AND. J .eq. Jlook) THEN
-	    write(0,*) 'newstyle psfc: ', I,J,dum2d(I,J)
-          ENDIF
+                IF (I == Ilook .AND. J == Jlook) THEN
+                   write(0,*) 'newstyle psfc: ', I,J,dum2d(I,J)
+                ENDIF
 
-        ENDIF 
+             ENDIF 
 
-	if (.not. DEFINED_PSFC(I,J)) then
-!	write(0,*) 'new style undefined at: ', I,J
-	endif
+             if (.not. DEFINED_PSFC(I,J)) then
+!                write(0,*) 'new style undefined at: ', I,J
+             endif
 
-        ENDDO I_loop
-        ENDDO
+          ENDDO I_loop
+       ENDDO
 
-       !write(0,*) 'psfc points (new style)'
-	loopinc=max( (JmE-1)/20,1)
-	iloopinc=max( (ImE-1)/10,1)
+      !write(0,*) 'psfc points (new style)'
+       loopinc=max( (JmE-1)/20,1)
+       iloopinc=max( (ImE-1)/10,1)
 
-        DO J=JmE,1,-loopinc
-       !  write(0,633) (dum2d(I,J)/100.,I=1,min(ImE,ImE),iloopinc)
-        END DO
+       DO J=JmE,1,-loopinc
+       !   write(0,633) (dum2d(I,J)/100.,I=1,min(ImE,ImE),iloopinc)
+       END DO
 
-  633   format(35(f5.0,1x))
+  633  format(35(f5.0,1x))
 
-!        write(0,*) 'PSFC extremes (new style): ',  minval(dum2d,MASK=DEFINED_PSFC),maxval(dum2d,MASK=DEFINED_PSFC)
+!       write(0,*) 'PSFC extremes (new style): ',  minval(dum2d,MASK=DEFINED_PSFC),maxval(dum2d,MASK=DEFINED_PSFC)
 
-!         IF (minval(dum2d,MASK=DEFINED_PSFC) .lt. 40000. .or. maxval(dum2d,MASK=DEFINED_PSFC) .gt. 110000.) THEN
-!        ENDIF
+!       IF (minval(dum2d,MASK=DEFINED_PSFC) < 40000._r_kind .or. maxval(dum2d,MASK=DEFINED_PSFC) > 110000._r_kind) THEN
+!       ENDIF
 
 !! "traditional" isobaric only approach ------------------------------------------------
 
        ALLOCATE (DUM2DB(IME,JME))
        DO J=1,JME
-        DO I=1,IME
-         DUM2DB(I,J)=-9.
-        END DO
+          DO I=1,IME
+             DUM2DB(I,J)=-9._r_kind
+          END DO
        END DO
 
        DO J=1,JmE
-       DO I=1,ImE
+          DO I=1,ImE
 
-        IF (TERRAIN_HGT_T(I,J) .lt. Z3D_IN(i,j,2)) THEN ! targ below lowest
+             IF (TERRAIN_HGT_T(I,J) < Z3D_IN(i,j,2)) THEN ! targ below lowest
 
-          IF ( abs(PRESS3D_IN(i,j,2)-PRESS3D_IN(i,j,3)) .gt. 290.) THEN
-            dlnpdz= (log(PRESS3D_IN(i,j,2))-log(PRESS3D_IN(i,j,3)) ) / &
-                    (Z3D_IN(i,j,2)-Z3D_IN(i,j,3))
-          ELSE
-            dlnpdz= (log(PRESS3D_IN(i,j,2))-log(PRESS3D_IN(i,j,4)) ) / &
-                    (Z3D_IN(i,j,2)-Z3D_IN(i,j,4))
-          ENDIF
+                IF ( abs(PRESS3D_IN(i,j,2)-PRESS3D_IN(i,j,3)) > 290._r_kind) THEN
+                   dlnpdz= (log(PRESS3D_IN(i,j,2))-log(PRESS3D_IN(i,j,3)) ) / &
+                      (Z3D_IN(i,j,2)-Z3D_IN(i,j,3))
+                ELSE
+                   dlnpdz= (log(PRESS3D_IN(i,j,2))-log(PRESS3D_IN(i,j,4)) ) / &
+                      (Z3D_IN(i,j,2)-Z3D_IN(i,j,4))
+                ENDIF
 
-          DUM2DB(I,J)= exp( log(PRESS3D_IN(i,j,2)) + dlnpdz * &
-                           (TERRAIN_HGT_T(I,J) - Z3D_IN(i,j,2)) )
+                DUM2DB(I,J)= exp( log(PRESS3D_IN(i,j,2)) + dlnpdz * &
+                   (TERRAIN_HGT_T(I,J) - Z3D_IN(i,j,2)) )
 
-	  IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	    write(0,*) 'I,K, trad: dlnpdz, press_in(2), terrain_t, Z3D_IN(2): ', I,J,dlnpdz, &
-                             PRESS3D_IN(i,j,2), TERRAIN_HGT_T(I,J), Z3D_IN(i,j,2)
-          ENDIF
+                IF (I == Ilook .and. J == Jlook) THEN
+                   write(0,*) 'I,K, trad: dlnpdz, press_in(2), terrain_t, Z3D_IN(2): ', I,J,dlnpdz, &
+                      PRESS3D_IN(i,j,2), TERRAIN_HGT_T(I,J), Z3D_IN(i,j,2)
+                ENDIF
 
-          DEFINED_PSFCB(i,j)=.true.
+                DEFINED_PSFCB(i,j)=.true.
 
-        ELSEIF (TERRAIN_HGT_T(I,J) .gt. Z3D_IN(i,j,2)) THEN ! target level bounded by input levels
+             ELSEIF (TERRAIN_HGT_T(I,J) > Z3D_IN(i,j,2)) THEN ! target level bounded by input levels
 
-        DO L=2,generic-1
-          IF (TERRAIN_HGT_T(I,J) .gt. Z3D_IN(i,j,L) .AND. &
-              TERRAIN_HGT_T(I,J) .lt. Z3D_IN(i,j,L+1) ) THEN
+                DO L=2,generic-1
+                   IF (TERRAIN_HGT_T(I,J) > Z3D_IN(i,j,L) .AND. &
+                       TERRAIN_HGT_T(I,J) < Z3D_IN(i,j,L+1) ) THEN
 
-            dlnpdz= (log(PRESS3D_IN(i,j,l))-log(PRESS3D_IN(i,j,L+1)) ) / &
-                    (Z3D_IN(i,j,l)-Z3D_IN(i,j,L+1))
+                      dlnpdz= (log(PRESS3D_IN(i,j,l))-log(PRESS3D_IN(i,j,L+1)) ) / &
+                         (Z3D_IN(i,j,l)-Z3D_IN(i,j,L+1))
 
-            DUM2DB(I,J)= log(PRESS3D_IN(i,j,l)) +   &
+                      DUM2DB(I,J)= log(PRESS3D_IN(i,j,l)) +   &
                          dlnpdz * (TERRAIN_HGT_T(I,J) - Z3D_IN(i,j,L) )
-            DUM2DB(i,j)=exp(DUM2DB(i,j))
+                      DUM2DB(i,j)=exp(DUM2DB(i,j))
+ 
+                      IF (I == Ilook .and. J == Jlook) THEN
+                         write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
+                         write(0,*) 'TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L): ', TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L)
+                         write(0,*) 'here(2b) set dum2db to: ', I,J, Dum2db(I,J)
+                      ENDIF
 
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
-	     write(0,*) 'TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L): ', TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L)
-	     write(0,*) 'here(2b) set dum2db to: ', I,J, Dum2db(I,J)
-           ENDIF
+                      DEFINED_PSFCB(i,j)=.true.
 
-	    DEFINED_PSFCB(i,j)=.true.
+                      IF (DUM2DB(I,J) < 13000._r_kind) THEN
+           !              write(0,*) 'I,J,L,terrain,Z3d(L),z3d(L+1),p3d(L),p3d(l+1): ', I,J,L, &
+           !                 TERRAIN_HGT_T(I,J),Z3D_IN(I,J,L),Z3D_IN(I,J,L+1),PRESS3D_IN(I,J,L), &
+           !                 PRESS3D_IN(I,J,L+1)
+                      ENDIF
+                   ENDIF
+                ENDDO
 
-            IF (DUM2DB(I,J) .lt. 13000.) THEN
-           !  write(0,*) 'I,J,L,terrain,Z3d(L),z3d(L+1),p3d(L),p3d(l+1): ', I,J,L, &
-           !                    TERRAIN_HGT_T(I,J),Z3D_IN(I,J,L),Z3D_IN(I,J,L+1),PRESS3D_IN(I,J,L), &
-           !                    PRESS3D_IN(I,J,L+1)
-            ENDIF
-          ENDIF
-        ENDDO
+             ELSEIF (TERRAIN_HGT_T(I,J) == Z3D_IN(i,j,2)) THEN
+                DUM2DB(i,j)=PRESS3D_IN(I,J,2)
+                IF (I == Ilook .and. J == Jlook) THEN
+                   write(0,*) 'here(2c) set dum2db to: ', I,J, Dum2db(I,J)
+                ENDIF
+                DEFINED_PSFCB(i,j)=.true.
+             ENDIF
 
-        ELSEIF (TERRAIN_HGT_T(I,J) .eq. Z3D_IN(i,j,2)) THEN
-          DUM2DB(i,j)=PRESS3D_IN(I,J,2)
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'here(2c) set dum2db to: ', I,J, Dum2db(I,J)
-           ENDIF
-	  DEFINED_PSFCB(i,j)=.true.
-        ENDIF
+             IF (DUM2DB(I,J) == -9._r_kind) THEN
+         !       write(0,*) 'must have flukey situation in trad ', I,J
+                DO L=1,generic-1
+                   IF ( TERRAIN_HGT_T(I,J) == Z3D_IN(i,j,L) ) THEN
+                      DUM2DB(i,j)=PRESS3D_IN(I,J,L)
+                      IF (I == Ilook .and. J == Jlook) THEN
+	                 write(0,*) 'here(2d) set dum2db to: ', I,J, Dum2db(I,J)
+                      ENDIF
+                      DEFINED_PSFCB(i,j)=.true.
+                   ENDIF
+                ENDDO
+             ENDIF
 
-        IF (DUM2DB(I,J) .eq. -9.) THEN
-         !write(0,*) 'must have flukey situation in trad ', I,J
-          DO L=1,generic-1
-            IF ( TERRAIN_HGT_T(I,J) .eq. Z3D_IN(i,j,L) ) THEN
-              DUM2DB(i,j)=PRESS3D_IN(I,J,L)
-           IF (I .eq. Ilook .and. J .eq. Jlook) THEN
-	     write(0,*) 'here(2d) set dum2db to: ', I,J, Dum2db(I,J)
-           ENDIF
-              DEFINED_PSFCB(i,j)=.true.
-            ENDIF
+             IF (DUM2DB(I,J) == -9._r_kind) THEN
+                write(0,*) 'HOPELESS PSFC, I QUIT'
+             ENDIF
+
+             if (I == Ilook .and. J == Jlook) THEN
+                write(0,*) ' traditional psfc: ', I,J,DUM2DB(I,J)
+             ENDIF
+
           ENDDO
-        ENDIF
-
-        IF (DUM2DB(I,J) .eq. -9.) THEN
-          write(0,*) 'HOPELESS PSFC, I QUIT'
-        ENDIF
-
-	if (I .eq. Ilook .and. J .eq. Jlook) THEN
-	  write(0,*) ' traditional psfc: ', I,J,DUM2DB(I,J)
-        ENDIF
-
-       ENDDO
        ENDDO
 
 !       write(0,*) 'psfc points (traditional)'
 !       DO J=JmE,1,-loopinc
-!         write(0,633) (DUM2DB(I,J)/100.,I=1,ime,iloopinc)
+!          write(0,633) (DUM2DB(I,J)/100.,I=1,ime,iloopinc)
 !       ENDDO
 
-!      write(0,*) 'PSFC extremes (traditional): ', minval(DUM2DB,MASK=DEFINED_PSFCB),maxval(DUM2DB,MASK=DEFINED_PSFCB)
+!       write(0,*) 'PSFC extremes (traditional): ', minval(DUM2DB,MASK=DEFINED_PSFCB),maxval(DUM2DB,MASK=DEFINED_PSFCB)
 
-!       IF (minval(DUM2DB,MASK=DEFINED_PSFCB) .lt. 40000. .or. maxval(DUM2DB,MASK=DEFINED_PSFCB) .gt. 108000.) THEN
+!       IF (minval(DUM2DB,MASK=DEFINED_PSFCB) < 40000._r_kind .or. maxval(DUM2DB,MASK=DEFINED_PSFCB) > 108000._r_kind) THEN
 !       ENDIF
 
 !!!!! end traditional
 
        DO J=1,JmE
-       DO I=1,ImE
-         IF (DEFINED_PSFCB(I,J) .and. DEFINED_PSFC(I,J)) THEN
+          DO I=1,ImE
+             IF (DEFINED_PSFCB(I,J) .and. DEFINED_PSFC(I,J)) THEN
 
-          IF (  abs(dum2d(I,J)-DUM2DB(I,J)) .gt. 400.) THEN
-	!    write(0,*) 'BIG DIFF I,J, dum2d, DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
-          ENDIF
+                IF (  abs(dum2d(I,J)-DUM2DB(I,J)) > 400._r_kind) THEN
+	!          write(0,*) 'BIG DIFF I,J, dum2d, DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
+                ENDIF
 
 !! do we have enough confidence in new style to give it more than 50% weight?
-          psfc_out(I,J)=0.5*(dum2d(I,J)+DUM2DB(I,J))
-         ELSEIF (DEFINED_PSFC(I,J)) THEN
-           psfc_out(I,J)=dum2d(I,J)
-         ELSEIF (DEFINED_PSFCB(I,J)) THEN
-           psfc_out(I,J)=DUM2DB(I,J)
-         ELSE
-         ! write(0,*) 'I,J,dum2d,DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
-	 ! write(0,*) 'I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J): ', I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J)
-         ENDIF
+                psfc_out(I,J)=0.5_r_kind*(dum2d(I,J)+DUM2DB(I,J))
+             ELSEIF (DEFINED_PSFC(I,J)) THEN
+                psfc_out(I,J)=dum2d(I,J)
+             ELSEIF (DEFINED_PSFCB(I,J)) THEN
+                psfc_out(I,J)=DUM2DB(I,J)
+             ELSE
+         !       write(0,*) 'I,J,dum2d,DUM2DB: ', I,J,dum2d(I,J),DUM2DB(I,J)
+	 !       write(0,*) 'I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J): ', I,J,DEFINED_PSFC(I,J),DEFINED_PSFCB(I,J)
+             ENDIF
 
-	IF (I .eq. Ilook .AND. J .eq. Jlook) THEN
-	  write(0,*) ' combined psfc: ', I,J,psfc_out(I,J)
-        ENDIF
+             IF (I == Ilook .AND. J == Jlook) THEN
+                write(0,*) ' combined psfc: ', I,J,psfc_out(I,J)
+             ENDIF
 
-	IF (psfc_out(I,J) .lt. 50000. .or. psfc_out(I,J) .gt. 108000.) THEN
-	 !write(0,*) 'strange combo on psfc_out, terrain_hgt_t: ', I,J, psfc_out(I,J), terrain_hgt_t(I,J)
-	 !write(0,*) 'DEFINED_PSFC, dum2d: ', DEFINED_PSFC(I,J),dum2d(I,J)
-	 !write(0,*) 'DEFINED_PSFCB, DUM2DB: ', DEFINED_PSFCB(I,J),DUM2DB(I,J)
+             IF (psfc_out(I,J) < 50000._r_kind .or. psfc_out(I,J) > 108000._r_kind) THEN
+ !               write(0,*) 'strange combo on psfc_out, terrain_hgt_t: ', I,J, psfc_out(I,J), terrain_hgt_t(I,J)
+ !               write(0,*) 'DEFINED_PSFC, dum2d: ', DEFINED_PSFC(I,J),dum2d(I,J)
+ !               write(0,*) 'DEFINED_PSFCB, DUM2DB: ', DEFINED_PSFCB(I,J),DUM2DB(I,J)
 
-!	if (terrain_hgt_t(I,J) .gt. 0 .and. terrain_hgt_t(I,J) .lt. 5000.) then
-!        else
-!          write(0,*) 'will let strange psfc pass because surface topo is: ', terrain_hgt_t(I,J)
-!        endif
+!                if (terrain_hgt_t(I,J) > 0._r_kind .and. terrain_hgt_t(I,J) < 5000._r_kind) then
+!                else
+!                   write(0,*) 'will let strange psfc pass because surface topo is: ', terrain_hgt_t(I,J)
+!                endif
 
-	ENDIF
+             ENDIF
 
+          ENDDO
        ENDDO
-       ENDDO
 
-      !write(0,*) 'psfc points (final combined)'
+      ! write(0,*) 'psfc points (final combined)'
        DO J=JmE,1,-loopinc
-      !  write(0,633) (psfc_out(I,J)/100.,I=1,ime,iloopinc)
+      !    write(0,633) (psfc_out(I,J)/100.,I=1,ime,iloopinc)
        ENDDO
-	
-	deallocate(dum2d,dum2db)
 
-	END SUBROUTINE compute_nmm_surfacep
+       deallocate(dum2d,dum2db)
+
+  END SUBROUTINE compute_nmm_surfacep
 
 
 subroutine grads1a(f,nvert,mype,fname)
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_single,r_kind,i_kind
   use gridmod, only: nlat,nlon,lon2,lat2,rlats,rlons,regional
   use constants, only: rad2deg
   implicit none
 
-  integer(i_kind) nvert,mype
-  character(*) fname
-  real(r_kind)   f(lat2,lon2,nvert)
+  integer(i_kind),intent(in):: nvert,mype
+  character(*),intent(in):: fname
+  real(r_kind),intent(in):: f(lat2,lon2,nvert)
 
   real(r_kind),dimension(nlat,nlon)::work
-  real(4) outfield(nlon,nlat)
+  real(r_single) outfield(nlon,nlat)
 
   character(50) dsname,title,filename
 ! data dsname/'test.dat'/
@@ -1460,86 +1490,86 @@ subroutine grads1a(f,nvert,mype,fname)
 
   integer(i_kind) i,k,kend,kstart,next,np,ioutdes,ioutdat
   integer(i_kind) last,j,koutmax
-  real(4) undef
-  real(4) startp,pinc
-  real(4) rlons_deg(nlon)
-  real(4) rlats_deg(nlat)
+  real(r_single) undef
+  real(r_single) startp,pinc
+  real(r_single) rlons_deg(nlon)
+  real(r_single) rlats_deg(nlat)
 
-  if(mype.eq.0) then
-    if(regional) then
-       rlons_deg=rlons
-       rlats_deg=rlats
-    else
-       rlons_deg=rad2deg*rlons
-       rlats_deg=rad2deg*rlats
-    end if
-    np=nvert
-    startp=1.
-    pinc=1.
-    ioutdes=98550
-    ioutdat=98551
-    write(filename,'(a,".des")')trim(fname)
-    write(dsname,'(a,".dat")')trim(fname)
-    open(unit=ioutdes,file=trim(filename),form='formatted')
-    open(unit=ioutdat,file=trim(dsname),form='unformatted')
-    rewind ioutdes
-    rewind ioutdat
-    do i=1,50000
-      write(datdes(i),'(112a1)')(blank,k=1,112)
-    end do
-    write(datdes(1),'("DSET ",a50)')dsname
-    write(datdes(2),'("options big_endian sequential")')
-    write(datdes(3),'("TITLE ",a50)')title
-    write(datdes(4),'("UNDEF ",e11.2)')undef
-    next=5
-    write(datdes(next),'("XDEF ",i5," LEVELS")')nlon
-    kend=0
-    do
-      kstart=kend+1
-      kend=min(kstart+9,nlon)
-      if(kstart.gt.nlon) exit
-      next=next+1
-      write(datdes(next),'(10f11.4)')(rlons_deg(k),k=kstart,kend)
-    end do
-    next=next+1
-    write(datdes(next),'("YDEF ",i5," LEVELS")')nlat
-    kend=0
-    do
-      kstart=kend+1
-      kend=min(kstart+9,nlat)
-      if(kstart.gt.nlat) exit
-      next=next+1
-      write(datdes(next),'(10f11.4)')(rlats_deg(k),k=kstart,kend)
-    end do
-    next=next+1
-    write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')np,startp,pinc
-    next=next+1
-    koutmax=1
-    write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
-    next=next+1
-    write(datdes(next),'("VARS 1")')
-    next=next+1
-    write(datdes(next),'("f   ",i5," 99 f   ")')nvert
-    next=next+1
-    write(datdes(next),'("ENDVARS")')
-    last=next
-    write(ioutdes,'(a112)')(datdes(i),i=1,last)
+  if(mype==0) then
+     if(regional) then
+        rlons_deg=rlons
+        rlats_deg=rlats
+     else
+        rlons_deg=rad2deg*rlons
+        rlats_deg=rad2deg*rlats
+     end if
+     np=nvert
+     startp=1._r_single
+     pinc=1._r_single
+     ioutdes=98550
+     ioutdat=98551
+     write(filename,'(a,".des")')trim(fname)
+     write(dsname,'(a,".dat")')trim(fname)
+     open(unit=ioutdes,file=trim(filename),form='formatted')
+     open(unit=ioutdat,file=trim(dsname),form='unformatted')
+     rewind ioutdes
+     rewind ioutdat
+     do i=1,50000
+        write(datdes(i),'(112a1)')(blank,k=1,112)
+     end do
+     write(datdes(1),'("DSET ",a50)')dsname
+     write(datdes(2),'("options big_endian sequential")')
+     write(datdes(3),'("TITLE ",a50)')title
+     write(datdes(4),'("UNDEF ",e11.2)')undef
+     next=5
+     write(datdes(next),'("XDEF ",i5," LEVELS")')nlon
+     kend=0
+     do
+        kstart=kend+1
+        kend=min(kstart+9,nlon)
+        if(kstart>nlon) exit
+        next=next+1
+        write(datdes(next),'(10f11.4)')(rlons_deg(k),k=kstart,kend)
+     end do
+     next=next+1
+     write(datdes(next),'("YDEF ",i5," LEVELS")')nlat
+     kend=0
+     do
+        kstart=kend+1
+        kend=min(kstart+9,nlat)
+        if(kstart>nlat) exit
+        next=next+1
+        write(datdes(next),'(10f11.4)')(rlats_deg(k),k=kstart,kend)
+     end do
+     next=next+1
+     write(datdes(next),'("ZDEF ",i5," LINEAR ",f7.2,f7.2)')np,startp,pinc
+     next=next+1
+     koutmax=1
+     write(datdes(next),'("TDEF ",i5," LINEAR 0Z23may1992 24hr")')koutmax
+     next=next+1
+     write(datdes(next),'("VARS 1")')
+     next=next+1
+     write(datdes(next),'("f   ",i5," 99 f   ")')nvert
+     next=next+1
+     write(datdes(next),'("ENDVARS")')
+     last=next
+     write(ioutdes,'(a112)')(datdes(i),i=1,last)
 
   end if
 
   do k=1,nvert
-    call sub2grid_1a(f(1,1,k),work,0,mype)
-    if(mype.eq.0) then
-      do j=1,nlon ; do i=1,nlat
-          outfield(j,i)=work(i,j)
-      end do ; end do
-      write(ioutdat)outfield
-    end if
+     call sub2grid_1a(f(1,1,k),work,0,mype)
+     if(mype==0) then
+        do j=1,nlon ; do i=1,nlat
+           outfield(j,i)=work(i,j)
+        end do ; end do
+        write(ioutdat)outfield
+     end if
   end do
 
-  if(mype.eq.0) then
-    close(ioutdes)
-    close(ioutdat)
+  if(mype==0) then
+     close(ioutdes)
+     close(ioutdat)
   end if
 
 end subroutine grads1a
@@ -1567,17 +1597,17 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
   mm1=mype+1
 
   do j=1,lon1*lat1
-    zsm(j)=zero
+     zsm(j)=zero
   end do
   call strip(sub,zsm,1)
   call mpi_gatherv(zsm,ijn(mm1),mpi_rtype, &
                  work1,ijn,displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
-  if(mype.eq.gridpe) then
-    do k=1,iglobal
-      i=ltosi(k) ; j=ltosj(k)
-      grid(i,j)=work1(k)
-    end do
+  if(mype==gridpe) then
+     do k=1,iglobal
+        i=ltosi(k) ; j=ltosj(k)
+        grid(i,j)=work1(k)
+     end do
   end if
 
 end subroutine sub2grid_1a
@@ -1592,7 +1622,8 @@ subroutine setup_ens_pwgt
 !
 !
 ! program history log:
-!   2011_06_14  wu, initial documentation
+!   2011_06_14  wu- initial documentation
+!   2012-10-16  wu- only setup if the options are on
 !
 !   input argument list:
 !
@@ -1604,20 +1635,24 @@ subroutine setup_ens_pwgt
 !
 !$$$ end documentation block
 
-  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg
+  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,regional
+  use general_sub2grid_mod, only: general_suba2sube
   use guess_grids, only: ges_prsl,ntguessig,ges_ps
   use balmod, only: wgvk
-  use mpimod, only: mype
+  use mpimod, only: mype,npe,mpi_comm_world,ierror,mpi_rtype,mpi_sum
   use constants,only: zero,one,ten,two,half
-  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt
+  use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res
   implicit none
+
   integer(i_kind) k,i,j
   real(r_kind) sum
   integer(i_kind) k8,k1,kb,kk
   real(r_kind) pih
   real(r_kind) beta2_inv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
+  real(r_kind) rk81(2),rk810(2)
 
   if (.not.regional) then
      if (pwgtflg .or. betaflg) then 
@@ -1629,74 +1664,78 @@ subroutine setup_ens_pwgt
 
 !!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
 !!!! weigh with balanced projection for pressure
-! jsw:  this won't work for dual resolution
-! since wgvk is defined on analysis grid (lon2,lat2)
-! and pwgt is defined on ensemble grid (grd_ens%lon2,grd_ens%lat2).
+
+  if (pwgtflg ) then 
+     allocate ( wgvk_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
+     allocate ( wgvk_anl(lat2,lon2,nsig,1) )
+     if (dual_res) then
+        wgvk_anl(:,:,:,1)=wgvk(:,:,:)
+        call general_suba2sube(grd_a1,grd_e1,p_e2a,wgvk_anl,wgvk_ens,regional)
+     else
+        wgvk_ens(:,:,:,1)=wgvk(:,:,:)
+     end if
+
      pwgt=zero
      do j=1,grd_ens%lon2
         do i=1,grd_ens%lat2
            sum=zero
-           do k=1,nsig
-              sum=sum+wgvk(i,j,k)
+           do k=1,grd_ens%nsig
+              sum=sum+wgvk_ens(i,j,k,1)
            enddo
            if(sum /= zero)sum=one/sum
-           do k=1,nsig 
-              pwgt(i,j,k)=sum*wgvk(i,j,k)
+           do k=1,grd_ens%nsig
+              pwgt(i,j,k)=sum*wgvk_ens(i,j,k,1)
            enddo
         enddo
      enddo
+     deallocate(wgvk_ens,wgvk_anl)
+  endif
 !!!!!!!! setup beta12wgt !!!!!!!!!!!!!!!!
+  if(betaflg) then
+     i=lat2/2
+     j=lon2/2
 
-  i=grd_ens%lat2/2
-  j=grd_ens%lon2/2
+     k8_loop: do k=1,nsig
+        if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j,ntguessig) < .85_r_kind)then
+           rk81(1)=k
+           exit k8_loop
+        endif
+     enddo k8_loop
 
-  k8_loop: do k=1,nsig
-   if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j,ntguessig) < .85_r_kind)then
-!   if(ges_prsl(i,j,k,ntguessig) < 90._r_kind)then
-     k8=k
-     exit k8_loop
-   endif
-  enddo k8_loop
-
-  k1_loop: do k=nsig,1,-1
-   if(ges_prsl(i,j,k,ntguessig) > ten)then
-     k1=k
-     exit k1_loop
-   endif
-  enddo k1_loop
-
-
-!!!!!!!!!!! setup betawgts !!!!!!!!!!!!!!!!!!!!!
-!  if(mype==19)write(0,*)'calculating betawgt'
-!  k8=18
-
-!WWWWWWWWWWWWWWWWWWWWWWWWWWW
-  k8=22
-  k1=nsig-9
-!WWWWWWWWWWWWWWWWWWWWWWWWWWW
-
-  beta2wgt=one
-  pih=atan(one)*two/float(k8-1)
-
-  do k=1,k8-1
-!  beta2wgt(k)=half+half*sin(pih*float(k-1))
-  beta2wgt(k)=0.1_r_kind+0.9_r_kind*sin(pih*float(k-1))
-  enddo
-  pih=one/(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,nsig,ntguessig)))
-  do k=k1+1,nsig
-!  beta2wgt(k)=one-half*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
-  beta2wgt(k)=one-0.9_r_kind*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
-  enddo
-
-  beta2_inv=one-beta1_inv
-
-  beta2wgt=beta2wgt*beta2_inv
+     k1_loop: do k=nsig,1,-1
+        if(ges_prsl(i,j,k,ntguessig) > ten)then
+           rk81(2)=k
+           exit k1_loop
+        endif
+     enddo k1_loop
 
 
-  do k=1,nsig
-  beta1wgt(k)=one-beta2wgt(k)
-  enddo
+! get domain mean k8 and k1
+     call mpi_allreduce(rk81,rk810,2,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+     k8=int(rk810(1)/float(npe))
+     k1=int(rk810(2)/float(npe))
 
+     beta2wgt=one
+     pih=atan(one)*two/float(k8-1)
+
+!!! hardwired numbers for beta profile; can be tuned differently  !!!!!!!!!!!!
+     do k=1,k8-1
+        beta2wgt(k)=0.1_r_kind+0.9_r_kind*sin(pih*float(k-1))
+     enddo
+     pih=one/(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,nsig,ntguessig)))
+     do k=k1+1,nsig
+        beta2wgt(k)=one-0.9_r_kind*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
+     enddo
+
+     beta2_inv=one-beta1_inv
+
+     beta2wgt=beta2wgt*beta2_inv
+
+
+     do k=1,nsig
+        beta1wgt(k)=one-beta2wgt(k)
+     enddo
+  endif
 
   return
 
