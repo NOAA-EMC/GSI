@@ -46,7 +46,7 @@ subroutine wrwrfnmma_binary(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,eta2_ll,lat2,lon2
-  use constants, only: zero_single,r10,r100,qcmin,zero,one
+  use constants, only: zero_single,r10,r100,qcmin,zero,one,huge_i_kind
   use gsi_io, only: lendian_in,lendian_out
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -126,6 +126,10 @@ subroutine wrwrfnmma_binary(mype)
   pdba=zero  ; tba=zero  ; qba=zero  ; cwmba=zero  ; uba=zero  ; vba=zero
   pdbg0=zero ; tbg0=zero ; qbg0=zero ; cwmbg0=zero ; ubg0=zero ; vbg0=zero
   pdba0=zero ; tba0=zero ; qba0=zero ; cwmba0=zero ; uba0=zero ; vba0=zero
+
+  i_pd=huge_i_kind ; i_pint=huge_i_kind ; i_t=huge_i_kind ; i_q=huge_i_kind
+  i_u=huge_i_kind ; i_v=huge_i_kind ; i_sst=huge_i_kind ; i_tsk=huge_i_kind 
+  i_cwm=huge_i_kind ; i_f_ice=huge_i_kind ; i_f_rain=huge_i_kind ; i_f_rimef=huge_i_kind
 
   it=ntguessig
 
@@ -1422,7 +1426,7 @@ subroutine wrwrfnmma_netcdf(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip_single,lat2,lon2
-  use constants, only: zero_single,r10,r100,qcmin,zero,one
+  use constants, only: zero_single,r10,r100,qcmin,zero,one,huge_i_kind
   use gsi_io, only: lendian_in, lendian_out
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -1443,7 +1447,7 @@ subroutine wrwrfnmma_netcdf(mype)
   real(r_single),allocatable::strp(:)
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_skt,i_cwm,i_f_ice,i_f_rain,kcwm,kf_ice,kf_rain
+  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,kcwm,kf_ice,kf_rain
   integer(i_kind) igtypeh,igtypev,num_nmm_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) pd,psfc_this
@@ -1479,6 +1483,10 @@ subroutine wrwrfnmma_netcdf(mype)
   allocate(pdba(bdim),tba(bdim,lm),qba(bdim,lm),cwmba(bdim,lm),uba(bdim,lm),vba(bdim,lm))
   pdbg=zero  ; tbg=zero  ; qbg=zero  ; cwmbg=zero  ; ubg=zero  ; vbg=zero
   pdba=zero  ; tba=zero  ; qba=zero  ; cwmba=zero  ; uba=zero  ; vba=zero
+
+  i_pd=huge_i_kind ; i_pint=huge_i_kind ; i_t=huge_i_kind ; i_q=huge_i_kind
+  i_u=huge_i_kind ; i_v=huge_i_kind ; i_sst=huge_i_kind ; i_tsk=huge_i_kind
+  i_cwm=huge_i_kind ; i_f_ice=huge_i_kind ; i_f_rain=huge_i_kind
 
   it=ntguessig
 
@@ -1522,9 +1530,9 @@ subroutine wrwrfnmma_netcdf(mype)
   i_u=i_q+lm
   i_v=i_u+lm
   i_sst=i_v+lm
-  i_skt=i_sst+1
+  i_tsk=i_sst+1
   if (nguess>0) then
-     i_cwm=i_skt+1
+     i_cwm=i_tsk+1
      i_f_ice=i_cwm+lm
      i_f_rain=i_f_ice+lm
   end if
@@ -1824,7 +1832,7 @@ subroutine wrwrfnmma_netcdf(mype)
      do i=1,lon1+2
         do j=1,lat1+2
            all_loc(j,i,i_sst)=dsfct(j,i,ntguessfc)
-           all_loc(j,i,i_skt)=dsfct(j,i,ntguessfc)
+           all_loc(j,i,i_tsk)=dsfct(j,i,ntguessfc)
         end do
      end do
   end if
@@ -1883,7 +1891,7 @@ subroutine wrwrfnmma_netcdf(mype)
   if(update_regsfc) then
      if(mype == 0) read(lendian_in)temp1
 !    if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_skt),strp,1)
+     call strip_single(all_loc(1,1,i_tsk),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if (mype==0)write(6,*)' at 10.1'
