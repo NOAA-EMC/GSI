@@ -59,6 +59,7 @@ contains
 !   2004-12-29  treadon
 !   2005-05-24  pondeca - add 2dvar only surface analysis option
 !   2005-07-06  parrish - add variable update_pint
+!   2012-10-11  parrish - add byte_swap, which is set only on pe 0 and must be broadcast to all pes.
 !
 !   input argument list:
 !      mype - mpi task id
@@ -75,6 +76,7 @@ contains
     use kinds, only: i_kind,r_kind
     use mpimod, only: mpi_integer4,mpi_rtype
     use hybrid_ensemble_parameters, only: l_hyb_ens,regional_ensemble_option
+    use native_endianness, only: byte_swap
     implicit none
 
 !   Declare passed variables
@@ -105,6 +107,8 @@ contains
        call mpi_bcast(ctph0,1,mpi_rtype,0,mpi_comm_world,ierror)
        call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
        call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
+       write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
 
 
 !   Convert mass guess file to internal gsi format.  Consider
@@ -119,6 +123,8 @@ contains
           end if
        end if
        call mpi_barrier(mpi_comm_world,ierror)
+       call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
+       write(6,*)' in convert_regional_guess, for wrf arw binary input, byte_swap=',byte_swap
 
     elseif (cmaq_regional) then
        if (mype==0) then
