@@ -40,6 +40,8 @@ module hybrid_ensemble_isotropic
 !                       - option "betaflg": height dependent beta in regional
 !   2012-02-08  parrish - add changes to allow regional dual res 
 !   2012-02-08  parrish - cleanup
+!   2012-10-11  wu      - dual resolution for regional hybens options; 
+!                         use ensemble dimensions on control variable: alpha
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -2293,7 +2295,7 @@ subroutine beta12mult(grady)
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin
   use hybrid_ensemble_parameters, only: beta1_inv,n_ens,oz_univ_static
-  use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,betaflg
+  use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,betaflg,grd_ens
   use constants, only:  one
   use control_vectors
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -2353,9 +2355,9 @@ if(regional .and. betaflg) then
 
 !    next multiply by beta2inv:
      do nn=1,n_ens
-        do k=1,nsig
-           do j=1,lon2
-              do i=1,lat2
+        do k=1,grd_ens%nsig
+           do j=1,grd_ens%lon2
+              do i=1,grd_ens%lat2
                  grady%aens(ii,nn)%r3(1)%q(i,j,k) =beta2wgt(k)*grady%aens(ii,nn)%r3(1)%q(i,j,k)
               enddo
            enddo
@@ -3396,6 +3398,7 @@ subroutine hybens_localization_setup
 !   2010-07-30  kleist
 !   2011-10-03  wu - add call to setup_ens_pwgt, which computes vertical weighting for ensemble contribution
 !                     to psfc.
+!   2012-10-16  wu - only call setup_ens_pwgt if necessary
 !
 !   input argument list:
 !
@@ -3409,7 +3412,7 @@ subroutine hybens_localization_setup
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
 	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
-         pwgtflg,readin_localization,nval_lenz_en
+         readin_localization,nval_lenz_en,pwgtflg,betaflg
   use gridmod,only: regional
   use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
          normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
@@ -3477,7 +3480,7 @@ subroutine hybens_localization_setup
      call init_sf_xy(jcap_ens)
   end if
 
-  if (pwgtflg) call setup_ens_pwgt
+  if (pwgtflg .or. betaflg) call setup_ens_pwgt
 
 !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
 !     and triggered by lsqrtb.
