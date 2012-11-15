@@ -64,21 +64,21 @@ program convert_satang
 ! Read input satang file
   open(lnangl,file='satbias_ang.in',form='formatted')
   open(lnupdt,file='satbias_ang.out',form='formatted')
-  if (nstep_in <= 0) read(lnangl,*) nstep_in
+  if (nstep_in <= 0) read(lnangl,'(6x,i8)') nstep_in
   allocate(c_ang0(MAX(nstep_out,nstep_in)))
   c_ang0(:)=zero
-  write(lnupdt,*) nstep_out
+  write(lnupdt,'("nscan=",i8)') nstep_out
   ios=0
   do while (ios == 0)
      read(lnangl,110,err=120,end=120,iostat=ios) ich,satsensor0,&
-          jchanum0,tlap0,(c_ang0(i),i=1,nstep_in)
+          jchanum0,tlap0,c_ang0(1:nstep_in)
      if (shift_atms == 1 .AND. Trim(satsensor0)=='atms_npp') then
         c_ang0(4:93)=c_ang0(1:90)
         c_ang0(1:3)=c_ang0(4)
         c_ang0(94:96)=c_ang0(93)
      end if
      write(lnupdt,110) ich,satsensor0,&
-          jchanum0,tlap0,(c_ang0(i),i=1,nstep_out)
+          jchanum0,tlap0,c_ang0(1:nstep_out)
   end do
 110 format(I5,1x,A20,1x,I5,e15.6/100(4x,10f7.3/))
 

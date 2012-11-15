@@ -103,7 +103,7 @@ module radinfo
   integer(i_kind) npred         ! number of radiance biases predictors
   integer(i_kind) mype_rad      ! task id for writing out radiance diagnostics
   integer(i_kind) angord        ! order of polynomial for angle bias correction
-  integer(i_kind) maxscan       ! number of scan positions in satang file
+  integer(i_kind) maxscan       ! number of scan positions in satang file 
 
   real(r_kind),allocatable,dimension(:):: varch       ! variance for clear radiance each satellite channel
   real(r_kind),allocatable,dimension(:):: varch_cld   ! variance for cloudy radiance
@@ -449,6 +449,7 @@ contains
     real(r_kind),allocatable::cbiasx(:)
     real(r_kind),dimension(npred)::varx
     character(len=1):: cflg
+    character(len=6) :: word
     character(len=120) crecord
     character(len=20) :: isis 
     character(len=20) :: satscan_sis
@@ -586,49 +587,6 @@ contains
     end if   ! end newpc4pred
 
 
-!   Read in start,step information and cutoff values for scan edges
-    allocate(radstart(jpch_rad),radstep(jpch_rad),radnstep(jpch_rad))
-    allocate(radedge1(jpch_rad),radedge2(jpch_rad))
-    radstart=zero
-    radstep =one
-    radnstep=maxscan
-    radedge1=-1
-    radedge2=-1
-
-    inquire(file='scaninfo',exist=pcexist)
-    if (pcexist) then
-       open(lunin,file='scaninfo',form='formatted')
-       do
-          read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep,edge1,edge2
-          if (istat /= 0) exit
-          if (cflg == '!') cycle
-
-          do j =1,jpch_rad
-             if(trim(satscan_sis) == trim(nusis(j)))then
-                radstart(j)=start
-                radstep(j)=step
-                radnstep(j)=nstep
-                radedge1(j)=edge1
-                radedge2(j)=edge2
-             end if
-          end do
-       end do
-1000   format(a1,a20,2f11.3,i10,2i6)
-       close(lunin)
-    else
-       if(mype == 0) write(6,*) '***WARNING file scaninfo not found, use default'
-
-       do j =1,jpch_rad
-          call satstep(nusis(j),start,step,nstep,edge1,edge2)
-          radstart(j)=start
-          radstep(j)=step
-          radnstep(j)=nstep
-          radedge1(j)=edge1
-          radedge2(j)=edge2
-       end do
-    end if  ! if pcexist
-
-
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
@@ -640,10 +598,16 @@ contains
        update_tlapmean=.true.
     end if
 
+    maxscan=90  ! Default value for old files
     if (.not. adp_anglebc) then
-       open(lunin,file='satbias_angle',form='formatted')
+       open(lunin,file='satbias_angle',form='formatted',iostat=istat)
        nfound = .false.
-       read(lunin,*,iostat=istat) maxscan
+       if (istat == 0) then 
+         read(lunin,'(a6)') word
+         rewind(lunin)
+         if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
+       endif
+
        if (istat /= 0 .OR. maxscan <= 0 .OR. maxscan > 1000) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)
@@ -685,6 +649,48 @@ contains
           end do
        end if
     end if ! end of .not.adp_anglebc
+
+!   Read in start,step information and cutoff values for scan edges
+    allocate(radstart(jpch_rad),radstep(jpch_rad),radnstep(jpch_rad))
+    allocate(radedge1(jpch_rad),radedge2(jpch_rad))
+    radstart=zero
+    radstep =one
+    radnstep=maxscan
+    radedge1=-1
+    radedge2=-1
+
+    inquire(file='scaninfo',exist=pcexist)
+    if (pcexist) then
+       open(lunin,file='scaninfo',form='formatted')
+       do
+          read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep,edge1,edge2
+          if (istat /= 0) exit
+          if (cflg == '!') cycle
+
+          do j =1,jpch_rad
+             if(trim(satscan_sis) == trim(nusis(j)))then
+                radstart(j)=start
+                radstep(j)=step
+                radnstep(j)=nstep
+                radedge1(j)=edge1
+                radedge2(j)=edge2
+             end if
+          end do
+       end do
+1000   format(a1,a20,2f11.3,i10,2i6)
+       close(lunin)
+    else
+       if(mype == 0) write(6,*) '***WARNING file scaninfo not found, use default'
+
+       do j =1,jpch_rad
+          call satstep(nusis(j),start,step,nstep,edge1,edge2)
+          radstart(j)=start
+          radstep(j)=step
+          radnstep(j)=nstep
+          radedge1(j)=edge1
+          radedge2(j)=edge2
+       end do
+    end if  ! if pcexist
 
 
     if ( .not. retrieval ) then
@@ -992,8 +998,8 @@ contains
       if (index(isis,'hirs')/=0 .and. (index(isis,'n16')/=0 .or. &
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
-!xxx      else if (index(isis,'atms') /= 0) then
-!xxx         ifov=ifov+3
+      else if (index(isis,'atms') /= 0 .AND. maxscan < 96) then
+         ifov=ifov+3
       else
          ifov=iscan
       end if
@@ -1115,8 +1121,13 @@ contains
       step  = 1.11_r_kind
       start = -52.725_r_kind
       nstep = 96
-      edge1 = 10
-      edge2 = 87
+      if (maxscan < 96) then
+        edge1=7
+        edge2=84
+      else
+        edge1 = 10
+        edge2 = 87
+      endif
    else if (index(isis,'mhs')/=0) then
       step  = 10.0_r_kind/9.0_r_kind
       start = -445.0_r_kind/9.0_r_kind
