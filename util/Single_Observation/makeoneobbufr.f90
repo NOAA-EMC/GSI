@@ -131,6 +131,5 @@ program makeoneobbufr
     enddo
     call closbf(lendian_in)
 
-    return
 end program makeoneobbufr
 
