@@ -49,7 +49,7 @@ subroutine wrwrfnmma_binary(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,eta2_ll,lat2,lon2
-  use constants, only: zero_single,r10,r100,qcmin,zero,one,huge_i_kind
+  use constants, only: zero_single,r10,r100,qcmin,zero,one
   use gsi_io, only: lendian_in,lendian_out
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -132,10 +132,6 @@ subroutine wrwrfnmma_binary(mype)
   pdba=zero  ; tba=zero  ; qba=zero  ; cwmba=zero  ; uba=zero  ; vba=zero
   pdbg0=zero ; tbg0=zero ; qbg0=zero ; cwmbg0=zero ; ubg0=zero ; vbg0=zero
   pdba0=zero ; tba0=zero ; qba0=zero ; cwmba0=zero ; uba0=zero ; vba0=zero
-
-  i_pd=huge_i_kind ; i_pint=huge_i_kind ; i_t=huge_i_kind ; i_q=huge_i_kind
-  i_u=huge_i_kind ; i_v=huge_i_kind ; i_sst=huge_i_kind ; i_tsk=huge_i_kind 
-  i_cwm=huge_i_kind ; i_f_ice=huge_i_kind ; i_f_rain=huge_i_kind ; i_f_rimef=huge_i_kind
 
   it=ntguessig
 
@@ -640,7 +636,7 @@ subroutine wrwrfnmma_binary(mype)
      if((ifld==i_sst.or.ifld==i_tsk).and..not.update_regsfc) cycle
      call move_ibuf_hg(ibuf(1,ifld),temp1,im,jm,im,jm)
      call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtype(ifld))
+                        nguess,im,jm,lm,bdim,igtype(ifld))
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
      if(ifld==i_sst.or.ifld==i_tsk) then
@@ -659,7 +655,7 @@ subroutine wrwrfnmma_binary(mype)
      if(filled_grid) call unfill_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
      if(half_grid)   call unhalf_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
      call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtype(ifld))
+                        nguess,im,jm,lm,bdim,igtype(ifld))
      call move_hg_ibuf(temp1,ibuf(1,ifld),im,jm,im,jm)
   end do
 
@@ -855,7 +851,7 @@ subroutine wrwrfnmma_binary(mype)
 end subroutine wrwrfnmma_binary
 
 subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtype)
+                         nguess,im,jm,lm,bdim,igtype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_bndy_file          collect boundary variables on nmm grid
@@ -865,6 +861,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 !
 ! program history log:
 !   2004-06-23  parrish, document
+!   2012-11-19  tong, added nguess > 0 condition for cloud variable cwm.
 !
 !   input argument list:
 !     temp1    - input 2d field
@@ -875,6 +872,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 !     i_cwm    - same as for i_t but for cloud variable
 !     i_u      - same as for i_t but for u
 !     i_v      - same as for i_t but for v
+!     nguess   - number of cloud guess variables
 !     im,jm,lm - wrf nmm grid dimensions
 !     bdim     - number of points around boundary
 !     igtype   - =1, then h grid, =2, then v grid
@@ -897,6 +895,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
   implicit none
 
   integer(i_kind),intent(in   ) :: ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v,im,jm,lm,bdim,igtype
+  integer(i_kind),intent(in   ) :: nguess
   real(r_single), intent(in   ) :: temp1(im,jm)
   real(r_single), intent(  out) :: pdb(bdim),tb(bdim,lm),qb(bdim,lm),cwmb(bdim,lm),ub(bdim,lm),vb(bdim,lm)
 
@@ -965,7 +964,7 @@ subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,
 
      qb(:,ifld-i_q+1)=bndy(:)
 
-  elseif(ifld >= i_cwm .and. ifld-i_cwm+1 <= lm) then
+  elseif(ifld >= i_cwm .and. ifld-i_cwm+1 <= lm .and. nguess > 0) then
 
      cwmb(:,ifld-i_cwm+1)=bndy(:)
 
@@ -1492,7 +1491,7 @@ subroutine wrwrfnmma_netcdf(mype)
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip_single,lat2,lon2
-  use constants, only: zero_single,r10,r100,qcmin,zero,one,huge_i_kind
+  use constants, only: zero_single,r10,r100,qcmin,zero,one
   use gsi_io, only: lendian_in, lendian_out
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -1549,10 +1548,6 @@ subroutine wrwrfnmma_netcdf(mype)
   allocate(pdba(bdim),tba(bdim,lm),qba(bdim,lm),cwmba(bdim,lm),uba(bdim,lm),vba(bdim,lm))
   pdbg=zero  ; tbg=zero  ; qbg=zero  ; cwmbg=zero  ; ubg=zero  ; vbg=zero
   pdba=zero  ; tba=zero  ; qba=zero  ; cwmba=zero  ; uba=zero  ; vba=zero
-
-  i_pd=huge_i_kind ; i_pint=huge_i_kind ; i_t=huge_i_kind ; i_q=huge_i_kind
-  i_u=huge_i_kind ; i_v=huge_i_kind ; i_sst=huge_i_kind ; i_tsk=huge_i_kind
-  i_cwm=huge_i_kind ; i_f_ice=huge_i_kind ; i_f_rain=huge_i_kind
 
   it=ntguessig
 
@@ -1741,7 +1736,7 @@ subroutine wrwrfnmma_netcdf(mype)
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
      call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,i_pd,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                        nguess,im,jm,lm,bdim,igtypeh)
 !     if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
@@ -1756,7 +1751,7 @@ subroutine wrwrfnmma_netcdf(mype)
 !    if(mype == 0) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      write(lendian_out)temp1
      call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,i_pd,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                        nguess,im,jm,lm,bdim,igtypeh)
   end if
 
 !  FIS read/write
@@ -1797,7 +1792,7 @@ subroutine wrwrfnmma_netcdf(mype)
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                           nguess,im,jm,lm,bdim,igtypeh)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         do i=1,iglobal
@@ -1807,7 +1802,7 @@ subroutine wrwrfnmma_netcdf(mype)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         write(lendian_out)temp1
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                           nguess,im,jm,lm,bdim,igtypeh)
      end if
   end do
 ! if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
@@ -1823,7 +1818,7 @@ subroutine wrwrfnmma_netcdf(mype)
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                           nguess,im,jm,lm,bdim,igtypeh)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         do i=1,iglobal
@@ -1833,7 +1828,7 @@ subroutine wrwrfnmma_netcdf(mype)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         write(lendian_out)temp1
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                           nguess,im,jm,lm,bdim,igtypeh)
      end if
   end do
 
@@ -1848,7 +1843,7 @@ subroutine wrwrfnmma_netcdf(mype)
 !    if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypev)
+                           nguess,im,jm,lm,bdim,igtypev)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
 !       if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
@@ -1864,7 +1859,7 @@ subroutine wrwrfnmma_netcdf(mype)
 !       if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
         write(lendian_out)temp1
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypev)
+                           nguess,im,jm,lm,bdim,igtypev)
      end if
   end do
 ! if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
@@ -1879,7 +1874,7 @@ subroutine wrwrfnmma_netcdf(mype)
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
         call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypev)
+                           nguess,im,jm,lm,bdim,igtypev)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         do i=1,iglobal
@@ -1889,7 +1884,7 @@ subroutine wrwrfnmma_netcdf(mype)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         write(lendian_out)temp1
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypev)
+                           nguess,im,jm,lm,bdim,igtypev)
      end if
   end do
 
@@ -1994,12 +1989,12 @@ subroutine wrwrfnmma_netcdf(mype)
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
            call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                              nguess,im,jm,lm,bdim,igtypeh)
            if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            write(lendian_out)temp1
            call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         im,jm,lm,bdim,igtypeh)
+                              nguess,im,jm,lm,bdim,igtypeh)
         end if
      end do
 
