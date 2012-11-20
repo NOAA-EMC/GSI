@@ -156,7 +156,7 @@
       npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,&
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
-      nst_gsi,nstinfo,nst_tzr,maxscan
+      nst_gsi,nstinfo,nst_tzr
   use read_diag, only: iversion_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
   use obsmod, only: ianldate,ndat,mype_diaghdr,nchan_total, &
@@ -1463,11 +1463,7 @@
  
            diagbuf(4)  = dtime-time_offset              ! observation time (hours relative to analysis time)
 
-           if (atms .and. maxscan < 96) then 
-             diagbuf(5)  = data_s(iscan_pos,n)+3        ! sensor scan position 
-           else
-             diagbuf(5)  = data_s(iscan_pos,n)          ! sensor scan position
-           endif 
+           diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position 
            diagbuf(6)  = zasat*rad2deg                  ! satellite zenith angle (degrees)
            diagbuf(7)  = data_s(ilazi_ang,n)            ! satellite azimuth angle (degrees)
            diagbuf(8)  = pangs                          ! solar zenith angle (degrees)
