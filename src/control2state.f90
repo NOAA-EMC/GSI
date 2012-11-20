@@ -60,7 +60,7 @@ use gsi_bundlemod, only: assignment(=)
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use constants, only : max_varname_length
+use constants, only : max_varname_length, zero
 implicit none
   
 ! Declare passed variables  
@@ -72,7 +72,7 @@ type(predictors)    , intent(inout) :: bval
 character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus
+integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle):: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -81,7 +81,7 @@ type(gsi_bundle):: wbundle ! work bundle
 ! Declare required local control variables
 integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis
+integer(i_kind) :: icpblh,icgust,icvis,icoz
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ' /)
@@ -153,6 +153,7 @@ else
    do_cw_to_hydro=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
 endif
 
+call gsi_bundlegetpointer (xhat%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'pblh',icpblh,istatus)
@@ -184,7 +185,8 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
-   call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus)
+!  call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus)     
+   call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus_oz)  
    call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
    if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
    if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
@@ -207,7 +209,11 @@ do jj=1,nsubwin
 
 !  Copy other variables
    call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
-   call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
+   if (icoz>0) then
+      call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
+   else
+      if(istatus_oz==0) sv_oz=zero   
+   end if
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
    if (icgust>0) call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )

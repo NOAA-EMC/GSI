@@ -1222,6 +1222,8 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
 !   2007-04-12  parrish - add modifications to allow any combination of ikj or ijk
 !                          grid ordering for input 3D fields
+!   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
+!                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1247,6 +1249,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   use gsi_io, only: lendian_out
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar,nemsio_readrecv
+  use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max
   implicit none
 
 ! integer(i_kind),parameter:: in_unit = 15
@@ -1259,11 +1262,15 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   character(255) wrfges,fileout
   
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_regional_new
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   real(r_single) dy_nmm
   integer(i_kind) i,j,ii,k,n
   real(r_single),allocatable::field1(:),field1p(:),field2(:),field2b(:),field2c(:)
+  real(r_single),allocatable::aeta1(:),deta1(:),eta1(:)
+  real(r_single),allocatable::aeta2(:),deta2(:),eta2(:)
+  real(r_single),allocatable::aeta1_new(:),deta1_new(:),eta1_new(:)
+  real(r_single),allocatable::aeta2_new(:),deta2_new(:),eta2_new(:)
   integer(i_kind) idate(7),nrec,iret
   character(4) gdatatype,modelname
   character(32) gtype
@@ -1371,104 +1378,139 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      write(6,*)' convert_nems_nmmb: pdtop_regional,iret=',pdtop_regional,iret
 
      fhour=nfhour
-     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,fhour, &
-          nlon_regional,nlat_regional,nsig_regional, &
-          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   
   
 !                  dsg1 (used to be deta1) 
 
-     allocate(dsg1(nsig_regional),field1(nsig_regional))
+     allocate(dsg1(nsig_regional),deta1(nsig_regional))
      call nemsio_getheadvar(gfile,'DSG1',dsg1,iret)
      write(6,*)' convert_nems_nmmb: retrieve dsg1,iret=',iret
 
      do k=1,nsig_regional
-        field1(k)=dsg1(nsig_regional+1-k)
-        write(6,*)' convert_nems_nmmb: k,dsg1 (deta1)(k)=',k,field1(k)
+        deta1(k)=dsg1(nsig_regional+1-k)
+        write(6,*)' convert_nems_nmmb: k,dsg1 (deta1)(k)=',k,deta1(k)
      end do
 
-     write(lendian_out)field1             !  DETA1
 
 !                  sgml1    (used to be aeta1)
 
-     allocate(sgml1(nsig_regional))
+     allocate(sgml1(nsig_regional),aeta1(nsig_regional))
      call nemsio_getheadvar(gfile,'SGML1',sgml1,iret)
      write(6,*)' convert_nems_nmmb: retrieve sgml1,iret=',iret
 
      do k=1,nsig_regional
-        field1(k)=sgml1(nsig_regional+1-k)
-        write(6,*)' convert_nems_nmmb: k,sgml1 (aeta1)(k)=',k,field1(k)
+        aeta1(k)=sgml1(nsig_regional+1-k)
+        write(6,*)' convert_nems_nmmb: k,sgml1 (aeta1)(k)=',k,aeta1(k)
      end do
      nmmb_verttype='OLD'
-     if(field1(1)<.6_r_single) then
+     if(aeta1(1)<.6_r_single) then
         nmmb_verttype='NEW'
      end if
 
-     write(lendian_out)field1             !  AETA1
   
 !                  sg1       (used to be eta1)
 
-     allocate(sg1(nsig_regional+1),field1p(nsig_regional+1))
+     allocate(sg1(nsig_regional+1),eta1(nsig_regional+1))
      call nemsio_getheadvar(gfile,'SG1',sg1,iret)
      write(6,*)' convert_nems_nmmb: retrieve sg1,iret=',iret
 
      do k=1,nsig_regional+1
-        field1p(k)=sg1(nsig_regional+2-k)
-        write(6,*)' convert_nems_nmmb: k,sg1 (eta1)(k)=',k,field1p(k)
+        eta1(k)=sg1(nsig_regional+2-k)
+        write(6,*)' convert_nems_nmmb: k,sg1 (eta1)(k)=',k,eta1(k)
      end do
 
-     write(lendian_out)field1p            !  ETA1
 
 !                  dsg2 (used to be deta2) 
 
-     allocate(dsg2(nsig_regional))
+     allocate(dsg2(nsig_regional),deta2(nsig_regional))
      call nemsio_getheadvar(gfile,'DSG2',dsg2,iret)
      write(6,*)' convert_nems_nmmb: retrieve dsg2,iret=',iret
 
      do k=1,nsig_regional
-        field1(k)=dsg2(nsig_regional+1-k)
-        write(6,*)' convert_nems_nmmb: k,dsg2 (deta2)(k)=',k,field1(k)
+        deta2(k)=dsg2(nsig_regional+1-k)
+        write(6,*)' convert_nems_nmmb: k,dsg2 (deta2)(k)=',k,deta2(k)
      end do
 
-     write(lendian_out)field1             !  DETA2
 
 !                  sgml2    (used to be aeta2)
 
-     allocate(sgml2(nsig_regional))
+     allocate(sgml2(nsig_regional),aeta2(nsig_regional+1))
      call nemsio_getheadvar(gfile,'SGML2',sgml2,iret)
      write(6,*)' convert_nems_nmmb: retrieve sgml2,iret=',iret
 
      do k=1,nsig_regional
-        field1(k)=sgml2(nsig_regional+1-k)
-        write(6,*)' convert_nems_nmmb: k,sgml2 (aeta2)(k)=',k,field1(k)
+        aeta2(k)=sgml2(nsig_regional+1-k)
+        write(6,*)' convert_nems_nmmb: k,sgml2 (aeta2)(k)=',k,aeta2(k)
      end do
 
-     write(lendian_out)field1             !  AETA2
 
 !                  sg2       (used to be eta2)
 
-     allocate(sg2(nsig_regional+1))
+     allocate(sg2(nsig_regional+1),eta2(nsig_regional+1))
      call nemsio_getheadvar(gfile,'SG2',sg2,iret)
      write(6,*)' convert_nems_nmmb: retrieve sg2,iret=',iret
 
      do k=1,nsig_regional+1
-        field1p(k)=sg2(nsig_regional+2-k)
-        write(6,*)' convert_nems_nmmb: k,sg2 (eta2)(k)=',k,field1p(k)
+        eta2(k)=sg2(nsig_regional+2-k)
+        write(6,*)' convert_nems_nmmb: k,sg2 (eta2)(k)=',k,eta2(k)
      end do
 
-     write(lendian_out)field1p            !  ETA2
+!----------------------------------------detect if new nmmb coordinate:
+       nmmb_verttype='OLD'
+       if(aeta1(1)<.6_r_single) then
+          write(6,*)' in convert_nems_nmmb, detect new nmmb vert coordinate'
+          aeta1=aeta1+aeta2
+          eta1=eta1+eta2
+          deta1=deta1+deta2      !  even though deta1 not used, probably needed to do this--will see
+          nmmb_verttype='NEW'
+       end if
 
-     write(6,*)' NEW NMMB EQUIVALENT VERTICAL COORDINATE PARAMETERS FOLLOW:'
+!  check to see if merging with gfs stratosphere
+     if(use_gfs_stratosphere) then
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
 
-     do k=1,nsig_regional
-        write(6,'(" k,dsg1,sgml1,sg1,dsg2,sgml2,sg2=",i3,6f12.7)') &
-                  k,dsg1(k),sgml1(k),sg1(k),dsg2(k),sgml2(k),sg2(k)
-     end do
-     k=nsig_regional+1
-     write(6,'(" k,           sg1,           sg2=",i3,24x,f12.7,24x,f12.7)') &
-               k,                   sg1(k),                   sg2(k)
+!  generate new mixed vertical coordinate info:
+        call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
+                                  pdtop_regional,pt_regional,nsig_regional, &
+                           deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)
+        write(6,*)' in convert_nems_nmmb, compute new vertical coordinate which is merged with gfs'
+        write(6,*)' previous nsig_regional=',nsig_regional
 
-     deallocate(field1,field1p,sg1,sg2,sgml1,sgml2,dsg1,dsg2)
+!   replace nsig_regional and deta1, aeta1, eta1, deta2, aeta2,eta2 with new mixed nmmb-gfs version:
+        nsig_regional=nsig_regional_new
+        write(6,*)'      new nsig_regional=',nsig_regional
+        deallocate(deta1,aeta1,eta1)
+        deallocate(deta2,aeta2,eta2)
+        allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
+        allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
+        do k=1,nsig_regional
+           deta1(k)=deta1_new(k)
+           aeta1(k)=aeta1_new(k)
+           deta2(k)=deta2_new(k)
+           aeta2(k)=aeta2_new(k)
+        end do
+        do k=1,nsig_regional+1
+           eta1(k)=eta1_new(k)
+           eta2(k)=eta2_new(k)
+        end do
+        deallocate(deta1_new,aeta1_new,eta1_new)
+        deallocate(deta2_new,aeta2_new,eta2_new)
+
+     end if
+
+     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,fhour, &
+          nlon_regional,nlat_regional,nsig_regional, &
+          dlmd_regional,dphd_regional,pt_regional,pdtop_regional,nmmb_verttype
+     write(lendian_out)deta1              !  DETA1
+     write(lendian_out)aeta1              !  AETA1
+     write(lendian_out)eta1               !  ETA1
+     write(lendian_out)deta2              !  DETA2
+     write(lendian_out)aeta2              !  AETA2
+     write(lendian_out)eta2               !  ETA2
+     deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2)
+
+     deallocate(sg1,sg2,sgml1,sgml2,dsg1,dsg2)
      allocate(field2(nlon_regional*nlat_regional))
      allocate(field2b(nlon_regional*nlat_regional))
      allocate(field2c(nlon_regional*nlat_regional))

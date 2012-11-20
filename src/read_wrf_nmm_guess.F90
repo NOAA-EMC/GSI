@@ -923,6 +923,8 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !   2006-07-31  kleist - change to use ges_ps instead of lnps
 !   2007-03-13  derber - remove unused qsinv2 from jfunc use list
 !   2008-04-16  safford - rm unused uses
+!   2012-10-11  eliu - add capability of uing gfs-regional blended vertical coordinate 
+!                      for wrf_nmm_regional (HWRF)                 
 !
 !   input argument list:
 !     mype     - pe number
@@ -947,15 +949,17 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_kind
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,ges_oz, &
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
        pdtop_ll,pt_ll,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid
+  use gridmod, only: regional
   use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: getindex
@@ -1012,6 +1016,8 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !          lm -- number of NMM vertical levels ( = nsig for now)
 
 
+     good_o3mr=.false.  ! no input guess for ozone; will use gfs ozone
+
      num_doubtful_sfct=0
 
      im=nlon_regional
@@ -1033,6 +1039,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      if (nguess>0) num_nmm_fields=num_nmm_fields+4*lm
      num_all_fields=num_nmm_fields*nfldsig
      num_loc_groups=num_all_fields/npe
+
      if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, lm            =",i6)')lm
      if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_nmm_fields=",i6)')num_nmm_fields
      if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, nfldsig       =",i6)')nfldsig
@@ -1192,6 +1199,8 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      do it=1,nfldsig
         write(filename,'("sigf",i2.2)')ifilesig(it)
         open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
+        if (mype==0) &
+        write(6,*) 'in read_wrf_nmm_netcdf: it filename = ', it, filename
 
 !       Read, interpolate, and distribute NMM restart fields
         do ifld=1,num_nmm_fields
@@ -1213,6 +1222,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end do
               end if
 !             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)'),ifld,temp1(im/2,jm/2)
+!             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,5x,a30,e15.5)'),ifld,identity(ifld),temp1(im/2,jm/2)                                                  
               if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
               if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
 
@@ -1277,6 +1287,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  ges_v(j,i,k,it) = all_loc(j,i,kv)
                  ges_q(j,i,k,it)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
+                 ges_oz(j,i,k,it) = zero               ! set to zero for now 
 
                  if (nguess>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
@@ -1312,6 +1323,8 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            end do
         end do
 
+        if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(ges_ps)=', &          
+             minval(ges_ps),maxval(ges_ps)                                                        
         if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_moi)=', &
              minval(soil_moi),maxval(soil_moi)
         if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_temp)=', &
@@ -1341,7 +1354,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               end do
            end do
         end do
-     end do
+     end do ! it loop  
 
 !    Transfer surface fields
      do it=1,nfldsig
@@ -1380,7 +1393,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               end if
            end do
         end do
-     end do
+     end do ! it loop 
      
      call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
           0,mpi_comm_world,ierror)
@@ -1400,6 +1413,18 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      deallocate(all_loc,jsig_skip,igtype,identity)
      deallocate(temp1,itemp1)
 
+     if (use_gfs_stratosphere) then
+        if (mype==0) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...beg'     
+        call add_gfs_stratosphere
+        if (mype==0) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...end'         
+     endif
+
+     if (mype==0) then
+        do k=1,nsig
+           write(6,*)' in read_wrf_nmm_netcdf_k,ges_tv  =',k,ges_tv(10,10,k,1)   !debug            
+           write(6,*)' in read_wrf_nmm_netcdf_k,ges_tsen=',k,ges_tsen(10,10,k,1) !debug        
+        enddo
+     endif
 
 end subroutine read_wrf_nmm_netcdf_guess
 
@@ -1424,6 +1449,7 @@ subroutine read_nems_nmmb_guess(mype)
 !                           read_gfs_ozone_for_regional.
 !   2010-03-15  parrish - add option regional_ozone to turn on ozone in regional analysis
 !   2011-06-16  zhu     - add option to read cloud info for cloudy radiance
+!   2012-02-16  parrish - include option to replace nmmb stratosphere with gfs stratosphere.
 !
 !   input argument list:
 !     mype     - pe number
@@ -1451,11 +1477,13 @@ subroutine read_nems_nmmb_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ges_tsen,ges_oz,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+  use guess_grids, only: ges_prsi,ges_prsl,ges_prslavg
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone,& 
        aeta1_ll,aeta2_ll
   use constants, only: zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01,ten
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
@@ -1474,7 +1502,7 @@ subroutine read_nems_nmmb_guess(mype)
   character(255) wrfges
   character(len=*),parameter :: myname_='read_nems_nmmb_guess:: '
   integer(i_kind) i,it,j,k,kr,mype_input
-  integer(i_kind) isli_this
+  integer(i_kind) isli_this,nsig_read
   real(r_kind) pd,psfc_this,wmag,pd_to_ps
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   real(r_kind),dimension(lat2,lon2):: smthis,sicethis,u10this,v10this,sstthis,tskthis
@@ -1490,7 +1518,12 @@ subroutine read_nems_nmmb_guess(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qg
   real(r_kind),pointer,dimension(:,:,:):: ges_qh
 
-  logical good_o3mr
+!  check to see if using GFS stratosphere:
+  if(use_gfs_stratosphere) then
+     nsig_read=nsig_save
+  else
+     nsig_read=nsig
+  end if
 
 ! get conversion factor for pd to psfc
 
@@ -1499,6 +1532,8 @@ subroutine read_nems_nmmb_guess(mype)
   else
      pd_to_ps=pt_ll
   end if
+      write(6,*) ' in read_nems_nmmb_guess, nmmb_verttype,pdtop_ll,pt_ll,pd_to_ps=', &
+                                            nmmb_verttype,pdtop_ll,pt_ll,pd_to_ps
 
 ! Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
   icw4crtm=getindex(cvars3d,'cw')
@@ -1534,6 +1569,7 @@ subroutine read_nems_nmmb_guess(mype)
            pd=r0_01*ges_pd(j,i,it)
            psfc_this=pd+pd_to_ps
            ges_ps(j,i,it)=one_tenth*psfc_this
+                  if(i==1.and.j==1) write(6,*)' i,j,psfc_this,ges_ps(j,i,it)=',i,j,psfc_this,ges_ps(j,i,it)
         end do
      end do
 
@@ -1542,8 +1578,15 @@ subroutine read_nems_nmmb_guess(mype)
      call gsi_nemsio_read('hgt','sfc','H',1,ges_z(:,:,it),mype,mype_input)
 
 !                          !   u,v,q,tsen,tv
-     do kr=1,nsig
-        k=nsig+1-kr
+     do k=nsig_read+1,nsig
+        ges_u(:,:,k,it)=zero
+        ges_v(:,:,k,it)=zero
+        ges_q(:,:,k,it)=zero
+        ges_tsen(:,:,k,it)=zero
+        ges_oz(:,:,k,it)=zero
+     end do
+     do kr=1,nsig_read
+        k=nsig_read+1-kr
         call gsi_nemsio_read('ugrd','mid layer','V',kr,ges_u(:,:,k,it),   mype,mype_input)
         call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k,it),   mype,mype_input)
         call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k,it),   mype,mype_input)
@@ -1559,7 +1602,10 @@ subroutine read_nems_nmmb_guess(mype)
            else
               good_o3mr=.false.
               call gsi_nemsio_read('o3mr' ,'mid layer','H',kr,ges_oz(:,:,k,it),mype,mype_input,good_o3mr)
-              if(.not.good_o3mr) write(6,*)' IN READ_NEMS_NMMB_GUESS, O3MR FIELD NOT YET AVAILABLE'
+              if(.not.good_o3mr) then
+                 write(6,*)' IN READ_NEMS_NMMB_GUESS, O3MR FIELD NOT YET AVAILABLE'
+                 ges_oz(:,:,k,it)=zero
+              end if
            end if
         end if
      end do
@@ -1605,8 +1651,11 @@ subroutine read_nems_nmmb_guess(mype)
                                    !   pint
      if(update_pint) then
 
-        do kr=1,nsig+1
-           k=nsig+2-kr
+        do k=nsig_read+2,nsig+1
+           ges_pint(:,:,k,it)=zero
+        end do
+        do kr=1,nsig_read+1
+           k=nsig_read+2-kr
            call gsi_nemsio_read('pres' ,'layer','H',kr,ges_pint(:,:,k,it),mype,mype_input)
         end do
 
@@ -1722,6 +1771,13 @@ subroutine read_nems_nmmb_guess(mype)
      if(mype == 0) write(6,*)' in read_nems_nmmb_binary_guess, num_doubtful_sfct_all = ', &
                                                            num_doubtful_sfct_all
   end do ! enddo it
+
+  if(use_gfs_stratosphere) call add_gfs_stratosphere
+
+     do k=1,nsig
+                     if(mype==0) &
+         write(6,*)' k,ges_tv=',k,ges_tv(10,10,k,1)  ! debug
+     end do
 
   return 
 end subroutine read_nems_nmmb_guess
