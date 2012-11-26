@@ -12,6 +12,9 @@ module mod_vtrans
 !   2006-06-26
 !   2007-05-08   kleist - finish vertical coordinate generalization
 !   2011-07-04  todling  - fixes to run either single or double precision
+!   2012-11-19  parrish - compute vertical mode information on pe 0 only, and
+!                          then broadcast results to other processors.
+!                          This fixes a problem with reproducibility encountered on tide.
 !
 ! subroutines included:
 !   sub init_vtrans              - initialize vertical mode related variables
@@ -153,6 +156,9 @@ contains
 !   2006-06-26  parrish
 !   2007-02-26  yang    - replace IBM subroutine of dgeev by GSI dgeev
 !   2010-04-01  treadon - move strip to gridmod
+!   2012-11-19  parrish - compute vertical mode information on pe 0 only, and
+!                          then broadcast results to other processors.
+!                          This fixes a problem with reproducibility encountered on tide.
 !
 !
 ! usage:
@@ -279,6 +285,8 @@ contains
        k=nsig+1
        write(6,'(" k,pbar      = ",i5,f15.2)')k,pbar(k)
     end if
+
+if(mype==0) then    ! BEGIN MYPE=0 SECTION !!!!!!!!!!!!!
 
     hmat=zero ; smat=zero ; amat=zero ; bmat=zero
 
@@ -450,6 +458,19 @@ contains
 !         write(6,*)' i,phihat2t=',i,phihat2t(i,1:min(4,nvmodes_keep))
 !      end do
 !   end if
+
+  end if  ! END MYPE=0 SECTION !!!!!!!!!!!!!
+
+!  BROADCAST RESULTS FROM ABOVE SECTION TO ALL PES
+
+    call mpi_bcast(depths,nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(speeds,nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(vmodes,nsig*nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(phihat2t,nsig*nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(dualmodes,nsig*nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(t2phihat,nsig*nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(p2phihat,nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
+    call mpi_bcast(phihat2p,nvmodes_keep,mpi_rtype,0,mpi_comm_world,ierror)
 
   end subroutine create_vtrans
 

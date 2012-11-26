@@ -23,14 +23,17 @@ CORELIB  = /nwprod/lib
 
 #--- Normal mode options
   PROF= #-pg
-  OMP = #-qsmp=noauto
+  OMP = #-openmp
 
   FFLAGS_F90    = -D_REAL8_ 
-  FFLAGS_COM_N  = -I ./  -O3 -fp-model strict -convert big_endian -assume byterecl -g -traceback
+  FFLAGS_COM_N  = -I ./  -O3 -fp-model strict -convert big_endian -assume byterecl \
+  		-implicitnone -traceback
   FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -O0 -convert big_endian -assume byterecl -debug full -g -traceback
+  FFLAGS_COM_D  =  -I ./ -O0 -fp-model strict -convert big_endian -assume byterecl \
+  		-implicitnone -g -traceback -debug -check -warn
+
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
 
 
@@ -38,11 +41,11 @@ CORELIB  = /nwprod/lib
 # C Compiler and options
 # ----------------------
 
-  CC            = gcc
+  CC            = mpcc
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
 
 #--- Debug mode options
 
@@ -53,12 +56,12 @@ CORELIB  = /nwprod/lib
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -lmpi
+  LD            = $(CF) -Wl,-Map,loadmap.txt
 
 #--- Normal mode options
   LIBS_N        = -L$(CORELIB) -lw3nco_4
 
-  LDFLAGS_N     =
+  LDFLAGS_N     = -Wl,-Map,loadmap.txt
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -66,7 +69,7 @@ CORELIB  = /nwprod/lib
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     =
+  LDFLAGS_D     = $(LDFLAGS)
 
 #--- Empty out mpi library definition: embedded in compiler
 
