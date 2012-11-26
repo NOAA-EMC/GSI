@@ -365,6 +365,8 @@ contains
 ! program history log:
 !   2005-03-21  treadon
 !   2006-02-02  derber  - modify code around poles (no difference)
+!   2012-06-06  parrish - remove itotsub, ltosi, ltosj, etc. from subroutine uv2vordiv. Change work1,work2
+!                           dimensions from (itotsub) to (nlat,nlon)
 !
 !   input argument list:
 !     work1  - array containing the u component
@@ -380,15 +382,14 @@ contains
 !$$$
 
   use constants, only: zero,one
-  use gridmod, only: iglobal,itotsub,ltosi,ltosj,ltosi_s,ltosj_s,&
-       nlon,nlat
+  use gridmod, only: nlon,nlat
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(itotsub),intent(inout) :: work1,work2
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: work1,work2
 
 ! Declare local variables  
-  integer(i_kind) kk,ni1,ni2,lacox1,nxa,lacox2,lbcox1,nxh,ny,nya
+  integer(i_kind) i,j,lacox1,nxa,lacox2,lbcox1,nxh,ny,nya
   integer(i_kind) nbp,lcy,lbcoy2,iy,ix,lacoy1,lbcox2,lacoy2,lbcoy1
   real(r_kind) rnlon,div_n,div_s,vor_n,vor_s
   real(r_kind),dimension(nlat-2,nlon):: u,v,&
@@ -425,12 +426,11 @@ contains
 
 
 ! Transfer u,v to local work arrays.  
-  do kk=1,iglobal
-     ni1=ltosi(kk); ni2=ltosj(kk)
-     if(ni1 /= 1 .and. ni1 /= nlat)then
-        u(ni1-1,ni2)=work1(kk)   ! work1 contains u on input
-        v(ni1-1,ni2)=work2(kk)   ! work2 contains v on input
-     end if
+  do j=1,nlon
+     do i=2,nlat-1
+        u(i-1,j)=work1(i,j)   ! work1 contains u on input
+        v(i-1,j)=work2(i,j)   ! work2 contains v on input
+     end do
   end do
 
 ! Compute x derivative of u:  du_dlon = du/dlon
@@ -491,18 +491,15 @@ contains
   vor_n = vor_n*rnlon
   
 ! Transfer to output arrays
-  do kk=1,itotsub
-     ni1=ltosi_s(kk); ni2=ltosj_s(kk)
-     if(ni1 /= 1 .and. ni1 /= nlat)then
-        work1(kk)=grid_vor(ni1-1,ni2)
-        work2(kk)=grid_div(ni1-1,ni2)
-     else if(ni1 == 1)then
-        work1(kk)=vor_s
-        work2(kk)=div_s
-     else
-        work1(kk)=vor_n
-        work2(kk)=div_n
-     end if
+  do j=1,nlon
+     do i=2,nlat-1
+        work1(i,j)=grid_vor(i-1,j)
+        work2(i,j)=grid_div(i-1,j)
+     end do
+     work1(1,j)=vor_s
+     work2(1,j)=div_s
+     work1(nlat,j)=vor_n
+     work2(nlat,j)=div_n
   enddo
 
   return

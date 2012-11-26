@@ -1,4 +1,4 @@
-subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
+subroutine bkgvar(cvec,iflg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bkgvar      apply background error variances
@@ -24,6 +24,9 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 !   2010-06-03  todling - protection for mvars<2
 !   2010-07-07  todling - rename cstate to cvec for clarity
 !   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2012-06-25  parrish - remove sst,slndt,sict as input/output arrays.  They are now contained
+!                         in the input bundle cvec, using motley variables.
+!   2012-06-25  parrish - remove integer constants izero,ione.
 !
 !   input argument list:
 !     t        - t grid values
@@ -60,12 +63,11 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: one
+  use constants, only: zero,one
   use balmod, only: rllat1,llmax
   use berror, only: dssv,dssvs
   use gridmod, only: nsig,regional,lat2,lon2
   use guess_grids, only: isli2
-  use jfunc, only: nval_levs
   use control_vectors, only: mvars, nc2d
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : gsi_bundlegetpointer
@@ -74,13 +76,16 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: iflg
   type(gsi_bundle),intent(inout) :: cvec
-  real(r_kind),dimension(lat2,lon2),intent(inout) :: sst,slndt,sicet
 
 ! Declare local variables
-  integer(i_kind) i,j,k,n,i_sst,istatus
+  integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus
   real(r_kind) dl1,dl2
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptr2d=>NULL()
+  real(r_kind),pointer,dimension(:,:)  ::ptrsst=>NULL()
+  real(r_kind),pointer,dimension(:,:)  ::ptrstl=>NULL()
+  real(r_kind),pointer,dimension(:,:)  ::ptrsti=>NULL()
+  real(r_kind),dimension(lat2,lon2) :: sst,stl,sti
 
 ! Multipy by variances
 !$omp parallel do  schedule(dynamic,1) private(n,k,i,j,ptr3d,istatus)
@@ -97,50 +102,80 @@ subroutine bkgvar(cvec,sst,slndt,sicet,iflg)
 
 ! Get pointer for SST
   call gsi_bundlegetpointer(cvec,'sst',i_sst,istatus)
+  call gsi_bundlegetpointer(cvec,'stl',i_stl,istatus)
+  call gsi_bundlegetpointer(cvec,'sti',i_sti,istatus)
+  call gsi_bundlegetpointer(cvec,'sst',ptrsst,istatus)
+  call gsi_bundlegetpointer(cvec,'stl',ptrstl,istatus)
+  call gsi_bundlegetpointer(cvec,'sti',ptrsti,istatus)
+  sst=zero
+  stl=zero
+  sti=zero
 
 ! Surface fields
-!$omp parallel do  schedule(dynamic,1) private(n,i,j,ptr2d,istatus)
+!     !$omp parallel do  schedule(dynamic,1) private(n,i,j,ptr2d,istatus)
   do n=1,cvec%n2d
      call gsi_bundlegetpointer(cvec,cvec%r2(n)%shortname,ptr2d,istatus)
-     if (n/=i_sst) then
+     if(n/=i_sst.and.n/=i_stl.and.n/=i_sti) then
         do i=1,lon2
            do j=1,lat2
               ptr2d(j,i)=ptr2d(j,i)*dssvs(j,i,n)
            end do
         end do
-     else
-        if (mvars>=2) then
-           if (iflg == 0) then
-!          Break skin temperature into components
-               do i=1,lon2
-                  do j=1,lat2
-                     if(isli2(j,i) == 1) then
-                        slndt(j,i)=ptr2d(j,i)*dssvs(j,i,nc2d+1)
-                     else if(isli2(j,i) == 2) then
-                        sicet(j,i)=ptr2d(j,i)*dssvs(j,i,nc2d+2)
-                     else
-                        sst(j,i)  =ptr2d(j,i)*dssvs(j,i,n)
-                     end if
-                  end do
-               end do
-           else
-!          Combine sst,slndt, and sicet into skin temperature field
+     elseif(i_sst>0) then
+        if(iflg==0) then
+           if(n==i_sst) then
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i) == 1) then
-                       ptr2d(j,i)=slndt(j,i)*dssvs(j,i,nc2d+1)
-                    else if(isli2(j,i) == 2) then
-                       ptr2d(j,i)=sicet(j,i)*dssvs(j,i,nc2d+2)
-                    else
-                       ptr2d(j,i)=sst(j,i)*dssvs(j,i,n)
-                    end if
+                    if(isli2(j,i)/=1.and.isli2(j,i)/=2) sst(j,i)=ptrsst(j,i)*dssvs(j,i,n)
+                 end do
+              end do
+           elseif(n==i_stl) then
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i) == 1) stl(j,i)=ptrsst(j,i)*dssvs(j,i,n)
+                 end do
+              end do
+           elseif(n==i_sti) then
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i) == 2) sti(j,i)=ptrsst(j,i)*dssvs(j,i,n)
                  end do
               end do
            end if
-        end if ! mvars
+        else
+           if(n==i_sst) then
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i)/=1.and.isli2(j,i)/=2) sst(j,i)=ptrsst(j,i)*dssvs(j,i,n)
+                 end do
+              end do
+           elseif(n==i_stl) then
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i) == 1) sst(j,i)=ptrstl(j,i)*dssvs(j,i,n)
+                 end do
+              end do
+           elseif(n==i_sti) then
+              do i=1,lon2
+                 do j=1,lat2
+                    if(isli2(j,i) == 2) sst(j,i)=ptrsti(j,i)*dssvs(j,i,n)
+                 end do
+              end do
+           end if
+        end if
      end if
+     
   end do
 
+  if(iflg==0) then
+     if(i_sst>0) ptrsst=sst
+     if(i_stl>0) ptrstl=stl
+     if(i_sti>0) ptrsti=sti
+  else
+     if(i_sst>0) ptrsst=sst
+!        ignore contents of ptrstl,ptrsti
+  end if
+  
   return
 end subroutine bkgvar
 
