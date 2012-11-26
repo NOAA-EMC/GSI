@@ -1,4 +1,4 @@
-subroutine bkgcov(cstate,nlevs)
+subroutine bkgcov(cstate)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bkgcov    perform hor & vert of background error 
@@ -20,10 +20,13 @@ subroutine bkgcov(cstate,nlevs)
 !                       - make changes to interfaces of sub2grid and grid2sub
 !   2010-04-28  todling - update to use gsi_bundle
 !   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2012-06-25  parrish - replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
+!                         Remove arrays sst, slndt, sicet.  These are now contained as
+!                         motley variables in input/output bundle cstate.  Remove unused variables
+!                         nnnn1o,latlon11.
 !
 !   input argument list:
 !     cstate   - bundle containing control fields
-!     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
 !                 all after smoothing, combining scales
@@ -35,36 +38,28 @@ subroutine bkgcov(cstate,nlevs)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o,latlon11
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
-  integer(i_kind),intent(in) :: nlevs
   type(gsi_bundle),intent(inout) :: cstate
 
 ! Local Variables
-  integer(i_kind) i,j,n,nsloop,iflg,loc,n3d,istatus
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
+  integer(i_kind) i,j,n,nsloop,loc,n3d,istatus,nlevs
+  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
   real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
 
+  nlevs=s2g_raf%nlevs_loc
   nsloop=3
-  iflg=1
   n3d=cstate%n3d
-
-  do j=1,lon2
-     do i=1,lat2
-        sst(i,j)=zero
-        slndt(i,j)=zero
-        sicet(i,j)=zero
-     end do
-  end do
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(cstate,sst,slndt,sicet,0)
+  call bkgvar(cstate,0)
 
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(n,ptr3d,istatus)
@@ -74,13 +69,13 @@ subroutine bkgcov(cstate,nlevs)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call sub2grid(hwork,cstate,sst,slndt,sicet,iflg)
+  call general_sub2grid(s2g_raf,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
   call smoothrf(hwork,nsloop,nlevs)
 
 ! Put back onto subdomains
-  call grid2sub(hwork,cstate,sst,slndt,sicet)
+  call general_grid2sub(s2g_raf,hwork,cstate%values)
 
 ! Apply vertical smoother
 !$omp parallel do  schedule(dynamic,1) private(n,ptr3d,istatus)
@@ -91,12 +86,12 @@ subroutine bkgcov(cstate,nlevs)
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
 ! into skin temperature field
-  call bkgvar(cstate,sst,slndt,sicet,1)
+  call bkgvar(cstate,1)
 
   return
 end subroutine bkgcov
 ! -----------------------------------------------------------------------------
-subroutine ckgcov(z,cstate,nlevs,nval_lenz)
+subroutine ckgcov(z,cstate,nval_lenz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ckgcov   sqrt of bkgcov
@@ -113,6 +108,10 @@ subroutine ckgcov(z,cstate,nlevs,nval_lenz)
 !   2010-04-28  todling - udpate to use gsi_bundle
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-09-05  todling - add explicit reference to navl_lenz, and remove connection through jfunc
+!   2012-06-25  parrish - replace grid2sub with general_grid2sub.
+!                         Remove arrays sst, slndt, sicet.  These are now contained as
+!                         motley variables in input/output bundle cstate.  Remove unused variables
+!                         nnnn1o,latlon11,nval_levs.
 !
 !   input argument list:
 !     z        - long vector input control fields
@@ -130,39 +129,31 @@ subroutine ckgcov(z,cstate,nlevs,nval_lenz)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o,latlon11
-  use jfunc,only: nval_levs
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_grid2sub
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
-  integer(i_kind)    ,intent(in   ) :: nlevs
   integer(i_kind)    ,intent(in   ) :: nval_lenz
   type(gsi_bundle),intent(inout) :: cstate
   real(r_kind),dimension(nval_lenz),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,n3d,istatus
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
+  integer(i_kind) i,j,k,nsloop,n3d,istatus,nlevs
+  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
+  nlevs=s2g_raf%nlevs_loc
   nsloop=3
-
-  do j=1,lon2
-     do i=1,lat2
-        sst(i,j)=zero
-        slndt(i,j)=zero
-        sicet(i,j)=zero
-     end do
-  end do
 
 ! Apply horizontal smoother for number of horizontal scales
   call sqrt_smoothrf(z,hwork,nsloop,nlevs)
 
 ! Put back onto subdomains
-  call grid2sub(hwork,cstate,sst,slndt,sicet)
+  call general_grid2sub(s2g_raf,hwork,cstate%values)
 
 ! Apply vertical smoother
   n3d=cstate%n3d
@@ -174,12 +165,12 @@ subroutine ckgcov(z,cstate,nlevs,nval_lenz)
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
 ! into skin temperature field
-  call bkgvar(cstate,sst,slndt,sicet,1)
+  call bkgvar(cstate,1)
 
   return
 end subroutine ckgcov
 ! -----------------------------------------------------------------------------
-subroutine ckgcov_ad(z,cstate,nlevs,nval_lenz)
+subroutine ckgcov_ad(z,cstate,nval_lenz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ckgcov_ad  adjoint of ckgcov
@@ -197,6 +188,10 @@ subroutine ckgcov_ad(z,cstate,nlevs,nval_lenz)
 !   2010-04-28  todling - update to use gsi_bundle
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2011-09-05  todling - add explicit reference to navl_lenz, and remove connection through jfunc
+!   2012-06-25  parrish - replace sub2grid with general_sub2grid.
+!                         Remove arrays sst, slndt, sicet.  These are now contained as
+!                         motley variables in input/output bundle cstate.  Remove unused variables
+!                         nnnn1o,latlon11.
 !
 !   input argument list:
 !     z        - long vector adjoint input/output control fields
@@ -214,37 +209,29 @@ subroutine ckgcov_ad(z,cstate,nlevs,nval_lenz)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o,latlon11
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_sub2grid
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
-  integer(i_kind)    ,intent(in   ) :: nlevs
   integer(i_kind)    ,intent(in   ) :: nval_lenz
   type(gsi_bundle),intent(inout) :: cstate
   real(r_kind),dimension(nval_lenz),intent(inout) :: z
-  real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,iflg,n3d,istatus
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
+  integer(i_kind) i,j,k,nsloop,n3d,istatus,nlevs
+  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
+  nlevs=s2g_raf%nlevs_loc
   nsloop=3
-  iflg=1
-
-  do j=1,lon2
-     do i=1,lat2
-        sst(i,j)=zero
-        slndt(i,j)=zero
-        sicet(i,j)=zero
-     end do
-  end do
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(cstate,sst,slndt,sicet,0)
+  call bkgvar(cstate,0)
 
 ! Apply vertical smoother
   n3d=cstate%n3d
@@ -255,7 +242,7 @@ subroutine ckgcov_ad(z,cstate,nlevs,nval_lenz)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call sub2grid(hwork,cstate,sst,slndt,sicet,iflg)
+  call general_sub2grid(s2g_raf,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
   call sqrt_smoothrf_ad(z,hwork,nsloop,nlevs)

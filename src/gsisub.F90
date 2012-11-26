@@ -56,6 +56,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2010-06-05  todling - repositioned call to init_commvars
 !   2010-07-19  lueken  - remove call to deter_subdomain (general_deter_subdomain is also used)
 !   2010-11-08  treadon - remove create_mapping and init_subdomain_vars (now in init_grid_vars)
+!   2012-06-12  parrish - remove init_commvars (replaced in gsimod.F90 with general_commvars).
 !
 !   input argument list:
 !     mype - mpi task id
@@ -116,9 +117,6 @@ subroutine gsisub(mype,init_pass,last_pass)
 
 ! Get date, grid, and other information from model guess files
   call gesinfo(mype)
-
-! Set communicators between subdomain and global/horizontal slabs
-  call init_commvars(mype)
 
 #endif /* !HAVE_ESMF */
 

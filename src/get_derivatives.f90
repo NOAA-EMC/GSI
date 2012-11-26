@@ -18,6 +18,9 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2010-05-22  todling - remove implicit assumption in ordering of nvar_id
 !   2010-05-31  todling - no need to do pointer checking
 !   2011-07-04  todling - allow run either single or double precision
+!   2012-06-12  parrish - make changes to replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
+!                         Remove arrays slndt, sicet, slndt_x, sicet_x, slndt_y, sicet_y,
+!                         and variable nsig1o.
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -73,10 +76,8 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon
-  use mpimod, only: nvar_id
-  use control_vectors, only: nrf_var
   use control_vectors, only: cvars2d
   use control_vectors, only: cvars3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -86,6 +87,8 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_gridcreate
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_d
 
   implicit none
 
@@ -103,30 +106,17 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
 ! Local Variables
   character(len=*),parameter::myname='get_derivatives'
-  integer(i_kind) iflg,k,i,j,it,ii,rc,ier
-  real(r_kind),dimension(lat2,lon2):: slndt,sicet
-  real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
-  real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
+  integer(i_kind) k,i,j,it,ii,rc,ier
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hworkd
   type(gsi_bundle):: cstate
   type(gsi_grid) :: grid
-  logical vector
 
-  iflg=1
+  allocate(hwork (s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
+  allocate(hworkd(s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
+
+!        use s2g_d%kend_alloc instead of s2g_d%kend_loc to force hworkd=0 even if not used on this pe
+
   ier=0
-  slndt=zero
-  sicet=zero
-
-  if(nsig1o > nlevs)then
-     do k=nlevs+1,nsig1o
-        do j=1,nlon
-           do i=1,nlat
-              hworkd(i,j,k) = zero
-           end do
-        end do
-     end do
-  end if
-
   call gsi_gridcreate(grid,lat2,lon2,nsig)
   do it=1,nfldsig
      call gsi_bundlecreate (cstate,grid,'derivatives work',ier, &
@@ -142,22 +132,22 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
      call gsi_bundleputvar ( cstate, 'q ' , q,         rc )
      call gsi_bundleputvar ( cstate, 'oz' , oz,        rc )
      call gsi_bundleputvar ( cstate, 'cw' , cwmr,      rc )
+     call gsi_bundleputvar ( cstate, 'sst', skint,     rc )
 
-     call sub2grid(hwork,cstate,skint,slndt,sicet,iflg)
+     call general_sub2grid(s2g_d,cstate%values,hwork)
 
 
 !    x derivative
-!$omp parallel do private(k,vector)
-     do k=1,nlevs
-        vector = nrf_var(nvar_id(k)) == 'sf' .or. nrf_var(nvar_id(k)) == 'vp'
+!              !$omp parallel do private(k,vector)     !  fix later
+     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
         if(regional) then
-           call delx_reg(hwork(1,1,k),hworkd(1,1,k),vector)
+           call delx_reg(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
         else
-           call compact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
+           call compact_dlon(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
         end if
      end do
-!$omp end parallel do
-     call grid2sub(hworkd,cstate,skint_x,slndt_x,sicet_x)
+!                !$omp end parallel do                   !  fix later
+     call general_grid2sub(s2g_d,hworkd,cstate%values)
      call gsi_bundlegetvar ( cstate, 'ps' , p_x(:,:,it), rc )
      call gsi_bundlegetvar ( cstate, 'sf' , u_x,         rc )
      call gsi_bundlegetvar ( cstate, 'vp' , v_x,         rc )
@@ -165,19 +155,19 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
      call gsi_bundlegetvar ( cstate, 'q ' , q_x,         rc )
      call gsi_bundlegetvar ( cstate, 'oz' , oz_x,        rc )
      call gsi_bundlegetvar ( cstate, 'cw' , cwmr_x,      rc )
+     call gsi_bundlegetvar ( cstate, 'sst', skint_x,     rc )
 
 !    y derivative
-!$omp parallel do private(k,vector)
-     do k=1,nlevs
-        vector = nrf_var(nvar_id(k)) == 'sf' .or. nrf_var(nvar_id(k)) == 'vp'
+!                  !$omp parallel do private(k,vector)    !  fix later ?????????
+     do k=s2g_d%kbegin_loc,s2g_d%kend_loc
         if(regional) then
-           call dely_reg(hwork(1,1,k),hworkd(1,1,k),vector)
+           call dely_reg(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
         else
-           call compact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
+           call compact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
         end if
      end do
-!$omp end parallel do
-     call grid2sub(hworkd,cstate,skint_y,slndt_y,sicet_y)
+!                   !$omp end parallel do                   !  fix later ?????????
+     call general_grid2sub(s2g_d,hworkd,cstate%values)
      call gsi_bundlegetvar ( cstate, 'ps' , p_y(:,:,it), rc )
      call gsi_bundlegetvar ( cstate, 'sf' , u_y,         rc )
      call gsi_bundlegetvar ( cstate, 'vp' , v_y,         rc )
@@ -185,6 +175,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
      call gsi_bundlegetvar ( cstate, 'q ' , q_y,         rc )
      call gsi_bundlegetvar ( cstate, 'oz' , oz_y,        rc )
      call gsi_bundlegetvar ( cstate, 'cw' , cwmr_y,      rc )
+     call gsi_bundlegetvar ( cstate, 'sst', skint_y,     rc )
 
 !    clean work space
      call gsi_bundledestroy(cstate,ier)
@@ -194,9 +185,10 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
      endif
   end do  ! end do it
 
+  deallocate(hwork,hworkd)
+
   return
 end subroutine get_derivatives
-
 
 subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
                  u_x,v_x,t_x,p_x,q_x,oz_x,skint_x,cwmr_x, &
@@ -215,6 +207,9 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2010-04-29  todling - update to use gsi_bundle
 !   2010-05-22  todling - remove implicit assumption in ordering of nvar_id
 !   2010-05-31  todling - no need to do pointer checking
+!   2012-06-12  parrish - make changes to replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
+!                         Remove arrays slndt, sicet, slndt_x, sicet_x, slndt_y, sicet_y,
+!                         and variable nsig1o.
 !
 !   input argument list:
 !     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
@@ -253,10 +248,8 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig,nsig1o
+  use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
-  use mpimod, only: nvar_id
-  use control_vectors, only: nrf_var
   use control_vectors, only: cvars2d
   use control_vectors, only: cvars3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -266,6 +259,9 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_gridcreate
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_d
   implicit none
 
 ! Passed variables
@@ -279,24 +275,19 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
 ! Local Variables
   character(len=*),parameter::myname='tget_derivatives'
-  integer(i_kind) iflg,k,i,j,ii,rc,ier
-  real(r_kind),dimension(lat2,lon2):: slndt_x,sicet_x
-  real(r_kind),dimension(lat2,lon2):: slndt_y,sicet_y
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork,hworkd
+  integer(i_kind) k,i,j,ii,rc,ier
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hworkd
   type(gsi_bundle):: cstate
   type(gsi_grid):: grid
-  logical vector
 
-  iflg=1
+  allocate(hwork (s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
+  allocate(hworkd(s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
+
+!        use s2g_d%kend_alloc instead of s2g_d%kend_loc to force hworkd=0 even if not used on this pe
   ier=0
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
   hwork=zero
-!             for now zero out slndt,sicet
-  slndt_x=zero
-  sicet_x=zero
-  slndt_y=zero
-  sicet_y=zero
 
 !   adjoint of y derivative
 
@@ -314,18 +305,18 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   call gsi_bundleputvar ( cstate, 'q ', q_y,    rc )
   call gsi_bundleputvar ( cstate, 'oz', oz_y,   rc )
   call gsi_bundleputvar ( cstate, 'cw', cwmr_y, rc )
+  call gsi_bundleputvar ( cstate, 'sst', skint, rc )
 
-  call sub2grid(hworkd,cstate,skint_y,slndt_y,sicet_y,iflg)
-!$omp parallel do private(k,vector)
-  do k=1,nlevs
-     vector = nrf_var(nvar_id(k)) == 'sf' .or. nrf_var(nvar_id(k)) == 'vp'
+  call general_sub2grid(s2g_d,cstate%values,hworkd)
+!     !$omp parallel do private(k,vector)   !  fix later ???????????
+  do k=s2g_d%kbegin_loc,s2g_d%kend_loc
      if(regional) then
-        call dely_reg(hworkd(1,1,k),hwork(1,1,k),vector)
+        call dely_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
      else
-        call tcompact_dlat(hwork(1,1,k),hworkd(1,1,k),vector)
+        call tcompact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
      end if
   end do
-!$omp end parallel do
+!     !$omp end parallel do   !  fix later ???????????
 
 !   adjoint of x derivative
 
@@ -336,21 +327,21 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   call gsi_bundleputvar ( cstate, 'q ', q_x,    rc )
   call gsi_bundleputvar ( cstate, 'oz', oz_x,   rc )
   call gsi_bundleputvar ( cstate, 'cw', cwmr_x, rc )
+  call gsi_bundleputvar ( cstate, 'sst', skint, rc )
 
-  call sub2grid(hworkd,cstate,skint_x,slndt_x,sicet_x,iflg)
-!$omp parallel do private(k,vector)
-  do k=1,nlevs
-     vector = nrf_var(nvar_id(k)) == 'sf' .or. nrf_var(nvar_id(k)) == 'vp'
+  call general_sub2grid(s2g_d,cstate%values,hworkd)
+!     !$omp parallel do private(k,vector)   ! fix later ?????
+  do k=s2g_d%kbegin_loc,s2g_d%kend_loc
      if(regional) then
-        call delx_reg(hworkd(1,1,k),hwork(1,1,k),vector)
+        call delx_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
      else
-        call tcompact_dlon(hwork(1,1,k),hworkd(1,1,k),vector)
+        call tcompact_dlon(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
      end if
   end do
-!$omp end parallel do
+!     !$omp end parallel do                 ! fix later ??????
 
 !       use t_x,etc since don't need to save contents
-  call grid2sub(hwork,cstate,skint_x,slndt_x,sicet_x)
+  call general_grid2sub(s2g_d,hwork,cstate%values)
   call gsi_bundlegetvar ( cstate, 'ps', p_x,    rc )
   call gsi_bundlegetvar ( cstate, 'sf', u_x,    rc )
   call gsi_bundlegetvar ( cstate, 'vp', v_x,    rc )
@@ -358,6 +349,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   call gsi_bundlegetvar ( cstate, 'q ', q_x,    rc )
   call gsi_bundlegetvar ( cstate, 'oz', oz_x,   rc )
   call gsi_bundlegetvar ( cstate, 'cw', cwmr_x, rc )
+  call gsi_bundlegetvar ( cstate, 'sst', skint, rc )
 
   call gsi_bundledestroy(cstate,ier)
   if(ier/=0) then
@@ -366,7 +358,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   endif
 
 !   accumulate to contents of t,p,etc (except st,vp, which are zero on input
-!$omp parallel do private(k,j,i)
+!     !$omp parallel do private(k,j,i)   ! fix later ????
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
@@ -379,13 +371,15 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
         end do
      end do
   end do
-!$omp end parallel do
+!       !$omp end parallel do      ! fix later ????
   do j=1,lon2
      do i=1,lat2
         p(i,j)=p(i,j)+p_x(i,j)
         skint(i,j)=skint(i,j)+skint_x(i,j)
      end do
   end do
+
+  deallocate(hwork,hworkd)
 
 end subroutine tget_derivatives
 
@@ -422,11 +416,10 @@ subroutine get_zderivs(z,z_x,z_y,mype)
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gridmod, only: regional,nlat,nlon,lat2,lon2,lat1,lon1,&
-     displs_s,ltosj_s,ijn_s,ltosi,ltosj,iglobal,ltosi_s,itotsub,&
-     ijn,displs_g,strip
+  use gridmod, only: regional,nlat,nlon,lat2,lon2
   use compact_diffs, only: compact_dlat,compact_dlon
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+  use general_sub2grid_mod, only: general_gather2grid,general_scatter2sub
+  use general_commvars_mod, only: g1
   implicit none
 
 ! Passed variables
@@ -435,27 +428,31 @@ subroutine get_zderivs(z,z_x,z_y,mype)
   real(r_kind),dimension(lat2,lon2),intent(  out) :: z_x,z_y
 
 ! Local variables
-  real(r_kind),dimension(lat1*lon1):: zsm
-  real(r_kind),dimension(itotsub):: work1,work2
-  real(r_kind),dimension(nlat,nlon):: workh,workd1,workd2
-  integer(i_kind) mm1,i,j,k
+  real(r_kind),dimension(:,:,:),allocatable:: workh,workd1,workd2
+  real(r_kind),dimension(:),allocatable:: z1,zx1,zy1
+  integer(i_kind) i,ii,j
+  integer(i_kind) workpe
 
-  mm1=mype+1
+  workpe=0
 
-  do j=1,lon1*lat1
-     zsm(j)=zero
-  end do
- 
-  call strip(z,zsm,1)
-  call mpi_gatherv(zsm,ijn(mm1),mpi_rtype,&
-     work1,ijn,displs_g,mpi_rtype,&
-     0,mpi_comm_world,ierror)
+  allocate(workh (g1%inner_vars,g1%nlat,g1%nlon))
+  allocate(workd1(g1%inner_vars,g1%nlat,g1%nlon))
+  allocate(workd2(g1%inner_vars,g1%nlat,g1%nlon))
+  allocate(z1(g1%inner_vars*g1%nlat*g1%nlon))
+  allocate(zx1(g1%inner_vars*g1%nlat*g1%nlon))
+  allocate(zy1(g1%inner_vars*g1%nlat*g1%nlon))
 
-  if (mype==0) then
-     do k=1,iglobal
-        i=ltosi(k) ; j=ltosj(k)
-        workh(i,j)=work1(k)
+  ii=0
+  do j=1,lon2
+     do i=1,lat2
+        ii=ii+1
+        z1(ii)=z(i,j)
      end do
+  end do
+  call general_gather2grid(g1,z1,workh,workpe)
+  deallocate(z1)
+
+  if(mype==workpe) then
      if(regional) then
         call delx_reg(workh,workd1,(.false.))
         call dely_reg(workh,workd2,(.false.))
@@ -463,17 +460,22 @@ subroutine get_zderivs(z,z_x,z_y,mype)
         call compact_dlon(workh,workd1,(.false.))
         call compact_dlat(workh,workd2,(.false.))
      end if
-     do k=1,itotsub
-        i=ltosi_s(k) ; j=ltosj_s(k)
-        work1(k)=workd1(i,j)
-        work2(k)=workd2(i,j)
-     end do
   end if
-  call mpi_scatterv(work1,ijn_s,displs_s,mpi_rtype,&
-       z_x,ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
+  deallocate(workh)
 
-  call mpi_scatterv(work2,ijn_s,displs_s,mpi_rtype,&
-       z_y,ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
+  call general_scatter2sub(g1,workd1,zx1,workpe)
+  call general_scatter2sub(g1,workd2,zy1,workpe)
+  deallocate(workd1,workd2)
+  ii=0
+  do j=1,lon2
+     do i=1,lat2
+        ii=ii+1
+        z_x(i,j)=zx1(ii)
+        z_y(i,j)=zy1(ii)
+     end do
+  end do
+
+  deallocate(zx1,zy1)
 
 
   return
