@@ -28,7 +28,7 @@
                        idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon, &
 		       l4densvar,ens4d_nstarthr
   use obs_ferrscale, only: lferrscale
-  use mpimod, only: npe,mpi_comm_world,ierror,init_mpi_vars,destroy_mpi_vars,mype
+  use mpimod, only: npe,mpi_comm_world,ierror,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
                        biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars
   use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
@@ -112,6 +112,7 @@
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname
+  use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
 
   implicit none
 
@@ -231,6 +232,8 @@
 !  02-08-2012 kleist    add parameters to control new 4d-ensemble-var features.
 !  02-17-2012 tong      add parameter merge_two_grid_ensperts to merge ensemble perturbations
 !                       from two forecast domains to analysis domain  
+!  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
+!                       add calls to init_general_commvars, destroy_general_commvars.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1107,7 +1110,7 @@
   call gps_constants(use_compress)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe,cvars3d,cvars2d,nrf_var,mype)
-  call init_mpi_vars(nsig,mype,nsig1o,nnnn1o,nrf,nvars,nrf_3d,vlevs)
+  call init_general_commvars
   call create_obsmod_vars
   if (passive_bc) call create_passive_obsmod_vars
 
@@ -1172,8 +1175,8 @@
   call final_aero_vars
   call final_rad_vars
   call clean_4dvar
+  call destroy_general_commvars
   call destroy_obsmod_vars
-  call destroy_mpi_vars
   call final_anacv
   call final_anasv
   call gsi_chemguess_final
