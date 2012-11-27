@@ -129,6 +129,9 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 !   2010-06-22  todling - update interface (remove cwmr since it's in bunlde)
 !   2010-06-29  lueken - added if(ipnts(2)>0) to second call of anbkgvar
 !   2011-02-22  zhu - replace the argument list of ansmoothrf_reg_subdomain_option by a bundle
+!   2012-06-25  parrish - replace sub2grid and grid2sub calls with general_sub2grid, general_grid2sub.
+!                 NOTE:  This will not work with sst and the motley variables slndt,sicet.  However
+!                        this is not currently used in this version of RTMA.
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -165,6 +168,8 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
@@ -173,7 +178,7 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 
 ! Local Variables
   integer(i_kind) iflg,ier,istatus
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
+  real(r_kind),dimension(nlat*nlon*nsig1o):: hwork
   real(r_kind),pointer,dimension(:,:)  :: p,skint
   real(r_kind),pointer,dimension(:,:,:):: t,q,cwmr,oz,st,vp
 
@@ -225,14 +230,15 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
-     iflg=1
-     call sub2grid(hwork,bundle,sst,slndt,sicet,iflg)
+     call general_sub2grid(s2g_raf,bundle%values,hwork)
+!  need to modify this to use with sst and motley variables slndt,sicet, but apparently this
+!    not implemented yet in RTMA.
 
 ! Apply horizontal smoother for number of horizontal scales
      call ansmoothrf(hwork)
 
 ! Put back onto subdomains
-     call grid2sub(hwork,bundle,sst,slndt,sicet)
+     call general_grid2sub(s2g_raf,hwork,bundle%values)
 
   end if
 
@@ -260,6 +266,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 ! program history log:
 !   2005-01-22  parrish
 !   2008-06-05  safford - rm unused uses
+!   2012-06-25  parrish - remove _i_kind from integer constants
 !
 !   input argument list:
 !     skint    - skin temperature grid values

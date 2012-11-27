@@ -20,42 +20,27 @@
 #         output from this script.  If diagnostic print messages 
 #         are left uncommented then results will become undefined.
 #-------------------------------------------------------------------
-#    use Data::Dumper;
-    use IO::File;
+   use strict;
+   use warnings;
+   use XML::LibXML;
 
-    require XML::Simple;
-    my $xs = XML::Simple->new;
+   my $dmfile = $ARGV[0];
+   my $source = $ARGV[1];
+   my $field  = $ARGV[2];
+   my $value  = $ARGV[3];
+   my $rc     = "1";
 
-    my $dmfile = @ARGV[0];
-    my $source = @ARGV[1];
-    my $field  = @ARGV[2];
-    my $value  = $ARGV[3];
-    my $rc     = "1";
+   my $parser = XML::LibXML->new();
+   my $doc    = $parser->parse_file($dmfile);
 
-    $fh = IO::File->new( $dmfile );
-    $config = $xs->XMLin($fh, KeyAttr => {source => name} );
-    close( $fh );
-#    print Dumper( $config->{$source} );
+   my $query  = "//$source/$field/text()";
 
-#
-#   Test to see if the requested field exists in the global_default
-#   element.  If it does not, then the requested field is not valid.
-#
-    if( exists( $config->{ 'global_default' }->{$field} )) { 
+   my($node)  = $doc->findnodes($query);
 
-#      $field is valid.  Determine if $source exists.
+   if( $node ) {
+      $node->setData("$value" );
+      $doc->toFile( $dmfile );
+      $rc = "0";
+   }
 
-       if( exists( $config->{$source} )) { 
-
-#         Modify $field with $value and write the changes back to the xml file.
-
-          $config->{$source}->{ $field } = $value;
-          my $path = $dmfile; 
-          open my $ofh, '>:encoding(iso-8859-1)', $path or die "open($path): $!";
-          $xs->XMLout( $config, OutputFile => $ofh, XMLDecl => 1, NoAttr => 1 );
-          close( $ofh );
-          $rc = "0";
-       }
-    }
-
-    print "$rc";
+   print "$rc";
