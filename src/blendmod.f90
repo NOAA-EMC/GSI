@@ -1,6 +1,27 @@
 module blendmod
-
-!  tool for blend function:
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    blendmod        blend function module
+!   prgmmr: parrish          org: np22                date: 2012-11-26
+!
+! abstract: contains routines needed for polynomial blending function.  This
+!            function is defined over the interval 0<=x<=1, with value 0 at
+!            x=0, and value 1 at x=1. The order parameter iord defines the
+!            order of continuity of the function at the endpoints.
+!            For n=0, the blend function = x for 0 <= x <=1, and =1 for x>1, =0 for x<0.
+!            In this case, the function is continuous, but the derivatives are discontinuous.
+!            For n>0, the function and its first n derivatives are continuous at x=0 and x=1.
+!            See the comments in subroutine blend for more details.  Subroutine
+!            blend was originally written by Jim Purser.
+!
+! program history log:
+!   2012-11-26  parrish
+!
+! subroutines included:
+!  init_blend
+!  blend_f
+!  blend_df
+!  blend
 
    use kinds, only: r_kind,i_kind
 
@@ -12,6 +33,7 @@ module blendmod
    public :: init_blend
    public :: blend_f
    public :: blend_df
+   public :: blend
 ! set passed variables to public
 
    integer(i_kind) mm,iblend(0:40)
@@ -20,6 +42,33 @@ module blendmod
    contains
 
    subroutine init_blend(xbegin,xend,iord,ierror)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_blend
+!   prgmmr: parrish          org: np22                date: 2012-11-26
+!
+! abstract: initialize private module variables so routines blend_f and blend_df generate the
+!            appropriate blend function and 1st derivative for blend function order iord
+!            and transition range xbegin to xend.  Note that xbegin can be greater 
+!            than xend, but xbegin==xend is not allowed.
+!
+! program history log:
+!   2012-11-26  parrish - initial documentation
+!
+!   input argument list:
+!     xbegin - beginning of blend function interval (  blend_f(xbegin)=0 )
+!     xend   - end of blend function interval ( blend_f(xend)=1 )
+!     iord   - order of blend function
+!     ierror - error return:  =0 for successful return, /=0 only if xbegin==xend.
+!               NOTE:  xbegin > xend is allowed.
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
 
      use constants, only: half,one
      implicit none
@@ -49,6 +98,30 @@ module blendmod
    end subroutine init_blend
 
    subroutine blend_f(x_in,y)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    blend_f
+!   prgmmr: parrish          org: np22                date: 2012-11-26
+!
+! abstract:  for input value x_in, return blend function value y, where 0 <=y < =1.
+!           Before calling blend_f, make sure that init_blend has been called
+!           for the desired values of x where the blend function transitions
+!           from 0 to 1.
+!
+! program history log:
+!   2012-11-26  parrish - initial documentation
+!
+!   input argument list:
+!     x_in   - input argument value
+!
+!   output argument list:
+!     y      - output value  blend_f(x_in)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
 
      use constants, only: zero,one
      implicit none
@@ -74,6 +147,32 @@ module blendmod
    end subroutine blend_f
 
    subroutine blend_df(x_in,y,dy)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    blend_df
+!   prgmmr: parrish          org: np22                date: 2012-11-26
+!
+! abstract:  for input value x_in, return blend function in y and 1st derivative
+!             of blend function in dy.
+!           Before calling blend_df, make sure that init_blend has been called
+!           for the desired values of x where the blend function transitions
+!           from 0 to 1.
+!
+! program history log:
+!   2012-11-26  parrish - initial documentation
+!
+!   input argument list:
+!     x_in   - input argument value
+!
+!   output argument list:
+!     y      - output value of blend function for input value x_in.
+!     dy     - output value of derivative of blend function for input value x_in.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
 
      use constants, only: zero,one
      implicit none
@@ -114,6 +213,7 @@ subroutine blend(n,iblend)
 ! program history log:
 !   2004-05-13  kleist  documentation
 !   2008-04-23  safford - rm unused uses
+!   2012-11-26  parrish - move from prewgt.f90 to this module.
 !
 !   input argument list:
 !     n      - number of powers to blend
@@ -123,11 +223,11 @@ subroutine blend(n,iblend)
 !
 ! remarks: put the coefficients for powers n+1,..,2n+1, into iblend(0),
 !          ..iblend(n),for the "blending polynomial" of continuity-
-!          degree n in the interval [0,1].  For example, with n=1, the
-!          blending polynomial has up to 1st derivatives continuous
-!          with y(0)=0, y(1)=1, y'(0)=y'(1)=0, when y(x)=3x^2-2x^3.
+!          degree n in the interval [0,1].  For example, with n=1, the 
+!          blending polynomial has up to 1st derivatives continuous 
+!          with y(0)=0, y(1)=1, y'(0)=y'(1)=0, when y(x)=3x^2-2x^3. 
 !          Hence iblend={3,-2}
-!
+! 
 ! attributes:
 !   language: f90
 !   machine:  ibm rs/6000 sp
@@ -141,7 +241,7 @@ subroutine blend(n,iblend)
   integer(i_kind),dimension(0:n),intent(  out) :: iblend
 
 ! Declare local parameters
-  integer(i_kind),parameter:: nn=12_i_kind
+  integer(i_kind),parameter:: nn=12
 
 ! Declare local variables
   integer(i_kind) np,i,j,ib

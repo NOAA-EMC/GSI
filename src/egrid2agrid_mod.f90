@@ -1211,6 +1211,7 @@ module egrid2agrid_mod
 !$$$ end documentation block
 
       use constants, only: zero,half,one,two
+      use blendmod, only: blend
       implicit none
 
       integer(i_kind),intent(in) :: np,nye,nxe,nord_e2a
