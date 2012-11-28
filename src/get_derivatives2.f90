@@ -17,6 +17,8 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !   2010-01-04  safford - comment out $omp directives that produce inconsistent results 
 !   2010-05-23  todling - trying to unwire index assumptions for sf and vp 
 !   2012-02-08  kleist  - add uvflag to input arguments, remove ref to uv_hyb_ens parameter.
+!   2012-06-12  parrish - significant reorganization to replace sub2grid2/grid2sub2 with
+!                         general_sub2grid/general_grid2sub.
 !
 !   input argument list:
 !     u        - longitude velocity component
@@ -57,10 +59,12 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
 !$$$
 
   use kinds, only: r_kind,i_kind
+  use constants, only: zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon,stvp2uv
-  use mpimod, only: nvarbal_id,nlevsbal,nnnvsbal
-  use control_vectors, only: nrf_var
+  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g4
 
   implicit none
 
@@ -73,69 +77,161 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
   logical                                 ,intent(in   ) :: uvflag
 
 ! Local Variables
-  integer(i_kind) iflg,k,i,j,isf,ivp
-  real(r_kind),dimension(nlat,nlon,nlevsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) k,i,j,kk,k2
+  real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_sub,hwork,hwork_x,hwork_y
   real(r_kind),dimension(nlat,nlon):: stx,vpx
   logical vector
 
-
-  iflg=1
-
-! Determine id's for sf and vp
-  do k=1,size(nrf_var)
-     if(trim(nrf_var(k))=='sf') isf=k
-     if(trim(nrf_var(k))=='vp') ivp=k
-  enddo
-
-! substitute u for q, v for oz, t for cwmr and p for tskin
-  call sub2grid2(hwork,st,vp,p3d,t,iflg)
+  allocate(hwork_sub(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              hwork_sub(1,i,j,kk)=st(i,j,k)
+              hwork_sub(2,i,j,kk)=vp(i,j,k)
+           end do
+        end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d(i,j,k)
+                 hwork_sub(2,i,j,kk)=zero
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d(i,j,k)
+                 hwork_sub(2,i,j,kk)=t(i,j,k)
+              end do
+           end do
+        end if
+     end if
+  end do
+  allocate(hwork(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  call general_sub2grid(s2g4,hwork_sub,hwork)
+  allocate(hwork_x(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  allocate(hwork_y(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
 
 ! x derivative
   if(regional)then
-     if(.not. uvflag)then
-       do k=1,nnnvsbal
-          if(nvarbal_id(k) ==isf)then ! _RTod dangerously assume sf and vp 
-                                      !       are sequentially arranged in hwork
-             do j=1,nlon
-                do i=1,nlat
-                   stx(i,j)=hwork(i,j,k)
-                   vpx(i,j)=hwork(i,j,k+1)
-                end do
-             end do
-             call psichi2uv_reg(stx,vpx,hwork(1,1,k),hwork(1,1,k+1))
-          end if
-       end do
+     if(.not.uvflag) then
+        do k=s2g4%kbegin_loc,s2g4%kend_loc
+           if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
+              do j=1,nlon
+                 do i=1,nlat
+                    stx(i,j)=hwork(1,i,j,k)
+                    vpx(i,j)=hwork(2,i,j,k)
+                 end do
+              end do
+              call psichi2uv_reg(stx,vpx,hwork(1,:,:,k),hwork(2,:,:,k))
+           end if
+        end do
      end if
-!$omp parallel do private (k,vector)
-     do k=1,nnnvsbal
-        vector=.false.
-        if(nvarbal_id(k)==isf .or. nvarbal_id(k)==ivp) vector=.true.
-        call delx_reg(hwork(1,1,k),hwork_x(1,1,k),vector)
-        call dely_reg(hwork(1,1,k),hwork_y(1,1,k),vector)
+!       !$omp parallel do private (k,vector)     ! ??????????fix this later
+     do k=s2g4%kbegin_loc,s2g4%kend_loc
+        vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
+        call delx_reg(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
+        call dely_reg(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
+        call delx_reg(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
+        call dely_reg(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
      end do
-!$omp end parallel do
+!        !$omp end parallel do                     ! ?????fix later
+
   else
      if(.not. uvflag)then
-       do k=1,nnnvsbal
-          if(nvarbal_id(k) == isf)then ! _RTod dangerously assume sf and vp 
-                                                            !       are sequentially arranged in hwork
-             call stvp2uv(hwork(1,1,k),hwork(1,1,k+1))
-          end if
-       end do
+        do k=s2g4%kbegin_loc,s2g4%kend_loc
+           if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
+              call stvp2uv(hwork(1,:,:,k),hwork(2,:,:,k))
+           end if
+        end do
      end if
-!$omp parallel do private(k,vector)
-     do k=1,nnnvsbal
-        vector=.false.
-        if(nvarbal_id(k)==isf .or. nvarbal_id(k)==ivp) vector=.true.
-        call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
-        call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
+!       !$omp parallel do private(k,vector)      ! ????????????fix this later
+     do k=s2g4%kbegin_loc,s2g4%kend_loc
+        vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
+        call compact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
+        call compact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
+        call compact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
+        call compact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
      end do
-!$omp end parallel do
+!       !$omp end parallel do                        ! ???fix later
   end if
-! p3d_x and t_x are dummy arrays in first call
-  call grid2sub2(hwork,u,v,p3d_x,t_x)
-  call grid2sub2(hwork_x,u_x,v_x,p3d_x,t_x)
-  call grid2sub2(hwork_y,u_y,v_y,p3d_y,t_y)
+
+  call general_grid2sub(s2g4,hwork,hwork_sub)
+  deallocate(hwork)
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              u(i,j,k)=hwork_sub(1,i,j,kk)
+              v(i,j,k)=hwork_sub(2,i,j,kk)
+           end do
+        end do
+     end if
+  end do
+  call general_grid2sub(s2g4,hwork_x,hwork_sub)
+  deallocate(hwork_x)
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              u_x(i,j,k)=hwork_sub(1,i,j,kk)
+              v_x(i,j,k)=hwork_sub(2,i,j,kk)
+           end do
+        end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 p3d_x(i,j,k)=hwork_sub(1,i,j,kk)
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 p3d_x(i,j,k)=hwork_sub(1,i,j,kk)
+                 t_x(i,j,k)=hwork_sub(2,i,j,kk)
+              end do
+           end do
+        end if
+     end if
+  end do
+  call general_grid2sub(s2g4,hwork_y,hwork_sub)
+  deallocate(hwork_y)
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              u_y(i,j,k)=hwork_sub(1,i,j,kk)
+              v_y(i,j,k)=hwork_sub(2,i,j,kk)
+           end do
+        end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 p3d_y(i,j,k)=hwork_sub(1,i,j,kk)
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 p3d_y(i,j,k)=hwork_sub(1,i,j,kk)
+                 t_y(i,j,k)=hwork_sub(2,i,j,kk)
+              end do
+           end do
+        end if
+     end if
+  end do
+  deallocate(hwork_sub)
 
 
   return
@@ -159,6 +255,8 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
 !   2009-11-27  parrish - add uv_hyb_ens:  uv_hyb_ens=T, then st=u, vp=v
 !   2010-05-23  todling - trying to unwire index assumptions for sf and vp 
 !   2012-02-08  kleist  - add uvflag to input arguments, remove ref to uv_hyb_ens parameter.
+!   2012-06-12  parrish - significant reorganization to replace sub2grid2/grid2sub2 with
+!                         general_sub2grid/general_grid2sub.
 !
 !   input argument list:
 !     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
@@ -187,8 +285,9 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   use constants, only: zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon,tstvp2uv
-  use mpimod, only: nvarbal_id,nnnvsbal
-  use control_vectors, only: nrf_var
+  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g4
   implicit none
 
 ! Passed variables
@@ -201,92 +300,183 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   logical                                 ,intent(in   ) :: uvflag
 
 ! Local Variables
-  integer(i_kind) iflg,k,i,j,isf,ivp
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) k,i,j,kk,k2
+  real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_sub,hwork,hwork_x,hwork_y
   real(r_kind),dimension(nlat,nlon):: ux,vx
   logical vector
 
-  iflg=1
+  allocate(hwork_sub(2,s2g4%lat2,s2g4%lon2,s2g4%num_fields))
 
-! Determine id's for sf and vp
-  do k=1,size(nrf_var)
-     if(trim(nrf_var(k))=='sf') isf=k
-     if(trim(nrf_var(k))=='vp') ivp=k
-  enddo
-
-
-!             initialize hwork to zero, so can accumulate contribution from
-!             all derivatives
-  hwork=zero
-
-  call sub2grid2(hwork_x,u_x,v_x,p3d_x,t_x,iflg)
-  call sub2grid2(hwork_y,u_y,v_y,p3d_y,t_y,iflg)
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              hwork_sub(1,i,j,kk)=u_x(i,j,k)
+              hwork_sub(2,i,j,kk)=v_x(i,j,k)
+           end do
+        end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
+                 hwork_sub(2,i,j,kk)=zero
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
+                 hwork_sub(2,i,j,kk)=t_x(i,j,k)
+              end do
+           end do
+        end if
+     end if
+  end do
+  allocate(hwork_x(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  call general_sub2grid(s2g4,hwork_sub,hwork_x)
   p3d_x=zero
   t_x=zero
-  call sub2grid2(hwork,u,v,p3d_x,t_x,iflg)
-  if(regional)then
-!$omp parallel do private(k,vector)
-     do k=1,nnnvsbal
-        vector=.false.
-        if(nvarbal_id(k)==isf .or. nvarbal_id(k)==ivp) vector=.true.
-        call tdelx_reg(hwork_x(1,1,k),hwork(1,1,k),vector)
-        call tdely_reg(hwork_y(1,1,k),hwork(1,1,k),vector)
-     end do
-     if(.not. uvflag)then
-       do k=1,nnnvsbal
-          if(nvarbal_id(k) == isf)then
-             do j=1,nlon
-                do i=1,nlat
-                   ux(i,j)=hwork(i,j,k)
-                   vx(i,j)=hwork(i,j,k+1)
-                   hwork(i,j,k)=zero
-                   hwork(i,j,k+1)=zero
-                end do
-             end do
-             call psichi2uvt_reg(ux,vx,hwork(1,1,k),hwork(1,1,k+1))
 
-          end if
-       end do
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              hwork_sub(1,i,j,kk)=u_y(i,j,k)
+              hwork_sub(2,i,j,kk)=v_y(i,j,k)
+           end do
+        end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d_y(i,j,k)
+                 hwork_sub(2,i,j,kk)=zero
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d_y(i,j,k)
+                 hwork_sub(2,i,j,kk)=t_y(i,j,k)
+              end do
+           end do
+        end if
      end if
-  else
-!$omp parallel do private(k,vector)
-     do k=1,nnnvsbal
-        vector=.false.
-        if(nvarbal_id(k)==isf .or. nvarbal_id(k)==ivp) vector=.true.
-        call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),vector)
-        call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),vector)
+  end do
+  allocate(hwork_y(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  call general_sub2grid(s2g4,hwork_sub,hwork_y)
+
+
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              hwork_sub(1,i,j,kk)=u(i,j,k)
+              hwork_sub(2,i,j,kk)=v(i,j,k)
+           end do
+        end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
+                 hwork_sub(2,i,j,kk)=zero
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 hwork_sub(1,i,j,kk)=p3d_x(i,j,k)
+                 hwork_sub(2,i,j,kk)=t_x(i,j,k)
+              end do
+           end do
+        end if
+     end if
+  end do
+!             initialize hwork to zero, so can accumulate contribution from
+!             all derivatives
+  allocate(hwork(s2g4%inner_vars,s2g4%nlat,s2g4%nlon,s2g4%kbegin_loc:s2g4%kend_alloc))
+  hwork=zero      ! ??? do I need this ???
+  call general_sub2grid(s2g4,hwork_sub,hwork)
+
+  if(regional)then
+!       !$omp parallel do private (k,vector)     ! ??????????fix this later
+     do k=s2g4%kbegin_loc,s2g4%kend_loc
+        vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
+        call tdelx_reg(hwork_x(1,:,:,k),hwork(1,:,:,k),vector)
+        call tdely_reg(hwork_y(1,:,:,k),hwork(1,:,:,k),vector)
+        call tdelx_reg(hwork_x(2,:,:,k),hwork(2,:,:,k),vector)
+        call tdely_reg(hwork_y(2,:,:,k),hwork(2,:,:,k),vector)
+!        !$omp end parallel do                     ! ?????fix later
+        if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
+           do j=1,nlon
+              do i=1,nlat
+                 ux(i,j)=hwork(1,i,j,k)
+                 vx(i,j)=hwork(2,i,j,k)
+                 hwork(1,i,j,k)=zero
+                 hwork(2,i,j,k)=zero
+              end do
+           end do
+           call psichi2uvt_reg(ux,vx,hwork(1,:,:,k),hwork(2,:,:,k))
+        end if
      end do
+  else
+!       !$omp parallel do private(k,vector)      ! ????????????fix this later
+     do k=s2g4%kbegin_loc,s2g4%kend_loc
+        vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
+        call tcompact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
+        call tcompact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
+        call tcompact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
+        call tcompact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
+     end do
+!       !$omp end parallel do                        ! ???fix later
      if(.not. uvflag)then
-       do k=1,nnnvsbal
-          if(nvarbal_id(k) == isf)then
-             call tstvp2uv(hwork(1,1,k),hwork(1,1,k+1))
-          end if
-       end do
+        do k=s2g4%kbegin_loc,s2g4%kend_loc
+           if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
+              call tstvp2uv(hwork(1,:,:,k),hwork(2,:,:,k))
+           end if
+        end do
      end if
   end if
+  deallocate(hwork_x,hwork_y)
 
 !     use t_x,etc since don't need to save contents
-  call grid2sub2(hwork,u_x,v_x,p3d_x,t_x)
-
-! accumulate to contents of t,p,etc (except st,vp, which are zero on input
-!$omp parallel do private(i,j,k)
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           st(i,j,k)=st(i,j,k)+u_x(i,j,k)
-           vp(i,j,k)=vp(i,j,k)+v_x(i,j,k)
-           t(i,j,k)=t(i,j,k)+t_x(i,j,k)
-           p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)
+  call general_grid2sub(s2g4,hwork,hwork_sub)
+  deallocate(hwork)
+  do kk=1,s2g4%num_fields
+     k=s2g4%lnames(1,kk)
+     k2=s2g4%lnames(2,kk)
+     if(trim(s2g4%names(1,kk))=='sf'.and.trim(s2g4%names(2,kk))=='vp') then
+        do j=1,s2g4%lon2
+           do i=1,s2g4%lat2
+              st(i,j,k)=st(i,j,k)+hwork_sub(1,i,j,kk)
+              vp(i,j,k)=vp(i,j,k)+hwork_sub(2,i,j,kk)
+           end do
         end do
-     end do
+     else
+        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 p3d(i,j,k)=p3d(i,j,k)+hwork_sub(1,i,j,kk)
+              end do
+           end do
+        else
+           do j=1,s2g4%lon2
+              do i=1,s2g4%lat2
+                 p3d(i,j,k)=p3d(i,j,k)+hwork_sub(1,i,j,kk)
+                 t(i,j,k)=t(i,j,k)+hwork_sub(2,i,j,kk)
+              end do
+           end do
+        end if
+     end if
   end do
-!$omp end parallel do
-!  Do extra field for pressure
-  k=nsig+1
-  do j=1,lon2
-     do i=1,lat2
-        p3d(i,j,k)=p3d(i,j,k)+p3d_x(i,j,k)
-     end do
-  end do
+  deallocate(hwork_sub)
 
 end subroutine tget_derivatives2

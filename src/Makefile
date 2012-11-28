@@ -253,6 +253,7 @@ clean:
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
+        general_commvars_mod.f90 \
 	general_read_gfsatm.f90 \
         general_read_nmmb.f90 \
 	general_specmod.f90 \
@@ -279,7 +280,6 @@ clean:
 	glbsoi.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
-	grid2sub.f90 \
 	gridmod.F90 \
 	gscond_ad.f90 \
 	gsd_terrain_match_surfTobs.f90 \
@@ -300,7 +300,6 @@ clean:
 	hybrid_ensemble_isotropic.F90 \
 	hybrid_ensemble_parameters.f90 \
 	inc2guess.f90 \
-	init_commvars.f90 \
 	init_jcdfi.f90 \
 	insitu_info.f90 \
 	int3dvar.f90 \
@@ -469,7 +468,6 @@ clean:
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
 	sub2fslab_mod.f90 \
-	sub2grid.f90 \
 	support_2dvar.f90 \
 	stub_set_crtm_aerosol.f90 \
 	stub_pertmod.F90 \
