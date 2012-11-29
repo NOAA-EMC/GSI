@@ -98,7 +98,7 @@ module satthin
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_quad
   use mpeu_util, only: die, perr
   implicit none
 
@@ -188,7 +188,7 @@ contains
 
     integer(i_kind) i,ii,j
     integer(i_kind) mlonx,icnt,mlony,mlonj
-    real(r_kind) delonx,delat,dgv,dx,dy
+    real(r_kind) delat,dgv,dx,dy
     real(r_kind) twopi,dlon_g,dlat_g,dlon_e,dlat_e
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm,glatx
@@ -243,7 +243,6 @@ contains
           mlat  = dlat_grid/dy + half
           mlonx = dlon_grid/dx + half
           delat = dlat_grid/mlat
-          delonx= dlon_grid/mlonx	
           dgv   = delat*half
           mlat=max(2,mlat);   mlonx=max(2,mlonx)
 
@@ -319,10 +318,11 @@ contains
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
-    real(r_kind) delonx,delat,dgv,halfpi,dx,dy
+    real(r_kind) dgv,halfpi,dx,dy
     real(r_kind) twopi
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm
+    real(r_quad) delat
 
 
 !   If there is to be no thinning, simply return to calling routine
@@ -351,8 +351,7 @@ contains
     dy    = dx
     mlat  = dlat_grid/dy + half
     mlonx = dlon_grid/dx + half
-	delat = dlat_grid/mlat
-	delonx= dlon_grid/mlonx
+    delat = dlat_grid/mlat
     dgv  = delat*half
     mlat=max(2,mlat);   mlonx=max(2,mlonx)
 
