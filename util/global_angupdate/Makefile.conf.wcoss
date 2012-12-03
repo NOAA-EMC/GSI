@@ -56,7 +56,7 @@ CORELIB  = /nwprod/lib
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -Wl,-Map,loadmap.txt
+  LD            = $(CF)
 
 #--- Normal mode options
   LIBS_N        = -L$(CORELIB) -lw3nco_4
@@ -69,7 +69,7 @@ CORELIB  = /nwprod/lib
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     = $(LDFLAGS)
+  LDFLAGS_D     = $(LDFLAGS_N)
 
 #--- Empty out mpi library definition: embedded in compiler
 

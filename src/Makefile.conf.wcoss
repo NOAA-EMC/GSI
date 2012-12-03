@@ -9,8 +9,8 @@ CORELIB  = /nwprod/lib
 INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
 INCnemsio= $(COREINC)/nemsio
-INCcrtm  = $(COREINC)/crtm_2.0.5
 INCw3    = $(COREINC)/w3emc_d
+INCcrtm  = $(COREINC)/crtm_2.0.6
 
 
 # WRF locations
@@ -106,12 +106,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-##LIBSP=/nwprod/lib/libsp_d.a
-  LIBSP=/u/Eugene.Mirvis/libx_v2/libsp_d.a
-
-  LIBS_N        = $(LIBSP) \
-  		-L$(CORELIB) -lnemsio -lbacio_4 -lsigio_4 \
-		-lsfcio_4 -lbufr_d_64 -lw3nco_d -lw3emc_d -lcrtm_v2.0.5 $(WRFLIB) \
+  LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
+		-lsfcio_4 -lbufr_d_64 -lw3nco_d -lw3emc_d -lcrtm_v2.0.6 $(WRFLIB) \
 		-L$(NETCDFPATH)/lib -lnetcdff -lnetcdf
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
