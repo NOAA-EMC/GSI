@@ -1188,6 +1188,7 @@ end subroutine normal_new_factorization_rf_y
 !                         then is temporarily replaced with the proper non-zero value, and restored back
 !                         to its original value after exiting from the call to ckgcov.  Also, this is
 !                         now an argument in ckgcov, which was missing in this call to ckgcov.
+!   2012-06-12  parrish - remove variable nvar_pe (not used)
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -1213,7 +1214,7 @@ end subroutine normal_new_factorization_rf_y
 
     use kinds, only: r_kind,i_kind,i_llong
     use gridmod, only: vlevs,nnnn1o,regional
-    use mpimod, only: mype,mpi_rtype,mpi_comm_world,ierror,nvar_pe
+    use mpimod, only: mype,mpi_rtype,mpi_comm_world,ierror
     use hybrid_ensemble_parameters, only: uv_hyb_ens,grd_ens,grd_anl,p_e2a
     use general_sub2grid_mod, only: general_suba2sube
     use constants, only: zero,one

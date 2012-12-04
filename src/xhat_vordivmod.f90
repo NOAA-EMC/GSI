@@ -9,6 +9,8 @@ module xhat_vordivmod
 ! program history log:
 !   2009-08-14  lueken - added module doc block
 !   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
+!   2012-06-12  parrish - replace mpi_all2allv and all supporting code with general_sub2grid
+!                         and general_grid2sub
 !
 ! subroutines included:
 !   sub init_
@@ -23,15 +25,15 @@ module xhat_vordivmod
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s
   use constants, only: zero
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
-       regional,strip,reorder,reorder2
+  use gridmod, only: lat2,lon2,nsig,&
+       regional,nlon,nlat
   use compact_diffs, only: uv2vordiv
   use gsi_4dvar, only: nobs_bins
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_commvars_mod, only: s2guv
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
 
   implicit none
   private
@@ -115,6 +117,8 @@ subroutine calc_(sval)
 !   2007-07-05  todling - intial code; stripped off from update_guess
 !   2010-05-13  todling - update to use gsi_bundle
 !   2010-06-01  todling - gracefully exit when (u,v) pointers not found
+!   2012-06-12  parrish - replace mpi_all2allv and all supporting code with general_sub2grid
+!                         and general_grid2sub
 !
 !   input argument list:
 !     sval     - analysis increment in grid space
@@ -134,9 +138,9 @@ subroutine calc_(sval)
   type(gsi_bundle), intent(in   ) :: sval(nobs_bins)
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ii,istatus,ier
-  real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
-  real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
+  integer(i_kind) i,j,k,ii,istatus
+  real(r_kind),dimension(nlat,nlon):: usm,vsm
+  real(r_kind),dimension(:,:,:,:),allocatable:: work1,worksub
   real(r_kind),pointer,dimension(:,:,:):: uptr,vptr
   logical docalc
 
@@ -171,59 +175,64 @@ subroutine calc_(sval)
 ! For NCEP GFS convert increment in u,v to increments in vor,div
   if (.not.regional) then
 
+     allocate(work1(2,s2guv%nlat,s2guv%nlon,s2guv%kbegin_loc:s2guv%kend_alloc))
+     allocate(worksub(2,s2guv%lat2,s2guv%lon2,s2guv%nsig))
      do ii=1,nobs_bins
 !       NCEP GFS interface
-!       Zero work arrays
-        do k=1,nuvlevs
-           do j=1,itotsub
-              work1(j,k)=zero
-              work2(j,k)=zero
-           end do
-        end do
   
 !       Get pointers to u and v
         call gsi_bundlegetpointer(sval(ii),'u',uptr,istatus);docalc=istatus==0
         call gsi_bundlegetpointer(sval(ii),'v',vptr,istatus);docalc=istatus==0.and.docalc
         if(.not.docalc) exit
 
-!       Strip off halo for u,v grids on subdomains
-        call strip(uptr,usm,nsig)
-        call strip(vptr,vsm,nsig)
-
 !       Put u,v subdomains on global slabs
-!       Note:  u --> work1, v --> work2
-        call mpi_alltoallv(usm,iscuv_g,isduv_g,&
-             mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
-             mpi_comm_world,ierror)
-        call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
-             mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
-             mpi_comm_world,ierror)
-   
-!       Reorder work arrays before converting u,v to vor,div
-        call reorder(work1,nuvlevs,nnnuvlevs)
-        call reorder(work2,nuvlevs,nnnuvlevs)
+!       Note:  u --> work1(1,:,:,:), v --> work1(2,:,:,:)
 
-!       Call u,v --> vor,div routine (conversion uses compact differences)
-        do k=1,nnnuvlevs
-           call uv2vordiv(work1(1,k),work2(1,k))
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 worksub(1,i,j,k)=uptr(i,j,k)
+                 worksub(2,i,j,k)=vptr(i,j,k)
+              end do
+           end do
         end do
 
-!       Reorder work arrays for mpi communication
-        call reorder2(work1,nuvlevs,nnnuvlevs)
-        call reorder2(work2,nuvlevs,nnnuvlevs)
+        call general_sub2grid(s2guv,worksub,work1)
+
+!       Call u,v --> vor,div routine (conversion uses compact differences)
+        do k=s2guv%kbegin_loc,s2guv%kend_loc
+           do j=1,nlon
+              do i=1,nlat
+                 usm(i,j)=work1(1,i,j,k)
+                 vsm(i,j)=work1(2,i,j,k)
+              end do
+           end do
+           call uv2vordiv(usm,vsm)
+           do j=1,nlon
+              do i=1,nlat
+                 work1(1,i,j,k)=usm(i,j)
+                 work1(2,i,j,k)=vsm(i,j)
+              end do
+           end do
+        end do
 
 !       Get vor,div on subdomains
 !       Note:  work1 --> vor, work2 --> div
-        call mpi_alltoallv(work1,iscuv_s,isduv_s,&
-             mpi_rtype,xhat_vor(1,1,1,ii),ircuv_s,irduv_s,mpi_rtype,&
-             mpi_comm_world,ierror)
-        call mpi_alltoallv(work2,iscuv_s,isduv_s,&
-             mpi_rtype,xhat_div(1,1,1,ii),ircuv_s,irduv_s,mpi_rtype,&
-             mpi_comm_world,ierror)
+
+        
+        call general_grid2sub(s2guv,work1,worksub)
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 xhat_vor(i,j,k,ii)=worksub(1,i,j,k)
+                 xhat_div(i,j,k,ii)=worksub(2,i,j,k)
+              end do
+           end do
+        end do
 
 !    End of NCEP GFS block
      end do
-
+     deallocate(work1,worksub)
   endif
 
   return
@@ -240,6 +249,8 @@ subroutine calc2_(u,v,vor,div)
 ! program history log:
 !   2007-07-05  todling - intial code; stripped off from update_guess
 !   2009-02-23  todling - this is a variation of calc_ above
+!   2012-06-12  parrish - replace mpi_all2allv and all supporting code with general_sub2grid
+!                         and general_grid2sub
 !
 !   input argument list:
 !     u,v     - increment in grid space
@@ -264,8 +275,8 @@ subroutine calc2_(u,v,vor,div)
 
 ! Declare local variables
   integer(i_kind) i,j,k
-  real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
-  real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
+  real(r_kind),dimension(nlat,nlon):: usm,vsm
+  real(r_kind),dimension(:,:,:,:),allocatable:: work1,worksub
 
 !*******************************************************************************
 
@@ -296,51 +307,54 @@ subroutine calc2_(u,v,vor,div)
 ! For NCEP GFS convert increment in u,v to increments in vor,div
   if (.not.regional) then
 
+     allocate(work1(2,s2guv%nlat,s2guv%nlon,s2guv%kbegin_loc:s2guv%kend_alloc))
+     allocate(worksub(2,s2guv%lat2,s2guv%lon2,s2guv%nsig))
 !    NCEP GFS interface
-!    Zero work arrays
-     do k=1,nuvlevs
-        do j=1,itotsub
-           work1(j,k)=zero
-           work2(j,k)=zero
+
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              worksub(1,i,j,k)=u(i,j,k)
+              worksub(2,i,j,k)=v(i,j,k)
+           end do
         end do
      end do
-  
-!    Strip off halo for u,v grids on subdomains
-     call strip(u,usm,nsig)
-     call strip(v,vsm,nsig)
 
-!    Put u,v subdomains on global slabs
-!    Note:  u --> work1, v --> work2
-     call mpi_alltoallv(usm,iscuv_g,isduv_g,&
-          mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
-          mpi_comm_world,ierror)
-     call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
-          mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
-          mpi_comm_world,ierror)
-
-!    Reorder work arrays before converting u,v to vor,div
-     call reorder(work1,nuvlevs,nnnuvlevs)
-     call reorder(work2,nuvlevs,nnnuvlevs)
+     call general_sub2grid(s2guv,worksub,work1)
 
 !    Call u,v --> vor,div routine (conversion uses compact differences)
-     do k=1,nnnuvlevs
-        call uv2vordiv(work1(1,k),work2(1,k))
+     do k=s2guv%kbegin_loc,s2guv%kend_loc
+        do j=1,nlon
+           do i=1,nlat
+              usm(i,j)=work1(1,i,j,k)
+              vsm(i,j)=work1(2,i,j,k)
+           end do
+        end do
+        call uv2vordiv(usm,vsm)
+        do j=1,nlon
+           do i=1,nlat
+              work1(1,i,j,k)=usm(i,j)
+              work1(2,i,j,k)=vsm(i,j)
+           end do
+        end do
      end do
 
-!    Reorder work arrays for mpi communication
-     call reorder2(work1,nuvlevs,nnnuvlevs)
-     call reorder2(work2,nuvlevs,nnnuvlevs)
+!       Get vor,div on subdomains
+!       Note:  work1 --> vor, work2 --> div
 
-!    Get vor,div on subdomains
-!    Note:  work1 --> vor, work2 --> div
-     call mpi_alltoallv(work1,iscuv_s,isduv_s,&
-          mpi_rtype,vor,ircuv_s,irduv_s,mpi_rtype,&
-          mpi_comm_world,ierror)
-     call mpi_alltoallv(work2,iscuv_s,isduv_s,&
-          mpi_rtype,div,ircuv_s,irduv_s,mpi_rtype,&
-          mpi_comm_world,ierror)
+
+     call general_grid2sub(s2guv,work1,worksub)
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              vor(i,j,k)=worksub(1,i,j,k)
+              div(i,j,k)=worksub(2,i,j,k)
+           end do
+        end do
+     end do
 
 ! End of NCEP GFS block
+     deallocate(work1,worksub)
 
   endif
 
