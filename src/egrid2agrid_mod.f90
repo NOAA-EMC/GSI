@@ -1188,6 +1188,7 @@ module egrid2agrid_mod
 !
 ! program history log:
 !   2010-10-29  parrish, initial documentation
+!   2012-11-28  tong - added p%lallocated=.true. after arrays of p are allocated
 !
 !   input argument list:
 !     np:     number of points to interpolate to
@@ -1292,6 +1293,8 @@ module egrid2agrid_mod
          deallocate(wgt_e,wgt_a,wgt_xe,wgt_ye,blendx)
 
       end if
+
+      p%lallocated=.true.
 
    end subroutine create_egrid2points_slow
 

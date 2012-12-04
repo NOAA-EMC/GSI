@@ -56,6 +56,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !   2012-01-14  zhu     - add cloud hydrometeors for cloudy radiance
 !   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at.
 !                           (to handle cases of big-endian file/little-endian machine and vice-versa)
+!   2012-11-30  tong    - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
+!                         because load_prsges is called after this subroutine is called.                       
 !
 !   input argument list:
 !     mype     - pe number
@@ -86,9 +88,9 @@ subroutine read_wrf_nmm_binary_guess(mype)
        isli,nfldsig,ifilesig,ges_tsen,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use gridmod, only: lat2,lon2,itotsub,&
        pdtop_ll,pt_ll,nlon,nlat,nlon_regional,nsig,nlat_regional,half_grid,&
-       filled_grid, &
+       filled_grid,aeta1_ll,aeta2_ll, &
       displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3
-  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01
+  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
@@ -785,11 +787,20 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  end if
               end do
            end do
-           if (nguess>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) &
+           if (nguess>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
               call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
                    fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+           end if
         end do
         if (nguess>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
@@ -925,6 +936,8 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !   2008-04-16  safford - rm unused uses
 !   2012-10-11  eliu - add capability of uing gfs-regional blended vertical coordinate 
 !                      for wrf_nmm_regional (HWRF)                 
+!   2012-11-30  tong  - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
+!                       because load_prsges is called after this subroutine is called.
 !
 !   input argument list:
 !     mype     - pe number
@@ -954,9 +967,9 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
        isli,nfldsig,ifilesig,ges_tsen,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
        pdtop_ll,pt_ll,nlon_regional,nsig,nlat_regional,half_grid,&
-       filled_grid
+       filled_grid,aeta1_ll,aeta2_ll
   use gridmod, only: regional
-  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01
+  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
@@ -1297,11 +1310,20 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end if
               end do
            end do
-           if (nguess>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) &
+           if (nguess>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
               call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
                    fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+           end if
         end do
         if (nguess>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
