@@ -182,6 +182,7 @@ subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
 !   2011-05-20  mccarty - add atms wmo_sat_id hack (currently commented out)
 !   2011-07-20  zhu     - modified codes for lcw4crtm
 !   2012-03-12  yang    - modify to use ch4,n2o,and co
+!   2012-12-03  eliu    - add logic for RH total 
 !
 !   input argument list:
 !     mype_diaghdr - processor to produce output from crtm
@@ -213,6 +214,7 @@ subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use constants, only: zero,tiny_r_kind,max_varname_length
+  use jfunc, only: use_rhtot 
 
   implicit none
 
@@ -325,7 +327,8 @@ subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
     if(n_clouds>0) then
        call gsi_metguess_get ( 'clouds::3d', n_actual_clouds, ier )
        if (getindex(cvars3d,'cw')>0) lcw4crtm=.true.
-
+       if (getindex(cvars3d,'cw')>0 .or. use_rhtot) lcw4crtm=.true.                                                
+                                                                                                                              
        if (mype==0) write(0,*) myname_, " n_clouds, n_actual_clouds: ", n_clouds, n_actual_clouds
 
        allocate(cloud_cont(msig,n_clouds))
@@ -797,7 +800,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gridmod, only: istart,jstart,nlon,nlat,lon1
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
-  use constants, only: max_varname_length
+  use constants, only: max_varname_length,qmin,qcmin 
 
 
   use set_crtm_aerosolmod, only: set_crtm_aerosol
@@ -1016,7 +1019,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 !  Ensure q is greater than or equal to qsmall
 
-     q(k)=max(qsmall,q(k))
+     q(k)=max(qsmall,q(k))      
+!    q(k)=max(qmin,q(k))       
 
 ! Create constants for later
 
@@ -1251,7 +1255,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iy ,k)*w10+ &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ix ,iyp,k)*w01+ &
                          gsi_metguess_bundle(itsigp)%r3(icloud(iii))%q(ixp,iyp,k)*w11)*dtsigp
-           cloud(k,ii)=max(cloud(k,ii),zero)
+           cloud(k,ii)=max(cloud(k,ii),zero)     
+!          cloud(k,ii)=max(cloud(k,ii),qcmin)    
 
            if (regional .and. (.not. wrf_mass_regional)) then
               if (trim(cloud_names(iii))== 'ql' ) &

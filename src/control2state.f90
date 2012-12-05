@@ -30,7 +30,9 @@ subroutine control2state(xhat,sval,bval)
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro
 !   2012-02-08  kleist   - remove call to strong_bk, ensemble_forward_model, 
 !                             ensemble_forward_model_dual_res, and related parameters
-
+!   2012-12-03  eliu     - add calls to linearized GFS moisture physics, normalized RH total, and                            
+!                          additional conversion of tsen to tv if linearized GFS moisture physics         
+!                          is turned on 
 !
 !   input argument list:
 !     xhat - Control variable
@@ -49,7 +51,10 @@ use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb
 use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
 use jfunc, only: nsclen,npclen,nrclen
+use jfunc, only: use_rhtot,do_gfsphys  
+use normal_rhtot_mod, only: normal_rhtot_tl,cw2hydro_beta_tl 
 use cwhydromod, only: cw2hydro_tl
+use gfs_moistphys_mod, only: moistphys_tl  
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -60,7 +65,8 @@ use gsi_bundlemod, only: assignment(=)
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
-use constants, only : max_varname_length
+use mpimod, only: mype  
+use constants, only : max_varname_length,zero 
 implicit none
   
 ! Declare passed variables  
@@ -72,7 +78,7 @@ type(predictors)    , intent(inout) :: bval
 character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus
+integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus,ierr 
 type(gsi_bundle):: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -85,10 +91,11 @@ integer(i_kind) :: icpblh,icgust,icvis
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ' /)
+logical :: pdf 
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
-
+real(r_kind),pointer,dimension(:,:,:) :: cv_cw 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
@@ -98,10 +105,14 @@ logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
+real(r_kind),pointer,dimension(:,:,:) :: sv_ql,sv_qi  
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+real(r_kind),pointer,dimension(:,:,:) :: sv_qc  !emliy
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
+logical :: do_normal_rhtot_to_q_hydro 
+logical :: do_tsen_to_tv  ! only involoves this when trun do_gfsphys is true    
 
 !******************************************************************************
 
@@ -142,9 +153,13 @@ ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
 do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
-do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
+!do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q            
+do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q 
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
+do_normal_rhtot_to_q_hydro=(lc_rh.and.lc_t.and.ls_p3d).and.(.not.lc_cw).and. &                 
+                           (ls_q.and.ls_ql.and.ls_qi.and.ls_tsen).and.use_rhtot           
+do_tsen_to_tv    =(do_gfsphys .and. lc_cw) .or. (do_gfsphys .and. use_rhtot)
 
 do_cw_to_hydro=.false.
 if (regional) then
@@ -175,6 +190,7 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
    if (icvis >0) call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
+   if (lc_cw) call gsi_bundlegetpointer (wbundle,'cw',cv_cw,istatus)     
 
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
@@ -189,6 +205,12 @@ do jj=1,nsubwin
    if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
    if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
    if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
+   if (do_normal_rhtot_to_q_hydro) then
+      ierr = 0 
+      if(ls_ql) call gsi_bundlegetpointer (sval(jj),'ql',sv_ql,istatus); ierr=ierr+istatus                      
+      if(ls_qi) call gsi_bundlegetpointer (sval(jj),'qi',sv_qi,istatus); ierr=ierr+istatus                      
+      if (ierr/=0) write(6,*) 'control2state: can not get pointer for sv_ql & sv_qi'                
+   endif
 
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_p3d)
@@ -197,16 +219,35 @@ do jj=1,nsubwin
    if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_p3d,sv_q)
 
 !  Calculate sensible temperature
-   if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
-
+!  if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)  !orig
+   if(do_tv_to_tsen .and. .not. do_normal_rhtot_to_q_hydro) call tv_to_tsen(cv_t,sv_q,sv_tsen)                                                
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
 
 !  Convert log(vis) to vis
    if (icvis >0)  call logvis_to_vis(cv_vis,sv_vis)
 
+!  Convert input normalized rhtot to q and hydrometeors
+   if (do_normal_rhtot_to_q_hydro) then
+      pdf=.true.
+      allocate(sv_qc(lat2,lon2,nsig))
+      call normal_rhtot_tl(cv_rh,cv_t,sv_p3d,sv_q,sv_qc,sv_tsen,pdf)
+      if (do_gfsphys) &
+      call moistphys_tl(sv_tsen,sv_q,sv_qc)
+      call cw2hydro_beta_tl(sv_qc,sv_tsen,sv_ql,sv_qi)
+      if (do_tsen_to_tv) &
+      call tsen_to_tv(sv_tsen,sv_q,sv_tv)                      
+      deallocate(sv_qc)
+   else
+!  Call GFS moisture physics (update state variables related to moisture
+!  physics)
+      if (do_gfsphys .and. lc_cw) call moistphys_tl(sv_tsen,sv_q,cv_cw)
+      if (do_tsen_to_tv) call tsen_to_tv(sv_tsen,sv_q,sv_tv)   
+   endif
+
 !  Copy other variables
-   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
+   if (.not. do_tsen_to_tv) &                          
+   call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )  
    call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )

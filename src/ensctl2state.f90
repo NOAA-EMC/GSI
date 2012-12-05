@@ -8,6 +8,8 @@ subroutine ensctl2state(xhat,mval,eval)
 !
 ! program history log:
 !   2011-11-17  tremolet - initial code
+!   2012-08-10  mkim     - add access to GFS moisture physics in the minimization
+!
 !   input argument list:
 !     xhat - Control variable
 !     mval - contribution from static B component
@@ -36,6 +38,11 @@ use gsi_bundlemod, only: assignment(=)
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: hybens_inmc_option
+
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
+use jfunc, only: nsclen,npclen,nrclen,do_gfsphys
+use cwhydromod, only: cw2hydro_tl
+use gfs_moistphys_mod, only: moistphys_tl     !mjk
 implicit none
 
 ! Declare passed variables
@@ -46,28 +53,31 @@ type(gsi_bundle)    , intent(inout) :: eval(ntlevs_ens)
 ! Declare local variables
 character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds
+integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds,ierr
 
-integer(i_kind), parameter :: ncvars = 5
+integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  '/)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
+                               'q  ', 'cw '/)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:)   :: cv_ps
-real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv,cv_cw
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 5
+integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
+             'u   ', 'v   ', 'p3d ', 'q   ', 'tsen', 'ql  ','qi  ' /)
+logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
+real(r_kind),pointer,dimension(:,:,:) :: sv_ql,sv_qi,sv_qc
+
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
+logical :: do_tsen_to_tv, do_cw_to_hydro
 ! ****************************************************************************
 
 ! Inquire about cloud-vars
@@ -81,13 +91,13 @@ endif
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
-lc_t  =icps(4)>0; lc_rh =icps(5)>0
+lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
-ls_q  =isps(4)>0; ls_tsen=isps(5)>0
+ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
@@ -95,6 +105,15 @@ do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
 do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
+do_tsen_to_tv    =do_gfsphys
+
+do_cw_to_hydro=.false.
+if (regional) then
+   do_cw_to_hydro=lc_cw.and.ls_ql.and.ls_qi
+else
+   do_cw_to_hydro=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
+endif
+
 
 do jj=1,ntlevs_ens 
 
@@ -117,6 +136,9 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
    call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    call gsi_bundlegetpointer (wbundle_c,'ps' ,cv_ps ,istatus)
+!  if (lc_cw) then
+   call gsi_bundlegetpointer (wbundle_c,'cw',cv_cw,istatus)
+!  end if
 
 ! Get sv pointers here
 !  Get pointers to required state variables
@@ -155,20 +177,35 @@ do jj=1,ntlevs_ens
       end if
    end if
 
+   if (do_gfsphys) call moistphys_tl(sv_tsen,sv_q,cv_cw)
+   if (do_tsen_to_tv) call tsen_to_tv(sv_tsen,sv_q,sv_tv)
+
 !  Copy variables
+   if (.not. do_tsen_to_tv) &
    call gsi_bundlegetvar ( wbundle_c, 't'  , sv_tv,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'ps' , sv_ps,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
 
+   if (do_cw_to_hydro) then
+!     Case when cloud-vars do not map one-to-one (cv-to-sv)
+!     e.g. cw-to-ql&qi
+      if (.not. do_tv_to_tsen) then
+         allocate(sv_tsen(lat2,lon2,nsig))
+         call tv_to_tsen(cv_tv,sv_q,sv_tsen)
+      end if
+      call cw2hydro_tl(eval(jj),wbundle_c,sv_tsen,clouds,nclouds)
+      if (.not. do_tv_to_tsen) deallocate(sv_tsen)
+   else
 !  Since cloud-vars map one-to-one, take care of them together
-   do ic=1,nclouds
+    do ic=1,nclouds
       id=getindex(cvars3d,clouds(ic))
       if (id>0) then
           call gsi_bundlegetpointer (eval(jj),clouds(ic),sv_rank3,istatus)
           call gsi_bundlegetvar     (wbundle_c, clouds(ic),sv_rank3,istatus)
       endif
-   enddo
+    enddo
+   endif
 
 ! Add contribution from static B, if necessary
    call self_add(eval(jj),mval)

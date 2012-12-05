@@ -59,6 +59,8 @@ subroutine compute_derived(mype,init_pass)
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
 !   2012-02-08  kleist  - add ges_qsat, add uvflag arg in call to strong_bal_correction,
 !                         compute ges_qsat over nfldsig bins for limq (when nobs_bins /=0)
+!   2012-12-03  eliu    - add variables and computations related to total water
+!   
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,6 +77,8 @@ subroutine compute_derived(mype,init_pass)
   use jfunc, only: qsatg,qgues,ggues,vgues,pgues,jiter,jiterstart,&
        qoption,switch_on_derivatives,&
        tendsflag,varq,dvisdlog,cwgues
+  use jfunc, only: rhtgues,qtgues,qtdist_gues,cfgues,&  
+                   sl,del_si
   use control_vectors, only: cvars3d,cvars2d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
@@ -83,18 +87,19 @@ subroutine compute_derived(mype,init_pass)
        ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
        ges_gust,ges_vis,ges_pblh,&
        ges_qsat, &
-       tropprs,ges_prsl,ntguessig,&
+       tropprs,ges_prsl,ges_prsi,ntguessig,& 
        nfldsig,&
        ges_teta,fact_tv, &
        ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,ges_ozlon,ges_cwmr_lon, &
        ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
   use guess_grids, only: ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-       ges_oz_ten,ges_cwmr_ten
+       ges_oz_ten,ges_cwmr_ten,ges_tsen_ten
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use guess_grids, only: tnd_initialized
   use guess_grids, only: drv_initialized
   use guess_grids, only: efr_ql,nfldsig
-  use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
+  use gridmod, only: lat2,lon2,nsig,nlat,nlon,nnnn1o,aeta2_ll,nsig1o  
+  use gridmod, only: istart,rbs2   
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional
@@ -107,7 +112,8 @@ subroutine compute_derived(mype,init_pass)
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-  use constants, only: zero,one,one_tenth,half,fv,qmin,ten,t0c,five,r0_05
+  use constants, only: zero,one,two,one_tenth,half,fv,qmin,qcmin,ten,t0c,five,r0_05 
+  use constants, only: rhctop,rhcbot,dx_min,dx_inv  
 
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
@@ -132,12 +138,16 @@ subroutine compute_derived(mype,init_pass)
 ! Declare local variables
   logical ice,fullfield
   integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q,istatus,ier,nguess
-  
+  integer(i_kind) mm1,ii   
+
+  real(r_kind),parameter:: r0_99=0.99_r_kind  
+  real(r_kind) work1,work2,tem,rcs,qx         
   real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
   real(r_kind) tem4,indexw
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
+  real(r_kind),dimension(nsig):: rhc 
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
   real(r_kind),pointer,dimension(:,:,:):: ges_ql
   real(r_kind),pointer,dimension(:,:,:):: ges_qi
@@ -148,6 +158,8 @@ subroutine compute_derived(mype,init_pass)
 
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
 	call die('compute_derived','invalid init_pass, ntguessig =',ntguessig)
+
+  mm1=mype+1  
 
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
@@ -207,7 +219,8 @@ subroutine compute_derived(mype,init_pass)
      do j=1,lon2
         do i=1,lat2
            do k=1,nsig
-              cwgues(i,j,k)=ges_cwmr_it(i,j,k)
+              cwgues(i,j,k)=ges_cwmr_it(i,j,k)             
+!             cwgues(i,j,k)=max(ges_cwmr_it(i,j,k),qcmin)  
            end do
         end do
      end do
@@ -265,6 +278,10 @@ subroutine compute_derived(mype,init_pass)
               ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
               mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
               ges_oz_ten,ges_cwmr_ten,ges_3dp)
+
+!          Convert guess time derivative of Tv to guess time derivatives of Tsen
+!          ges_tv_ten ---> ges_tsen_ten
+           ges_tsen_ten = ges_tv_ten*fact_tv
 
            if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
               fullfield=.true.
@@ -352,6 +369,75 @@ subroutine compute_derived(mype,init_pass)
            nsig,ice,iderivative)
   end do
 
+! Calculate total water relative humidity
+  it = ntguessig
+  do j=1,lon2
+     do i=1,lat2
+        do k=1,nsig
+           qtgues(i,j,k) = ges_q(i,j,k,it)+ges_cwmr_it(i,j,k)
+           rhtgues(i,j,k)= qtgues(i,j,k)/qsatg(i,j,k)
+           rhgues(i,j,k) = qgues(i,j,k)/qsatg(i,j,k)
+           sl(i,j,k)     = ges_prsl(i,j,k,it)/ges_ps(i,j,it)
+           del_si(i,j,k) =(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))/ges_ps(i,j,it)                         
+        end do
+     end do
+  end do
+! Calculate cloud cover and total water uniform distribution width
+  do i=1,lat2
+     ii = i+istart(mm1)-2
+!    ii = min0(max0(1,ii),nlat)
+     ii = max(1,min(ii,nlat))
+     rcs = sqrt(rbs2(ii))
+     tem = (rhctop-rhcbot)/(nsig-one)
+     work1 = (log(one/(rcs*nlon))-dx_min)*dx_inv
+     work1 = max(zero,min(one,work1))
+     work2 = one - work1
+     do j=1,lon2
+        do k=1,nsig
+!          Get critical relative humidity first
+           rhc(k) = rhcbot + tem*(k-1)
+           rhc(k) = r0_99*work1 + rhc(k)*work2
+           rhc(k) = max(zero,min(one,rhc(k)))
+!          Calculate distribution width
+           qx = qsatg(i,j,k)-qgues(i,j,k)
+           if (qx > zero) then
+              if (cwgues(i,j,k) > qcmin) then ! when cloud exists
+                 qtdist_gues(i,j,k) = cwgues(i,j,k)+qx+two*sqrt(cwgues(i,j,k)*qx)                        
+              else
+                 qtdist_gues(i,j,k) = (one-rhc(k))*qsatg(i,j,k)
+              endif
+           else
+              qtdist_gues(i,j,k) = (one-rhc(k))*qsatg(i,j,k)
+           endif
+!          Add constraint to distribution width to prevent negative total water
+           qtdist_gues(i,j,k) = min(qtdist_gues(i,j,k),qtgues(i,j,k))
+           qtdist_gues(i,j,k) = max(qtdist_gues(i,j,k),qsatg(i,j,k)*0.0001_r_kind)  
+                                                                                   
+                                                                                   
+!          Diagnose cloud cover
+           if (rhgues(i,j,k) >= one) then
+              cfgues(i,j,k) = one
+           else
+              qx = qtgues(i,j,k)-qsatg(i,j,k)
+              if (qtdist_gues(i,j,k) > 1.0e-12) then
+                 if (qx <= -qtdist_gues(i,j,k)) then
+                    cfgues(i,j,k) = zero
+                 else if (qx >= qtdist_gues(i,j,k)) then
+                    cfgues(i,j,k) = one
+                 else
+                    cfgues(i,j,k) = half*qx/qtdist_gues(i,j,k)+half
+                 endif
+              else
+                 if (qx > zero) then
+                    cfgues(i,j,k) = one
+                 else
+                    cfgues(i,j,k) = zero
+                 endif
+              endif
+           endif ! RH condition
+        end do ! K-Loop
+     end do ! J-Loop
+  end do ! I-Loop
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH

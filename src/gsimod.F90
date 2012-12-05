@@ -53,7 +53,7 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
-     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start
+     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,use_rhtot,do_gfsphys
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
@@ -234,6 +234,8 @@
 !                       from two forecast domains to analysis domain  
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
+!  03-12-2012 eliu      add logic variables to use RH total, and linearized GFS moisture physics 
+! 
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -393,7 +395,7 @@
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
-       step_start,diag_precon
+       step_start,diag_precon,use_rhtot,do_gfsphys
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -839,7 +841,6 @@
   close(11)
 #endif
 
-
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
   if (l4dvar) then
@@ -879,6 +880,14 @@
 
 ! Check user input for consistency among parameters for given setups.
 
+! RH total check for hybrid option
+  if (l_hyb_ens .and. use_rhtot) then
+     if(mype==0) then
+        write(6,*)'  Invalid option: using normalized RH total is not ready for hybrid option'
+        write(6,*) ' ERROR EXIT FROM GSI'
+     endif
+     call stop2(336)
+  endif
 
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.

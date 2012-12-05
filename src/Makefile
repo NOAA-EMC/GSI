@@ -277,6 +277,11 @@ clean:
 	getsiga.f90 \
 	getuv.f90 \
 	getvvel.f90 \
+        gfs_gscond_ad.f90 \
+        gfs_gscond_tl.f90 \
+        gfs_moistphys_mod.f90 \
+        gfs_precip_tl.f90 \
+        gfs_precip_ad.f90 \
 	glbsoi.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
@@ -370,6 +375,7 @@ clean:
 	ncepnems_io.f90 \
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
+        normal_rhtot_mod.f90 \
 	nstio_module.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.f90 \
@@ -480,6 +486,7 @@ clean:
 	tintrp3.f90 \
 	tpause.f90 \
 	tpause_t.F90 \
+        tsen_to_tv.f90 \
         tune_pbl_height.f90 \
 	turbl.f90 \
 	turbl_ad.f90 \

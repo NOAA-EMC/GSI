@@ -307,7 +307,7 @@
 !          = 124 - enorm_state: error in ilat
 !          = 125 - evaljo: obscounts not allocated
 !          = 126 - check_bks: troubled vertical coord system
-!          = 127 - 
+!          = 127 -
 !          = 128 - 
 !          = 129 - 
 !          = 130 - 
@@ -517,6 +517,7 @@
 !          = 333 - mismatch between variable info file and background error fixed file
 !          = 334 - newpc4pred: not for use with lsqrtb
 !          = 335 - error reading radiance diagnostic file
+!          = 336 - use_rhtot: invalid option; normalized RH total is not ready for hybrid option
 !
 !
 ! remarks: resolution, unit numbers and several constants are

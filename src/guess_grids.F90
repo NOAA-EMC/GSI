@@ -91,6 +91,7 @@ module guess_grids
 !                         cloud water tendencies and derivatives 
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
+!   2012-12-03  eliu    - add sensible temperature tendency (ges_tsen_gen) 
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -127,7 +128,7 @@ module guess_grids
   public :: isli2,ges_prsl,ges_z,ges_q,ges_v,ges_u,nfldsig,ges_vor,ges_div
   public :: ges_ozlat,ges_ozlon,ges_qlat,ges_teta,ges_cwmr_lat
   public :: ges_cwmr_lon,ges_v_lon,ges_u_lat,ges_u_lon,ges_v_lat,ges_qlon
-  public :: ges_tvlon,ges_tvlat,ges_prs_ten,ges_tv_ten,ges_v_ten,ges_cwmr_ten
+  public :: ges_tvlon,ges_tvlat,ges_prs_ten,ges_tv_ten,ges_v_ten,ges_cwmr_ten,ges_tsen_ten                                   
   public :: ges_oz_ten,ges_q_ten,fact_tv,tropprs,sfct,ges_u_ten,ges_ps_lat
   public :: ges_ps_lon,ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
@@ -269,6 +270,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_u_ten    ! u tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_v_ten    ! v tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_tv_ten   ! Tv tendency
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tsen_ten ! Tsen tendency               
   real(r_kind),allocatable,dimension(:,:,:):: ges_q_ten    ! q tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
@@ -625,6 +627,7 @@ contains
        allocate(ges_prs_ten(lat2,lon2,nsig+1),ges_u_ten(lat2,lon2,nsig),&
                 ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
                 ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
+                ges_tsen_ten(lat2,lon2,nsig),&  
                 stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prs_ten,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig
@@ -635,6 +638,7 @@ contains
                 ges_u_ten(i,j,k)=zero
                 ges_v_ten(i,j,k)=zero
                 ges_tv_ten(i,j,k)=zero
+                ges_tsen_ten(i,j,k)=zero  
                 ges_q_ten(i,j,k)=zero
                 ges_oz_ten(i,j,k)=zero
                 ges_prs_ten(i,j,k)=zero
@@ -645,7 +649,7 @@ contains
 !      call gsi_metguess_get ( 'var::cw', ivar, istatus )
 !      if (regional .and. nems_nmmb_regional) ivar=getindex(cvars3d,'cw')
        ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
+!      if (ivar>0) then
            allocate(ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
            if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_ten):  allocate error, istatus=',&
                 istatus,lat2,lon2,nsig
@@ -656,7 +660,7 @@ contains
                   end do
                end do
             end do
-       endif
+!      endif
 
        do j=1,lon2
           do i=1,lat2
@@ -697,7 +701,7 @@ contains
 !      call gsi_metguess_get ( 'var::cw', ivar, istatus )
 !      if (regional .and. nems_nmmb_regional) ivar=getindex(cvars3d,'cw')
        ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
+!      if (ivar>0) then
            allocate(ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
             stat=istatus)
             if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_lat,..):  allocate error, istatus=',&
@@ -710,7 +714,7 @@ contains
                   end do
                end do
             end do
-       endif
+!      endif
        do n=1,nfldsig
           do j=1,lon2
              do i=1,lat2
@@ -999,13 +1003,13 @@ contains
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
 !      call gsi_metguess_get ( 'var::cw', ivar, istatus )
        ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
+!      if (ivar>0) then
            deallocate(ges_cwmr_lat,ges_cwmr_lon,&
             stat=istatus)
             if (istatus/=0) &
                  write(6,*)'DESTROY_GES_GRIDS(ges_cwmr_lat,..):  deallocate error, istatus=',&
                  istatus
-       endif
+!      endif
        deallocate(ges_u_lat,ges_u_lon,ges_v_lat,ges_v_lon,&
             ges_ozlat,ges_ozlon,&
             ges_ps_lat,ges_ps_lon,ges_tvlat,ges_tvlon,&
@@ -1018,13 +1022,13 @@ contains
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
 !      call gsi_metguess_get ( 'var::cw', ivar, istatus )
        ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
+!      if (ivar>0) then
            deallocate(ges_cwmr_ten,stat=istatus)
            if (istatus/=0) &
                 write(6,*)'DESTROY_GES_GRIDS(ges_cwmr_ten,..):  deallocate error, istatus=',&
                 istatus
-       endif
-       deallocate(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
+!      endif
+       deallocate(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,ges_tsen_ten, &              
             ges_oz_ten,stat=istatus)
        if (istatus/=0) &
             write(6,*)'DESTROY_GES_GRIDS(ges_u_ten,..):  deallocate error, istatus=',&

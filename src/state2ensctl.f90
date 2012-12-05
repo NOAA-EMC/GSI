@@ -8,6 +8,7 @@ subroutine state2ensctl(eval,mval,grad)
 !
 ! program history log:
 !   2011-11-17  kleist - initial code
+!   2012-08-10  mkim     - add access to GFS moisture physics in the minimization
 !
 !   input argument list:
 !     eval - Ensemble state variable variable
@@ -37,6 +38,12 @@ use constants, only: zero,max_varname_length
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: hybens_inmc_option
+
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
+use jfunc, only: nsclen,npclen,do_gfsphys
+use cwhydromod, only: cw2hydro_ad
+use gfs_moistphys_mod, only: moistphys_ad
+
 implicit none
 
 ! Declare passed variables
@@ -47,29 +54,31 @@ type(gsi_bundle)    , intent(in   ) :: eval(ntlevs_ens)
 ! Declare local variables
 character(len=*),parameter::myname='state2ensctl'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds
+integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds,ierr
 
-integer(i_kind), parameter :: ncvars = 5
+integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  '/)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh
+                               'q  ', 'cw '/)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 real(r_kind),pointer,dimension(:,:)   :: cv_ps
-real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv,cv_cw
 ! Declare required local state variables
-integer(i_kind), parameter :: nsvars = 5
+integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
+                   'u   ', 'v   ', 'p3d ', 'q   ', 'tsen','ql  ','qi  ' /)
+logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
+real(r_kind),pointer,dimension(:,:,:) :: rv_ql,rv_qi,rv_qc
+
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
-
+logical :: do_cw_to_hydro_ad,do_tsen_to_tv_ad !mjk
 !****************************************************************************
 
 ! Inquire about chemistry
@@ -83,13 +92,13 @@ endif
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (grad%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
-lc_t  =icps(4)>0; lc_rh =icps(5)>0
+lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 
 ! Since each internal vector of grad has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
 ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
-ls_q  =isps(4)>0; ls_tsen=isps(5)>0
+ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
@@ -97,9 +106,18 @@ do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
 do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_p3d.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_p3d
+do_tsen_to_tv_ad    = do_gfsphys
 
 ! Initialize
 mval%values=zero
+
+
+do_cw_to_hydro_ad=.false.
+if (regional) then
+   do_cw_to_hydro_ad=lc_cw.and.ls_ql.and.ls_qi
+else
+   do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
+endif
 
 do jj=1,ntlevs_ens
 !  Create a temporary bundle similar to grad, and copy contents of grad into it
@@ -115,6 +133,9 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (wbundle_c,'q'  ,cv_rh ,istatus)
    call gsi_bundlegetpointer (wbundle_c,'t'  ,cv_tv, istatus)
    call gsi_bundlegetpointer (wbundle_c,'ps' ,cv_ps ,istatus)
+   call gsi_bundlegetpointer (wbundle_c,'cw',cv_cw,istatus)
+
+!!   end if
 
 ! Get sv pointers here
 !  Get pointers to required state variables
@@ -127,7 +148,6 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'q'   ,rv_q ,  istatus)
    call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
-
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen_ad) call tv_to_tsen_ad(rv_tv,rv_q,rv_tsen)
@@ -155,19 +175,38 @@ do jj=1,ntlevs_ens
    call self_add(mval,eval(jj))
 
 !  Adjoint of control to initial state
-   call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
+   if (do_tsen_to_tv_ad) then
+      call gsi_bundleputvar ( wbundle_c, 't' ,  zero,  istatus )
+   else
+      call gsi_bundleputvar ( wbundle_c, 't' ,  rv_tv,  istatus )
+   endif
+   call gsi_bundleputvar ( wbundle_c, 'q' ,  zero,   istatus )  !mjk
    call gsi_bundleputvar ( wbundle_c, 'ps',  rv_ps,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
 
+   if (do_cw_to_hydro_ad) then
+!     Case when cloud-vars do not map one-to-one
+!     e.g. cw-to-ql&qi
+      if(.not. do_tv_to_tsen_ad) allocate(rv_tsen(lat2,lon2,nsig))
+      call cw2hydro_ad(eval(jj),wbundle_c,rv_tsen,clouds,nclouds)
+      if(.not. do_tv_to_tsen_ad) then
+         call tv_to_tsen_ad(cv_tv,rv_q,rv_tsen)
+         deallocate(rv_tsen)
+      end if
+   else
 !  Since cloud-vars map one-to-one, take care of them together
-   do ic=1,nclouds
+    do ic=1,nclouds
       id=getindex(cvars3d,clouds(ic))
       if (id>0) then
           call gsi_bundlegetpointer (eval(jj),clouds(ic),rv_rank3,istatus)
           call gsi_bundleputvar     (wbundle_c, clouds(ic),rv_rank3,istatus)
       endif
-   enddo
+    enddo
+   endif
+
+   if (do_tsen_to_tv_ad) call tsen_to_tv_ad(rv_tsen,rv_q,rv_tv)
+   if (do_gfsphys)       call moistphys_ad(rv_tsen,rv_q,cv_cw)
 
 !  Convert RHS calculations for u,v to st/vp
    if (do_getuv) then

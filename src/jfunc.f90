@@ -38,6 +38,7 @@ module jfunc
 !   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
 !   2011-02-16  zhu     - add ggues,vgues,pgues
 !   2011-07-15  zhu     - add cwgues
+!   2012-12-03  eliu    - add variables realted to total water  
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -119,12 +120,16 @@ module jfunc
 ! set passed variables to public
   public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,cwgues,jiterend,jiterstart,jiter,iter,niter,miter
+  public :: rhtgues,qtgues,dqsdt,dqsdp,qtdist_gues,cfgues,sl,del_si
+  public :: tgs,qgs,cwgs,tlrg,qlrg,cwlrg,rnlrg  
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
   public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp,diag_precon,step_start
+  public :: use_rhtot,do_gfsphys 
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical use_rhtot,do_gfsphys
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
@@ -138,6 +143,10 @@ module jfunc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,step_start
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
+  real(r_kind),allocatable,dimension(:,:,:):: rhtgues,qtgues,qtdist_gues,dqsdt,dqsdp,cfgues,sl,del_si                                                                         
+  real(r_kind),allocatable,dimension(:,:,:):: tgs,qgs,cwgs,tlrg,qlrg,cwlrg               
+  real(r_kind),allocatable,dimension(:,:):: rnlrg  
+
   real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
   real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
   real(r_kind),allocatable,dimension(:,:):: varq
@@ -185,6 +194,8 @@ contains
     tsensible=.false.
     lgschmidt=.false.
     diag_precon=.false.
+    use_rhtot=.false.  
+    do_gfsphys=.false. 
     step_start=1.e-4_r_kind
 
     factqmin=one
@@ -263,6 +274,13 @@ contains
          varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
          qgues(lat2,lon2,nsig))
     allocate(cwgues(lat2,lon2,nsig))
+    allocate(tgs(lat2,lon2,nsig),qgs(lat2,lon2,nsig),cwgs(lat2,lon2,nsig))            
+    allocate(tlrg(lat2,lon2,nsig),qlrg(lat2,lon2,nsig),cwlrg(lat2,lon2,nsig))          
+    allocate(rnlrg(lat2,lon2))                                                                  
+    allocate(rhtgues(lat2,lon2,nsig),qtgues(lat2,lon2,nsig),qtdist_gues(lat2,lon2,nsig))      
+    allocate(dqsdt(lat2,lon2,nsig),dqsdp(lat2,lon2,nsig))                                   
+    allocate(cfgues(lat2,lon2,nsig))                                                      
+    allocate(sl(lat2,lon2,nsig),del_si(lat2,lon2,nsig))                                     
 
     xhatsave=zero
     yhatsave=zero
@@ -281,6 +299,14 @@ contains
              dqdrh(i,j,k)=zero
              dqdp(i,j,k)=zero
              qgues(i,j,k)=zero
+             rhtgues(i,j,k)=zero       
+             qtgues(i,j,k)=zero        
+             qtdist_gues(i,j,k)=zero   
+             dqsdt(i,j,k)=zero         
+             dqsdp(i,j,k)=zero         
+             cfgues(i,j,k)=zero        
+             sl(i,j,k)=zero            
+             del_si(i,j,k)=zero        
           end do
        end do
     end do
@@ -350,6 +376,8 @@ contains
     deallocate(varq)
     deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
     deallocate(cwgues)
+    deallocate(dqsdt,dqsdp,rhtgues,qtgues,qtdist_gues,cfgues)  
+    deallocate(tgs,qgs,cwgs,tlrg,qlrg,cwlrg,rnlrg) 
     if (getindex(cvars2d,'gust')>0) deallocate(ggues)
     if (getindex(cvars2d,'vis')>0)  deallocate(vgues,dvisdlog)
     if (getindex(cvars2d,'pblh')>0) deallocate(pgues)
