@@ -1459,9 +1459,13 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
        nmmb_verttype='OLD'
        if(aeta1(1)<.6_r_single) then
           write(6,*)' in convert_nems_nmmb, detect new nmmb vert coordinate'
-          aeta1=aeta1+aeta2
-          eta1=eta1+eta2
-          deta1=deta1+deta2      !  even though deta1 not used, probably needed to do this--will see
+          do k=1,nsig_regional
+             deta1(k)=deta1(k)+deta2(k)      !  even though deta1 not used, probably needed to do this--will see
+             aeta1(k)=aeta1(k)+aeta2(k)
+          end do
+          do k=1,nsig_regional+1
+             eta1(k)=eta1(k)+eta2(k)
+          end do
           nmmb_verttype='NEW'
        end if
 
