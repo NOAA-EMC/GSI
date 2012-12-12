@@ -489,9 +489,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !   Clear Amount  (percent clear) 
 
-        call ufbrep(lnbufr,cloud_frac,1,6,iret,'TOCC')
-!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-        pred = cloud_frac(1)
+!xxx        call ufbrep(lnbufr,cloud_frac,1,6,iret,'TOCC')
+!xxx!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+!xxx        pred = cloud_frac(1)
+
+! As cloud_frac is missing from BUFR, use proxy of warmest fov over 
+! non ice surfaces.  Fixed channels (assuming the 399 set) for now.
+! This is moved to below where the radiances are read in.
+
         if ( pred < zero .or. pred > 100.0_r_kind ) pred = 100.0_r_kind
         crit1 = crit1 + pred
  
@@ -569,6 +574,15 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       if( iskip >= 10 )cycle read_loop 
 
         crit1=crit1 + ten*float(iskip)
+
+! (Comment copied from above:)
+! As cloud_frac is missing from BUFR, use proxy of warmest fov over 
+! non ice surfaces.  Fixed channels (assuming the 399 set) for now with
+! channel 127 at 962.5 wavenumbers assumed.
+! This is moved to below where the radiances are read in.
+
+     if (sfcpct(0)+sfcpct(1) > 0.9) &
+          crit1=crit1+(320.0_r_kind-temperature(127))
 
 
 !    Map obs to grids
