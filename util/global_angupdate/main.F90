@@ -670,7 +670,7 @@ program main
 
 !    Write updated satang statistics to output file
      open(lnupdt,file='satbias_ang.out',form='formatted')
-     write(lnupdt,'("nscan=",i8)') nstep
+     if (word == 'nscan=') write(lnupdt,'("nscan=",i8)') nstep
      do j=1,jpch
         write(lnupdt,110) j,satsensor3(j),jchanum3(j),tlap3(j),(c_ang3(i,j),i=1,nstep)
      end do
