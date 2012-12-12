@@ -15,6 +15,8 @@ program main
 !   2005-07-22 treadon   major rewrite to simplify and clean up
 !   2006-03-02 treadon   simplify code and rewrite i/o to handle 
 !                        ncep-gsi-2006_03 gsi release format
+!   2012-11-08 acollard  Allow number of scan positions to be specified in the
+!                        satang file itself.
 !
 ! usage:
 !   input files:
@@ -67,6 +69,7 @@ program main
 ! Declare local variables
   logical outask,lexist,done,update,restart,retrieval
 
+  character(6) :: word
   character(10):: obstype,platid
   character(11):: dstring
   character(20):: satsens,satsens_id
@@ -78,7 +81,9 @@ program main
   character(20),allocatable,dimension(:):: satsensor0,satsensor2,satsensor3
 
   integer:: ix,ii,iii,ndat,ich,ndatppe
-  integer:: i,j,mype_out,nstep,nsize,n_chan
+  integer:: nstep = 90 ! Default value which may be over-written by namelist
+                       ! and by the satang file itself
+  integer:: i,j,mype_out,nsize,n_chan
   integer:: jpch,ierror,npe,mype,jj,ntime,it,ierror_code
   integer:: iyy1,imm1,idd1,ihh1,iyy2,imm2,idd2,ihh2
   integer:: istatus,ispot,iuseqc
@@ -172,21 +177,32 @@ program main
 
 ! Allocate and initialize data arrays
   allocate(tsum(jpch),tlap1(jpch),tcnt(jpch))
+
+! Read input satang file
+  open(lnangl,file='satbias_ang.in',form='formatted')
+  read(lnangl,'(a6)') word
+  rewind(lnangl)
+  if (word == 'nscan=') read(lnangl,'(6x,i8)') nstep
+  
+  write(0,*) 'nstep=',nstep
+  if (nstep <= 0 .OR. nstep > 1000) then
+     write(6,*)'GLOBAL_ANGUPDATE: nscan out of range: ',nstep
+     stop
+  endif
+
   allocate(csum(nstep,jpch),c_ang1(nstep,jpch))
   allocate(count(nstep,jpch))
   allocate(satsensor0(jpch),jchanum0(jpch),tlap0(jpch),c_ang0(nstep,jpch))
   allocate(satsensor2(jpch),jchanum2(jpch),tlap2(jpch),c_ang2(nstep,jpch))
   allocate(satsensor3(jpch),jchanum3(jpch),tlap3(jpch),c_ang3(nstep,jpch))
 
-  do j=1,jpch
+ do j=1,jpch
      tsum(j)=zero
      tcnt(j)=zero
      tlap0(j)=zero
      tlap1(j)=zero
      tlap2(j)=zero
      tlap3(j)=zero
-  end do
-  do j=1,jpch
      do i=1,nstep
         csum(i,j)=zero
         count(i,j)=zero
@@ -196,15 +212,11 @@ program main
         c_ang3(i,j)=zero
      end do
   end do
-
-
-! Read input satang file
-  open(lnangl,file='satbias_ang.in',form='formatted')
   do j=1,jpch
      read(lnangl,110,err=120,end=120) ich,satsensor0(j),&
           jchanum0(j),tlap0(j),(c_ang0(i,j),i=1,nstep)
   end do
-110 format(I5,1x,A20,1x,I5,e15.6/9(4x,10f7.3/))
+110 format(I5,1x,A20,1x,I5,e15.6/100(4x,10f7.3/))
 
 ! If restart, zero tlap0 and c_ang0
   if (restart) then
@@ -658,6 +670,7 @@ program main
 
 !    Write updated satang statistics to output file
      open(lnupdt,file='satbias_ang.out',form='formatted')
+     write(lnupdt,'("nscan=",i8)') nstep
      do j=1,jpch
         write(lnupdt,110) j,satsensor3(j),jchanum3(j),tlap3(j),(c_ang3(i,j),i=1,nstep)
      end do

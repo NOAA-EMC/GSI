@@ -103,7 +103,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
   LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
-       -lsfcio_4 -lbufr_d_64 -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+       -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
 
   LDFLAGS_N     = 
 
