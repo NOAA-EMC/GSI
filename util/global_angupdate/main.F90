@@ -184,7 +184,6 @@ program main
   rewind(lnangl)
   if (word == 'nscan=') read(lnangl,'(6x,i8)') nstep
   
-  write(0,*) 'nstep=',nstep
   if (nstep <= 0 .OR. nstep > 1000) then
      write(6,*)'GLOBAL_ANGUPDATE: nscan out of range: ',nstep
      stop
