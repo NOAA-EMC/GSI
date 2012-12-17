@@ -89,11 +89,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # Linker and options
 # ------------------
 
-  LD            = $(CF)
+  LD            = $(CF) -mkl
 
 #--- Normal mode options
 
-LIBS_N        = -L/home/mlueken/nwprod/lib -lsp_d -lnemsio -lbacio_4 -lsigio_4 -lsfcio_4 -lbufr_d_64 -lw3lib-1.9_d -lCRTM $(WRFLIB) -L$(MKL) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -L$(NETCDF)/lib -lnetcdf
+LIBS_N        = -L/home/mlueken/nwprod/lib -lsp_d -lnemsio -lbacio_4 -lsigio_4 -lsfcio_4 -lbufr_d_64 -lw3lib-1.9_d -lCRTM $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
 
   LDFLAGS_N     = 
 
