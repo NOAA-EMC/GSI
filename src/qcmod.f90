@@ -1233,11 +1233,11 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   endif
 
 !
-! Temporary additional check for CrIS to reduce influence of land points on window channels.
+! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
 !
   if (cris .and. .not. sea) then
      do i=1,nchanl
-        if (ts(i) > 0.5_r_kind) then
+        if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
            if(luse .and. varinv(i) > zero) &
                 aivals(10,is)   = aivals(10,is) + one
