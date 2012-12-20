@@ -25,13 +25,19 @@ module mod_vtrans
 !                           rescaling produces an almost symmetric matrix.  The symmetric average of the
 !                           rescaled qmat has eigenvalues and eigenvectors that differ from those of qmat
 !                           by only a few percent.  Using these as starting values, inverse iteration can
-!                           retrieve the desired eigenvalues and eigenvectors of qmat.  To get 15 digit
-!                           agreement with those produced by dgeev, an r_quad precision version of
-!                           subroutine eigen (eigen_quad, added to end of this module) was created.  Also,
-!                           qmatinv, which was previously computed from the eigenvalues and eigenvectors of
-!                           qmatinv, is now computed, using a quad precision version of iminv, a general
-!                           matrix inversion routine available in get_semimp_mats.f90.  The quad
-!                           precision computations only add about 1 second to the run time.
+!                           retrieve the desired eigenvalues and eigenvectors of qmat.  To reproduce the
+!                           eigenvalues and eigenvectors of qmat obtained from dgeev to 15 digits, the
+!                           inverse iteration refinement of the starting eigenvalues and eigenvectors is
+!                           done in quad precision.  This requires a quad precision matrix inversion
+!                           routine.  A copy of subroutine iminv in get_semimp_mats.f90 has been copied
+!                           on the end of this module and given the name iminv_quad.  This is also used
+!                           to get the inverse of qmat, instead of the previous method which was to
+!                           construct the inverse of qmat from its eigenvalues and eigenvectors.  This
+!                           required all of the eigenvalues and eigenvectors, which dgeev provided.
+!                           However, by using iminv_quad, now only the first nvmodes_keep eigenvectors and
+!                           eigenvalues need be computed.  The complete computation if the eigenvectors
+!                           and eigenvalues without using dgeev uses less than 2 seconds for 8
+!                           eigenvalue/vectors and all related computations.
 !
 ! subroutines included:
 !   sub init_vtrans              - initialize vertical mode related variables
@@ -746,7 +752,16 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
 !            possible failures in the inverse iteration algorithm used to refine
 !            the accuracy of the eigenvectors and eigenvalues so as to agree
 !            with those produced previously by library routine dgeev to 15
-!            digits.
+!            digits.  Because it is only necessary that the initial estimate of
+!            eigenvectors and eigenvalues be near (but not too near) the desired
+!            final values, the initial values are obtained using r_kind
+!            precision only (subroutine eigen, located in raflib.F90).
+!            Extensive testing with different initial eigenvalue/vector
+!            estimates confirmed that identical r_kind precision
+!            eigenvalues and eigenvectors are always obtained from the quad precision
+!            inverse iteration algorithm.  This translates to exact
+!            reproducibility on different numbers of processors for the full
+!            analysis.
 !            
 !
 ! program history log:
@@ -781,12 +796,16 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   real(r_quad) szzz(nmat,nvmodes_keep),szzzd(nmat,nvmodes_keep)
   real(r_quad) rmat(nmat),qtildemat(nmat,nmat),atemp(nmat*nmat),btemp(nmat,nmat)
   real(r_quad) eigvals(nmat)
-  integer(i_kind) i,j,k,ia,mv,jloop,iret,istop
+  integer(i_kind) i,j,k,ia,mv,iret,istop
   real(r_quad) orthoerror,sum
   real(r_quad) rnorm,sumd,rnormd,term,term2
   real(r_quad) aminv(nmat,nmat),aminvt(nmat,nmat)
   real(r_quad) eigval_this,eigval_next
   real(r_quad) zero_quad,half_quad,one_quad
+  real(r_quad) dist_to_closest_eigval,perturb_eigval
+  real(r_quad) err_aminv
+  real(r_kind) atemp8(nmat*nmat),btemp8(nmat,nmat)
+  logical noskip
 
   zero_quad=0.0_r_quad
   half_quad=0.5_r_quad
@@ -813,7 +832,10 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
      end do
   end do
   mv=0
-  call eigen_quad(atemp,btemp,nmat,mv)
+  atemp8=atemp
+  call eigen(atemp8,btemp8,nmat,mv)
+  btemp=btemp8
+  atemp=atemp8
   do i=1,nvmodes_keep
      j=i
      ia=i+(j*j-j)/2
@@ -846,16 +868,37 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
         szzzd(j,i)=sum*szzzd(j,i)
      end do
      eigval_this=eigvals(i)
-     jloop=0
+     iret=0
+     dist_to_closest_eigval=min( abs(eigvals(i)-eigvals(max(i-1,1           ))), &
+                                 abs(eigvals(i)-eigvals(min(i+1,nvmodes_keep))) )
+     if(i==1) then
+        dist_to_closest_eigval=abs(eigvals(i+1)-eigvals(i))
+     elseif(i==nvmodes_keep) then
+        dist_to_closest_eigval=abs(eigvals(i)-eigvals(i-1))
+     else
+        dist_to_closest_eigval=min( abs(eigvals(i)-eigvals(max(i-1,1           ))), &
+                                    abs(eigvals(i)-eigvals(min(i+1,nvmodes_keep))) )
+     end if
+
+     write(6,*)' i,eigvals(i),dist_to_closest_eigval=',i,eigvals(i),dist_to_closest_eigval
+     perturb_eigval=0.000001_r_quad*dist_to_closest_eigval
+     write(6,*)' i,perturb_eigval/eigvals(i)=',i,perturb_eigval/eigvals(i)
+     write(6,*)' precomputation of aminv with check on err_aminv'
+     call iterative_improvement0(qtildemat,eigval_this,aminv,aminvt,nmat,iret,err_aminv)
+     noskip=.false.
+     if(err_aminv>10._r_quad**(-20).or.iret==1) then
+        noskip=.true.
+        eigval_this=eigval_this+perturb_eigval
+     end if
      iret=0
      do j=1,10 
-        if(iret==0) call iterative_improvement0(qtildemat,eigval_this,aminv,aminvt,nmat,iret)
+        if(noskip)  call iterative_improvement0(qtildemat,eigval_this,aminv,aminvt,nmat,iret,err_aminv)
+        noskip=.true.
         if(iret==1) then
            write(6,*)' det=0 in iterative_improvement0, eigenvalue converged'
            exit
         end if
         call iterative_improvement(eigval_this,eigval_next,aminv,aminvt,szzz(:,i),szzzd(:,i),nmat,istop)
-        jloop=jloop+1
         if(eigval_this==eigval_next) then
            write(6,*)' no change in eigenvalue, convergence to machine precision achieved'
            exit
@@ -868,7 +911,7 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
      end do
      swww(i)=eigval_next
      swwwd(i)=eigval_next
-     write(6,*)' i,jloop,swww(i)=',i,jloop,swww(i)
+     write(6,*)' i,j,swww(i)=',i,j,swww(i)
   end do
 
 !  compute unscaled left and right eigenvectors of "corrected" matrix qmat_c
@@ -928,7 +971,7 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
  !      orthoerror=max(abs(sum),orthoerror)
  !   end do
  !end do
-  write(6,*)' orthoerror for szzz,szzzd=',orthoerror
+ !write(6,*)' orthoerror for szzz,szzzd=',orthoerror
 
 ! check error in qmat*szzz - swww*szzz  and qmat_trans*szzzd - swww*szzzd
   
@@ -959,10 +1002,16 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   swwwd0=swwwd
   szzz0 =szzz
   szzzd0=szzzd
+  do i=1,nvmodes_keep
+     write(6,*)' i,swww0(i),swwwd0(i)=',i,swww0(i),swwwd0(i)
+     do j=1,nmat,nmat-1
+        write(6,*)' i,j,szzz0(j,i),szzzd0(j,i)=',i,j,szzz0(j,i),szzzd0(j,i)
+     end do
+  end do
 
 end subroutine special_eigvv
 
-subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret)
+subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    iterative_improvement0  compute inverse of a - mu*I
@@ -996,10 +1045,11 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret)
   real(r_quad),intent(in)::a(na,na),mu
   real(r_quad),intent(inout)::aminv(na,na)
   real(r_quad),intent(inout)::aminvt(na,na)
+  real(r_quad),intent(out):: errormax
   integer(i_kind),intent(out)::iret
 
   real(r_quad) am(na,na),amwork(na,na)
-  real(r_quad) errormax,sum,detam,errlimit
+  real(r_quad) sum,detam,errlimit
   integer(i_kind) i,j,k,lpivot(na),mpivot(na)
   real(r_quad) zero_quad,one_quad
 
@@ -1318,255 +1368,3 @@ end subroutine iterative_improvement
                go to 100
   150          return
       end subroutine iminv_quad
-
-SUBROUTINE EIGEN_quad(A,R,N,MV)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    EIGEN
-!
-!   prgrmmr:     R. J. Purser, NCEP 2005
-!
-! abstract:  COMPUTE EIGENVALUES AND EIGENVECTORS OF A REAL SYMMETRIC
-!            MATRIX
-!
-!        REMARKS
-!           ORIGINAL MATRIX A MUST BE REAL SYMMETRIC (STORAGE MODE=1)
-!           MATRIX A CANNOT BE IN THE SAME LOCATION AS MATRIX R
-!
-!        SUBROUTINES AND FUNCTION SUBPROGRAMS REQUIRED
-!           NONE
-!
-!        METHOD
-!           DIAGONALIZATION METHOD ORIGINATED BY JACOBI AND ADAPTED
-!           BY VON NEUMANN FOR LARGE COMPUTERS AS FOUND IN 'MATHEMATICAL
-!           METHODS FOR DIGITAL COMPUTERS', EDITED BY A. RALSTON AND
-!           H.S. WILF, JOHN WILEY AND SONS, NEW YORK, 1962, CHAPTER 7
-!
-! program history log:
-!   2008-04-22  safford -- add subprogram doc block
-!   2012-12-18  parrish -- create r_quad precision version
-!
-!   input argument list:
-!     A - ORIGINAL MATRIX (SYMMETRIC), DESTROYED IN COMPUTATION.
-!         RESULTANT EIGENVALUES ARE DEVELOPED IN DIAGONAL OF
-!         MATRIX A IN DESCENDING ORDER.
-!     R - RESULTANT MATRIX OF EIGENVECTORS (STORED COLUMNWISE,
-!         IN SAME SEQUENCE AS EIGENVALUES)
-!     N - ORDER OF MATRICES A AND R
-!     MV- INPUT CODE
-!         0   COMPUTE EIGENVALUES AND EIGENVECTORS
-!         1   COMPUTE EIGENVALUES ONLY (R NEED NOT BE
-!             DIMENSIONED BUT MUST STILL APPEAR IN CALLING SEQUENCE)
-!
-!   output argument list:
-!     A - ORIGINAL MATRIX (SYMMETRIC), DESTROYED IN COMPUTATION.
-!         RESULTANT EIGENVALUES ARE DEVELOPED IN DIAGONAL OF
-!         MATRIX A IN DESCENDING ORDER.
-!     R - RESULTANT MATRIX OF EIGENVECTORS (STORED COLUMNWISE,
-!         IN SAME SEQUENCE AS EIGENVALUES)
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-      use kinds, only: r_quad,i_kind
-      implicit none
-
-!     REAL(4) A(1),R(1)
-!
-!        ...............................................................
-!
-!        IF A DOUBLE PRECISION VERSION OF THIS ROUTINE IS DESIRED, THE
-!        C IN COLUMN 1 SHOULD BE REMOVED FROM THE DOUBLE PRECISION
-!        STATEMENT WHICH FOLLOWS.
-!
-      real(r_quad)   ,intent(inout) :: A(1), R(1)
-      integer(i_kind),intent(in   ) :: N, MV
-
-      REAL(r_quad) ANORM,ANRMX,THR,X,Y,SINX,SINX2,COSX, &
-                       COSX2,SINCS,RANGE,ONEMYY
-      real(r_quad) zero_quad,half_quad,one_quad,two_quad
-      integer(i_kind) I,J,K,IA,IQ,IJ,IL,IM,ILR,IMR,IND,L,M,MQ,LQ,LM, &
-                       JQ,MM,LL,ILQ,IMQ
-
-!
-!        THE C MUST ALSO BE REMOVED FROM DOUBLE PRECISION STATEMENTS
-!        APPEARING IN OTHER ROUTINES USED IN CONJUNCTION WITH THIS
-!        ROUTINE.
-!
-!        THE DOUBLE PRECISION VERSION OF THIS SUBROUTINE MUST ALSO
-!        CONTAIN DOUBLE PRECISION FORTRAN FUNCTIONS.  SQRT IN STATEMENTS
-!        40, 68, 75, AND 78 MUST BE CHANGED TO DSQRT.  ABS IN STATEMENT
-!        62 MUST BE CHANGED TO DABS. THE CONSTANT IN STATEMENT 5 SHOULD
-!        BE CHANGED TO 1.0D-12.
-!
-!        ...............................................................
-      zero_quad=0.0_r_quad
-      half_quad=0.5_r_quad
-      one_quad =1.0_r_quad
-      two_quad =2.0_r_quad
-!
-!        GENERATE IDENTITY MATRIX
-!
-    5 continue
-      RANGE=1.0E-22_r_quad
-      if(mv==1) go to 25
-         IQ=-N
-         DO J=1,N
-            IQ=IQ+N
-            DO I=1,N
-               IJ=IQ+I
-               R(IJ)=zero_quad
-               if(i/=j) go to 20
-                  R(IJ)=one_quad
-          20   CONTINUE
-            end do
-         end do
-!
-!        COMPUTE INITIAL AND FINAL NORMS (ANORM AND ANORMX)
-!
-   25 continue
-      ANORM=zero_quad
-      DO I=1,N
-         DO J=I,N
-            if(i==j) go to 35
-               IA=I+(J*J-J)/2
-               ANORM=ANORM+A(IA)*A(IA)
-   35       CONTINUE
-         end do
-      end do
-      if(anorm<=zero_quad) go to 165
-         ANORM=1.414_r_quad*SQRT(ANORM)
-         ANRMX=ANORM*RANGE/FLOAT(N)
-!
-!        INITIALIZE INDICATORS AND COMPUTE THRESHOLD, THR
-!
-         IND=0
-         THR=ANORM
-   45    continue
-         THR=THR/FLOAT(N)
-   50    continue
-         L=1
-   55    continue
-         M=L+1
-!
-!        COMPUTE SIN AND COS
-!
-   60    continue
-         MQ=(M*M-M)/2
-         LQ=(L*L-L)/2
-         LM=L+MQ
-   62    continue
-         if(abs(a(lm))-thr<zero_quad) go to 130
-            IND=1
-            LL=L+LQ
-            MM=M+MQ
-            X=half_quad*(A(LL)-A(MM))
-   68       continue
-            Y=-A(LM)/ SQRT(A(LM)*A(LM)+X*X)
-            if(x>=zero_quad) go to 75
-               Y=-Y
-!DP75 SINX=Y/ SQRT(two_quad*(one_quad+( SQRT(one_quad-Y*Y))))
-   75       continue
-            SINX=Y/ SQRT(two_quad*(one_quad+( SQRT(MAX(zero_quad,one_quad-Y*Y)))))
-            ONEMYY=one_quad-Y*Y
-            IF(one_quad-Y*Y<zero_quad) write(6,*)' IN EIGEN, 1-Y*Y=',ONEMYY
-            SINX2=SINX*SINX
-!DP78 COSX= SQRT(one_quad-SINX2)
-   78       continue
-            COSX= SQRT(MAX(zero_quad,one_quad-SINX2))
-            COSX2=COSX*COSX
-            SINCS =SINX*COSX
-!
-!        ROTATE L AND M COLUMNS
-!
-            ILQ=N*(L-1)
-            IMQ=N*(M-1)
-            DO 125 I=1,N
-               IQ=(I*I-I)/2
-               if(i==l) go to 115
-               if(i==m) go to 115
-                  if(i>m) go to 90
-                     IM=I+MQ
-                     GO TO 95
-    90            continue
-                  IM=M+IQ
-    95            continue
-                  if(i>=l) go to 105
-                     IL=I+LQ
-                     GO TO 110
-   105            continue
-                  IL=L+IQ
-   110            continue
-                  X=A(IL)*COSX-A(IM)*SINX
-                  A(IM)=A(IL)*SINX+A(IM)*COSX
-                  A(IL)=X
-   115         continue
-               if(mv==1) go to 125
-                  ILR=ILQ+I
-                  IMR=IMQ+I
-                  X=R(ILR)*COSX-R(IMR)*SINX
-                  R(IMR)=R(ILR)*SINX+R(IMR)*COSX
-                  R(ILR)=X
-   125      CONTINUE
-            X=two_quad*A(LM)*SINCS
-            Y=A(LL)*COSX2+A(MM)*SINX2-X
-            X=A(LL)*SINX2+A(MM)*COSX2+X
-            A(LM)=(A(LL)-A(MM))*SINCS+A(LM)*(COSX2-SINX2)
-            A(LL)=Y
-            A(MM)=X
-!
-!        TESTS FOR COMPLETION
-!
-!        TEST FOR M = LAST COLUMN
-!
-  130    continue
-         if(m==n) go to 140
-            M=M+1
-            GO TO 60
-!
-!        TEST FOR L = SECOND FROM LAST COLUMN
-!
-  140    continue
-         if(l==n-1) go to 150
-            L=L+1
-            GO TO 55
-  150    continue
-         if(ind/=1) go to 160
-            IND=0
-            GO TO 50
-!
-!        COMPARE THRESHOLD WITH FINAL NORM
-!
-  160    continue
-         if(thr>anrmx) go to 45
-!
-!        SORT EIGENVALUES AND EIGENVECTORS
-!
-  165 continue
-      IQ=-N
-      DO I=1,N
-         IQ=IQ+N
-         LL=I+(I*I-I)/2
-         JQ=N*(I-2)
-         DO J=I,N
-            JQ=JQ+N
-            MM=J+(J*J-J)/2
-            if(a(ll)>=a(mm)) go to 1970
-               X=A(LL)
-               A(LL)=A(MM)
-               A(MM)=X
-            if(mv==1) go to 1970
-               DO K=1,N
-                  ILR=IQ+K
-                  IMR=JQ+K
-                  X=R(ILR)
-                  R(ILR)=R(IMR)
-                  R(IMR)=X
-               end do
-1970        continue
-         end do
-      end do
-      RETURN
-END SUBROUTINE EIGEN_quad

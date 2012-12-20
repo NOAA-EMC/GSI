@@ -219,10 +219,20 @@ contains
              call txy2ll(dlon_g,dlat_g,dlon_e,dlat_e)
              dlat_e=dlat_e*rad2deg
              dlon_e=dlon_e*rad2deg
-             if (dlon_e < zero) dlon_e = dlon_e + r360
-             if (dlon_e < zero) dlon_e = dlon_e + r360
-             if (dlon_e > r360) dlon_e = dlon_e - r360
-             if (dlon_e > r360) dlon_e = dlon_e - r360
+             i1_loop: do ii=1,10
+                if (dlon_e < zero) then
+                   dlon_e = dlon_e + r360
+                else
+                   exit i1_loop
+                endif
+             enddo i1_loop
+             i2_loop: do ii=1,10
+                if (dlon_e > r360) then
+                   dlon_e = dlon_e - r360
+                else
+                   exit i2_loop
+                endif
+             enddo i2_loop
              rlat_min = min(rlat_min,dlat_e)
              rlat_max = max(rlat_max,dlat_e)
              rlon_min = min(rlon_min,dlon_e)
