@@ -36,6 +36,7 @@ subroutine convert_binary_mass
 !                           sigfxx are properly defined for all values of n, not just n=1.
 !   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
 !                           subroutine to this file.
+!   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
 !
 !   input argument list:
 !
@@ -94,7 +95,7 @@ subroutine convert_binary_mass
   use kinds, only: r_single,i_llong,i_kind
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
@@ -116,7 +117,7 @@ subroutine convert_binary_mass
   integer(i_kind) hdrbuf(512)
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
   real(r_single) pt_regional
   integer(i_kind) k,n
   integer(i_kind) nguess,istatus
@@ -191,6 +192,19 @@ subroutine convert_binary_mass
      write(6,*)' convert_binary_mass: START_DATE =',&
           iyear,imonth,iday,ihour,iminute,isecond
    
+!                  nsig_soil_regional
+  call retrieve_index(index,'SMOIS',varname_all,nrecs)
+  if(index<0) stop
+
+  if(trim(memoryorder_all(index))=='XZY') then
+     nsig_soil_regional=domainend_all(2,index)
+  end if
+  if(trim(memoryorder_all(index))=='XYZ') then
+     nsig_soil_regional=domainend_all(3,index)
+  end if
+  write(6,*)' convert_binary_mass: sig_soil_regional=',&
+       nsig_soil_regional
+
 !                  nlon_regional, nlat_regional, nsig_regional
      call retrieve_index(index,'T',varname_all,nrecs)
      if(index<0) stop
@@ -221,7 +235,7 @@ subroutine convert_binary_mass
      write(6,*)' convert_binary_mass: pt_regional=',pt_regional
    
      write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig_regional,pt_regional
+          nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
      
      allocate(field1(nsig_regional),field1p(nsig_regional+1))
    
@@ -352,6 +366,7 @@ subroutine convert_binary_mass
      write(lendian_out)n_position    ! offset for mu
   
 !                   PHB                  
+     k=nsig_regional
      call retrieve_index(index,'PHB',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
@@ -480,7 +495,7 @@ subroutine convert_binary_mass
         ksize=domainend_all(3,index)
      end if
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',k,') = ', &
+     write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',ksize,') = ', &
                                            n_position,ksize,memoryorder_all(index)
      write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
 
@@ -494,7 +509,7 @@ subroutine convert_binary_mass
         ksize=domainend_all(3,index)
      end if
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, ksize, memoryorder for TSLB(',k,') = ', &
+     write(6,*)'  byte offset, ksize, memoryorder for TSLB(',ksize,') = ', &
                                               n_position,ksize,memoryorder_all(index)
      write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
 
@@ -506,6 +521,21 @@ subroutine convert_binary_mass
      write(6,*)'  byte offset for TSK = ',n_position
 
      write(lendian_out)n_position     !  TSK
+
+     if(l_gsd_soilTQ_nudge) then
+!                      SOIL1              
+        call retrieve_index(index,'SOILT1',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset for SOILT1= ',n_position
+        write(lendian_out)n_position     ! SOILT1 
+!                   TH2                
+        call retrieve_index(index,'TH2',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset for TH2 = ',n_position
+        write(lendian_out)n_position     !  TH2
+     endif
 
      if(l_cloud_analysis .or. nguess>0) then
 !      QCLOUD
