@@ -952,9 +952,9 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
      write(6,*)'CONVERT_NETCDF_NMM: nlon,nlat,nsig_regional,nsig_max=', &
                 nlon_regional,nlat_regional,nsig_regional,nsig_max
-     allocate(field2(nlon_regional,nlat_regional))   
+     allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))   
      allocate(field2b(nlon_regional,nlat_regional),ifield2(nlon_regional,nlat_regional))
-     allocate(field1(max(nlon_regional,nlat_regional,nsig_max)))       
+     allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+1)))       
 
      rmse_var='SMC' ! soil moisture volume fraction
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -1157,8 +1157,6 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
         deallocate(deta1_new,aeta1_new,eta1_new)
         deallocate(deta2_new,aeta2_new,eta2_new)
      end if ! use_gfs_stratosphere
-!    allocate 3D variable using new nsig_regional
-     allocate(field3(nlon_regional,nlat_regional,nsig_regional+1)) 
 !    write out header and new vertical coordinate structure
      write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
           nlon_regional,nlat_regional,nsig_regional, &
@@ -1287,13 +1285,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
                field3(nlon_regional/2,nlat_regional/2,k)
           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
        end do
-       do k=nsig_read+2,nsig_regional+1
-          write(6,*)' k,max,min,mid PINT=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
-               field3(nlon_regional/2,nlat_regional/2,k)
-          field3(:,:,k)=0.
-          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
-       enddo
-       do k=1,nsig_regional+1
+       do k=1,nsig_read+1
           write(6,'(i6,a6,3(2x,f15.6))') &
                 k,'PINT',field3(1,1,k), &
                          field3(nlon_regional/2,nlat_regional/2,k), &
@@ -1316,11 +1308,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
      end do
-     do k=nsig_read+1,nsig_regional
-        field3(:,:,k)=0.
-        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
-     enddo
-     do k=1,nsig_regional
+     do k=1,nsig_read
          write(6,'(i6,a6,3(2x,f15.6))') &
                k,'T',field3(1,1,k), &
                      field3(nlon_regional/2,nlat_regional/2,k), &
@@ -1342,11 +1330,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Q
      end do
-     do k=nsig_read+1,nsig_regional
-        field3(:,:,k)=0.
-        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
-     enddo
-     do k=1,nsig_regional
+     do k=1,nsig_read
          write(6,'(i6,a6,3(2x,f15.12))') &
                 k,'Q',field3(1,1,k), &
                       field3(nlon_regional/2,nlat_regional/2,k), &
@@ -1368,11 +1352,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! U
      end do
-     do k=nsig_read+1,nsig_regional
-        field3(:,:,k)=0.
-        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
-     enddo
-     do k=1,nsig_regional
+     do k=1,nsig_read 
          write(6,'(i6,a6,3(2x,f15.6))') &
                k,'U',field3(1,1,k), &
                      field3(nlon_regional/2,nlat_regional/2,k), &
@@ -1394,11 +1374,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! V
      end do
-     do k=nsig_read+1,nsig_regional
-        field3(:,:,k)=0.
-        write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
-     enddo
-     do k=1,nsig_regional
+     do k=1,nsig_read
          write(6,'(i6,a6,3(2x,f15.6))') &
                k,'V',field3(1,1,k), &
                      field3(nlon_regional/2,nlat_regional/2,k), &

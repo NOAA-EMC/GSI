@@ -83,13 +83,13 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use kinds, only: r_kind,r_single,i_long,i_llong,i_kind
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,ges_oz, & 
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use gridmod, only: lat2,lon2,itotsub,&
        pdtop_ll,pt_ll,nlon,nlat,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid,aeta1_ll,aeta2_ll, &
-      displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3
+      displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3,regional               
   use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
@@ -99,6 +99,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use control_vectors, only: cvars3d
   use cloud_efr, only: cloud_calc
   use native_endianness, only: byte_swap
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
+
   implicit none
 
 ! Declare passed variables here
@@ -133,6 +135,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) i_cwm,i_f_ice,i_f_rain,i_f_rimef
   integer(i_kind) isli_this
+  integer(i_kind) nsig_read  
   real(r_kind) pd,psfc_this,sm_this,sice_this,wmag
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   integer(i_llong) n_position
@@ -172,6 +175,11 @@ subroutine read_wrf_nmm_binary_guess(mype)
      im=nlon_regional
      jm=nlat_regional
      lm=nsig
+     nsig_read=nsig
+     if (use_gfs_stratosphere) then
+        lm=nsig_save
+        nsig_read=nsig_save
+     endif
 
 !    Inquire about cloud guess fields
      call gsi_metguess_get('dim',nguess,istatus)
@@ -188,11 +196,16 @@ subroutine read_wrf_nmm_binary_guess(mype)
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
      if (nguess>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
      num_loc_groups=num_nmm_fields/npe
-     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, lm            =",i6)')lm
-     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_nmm_fields=",i6)')num_nmm_fields
-     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, nfldsig       =",i6)')nfldsig
-     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, npe           =",i6)')npe
-     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_loc_groups=",i6)')num_loc_groups
+
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, update_pint   =",l6)')update_pint   
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, nsig          =",i6)')nsig               
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, lm            =",i6)')lm           
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, im            =",i6)')im            
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, jm            =",i6)')jm                 
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_nmm_fields=",i6)')num_nmm_fields   
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, nfldsig       =",i6)')nfldsig                 
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, npe           =",i6)')npe  
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_loc_groups=",i6)')num_loc_groups          
 
      allocate(offset(num_nmm_fields))
      allocate(igtype(num_nmm_fields),kdim(num_nmm_fields),kord(num_nmm_fields))
@@ -761,8 +774,8 @@ subroutine read_wrf_nmm_binary_guess(mype)
            kf_rain=i_f_rain-1
            kf_rimef=i_f_rimef-1
         end if
-        do k=1,nsig
-           kt=kt+1
+        do k=1,nsig_read  
+           kt=kt+1      
            kq=kq+1
            ku=ku+1
            kv=kv+1
@@ -802,6 +815,23 @@ subroutine read_wrf_nmm_binary_guess(mype)
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
            end if
         end do
+        do k=nsig_read+1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 ges_u(j,i,k,it)    = zero
+                 ges_v(j,i,k,it)    = zero
+                 ges_q(j,i,k,it)    = zero
+                 ges_tsen(j,i,k,it) = zero
+                 if (nguess>0) then
+                    clwmr(j,i,k)  = zero
+                    fice(j,i,k)   = zero
+                    frain(j,i,k)  = zero
+                    frimef(j,i,k) = zero
+                 end if
+              end do
+           end do
+        end do
+
         if (nguess>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
@@ -823,7 +853,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         end do
         if(update_pint) then
            kpint=i_pint-1
-           do k=1,nsig+1
+           do k=1,nsig_read+1 
               kpint=kpint+1
               do i=1,lon2
                  do j=1,lat2
@@ -831,6 +861,13 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  end do
               end do
            end do
+           do k=nsig_read+2,nsig+1 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_pint(j,i,k,it)  = zero
+                 enddo
+              enddo
+           enddo
            do i=1,lon2
               do j=1,lat2
                  ges_pd(j,i,it)=all_loc(j,i,i_pd)
@@ -839,13 +876,20 @@ subroutine read_wrf_nmm_binary_guess(mype)
         end if
 
 !       Convert sensible temp to virtual temp
-        do k=1,nsig
-           do i=1,lon2
+        do k=1,nsig_read       
+           do i=1,lon2       
               do j=1,lat2
                  ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
               end do
            end do
         end do
+           do k=nsig_read+1,nsig 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_tv(j,i,k,it)  = zero
+                 enddo
+              enddo
+          enddo
      
 !    Transfer surface fields
         do i=1,lon2
@@ -891,6 +935,11 @@ subroutine read_wrf_nmm_binary_guess(mype)
      deallocate(all_loc)
      deallocate(temp1,igtype,kdim,kord,offset,length)
      
+     if (use_gfs_stratosphere) then
+        if (mype==0) write(6,*)'in read_wrf_binary_netcdf: use_gfs_stratosphere ...beg'                          
+        call add_gfs_stratosphere
+        if (mype==0) write(6,*)'in read_wrf_binary_netcdf: use_gfs_stratosphere ...end'                         
+     endif
 
      return 
 end subroutine read_wrf_nmm_binary_guess
@@ -1007,6 +1056,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) i_cwm,i_f_ice,i_f_rain,i_f_rimef
   integer(i_kind) isli_this
+  integer(i_kind) nsig_read 
   real(r_kind) pd,psfc_this,sm_this,sice_this,wmag
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
 
@@ -1035,7 +1085,13 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
      im=nlon_regional
      jm=nlat_regional
-     lm=nsig
+     if(use_gfs_stratosphere) then
+        nsig_read=nsig_save
+        lm=nsig_save
+     else
+        nsig_read=nsig
+        lm=nsig
+     end if
 
 !    Inquire about cloud guess fields
      call gsi_metguess_get('dim',nguess,istatus)
@@ -1207,6 +1263,17 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !    to local domains once for every npe fields read in, using 
 !    mpi_all_to_allv
 
+!     if (mype==0) then
+!        do ifld=1,num_nmm_fields
+!           write(6,'("ifld,identity,icount,icount_prev,jsig_skip:",i12,a30,2x,i12,2x,i12)') &
+!                       ifld,identity(ifld),jsig_skip(ifld),igtype(ifld)
+!        enddo
+!        do i=1,npe
+!          write(6,'(" i,irec_s_reg,ird_s_reg = ",i12,2x,i12,2x,i12)') &
+!                       i,irc_s_reg(i),ird_s_reg(i)
+!        enddo
+!     endif
+
      icount=0
      icount_prev=1
      do it=1,nfldsig
@@ -1235,7 +1302,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end do
               end if
 !             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)'),ifld,temp1(im/2,jm/2)
-!             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,5x,a30,e15.5)'),ifld,identity(ifld),temp1(im/2,jm/2)                                                  
+              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,5x,a30,e15.5)'),ifld,identity(ifld),temp1(im/2,jm/2)                                                  
               if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
               if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
 
@@ -1282,7 +1349,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            kf_rimef=i_0+i_f_rimef-1
         end if
 
-        do k=1,nsig
+        do k=1,nsig_read
            kt=kt+1
            kq=kq+1
            ku=ku+1
@@ -1325,6 +1392,24 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
            end if
         end do
+        do k=nsig_read+1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 ges_u(j,i,k,it)    = zero 
+                 ges_v(j,i,k,it)    = zero 
+                 ges_q(j,i,k,it)    = zero 
+                 ges_tsen(j,i,k,it) = zero
+                 ges_oz(j,i,k,it)   = zero 
+
+                 if (nguess>0) then
+                    clwmr(j,i,k)  = zero 
+                    fice(j,i,k)   = zero 
+                    frain(j,i,k)  = zero
+                    frimef(j,i,k) = zero 
+                 end if
+              enddo
+           enddo
+        enddo
         if (nguess>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
@@ -1353,7 +1438,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
              minval(soil_temp),maxval(soil_temp)
         if(update_pint) then
            kpint=i_0+i_pint-1
-           do k=1,nsig+1
+           do k=1,nsig_read+1
               kpint=kpint+1
               do i=1,lon2
                  do j=1,lat2
@@ -1361,6 +1446,14 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end do
               end do
            end do
+           do k=nsig_read+2,nsig+1
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_pint(j,i,k,it) = zero
+                 end do
+              end do
+           end do
+
            do i=1,lon2
               do j=1,lat2
                  ges_pd(j,i,it)  = all_loc(j,i,i_0+i_pd)
@@ -1369,13 +1462,21 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         end if
 
 !       Convert sensible temp to virtual temp
-        do k=1,nsig
+        do k=1,nsig_read
            do i=1,lon2
               do j=1,lat2
                  ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
               end do
            end do
         end do
+        do k=nsig_read+1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 ges_tv(j,i,k,it) = zero 
+              end do
+           end do
+        end do
+
      end do ! it loop  
 
 !    Transfer surface fields

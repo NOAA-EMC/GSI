@@ -56,6 +56,10 @@ subroutine wrwrfnmma_binary(mype)
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
   use native_endianness, only: byte_swap
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
+  use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
+  use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
+
   implicit none
 
 ! Declare passed variables
@@ -68,6 +72,7 @@ subroutine wrwrfnmma_binary(mype)
   character(9) wrfanl
 
   integer(i_kind) im,jm,lm
+  integer(i_kind) nsig_write 
   real(r_single),allocatable::temp1(:),tempa(:,:),tempb(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
   integer(i_kind),allocatable::igtype(:),kdim(:),kord(:)
@@ -121,6 +126,24 @@ subroutine wrwrfnmma_binary(mype)
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
+
+! if use_gfs_stratosphere is true, then convert ges fields from nmm-gfs
+! extended vertical coordinate to nmmb vertical coordinate.
+  if(use_gfs_stratosphere) then
+     call revert_to_nmmb
+     nsig_write=nsig_save
+     lm=nsig_save
+  else
+     nsig_write=nsig
+     lm=nsig
+  endif
+   if (mype==0) write(6,*)'wrwrfnmma_binary: nsig_write =   ', nsig_write
+   if (mype==0) write(6,*)'wrwrfnmma_binary: nsig =         ', nsig
+   if (mype==0) write(6,*)'wrwrfnmma_binary: lm =           ', lm
+   if (mype==0) write(6,*)'wrwrfnmma_binary: jm =           ', jm
+   if (mype==0) write(6,*)'wrwrfnmma_binary: im =           ', im
+   if (mype==0) write(6,*)'wrwrfnmma_binary: nlat_regional =', nlat_regional                     
+   if (mype==0) write(6,*)'wrwrfnmma_binary: nlon_regional =', nlon_regional                 
 
 !  allocate boundary file arrays
   bdim=2*im+jm-3
@@ -420,7 +443,7 @@ subroutine wrwrfnmma_binary(mype)
   kq=i_q-1
   ku=i_u-1
   kv=i_v-1
-  do k=1,nsig
+  do k=1,nsig_save 
      kt=kt+1
      kq=kq+1
      ku=ku+1
@@ -433,6 +456,13 @@ subroutine wrwrfnmma_binary(mype)
            all_loc(j,i,kt)=ges_tsen(j+1,i+1,k,it)   ! sensible temperature
         end do
      end do
+     if (mype==0) then
+        write(6,*)'all_loc for t    = ',k,maxval(all_loc(:,:,kt)),minval(all_loc(:,:,kt))                
+        write(6,*)'all_loc for q    = ',k,maxval(all_loc(:,:,kq)),minval(all_loc(:,:,kq)) 
+        write(6,*)'all_loc for u    = ',k,maxval(all_loc(:,:,ku)),minval(all_loc(:,:,ku))              
+        write(6,*)'all_loc for v    = ',k,maxval(all_loc(:,:,kv)),minval(all_loc(:,:,kv))                   
+      endif
+
   end do
   do i=1,lon1
      do j=1,lat1
@@ -441,6 +471,9 @@ subroutine wrwrfnmma_binary(mype)
         all_loc(j,i,i_pd)=r100*pd
      end do
   end do
+  if (mype==0) &
+  write(6,*)'all_loc for pd   = ',k,maxval(all_loc(:,:,i_pd)),minval(all_loc(:,:,i_pd))                 
+
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
      kpint=i_pint-1
@@ -452,6 +485,8 @@ subroutine wrwrfnmma_binary(mype)
                           +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j+1,i+1,it))   ! pint
            end do
         end do
+        if (mype==0) &
+        write(6,*)'all_loc for pint = ',k,maxval(all_loc(:,:,kpint)),minval(all_loc(:,:,kpint))      
      end do
   end if
   if(update_regsfc) then
@@ -847,6 +882,11 @@ subroutine wrwrfnmma_binary(mype)
   deallocate(temp1)
 
   call mpi_file_close(mfcst,ierror)
+ 
+  if(use_gfs_stratosphere) then
+      if(mype==0) write(6,*)' at wrwrfnmma_binary: restore ges fields back to extended vertical grid'    
+      call restore_nmmb_gfs 
+  endif
   
 end subroutine wrwrfnmma_binary
 
@@ -1527,7 +1567,7 @@ subroutine wrwrfnmma_netcdf(mype)
 
 ! Declare local variables
   integer(i_kind) im,jm,lm
-  integer(i_kind) nsig_write,lmb  
+  integer(i_kind) nsig_write  
   real(r_single),allocatable::temp1(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
@@ -1570,12 +1610,10 @@ subroutine wrwrfnmma_netcdf(mype)
 
   im=nlon_regional
   jm=nlat_regional
-  lm=nsig      
-  lmb=nsig_write  
+  lm=nsig_write      
 
   if (mype==0) write(6,*)'wrwrfnmma_netcdf: nsig_write =   ', nsig_write
   if (mype==0) write(6,*)'wrwrfnmma_netcdf: nsig =         ', nsig
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: lmb =          ', lmb
   if (mype==0) write(6,*)'wrwrfnmma_netcdf: lm =           ', lm
   if (mype==0) write(6,*)'wrwrfnmma_netcdf: jm =           ', jm
   if (mype==0) write(6,*)'wrwrfnmma_netcdf: im =           ', im
@@ -1662,7 +1700,7 @@ subroutine wrwrfnmma_netcdf(mype)
   kq=i_q-1
   ku=i_u-1
   kv=i_v-1
-  do k=1,nsig        
+  do k=1,nsig_write        
      kt=kt+1
      kq=kq+1
      ku=ku+1
@@ -1690,7 +1728,7 @@ subroutine wrwrfnmma_netcdf(mype)
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
      kpint=i_pint-1
-     do k=1,nsig+1         
+     do k=1,nsig_write+1         
         kpint=kpint+1
         do i=1,lon1+2
            do j=1,lat1+2
@@ -1708,7 +1746,7 @@ subroutine wrwrfnmma_netcdf(mype)
      kcwm=i_cwm-1
      kf_ice=i_f_ice-1
      kf_rain=i_f_rain-1
-     do k=1,nsig       
+     do k=1,nsig_write       
         do i=1,lon2
            do j=1,lat2
               if (ges_ql(j,i,k)<=qcmin) ges_ql(j,i,k)=zero
@@ -1821,7 +1859,7 @@ subroutine wrwrfnmma_netcdf(mype)
 ! Update pint
   if(update_pint) then
      kpint=i_pint-1
-     do k=1,nsig+1    
+     do k=1,nsig_write+1    
         kpint=kpint+1
         if(mype == 0) read(lendian_in)temp1
         if(mype == 0) write(6,*)' k,max,min(temp1) PINT in   =',k,maxval(temp1),minval(temp1)                                           
@@ -1836,9 +1874,7 @@ subroutine wrwrfnmma_netcdf(mype)
            end do
            if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-           if (k<=nsig_write+1) then   
            write(lendian_out)temp1
-           endif
            write(6,*)' k,max,min(temp1) PINT out  =',k,maxval(temp1),minval(temp1)                                 
         end if
      end do
@@ -1847,7 +1883,7 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update PINT' 
 ! Update t
   kt=i_t-1
-  do k=1,nsig    
+  do k=1,nsig_write    
      kt=kt+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) T in      =',k,maxval(temp1),minval(temp1)                                             
@@ -1864,9 +1900,7 @@ subroutine wrwrfnmma_netcdf(mype)
         end do
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if (k<=nsig_write) then 
         write(lendian_out)temp1
-        endif 
         write(6,*)' k,max,min(temp1) T out     =',k,maxval(temp1),minval(temp1)                                  
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                            nguess,im,jm,lm,bdim,igtypeh)
@@ -1878,7 +1912,7 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update Q'  
 ! Update q
   kq=i_q-1
-  do k=1,nsig    
+  do k=1,nsig_write    
      kq=kq+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) Q in    =',k,maxval(temp1),minval(temp1)                                             
@@ -1895,9 +1929,7 @@ subroutine wrwrfnmma_netcdf(mype)
         end do
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-        if (k<=nsig_write) then  
         write(lendian_out)temp1
-        endif 
         write(6,*)' k,max,min(temp1) Q out   =',k,maxval(temp1),minval(temp1)        
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                            nguess,im,jm,lm,bdim,igtypeh)
@@ -1907,7 +1939,7 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update U'  
 ! Update u
   ku=i_u-1
-  do k=1,nsig      
+  do k=1,nsig_write       
      ku=ku+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) U in    =',k,maxval(temp1),minval(temp1)                                             
@@ -1931,9 +1963,7 @@ subroutine wrwrfnmma_netcdf(mype)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
 !       if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
-        if (k<=nsig_write) then  
         write(lendian_out)temp1
-        endif
         write(6,*)' k,max,min(temp1) U out   =',k,maxval(temp1),minval(temp1)                                  
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                            nguess,im,jm,lm,bdim,igtypev)
@@ -1944,7 +1974,7 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update V'  
 ! Update v
   kv=i_v-1
-  do k=1,nsig    
+  do k=1,nsig_write    
      kv=kv+1
      if(mype == 0) read(lendian_in)temp1
      if(mype == 0) write(6,*)' k,max,min(temp1) V in    =',k,maxval(temp1),minval(temp1)                                             
@@ -1961,9 +1991,7 @@ subroutine wrwrfnmma_netcdf(mype)
         end do
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
-        if (k<=nsig_write) then 
         write(lendian_out)temp1
-        endif 
         write(6,*)' k,max,min(temp1) V out   =',k,maxval(temp1),minval(temp1)                                  
         call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                            nguess,im,jm,lm,bdim,igtypev)
@@ -2071,7 +2099,7 @@ subroutine wrwrfnmma_netcdf(mype)
      if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update clouds '   
 !    Update cwm
      kcwm=i_cwm-1
-     do k=1,nsig   
+     do k=1,nsig_write   
         kcwm=kcwm+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
         call strip_single(all_loc(1,1,kcwm),strp,1)
@@ -2082,9 +2110,7 @@ subroutine wrwrfnmma_netcdf(mype)
                               nguess,im,jm,lm,bdim,igtypeh)
            if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-           if (k<=nsig_write) then 
            write(lendian_out)temp1
-           endif  
            call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
                               nguess,im,jm,lm,bdim,igtypeh)
         end if
@@ -2092,7 +2118,7 @@ subroutine wrwrfnmma_netcdf(mype)
 
 !    Update f_ice
      kf_ice=i_f_ice-1
-     do k=1,nsig
+     do k=1,nsig_write
         kf_ice=kf_ice+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
         call strip_single(all_loc(1,1,kf_ice),strp,1)
@@ -2107,7 +2133,7 @@ subroutine wrwrfnmma_netcdf(mype)
 
 !    Update f_rain
      kf_rain=i_f_rain-1
-     do k=1,nsig
+     do k=1,nsig_write
         kf_rain=kf_rain+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
         call strip_single(all_loc(1,1,kf_rain),strp,1)
@@ -2116,14 +2142,13 @@ subroutine wrwrfnmma_netcdf(mype)
         if(mype == 0) then
            if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-           if (k<=nsig_write) &    
            write(lendian_out)temp1
         end if
      end do
 
 !    write out f_rimef
      if (mype == 0) then
-        do k=1,nsig
+        do k=1,nsig_write
            read(lendian_in)temp1
            write(lendian_out)temp1
         end do
@@ -2144,28 +2169,28 @@ subroutine wrwrfnmma_netcdf(mype)
   if(mype==0) then
      open(lendian_out,file='wrf_nmm_bnd',form='unformatted')
      write(lendian_out)'WRF-NMM-NETCDF'
-     write(lendian_out) regional_time0,im,jm,lmb,bdim   
-     write(lendian_out) pdbg,tbg(:,1:lmb),qbg(:,1:lmb),cwmbg(:,1:lmb),ubg(:,1:lmb),vbg(:,1:lmb) 
-     write(lendian_out) pdba,tba(:,1:lmb),qba(:,1:lmb),cwmba(:,1:lmb),uba(:,1:lmb),vba(:,1:lmb) 
+     write(lendian_out) regional_time0,im,jm,lm,bdim   
+     write(lendian_out) pdbg,tbg,qbg,cwmbg,ubg,vbg
+     write(lendian_out) pdba,tba,qba,cwmba,uba,vba 
      close(lendian_out)
      write(6,*)' min,max pdbg=',minval(pdbg),maxval(pdbg)
-     write(6,*)' min,max tbg=',minval(tbg(:,1:lmb)),maxval(tbg(:,1:lmb))
-     write(6,*)' min,max qbg=',minval(qbg(:,1:lmb)),maxval(qbg(:,1:lmb))
-     write(6,*)' min,max cwmbg=',minval(cwmbg(:,1:lmb)),maxval(cwmbg(:,1:lmb))
-     write(6,*)' min,max ubg=',minval(ubg(:,1:lmb)),maxval(ubg(:,1:lmb))
-     write(6,*)' min,max vbg=',minval(vbg(:,1:lmb)),maxval(vbg(:,1:lmb))
+     write(6,*)' min,max tbg=',minval(tbg),maxval(tbg)
+     write(6,*)' min,max qbg=',minval(qbg),maxval(qbg)
+     write(6,*)' min,max cwmbg=',minval(cwmbg),maxval(cwmbg)
+     write(6,*)' min,max ubg=',minval(ubg),maxval(ubg)
+     write(6,*)' min,max vbg=',minval(vbg),maxval(vbg)
      write(6,*)' min,max pdba=',minval(pdba),maxval(pdba)
-     write(6,*)' min,max tba=',minval(tba(:,1:lmb)),maxval(tba(:,1:lmb))
-     write(6,*)' min,max qba=',minval(qba(:,1:lmb)),maxval(qba(:,1:lmb))
-     write(6,*)' min,max cwmba=',minval(cwmba(:,1:lmb)),maxval(cwmba(:,1:lmb))
-     write(6,*)' min,max uba=',minval(uba(:,1:lmb)),maxval(uba(:,1:lmb))
-     write(6,*)' min,max vba=',minval(vba(:,1:lmb)),maxval(vba(:,1:lmb))
+     write(6,*)' min,max tba=',minval(tba),maxval(tba)
+     write(6,*)' min,max qba=',minval(qba),maxval(qba)
+     write(6,*)' min,max cwmba=',minval(cwmba),maxval(cwmba)
+     write(6,*)' min,max uba=',minval(uba),maxval(uba)
+     write(6,*)' min,max vba=',minval(vba),maxval(vba)
      write(6,*)' min,max pdba-pdbg=',minval(pdba-pdbg),maxval(pdba-pdbg)
-     write(6,*)' min,max tba-tbg=',minval(tba(:,1:lmb)-tbg(:,1:lmb)),maxval(tba(:,1:lmb)-tbg(:,1:lmb))
-     write(6,*)' min,max qba-qbg=',minval(qba(:,1:lmb)-qbg(:,1:lmb)),maxval(qba(:,1:lmb)-qbg(:,1:lmb))
-     write(6,*)' min,max cwmba-cwmbg=',minval(cwmba(:,1:lmb)-cwmbg(:,1:lmb)),maxval(cwmba(:,1:lmb)-cwmbg(:,1:lmb))
-     write(6,*)' min,max uba-ubg=',minval(uba(:,1:lmb)-ubg(:,1:lmb)),maxval(uba(:,1:lmb)-ubg(:,1:lmb))
-     write(6,*)' min,max vba-vbg=',minval(vba(:,1:lmb)-vbg(:,1:lmb)),maxval(vba(:,1:lmb)-vbg(:,1:lmb))
+     write(6,*)' min,max tba-tbg=',minval(tba-tbg),maxval(tba-tbg)
+     write(6,*)' min,max qba-qbg=',minval(qba-qbg),maxval(qba-qbg)
+     write(6,*)' min,max cwmba-cwmbg=',minval(cwmba-cwmbg),maxval(cwmba-cwmbg)
+     write(6,*)' min,max uba-ubg=',minval(uba-ubg),maxval(uba-ubg)
+     write(6,*)' min,max vba-vbg=',minval(vba-vbg),maxval(vba-vbg)
   end if
 
   deallocate(pdbg ,tbg ,qbg ,cwmbg ,ubg ,vbg )

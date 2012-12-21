@@ -633,6 +633,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                           sigfxx are properly defined for all values of n, not just n=1.
 !   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
 !                           subroutine to this file.
+!   2012-12-10  eliu    - modify to add the use of use_gfs_stratosphere
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -657,6 +658,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
   use gsi_metguess_mod, only: gsi_metguess_get
+  use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max,nsig_save                                                                            
   implicit none
 
   integer(i_kind),parameter:: in_unit = 15
@@ -677,12 +679,17 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nsig_regional_new,nsig_read               
   integer(i_kind) nguess,istatus
   integer(i_kind) nstart_hour
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   real(r_single) dy_nmm
   integer(i_kind) k,n
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:)
+  real(r_single),allocatable::aeta1(:),deta1(:),eta1(:)            
+  real(r_single),allocatable::aeta2(:),deta2(:),eta2(:)             
+  real(r_single),allocatable::aeta1_new(:),deta1_new(:),eta1_new(:) 
+  real(r_single),allocatable::aeta2_new(:),deta2_new(:),eta2_new(:)
   integer(i_kind) ksize
   integer(i_kind) index
   
@@ -765,6 +772,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
         nlat_regional=domainend_all(2,index)
         nsig_regional=domainend_all(3,index)
      end if
+!    These will hold original vertical structure for regional
+     allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
+     allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
+
      read(datestr_all(index),'(i4,1x,i2,1x,i2,1x,i2,1x,i2,1x,i2)') &
           iyear,imonth,iday,ihour,iminute,isecond
      write(6,*)' convert_binary_nmm: iy,m,d,h,m,s=',&
@@ -813,11 +824,11 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: pdtop_regional=',pdtop_regional
 
-     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig_regional, &
-          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-  
-     allocate(field1(nsig_regional),field1p(nsig_regional+1))
+!     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
+!          nlon_regional,nlat_regional,nsig_regional, &
+!          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+ 
+     allocate(field1(nsig_max),field1p(nsig_max+1))           
   
 !                  deta1
      call retrieve_index(index,'DETA1',varname_all,nrecs)
@@ -827,9 +838,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 
      do k=1,nsig_regional
         write(6,*)' convert_binary_nmm: k,deta1(k)=',k,field1(k)
+        deta1(k)=field1(k)   
      end do
 
-     write(lendian_out)field1             !  DETA1
+!    write(lendian_out)field1             !  DETA1 
 
 !                  aeta1
      call retrieve_index(index,'AETA1',varname_all,nrecs)
@@ -838,9 +850,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional
         write(6,*)' convert_binary_nmm: k,aeta1(k)=',k,field1(k)
+        aeta1(k)=field1(k) 
      end do
 
-     write(lendian_out)field1             !  AETA1
+!    write(lendian_out)field1             !  AETA1 
   
 !                  eta1
      call retrieve_index(index,'ETA1',varname_all,nrecs)
@@ -849,9 +862,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional+1
         write(6,*)' convert_binary_nmm: k,eta1(k)=',k,field1p(k)
+        eta1(k)=field1p(k)   
      end do
 
-     write(lendian_out)field1p            !  ETA1
+!    write(lendian_out)field1p            !  ETA1 
 
 !                  deta2
      call retrieve_index(index,'DETA2',varname_all,nrecs)
@@ -860,9 +874,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional
         write(6,*)' convert_binary_nmm: k,deta2(k)=',k,field1(k)
+        deta2(k)=field1(k)     
      end do
 
-     write(lendian_out)field1             !  DETA2
+!    write(lendian_out)field1             !  DETA2 
 
 !                  aeta2
      call retrieve_index(index,'AETA2',varname_all,nrecs)
@@ -872,9 +887,10 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 
      do k=1,nsig_regional
         write(6,*)' convert_binary_nmm: k,aeta2(k)=',k,field1(k)
+        aeta2(k)=field1(k)    
      end do
 
-     write(lendian_out)field1             !  AETA2
+!    write(lendian_out)field1             !  AETA2 
 
 !                  eta2
      call retrieve_index(index,'ETA2',varname_all,nrecs)
@@ -884,10 +900,54 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 
      do k=1,nsig_regional+1
         write(6,*)' convert_binary_nmm: k,eta2(k)=',k,field1p(k)
+        eta2(k)=field1p(k)    
      end do
-     write(lendian_out)field1p            !  ETA2
+!    write(lendian_out)field1p            !  ETA2
 
      deallocate(field1,field1p)
+
+!    Get global-regional blended vertical coordinate
+     nsig_read=nsig_regional
+     if(use_gfs_stratosphere) then  !get new vertical coordinate
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
+                                  pdtop_regional,pt_regional,nsig_regional, &
+                                  deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)
+        nsig_read=nsig_save
+        write(6,*)' in convert_netcdf_nmm, compute new vertical coordinate which is merged with gfs'   
+        write(6,*)' previous nsig_regional=',nsig_regional
+        nsig_regional=nsig_regional_new    !new nsig
+        write(6,*)'      new nsig_regional=',nsig_regional
+        write(6,*)'              nsig_read=',nsig_read 
+        deallocate(deta1,aeta1,eta1)
+        deallocate(deta2,aeta2,eta2)
+        allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
+        allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
+        do k=1,nsig_regional
+           deta1(k)=deta1_new(k)
+           aeta1(k)=aeta1_new(k)
+           deta2(k)=deta2_new(k)
+           aeta2(k)=aeta2_new(k)
+        end do
+        do k=1,nsig_regional+1
+           eta1(k)=eta1_new(k)
+           eta2(k)=eta2_new(k)
+        end do
+        deallocate(deta1_new,aeta1_new,eta1_new)
+        deallocate(deta2_new,aeta2_new,eta2_new)
+     end if ! use_gfs_stratosphere
+     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
+          nlon_regional,nlat_regional,nsig_regional, &
+          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+     write(lendian_out)deta1(1:nsig_regional)    ! DETA1
+     write(lendian_out)aeta1(1:nsig_regional)    ! AETA1
+     write(lendian_out) eta1(1:nsig_regional+1)  !  ETA1
+     write(lendian_out)deta2(1:nsig_regional)    ! DETA2
+     write(lendian_out)aeta2(1:nsig_regional)    ! AETA2
+     write(lendian_out) eta2(1:nsig_regional+1)  !  ETA2
+     deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2)
+
      allocate(field2(nlon_regional,nlat_regional))
      allocate(field2b(nlon_regional,nlat_regional))
 
