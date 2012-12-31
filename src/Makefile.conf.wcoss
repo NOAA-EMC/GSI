@@ -21,8 +21,7 @@ OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
 
-##NETCDFPATH = /usrx/local/NetCDF/3.6.3
-NETCDFPATH=/usrx/local/NetCDF/4.2/serial
+NETCDFPATH = /usrx/local/NetCDF/3.6.3
 INCnetcdf  = $(NETCDFPATH)/include
 
 
@@ -109,7 +108,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
 		-lsfcio_4 -lbufr_d_64 -lw3nco_d -lw3emc_d -lcrtm_v2.0.6 $(WRFLIB) \
-		-L$(NETCDFPATH)/lib -lnetcdff
+		-L$(NETCDFPATH)/lib -lnetcdf
 
   LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 
