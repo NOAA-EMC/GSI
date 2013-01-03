@@ -2337,15 +2337,14 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !
 !$$$
 
-  use kinds, only: i_byte,i_kind,i_llong,i_long,r_single
+  use kinds, only: i_byte,i_kind,i_llong,i_long
   use native_endianness, only: byte_swap
   implicit none
 
   integer(i_kind),intent(in   ) :: in_unit
   character(9)   ,intent(in   ) :: wrfges
   integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
-!!integer(i_byte),intent(  out) :: out(*)
-  real(r_single) ,intent(  out) :: out(*)
+  integer(i_byte),intent(  out) :: out(*)
 
   integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_llong),parameter:: lword=2**18_i_llong
