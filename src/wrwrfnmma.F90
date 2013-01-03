@@ -477,7 +477,7 @@ subroutine wrwrfnmma_binary(mype)
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
      kpint=i_pint-1
-     do k=1,nsig+1
+     do k=1,nsig_write+1
         kpint=kpint+1
         do i=1,lon1
            do j=1,lat1
