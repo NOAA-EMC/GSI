@@ -443,7 +443,7 @@ subroutine wrwrfnmma_binary(mype)
   kq=i_q-1
   ku=i_u-1
   kv=i_v-1
-  do k=1,nsig_save 
+  do k=1,nsig_write   
      kt=kt+1
      kq=kq+1
      ku=ku+1
