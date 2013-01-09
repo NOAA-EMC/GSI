@@ -1257,7 +1257,6 @@ module egrid2agrid_mod
          mm=nord_blend
          call blend(mm,iblend)
          allocate(blendx(nmix))
-         blendx(0)=zero
          blendx(nmix)=one
          dxx=one/nmix
          blendx(1)=zero

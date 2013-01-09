@@ -955,13 +955,11 @@ subroutine merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_la
      diffmax=zero
      do j=1,nlon_a
         do i=1,nlat_a
-           if(region_lat_a(i,j) /= region_lat_e(i,j))print *,'i,j',i,j,region_lat_a(i,j),region_lat_e(i,j)
            diffmax=max(diffmax,abs(region_lat_a(i,j)-region_lat_e(i,j))/range_lat)
         end do
      end do
      do j=1,nlon_a
         do i=1,nlat_a
-           if(region_lon_a(i,j) /= region_lon_e(i,j))print *,'i,j', i,j, region_lon_a(i,j), region_lon_e(i,j)
            diffmax=max(diffmax,abs(region_lon_a(i,j)-region_lon_e(i,j))/range_lon)
         end do
      end do

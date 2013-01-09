@@ -103,7 +103,14 @@ subroutine get_wrf_nmm_ensperts
 ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
     en_bar%values=zero
     
-! Here assume all ensemble members have the same dimension and resolution
+! Here assume all ensemble members have the same dimension and resolution.
+! When merge_two_grid_ensperts=false, if dual_res option is turned on, 
+! the domain size of the read-in ensemble has to be slightly larger than the
+! ensemble grid defined for analysis to provide a halo zone for interpolation
+! from read-in ensemble grid to ensemble grid defined for analysis. Otherwise, 
+! there will be a risk that there are no ensemble perturbations around the boundary 
+! area.
+
     filename='sigf06_ens_mem001'
     inquire(file=filename,exist=fexist)
     if(.not. fexist) call stop2(400)
@@ -119,6 +126,7 @@ subroutine get_wrf_nmm_ensperts
        nlon_e=nlon_regional
        nlat_e=1+nlat_regional/2
     endif
+    if(mype == 0)print *,'nlon_e, nlat_e=', nlon_e, nlat_e
        
     inner_vars=2
     nc3d_half=(nc3d+1)/2
@@ -211,11 +219,26 @@ subroutine get_wrf_nmm_ensperts
           call general_read_wrf_nmm_binary(grd_ens_d01,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
        end if 
     
-       nmix=10
-       nord_blend=4
+       nmix=0
+       nord_blend=0
        call merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_lat_ens,region_lon_ens, &
               grd_ens_d01%nlat,grd_ens_d01%nlon,grd_mix%nlat,grd_mix%nlon,nord_e2a,nord_blend,nmix,gt_e,gt_a,p_e2a)
        deallocate(region_lat_e,region_lon_e)
+
+       test=.false.
+       if(mype == 0 .and. test)then
+          allocate(outwork(nlon_ens,nlat_ens))
+          outwork=zero
+          ii=0
+          do j=1,nlon_ens
+             do i=1,nlat_ens
+                ii=ii+1
+                outwork(j,i)=p_e2a%blend(ii)
+             end do
+         end do
+         call outgrads1(outwork,nlon_ens,nlat_ens,'pblend')
+         deallocate(outwork)
+       end if
 
        if(mype == 0)print *,'p_e2a%identity=', p_e2a%identity
 
@@ -341,7 +364,7 @@ subroutine get_wrf_nmm_ensperts
                 end do
              end do
 
-!             call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
+             call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
    
              deallocate(fields_sube2a)
           end if
@@ -2204,11 +2227,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
    
      i=0
      i=i+1 ; i_pd=i                                                ! pd
-     if(merge_two_grid_ensperts)then
-        jsiskip(i)=4
-     else
-        jsiskip(i)=2
-     end if
+     jsiskip(i)=4
      igtype(i)=1
    
      i_t=i+1
