@@ -815,6 +815,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !                          write to temporary netcdf files (extend FGAT capability for
 !                          wrf nmm netcdf format)
 !   2012-01-13  zhu     - add cloud hydrometeors
+!   2012-10-11  eliu    - modify to add the use of use_gfs_stratosphere
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -843,6 +844,9 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   use gsi_4dvar, only: nhr_assimilation
   use constants, only: half,rad2deg
   use gsi_metguess_mod, only: gsi_metguess_get
+  use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max,nsig_save                                   
+  use gridmod, only: diagnostic_reg 
+
 ! use wrf_data
   implicit none
 ! include 'wrf_status_codes.h'
@@ -878,8 +882,13 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nsig_regional_new,nsig_read 
   real(r_single) pt_regional,pdtop_regional,dy_nmm
   real(r_single) dlmd_regional,dphd_regional
+  real(r_single),allocatable::aeta1(:),deta1(:),eta1(:)               
+  real(r_single),allocatable::aeta2(:),deta2(:),eta2(:)                
+  real(r_single),allocatable::aeta1_new(:),deta1_new(:),eta1_new(:)    
+  real(r_single),allocatable::aeta2_new(:),deta2_new(:),eta2_new(:)    
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   integer(i_kind),allocatable::ifield2(:,:)
   integer(i_kind) wrf_real
@@ -923,7 +932,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
   
      write(filename,'("sigf",i2.2)') n
      open(iunit,file=filename,form='unformatted')
-
+     write(6,*)'CONVERT_NETCDF_NMM: output file = ', filename  
 
 !-------------  get date info
 
@@ -938,15 +947,21 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      nlon_regional=end_index1(1)
      nlat_regional=end_index1(2)
      nsig_regional=end_index1(3)
-     write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
-     allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))
+!    these will hold original vertical structure for regional
+     allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
+     allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
+     write(6,*)'CONVERT_NETCDF_NMM: nlon,nlat,nsig_regional,nsig_max=', &
+                nlon_regional,nlat_regional,nsig_regional,nsig_max
+     allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))   
      allocate(field2b(nlon_regional,nlat_regional),ifield2(nlon_regional,nlat_regional))
-     allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+1)))
-     rmse_var='SMC'
+     allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+1)))       
+
+     rmse_var='SMC' ! soil moisture volume fraction
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
      
+!    Read in east-west angular distance (degrees) H-to-V points 
      rmse_var='DLMD'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
@@ -960,7 +975,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           ierr                                 )
      write(6,*)' dlmd=',dlmd_regional
      
-     rmse_var='DPHD'
+     rmse_var='DPHD' ! north-south angular distance (degrees) H-to-V points                      
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -973,7 +988,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           ierr                                 )
      write(6,*)' dphd=',dphd_regional
   
-     rmse_var='PT'
+     rmse_var='PT' ! pressure (Pa) at top of domain
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -985,7 +1000,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !pat
           ierr                                 )
      write(6,*)' pt=',pt_regional
-     rmse_var='PDTOP'
+
+     rmse_var='PDTOP' ! mass (pa) at model top in pressure domain
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -997,11 +1013,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !pat
           ierr                                 )
      write(6,*)' pdtop=',pdtop_regional
-     
-     write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig_regional, &
-          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-     rmse_var='DETA1'
+     rmse_var='DETA1' ! delta sigma in pressure domain
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1012,11 +1024,14 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
+     write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
+        deta1(k)=field1(k)    
         write(6,*)' k,deta1(k)=',k,field1(k)
      end do
-     write(iunit)field1(1:nsig_regional)  ! DETA1
+!    write(iunit)field1(1:nsig_regional)  ! DETA1    
      
+!    Read in midlayer sigma value in pressure domain  
      rmse_var='AETA1'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
@@ -1029,12 +1044,14 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
+     write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
+        aeta1(k)=field1(k)
         write(6,*)' k,aeta1(k)=',k,field1(k)
      end do
-     write(iunit)field1(1:nsig_regional)  ! AETA1
+!    write(iunit)field1(1:nsig_regional)  ! AETA1
   
-     rmse_var='ETA1'
+     rmse_var='ETA1' ! interface sigma value in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1045,12 +1062,14 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
+     write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional+1
-        write(6,*)' k, eta1(k)=',k,field1(k)
+       eta1(k)=field1(k)  
+       write(6,*)' k, eta1(k)=',k,field1(k)
      end do
-     write(iunit)field1(1:nsig_regional+1)  !  ETA1
+!    write(iunit)field1(1:nsig_regional+1)  !  ETA1
   
-     rmse_var='DETA2'
+     rmse_var='DETA2' ! delta sigma in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1061,12 +1080,14 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
+     write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
+        deta2(k)=field1(k) 
         write(6,*)' k,deta2(k)=',k,field1(k)
      end do
-     write(iunit)field1(1:nsig_regional)  ! DETA2
+!    write(iunit)field1(1:nsig_regional)  ! DETA2 
      
-     rmse_var='AETA2'
+     rmse_var='AETA2' ! midlayer sigma value in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1077,12 +1098,14 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
+     write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional
+        aeta2(k)=field1(k) 
         write(6,*)' k,aeta2(k)=',k,field1(k)
      end do
-     write(iunit)field1(1:nsig_regional)  ! AETA2
+!    write(iunit)field1(1:nsig_regional)  ! AETA2 
      
-     rmse_var='ETA2'
+     rmse_var='ETA2' ! interface sigma value in pressure domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1093,12 +1116,59 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,                   & !mem
           start_index,end_index1,                   & !pat
           ierr                                 )
+     write(6,*)'CONVERT_NETCDF_NMM:' 
      do k=1,nsig_regional+1
+        eta2(k)=field1(k) 
         write(6,*)' k,eta2(k)=',k,field1(k)
      end do
-     write(iunit)field1(1:nsig_regional+1)  ! ETA2
-     
-     rmse_var='GLAT'
+!    write(iunit)field1(1:nsig_regional+1)  ! ETA2
+!    Create new vertical coordinate structure if use_gfs_stratosphere is true 
+!    Blend and extend vertical coordinate with GFS 
+!    This will create updated values for: deta1, aeat1, eta1 
+!                                         deta2, aeat2, eta2
+!                                         nsig_regional 
+     nsig_read=nsig_regional  ! hold the original nsig_regional
+     if(use_gfs_stratosphere) then  ! get new vertical coordinate           
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
+                                  pdtop_regional,pt_regional,nsig_regional, &
+                                  deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)
+        nsig_read=nsig_save
+        write(6,*)' in convert_netcdf_nmm, compute new vertical coordinate which is merged with gfs'                       
+        write(6,*)' previous nsig_regional=',nsig_regional
+        nsig_regional=nsig_regional_new    ! new nsig
+        write(6,*)'      new nsig_regional=',nsig_regional
+        write(6,*)'              nsig_read=',nsig_read  
+        deallocate(deta1,aeta1,eta1)
+        deallocate(deta2,aeta2,eta2)
+        allocate(deta1(nsig_regional),aeta1(nsig_regional),eta1(nsig_regional+1))
+        allocate(deta2(nsig_regional),aeta2(nsig_regional),eta2(nsig_regional+1))
+        do k=1,nsig_regional
+           deta1(k)=deta1_new(k)
+           aeta1(k)=aeta1_new(k)
+           deta2(k)=deta2_new(k)
+           aeta2(k)=aeta2_new(k)
+        end do
+        do k=1,nsig_regional+1
+           eta1(k)=eta1_new(k)
+           eta2(k)=eta2_new(k)
+        end do
+        deallocate(deta1_new,aeta1_new,eta1_new)
+        deallocate(deta2_new,aeta2_new,eta2_new)
+     end if ! use_gfs_stratosphere
+!    write out header and new vertical coordinate structure
+     write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
+          nlon_regional,nlat_regional,nsig_regional, &
+          dlmd_regional,dphd_regional,pt_regional,pdtop_regional
+     write(iunit)deta1(1:nsig_regional)    ! DETA1
+     write(iunit)aeta1(1:nsig_regional)    ! AETA1
+     write(iunit) eta1(1:nsig_regional+1)  !  ETA1
+     write(iunit)deta2(1:nsig_regional)    ! DETA2
+     write(iunit)aeta2(1:nsig_regional)    ! AETA2
+     write(iunit) eta2(1:nsig_regional+1)  !  ETA2
+     deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2)
+     rmse_var='GLAT' ! geographic latitude (radians)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1117,7 +1187,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      ctph0=cos(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
      stph0=sin(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
      
-     rmse_var='DX_NMM'
+     rmse_var='DX_NMM' ! east-west distance (m) H-to-V points 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1134,7 +1204,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           field2b(1,nlat_regional),field2b(nlon_regional,nlat_regional)
      write(iunit)field2,field2b   !GLAT,DX_NMM
      
-     rmse_var='GLON'
+     rmse_var='GLON' ! geographic longitude (radians)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1152,8 +1222,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' my guess at tlm0d = ',rad2deg*field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)
      tlm0=half*(field2(1+(nlon_regional-1)/2,1+(nlat_regional-1)/2)+ &
               field2(2+(nlon_regional-1)/2,1+(nlat_regional-1)/2))
-     
-     rmse_var='DY_NMM'
+
+     rmse_var='DY_NMM' ! north-south distance (m) H-to-V points
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1167,8 +1237,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' dy_nmm=',dy_nmm
      field2b=dy_nmm
      write(iunit)field2,field2b   !GLON,DY_NMM
-     
-     rmse_var='PD'
+
+     rmse_var='PD' ! mass (Pa) at grid point (I,J) in sigma domain 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1182,7 +1252,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min pd=',maxval(field2),minval(field2)
      write(iunit)field2   !PD
      
-     rmse_var='FIS'
+     rmse_var='FIS' ! surface geopotential (m2s-2)  
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1196,7 +1266,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min FIS=',maxval(field2),minval(field2)
      write(iunit)field2   ! FIS
    
-     update_pint=.false.
+     update_pint=.false. ! model layer interface pressure (Pa)
      rmse_var='PINT'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
@@ -1210,14 +1280,19 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
             start_index,end_index1,               & !mem
             start_index,end_index1,               & !pat
             ierr                                 )
-       do k=1,nsig_regional+1
+       do k=1,nsig_read+1           
           write(6,*)' k,max,min,mid PINT=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
                field3(nlon_regional/2,nlat_regional/2,k)
           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! PINT
        end do
+       do k=1,nsig_read+1
+          write(6,'(i6,a6,3(2x,f15.6))') &
+                k,'PINT',field3(1,1,k), &
+                         field3(nlon_regional/2,nlat_regional/2,k), &
+                         field3(nlon_regional,nlat_regional,k)
+       enddo
      end if
-     
-     rmse_var='T'
+     rmse_var='T' ! sensible temperature (K)  
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
@@ -1228,13 +1303,18 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     do k=1,nsig_regional
+     do k=1,nsig_read     
         write(6,*)' k,max,min,mid T=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! T
      end do
-     
-     rmse_var='Q'
+     do k=1,nsig_read
+         write(6,'(i6,a6,3(2x,f15.6))') &
+               k,'T',field3(1,1,k), &
+                     field3(nlon_regional/2,nlat_regional/2,k), &
+                     field3(nlon_regional,nlat_regional,k)
+     enddo
+     rmse_var='Q'    ! Read in specific humidity (Kg/Kg)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1245,13 +1325,18 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     do k=1,nsig_regional
+     do k=1,nsig_read       
         write(6,*)' k,max,min,mid Q=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Q
      end do
-  
-     rmse_var='U'
+     do k=1,nsig_read
+         write(6,'(i6,a6,3(2x,f15.12))') &
+                k,'Q',field3(1,1,k), &
+                      field3(nlon_regional/2,nlat_regional/2,k), &
+                      field3(nlon_regional,nlat_regional,k)
+     enddo
+     rmse_var='U' ! U component of wind (m/s)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1262,13 +1347,18 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     do k=1,nsig_regional
+     do k=1,nsig_read     
         write(6,*)' k,max,min,mid U=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! U
      end do
-     
-     rmse_var='V'
+     do k=1,nsig_read 
+         write(6,'(i6,a6,3(2x,f15.6))') &
+               k,'U',field3(1,1,k), &
+                     field3(nlon_regional/2,nlat_regional/2,k), &
+                     field3(nlon_regional,nlat_regional,k)
+     enddo
+     rmse_var='V' ! V component of wind (m/s)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1279,13 +1369,18 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           start_index,end_index1,               & !mem
           start_index,end_index1,               & !pat
           ierr                                 )
-     do k=1,nsig_regional
+     do k=1,nsig_read      
         write(6,*)' k,max,min,mid V=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
              field3(nlon_regional/2,nlat_regional/2,k)
         write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! V
      end do
-     
-     rmse_var='SM'
+     do k=1,nsig_read
+         write(6,'(i6,a6,3(2x,f15.6))') &
+               k,'V',field3(1,1,k), &
+                     field3(nlon_regional/2,nlat_regional/2,k), &
+                     field3(nlon_regional,nlat_regional,k)
+     enddo
+     rmse_var='SM' ! land-sea mask (sea=1 land=0) 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1302,7 +1397,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
      write(iunit)field2   !SM
      
-     rmse_var='SICE'
+     rmse_var='SICE' ! sea ice mask (1=sea ice 0=no sea ice) 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
    
           start_index,end_index1, WrfType, ierr    )
@@ -1317,7 +1412,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min SICE=',maxval(field2),minval(field2)
      write(iunit)field2   !SICE
      
-     rmse_var='SST'
+     rmse_var='SST' ! sea surface temperature (K)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1331,7 +1426,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min SST=',maxval(field2),minval(field2)
      write(iunit)field2   !SST
      
-     rmse_var='IVGTYP'
+     rmse_var='IVGTYP' ! vegetation type
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1345,7 +1440,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min IVGTYP=',maxval(ifield2),minval(ifield2)
      write(iunit)ifield2   !IVGTYP
  
-     rmse_var='ISLTYP'
+     rmse_var='ISLTYP' ! soil type 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1359,7 +1454,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min ISLTYP=',maxval(ifield2),minval(ifield2)
      write(iunit)ifield2   !ISLTYP
      
-     rmse_var='VEGFRC'
+     rmse_var='VEGFRC' ! vegetation fraction 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1373,7 +1468,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min VEGFRC=',maxval(field2),minval(field2)
      write(iunit)field2   !VEGFRC
      
-     rmse_var='SNO'
+     rmse_var='SNO' ! liquid water equivalent of snow on ground (kg/m2) 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1387,7 +1482,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min SNO=',maxval(field2),minval(field2)
      write(iunit)field2   !SNO
      
-     rmse_var='U10'
+     rmse_var='U10' ! U at 10 meter (m/s)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1401,7 +1496,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min U10=',maxval(field2),minval(field2)
      write(iunit)field2   !U10
      
-     rmse_var='V10'
+     rmse_var='V10' ! V at 10 meter (m/s) 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1415,7 +1510,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min V10=',maxval(field2),minval(field2)
      write(iunit)field2   !V10
      
-     rmse_var='SMC'
+     rmse_var='SMC' ! soil moisture volume fraction 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1431,7 +1526,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           field3(nlon_regional/2,nlat_regional/2,1)
      write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMC
      
-     rmse_var='STC'
+     rmse_var='STC' ! soil temperature 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1447,7 +1542,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
           field3(nlon_regional/2,nlat_regional/2,1)
      write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! STC
      
-     rmse_var='TSK'
+     rmse_var='TSK' ! skin temperature (K)
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index1, WrfType, ierr    )
      write(6,*)' rmse_var=',trim(rmse_var)
@@ -1461,8 +1556,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)' max,min TSK=',maxval(field2),minval(field2)
      write(iunit)field2   !TSK
 
-     if (nguess>0) then
-        rmse_var='CWM'
+     if (nguess>0) then! Read in cloud related fields
+        rmse_var='CWM' ! cloud water mixing ratio    
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
         write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
@@ -1479,7 +1574,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! CWM
         end do
 
-        rmse_var='F_ICE'
+        rmse_var='F_ICE' ! fraction of ice cloud in grid box
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
         write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
@@ -1496,7 +1591,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_ICE
         end do
 
-        rmse_var='F_RAIN'
+        rmse_var='F_RAIN' ! fraction of rain in grid box 
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
         write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
@@ -1513,7 +1608,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
            write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! F_RAIN
         end do
 
-        rmse_var='F_RIMEF'
+        rmse_var='F_RIMEF' ! ? 
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
              start_index,end_index1, WrfType, ierr    )
         write(6,*)' ierr,rmse_var=',ierr,trim(rmse_var)
@@ -2230,7 +2325,8 @@ subroutine update_netcdf_nmm
   nsig_regional=end_index1(3)
   nallo = nsig_regional
   if(update_pint) nallo = nallo+1   ! add contribution of PINT
-  write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
+! write(6,*)' nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional
+  write(6,*)' update_netcdf_nmm: nlon,lat,sig_regional=',nlon_regional,nlat_regional,nsig_regional               
   allocate(field2(nlon_regional,nlat_regional))
   allocate(field3(nlon_regional,nlat_regional,nallo))
   allocate(ifield2(nlon_regional,nlat_regional))

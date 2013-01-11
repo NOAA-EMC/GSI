@@ -126,6 +126,8 @@ subroutine setup_blend
 !   machine:
 !
 !$$$ end documentation block
+
+  use blendmod, only: blend
   implicit none
 
   integer(i_kind),dimension(0:40):: iblend

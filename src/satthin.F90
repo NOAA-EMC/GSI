@@ -164,7 +164,7 @@ contains
 !                         on regional grid when domain includes north pole.
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
-!   2012-11-09  parrish - bug fix range of dlon_e
+!   2012-10-11  eliu/wu - make sure dlon_e is in the range of 0 and 360
 !   2013-01-09  collard - simplify regional dlon_e range check
 !
 !   input argument list:

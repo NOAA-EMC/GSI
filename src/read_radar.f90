@@ -48,6 +48,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !   2011-08-01  lueken  - remove deter_zsfc_model (placed in deter_sfc_mod) and fix indentation
 !   2012-01-11 m.Hu  -   add subtype to radial wind observation and limit the use
 !                           of level2.5 and level3 data in Conus domain for ARW
+!   2012-04-28  s.liu  -  use new VAD wind
+!   2012-11-12  s.liu  -  add new VAD wind flag
 !
 !
 !   input argument list:
@@ -73,7 +75,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
       one_tenth,r10,r1000,r60inv,r100,r400,grav_equator, &
       eccentricity,somigliana,grav_ratio,grav, &
       semi_major_axis,flattening,two
-  use qcmod, only: erradar_inflate,vadfile
+  use qcmod, only: erradar_inflate,vadfile,newvad
   use obsmod, only: iadate
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
@@ -153,6 +155,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   equivalence (cstaid,rstation_id)
   real(r_double),dimension(7,maxlevs):: radar_obs
   real(r_double),dimension(4,maxlevs):: vad_obs
+  real(r_double),dimension(2,maxlevs):: fcst_obs
   
   character(8) vadid(maxvad)
   real(r_kind) vadlat(maxvad),vadlon(maxvad),vadqm(maxvad,maxvadbins)
@@ -213,6 +216,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real(r_kind) crit1,timedif
   real(r_kind),allocatable,dimension(:):: zl_thin
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
+  real(r_kind) diffuu,diffvv
   
   data lnbufr/10/
   data hdrstr(1) / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
@@ -360,6 +364,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 ! Update vadqm table
   call ufbint(lnbufr,vad_obs,4,maxlevs,levs,'ZOB WQM UOB VOB ')
+  call ufbint(lnbufr,fcst_obs,2,maxlevs,levs,'UFC VFC ')
   if(levs>maxlevs) then
      write(6,*)'READ_RADAR:  ***ERROR*** need to increase read_radar bufr size since ',&
         ' number of levs=',levs,' > maxlevs=',maxlevs
@@ -371,6 +376,14 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      zob=vad_obs(1,k)
      uob=vad_obs(3,k)
      vob=vad_obs(4,k)
+     if(newvad) then
+     diffuu=uob-fcst_obs(1,k) 
+     diffvv=vob-fcst_obs(2,k) 
+     if(sqrt(diffuu**2+diffvv**2)>10.0) cycle
+     if(abs(diffvv)>8.0) cycle
+     if(abs(diffvv)>5.0.and.zob<5000.0) cycle
+     if(zob>7000.0) cycle
+     end if
      ivadz=nint(zob/dzvad)
      if(ivadz<1.or.ivadz>maxvadbins) cycle
      errzmax=max(abs(zob-ivadz*dzvad),errzmax)
