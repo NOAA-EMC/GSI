@@ -87,6 +87,9 @@ module general_tll2xy_mod
 !
 ! program history log:
 !   2010-10-28  parrish - initial documentation
+!   2012-11-28  tong - added gt%lallocated=.true. after arrays of gt are allocated and 
+!                      removed the duplicate allocation of gt%region_lat,gt%region_lon
+!                      at the begining
 !
 !   input argument list:
 !    glats       - earth latitudes of each grid point for desired grid.
@@ -126,8 +129,6 @@ module general_tll2xy_mod
   real(r_kind) rlonb_p1,clonb_p1,slonb_p1
   real(r_kind) crot,srot
 
-  allocate(gt%region_lat(nlat,nlon))
-  allocate(gt%region_lon(nlat,nlon))
   do j=1,nlon
      do i=1,nlat
         glats(j,i)=region_lat(i,j)
@@ -157,6 +158,9 @@ module general_tll2xy_mod
   allocate(gt%xtilde0(gt%nlon,gt%nlat),gt%ytilde0(gt%nlon,gt%nlat))
   allocate(gt%cos_beta_ref(gt%nlon,gt%nlat),gt%sin_beta_ref(gt%nlon,gt%nlat))
   allocate(gt%region_lat(gt%nlat,gt%nlon),gt%region_lon(gt%nlat,gt%nlon))
+
+  gt%lallocated=.true.
+
   do j=1,nlon
      do i=1,nlat
         gt%region_lat(i,j)=region_lat(i,j)
@@ -888,6 +892,8 @@ subroutine merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_la
 !
 ! program history log:
 !   2010-10-28  parrish - initial documentation
+!   2012-03-01  tong - modified the way to call create_egrid2points_slow. If nmix <= 0, the orginal 
+!               way to call the subroutine will cause segmentation fault
 !
 !   input argument list:
 !    region_lat_e - earth lats for e grid (radians) 
@@ -949,13 +955,11 @@ subroutine merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_la
      diffmax=zero
      do j=1,nlon_a
         do i=1,nlat_a
-           if(region_lat_a(i,j) /= region_lat_e(i,j))print *,'i,j',i,j,region_lat_a(i,j),region_lat_e(i,j)
            diffmax=max(diffmax,abs(region_lat_a(i,j)-region_lat_e(i,j))/range_lat)
         end do
      end do
      do j=1,nlon_a
         do i=1,nlat_a
-           if(region_lon_a(i,j) /= region_lon_e(i,j))print *,'i,j', i,j, region_lon_a(i,j), region_lon_e(i,j)
            diffmax=max(diffmax,abs(region_lon_a(i,j)-region_lon_e(i,j))/range_lon)
         end do
      end do
@@ -985,7 +989,12 @@ subroutine merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_la
      ye(i)=i
   end do
   np=nlat_a*nlon_a
-  call create_egrid2points_slow(np,ya_e,xa_e,nlat_e,ye,nlon_e,xe,nord_e2a,p_e2a,nord_blend,nmix)
+  if(nord_blend > 0 .and. nmix > 0)then
+     call create_egrid2points_slow(np,ya_e,xa_e,nlat_e,ye,nlon_e,xe,nord_e2a,p_e2a,nord_blend,nmix)
+  else
+     call create_egrid2points_slow(np,ya_e,xa_e,nlat_e,ye,nlon_e,xe,nord_e2a,p_e2a)
+  end if
+
   deallocate(xe,ye,xa_e,ya_e)
 
 end subroutine merge_grid_e_to_grid_a_initialize

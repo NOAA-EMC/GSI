@@ -8,7 +8,14 @@ COREINC  = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/incmod
 CORELIB  = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
 INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
-INCnemsio= $(COREINC)/nemsio
+#INCnemsio= $(COREINC)/nemsio
+INCnemsio= /scratch1/portfolios/NCEPDEV/nceplibs/save/incmod/nemsio_mergedv1.0.0_intel
+CORELIB_nemsio  = /scratch1/portfolios/NCEPDEV/nceplibs/save/lib/nemsio/
+LIBnemsio=-L$(CORELIB_nemsio)  -l_nemsio_mergedv1.0.0_intel
+CORELIB_bacio=/home/Ratko.Vasic/lib_tmp/GSI_libs_2/lib
+LIBbacio=-L$(CORELIB_bacio) -lbacio_4
+LIBbacio=/home/Ratko.Vasic/lib_tmp/GSI_libs_2/lib/libbacio_4.a
+
 
 WRFPATH = /scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist/nwprod/sorc/nam_nmm_real_fcst.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
@@ -102,8 +109,10 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   LD            = $(CF) -mkl -lmpi
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
-       -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+# LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
+#      -lsfcio_4 -lbufr_d_64 -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+  LIBS_N        = $(LIBnemsio) -L$(CORELIB) -lsp_d -lsigio_4 \
+       -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBbacio) -L$(NETCDF)/lib -lnetcdf
 
   LDFLAGS_N     = 
 

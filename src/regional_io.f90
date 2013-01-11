@@ -13,6 +13,7 @@ module regional_io
 !   2005-07-06  parrish - add variable update_pint
 !   2005-10-17  parrish - add ctph0,stph0,tlm0 
 !   2010-09-15  pagowski - add cmaq
+!   2012-02-16  parrish - if use_gfs_stratosphere true, then broadcast extra parameters to all pes from pe 0.
 !   
 ! Subroutines Included:
 !   sub convert_regional_guess  - convert regional guess to internal format
@@ -109,7 +110,6 @@ contains
        call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
        call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
        write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
-
 
 !   Convert mass guess file to internal gsi format.  Consider
 !   two possible input formats:  netcdf or binary

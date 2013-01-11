@@ -23,22 +23,26 @@ subroutine get_wrf_nmm_ensperts
 
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: netcdf,half_grid,filled_grid,regional
-    use hybrid_ensemble_isotropic, only: en_perts,nelen,ps_bar
+    use hybrid_ensemble_isotropic, only: en_perts,nelen,region_lat_ens,region_lon_ens,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass, &
                          rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens, &
-                                          merge_two_grid_ensperts,uv_hyb_ens
+                                          merge_two_grid_ensperts,uv_hyb_ens,grid_ratio_ens
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use mpeu_util, only: getindex
     use gsi_io, only: lendian_in
-    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_grid2sub
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_grid2sub, &
+                                    general_sub2grid
+    use general_tll2xy_mod, only: llxy_cons
+    use egrid2agrid_mod, only: egrid2agrid_parm,destroy_egrid2agrid
     use gsi_bundlemod, only: gsi_bundlecreate
     use gsi_bundlemod, only: gsi_grid
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_bundledestroy
     use gsi_bundlemod, only: gsi_gridcreate
+    use gsi_4dvar, only: nhr_assimilation
 
     implicit none
 
@@ -53,29 +57,39 @@ subroutine get_wrf_nmm_ensperts
     type(sub2grid_info) :: grd_ens_d01,grd_ens_d02,grd_mix
     type(gsi_bundle):: en_bar
     type(gsi_grid):: grid_ens
+    type(llxy_cons) gt_e,gt_a
+    type(egrid2agrid_parm) p_e2a
+
     real(r_kind):: bar_norm,sig_norm
 
-    integer(i_kind):: i,j,k,m,n,apm_idx,istatus
-    integer(i_kind):: ic2,ic3
+    integer(i_kind):: i,j,k,m,n,apm_idx,istatus,ii
+    integer(i_kind):: ic2,ic3,iratio_e2ens
      
     integer(i_kind) inner_vars,num_fields
     logical,allocatable::vector(:)
     integer(i_kind):: nc3d_half,nc2d_half
     integer(i_kind):: kuv,ktvrh,kozcw,kps
     integer(i_kind):: nlat_regional,nlon_regional,nsig,nlon_e,nlat_e
+    real(r_single) dlmd_d02,dphd_d02,dlmd_anl,dphd_anl
 
-    integer(i_kind):: nmix,nord_blend
+    integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
+    integer(i_kind):: nmix,nord_blend,nord_e2a
     real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
-    real(r_kind),allocatable,dimension(:,:,:,:) :: fields_a
-    real(r_kind),allocatable,dimension(:,:,:,:) :: fields_d01_e2a,fields_d02_e2a,fields_sube2a
+    real(r_kind),allocatable,dimension(:,:,:,:) :: fields_e,fields_a
+    real(r_kind),allocatable,dimension(:,:,:,:) :: fields_e2a,fields_e2a_d02
+    real(r_kind),allocatable,dimension(:,:,:,:) :: fields_sube2a
+    real(r_kind),allocatable,dimension(:,:,:,:) :: work_sub
+    real(r_kind),allocatable,dimension(:,:) :: mask
+    real(r_single),allocatable,dimension(:,:) :: outwork
 
-    character(24) filename,fileout
+    character(24) filename,fileout,blendname
     logical test
     logical(4) fexist
     integer(i_kind) :: nrf3_cw, nrf3_oz
 
     nrf3_oz   = getindex(cvars3d,'oz')
     nrf3_cw   = getindex(cvars3d,'cw')
+    nord_e2a=4
 
     call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
     call gsi_bundlecreate(en_bar,grid_ens,'ensemble mean',istatus,names2d=cvars2d, &
@@ -89,48 +103,49 @@ subroutine get_wrf_nmm_ensperts
 ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
     en_bar%values=zero
     
-    allocate(u(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),stat=istatus)
-    allocate(v(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),stat=istatus)
-    allocate(tv(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),stat=istatus)
-    allocate(rh(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),stat=istatus)
-    allocate(cwmr(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),stat=istatus)
-    allocate(oz(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),stat=istatus)
-    allocate(ps(grd_ens%lat2,grd_ens%lon2),stat=istatus)
-    allocate(region_lat_e(grd_ens%nlat,grd_ens%nlon),region_lon_e(grd_ens%nlat,grd_ens%nlon))
+! Here assume all ensemble members have the same dimension and resolution.
+! When merge_two_grid_ensperts=false, if dual_res option is turned on, 
+! the domain size of the read-in ensemble has to be slightly larger than the
+! ensemble grid defined for analysis to provide a halo zone for interpolation
+! from read-in ensemble grid to ensemble grid defined for analysis. Otherwise, 
+! there will be a risk that there are no ensemble perturbations around the boundary 
+! area.
+
+    filename='sigf06_ens_mem001'
+    inquire(file=filename,exist=fexist)
+    if(.not. fexist) call stop2(400)
+    open(lendian_in,file=filename,form='unformatted')
+    rewind lendian_in
+    read(lendian_in) nlon_regional,nlat_regional,nsig
+    close(lendian_in)
+    if(filled_grid) then
+       nlon_e=2*nlon_regional-1
+       nlat_e=nlat_regional
+    endif
+    if(half_grid) then
+       nlon_e=nlon_regional
+       nlat_e=1+nlat_regional/2
+    endif
+    if(mype == 0)print *,'nlon_e, nlat_e=', nlon_e, nlat_e
+       
+    inner_vars=2
+    nc3d_half=(nc3d+1)/2
+    nc2d_half=(nc2d+1)/2
+    num_fields=max(0,nc3d_half)*nsig+max(0,nc2d_half)
+    allocate(vector(num_fields))
+    vector=.false.
+    vector(1:nsig)=uv_hyb_ens
+    call general_sub2grid_create_info(grd_ens_d01,inner_vars,nlat_e,nlon_e,nsig,num_fields,regional,vector)
 
     if(merge_two_grid_ensperts)then
-       filename='sigf06_d01_ens_mem001'
-       inquire(file=filename,exist=fexist)
-       if(.not. fexist) call stop2(400)
-       open(lendian_in,file=filename,form='unformatted')
-       rewind lendian_in
-       read(lendian_in) nlon_regional,nlat_regional,nsig
-       close(lendian_in)
-       if(filled_grid) then
-          nlon_e=2*nlon_regional-1
-          nlat_e=nlat_regional
-       endif
-       if(half_grid) then
-          nlon_e=nlon_regional
-          nlat_e=1+nlat_regional/2
-       endif
-       
-       inner_vars=2
-       nc3d_half=(nc3d+1)/2
-       nc2d_half=(nc2d+1)/2
-       num_fields=max(0,nc3d_half)*nsig+max(0,nc2d_half)
-       allocate(vector(num_fields))
-       vector=.false.
-       vector(1:nsig)=uv_hyb_ens
-       call general_sub2grid_create_info(grd_ens_d01,inner_vars,nlat_e,nlon_e,nsig,num_fields,regional,vector)
-
        filename='sigf06_d02_ens_mem001'
        inquire(file=filename,exist=fexist)
        if(.not. fexist) call stop2(400)
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
-       read(lendian_in) nlon_regional,nlat_regional,nsig
+       read(lendian_in) nlon_regional,nlat_regional,nsig,dlmd_d02,dphd_d02
        close(lendian_in)
+
        if(filled_grid) then
           nlon_e=2*nlon_regional-1
           nlat_e=nlat_regional
@@ -141,37 +156,185 @@ subroutine get_wrf_nmm_ensperts
        endif
        call general_sub2grid_create_info(grd_ens_d02,inner_vars,nlat_e,nlon_e,nsig,num_fields,regional,vector)
 
-       call general_sub2grid_create_info(grd_mix,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig, &
-                                         num_fields,regional,vector)
+!      find overlap area for domain 2 ensemble members and creat blending mask
+!      read analysis grid resolution
+       write(filename,'("sigf",i2.2)') nhr_assimilation
+       inquire(file=filename,exist=fexist)
+       if(.not. fexist) call stop2(400)
+       open(lendian_in,file=filename,form='unformatted')
+       rewind lendian_in
+       read(lendian_in) iyear,imonth,iday,ihour,iminute,isecond, &
+          nlon_regional,nlat_regional,nsig, &
+          dlmd_anl,dphd_anl
+       close(lendian_in)
 
-       deallocate(vector)
+       allocate(mask(nlat_ens,nlon_ens))
+       mask=zero
+       nmix=10
+       nord_blend=4
+       iratio_e2ens=ceiling(max(dlmd_d02/(grid_ratio_ens*dlmd_anl),dphd_d02/(grid_ratio_ens*dphd_anl)))
+       if(mype == 0)print *,'iratio_e2ens=', iratio_e2ens
+       nmix=nmix*iratio_e2ens
+       call create_e2a_blend(nmix,nord_blend,mask)
+
+       test=.true.
+       if(mype == 0 .and. test)then
+          allocate(outwork(nlon_ens,nlat_ens))
+          outwork=zero
+          do j=1,nlon_ens
+             do i=1,nlat_ens
+                outwork(j,i)=mask(i,j)
+             end do
+         end do
+         call outgrads1(outwork,nlon_ens,nlat_ens,'blend')
+         deallocate(outwork)
+       end if
+
     end if
+
+    call general_sub2grid_create_info(grd_mix,inner_vars,grd_ens%nlat,grd_ens%nlon,grd_ens%nsig, &
+                                      num_fields,regional,vector)
+
+    deallocate(vector)
+
 
 ! LOOP OVER ENSEMBLE MEMBERS 
     do n=1,n_ens
 
-       if( .not. merge_two_grid_ensperts )then
-          write(filename,"('sigf06_ens_mem',i3.3)") n
-          if(mype == 0)write(6,*) 'get_wrf_nmm_enperts: ',filename
-          if(netcdf) then
-             call general_read_wrf_nmm_netcdf(grd_ens,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
-          else
-             call general_read_wrf_nmm_binary(grd_ens,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
-          end if 
-       else
-!         read domain one ensemble and interpolate to analysis grid
-          allocate(fields_a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc))
-          allocate(fields_d01_e2a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc))
-          fields_a=zero
-          write(filename,"('sigf06_d01_ens_mem',i3.3)") n
-          call get_hwrf_ensemble_e2a(grd_ens_d01,grd_mix,filename,fields_a,fields_d01_e2a,mype)
-          deallocate(fields_a)
+       write(filename,"('sigf06_ens_mem',i3.3)") n
+       if(mype == 0)write(6,*) 'get_wrf_nmm_enperts: ',filename
+       allocate(u(grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%nsig),stat=istatus)
+       allocate(v(grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%nsig),stat=istatus)
+       allocate(tv(grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%nsig),stat=istatus)
+       allocate(rh(grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%nsig),stat=istatus)
+       allocate(cwmr(grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%nsig),stat=istatus)
+       allocate(oz(grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%nsig),stat=istatus)
+       allocate(ps(grd_ens_d01%lat2,grd_ens_d01%lon2),stat=istatus)
+       allocate(region_lat_e(grd_ens_d01%nlat,grd_ens_d01%nlon),stat=istatus)
+       allocate(region_lon_e(grd_ens_d01%nlat,grd_ens_d01%nlon),stat=istatus)
 
-          test=.false.
-          if(test)then
-             allocate(fields_sube2a(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,grd_mix%num_fields))
-             call general_grid2sub(grd_mix,fields_d01_e2a,fields_sube2a)  ! test only
+       if(netcdf) then
+          call general_read_wrf_nmm_netcdf(grd_ens_d01,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
+       else
+          call general_read_wrf_nmm_binary(grd_ens_d01,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
+       end if 
+    
+       nmix=0
+       nord_blend=0
+       call merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_lat_ens,region_lon_ens, &
+              grd_ens_d01%nlat,grd_ens_d01%nlon,grd_mix%nlat,grd_mix%nlon,nord_e2a,nord_blend,nmix,gt_e,gt_a,p_e2a)
+       deallocate(region_lat_e,region_lon_e)
+
+       test=.false.
+       if(mype == 0 .and. test)then
+          allocate(outwork(nlon_ens,nlat_ens))
+          outwork=zero
+          ii=0
+          do j=1,nlon_ens
+             do i=1,nlat_ens
+                ii=ii+1
+                outwork(j,i)=p_e2a%blend(ii)
+             end do
+         end do
+         call outgrads1(outwork,nlon_ens,nlat_ens,'pblend')
+         deallocate(outwork)
+       end if
+
+       if(mype == 0)print *,'p_e2a%identity=', p_e2a%identity
+
+       if( .not. p_e2a%identity)then
+          allocate(work_sub(grd_ens_d01%inner_vars,grd_ens_d01%lat2,grd_ens_d01%lon2,grd_ens_d01%num_fields),stat=istatus)
+          if(istatus /= 0)print *,'error allocate work_sub'
+          work_sub=zero
+
           kuv=0
+          ktvrh=grd_ens_d01%nsig
+          kozcw=2*grd_ens_d01%nsig
+          do k=1,grd_ens_d01%nsig
+             kuv=kuv+1
+             ktvrh=ktvrh+1
+             kozcw=kozcw+1
+             do j=1,grd_ens_d01%lon2
+                do i=1,grd_ens_d01%lat2
+                   work_sub(1,i,j,kuv)=u(i,j,k)
+                   work_sub(2,i,j,kuv)=v(i,j,k)
+                   work_sub(1,i,j,ktvrh)=tv(i,j,k)
+                   work_sub(2,i,j,ktvrh)=rh(i,j,k)
+                   if(nrf3_oz > 0 .or. nrf3_cw > 0)then
+                      work_sub(1,i,j,kozcw)=oz(i,j,k)
+                      work_sub(2,i,j,kozcw)=cwmr(i,j,k)
+                   end if
+                end do
+             end do
+          end do
+          kps=nc3d_half*grd_ens_d01%nsig+1
+          do j=1,grd_ens_d01%lon2
+             do i=1,grd_ens_d01%lat2
+                work_sub(1,i,j,kps)=ps(i,j)
+             end do
+          end do
+          deallocate(u,v,tv,rh,oz,cwmr,ps)
+          allocate(fields_e(grd_ens_d01%inner_vars,grd_ens_d01%nlat,grd_ens_d01%nlon,grd_ens_d01%kbegin_loc:grd_ens_d01%kend_alloc),stat=istatus)
+          if(istatus /= 0)print *,'error allocate fields_e'
+          call general_sub2grid(grd_ens_d01,work_sub,fields_e)
+          deallocate(work_sub)
+
+          allocate(fields_a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc),stat=istatus)
+          if(istatus /= 0)print *,'error allocate fields_a'
+          fields_a=zero 
+          allocate(fields_e2a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc),stat=istatus)
+          fields_e2a=zero
+          if(istatus /= 0)print *,'error allocate fields_e2a'
+          do k=grd_mix%kbegin_loc,grd_mix%kend_alloc
+             if(grd_mix%vector(k))then
+                call merge_vgrid_e_to_vgrid_a(fields_e(1,:,:,k),fields_e(2,:,:,k),fields_a(1,:,:,k),fields_a(2,:,:,k), &
+                                              fields_e2a(1,:,:,k),fields_e2a(2,:,:,k),gt_e,gt_a,p_e2a)
+             else
+                do ii=1,grd_mix%inner_vars
+                   call merge_grid_e_to_grid_a(fields_e(ii,:,:,k),fields_a(ii,:,:,k),fields_e2a(ii,:,:,k), &
+                                               gt_e,gt_a,p_e2a)
+                end do
+             end if
+          end do
+          deallocate(fields_e,fields_a)
+          if(gt_a%lallocated) then
+            deallocate(gt_a%i0_tilde,gt_a%j0_tilde,gt_a%ip_tilde,gt_a%jp_tilde,gt_a%xtilde0,gt_a%ytilde0)
+            deallocate(gt_a%cos_beta_ref,gt_a%sin_beta_ref,gt_a%region_lat,gt_a%region_lon)
+            gt_a%lallocated=.false.
+          end if
+          if(gt_e%lallocated) then
+            deallocate(gt_e%i0_tilde,gt_e%j0_tilde,gt_e%ip_tilde,gt_e%jp_tilde,gt_e%xtilde0,gt_e%ytilde0)
+            deallocate(gt_e%cos_beta_ref,gt_e%sin_beta_ref,gt_e%region_lat,gt_e%region_lon)
+            gt_e%lallocated=.false.
+          end if
+          if(p_e2a%lallocated) then
+            deallocate(p_e2a%blend,p_e2a%ya_e,p_e2a%xa_e)
+            p_e2a%lallocated=.false.
+          end if
+          call destroy_egrid2agrid(p_e2a)
+
+          if( .not. merge_two_grid_ensperts )then
+
+             allocate(fields_sube2a(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,grd_mix%num_fields),stat=istatus)
+             call general_grid2sub(grd_mix,fields_e2a,fields_sube2a)
+             deallocate(fields_e2a)
+         
+             allocate(u(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array u'
+             allocate(v(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array v'
+             allocate(tv(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array tv'
+             allocate(rh(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array rh'
+             allocate(ps(grd_mix%lat2,grd_mix%lon2),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array ps'
+             allocate(cwmr(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array cwmr'
+             allocate(oz(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+             if(istatus /= 0)print*,'cannot allocate array oz'
+
+             kuv=0
              ktvrh=grd_mix%nsig
              kozcw=2*grd_mix%nsig
              do k=1,grd_mix%nsig
@@ -200,20 +363,221 @@ subroutine get_wrf_nmm_ensperts
                    ps(i,j)=fields_sube2a(1,i,j,kps)
                 end do
              end do
-         
+
              call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
+   
              deallocate(fields_sube2a)
           end if
+       else
+          if(gt_a%lallocated) then
+            deallocate(gt_a%i0_tilde,gt_a%j0_tilde,gt_a%ip_tilde,gt_a%jp_tilde,gt_a%xtilde0,gt_a%ytilde0)
+            deallocate(gt_a%cos_beta_ref,gt_a%sin_beta_ref,gt_a%region_lat,gt_a%region_lon)
+            gt_a%lallocated=.false.
+          end if
+          if(gt_e%lallocated) then
+            deallocate(gt_e%i0_tilde,gt_e%j0_tilde,gt_e%ip_tilde,gt_e%jp_tilde,gt_e%xtilde0,gt_e%ytilde0)
+            deallocate(gt_e%cos_beta_ref,gt_e%sin_beta_ref,gt_e%region_lat,gt_e%region_lon)
+            gt_e%lallocated=.false.
+          end if
+          if(p_e2a%lallocated) then
+            deallocate(p_e2a%blend,p_e2a%ya_e,p_e2a%xa_e)
+            p_e2a%lallocated=.false.
+          end if
+          call destroy_egrid2agrid(p_e2a)
 
-   !      read domain two ensemble and merge to domain one ensemble in analysis grid
-          allocate(fields_d02_e2a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc))
+          if(merge_two_grid_ensperts )then
+             allocate(work_sub(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,grd_mix%num_fields),stat=istatus)
+             if(istatus /= 0)print *,'error allocate work_sub'
+             work_sub=zero
+
+             kuv=0
+             ktvrh=grd_mix%nsig
+             kozcw=2*grd_mix%nsig
+             do k=1,grd_mix%nsig
+                kuv=kuv+1
+                ktvrh=ktvrh+1
+                kozcw=kozcw+1
+                do j=1,grd_mix%lon2
+                   do i=1,grd_mix%lat2
+                      work_sub(1,i,j,kuv)=u(i,j,k)
+                      work_sub(2,i,j,kuv)=v(i,j,k)
+                      work_sub(1,i,j,ktvrh)=tv(i,j,k)
+                      work_sub(2,i,j,ktvrh)=rh(i,j,k)
+                      if(nrf3_oz > 0 .or. nrf3_cw > 0)then
+                         work_sub(1,i,j,kozcw)=oz(i,j,k)
+                         work_sub(2,i,j,kozcw)=cwmr(i,j,k)
+                      end if
+                   end do
+                end do
+             end do
+             kps=nc3d_half*grd_mix%nsig+1
+             do j=1,grd_mix%lon2
+                do i=1,grd_mix%lat2
+                   work_sub(1,i,j,kps)=ps(i,j)
+                end do
+             end do
+       
+             deallocate(u,v,tv,rh,oz,cwmr,ps)
+             allocate(fields_e2a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc),stat=istatus)
+             if(istatus /= 0)print *,'error allocate fields_e2a'
+             call general_sub2grid(grd_mix,work_sub,fields_e2a)
+             deallocate(work_sub)
+          end if
+       end if
+
+       if( merge_two_grid_ensperts )then
           write(filename,"('sigf06_d02_ens_mem',i3.3)") n
-          call get_hwrf_ensemble_e2a(grd_ens_d02,grd_mix,filename,fields_d01_e2a,fields_d02_e2a,mype)
-          deallocate(fields_d01_e2a)
-      
-          allocate(fields_sube2a(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,grd_mix%num_fields))
-          call general_grid2sub(grd_mix,fields_d02_e2a,fields_sube2a)  ! test only
-          deallocate(fields_d02_e2a)
+          allocate(u(grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array u'
+          allocate(v(grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array v'
+          allocate(tv(grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array tv'
+          allocate(rh(grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array rh'
+          allocate(ps(grd_ens_d02%lat2,grd_ens_d02%lon2),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array ps'
+          allocate(cwmr(grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array cwmr'
+          allocate(oz(grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array oz'
+          allocate(region_lat_e(grd_ens_d02%nlat,grd_ens_d02%nlon),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array region_lat_e'
+          allocate(region_lon_e(grd_ens_d02%nlat,grd_ens_d02%nlon),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array region_lon_e'
+
+          if(netcdf) then
+             call general_read_wrf_nmm_netcdf(grd_ens_d02,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
+          else
+             call general_read_wrf_nmm_binary(grd_ens_d02,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
+          end if     
+   
+          nmix=0
+          nord_blend=0
+! testing
+!          nmix=10
+!          nord_blend=4
+! testing
+          call merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_lat_ens,region_lon_ens, &
+                 grd_ens_d02%nlat,grd_ens_d02%nlon,grd_mix%nlat,grd_mix%nlon,nord_e2a,nord_blend,nmix,gt_e,gt_a,p_e2a)
+          deallocate(region_lat_e,region_lon_e)
+
+          if(mype == 0)print *,'p_e2a%identity=', p_e2a%identity
+   
+          test=.true.
+          if(mype == 0 .and. test)then
+             write(blendname,"('blend',i3.3)") n
+             allocate(outwork(nlon_ens,nlat_ens))
+             outwork=zero
+             ii=0
+             do j=1,nlon_ens
+                do i=1,nlat_ens
+                   ii=ii+1
+                   outwork(j,i)=p_e2a%blend(ii)
+                end do
+             end do
+             call outgrads1(outwork,nlon_ens,nlat_ens,blendname)
+             deallocate(outwork)
+          end if
+
+          if(nord_blend <= 0 .or. nmix <= 0)then
+             ii=0
+             do j=1,grd_mix%nlon
+                do i=1,grd_mix%nlat
+                   ii=ii+1
+                   p_e2a%blend(ii)=mask(i,j)
+                end do
+             end do
+          end if
+
+          allocate(work_sub(grd_ens_d02%inner_vars,grd_ens_d02%lat2,grd_ens_d02%lon2,grd_ens_d02%num_fields),stat=istatus)
+          if(istatus /= 0)print *,'error allocate work_sub'
+          work_sub=zero
+   
+          kuv=0
+          ktvrh=grd_ens_d02%nsig
+          kozcw=2*grd_ens_d02%nsig
+          do k=1,grd_ens_d02%nsig
+             kuv=kuv+1
+             ktvrh=ktvrh+1
+             kozcw=kozcw+1
+             do j=1,grd_ens_d02%lon2
+                do i=1,grd_ens_d02%lat2
+                   work_sub(1,i,j,kuv)=u(i,j,k)
+                   work_sub(2,i,j,kuv)=v(i,j,k)
+                   work_sub(1,i,j,ktvrh)=tv(i,j,k)
+                   work_sub(2,i,j,ktvrh)=rh(i,j,k)
+                   if(nrf3_oz > 0 .or. nrf3_cw > 0)then
+                      work_sub(1,i,j,kozcw)=oz(i,j,k)
+                      work_sub(2,i,j,kozcw)=cwmr(i,j,k)
+                   end if
+                end do
+             end do
+          end do  
+          kps=nc3d_half*grd_ens_d02%nsig+1
+          do j=1,grd_ens_d02%lon2
+             do i=1,grd_ens_d02%lat2
+                work_sub(1,i,j,kps)=ps(i,j)
+             end do
+          end do  
+
+          deallocate(u,v,tv,rh,oz,cwmr,ps)
+          allocate(fields_e(grd_ens_d02%inner_vars,grd_ens_d02%nlat,grd_ens_d02%nlon,grd_ens_d02%kbegin_loc:grd_ens_d02%kend_alloc), &
+                   stat=istatus)
+          if(istatus /= 0)print *,'error allocate fields_e'
+          call general_sub2grid(grd_ens_d02,work_sub,fields_e)
+          deallocate(work_sub)
+   
+          allocate(fields_e2a_d02(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon,grd_mix%kbegin_loc:grd_mix%kend_alloc),stat=istatus)
+          if(istatus /= 0)print *,'error allocate fields_e2a_d02'
+          fields_e2a_d02=zero
+          do k=grd_mix%kbegin_loc,grd_mix%kend_alloc
+             if(grd_mix%vector(k))then
+                call merge_vgrid_e_to_vgrid_a(fields_e(1,:,:,k),fields_e(2,:,:,k),fields_e2a(1,:,:,k),fields_e2a(2,:,:,k), &
+                                              fields_e2a_d02(1,:,:,k),fields_e2a_d02(2,:,:,k),gt_e,gt_a,p_e2a)
+             else
+                do ii=1,grd_mix%inner_vars
+                   call merge_grid_e_to_grid_a(fields_e(ii,:,:,k),fields_e2a(ii,:,:,k),fields_e2a_d02(ii,:,:,k), &
+                                               gt_e,gt_a,p_e2a)
+                end do
+             end if
+          end do
+          deallocate(fields_e,fields_e2a)
+          if(gt_a%lallocated) then
+            deallocate(gt_a%i0_tilde,gt_a%j0_tilde,gt_a%ip_tilde,gt_a%jp_tilde,gt_a%xtilde0,gt_a%ytilde0)
+            deallocate(gt_a%cos_beta_ref,gt_a%sin_beta_ref,gt_a%region_lat,gt_a%region_lon)
+            gt_a%lallocated=.false.
+          end if
+          if(gt_e%lallocated) then
+            deallocate(gt_e%i0_tilde,gt_e%j0_tilde,gt_e%ip_tilde,gt_e%jp_tilde,gt_e%xtilde0,gt_e%ytilde0)
+            deallocate(gt_e%cos_beta_ref,gt_e%sin_beta_ref,gt_e%region_lat,gt_e%region_lon)
+            gt_e%lallocated=.false.
+          end if
+          if(p_e2a%lallocated) then
+            deallocate(p_e2a%blend,p_e2a%ya_e,p_e2a%xa_e)
+            p_e2a%lallocated=.false.
+          end if
+          call destroy_egrid2agrid(p_e2a)
+
+          allocate(fields_sube2a(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,grd_mix%num_fields),stat=istatus)
+          call general_grid2sub(grd_mix,fields_e2a_d02,fields_sube2a)
+          deallocate(fields_e2a_d02)
+
+          allocate(u(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array u'
+          allocate(v(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array v'
+          allocate(tv(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array tv'
+          allocate(rh(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array rh'
+          allocate(ps(grd_mix%lat2,grd_mix%lon2),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array ps'
+          allocate(cwmr(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array cwmr'
+          allocate(oz(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig),stat=istatus)
+          if(istatus /= 0)print*,'cannot allocate array oz'
+
           kuv=0
           ktvrh=grd_mix%nsig
           kozcw=2*grd_mix%nsig
@@ -244,10 +608,11 @@ subroutine get_wrf_nmm_ensperts
              end do
           end do
 
-!          call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
           deallocate(fields_sube2a)
 
        end if
+
+!       call grads3a(grd_mix,u,v,tv,rh,ps,grd_ens%nsig,mype,filename)
 
 !
 ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
@@ -364,10 +729,13 @@ subroutine get_wrf_nmm_ensperts
           end select
        end do
 
+       deallocate(u,v,tv,rh,ps,cwmr,oz)
+
     end do
 
-    deallocate(u,v,tv,rh,cwmr,oz,ps)
-    deallocate(region_lat_e,region_lon_e)
+    if(merge_two_grid_ensperts)then
+       deallocate(mask)
+    end if
 
 !
 ! CALCULATE ENSEMBLE MEAN
@@ -681,7 +1049,7 @@ subroutine convert_binary_nmm_ens
         write(fileout,'("sigf06_ens_mem",i3.3)')n
      else
         if(n <= n_ens)then
-           write(fileout,'("sigf06_d01_ens_mem",i3.3)')n
+           write(fileout,'("sigf06_ens_mem",i3.3)')n
         else
            write(fileout,'("sigf06_d02_ens_mem",i3.3)')n-n_ens
         endif
@@ -788,9 +1156,7 @@ subroutine convert_binary_nmm_ens
      deallocate(field1,field1p)
      allocate(field2(nlon_regional,nlat_regional))
      allocate(field2b(nlon_regional,nlat_regional))
-     if(merge_two_grid_ensperts)then
-       allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
-     end if
+     allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
 
 !                  GLAT
      call retrieve_index(index,'GLAT',varname_all,nrecs)
@@ -805,9 +1171,7 @@ subroutine convert_binary_nmm_ens
 !     write(6,*)' convert_binary_nmm_ens: glat(1,nlat),glat(nlon,nlat)=', &
 !          rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
 
-     if(merge_two_grid_ensperts)then
-        glat=field2
-     end if
+      glat=field2
 
 !                  GLON
      call retrieve_index(index,'GLON',varname_all,nrecs)
@@ -822,59 +1186,55 @@ subroutine convert_binary_nmm_ens
 !     write(6,*)' convert_binary_nmm_ens: glon(1,nlat),glon(nlon,nlat)=', &
 !          rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
 
-     if(merge_two_grid_ensperts)then
-        glon=field2
-     end if
+     glon=field2
 
-     if(merge_two_grid_ensperts)then
-        if(filled_grid) then
-           nlon=2*nlon_regional-1
-           nlat=nlat_regional
-        end if
-        if(half_grid) then
-           nlon=nlon_regional
-           nlat=1+nlat_regional/2
-        end if
-   
-        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
-        allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
-        if(half_grid) then
-           call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
-           call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
-        end if
-   
-        if(filled_grid) then
-           allocate(gxtemp(nlon_regional,nlat_regional))
-           allocate(gytemp(nlon_regional,nlat_regional))
-           allocate(glon8(nlon_regional,nlat_regional))
-           allocate(glat8(nlon_regional,nlat_regional))
-           glon8=glon
-           glat8=glat
-           i0=nlon_regional/2
-           j0=nlat_regional/2
-           call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
-                          gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
-           allocate(gxtemp_an(nlon,nlat))
-           allocate(gytemp_an(nlon,nlat))
-           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
-           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
-           call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
-                          glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
-           deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
-        end if
-   
-        do k=1,nlon
-           do i=1,nlat
-              region_lat(i,k)=glat_an(k,i)
-              region_lon(i,k)=glon_an(k,i)
-           end do
-        end do
-   
-        write(lendian_out)region_lat
-        write(lendian_out)region_lon
-   
-        deallocate(glat,glon,glat_an,glon_an,region_lat,region_lon)
+     if(filled_grid) then
+        nlon=2*nlon_regional-1
+        nlat=nlat_regional
      end if
+     if(half_grid) then
+        nlon=nlon_regional
+        nlat=1+nlat_regional/2
+     end if
+   
+     allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+     allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+     if(half_grid) then
+        call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
+        call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
+     end if
+   
+     if(filled_grid) then
+        allocate(gxtemp(nlon_regional,nlat_regional))
+        allocate(gytemp(nlon_regional,nlat_regional))
+        allocate(glon8(nlon_regional,nlat_regional))
+        allocate(glat8(nlon_regional,nlat_regional))
+        glon8=glon
+        glat8=glat
+        i0=nlon_regional/2
+        j0=nlat_regional/2
+        call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
+                       gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
+        allocate(gxtemp_an(nlon,nlat))
+        allocate(gytemp_an(nlon,nlat))
+        call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
+        call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
+        call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
+                       glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
+        deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
+     end if
+   
+     do k=1,nlon
+        do i=1,nlat
+           region_lat(i,k)=glat_an(k,i)
+           region_lon(i,k)=glon_an(k,i)
+        end do
+     end do
+   
+     write(lendian_out)region_lat
+     write(lendian_out)region_lon
+   
+     deallocate(glat,glon,glat_an,glon_an,region_lat,region_lon)
 
      write(lendian_out) wrfens
 
@@ -1088,10 +1448,8 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     aeta2_ll=aeta2
 
 
-    if(merge_two_grid_ensperts)then
-       read(lendian_in) region_lat
-       read(lendian_in) region_lon
-    end if
+    read(lendian_in) region_lat
+    read(lendian_in) region_lon
 
     read(lendian_in) wrfens
     if(mype==0) write(6,*)'general_read_wrf_nmm_binary: wrfens=',trim(wrfens)
@@ -1186,10 +1544,10 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     do k=0,npe-1
        kend(k)=kbegin(k+1)-1
     end do
-    if(mype == 0) then
-       write(6,*)' kbegin=',kbegin
-       write(6,*)' kend= ',kend
-    end if
+!    if(mype == 0) then
+!       write(6,*)' kbegin=',kbegin
+!       write(6,*)' kend= ',kend
+!    end if
     num_j_groups=jm/npe
     jextra=jm-num_j_groups*npe
     jbegin(0)=1
@@ -1204,10 +1562,10 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     do j=0,npe-1
        jend(j)=min(jbegin(j+1)-1,jm)
     end do
-    if(mype == 0) then
-       write(6,*)' jbegin=',jbegin
-       write(6,*)' jend= ',jend
-    end if
+!    if(mype == 0) then
+!       write(6,*)' jbegin=',jbegin
+!       write(6,*)' jend= ',jend
+!    end if
 
     allocate(ibuf(im*jm,kbegin(mype):kend(mype)))
 
@@ -1316,7 +1674,7 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
              g_tsen(j,i,k) = all_loc(j,i,kt) ! actually holds sensible temperature
              g_cwmr(j,i,k) = zero
              g_oz(j,i,k) = zero
-		  end do
+	  end do
        end do
     end do
 
@@ -1358,7 +1716,7 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
        end do
     end do
 
-!    call grads3a(grd,g_u,g_v,g_tsen,g_q,g_pd,grd%nsig,mype,wrfens)
+!    call grads3a(grd,g_u,g_v,g_tv,g_prsl,g_ps,grd%nsig,mype,wrfens)
 
     deallocate(aeta1,aeta2,aeta1_ll,aeta2_ll)
     deallocate(all_loc)
@@ -1455,7 +1813,7 @@ subroutine convert_netcdf_nmm_ens
         else
            if(n <= n_ens)then
               write(wrfens,'("d01_en",i3.3)')n
-              write(fileout,'("sigf06_d01_ens_mem",i3.3)')n
+              write(fileout,'("sigf06_ens_mem",i3.3)')n
            else
               write(wrfens,'("d02_en",i3.3)')n-n_ens
               write(fileout,'("sigf06_d02_ens_mem",i3.3)')n-n_ens
@@ -1488,9 +1846,7 @@ subroutine convert_netcdf_nmm_ens
         allocate(field2(nlon_regional,nlat_regional),field3(nlon_regional,nlat_regional,nsig_regional+1))
         allocate(field2b(nlon_regional,nlat_regional),ifield2(nlon_regional,nlat_regional))
         allocate(field1(max(nlon_regional,nlat_regional,nsig_regional+1)))
-        if(merge_two_grid_ensperts)then
-           allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
-        end if
+        allocate(glat(nlon_regional,nlat_regional),glon(nlon_regional,nlat_regional))
    
         rmse_var='DLMD'
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -1586,9 +1942,7 @@ subroutine convert_netcdf_nmm_ens
              start_index,end_index1,               & !mem
              start_index,end_index1,               & !pat
              ierr                                 )
-        if(merge_two_grid_ensperts)then
-           glat=field2
-        end if
+         glat=field2
 !        write(6,*)' max,min GLAT=',rad2deg*maxval(field2),rad2deg*minval(field2)
 !        write(6,*)' glat(1,1),glat(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
 !        write(6,*)' glat(1,nlat),glat(nlon,nlat)=', &
@@ -1605,63 +1959,59 @@ subroutine convert_netcdf_nmm_ens
              start_index,end_index1,               & !mem
              start_index,end_index1,               & !pat
              ierr                                 )
-        if(merge_two_grid_ensperts)then
-           glon=field2
-        end if
+         glon=field2
 !        write(6,*)' max,min GLON=',rad2deg*maxval(field2),rad2deg*minval(field2)
 !        write(6,*)' glon(1,1),glon(nlon,1)=',rad2deg*field2(1,1),rad2deg*field2(nlon_regional,1)
 !        write(6,*)' glon(1,nlat),glon(nlon,nlat)=', &
 !             rad2deg*field2(1,nlat_regional),rad2deg*field2(nlon_regional,nlat_regional)
 
-        if(merge_two_grid_ensperts)then
-           if(filled_grid) then
-              nlon=2*nlon_regional-1
-              nlat=nlat_regional
-           end if
-           if(half_grid) then
-              nlon=nlon_regional
-              nlat=1+nlat_regional/2
-           end if
-
-           allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
-           allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
-           if(half_grid) then
-              call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
-              call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
-           end if
-
-           if(filled_grid) then
-              allocate(gxtemp(nlon_regional,nlat_regional))
-              allocate(gytemp(nlon_regional,nlat_regional))
-              allocate(glon8(nlon_regional,nlat_regional))
-              allocate(glat8(nlon_regional,nlat_regional))
-              glon8=glon
-              glat8=glat
-              i0=nlon_regional/2
-              j0=nlat_regional/2
-              call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
-                             gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
-              allocate(gxtemp_an(nlon,nlat))
-              allocate(gytemp_an(nlon,nlat))
-              call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
-              call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
-              call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
-                             glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
-              deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
-           end if
-
-           do k=1,nlon
-              do i=1,nlat
-                 region_lat(i,k)=glat_an(k,i)
-                 region_lon(i,k)=glon_an(k,i)
-              end do
-           end do
-      
-           write(iunit)region_lat
-           write(iunit)region_lon
-      
-           deallocate(glat,glon,glat_an,glon_an,region_lat,region_lon)
+        if(filled_grid) then
+           nlon=2*nlon_regional-1
+           nlat=nlat_regional
         end if
+        if(half_grid) then
+           nlon=nlon_regional
+           nlat=1+nlat_regional/2
+        end if
+
+        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+        allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+        if(half_grid) then
+           call half_nmm_grid2a(glon,nlon_regional,nlat_regional,glon_an,1)
+           call half_nmm_grid2a(glat,nlon_regional,nlat_regional,glat_an,1)
+        end if
+
+        if(filled_grid) then
+           allocate(gxtemp(nlon_regional,nlat_regional))
+           allocate(gytemp(nlon_regional,nlat_regional))
+           allocate(glon8(nlon_regional,nlat_regional))
+           allocate(glat8(nlon_regional,nlat_regional))
+           glon8=glon
+           glat8=glat
+           i0=nlon_regional/2
+           j0=nlat_regional/2
+           call ll2rpolar(glat8,glon8,nlon_regional*nlat_regional, &
+                          gxtemp,gytemp,glat8(i0,j0),glon8(i0,j0),zero)
+           allocate(gxtemp_an(nlon,nlat))
+           allocate(gytemp_an(nlon,nlat))
+           call fill_nmm_grid2a3(gxtemp,nlon_regional,nlat_regional,gxtemp_an)
+           call fill_nmm_grid2a3(gytemp,nlon_regional,nlat_regional,gytemp_an)
+           call rpolar2ll(gxtemp_an,gytemp_an,nlon*nlat, &
+                          glat_an,glon_an,glat8(i0,j0),glon8(i0,j0),zero)
+           deallocate(gxtemp,gytemp,gxtemp_an,gytemp_an,glon8,glat8)
+        end if
+
+        do k=1,nlon
+           do i=1,nlat
+              region_lat(i,k)=glat_an(k,i)
+              region_lon(i,k)=glon_an(k,i)
+           end do
+        end do
+      
+        write(iunit)region_lat
+        write(iunit)region_lon
+      
+        deallocate(glat,glon,glat_an,glon_an,region_lat,region_lon)
 
         rmse_var='PD'
         call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -1877,11 +2227,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
    
      i=0
      i=i+1 ; i_pd=i                                                ! pd
-     if(merge_two_grid_ensperts)then
-        jsiskip(i)=4
-     else
-        jsiskip(i)=2
-     end if
+     jsiskip(i)=4
      igtype(i)=1
    
      i_t=i+1
@@ -1933,16 +2279,12 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
                  read(lendian_in)aeta1
               else if(i == 2)then
                  read(lendian_in)aeta2
+              else if(i == 3)then
+                 read(lendian_in)region_lat
+              else if(i == 4)then
+                 read(lendian_in)region_lon
               else
-                 if(merge_two_grid_ensperts)then
-                    if(i == 3)then 
-                       read(lendian_in)region_lat
-                    else if(i == 4)then
-                       read(lendian_in)region_lon
-                    end if
-                 else 
-                    read(lendian_in)
-                 end if
+                 read(lendian_in)
               end if
            end do
         end if
@@ -2513,19 +2855,22 @@ subroutine general_reorder2_s(grd,work,k_in)
   return
 end subroutine general_reorder2_s
 
-subroutine get_hwrf_ensemble_e2a(grd,grd_mix,filename,fields_a,fields_e2a,mype)
+subroutine create_e2a_blend(nmix,nord_blend,wgt)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    get_hwrf_ensemble_e2a
-!   prgmmr: mtong           org: np22                date: 2010-12-06
+! subprogram:    get_overlap_domain_index
+!   prgmmr: mtong           org: np22                date: 2012-02-18
 !
-! abstract: read ensemble and interpolate from ensemble to analysis grid
+! abstract: create blend zone for moving nest overlaping area
 !
 ! program history log:
 !
 !   input argument list:
+!    nord_blend   - order of continuity of blend function (1=continuous 1st derivative, etc)
+!    nmix         - width of blend zone on edge of e grid in e grid units.
 !
 !   output argument list:
+!    wgt
 !
 ! attributes:
 !   language: f90
@@ -2533,162 +2878,155 @@ subroutine get_hwrf_ensemble_e2a(grd,grd_mix,filename,fields_a,fields_e2a,mype)
 !
 !$$$ end documentation block
 
-  use gridmod, only: netcdf
-  use hybrid_ensemble_parameters, only: grd_ens  
-  use constants,only: zero,rad2deg
-  use control_vectors, only: nc3d
-  use kinds, only: r_kind,i_kind,r_single
-  use general_tll2xy_mod, only: llxy_cons
-  use egrid2agrid_mod, only: egrid2agrid_parm
-  use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub
-  use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
-  use control_vectors, only: cvars3d
-  use mpeu_util, only: getindex
+     use hybrid_ensemble_parameters, only: n_ens,nlon_ens,nlat_ens
+     use hybrid_ensemble_isotropic, only: region_lon_ens,region_lat_ens
+     use kinds, only: r_kind,i_kind,r_single
+     use constants, only: zero,one,rad2deg
+     use gridmod, only: half_grid,filled_grid
+     use blendmod, only: blend
+     use general_tll2xy_mod, only: llxy_cons,general_create_llxy_transform, &
+                                   general_tll2xy
+     use mpimod, only: mype
+     use gsi_io, only: lendian_in
 
-  implicit none
+     implicit none
 
+     integer(i_kind),intent(in   ) :: nord_blend,nmix
+     real(r_kind)   ,intent(out  ) :: wgt(nlat_ens,nlon_ens)
 
-  type(sub2grid_info)                   ,intent(in   ) :: grd
-  type(sub2grid_info)                   ,intent(in   ) :: grd_mix
-  character(24)                         ,intent(in   ) :: filename
-  real(r_kind),intent(in) :: fields_a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon, &
-                                      grd_mix%kbegin_loc:grd_mix%kend_alloc)
-  integer(i_kind)                       ,intent(in   ) :: mype
+     type(llxy_cons) gt_a
+     character(24) :: filename
+     integer(i_kind):: nlon_regional,nlat_regional,nlon_e,nlat_e
+     integer(i_kind):: i,j,k,n,istr,jstr,iend,jend
+     real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
+     real(r_kind) :: xe_a,ye_a,xstr,ystr,xend,yend
 
-  real(r_kind),intent(out) :: fields_e2a(grd_mix%inner_vars,grd_mix%nlat,grd_mix%nlon, &
-                                         grd_mix%kbegin_loc:grd_mix%kend_alloc)
+     integer(i_kind),dimension(0:40):: iblend
+     integer(i_kind) mm
+     real(r_kind) dxx,x,y
+     real(r_kind),allocatable::blendx(:),wgt_x(:),wgt_y(:)
+     logical :: outside
 
-  real(r_kind),allocatable,dimension(:,:,:):: u,v,tv,cwmr,oz,rh
-  real(r_kind),allocatable,dimension(:,:):: ps
+     call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,mype,gt_a)
 
-  integer(i_kind) i,j,k,nc3d_half,ii
-  logical ice
-  logical(4) fexist
+     n=0
+     xstr=-huge(xstr)
+     ystr=-huge(ystr)
+     xend=huge(xend)
+     yend=huge(yend)
 
-  type(llxy_cons) gt_e,gt_a
-  type(egrid2agrid_parm) p_e2a
-  integer(i_kind) kuv,ktvrh,kozcw,kps
-  real(r_kind),allocatable,dimension(:,:) :: region_lat_e,region_lon_e
-  real(r_kind),allocatable,dimension(:,:,:,:) :: fields_e,fields_sube2a
-  real(r_kind),allocatable,dimension(:,:,:,:) :: work_sub
-  integer(i_kind) :: nord_e2a,nord_blend,nmix
-  integer(i_kind):: istatus
-  integer(i_kind) :: nrf3_cw, nrf3_oz
+     do n=1,n_ens
+        write(filename,"('sigf06_d02_ens_mem',i3.3)") n
+!        if(mype == 0)print *,'filename=', filename 
+        open(lendian_in,file=trim(filename),form='unformatted')
+!    Assuming ensemble memebers have the same dimensions
+        if(n == 1)then
+           read(lendian_in) nlon_regional,nlat_regional
 
-  nrf3_oz   = getindex(cvars3d,'oz')
-  nrf3_cw   = getindex(cvars3d,'cw')
-
-  nmix=10
-  nord_blend=4
-  nord_e2a=4
-
-  nc3d_half=(nc3d+1)/2
-
-  allocate(u(grd%lat2,grd%lon2,grd%nsig),stat=istatus)
-  allocate(v(grd%lat2,grd%lon2,grd%nsig),stat=istatus)
-  allocate(tv(grd%lat2,grd%lon2,grd%nsig),stat=istatus)
-  allocate(rh(grd%lat2,grd%lon2,grd%nsig),stat=istatus)
-  allocate(cwmr(grd%lat2,grd%lon2,grd%nsig),stat=istatus)
-  allocate(oz(grd%lat2,grd%lon2,grd%nsig),stat=istatus)
-  allocate(ps(grd%lat2,grd%lon2),stat=istatus)
-  allocate(region_lat_e(grd%nlat,grd%nlon),region_lon_e(grd%nlat,grd%nlon))
-
-! read ensemble
-  if(netcdf) then
-     call general_read_wrf_nmm_netcdf(grd,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
-  else
-     call general_read_wrf_nmm_binary(grd,filename,mype,ps,u,v,tv,rh,cwmr,oz,region_lat_e,region_lon_e)
-  end if
-
-  call merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_lat_ens,region_lon_ens, &
-         grd%nlat,grd%nlon,grd_ens%nlat,grd_ens%nlon,nord_e2a,nord_blend,nmix,gt_e,gt_a,p_e2a)
-  deallocate(region_lat_e,region_lon_e)
-
-  if( .not. p_e2a%identity)then
-
-     allocate(work_sub(grd%inner_vars,grd%lat2,grd%lon2,grd%num_fields))
-     work_sub=zero
-
-     kuv=0
-     ktvrh=grd%nsig
-     kozcw=2*grd%nsig
-     do k=1,grd%nsig
-        kuv=kuv+1
-        ktvrh=ktvrh+1
-        kozcw=kozcw+1
-        do j=1,grd%lon2
-           do i=1,grd%lat2
-              work_sub(1,i,j,kuv)=u(i,j,k)
-              work_sub(2,i,j,kuv)=v(i,j,k)
-              work_sub(1,i,j,ktvrh)=tv(i,j,k)
-              work_sub(2,i,j,ktvrh)=rh(i,j,k)
-              if(nrf3_oz > 0 .or. nrf3_cw > 0)then
-                 work_sub(1,i,j,kozcw)=zero  ! oz(i,j,k)
-                 work_sub(2,i,j,kozcw)=zero  ! cwmr(i,j,k)
-              end if
-           end do
-        end do
-     end do
-     kps=nc3d_half*grd%nsig+1
-     do j=1,grd%lon2
-        do i=1,grd%lat2
-           work_sub(1,i,j,kps)=ps(i,j)
-        end do
-     end do
-
-     allocate(fields_e(grd%inner_vars,grd%nlat,grd%nlon,grd%kbegin_loc:grd%kend_alloc))
-     call general_sub2grid(grd,work_sub,fields_e)
-     deallocate(work_sub)
-
-     do k=grd_mix%kbegin_loc,grd_mix%kend_alloc
-        if(grd_mix%vector(k))then
-           call merge_vgrid_e_to_vgrid_a(fields_e(1,:,:,k),fields_e(2,:,:,k),fields_a(1,:,:,k),fields_a(2,:,:,k), &
-                                         fields_e2a(1,:,:,k),fields_e2a(2,:,:,k),gt_e,gt_a,p_e2a)
-        else
-           do ii=1,grd_mix%inner_vars
-              call merge_grid_e_to_grid_a(fields_e(ii,:,:,k),fields_a(ii,:,:,k),fields_e2a(ii,:,:,k), &
-                                          gt_e,gt_a,p_e2a)
-           end do
+           if(filled_grid) then
+              nlon_e=2*nlon_regional-1
+              nlat_e=nlat_regional
+           end if
+           if(half_grid) then
+              nlon_e=nlon_regional
+              nlat_e=1+nlat_regional/2
+           end if
+           allocate(region_lat_e(nlat_e,nlon_e),region_lon_e(nlat_e,nlon_e))
+        else 
+           read(lendian_in)
         end if
+
+        read(lendian_in)
+        read(lendian_in)
+
+        read(lendian_in) region_lat_e
+        read(lendian_in) region_lon_e
+
+        do i=1,nlat_e
+           call general_tll2xy(gt_a,region_lon_e(i,1),region_lat_e(i,1),xe_a,ye_a,outside)
+!           if(mype == 0)print *,'xe_a=', i, xe_a
+           xstr=max(xstr,xe_a)
+        end do
+           
+        do j=1,nlon_e
+           call general_tll2xy(gt_a,region_lon_e(1,j),region_lat_e(1,j),xe_a,ye_a,outside)
+!           if(mype == 0)print *,'ye_a=', j, ye_a
+           ystr=max(ystr,ye_a)
+        end do
+
+        do i=1,nlat_e
+           call general_tll2xy(gt_a,region_lon_e(i,nlon_e),region_lat_e(i,nlon_e),xe_a,ye_a,outside)
+           xend=min(xend,xe_a)
+        end do
+
+        do j=1,nlon_e
+           call general_tll2xy(gt_a,region_lon_e(nlat_e,j),region_lat_e(nlat_e,j),xe_a,ye_a,outside)
+           yend=min(yend,ye_a)
+        end do
+
+!        if(mype == 0)print *,'xstr,ystr,xend,yend=', xstr,ystr,xend,yend
+
      end do
-     deallocate(fields_e)
-  else
-     allocate(fields_sube2a(grd_mix%inner_vars,grd_mix%lat2,grd_mix%lon2,grd_mix%num_fields))
-     kuv=0
-     ktvrh=grd_mix%nsig
-     kozcw=2*grd_mix%nsig
-     do k=1,grd_mix%nsig
-        kuv=kuv+1
-        ktvrh=ktvrh+1
-        kozcw=kozcw+1
-        do j=1,grd_mix%lon2
-           do i=1,grd_mix%lat2
-              fields_sube2a(1,i,j,kuv)=u(i,j,k)
-              fields_sube2a(2,i,j,kuv)=v(i,j,k)
-              fields_sube2a(1,i,j,ktvrh)=tv(i,j,k)
-              fields_sube2a(2,i,j,ktvrh)=rh(i,j,k)
-              if(nrf3_oz > 0 .or. nrf3_cw > 0)then 
-                 fields_sube2a(1,i,j,kozcw)=zero  ! oz(i,j,k)
-                 fields_sube2a(2,i,j,kozcw)=zero  ! cwmr(i,j,k)
-              end if
-           end do
+
+     deallocate(region_lat_e,region_lon_e)
+
+!     istr=INT(xstr)+1
+!     jstr=INT(ystr)+1
+
+!     iend=INT(xend)
+!     jend=INT(yend)
+
+     istr=NINT(xstr)
+     jstr=NINT(ystr)
+
+     iend=NINT(xend)
+     jend=NINT(yend)
+
+!     if(mype == 0)print *,'mtong: istr,jstr,iend,jend=', istr,jstr,iend,jend
+
+  !  set up blend function
+
+     mm=nord_blend
+     call blend(mm,iblend)
+     allocate(blendx(nmix))
+     blendx(0)=zero
+     blendx(nmix)=one
+     dxx=one/nmix
+     blendx(1)=zero
+     do i=2,nmix
+        x=(i-one)*dxx
+        y=iblend(mm)
+        do j=mm-1,0,-1
+           y=x*y+iblend(j)
+        end do
+        y=y*x**(mm+1)
+        blendx(i)=y
+     end do
+
+     allocate(wgt_x(nlon_ens),wgt_y(nlat_ens))
+     wgt_x=zero ; wgt_y=zero ; wgt=zero
+     do i=istr,iend
+        wgt_x(i)=one
+     end do
+     do j=jstr,jend
+        wgt_y(j)=one
+     end do
+     do j=1,nmix
+        wgt_x(istr-1+j)=blendx(j)
+        wgt_x(iend+1-j)=blendx(j)
+        wgt_y(jstr-1+j)=blendx(j)
+        wgt_y(jend+1-j)=blendx(j)
+     end do
+
+     do j=1,nlon_ens
+        do i=1,nlat_ens
+           wgt(i,j)=wgt_x(j)*wgt_y(i)
         end do
      end do
-     kps=nc3d_half*grd_mix%nsig+1
-     do j=1,grd_mix%lon2
-        do i=1,grd_mix%lat2
-           fields_sube2a(1,i,j,kps)=ps(i,j)
-        end do
-     end do
 
-     call general_sub2grid(grd_mix,fields_sube2a,fields_e2a)
-     deallocate(fields_sube2a)
+     deallocate(wgt_x,wgt_y,blendx)
 
-  end if
-
-  deallocate(u,v,tv,rh,oz,cwmr,ps)
-
-end subroutine get_hwrf_ensemble_e2a
+end subroutine create_e2a_blend
 
 subroutine grads3a(grd,u,v,tsen,q,pd,nvert,mype,fname)
 
