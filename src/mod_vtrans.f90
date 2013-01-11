@@ -1204,6 +1204,11 @@ end subroutine iterative_improvement
 ! program history log:
 !   2008-06-04  safford -- add subprogram doc block
 !   2012-12-18  parrish -- create r_quad precision version
+!   2013-01-10  parrish -- change so d is absolute value of determinant and
+!                            is bounded by 1e50.  The variable d is only used
+!                            in this application if it is exactly zero, so there
+!                            is no harm in bounding by a large number.  This was
+!                            done to prevent overflow trap in debug mode.
 !
 !   input argument list:
 !     a - input matrix, destroyed in computation and replaced by resultant inverse
@@ -1234,6 +1239,7 @@ end subroutine iterative_improvement
 
         real(r_quad):: biga,hold
         real(r_quad):: zero_quad,one_quad
+        real(r_quad) dmax
 !                                                                               
 !        if a double precision version of this routine is desired, the          
 !        ! in column 1 should be removed from the double precision              
@@ -1253,6 +1259,7 @@ end subroutine iterative_improvement
 
          zero_quad=0.0_r_quad
          one_quad=1.0_r_quad
+         dmax=(10.0_r_quad)**50
 !                                                                               
 !        search for largest element                                             
 !                                                                               
@@ -1334,7 +1341,7 @@ end subroutine iterative_improvement
 !
 !        product of pivots
 !
-                  d=d*biga
+                  d=min(dmax,abs(d*biga))
 !
 !        replace pivot by reciprocal
 !
