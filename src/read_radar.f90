@@ -115,6 +115,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real(r_kind),parameter:: r75 = 75.0_r_kind
   real(r_kind),parameter:: r92 = 92.6e03_r_kind
   real(r_kind),parameter:: r89_5  = 89.5_r_kind
+  real(r_kind),parameter:: r2 = 2.0_r_kind
+  real(r_kind),parameter:: r71 = 71.0_r_kind
   real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
 
 ! Declare local variables
@@ -217,6 +219,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real(r_kind),allocatable,dimension(:):: zl_thin
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
   real(r_kind) diffuu,diffvv
+
+! check data (P3 track)
+  integer :: NLEV, NFLAG
+  real :: obs
+  real :: RLAT, RLON, TIM
+  character(8) :: STID
+  logcal :: check
   
   data lnbufr/10/
   data hdrstr(1) / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
@@ -233,6 +242,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   eradkm=rearth*0.001_r_kind
   maxobs=2e6
+  nreal=maxdat
+  nchanl=0
+  ilon=2
+  ilat=3
 
   allocate(cdata_all(maxdat,maxobs),isort(maxobs))
 
@@ -262,11 +275,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 
   kx0=22500
-  maxobs=2e6
-  nreal=maxdat
-  nchanl=0
-  ilon=2
-  ilat=3
 
   nmrecs=0
 
@@ -1230,6 +1238,16 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 65 continue
 
+  if(check)then
+     open(300,file='track',form='unformatted')
+
+     STID = '        '
+     TIM = 0.0
+     NLEV = 1
+     NFLAG = 1
+     obs=1.0
+  end if
+
 
   rad_per_meter= one/rearth
   erad = rearth
@@ -1389,6 +1407,14 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   this_stalat=hdr(8)
   this_stalon=hdr(9)
+
+  if(check)then
+     RLAT=this_stalat
+     RLON=this_stalon
+     WRITE (200) STID,RLAT,RLON,TIM,NLEV,NFLAG  
+     WRITE (200) obs
+  end if
+
   rlon0=deg2rad*this_stalon
   this_stalatr=this_stalat*deg2rad
   clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
@@ -1570,7 +1596,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
         if(abs(azm)>r400) then
            ibadazm=ibadazm+1; good0=.false.
         end if
-        if(abs(rwnd)>r200) then
+        if(abs(rwnd) > r71 .or. abs(rwnd) < r2 ) then
            ibadwnd=ibadwnd+1; good0=.false.
         end if
         if(thisrange>r92) then
@@ -1722,6 +1748,18 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 ! Close unit to bufr file
   close(lnbufr)
+
+  if(check)then
+     STID = '        '
+     NLEV = 0
+     NFLAG = 0
+     RLAT = 0.0
+     RLON = 0.0
+
+     WRITE (200) STID,RLAT,RLON,TIM,NLEV,NFLAG
+     close(200)
+  end if
+
 
   if (.not. use_all) then
      deallocate(zl_thin) 

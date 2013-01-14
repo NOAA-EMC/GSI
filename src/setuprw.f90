@@ -99,6 +99,8 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r8     = 8.0_r_kind
   real(r_kind),parameter:: ten    = 10.0_r_kind
   real(r_kind),parameter:: r200   = 200.0_r_kind
+  real(r_kind),parameter:: r5     = 5.0_r_kind
+  real(r_kind),parameter:: r0_4   = 0.4_r_kind
 
 ! Declare external calls for code analysis
   external:: tintrp2a
@@ -122,7 +124,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) dlat,dlon,dtime,dpres,ddiff,error,slat
   real(r_kind) sinazm,cosazm,costilt
-  real(r_kind) ratio_errors
+  real(r_kind) ratio_errors,qcgross,err_change,err_rate
   real(r_kind) ugesin,vgesin,factw,skint,sfcr
   real(r_kind) rwwind,presw
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -499,12 +501,27 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      
      ddiff = data(irwob,i) - rwwind
 
+!    adjust obs error for TDR data
+     err_change=ten
+     err_rate=r0_4
+     if(data(iobs_type,i) > three .and. abs(ddiff) > err_change .and. &
+        ratio_errors*error > tiny_r_kind) then
+        ratio_errors = data(ier2,i)/(abs(data(ier,i) + 1.0e6_r_kind*rhgh +  &
+          r8*rlow + tanh((abs(ddiff)-err_change)*err_rate)*r5))
+     end if 
+
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
-     if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
+     if(data(iobs_type,i) > three) then
+        qcgross=cgross(ikx)*r0_4
+     else
+        qcgross=cgross(ikx)
+     end if
+
+     if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one
         error = zero
         ratio_errors = zero
