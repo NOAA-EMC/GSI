@@ -225,7 +225,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real :: obs
   real :: RLAT, RLON, TIM
   character(8) :: STID
-  logcal :: check
+  logical check
   
   data lnbufr/10/
   data hdrstr(1) / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
