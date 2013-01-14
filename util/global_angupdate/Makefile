@@ -241,8 +241,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) main.o
-	$(LD) $(LDFLAGS) -o $@ main.o $(OBJS) $(LIBS)
+$(EXE_FILE) :  $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 # ------------------------
