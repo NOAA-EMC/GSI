@@ -555,7 +555,7 @@
 
   namelist/strongopts/tlnmc_type,tlnmc_option, &
                       nstrong,period_max,period_width,nvmodes_keep, &
-		      baldiag_full,baldiag_inc,tlnmc_option
+		      baldiag_full,baldiag_inc
 
 ! OBSQC (observation quality control variables):
 !
