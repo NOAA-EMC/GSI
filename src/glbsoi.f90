@@ -132,6 +132,7 @@ subroutine glbsoi(mype)
   use timermod, only: timer_ini, timer_fnl
   use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
   use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble
+  use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
 
   implicit none
 
@@ -321,6 +322,7 @@ subroutine glbsoi(mype)
         call destroy_berror_vars_reg
      end if
      call destroy_balance_vars_reg
+     if(use_gfs_stratosphere) call destroy_nmmb_vcoords
   else
      if(anisotropic) then
         call destroy_anberror_vars

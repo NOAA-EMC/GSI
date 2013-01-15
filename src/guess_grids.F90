@@ -1336,6 +1336,7 @@ contains
                       end if
                    end if
                 endif
+                ges_prsi(i,j,k,jj)=max(ges_prsi(i,j,k,jj),zero)
                 ges_lnprsi(i,j,k,jj)=log(max(ges_prsi(i,j,k,jj),0.0001_r_kind))
              end do
           end do
