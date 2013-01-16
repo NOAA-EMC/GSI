@@ -46,8 +46,7 @@ $NCP $EXEDIR/horiz.${RAD_AREA}.x  ./horiz.x
 #
 #   Run horiz.x program to build the data files for each cycle
 
-# TEMP until XML:simple becomes avail to processing nodes
-#datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+echo datdir = $datdir
 
 for date in ${DATES}; do
    sdate=`echo $date | cut -c1-8`
@@ -61,17 +60,21 @@ for date in ${DATES}; do
          radstat=${datdir}/radstat.gdas.${date}
       fi
 
-if [[ -s ${radstat} ]]; then
-   echo radstat is good to go
-else
-   echo Houston we have a problem
-fi
-
       $NCP ${radstat} ${date}.radstat
 
    else
       /bin/sh ${RADMON_DATA_EXTRACT}/ush/getbestndas_radstat.sh $date $DATADIR $datdir
       mv ./radstat.${date} ${date}.radstat
+   fi
+
+# testing
+#   export SATYPE="airs_aqua sndrd1_g15"
+
+#
+#  tmp hack for wcoss -- com_p6 files are coming from ccs so compression suffix = Z not gz
+#
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      Z="Z"
    fi
 
    for sat in ${SATYPE}; do
@@ -126,6 +129,12 @@ if [[ ! -d $IMGNDIR/horiz ]]; then
 fi
 
 for sat in ${SATYPE}; do
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
+      mv -f tmp_${type}.ctl ${sat}.ctl
+   fi
+
    $NCP ${sat}.ctl*             $IMGNDIR/horiz/${sat}.ctl
    ${COMPRESS} -f $TANKDIR/horiz/${sat}.ctl
    chmod a+r ${sat}*.ieee_d*
@@ -156,7 +165,7 @@ done
 #
 export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
-if [[ $MY_MACHINE = "ccs" ]]; then				# CCS/aix
+if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	#ccs, wcoss
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
    logfile=${LOGDIR}/horiz_${PID}.log
    rm -f $cmdfile
@@ -166,12 +175,15 @@ if [[ $MY_MACHINE = "ccs" ]]; then				# CCS/aix
      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    done
 
+   chmod 755 $cmdfile
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
 
-
-   $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+   else
+      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
+   fi
 else							# zeus/linux
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
@@ -202,12 +214,15 @@ for sat in ${bigSATLIST}; do
    rm -f $cmdfile
 >$cmdfile
    echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+   chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q transfer -n $ntasks -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
@@ -221,12 +236,15 @@ for sat in ${bigSATLIST}; do
    rm -f $cmdfile
 >$cmdfile
    echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+   chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q transfer -n $ntasks -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi

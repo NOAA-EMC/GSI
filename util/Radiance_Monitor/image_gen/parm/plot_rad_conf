@@ -28,7 +28,10 @@ export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
 if [[ $MY_MACHINE = "ccs" ]]; then
    export GRADS=/usrx/local/grads/bin/grads
    export STNMAP=/usrx/local/grads/bin/stnmap
-else
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+   export GRADS=/global/save/Edward.Safford/grads/bin/grads
+   export STNMAP=/global/save/Edward.Safford/grads/bin/stnmap
+elif [[ $MY_MACHINE = "zeus" ]]; then
    export GRADS=/apps/grads/2.0.1a/bin/grads
    export STNMAP=/apps/grads/2.0.1a/bin/stnmap
 fi

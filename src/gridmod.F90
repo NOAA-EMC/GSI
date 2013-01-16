@@ -1028,6 +1028,7 @@ contains
 
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
        write(filename,'("sigf",i2.2)') ihrmid
+       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, filename  =',filename       
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig, &
@@ -1064,7 +1065,8 @@ contains
           do k=1,nsig
              write(6,'(" k,deta1,deta2=",i3,2f10.4)') k,deta1(k),deta2(k)
           end do
-          write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:'
+!         write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:' 
+          write(6,*)' in init_reg_glob_ll,  eta1  eta2 follow:'   
           do k=1,nsig+1
              write(6,'(" k,eta1,eta2=",i3,2f10.4)') k,eta1(k),eta2(k)
           end do
@@ -1328,7 +1330,7 @@ contains
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
-                   dlmd,dphd,pt,pdtop
+                   dlmd,dphd,pt,pdtop,nmmb_verttype
  
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                 regional_time
@@ -1379,14 +1381,6 @@ contains
        read(lendian_in) deta2
        read(lendian_in) aeta2
        read(lendian_in) eta2
-!----------------------------------------detect if new nmmb coordinate:
-       nmmb_verttype='OLD'
-       if(aeta1(1)<.6_r_single) then
-          if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, detect new nmmb vert coordinate'
-          aeta1=aeta1+aeta2
-          eta1=eta1+eta2
-          nmmb_verttype='NEW'
-       end if
 
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
        if(diagnostic_reg.and.mype==0) then

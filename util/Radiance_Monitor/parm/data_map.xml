@@ -1,22 +1,22 @@
-<?xml version='1.0' standalone='yes'?>
+<?xml version="1.0" standalone="yes"?>
 <opt>
   <global_default>
     <account>GDAS-MTN</account>
     <anl>0</anl>
     <area>glb</area>
-    <comp_plotdate></comp_plotdate>
-    <comp_suffix2></comp_suffix2>
-    <comp_suffix3></comp_suffix3>
+    <comp_plotdate/>
+    <comp_suffix2/>
+    <comp_suffix3/>
     <do_archive>0</do_archive>
     <do_data_rpt>0</do_data_rpt>
     <do_diag_rpt>0</do_diag_rpt>
-    <hpss_dir></hpss_dir>
-    <imgdate></imgdate>
-    <logfile_dir></logfile_dir>
-    <mail_cc></mail_cc>
-    <mail_to></mail_to>
+    <hpss_dir/>
+    <imgdate/>
+    <logfile_dir/>
+    <mail_cc/>
+    <mail_to/>
     <plot_all_regions>1</plot_all_regions>
-    <prodate></prodate>
+    <prodate/>
     <radstat_location>/com/gfs/prod</radstat_location>
     <run_envir>dev</run_envir>
     <run_envir>dev</run_envir>
@@ -49,18 +49,18 @@
     <account>RDAS-MTN</account>
     <anl>0</anl>
     <area>rgn</area>
-    <comp_plotdate></comp_plotdate>
-    <comp_suffix2></comp_suffix2>
-    <comp_suffix3></comp_suffix3>
+    <comp_plotdate/>
+    <comp_suffix2/>
+    <comp_suffix3/>
     <do_archive>0</do_archive>
     <do_data_rpt>0</do_data_rpt>
     <do_diag_rpt>0</do_diag_rpt>
-    <hpss_dir></hpss_dir>
-    <imgdate></imgdate>
-    <logfile_dir></logfile_dir>
-    <mail_cc></mail_cc>
-    <mail_to></mail_to>
-    <prodate></prodate>
+    <hpss_dir/>
+    <imgdate/>
+    <logfile_dir/>
+    <mail_cc/>
+    <mail_to/>
+    <prodate/>
     <radstat_location>/com/nam/prod</radstat_location>
     <run_envir>dev</run_envir>
     <run_envir>dev</run_envir>
@@ -77,4 +77,32 @@
     <plot_all_regions>0</plot_all_regions>
     <prodate>2012010418</prodate>
   </xyz>
+  <opr>
+    <account>dev</account>
+    <area>glb</area>
+    <mail_cc/>
+    <mail_to/>
+    <comp_plotdate>2012010312</comp_plotdate>
+    <comp_suffix2>abc</comp_suffix2>
+    <prodate>2012101918</prodate>
+    <imgdate>2012101912</imgdate>
+    <plot_all_regions>0</plot_all_regions>
+    <do_archive>0</do_archive>
+    <do_data_rpt>0</do_data_rpt>
+    <do_diag_rpt>0</do_diag_rpt>
+    <radstat_location>/com_canned/gfs/prod</radstat_location>
+  </opr>
+  <p6opr>
+    <account>dev</account>
+    <area>glb</area>
+    <mail_cc/>
+    <mail_to/>
+    <imgdate>2012112200</imgdate>
+    <plot_all_regions>1</plot_all_regions>
+    <do_archive>0</do_archive>
+    <do_data_rpt>0</do_data_rpt>
+    <do_diag_rpt>0</do_diag_rpt>
+    <radstat_location>/com_p6/gfs/prod</radstat_location>
+    <prodate>2012112206</prodate>
+  </p6opr>
 </opt>

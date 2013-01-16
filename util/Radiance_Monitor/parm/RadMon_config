@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=
+export MY_RADMON=/gpfs/td1/global/save/Edward.Safford/dup_RadMon_265/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,16 +24,16 @@ export MY_RADMON=
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=
+export MY_TANKDIR=/u/Edward.Safford/nbns
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEB_SVR=
-export WEB_USER=
-export WEBDIR=
+export WEB_SVR=emcrzdm
+export WEB_USER=esafford
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford
 
 
 ###############################################################################
@@ -43,16 +43,15 @@ export WEBDIR=
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=
-export LITTLE_ENDIAN=
-echo endian = $LITTLE_ENDIAN
+export MY_MACHINE=wcoss
+export LITTLE_ENDIAN=0
 
 
 #
 #  Log and work space definitions
 #
-export PTMP=
-export STMP=
+export PTMP=/ptmp
+export STMP=/stmp
   
 export LOGSverf_rad=$PTMP/$LOGNAME/logs    
 export WORKverf_rad=$STMP/$LOGNAME         
@@ -64,6 +63,8 @@ export WORKverf_rad=$STMP/$LOGNAME
 if [[ $MY_MACHINE = "ccs" ]]; then
   export LOADLQ=$STMP/loadlq/$LOGNAME
 #  <need more here>>
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+  export CHECKQ="bjobs"
 else
   export CHECKQ="showq -u $LOGNAME"
 fi
@@ -89,11 +90,26 @@ if [[ $MY_MACHINE = "ccs" ]]; then
    export LLQ=${UTILS_BIN}/llq2		    
    export SUB=${UTILS_BIN}/sub              
    export NWPROD=/nwprod
-   export NDATE=$NWPROD/util/exec/ndate    
+   export NDATE=${NWPROD}/util/exec/ndate    
    export COMPRESS=compress
    export UNCOMPRESS=uncompress
    export Z="Z"
    export TIMEX=/usr/bin/timex
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+#   shell=`echo $SHELL | sed 's/\// /g' | gawk '{print $NF}'`
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+   export UTILS_BIN=
+   export LLQ=
+   export SUB="bsub"
+   export NWPROD=/nwprod 
+   export NDATE=${NWPROD}/util/exec/ndate
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+   export TIMEX=
+   export GRADS=${GRADS_ROOT}/grads
 else
    export UTILS_BIN=
    export LLQ=

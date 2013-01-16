@@ -56,7 +56,7 @@ done
 
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the bcoef control
-#   files.
+#   files.  Conditionally rm "cray_32bit_ieee" from the options line.
 #
 #   Note that the logic for the tdef in time series is backwards
 #   from angle series.  Time tdefs start at -720 from PDATE.  For
@@ -70,6 +70,12 @@ for type in ${SATYPE}; do
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
+      mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
+   fi
+
    ${COMPRESS} ${imgndir}/${type}.ctl
 done
 
@@ -85,7 +91,9 @@ rm ${logfile}
 
 if [[ $MY_MACHINE = "ccs" ]]; then
    $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o ${logfile} $SCRIPTS/plot_bcoef.sh
-else
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+   $SUB -q transfer -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_bcoef.sh
+elif [[ $MY_MACHINE = "zeus" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=1:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
 fi
 

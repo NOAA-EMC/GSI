@@ -9,6 +9,12 @@
 set -ax
 export list=$listvar
 
+echo
+echo PATH=$PATH
+#echo
+#which libXaw.so.7
+echo
+
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
@@ -125,8 +131,8 @@ EOF
       $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-#   rm -f ${type}*.ieee_d
-#   rm -f ${type}.ctl
+   rm -f ${type}*.ieee_d
+   rm -f ${type}.ctl
 
 done
 
@@ -139,18 +145,18 @@ if [[ ! -d ${IMGNDIR}/angle ]]; then
 fi
 $NCP *.png  ${IMGNDIR}/angle/.
 
-#for var in ${PTYPE}; do
-#   rm -f ${type}.${var}*.png
-#done
+for var in ${PTYPE}; do
+   rm -f ${type}.${var}*.png
+done
 
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------

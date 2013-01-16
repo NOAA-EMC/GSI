@@ -112,6 +112,8 @@
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname
+  use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
+  use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
   use general_commvars_mod, only: init_general_commvars,destroy_general_commvars
 
   implicit none
@@ -234,6 +236,7 @@
 !                       from two forecast domains to analysis domain  
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
+!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -363,6 +366,20 @@
 !     gpstop - maximum height for gpsro data assimilation. Reject anything above this height. 
 !     use_gfs_nemsio  - option to use nemsio to read global model NEMS/GFS first guess
 !     use_prepb_satwnd - allow using satwnd's from prepbufr (historical) file
+!     use_gfs_stratosphere - for now, can only be set to true if nems_nmmb_regional=true.  Later extend
+!                             to other regional models.  When true, a guess gfs valid at the same time
+!                             as the nems-nmmb guess is used to replace the upper levels with gfs values.
+!                             The nems-nmmb vertical coordinate is smoothly merged between pressure values
+!                             pblend0,pblend1 so that below pblend0 the vertical coordinate is the original
+!                             nems-nmmb, and above pblend1 it becomes the gfs vertical coordinate.  For
+!                             the current operational nems-nmmb and gfs vertical coordinates and
+!                             pblend0=152mb, pblend1=79mb, the merged nems-nmmb/gfs vertical coordinate
+!                             has 75 levels compared to nems-nmmb original 60 levels.  The purpose of this
+!                             is to allow direct use of gdas derived sat radiance bias correction coefs,
+!                             since it has been determined that height of top level and stratosphere
+!                             resolution are key to successful assimilation of most channels.
+!                                   (NOTE: I have not actually verified this statement yet!)
+!     pblend0,pblend1 - see above comment for use_gfs_stratosphere
 !     l4densvar - logical to turn on ensemble 4dvar
 !     ens4d_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
 !
@@ -393,7 +410,7 @@
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
-       step_start,diag_precon
+       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -786,6 +803,9 @@
   call init_rapidrefresh_cldsurf
   call init_chem
   call init_tcps_errvals
+  call init_gfs_stratosphere
+ if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
+                       use_gfs_stratosphere,nems_nmmb_regional
   preserve_restart_date=.false.
 
 
@@ -883,6 +903,12 @@
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
+
+! Currently only able to have use_gfs_stratosphere=.true. for nems_nmmb_regional=.true.
+  use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
+  if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
+                          use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional                  
+                                                                                                                       
 
 ! Check that regional=.true. if jcstrong_option > 2
   if(jcstrong_option>2.and..not.regional) then
@@ -1103,6 +1129,7 @@
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
   if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
+  if (regional.and.use_gfs_stratosphere) call broadcast_gfs_stratosphere_vars
 
 
 ! Initialize variables, create/initialize arrays

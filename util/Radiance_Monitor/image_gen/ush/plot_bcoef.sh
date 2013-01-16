@@ -112,9 +112,9 @@ done
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
 
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 exit

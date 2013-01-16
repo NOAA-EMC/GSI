@@ -31,6 +31,7 @@
     my $source = $ARGV[1];
     my $field  = $ARGV[2];
     my $default="global_default";
+    use XML::LibXML;
 
     my $parser = XML::LibXML->new();
     my $doc    = $parser->parse_file($dmfile);

@@ -78,7 +78,6 @@ EOF
 
    $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-
    rm -f ${type}.ctl 
    rm -f ${type}*.ieee_d
 

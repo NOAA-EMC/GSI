@@ -188,6 +188,8 @@ clean:
 # ------------
 
   SRCSF90C = \
+	gfs_stratosphere.f90 \
+	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
 	aeroinfo.f90 \
         aircraftobsqc.f90 \
@@ -210,6 +212,7 @@ clean:
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+	blendmod.f90 \
 	cal_tztr.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
@@ -398,11 +401,9 @@ clean:
 	q_diag.f90 \
 	qcmod.f90 \
 	qnewton3.f90 \
-	radinfo.f90 \
 	raflib.f90 \
 	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_diag.f90 \
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
@@ -508,6 +509,7 @@ clean:
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
+	radinfo.f90 \
 	read_Lightning.f90 \
 	read_NASA_LaRC.f90 \
 	read_RadarRef_mosaic.f90 \
@@ -521,6 +523,7 @@ clean:
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \
+	read_diag.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \

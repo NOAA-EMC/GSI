@@ -87,11 +87,10 @@ jobname=${DATA_EXTRACT_JOBNAME}
 if [[ $RUN_ENVIR = dev ]]; then
    if [[ $MY_MACHINE = "ccs" ]]; then
 
-#      count=`ls ${LOADLQ}/${jobname}* | wc -l`
-#      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
-#      total=`expr $count - $complete`
       total=`llq -u ${LOGNAME} -f %jn | grep ${jobname} | wc -l`
-   else
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      total=`bjobs -l | grep ${jobname} | wc -l`
+   elif [[ $MY_MACHINE = "zeus" ]]; then
       total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
    fi
 
@@ -99,9 +98,6 @@ if [[ $RUN_ENVIR = dev ]]; then
       exit 3
    fi
 
-#   if [[ $MY_MACHINE = "ccs" ]]; then 
-#      rm -f ${LOADLQ}/${jobname}*
-#   fi
 fi
 
 
@@ -117,7 +113,6 @@ if [[ $RUN_ENVIR = dev ]]; then
    #--------------------------------------------------------------------
    export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
    export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
    export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
    export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
    export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
@@ -158,7 +153,6 @@ elif [[ $RUN_ENVIR = para ]]; then
 
    export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
    export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
    export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
    export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
    export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
@@ -243,7 +237,11 @@ if [[ -e ${radstat} ]]; then
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
-   else
+
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $ACCOUNT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+
+   elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
   

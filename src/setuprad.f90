@@ -125,6 +125,7 @@
 !   2011-06-09  sienkiewicz - call to qc_ssu needs tb_obs instead of tbc
 !   2011-07-10  zhu     - add jacobian assignments for regional cloudy radiance
 !   2011-09-28  collard - Fix error trapping for CRTM failures.         
+!   2012-11-02  collard - Use cloud detection channel flag for IR.
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -152,7 +153,7 @@
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
-      npred,jpch_rad,varch,varch_cld,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
+      npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,&
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
       nst_gsi,nstinfo,nst_tzr
@@ -266,7 +267,6 @@
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-  logical sensor_passive
   logical channel_passive
 
   logical,dimension(nobs):: luse
@@ -882,26 +882,18 @@
            frac_sea=data_s(ifrac_sea,n)
 
 !  NOTE:  The qc in qc_irsnd uses the inverse squared obs error.
-!     If a particular channel is not being assimilated
-!     (iuse_rad==-1), we should not use this channel
-!     in the qc.  The loop below loads array varinv_use
-!     such that this condition is satisfied.  Array
+!     The loop below loads array varinv_use accounting for whether the 
+!     cloud detection flag is set.  Array
 !     varinv_use is then used in the qc calculations.
 !     For the case when all channels of a sensor are passive, all
 !     channels with iuse_rad=-1 or 0 are used in cloud detection.
-
-           sensor_passive=.true.
-           do i=1,nchanl
-              m=ich(i)
-              if (iuse_rad(m)>0) sensor_passive=.false.
-           end do
 
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((icld_det(m)>0)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
@@ -991,26 +983,17 @@
            frac_sea=data_s(ifrac_sea,n)
 
 !  NOTE:  The qc in qc_avhrr uses the inverse squared obs error.
-!     If a particular channel is not being assimilated
-!     (iuse_rad==-1), we should not use this channel
-!     in the qc.  The loop below loads array varinv_use
-!     such that this condition is satisfied.  Array
+!     The loop below loads array varinv_use accounting for whether the 
+!     cloud detection flag is set.  Array
 !     varinv_use is then used in the qc calculations.
 !     For the case when all channels of a sensor are passive, all
 !     channels with iuse_rad=-1 or 0 are used in cloud detection.
-
-           sensor_passive=.true.
-           do i=1,nchanl
-              m=ich(i)
-              if (iuse_rad(m)>0) sensor_passive=.false.
-           end do
-
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((icld_det(m)>0)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
@@ -1479,8 +1462,8 @@
            diagbuf(3)  = zsges                          ! model (guess) elevation at observation location
  
            diagbuf(4)  = dtime-time_offset              ! observation time (hours relative to analysis time)
- 
-           diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position
+
+           diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position 
            diagbuf(6)  = zasat*rad2deg                  ! satellite zenith angle (degrees)
            diagbuf(7)  = data_s(ilazi_ang,n)            ! satellite azimuth angle (degrees)
            diagbuf(8)  = pangs                          ! solar zenith angle (degrees)

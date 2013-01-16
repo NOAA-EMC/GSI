@@ -62,18 +62,24 @@ fi
 
 # TESTING
 #export SATYPE="iasi_metop-a sndrd1_g15 sndrd2_g15"
-#export SATYPE="iasi_metop-a"
+#export SATYPE="sndrd1_g15"
 
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the angle control 
-#   files.
-
+#   files. Conditionally rm "cray_32bit_ieee" from the options line.
+ 
 thirtydays=`$NDATE -720 $PDATE`
+
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${thirtydays}
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
+      mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
+   fi
 
 done
 
@@ -95,7 +101,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 #
   export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plotangle_${SUFFIX}"
 
-  if [ -d $PLOT_WORK_DIR ] ; then
+  if [[ -d $PLOT_WORK_DIR ]]; then
      rm -f $PLOT_WORK_DIR
   fi
   mkdir -p $PLOT_WORK_DIR
@@ -109,7 +115,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
   list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
-  if [[ $MY_MACHINE = "ccs" ]]; then	    # CCS/aix platform
+  if [[ ${MY_MACHINE} = "ccs" || ${MY_MACHINE} = "wcoss" ]]; then
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
      jobname=plot_${SUFFIX}_ang_${suffix}
@@ -123,11 +129,15 @@ ${COMPRESS} ${imgndir}/*.ctl
      for type in ${SATLIST}; do
        echo "$SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
      done
+     chmod 755 $cmdfile
 
      ntasks=`cat $cmdfile|wc -l `
 
-     $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-
+     if [[ $MY_MACHINE = "wcoss" ]]; then
+        $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+     else
+        $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+     fi
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
         suffix=${sat} 
@@ -165,7 +175,10 @@ set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl cl
 for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST
 
-   if [[ $MY_MACHINE = "ccs" ]]; then 	# CCS/aix, submit 4 job for each $sat
+#
+#  CCS and wcoss, submit 4 jobs for each $sat
+#
+   if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then 	
       batch=1
       ii=0
 
@@ -183,9 +196,13 @@ for sat in ${bigSATLIST}; do
 
          if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
             ntasks=`cat $cmdfile|wc -l `
-#           ((nprocs=(ntasks+1)/2))
+            chmod 755 $cmdfile
 
-            $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+            if [[ $MY_MACHINE = "wcoss" ]]; then
+               $SUB -q transfer -n $ntasks -o ${logfile} -W 1:00 -J ${jobname} $cmdfile
+            else
+               $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+            fi
 
             (( batch=batch+1 ))
 
@@ -198,7 +215,7 @@ for sat in ${bigSATLIST}; do
          (( ii=ii+1 ))
       done
 
-   else					# Zeus/Linux, submit 1 job for each sat/list item
+   else					# Zeus, submit 1 job for each sat/list item
       ii=0
       suffix="${sat}"
 
@@ -211,7 +228,6 @@ for sat in ${bigSATLIST}; do
          echo "${SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
 
          if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-#            wall_tm="2:00:00"
             wall_tm="0:40:00"
          else
             wall_tm="3:30:00"

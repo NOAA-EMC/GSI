@@ -21,9 +21,9 @@ word_count=`echo $PTYPE | wc -w`
 echo word_count = $word_count
 
 if [[ $word_count -le 1 ]]; then
-   tmpdir=${PLOT_WORK_DIR}/plot_angle_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}.${PTYPE}
+   tmpdir=${PLOT_WORK_DIR}/plot_bcor_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}.${PTYPE}
 else
-   tmpdir=${PLOT_WORK_DIR}/plot_angle_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
+   tmpdir=${PLOT_WORK_DIR}/plot_bcor_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
 fi
 
 #tmpdir=${PLOT_WORK_DIR}/plot_bcor_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
