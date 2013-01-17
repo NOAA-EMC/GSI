@@ -14,7 +14,7 @@ INCcrtm  = $(COREINC)/crtm_2.0.6
 
 
 # WRF locations
-WRFPATH = /meso/save/Dusan.Jovic/WRFV3
+WRFPATH = /nwprod/sorc/wrf_shared.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
