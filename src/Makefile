@@ -295,6 +295,7 @@ clean:
 	gsi_io.f90 \
 	gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
+	gsimain.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
@@ -630,8 +631,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) gsimain.o
-	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(OBJS_NOSWAP) $(LIBS)
+$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(OBJS_NOSWAP) $(LIBS)
 
 
 # ------------------------
@@ -646,7 +647,7 @@ all :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -661,7 +662,7 @@ library :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== CREATING LIBRARY ========================================'
 	$(MAKE) lib
@@ -675,7 +676,7 @@ debug :
 		"FFLAGS=$(FFLAGS_D)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -703,7 +704,7 @@ LIB =   libgsi.a
 
 lib: $(LIB)
 
-gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) gsimain.o
+gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB)
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
 ut_gsibundle.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) ut_gsibundle.o

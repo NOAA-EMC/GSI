@@ -169,7 +169,7 @@ m_tick.o : m_tick.F90 kinds.o
 missing_routines.o : missing_routines.f90 kinds.o 
 mod_nmmb_to_a.o : mod_nmmb_to_a.f90 constants.o kinds.o 
 mod_strong.o : mod_strong.f90 constants.o kinds.o 
-mod_vtrans.o : mod_vtrans.f90 m_dgeevx.o guess_grids.o mpimod.o gridmod.o constants.o kinds.o 
+mod_vtrans.o : mod_vtrans.f90 general_commvars_mod.o general_sub2grid_mod.o guess_grids.o mpimod.o gridmod.o constants.o kinds.o 
 model2control.o : model2control.f90 mpeu_util.o gsi_metguess_mod.o gsi_chemguess_mod.o gsi_bundlemod.o cwhydromod.o jfunc.o balmod.o berror.o gridmod.o gsi_4dvar.o bias_predictors.o control_vectors.o constants.o kinds.o 
 model_ad.o : model_ad.F90 lag_traj.o lag_fields.o mpimod.o mpeu_util.o timermod.o m_tick.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 
 model_tl.o : model_tl.F90 lag_traj.o lag_fields.o mpimod.o mpeu_util.o timermod.o m_tick.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o constants.o gsi_4dvar.o kinds.o 

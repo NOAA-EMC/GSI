@@ -15,6 +15,7 @@ LIBnemsio=-L$(CORELIB_nemsio)  -l_nemsio_mergedv1.0.0_intel
 CORELIB_bacio=/home/Ratko.Vasic/lib_tmp/GSI_libs_2/lib
 LIBbacio=-L$(CORELIB_bacio) -lbacio_4
 LIBbacio=/home/Ratko.Vasic/lib_tmp/GSI_libs_2/lib/libbacio_4.a
+INCw3    = $(COREINC)/w3lib-2.0_d
 
 
 WRFPATH = /scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist/nwprod/sorc/nam_nmm_real_fcst.fd
@@ -63,11 +64,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FFLAGS_F90    = -D_REAL8_ -DWRF -openmp
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
-                -I $(INCnetcdf) -O3 -traceback -convert big_endian -assume byterecl \
+                -I $(INCnetcdf) -I $(INCw3) -O3 -traceback -convert big_endian -assume byterecl \
 	        -g -fp-model strict
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-                  -I $(INCnemsio) -I $(INCnetcdf) \
+                  -I $(INCnemsio) -I $(INCnetcdf) -I $(INCw3) \
 		  -O3 -traceback -g -fp-model strict
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
@@ -78,9 +79,9 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
-		-I $(INCnetcdf) -O0 -xHOST -traceback -assume byterecl -debug full -g -convert big_endian
+		-I $(INCnetcdf) -I $(INCw3) -O0 -xHOST -traceback -assume byterecl -debug full -g -convert big_endian
   FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-		-I $(INCnemsio) -I $(INCnetcdf) -O0 -debug full -g -traceback
+		-I $(INCnemsio) -I $(INCnetcdf) -I $(INCw3) -O0 -debug full -g -traceback
   
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
@@ -106,7 +107,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -mkl -lmpi
+  LD            = $(CF) -mkl -lmpi -Wl,-Map,loadmap.txt
 
 #--- Normal mode options
 # LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
