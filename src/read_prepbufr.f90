@@ -99,6 +99,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !   2011-08-27  todling - add use_prepb_satwnd; cleaned out somebody's left over's
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
+!   2012-04-03  s.liu    - thin new VAD wind 
+!   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -134,7 +136,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use obsmod, only: blacklst,offtime_data,bmiss
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
-  use qcmod, only: errormod,noiqc
+  use qcmod, only: errormod,noiqc,newvad
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
@@ -289,6 +291,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data lunin / 13 /
   data ithin / -9 /
   data rmesh / -99.999_r_kind /
+  !* test new vad wind
+  !* for match loction station and time
+        character(7*2000) cstn_idtime,cstn_idtime2
+        character(7) stn_idtime(2000),stn_idtime2(2000)
+        equivalence (stn_idtime(1),cstn_idtime)
+        equivalence (stn_idtime2(1),cstn_idtime2)
+        integer :: ii1,atmp,btmp,mytimeyy,ibyte
+        character(4) stid
+        real(8) :: rval
+        character(len=8) :: cval
+        equivalence (rval,cval)
+        character(7) flnm
+        integer:: icase,klev,ikkk,tkk
+        real:: diffhgt,diffuu,diffvv
+
+  real(r_double),dimension(3,1500):: fcstdat
+  character(80) fcststr
+  data fcststr  /'UFC VFC'/
   
 ! Initialize variables
 
@@ -305,6 +325,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   visob = obstype == 'vis'
   metarcldobs = obstype == 'mta_cld'
   geosctpobs = obstype == 'gos_ctp'
+  newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
      nreal=24
@@ -421,6 +442,22 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       Extract type information
         call ufbint(lunin,hdr,4,1,iret,hdstr2)
         kx=hdr(1)
+        !* for new vad wind
+        if(kx==224 .and. .not.newvad) then
+           call ufbint(lunin,obsdat,11,255,levs,obstr)
+           if(levs>1)then
+           do k=1, levs-1
+             diffuu=abs(obsdat(4,k+1)-obsdat(4,k))
+             if(diffuu==50.0) then
+                   newvad=.true.
+                   go to 288
+             end if
+           end do
+           end if
+288     continue
+        end if
+!       if(kx==224)write(6,*)'new vad wind',kx,newvad
+        !* END new vad wind
 
         if(twodvar_regional)then
 !          If running in 2d-var (surface analysis) mode, check to see if observation
@@ -570,6 +607,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
+     write(6,*)'new vad flag::', newvad 
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -607,6 +645,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(hdr(2) < zero)hdr(2)=hdr(2)+r360
            dlon_earth=hdr(2)*deg2rad
            dlat_earth=hdr(3)*deg2rad
+           kx=hdr(5)
+        !* thin new VAD in time level
+        if(kx==224.and.newvad)then
+        icase=0
+        if(abs(hdr(4))>0.75) icase=1
+!       if(abs(hdr(4))>0.17.and.abs(hdr(4))<0.32) icase=1
+!       if(abs(hdr(4))>0.67.and.abs(hdr(4))<0.82) icase=1
+!       if(abs(hdr(4))>1.17.and.abs(hdr(4))<1.32) icase=1
+!       if(abs(hdr(4))>1.67.and.abs(hdr(4))<1.82) icase=1
+!       if(abs(hdr(4))>2.17.and.abs(hdr(4))<2.62) icase=1
+!       if(abs(hdr(4))>2.67.and.abs(hdr(4))<2.82) icase=1
+        if(icase/=1) cycle
+        end if
+
            if(regional)then
               call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
               if(diagnostic_reg) then
@@ -702,6 +754,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      
 !          Extract data information on levels
            call ufbint(lunin,obsdat,11,255,levs,obstr)
+           if(kx==224 .and. newvad) then
+           call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
+           end if
            call ufbint(lunin,qcmark,8,255,levs,qcstr)
            call ufbint(lunin,obserr,8,255,levs,oestr)
            nread=nread+levs
@@ -862,6 +917,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               endif
            end if
            LOOP_K_LEVS: do k=1,levs
+                 if(kx==224 .and. newvad)then
+                    if(mod(k,6)/=0) cycle LOOP_K_LEVS
+                 end if
 
               icntpnt=icntpnt+1
 
@@ -1174,6 +1232,51 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                Rotate winds to rotated coordinate
                  uob=obsdat(5,k)
                  vob=obsdat(6,k)
+                 !* thin new VAD wind and generate VAD superob
+                 if(kx==224.and.newvad)then
+                         klev=k+5 !*average over 6 points
+                       !  klev=k    !* no average
+                         if(klev>levs) cycle loop_readsb
+                         diffuu=obsdat(5,k)-fcstdat(1,k)
+                         diffvv=obsdat(6,k)-fcstdat(2,k)
+                         if(sqrt(diffuu**2+diffvv**2)>10.0) cycle loop_k_levs
+                         if(abs(diffvv)>8.0) cycle loop_k_levs
+                        !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
+                         if(oelev>7000.0) cycle loop_k_levs
+                         if(abs(diffvv)>5.0.and.oelev<5000.0) cycle loop_k_levs
+                        ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
+                         uob=0.0
+                         vob=0.0
+                         oelev=0.0
+                         tkk=0
+                         do ikkk=k,klev
+                           diffhgt=obsdat(4,ikkk)-obsdat(4,k)
+                           if(diffhgt<301.0)then
+                           uob=uob+obsdat(5,ikkk)
+                           vob=vob+obsdat(6,ikkk)
+                           oelev=oelev+obsdat(4,ikkk)
+                           tkk=tkk+1
+                           end if
+                         end do
+                         uob=uob/tkk
+                         vob=vob/tkk
+                         oelev=oelev/tkk
+
+                         diffuu=5.0;diffvv=5.0
+                         diffhgt=0.0
+                         do ikkk=k,klev
+                           diffuu=abs(obsdat(5,ikkk)-uob)
+                           if(diffhgt<diffuu)diffhgt=diffuu
+                           diffvv=abs(obsdat(6,ikkk)-vob)
+                           if(diffhgt<diffvv)diffhgt=diffvv
+                         end do
+
+                     if(diffhgt>5.0)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
+                     if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
+                     !* unreasonable observation, will fix this in QC package
+                     if(sqrt(uob**2+vob**2)>60.0)cycle LOOP_readsb
+                 end if
+
                  if(regional)then
                     u0=uob
                     v0=vob

@@ -84,6 +84,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
   use gridmod, only: use_gfs_nemsio
+  use gfs_stratosphere, only: use_gfs_stratosphere
 
   use constants, only: zero,one,fv
   use ncepgfs_io, only: read_gfs,read_gfs_chem
@@ -183,7 +184,8 @@ subroutine read_guess(iyear,month,idd,mype)
   call load_geop_hgt
 
 !  If this is a regional run and ozone is desired from the gfs model, bring it in here:
-  if(regional.and.use_gfs_ozone.and.regional_ozone) call read_gfs_ozone_for_regional
+  if(regional.and.use_gfs_ozone.and.regional_ozone.and..not.use_gfs_stratosphere) &
+              call read_gfs_ozone_for_regional
   
   return
 end subroutine read_guess

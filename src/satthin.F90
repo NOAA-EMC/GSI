@@ -163,6 +163,7 @@ contains
 !                         on regional grid when domain includes north pole.
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
+!   2012-10-11  eliu/wu - make sure dlon_e is in the range of 0 and 360  
 !
 !   input argument list:
 !
@@ -217,7 +218,20 @@ contains
              call txy2ll(dlon_g,dlat_g,dlon_e,dlat_e)
              dlat_e=dlat_e*rad2deg
              dlon_e=dlon_e*rad2deg
-             if (dlon_e < zero) dlon_e = dlon_e + r360
+             i1_loop: do ii=1,10
+                if (dlon_e < zero) then
+                dlon_e = dlon_e + r360
+                else
+                exit i1_loop
+                endif
+             enddo i1_loop
+             i2_loop: do ii=1,10
+                if (dlon_e > r360) then
+                dlon_e = dlon_e - r360
+                else
+                exit i2_loop
+                endif
+             enddo i2_loop
              rlat_min = min(rlat_min,dlat_e)
              rlat_max = max(rlat_max,dlat_e)
              rlon_min = min(rlon_min,dlon_e)
