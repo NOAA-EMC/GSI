@@ -144,7 +144,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   iyear=regional_time(1)   
   imonth=regional_time(2)
   iday=regional_time(3)
-  call getdays(nday,iyear,imonth,iday)
+  call w3fs13(iyear,imonth,iday,nday)
   declin=deg2rad*23.45_r_kind*sin(2.0_r_kind*pi*(284+nday)/365.0_r_kind)
 !
 !  csza = fraction of solar constant (cos of zenith angle)
