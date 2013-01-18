@@ -103,6 +103,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ! The next two are one minute in hours
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
+  real(r_kind),parameter:: rato=1.1363987_r_kind ! ratio of satellite height to 
+                                                 ! distance from Earth's centre
 
 ! Declare local variables
   logical outside,iuse,assim,valid
@@ -140,7 +142,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) pred
-  real(r_kind) dlat,panglr,dlon,rato,sstime,tdiff
+  real(r_kind) dlat,panglr,dlon,sstime,tdiff
   real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
   real(r_kind) step,start,dist1
   real(r_kind) tt,lzaest
@@ -248,8 +250,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         exit 
      endif
   end do 
-
-  rato=1.1363987_r_kind
 
 ! IFSCALC setup
   nchanl=22

@@ -61,7 +61,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
                radedge1,radedge2,radstart,radstep,nstinfo, nst_gsi
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
-      crtm_kind => fp
+      crtm_kind => fp,  max_sensor_zenith_angle
   use crtm_planck_functions, only: crtm_planck_temperature
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
@@ -173,7 +173,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: R360   = 360._r_kind
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
-  real(r_kind),parameter:: earth_radius = 6371000._r_kind
+  real(r_kind),parameter:: rato=1.1363987_r_kind ! ratio of satellite height to 
+                                                 ! distance from Earth's centre
 
 ! Initialize variables
   disterrmax=zero
@@ -477,10 +478,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !    Compare CRIS satellite scan angle and zenith angle
 
         look_angle_est = (start + float(ifov-1)*step)*deg2rad
+        sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
 
-        sat_height_ratio = (earth_radius + linele(5))/earth_radius
-        sat_look_angle=asin(sin(sat_zenang*deg2rad)/sat_height_ratio)
-        if (abs(sat_look_angle - look_angle_est) > one) then
+        if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
+          write(6,*)'READ_CRIS WARNING lza error ',sat_look_angle,look_angle_est
+          cycle read_loop
+        end if
+
+        if (abs(sat_look_angle - look_angle_est)*rad2deg > one) then
            write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
                look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
            bad_line = iscn
