@@ -112,7 +112,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(3,3):: chanbound
   real(r_double),dimension(6):: cloud_frac
   
-  real(r_kind)      :: step, start,step_adjust
+  real(r_kind)      :: step, start
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
@@ -208,7 +208,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         exit 
      endif
   end do
-  step_adjust = 0.625_r_kind
   senname = 'CRIS'
   
   allspotlist= &
@@ -477,7 +476,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !    Compare CRIS satellite scan angle and zenith angle
 
-        look_angle_est = (start + float(ifov-1)*step)*deg2rad
+        look_angle_est = (start + float(ifor-1)*step)*deg2rad
         sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
 
         if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
@@ -487,7 +486,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
         if (abs(sat_look_angle - look_angle_est)*rad2deg > one) then
            write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
-               look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
+               look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
            bad_line = iscn
            cycle read_loop
         endif
