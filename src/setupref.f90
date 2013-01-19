@@ -164,9 +164,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   logical                                    ,intent(in   ) :: last_pass	! the pass with all background bins processed
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
-  external:: tintrp3
-  external:: grdcrd
+  external:: tintrp2a1,tintrp2a11
+  external:: tintrp31
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables
@@ -291,16 +291,16 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         ikx=nint(data(ikxx,i))
  
 !       Interpolate log(pres), terrain, and geop heights to obs location
-        call tintrp2a(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
-             1,nsig+1,mype,nfldsig)
-        call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig+1,mype,nfldsig)
-        call tintrp2a(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-             1,1,mype,nfldsig)
+        call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
+             nsig+1,mype,nfldsig)
+        call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a1(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
+             nsig+1,mype,nfldsig)
+        call tintrp2a1(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
 
 !       Convert geometric height at observation to geopotential height using
 !       equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
@@ -323,15 +323,15 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !       Convert observation height (in dpres) from meters to grid relative units
         hob=hgeso
         hobl=hgeso
-        call grdcrd(hob,1,hges,nsig,1)   ! interface levels
-        call grdcrd(hobl,1,hgesl,nsig,1) ! midpoint layers
+        call grdcrd1(hob,hges,nsig,1)   ! interface levels
+        call grdcrd1(hobl,hgesl,nsig,1) ! midpoint layers
         dpres=hob
         dpresl(i)=hobl
         data(ihgt,i)=dpres
  
 !       Get temperature at observation location
-        call tintrp3(ges_tv,trefges,dlat,dlon,hobl,&
-             dtime,hrdifsig,1,mype,nfldsig)
+        call tintrp31(ges_tv,trefges,dlat,dlon,hobl,&
+             dtime,hrdifsig,mype,nfldsig)
  
 !       Set indices of model levels below (k1) and above (k2) observation.
         k=dpres
@@ -444,8 +444,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !          Compute guess local refractivity at obs location.
 !          Also compute terms needed in minimization
 
-           call tintrp3(ges_q,qrefges,dlat,dlon,hobl,dtime,&
-                 hrdifsig,1,mype,nfldsig)
+           call tintrp31(ges_q,qrefges,dlat,dlon,hobl,dtime,&
+                 hrdifsig,mype,nfldsig)
 
 !          Compute guess local refractivity
            fact=(one+fv*qrefges)

@@ -253,7 +253,7 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
 
   real(r_kind)                                    ,intent(in   ) :: df
   real(r_kind)   ,dimension(mrr:nrr)              ,intent(in   ) :: rs
-  real(r_kind)   ,dimension(0:nor-1,mrr:nrr+1-nor),intent(in   ) :: qr
+  real(r_kind)   ,dimension(0:nor-1,mrr:nrr+1-nor),intent(inout) :: qr
 
   integer(i_kind),dimension(mf:nf,0:nxg-1)        ,intent(  out) :: inaxt
   integer(i_kind),dimension(0:nf,mf:nf)           ,intent(  out) :: inbat

@@ -81,7 +81,10 @@ subroutine obs_para(ndata,mype)
 
         if (dtype(is)=='lag') then    ! lagrangian data
            call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
-                nobs_s)
+                nobs_s(mm1))    !!!!!!! WAS nobs_s), WHICH IS AN ERROR, because inside dislat, nobs_s
+                                !!!!!!! is not dimensioned, but here it has dimension nobs_s(npe)!!!!!!
+                                !!!!!!!! this is not necessarily the proper fix--just gets compile debug
+                                !!!!!!!!! to work!!!!!!!!!!!!!!!!!!!!
         else                          ! classical observations
            call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
                  mype_diaghdr(is),nobs_s)

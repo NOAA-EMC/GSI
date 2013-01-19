@@ -674,8 +674,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else
               dlat = dlat_earth
               dlon = dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !------------------------------------------------------------------------
@@ -1028,8 +1028,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     dlat = dlat_earth
                     dlon = dlon_earth
-                    call grdcrd(dlat,1,rlats,nlat,1)
-                    call grdcrd(dlon,1,rlons,nlon,1)
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
                  endif
 
                  if(levs > 1 .or. ithinp)then

@@ -518,8 +518,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
      clon=cos(dlon_earth)
@@ -560,8 +560,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlatvad = vadlat_earth
         dlonvad = vadlon_earth
-        call grdcrd(dlatvad,1,rlats,nlat,1)
-        call grdcrd(dlonvad,1,rlons,nlon,1)
+        call grdcrd1(dlatvad,rlats,nlat,1)
+        call grdcrd1(dlonvad,rlons,nlon,1)
      endif
 
 !    Get model terrain at VAD wind location
@@ -593,8 +593,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
      clonh=cos(dlon_earth)
@@ -867,8 +867,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
      clon=cos(dlon_earth)
@@ -909,8 +909,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlatvad = vadlat_earth
         dlonvad = vadlon_earth
-        call grdcrd(dlatvad,1,rlats,nlat,1)
-        call grdcrd(dlonvad,1,rlons,nlon,1)
+        call grdcrd1(dlatvad,rlats,nlat,1)
+        call grdcrd1(dlonvad,rlons,nlon,1)
      endif
 
 !    Get model terrain at VAD wind location
@@ -992,8 +992,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         
         clonh=cos(dlon_earth)
@@ -1525,8 +1525,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         clonh=cos(dlon_earth)
         slonh=sin(dlon_earth)

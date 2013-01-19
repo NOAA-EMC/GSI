@@ -1104,25 +1104,25 @@ subroutine convert_binary_nmm_ens
 !                  dlmd_regional
      call retrieve_index(index,'DLMD',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,dlmd_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfens,dlmd_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
 !                  dphd_regional
      call retrieve_index(index,'DPHD',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,dphd_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfens,dphd_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
 !                  pt_regional
      call retrieve_index(index,'PT',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,pt_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfens,pt_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
 !                  pdtop_regional
      call retrieve_index(index,'PDTOP',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,pdtop_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfens,pdtop_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(lendian_out) nlon_regional,nlat_regional,nsig_regional, &
@@ -1133,7 +1133,8 @@ subroutine convert_binary_nmm_ens
 !                  aeta1
      call retrieve_index(index,'AETA1',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfens,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 !     do k=1,nsig_regional
 !        write(6,*)' convert_binary_nmm_ens: k,aeta1(k)=',k,field1(k)
@@ -1144,7 +1145,8 @@ subroutine convert_binary_nmm_ens
 !                  aeta2
      call retrieve_index(index,'AETA2',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfens,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
 !     do k=1,nsig_regional
@@ -1161,7 +1163,8 @@ subroutine convert_binary_nmm_ens
 !                  GLAT
      call retrieve_index(index,'GLAT',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfens,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
 !     write(6,*)' convert_binary_nmm_ens: max,min GLAT=', &
@@ -1176,7 +1179,8 @@ subroutine convert_binary_nmm_ens
 !                  GLON
      call retrieve_index(index,'GLON',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfens,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfens,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
 !     write(6,*)' convert_binary_nmm_ens: max,min GLON=', &
@@ -2740,7 +2744,7 @@ subroutine generic_grid2sub_ens(grd,tempa,all_loc,kbegin_loc,kend_loc,kbegin,ken
   type(sub2grid_info),intent(in   ) :: grd
   integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
   integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
-  real(r_single) ,intent(in   ) :: tempa(grd%itotsub,kbegin_loc:kend_loc)
+  real(r_single) ,intent(inout) :: tempa(grd%itotsub,kbegin_loc:kend_loc)
   real(r_single) ,intent(  out) :: all_loc(grd%lat2*grd%lon2*num_fields)
  
   integer(i_kind) k

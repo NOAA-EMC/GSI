@@ -253,7 +253,7 @@ subroutine pcgsoi()
 !       Convert from control space to model space
         call control2state(xhat,mval,sbias)
         if (l_hyb_ens) then
-           call ensctl2state(xhat,mval,eval)
+           call ensctl2state(xhat,mval(1),eval)
            mval(1)=eval(1)
         end if
 
@@ -267,7 +267,7 @@ subroutine pcgsoi()
 !       space for comparison with obs.
         call control2state(xhat,mval,sbias)
         if (l_hyb_ens) then
-           call ensctl2state(xhat,mval,eval)
+           call ensctl2state(xhat,mval(1),eval)
            do ii=1,nobs_bins
               sval(ii)=eval(ii)
            end do
@@ -299,7 +299,7 @@ subroutine pcgsoi()
 
         if (l_hyb_ens) then
            eval(1)=mval(1)
-           call state2ensctl(eval,mval,gradx)
+           call state2ensctl(eval,mval(1),gradx)
         end if
 !       Adjoint of convert control var to physical space
         call state2control(mval,rbias,gradx)
@@ -310,7 +310,7 @@ subroutine pcgsoi()
            do ii=1,nobs_bins
               eval(ii)=rval(ii)
            end do
-           call state2ensctl(eval,mval,gradx)
+           call state2ensctl(eval,mval(1),gradx)
         else
            mval(1)=rval(1)
            if (nobs_bins > 1 ) then
@@ -453,7 +453,7 @@ subroutine pcgsoi()
 !       Convert from control space to model space
         call control2state(dirx,mval,rbias)
         if (l_hyb_ens) then
-           call ensctl2state(dirx,mval,eval)
+           call ensctl2state(dirx,mval(1),eval)
            mval(1)=eval(1)
         end if
 
@@ -467,7 +467,7 @@ subroutine pcgsoi()
 !       Convert search direction form control space to physical space
         call control2state(dirx,mval,rbias)
         if (l_hyb_ens) then
-           call ensctl2state(dirx,mval,eval)
+           call ensctl2state(dirx,mval(1),eval)
            do ii=1,nobs_bins
               rval(ii)=eval(ii)
            end do
@@ -581,7 +581,7 @@ subroutine pcgsoi()
      if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
      call control2state(xhat,mval,sbias)
      if (l_hyb_ens) then
-        call ensctl2state(xhat,mval,eval)
+        call ensctl2state(xhat,mval(1),eval)
         do ii=1,nobs_bins
            sval(ii)=eval(ii)
         end do
@@ -606,14 +606,14 @@ subroutine pcgsoi()
   if (l4dvar) then
     call control2state(xhat,mval,sbias)
     if (l_hyb_ens) then
-       call ensctl2state(xhat,mval,eval)
+       call ensctl2state(xhat,mval(1),eval)
        mval(1)=eval(1)
     end if
     call model_tl(mval,sval,llprt)
   else
     call control2state(xhat,mval,sbias)
     if (l_hyb_ens) then
-       call ensctl2state(xhat,mval,eval)
+       call ensctl2state(xhat,mval(1),eval)
        do ii=1,nobs_bins
           sval(ii)=eval(ii)
        end do
@@ -638,7 +638,7 @@ subroutine pcgsoi()
        call model_ad(mval,rval,llprt)
        if (l_hyb_ens) then
           eval(1)=mval(1)
-          call state2ensctl(eval,mval,gradx)
+          call state2ensctl(eval,mval(1),gradx)
        end if
        call state2control(mval,rbias,gradx)
      else
@@ -646,7 +646,7 @@ subroutine pcgsoi()
           do ii=1,nobs_bins
             eval(ii)=rval(ii)
           end do
-          call state2ensctl(eval,mval,gradx)
+          call state2ensctl(eval,mval(1),gradx)
        else
           mval(1)=rval(1)
           if (nobs_bins > 1 ) then

@@ -1,4 +1,100 @@
-subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
+module gscond_ad_mod
+
+  implicit none
+
+  private
+  public :: gscond_ad
+
+  interface gscond_ad
+     module procedure gscond_ad_1_1_
+     module procedure gscond_ad_im_ix_
+  end interface
+
+contains
+
+subroutine gscond_ad_1_1_( im, ix, km, dt, sl_, ps_, rhc_, advt_, advq_, &
+     advp_, q_in_, cwm_in_, t_in_, q_out_, cwm_out_, t_out_, advt_ad_, advq_ad_, &
+     advp_ad_, q_in_ad_, cwm_in_ad_, t_in_ad_, q_out_ad_, cwm_out_ad_, t_out_ad_, &
+     adjoint )
+
+  use kinds, only: r_kind,i_kind
+  implicit none
+
+  integer(i_kind), intent(in   ) :: im,ix,km
+  real(r_kind),    intent(in   ) :: dt
+  logical,         intent(in   ) :: adjoint
+
+  real(r_kind),    intent(in   ) :: sl_(km),ps_,rhc_(km) 
+  real(r_kind),    intent(in   ) :: advt_(km),advq_(km),advp_(km)
+  real(r_kind),    intent(in   ) :: q_in_(km),cwm_in_(km),t_in_(km)
+
+  real(r_kind),    intent(inout) :: q_out_(km),cwm_out_(km),t_out_(km)
+  real(r_kind),    intent(inout) :: advt_ad_(km),advq_ad_(km),advp_ad_(km)
+  real(r_kind),    intent(inout) :: q_in_ad_(km),cwm_in_ad_(km),t_in_ad_(km)
+  real(r_kind),    intent(inout) :: q_out_ad_(km),cwm_out_ad_(km),t_out_ad_(km)
+
+
+  real(r_kind)                   :: sl(km,ix),ps(im),rhc(km,ix)
+  real(r_kind)                   :: advt(km,im),advq(km,im),advp(km,im)
+  real(r_kind)                   :: q_in(km,ix),cwm_in(km,ix),t_in(km,ix)
+  real(r_kind)                   :: q_out(km,ix),cwm_out(km,ix),t_out(km,ix)
+  real(r_kind)                   :: advt_ad(km,im),advq_ad(km,im),advp_ad(km,im)
+  real(r_kind)                   :: q_in_ad(km,ix),cwm_in_ad(km,ix),t_in_ad(km,ix)
+  real(r_kind)                   :: q_out_ad(km,ix),cwm_out_ad(km,ix),t_out_ad(km,ix)
+  integer(i_kind) k
+
+  if( im /= 1 .or. ix /= 1 ) then
+     write(6,*)' GSCOND_AD_1_1_, IM,IX=',IM,IX,' -- BOTH MUST BE 1.  PROGRAM FAILS'
+     stop
+  end if
+
+  ps(1)=ps_
+  do k=1,km
+     sl(k,1)=sl_(k)
+     rhc(k,1)=rhc_(k)
+     advt(k,1)=advt_(k)
+     advq(k,1)=advq_(k)
+     advp(k,1)=advp_(k)
+     q_in(k,1)=q_in_(k)
+     cwm_in(k,1)=cwm_in_(k)
+     t_in(k,1)=t_in_(k)
+     q_out(k,1)=q_out_(k)
+     cwm_out(k,1)=cwm_out_(k)
+     t_out(k,1)=t_out_(k)
+     advt_ad(k,1)=advt_ad_(k)
+     advq_ad(k,1)=advq_ad_(k)
+     advp_ad(k,1)=advp_ad_(k)
+     q_in_ad(k,1)=q_in_ad_(k)
+     cwm_in_ad(k,1)=cwm_in_ad_(k)
+     t_in_ad(k,1)=t_in_ad_(k)
+     q_out_ad(k,1)=q_out_ad_(k)
+     cwm_out_ad(k,1)=cwm_out_ad_(k)
+     t_out_ad(k,1)=t_out_ad_(k)
+  end do
+
+  call gscond_ad_im_ix_( im, ix, km, dt, sl, ps, rhc, advt, advq, &
+     advp, q_in, cwm_in, t_in, q_out, cwm_out, t_out, advt_ad, advq_ad, &
+     advp_ad, q_in_ad, cwm_in_ad, t_in_ad, q_out_ad, cwm_out_ad, t_out_ad, &
+     adjoint )
+
+  do k=1,km
+     q_out_(k)=q_out(k,1)
+     cwm_out_(k)=cwm_out(k,1)
+     t_out_(k)=t_out(k,1)
+     advt_ad_(k)=advt_ad(k,1)
+     advq_ad_(k)=advq_ad(k,1)
+     advp_ad_(k)=advp_ad(k,1)
+     q_in_ad_(k)=q_in_ad(k,1)
+     cwm_in_ad_(k)=cwm_in_ad(k,1)
+     t_in_ad_(k)=t_in_ad(k,1)
+     q_out_ad_(k)=q_out_ad(k,1)
+     cwm_out_ad_(k)=cwm_out_ad(k,1)
+     t_out_ad_(k)=t_out_ad(k,1)
+  end do
+
+end subroutine gscond_ad_1_1_
+
+subroutine gscond_ad_im_ix_( im, ix, km, dt, sl, ps, rhc, advt, advq, &
      advp, q_in, cwm_in, t_in, q_out, cwm_out, t_out, advt_ad, advq_ad, &
      advp_ad, q_in_ad, cwm_in_ad, t_in_ad, q_out_ad, cwm_out_ad, t_out_ad, &
      adjoint )
@@ -803,6 +899,6 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
   end do
   
   return
-end subroutine gscond_ad
+end subroutine gscond_ad_im_ix_
 
-
+end module gscond_ad_mod

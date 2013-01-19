@@ -302,8 +302,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         ikx=nint(data(iikx,i))
         site_id=data(iid,i)
 
-        call tintrp2a(ges_z,elevges,dlat,dlon,dtime,hrdifsig,&
-             1,1,mype,nfldsig)
+        call tintrp2a11(ges_z,elevges,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
         
 !if elevobs is known than calculate difference otherwise
 !assume that difference is acceptable
@@ -316,8 +316,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         endif
         
         if (oneobtest_chem) then
-           call tintrp2a(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
-                1,1,mype,nfldsig)
+           call tintrp2a11(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
            if (jiter==1) then
               innov = min(maginnov_chem,cgross(ikx))
               conconeobs=pm2_5ges+innov
@@ -328,8 +328,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            endif
 
         else
-           call tintrp2a(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
-                1,1,mype,nfldsig)
+           call tintrp2a11(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
            innov = conc - pm2_5ges
         end if
 
@@ -427,8 +427,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
            ii=ii+1
 
-           call tintrp2a(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
-                1,1,mype,nfldsig)
+           call tintrp2a11(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
 
            ps_ges=ps_ges*r10 ! convert from cb to hpa
 

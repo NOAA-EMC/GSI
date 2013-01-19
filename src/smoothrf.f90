@@ -1307,7 +1307,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 ! Declare passed variables
   integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
   real(r_kind),dimension(nval_lenz)      ,intent(inout) :: z
-  real(r_kind),dimension(nlat,nlon,nlevs),intent(in   ) :: work
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) j,i

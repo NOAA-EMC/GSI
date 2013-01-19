@@ -540,7 +540,7 @@ subroutine wrwrfmassa_binary(mype)
   call mpi_wait(request,status,ierror)
   if(byte_swap) then
      num_swap=length_mub
-     call to_native_endianness_i4(mub(1,1),num_swap)
+     call to_native_endianness_r4(mub(1,1),num_swap)
   end if
 
 

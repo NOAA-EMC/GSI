@@ -271,8 +271,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         else
            dlon=dlon_earth
            dlat=dlat_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 !       Compare relative obs time with window.  If obs 

@@ -2617,7 +2617,7 @@ end subroutine write_ghg_grid
 !   Loop over all points to get interpolated value
     do j=1,ns_lat
        dlat=rlats_sfc(j)
-       call grdcrd(dlat,1,rlats,na_lat,1)
+       call grdcrd1(dlat,rlats,na_lat,1)
        iy=int(dlat)
        iy=min(max(1,iy),na_lat)
        dy  =dlat-iy
@@ -2627,7 +2627,7 @@ end subroutine write_ghg_grid
 
        do i=1,ns_lon
           dlon=rlons_sfc(i)
-          call grdcrd(dlon,1,rlons,na_lon,1)
+          call grdcrd1(dlon,rlons,na_lon,1)
           ix=int(dlon)
           dx  =dlon-ix
           dx=max(zero,min(dx,one))

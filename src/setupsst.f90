@@ -86,7 +86,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: intrp2a11
   external:: stop2
 
 ! Declare local variables
@@ -279,7 +279,7 @@ endif
 if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
-     call intrp2a(dsfct,dsfct_obx,dlat,dlon,1,1,mype)
+     call intrp2a11(dsfct,dsfct_obx,dlat,dlon,mype)
      sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
 ! Adjust observation error
      ratio_errors=error/data(ier,i)

@@ -60,7 +60,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: tintrp2a11
   external:: stop2
 
 ! Declare local variables
@@ -252,8 +252,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 ! Interpolate to get vis at obs location/time
-     call tintrp2a(ges_vis,visges,dlat,dlon,dtime,hrdifsig,&
-        1,1,mype,nfldsig)
+     call tintrp2a11(ges_vis,visges,dlat,dlon,dtime,hrdifsig,&
+        mype,nfldsig)
 
 ! Adjust observation error
      ratio_errors=error/data(ier,i)

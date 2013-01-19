@@ -340,8 +340,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         else
            dlon = dlon_earth 
            dlat = dlat_earth 
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 

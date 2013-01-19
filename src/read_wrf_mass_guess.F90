@@ -1664,7 +1664,7 @@ subroutine generic_grid2sub(tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,n
   
   integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
   integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
-  real(r_single) ,intent(in   ) :: tempa(itotsub,kbegin_loc:kend_loc)
+  real(r_single) ,intent(inout) :: tempa(itotsub,kbegin_loc:kend_loc)
   real(r_single) ,intent(  out) :: all_loc(lat2*lon2*num_fields)
   
   integer(i_kind) k

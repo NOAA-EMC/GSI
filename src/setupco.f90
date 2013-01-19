@@ -319,8 +319,8 @@ if(in_curbin) then
         ierror_poq = nint(data(ipoq,i))
 
 !       Note:  cop as log(pobs)
-        call intrp2a(ges_prsi(1,1,1,ntguessig),prsitmp,dlat,&
-          dlon,1,nsig+1,mype)
+        call intrp2a1(ges_prsi(1,1,1,ntguessig),prsitmp,dlat,&
+          dlon,nsig+1,mype)
   
 !       Map observation pressure to guess vertical coordinate
         psi=one/(prsitmp(1)*r10)  ! factor of 10 converts to hPa
@@ -331,7 +331,7 @@ if(in_curbin) then
            else
               cop(nz) = prsitmp(1)
            end if
-           call grdcrd(cop(nz),1,prsitmp,nsig+1,-1)
+           call grdcrd1(cop(nz),prsitmp,nsig+1,-1)
         enddo
 ! make any obs above surface pressure passive AVT (may need to revisit this)
         do nz=1,nlevs-1 
@@ -356,7 +356,7 @@ if(in_curbin) then
 
 !  interpolation output at ave ker levels is called coakl
 
-     call tintrp3(ges_co,coakl,dlat,dlon,cop,dtime, &
+     call tintrp31v(ges_co,coakl,dlat,dlon,cop,dtime, &
         hrdifsig,nlevs,mype,nfldsig) 
 
 !  application of averaging kernel for mopitt co 
@@ -516,8 +516,8 @@ if(in_curbin) then
 !          Set (i,j) indices of guess gridpoint that bound obs location
            call get_ij(mm1,dlat,dlon,colvktail(ibin)%head%ij(1),tempwij(1))
 
-           call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
-                1,nsig+1,mype,nfldsig)
+           call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
+                nsig+1,mype,nfldsig)
 
 
            do k = 1,nlevs

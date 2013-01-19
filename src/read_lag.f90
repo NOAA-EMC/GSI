@@ -160,8 +160,8 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
         else
            rlongrid=rlonrad
            rlatgrid=rlatrad
-           call grdcrd(rlongrid,1,rlons,nlon,1)
-           call grdcrd(rlatgrid,1,rlats,nlat,1)
+           call grdcrd1(rlongrid,rlons,nlon,1)
+           call grdcrd1(rlatgrid,rlats,nlat,1)
         end if
 
         ! In the regional grid ?

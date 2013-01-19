@@ -43,13 +43,13 @@ subroutine tpause_t(km,p,t,h,ptp)
   real(r_kind),parameter:: gamtp=2.0e-3_r_kind
   real(r_kind),parameter:: hd=2.0e3_r_kind
   real(r_kind) gamu,gamd,td,gami,wtp,ttrop,htp
-  integer(i_kind) klim(2),k,kd,ktp
+  integer(i_kind) klim(2),k,kd(1),ktp
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  Find tropopause level
 #ifdef ibm_sp
-  call rsearch(km-2,p(2),2,ptplim(1),klim(1))
+  call rsearch(km-2,p(2:),2,ptplim,klim)
 #else
-  call rsearch(1,km-2,1,1,p(2),2,1,1,ptplim(1),1,1,klim(1))
+  call rsearch(1,km-2,1,1,p(2:),2,1,1,ptplim,1,1,klim)
 #endif
   klim(1)=klim(1)+2
 
@@ -72,11 +72,11 @@ subroutine tpause_t(km,p,t,h,ptp)
      gamu=(t(k-1)-t(k+1))/(h(k+1)-h(k-1))
      if(gamu<=gamtp) then
 #ifdef ibm_sp
-        call rsearch(km-k-1,h(k+1),1,h(k)+hd,kd)
+        call rsearch(km-k-1,h(k+1:),1,h(k:)+hd,kd)
 #else
-        call rsearch(1,km-k-1,1,1,h(k+1),1,1,1,h(k)+hd,1,1,kd)
+        call rsearch(1,km-k-1,1,1,h(k+1:),1,1,1,h(k:)+hd,1,1,kd)
 #endif
-        td=t(k+kd)+(h(k)+hd-h(k+kd))/(h(k+kd+1)-h(k+kd))*(t(k+kd+1)-t(k+kd))
+        td=t(k+kd(1))+(h(k)+hd-h(k+kd(1)))/(h(k+kd(1)+1)-h(k+kd(1)))*(t(k+kd(1)+1)-t(k+kd(1)))
         gami=(t(k)-td)/hd
         if(gami<=gamtp) then
            ktp=k

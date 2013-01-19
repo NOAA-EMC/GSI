@@ -301,7 +301,7 @@ subroutine linmm(a,b,m,mm,na,nb)
   implicit none
 
   integer(i_kind)             ,intent(in   ) :: m,mm,na,nb
-  real(r_kind),dimension(na,*),intent(in   ) :: a
+  real(r_kind),dimension(na,*),intent(inout) :: a
   real(r_kind),dimension(nb,*),intent(inout) :: b
 
   integer(i_kind),dimension(m):: ipiv    ! <- numerical pivot sequence

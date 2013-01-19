@@ -84,7 +84,8 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: u_t,v_t,u,v,t,q,oz,cw
-  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t_t,q_t,oz_t,cw_t
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t_t
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: q_t,oz_t,cw_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: p_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: pri
   integer(i_kind)                         ,intent(in   ) :: mype,nnn

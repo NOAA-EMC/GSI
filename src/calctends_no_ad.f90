@@ -71,7 +71,7 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: u_t,v_t
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: t_t
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t_t
   real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: p_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: st,vp,t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p

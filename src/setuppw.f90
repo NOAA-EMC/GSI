@@ -94,7 +94,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(len=*),parameter:: myname='setuppw'
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: tintrp2a1,tintrp2a11
   external:: stop2
 
 ! Declare local variables
@@ -287,12 +287,12 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
  
      ! Interpolate model PW to obs location
-     call tintrp2a(rp2,pwges,dlat,dlon,dtime, &
-        hrdifsig,1,1,mype,nfldsig)
+     call tintrp2a11(rp2,pwges,dlat,dlon,dtime, &
+        hrdifsig,mype,nfldsig)
 
 ! Interpolate pressure at interface values to obs location
-     call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime, &
-         hrdifsig,1,nsig+1,mype,nfldsig)
+     call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime, &
+         hrdifsig,nsig+1,mype,nfldsig)
 
      if(.not.l_pw_hgt_adjust) then
         ! Compute innovation
@@ -300,16 +300,16 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
 
         ! Interpolate model q to obs location
-        call tintrp2a(ges_q,qges,dlat,dlon,dtime, &
-             hrdifsig,1,nsig,mype,nfldsig)
+        call tintrp2a1(ges_q,qges,dlat,dlon,dtime, &
+             hrdifsig,nsig,mype,nfldsig)
         
         ! Interpolate model T_v to obs location
-        call tintrp2a(ges_tv,tvges,dlat,dlon,dtime, &
-             hrdifsig,1,nsig,mype,nfldsig)
+        call tintrp2a1(ges_tv,tvges,dlat,dlon,dtime, &
+             hrdifsig,nsig,mype,nfldsig)
         
         ! Interpolate model z to obs location
-        call tintrp2a(ges_z,zges,dlat,dlon,dtime,hrdifsig,&
-             1,1,mype,nfldsig)
+        call tintrp2a11(ges_z,zges,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
         
         ! Calculate difference in PW from station elevation to model surface elevation
         pw_diff = (zges - data(istnelv,i)) * (prsitmp(1)*r1000*qges(1)) / (rd*tvges(1))
