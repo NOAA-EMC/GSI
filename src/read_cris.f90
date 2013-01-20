@@ -173,8 +173,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: R360   = 360._r_kind
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
-  real(r_kind),parameter:: rato=1.1363987_r_kind ! ratio of satellite height to 
-                                                 ! distance from Earth's centre
+  real(r_kind),parameter:: rato   = 0.87997285_r_kind 
 
 ! Initialize variables
   disterrmax=zero
@@ -475,8 +474,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         if ( ifor <= 15 ) sat_zenang = -sat_zenang
 
 !    Compare CRIS satellite scan angle and zenith angle
-
-        look_angle_est = (start + float(ifor-1)*step)*deg2rad
+ 
+        look_angle_est = (start + float(ifor)*step)*deg2rad
         sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
 
         if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
