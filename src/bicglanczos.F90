@@ -805,7 +805,7 @@ subroutine pcgprecond(xcvx,ycvx,kmat)
 
 IMPLICIT NONE
 
-TYPE(CONTROL_VECTOR) , INTENT(IN)  :: xcvx
+TYPE(CONTROL_VECTOR) , INTENT(INout)  :: xcvx
 TYPE(CONTROL_VECTOR) , INTENT(INOUT) :: ycvx
 INTEGER(i_kind)      , INTENT(IN)  :: kmat
 

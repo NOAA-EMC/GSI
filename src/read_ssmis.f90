@@ -96,7 +96,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(inout) :: mype,lunout,ithin,isfcalc
+  integer(i_kind) ,intent(in   ) :: mype
+  integer(i_kind) ,intent(inout) :: lunout,ithin,isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind

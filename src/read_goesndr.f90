@@ -287,7 +287,11 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
            end if
 
 !          test for case when hdr(15) comes back with bmiss signifying 1x1 data
-           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind) then
+         !      write(6,'(" in read_goesndr, bmiss,hdr(15)=",2ES25.18)')bmiss,hdr(15) !???????for debug only
+           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind.or.hdr(15)>bmiss) then !???bad way to test???
+                      ! dparrish fix: apparently there is a new definition of   ????????
+                      ! missing -- bmiss = 1e9, large numbers of hdr(15)=1e11 or  ????????
+                      ! 5x5 missing is 1e11 ???????????????????
               ifov = 0
            else ! 5x5 data
               ifov = nint(hdr(15)) ! number of averaged FOVS

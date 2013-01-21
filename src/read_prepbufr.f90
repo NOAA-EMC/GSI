@@ -312,6 +312,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   
 ! Initialize variables
 
+  pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
   nreal=0
   satqc=zero
   tob = obstype == 't'

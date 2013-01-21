@@ -590,7 +590,6 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
-    tlapmean=zero
     if (adp_anglebc) then 
        allocate(count_tlapmean(jpch_rad),update_tlapmean(jpch_rad),tsum_tlapmean(jpch_rad))
        count_tlapmean=0
@@ -615,6 +614,7 @@ contains
        allocate(cbiasx(maxscan))
        allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
        cbias=zero
+       tlapmean=zero
        read2: do
           read(lunin,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))',iostat=istat) &
                ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,maxscan)

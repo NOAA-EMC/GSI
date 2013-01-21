@@ -147,6 +147,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   character(len=256) command, fname
   character(8) subset
 
+  satid=1      ! debug executable wants default value ???
   idate=0
   if(trim(dtype) == 'tcp')return
 ! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
@@ -1145,8 +1146,8 @@ subroutine read_obs(ndata,mype)
 !         Process aerosol data
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
-                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)   ! ?????, &
+             !    mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))      !??? extra args???
              string='READ_AEROSOL'
              
           end if

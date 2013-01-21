@@ -956,12 +956,12 @@ contains
     dlat1=dlat_earth
     dlon1=dlon_earth
 
-    call grdcrd(dlat1,1,glat,mlat,1)
+    call grdcrd1(dlat1,glat,mlat,1)
     iy=int(dlat1)
     dy=dlat1-iy
     iy=max(1,min(iy,mlat))
 
-    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
+    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
     ix=int(dlon1)
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))

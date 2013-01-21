@@ -1029,7 +1029,7 @@ ENDDO
 
 do ii=1,nsubwin
 !-- get B standard deviations
-   call bkg_stddev(aux,mval(ii))
+   call bkg_stddev(aux%step(ii),mval(ii))
 !-- calculate diag(Pa) = diag(B) - diag(Delta P)
 !   i.e., add diag(B) as rank-1 update to diag(Delta P)
    call gsi_bundlehadamard(siga,mval(ii),mval(ii))
