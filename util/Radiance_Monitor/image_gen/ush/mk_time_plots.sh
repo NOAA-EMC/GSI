@@ -97,7 +97,7 @@ fi
 
    ${COMPRESS} ${imgndir}/*.ctl
 
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
 
 #-------------------------------------------------------------------
@@ -127,7 +127,7 @@ fi
    elif [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -153,7 +153,7 @@ fi
 #-------------------------------------------------------------------
 #  Look over satellite types.  Submit plot job for each type.
 #
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
+   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvars
 
    list="count penalty omgnbc total omgbc"
 

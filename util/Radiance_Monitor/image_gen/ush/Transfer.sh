@@ -47,8 +47,13 @@ log_file=${LOGSverf_rad}/Transfer_${SUFFIX}.log
 err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
 
 
-/usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
-   ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+if [[ $MY_MACHINE = "ccs" ]]; then
+   /usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
+      ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+   /usr/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
+      ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+fi
 
 echo end Transfer.sh
 exit

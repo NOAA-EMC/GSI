@@ -291,7 +291,7 @@ echo '</TD></TR>' >> $PLATFORM_TBL
 #--------------------------------------------------------------
 #  Edit the html files to add the platform table to each.
 #
-html_files="bcoef bcor bcor_angle horiz summary time"
+html_files="bcoef bcor bcor_angle comp horiz summary time"
 
 for file in $html_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/$file.html.$AREA .
@@ -363,7 +363,7 @@ fi
 
 
 $NCP ${RADMON_IMAGE_GEN}/html/index.html.$AREA .
-html_files="bcoef bcor_angle  bcor horiz index intro menu summary time"
+html_files="bcoef bcor_angle  bcor comp horiz index intro menu summary time"
 
 #--------------------------------------------------------------
 #  If we're running on the CCS (aix), push the html files to 
@@ -378,7 +378,7 @@ if [[ $MY_MACHINE = "ccs" ]]; then
       scp ${file}.html.${AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
    done
 
-   subdirs="angle bcoef bcor horiz summary time"
+   subdirs="angle bcoef bcor comp horiz summary time"
    for dir in $subdirs; do
       ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}/pngs/${dir}"
    done
@@ -392,7 +392,7 @@ else
       $NCP ${file}.html.${AREA} ${imgndir}/${file}.html
    done
    
-   subdirs="angle bcoef bcor horiz summary time"
+   subdirs="angle bcoef bcor comp horiz summary time"
    for dir in $subdirs; do
       mkdir -p ${IMGNDIR}/${dir}
    done

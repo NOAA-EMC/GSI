@@ -255,11 +255,12 @@ region=1
    'draw string 0.2 10.35 valid   :  'date1
    'set parea off'
 
-if (exp3 !="")
-outfile=satype'_'exp1'_'exp2'_'exp3'_comp_'om'.png'
-else
-outfile=satype'_'exp1'_'exp2'_comp_'om'.png'
-endif
+*if (exp3 !="")
+*outfile=satype'_'exp1'_'exp2'_'exp3'_comp_'om'.png'
+outfile=satype'.comp.png'
+*else
+*outfile=satype'_'exp1'_'exp2'_comp_'om'.png'
+*endif
 'printim 'outfile' x1100 y850 white'
 
 return

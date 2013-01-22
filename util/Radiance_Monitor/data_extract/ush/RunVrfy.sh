@@ -114,10 +114,9 @@ while [[ $done -eq 0 ]]; do
    # Check for running jobs   
    #--------------------------------------------------------------------
    if [[ $MY_MACHINE = "ccs" ]]; then
-#      count=`ls ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
-#      complete=`grep "COMPLETED" ${LOADLQ}/data_extract*_$SUFFIX* | wc -l`
-#      running=`expr $count - $complete`
       running=`llq -u ${LOGNAME} -f %jn | grep data_extract_${SUFFIX} | wc -l`
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      running=`bjobs -l | grep data_extract_${SUFFIX} | wc -l`
    else
       running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`
    fi

@@ -26,6 +26,8 @@ function usage {
 set -ax
 echo start CkPlt_rgnl.sh
 
+
+
 nargs=$#
 if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
@@ -85,10 +87,9 @@ mkdir -p $LOGDIR
 
 running=0
 if [[ $MY_MACHINE = "ccs" ]]; then
-#   count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
-#   complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-#   running=`expr $count - $complete`
    running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+   running=`bjobs -l | grep plot_${SUFFIX} | wc -l`
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
 fi
@@ -101,9 +102,6 @@ if [[ $running -ne 0 ]]; then
    exit
 fi
 
-#if [[ $MY_MACHINE = "ccs" ]]; then
-#   rm -f ${LOADLQ}/*plot*_${SUFFIX}*
-#fi
 
 
 #--------------------------------------------------------------------
@@ -210,9 +208,12 @@ if [[ $PLOT -eq 1 ]]; then
 
   #--------------------------------------------------------------------
   #   Set environment variables to export to subsequent scripts
-
+  if [[ $MY_MACHINE = "wcoss" ]]; then
+     `module load GrADS/2.0.1`
+     echo GADDIR = $GADDIR
+  fi
   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_MACHINE,datdir,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_MACHINE,datdir,listvar
 
 
   #------------------------------------------------------------------
@@ -225,6 +226,8 @@ if [[ $PLOT -eq 1 ]]; then
      jobname=mk_plot_horiz_${SUFFIX}
      if [[ $MY_MACHINE = "ccs" ]]; then
         ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+     elif [[ $MY_MACHINE = "wcoss" ]]; then
+        $SUB -q transfer -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
      else
         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
      fi

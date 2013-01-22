@@ -78,8 +78,8 @@ EOF
 
    $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-   rm -f ${type}.ctl 
-   rm -f ${type}*.ieee_d
+#   rm -f ${type}.ctl 
+#   rm -f ${type}*.ieee_d
 
 done
 
@@ -92,15 +92,15 @@ if [[ ! -d ${IMGNDIR}/summary ]]; then
 fi
 $NCP -r *summary.png ${IMGNDIR}/summary/.
 
-rm -f *.summary.png
+#rm -f *.summary.png
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 exit
