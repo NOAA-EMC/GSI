@@ -49,6 +49,11 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-05-25  s.liu/parrish     - correct error in height assigned to radial wind
 !   2012-02-08  wu      - bug fix to keep from using below ground radar obs, with extra printout
 !                           added to identify which obs are below ground.  
+!   2013-01-22  parrish - rwgt is not assigned a value if luse(i)=.false., but is saved anyway.
+!                           This is not a problem normally, but causes runtime failure when executable
+!                           is compiled under ifort with debug options turned on.
+!                           Since it is important to be able to use debug, set rwgt=1 
+!                           at beginning of obs loop.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -212,6 +217,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   call dtime_setup()
   do i=1,nobs
+     rwgt=one
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle

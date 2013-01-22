@@ -42,6 +42,7 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
+!   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
 !
 !   input argument list:
 !     mype     - pe number
@@ -154,6 +155,7 @@ subroutine prewgt_reg(mype)
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
 
 ! find ozmz for background error variance
+  kb=0
   if(regional_ozone) then
 
      kb_loop: do k=1,nsig
