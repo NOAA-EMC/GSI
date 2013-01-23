@@ -917,7 +917,11 @@
 !       QC AMSU-A data
         else if (amsua) then
 
-           tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           if (adp_anglebc) then
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
+           else
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           end if
            call qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),   &
               zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
               pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
@@ -945,7 +949,11 @@
 
         else if (atms) then
 
-           tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           if (adp_anglebc) then
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
+           else
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           end if
            call qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),    &
               zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
               pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
