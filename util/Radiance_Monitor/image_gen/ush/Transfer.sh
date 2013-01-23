@@ -25,7 +25,7 @@ top_parm=${this_dir}/../../parm
 if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
 else
-   echo "Unable to source ${top_parm}/RadMon_config"
+   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
    exit
 fi
 
@@ -41,18 +41,22 @@ if [[ $area == "glb" ]]; then
   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
 elif [[ $area == "rgn" ]]; then
   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
+else
+  echo "ERROR:  Unable to determine area for ${SUFFIX}"
+  exit
 fi
 
 log_file=${LOGSverf_rad}/Transfer_${SUFFIX}.log
 err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
 
-
-if [[ $MY_MACHINE = "ccs" ]]; then
-   /usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
-      ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   /usr/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
-      ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+if [[ ${IMGNDIR} != "/" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
+      /usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      /usr/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+   fi
 fi
 
 echo end Transfer.sh
