@@ -10,6 +10,7 @@ INCsfcio  = $(COREINC)/sfcio_4
 INCsigio  = $(COREINC)/sigio_4
 INCnemsio = $(COREINC)/nemsio
 INCcrtm   = $(COREINC)/crtm_2.0.5
+INCw3     = $(COREINC)/w3_d
 
 LIBcrtm = /global/save/wx20ml/CRTM_REL-2.0.5/lib/libCRTM.a
 
@@ -49,7 +50,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FFLAGS_F90    = -qfree=f90 -qsuffix=f=f90:cpp=F90 -WF,-Dibm_sp,-DWRF,-D_REAL8_
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-                  -I $(INCnetcdf) -I ${INCnemsio} -qarch=auto -O3  \
+                  -I $(INCnetcdf) -I ${INCnemsio} -I $(INCw3) -qarch=auto -O3  \
                   -qmaxmem=-1 -qfullpath -qdbg -qstrict -q64 $(OMP)
 
   FFLAGS_COM_N_NOSWAP = $(FFLAGS_COM_N)
@@ -66,7 +67,7 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 #  -qflttrap=overflow:zero:underflow:enable \ fails
 #  -qsave=all \ fails, so removing from option list
   FFLAGS_COM_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-          -I $(INCnetcdf) -I ${INCnemsio} -qarch=auto \
+          -I $(INCnetcdf) -I ${INCnemsio} -I $(INCw3) -qarch=auto \
           -qmaxmem=-1 -qfullpath -qdbg -qstrict -q64 \
           -O0 \
           -qsigtrap=xl__trcedump \

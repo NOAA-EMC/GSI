@@ -425,10 +425,10 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   type(diag_data_extra_list) ,pointer    :: data_extra(:,:)
   integer(i_kind),intent(out)            :: iflag
     
-  integer(i_kind) :: ich,iang
+  integer(i_kind) :: ich,iang,i,j
   real(r_single),dimension(:,:),allocatable :: data_tmp
   real(r_single),dimension(:),allocatable   :: fix_tmp
-!  type(old_diag_data_fix_list)              :: old_data_fix
+  real(r_single),dimension(:,:),allocatable :: extra_tmp
 
 ! Allocate arrays as needed
   if (associated(data_chan)) deallocate(data_chan)
@@ -442,9 +442,10 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   if (header_fix%iextra > 0) then
      if (associated(data_extra))   deallocate(data_extra)
      allocate(data_extra(header_fix%iextra,header_fix%jextra))
+     allocate(extra_tmp(header_fix%iextra,header_fix%jextra))
   end if
 
-! Allocate array to hold data record
+! Allocate arrays to hold data record
   allocate(data_tmp(header_fix%idiag,header_fix%nchan))
 
   if (header_fix%iversion < iversion_radiag_2) then
@@ -456,11 +457,9 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
 ! Read data record
 
   if (header_fix%iextra == 0) then
-!     read(ftin,IOSTAT=iflag) old_data_fix, data_tmp
      read(ftin,IOSTAT=iflag) fix_tmp, data_tmp
   else
-!     read(ftin,IOSTAT=iflag) old_data_fix, data_tmp, data_extra
-     read(ftin,IOSTAT=iflag) fix_tmp, data_tmp, data_extra
+     read(ftin,IOSTAT=iflag) fix_tmp, data_tmp, extra_tmp
   endif
 
 
@@ -575,8 +574,18 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)  
      end do
   endif
+
+  if (header_fix%iextra > 0) then
+     do j=1,header_fix%jextra
+        do i=1,header_fix%iextra
+           data_extra(i,j)%extra=extra_tmp(i,j)
+        end do
+     end do
+  endif
+
   deallocate(data_tmp, fix_tmp)
-    
+  if (header_fix%iextra > 0) deallocate(extra_tmp)
+
 end subroutine read_radiag_data
 
 end module read_diag
