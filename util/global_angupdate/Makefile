@@ -241,8 +241,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) main.o
-	$(LD) $(LDFLAGS) -o $@ main.o $(OBJS) $(LIBS)
+$(EXE_FILE) :  $(OBJS) 
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 # ------------------------
@@ -256,7 +256,7 @@ all :
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) main.o
+		$(OBJS)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -270,7 +270,7 @@ library :
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) main.o
+		$(OBJS)
 	@echo
 	@echo '==== CREATING LIBRARY ========================================'
 	$(MAKE) lib
@@ -283,7 +283,7 @@ debug :
 	@$(MAKE) -f $(MAKE_FILE) \
 		"FFLAGS=$(FFLAGS_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) imain.o
+		$(OBJS)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \

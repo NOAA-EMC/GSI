@@ -9,6 +9,8 @@ module strong_fast_global_mod
 ! program history log:
 !   2008-04-04  safford - add moddule doc block and missing subroutine doc blocks
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
+!   2012-11-23  parrish - Replace calls to spanaly_ns and spsynth_ns with inline code.
+!                          Remove subroutines spanaly_ns and spsynth_ns.
 !
 ! subroutines included:
 !    init_strongvars_2        --
@@ -32,8 +34,6 @@ module strong_fast_global_mod
 !    inmi_nsuvm2zdm           --
 !    spdz2uv_ns               -- compute winds from div and vort for 1 zonal wave number
 !    spuv2dz_ns               -- compute div,vort from winds for one zonal wave number
-!    spanaly_ns               -- spanaly modified for one zonal wave number
-!    spsynth_ns               -- spsynth modified for one zonal wave number
 !
 ! variable definitions:
 !
@@ -74,8 +74,6 @@ module strong_fast_global_mod
   public :: inmi_nsuvm2zdm
   public :: spdz2uv_ns
   public :: spuv2dz_ns
-  public :: spanaly_ns
-  public :: spsynth_ns
 
   integer(i_kind),allocatable:: mode_list(:,:)
                                                    !  mode_list(1,j) = lat index for ew strip j
@@ -341,7 +339,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         do i=1,nvmodes_keep
            rmstend_all_uf=rmstend_all_uf+rmstend_uf(i)
            rmstend_all_g_uf=rmstend_all_g_uf+rmstend_g_uf(i)
-           write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e14.4,2f10.4)') &
+           write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18,2f24.18)') &
                               i,rmstend_uf(i),rmstend_g_uf(i),&
                               rmstend_g_uf(i)/(rmstend_uf(i)-rmstend_g_uf(i)), &
                               rmstend_g_uf(i)/(rmstend_uf(1)-rmstend_g_uf(1))
@@ -351,14 +349,14 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         do i=1,nvmodes_keep
            rmstend_all_f=rmstend_all_f+rmstend_f(i)
            rmstend_all_g_f=rmstend_all_g_f+rmstend_g_f(i)
-           write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e14.4,2f10.4)') &
+           write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e28.18,2f24.18)') &
                               i,rmstend_f(i),rmstend_g_f(i),&
                               rmstend_g_f(i)/(rmstend_f(i)-rmstend_g_f(i)), &
                               rmstend_g_f(i)/(rmstend_f(1)-rmstend_g_f(1))
         end do
-        write(6,'(" rmstend_all_uf,g_uf,rat = ",2e14.4,f10.4)') rmstend_all_uf,rmstend_all_g_uf, &
+        write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18,f24.18)') rmstend_all_uf,rmstend_all_g_uf, &
                                                  rmstend_all_g_uf/(rmstend_all_uf-rmstend_all_g_uf) 
-        write(6,'(" rmstend_all_f,g_f,rat = ",2e14.4,f10.4)') rmstend_all_f,rmstend_all_g_f, &
+        write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18,f24.18)') rmstend_all_f,rmstend_all_g_f, &
                                                  rmstend_all_g_f/(rmstend_all_f-rmstend_all_g_f) 
      end if
      deallocate(rmstend_loc_uf,rmstend_g_loc_uf)
@@ -1741,6 +1739,7 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2012-11-23  parrish - replace calls to spanaly_ns with inline code
 !
 !   input argument list:
 !     uvm_ns   -
@@ -1765,10 +1764,14 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
   real(r_kind),dimension(2,0:sp_a%jcap+1):: spcu,spcv
   real(r_kind),dimension(0:sp_a%jcap+1):: plnloc
   real(r_kind),dimension(2,2):: fu,fv,fp
+  real(r_kind) f11u,f21u,f12u,f22u
+  real(r_kind) f11v,f21v,f12v,f22v
+  real(r_kind) f11p,f21p,f12p,f22p
   real(r_kind):: c1,c2
 
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
-!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,c2)
+!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,c2) &
+!$omp private(f11u,f21u,f12u,f22u,f11v,f21v,f12v,f22v,f11p,f21p,f12p,f22p)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
@@ -1777,13 +1780,15 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
         do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
-        end do
-        do n=m,sp_a%jcap+1
            spcu(1,n)=zero
            spcu(2,n)=zero
            spcv(1,n)=zero
            spcv(2,n)=zero
         end do
+        spcu(1,sp_a%jcap+1)=zero
+        spcu(2,sp_a%jcap+1)=zero
+        spcv(1,sp_a%jcap+1)=zero
+        spcv(2,sp_a%jcap+1)=zero
 
         do j=sp_a%jb,sp_a%je
            jsouth=1+j
@@ -1810,9 +1815,38 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
            end do
            plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
  
-           call spanaly_ns(sp_a%jcap+1,m,plnloc(m),fu,spcu(1,m))
-           call spanaly_ns(sp_a%jcap+1,m,plnloc(m),fv,spcv(1,m))
-           call spanaly_ns(sp_a%jcap  ,m,plnloc(m),fp,spcp(1,m))
+           f11u=fu(1,1)+fu(1,2)
+           f21u=fu(2,1)+fu(2,2)
+           f12u=fu(1,1)-fu(1,2)
+           f22u=fu(2,1)-fu(2,2)
+           f11v=fv(1,1)+fv(1,2)
+           f21v=fv(2,1)+fv(2,2)
+           f12v=fv(1,1)-fv(1,2)
+           f22v=fv(2,1)-fv(2,2)
+           f11p=fp(1,1)+fp(1,2)
+           f21p=fp(2,1)+fp(2,2)
+           f12p=fp(1,1)-fp(1,2)
+           f22p=fp(2,1)-fp(2,2)
+           do n=m,sp_a%jcap+1,2
+              spcu(1,n)=spcu(1,n)+plnloc(n)*f11u
+              spcu(2,n)=spcu(2,n)+plnloc(n)*f21u
+              spcv(1,n)=spcv(1,n)+plnloc(n)*f11v
+              spcv(2,n)=spcv(2,n)+plnloc(n)*f21v
+           end do
+           do n=m+1,sp_a%jcap+1,2
+              spcu(1,n)=spcu(1,n)+plnloc(n)*f12u
+              spcu(2,n)=spcu(2,n)+plnloc(n)*f22u
+              spcv(1,n)=spcv(1,n)+plnloc(n)*f12v
+              spcv(2,n)=spcv(2,n)+plnloc(n)*f22v
+           end do
+           do n=m,sp_a%jcap,2
+              spcp(1,n)=spcp(1,n)+plnloc(n)*f11p
+              spcp(2,n)=spcp(2,n)+plnloc(n)*f21p
+           end do
+           do n=m+1,sp_a%jcap,2
+              spcp(1,n)=spcp(1,n)+plnloc(n)*f12p
+              spcp(2,n)=spcp(2,n)+plnloc(n)*f22p
+           end do
 
         end do
 
@@ -1848,6 +1882,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2012-11-23  parrish - replace calls to spanaly_ns with inline code
 !
 !   input argument list:
 !     uvm_ns   -
@@ -1872,11 +1907,14 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
   real(r_kind),dimension(2,0:sp_a%jcap+1):: spcu,spcv
   real(r_kind),dimension(0:sp_a%jcap+1):: plnloc
   real(r_kind),dimension(2,2):: fu,fv,fp
+  real(r_kind) f11u,f21u,f12u,f22u
+  real(r_kind) f11v,f21v,f12v,f22v
+  real(r_kind) f11p,f21p,f12p,f22p
   real(r_kind):: c1
 
-
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
-!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,uvm_ns_temp)
+!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,uvm_ns_temp) &
+!$omp private(f11u,f21u,f12u,f22u,f11v,f21v,f12v,f22v,f11p,f21p,f12p,f22p)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
@@ -1885,13 +1923,15 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
         do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
-        end do
-        do n=m,sp_a%jcap+1
            spcu(1,n)=zero
            spcu(2,n)=zero
            spcv(1,n)=zero
            spcv(2,n)=zero
         end do
+        spcu(1,sp_a%jcap+1)=zero
+        spcu(2,sp_a%jcap+1)=zero
+        spcv(1,sp_a%jcap+1)=zero
+        spcv(2,sp_a%jcap+1)=zero
 
 !  adjoint of set pole values
         uvm_ns_temp(:,:,:)=uvm_ns(:,:,:,ipair,mm)
@@ -1934,9 +1974,38 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
            end do
            plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
 
-           call spanaly_ns(sp_a%jcap+1,m,plnloc(m),fu,spcu(1,m))
-           call spanaly_ns(sp_a%jcap+1,m,plnloc(m),fv,spcv(1,m))
-           call spanaly_ns(sp_a%jcap  ,m,plnloc(m),fp,spcp(1,m))
+           f11u=fu(1,1)+fu(1,2)
+           f21u=fu(2,1)+fu(2,2)
+           f12u=fu(1,1)-fu(1,2)
+           f22u=fu(2,1)-fu(2,2)
+           f11v=fv(1,1)+fv(1,2)
+           f21v=fv(2,1)+fv(2,2)
+           f12v=fv(1,1)-fv(1,2)
+           f22v=fv(2,1)-fv(2,2)
+           f11p=fp(1,1)+fp(1,2)
+           f21p=fp(2,1)+fp(2,2)
+           f12p=fp(1,1)-fp(1,2)
+           f22p=fp(2,1)-fp(2,2)
+           do n=m,sp_a%jcap+1,2
+              spcu(1,n)=spcu(1,n)+plnloc(n)*f11u
+              spcu(2,n)=spcu(2,n)+plnloc(n)*f21u
+              spcv(1,n)=spcv(1,n)+plnloc(n)*f11v
+              spcv(2,n)=spcv(2,n)+plnloc(n)*f21v
+           end do
+           do n=m+1,sp_a%jcap+1,2
+              spcu(1,n)=spcu(1,n)+plnloc(n)*f12u
+              spcu(2,n)=spcu(2,n)+plnloc(n)*f22u
+              spcv(1,n)=spcv(1,n)+plnloc(n)*f12v
+              spcv(2,n)=spcv(2,n)+plnloc(n)*f22v
+           end do
+           do n=m,sp_a%jcap,2
+              spcp(1,n)=spcp(1,n)+plnloc(n)*f11p
+              spcp(2,n)=spcp(2,n)+plnloc(n)*f21p
+           end do
+           do n=m+1,sp_a%jcap,2
+              spcp(1,n)=spcp(1,n)+plnloc(n)*f12p
+              spcp(2,n)=spcp(2,n)+plnloc(n)*f22p
+           end do
 
         end do
 
@@ -1981,6 +2050,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 ! program history log:
 !   2008-04-04  safford -- add subprogram doc block, rm unused uses
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2012-11-23  parrish - replace calls to spsynth_ns with inline code
 !
 !   input argument list:
 !     uvm_ns   -
@@ -2004,11 +2074,15 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
   real(r_kind),dimension(2,0:sp_a%jcap+1):: spcu,spcv
   real(r_kind),dimension(0:sp_a%jcap+1):: plnloc
   real(r_kind),dimension(2,2):: fu,fv,fp
+  real(r_kind) f1ur,f1ui,f2ur,f2ui
+  real(r_kind) f1vr,f1vi,f2vr,f2vi
+  real(r_kind) f1pr,f1pi,f2pr,f2pi
 
   real(r_kind):: c1
 
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
-!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1)
+!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1) &
+!$omp private(f1ur,f1ui,f2ur,f2ui,f1vr,f1vi,f2vr,f2vi,f1pr,f1pi,f2pr,f2pi)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
@@ -2045,9 +2119,59 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
  
 !          obtain f
 
-           call spsynth_ns(sp_a%jcap+1,m,plnloc(m),spcu(1,m),fu)
-           call spsynth_ns(sp_a%jcap+1,m,plnloc(m),spcv(1,m),fv)
-           call spsynth_ns(sp_a%jcap  ,m,plnloc(m),spcp(1,m),fp)
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  zero out fourier coefficients.
+           f1ur=zero
+           f1ui=zero
+           f2ur=zero
+           f2ui=zero
+           f1vr=zero
+           f1vi=zero
+           f2vr=zero
+           f2vi=zero
+           f1pr=zero
+           f1pi=zero
+           f2pr=zero
+           f2pi=zero
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  synthesis over finite latitude.
+!  for each zonal wavenumber, synthesize terms over total wavenumber.
+!  synthesize even and odd polynomials separately.
+           do n=m,sp_a%jcap+1,2
+              f1ur=f1ur+plnloc(n)*spcu(1,n)
+              f1ui=f1ui+plnloc(n)*spcu(2,n)
+              f1vr=f1vr+plnloc(n)*spcv(1,n)
+              f1vi=f1vi+plnloc(n)*spcv(2,n)
+           enddo
+           do n=m+1,sp_a%jcap+1,2
+              f2ur=f2ur+plnloc(n)*spcu(1,n)
+              f2ui=f2ui+plnloc(n)*spcu(2,n)
+              f2vr=f2vr+plnloc(n)*spcv(1,n)
+              f2vi=f2vi+plnloc(n)*spcv(2,n)
+           enddo
+           do n=m,sp_a%jcap,2
+              f1pr=f1pr+plnloc(n)*spcp(1,n)
+              f1pi=f1pi+plnloc(n)*spcp(2,n)
+           enddo
+           do n=m+1,sp_a%jcap,2
+              f2pr=f2pr+plnloc(n)*spcp(1,n)
+              f2pi=f2pi+plnloc(n)*spcp(2,n)
+           enddo
+!  separate fourier coefficients from each hemisphere.
+!  odd polynomials contribute negatively to the southern hemisphere.
+           fu(1,1)=f1ur+f2ur
+           fu(2,1)=f1ui+f2ui
+           fu(1,2)=f1ur-f2ur
+           fu(2,2)=f1ui-f2ui
+           fv(1,1)=f1vr+f2vr
+           fv(2,1)=f1vi+f2vi
+           fv(1,2)=f1vr-f2vr
+           fv(2,2)=f1vi-f2vi
+           fp(1,1)=f1pr+f2pr
+           fp(2,1)=f1pi+f2pi
+           fp(1,2)=f1pr-f2pr
+           fp(2,2)=f1pi-f2pi
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 !          scatter back to output pairs of lats
  
@@ -2127,6 +2251,7 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
 ! program history log:
 !   2009-08-13  lueken - added subprogram doc block
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2012-11-23  parrish - replace calls to spsynth_ns with inline code
 !
 !   input argument list:
 !    pcm_hat
@@ -2149,9 +2274,13 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
   real(r_kind),dimension(2,0:sp_a%jcap):: spcp,spcc,spcm
   real(r_kind),dimension(0:sp_a%jcap+1):: plnloc
   real(r_kind),dimension(2,2):: fp,fc,fm
+  real(r_kind) f1pr,f1pi,f2pr,f2pi
+  real(r_kind) f1cr,f1ci,f2cr,f2ci
+  real(r_kind) f1mr,f1mi,f2mr,f2mi
 
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
-!$omp private(spcc,spcm,spcp,j,jnorth,jsouth,plnloc,fc,fm,fp)
+!$omp private(spcc,spcm,spcp,j,jnorth,jsouth,plnloc,fc,fm,fp) &
+!$omp private(f1pr,f1pi,f2pr,f2pi,f1cr,f1ci,f2cr,f2ci,f1mr,f1mi,f2mr,f2mi)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
@@ -2179,13 +2308,57 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
            do n=m,sp_a%jcap
               plnloc(n)=sp_a%pln(ics+n,j)
            end do
-           plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
 
 !          obtain f
 
-           call spsynth_ns(sp_a%jcap,m,plnloc(m),spcp(1,m),fp)
-           call spsynth_ns(sp_a%jcap,m,plnloc(m),spcc(1,m),fc)
-           call spsynth_ns(sp_a%jcap,m,plnloc(m),spcm(1,m),fm)
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  zero out fourier coefficients.
+           f1pr=zero
+           f1pi=zero
+           f2pr=zero
+           f2pi=zero
+           f1cr=zero
+           f1ci=zero
+           f2cr=zero
+           f2ci=zero
+           f1mr=zero
+           f1mi=zero
+           f2mr=zero
+           f2mi=zero
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  synthesis over finite latitude.
+!  for each zonal wavenumber, synthesize terms over total wavenumber.
+!  synthesize even and odd polynomials separately.
+           do n=m,sp_a%jcap,2
+              f1pr=f1pr+plnloc(n)*spcp(1,n)
+              f1pi=f1pi+plnloc(n)*spcp(2,n)
+              f1cr=f1cr+plnloc(n)*spcc(1,n)
+              f1ci=f1ci+plnloc(n)*spcc(2,n)
+              f1mr=f1mr+plnloc(n)*spcm(1,n)
+              f1mi=f1mi+plnloc(n)*spcm(2,n)
+           enddo
+           do n=m+1,sp_a%jcap,2
+              f2pr=f2pr+plnloc(n)*spcp(1,n)
+              f2pi=f2pi+plnloc(n)*spcp(2,n)
+              f2cr=f2cr+plnloc(n)*spcc(1,n)
+              f2ci=f2ci+plnloc(n)*spcc(2,n)
+              f2mr=f2mr+plnloc(n)*spcm(1,n)
+              f2mi=f2mi+plnloc(n)*spcm(2,n)
+           enddo
+!  separate fourier coefficients from each hemisphere.
+!  odd polynomials contribute negatively to the southern hemisphere.
+           fp(1,1)=f1pr+f2pr
+           fp(2,1)=f1pi+f2pi
+           fp(1,2)=f1pr-f2pr
+           fp(2,2)=f1pi-f2pi
+           fc(1,1)=f1cr+f2cr
+           fc(2,1)=f1ci+f2ci
+           fc(1,2)=f1cr-f2cr
+           fc(2,2)=f1ci-f2ci
+           fm(1,1)=f1mr+f2mr
+           fm(2,1)=f1mi+f2mi
+           fm(1,2)=f1mr-f2mr
+           fm(2,2)=f1mi-f2mi
 
 !          scatter back to output pairs of lats
 
@@ -2251,6 +2424,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
 ! program history log:
 !   2009-08-13  lueken - added subprogram doc block
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2012-11-23  parrish - replace calls to spanaly_ns with inline code
 !
 !   input argument list:
 !    pcm_ns
@@ -2273,10 +2447,14 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
   real(r_kind),dimension(2,0:sp_a%jcap):: spcp,spcc,spcm
   real(r_kind),dimension(0:sp_a%jcap+1):: plnloc
   real(r_kind),dimension(2,2):: fp,fc,fm
+  real(r_kind) f11p,f21p,f12p,f22p
+  real(r_kind) f11c,f21c,f12c,f22c
+  real(r_kind) f11m,f21m,f12m,f22m
 
   pcm_hat=zero
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
-!$omp private(spcc,spcm,spcp,j,jnorth,jsouth,plnloc,fc,fm,fp,pcm_ns_temp)
+!$omp private(spcc,spcm,spcp,j,jnorth,jsouth,plnloc,fc,fm,fp,pcm_ns_temp) &
+!$omp private(f11p,f21p,f12p,f22p,f11c,f21c,f12c,f22c,f11m,f21m,f12m,f22m)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
@@ -2327,13 +2505,37 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
            do n=m,sp_a%jcap
               plnloc(n)=sp_a%pln(ics+n,j)
            end do
-           plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
 
 !          adjoint of obtain f
 
-           call spanaly_ns(sp_a%jcap,m,plnloc(m),fp,spcp(1,m))
-           call spanaly_ns(sp_a%jcap,m,plnloc(m),fc,spcc(1,m))
-           call spanaly_ns(sp_a%jcap,m,plnloc(m),fm,spcm(1,m))
+           f11p=fp(1,1)+fp(1,2)
+           f21p=fp(2,1)+fp(2,2)
+           f12p=fp(1,1)-fp(1,2)
+           f22p=fp(2,1)-fp(2,2)
+           f11c=fc(1,1)+fc(1,2)
+           f21c=fc(2,1)+fc(2,2)
+           f12c=fc(1,1)-fc(1,2)
+           f22c=fc(2,1)-fc(2,2)
+           f11m=fm(1,1)+fm(1,2)
+           f21m=fm(2,1)+fm(2,2)
+           f12m=fm(1,1)-fm(1,2)
+           f22m=fm(2,1)-fm(2,2)
+           do n=m,sp_a%jcap,2
+              spcp(1,n)=spcp(1,n)+plnloc(n)*f11p
+              spcp(2,n)=spcp(2,n)+plnloc(n)*f21p
+              spcc(1,n)=spcc(1,n)+plnloc(n)*f11c
+              spcc(2,n)=spcc(2,n)+plnloc(n)*f21c
+              spcm(1,n)=spcm(1,n)+plnloc(n)*f11m
+              spcm(2,n)=spcm(2,n)+plnloc(n)*f21m
+           end do
+           do n=m+1,sp_a%jcap,2
+              spcp(1,n)=spcp(1,n)+plnloc(n)*f12p
+              spcp(2,n)=spcp(2,n)+plnloc(n)*f22p
+              spcc(1,n)=spcc(1,n)+plnloc(n)*f12c
+              spcc(2,n)=spcc(2,n)+plnloc(n)*f22c
+              spcm(1,n)=spcm(1,n)+plnloc(n)*f12m
+              spcm(2,n)=spcm(2,n)+plnloc(n)*f22m
+           end do
  
         end do
 
@@ -2368,6 +2570,7 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
 ! program history log:
 !   2009-08-13  lueken - added subprogram doc block
 !   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2012-11-23  parrish - replace calls to spsynth_ns with inline code
 !
 !   input argument list:
 !    uvm_ns
@@ -2392,12 +2595,15 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
   real(r_kind),dimension(2,0:sp_a%jcap+1):: spcu,spcv
   real(r_kind),dimension(0:sp_a%jcap+1):: plnloc
   real(r_kind),dimension(2,2):: fu,fv,fp
+  real(r_kind) f1ur,f1ui,f2ur,f2ui
+  real(r_kind) f1vr,f1vi,f2vr,f2vi
+  real(r_kind) f1pr,f1pi,f2pr,f2pi
 
   real(r_kind):: c1,c2
 
-
 !$omp parallel do  schedule(dynamic,1) private(mm,ipair,m,ics,i,n) &
-!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,c2)
+!$omp private(spcz,spcd,spcp,spcu,spcv,j,jnorth,jsouth,plnloc,fu,fv,fp,c1,c2) &
+!$omp private(f1ur,f1ui,f2ur,f2ui,f1vr,f1vi,f2vr,f2vi,f1pr,f1pi,f2pr,f2pi)
   do mm=m_0,m_1
      do ipair=1,2
         m=mmode_list(ipair,mm)
@@ -2434,9 +2640,58 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
 
 !          obtain f
 
-           call spsynth_ns(sp_a%jcap+1,m,plnloc(m),spcu(1,m),fu)
-           call spsynth_ns(sp_a%jcap+1,m,plnloc(m),spcv(1,m),fv)
-           call spsynth_ns(sp_a%jcap  ,m,plnloc(m),spcp(1,m),fp)
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  zero out fourier coefficients.
+           f1ur=zero
+           f1ui=zero
+           f2ur=zero
+           f2ui=zero
+           f1vr=zero
+           f1vi=zero
+           f2vr=zero
+           f2vi=zero
+           f1pr=zero
+           f1pi=zero
+           f2pr=zero
+           f2pi=zero
+! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+!  synthesis over finite latitude.
+!  for each zonal wavenumber, synthesize terms over total wavenumber.
+!  synthesize even and odd polynomials separately.
+           do n=m,sp_a%jcap+1,2
+              f1ur=f1ur+plnloc(n)*spcu(1,n)
+              f1ui=f1ui+plnloc(n)*spcu(2,n)
+              f1vr=f1vr+plnloc(n)*spcv(1,n)
+              f1vi=f1vi+plnloc(n)*spcv(2,n)
+           enddo
+           do n=m+1,sp_a%jcap+1,2
+              f2ur=f2ur+plnloc(n)*spcu(1,n)
+              f2ui=f2ui+plnloc(n)*spcu(2,n)
+              f2vr=f2vr+plnloc(n)*spcv(1,n)
+              f2vi=f2vi+plnloc(n)*spcv(2,n)
+           enddo
+           do n=m,sp_a%jcap,2
+              f1pr=f1pr+plnloc(n)*spcp(1,n)
+              f1pi=f1pi+plnloc(n)*spcp(2,n)
+           enddo
+           do n=m+1,sp_a%jcap,2
+              f2pr=f2pr+plnloc(n)*spcp(1,n)
+              f2pi=f2pi+plnloc(n)*spcp(2,n)
+           enddo
+!  separate fourier coefficients from each hemisphere.
+!  odd polynomials contribute negatively to the southern hemisphere.
+           fu(1,1)=f1ur+f2ur
+           fu(2,1)=f1ui+f2ui
+           fu(1,2)=f1ur-f2ur
+           fu(2,2)=f1ui-f2ui
+           fv(1,1)=f1vr+f2vr
+           fv(2,1)=f1vi+f2vi
+           fv(1,2)=f1vr-f2vr
+           fv(2,2)=f1vi-f2vi
+           fp(1,1)=f1pr+f2pr
+           fp(2,1)=f1pi+f2pi
+           fp(1,2)=f1pr-f2pr
+           fp(2,2)=f1pi-f2pi
 
 !          scatter back to output pairs of lats
 
@@ -2638,139 +2893,5 @@ end subroutine inmi_nsuvm2zdm_ad
 
       return
       end subroutine spuv2dz_ns
-
-!-----------------------------------------------------------------------
-      subroutine spanaly_ns(m,l,pln,f,spc)
-!$$$  subprogram documentation block
-!
-! subprogram:    spanaly     analyze spectral from fourier
-!   prgmmr: iredell          org: w/nmc23     date: 92-10-31
-!
-! abstract: analyzes spectral coefficients from fourier coefficients
-!           for a latitude pair (northern and southern hemispheres).
-!           vector components are multiplied by cosine of latitude.
-!           triangular truncation only
-!
-! program history log:
-!   91-10-31  mark iredell
-!   94-08-01  mark iredell   moved zonal wavenumber loop inside
-! 1998-12-15  iredell  openmp directives inserted
-! 2006-09-10  parrish -- modify to do one zonal wave number only for parallel
-!                        computation across processors by zonal wave number
-! 2010-05-14  derber  - triangular truncation only
-! 2010-07-09  derber  - move multiplication by constants outside code and 
-!                       move vector addition by one to m outside
-!
-! usage:    call spanaly_ns(m,l,pln,f,spc)
-!
-!   input argument list:
-!     m        - integer spectral truncation (for vector quantities add 1)
-!     l        - zonal wave number to process for this call
-!     pln      - real (l:m) legendre polynomials
-!     f        - real (2,2) input zonal wave number coefficients for this lat pair
-!
-!   output argument list:
-!     spc      - real (2,l:m) spectral coefficients
-!
-! attributes:
-!   language: cray fortran
-!
-!$$$
-      implicit none
-
-      integer(i_kind),intent(in   ) :: m,l
-      real(r_kind)   ,intent(in   ) :: pln(l:m)
-      real(r_kind)   ,intent(in   ) :: f(2,2)
-      real(r_kind)   ,intent(inout) :: spc(2,l:m)
-
-      real(r_kind) f11,f21,f12,f22
-      integer(i_kind) n
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-      f11=f(1,1)+f(1,2)
-      f21=f(2,1)+f(2,2)
-      f12=f(1,1)-f(1,2)
-      f22=f(2,1)-f(2,2)
-      do n=l,m,2
-         spc(1,n)=spc(1,n)+pln(n)*f11
-         spc(2,n)=spc(2,n)+pln(n)*f21
-      end do
-      do n=l+1,m,2
-         spc(1,n)=spc(1,n)+pln(n)*f12
-         spc(2,n)=spc(2,n)+pln(n)*f22
-      end do
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-      return
-      end subroutine spanaly_ns
-!-----------------------------------------------------------------------
-      subroutine spsynth_ns(m,l,pln,spc,f)
-!$$$  subprogram documentation block
-!
-! subprogram:    spsynth_ns  spsynth modified for one zonal wave number triangular trunkation only
-!   prgmmr: iredell          org: w/nmc23     date: 92-10-31
-!
-! abstract: synthesizes fourier coefficients from spectral coefficients
-!           for a latitude pair (northern and southern hemispheres).
-!           vector components are divided by cosine of latitude.
-!
-! program history log:
-!   91-10-31  mark iredell
-! 1998-12-18  mark iredell  include scalar and gradient option
-! 2006-09-06  parrish -- modify to do one zonal wave number only for parallel
-!                        computation across processors by zonal wave number
-! 2010-05-14  derber  - modify of triangular truncation only
-! 2010-07-09  derber  - move multiplication by constants outside code and 
-!                       move vector addition by one to m outside
-!
-! usage:    call spsynth_ns(m,l,pln,spc,f)
-!
-!   input argument list:
-!     m        - integer spectral truncation (plus 1 for vector quantities)
-!     l        - zonal wave number to process for this call
-!     pln      - real (l:m+mp) legendre polynomial
-!     spc      - real (2,l:m+mp) spectral coefficients
-!
-!   output argument list:
-!     f        - real (2,2) zonal wave number for this latitude pair
-!
-! attributes:
-!   language: cray fortran
-!
-!$$$
-      implicit none
- 
-      integer(i_kind),intent(in   ) :: m,l
-      real(r_kind)   ,intent(in   ) :: pln(l:m)
-      real(r_kind)   ,intent(in   ) :: spc(2,l:m)
-      real(r_kind)   ,intent(  out) :: f(2,2)
-
-      integer(i_kind) n
-      real(r_kind) f1r,f1i,f2r,f2i
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!  zero out fourier coefficients.
-      f1r=zero
-      f1i=zero
-      f2r=zero
-      f2i=zero
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!  synthesis over finite latitude.
-!  for each zonal wavenumber, synthesize terms over total wavenumber.
-!  synthesize even and odd polynomials separately.
-      do n=l,m,2
-         f1r=f1r+pln(n)*spc(1,n)
-         f1i=f1i+pln(n)*spc(2,n)
-      enddo
-      do n=l+1,m,2
-         f2r=f2r+pln(n)*spc(1,n)
-         f2i=f2i+pln(n)*spc(2,n)
-      enddo
-!  separate fourier coefficients from each hemisphere.
-!  odd polynomials contribute negatively to the southern hemisphere.
-      f(1,1)=f1r+f2r
-      f(2,1)=f1i+f2i
-      f(1,2)=f1r-f2r
-      f(2,2)=f1i-f2i
-! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-      return
-      end subroutine spsynth_ns
 
 end module strong_fast_global_mod
