@@ -1802,8 +1802,8 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   character(10) cwrfges
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
-  integer(i_long) lenrec,lensave
-  equivalence (lenrec4(1),lenrec)
+  integer(i_long) lenrec(1),lensave
+  equivalence (lenrec4(1),lenrec(1))
   integer(i_byte) missing4(4)
   integer(i_long) missing
   equivalence (missing,missing4(1))
@@ -1844,8 +1844,8 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec <= 0_i_long .and. lastbuf) go to 900
-     if(lenrec <= 0_i_long .and. .not.lastbuf) go to 885
+     if(lenrec(1) <= 0_i_long .and. lastbuf) go to 900
+     if(lenrec(1) <= 0_i_long .and. .not.lastbuf) go to 885
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
@@ -1857,7 +1857,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
     
      loc_count=1
      do i=2,4
-        if(loc_count>=lenrec) exit
+        if(loc_count>=lenrec(1)) exit
         loc_count=loc_count+1
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -1867,7 +1867,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         end if
      end do
      do i=1,4
-        if(loc_count>=lenrec) exit
+        if(loc_count>=lenrec(1)) exit
         loc_count=loc_count+1
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -1876,13 +1876,13 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
         end if
      end do
-     nextbyte=nextbyte-loc_count+lenrec
-     locbyte=locbyte-loc_count+lenrec
+     nextbyte=nextbyte-loc_count+lenrec(1)
+     locbyte=locbyte-loc_count+lenrec(1)
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
      end if
-     lensave=lenrec
+     lensave=lenrec(1)
      do i=1,4
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -1896,7 +1896,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec /= lensave) go to 890
+     if(lenrec(1) /= lensave) go to 890
     
   end do
 
@@ -1907,14 +1907,14 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 
 885 continue
   write(6,*)' problem in count_recs_wrf_binary_file, lenrec has bad value before end of file'
-  write(6,*)'     lenrec =',lenrec
+  write(6,*)'     lenrec =',lenrec(1)
   call closefile(in_unit,ierr)
   return
 
 890 continue
   write(6,*)' problem in count_recs_wrf_binary_file, beginning and ending rec len words unequal'
   write(6,*)'     begining reclen =',lensave
-  write(6,*)'       ending reclen =',lenrec
+  write(6,*)'       ending reclen =',lenrec(1)
   write(6,*)'             in_unit =',in_unit
   call closefile(in_unit,ierr)
   return
@@ -1964,9 +1964,9 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
   integer(i_byte) lenrec4_swap(4)
-  integer(i_long) lenrec,lensave
+  integer(i_long) lenrec(1),lensave
   integer(i_long) lenrec_swap
-  equivalence (lenrec4(1),lenrec)
+  equivalence (lenrec4(1),lenrec(1))
   equivalence (lenrec4_swap(1),lenrec_swap)
   integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_llong),parameter:: lword=2**18_i_llong
@@ -1996,10 +1996,10 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
      lenrec4(i)=buf(locbyte)
      lenrec4_swap(5-i)=buf(locbyte)
   end do
-  byte_swap = lenrec <= 0 .or. lenrec > 4096
+  byte_swap = lenrec(1) <= 0 .or. lenrec(1) > 4096
      
   write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
-  write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec,lenrec_swap
+  write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec(1),lenrec_swap
 
   call closefile(in_unit,ierr)
 
@@ -2071,8 +2071,8 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_kind) irecs
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
-  integer(i_long) lenrec,lensave
-  equivalence (lenrec4(1),lenrec)
+  integer(i_long) lenrec(1),lensave
+  equivalence (lenrec4(1),lenrec(1))
   integer(i_byte) missing4(4)
   integer(i_long) missing
   equivalence (missing,missing4(1))
@@ -2138,9 +2138,9 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec <= 0_i_long .and. lastbuf) go to 900
-     if(lenrec <= 0_i_long .and. .not. lastbuf) go to 885
-     if(mod(lenrec,4)/=0) go to 886
+     if(lenrec(1) <= 0_i_long .and. lastbuf) go to 900
+     if(lenrec(1) <= 0_i_long .and. .not. lastbuf) go to 885
+     if(mod(lenrec(1),4)/=0) go to 886
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
@@ -2162,7 +2162,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
      loc_count=1
      do i=2,8
-        if(loc_count>=lenrec) exit
+        if(loc_count>=lenrec(1)) exit
         loc_count=loc_count+1
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -2177,12 +2177,12 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         call to_native_endianness_i4(hdrbuf,num_swap)
      end if
 
-!     if(lenrec==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
+!     if(lenrec(1)==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
 !                                       irecs,hdrbuf(2),int_dom_ti_char,int_field
-     if(lenrec==2048_i_long.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
+     if(lenrec(1)==2048_i_long.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
 
 !    bring in next full record, so we can unpack datestr, varname, and domainend
-        do i=9,lenrec
+        do i=9,lenrec(1)
            loc_count=loc_count+1
            nextbyte=nextbyte+1_i_llong
            locbyte=locbyte+1_i_llong
@@ -2193,7 +2193,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
            hdrbuf4(i)=buf(locbyte)
         end do
         if(byte_swap) then
-           num_swap=(lenrec/4)-2
+           num_swap=(lenrec(1)/4)-2
            call to_native_endianness_i4(hdrbuf(3),num_swap)
         end if
 
@@ -2223,15 +2223,15 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
      end if
 
-     nextbyte=nextbyte-loc_count+lenrec
-     locbyte=locbyte-loc_count+lenrec
+     nextbyte=nextbyte-loc_count+lenrec(1)
+     locbyte=locbyte-loc_count+lenrec(1)
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
      end if
      end_block(irecs)=thisblock
      end_byte(irecs)=locbyte
-     lensave=lenrec
+     lensave=lenrec(1)
      do i=1,4
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -2245,7 +2245,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec /= lensave) go to 890
+     if(lenrec(1) /= lensave) go to 890
     
   end do
 
@@ -2256,20 +2256,20 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
 885 continue
   write(6,*)' problem in inventory_wrf_binary_file, lenrec has bad value before end of file'
-  write(6,*)'     lenrec =',lenrec
+  write(6,*)'     lenrec =',lenrec(1)
   call closefile(in_unit,ierr)
   return
 
 886 continue
   write(6,*)' problem in inventory_wrf_binary_file, lenrec not a multiple of 4'
-  write(6,*)'     lenrec =',lenrec
+  write(6,*)'     lenrec =',lenrec(1)
   call closefile(in_unit,ierr)
   return
 
 890 continue
   write(6,*)' problem in inventory_wrf_binary_file, beginning and ending rec len words unequal'
   write(6,*)'     begining reclen =',lensave
-  write(6,*)'       ending reclen =',lenrec
+  write(6,*)'       ending reclen =',lenrec(1)
   write(6,*)'               irecs =',irecs
   write(6,*)'               nrecs =',nrecs
   call closefile(in_unit,ierr)

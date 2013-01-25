@@ -3703,9 +3703,14 @@ subroutine outgrad1(f,label,nx,ny)
          character(80) dsdes,dsdat
          character(80) datdes(1000)
          character(1) blank
+         integer np,ioutcor,ioutdat,ntime
+         integer i,j,k,next,last,koutmax
+         real(4) out(nx,ny)
+         real(4) undef,rlonmap0,rlatmap0,dlonmap,dlatmap
+         real(4) startp,pinc
          data blank/' '/
          data undef/-9.99e33/
-         real(4) out(nx,ny)
+
 
          np=1
          ioutcor=10
