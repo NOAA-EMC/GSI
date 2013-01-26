@@ -575,11 +575,13 @@ contains
     hwlmin=hwlmin*hzsmin
 
 ! setup smoother coef and scale
-    if (hwlmax==zero .or. hwlmin==zero) then
+    if (hwlmax<=zero .or. hwlmin<=zero) then
        write(6,*)'INIT_RFTABLE:  ***ERROR*** illegal value for min,max scale.',&
             '  hwlmin,hwlmax=',hwlmin,hwlmax,mype
        call stop2(41)
     endif
+
+
     hwlb=one/hwlmax
     hwle=one/hwlmin
 
