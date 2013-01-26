@@ -786,7 +786,10 @@ contains
 
 ! Read SST dependent radiance bias correction lookup table
     if (retrieval) then
-      
+    
+       allocate(predx(npred,jpch_rad))
+       predx=zero
+
        allocate(fbias(numt,jpch_rad))
        fbias=zero
        

@@ -92,7 +92,7 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,merge_two_grid_ensperts, &
-                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,&
+                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,q_hyb_ens,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
@@ -649,6 +649,8 @@
 !     l_hyb_ens     - if true, then turn on hybrid ensemble option
 !     uv_hyb_ens    - if true, then ensemble perturbation wind variables are u,v,
 !                       otherwise, ensemble perturbation wind variables are stream, pot. functions.
+!     q_hyb_ens     - if true, then use specific humidity ensemble perturbations,
+!                       otherwise, use relative humidity
 !     oz_univ_static- if true, decouple ozone from other variables and defaults to static B (ozone only)
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
@@ -683,7 +685,7 @@
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
 !     enspreproc - flag to read(.true.) pre-processed ensemble data already
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,enspreproc

@@ -34,6 +34,7 @@ module satthin
 !   2011-04-01  li      - add getnst to read nst fields, add destroy_nst
 !   2011-05-26  todling - add create_nst
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
+!   2012-11-09  parrish - bug fix in makegvals
 !
 ! Subroutines Included:
 !   sub makegvals      - set up for superob weighting
@@ -97,7 +98,7 @@ module satthin
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_quad
   use mpeu_util, only: die, perr
   implicit none
 
@@ -163,7 +164,8 @@ contains
 !                         on regional grid when domain includes north pole.
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
-!   2012-10-11  eliu/wu - make sure dlon_e is in the range of 0 and 360  
+!   2012-10-11  eliu/wu - make sure dlon_e is in the range of 0 and 360
+!   2013-01-09  collard - simplify regional dlon_e range check
 !
 !   input argument list:
 !
@@ -187,7 +189,7 @@ contains
 
     integer(i_kind) i,ii,j
     integer(i_kind) mlonx,icnt,mlony,mlonj
-    real(r_kind) delonx,delat,dgv,dx,dy
+    real(r_kind) delat,dgv,dx,dy
     real(r_kind) twopi,dlon_g,dlat_g,dlon_e,dlat_e
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm,glatx
@@ -218,20 +220,11 @@ contains
              call txy2ll(dlon_g,dlat_g,dlon_e,dlat_e)
              dlat_e=dlat_e*rad2deg
              dlon_e=dlon_e*rad2deg
-             i1_loop: do ii=1,10
-                if (dlon_e < zero) then
-                dlon_e = dlon_e + r360
-                else
-                exit i1_loop
-                endif
-             enddo i1_loop
-             i2_loop: do ii=1,10
-                if (dlon_e > r360) then
-                dlon_e = dlon_e - r360
-                else
-                exit i2_loop
-                endif
-             enddo i2_loop
+             if (dlon_e < zero) then
+                dlon_e = MOD(dlon_e,-r360) + r360
+             else if (dlon_e > r360) then
+                dlon_e = MOD(dlon_e,r360)
+             endif
              rlat_min = min(rlat_min,dlat_e)
              rlat_max = max(rlat_max,dlat_e)
              rlon_min = min(rlon_min,dlon_e)
@@ -252,7 +245,6 @@ contains
           mlat  = dlat_grid/dy + half
           mlonx = dlon_grid/dx + half
           delat = dlat_grid/mlat
-          delonx= dlon_grid/mlonx	
           dgv   = delat*half
           mlat=max(2,mlat);   mlonx=max(2,mlonx)
 
@@ -328,10 +320,11 @@ contains
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
-    real(r_kind) delonx,delat,dgv,halfpi,dx,dy
+    real(r_kind) dgv,halfpi,dx,dy
     real(r_kind) twopi
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm
+    real(r_quad) delat
 
 
 !   If there is to be no thinning, simply return to calling routine
@@ -360,8 +353,7 @@ contains
     dy    = dx
     mlat  = dlat_grid/dy + half
     mlonx = dlon_grid/dx + half
-	delat = dlat_grid/mlat
-	delonx= dlon_grid/mlonx
+    delat = dlat_grid/mlat
     dgv  = delat*half
     mlat=max(2,mlat);   mlonx=max(2,mlonx)
 

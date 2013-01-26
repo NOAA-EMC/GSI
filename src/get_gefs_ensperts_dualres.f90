@@ -34,7 +34,7 @@ subroutine get_gefs_ensperts_dualres
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_4dvar, only: l4densvar,ens4d_fhrlevs
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -176,6 +176,16 @@ subroutine get_gefs_ensperts_dualres
           end do
        end if
        deallocate(pri)
+
+       if (.not.q_hyb_ens) then
+          ice=.true.
+          iderivative=0
+          call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+       else
+! Code below uses case construct.  To avoid if statement, avoid converting q to rh by defining
+! qs to be equal to one, as rh=q/qs
+          qs(:,:,:)=one
+       end if
 
        ice=.true.
        iderivative=0
