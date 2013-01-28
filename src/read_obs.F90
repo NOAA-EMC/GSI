@@ -468,7 +468,7 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
     character(10):: obstype,platid
@@ -549,6 +549,7 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
+       mls = index(obstype,'mls') /= 0
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -573,7 +574,7 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev' &
-           .or. obstype == 'mls' ) then
+           .or. mls ) then
           ditype(i) = 'ozone'
        else if (obstype == 'mopitt') then
           ditype(i) = 'co'
