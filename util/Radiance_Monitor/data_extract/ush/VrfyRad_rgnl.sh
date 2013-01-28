@@ -7,17 +7,18 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  VrfyRad_rgnl.sh suffix run_envir"
+  echo "Usage:  VrfyRad_rgnl.sh suffix run_envir [pdate] "
   echo "            File name for VrfyRad_rgnl.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            The run_envir maybe dev, para, or prod."
+  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 
 set -ax
-echo start TEST_rgnl.sh
+echo start VrfyRad_rgnl.sh
 
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -lt 2 || $nags -gt 3 ]]; then
    usage
    exit 1
 fi
@@ -28,6 +29,11 @@ this_dir=`dirname $0`
 
 export SUFFIX=$1
 export RUN_ENVIR=$2
+
+if [[ $nargs -eq 3 ]]; then
+   export PDATE=$3
+fi
+
 
 echo SUFFIX    = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
@@ -79,11 +85,10 @@ jobname=${DATA_EXTRACT_JOBNAME}
 
 if [[ ${RUN_ENVIR} = dev ]]; then
    if [[ $MY_MACHINE = "ccs" ]]; then
-#      count=`ls ${LOADLQ}/${jobname}* | wc -l`
-#      complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
-#      total=`expr $count - $complete`
       total=`llq -u ${LOGNAME} -f %jn | grep ${jobname} | wc -l`
-   else
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      total=`bjobs -l | grep ${jobname} | wc -l`
+   elif [[ $MY_MACHINE = "zeus" ]]; then
       total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
    fi
 
@@ -92,9 +97,6 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
-#if [[ $MY_MACHINE = "ccs" ]]; then
-#   rm -f ${LOADLQ}/${jobname}*
-#fi
 
 tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
 rm -rf $tmpdir
@@ -126,10 +128,17 @@ if [[ $RUN_ENVIR = dev ]]; then
    #--------------------------------------------------------------------
    # Get date of cycle to process.
    #--------------------------------------------------------------------
-   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-   qdate=`${NDATE} +06 $pdate`
-   export PDATE=${qdate}
- 
+   if [[ $PDATE = "" ]]; then
+      pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+      if [[ ${#pdate} -ne 10 ]]; then
+         echo "ERROR:  Unable to locate any previous cycle's data files"
+         echo "        Re-run this script with a specified starting cycle"
+         exit 4
+      fi
+
+      qdate=`${NDATE} +06 $pdate`
+      export PDATE=${qdate}
+   fi 
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
 

@@ -12,17 +12,18 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  VrfyRad_glbl.sh suffix run_envir"
+  echo "Usage:  VrfyRad_glbl.sh suffix run_envir [pdate]"
   echo "            File name for VrfyRad_glbl.sh may be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            The run_envir may be dev, para, or prod." 
+  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 
 set -ax
 echo start VrfyRad_glbl.sh
 
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -lt 2 || $nargs -gt 3 ]]; then
    usage
    exit 1
 fi
@@ -33,6 +34,10 @@ this_dir=`dirname $0`
 
 export SUFFIX=$1
 export RUN_ENVIR=$2
+
+if [[ $nargs -eq 3 ]]; then
+   export PDATE=$3
+fi
 
 echo SUFFIX = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
@@ -124,10 +129,16 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
    # Get date of cycle to process.
    #---------------------------------------------------------------
-   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-
-   qdate=`${NDATE} +06 $pdate`
-   export PDATE=${qdate}
+   if [[ $PDATE = "" ]]; then
+      pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+      if [[ ${#pdate } -ne 10 ]]; then
+         echo "ERROR:  Unable to locate any previous cycle's data files"
+         echo "        Re-run this script with a specified starting cycle"
+         exit 4
+      fi
+      qdate=`${NDATE} +06 $pdate`
+      export PDATE=${qdate}
+   fi
 
    export PDY=`echo $PDATE|cut -c1-8`
    export CYC=`echo $PDATE|cut -c9-10`
