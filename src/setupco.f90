@@ -20,6 +20,8 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 !   1990-10-06  parrish
 !   2010-04-01  tangborn - created from Parrish et al. setupoz.f90
 !   2010-05-29  todling - add ihave-co check; revisit treatment of guess
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a1,
+!                          tintrp3 to tintrp31v, intrp2a to intrp2a1.
 !
 !   input argument list:
 !     lunin          - unit from which to read observations

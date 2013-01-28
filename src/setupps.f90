@@ -55,6 +55,9 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-05-06  Su      - modify the observation gross check error
 !   2011-08-09  pondeca - correct bug in qcgross use
+!   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
+!                                  tintrp2a to tintrp2a1, tintrp2a11,
+!                                  tintrp3 to tintrp31
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

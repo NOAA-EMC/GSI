@@ -50,6 +50,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - question about bmiss and hdr(15).  debug compile execution failed.  
+!                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
+!                          causes integer overflow with current logic.  Made quick fix, but needs review.
 !
 !   input argument list:
 !     mype     - mpi task id

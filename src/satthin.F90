@@ -903,6 +903,7 @@ contains
 ! program history log:
 !   2006-05-03  derber (created from map2grids)
 !   2006-09-13  treadon - set itx=1 for the case use_all=.true.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     dlat_earth - earth relative observation latitude (radians)

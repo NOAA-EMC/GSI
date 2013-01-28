@@ -79,6 +79,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
 !   2011-12-14  collard Remove ATMS
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     mype     - mpi task id

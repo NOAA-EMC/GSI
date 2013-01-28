@@ -22,6 +22,7 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !   2010-04-01  tangborn - created from Parrish et al. setupoz.f90
 !   2010-05-29  todling - add ihave-co check; revisit treatment of guess
 !   2010-10-03  pagowski - converted for pm2_5
+!   2013-01-26  parrish - convert tintrp2a to tintrp2a1, tintrp2a11
 !
 !   input argument list:
 !     lunin          - unit from which to read observations

@@ -15,6 +15,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! program history log:
 !   2009-03-10  zhu
 !   2011-02-18  zhu - update
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

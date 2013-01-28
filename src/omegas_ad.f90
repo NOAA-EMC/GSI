@@ -1,8 +1,26 @@
 module omegas_ad_mod
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    omegas_ad_mod   module wrapper around subroutine omegas_ad
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract: This module has been added as a wrapper around subroutine omegas_ad
+!            to eliminate type mismatch compile errors when using the debug
+!            compile option on WCOSS.
+!
+! program history log:
+!   2012-01-26  parrish
+!
+! subroutines included:
+!  omegas_ad
+!  omegas_ad_1_1_
+!  omegas_ad_im_ix_
 
   implicit none
 
+! set default to private
   private
+! set subroutines to public
   public :: omegas_ad
 
   interface omegas_ad
@@ -15,6 +33,24 @@ contains
 subroutine omegas_ad_1_1_( im, ix, km, dphi_i_, dlam_i_, u_i_, v_i_, div_i_, &
      ps_i_, rcl_, del_, sl_, vvel_o_, u_i_ad_, v_i_ad_, div_i_ad_, vvel_o_ad_, &
      adjoint)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    omegas_ad_1_1_
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract:  interface for omegas_ad, where im=1,ix=1, and calling routine has
+!              no dimension index corresponding to im and ix.
+!
+! program history log:
+!   2013-01-26  parrish - initial documentation
+!
+!   input argument list:
+!     im,ix,km,adjoint
+!     dphi_i_,dlam_i_,u_i_(km),v_i_(km),div_i_(km),ps_i_,rcl_,del_(km),sl_(km)
+!     vvel_o_(km),u_i_ad_(km),v_i_ad_(km),div_i_ad_(km),vvel_o_ad_(km)
+!
+!   output argument list:
+!     vvel_o_(km),u_i_ad_(km),v_i_ad_(km),div_i_ad_(km),vvel_o_ad_(km)
 
   use kinds, only: r_kind,i_kind
   implicit none
@@ -88,6 +124,10 @@ subroutine omegas_ad_im_ix_( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
 !   2004-06-15  treadon - reformat documenation
 !   2006-04-12  treadon - change del and sl from 1d to 2d arrays
 !   2006-08-10  treadon - change dphi_i,dlam_i from ln(ps) to ps
+!   2013-01-26  parrish - module added as a wrapper around subroutine omegas_ad
+!                            to eliminate type mismatch compile errors when
+!                            using the debug
+!                            compile option on WCOSS.
 !
 !   input argument list:
 !     im      - actual number of profiles to be processed

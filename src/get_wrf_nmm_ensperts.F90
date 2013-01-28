@@ -971,6 +971,9 @@ subroutine convert_binary_nmm_ens
 !
 ! program history log:
 !   2010-12-06  tong - adopt convert_binary_nmm to read wrf nmm ensemble forecast
+!   2013-01-26  parrish - subroutine retrieve_field was replaced by 4 subroutines:
+!                     retrieve_field_i1, retrieve_field_r1, retrieve_field_rn1, retrieve_field_rn1n2
+!                     This was done to prevent debug compile type mismatch errors on WCOSS.
 !
 ! attributes:
 !   language: f90

@@ -284,6 +284,7 @@ subroutine linmm(a,b,m,mm,na,nb)
 ! program history log:
 !   1998-01-01  purser
 !   2004-06-23  purser  - added documentation
+!   2013-01-26  parrish - WCOSS debug compile error -- change input a from intent(in) to intent(inout)
 !
 !   input argument list:
 !     a    - the system matrix (not preserved on output)

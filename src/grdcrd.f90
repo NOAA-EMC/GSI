@@ -80,17 +80,12 @@ subroutine grdcrd1(d,x,nx,flg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    grdcrd1
-!   prgmmr: parrish          org: np22                date: 1990-10-11
+!   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract: get grid coordinates from monotonically increasing or
-!           decreasing points (same as grdcrd, but for only one point)
+! abstract: same as grdcrd but for d a single value.
 !
 ! program history log:
-!   1990-10-11  parrish
-!   1998-04-07  weiyu yang
-!   2004-05-17  kleist, documentation
-!   2004-05-28  kleist, combine increasing/decreasing routines & fctns
-!   2005-05-24  pondeca, add the special case nx=1
+!   2013-01-26  parrish
 !
 !   input argument list:
 !     d      - input point 

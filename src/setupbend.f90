@@ -73,6 +73,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2011-06-17 treadon  - remove call tell at end of routine
 !   2011-08-16 cucurull - fix bug in statistics qc
 !   2011-08-17 cucurull - add Oceansat-2, METOP-B GRAS, SAC-D, and M-T assimilation capabilities
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                          tintrp3 to tintrp31
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

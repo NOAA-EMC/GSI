@@ -22,6 +22,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     mype     - mpi task id

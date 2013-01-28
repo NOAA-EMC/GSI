@@ -54,6 +54,8 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2012-01-12  hu      - add code to get vertical grid coordinate ibased on height for
 !                         260 (nacelle) and 261 (tower) 
+!   2013-01-26  parrish - convert grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                    tintrp3 to tintrp31
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

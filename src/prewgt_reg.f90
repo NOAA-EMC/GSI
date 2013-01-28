@@ -43,6 +43,7 @@ subroutine prewgt_reg(mype)
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
 !   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
+!                          (fixes WCOSS debug compile error)
 !
 !   input argument list:
 !     mype     - pe number

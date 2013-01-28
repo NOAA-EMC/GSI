@@ -971,6 +971,11 @@ subroutine congrad_siga(siga,ivecs,rc)
 ! program history log:
 !  2010-03-17  todling  - initia code
 !  2010-05-16  todling  - update to use gsi_bundle
+!  2013-01-26  parrish  - WCOSS debug compile flagged type mismatch error for
+!                          "call bkg_stddev(aux,mval(ii))".
+!                         I changed to 
+!                          "call bkg_stddev(aux%step(ii),mval(ii))".
+!                         Don't know if this is the correct modification.
 !
 !   input argument list:
 !    siga

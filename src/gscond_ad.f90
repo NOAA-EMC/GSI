@@ -1,8 +1,26 @@
 module gscond_ad_mod
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    gscond_ad_mod   module wrapper around subroutine gscond_ad
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract: This module has been added as a wrapper around subroutine gscond_ad
+!            to eliminate type mismatch compile errors when using the debug
+!            compile option on WCOSS.
+!
+! program history log:
+!   2012-01-26  parrish
+!
+! subroutines included:
+!  gscond_ad
+!  gscond_ad_1_1_
+!  gscond_ad_im_ix_
 
   implicit none
 
-  private
+! set default to private
+   private
+! set subroutines to public
   public :: gscond_ad
 
   interface gscond_ad
@@ -16,6 +34,27 @@ subroutine gscond_ad_1_1_( im, ix, km, dt, sl_, ps_, rhc_, advt_, advq_, &
      advp_, q_in_, cwm_in_, t_in_, q_out_, cwm_out_, t_out_, advt_ad_, advq_ad_, &
      advp_ad_, q_in_ad_, cwm_in_ad_, t_in_ad_, q_out_ad_, cwm_out_ad_, t_out_ad_, &
      adjoint )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gscond_ad_1_1_
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract:  interface for gscond_ad, where im=1,ix=1, and calling routine has
+!              no dimension index corresponding to im and ix.
+!
+! program history log:
+!   2013-01-26  parrish - initial documentation
+!
+!   input argument list:
+!     im,ix,km
+!     dt,adjoint
+!     sl_(km),ps_,rhc_(km),advt_(km),advq_(km),advp_(km),q_in_(km),cwm_in_(km),t_in_(km)
+!     q_out_(km),cwm_out_(km),t_out_(km),advt_ad_(km),advq_ad_(km),advp_ad_(km)
+!     q_in_ad_(km),cwm_in_ad_(km),t_in_ad_(km),q_out_ad_(km),cwm_out_ad_(km),t_out_ad_(km)
+!
+!   output argument list:
+!     q_out_(km),cwm_out_(km),t_out_(km),advt_ad_(km),advq_ad_(km),advp_ad_(km)
+!     q_in_ad_(km),cwm_in_ad_(km),t_in_ad_(km),q_out_ad_(km),cwm_out_ad_(km),t_out_ad_(km)
 
   use kinds, only: r_kind,i_kind
   implicit none
@@ -111,6 +150,9 @@ subroutine gscond_ad_im_ix_( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !   2004-06-14  treadon - reformat documenation
 !   2006-04-12  treadon - change sl from 1d to 2d array
 !   2008-06-02  safford - rm unused var
+!   2013-01-26  parrish - module added as a wrapper around subroutine gscond_ad
+!                            to eliminate type mismatch compile errors when using the debug
+!                            compile option on WCOSS.
 !
 !   input argument list:
 !     im       - actual number of profiles to be processed

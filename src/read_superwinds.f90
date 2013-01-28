@@ -31,6 +31,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !                           from beta_ref values across the discontinuity.  This was fixed by replacing the
 !                           beta_ref field with cos_beta_ref, sin_beta_ref.
 !   2011-08-01  lueken  - add module use deter_sfc_mod
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     nread    - counter for all data on this pe

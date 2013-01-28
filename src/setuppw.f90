@@ -47,6 +47,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-11-19  Hofmann - doing precipitable water (PW) height adjustment
 !                                       based on obs vs. model height
+!   2013-01-26  parrish -  change tintrp2a to tintrp2a1, tintrp2a11
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

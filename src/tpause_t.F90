@@ -16,6 +16,9 @@ subroutine tpause_t(km,p,t,h,ptp)
 !   1999-10-18  Mark Iredell - original code
 !   2004-05-15  Russ Treadon - add fix to handle low model top case
 !   2004-06-15  Russ Treadon - update documentation
+!   2013-01-26  parrish - WCOSS debug compile type mismatch error -- fixed by
+!                          changing variable kd to kd(1), and modifying calls to
+!                          subroutine rsearch.
 !
 !   Input argument list:
 !     km       integer number of levels

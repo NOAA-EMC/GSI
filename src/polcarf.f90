@@ -220,6 +220,8 @@ subroutine setwtt(wtaxt,wtbat,inaxt,inbat,rs,df,qr,nxe,nxg,mrr,nrr,mf,nf,nor)
 ! program history log:
 !   2000-03-15  wu
 !   2005-02-15  parrish - fix irp incrementing bug around 400, 402 continue
+!   2013-01-26  parrish - change variable qr from intent(in) to intent(inout).
+!                          (fixes WCOSS debug compile error)
 !
 !   input argument list:
 !     rs     - radial grid coordinates.

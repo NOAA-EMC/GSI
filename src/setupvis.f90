@@ -15,6 +15,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! program history log:
 !   2009-10-21  zhu
 !   2011-02-19  zhu - update
+!   2013-01-26  parrish - change tintrp2a to tintrp2a11
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

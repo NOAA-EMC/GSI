@@ -181,29 +181,20 @@ subroutine intrp3oz1(f,g,dx,dy,dz,obstime,nlevs,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intrp3oz    space-time linear interpolation for ozone
-!   prgmmr: parrish          org: np22                date: 1990-10-11
+!   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract:  This routine linearly interpolates the guess ozone fields 
-!            horizontally in space and temporally in time.  The 
-!            horizontal interpolation is bilinear.  Guess ozone values
-!            are interpolated for both the layered ozone and total 
-!            column ozone observations.
+! abstract: same as intrp3oz but for special case n=1, with n argument removed.
+!            This has been created to solve problem of type mismatch debug
+!            compile
+!            error on WCOSS.
 !
 ! program history log:
-!   1990-10-11  parrish
-!   1999-03-01  wu - port cray90 code to ibm-sp (mpi version)
-!   2004-06-16  treadon - update documentation
-!   2004-08-02  treadon - add only to module use, add intent in/out
-!   2005-05-18  wu - add obstype for use of OMI total ozone
-!   2005-09-23  derber - modify to handle total column cleaner
-!   2005-12-23  treadon - remove unused nix* and niy* variables
-!   2007-05-30  h.liu - include unit conversion with interpolation weights
+!   2013-01-26  parrish
 !
 !   input argument list:
 !     f        - input interpolator (gridded guess ozone fields)
 !     dx,dy,dz - input x,y,z-coords of interpolation points (grid units)
 !     obstime  - observation times
-!     n        - number of interpolatees
 !     nlevs    - number of observational layers + 1 (the total column)
 !     mype     - mpi task id
 !

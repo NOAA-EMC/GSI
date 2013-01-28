@@ -109,6 +109,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !   2009-??-??  derber   - originally placed inside inquire
 !   2009-01-05  todling  - move time/type-check out of inquire
 !   2010-09-13  pagowski - add anow bufr and one obs chem
+!   2013-01-26  parrish - WCOSS debug compile fails with satid not initialized.
+!                         Set satid=1 at start of subroutine to allow debug compile.
+!                           
 !
 !   input argument list:
 !    lexist    - file status
@@ -423,6 +426,8 @@ subroutine read_obs(ndata,mype)
 !   2011-04-02  li       - add nst_gsi, getnst and destroy_nst
 !   2011-05-20  mccarty  - add cris/atms handling
 !   2011-05-26  todling  - add call to create_nst
+!   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
+!                         Commented out extra line of arguments not used.
 !
 !   input argument list:
 !     mype     - mpi task id

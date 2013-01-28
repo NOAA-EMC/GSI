@@ -124,6 +124,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-12-14  wu      - add code for rawinsonde level enhancement ( ext_sonde )
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
 !                                       layer based on surface obs UV
+!   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
+!                          tintrp2a to tintrp2a1, tintrp2a11, tintrp3 to tintrp31
 !
 ! REMARKS:
 !   language: f90

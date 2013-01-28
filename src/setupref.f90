@@ -90,6 +90,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
 !  2011-08-16 cucurull - fix bug in statistics qc
 !  2011-08-17 cucurull - add METOP-B GRAS (plus Oceansat-2, SAC-D and M-T) assimilation capabilities
+!  2013-01-26 parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                   tintrp3 to tintrp31
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

@@ -25,6 +25,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     ithin    - flag to thin data

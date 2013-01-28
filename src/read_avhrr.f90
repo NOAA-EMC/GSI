@@ -34,8 +34,9 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !                         (5) add observation scoring for thinning
-!
 !   2011-08-01  lueken  - added module use deter_sfc_mod, fixed indentation
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
+
 !   input argument list:
 !     mype     - mpi task id
 !     val_avhrr- weighting factor applied to super obs

@@ -418,6 +418,8 @@ contains
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
 !   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
+!   2-13-01-26  parrish - fix bug caught by WCOSS debug compile -- tlapmean used before allocated.
+!                          Move first use of tlapmean to after allocation.
 !
 !   input argument list:
 !

@@ -15,6 +15,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 ! program history log:
 !   2010-09-13  pagowski adopted prepbufr reader code for 
 !  AIRNow bufr for pm2_5
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

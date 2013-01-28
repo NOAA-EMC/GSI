@@ -114,29 +114,21 @@ subroutine tintrp2a1(f,g,dx,dy,obstime,gridtime, &
      nlevs,mype,nflds)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    tintrp2a
-!   prgmmr: parrish          org: np22                date: 1990-10-11
+! subprogram:    tintrp2a1
+!   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract: linear time interpolate in 3 dimensions (x,y,time) over 
-!           n levs
+! abstract: same as tintrp2a but for special case of n=1, with n argument removed.
+!            This has been created to solve problem of type mismatch debug
+!            compile error on WCOSS.
 !
 ! program history log:
-!   1990-10-11  parrish
-!   1998-04-05  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2003-12-22  kleist, modified to perform 2-d interpolation over a
-!                      specified number of vertical levels
-!   2004-05-18  kleist, documentation
-!   2006-04-03  derber  - optimize
-!   2008-04-03  safford - rm unused vars
-!   2009-01-23  todling - dim on gridtime is nflds
+!   2013-01-26  parrish
 ! 
 !   input argument list:
 !     f        - input interpolator
 !     dx,dy    - input x,y,z-coords of interpolation points (grid units)
 !     obstime  - time to interpolate to
 !     gridtime - grid guess times to interpolate from
-!     n        - number of interpolatees
 !     nlevs    - number of vertical levels over which to perform the 
 !                2-d intrpolation 
 !     mype     - mpi task id
@@ -224,31 +216,21 @@ subroutine tintrp2a11(f,g,dx,dy,obstime,gridtime, &
      mype,nflds)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    tintrp2a
-!   prgmmr: parrish          org: np22                date: 1990-10-11
+! subprogram:    tintrp2a11
+!   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract: linear time interpolate in 3 dimensions (x,y,time) over 
-!           n levs
+! abstract: same as intrp2a but for special case n=1 and nlevs=1, with n,nlevs arguments removed.
+!            This has been created to solve problem of type mismatch debug compile
+!            error on WCOSS.
 !
 ! program history log:
-!   1990-10-11  parrish
-!   1998-04-05  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2003-12-22  kleist, modified to perform 2-d interpolation over a
-!                      specified number of vertical levels
-!   2004-05-18  kleist, documentation
-!   2006-04-03  derber  - optimize
-!   2008-04-03  safford - rm unused vars
-!   2009-01-23  todling - dim on gridtime is nflds
+!   2013-01-26  parrish
 ! 
 !   input argument list:
 !     f        - input interpolator
 !     dx,dy    - input x,y,z-coords of interpolation points (grid units)
 !     obstime  - time to interpolate to
 !     gridtime - grid guess times to interpolate from
-!     n        - number of interpolatees
-!     nlevs    - number of vertical levels over which to perform the 
-!                2-d intrpolation 
 !     mype     - mpi task id
 !     nflds    - number of guess times available to interpolate from
 !

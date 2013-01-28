@@ -1281,6 +1281,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 !   2005-11-16  wgu - set nmix=nr+1+(ny-nlat)/2 to make sure
 !                   nmix+nrmxb=nr no matter what number nlat is.   
 !   2010-05-22  todling - remove implicit ordering requirement in nvar_id
+!   2013-01-26  parrish - change work from intent(in) to intent(inout)
 !
 !   input argument list:
 !     work     - horizontal fields to be smoothed

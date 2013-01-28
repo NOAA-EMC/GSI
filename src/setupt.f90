@@ -128,6 +128,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-10-14  Hu      - add code for adjusting surface temperature observation error
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
 !                                       layer based on surface obs T
+!   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                   tintrp3 to tintrp31
 !
 ! !REMARKS:
 !   language: f90

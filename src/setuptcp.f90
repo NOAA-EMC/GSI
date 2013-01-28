@@ -11,6 +11,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2010-05-25  kleist  - output tc_ps observations to conv diag file
 !   2010-11-24  todling - add component to write obs sensitiviy to diag file
+!   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
+!                              tintrp2a to tintrp2a1, tintrp2a11
 !
 !   input argument list:
 !

@@ -13,6 +13,8 @@ module general_tll2xy_mod
 !
 ! program history log:
 !   2010-10-28  parrish - initial documentation
+!   2013-01-23  parrish - modify so calls to ll2rpolar and rpolar2ll avoid type mismatch error
+!                           when using WCOSS intel debug compile.
 !
 ! subroutines included:
 !   sub general_create_llxy_transform - initialize type(llxy_cons) for desired grid

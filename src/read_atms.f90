@@ -24,6 +24,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !
 ! program history log:
 !  2011-12-06  Original version based on r16656 version of read_bufrtovs.  A. Collard
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     mype     - mpi task id

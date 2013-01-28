@@ -2630,6 +2630,7 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-26  parrish - change out(4) to out(4*n1)
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -2652,6 +2653,7 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
 
   use kinds, only: i_byte,i_kind,i_llong,i_long,r_single
   use native_endianness, only: byte_swap
+  use constants, only: zero
   implicit none
 
   integer(i_kind),intent(in   ) :: in_unit,n1
@@ -2664,9 +2666,9 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
   integer(i_llong) num_swap
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
-  integer(i_byte) out(4)
+  integer(i_byte) out(4*n1)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2694,11 +2696,16 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
   end do
   close(in_unit)
 
+  nretrieved=ii/4
   ii=1
-  do i=1,n1
+  do i=1,min(nretrieved,n1)
      outrn1(i)=transfer(out(ii:ii+3),outrn1(i))
      ii=ii+4
   end do
+  do i=min(nretrieved,n1)+1,n1
+     outrn1(i)=zero
+  end do
+  write(6,*)' in retrieve_field_rn1, num expected=',n1, ' num retrieved=',nretrieved
   
 end subroutine retrieve_field_rn1
 
@@ -2714,6 +2721,7 @@ subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_bl
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-26  parrish - change out(4) to out(4*n1*n2)
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -2748,9 +2756,9 @@ subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_bl
   integer(i_llong) num_swap
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
-  integer(i_byte) out(4)
+  integer(i_byte) out(4*n1*n2)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2778,6 +2786,7 @@ subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_bl
   end do
   close(in_unit)
 
+  nretrieved=ii/4
   ii=1
   do j=1,n2
      do i=1,n1
@@ -2785,6 +2794,7 @@ subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_bl
         ii=ii+4
      end do
   end do
+  write(6,*)' in retrieve_field_rn1n2, num expected=',n1*n2, ' num retrieved=',nretrieved
   
 end subroutine retrieve_field_rn1n2
 

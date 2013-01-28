@@ -31,6 +31,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !   2010-11-03  derber - moved threading calculations to gridmod and modified
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
+!   2013-01-23  parrish - change t_t from intent(in) to intent(inout) (flagged by WCOSS intel debug compile)
 !
 ! usage:
 !   input argument list:

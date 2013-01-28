@@ -95,6 +95,11 @@ subroutine pcgsoi()
 !   2011-04-25  eL akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
 !   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
+!   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to state2ensctl
+!                          and ensctl2state.  I put in temporary fix to allow debug compile
+!                          by replacing mval with mval(1).  This is likely not
+!                          correct for multiple obs bins.
+!                       
 !
 ! input argument list:
 !

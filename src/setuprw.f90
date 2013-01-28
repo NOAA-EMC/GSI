@@ -49,11 +49,10 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-05-25  s.liu/parrish     - correct error in height assigned to radial wind
 !   2012-02-08  wu      - bug fix to keep from using below ground radar obs, with extra printout
 !                           added to identify which obs are below ground.  
-!   2013-01-22  parrish - rwgt is not assigned a value if luse(i)=.false., but is saved anyway.
-!                           This is not a problem normally, but causes runtime failure when executable
-!                           is compiled under ifort with debug options turned on.
-!                           Since it is important to be able to use debug, set rwgt=1 
-!                           at beginning of obs loop.
+!   2013-01-22  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                                  tintrp3 to tintrp31
+!   2013-01-22  parrish - WCOSS debug compile execution error rwgt not assigned a value.
+!                             set rwgt = 1 at beginning of obs loop.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

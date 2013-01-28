@@ -261,7 +261,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 !
 ! program history log:
 !   2009-09-18  lueken - added subprogram doc block
-!   2012-01-15  parrish - ansmoothrf_reg_subdomain_option now uses bundle input.
+!   2013-01-15  parrish - ansmoothrf_reg_subdomain_option now uses bundle input.
 !                             Add changes to update from old to new version.
 !
 !   input argument list:

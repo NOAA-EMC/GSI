@@ -8,6 +8,7 @@ module deter_sfc_mod
 !
 ! program history log:
 !   2011-08-01  lueken - Moved all land surface type subroutines to new module
+!   2013-01-23  parrish - change from grdcrd to grdcrd1
 !
 ! subroutines included:
 !   sub deter_sfc

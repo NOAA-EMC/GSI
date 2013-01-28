@@ -1,8 +1,26 @@
 module nlmsas_ad_mod
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    nlmsas_ad_mod   module wrapper around subroutine nlmsas_ad
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract: This module has been added as a wrapper around subroutine nlmsas_ad
+!            to eliminate type mismatch compile errors when using the debug
+!            compile option on WCOSS.
+!
+! program history log:
+!   2012-01-26  parrish
+!
+! subroutines included:
+!  nlmsas_ad
+!  nlmsas_ad_1_1_
+!  nlmsas_ad_im_ix_
 
   implicit none
 
+! set default to private
   private
+! set subroutines to public
   public :: nlmsas_ad
 
   interface nlmsas_ad
@@ -20,6 +38,28 @@ subroutine nlmsas_ad_1_1_(im,ix,km,jcap,delt,del_,sl_,rcs_,&
      t0_ad_,q0_ad_,cwm0_ad_,u0_ad_,v0_ad_,dot0_ad_, &
      t1_ad_,q1_ad_,cwm1_ad_,u1_ad_,v1_ad_,rn1_ad_, &
      adjoint)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nlmsas_ad_1_1_
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract:  interface for nlmsas_ad, where im=1,ix=1, and calling routine has
+!              no dimension index corresponding to im and ix.
+!
+! program history log:
+!   2013-01-26  parrish - initial documentation
+!
+!   input argument list:
+!     im,ix,km,jcap,ncloud,adjoint,delt
+!     del_(km),sl_(km),rcs_,slimsk_,xkt2_,ps_,t0_(km),q0_(km),cwm0_(km),u0_(km),v0_(km),dot0_(km)
+!     t1_(km),q1_(km),cwm1_(km),u1_(km),v1_(km),rn1_,cldwrk_,kbot_,ktop_,jmin_,kuo_,kb_
+!     t0_ad_(km),q0_ad_(km),cwm0_ad_(km),u0_ad_(km),v0_ad_(km),dot0_ad_(km)
+!     t1_ad_(km),q1_ad_(km),cwm1_ad_(km),u1_ad_(km),v1_ad_(km),rn1_ad_
+!
+!   output argument list:
+!     t1_(km),q1_(km),cwm1_(km),u1_(km),v1_(km),rn1_,cldwrk_,kbot_,ktop_,jmin_,kuo_,kb_
+!     t0_ad_(km),q0_ad_(km),cwm0_ad_(km),u0_ad_(km),v0_ad_(km),dot0_ad_(km)
+!     t1_ad_(km),q1_ad_(km),cwm1_ad_(km),u1_ad_(km),v1_ad_(km),rn1_ad_
 
   use kinds, only: r_kind,i_kind
   implicit none
@@ -170,6 +210,9 @@ subroutine nlmsas_ad_im_ix_(im,ix,km,jcap,delt,del,sl,rcs,&
 !   2006-04-12  treadon - change del and sl from 1d to 2d arrays
 !   2008-04-29  safford - rm unused vars
 !   2008-10-29  min-jeong kim - make consistent with global_fcst
+!   2013-01-26  parrish - module added as a wrapper around subroutine nlmsas_ad
+!                            to eliminate type mismatch compile errors when using the debug
+!                            compile option on WCOSS.
 !
 !  input argument list:
 !     im       - integer number of points

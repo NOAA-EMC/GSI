@@ -22,6 +22,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-27  parrish - assign a temporary value to pred so WCOSS debug compiled
+!                            executable will run successfully.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -492,6 +495,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !xxx        call ufbrep(lnbufr,cloud_frac,1,6,iret,'TOCC')
 !xxx!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 !xxx        pred = cloud_frac(1)
+            pred = 100.0_r_kind    ! pred needs to have a value for WCOSS debug execution to work.
 
 ! As cloud_frac is missing from BUFR, use proxy of warmest fov over 
 ! non ice surfaces.  Fixed channels (assuming the 399 set) for now.

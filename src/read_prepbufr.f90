@@ -101,6 +101,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
 !   2012-04-03  s.liu    - thin new VAD wind 
 !   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
+!                                    Initialize pflag=0 at beginning of subroutine.
+!
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

@@ -12,6 +12,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    2010-03-30  Tangborn, initial code.
 !    2011-08-01  Lueken  - replaced F90 with f90 (no machine logic), fixed indentation
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 
 !   input argument list:
 !     obstype  - observation type to process

@@ -118,25 +118,21 @@ end subroutine tintrp3
 subroutine tintrp31(f,g,dx,dy,dz,obstime,gridtime,mype,nflds)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    intrp3      linear interpolation in 4 dims
-!   prgmmr: parrish          org: np22                date: 1990-10-11
+! subprogram:    tintrp31
+!   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract: linear interpolate in 4 dimensions (x,y,z,time)
+! abstract: same as tintrp3 but for special case of n=1, with n argument removed.
+!            This has been created to solve problem of type mismatch debug
+!            compile error on WCOSS.
 !
 ! program history log:
-!   1990-10-11  parrish
-!   1998-04-05  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-05-18  kleist, documentation
-!   2008-04-03  safford - rm unused vars         
-!   2009-01-23  todling - dim on gridtime is nflds
+!   2013-01-26  parrish
 !
 !   input argument list:
 !     f        - input interpolator
 !     dx,dy,dz - input x,y,z-coords of interpolation points (grid units)
 !     obstime  - time to interpolate to
 !     gridtime - grid guess times to interpolate from
-!     n        - number of interpolatees
 !     mype     - mpi task id
 !     nflds    - number of guess times available to interpolate from
 !
@@ -233,18 +229,15 @@ end subroutine tintrp31
 subroutine tintrp31v(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    intrp3      linear interpolation in 4 dims
-!   prgmmr: parrish          org: np22                date: 1990-10-11
+! subprogram:    tintrp31v
+!   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract: linear interpolate in 4 dimensions (x,y,z,time)
+! abstract: same as tintrp3 but for special case of dx, dy, obstime scalars,   
+!            but dz dependent on n.  This has been created to solve problem
+!            of type mismatch debug compile error on WCOSS.
 !
 ! program history log:
-!   1990-10-11  parrish
-!   1998-04-05  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-05-18  kleist, documentation
-!   2008-04-03  safford - rm unused vars         
-!   2009-01-23  todling - dim on gridtime is nflds
+!   2013-01-26  parrish
 !
 !   input argument list:
 !     f        - input interpolator

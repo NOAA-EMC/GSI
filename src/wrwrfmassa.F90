@@ -32,6 +32,8 @@ subroutine wrwrfmassa_binary(mype)
 !   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at and
 !                           before every call to mpi_file_write_at (to handle cases of big-endian
 !                           file/little-endian machine and vice-versa)
+!   2013-01-26  parrish - WCOSS debug compile type mismatch error -- 
+!                            change to_native_endianness_i4 to to_native_endianness_r4
 !
 !   input argument list:
 !     mype     - pe number
