@@ -346,7 +346,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(visob) then
      nreal=21
   else if(metarcldobs) then
-     nreal=24
+     nreal=25
   else if(geosctpobs) then
      nreal=8
   else 
@@ -1616,6 +1616,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     cdata_all(24,iout)=-99999.0_r_kind  ! temperature - dew point
                  endif
+! cdata_all(24,iout) and cdata_all(25,iout) will be used to save dlon and dlat
 ! NESDIS cloud products
               else if(geosctpobs) then
                  cdata_all(1,iout)=rstation_id    !  station ID

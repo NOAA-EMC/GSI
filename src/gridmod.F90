@@ -112,7 +112,7 @@ module gridmod
   public :: strip_periodic
 
 ! set passed variables to public
-  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig
+  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
   public :: ltosj,ltosi,bk5,regional,latlon11,latlon1n,twodvar_regional
   public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional,cmaq_regional
@@ -169,6 +169,7 @@ module gridmod
   integer(i_kind) nlat_sfc          ! no. of latitudes surface files
   integer(i_kind) nlon_sfc          ! no. of longitudes surface files
   integer(i_kind) nsig              ! no. of levels
+  integer(i_kind) nsig_soil         ! no. of levels of soil model
   integer(i_kind) idvc5             ! vertical coordinate identifier
   integer(i_kind) nvege_type        ! no. of types of vegetation; old=24, IGBP=20
 !                                        1: sigma
@@ -376,6 +377,7 @@ contains
     integer(i_kind) k
 
     nsig = 42
+    nsig_soil = 6
     nsig1o = 7
     nlat = 96
     nlon = 384
@@ -1209,7 +1211,7 @@ contains
        write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
-       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt
+       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,nsig_soil 
        regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
 
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
@@ -1219,6 +1221,7 @@ contains
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                 nlat_regional
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
+       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig_soil=",i6)') nsig_soil 
  
 ! Get vertical info for wrf mass core
        allocate(aeta1_ll(nsig),eta1_ll(nsig+1))

@@ -111,8 +111,8 @@ subroutine update_guess(sval,sbias)
   use gsi_chemguess_mod, only: gsi_chemguess_bundle
   use gsi_chemguess_mod, only: gsi_chemguess_get
   use mpeu_util, only: getindex
-  use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q
-  use gsd_update_mod, only: gsd_limit_ocean_q
+  use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q,l_gsd_soilTQ_nudge
+  use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,gsd_update_th2
 
   implicit none
 
@@ -143,10 +143,14 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: p_oz     =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2daux =>NULL()
 
+  real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
+
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
 ! written in a way that is more efficient in that case but might not
 ! be the best in 4dvar.
+  tinc_1st=0.0_r_kind
+  qinc_1st=0.0_r_kind
 
 ! Get required pointers and abort if not found (RTod: needs revision)
   call gsi_bundlegetpointer(sval(1),'u',  is_u,  istatus)
@@ -265,6 +269,32 @@ subroutine update_guess(sval,sbias)
            end do
         end do
      endif
+! update surface and soil    
+     if (l_gsd_soilTQ_nudge ) then
+        if(is_q>0) then
+           do j=1,lon2
+              do i=1,lat2
+                  qinc_1st(i,j)=p_q(i,j,1)
+              end do
+           end do
+        endif
+        if(is_t > 0) then
+           do j=1,lon2
+              do i=1,lat2
+                  tinc_1st(i,j)=p_tv(i,j,1)
+              end do
+           end do
+        endif
+        call  gsd_update_soil_tq(tinc_1st,is_t,qinc_1st,is_q)
+     endif  ! l_gsd_soilTQ_nudge
+     if (l_gsd_soilTQ_nudge .and. is_t>0) then
+        do j=1,lon2
+           do i=1,lat2
+              tinc_1st(i,j)=p_tv(i,j,1)
+           end do
+        end do
+        call  gsd_update_th2(tinc_1st)
+     endif ! l_gsd_th2_adjust
 
 !    Update extra met-guess fields
      do ic=1,nguess
