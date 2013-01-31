@@ -4444,7 +4444,7 @@ SUBROUTINE EIGEN(A,R,N,MV)
 !        C IN COLUMN 1 SHOULD BE REMOVED FROM THE DOUBLE PRECISION
 !        STATEMENT WHICH FOLLOWS.
 !
-      real(r_kind)   ,intent(inout) :: A(1), R(1)
+      real(r_kind)   ,intent(inout) :: A(*), R(*)
       integer(i_kind),intent(in   ) :: N, MV
 
       REAL(r_kind) ANORM,ANRMX,THR,X,Y,SINX,SINX2,COSX, &
