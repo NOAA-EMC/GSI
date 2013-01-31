@@ -135,6 +135,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
   public :: ges_gust,ges_vis,ges_pblh,ges_qsat
   public :: use_compress,nsig_ext,gpstop
+  public :: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
   public :: ges_initialized
@@ -274,6 +275,12 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat      ! 4d qsat array
+! for GSD soil nudging
+  real(r_kind),allocatable,dimension(:,:,:):: ges_th2       ! 2-m temperature
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tsk       ! skin temperature
+  real(r_kind),allocatable,dimension(:,:,:):: ges_soilt1    ! TEMPERATURE INSIDE SNOW
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tslb    ! SOIL TEMPERATURE
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_smois   ! SOIL MOISTURE   
 
   real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
   real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
@@ -421,7 +428,7 @@ contains
 ! !USES:
 
     use constants,only: zero,one
-    use gridmod, only: lat2,lon2,nsig,regional
+    use gridmod, only: lat2,lon2,nsig,regional,nsig_soil
     use control_vectors, only: cvars3d
     use mpeu_util, only: die, tell, getindex
     implicit none
@@ -507,6 +514,13 @@ contains
           if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
        endif
+
+       allocate ( ges_th2(lat2,lon2,nfldsig), &
+         ges_soilt1(lat2,lon2,nfldsig),ges_tslb(lat2,lon2,nsig_soil,nfldsig),&
+         ges_smois(lat2,lon2,nsig_soil,nfldsig), ges_tsk(lat2,lon2,nfldsig),&
+         stat=istatus)
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_th2,..):  allocate error, istatus=',&
+            istatus,lat2,lon2,nsig,nfldsig
 
        ges_initialized = .true.
 
@@ -614,6 +628,25 @@ contains
                    efr_qg(i,j,k,n)=zero
                    efr_qh(i,j,k,n)=zero
                 end do
+             end do
+          end do
+       end do
+
+! for GSD  soil nudging
+       do n=1,nfldsig
+          do k=1,nsig_soil
+             do j=1,lon2
+                do i=1,lat2
+                   ges_tslb(i,j,k,n)=zero
+                   ges_smois(i,j,k,n)=zero
+                end do
+             end do
+          end do
+          do j=1,lon2
+             do i=1,lat2
+                ges_th2(i,j,n)=zero
+                ges_tsk(i,j,n)=zero
+                ges_soilt1(i,j,n)=zero
              end do
           end do
        end do
@@ -995,6 +1028,9 @@ contains
             istatus
     endif
     deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
+! GSD soil nudging
+    deallocate(ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,stat=istatus)
+!
     if (drv_initialized .and.switch_on_derivatives) then
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
 !      call gsi_metguess_get ( 'var::cw', ivar, istatus )

@@ -21,6 +21,7 @@ subroutine convert_netcdf_mass
 !   2011-11-14  tong - add loop to read upto 7 wrf mass netcdf restart file and
 !                          write to temporary netcdf files (extend FGAT capability for
 !                          wrf mass netcdf format)
+!   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
 !
 !   input argument list:
 !
@@ -39,7 +40,7 @@ subroutine convert_netcdf_mass
   use kinds, only: r_single,i_kind
   use constants, only: h300
   use gsi_4dvar, only: nhr_assimilation
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get
 
   implicit none
@@ -73,7 +74,7 @@ subroutine convert_netcdf_mass
   
   character (len=31) :: rmse_var
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
   real(r_single) pt_regional
   real(r_single) rdx,rdy
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:),field2c(:,:)
@@ -134,11 +135,26 @@ subroutine convert_netcdf_mass
 !    write(6,*)' dh1  = ',dh1         !DEDE
 
 !-------------  get grid info
-!    write(6,*)'before rmse var T'   !DEDE
+     rmse_var='SMOIS'
+
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index, WrfType, ierr    )                !DEDE
+
+     write(6,*)' dh1  = ',dh1         !DEDE
+     write(6,*)'rmse_var = ',trim(rmse_var)
+     write(6,*)'ndim1 = ',ndim1
+     write(6,*)'ordering = ',trim(ordering)
+     write(6,*)'staggering = ',trim(staggering)
+     write(6,*)'start_index = ',start_index
+     write(6,*)'end_index = ',end_index
+     write(6,*)'WrfType = ',WrfType
+     write(6,*)'ierr  = ',ierr   !DEDE
+
+     nlon_regional=end_index(1)
+     nlat_regional=end_index(2)
+     nsig_soil_regional=end_index(3)
 
      rmse_var='T'
-
-!    write(6,*)'after rmse var T'   !DEDE
 
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )                !DEDE
@@ -176,7 +192,7 @@ subroutine convert_netcdf_mass
      write(6,*)' p_top=',pt_regional
   
      write(iunit) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig_regional,pt_regional
+          nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
      
      rmse_var='ZNU'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -622,10 +638,18 @@ subroutine convert_netcdf_mass
           start_index,end_index,               & !pat
           ierr                                 )
      k=1
-     write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
-          field3(nlon_regional/2,nlat_regional/2,1)
-     write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
-     
+     if(l_gsd_soilTQ_nudge) then
+        do k=1,nsig_soil_regional
+           write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
+        enddo
+     else
+        write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
+             field3(nlon_regional/2,nlat_regional/2,1)
+        write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! SMOIS
+     endif
+
      rmse_var='TSLB'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
@@ -641,9 +665,17 @@ subroutine convert_netcdf_mass
           start_index,end_index,               & !pat
           ierr                                 )
      k=1
-     write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
-          field3(nlon_regional/2,nlat_regional/2,1)
-     write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
+     if(l_gsd_soilTQ_nudge) then
+        do k=1,nsig_soil_regional
+           write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                field3(nlon_regional/2,nlat_regional/2,k)
+           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
+        enddo
+     else
+        write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,1)),minval(field3(:,:,1)), &
+             field3(nlon_regional/2,nlat_regional/2,1)
+        write(iunit)((field3(i,j,1),i=1,nlon_regional),j=1,nlat_regional)   ! TSLB
+     endif
      
      rmse_var='TSK'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -662,6 +694,48 @@ subroutine convert_netcdf_mass
      write(6,*)' max,min TSK=',maxval(field2),minval(field2)
      write(iunit)field2   !TSK
    
+     if(l_gsd_soilTQ_nudge) then
+        rmse_var='SOILT1'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        write(6,*)' ordering=',ordering
+        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+        write(6,*)' ndim1=',ndim1
+        write(6,*)' staggering=',staggering
+        write(6,*)' start_index=',start_index
+        write(6,*)' end_index=',end_index
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index,               & !dom
+             start_index,end_index,               & !mem
+             start_index,end_index,               & !pat
+             ierr                                 )
+        write(6,*)' max,min SOILT1=',maxval(field2),minval(field2)
+        write(iunit)field2   !SOILT1
+
+        rmse_var='TH2'
+        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+             start_index,end_index, WrfType, ierr    )
+        write(6,*)' rmse_var=',trim(rmse_var)
+        write(6,*)' ordering=',ordering
+        write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+        write(6,*)' ndim1=',ndim1
+        write(6,*)' staggering=',staggering
+        write(6,*)' start_index=',start_index
+        write(6,*)' end_index=',end_index
+        call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+             field2,WRF_REAL,0,0,0,ordering,           &
+             staggering, dimnames ,               &
+             start_index,end_index,               & !dom
+             start_index,end_index,               & !mem
+             start_index,end_index,               & !pat
+             ierr                                 )
+        write(6,*)' max,min TH2=',maxval(field2),minval(field2)
+        write(iunit)field2   !TH2
+     endif
+
      if(l_cloud_analysis .or. nguess>0) then
        rmse_var='QCLOUD'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
@@ -1669,7 +1743,7 @@ subroutine update_netcdf_mass
 
   use kinds, only: r_single,i_kind,r_kind
   use constants, only: h300,tiny_single
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use guess_grids, only: ntguessig
@@ -1712,7 +1786,7 @@ subroutine update_netcdf_mass
   character (len=31) :: rmse_var
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
   real(r_single) pt_regional,pdtop_regional,dy_nmm
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
@@ -1763,6 +1837,13 @@ subroutine update_netcdf_mass
   write(6,*)' iy,m,d,h,m,s=',iyear,imonth,iday,ihour,iminute,isecond
 
 !-------------  get grid info
+  rmse_var='SMOIS'
+  call ext_ncd_get_var_info (dh1,rmse_var,ndim1,ordering,staggering, &
+                               start_index,end_index1, WrfType, ierr    )
+  nlon_regional=end_index1(1)
+  nlat_regional=end_index1(2)
+  nsig_soil_regional=end_index1(3)
+
   rmse_var='T'
   call ext_ncd_get_var_info (dh1,rmse_var,ndim1,ordering,staggering, &
                                start_index,end_index1, WrfType, ierr    )
@@ -1987,12 +2068,64 @@ subroutine update_netcdf_mass
        ierr                                 )
   
 ! Read in the rest of the fields
-!  do k=4,10
-  do k=4,11   ! corrected according to Ming Hu's finding
+  if(l_gsd_soilTQ_nudge) then
+     do k=4,9
+        read(iunit) field2 !Rest of the fields
+        write(6,*)'read max,min REST',k,maxval(field2),minval(field2)
+     end do
 
-     read(iunit) field2 !Rest of the fields
-     write(6,*)'read max,min REST',k,maxval(field2),minval(field2)
-  end do
+     do k=1,nsig_soil_regional
+        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! smois
+        write(6,*)' k,max,min,mid SMOIS=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     rmse_var='SMOIS'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+
+     do k=1,nsig_soil_regional
+        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! tslb
+        write(6,*)' k,max,min,mid TSLB=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+             field3(nlon_regional/2,nlat_regional/2,k)
+     end do
+     rmse_var='TSLB'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field3,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+  else
+     do k=4,11   ! corrected according to Ming Hu's finding
+
+        read(iunit) field2 !Rest of the fields
+        write(6,*)'read max,min REST',k,maxval(field2),minval(field2)
+     end do
+  endif
 
   read(iunit)   field2   !TSK
   write(6,*)' max,min TSK=',maxval(field2),minval(field2)
@@ -2013,7 +2146,49 @@ subroutine update_netcdf_mass
        start_index,end_index1,               & !mem
        start_index,end_index1,               & !pat
        ierr                                 )
-  
+
+  if(l_gsd_soilTQ_nudge) then
+     read(iunit)   field2   !SOILT1
+     write(6,*)' max,min SOILT1 d=',maxval(field2),minval(field2)
+     rmse_var='SOILT1'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field2,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+
+     read(iunit)   field2   !TH2
+     write(6,*)' max,min TH2 d=',maxval(field2),minval(field2)
+     rmse_var='TH2'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index1, WrfType, ierr    )
+     write(6,*)' rmse_var=',trim(rmse_var)
+     write(6,*)' ordering=',ordering
+     write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+     write(6,*)' ndim1=',ndim1
+     write(6,*)' staggering=',staggering
+     write(6,*)' start_index=',start_index
+     write(6,*)' end_index1=',end_index1
+     call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field2,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index1,               & !dom
+          start_index,end_index1,               & !mem
+          start_index,end_index1,               & !pat
+          ierr                                 )
+  endif
+
   if (l_cloud_analysis .or. nguess>0) then
     do k=1,nsig_regional
        read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   !  Qc
