@@ -82,7 +82,8 @@ subroutine grdcrd1(d,x,nx,flg)
 ! subprogram:    grdcrd1
 !   prgmmr: parrish          org: np22                date: 2013-01-26
 !
-! abstract: same as grdcrd but for d a single value.
+! abstract: same as grdcrd but for d a single value.  This is added to avoid
+!            type mismatch errors with debug compile on WCOSS. 
 !
 ! program history log:
 !   2013-01-26  parrish

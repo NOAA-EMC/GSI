@@ -57,7 +57,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-08-09  pondeca - correct bug in qcgross use
 !   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
 !                                  tintrp2a to tintrp2a1, tintrp2a11,
-!                                  tintrp3 to tintrp31
+!                                  tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

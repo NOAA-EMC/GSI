@@ -393,6 +393,7 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !    mb,nb - b dimensions

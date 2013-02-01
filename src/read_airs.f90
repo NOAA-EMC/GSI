@@ -67,7 +67,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id

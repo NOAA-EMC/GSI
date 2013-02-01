@@ -37,6 +37,8 @@ subroutine convert_binary_mass
 !   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
 !                           subroutine to this file.
 !   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
+!   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
+!                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !
@@ -675,6 +677,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
 !                           subroutine to this file.
 !   2012-12-10  eliu    - modify to add the use of use_gfs_stratosphere
+!   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
+!                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -2491,8 +2495,8 @@ end subroutine retrieve_index
 subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_byte,end_byte)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    retrieve_field  retrieve field from wrf binary file
-!   prgmmr: parrish          org: np22                date: 2004-11-29
+! subprogram:    retrieve_field_i1 retrieve single integer(4) variable from binary restart file
+!   prgmmr: parrish          org: np22                date: 2013-01-29
 !
 ! abstract: still using direct access, retrieve a field from the wrf binary restart file.
 !
@@ -2500,6 +2504,8 @@ subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_by
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          single integer(4) variable from wrf binary file
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -2571,8 +2577,8 @@ end subroutine retrieve_field_i1
 subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_byte,end_byte)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    retrieve_field  retrieve field from wrf binary file
-!   prgmmr: parrish          org: np22                date: 2004-11-29
+! subprogram:    retrieve_field_r1 retrieve single real(4) variable from binary restart file
+!   prgmmr: parrish          org: np22                date: 2013-01-29
 !
 ! abstract: still using direct access, retrieve a field from the wrf binary restart file.
 !
@@ -2580,6 +2586,8 @@ subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_by
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          single real(4) variable from wrf binary file
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -2651,7 +2659,7 @@ end subroutine retrieve_field_r1
 subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,start_byte,end_byte)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    retrieve_field  retrieve field from wrf binary file
+! subprogram:    retrieve_field_rn1 retrieve real(4) outrn1(n1) from wrf binary file
 !   prgmmr: parrish          org: np22                date: 2004-11-29
 !
 ! abstract: still using direct access, retrieve a field from the wrf binary restart file.
@@ -2660,6 +2668,8 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          real(4) outrn1(n1) from wrf binary file
 !   2013-01-26  parrish - change out(4) to out(4*n1)
 !
 !   input argument list:
@@ -2742,7 +2752,7 @@ end subroutine retrieve_field_rn1
 subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_block,start_byte,end_byte)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    retrieve_field  retrieve field from wrf binary file
+! subprogram:    retrieve_field_rn1n2 retrieve real(4) outrn1n2(n1,n2) from wrf binary file
 !   prgmmr: parrish          org: np22                date: 2004-11-29
 !
 ! abstract: still using direct access, retrieve a field from the wrf binary restart file.
@@ -2751,6 +2761,8 @@ subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_bl
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          real(4) outrn1n2(n1,n2) from wrf binary file
 !   2013-01-26  parrish - change out(4) to out(4*n1*n2)
 !
 !   input argument list:

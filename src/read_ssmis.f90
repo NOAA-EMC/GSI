@@ -51,7 +51,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-02  gayno - add processing of future satellites for FOV-based
 !                       surface field calculation and improved its error handling
 !                       (isfcalc=1)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !
 ! input argument list:

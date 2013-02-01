@@ -59,8 +59,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !   2009-10-19  guo     - changed for multi-pass setup with dtime_check() and new
 !			  arguments init_pass and last_pass.
 !   2009-12-08  guo     - cleaned diag output rewind with open(position='rewind')
-!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1,
-!                            intrp2a to intrp2a1, intrp3oz to intrp3oz1.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, intrp2a to intrp2a1,
+!                           intrp3oz to intrp3oz1. (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     lunin          - unit from which to read observations

@@ -42,7 +42,7 @@
 !   2008-04-18  safford - rm unused vars
 !   2011-04-01  li      - update argument list to deter_sfc
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

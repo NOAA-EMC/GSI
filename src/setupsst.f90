@@ -40,7 +40,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-21  safford - rm unused vars and uses
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-04-02  li      - set up Tr analysis and modify to save nst analysis related diagnostic variables
-!   2013-01-26  parrish - change intrp2a to intrp2a11
+!   2013-01-26  parrish - change intrp2a to intrp2a11 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

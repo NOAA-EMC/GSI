@@ -50,7 +50,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !                           of level2.5 and level3 data in Conus domain for ARW
 !   2012-04-28  s.liu  -  use new VAD wind
 !   2012-11-12  s.liu  -  add new VAD wind flag
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !
 !   input argument list:

@@ -7,7 +7,7 @@
 !   2009-06     whiting - coding rpf
 !   2009-10-20    zhu   - modify rpf for reading in pblh data in GSI
 !   2009-10-21  whiting - modify cnem & pblhob for reading Caterina's files
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data

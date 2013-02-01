@@ -176,7 +176,7 @@ contains
 !
 ! program history log:
 !   2010-11-18  pagowski
-!   2013-01-23  parrish - change from grdcrd to grdcrd1
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstype  - observation type to process

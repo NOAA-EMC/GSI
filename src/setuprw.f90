@@ -50,7 +50,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2012-02-08  wu      - bug fix to keep from using below ground radar obs, with extra printout
 !                           added to identify which obs are below ground.  
 !   2013-01-22  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
-!                                                  tintrp3 to tintrp31
+!                             tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-01-22  parrish - WCOSS debug compile execution error rwgt not assigned a value.
 !                             set rwgt = 1 at beginning of obs loop.
 !

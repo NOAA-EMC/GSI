@@ -105,7 +105,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-05-05  mccarty - re-removed repe_dw, added +1 conditional for reproducibility on ADM
 !   2011-05-26  mccarty - moved MSQ error logic from read_lidar
 !   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
-!                           tintrp3 to tintrp31
+!                           tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
 !
 ! !REMARKS:
 !   language: f90

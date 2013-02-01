@@ -13,7 +13,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 ! program history log:
 !   2009-03-05  meunier
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read ozone data

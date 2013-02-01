@@ -56,7 +56,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2010-06-02  sienkiewicz - care for closing bufr other than for o3lev
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstype  - observation type to process

@@ -17,7 +17,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! program history log:
 !   2009-04-08  Huang   - modified from read_ozone to read in MODIS AEROSOL data
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstype  - observation type to process

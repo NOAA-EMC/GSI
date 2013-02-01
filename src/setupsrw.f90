@@ -49,7 +49,7 @@ subroutine setupsrw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-05-05  mccarty - removed antiquated comment reference to repe_dw
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
-!                                  tintrp3 to tintrp31
+!                                  tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

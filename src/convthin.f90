@@ -186,7 +186,7 @@ contains
 !   2008-06-04  safford - rm unused vars
 !   2010-08-23  tong - add flg as an input argument of map3grids, so that the order of values 
 !                      of the vertical cooridnate can either increase or decrease 
-!   2013-01-23  parrish - change from grdcrd to grdcrd1
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     flg        - marks order of values in vertical dirction (1=increasing, -1=decreasing)

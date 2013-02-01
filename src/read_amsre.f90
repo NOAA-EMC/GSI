@@ -58,7 +58,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !                         fix indentation
 !   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
 !                         (isfcalc=1)
-!   2013-01-26  parrish - change from grdcrd to grdcrd1
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 ! input argument list:
 !     mype     - mpi task id

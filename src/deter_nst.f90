@@ -8,7 +8,7 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !
 ! program history log:
 !   2011-04-08 Li
-!   2013-01-23  parrish - change from grdcrd to grdcrd1
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstime                             - observation time relative to analysis time
