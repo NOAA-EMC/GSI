@@ -103,7 +103,7 @@
                             pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
                             l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
                             l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold, &
-                            i_conserve_thetaV_iternum,l_cld_bld, cld_bld_hgt
+                            i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -711,6 +711,7 @@
 !      r_cleanSnow_WarmTs_threshold - threshold for using retrieved snow over warn area
 !      l_conserve_thetaV    - if .true. conserve thetaV during moisture adjustment in cloud analysis
 !      i_conserve_thetaV_iternum    - iteration number for conserving thetaV during moisture adjustment
+!      l_gsd_soilTQ_nudge   - if .true. do GSD soil T and Q nudging based on the lowest t analysis inc
 !      l_cld_bld            - if .true. do GSD GOES cloud building
 !      cld_bld_hgt          - sets limit below which GOES cloud building occurs (default:1200m)
 !
@@ -722,7 +723,7 @@
                                 pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
                                 l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
                                 l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold,  &
-                                i_conserve_thetaV_iternum,l_cld_bld, cld_bld_hgt
+                                i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
