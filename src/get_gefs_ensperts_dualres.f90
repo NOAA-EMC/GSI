@@ -177,16 +177,6 @@ subroutine get_gefs_ensperts_dualres
        end if
        deallocate(pri)
 
-       if (.not.q_hyb_ens) then
-          ice=.true.
-          iderivative=0
-          call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
-       else
-! Code below uses case construct.  To avoid if statement, avoid converting q to rh by defining
-! qs to be equal to one, as rh=q/qs
-          qs(:,:,:)=one
-       end if
-
        ice=.true.
        iderivative=0
        call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
@@ -242,15 +232,26 @@ subroutine get_gefs_ensperts_dualres
 
              case('q','Q')
 !$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
-                do k=1,km
-                   do j=1,jm
-                      do i=1,im
-                         rh=q(i,j,k)/qs(i,j,k)
-                         w3(i,j,k) = rh
-                         x3(i,j,k)=x3(i,j,k)+rh
+                if (.not.q_hyb_ens) then !use RH
+                   do k=1,km
+                      do j=1,jm
+                         do i=1,im
+                            rh=q(i,j,k)/qs(i,j,k)
+                            w3(i,j,k) = rh
+                            x3(i,j,k)=x3(i,j,k)+rh
+                         end do
                       end do
                    end do
-                end do
+                else ! use q instead
+                   do k=1,km
+                      do j=1,jm
+                         do i=1,im
+                            w3(i,j,k) = q(i,j,k)
+                            x3(i,j,k)=x3(i,j,k)+q(i,j,k)
+                         end do
+                      end do
+                   end do
+                end if
 
              case('oz','OZ')
 !$omp parallel do schedule(dynamic,1) private(i,j,k)
