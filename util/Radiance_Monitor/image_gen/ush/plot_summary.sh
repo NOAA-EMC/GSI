@@ -72,14 +72,14 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/plot_summary.gs ${type} x1100 y850'
+'run ${GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 
    $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-#   rm -f ${type}.ctl 
-#   rm -f ${type}*.ieee_d
+   rm -f ${type}.ctl 
+   rm -f ${type}*.ieee_d
 
 done
 
@@ -92,15 +92,15 @@ if [[ ! -d ${IMGNDIR}/summary ]]; then
 fi
 $NCP -r *summary.png ${IMGNDIR}/summary/.
 
-#rm -f *.summary.png
+rm -f *.summary.png
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-#cd $tmpdir
-#cd ../
-#rm -rf $tmpdir
+cd $tmpdir
+cd ../
+rm -rf $tmpdir
 
 
 exit

@@ -109,7 +109,7 @@ elif [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="gunzip -f"
    export Z="gz"
    export TIMEX=
-   export GRADS=${GRADS_ROOT}/grads
+#   export GRADS=${GRADS_ROOT}/grads
 else
    export UTILS_BIN=
    export LLQ=

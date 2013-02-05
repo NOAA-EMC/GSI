@@ -11,13 +11,12 @@ export list=$listvar
 
 echo
 echo PATH=$PATH
-#echo
-#which libXaw.so.7
 echo
 
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
+export SUB_AVG=${SUB_AVG:-1}
 
 plot_angle_count=plot_angle_count.${RAD_AREA}.gs
 plot_angle_sep=plot_angle_sep.${RAD_AREA}.gs
@@ -43,8 +42,8 @@ cd $tmpdir
 #------------------------------------------------------------------
 #   Set dates
 
-bdate=`$NDATE -720 $PDATE`
-rdate=`$NDATE -72 $PDATE`
+#bdate=`$NDATE -720 $PDATE`
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -107,7 +106,7 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 
@@ -115,7 +114,7 @@ EOF
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 
@@ -123,7 +122,7 @@ EOF
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_sep} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
       fi
@@ -131,8 +130,8 @@ EOF
       $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-   rm -f ${type}*.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}*.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -145,18 +144,18 @@ if [[ ! -d ${IMGNDIR}/angle ]]; then
 fi
 $NCP *.png  ${IMGNDIR}/angle/.
 
-for var in ${PTYPE}; do
-   rm -f ${type}.${var}*.png
-done
+#for var in ${PTYPE}; do
+#   rm -f ${type}.${var}*.png
+#done
 
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------

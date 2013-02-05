@@ -9,8 +9,9 @@ function plottime (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+sub_avg=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
 platform=plotfile
 *plotfile=amsua.016
 *field=lapse
@@ -89,7 +90,7 @@ xe=xs+xe1*nx
 *say 'nregion='nregion
 
 * Set time
-'set t last'
+'set t 0 last'
 'query time'
 date1=subwrd(result,3)
 date2=subwrd(result,5)
@@ -99,12 +100,26 @@ say 'date2='date2
 
 'q dims'
 lin5=sublin(result,5)
-tlast=subwrd(lin5,9)
+tfirst=subwrd(lin5,11)
+tlast=subwrd(lin5,13)
 t1day=tlast-3
 t7days=tlast-27
-t30days=tlast-119
+*t30days=tlast-119
+t30days=0
 
 say 'tlast,t1day,t7days,t30days='tlast' 't1day' 't7days' 't30days
+
+*
+*  Determine number of days in plot (4 cycles per day)
+*
+rslt=tlast-tfirst
+if (rslt > 4)
+  mrslt=math_mod(rslt, 4)
+  ndays=(rslt-mrslt)/4
+else
+  ndays=1
+endif
+say 'rslt,mrslt,ndays = 'rslt' 'mrslt' 'ndays
 
 
 * 
@@ -114,6 +129,9 @@ say 'tlast,t1day,t7days,t30days='tlast' 't1day' 't7days' 't30days
 * 0 count for the 30 day average.  Define the new grid, fixed, from
 * satang, using the appropriately reduced scan positions.
 *
+
+'set t last'
+
 if (field = "omgnbc")
    new_xs=xs
    new_xe=xe
@@ -262,7 +280,13 @@ while (chn<=nchan)
    maxsdv0=-9999
 
    'set gxout stat'
-   it=1
+
+   if (sub_avg=1)
+      it=1
+   else
+      it=3
+   endif
+
    while (it<=nt)
       'd avg'it
       rec7=sublin(result,7)
@@ -345,9 +369,9 @@ while (chn<=nchan)
    'draw string 0.1 'y1+1.6' f 'freq' GHz'
    'draw string 0.1 'y1+1.4' `3l`0 'wavelength' `3m`0m'
    'set string 4 l 6'
-   'draw string 0.1 'y1+1.1' 30d avg: 'digs(avgvar,2)
+   'draw string 0.1 'y1+1.1' 'ndays'd avg: 'digs(avgvar,2)
    'set string 2 l 6'
-   'draw string 0.1 'y1+0.9' 30d sdv: 'digs(avgsdv,2)
+   'draw string 0.1 'y1+0.9' 'ndays'd sdv: 'digs(avgsdv,2)
    if (iuse<=0) 
       'set string 3 l 6'
       'draw string 0.1 'y1+0.7' CHANNEL 'channel
@@ -381,14 +405,17 @@ while (chn<=nchan)
     dy=0.2*yrange
     'set ylint 'dy
    'set cthick 8'
-   'set cmark 0'
-   'set cstyle 1'
-   'set ccolor 7'
-   'd avg1'
-   'set cmark 0'
-   'set cstyle 1'
-   'set ccolor 3'
-   'd avg2'
+
+   if (sub_avg=1)
+     'set cmark 0'
+     'set cstyle 1'
+     'set ccolor 7'
+     'd avg1'
+     'set cmark 0'
+     'set cstyle 1'
+     'set ccolor 3'
+     'd avg2'
+   endif
    'set cmark 0'
    'set cstyle 1'
    'set ccolor 4'
@@ -431,6 +458,7 @@ while (chn<=nchan)
     'set ylab %.4f'
     endif
 
+   if (sub_avg=1)
       'set cmark 0'
       'set cstyle 2'
       'set ccolor 7'
@@ -439,10 +467,12 @@ while (chn<=nchan)
       'set cstyle 2'
       'set ccolor 3'
       'd sdv2'
-      'set cmark 0'
-      'set cstyle 2'
-      'set ccolor 2'
-      'd sdv3'
+   endif
+
+   'set cmark 0'
+   'set cstyle 2'
+   'set ccolor 2'
+   'd sdv3'
 
    if (i=4 | chn=nchan)
       'set string 1 l 6'
@@ -461,17 +491,20 @@ while (chn<=nchan)
          'draw string 0.2 10.55 region  :  'area
       endif
       'draw string 0.2 10.30 variable:  'type
-      'draw string 0.2 10.05 valid   :  'date1
+      'draw string 0.2 10.05 valid   :  'date1' - 'date2
       'set strsiz 0.12 0.12'
       'set string 7 r 6'
-      'draw string 8.3 10.80 yellow: 1d'
-      'set string 3 r 6'
-      'draw string 8.3 10.60 green: 7d'
+
+      if (sub_avg=1)
+         'draw string 8.3 10.80 yellow: 1d'
+         'set string 3 r 6'
+         'draw string 8.3 10.60 green: 7d'
+      endif
       if (field = "omgnbc" | field = "total" | field = "omgbc")
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
          'set string 2 r 6'
-         'draw string 8.3 10.40 red: 30d'
+         'draw string 8.3 10.40 red: 'ndays'd'
          'set string 4 r 6'
          'draw string 7.4 10.20 solid=avg, '
          'set string 2 r 6'
@@ -481,7 +514,7 @@ while (chn<=nchan)
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
          'set string 2 r 6'
-         'draw string 8.3 10.40 red: 30d'
+         'draw string 8.3 10.40 red: 'ndays'd'
          'set string 4 r 6'
          'draw string 7.4 10.20 solid=avg, '
          'set string 2 r 6'
@@ -490,7 +523,7 @@ while (chn<=nchan)
 
       if (field = "count" | field = "penalty")
          'set string 4 r 6'
-         'draw string 8.42 10.4 blue: 30d '
+         'draw string 8.42 10.4 blue: 'ndays'd '
       endif
       if (field = "omgnbc")
          'set string 1 r 6'

@@ -14,6 +14,8 @@ set -ax
 date
 #export list=$listvar
 
+export NUM_CYCLES=${NUM_CYCLES:-121}
+
 imgndir=${IMGNDIR}/angle
 tankdir=${TANKDIR}/angle
 
@@ -68,13 +70,13 @@ fi
 #   Update the time definition (tdef) line in the angle control 
 #   files. Conditionally rm "cray_32bit_ieee" from the options line.
  
-thirtydays=`$NDATE -720 $PDATE`
+#thirtydays=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
-   ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${thirtydays}
+   ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
@@ -111,7 +113,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   #-----------------------------------------------------------------
   # Loop over satellite types.  Submit job to make plots.
   #
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
   list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 

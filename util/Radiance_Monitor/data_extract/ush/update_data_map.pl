@@ -42,5 +42,13 @@
       $doc->toFile( $dmfile );
       $rc = "0";
    }
-
+   else {
+      my $new_query = "//$source";
+      my ($src_node) = $doc->findnodes($new_query);
+      $src_node->appendTextChild( "$field", "$value" ); 
+      $doc->toFile( $dmfile );
+      $rc = "0";
+   }
+ 
+#   print $doc->toString(1);
    print "$rc";
