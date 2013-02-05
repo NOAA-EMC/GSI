@@ -25,27 +25,6 @@
     <use_mail>0</use_mail>
     <user_class>dev</user_class>
   </global_default>
-  <mno>
-    <account>ada</account>
-    <area>rgn</area>
-    <comp_plotdate>2012081606</comp_plotdate>
-    <comp_suffix2>mno1</comp_suffix2>
-    <comp_suffix3>mno2</comp_suffix3>
-    <imgdate>2012081600</imgdate>
-    <prodate>2012081612</prodate>
-  </mno>
-  <mno1>
-    <account>ada</account>
-    <area>rgn</area>
-    <imgdate>2012081600</imgdate>
-    <prodate>2012081612</prodate>
-  </mno1>
-  <mno2>
-    <account>ada</account>
-    <area>rgn</area>
-    <imgdate>2012081600</imgdate>
-    <prodate>2012081612</prodate>
-  </mno2>
   <regional_default>
     <account>RDAS-MTN</account>
     <anl>0</anl>
@@ -70,49 +49,4 @@
     <use_mail>0</use_mail>
     <user_class>dev</user_class>
   </regional_default>
-  <nrx>
-    <area>rgn</area>
-    <prodate>2013020506</prodate>
-    <imgdate>2013020506</imgdate>
-    <account>dev</account>
-    <radstat_location>/com_p6/nam/prod</radstat_location>
-    <plot_sub_avgs>1</plot_sub_avgs>
-  </nrx>
-  <xyz>
-    <account>ada</account>
-    <area>glb</area>
-    <comp_plotdate>2012010312</comp_plotdate>
-    <comp_suffix2>abc</comp_suffix2>
-    <plot_all_regions>0</plot_all_regions>
-    <prodate>2012010418</prodate>
-  <imgdate>2012010400</imgdate></xyz>
-  <opr>
-    <account>dev</account>
-    <area>glb</area>
-    <mail_cc/>
-    <mail_to>edward.safford@noaa.gov</mail_to>
-    <comp_plotdate>2013011600</comp_plotdate>
-    <comp_suffix2>p6opr</comp_suffix2>
-    <prodate>2013012412</prodate>
-    <imgdate>2013011618</imgdate>
-    <plot_all_regions>0</plot_all_regions>
-    <do_archive>0</do_archive>
-    <do_data_rpt>1</do_data_rpt>
-    <do_diag_rpt>1</do_diag_rpt>
-    <radstat_location>/com/gfs/prod</radstat_location>
-    <plot_sub_avgs>0</plot_sub_avgs>
-  </opr>
-  <p6opr>
-    <account>dev</account>
-    <area>glb</area>
-    <mail_cc/>
-    <mail_to/>
-    <imgdate>2012112200</imgdate>
-    <plot_all_regions>1</plot_all_regions>
-    <do_archive>0</do_archive>
-    <do_data_rpt>0</do_data_rpt>
-    <do_diag_rpt>0</do_diag_rpt>
-    <radstat_location>/com_p6/gfs/prod</radstat_location>
-    <prodate>2013012506</prodate>
-  <fish>flux</fish></p6opr>
 </opt>
