@@ -168,6 +168,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   real(r_double) totoz,hdrmls13
 
+  logical mls_nrt
 ! MLS data version: mlsv=22 is version 2.2 standard data; 
 !                   mlsv=20 is v2 near-real-time data
 !                   mlsv=30 is v3 near-real-time data
@@ -850,6 +851,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! Process MLS bufr data
   else if ( index(obstype,'mls')/=0 ) then
 
+     mls_nrt=.true.
+
      nmrecs=0
 
      open(lunin,file=infile,form='unformatted')
@@ -874,6 +877,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         goto 180
      endif
 
+   if(mls_nrt) then
+
 !    Get # of vertical pressure levels nloz and MLS NRT data version which depends on nloz
      allocate(hdrmlsl(3,100))
      call ufbrep(lunin,hdrmlsl,3,100,iret,mlstrl)
@@ -885,13 +890,20 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        mlsv=30
      else
        write(6,*) 'invalid vertical level number: ', nloz
+       write(6,*) '******STOP*******: error reading MLS vertical levels in read_ozone.f90'
+       call stop2(336)
      end if
+     deallocate(hdrmlsl)
+
+   else      !mls v2.2 data
+       nloz=37
+       mlsv=22
+   end if
 
      write(6,*) 'READ_OZONE: MLS data version=',mlsv
      write(6,*) 'READ_OZONE: MLS vertical level number=',nloz
 
 !    Allocate arrays
-     deallocate(hdrmlsl)
      allocate(hdrmlsl(3,nloz))
      allocate (mlspres(nloz))
      allocate (mlsoz(nloz))
@@ -997,7 +1009,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      end if
 
 !    v2.2 data screening, only accept:
-!    Pressure range(PRLC):       215-0.02mb
+!    Pressure range(PRLC):       215-0.02mb (lev5-27)
 !    Precision(OZMP):            positive OZMP;    
 !    Status flag(MLST):          only use even number
 !    Quality(PCCF):              use >1.2 for data at 215-100mb & low latitude, 
@@ -1005,7 +1017,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Convergence(CONV):          use <1.8
 
 !    v2 NRT data screening, only accept:
-!    Pressure range(PRLC):       68-0.2mb
+!    Pressure range(PRLC):       68-0.2mb (lev8-23)
 !    Precision(OZMP):            positive OZMP;    
 !    Status flag(MLST):          only use even number
 !    Quality(PCCF):              do NOT use <1.2 or >3.0
@@ -1042,9 +1054,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !       there is possibility that mlsoz in bufr is 0 or negative or larger than 100 which are not reasonable values.
         if(mlsoz(k)<1.0e-8 .or. mlsoz(k)>100.0 ) then 
           usage1(k)=1000._r_kind
-!         for v2 NRT data, if this unreasonable value happens between 68mb (lev8) and 0.68mb (lev20), throw the whole profile
+!         for v2.2 data, if this unreasonable value happens between 215mb (lev5) and 0.02mb (lev27), throw the whole profile
+!         for v2 NRT data, if this unreasonable value happens between 68mb (lev8) and 0.2mb (lev23), throw the whole profile
 !         for v3 NRT data, if this unreasonable value happens between 261mb (lev8) and 0.1mb (lev43), throw the whole profile
-          if(mlsv==20 .and. (k<=20 .and. k>=8)) go to 140
+          if(mlsv==22 .and. (k<=27 .and. k>=5)) go to 140
+          if(mlsv==20 .and. (k<=23 .and. k>=8)) go to 140
           if(mlsv==30 .and. (k<=43 .and. k>=8)) go to 140
         end if
      end do
