@@ -253,6 +253,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
+       else if(trim(filename) == 'oscatbufr')then
+         lexist = .false.
+         oscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC012255') then                                         
+               lexist = .true.
+               exit oscatloop
+            endif
+         end do oscatloop
        else if(trim(dtype) == 'pm2_5')then
           if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
              lexist=.true.
@@ -881,11 +889,17 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'
+!             Process oscat winds which seperate from prepbufr
+                elseif ( index(infile,'oscatbufr') /=0 ) then
+                  call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                     prsl_full)
+                  string='READ_SFCWND'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                   string='READ_PREPBUFR'
                 endif
+
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'mods') then
