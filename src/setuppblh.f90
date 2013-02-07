@@ -67,7 +67,7 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
   real(r_double) rstation_id
 
-  real(r_kind) pblhges,dlat,dlon,ddiff,dtime,error,wflate
+  real(r_kind) pblhges,dlat,dlon,ddiff,dtime,error
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
   real(r_kind) obserrlm,obserror,val,valqc
   real(r_kind) term,halfpi,rwgt
@@ -240,9 +240,7 @@ subroutine setuppblh(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         1,1,mype,nfldsig)
 
 ! Adjust observation error
-!    wflate=0.3*abs(dtime)*data(ier,i)   !inflate obs error as obs is far away from analysis time
-     wflate=0.0
-     ratio_errors=error/(data(ier,i)+wflate)
+     ratio_errors=error/data(ier,i)
      error=one/error
 
      ddiff=data(ipblh,i)-pblhges

@@ -18,7 +18,7 @@ module lag_interp
 !
 ! module history log:
 !   2009-03-11  meunier
-!   2011-08-01  lueken  - replaced ione with 1, removed double &
+!   2011-08-01  lueken  - removed double &
 !
 ! subroutines included:
 !   sub lag_inipgrid

@@ -37,7 +37,7 @@ subroutine tpause(mype,method)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,rd_over_cp,grav,rad2deg,one,r1000,r0_01
+  use constants, only: rd_over_cp,grav,rad2deg,one,r1000,r0_01
   use guess_grids, only: ges_ps,tropprs,ges_oz,ges_vor,geop_hgtl,&
        ntguessig,ges_prsl,ges_tv,ges_tsen
   use gridmod, only: istart,nlat,rlats,nsig,lat2,lon2
@@ -75,9 +75,9 @@ subroutine tpause(mype,method)
 
 !================================================================================
 ! Set local constants
-  npassh=6_i_kind; npassv=izero
+  npassh=6; npassv=0
   t_method = .false.
-  if (index(method,'pvoz') == izero) t_method = .true.
+  if (index(method,'pvoz') == 0) t_method = .true.
 
 ! Locate tropopause based on temperature profile (WMO approach)
   if (t_method) then
@@ -105,9 +105,9 @@ subroutine tpause(mype,method)
   else
 
 !    Compute latitudes on subdomain
-     mm1=mype+ione
+     mm1=mype+1
      do i=1,lat2
-        latrad=min(max(ione,istart(mm1)+i-2_i_kind),nlat)
+        latrad=min(max(1,istart(mm1)+i-2),nlat)
         slatd(i)=abs(rlats(latrad))*rad2deg
      end do
 
@@ -120,33 +120,33 @@ subroutine tpause(mype,method)
            end do
         
 !          Compute pv         
-           do k = 2,nsig-ione
-              pm1 = prs(k-ione)
-              pp1 = prs(k+ione)
-              thetam1 = ges_tv(i,j,k-ione,ntguessig)*(r1e5/pm1)**(rd_over_cp)
-              thetap1 = ges_tv(i,j,k+ione,ntguessig)*(r1e5/pp1)**(rd_over_cp)
+           do k = 2,nsig-1
+              pm1 = prs(k-1)
+              pp1 = prs(k+1)
+              thetam1 = ges_tv(i,j,k-1,ntguessig)*(r1e5/pm1)**(rd_over_cp)
+              thetap1 = ges_tv(i,j,k+1,ntguessig)*(r1e5/pp1)**(rd_over_cp)
               pv = grav*ges_vor(i,j,k,ntguessig)*(thetam1-thetap1)/(pm1-pp1)
               pvort(k) = abs(pv)
            end do
            pvort(1) = pvort(2)
-           pvort(nsig) = pvort(nsig-ione)
+           pvort(nsig) = pvort(nsig-1)
            
 !          Locate tropopause
-           ifound_pv=izero; ifound_oz=izero
+           ifound_pv=0; ifound_oz=0
            itrp_pv=nsig; itrp_oz=nsig
 
 !          Search upward (decreasing pressure) for tropopause above sigma 0.7
            do k=2,nsig
               if ((prs(k)*(r0_001)*psi) < r0_7) then
 !                Trop at level where pv=2e-6
-                 if (pvort(k)>r2em6 .and. ifound_pv==izero) then
-                    ifound_pv=ione
+                 if (pvort(k)>r2em6 .and. ifound_pv==0) then
+                    ifound_pv=1
                     itrp_pv = k
                  endif
                
 !                Trop at level where ozone greater than 3e-7
-                 if (ges_oz(i,j,k,ntguessig)>r3em7 .and. ifound_oz==izero) then
-                    ifound_oz=ione
+                 if (ges_oz(i,j,k,ntguessig)>r3em7 .and. ifound_oz==0) then
+                    ifound_oz=1
                     itrp_oz = k
                  endif
               endif
@@ -161,7 +161,7 @@ subroutine tpause(mype,method)
            else
               itrop_k = itrp_oz
            endif
-           itrop_k        = max(ione,min(itrop_k,nsig))
+           itrop_k        = max(1,min(itrop_k,nsig))
            trop_pv(i,j)   = prs(itrp_pv)*r0_01 !hPa
            trop_oz(i,j)   = prs(itrp_oz)*r0_01 !hPa
            trop_pvoz(i,j) = prs(itrop_k)*r0_01 !hPa

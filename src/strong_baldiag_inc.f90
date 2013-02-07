@@ -20,7 +20,6 @@ subroutine strong_baldiag_inc(sval,nsval)
 !   2011-07-03  todling  - avoid explicit reference to internal bundle arrays
 !   2011-11-01  eliu     - add handling for ql and qi increments 
 !   2012-02-08  kleist   - add uvflag=.true. to call to strong_bal_correction
-!   2012-02-08  parrish  - remove use of izero
 !
 !   input argument list:
 !     sval    - current solution in state space
@@ -127,7 +126,7 @@ subroutine strong_baldiag_inc(sval,nsval)
 ! handle in computing horizontal derivatives
 
   do ii=1,nsval
-     if(mype==0) write(6,'(1x,a,i0,a)') 'strong_baldiag_inc: sval(',ii,')'
+!    if(mype==0) write(6,'(1x,a,i0,a)') 'strong_baldiag_inc: sval(',ii,')'
 
      call gsi_bundlegetpointer(sval(ii),'u',  p_u,  istatus)
      call gsi_bundlegetpointer(sval(ii),'v',  p_v,  istatus)

@@ -67,7 +67,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   external:: stop2
 
 ! Declare local variables
-  logical,parameter::  closest_obs=.true.
   
   real(r_double) rstation_id
 
@@ -176,21 +175,9 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
 
-           if (closest_obs) then
-              if (abs(data(itime,k)) < abs(data(itime,l))) then
-                 dup(l)=r1000
-              else if (abs(data(itime,k)) > abs(data(itime,l))) then
-                 dup(k)=r1000
-              else if (abs(data(itime,k)) == abs(data(itime,l))) then
-                 tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-                 dup(k)=dup(k)+one+tfact*tfact*(one-dfact)
-                 dup(l)=dup(l)+one+tfact*tfact*(one-dfact)
-              end if
-           else
-              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           end if
+           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
         end if
      end do
   end do
@@ -431,7 +418,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           wflate=0.8_r_kind*data(ier,i)
        end if
      end if
-     wflate=wflate+0.3*abs(dtime)*data(ier,i)   !inflate obs error as obs is far away from analysis time
      ratio_errors=error/((data(ier,i)+drpx+wflate+1.0e6*rhgh+four*rlow)*sqrt(dup(i)))
      error=one/error
 

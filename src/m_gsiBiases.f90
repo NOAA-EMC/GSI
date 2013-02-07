@@ -10,7 +10,6 @@ module m_gsiBiases
 !
 ! program history log:
 !   2010-03-24  j guo   - added this document block
-!   2011-08-01  lueken  - replaced F90 with f90, replace izero/ione with 0/1, remove _i_kind
 !
 !   input argument list: see Fortran 90 style document below
 !

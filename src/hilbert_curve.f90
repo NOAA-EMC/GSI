@@ -40,11 +40,10 @@ subroutine hilbert(mskip,nob,xob,yob,test_set)
 use phil, only: xy_to_hil,hil_to_r,bsort
 use phil1, only: getvalsets
 use kinds, only: r_kind,i_kind
-use constants, only: izero,ione
 
 implicit none
 
-integer(i_kind),parameter        :: ngen=15_i_kind
+integer(i_kind),parameter        :: ngen=15
 !real(r_kind),parameter          :: delta=.001_r_kind,xhskip=.00035_r_kind
 real(r_kind),parameter           :: xhskip=.00030_r_kind
 !real(r_kind),parameter          :: delta=.001_r_kind,xhskip=.00025_r_kind
@@ -65,38 +64,38 @@ integer(i_kind),dimension(mskip):: firstb
 
 do iob=1,nob
    call xy_to_hil(ngen,xob(iob),yob(iob),hil4)
-   call hil_to_r(ione,ngen,hil4,xh(iob))
+   call hil_to_r(1,ngen,hil4,xh(iob))
 enddo
-call bsort(ione,nob,xh,next,firsta)
+call bsort(1,nob,xh,next,firsta)
 
-count=izero
+count=0
 iob=firsta
 do isamp=1,nob
-   if(iob==izero)exit
-   count=count+ione
+   if(iob==0)exit
+   count=count+1
    iob=next(iob)
 enddo
 
 call getvalsets(nob, mskip,xhskip,xh,next, firsta,firstb)
 
-test_set=izero
+test_set=0
 
 do iskip=1,mskip
-   count=izero
+   count=0
    iob=firstb(iskip)
    do isamp=1,nob
-      if(iob==izero)exit
-      count=count+ione
+      if(iob==0)exit
+      count=count+1
       test_set(iob)=iskip
       iob=next(iob)
    enddo
 enddo
 
-count=izero
+count=0
 iob=firsta
 do isamp=1,nob
-   if(iob==izero)exit
-   count=count+ione
+   if(iob==0)exit
+   count=count+1
    iob=next(iob)
 enddo
 

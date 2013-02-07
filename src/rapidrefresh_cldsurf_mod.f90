@@ -48,6 +48,8 @@ module rapidrefresh_cldsurf_mod
 !
 !   def i_conserve_thetaV_iternum    - namelist iteration number for conserving 
 !                                           thetaV during moisture adjustment
+!   def l_gsd_soilTQ_nudge   - namelist logical for doing GSD soil T and Q nudging 
+!                                       based on the lowest t analysis inc
 !   def l_cld_bld            - namelist logical for GOES cloud building
 !   def cld_bld_hgt          - namelist real for height limit, below which you build clouds
 !                                       (default = 1200 meters)
@@ -85,6 +87,7 @@ module rapidrefresh_cldsurf_mod
   public :: l_conserve_thetaV
   public :: r_cleanSnow_WarmTs_threshold
   public :: i_conserve_thetaV_iternum
+  public :: l_gsd_soilTQ_nudge
   public :: l_cld_bld
   public :: cld_bld_hgt
 
@@ -108,6 +111,7 @@ module rapidrefresh_cldsurf_mod
   logical l_conserve_thetaV
   real(r_kind)    r_cleanSnow_WarmTs_threshold
   integer(i_kind) i_conserve_thetaV_iternum
+  logical l_gsd_soilTQ_nudge
   logical l_cld_bld
   real(r_kind) cld_bld_hgt
 
@@ -181,6 +185,7 @@ contains
     l_conserve_thetaV  = .false.                      ! .true. = turn on conserving thetaV
     r_cleanSnow_WarmTs_threshold = 8.0_r_kind         ! Ts threshold for cleaning snow
     i_conserve_thetaV_iternum = 3                     ! iteration number for conserving thetaV
+    l_gsd_soilTQ_nudge = .false.                      ! .true. = turn on soil T and Q nudge
     l_cld_bld          = .false.                      ! .true. = turn on GOES cloud building
     cld_bld_hgt        = 1200.0_r_kind                ! Height (meters) below which to build clouds
 

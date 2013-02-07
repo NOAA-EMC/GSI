@@ -1089,6 +1089,7 @@ subroutine create_pseudo_enpert_blend(bc_lon,bc_lat,dlmd,dphd,nord_blend,blndmsk
   use constants, only: zero,one
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens
+  use blendmod, only: blend
   implicit none
 
   real(r_kind)          ,intent(in   ) :: bc_lon,bc_lat 

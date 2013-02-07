@@ -19,7 +19,6 @@ module mod_nmmb_to_a
 !   2010-09-10  parrish, add more extensive description, and add routine nmmb_h_to_a8
 !   2012-02-08  parrish - add public variables ratio_x, ratio_y, for use in gridmod.F90 for bug fix
 !                            in definition of region_dx, region_dy.
-!   2012-02-08  parrish - remove use of izero, ione
 !
 ! subroutines included:
 !   sub init_nmmb_to_a

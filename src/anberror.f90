@@ -14,9 +14,7 @@ module anberror
 !   2007-08-21  pondeca - add qvar3d allocate (bug fix)
 !   2008-11-03  sato - update for global mode and sub-domain mode
 !   2008-12-10  zhu  - use nvars from jfunc,add changes for generalized control variables
-!   2010-05-06  zhu  - add vprecond for newpc4pred
 !   2010-06-05  todling - an_amp no longer has wired-in order of variables in CV
-!   2011-04-07  todling - newpc4pred now in radinfo
 !
 ! subroutines included:
 !   sub init_anberror             - initialize extra anisotropic background error
@@ -267,16 +265,15 @@ contains
 !$$$ end documentation block
 
     use fgrid2agrid_mod, only: create_fgrid2agrid
-    use jfunc, only: nrclen,nclen
+    use jfunc, only: nrclen,nclen,diag_precon
     use berror, only: varprd,vprecond,bnf=>nf,bnr=>nr
-    use radinfo, only:newpc4pred
     use gridmod, only: nlat,nlon
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(1,nrclen)))
-    if (newpc4pred) allocate(vprecond(nclen))
+    if(diag_precon)allocate(vprecond(nclen))
     allocate(an_amp(max_ngauss,nvars))
     an_amp=one/three
 
@@ -372,13 +369,13 @@ contains
 !
 !$$$
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
+    use jfunc, only: diag_precon
     use berror, only: vprecond
-    use radinfo, only: newpc4pred
     implicit none
 
     deallocate(an_amp)
     deallocate(qvar3d)
-    if (newpc4pred) deallocate(vprecond)
+    if(diag_precon)deallocate(vprecond)
 
     call destroy_fgrid2agrid(pf2aP1)
     call destroy_fgrid2agrid(pf2aP2)
@@ -411,16 +408,15 @@ contains
 !
 !$$$
     use fgrid2agrid_mod, only: create_fgrid2agrid
-    use jfunc, only: nrclen,nclen
+    use jfunc, only: nrclen,nclen,diag_precon
     use berror, only: varprd,vprecond
-    use radinfo, only: newpc4pred
     use gridmod, only: nlat,nlon,istart,jstart
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(1,nrclen)))
-    if (newpc4pred) allocate(vprecond(nclen))
+    if(diag_precon)allocate(vprecond(nclen))
     allocate(an_amp(max_ngauss,nvars))
     an_amp=one/three
 
@@ -625,15 +621,15 @@ contains
 !$$$ end documentation block
 
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
+    use jfunc, only: diag_precon
     use berror, only: vprecond
-    use radinfo, only: newpc4pred
     implicit none
 
     integer(i_kind) k
 
     deallocate(an_amp)
     deallocate(qvar3d)
-    if(newpc4pred) deallocate(vprecond)
+    if(diag_precon)deallocate(vprecond)
     call destroy_fgrid2agrid(pf2aP1)
 
   end subroutine destroy_anberror_vars_reg
@@ -760,8 +756,8 @@ contains
        do k=1,nvars
           write(6,*)' k,kvar_start,end(k)=',k,kvar_start(k),kvar_end(k)
        end do
+       write(6,*)' in anberror_vert_partition_subdomain_option, kps,kpe=',indices%kps,indices%kpe
     end if
-    write(6,*)' in anberror_vert_partition_subdomain_option, kps,kpe=',indices%kps,indices%kpe
 
   end subroutine anberror_vert_partition_subdomain_option
 

@@ -50,9 +50,9 @@
  public inside_fov_conical
  public fov_ellipse_conical
 
- integer(i_kind), parameter, private :: nchan = 24_i_kind
- integer(i_kind), parameter, private :: maxinstr = 5_i_kind
- integer(i_kind), parameter :: instrumentrange(2) = (/26_i_kind, 30_i_kind/)
+ integer(i_kind), parameter, private :: nchan = 24
+ integer(i_kind), parameter, private :: maxinstr = 5
+ integer(i_kind), parameter :: instrumentrange(2) = (/26, 30/)
 
  real(r_kind), parameter, private    :: radius   = 6371.22_r_kind
 
@@ -638,7 +638,7 @@ subroutine instrument_init(instr,satid,expansion,valid)
 !$$$
 
  use calc_fov_crosstrk, only : get_sat_height
- use constants, only  : ione, pi, one, two, half, zero
+ use constants, only  : pi, one, two, half, zero
 
  implicit none
 
@@ -655,7 +655,7 @@ subroutine instrument_init(instr,satid,expansion,valid)
  valid=.true.
 
  minstr = instr
- if(instr == 25_i_kind) minstr = 26_i_kind ! use dmsp 16 for default circular fov size
+ if(instr == 25) minstr = 26 ! use dmsp 16 for default circular fov size
   
  if ((minstr < instrumentrange(1)) .or. (minstr > instrumentrange(2))) then 
     write(6,*) "INSTRUMENT_INIT: INSTRUMENT NUMBER OF: ",minstr," OUT OF RANGE." 
@@ -666,15 +666,15 @@ subroutine instrument_init(instr,satid,expansion,valid)
 
  nullify(ssmiscoeff)
  select case (minstr)
-    case(26_i_kind)
+    case(26)
        ssmiscoeff=>ssmiscoeff_26
-    case(27_i_kind)
+    case(27)
        ssmiscoeff=>ssmiscoeff_27
-    case(28_i_kind)
+    case(28)
        ssmiscoeff=>ssmiscoeff_28
-    case(29_i_kind)
+    case(29)
        ssmiscoeff=>ssmiscoeff_29
-    case(30_i_kind)
+    case(30)
        ssmiscoeff=>ssmiscoeff_30
     case default
        write(6,*) "INSTRUMENT_INIT: NO SSMIS COEFFICIENTS FOR SATELLITE ",minstr
@@ -684,7 +684,7 @@ subroutine instrument_init(instr,satid,expansion,valid)
 
 ! fov is polygon.
  do i = 1 , npoly
-    psi(i) = two*pi*(i-ione)/(npoly-ione)  ! will connect npoly points
+    psi(i) = two*pi*(i-1)/(npoly-1)  ! will connect npoly points
  enddo
 
  call get_sat_height(satid, height, valid)
@@ -705,7 +705,7 @@ subroutine instrument_init(instr,satid,expansion,valid)
     eccen(jchan) = sqrt(one - ratio)
  enddo
 
- if(instr == 25_i_kind) eccen = zero  ! default circular fov
+ if(instr == 25) eccen = zero  ! default circular fov
 
  return
 
@@ -1048,7 +1048,7 @@ subroutine inside_fov_conical(instr,ichan,satellite_azimuth,lat,lon, &
  integer(i_kind) :: minstr        ! storage for instrument number permitting instr 25 default circular
 
   minstr = instr
-  if(instr == 25_i_kind) minstr = 26_i_kind ! use dmsp 16 for default circular fov size
+  if(instr == 25) minstr = 26 ! use dmsp 16 for default circular fov size
 
 ! Get satellite az to where we want it. 1st, convert +- to 0-360
   satellite_azimuth_rot = satellite_azimuth

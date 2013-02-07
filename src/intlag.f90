@@ -10,7 +10,7 @@ module intlagmod
 ! program history log:
 !   2008-03-23  lmeunier - initial code
 !   2009-08-13  lueken - update documentation
-!   2011-08-01  lueken - changed F90 to f90, replace izero/ione with 0/1
+!   2011-08-01  lueken - changed F90 to f90
 !
 ! subroutines included:
 !   sub intlag

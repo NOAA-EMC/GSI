@@ -12,7 +12,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 !
 ! program history log:
 !   2009-03-05  meunier
-!   2011-08-01  lueken  - changed F90 to f90 (no machine logic), removed _i_kind, replaced izero/ione with 0/1
+!   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
 !
 !   input argument list:
 !     infile   - unit from which to read ozone data

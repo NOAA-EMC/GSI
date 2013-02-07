@@ -718,12 +718,9 @@ contains
              nsuper=nsuper+1
           end do
           if(nsuper > 0)then
-            write(6,*)' for radar ',this_staid,' nsuper=',nsuper
-            write(6,*)'  vrmin,max=',vrmin,vrmax
-            write(6,*)' errmin,max=',errmin,errmax
-            write(6,*)' delazmmax=',delazmmax
-            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax
-            write(6,*)' deldistmin,max=',deldistmin,deldistmax
+            write(6,*)' for radar ',this_staid,' nsuper=',nsuper,' delazmmax=',delazmmax
+            write(6,*)' vrmin,max=',vrmin,vrmax,' errmin,max=',errmin,errmax
+            write(6,*)' deltiltmin,max=',deltiltmin,deltiltmax,' deldistmin,max=',deldistmin,deldistmax
             vrminall=min(vrminall,vrmin)
             vrmaxall=max(vrmaxall,vrmax)
             errminall=min(errminall,errmin)

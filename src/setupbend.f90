@@ -60,8 +60,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2010-05-24 guo      - remerged/reimplmented multi-pass setup in observer mode;
 !   2010-08-09 lueken   - removed n_5km variable from code.
 !   2010-08-10 treadon  - remove last check for gpshead allocate; clean up use statements, 
-!                         replace (izero,ione) with (0,1), remove _i_kind suffix from integer 
-!                         constants
 !   2010-08-11 lcucurull - replace tpdpres with tpdpres(nobs) to fix bug in TL code
 !   2010-08-18        hu - add tell to mpeu_util declaration
 !   2010-10-25 cucurull  - add quality control options for C/NOFS satellite

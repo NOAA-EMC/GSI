@@ -299,7 +299,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         itype=ictype(ikx)
         rstation_id     = data(id,i)
         prest=r10*exp(dpres)     ! in mb
-        sfctype=itype>179.and.itype<190
+        sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
   
         iqtflg=nint(data(iqt,i)) == 0
 

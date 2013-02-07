@@ -34,7 +34,7 @@ module lagmod
 
 !============================================================================
 use kinds, only: r_kind,i_kind
-use constants, only: ione,zero,one
+use constants, only: zero,one
 implicit none
 
 ! set default to private
@@ -247,18 +247,18 @@ INTEGER(i_kind)                      :: j
 !============================================================================
 pa(1)=one
 dpa(1)=zero
-do j=1,n-ione
+do j=1,n-1
    d(j)=xt-x(j)
-   pa (j+ione)=pa (j)*d(j)
-   dpa(j+ione)=dpa(j)*d(j)+pa(j)
+   pa (j+1)=pa (j)*d(j)
+   dpa(j+1)=dpa(j)*d(j)+pa(j)
 enddo
 d(n)=xt-x(n)
 
 pb(n)=one
 dpb(n)=zero
 do j=n,2,-1
-   pb (j-ione)=pb (j)*d(j)
-   dpb(j-ione)=dpb(j)*d(j)+pb(j)
+   pb (j-1)=pb (j)*d(j)
+   dpb(j-1)=dpb(j)*d(j)+pb(j)
 enddo
 do j=1,n
    w (j)= pa(j)*pb (j)*q(j)
@@ -316,13 +316,13 @@ dpa(1)=zero
 pa_TL(1)=zero
 dpa_TL(1)=zero
 
-do j=1,n-ione
+do j=1,n-1
    d(j)=xt-x(j)
    d_TL(j)=-x_TL(j)
-   pa    (j+ione)=pa    (j)*d(j)
-   pa_TL (j+ione)=pa_TL (j)*d(j)+pa(j)*d_TL(j)
-   dpa   (j+ione)=dpa   (j)*d(j)+pa(j)
-   dpa_TL(j+ione)=dpa_TL(j)*d(j)+dpa(j)*d_TL(j)+pa_TL(j)
+   pa    (j+1)=pa    (j)*d(j)
+   pa_TL (j+1)=pa_TL (j)*d(j)+pa(j)*d_TL(j)
+   dpa   (j+1)=dpa   (j)*d(j)+pa(j)
+   dpa_TL(j+1)=dpa_TL(j)*d(j)+dpa(j)*d_TL(j)+pa_TL(j)
 enddo
 d(n)=xt-x(n)
 d_TL(n)=-x_TL(n)
@@ -332,10 +332,10 @@ dpb(n)=zero
 pb_TL(n)=zero
 dpb_TL(n)=zero
 do j=n,2,-1
-   pb    (j-ione)=pb    (j)*d(j)
-   pb_TL (j-ione)=pb_TL (j)*d(j)+pb (j)*d_TL(j)
-   dpb   (j-ione)=dpb   (j)*d(j)+pb (j)
-   dpb_TL(j-ione)=dpb_TL(j)*d(j)+dpb(j)*d_TL(j)+pb_TL(j)
+   pb    (j-1)=pb    (j)*d(j)
+   pb_TL (j-1)=pb_TL (j)*d(j)+pb (j)*d_TL(j)
+   dpb   (j-1)=dpb   (j)*d(j)+pb (j)
+   dpb_TL(j-1)=dpb_TL(j)*d(j)+dpb(j)*d_TL(j)+pb_TL(j)
 enddo
 do j=1,n
    w    (j)= pa   (j)*pb (j)*q(j)
@@ -401,17 +401,17 @@ d_AD=zero
 ! passive variables
 pa(1)=one
 dpa(1)=zero
-do j=1,n-ione
+do j=1,n-1
    d(j)=xt-x(j)
-   pa (j+ione)=pa (j)*d(j)
-   dpa(j+ione)=dpa(j)*d(j)+pa(j)
+   pa (j+1)=pa (j)*d(j)
+   dpa(j+1)=dpa(j)*d(j)+pa(j)
 enddo
 d(n)=xt-x(n)
 pb(n)=one
 dpb(n)=zero
 do j=n,2,-1
-   pb (j-ione)=pb (j)*d(j)
-   dpb(j-ione)=dpb(j)*d(j)+pb(j)
+   pb (j-1)=pb (j)*d(j)
+   dpb(j-1)=dpb(j)*d(j)+pb(j)
 enddo
 !
 do j=n,1,-1
@@ -425,23 +425,23 @@ do j=n,1,-1
    q_AD  (j)=q_AD  (j)+ pa (j)*pb (j)*w_AD (j)
 end do
 do j=2,n
-   dpb_AD(j)=dpb_AD(j)+d  (j)*dpb_AD(j-ione)
-   d_AD  (j)=d_AD  (j)+dpb(j)*dpb_AD(j-ione)
-   pb_AD (j)=pb_AD (j)       +dpb_AD(j-ione)
-   pb_AD (j)=pb_AD (j)+d  (j)*pb_AD (j-ione)
-   d_AD  (j)=d_AD  (j)+pb (j)*pb_AD (j-ione)
+   dpb_AD(j)=dpb_AD(j)+d  (j)*dpb_AD(j-1)
+   d_AD  (j)=d_AD  (j)+dpb(j)*dpb_AD(j-1)
+   pb_AD (j)=pb_AD (j)       +dpb_AD(j-1)
+   pb_AD (j)=pb_AD (j)+d  (j)*pb_AD (j-1)
+   d_AD  (j)=d_AD  (j)+pb (j)*pb_AD (j-1)
 enddo
 
 dpb_AD(n)=zero ! not sure about it
 pb_AD(n) =zero ! not sure about it
 
 x_AD(n)=x_AD(n)-d_AD(n)
-do j=n-ione,1,-1
-   dpa_AD(j)=dpa_AD(j)+d  (j)*dpa_AD(j+ione)
-   d_AD  (j)=d_AD  (j)+dpa(j)*dpa_AD(j+ione)
-   pa_AD (j)=pa_AD (j)       +dpa_AD(j+ione)
-   pa_AD (j)=pa_AD (j)+d  (j)*pa_AD (j+ione)
-   d_AD  (j)=d_AD  (j)+pa (j)*pa_AD (j+ione)
+do j=n-1,1,-1
+   dpa_AD(j)=dpa_AD(j)+d  (j)*dpa_AD(j+1)
+   d_AD  (j)=d_AD  (j)+dpa(j)*dpa_AD(j+1)
+   pa_AD (j)=pa_AD (j)       +dpa_AD(j+1)
+   pa_AD (j)=pa_AD (j)+d  (j)*pa_AD (j+1)
+   d_AD  (j)=d_AD  (j)+pa (j)*pa_AD (j+1)
    x_AD  (j)=x_AD  (j)       -d_AD  (j  )
 enddo
 
@@ -490,18 +490,18 @@ subroutine slagdw(x,xt,aq,bq,w,dw,n)
 !============================================================================
 IMPLICIT NONE
 
-INTEGER(i_kind)               ,INTENT(IN   ) :: n
-REAL(r_kind)                  ,INTENT(IN   ) :: xt
-REAL(r_kind),DIMENSION(n)     ,INTENT(IN   ) :: x
-REAL(r_kind),DIMENSION(n-ione),INTENT(IN   ) :: aq,bq
-REAL(r_kind),DIMENSION(n)     ,INTENT(  OUT) :: w,dw
+INTEGER(i_kind)            ,INTENT(IN   ) :: n
+REAL(r_kind)               ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n)  ,INTENT(IN   ) :: x
+REAL(r_kind),DIMENSION(n-1),INTENT(IN   ) :: aq,bq
+REAL(r_kind),DIMENSION(n)  ,INTENT(  OUT) :: w,dw
 !-----------------------------------------------------------------------------
-REAL(r_kind),DIMENSION(n)                  :: aw,bw,daw,dbw
-REAL(r_kind)                               :: xa,xb,dwb,wb
-INTEGER(i_kind)                            :: na
+REAL(r_kind),DIMENSION(n)               :: aw,bw,daw,dbw
+REAL(r_kind)                            :: xa,xb,dwb,wb
+INTEGER(i_kind)                         :: na
 !============================================================================
-CALL lagdw(x(1:n-ione),xt,aq,aw(1:n-ione),daw(1:n-ione),n-ione)
-CALL lagdw(x(2:n     ),xt,bq,bw(2:n     ),dbw(2:n     ),n-ione)
+CALL lagdw(x(1:n-1),xt,aq,aw(1:n-1),daw(1:n-1),n-1)
+CALL lagdw(x(2:n  ),xt,bq,bw(2:n  ),dbw(2:n  ),n-1)
 aw(n)=zero
 daw(n)=zero
 bw(1)=zero
@@ -509,7 +509,7 @@ dbw(1)=zero
 na=n/2
 IF(na*2 /= n)STOP 'In slagdw; n must be even'
 xa =x(na     )
-xb =x(na+ione)
+xb =x(na+1)
 dwb=one/(xb-xa)
 wb =(xt-xa)*dwb
 IF    (wb>one )THEN
@@ -559,22 +559,22 @@ subroutine slagdw_TL(x,x_TL,xt,aq,aq_TL,bq,bq_TL,dw,dw_TL,n)
 !============================================================================
 IMPLICIT NONE
 
-INTEGER(i_kind)               ,INTENT(IN   ) :: n
-REAL(r_kind)                  ,INTENT(IN   ) :: xt
-REAL(r_kind),DIMENSION(n)     ,INTENT(IN   ) :: x,x_TL
-REAL(r_kind),DIMENSION(n-ione),INTENT(IN   ) :: aq,bq,aq_TL,bq_TL
-REAL(r_kind),DIMENSION(n)     ,INTENT(  OUT) :: dw_TL,dw
+INTEGER(i_kind)            ,INTENT(IN   ) :: n
+REAL(r_kind)               ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n)  ,INTENT(IN   ) :: x,x_TL
+REAL(r_kind),DIMENSION(n-1),INTENT(IN   ) :: aq,bq,aq_TL,bq_TL
+REAL(r_kind),DIMENSION(n)  ,INTENT(  OUT) :: dw_TL,dw
 !-----------------------------------------------------------------------------
-REAL(r_kind),DIMENSION(n)                  :: aw,bw,daw,dbw
-REAL(r_kind),DIMENSION(n)                  :: aw_TL,bw_TL,daw_TL,dbw_TL
-REAL(r_kind)                               :: xa,xb,dwb,wb
-REAL(r_kind)                               :: xa_TL,xb_TL,dwb_TL,wb_TL
-INTEGER(i_kind)                            :: na
+REAL(r_kind),DIMENSION(n)               :: aw,bw,daw,dbw
+REAL(r_kind),DIMENSION(n)               :: aw_TL,bw_TL,daw_TL,dbw_TL
+REAL(r_kind)                            :: xa,xb,dwb,wb
+REAL(r_kind)                            :: xa_TL,xb_TL,dwb_TL,wb_TL
+INTEGER(i_kind)                         :: na
 !============================================================================
-CALL lagdw_TL(x(1:n-ione),x_TL(1:n-ione),xt,aq,aq_TL,aw(1:n-ione),aw_TL(1:n-ione),&
-             daw(1:n-ione),daw_TL(1:n-ione),n-ione)
+CALL lagdw_TL(x(1:n-1),x_TL(1:n-1),xt,aq,aq_TL,aw(1:n-1),aw_TL(1:n-1),&
+             daw(1:n-1),daw_TL(1:n-1),n-1)
 CALL lagdw_TL(x(2:n     ),x_TL(2:n     ),xt,bq,bq_TL,bw(2:n     ),bw_TL(2:n     ),&
-             dbw(2:n     ),dbw_TL(2:n     ),n-ione)
+             dbw(2:n     ),dbw_TL(2:n     ),n-1)
 aw(n) =zero
 daw(n)=zero
 bw(1) =zero
@@ -588,8 +588,8 @@ na=n/2
 IF(na*2 /= n)STOP 'In slagdw; n must be even'
 xa   =x   (na)
 xa_TL=x_TL(na)
-xb   =x   (na+ione)
-xb_TL=x_TL(na+ione)
+xb   =x   (na+1)
+xb_TL=x_TL(na+1)
 dwb   = one          /(xb-xa)
 dwb_TL=-(xb_TL-xa_TL)/(xb-xa)**2
 wb   =             (xt-xa)*dwb
@@ -652,26 +652,26 @@ SUBROUTINE slagdw_AD(x,x_AD,xt,aq,aq_AD,bq,bq_AD,w_AD,dw,dw_AD,n)
 
 !============================================================================
 IMPLICIT NONE
-INTEGER(i_kind)               ,INTENT(IN   ) :: n
-REAL(r_kind)                  ,INTENT(IN   ) :: xt
-REAL(r_kind),DIMENSION(n)     ,INTENT(IN   ) :: x
-REAL(r_kind),DIMENSION(n-ione),INTENT(IN   ) :: aq,bq
-REAL(r_kind),DIMENSION(n-ione),INTENT(INOUT) :: aq_AD,bq_AD
-REAL(r_kind),DIMENSION(n)     ,INTENT(  OUT) :: dw
-REAL(r_kind),DIMENSION(n)     ,INTENT(INOUT) :: x_AD,dw_AD,w_AD
+INTEGER(i_kind)            ,INTENT(IN   ) :: n
+REAL(r_kind)               ,INTENT(IN   ) :: xt
+REAL(r_kind),DIMENSION(n)  ,INTENT(IN   ) :: x
+REAL(r_kind),DIMENSION(n-1),INTENT(IN   ) :: aq,bq
+REAL(r_kind),DIMENSION(n-1),INTENT(INOUT) :: aq_AD,bq_AD
+REAL(r_kind),DIMENSION(n)  ,INTENT(  OUT) :: dw
+REAL(r_kind),DIMENSION(n)  ,INTENT(INOUT) :: x_AD,dw_AD,w_AD
 !-----------------------------------------------------------------------------
-REAL(r_kind),DIMENSION(n)                    :: aw,bw,daw,dbw
-REAL(r_kind),DIMENSION(n)                    :: aw_AD,bw_AD,daw_AD,dbw_AD
-REAL(r_kind)                                 :: xa,xb,dwb,wb
-REAL(r_kind)                                 :: xa_AD,xb_AD,wb_AD,dwb_AD
-INTEGER(i_kind)                              :: na
+REAL(r_kind),DIMENSION(n)                 :: aw,bw,daw,dbw
+REAL(r_kind),DIMENSION(n)                 :: aw_AD,bw_AD,daw_AD,dbw_AD
+REAL(r_kind)                              :: xa,xb,dwb,wb
+REAL(r_kind)                              :: xa_AD,xb_AD,wb_AD,dwb_AD
+INTEGER(i_kind)                           :: na
 !============================================================================
 daw_AD=zero;wb_AD=zero;dbw_AD=zero;dwb_AD=zero;bw_AD=zero
 aw_AD =zero;xb_AD=zero;xa_AD =zero
 
 ! passive variables needed (from forward code)
-CALL lagdw(x(1:n-ione),xt,aq,aw(1:n-ione),daw(1:n-ione),n-ione)
-CALL lagdw(x(2:n     ),xt,bq,bw(2:n     ),dbw(2:n     ),n-ione)
+CALL lagdw(x(1:n-1),xt,aq,aw(1:n-1),daw(1:n-1),n-1)
+CALL lagdw(x(2:n  ),xt,bq,bw(2:n  ),dbw(2:n  ),n-1)
 
 aw(n) =zero
 daw(n)=zero
@@ -680,7 +680,7 @@ dbw(1)=zero
 na=n/2
 IF(na*2 /= n)STOP 'In slagdw; n must be even'
 xa =x(na     )
-xb =x(na+ione)
+xb =x(na+1)
 dwb=one/(xb-xa)
 wb =(xt-xa)*dwb
 IF    (wb>one)THEN
@@ -721,17 +721,17 @@ xa_AD        =xa_AD-wb_AD*dwb
 dwb_AD       =dwb_AD+(xt-xa)*wb_AD
 xb_AD        =xb_AD-(dwb_AD/(xb-xa)**2)
 xa_AD        =xa_AD+(dwb_AD/(xb-xa)**2)
-x_AD(na+ione)=x_AD(na+ione)+xb_AD
-x_AD(na     )=x_AD(na     )+xa_AD
+x_AD(na+1)=x_AD(na+1)+xb_AD
+x_AD(na  )=x_AD(na  )+xa_AD
 
 dbw_AD(1)=zero;bw_AD(1)=zero
 daw_AD(n)=zero;aw_AD(n)=zero
 
 CALL lagdw_AD(x(2:n     ),x_AD(2:n     ),xt,bq,bq_AD,bw_AD(2:n     ),&
-             dbw_AD(2:n     ),n-ione)
+             dbw_AD(2:n     ),n-1)
 
-CALL lagdw_AD(x(1:n-ione),x_AD(1:n-ione),xt,aq,aq_AD,aw_AD(1:n-ione),&
-             daw_AD(1:n-ione),n-ione)
+CALL lagdw_AD(x(1:n-1),x_AD(1:n-1),xt,aq,aq_AD,aw_AD(1:n-1),&
+             daw_AD(1:n-1),n-1)
 
 end subroutine slagdw_AD
 !============================================================================

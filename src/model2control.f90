@@ -19,6 +19,9 @@ subroutine model2control(rval,bval,grad)
 !   2011-05-15  auligne/todling - generalized cloud handling
 !   2011-07-12  zhu      - add cw_to_hydro_ad and cw2hydro_ad
 !   2011-12-14  mkim     - changed clouds4crtm to clouds in metguess
+!   2012-06-12  parrish  - modify bundle wbundle so motley variables are included if available.  The
+!                          subroutine ckgcov_ad now looks for motley variables as part of the input bundle.
+!   2012-06-12  parrish  - remove nnnn1o--no longer needed.
 
 !   input argument list:
 !     rval - State variable
@@ -29,15 +32,18 @@ subroutine model2control(rval,bval,grad)
 use kinds, only: r_kind,i_kind
 use constants, only: zero,max_varname_length
 use control_vectors, only: control_vector
-use control_vectors, only: cvars3d,cvars2d
+use control_vectors, only: cvars3d,cvars2d,cvarsmd
+use control_vectors, only: nc2d,nc3d,mvars
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: lat2,lon2,nsig,nnnn1o
+use gridmod, only: lat2,lon2,nsig
 use berror, only: varprd,fpsproj
 use balmod, only: tbalance
 use jfunc, only: nsclen,npclen,nrclen,nval_lenz
 use cwhydromod, only: cw2hydro_ad
 use gsi_bundlemod, only: gsi_bundlecreate
+use gsi_bundlemod, only: gsi_gridcreate
+use gsi_bundlemod, only: gsi_grid
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 use gsi_bundlemod, only: gsi_bundleputvar
@@ -60,6 +66,7 @@ real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
 integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
 real(r_kind) :: gradz(nval_lenz)
 type(gsi_bundle) :: wbundle
+type(gsi_grid)   :: grid
 
 ! Note: The following does not aim to get all variables in
 !       the state and control vectors, but rather the ones
@@ -71,6 +78,8 @@ integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &
                                'u   ', 'v   ', 'p3d ', 'q   ', 'tsen',   &
                                'tv  ', 'ps  ','ql  ', 'qi  ' /)
+character(len=max_varname_length),allocatable,dimension(:) :: cvars2dpm  ! names of 2d fields including
+                                                                         !  motley vars (if any)
 
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_p3d,rv_q,rv_tsen,rv_tv,rv_oz
@@ -85,6 +94,17 @@ if (.not.lsqrtb) then
    write(6,*)trim(myname),': assumes lsqrtb'
    call stop2(146)
 end if
+
+!  create extended list of 2d variable names to include motley variables.
+!     NOTE: if mvars=0, there are no motley variables so cvars2dpm=cvars2d.
+   allocate(cvars2dpm(nc2d+mvars))
+   do i=1,nc2d
+      cvars2dpm(i)=cvars2d(i)
+   end do
+   do i=1,mvars
+      cvars2dpm(nc2d+i)=cvarsmd(i)
+   end do
+   call gsi_gridcreate(grid,lat2,lon2,nsig)
 
 ! Inquire about chemistry
 call gsi_chemguess_get('dim',ngases,istatus)
@@ -158,8 +178,8 @@ do jj=1,nsubwin
 !  Apply variances, as well as vertical & horizontal parts of background error
    gradz(:)=zero
 
-!  create an internal structure w/ the same vars as those in the control vector
-   call gsi_bundlecreate (wbundle,grad%step(1),'model2control work',istatus)
+!  create an internal structure w/ the same vars as those in the control vector, including motley vars
+   call gsi_bundlecreate (wbundle,grid,'model2control work',istatus,names2d=cvars2dpm,names3d=cvars3d)
    if (istatus/=0) then
       write(6,*)trim(myname),': trouble creating work bundle'
       call stop2(999)
@@ -210,7 +230,7 @@ do jj=1,nsubwin
    enddo
 
 !  Apply adjoint of sqrt-B
-   call ckgcov_ad(gradz,wbundle,nnnn1o,nval_lenz)
+   call ckgcov_ad(gradz,wbundle,nval_lenz)
 
 !  Clean up
    call gsi_bundledestroy(wbundle,istatus)
@@ -236,6 +256,7 @@ do ii=1,npclen
 enddo
 
 ! Clean up
+deallocate(cvars2dpm)
 if (ngases>0) then
     deallocate(gases)
 endif

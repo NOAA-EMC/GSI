@@ -30,7 +30,7 @@ subroutine evalqlim(sval,pbc,rval)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: ione,zero,one,zero_quad
+  use constants, only: zero,one,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use jfunc, only: factqmin,factqmax,qgues,qsatg
   use mpl_allreducemod, only: mpl_allreduce
@@ -63,8 +63,8 @@ subroutine evalqlim(sval,pbc,rval)
   zbc=zero_quad
 ! Loop over interior of subdomain          
   do k = 1,nsig
-     do j = 2,lon1+ione
-        do i = 2,lat1+ione
+     do j = 2,lon1+1
+        do i = 2,lat1+1
 !          Value for q
            q = qgues(i,j,k) + sq(i,j,k)
 !          Compute penalty for neg q
