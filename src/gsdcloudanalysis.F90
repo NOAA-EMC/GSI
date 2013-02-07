@@ -48,12 +48,14 @@ SUBROUTINE  gsdcloudanalysis(mype)
   use gridmod, only: pt_ll,eta1_ll,aeta1_ll
   use gridmod, only: regional,wrf_mass_regional,regional_time
   use gridmod, only: nsig,lat2,lon2,istart,jstart,twodvar_regional
-  Use obsmod,  only: obs_setup,nsat1,ndat,dtype
-  use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten
+  use gridmod, only: itotsub,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g,strip_single
   use guess_grids, only: pbl_height, load_gsdpbl_hgt
+  use obsmod,  only: obs_setup,nsat1,ndat,dtype
   use guess_grids, only: ntguessig,ntguessfc
+  use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten
   use guess_grids, only: ges_q,ges_z,ges_ps,ges_tv,ges_tsen
   use jfunc, only: tsensible
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,  &
                                       metar_impact_radius,                &
                                       metar_impact_radius_lowCloud,       &
@@ -100,7 +102,9 @@ SUBROUTINE  gsdcloudanalysis(mype)
   real(r_single), allocatable  :: Oelvtn(:)
   real(r_single), allocatable  :: Odist(:)
   character(8),   allocatable  :: cstation(:)
-
+  real(r_single), allocatable  :: OIstation(:)
+  real(r_single), allocatable  :: OJstation(:)
+  real(r_single), allocatable  :: wimaxstation(:)
 !
 !  lightning observation: 2D field in RR grid
 !
@@ -160,9 +164,17 @@ SUBROUTINE  gsdcloudanalysis(mype)
   PARAMETER ( miss_obs_real = -99999.0_r_kind )
   REAL(r_single)  ::  krad_bot          ! radar bottom level
 
-!  REAL(r_kind)    :: Cloud_def_p
-!  data  Cloud_def_p       / 0.000001_r_kind/
-   REAL(r_kind),allocatable :: sumqci(:,:,:)  ! total liquid water
+!
+! collect cloud
+  REAL(r_kind)    :: Cloud_def_p
+  data  Cloud_def_p       / 0.000001_r_kind/
+  REAL(r_kind),allocatable :: sumqci(:,:,:)  ! total liquid water
+  REAL(r_kind),allocatable :: watericemax(:,:)  ! max of total liquid water
+  INTEGER(i_kind),allocatable :: kwatericemax(:,:)  ! lowest level of total liquid water
+  real(r_single),allocatable::temp1(:,:),tempa(:)
+  real(r_single),allocatable::all_loc(:,:)
+  real(r_single),allocatable::strp(:)
+  INTEGER(i_kind) :: im,jm
 !
 ! option in namelist
 !
@@ -196,7 +208,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
   character(20)   :: isis
 
   real(r_kind)    :: refmax,snowtemp,raintemp
-  integer(i_kind) :: imax, jmax
+  integer(i_kind) :: imax, jmax, ista, iob, job
   real(r_kind)    :: dfi_lhtp, qmixr
 !
 !
@@ -306,8 +318,11 @@ SUBROUTINE  gsdcloudanalysis(mype)
            allocate(Oelvtn(numsao))
            allocate(Odist(numsao))
            allocate(cstation(numsao))
+           allocate(OIstation(numsao))
+           allocate(OJstation(numsao))
+           allocate(wimaxstation(numsao))
            call read_Surface(mype,lunin,regional_time,istart(mype+1),jstart(mype+1),lon2,lat2, &
-                             numsao,NVARCLD_P,OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation)
+                             numsao,NVARCLD_P,OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation,OIstation,OJstation)
            if(mype == 0) write(6,*) 'gsdcloudanalysis: ',                                  &
                         'Surface cloud observations are read in successfully'
            istat_Surface=1
@@ -376,7 +391,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
      if(istat_NASALaRC == 1 ) then
         DO j=2,lat2-1
            DO i=2,lon2-1
-             if(sat_ctp(i,j) < -99990.0_r_kind) then   ! missing value is -999999.0
+             if(sat_ctp(i,j) < -99990.0) then   ! missing value is -999999.0
                 sat_ctp(i,j) = nasalarc_cld(i,j,1)
                 sat_tem(i,j) = nasalarc_cld(i,j,2)
                 w_frac(i,j)  = nasalarc_cld(i,j,3)
@@ -398,19 +413,85 @@ SUBROUTINE  gsdcloudanalysis(mype)
        istat_NESDIS = 0
   endif
 !
-!  1.6 check if data available: if no data in this subdomain, return. 
+!
+!  1.6 collect the cloud information from whole domain
+!       and assign the background cloud to each METAR obs
+!
+  allocate(sumqci(lon2,lat2,nsig))
+  do k=1,nsig
+     do j=1,lat2
+        do i=1,lon2
+           sumqci(i,j,k)= ges_ql(j,i,k) + ges_qi(j,i,k)
+        ENDDO
+     ENDDO
+  ENDDO
+
+  allocate(watericemax(lon2,lat2))
+  allocate(kwatericemax(lon2,lat2))
+  watericemax=0._r_kind
+  wimaxstation=0.0_r_single
+  kwatericemax=-1
+  do j=1,lat2
+     do i=1,lon2
+       do k = 1,nsig
+          watericemax(i,j) = max(watericemax(i,j),sumqci(i,j,k))
+       end do
+       do k=1,nsig
+          if (sumqci(i,j,k) > Cloud_def_p .and. kwatericemax(i,j) == -1) then
+             kwatericemax(i,j) = k
+          end if
+       end do
+     ENDDO
+  ENDDO
+!
+  im=nlon_regional
+  jm=nlat_regional
+  allocate(all_loc(lat2,lon2))
+  allocate(strp(lat1*lon1))
+  allocate(tempa(itotsub))
+  allocate(temp1(im,jm))
+  do j=1,lat2
+     do i=1,lon2
+        all_loc(j,i) = watericemax(i,j)
+     enddo
+  enddo
+  call strip_single(all_loc(1,1),strp,1)
+  call mpi_allgatherv(strp,ijn(mype+1),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,mpi_comm_world,ierror)
+  ierror=0
+  if(ierror /= 0 ) then
+     write(*,*) 'MPI error: cloud analysis=',mype
+  endif
+  temp1=0.0_r_single
+  call unfill_mass_grid2t(tempa,im,jm,temp1)
+
+  if(istat_Surface==1) then
+     DO ista=1,numsao
+        iob = min(max(int(oistation(ista)+0.5),1),im)
+        job = min(max(int(ojstation(ista)+0.5),1),jm)
+        wimaxstation(ista)=temp1(iob,job)
+        if(wimaxstation(ista) > 0._r_single) then
+            i=int(oi(ista))
+            j=int(oj(ista))
+        endif
+     enddo
+  endif
+  deallocate(all_loc,strp,tempa,temp1)
+
+!
+!  1.8 check if data available: if no data in this subdomain, return. 
 !
   if( (istat_radar + istat_Surface + istat_NESDIS + istat_lightning ) == 0 ) then
      write(6,*) ' No cloud observations available, return', mype
      deallocate(ref_mos_3d,lightning,sat_ctp,sat_tem,w_frac,nlev_cld)
      return
   endif
-
 !
 !----------------------------------------------
 ! 2. allocated background arrays and read background  
 !    further observation data process before cloud analysis
 !----------------------------------------------
+
 !
 ! 2.2   allocate background and analysis fields
 !
@@ -420,7 +501,6 @@ SUBROUTINE  gsdcloudanalysis(mype)
   allocate(ps_bk(lon2,lat2))
   allocate(zh(lon2,lat2))
   allocate(q_bk(lon2,lat2,nsig))
-  allocate(sumqci(lon2,lat2,nsig))
   
   allocate(xlon(lon2,lat2))
   allocate(xlat(lon2,lat2))
@@ -465,6 +545,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
         ENDDO
      ENDDO
   ENDDO
+
   call BackgroundCld(mype,lon2,lat2,nsig,t_bk,p_bk,ps_bk,q_bk,h_bk,    &
              zh,pt_ll,eta1_ll,aeta1_ll,regional,wrf_mass_regional)
 
@@ -510,7 +591,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
      call cloudCover_surface(mype,lat2,lon2,nsig,r_radius,thunderRadius,  &
               t_bk,p_bk,q_bk,h_bk,zh,                                     &
               numsao,NVARCLD_P,numsao,OI,OJ,OCLD,OWX,Oelvtn,Odist,        &
-              cld_cover_3d,cld_type_3d,wthr_type_2d,pcp_type_3d)
+              cld_cover_3d,cld_type_3d,wthr_type_2d,pcp_type_3d,          &
+              wimaxstation, kwatericemax)
      if(mype == 0) write(6,*) 'gsdcloudanalysis:',                        &  
                    'success in cloud cover analysis using surface data'
   endif
@@ -620,7 +702,6 @@ SUBROUTINE  gsdcloudanalysis(mype)
   DO k=1,nsig
      DO j=2,lat2-1
         DO i=2,lon2-1
-           sumqci(i,j,k)= ges_ql(j,i,k) + ges_qi(j,i,k)
            if( cld_cover_3d(i,j,k) > -0.001_r_kind ) then 
               if( cld_cover_3d(i,j,k) > 0.6_r_kind ) then 
                  cldwater_3d(i,j,k) = max(0.001_r_kind*cldwater_3d(i,j,k),ges_ql(j,i,k))
@@ -760,7 +841,8 @@ SUBROUTINE  gsdcloudanalysis(mype)
   deallocate(cldwater_3d,cldice_3d,rain_3d,snow_3d,graupel_3d,cldtmp_3d)
 
   if(istat_Surface ==  1 ) then
-     deallocate(OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation)
+     deallocate(OI,OJ,OCLD,OWX,Oelvtn,Odist,cstation,OIstation,OJstation,wimaxstation)
+     deallocate(watericemax,kwatericemax) 
   endif
   if(istat_NASALaRC == 1 ) then
      deallocate(nasalarc_cld)

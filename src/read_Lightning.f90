@@ -83,7 +83,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
     INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=2000
+    INTEGER(i_kind),PARAMETER  ::  maxobs=20000
 
     REAL(r_kind),allocatable :: lightning_in(:,:)   ! 3D reflectivity in column
 
