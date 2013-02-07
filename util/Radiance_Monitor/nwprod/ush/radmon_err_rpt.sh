@@ -209,7 +209,10 @@ fi
             #  channels, and we need to map the channel to the correct
             #  grouping number in order to produce an accurate hyperlink.
             #
-            ctlfile="${satname}.ctl"
+            ctlfile="time.${satname}.ctl"
+            if [[ -s ${ctlfile}.Z ]]; then
+               uncompress ${ctlfile}.Z
+            fi
             changrp=`${USHgfs}/radmon_getchgrp.pl ${ctlfile} ${channel}`
             echo changrp = $changrp
             line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/opr/index.html?sat=${satname}&region=region${region}&channel=${changrp}&stat=${type}"

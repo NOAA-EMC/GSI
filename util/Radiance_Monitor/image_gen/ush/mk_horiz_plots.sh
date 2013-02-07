@@ -81,6 +81,9 @@ for date in ${DATES}; do
       if [[ -s ./${sat}.${Z} ]]; then		#  rm previous files 
          rm -f ./${sat}.${Z}
       fi
+      if [[ -s ./${sat} ]]; then		#  rm previous files 
+         rm -f ./${sat}
+      fi
    done
 
    tar -xvf ${date}.radstat

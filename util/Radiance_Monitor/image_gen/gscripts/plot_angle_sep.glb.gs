@@ -97,7 +97,7 @@ say 'nx, xs, xe1= 'nx','xs','xe1
 *
 * Set time
 *
-'set t 0 last'
+'set t 1 last'
 'query time'
 date1=subwrd(result,3)
 date2=subwrd(result,5)
@@ -114,7 +114,7 @@ say 'tlast='tlast
 t1day=tlast-3
 t7days=tlast-27
 *t30days=tlast-119
-t30days=0
+t30days=1
 say 'tlast,t1day,t7days,t30days='tlast' 't1day' 't7days' 't30days
 
 if (debug=1) 

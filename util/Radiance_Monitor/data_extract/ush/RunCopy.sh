@@ -1,28 +1,29 @@
 #!/bin/sh
 
 #--------------------------------------------------------------------
-#  RunVrfy.sh
+#  RunCopy.sh
 #
-#  Run the verification and data extract.
+#  Run the copy script.
 #
-#  This script will run the data extraction for a given source in a
-#  loop.  The loop can be from the last cycle processed (as 
-#  determined by the contents of $TANKDIR) until the available
-#  radstat data is exhausted, from the input start date until 
-#  available data is exhausted, or from the start to the end date.
+#  This script will run the data copy for a given source in a
+#  loop.  The loop can be:
+#     1) from the last proceessed date until the available radstat 
+#        data is exhausted,
+#     2) from the input start date until available data is exhausted,
+#     3) from the start to the stop date.
 # 
 #--------------------------------------------------------------------
 
 function usage {
   echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
-  echo "            File name for RunVrfy.sh can be full or relative path"
+  echo "            File name for RunCopy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
   echo "            End_date   is the optional ending cycle to process (YYYYMMDDHH format)."
 }
 
 set -ax
-echo start RunVrfy.sh
+echo start RunCopy.sh
 
 nargs=$#
 if [[ $nargs -lt 1 ]]; then
@@ -56,19 +57,20 @@ else
 fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
+
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
 area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 
-log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log
-err_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.err
+log_file=${LOGSverf_rad}/CopyRad_${SUFFIX}.log
+err_file=${LOGSverf_rad}/CopyRad_${SUFFIX}.err
 
 if [[ $area = glb ]]; then
-   vrfy_script=VrfyRad_glbl.sh
+   copy_script=Copy_glbl.sh
    . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
 elif [[ $area = rgn ]]; then
-   vrfy_script=VrfyRad_rgnl.sh
+   copy_script=Copy_rgnl.sh
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
    exit 3
@@ -81,37 +83,36 @@ fi
 end_len=`echo ${#END_DATE}`
 if [[ ${end_len} -gt 0 ]]; then
    if [[ $START_DATE -gt $END_DATE ]]; then
-      echo "ERROR:  start date is greater then end date  : $START_DATE $END_DATE"
+      echo ERROR -- start date is greater then end date  : $START_DATE $END_DATE
       exit 1
    fi
 fi
 
 
 #--------------------------------------------------------------------
-# If we don't have a START_DATE the find the last processed cycle, 
-#   and add 6 hrs to it.
+# If we have a START_DATE then set the prodate to the previous cycle 
+#   in the data_map file.  Otherwise, use the find_last_cycle.pl 
+#   script to determine the last copied cycle.
 #--------------------------------------------------------------------
 start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -gt 0 ]]; then
    pdate=`${NDATE} -06 $START_DATE`
-   ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
 else
-#   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
    pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
    pdate_len=`echo ${#pdate}`
-   if [[ ${pdate_len} -eq 10 ]]; then
-      ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
+   if [[ ${pdate_len} -ne 10 ]]; then
+      exit 4
    fi 
    START_DATE=`${NDATE} +06 $pdate`
 fi
 
+cdate=$START_DATE
 
 
 #--------------------------------------------------------------------
 # Run in a loop until END_DATE is processed, or an error occurs, or 
 # we run out of data.
 #--------------------------------------------------------------------
-cdate=$START_DATE
 done=0
 ctr=0
 while [[ $done -eq 0 ]]; do
@@ -121,9 +122,7 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    if [[ $MY_MACHINE = "ccs" ]]; then
       running=`llq -u ${LOGNAME} -f %jn | grep data_extract_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      running=`bjobs -l | grep data_extract_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "zeus" ]]; then
+   else
       running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`
    fi
 
@@ -141,13 +140,13 @@ while [[ $done -eq 0 ]]; do
    else
 
       #-----------------------------------------------------------------
-      # Run the verification/extraction script
+      # Run the copy script
       #-----------------------------------------------------------------
       echo Processing ${cdate}
-      ${USHverf_rad}/${vrfy_script} ${SUFFIX} ${RUN_ENVIR} ${cdate} 1>${log_file} 2>${err_file}
+      ${USHverf_rad}/${copy_script} ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------
-      # done is true (1) if the vrfy_script produced an error code, or
+      # done is true (1) if the copy_script produced an error code, or
       # we're at END_DATE  
       #-----------------------------------------------------------------
       rc=`echo $?`

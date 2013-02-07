@@ -57,7 +57,7 @@ fi
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-area=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 echo $area
 
 if [[ $area = glb ]]; then
@@ -76,7 +76,7 @@ mkdir -p $LOGSverf_rad
 
 export MAKE_CTL=1
 export MAKE_DATA=0
-export USE_ANL=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
+export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
 export RUN_ENVIR=dev
 
 #---------------------------------------------------------------
@@ -84,7 +84,7 @@ export RUN_ENVIR=dev
 # date in the data_map file and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+PDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
 export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
    
 ctr=0

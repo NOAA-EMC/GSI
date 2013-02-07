@@ -24,6 +24,7 @@ cd $tmpdir
 #------------------------------------------------------------------
 #   Set dates
 bdate=`$NDATE -720 $PDATE`
+bdate=`$NDATE -1440 $PDATE`
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -78,8 +79,8 @@ EOF
 
    $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-   rm -f ${type}.ctl 
-   rm -f ${type}*.ieee_d
+#   rm -f ${type}.ctl 
+#   rm -f ${type}*.ieee_d
 
 done
 
@@ -92,15 +93,15 @@ if [[ ! -d ${IMGNDIR}/summary ]]; then
 fi
 $NCP -r *summary.png ${IMGNDIR}/summary/.
 
-rm -f *.summary.png
+#rm -f *.summary.png
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 exit

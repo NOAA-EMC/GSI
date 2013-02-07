@@ -34,6 +34,7 @@ echo PLOT_WORK_DIR = $PLOT_WORK_DIR
 #------------------------------------------------------------------
 #   Set dates
 bdate=`$NDATE -720 $PDATE`
+bdate=`$NDATE -1440 $PDATE`
 rdate=`$NDATE -72 $PDATE`
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
@@ -114,9 +115,9 @@ echo ${tmpdir}/${type}_${var}.gs
 
 
 
-   rm -f ${type}.ieee_d
-   rm -f ${type}.${PDATE}.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}.ieee_d
+#   rm -f ${type}.${PDATE}.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -138,9 +139,9 @@ cp -r *.png  ${IMGNDIR}/time
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 #--------------------------------------------------------------------
 # If this is the last time/summary plot job to finish then rm PLOT_WORK_DIR.

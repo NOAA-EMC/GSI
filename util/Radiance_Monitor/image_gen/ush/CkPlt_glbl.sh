@@ -83,7 +83,7 @@ export PLOT_HORIZ=0
 #--------------------------------------------------------------------
 
 if [[ $MY_MACHINE = "ccs" ]]; then
-   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
+   running=`llq -u ${LOGNAME} -f %jn | grep plot_ | grep _${SUFFIX} | wc -l`
 elif [[ $MY_MACHINE = "wcoss" ]]; then
    running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
 else
@@ -124,6 +124,7 @@ else
    export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
    export PDATE=`$NDATE +6 $IMGDATE`
 fi
+export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
 
 sdate=`echo $PDATE|cut -c1-8`
@@ -141,9 +142,12 @@ proceed="NO"
 if [[ "$PRODATE" == "auto" ]]; then
    proceed=`${SCRIPTS}/confirm_data.sh ${SUFFIX} ${PDATE}`
 elif [[ $PDATE -le $PRODATE ]]; then
-   proceed="YES"
+   nfile_src=`ls -l ${TANKDIR}/radmon.${PDY}/*${PDATE}*ieee_d* | egrep -c '^-'` 
+   if [[ $nfile_src -gt 0 ]]; then
+      proceed="YES"
+   fi
 fi
-echo $proceed
+echo proceed = $proceed
 
 if [[ "$proceed" != "YES" ]]; then
    cd $tmpdir
@@ -177,6 +181,7 @@ export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
 export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
 export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
 export PLOT_ALL_REGIONS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_all_regions`
+export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs`
 
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -231,7 +236,7 @@ fi
 #------------------------------------------------------------------
 # Export variables
 #------------------------------------------------------------------
-export listvar=RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,listvar
+export listvar=RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
 #------------------------------------------------------------------
 #   Start image plotting jobs.
@@ -244,7 +249,7 @@ ${SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
-   export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,listvar
+   export listvar=PARM,RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,listvar
    jobname="plot_horiz_${SUFFIX}"
    logfile="${LOGDIR}/horiz.log"
    if [[ $MY_MACHINE = "ccs" ]]; then

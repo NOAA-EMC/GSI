@@ -178,9 +178,6 @@
       elsif( $_ =~ "LITTLE_ENDIAN=" ) {
          print $out "$little_endian\n";
       }
-      elsif( $_ =~ "MY_OS=" ) {
-         print $out "$my_os\n";
-      }
       elsif( $_ =~ "MY_MACHINE=" ) {
          print $out "$my_machine\n";
       }

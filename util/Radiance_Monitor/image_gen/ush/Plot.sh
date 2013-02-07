@@ -29,7 +29,7 @@ function usage {
 }
 
 set -ax
-echo start Plot_glbl.sh
+echo start Plot.sh
 echo
 echo $PATH
 echo
@@ -94,7 +94,7 @@ fi
 #--------------------------------------------------------------------
 #  Deterine the number of cycles between start_dt and end_dt.
 #--------------------------------------------------------------------
-NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${end_dt}`
+export NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${end_dt}`
 echo NUM_CYCLES = $NUM_CYCLES
 
 if [[ $NUM_CYCLES -le 0 ]]; then
@@ -114,7 +114,7 @@ proc_dt=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
 echo proc_date = $proc_dt
 delta_proc_start=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
 if [[ $delta_proc_start -le 0 ]]; then
-   echo "ERROR:  no date available -- last processed date is ${proc_dt}"
+   echo "ERROR:  no data available -- last processed date is ${proc_dt}"
    echo "        requested plot start date is ${start_dt}"
    exit 6
 fi
@@ -198,24 +198,55 @@ export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs
 #-------------------------------------------------------------
 if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
-   if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-      test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
-      for test in ${test_list}; do
-         this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f2`
-         echo $tmp
-         SATYPE_LIST="$SATYPE_LIST $tmp"
-      done
-   else
-      test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
-      for test in ${test_list}; do
-         this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f1`
-         echo $tmp
-         SATYPE_LIST="$SATYPE_LIST $tmp"
-      done
-   fi
-   
+   ctr=$(($NUM_CYCLES))
+   tdate=$end_dt
+   tdy=$PDY  
+
+   while [[ $ctr -ge 0 ]]; do
+      if [[ -d ${TANKDIR}/radmon.${tdy} ]]; then
+         test_list=`ls ${TANKDIR}/radmon.${tdy}/angle.*${tdate}.ieee_d*`
+      else
+         test_list=`ls ${TANKDIR}/angle/*.${tdate}.ieee_d*`
+      fi
+
+      if [[ ${#test_list} -gt 0 ]]; then
+         for test in ${test_list}; do
+            this_file=`basename $test`
+            tmp=`echo "$this_file" | cut -d. -f2`
+            echo $tmp
+            SATYPE_LIST="$SATYPE_LIST $tmp"
+         done
+
+         break
+      fi
+
+      tdate=`$NDATE -06 ${tdate}` 
+      tdy=`echo $tdate|cut -c1-8`
+      ctr=$(($ctr-1))
+   done
+
+ 
+#   for dir in ${dir_list}; do 
+#      if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
+#      test_list=`ls ${TANKDIR}/${dir}/angle.*${PDATE}.ieee_d*`
+#
+#         for test in ${test_list}; do
+#            this_file=`basename $test`
+#            tmp=`echo "$this_file" | cut -d. -f2`
+#            echo $tmp
+#            SATYPE_LIST="$SATYPE_LIST $tmp"
+#         done
+#      else
+#         test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
+#         for test in ${test_list}; do
+#            this_file=`basename $test`
+#            tmp=`echo "$this_file" | cut -d. -f1`
+#            echo $tmp
+#            SATYPE_LIST="$SATYPE_LIST $tmp"
+#         done
+#      fi
+#   done
+ 
    SATYPE=$SATYPE_LIST
    echo $SATYPE
 
@@ -303,5 +334,5 @@ cd $tmpdir
 cd ../
 rm -rf $tmpdir
 
-echo end Plot_glbl.sh
+echo end Plot.sh
 exit

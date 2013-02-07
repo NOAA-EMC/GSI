@@ -72,8 +72,8 @@ done
 if [[ ! -d ${IMGNDIR}/horiz ]]; then
    mkdir -p ${IMGNDIR}/horiz
 fi
-$NCP -r *.png  ${IMGNDIR}/horiz
-
+#$NCP *.png  ${IMGNDIR}/horiz
+find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/horiz/ \;
 
 #--------------------------------------------------------------------
 # Delete images and data files in $tmpdir

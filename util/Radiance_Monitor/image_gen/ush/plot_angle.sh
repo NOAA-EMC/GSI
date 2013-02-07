@@ -142,7 +142,8 @@ done
 if [[ ! -d ${IMGNDIR}/angle ]]; then
    mkdir -p ${IMGNDIR}/angle
 fi
-$NCP *.png  ${IMGNDIR}/angle/.
+#$NCP *.png  ${IMGNDIR}/angle/.
+find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/angle/ \;
 
 #for var in ${PTYPE}; do
 #   rm -f ${type}.${var}*.png

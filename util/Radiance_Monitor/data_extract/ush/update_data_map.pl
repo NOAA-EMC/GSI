@@ -3,8 +3,14 @@
 #-------------------------------------------------------------------
 #  update_data_map.pl
 #
-#  This script updates a requested field in the data_map.xml file.
-#  It takes four items as input:
+#  This script updates a requested field in the data_map.xml file.  If 
+#  the requested field does not exist in but the parent node (suffix) 
+#  is found then the requested field and value are added to the 
+#  data_map.xml file.
+#
+#  Calling sequence:
+#    >> update_data_map.pl ./path/to/data_map.xml suffix req_field new_val
+#
 #    1. data_map.xml file (full or relative path)
 #    2. suffix identifying the data source (an element in the 
 #       data_map.xml file)
@@ -50,5 +56,4 @@
       $rc = "0";
    }
  
-#   print $doc->toString(1);
    print "$rc";

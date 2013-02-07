@@ -29,39 +29,69 @@ fi
 
 
 #-------------------------------------------------------------------
-#  Locate/update the control files.  If no ctl file is available
-#  report a warning to the log file.  Search order is $imgndir,
-#  the $TANKDIR/radmon.$PDY, then $tankdir.
+#  Locate/update the control files in $TANKDIR/radmon.$PDY.  $PDY
+#  starts at END_DATE and walks back to START_DATE until ctl files
+#  are found or we run out of dates to check.  Report an error to
+#  the log file and exit if no ctl files are found.
 #
 allmissing=1
 PDY=`echo $PDATE|cut -c1-8`
+ndays=$(($NUM_CYCLES/4))
+test_day=$PDATE
+
 for type in ${SATYPE}; do
    found=0
+   done=0
+   test_day=$PDATE
+   ctr=$ndays
+#   echo "before while loop, found, done = $found, $done"
+
+   while [[ $found -eq 0 && $done -ne 1 ]]; do
+#      echo "top of while loop"
+
+      pdy=`echo $test_day|cut -c1-8`
+      if [[ -s ${TANKDIR}/radmon.${pdy}/bcor.${type}.ctl.${Z} ]]; then
+         $NCP ${TANKDIR}/radmon.${pdy}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+         found=1
+      elif [[ -s ${TANKDIR}/radmon.${pdy}/bcor.${type}.ctl ]]; then
+         $NCP ${TANKDIR}/radmon.${pdy}/bcor.${type}.ctl ${imgndir}/${type}.ctl
+         found=1
+      fi
+
+      if [[ $found -eq 0 ]]; then
+         if [[ $ctr -gt 0 ]]; then
+            test_day=`$NDATE -24 ${pdy}00`
+            ctr=$(($ctr-1))
+         else
+            done=1
+         fi
+      fi
+   done
 
    if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
 
-   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${Z} ]]; then
-      $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
-         $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl ${imgndir}/${type}.ctl
-      fi
-      allmissing=0
-      found=1
-
-   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
-      $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
-      allmissing=0
-      found=1
-
-   else
-      echo WARNING:  unable to locate ${type}.ctl
+#   elif [[ -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${Z} ]]; then
+#      $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
+#      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
+#         $NCP ${TANKDIR}/radmon.${PDY}/bcor.${type}.ctl ${imgndir}/${type}.ctl
+#      fi
+#      allmissing=0
+#      found=1
+#
+#   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
+#      $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
+#      allmissing=0
+#      found=1
+#
+#   else
+#      echo WARNING:  unable to locate ${type}.ctl
    fi
 done
 
 if [[ $allmissing = 1 ]]; then
-   echo ERROR:  Unable to plot.  All control files are missing.
+   echo ERROR:  Unable to plot.  All bcor control files are missing.
    exit
 fi
 
