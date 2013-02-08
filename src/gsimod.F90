@@ -19,7 +19,7 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
-     lwrite_peakwt,use_limit
+     lwrite_peakwt,use_limit,lrun_subdirs
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -382,6 +382,7 @@
 !     pblend0,pblend1 - see above comment for use_gfs_stratosphere
 !     l4densvar - logical to turn on ensemble 4dvar
 !     ens4d_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
+!     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -410,7 +411,7 @@
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
-       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon
+       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -776,7 +777,6 @@
   call init_oneobmod
   call init_qcvars
   call init_obsmod_dflts
-  call init_directories(mype)
   call init_pcp
   call init_rad
   call init_oz
@@ -858,7 +858,6 @@
         if(ios/=0) call die(myname_,'read(chem)',ios)
   close(11)
 #endif
-
 
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
@@ -1127,6 +1126,8 @@
      if (oneobtest) write(6,singleob_test)
   endif
 
+! Set up directories (or pe specific filenames)
+  call init_directories(mype)
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
