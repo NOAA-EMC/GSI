@@ -168,7 +168,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   real(r_double) totoz,hdrmls13
 
-  logical mls_nrt
 ! MLS data version: mlsv=22 is version 2.2 standard data; 
 !                   mlsv=20 is v2 near-real-time data
 !                   mlsv=30 is v3 near-real-time data
@@ -851,8 +850,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! Process MLS bufr data
   else if ( index(obstype,'mls')/=0 ) then
 
-     mls_nrt=.true.
-
      nmrecs=0
 
      open(lunin,file=infile,form='unformatted')
@@ -877,16 +874,18 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         goto 180
      endif
 
-   if(mls_nrt) then
-
 !    Get # of vertical pressure levels nloz and MLS NRT data version which depends on nloz
      allocate(hdrmlsl(3,100))
      call ufbrep(lunin,hdrmlsl,3,100,iret,mlstrl)
      nloz=iret
 !    for NRT data, mlsv=20 or 30 depending on the nloz
      if(nloz==37) then
-       mlsv=20
-     else if(nloz==55) then
+       if(index(sis,'mls22')/=0 ) then       !mls v2.2 data
+         mlsv=22
+       else if(index(sis,'mls20')/=0 ) then  !mls v2 nrt data
+         mlsv=20
+       end if
+     else if(nloz==55) then                  !mls v3 nrt data
        mlsv=30
      else
        write(6,*) 'invalid vertical level number: ', nloz
@@ -894,11 +893,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        call stop2(336)
      end if
      deallocate(hdrmlsl)
-
-   else      !mls v2.2 data
-       nloz=37
-       mlsv=22
-   end if
 
      write(6,*) 'READ_OZONE: MLS data version=',mlsv
      write(6,*) 'READ_OZONE: MLS vertical level number=',nloz
@@ -926,14 +920,17 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      ikx=0
      if(nloz==37) then
        do k=1,jpch_oz
-          if(index(nusis_oz(k),'mls2_')/=0 ) then  ! mls_aura v2
+          if(index(nusis_oz(k),'mls22')/=0 ) then  ! mls_aura v2.2
+             ikx=ikx+1
+             ipos(ikx)=k
+          else if(index(nusis_oz(k),'mls20')/=0 ) then  ! mls_aura v2 nrt
              ikx=ikx+1
              ipos(ikx)=k
           end if
        end do
      else if(nloz==55) then
        do k=1,jpch_oz
-          if(index(nusis_oz(k),'mls3_')/=0 ) then  ! mls_aura v3
+          if(index(nusis_oz(k),'mls30')/=0 ) then  ! mls_aura v3 nrt
              ikx=ikx+1
              ipos(ikx)=k
           end if
