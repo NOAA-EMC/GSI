@@ -1,5 +1,6 @@
 add_gfs_stratosphere.o : add_gfs_stratosphere.f90 gfs_stratosphere.o obsmod.o aniso_ens_util.o guess_grids.o egrid2agrid_mod.o general_specmod.o general_sub2grid_mod.o kinds.o mpimod.o constants.o gridmod.o 
 adjtest.o : adjtest.f90 bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o jfunc.o constants.o gsi_4dvar.o kinds.o 
+adjtest_obs.o : adjtest_obs.f90 bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o mpl_allreduce.o jfunc.o constants.o gsi_4dvar.o kinds.o obsmod.o intall.o
 aeroinfo.o : aeroinfo.f90 obsmod.o gridmod.o gsi_chemguess_mod.o mpimod.o kinds.o 
 aircraftobsqc.o : aircraftobsqc.f90 kinds.o 
 anberror.o : anberror.f90 mpeu_util.o mpimod.o jfunc.o control_vectors.o fgrid2agrid_mod.o gridmod.o berror.o raflib.o constants.o kinds.o 
@@ -91,7 +92,7 @@ getsiga.o : getsiga.f90 bias_predictors.o control_vectors.o gsi_bundlemod.o gsi_
 getuv.o : getuv.f90 general_commvars_mod.o general_sub2grid_mod.o compact_diffs.o gridmod.o constants.o kinds.o 
 getvvel.o : getvvel.f90 guess_grids.o tendsmod.o gridmod.o constants.o kinds.o 
 gfs_stratosphere.o : gfs_stratosphere.f90 mpimod.o gridmod.o guess_grids.o blendmod.o constants.o kinds.o 
-glbsoi.o : glbsoi.f90 gfs_stratosphere.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o timermod.o observer.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o mpimod.o constants.o kinds.o 
+glbsoi.o : glbsoi.f90 gfs_stratosphere.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o timermod.o observer.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o mpimod.o constants.o kinds.o adjtest_obs.o
 grdcrd.o : grdcrd.f90 constants.o kinds.o 
 gridmod.o : gridmod.F90 mpimod.o mod_nmmb_to_a.o mpeu_util.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o 
 grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o 
