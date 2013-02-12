@@ -167,6 +167,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind),allocatable,dimension(:):: ipos
 
   real(r_double) totoz,hdrmls13
+  integer :: k0
+  logical :: first
 
 ! MLS data version: mlsv=22 is version 2.2 standard data; 
 !                   mlsv=20 is v2 near-real-time data
@@ -918,24 +920,39 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      end do
 
      ikx=0
-     if(nloz==37) then
-       do k=1,jpch_oz
-          if(index(nusis_oz(k),'mls22')/=0 ) then  ! mls_aura v2.2
-             ikx=ikx+1
-             ipos(ikx)=k
-          else if(index(nusis_oz(k),'mls20')/=0 ) then  ! mls_aura v2 nrt
-             ikx=ikx+1
-             ipos(ikx)=k
-          end if
-       end do
-     else if(nloz==55) then
-       do k=1,jpch_oz
-          if(index(nusis_oz(k),'mls30')/=0 ) then  ! mls_aura v3 nrt
-             ikx=ikx+1
-             ipos(ikx)=k
-          end if
-       end do
-     end if
+     k0=0
+     ipos=999
+     first=.false.
+     do k=1,jpch_oz
+        if( (.not. first) .and. index(nusis_oz(k),sis)/=0 ) then
+          k0=k
+          first=.true.
+        end if
+        if(first .and. index(nusis_oz(k),sis)/=0 ) then
+          ikx=ikx+1
+          ipos(ikx)=k0+ikx-1
+        end if
+!       print*, 'hliu in read_ozone.f90,',ikx,k0,ipos(ikx)
+     end do
+
+!    if(nloz==37) then
+!      do k=1,jpch_oz
+!         if(index(nusis_oz(k),'mls22')/=0 ) then  ! mls_aura v2.2
+!            ikx=ikx+1
+!            ipos(ikx)=k
+!         else if(index(nusis_oz(k),'mls20')/=0 ) then  ! mls_aura v2 nrt
+!            ikx=ikx+1
+!            ipos(ikx)=k
+!         end if
+!      end do
+!    else if(nloz==55) then
+!      do k=1,jpch_oz
+!         if(index(nusis_oz(k),'mls30')/=0 ) then  ! mls_aura v3 nrt
+!            ikx=ikx+1
+!            ipos(ikx)=k
+!         end if
+!      end do
+!    end if
     
 !    Reopen unit to bufr file
      call closbf(lunin)
