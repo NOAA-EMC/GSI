@@ -932,28 +932,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
           ikx=ikx+1
           ipos(ikx)=k0+ikx-1
         end if
-!       print*, 'hliu in read_ozone.f90,',ikx,k0,ipos(ikx)
      end do
 
-!    if(nloz==37) then
-!      do k=1,jpch_oz
-!         if(index(nusis_oz(k),'mls22')/=0 ) then  ! mls_aura v2.2
-!            ikx=ikx+1
-!            ipos(ikx)=k
-!         else if(index(nusis_oz(k),'mls20')/=0 ) then  ! mls_aura v2 nrt
-!            ikx=ikx+1
-!            ipos(ikx)=k
-!         end if
-!      end do
-!    else if(nloz==55) then
-!      do k=1,jpch_oz
-!         if(index(nusis_oz(k),'mls30')/=0 ) then  ! mls_aura v3 nrt
-!            ikx=ikx+1
-!            ipos(ikx)=k
-!         end if
-!      end do
-!    end if
-    
 !    Reopen unit to bufr file
      call closbf(lunin)
      open(lunin,file=infile,form='unformatted')
