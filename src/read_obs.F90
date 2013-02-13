@@ -468,7 +468,7 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
     character(10):: obstype,platid
@@ -490,6 +490,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),dimension(npe,ndat):: mype_work,mype_work_r1,mype_work_r2
     integer(i_kind),dimension(npe,ndat):: mype_sub,mype_sub_r1,mype_sub_r2
     integer(i_kind),allocatable,dimension(:):: nrnd
+    integer(i_kind):: nmls_type
 
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
     real(r_kind),dimension(lat1*lon1):: prslsm,hgtlsm
@@ -540,6 +541,7 @@ subroutine read_obs(ndata,mype)
     ii=0
     ref_obs = .false.    !.false. = assimilate GPS bending angle
     ears_possible = .false.
+    nmls_type=0
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
        amsre= index(obstype,'amsre') /= 0
@@ -549,6 +551,14 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
+       mls = index(obstype,'mls') /= 0
+       if(obstype == 'mls20' ) nmls_type=nmls_type+1
+       if(obstype == 'mls22' ) nmls_type=nmls_type+1
+       if(obstype == 'mls30' ) nmls_type=nmls_type+1
+       if(nmls_type>1) then
+          write(6,*) '******ERROR***********: there is more than one MLS data type, not allowed, please check'
+          call stop2(337)
+       end if
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -573,7 +583,7 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev' &
-           .or. obstype == 'mls' ) then
+           .or. mls ) then
           ditype(i) = 'ozone'
        else if (obstype == 'mopitt') then
           ditype(i) = 'co'

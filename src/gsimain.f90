@@ -517,6 +517,8 @@
 !          = 333 - mismatch between variable info file and background error fixed file
 !          = 334 - newpc4pred: not for use with lsqrtb
 !          = 335 - error reading radiance diagnostic file
+!          = 336 - error reading MLS vertical levels from MLS bufr 
+!          = 337 - error:more than one MLS  data type not allowed
 !
 !
 ! remarks: resolution, unit numbers and several constants are
