@@ -238,6 +238,7 @@ subroutine tintrp31v(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
 !
 ! program history log:
 !   2013-01-26  parrish
+!   2013-02-15  parrish -- fix bug found by Manuel Pondeca during internal review of ticket #287.
 !
 !   input argument list:
 !     f        - input interpolator
@@ -278,11 +279,10 @@ subroutine tintrp31v(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
   m1=mype+1
      ix1=int(dx)
      iy1=int(dy)
-     iz=int(dz(i))
-     ix1=max(1,min(ix1,nlat)); iz=max(1,min(iz,nsig))  
+     ix1=max(1,min(ix1,nlat))
      delx=dx-float(ix1)
      dely=dy-float(iy1)
-     delx=max(zero,min(delx,one)); delz=max(zero,min(delz,one))
+     delx=max(zero,min(delx,one))
      ix=ix1-istart(m1)+2
      iy=iy1-jstart(m1)+2
      if(iy<1) then
@@ -317,7 +317,10 @@ subroutine tintrp31v(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
      deltp=one-delt
      delxp=one-delx; delyp=one-dely
   do i=1,n
+     iz=int(dz(i))
+     iz=max(1,min(iz,nsig))  
      delz=dz(i)-float(iz)
+     delz=max(zero,min(delz,one))
      izp=min(iz+1,nsig)
      delzp=one-delz
      g(i) =(f(ix ,iy ,iz ,itime )*delxp*delyp*delzp &

@@ -1038,6 +1038,29 @@ end subroutine get_gefs_for_regional
 
   SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN,   &
                                     psfc_out,generic,IME,JME, Ilook,Jlook )
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    compute_nmm_surfacep  obtain nmm surface pressure
+!   prgmmr: pyle             org: np22                date: 2010-09-26
+!
+! abstract: using model terrain height and 3d fields of height, pressure and temperature,
+!             compute pressure at the model terrain height.
+!
+!
+! program history log:
+!   2010-09-26  pyle
+!   2013-02-15  parrish -- change DO L=generic,2,-1 to DO L=generic-1,2,-1 to prevent
+!                            out of bounds array reference in array Z3D_IN.
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
 
 
        use kinds, only: r_kind,i_kind
@@ -1131,7 +1154,7 @@ end subroutine get_gefs_for_regional
              ENDIF
 
 !             do L=2,generic
-             DO L=generic,2,-1
+             DO L=generic-1,2,-1
 
                 IF ( PRESS3D_IN(i,j,L) > PSFC_IN(I,J) .AND.  &
                          Z3D_IN(I,J,L) < TERRAIN_HGT_T(I,J) .AND. &

@@ -53,6 +53,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                             tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-01-22  parrish - WCOSS debug compile execution error rwgt not assigned a value.
 !                             set rwgt = 1 at beginning of obs loop.
+!   2013-02-15  parrish - WCOSS debug compile execution error, k1=k2 but data(iobs_type,i) <=3, causes 0./0.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -369,9 +370,16 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      k2=min(k+1,nsig)
 
 !    Compute observation pressure (only used for diagnostics)
-     dz     = zges(k2)-zges(k1)
-     dlnp   = prsltmp(k2)-prsltmp(k1)
-     pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+     if(k2>k1) then    !???????????? to fix problem where k1=k2, which should only happen if k1=k2=nsig
+        dz     = zges(k2)-zges(k1)
+        dlnp   = prsltmp(k2)-prsltmp(k1)
+        pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+     else
+        write(6,*)' iobs_type,data(iobs_type,i),k,k1,k2,nsig,zob,zges(k1),prsltmp(k1)=',&     !  diagnostic only??????????????
+                          iobs_type,data(iobs_type,i),k,k1,k2,nsig,zob,zges(k1),prsltmp(k1)
+        pobl   = prsltmp(k1)
+     end if
+        
 
      if(data(iobs_type,i) > three .and. k1 == k2)then
        dz     = zges(k1)-zsges 

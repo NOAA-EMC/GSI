@@ -679,6 +679,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !   2012-12-10  eliu    - modify to add the use of use_gfs_stratosphere
 !   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
 !                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -960,8 +961,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !    Get global-regional blended vertical coordinate
      nsig_read=nsig_regional
      if(use_gfs_stratosphere) then  !get new vertical coordinate
-        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
-        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max+1))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max+1))
         call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
                                   pdtop_regional,pt_regional,nsig_regional, &
                                   deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)
@@ -1344,6 +1345,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !                          grid ordering for input 3D fields
 !   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
 !                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1591,8 +1593,8 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
 !  check to see if merging with gfs stratosphere
      if(use_gfs_stratosphere) then
-        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
-        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max+1))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max+1))
 
 !  generate new mixed vertical coordinate info:
         call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &

@@ -126,6 +126,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                       layer based on surface obs UV
 !   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11, tintrp2a to tintrp2a1, tintrp2a11,
 !                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
+!                            num_bad_ikx and print 1st 10 instances of ikx out of range
+!                            and also print num_bad_ikx after all data processed if > 0 .
 !
 ! REMARKS:
 !   language: f90
@@ -190,6 +193,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) ku,kl,im
   integer(i_kind) cat,cato
+  integer(i_kind) num_bad_ikx
 
   character(8) station_id,station_ido
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -291,6 +295,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
   call dtime_setup()
+  num_bad_ikx=0
   do i=1,nobs
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
@@ -302,6 +307,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rstation_id     = data(id,i)
         error=data(ier2,i)
         ikx=nint(data(ikxx,i))
+        if(ikx < 1 .or. ikx > nconvtype) then
+           num_bad_ikx=num_bad_ikx+1
+           if(num_bad_ikx<=10) write(6,*)' in setupw, bad ikx, ikx,i,nconvtype=',ikx,i,nconvtype
+           cycle
+        end if
         isli = data(idomsfc,i)
      endif
 
@@ -1212,6 +1222,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   end do
 ! End of loop over observations
+  if(num_bad_ikx > 0) write(6,*)' in setupw, num_bad_ikx ( ikx<1 or ikx>nconvtype ) = ',num_bad_ikx
 
 
 ! Write information to diagnostic file
