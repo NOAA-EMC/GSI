@@ -59,6 +59,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !   2009-10-19  guo     - changed for multi-pass setup with dtime_check() and new
 !			  arguments init_pass and last_pass.
 !   2009-12-08  guo     - cleaned diag output rewind with open(position='rewind')
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, intrp2a to intrp2a1,
+!                           intrp3oz to intrp3oz1. (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -136,10 +138,10 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   character(len=*),parameter:: myname="setupozlay"
 
 ! Declare external calls for code analysis
-  external:: intrp2a
-  external:: tintrp2a
-  external:: intrp3oz
-  external:: grdcrd
+  external:: intrp2a1
+  external:: tintrp2a1
+  external:: intrp3oz1
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables  
@@ -309,8 +311,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
            ierror_poq = nint(data(ipoq,i))
 
 !          Note:  ozp as log(pobs)
-           call intrp2a(ges_prsi(1,1,1,ntguessig),prsitmp,dlat,&
-             dlon,1,nsig+1,mype)
+           call intrp2a1(ges_prsi(1,1,1,ntguessig),prsitmp,dlat,&
+             dlon,nsig+1,mype)
   
 !          Map observation pressure to guess vertical coordinate
            psi=one/(prsitmp(1)*r10)  ! factor of 10 converts to hPa
@@ -320,12 +322,12 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
               else
                  ozp(nz) = prsitmp(1)
               end if
-              call grdcrd(ozp(nz),1,prsitmp,nsig+1,-1)
+              call grdcrd1(ozp(nz),prsitmp,nsig+1,-1)
            enddo
         end if
 
-        call intrp3oz(ges_oz,ozges,dlat,dlon,ozp,dtime,&
-             1,nlevs,mype)
+        call intrp3oz1(ges_oz,ozges,dlat,dlon,ozp,dtime,&
+             nlevs,mype)
 
         if(ozone_diagsave .and. luse(i))then
            ii=ii+1
@@ -481,8 +483,8 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !             Set (i,j) indices of guess gridpoint that bound obs location
               call get_ij(mm1,dlat,dlon,oztail(ibin)%head%ij(1),tempwij(1))
 
-              call tintrp2a(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
-                   1,nsig+1,mype,nfldsig)
+              call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
+                   nsig+1,mype,nfldsig)
 
               do k = 1,nsig
                  oztail(ibin)%head%wij(1,k)=tempwij(1)*rozcon*(prsitmp(k)-prsitmp(k+1))
@@ -759,9 +761,9 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   character(len=*),parameter:: myname="setupozlev"
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: tintrp2a1,tintrp2a11
   external:: tintrp3
-  external:: grdcrd
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables  
@@ -929,17 +931,17 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      if(.not.in_curbin) cycle
 
 !    Interpolate ps to obs locations/times
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig, &
-          1,1,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig, &
+          mype,nfldsig)
 
 !    Interpolate log(pres) at mid-layers to obs locations/times
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig, &
-          1,nsig,mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig, &
+          nsig,mype,nfldsig)
 
 !    Get approximate k value of surface by using surface pressure
 !    for surface check.
      sfcchk=log(psges)
-     call grdcrd(sfcchk,1,prsltmp,nsig,-1)
+     call grdcrd1(sfcchk,prsltmp,nsig,-1)
 
      if(ozone_diagsave .and. luse(i))then
         ii=ii+1
@@ -953,7 +955,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 !    Pressure level of data (dpres) converted to grid coordinate
 !    (wrt mid-layer pressure)
-     call grdcrd(dpres,1,prsltmp,nsig,-1)
+     call grdcrd1(dpres,prsltmp,nsig,-1)
 
 !    Check if observation above model top or below model surface
 
@@ -970,8 +972,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      end if
 
 !    Interpolate guess ozone to observation location and time
-     call tintrp3(ges_oz,o3ges,dlat,dlon,dpres,dtime, &
-       hrdifsig,1,mype,nfldsig)
+     call tintrp31(ges_oz,o3ges,dlat,dlon,dpres,dtime, &
+       hrdifsig,mype,nfldsig)
 
 !    Compute innovations - background o3ges in g/g so adjust units
 !    Leave increment in ppmv for gross checks,  etc.

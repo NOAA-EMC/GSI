@@ -33,6 +33,8 @@ subroutine wrwrfmassa_binary(mype)
 !                           before every call to mpi_file_write_at (to handle cases of big-endian
 !                           file/little-endian machine and vice-versa)
 !   2012-11-26  hu     - add code to write updated soil fields to "wrf_inout"
+!   2013-01-26  parrish - WCOSS debug compile type mismatch error -- 
+!                            change to_native_endianness_i4 to to_native_endianness_r4
 !
 !   input argument list:
 !     mype     - pe number
@@ -615,7 +617,7 @@ subroutine wrwrfmassa_binary(mype)
   call mpi_wait(request,status,ierror)
   if(byte_swap) then
      num_swap=length_mub
-     call to_native_endianness_i4(mub(1,1),num_swap)
+     call to_native_endianness_r4(mub(1,1),num_swap)
   end if
 
 

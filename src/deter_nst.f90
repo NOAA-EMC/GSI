@@ -8,6 +8,7 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !
 ! program history log:
 !   2011-04-08 Li
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstime                             - observation time relative to analysis time
@@ -60,8 +61,8 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats_sfc,nlat_sfc,1)
-        call grdcrd(dlon,1,rlons_sfc,nlon_sfc,1)
+        call grdcrd1(dlat,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(dlon,rlons_sfc,nlon_sfc,1)
      end if
 
      iy=int(dlon); ix=int(dlat)

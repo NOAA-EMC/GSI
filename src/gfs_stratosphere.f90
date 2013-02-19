@@ -129,6 +129,7 @@ contains
 ! program history log:
 !   2012-02-11  parrish, initial documentation
 !   2012-10-11  eliu -  modify to work for wrf_nmm_regional (HWRF) 
+!   2013-02-15  parrish - change dimension of eta1, eta2, eta1m, eta2m to correct value.
 !
 !   input argument list:
 !     deta1  - all of these are original nmmb vertical coordinate specifications.
@@ -163,10 +164,12 @@ contains
       implicit none
 
 !     Declare passed variables
-      real(r_single),dimension(nsigr)        ,intent(in   ) :: deta1,aeta1,eta1,deta2,aeta2,eta2
+      real(r_single),dimension(nsigr)        ,intent(in   ) :: deta1,aeta1,deta2,aeta2
+      real(r_single),dimension(nsigr+1)      ,intent(in   ) :: eta1,eta2
       real(r_single)                         ,intent(in   ) :: pdtop,pt
       integer(i_kind)                        ,intent(in   ) :: nsigr
-      real(r_single),dimension(nsig_max)     ,intent(  out) :: deta1m,aeta1m,eta1m,deta2m,aeta2m,eta2m
+      real(r_single),dimension(nsig_max)     ,intent(  out) :: deta1m,aeta1m,deta2m,aeta2m
+      real(r_single),dimension(nsig_max+1)   ,intent(  out) :: eta1m,eta2m
       integer(i_kind)                        ,intent(  out) :: nsigm_out
 
 !     Declare local variables

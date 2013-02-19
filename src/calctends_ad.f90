@@ -31,6 +31,7 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 !   2010-11-03  derber - moved threading calculations to gridmod and modified
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
+!   2013-01-23  parrish - change t_t from intent(in) to intent(inout) (flagged by WCOSS intel debug compile)
 !
 ! usage:
 !   input argument list:
@@ -84,7 +85,8 @@ subroutine calctends_ad(u,v,t,q,oz,cw,mype,nnn, &
 
 ! Declare passed variables
   real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: u_t,v_t,u,v,t,q,oz,cw
-  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t_t,q_t,oz_t,cw_t
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t_t
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: q_t,oz_t,cw_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: p_t
   real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: pri
   integer(i_kind)                         ,intent(in   ) :: mype,nnn

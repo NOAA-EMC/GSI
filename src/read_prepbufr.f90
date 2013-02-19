@@ -101,6 +101,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
 !   2012-04-03  s.liu    - thin new VAD wind 
 !   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
+!                                    Initialize pflag=0 at beginning of subroutine.
+!
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -312,6 +316,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   
 ! Initialize variables
 
+  pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
   nreal=0
   satqc=zero
   tob = obstype == 't'
@@ -674,8 +679,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else
               dlat = dlat_earth
               dlon = dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !------------------------------------------------------------------------
@@ -1028,8 +1033,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     dlat = dlat_earth
                     dlon = dlon_earth
-                    call grdcrd(dlat,1,rlats,nlat,1)
-                    call grdcrd(dlon,1,rlons,nlon,1)
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
                  endif
 
                  if(levs > 1 .or. ithinp)then

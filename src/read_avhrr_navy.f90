@@ -45,6 +45,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod  
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -292,8 +293,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 !       Set common predictor parameters
@@ -338,8 +339,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !       Interpolate hi-res sst analysis to observation location
         dlat_sst = dlat_earth
         dlon_sst = dlon_earth
-        call grdcrd(dlat_sst,1,rlats_sst,nlat_sst,1)
-        call grdcrd(dlon_sst,1,rlons_sst,nlon_sst,1)
+        call grdcrd1(dlat_sst,rlats_sst,nlat_sst,1)
+        call grdcrd1(dlon_sst,rlons_sst,nlon_sst,1)
 
         klon1=int(dlon_sst); klat1=int(dlat_sst)
         dx  =dlon_sst-klon1; dy  =dlat_sst-klat1

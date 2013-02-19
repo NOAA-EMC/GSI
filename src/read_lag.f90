@@ -13,6 +13,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 ! program history log:
 !   2009-03-05  meunier
 !   2011-08-01  lueken  - changed F90 to f90 (no machine logic)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read ozone data
@@ -160,8 +161,8 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
         else
            rlongrid=rlonrad
            rlatgrid=rlatrad
-           call grdcrd(rlongrid,1,rlons,nlon,1)
-           call grdcrd(rlatgrid,1,rlats,nlat,1)
+           call grdcrd1(rlongrid,rlons,nlon,1)
+           call grdcrd1(rlatgrid,rlats,nlat,1)
         end if
 
         ! In the regional grid ?
