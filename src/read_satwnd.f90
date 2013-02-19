@@ -25,6 +25,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2012-10-13 Su      -modify the code to assimilate GOES hourly wind, changed the error and quality control
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -144,7 +145,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) toff,t4dv
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
-  real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
+  real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,ree
   real(r_kind) woe,errout,dlat,dlon,dlat_earth,dlon_earth
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
@@ -627,6 +628,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif  
                     endif
                  enddo
+                 if(qifn <85.0_r_kind .and. qifn >r110)  then
+                    qm=15
+                    pqm=15
+                 endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -717,8 +722,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
                  if(hdrdat(2) >20.0_r_kind) then 
                     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-!                   if (isflg /= 0) cycle loop_readsb 
-                    qm=15
+                    if(isflg /= 0) cycle loop_readsb 
                  endif
               endif
            endif
@@ -761,6 +765,29 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            del=max(zero,min(del,one))
            obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
            obserr=max(obserr,werrmin)
+!  for GOES hourly winds, set error doubled
+            if(itype==245 .or. itype==246) then
+               obserr=obserr*two
+!  using  Santek quality control method,calculate the original ee value
+               if(ee <105.0_r_kind) then
+                  ree=(ee-r100)/(-10.0_r_kind)
+                  if(obsdat(4) >zero) then
+                    ree=ree/obsdat(4)
+                  else
+                    ree=two
+                  endif
+               else
+                  ree=0.2_r_kind
+               endif
+               if( ppb >= 800.0_r_kind .and. ree >0.55_r_kind) then
+                  qm=15
+                  pqm=15
+                else if (ree >0.8_r_kind) then
+                  qm=15
+                  pqm=15
+               endif
+            endif
+
 !         Set usage variable
            usage = 0 
            iuse=icuse(nc)
