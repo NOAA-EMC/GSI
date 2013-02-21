@@ -13,6 +13,7 @@ subroutine get_gefs_for_regional
 !   2012-01-17  wu, clean up, add/setup option "full_ensemble"
 !   2012-02-08  parrish - a little more cleanup
 !   2012-10-11  wu      - dual resolution for options of regional hybens
+!   2013-02-21  wu      - add call to general_destroy_spec_vars to fix memory problem
 !
 !   input argument list:
 !
@@ -46,7 +47,7 @@ subroutine get_gefs_for_regional
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
   use general_sub2grid_mod, only: general_suba2sube,general_sube2suba
-  use general_specmod, only: spec_vars,general_init_spec_vars
+  use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ges_ps,ntguessig,geop_hgti,ges_z
@@ -1020,6 +1021,7 @@ subroutine get_gefs_for_regional
      end do
   end do
 
+  call general_destroy_spec_vars(sp_gfs)
   deallocate(vector)
   deallocate(st_eg,vp_eg,t_eg,rh_eg)
   deallocate(oz_eg,cw_eg,p_eg_nmmb)
