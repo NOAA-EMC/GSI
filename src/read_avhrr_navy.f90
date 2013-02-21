@@ -179,6 +179,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   if(jsatid == 'n18')bufsat = 209
   if(jsatid == 'n19')bufsat = 223
   if(jsatid == 'metop-a')bufsat = 4
+  if(jsatid == 'metop-b')bufsat = 3
+  if(jsatid == 'metop-c')bufsat = 5
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.

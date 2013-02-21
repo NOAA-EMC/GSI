@@ -283,8 +283,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if(jsatid == 'n18')kidsat=209
   if(jsatid == 'n19')kidsat=223
   if(jsatid == 'metop-a')kidsat=4
-  if(jsatid == 'metop-b')kidsat=5
-  if(jsatid == 'metop-c')kidsat=6
+  if(jsatid == 'metop-b')kidsat=3
+  if(jsatid == 'metop-c')kidsat=5
   if(jsatid == 'npp')kidsat=224
 
   radedge_min = 0

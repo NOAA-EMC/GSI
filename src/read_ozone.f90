@@ -444,6 +444,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      rsat = hdrozg(1); ksatid=rsat
 
      if(jsatid == 'metop-a')kidsat = 4
+     if(jsatid == 'metop-b')kidsat = 3
+     if(jsatid == 'metop-c')kidsat = 5
 
      if (ksatid /= kidsat) go to 120
 

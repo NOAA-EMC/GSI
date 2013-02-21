@@ -184,9 +184,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
        else if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
-         kidsat=5
+         kidsat=3
        else if(jsatid == 'metop-c')then
-         kidsat=6
+         kidsat=5
        else if(jsatid == 'm08')then
          kidsat = 55 
        else if(jsatid == 'm09')then
@@ -678,7 +678,9 @@ subroutine read_obs(ndata,mype)
           ears_possible(i) = ditype(i) == 'rad'  .and.       & 
                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
                    obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
-                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. dplat(i) == 'metop-a') 
+                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. &
+                   dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
+                   dplat(i) == 'metop-c') 
 !   Inquire data set to deterimine if input data available and size of dataset
           ii=ii+1
           if (ii>npem1) ii=0

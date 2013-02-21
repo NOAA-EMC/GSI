@@ -275,7 +275,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find IASI sensorindex
   sensorindex = 0
-  if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' )then
+  if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' .or. &
+       channelinfo(1)%sensor_id == 'iasi616_metop-b' .or. &
+       channelinfo(1)%sensor_id == 'iasi616_metop-c' ) then
      sensorindex = 1
   else
      write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
