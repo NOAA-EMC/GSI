@@ -19,7 +19,7 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
-     lwrite_peakwt,use_limit
+     lwrite_peakwt,use_limit,lrun_subdirs
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -57,7 +57,7 @@
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
-     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj
+     bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj,nhscrf
   use anberror, only: anisotropic,ancovmdl,init_anberror,npass,ifilt_ord,triad4, &
      binom,normal,ngauss,rgauss,anhswgt,an_vs,&
      grid_ratio,grid_ratio_p,an_flen_u,an_flen_t,an_flen_z, &
@@ -67,9 +67,9 @@
   use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer,ljc4tlevs
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
-  use mod_strong, only: jcstrong,jcstrong_option,nstrong,hybens_inmc_option,&
+  use mod_strong, only: l_tlnmc,tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-  use gridmod, only: nlat,nlon,nsig,hybrid,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
+  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
@@ -382,6 +382,7 @@
 !     pblend0,pblend1 - see above comment for use_gfs_stratosphere
 !     l4densvar - logical to turn on ensemble 4dvar
 !     ens4d_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
+!     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -410,14 +411,13 @@
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
-       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon
+       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
 !     nsig     - number of sigma levels
 !     nlat     - number of latitudes
 !     nlon     - number of longitudes
-!     hybrid   - logical hybrid data file flag true=hybrid
 !     nlon_regional - 
 !     nlat_regional
 !     diagnostic_reg - logical for regional debugging
@@ -441,13 +441,14 @@
 !                  prior to calling radiative transfer model
 
 
-  namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,hybrid,nlat_regional,nlon_regional,&
+  namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
+!     nhscrf   - number of horizontal scales for recursive filter
 !     hzscl(n) - scale factor for horizontal smoothing, n=1,number of scales (3 for now)
 !                specifies factor by which to reduce horizontal scales (i.e. 2 would
 !                then apply 1/2 of the horizontal scale
@@ -468,7 +469,7 @@
 !     bkgv_write - flag to turn on=.true. /off=.false. generation of binary file with reweighted variances
 !     fpsproj  - controls full nsig projection to surface pressure
 
-  namelist/bkgerr/vs,hzscl,hswgt,norh,ndeg,noq,bw,norsp,fstat,pert_berr,pert_berr_fct, &
+  namelist/bkgerr/vs,nhscrf,hzscl,hswgt,norh,ndeg,noq,bw,norsp,fstat,pert_berr,pert_berr_fct, &
 	bkgv_flowdep,bkgv_rewgtfct,bkgv_write,fpsproj
 
 ! ANBKGERR (anisotropic background error related variables):
@@ -531,8 +532,7 @@
       ljc4tlevs
 
 ! STRONGOPTS (strong dynamic constraint)
-!     jcstrong - if .true., strong contraint on
-!     jcstrong_option - =1 for slow global strong constraint
+!     tlnmc_type -      =1 for slow global strong constraint
 !                       =2 for fast global strong constraint
 !                       =3 for regional strong constraint
 !                       =4 version 3 of regional strong constraint
@@ -547,16 +547,16 @@
 !     nvmodes_keep - number of vertical modes to use in implicit normal mode initialization
 !     baldiag_full 
 !     baldiag_inc
-!     hybens_inmc_option : integer flag for strong constraint (various capabilities for hybrid)
-!                   =0: no TLNMC (consistent with jcstrong=.false.)
+!     tlnmc_option : integer flag for strong constraint (various capabilities for hybrid)
+!                   =0: no TLNMC
 !                   =1: TLNMC on static increment only (or if non-hybrid run)
 !                   =2: TLNMC on total increment for single time level only (or 3DHybrid)
 !                       if 4D mode, TLNMC applied to increment in center of window
 !                   =3: TLNMC on total increment over all time levels (if in 4D mode)
 
-  namelist/strongopts/jcstrong,jcstrong_option,nstrong, &
-                      period_max,period_width,nvmodes_keep, &
-		      baldiag_full,baldiag_inc,hybens_inmc_option
+  namelist/strongopts/tlnmc_type,tlnmc_option, &
+                      nstrong,period_max,period_width,nvmodes_keep, &
+		      baldiag_full,baldiag_inc
 
 ! OBSQC (observation quality control variables):
 !
@@ -777,7 +777,6 @@
   call init_oneobmod
   call init_qcvars
   call init_obsmod_dflts
-  call init_directories(mype)
   call init_pcp
   call init_rad
   call init_oz
@@ -860,7 +859,6 @@
   close(11)
 #endif
 
-
 ! 4D-Var setup
   call setup_4dvar(miter,mype)
   if (l4dvar) then
@@ -910,44 +908,47 @@
   if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
                           use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional                  
                                                                                                                        
-
-! Check that regional=.true. if jcstrong_option > 2
-  if(jcstrong_option>2.and..not.regional) then
+! Check that regional=.true. if tlnmc_type > 2
+  if(tlnmc_type>2.and..not.regional) then
      if(mype==0) then
-        write(6,*) ' jcstrong_option>2 not allowed except for regional=.true.'
+        write(6,*) ' tlnmc_type>2 not allowed except for regional=.true.'
         write(6,*) ' ERROR EXIT FROM GSI'
      end if
      call stop2(328)
   end if
 
-!  jcstrong_option=4 currently requires that 2*nvmodes_keep <= npe
-  if(jcstrong_option==4) then
+!  tlnmc_type=4 currently requires that 2*nvmodes_keep <= npe
+  if(tlnmc_type==4) then
      if(2*nvmodes_keep>npe) then
-        if(mype==0) write(6,*)' jcstrong_option=4 and nvmodes_keep > npe'
+        if(mype==0) write(6,*)' tlnmc_type=4 and nvmodes_keep > npe'
         if(mype==0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
         nvmodes_keep=npe/2
         if(mype==0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
      end if
   end if
 
-  if (.not.jcstrong) then
-     hybens_inmc_option=0
-     if(mype==0) write(6,*)' TLNMC turned off, set hybens_inmc_option to 0'
-  else if (jcstrong .and. (.not.l_hyb_ens) ) then
-     hybens_inmc_option=1
-     if(mype==0) write(6,*)' TLNMC option turned on in non-hybrid mode, set hybens_inmc_option to 1'
+  if (tlnmc_option>0 .and. tlnmc_option<4) then
+     l_tlnmc=.true.
+     if(mype==0) write(6,*)' valid TLNMC option chosen, setting l_tlnmc logical to true'
   end if
 
-  if (hybens_inmc_option==2 .or. hybens_inmc_option==3) then
-     if (.not.l_hyb_ens .or. .not.jcstrong) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,jcstrong,hybens_inmc_option
-        call die(myname_,'jcstrong options inconsistent, check namelist settings',99)
+  if (tlnmc_option==2 .or. tlnmc_option==3) then
+     if (.not.l_hyb_ens) then
+	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,tlnmc_option
+        call die(myname_,'tlnmc options inconsistent, check namelist settings',337)
      end if
-  else if (hybens_inmc_option<0 .or. hybens_inmc_option>3) then
-     if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for hybens_inmc_option: ',hybens_inmc_option
+  else if (tlnmc_option<0 .or. tlnmc_option>3) then
+     if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
      if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
-     hybens_inmc_option=0
+     tlnmc_option=0
   end if
+
+! Ensure valid number of horizontal scales
+  if (nhscrf<0 .or. nhscrf>3) then
+     if(mype==0) write(6,*)' GSIMOD: invalid specifications for number of horizontal scales nhscrf = ',nhscrf
+     call die(myname_,'invalid nhscrf, check namelist settings',336)
+  end if
+
 
 ! Ensure time window specified in obs_input does not exceed 
 ! specified maximum value
@@ -1003,14 +1004,13 @@
   endif
 
 
-! If strong constraint is turned off (jcstrong=.false.), 
-! force other strong constraint variables to zero
-  if ((.not.jcstrong) .and. nstrong/=0 ) then
+! If strong constraint is turned off, force other strong constraint variables to zero
+  if ((.not.l_tlnmc) .and. nstrong/=0 ) then
      nstrong=0
      if (mype==0) write(6,*)'GSIMOD:  reset nstrong=',nstrong,&
-          ' because jcstrong=',jcstrong
+          ' because TLNMC option is set to off= ',tlnmc_option
   endif
-  if (.not.jcstrong) then
+  if (.not.l_tlnmc) then
      baldiag_full=.false.
      baldiag_inc =.false.
   end if
@@ -1021,7 +1021,7 @@
 
 ! Turn on derivatives if using dynamic constraint
 ! For now if wrf mass or 2dvar no dynamic constraint
-  if (jcstrong.or.l_foto) tendsflag=.true.
+  if (l_tlnmc.or.l_foto) tendsflag=.true.
   if (tendsflag) switch_on_derivatives=.true.
 
 
@@ -1126,6 +1126,8 @@
      if (oneobtest) write(6,singleob_test)
   endif
 
+! Set up directories (or pe specific filenames)
+  call init_directories(mype)
 
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.

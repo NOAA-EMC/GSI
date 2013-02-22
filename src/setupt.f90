@@ -406,7 +406,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
              nsig,mype,nfldsig)
   
         psges2  = psges          ! keep in cb
-        prsltmp2 = prsltmp       ! keep in cb
+        prsltmp2 = exp(prsltmp)  ! convert from ln p to cb
         call SFC_WTQ_FWD (psges2, tgges,&
              prsltmp2(1), tvtmp(1), qtmp(1), utmp(1), vtmp(1), &
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &

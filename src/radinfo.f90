@@ -124,7 +124,7 @@ module radinfo
 
   real(r_kind),allocatable,dimension(:):: radstart    ! starting scan angle
   real(r_kind),allocatable,dimension(:):: radstep     ! step of scan angle
-  real(r_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
+  integer(i_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
 
   integer(i_kind),allocatable,dimension(:):: radedge1    ! cut-off of edge removal
   integer(i_kind),allocatable,dimension(:):: radedge2    ! cut-off of edge removal
@@ -191,7 +191,7 @@ contains
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-    use constants, only: one_tenth
+    use constants, only: one_tenth, one
 
     implicit none
 
@@ -1004,7 +1004,7 @@ contains
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
       else if (index(isis,'atms') /= 0 .AND. maxscan < 96) then
-         ifov=ifov+3
+         ifov=iscan+3
       else
          ifov=iscan
       end if
@@ -1047,7 +1047,7 @@ contains
      real(r_kind),dimension(npred):: pred
      
      pred=zero
-     do i=1,radnstep(j)
+     do i=1,min(radnstep(j),90)
         pred(npred)=rnad_pos(isis,i,j)*deg2rad
         do k=2,angord
            pred(npred-k+1)=pred(npred)**k

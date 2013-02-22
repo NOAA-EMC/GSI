@@ -67,7 +67,7 @@ subroutine prewgt_reg(mype)
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,slw
+       init_rftable,hzscl,slw,nhscrf
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: qoption
   use control_vectors, only: cvars2d,cvars3d
@@ -226,7 +226,7 @@ subroutine prewgt_reg(mype)
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
 ! the parameter values here.
-  do i=1,3
+  do i=1,nhscrf
      hzscl(i)=one/hzscl(i)
   end do
 

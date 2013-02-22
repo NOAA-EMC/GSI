@@ -241,15 +241,15 @@ subroutine get_gefs_ensperts_dualres
 
              case('q','Q')
 !$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
-                do k=1,km
-                   do j=1,jm
-                      do i=1,im
-                         rh=q(i,j,k)/qs(i,j,k)
-                         w3(i,j,k) = rh
-                         x3(i,j,k)=x3(i,j,k)+rh
-                      end do
-                   end do
-                end do
+                 do k=1,km
+                    do j=1,jm
+                       do i=1,im
+                          rh=q(i,j,k)/qs(i,j,k)
+                          w3(i,j,k) = rh
+                          x3(i,j,k)=x3(i,j,k)+rh
+                       end do
+                    end do
+                 end do
 
              case('oz','OZ')
 !$omp parallel do schedule(dynamic,1) private(i,j,k)

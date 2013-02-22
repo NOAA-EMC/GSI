@@ -125,7 +125,7 @@ module gridmod
   public :: nsig2,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time
   public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
-  public :: diagnostic_reg,nmmb_reference_grid,hybrid,filled_grid
+  public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: nsig3,nsig4
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
@@ -146,7 +146,6 @@ module gridmod
   logical regional_ozone    !    .t. to turn on ozone for regional analysis
   logical netcdf            ! .t. for regional netcdf i/o
 
-  logical hybrid            ! .t. to set hybrid vertical coordinates
   logical filled_grid       ! 
   logical half_grid         !
   logical update_regsfc     !
@@ -400,7 +399,6 @@ contains
     check_gfs_ozone_date = .false.
     regional_ozone = .false.
     netcdf = .false.
-    hybrid = .false.
     filled_grid = .false.
     half_grid = .false.
     grid_ratio_nmmb = sqrt(two)

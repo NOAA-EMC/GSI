@@ -187,7 +187,15 @@ GRIDOPTS=""
 BKGVERR=""
 ANBKGERR=""
 JCOPTS=""
-STRONGOPTS=""
+if [[ $exp = $global_T62_updat_exp1 ]]; then
+   STRONGOPTS="tlnmc_option=1,tlnmc_type=2"
+elif [[ $exp = $global_T62_updat_exp2 ]]; then
+   STRONGOPTS="tlnmc_option=1,tlnmc_type=2"
+elif [[ $exp = $global_T62_contrl_exp1 ]]; then
+   STRONGOPTS="hybens_inmc_option=1,jcstrong_option=2,jcstrong=.true."
+elif [[ $exp = $global_T62_contrl_exp2 ]]; then
+   STRONGOPTS="hybens_inmc_option=1,jcstrong_option=2,jcstrong=.true."
+fi
 OBSQC=""
 OBSINPUT=""
 SUPERRAD=""
@@ -205,11 +213,11 @@ cat << EOF > gsiparm.anl
    ndat=75,iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_prepb_satwnd=.false.,
-   nhr_assimilation=6,
+   nhr_assimilation=6,lrun_subdirs=.true.,
    $SETUP
  /
  &GRIDOPTS
-   JCAP_B=$JCAP_B,JCAP=$JCAP,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,hybrid=.true.,
+   JCAP_B=$JCAP_B,JCAP=$JCAP,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
    regional=.false.,nlayers(63)=3,nlayers(64)=6,
    $GRIDOPTS
  /
@@ -230,8 +238,8 @@ cat << EOF > gsiparm.anl
    $JCOPTS
  /
  &STRONGOPTS
-   jcstrong=.true.,nstrong=1,nvmodes_keep=8,period_max=6.,period_width=1.5,
-   jcstrong_option=2,baldiag_full=.true.,baldiag_inc=.true.,
+   nstrong=1,nvmodes_keep=8,period_max=6.,period_width=1.5,
+   baldiag_full=.true.,baldiag_inc=.true.,
    $STRONGOPTS
  /
  &OBSQC
