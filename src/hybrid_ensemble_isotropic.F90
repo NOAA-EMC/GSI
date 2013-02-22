@@ -1247,7 +1247,7 @@ end subroutine normal_new_factorization_rf_y
           call random_number(seed)
           do is=1,nscl
              do i=1,nval2f
-                iseed=1+nint(seed(i,is)*2147483000._r_kind)
+                iseed=1+nint(seed(i,is)*1234567._r_kind)
                 seed(i,is)=iseed
              end do
           end do
