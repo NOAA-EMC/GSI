@@ -118,7 +118,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
-  integer(i_kind)   :: jstart
+  integer(i_kind)   :: jstart, kidsat, ksatid
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
   integer(i_kind)   :: nchanl
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -135,7 +135,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: clr_amt,piece
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
-  real(r_kind)     :: sat_height_ratio
+  real(r_kind)     :: sat_height_ratio, rsat
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind)     :: sat_zenang, sat_look_angle, look_angle_est
   real(crtm_kind)  :: radiance
@@ -190,6 +190,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilat=4
   bad_line=-1
 
+  if(jsatid == 'npp') then
+     kidsat=224
+  else 
+     write(*,*) 'READ_CrIS: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
+
   if (nst_gsi > 0 ) then
     call skindepth(obstype,zob)
   endif
@@ -212,7 +219,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   senname = 'CRIS'
   
   allspotlist= &
-     'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
+     'SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
@@ -374,6 +381,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
+
+!       Extract satellite id.  If not the one we want, read next record
+        rsat=allspot(1) 
+        ksatid=nint(allspot(1))
+        if(ksatid /= kidsat) cycle read_loop
 
 !    Check observing position
         dlat_earth = allspot(8)   ! latitude
@@ -608,7 +620,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
         endif
 
-        data_all(1,itx) = allspot(1)             ! satellite ID
+        data_all(1,itx) = rsat                   ! satellite ID
         data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
         data_all(3,itx) = dlon                   ! grid relative longitude
         data_all(4,itx) = dlat                   ! grid relative latitude
