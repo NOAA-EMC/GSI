@@ -5,12 +5,14 @@
 # Redefine variables for NOAA HPCS
 # ----------------------------------
 COREINC  = /home/mlueken/nwprod/incmod
+CORELIB  = /home/mlueken/nwprod/lib
 INCsfcio = $(COREINC)/sfcio_4
-INCsigio = $(COREINC)/sigio_4
+INCsigio = /home/mtong/incmod/sigio_4
 INCnemsio= $(COREINC)/nemsio
 INCcrtm  = $(COREINC)/libCRTM
+INCw3    = /home/mtong/incmod/w3lib-2.0_d
 
-WRFPATH = /mnt/pan2/projects/hwrf-vd/mtong/hwrf-mtong-basinscale/sorc/WRFV3
+WRFPATH = /mnt/pan2/projects/hwrf-vd/mtong/hwrf-trunk/sorc/WRFV3
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 INCnetcdf       = ${NETCDF}/include
@@ -25,6 +27,9 @@ LIBhermes = #-L$(CORELIB) -lhermes
 LIBgfio   = #-L$(CORELIB) -lgfio
 INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
 LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
+LIBw3     = /home/mtong/lib/libw3lib-2.0_d.a
+LIBbufr   = /home/mtong/lib/libbufr_i4r8.a
+LIBsigio  = /home/mtong/lib/libsigio_4.a
 
 
 # ---------------------------
@@ -47,10 +52,10 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FFLAGS_F90    = -DWRF -D_REAL8_
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
-		-I $(INCnetcdf) -O3 -xHOST -traceback -assume byterecl -convert big_endian $(OMP)
+		-I $(INCnetcdf) -I $(INCw3) -O3 -xHOST -traceback -assume byterecl -convert big_endian $(OMP)
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-                  -I $(INCnemsio) -I $(INCnetcdf) -O3 -xHOST -traceback $(OMP)
+                  -I $(INCnemsio) -I $(INCnetcdf) -I $(INCw3) -O3 -xHOST -traceback $(OMP)
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
   FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
@@ -61,9 +66,9 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
-		-I $(INCnetcdf) -O0 -xHOST -traceback -assume byterecl -convert big_endian
+		-I $(INCnetcdf) -I $(INCw3) -O0 -xHOST -traceback -assume byterecl -convert big_endian
   FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-		-I $(INCnemsio) -I $(INCnetcdf) -O0 -xHOST -traceback
+		-I $(INCnemsio) -I $(INCnetcdf) -I $(INCw3) -O0 -xHOST -traceback
   
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
@@ -93,7 +98,9 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
 #--- Normal mode options
 
-LIBS_N        = -L/home/mlueken/nwprod/lib -lsp_d -lnemsio -lbacio_4 -lsigio_4 -lsfcio_4 -lbufr_d_64 -lw3lib-1.9_d -lCRTM $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+  LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsfcio_4 \
+	        -lCRTM $(LIBsigio) $(LIBbufr) $(LIBw3) $(WRFLIB) \
+	        -L$(NETCDF)/lib -lnetcdf
 
   LDFLAGS_N     = 
 
