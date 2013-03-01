@@ -12,6 +12,8 @@ set -ax
 date
 export list=$listvar
 
+export NUM_CYCLES=${NUM_CYCLES:-121}
+
 imgndir="${IMGNDIR}/bcoef"
 tankdir="${TANKDIR}/bcoef"
 
