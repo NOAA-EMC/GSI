@@ -45,7 +45,8 @@
 #     PDATE	    Processing date
 #     MAKE_CTL      Signal to make ctl files, set to 1 (on)
 #     MAKE_DATA     Signal to make data files, set to 1 (on)
-#     USE_ANL       Signal to use analysis input files, set to 0 (off)
+#     USE_ANL       Signal to use analysis input files 
+#                     in addition to ges files, set to 0 (off)
 #     USE_MAIL      Signal to send error reports by mail, set to 0 (off)
 #     SATYPE        list of satellite/instrument sources to process
 #     err           last return code
@@ -271,6 +272,11 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    for type in ${SATYPE}; do
       mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
       ${UNCOMPRESS} ./${type}.${Z}
+
+      if [[ $USE_ANL -eq 1 ]]; then
+         mv diag_${type}_anl.${PDATE}.${Z} ${type}_anl.${Z}
+         ${UNCOMPRESS} ./${type}_anl.${Z}
+      fi
    done
 
 

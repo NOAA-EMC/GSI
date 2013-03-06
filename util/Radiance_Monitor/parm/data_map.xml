@@ -2,7 +2,7 @@
 <opt>
   <global_default>
     <account>GDAS-MTN</account>
-    <anl>0</anl>
+    <use_anl>0</use_anl>
     <area>glb</area>
     <comp_plotdate/>
     <comp_suffix2/>
@@ -27,7 +27,7 @@
   </global_default>
   <regional_default>
     <account>RDAS-MTN</account>
-    <anl>0</anl>
+    <use_anl>0</use_anl>
     <area>rgn</area>
     <comp_plotdate/>
     <comp_suffix2/>

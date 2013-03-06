@@ -150,7 +150,7 @@ MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 time_exec=radmon_time.${RAD_AREA}
-gesanl=ges
+USE_ANL=${USE_ANL:-0}
 err=0 
 
 if [[ "$VERBOSE" = "YES" ]]; then
@@ -162,6 +162,12 @@ fi
 #  Preprocessing
 $INISCRIPT
 $LOGSCRIPT
+
+if [[ $USE_ANL -eq 1 ]]; then
+   gesanl="ges anl"
+else
+   gesanl="ges"
+fi
 
 iyy=`echo $PDATE | cut -c1-4`
 imm=`echo $PDATE | cut -c5-6`
@@ -202,13 +208,21 @@ if [[ $err -eq 0 ]]; then
       for dtype in ${gesanl}; do
          rm input
 
-         data_file=${type}.${PDATE}.ieee_d
-         time_file=time.${data_file}
-         ctl_file=${type}.ctl
-         time_ctl=time.${ctl_file}
-         stdout_file=stdout.${type}
-         time_stdout=time.${stdout_file}
-
+         if [[ $dtype == "anl" ]]; then
+            data_file=${type}_anl.${PDATE}.ieee_d
+            time_file=time.${data_file}
+            ctl_file=${type}_anl.ctl
+            time_ctl=time.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            time_stdout=time.${stdout_file}
+         else
+            data_file=${type}.${PDATE}.ieee_d
+            time_file=time.${data_file}
+            ctl_file=${type}.ctl
+            time_ctl=time.${ctl_file}
+            stdout_file=stdout.${type}
+            time_stdout=time.${stdout_file}
+         fi
 #--------------------------------------------------------------------
 #   Run program for given satellite/instrument
 #--------------------------------------------------------------------

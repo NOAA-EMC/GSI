@@ -114,6 +114,7 @@ RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+USE_ANL=${USE_ANL:-0}
 bcor_exec=radmon_bcor.${RAD_AREA}
 err=0
 
@@ -126,6 +127,12 @@ fi
 #  Preprocessing
 $INISCRIPT
 $LOGSCRIPT
+
+if [[ $USE_ANL -eq 1 ]]; then
+   gesanl="ges anl"
+else
+   gesanl="ges"
+fi
 
 
 #--------------------------------------------------------------------
@@ -150,14 +157,26 @@ else
    fail=0
 
    for type in ${SATYPE}; do
-      ctr=`expr $ctr + 1`
-      data_file=${type}.${PDATE}.ieee_d
-      bcor_file=bcor.${data_file}
-      ctl_file=${type}.ctl
-      bcor_ctl=bcor.${ctl_file}
-      stdout_file=stdout.${type}
-      bcor_stdout=bcor.${stdout_file}
 
+      for dtype in ${gesanl}; do
+
+         ctr=`expr $ctr + 1`
+
+         if [[ $dtype == "anl" ]]; then
+            data_file=${type}_anl.${PDATE}.ieee_d
+            bcor_file=bcor.${data_file}
+            ctl_file=${type}_anl.ctl
+            bcor_ctl=bcor.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            bcor_stdout=bcor.${stdout_file}
+         else
+            data_file=${type}.${PDATE}.ieee_d
+            bcor_file=bcor.${data_file}
+            ctl_file=${type}.ctl
+            bcor_ctl=bcor.${ctl_file}
+            stdout_file=stdout.${type}
+            bcor_stdout=bcor.${stdout_file}
+         fi
       rm input
 
       nchanl=-999
@@ -175,6 +194,7 @@ cat << EOF > input
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
+  gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
@@ -207,7 +227,10 @@ EOF
          ${COMPRESS} -f ${TANKverf_rad}/${bcor_stdout}
       fi
 
-   done
+      done  # dtype in $gesanl loop
+   done     # type in $SATYPE loop
+
+
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=7
    fi

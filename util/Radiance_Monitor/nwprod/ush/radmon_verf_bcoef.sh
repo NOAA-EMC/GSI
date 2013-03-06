@@ -113,6 +113,7 @@ RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+USE_ANL=${USE_ANL:-0}
 err=0
 bcoef_exec=radmon_bcoef.${RAD_AREA}
 
@@ -124,6 +125,12 @@ fi
 #  Preprocessing
 $INISCRIPT
 $LOGSCRIPT
+
+if [[ $USE_ANL -eq 1 ]]; then
+   gesanl="ges anl"
+else
+   gesanl="ges"
+fi
 
 #--------------------------------------------------------------------
 #   Copy extraction program and supporting files to working directory
@@ -148,13 +155,24 @@ else
    fail=0
 
    for type in ${SATYPE}; do
+      for dtype in ${gesanl}; do
       ctr=`expr $ctr + 1`
-      data_file=${type}.${PDATE}.ieee_d
-      bcoef_file=bcoef.${data_file}
-      ctl_file=${type}.ctl
-      bcoef_ctl=bcoef.${ctl_file}
-      stdout_file=stdout.${type}
-      bcoef_stdout=bcoef.${stdout_file}
+
+         if [[ $dtype == "anl" ]]; then
+            data_file=${type}_anl.${PDATE}.ieee_d
+            bcoef_file=bcoef.${data_file}
+            ctl_file=${type}_anl.ctl
+            bcoef_ctl=bcoef.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            bcoef_stdout=bcoef.${stdout_file}
+         else
+            data_file=${type}.${PDATE}.ieee_d
+            bcoef_file=bcoef.${data_file}
+            ctl_file=${type}.ctl
+            bcoef_ctl=bcoef.${ctl_file}
+            stdout_file=stdout.${type}
+            bcoef_stdout=bcoef.${stdout_file}
+         fi 
 
       rm input
 
@@ -175,6 +193,7 @@ cat << EOF > input
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
+  gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
@@ -206,8 +225,9 @@ EOF
          ${COMPRESS} -f ${TANKverf_rad}/${bcoef_stdout}
       fi
 
+      done  # dtype in $gesanl loop
+   done     # type in $SATYPE loop
 
-   done
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=5
    fi

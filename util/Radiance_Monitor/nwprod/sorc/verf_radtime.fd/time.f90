@@ -124,7 +124,7 @@ program time
      ctl_file = trim(satname) // '.ctl'
   else
      diag_rad = trim(satname) // '_anl'
-     data_file= trim(satname) // trim(stringd) // '_anl.ieee_d'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
      ctl_file = trim(satname) // '_anl.ctl'
   endif
 

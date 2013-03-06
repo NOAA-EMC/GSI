@@ -131,7 +131,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
    if [[ $PDATE = "" ]]; then
       pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
-      if [[ ${#pdate } -ne 10 ]]; then
+      if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
          echo "        Re-run this script with a specified starting cycle"
          exit 4
