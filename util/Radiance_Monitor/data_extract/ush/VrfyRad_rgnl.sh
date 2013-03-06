@@ -103,6 +103,23 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
+if [[ $RUN_ENVIR = dev || $RUN_ENVIR = para ]]; then
+
+   #--------------------------------------------------------------------
+   # Get and export settings for $SUFFIX.
+   #--------------------------------------------------------------------
+   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+   export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+#  export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
+   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
+   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
+   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
+fi
+
 #------------------------------------------------------------------
 #  define data file sources depending on $RUN_ENVIR
 #
@@ -110,21 +127,6 @@ cd $tmpdir
 #------------------------------------------------------------------
 if [[ $RUN_ENVIR = dev ]]; then
 
-
-   #--------------------------------------------------------------------
-   # Get and export settings for $SUFFIX.
-   #--------------------------------------------------------------------
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
-  
    #--------------------------------------------------------------------
    # Get date of cycle to process.
    #--------------------------------------------------------------------
@@ -255,5 +257,5 @@ if [[ ${data_available} -ne 1 ]]; then
    exit_value=5
 fi
 
-echo end TEST_rgnl.sh
+echo end VrfyRad_rgn.sh
 exit ${exit_value}

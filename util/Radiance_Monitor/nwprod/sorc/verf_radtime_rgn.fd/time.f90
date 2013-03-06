@@ -9,7 +9,7 @@ program time
   character(8) stid
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
-  character(40) string,diag_rad,data_file,ctl_file
+  character(40) string,diag_rad,data_file,ctl_file,dfile
   character(10) suffix
 
   integer luname,lungrd,lunctl,lndiag
@@ -64,16 +64,31 @@ program time
   read(luname,input)
   write(6,input)
   write(6,*)' '
-  write(6,*)'  suffix = ', suffix
+  write(6,*)'gesanl  = ', gesanl
+  write(6,*)'suffix = ', suffix
+
+  if ( trim(gesanl) == 'anl' ) then
+     ftype(3) = 'omanbc'
+     ftype(5) = 'omabc'
+     ftype(6) = 'omanbc2'
+     ftype(8) = 'omabc2'
+  endif
 
 
 
 ! Create filenames for diagnostic input, GrADS output, and GrADS control files    
   write(stringd,100) iyy,imm,idd,ihh
 100 format('.',i4.4,3i2.2)
-  diag_rad = trim(satname)
-  data_file= trim(satname) // trim(stringd) // '.ieee_d'
-  ctl_file = trim(satname) // '.ctl'
+
+  if ( trim(gesanl) == 'ges' ) then
+     diag_rad = trim(satname)
+     data_file= trim(satname) // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '.ctl'
+  else
+     diag_rad = trim(satname) // '_anl'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '_anl.ctl'
+  endif
 
   write(6,*)'diag_rad =',diag_rad
   write(6,*)'data_file=',data_file
@@ -151,8 +166,15 @@ program time
 ! Create control file
   if ( imkctl == 1 ) then        
      write(6,*)'call create_ctl_time'
+
+     if ( trim(gesanl) == 'ges' ) then
+        dfile = trim(satname)
+     else
+        dfile = trim(satname) // '_anl'
+     endif
+
      call create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
-          incr,ctl_file,lunctl,rmiss,satname,satype,dplat,1,&
+          incr,ctl_file,lunctl,rmiss,dfile,satype,dplat,1,&
           nu_chan,use,error,frequency,wavenumbr,little_endian)
   endif 
 

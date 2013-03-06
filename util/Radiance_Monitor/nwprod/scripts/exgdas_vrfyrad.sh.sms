@@ -283,17 +283,17 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
    #------------------------------------------------------------------
    #   Run the child sccripts.
    #------------------------------------------------------------------
-   ${USHgfs}/radmon_verf_angle.sh ${PDATE}
-   rc_angle=$?
+    ${USHgfs}/radmon_verf_angle.sh ${PDATE}
+    rc_angle=$?
 
-   ${USHgfs}/radmon_verf_bcoef.sh ${PDATE}
-   rc_bcoef=$?
+    ${USHgfs}/radmon_verf_bcoef.sh ${PDATE}
+    rc_bcoef=$?
 
-   ${USHgfs}/radmon_verf_bcor.sh ${PDATE}
-   rc_bcor=$?
+    ${USHgfs}/radmon_verf_bcor.sh ${PDATE}
+    rc_bcor=$?
 
-   ${USHgfs}/radmon_verf_time.sh ${PDATE}
-   rc_time=$?
+    ${USHgfs}/radmon_verf_time.sh ${PDATE}
+    rc_time=$?
 
 fi
 
