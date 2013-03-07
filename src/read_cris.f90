@@ -61,7 +61,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges, &
                radedge1,radedge2,radstart,radstep,nstinfo, nst_gsi
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
-      crtm_kind => fp
+      crtm_kind => fp,  max_sensor_zenith_angle
   use crtm_planck_functions, only: crtm_planck_temperature
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
@@ -112,7 +112,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(3,3):: chanbound
   real(r_double),dimension(6):: cloud_frac
   
-  real(r_kind)      :: step, start,step_adjust
+  real(r_kind)      :: step, start
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
@@ -173,7 +173,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: R360   = 360._r_kind
   real(r_kind),parameter:: tbmin  = 50._r_kind
   real(r_kind),parameter:: tbmax  = 550._r_kind
-  real(r_kind),parameter:: earth_radius = 6371000._r_kind
+  real(r_kind),parameter:: rato   = 0.87997285_r_kind 
 
 ! Initialize variables
   disterrmax=zero
@@ -207,7 +207,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         exit 
      endif
   end do
-  step_adjust = 0.625_r_kind
   senname = 'CRIS'
   
   allspotlist= &
@@ -475,14 +474,18 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         if ( ifor <= 15 ) sat_zenang = -sat_zenang
 
 !    Compare CRIS satellite scan angle and zenith angle
+ 
+        look_angle_est = (start + float(ifor)*step)*deg2rad
+        sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
 
-        look_angle_est = (start + float(ifov-1)*step)*deg2rad
+        if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
+          write(6,*)'READ_CRIS WARNING lza error ',sat_look_angle,look_angle_est
+          cycle read_loop
+        end if
 
-        sat_height_ratio = (earth_radius + linele(5))/earth_radius
-        sat_look_angle=asin(sin(sat_zenang*deg2rad)/sat_height_ratio)
-        if (abs(sat_look_angle - look_angle_est) > one) then
+        if (abs(sat_look_angle - look_angle_est)*rad2deg > one) then
            write(6,*)' READ_CRIS WARNING uncertainty in look angle ', &
-               look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifov,start,step,allspot(11),allspot(12),allspot(13)
+               look_angle_est*rad2deg,sat_look_angle*rad2deg,sat_zenang,sis,ifor,start,step,allspot(11),allspot(12),allspot(13)
            bad_line = iscn
            cycle read_loop
         endif
