@@ -14,6 +14,7 @@ subroutine compute_qvar3d
 ! 2011-08-17 zhu  - add handling of dssv(:,:,:,nrf3_cw) for regional when total condensate is control variable 
 ! 2011-11-01 eliu - add qmin 
 ! 2012-02-08 kleist  - add computation of ges_qsat over nfldsig bins
+! 2012-12-15 zhu  - add two cwoption options for both global and regional
 !
 !   input argument list:
 !
@@ -27,7 +28,7 @@ subroutine compute_qvar3d
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use berror, only: dssv
-  use jfunc, only: qsatg,qgues,varq,qoption
+  use jfunc, only: qsatg,qgues,varq,qoption,varcw,cwoption
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig,lat1,lon1,istart,ltosi,ltosj,iglobal, &
                      itotsub,ijn,displs_g,nlat,regional
@@ -130,87 +131,123 @@ subroutine compute_qvar3d
 
   deallocate(rhgues)
 
-  if (regional .and. nrf3_cw>0) then 
+  if (nrf3_cw>0) then 
      call gsi_metguess_get('dim',nguess,ier)
      if (nguess<=0) return
 
-     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,istatus);ier=istatus
-     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,istatus);ier=ier+istatus
-     if (ier==0) then 
-!       compute mean at each vertical level 
-        ntmp=0
-        work_cw =zero
-        work_cw1=zero
-        do k = 1,nsig
-           do j = 2,lon2-1
-              do i = 2,lat2-1
-                 cwtmp=ges_ql(i,j,k)+ges_qi(i,j,k)
-                 if (cwtmp>1.0e-10_r_kind) then
-                    work_cw(k) = work_cw(k) + cwtmp
-                    ntmp(k)=ntmp(k)+1
-                 end if
+     if (regional .and. cwoption==1) then 
+        call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,istatus);ier=istatus
+        call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,istatus);ier=ier+istatus
+        if (ier==0) then 
+!          compute mean at each vertical level 
+           ntmp=0
+           work_cw =zero
+           work_cw1=zero
+           do k = 1,nsig
+              do j = 2,lon2-1
+                 do i = 2,lat2-1
+                    cwtmp=ges_ql(i,j,k)+ges_qi(i,j,k)
+                    if (cwtmp>1.0e-10_r_kind) then
+                       work_cw(k) = work_cw(k) + cwtmp
+                       ntmp(k)=ntmp(k)+1
+                    end if
+                 end do
               end do
            end do
-        end do
 
-        call mpi_allreduce(work_cw,work_cw1,nsig,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
-        call mpi_allreduce(ntmp,ntmp1,nsig,mpi_integer,mpi_sum,mpi_comm_world,ierror)
+           call mpi_allreduce(work_cw,work_cw1,nsig,mpi_rtype,mpi_sum,mpi_comm_world,ierror)
+           call mpi_allreduce(ntmp,ntmp1,nsig,mpi_integer,mpi_sum,mpi_comm_world,ierror)
   
-        amz=1.0e-10_r_kind
-        do k=1,nsig
-           if (ntmp1(k)>0) amz(k)=max(work_cw1(k)/float(ntmp1(k)),1.0e-10_r_kind)
-        enddo
+           amz=1.0e-10_r_kind
+           do k=1,nsig
+              if (ntmp1(k)>0) amz(k)=max(work_cw1(k)/float(ntmp1(k)),1.0e-10_r_kind)
+              if (mype==0) print*, 'k=', k, 'amz=', amz(k)
+           enddo
 
-!       get variation with latitudes
-        mm1=mype+1
-        nk=int(float(nsig)/5.0_r_kind)
-        do i = 2,lat2-1
-           do j = 2,lon2-1
-              work2(i-1,j-1)=ges_ql(i,j,nk)+ges_qi(i,j,nk)
-           end do
-        end do
-        call mpi_allgatherv(work2,ijn(mm1),mpi_rtype,work1,ijn,displs_g,mpi_rtype,&
-             mpi_comm_world,ierror)
-
-        ntp=0
-        wk_cw=zero
-        do k=1,iglobal
-           i=ltosi(k) ; j=ltosj(k)
-           cwtmp=work1(k)
-           if (cwtmp>1.0e-10_r_kind) then
-              wk_cw(i)=wk_cw(i)+cwtmp
-              ntp(i)=ntp(i)+1 
-           end if 
-        end do
-
-        amy0=one
-        maxamy=zero
-        do i=1,nlat
-           if (ntp(i)>0) then 
-              amy0(i)=max(wk_cw(i)/float(ntp(i)),1.0e-10_r_kind)
-              if (amy0(i)>maxamy) maxamy=amy0(i)
-           end if
-        end do
-        do i=1,nlat 
-           if (ntp(i)>0) amy0(i)=amy0(i)/maxamy
-        end do
-
-        do i=1,lat2
-           il=i+istart(mm1)-2
-           il=min0(max0(1,il),nlat)
-           amy(i)=amy0(il)
-        end do
-
-!       apply the coefficients to dssv of cw
-        do k=1,nsig
-           do i=1,lat2
-              coef=amz(k)*amy(i)
-              do j=1,lon2
-                 dssv(i,j,k,nrf3_cw)=coef*dssv(i,j,k,nrf3_cw)
+!          get variation with latitudes
+           mm1=mype+1
+           nk=int(float(nsig)/5.0_r_kind)
+           do i = 2,lat2-1
+              do j = 2,lon2-1
+                 work2(i-1,j-1)=ges_ql(i,j,nk)+ges_qi(i,j,nk)
               end do
            end do
-        end do
-     end if ! end of ier
+           call mpi_allgatherv(work2,ijn(mm1),mpi_rtype,work1,ijn,displs_g,mpi_rtype,&
+                mpi_comm_world,ierror)
+
+           ntp=0
+           wk_cw=zero
+           do k=1,iglobal
+              i=ltosi(k) ; j=ltosj(k)
+              cwtmp=work1(k)
+              if (cwtmp>1.0e-10_r_kind) then
+                 wk_cw(i)=wk_cw(i)+cwtmp
+                 ntp(i)=ntp(i)+1 
+              end if 
+           end do
+
+           amy0=one
+           maxamy=zero
+           do i=1,nlat
+              if (ntp(i)>0) then 
+                 amy0(i)=max(wk_cw(i)/float(ntp(i)),1.0e-10_r_kind)
+                 if (amy0(i)>maxamy) maxamy=amy0(i)
+              end if
+           end do
+           do i=1,nlat 
+              if (ntp(i)>0) amy0(i)=amy0(i)/maxamy
+           end do
+
+           do i=1,lat2
+              il=i+istart(mm1)-2
+              il=min0(max0(1,il),nlat)
+              amy(i)=amy0(il)
+           end do
+
+!          apply the coefficients to dssv of cw
+           do k=1,nsig
+              do i=1,lat2
+                 coef=amz(k)*amy(i)
+                 do j=1,lon2
+                    dssv(i,j,k,nrf3_cw)=coef*dssv(i,j,k,nrf3_cw)
+                 end do
+              end do
+           end do
+        end if ! end of ier
+     end if ! end of regional.and.cwoption==1
+
+
+     if (cwoption==2) then
+        if (regional) then
+           do k = 1,nsig
+              do j = 2,lon2-1
+                 do i = 2,lat2-1
+                    cwtmp=ges_ql(i,j,k)+ges_qi(i,j,k)
+                    if (cwtmp<1.0e-10_r_kind) cwtmp=1.0e-10_r_kind
+                    dn1=0.10_r_kind*cwtmp
+                    dssv(i,j,k,nrf3_cw)=dn1*dssv(i,j,k,nrf3_cw)
+                 end do
+              end do
+           end do
+        else
+           do k = 1,nsig
+              do j = 2,lon2-1
+                 do i = 2,lat2-1
+                    cwtmp=ges_ql(i,j,k)+ges_qi(i,j,k)
+                    d=-2.0_r_kind*log(cwtmp) + one
+                    n=int(d)
+                    np=n+1
+                    dn2=d-float(n)
+                    dn1=one-dn2
+                    n=min0(max(1,n),30)
+                    np=min0(max(1,np),30)
+                    dssv(i,j,k,nrf3_cw)=(varcw(n,k)*dn1 + varcw(np,k)*dn2)*dssv(i,j,k,nrf3_cw)
+                 end do
+              end do
+           end do
+        end if
+     end if ! end of cwoption==2
+
   end if ! end of nrf3_cw
 
 

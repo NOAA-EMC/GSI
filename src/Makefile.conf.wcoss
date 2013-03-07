@@ -2,21 +2,28 @@
 # of the GSI code on the NOAA HPCS.
 
 # ----------------------------------
-# Redefine variables for NOAA HPCS
+# Redefine variables for WCOSS
 # ----------------------------------
-COREINC  = /home/mlueken/nwprod/incmod
+COREINC  = /nwprod/lib/incmod
+CORELIB  = /nwprod/lib
 INCsfcio = $(COREINC)/sfcio_4
 INCsigio = $(COREINC)/sigio_4
 INCnemsio= $(COREINC)/nemsio
-INCcrtm  = $(COREINC)/libCRTM
+INCw3    = $(COREINC)/w3emc_d
+INCcrtm  = $(COREINC)/crtm_2.0.6
 
-WRFPATH = /mnt/pan2/projects/hwrf-vd/mtong/hwrf-mtong-basinscale/sorc/WRFV3
+
+# WRF locations
+WRFPATH = /nwprod/sorc/wrf_shared.fd
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
-INCnetcdf       = ${NETCDF}/include
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
 OBJwrf_sizeof_int = $(WRFPATH)/frame/module_machine.o
 WRFLIB = $(LIBwrfio_int) $(LIBwrfio_netcdf) $(OBJwrf_frame_pk) $(OBJwrf_sizeof_int)
+
+NETCDFPATH = /usrx/local/NetCDF/3.6.3
+INCnetcdf  = $(NETCDFPATH)/include
+
 
 
 # Empty out definition of libs use by GMAO GSI building structure
@@ -37,20 +44,24 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # Fortran compiler and options
 # ----------------------------
 
-  CF            = mpif90
+  CF            = mpfort
   FC            = $(CF)
 
 #--- Normal mode options
   PROF= #-pg
-  OMP = #-qsmp=noauto
+  OMP = -openmp
 
-  FFLAGS_F90    = -DWRF -D_REAL8_
+  FFLAGS_F90    = -D_REAL8_ -DWRF
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
-		-I $(INCnetcdf) -O3 -xHOST -traceback -assume byterecl -convert big_endian $(OMP)
+  		-I $(INCnetcdf) -I $(INCw3) \
+                -O3 -fp-model strict -convert big_endian -assume byterecl \
+                -implicitnone -traceback $(OMP)
 
-  FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-                  -I $(INCnemsio) -I $(INCnetcdf) -O3 -xHOST -traceback $(OMP)
+  FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
+  		       -I $(INCnetcdf) -I $(INCw3) \
+                       -O3 -fp-model strict -convert big_endian -assume byterecl \
+                       -implicitnone -traceback $(OMP)
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
   FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
@@ -58,13 +69,15 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FFLAGS    = $(FFLAGS_N) $(PROF)
 
 
-
 #--- Debug mode options
   FFLAGS_COM_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
-		-I $(INCnetcdf) -O0 -xHOST -traceback -assume byterecl -convert big_endian
-  FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
-		-I $(INCnemsio) -I $(INCnetcdf) -O0 -xHOST -traceback
-  
+  		-I $(INCnetcdf) -I $(INCw3) \
+  		-O0 -fp-model strict -convert big_endian -assume byterecl \
+		-implicitnone -g -traceback -debug -check -warn
+  FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
+  		       -I $(INCnetcdf) -I $(INCw3) \
+  		       -O0 -fp-model strict -convert big_endian -assume byterecl \
+		       -implicitnone -g -traceback -debug -check -warn
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
 
@@ -74,11 +87,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # C Compiler and options
 # ----------------------
 
-  CC            = gcc
+  CC            = mpcc
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(OMP)
 
 #--- Debug mode options
 
@@ -89,13 +102,15 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 # Linker and options
 # ------------------
 
-  LD            = $(CF) -mkl
+  LD            = $(CF)
 
 #--- Normal mode options
 
-LIBS_N        = -L/home/mlueken/nwprod/lib -lsp_d -lnemsio -lbacio_4 -lsigio_4 -lsfcio_4 -lbufr_d_64 -lw3lib-1.9_d -lCRTM $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
+  LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
+		-lsfcio_4 -lbufr_d_64 -lw3nco_d -lw3emc_d -lcrtm_v2.0.6 $(WRFLIB) \
+		-L$(NETCDFPATH)/lib -lnetcdf
 
-  LDFLAGS_N     = 
+  LDFLAGS_N     = -mkl -Wl,-Map,loadmap.txt $(OMP)
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -103,7 +118,7 @@ LIBS_N        = -L/home/mlueken/nwprod/lib -lsp_d -lnemsio -lbacio_4 -lsigio_4 -
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     =
+  LDFLAGS_D     = -mkl -Wl,-Map,loadmap.txt
 
 #--- Empty out mpi library definition: embedded in compiler
 

@@ -63,6 +63,8 @@ subroutine prewgt(mype)
 !   2010-07-07  kokron/todling - fix definition of hwllp to do sfc-only
 !   2011-07-03  todling - calculation of bl and bl2 must be done in double-prec
 !                         or GSI won'd work when running in single precision; go figure!
+!   2012-11-26  parrish - move subroutine blend to module blendmod.f90, and add "use blendmod, only: blend"
+!   2012-12-15  zhu     - add two cwoption options
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -83,7 +85,7 @@ subroutine prewgt(mype)
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
-  use jfunc, only: qoption
+  use jfunc, only: qoption,cwoption
   use control_vectors, only: cvars2d,cvars3d
   use control_vectors, only: cvars => nrf_var
   use control_vectors, only: as2d,as3d,atsfc_sdv
@@ -96,6 +98,7 @@ subroutine prewgt(mype)
   use guess_grids, only: isli2
   use smooth_polcarf, only: norsp,setup_smooth_polcas
   use mpeu_util, only: getindex
+  use blendmod, only: blend
 
   implicit none
 
@@ -464,7 +467,7 @@ subroutine prewgt(mype)
   end do
 
 ! Special case of dssv for qoption=2
-  if (qoption==2) call compute_qvar3d
+  if (qoption==2 .or. cwoption==2) call compute_qvar3d
 
 !!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)
   do n=1,nc2d
@@ -683,75 +686,6 @@ subroutine prewgt(mype)
 
   return
 end subroutine prewgt
-
-subroutine blend(n,iblend)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    blend
-!   prgmmr: purser           org: w/nmc22     date:1998
-!
-! abstract: put coefficients for n+1,..,2n+1, into iblend(0),..
-!           iblend(n)
-!
-! program history log:
-!   2004-05-13  kleist  documentation
-!   2008-04-23  safford - rm unused uses
-!
-!   input argument list:
-!     n      - number of powers to blend
-!
-!   output argument list:
-!     iblend - blended coefficients
-!
-! remarks: put the coefficients for powers n+1,..,2n+1, into iblend(0),
-!          ..iblend(n),for the "blending polynomial" of continuity-
-!          degree n in the interval [0,1].  For example, with n=1, the 
-!          blending polynomial has up to 1st derivatives continuous 
-!          with y(0)=0, y(1)=1, y'(0)=y'(1)=0, when y(x)=3x^2-2x^3. 
-!          Hence iblend={3,-2}
-! 
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp
-!
-!$$$
-  use kinds, only: i_kind
-  implicit none
-
-! Declare passed variables
-  integer(i_kind)               ,intent(in   ) :: n
-  integer(i_kind),dimension(0:n),intent(  out) :: iblend
-
-! Declare local parameters
-  integer(i_kind),parameter:: nn=12
-
-! Declare local variables
-  integer(i_kind) np,i,j,ib
-  integer(i_kind),dimension(0:nn):: ipascal(0:nn)
-
-  if(n>nn)stop
-  np=n+1
-  do i=0,n
-    ipascal(i)=0
-  enddo
-
-  ipascal(0)=1
-  do i=0,n
-     do j=i,1,-1
-        ipascal(j)=ipascal(j)-ipascal(j-1)
-     enddo
-  enddo
-
-  ib=1
-  do i=1,n
-     ib=(ib*2*(2*i+1))/i
-  enddo
-  do j=0,n
-     iblend(j)=(ib*ipascal(j))/(np+j)
-  enddo
-
-  return
-end subroutine blend
 
 subroutine get_randoms(count,randnums)
 !$$$  subprogram documentation block

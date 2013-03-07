@@ -745,6 +745,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2012-03-12  veldelst-- add a internal interpolation function (option)
 !   2012-04-25  yang - modify to use trace gas chem_bundle. Trace gas variables are 
 !                       invoked by the global_anavinfo.ghg.l64.txt
+!   2013-02-25  zhu - add cold_start option 
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -798,6 +799,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_metguess_mod,  only: gsi_metguess_bundle   ! for now, a common block
   use gsi_metguess_mod,  only: gsi_metguess_get
   use gridmod, only: istart,jstart,nlon,nlat,lon1
+  use regional_io, only: cold_start
   use constants, only: zero,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg,deg2rad, &
       sqrt_tiny_r_kind,constoz, rd, rd_over_g, two, three, four,five,t0c
   use constants, only: max_varname_length,qmin,qcmin 
@@ -1258,7 +1260,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
            cloud(k,ii)=max(cloud(k,ii),zero)     
 !          cloud(k,ii)=max(cloud(k,ii),qcmin)    
 
-           if (regional .and. (.not. wrf_mass_regional)) then
+           if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
               if (trim(cloud_names(iii))== 'ql' ) &
                  cloudefr(k,ii)=(efr_ql(ix ,iy ,k,itsig)*w00+efr_ql(ixp,iy ,k,itsig)*w10+ &
                                  efr_ql(ix ,iyp,k,itsig)*w01+efr_ql(ixp,iyp,k,itsig)*w11)*dtsig + &
@@ -1553,7 +1555,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               auxdp(k)=abs(prsi_rtm(kk+1)-prsi_rtm(kk))*r10
               auxq (k)=q(kk2)
 
-              if (regional .and. (.not. wrf_mass_regional)) then
+              if (regional .and. (.not. wrf_mass_regional) .and. (.not. cold_start)) then
                  do ii=1,n_clouds
                     cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
                     cloud_efr (k,ii)=cloudefr(kk2,ii)

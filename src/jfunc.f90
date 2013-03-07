@@ -39,6 +39,7 @@ module jfunc
 !   2011-02-16  zhu     - add ggues,vgues,pgues
 !   2011-07-15  zhu     - add cwgues
 !   2012-12-03  eliu    - add variables realted to total water  
+!   2012-12-15  zhu     - add variables varcw and cwoption
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -118,7 +119,7 @@ module jfunc
   public :: set_pointer
   public :: set_sqrt_2dsize
 ! set passed variables to public
-  public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
+  public :: nrclen,npclen,nsclen,qoption,varq,cwoption,varcw,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,cwgues,jiterend,jiterstart,jiter,iter,niter,miter
   public :: rhtgues,qtgues,dqsdt,dqsdp,qtdist_gues,cfgues,sl,del_si
   public :: tgs,qgs,cwgs,tlrg,qlrg,cwlrg,rnlrg  
@@ -130,7 +131,7 @@ module jfunc
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
   logical use_rhtot,do_gfsphys
-  integer(i_kind) iout_iter,miter,iguess,nclen,qoption
+  integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
   integer(i_kind) nval_len,nval_lenz,nval_levs
@@ -150,6 +151,7 @@ module jfunc
   real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
   real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
   real(r_kind),allocatable,dimension(:,:):: varq
+  real(r_kind),allocatable,dimension(:,:):: varcw
   type(control_vector),save :: xhatsave,yhatsave
   type(gsi_bundle),save :: xhat_dt,dhat_dt
 
@@ -206,6 +208,7 @@ contains
     iout_iter=220
     miter=1
     qoption=1
+    cwoption=1
     do i=0,50
        niter(i)=0
        niter_no_qc(i)=1000000
@@ -273,7 +276,7 @@ contains
          dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
          varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
          qgues(lat2,lon2,nsig))
-    allocate(cwgues(lat2,lon2,nsig))
+    allocate(cwgues(lat2,lon2,nsig),varcw(1:mlat,1:nsig))
     allocate(tgs(lat2,lon2,nsig),qgs(lat2,lon2,nsig),cwgs(lat2,lon2,nsig))            
     allocate(tlrg(lat2,lon2,nsig),qlrg(lat2,lon2,nsig),cwlrg(lat2,lon2,nsig))          
     allocate(rnlrg(lat2,lon2))                                                                  
@@ -308,6 +311,12 @@ contains
              sl(i,j,k)=zero            
              del_si(i,j,k)=zero        
           end do
+       end do
+    end do
+
+    do k=1,nsig
+       do j=1,mlat
+          varcw(j,k)=zero
        end do
     end do
 
@@ -374,6 +383,7 @@ contains
     call deallocate_cv(xhatsave)
     call deallocate_cv(yhatsave)
     deallocate(varq)
+    deallocate(varcw)
     deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
     deallocate(cwgues)
     deallocate(dqsdt,dqsdp,rhtgues,qtgues,qtdist_gues,cfgues)  

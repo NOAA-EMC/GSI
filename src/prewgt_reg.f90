@@ -42,6 +42,7 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
+!   2012-12-15  zhu     - add treatment of dssv for cw
 !
 !   input argument list:
 !     mype     - pe number
@@ -100,7 +101,7 @@ subroutine prewgt_reg(mype)
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
   integer(i_kind),dimension(nnnn1o):: ks
-  integer(i_kind) nrf3_oz,nrf2_sst
+  integer(i_kind) nrf3_oz,nrf2_sst,nrf3_cw
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) samp2,dl1,dl2,d
@@ -138,6 +139,7 @@ subroutine prewgt_reg(mype)
 
 ! Get required indexes from CV var names
   nrf3_oz  = getindex(cvars3d,'oz')
+  nrf3_cw  = getindex(cvars3d,'cw')
   nrf2_sst = getindex(cvars2d,'sst')
 
 ! Read dimension of stats file
@@ -297,7 +299,7 @@ subroutine prewgt_reg(mype)
   end do
 
 ! Special case of dssv for qoption=2 and cw
-  if (qoption==2 .or. getindex(cvars3d,'cw')>0) call compute_qvar3d
+  if (qoption==2 .or. nrf3_cw>0) call compute_qvar3d
 
 ! Background error arrays for sfp, sst, land t, and ice t
   do n=1,nc2d

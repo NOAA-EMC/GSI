@@ -188,6 +188,8 @@ clean:
 # ------------
 
   SRCSF90C = \
+	gfs_stratosphere.f90 \
+	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
 	aeroinfo.f90 \
         aircraftobsqc.f90 \
@@ -210,6 +212,7 @@ clean:
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+	blendmod.f90 \
 	cal_tztr.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
@@ -297,6 +300,7 @@ clean:
 	gsi_io.f90 \
 	gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
+	gsimain.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
@@ -404,11 +408,9 @@ clean:
 	q_diag.f90 \
 	qcmod.f90 \
 	qnewton3.f90 \
-	radinfo.f90 \
 	raflib.f90 \
 	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_diag.f90 \
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
@@ -515,6 +517,7 @@ clean:
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
+	radinfo.f90 \
 	read_Lightning.f90 \
 	read_NASA_LaRC.f90 \
 	read_RadarRef_mosaic.f90 \
@@ -528,6 +531,7 @@ clean:
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \
+	read_diag.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -634,8 +638,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) gsimain.o
-	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(OBJS_NOSWAP) $(LIBS)
+$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(OBJS_NOSWAP) $(LIBS)
 
 
 # ------------------------
@@ -650,7 +654,7 @@ all :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -665,7 +669,7 @@ library :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== CREATING LIBRARY ========================================'
 	$(MAKE) lib
@@ -679,7 +683,7 @@ debug :
 		"FFLAGS=$(FFLAGS_D)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -707,7 +711,7 @@ LIB =   libgsi.a
 
 lib: $(LIB)
 
-gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) gsimain.o
+gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB)
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
 ut_gsibundle.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) ut_gsibundle.o

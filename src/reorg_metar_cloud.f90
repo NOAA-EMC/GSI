@@ -239,9 +239,11 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
                    do k=1,nreal
                       cdata_all(k,iout) = cdata(k,ista_min)
                    enddo
+                   cdata_all(24,iout) = cdata_all(2,iout)   ! save observaion station i
+                   cdata_all(25,iout) = cdata_all(3,iout)   ! save observaion station j
                    cdata_all(2,iout) = float(i1)        ! grid index i
                    cdata_all(3,iout) = float(j1)        ! grid index j
-                   cdata_all(nreal,iout)=sqrt(min_dist) ! distance from station
+                   cdata_all(23,iout)=sqrt(min_dist) ! distance from station
                 endif
              endif
            enddo   ! j1

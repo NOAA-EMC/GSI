@@ -35,7 +35,7 @@ module m_berror_stats
 ! !INTERFACE:
 
       use kinds,only : i_kind
-      use constants, only: one
+      use constants, only: one,zero
       use control_vectors,only: cvars2d,cvars3d
       use mpeu_util,only: getindex
 
@@ -200,7 +200,7 @@ end subroutine read_bal
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
-      use jfunc,only: varq,qoption
+      use jfunc,only: varq,qoption,varcw,cwoption
 
       implicit none
 
@@ -227,6 +227,7 @@ end subroutine read_bal
 !       28May10 - Todling - Obtain variable id's on the fly (add getindex) 
 !                         - simpler logics to associate cv w/ berrors
 !       14Jun10 - Todling - Allow any 3d berror not in file to be templated 
+!       15Dec12 - Zhu - Add varcw and cwoption
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -283,12 +284,12 @@ end subroutine read_bal
      if (istat/=0) exit
 
      allocate ( corzin(nlat,isig) )
-     if (var=='q') allocate ( corq2(nlat,isig) )
+     if (var=='q' .or. var=='cw') allocate ( corq2(nlat,isig) )
      allocate ( hwllin(nlat,isig) )
      if (isig>1) allocate ( vscalesin(nlat,isig) )
 
      if (var/='sst') then
-        if (var=='q' .or. var=='Q') then
+        if (var=='q' .or. var=='Q' .or. var=='cw' .or. var=='CW') then
            read(inerr) corzin,corq2
         else
            read(inerr) corzin
@@ -323,6 +324,19 @@ end subroutine read_bal
                  end do
               end do
            end if
+           if (var=='cw' .and. cwoption==2)then
+              do k=1,isig
+                 do i=1,nlat
+                    corq2x=corq2(i,k)
+                    varcw(i,k)=max(corq2x,zero)
+                 enddo
+              enddo
+              do k=1,isig
+                 do i=1,nlat
+                    corz(i,k,n)=one
+                 end do
+              end do
+           end if
            do k=1,isig
               do i=1,nlat
                  hwll(i,k,n)=hwllin(i,k)
@@ -344,7 +358,7 @@ end subroutine read_bal
 
      deallocate(corzin,hwllin)
      if (isig>1) deallocate(vscalesin)
-     if (var=='q') deallocate(corq2)
+     if (var=='q' .or. var=='cw') deallocate(corq2)
   enddo read 
   close(inerr)
 

@@ -74,7 +74,7 @@ type(control_vector), intent(inout) :: grad
 character(len=*),parameter::myname='state2control'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus,ierr 
+integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus,ierr,istatus_oz 
 type(gsi_bundle) :: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -82,7 +82,7 @@ type(gsi_bundle) :: wbundle ! work bundle
 !       this routines knows how to handle.
 integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis
+integer(i_kind) :: icpblh,icgust,icvis,icoz
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  ','cw '/)
 logical :: pdf   
@@ -159,6 +159,7 @@ endif
 do_normal_rhtot_to_q_hydro_ad=(lc_rh.and.lc_t.and.ls_p3d).and.(.not.lc_cw).and. &            
                               (ls_q.and.ls_ql.and.ls_qi.and.ls_tsen).and.use_rhtot         
 
+call gsi_bundlegetpointer (grad%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (grad%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (grad%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (grad%step(1),'pblh',icpblh,istatus)
@@ -191,7 +192,8 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'tv'  ,rv_tv,  istatus)
    call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
-   call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)
+!  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
+   call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
    call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
    if (icgust>0) call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
    if (icvis >0) call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
@@ -214,7 +216,11 @@ do jj=1,nsubwin
    endif
    call gsi_bundleputvar ( wbundle, 'q' ,  zero,   istatus )
    call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
-   call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
+   if (icoz>0) then
+      call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
+   else
+      if(istatus_oz==0) rv_oz=zero 
+   end if
    call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
    if (icgust>0) call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )

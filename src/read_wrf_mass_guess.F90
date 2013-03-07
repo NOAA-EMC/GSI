@@ -49,6 +49,7 @@ subroutine read_wrf_mass_binary_guess(mype)
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
 !   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at.
 !                           (to handle cases of big-endian file/little-endian machine and vice-versa)
+!   2012-11-26  hu     - add code to read in soil fields
 !
 !   input argument list:
 !     mype     - pe number
@@ -77,12 +78,13 @@ subroutine read_wrf_mass_binary_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
+  use guess_grids, only: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
-       nsig,eta1_ll,pt_ll,itotsub,aeta1_ll
+       nsig,nsig_soil,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
   use constants, only: r0_01
   use gsi_io, only: lendian_in
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -138,6 +140,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   real(r_single) pt_regional_single
   real(r_kind):: work_prsl,work_prslk
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
+  integer(i_kind) i_th2,i_soilt1,ksmois,ktslb
   integer(i_kind) ier, istatus
   integer(i_kind) nguess
 
@@ -187,6 +190,8 @@ subroutine read_wrf_mass_binary_guess(mype)
 !    Following is for convenient WRF MASS input
      num_mass_fields=21+5*lm+2+2
      if(l_cloud_analysis .or. nguess>0) num_mass_fields=21+5*lm+2+2+6*lm+2
+     if(l_gsd_soilTQ_nudge) num_mass_fields=21+5*lm+2+2+2
+     if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=21+5*lm+2+2+6*lm+2+2
      num_loc_groups=num_mass_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
@@ -452,6 +457,18 @@ subroutine read_wrf_mass_binary_guess(mype)
         offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
         if(mype == 0) write(6,*)' tsk i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
+        if(l_gsd_soilTQ_nudge) then
+           i=i+1 ; i_soilt1=i                                               ! soilt1
+           read(lendian_in) n_position
+           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+           if(mype == 0) write(6,*)' soilt1 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+
+           i=i+1 ; i_th2=i                                               ! th2
+           read(lendian_in) n_position
+           offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+           if(mype == 0) write(6,*)' th2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        endif
+
 ! for cloud array
         if(l_cloud_analysis .or. nguess>0) then
 
@@ -695,7 +712,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im+1,jm+1,i_smois,i_smois)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im+1,jm+1,i_smois,i_smois+ksize-1)
            deallocate(jbuf)
         end if
 
@@ -711,7 +728,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im+1,jm+1,i_tslb,i_tslb)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im+1,jm+1,i_tslb,i_tslb+ksize-1)
            deallocate(jbuf)
         end if
 
@@ -919,6 +936,35 @@ subroutine read_wrf_mass_binary_guess(mype)
               end do
            end do
         end do
+
+        if(l_gsd_soilTQ_nudge) then
+           ksmois=i_smois-1
+           ktslb=i_tslb-1
+           do k=1,nsig_soil
+              ksmois=ksmois+1
+              ktslb=ktslb+1
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_smois(j,i,k,it) = all_loc(j,i,ksmois)
+                    ges_tslb(j,i,k,it) = all_loc(j,i,ktslb)
+                 enddo
+              enddo
+           enddo  ! k
+           do i=1,lon2
+              do j=1,lat2
+                 soil_moi(j,i,it)=ges_smois(j,i,1,it)
+                 soil_temp(j,i,it)=ges_tslb(j,i,1,it)
+              enddo
+           enddo
+        else
+           do i=1,lon2
+              do j=1,lat2
+                 soil_moi(j,i,it)=all_loc(j,i,i_smois)
+                 soil_temp(j,i,it)=all_loc(j,i,i_tslb)
+              enddo
+           enddo
+        endif
+
         do i=1,lon2
            do j=1,lat2
 
@@ -930,15 +976,19 @@ subroutine read_wrf_mass_binary_guess(mype)
               psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
               ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_sno)
-              soil_moi(j,i,it)=all_loc(j,i,i_smois)
-              soil_temp(j,i,it)=all_loc(j,i,i_tslb)
+!GSD              soil_moi(j,i,it)=all_loc(j,i,i_smois)
+!GSD              soil_temp(j,i,it)=all_loc(j,i,i_tslb)
 ! for cloud analysis
               if(l_cloud_analysis .or. nguess>0) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)
                  ges_xlon(j,i,it)=all_loc(j,i,i_xlon)/rad2deg_single
                  ges_xlat(j,i,it)=all_loc(j,i,i_xlat)/rad2deg_single
               endif
-
+              if(l_gsd_soilTQ_nudge) then
+                 ges_th2(j,i,it)=all_loc(j,i,i_th2)
+                 ges_tsk(j,i,it)=all_loc(j,i,i_tsk)
+                 ges_soilt1(j,i,it)=all_loc(j,i,i_soilt1)
+              endif
            end do
         end do
 
@@ -1050,6 +1100,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !   2010-03-29  hu     - add code to read in cloud/hydrometeor fields 
 !                             and distributed them to all processors 
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
+!   2012-11-26  hu     - add code to read in soil fields
 !
 !   input argument list:
 !     mype     - pe number
@@ -1077,12 +1128,13 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
+  use guess_grids, only: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
-       nsig,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
+       nsig,nsig_soil,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
   use constants, only: r0_01, tiny_r_kind
   use gsi_io, only: lendian_in
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
   use gsi_bundlemod, only: GSI_BundleGetPointer
   use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1122,6 +1174,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind) deltasigma
   real(r_kind):: work_prsl,work_prslk
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
+  integer(i_kind) i_th2,i_soilt1,ksmois,ktslb
   integer(i_kind) ier, istatus
   integer(i_kind) nguess
 
@@ -1167,6 +1220,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !    Following is for convenient WRF MASS input
      num_mass_fields=14+4*lm
      if(l_cloud_analysis .or. nguess>0) num_mass_fields=14+4*lm+6*lm+2
+     if(l_gsd_soilTQ_nudge) num_mass_fields=14+4*lm+2*nsig_soil
+     if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) &
+                          num_mass_fields=14+4*lm+6*lm+2+2*nsig_soil
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -1272,15 +1328,38 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      i=i+1 ; i_v10=i                                               ! v10
      write(identity(i),'("record ",i3,"--v10")')i
      jsig_skip(i)=0 ; igtype(i)=1
-     i=i+1 ; i_smois=i                                             ! smois
-     write(identity(i),'("record ",i3,"--smois(",i2,")")')i,k
-     jsig_skip(i)=0 ; igtype(i)=1
-     i=i+1 ; i_tslb=i                                              ! tslb
-     write(identity(i),'("record ",i3,"--tslb(",i2,")")')i,k
-     jsig_skip(i)=0 ; igtype(i)=1
+     if(l_gsd_soilTQ_nudge) then
+        i_smois=i+1
+        do k=1,nsig_soil
+           i=i+1                                                      ! smois
+           write(identity(i),'("record ",i3,"--smois(",i2,")")')i,k
+           jsig_skip(i)=0 ; igtype(i)=1
+        end do
+        i_tslb=i + 1
+        do k=1,nsig_soil
+           i=i+1                                                       ! tslb
+           write(identity(i),'("record ",i3,"--tslb(",i2,")")')i,k
+           jsig_skip(i)=0 ; igtype(i)=1
+        end do
+     else
+        i=i+1 ; i_smois=i                                             ! smois
+        write(identity(i),'("record ",i3,"--smois(",i2,")")')i,k
+        jsig_skip(i)=0 ; igtype(i)=1
+        i=i+1 ; i_tslb=i                                              ! tslb
+        write(identity(i),'("record ",i3,"--tslb(",i2,")")')i,k
+        jsig_skip(i)=0 ; igtype(i)=1
+     endif
      i=i+1 ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=0 ; igtype(i)=1
+     if(l_gsd_soilTQ_nudge) then
+        i=i+1 ; i_soilt1=i                                         ! soilt1
+        write(identity(i),'("record ",i3,"--soilt1(",i2,")")')i,k
+        jsig_skip(i)=0 ; igtype(i)=1
+        i=i+1 ; i_th2=i                                            ! th2 
+        write(identity(i),'("record ",i3,"--th2(",i2,")")')i,k
+        jsig_skip(i)=0 ; igtype(i)=1
+     endif
 ! for cloud array
      if(l_cloud_analysis .or. nguess>0) then
         i_qc=i+1
@@ -1467,6 +1546,35 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               end do
            end do
         end do
+
+        if(l_gsd_soilTQ_nudge) then
+           ksmois=i_0+i_smois-1
+           ktslb=i_0+i_tslb-1
+           do k=1,nsig_soil
+              ksmois=ksmois+1
+              ktslb=ktslb+1
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_smois(j,i,k,it) = all_loc(j,i,ksmois)
+                    ges_tslb(j,i,k,it) = all_loc(j,i,ktslb)
+                 enddo
+              enddo
+           enddo  ! k
+           do i=1,lon2
+              do j=1,lat2
+                 soil_moi(j,i,it)=ges_smois(j,i,1,it)
+                 soil_temp(j,i,it)=ges_tslb(j,i,1,it)
+              enddo
+           enddo
+        else
+           do i=1,lon2
+              do j=1,lat2
+                 soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
+                 soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
+              enddo
+           enddo
+        endif
+
         do i=1,lon2
            do j=1,lat2
 
@@ -1478,9 +1586,13 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll
               ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
-              soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
-              soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
               sfc_rough(j,i,it)=rough_default
+! for GSD soil nudging
+              if(l_gsd_soilTQ_nudge) then
+                 ges_th2(j,i,it)=all_loc(j,i,i_0+i_th2)
+                 ges_tsk(j,i,it)=all_loc(j,i,i_0+i_tsk)
+                 ges_soilt1(j,i,it)=all_loc(j,i,i_0+i_soilt1)
+              endif
 ! for cloud analysis
               if(l_cloud_analysis .or. nguess>0) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)
