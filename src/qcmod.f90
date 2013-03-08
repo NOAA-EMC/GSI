@@ -951,7 +951,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
   return
 end subroutine qc_ssmi
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
-     zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+     cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
 
@@ -979,6 +979,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     snow         - logical, snow flag
 !     luse         - logical use flag
 !     goessndr     - logical flag - if goessndr data - true
+!     cris         - logical flag - if cris data - true
 !     avhrr        - logical flag - if avhrr data - true
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
@@ -1026,7 +1027,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris
   logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
@@ -1232,6 +1233,22 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
         end do
      end if
   endif
+
+!
+! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
+!
+  if (cris .and. .not. sea) then
+     do i=1,nchanl
+        if (ts(i) > 0.2_r_kind) then
+           !             QC3 in statsrad
+           if(luse .and. varinv(i) > zero) &
+                aivals(10,is)   = aivals(10,is) + one
+           varinv(i) = zero
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+        end if
+     end do
+  end if
+
 
 !
 ! Apply Tz retrieval
