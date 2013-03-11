@@ -80,7 +80,7 @@ subroutine prewgt(mype)
   use berror, only: dssvs,wtaxs,&
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
-       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write
+       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
@@ -336,7 +336,7 @@ subroutine prewgt(mype)
         ii=ii+1
         as2d(i)=as2d(i)+as2d(i)*randfct(ii)
      end do
-     do i=1,3
+     do i=1,nhscrf
         hzscl(i)=hzscl(i)+hzscl(i)*randfct(nc2d+nc3d+i)
      end do
      vs=vs+vs*randfct(nc2d+nc3d+3+1)
@@ -351,7 +351,7 @@ subroutine prewgt(mype)
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
 ! the parameter values here.
-  do i=1,3
+  do i=1,nhscrf
      hzscl(i)=one/hzscl(i)
   end do
 ! apply scaling (deflate/inflate) to vertical length scales

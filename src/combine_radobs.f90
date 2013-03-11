@@ -84,7 +84,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
      call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
      allocate(nloc(min(ncounts1,itxmax)),icrit(min(ncounts1,itxmax)))
-     icrit=1e10
+     icrit=1e9
      ndata=0
      ndata1=0
      nloc=0

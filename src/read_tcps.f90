@@ -12,6 +12,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 !   2010-09-08  treadon - add station_id and destroy_tcv_card; increase
 !                         maxdat to 10; remove i_kind suffix from integer 
 !                         constants; 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1
 !
 !   input argument list:
 !     infile   - unit from which to read ascii file
@@ -139,8 +140,8 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
      else 
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      end if
 
 ! Extract observation.

@@ -104,6 +104,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-04-18  mccarty - updated kx determination for ADM, modified presw calculation
 !   2011-05-05  mccarty - re-removed repe_dw, added +1 conditional for reproducibility on ADM
 !   2011-05-26  mccarty - moved MSQ error logic from read_lidar
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                           tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
 !
 ! !REMARKS:
 !   language: f90
@@ -118,7 +120,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare external calls for code analysis
   external:: tintrp2a
   external:: tintrp3
-  external:: grdcrd
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local parameters
@@ -318,15 +320,15 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
      end if
 
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
-     call tintrp2a(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
-     call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&      ! jsw
-          1,1,mype,nfldsig)                                    ! jsw
+     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&      ! jsw
+          mype,nfldsig)                                    ! jsw
           dpres=dpres-zsges              !jsw need to adjust dpres by zsges
 
 
@@ -377,7 +379,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Convert observation height (in dpres) from meters to grid relative
 ! units.  Save the observation height in zob for later use.
      zob = dpres
-     call grdcrd(dpres,1,zges,nsig,1)
+     call grdcrd1(dpres,zges,nsig,1)
 
 ! Set indices of model levels below (k1) and above (k2) observation.
 ! wm - updated so {k1,k2} are at min {1,2} and at max {nsig-1,nsig}
@@ -396,7 +398,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Determine location in terms of grid units for midpoint of
 ! first layer above surface
      sfcchk=log(psges)
-     call grdcrd(sfcchk,1,prsltmp,nsig,-1)
+     call grdcrd1(sfcchk,prsltmp,nsig,-1)
 
 ! Check to see if observation is below midpoint of first
 ! above surface layer.  If so, set rlow to that difference
@@ -436,10 +438,10 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
 ! Simulate dw wind from guess (forward model)
 ! First, interpolate u,v guess to observation location
-     call tintrp3(ges_u,ugesindw,dlat,dlon,dpres,dtime,&
-        hrdifsig,1,mype,nfldsig)
-     call tintrp3(ges_v,vgesindw,dlat,dlon,dpres,dtime,&
-        hrdifsig,1,mype,nfldsig) 
+     call tintrp31(ges_u,ugesindw,dlat,dlon,dpres,dtime,&
+        hrdifsig,mype,nfldsig)
+     call tintrp31(ges_v,vgesindw,dlat,dlon,dpres,dtime,&
+        hrdifsig,mype,nfldsig) 
 
 
 ! Next, convert wind components to line of sight value

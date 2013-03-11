@@ -185,6 +185,7 @@ module lag_fields
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !
@@ -267,7 +268,7 @@ module lag_fields
 
           ! Calculate the level relative coordinate
           tmp_inisig(ntotal_orig_lag)=log(p)
-          call grdcrd(tmp_inisig(ntotal_orig_lag),1,tmp_press,nsig,-1)
+          call grdcrd1(tmp_inisig(ntotal_orig_lag),tmp_press,nsig,-1)
        end if
 
        ! read the next one

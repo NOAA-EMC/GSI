@@ -50,6 +50,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !                           of level2.5 and level3 data in Conus domain for ARW
 !   2012-04-28  s.liu  -  use new VAD wind
 !   2012-11-12  s.liu  -  add new VAD wind flag
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !
 !   input argument list:
@@ -526,8 +527,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
      clon=cos(dlon_earth)
@@ -568,8 +569,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlatvad = vadlat_earth
         dlonvad = vadlon_earth
-        call grdcrd(dlatvad,1,rlats,nlat,1)
-        call grdcrd(dlonvad,1,rlons,nlon,1)
+        call grdcrd1(dlatvad,rlats,nlat,1)
+        call grdcrd1(dlonvad,rlons,nlon,1)
      endif
 
 !    Get model terrain at VAD wind location
@@ -601,8 +602,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
      clonh=cos(dlon_earth)
@@ -875,8 +876,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
      clon=cos(dlon_earth)
@@ -917,8 +918,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      else
         dlatvad = vadlat_earth
         dlonvad = vadlon_earth
-        call grdcrd(dlatvad,1,rlats,nlat,1)
-        call grdcrd(dlonvad,1,rlons,nlon,1)
+        call grdcrd1(dlatvad,rlats,nlat,1)
+        call grdcrd1(dlonvad,rlons,nlon,1)
      endif
 
 !    Get model terrain at VAD wind location
@@ -1000,8 +1001,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         
         clonh=cos(dlon_earth)
@@ -1551,8 +1552,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         clonh=cos(dlon_earth)
         slonh=sin(dlon_earth)

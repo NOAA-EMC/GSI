@@ -284,6 +284,7 @@ subroutine linmm(a,b,m,mm,na,nb)
 ! program history log:
 !   1998-01-01  purser
 !   2004-06-23  purser  - added documentation
+!   2013-01-26  parrish - WCOSS debug compile error -- change input a from intent(in) to intent(inout)
 !
 !   input argument list:
 !     a    - the system matrix (not preserved on output)
@@ -301,7 +302,7 @@ subroutine linmm(a,b,m,mm,na,nb)
   implicit none
 
   integer(i_kind)             ,intent(in   ) :: m,mm,na,nb
-  real(r_kind),dimension(na,*),intent(in   ) :: a
+  real(r_kind),dimension(na,*),intent(inout) :: a
   real(r_kind),dimension(nb,*),intent(inout) :: b
 
   integer(i_kind),dimension(m):: ipiv    ! <- numerical pivot sequence

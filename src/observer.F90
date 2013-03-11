@@ -52,7 +52,7 @@ module observermod
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini
 
-  use mod_strong, only: jcstrong,jcstrong_option
+  use mod_strong, only: l_tlnmc,tlnmc_type
   use mod_vtrans, only: nvmodes_keep,create_vtrans,destroy_vtrans
   use strong_slow_global_mod, only: init_strongvars_1
   use strong_fast_global_mod, only: init_strongvars_2
@@ -199,12 +199,12 @@ subroutine guess_init_
      call create_tendvars()
      call create_turblvars()
   endif
-  if ( (jcstrong) .and. nvmodes_keep>0) then
+  if ( (l_tlnmc) .and. nvmodes_keep>0) then
      call create_vtrans(mype)
-     if(jcstrong_option==1) call init_strongvars_1(mype)
-     if(jcstrong_option==2) call init_strongvars_2(mype)
-     if(jcstrong_option==3) call zrnmi_initialize(mype)
-     if(jcstrong_option==4) call fmg_initialize_e(mype)
+     if(tlnmc_type==1) call init_strongvars_1(mype)
+     if(tlnmc_type==2) call init_strongvars_2(mype)
+     if(tlnmc_type==3) call zrnmi_initialize(mype)
+     if(tlnmc_type==4) call fmg_initialize_e(mype)
   end if
 
 ! End of routine
@@ -532,7 +532,7 @@ _ENTRY_(Iam)
      call destroy_tendvars()
      call destroy_turblvars()
   endif
-  if ( (jcstrong ) .and. nvmodes_keep>0) call destroy_vtrans
+  if ( (l_tlnmc ) .and. nvmodes_keep>0) call destroy_vtrans
 
   if(.not.regional)then
      call destroy_cdiff_coefs()

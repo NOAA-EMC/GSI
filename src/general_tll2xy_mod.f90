@@ -13,6 +13,8 @@ module general_tll2xy_mod
 !
 ! program history log:
 !   2010-10-28  parrish - initial documentation
+!   2013-01-23  parrish - modify so calls to ll2rpolar and rpolar2ll avoid type mismatch error
+!                           when using WCOSS intel debug compile.
 !
 ! subroutines included:
 !   sub general_create_llxy_transform - initialize type(llxy_cons) for desired grid
@@ -1228,7 +1230,8 @@ subroutine test3_egrid2points
   type(llxy_cons) gt_e,gt_a
   type(egrid2agrid_parm) p_e2a
   integer(i_kind) i,j,nx3,nye,nxe,np,nord_e2a
-  real(r_kind) y,x,errmax,fmax
+  real(r_kind) y(1),x(1),errmax,fmax
+  real(r_kind) region_lat1(1),region_lon1(1)
   real(r_kind) rotate3,xmin,xmax,ymin,ymax
   real(r_kind),allocatable,dimension(:,:)::region_lat_e,region_lon_e
   real(r_kind),allocatable,dimension(:,:)::testlona,testlata,mask,test_stream_e,test_stream_a
@@ -1256,12 +1259,14 @@ subroutine test3_egrid2points
   ymax=-huge(ymax)
   do j=nlon/3,2*nlon/3
      do i=nlat/3,2*nlat/3
-        call ll2rpolar(region_lat(i,j),region_lon(i,j),1,x,y, &
+        region_lat1(1)=region_lat(i,j)
+        region_lon1(1)=region_lon(i,j)
+        call ll2rpolar(region_lat1,region_lon1,1,x,y, &
                        region_lat(nlat/2,nlon/2),region_lon(nlat/2,nlon/2),rotate3)
-        xmin=min(x,xmin)
-        xmax=max(x,xmax)
-        ymin=min(y,ymin)
-        ymax=max(y,ymax)
+        xmin=min(x(1),xmin)
+        xmax=max(x(1),xmax)
+        ymin=min(y(1),ymin)
+        ymax=max(y(1),ymax)
      end do
   end do
                        if(mype==0) write(0,*)' min,max(region_lat)=',minval(region_lat),maxval(region_lat)
@@ -1274,11 +1279,13 @@ subroutine test3_egrid2points
   nye=nlat/3
   allocate(region_lat_e(nye,nxe),region_lon_e(nye,nxe))
   do j=1,nxe
-     x=xmin+(xmax-xmin)*(j-one)/(nxe-one)
+     x(1)=xmin+(xmax-xmin)*(j-one)/(nxe-one)
      do i=1,nye
-        y=ymin+(ymax-ymin)*(i-one)/(nye-one)
-        call rpolar2ll(x,y,1,region_lat_e(i,j),region_lon_e(i,j), &
+        y(1)=ymin+(ymax-ymin)*(i-one)/(nye-one)
+        call rpolar2ll(x,y,1,region_lat1,region_lon1, &
                        region_lat(nlat/2,nlon/2),region_lon(nlat/2,nlon/2),rotate3)
+        region_lat_e(i,j)=region_lat1(1)
+        region_lon_e(i,j)=region_lon1(1)
      end do
   end do
   allocate(out1(nxe,nye))

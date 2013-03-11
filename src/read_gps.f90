@@ -54,6 +54,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2011-01-06 cucurull - replace obstype (gps_ref/gps_bnd) with sis (gps) due to replacing
 !                         gps_ref/gps_bnd with gps in convinfo files 
 !   2011-08-24 cucurull - add preliminaty qc flags for C/NOFS, SAC-C, Oceansat-2, METOP-B, SAC-D, and M-T
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -387,8 +388,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               else
                  dlat = dlat_earth
                  dlon = dlon_earth
-                 call grdcrd(dlat,1,rlats,nlat,1)
-                 call grdcrd(dlon,1,rlons,nlon,1)
+                 call grdcrd1(dlat,rlats,nlat,1)
+                 call grdcrd1(dlon,rlons,nlon,1)
               endif
 
               ndata  = min(ndata +1,maxobs)

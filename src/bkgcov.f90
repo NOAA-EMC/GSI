@@ -72,7 +72,7 @@ subroutine bkgcov(cstate)
   call general_sub2grid(s2g_raf,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
-  call smoothrf(hwork,nsloop,nlevs)
+  call smoothrf(hwork,nlevs)
 
 ! Put back onto subdomains
   call general_grid2sub(s2g_raf,hwork,cstate%values)
@@ -150,7 +150,7 @@ subroutine ckgcov(z,cstate,nval_lenz)
   nsloop=3
 
 ! Apply horizontal smoother for number of horizontal scales
-  call sqrt_smoothrf(z,hwork,nsloop,nlevs)
+  call sqrt_smoothrf(z,hwork,nlevs)
 
 ! Put back onto subdomains
   call general_grid2sub(s2g_raf,hwork,cstate%values)
@@ -245,7 +245,7 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
   call general_sub2grid(s2g_raf,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
-  call sqrt_smoothrf_ad(z,hwork,nsloop,nlevs)
+  call sqrt_smoothrf_ad(z,hwork,nlevs)
 
   return
 end subroutine ckgcov_ad

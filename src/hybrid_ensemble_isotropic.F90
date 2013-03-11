@@ -1189,6 +1189,7 @@ end subroutine normal_new_factorization_rf_y
 !                         to its original value after exiting from the call to ckgcov.  Also, this is
 !                         now an argument in ckgcov, which was missing in this call to ckgcov.
 !   2012-06-12  parrish - remove variable nvar_pe (not used)
+!   2013-01-12  parrish - remove extra argument nnnn1o from call ckgcov--no longer used
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -1246,7 +1247,7 @@ end subroutine normal_new_factorization_rf_y
           call random_number(seed)
           do is=1,nscl
              do i=1,nval2f
-                iseed=1+nint(seed(i,is)*2147483000._r_kind)
+                iseed=1+nint(seed(i,is)*1234567._r_kind)
                 seed(i,is)=iseed
              end do
           end do
@@ -1276,7 +1277,7 @@ end subroutine normal_new_factorization_rf_y
 !     temporarily redefine nval_lenz
     nval_lenz_save=nval_lenz
     nval_lenz=nval2f*nnnn1o*nscl
-    call ckgcov(z,bundle_anl,nnnn1o,nval_lenz)
+    call ckgcov(z,bundle_anl,nval_lenz)
 !     restore nval_lenz
     nval_lenz=nval_lenz_save
 

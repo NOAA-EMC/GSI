@@ -59,6 +59,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
 !                         (isfcalc=1)
 !   2011-12-13  collard - Replace find_edges code to speed up execution.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-02-26  collard - fix satid issues for MetOp-B and MetOp-C
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -169,7 +171,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Other work variables
   real(r_kind)     :: clr_amt,piece
-  real(r_kind)     :: dlon, dlat
+  real(r_kind)     :: rsat, dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: lza, lzaest,sat_height_ratio
   real(r_kind)     :: timedif, pred, crit1, dist1
@@ -189,7 +191,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: iasi
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, ilat, ilon, sensorindex
-  integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line
+  integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: iexponent
@@ -232,6 +234,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      call skindepth(obstype,zob)
   endif
 
+  if(jsatid == 'metop-a')kidsat=4
+  if(jsatid == 'metop-b')kidsat=3
+  if(jsatid == 'metop-c')kidsat=5
+ 
 !  write(6,*)'READ_IASI: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
 !          mype, mype_root,mype_sub,mpi_comm_sub
   radedge_min = 0
@@ -252,7 +258,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   nchanlr = nchanl
   
   allspotlist= &
-   'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
+   'SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
@@ -274,7 +280,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find IASI sensorindex
   sensorindex = 0
-  if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' )then
+  if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' .or. &
+       channelinfo(1)%sensor_id == 'iasi616_metop-b' .or. &
+       channelinfo(1)%sensor_id == 'iasi616_metop-c' ) then
      sensorindex = 1
   else
      write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
@@ -386,6 +394,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
 
+!  Extract satellite id.  If not the one we want, read next record
+        ksatid=nint(allspot(1))
+        if(ksatid /= kidsat) cycle read_loop
+        rsat=allspot(1) 
+
 !    Check observing position
         dlat_earth = allspot(8)   ! latitude
         dlon_earth = allspot(9)   ! longitude
@@ -430,8 +443,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 !    Check obs time
@@ -627,7 +640,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
         endif
 
-        data_all(1,itx) = 4                         ! satellite ID (temp. 49)
+        data_all(1,itx) = rsat                      ! satellite ID 
         data_all(2,itx) = t4dv                      ! time diff (obs-anal) (hrs)
         data_all(3,itx) = dlon                      ! grid relative longitude
         data_all(4,itx) = dlat                      ! grid relative latitude

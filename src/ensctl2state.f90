@@ -35,7 +35,7 @@ use gsi_bundlemod, only: self_add
 use gsi_bundlemod, only: assignment(=)
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
-use mod_strong, only: hybens_inmc_option
+use mod_strong, only: tlnmc_option
 implicit none
 
 ! Declare passed variables
@@ -175,8 +175,8 @@ do jj=1,ntlevs_ens
 
 ! Call strong constraint if necessary
    if(lstrong_bk_vars) then
-      if ( (hybens_inmc_option==3) .or. &
-         (jj==ibin_anl .and. hybens_inmc_option==2) ) then
+      if ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) ) then
 
          call strong_bk(sv_u,sv_v,sv_ps,sv_tv,.true.)
 

@@ -24,6 +24,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !
 ! program history log:
 !  2011-12-06  Original version based on r16656 version of read_bufrtovs.  A. Collard
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -103,6 +104,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ! The next two are one minute in hours
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
+  real(r_kind),parameter:: rato=1.1363987_r_kind ! ratio of satellite height to 
+                                                 ! distance from Earth's centre
 
 ! Declare local variables
   logical outside,iuse,assim,valid
@@ -140,7 +143,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) pred
-  real(r_kind) dlat,panglr,dlon,rato,sstime,tdiff
+  real(r_kind) dlat,panglr,dlon,tdiff
   real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
   real(r_kind) step,start,dist1
   real(r_kind) tt,lzaest
@@ -248,8 +251,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         exit 
      endif
   end do 
-
-  rato=1.1363987_r_kind
 
 ! IFSCALC setup
   nchanl=22
@@ -376,8 +377,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            if (t4dv<minus_one_minute .OR. t4dv>winlen+one_minute) &
                 cycle read_loop
         else
-           sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-           tdiff=(sstime-gstime)*r60inv
+           tdiff=t4dv+(iwinbgn-gstime)*r60inv
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
  
@@ -506,16 +506,15 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! Check time window
      if (l4dvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle ObsLoop
      else
-        sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-        tdiff=(sstime-gstime)*r60inv
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
         if(abs(tdiff) > twind) cycle ObsLoop
      endif
  
@@ -702,11 +701,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      end do
      nrec(itx)=iob
 
-     write(67,*) iob, dlon_earth_deg, dlat_earth_deg, crit1
-
   end do ObsLoop
-
-  close(67)
 
 ! DEAllocate I/O arrays
   DEALLOCATE(rsat_save)

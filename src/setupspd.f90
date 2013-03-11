@@ -54,6 +54,8 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2012-01-12  hu      - add code to get vertical grid coordinate ibased on height for
 !                         260 (nacelle) and 261 (tower) 
+!   2013-01-26  parrish - convert grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                    tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -103,9 +105,9 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(len=*),parameter:: myname='setupspd'
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
-  external:: tintrp3
-  external:: grdcrd
+  external:: tintrp2a1,tintrp2a11
+  external:: tintrp31
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables
@@ -309,12 +311,12 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
  
  
      spdob=sqrt(uob*uob+vob*vob)
-     call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
+     call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
      factw = data(iff10,i)
      if(sfcmod_gfs .or. sfcmod_mm5)then
@@ -339,18 +341,18 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         drpx = zero
         dpres = data(ihgt,i)
         dstn = data(istnelv,i)
-        call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-             1,1,mype,nfldsig)
+        call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
 
 !       Get guess surface elevation and geopotential height profile
 !       at observation location.
-        call tintrp2a(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
+        call tintrp2a1(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
 
 !       Convert observation height (in dpres) from meters to grid relative
 !       units.  Save the observation height in zob for later use.
         zob = dpres
-        call grdcrd(dpres,1,zges,nsig,1)
+        call grdcrd1(dpres,zges,nsig,1)
         factw=one
         rlow=zero
         rhgh=zero
@@ -404,10 +406,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Put obs pressure in correct units to get grid coord. number
         dpres=log(exp(dpres)*prsfc)
-        call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+        call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 !    Get approx k value of sfc by using surface pressure of 1st ob
-        call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
+        call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 
 !    Check to see if observations is below what is seen to be the surface
@@ -432,10 +434,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! Interpolate guess u and v to observation location and time.
-     call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime, &
-        hrdifsig,1,mype,nfldsig)
-     call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime, &
-        hrdifsig,1,mype,nfldsig)
+     call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime, &
+        hrdifsig,mype,nfldsig)
+     call tintrp31(ges_v,vgesin,dlat,dlon,dpres,dtime, &
+        hrdifsig,mype,nfldsig)
  
 
 ! Apply 10-meter wind reduction factor to guess winds.  Compute

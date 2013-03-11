@@ -101,6 +101,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
 !   2012-04-03  s.liu    - thin new VAD wind 
 !   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
+!                                    Initialize pflag=0 at beginning of subroutine.
+!
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -312,6 +316,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   
 ! Initialize variables
 
+  pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
   nreal=0
   satqc=zero
   tob = obstype == 't'
@@ -346,7 +351,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(visob) then
      nreal=21
   else if(metarcldobs) then
-     nreal=24
+     nreal=25
   else if(geosctpobs) then
      nreal=8
   else 
@@ -471,6 +476,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! temporary specify iobsub until put in bufr file
         iobsub = 0                                                  
         if(kx == 280) iobsub=hdr(3)                                            
+        if(kx == 290) iobsub=hdr(2)
         if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
         if(use_prepb_satwnd .and. kx == 245  ) then
            if(hdr(2) == 259.0_r_kind) iobsub = 15 
@@ -674,8 +680,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else
               dlat = dlat_earth
               dlon = dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !------------------------------------------------------------------------
@@ -1028,8 +1034,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     dlat = dlat_earth
                     dlon = dlon_earth
-                    call grdcrd(dlat,1,rlats,nlat,1)
-                    call grdcrd(dlon,1,rlons,nlon,1)
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
                  endif
 
                  if(levs > 1 .or. ithinp)then
@@ -1616,6 +1622,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     cdata_all(24,iout)=-99999.0_r_kind  ! temperature - dew point
                  endif
+! cdata_all(24,iout) and cdata_all(25,iout) will be used to save dlon and dlat
 ! NESDIS cloud products
               else if(geosctpobs) then
                  cdata_all(1,iout)=rstation_id    !  station ID

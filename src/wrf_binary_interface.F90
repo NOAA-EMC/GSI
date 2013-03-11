@@ -36,6 +36,9 @@ subroutine convert_binary_mass
 !                           sigfxx are properly defined for all values of n, not just n=1.
 !   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
 !                           subroutine to this file.
+!   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
+!   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
+!                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !
@@ -94,7 +97,7 @@ subroutine convert_binary_mass
   use kinds, only: r_single,i_llong,i_kind
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
-  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis
+  use rapidrefresh_cldsurf_mod, only: l_cloud_analysis,l_gsd_soilTQ_nudge
   use gsi_metguess_mod, only: gsi_metguess_get
   implicit none
 
@@ -116,7 +119,7 @@ subroutine convert_binary_mass
   integer(i_kind) hdrbuf(512)
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
-  integer(i_kind) nlon_regional,nlat_regional,nsig_regional
+  integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
   real(r_single) pt_regional
   integer(i_kind) k,n
   integer(i_kind) nguess,istatus
@@ -191,6 +194,19 @@ subroutine convert_binary_mass
      write(6,*)' convert_binary_mass: START_DATE =',&
           iyear,imonth,iday,ihour,iminute,isecond
    
+!                  nsig_soil_regional
+  call retrieve_index(index,'SMOIS',varname_all,nrecs)
+  if(index<0) stop
+
+  if(trim(memoryorder_all(index))=='XZY') then
+     nsig_soil_regional=domainend_all(2,index)
+  end if
+  if(trim(memoryorder_all(index))=='XYZ') then
+     nsig_soil_regional=domainend_all(3,index)
+  end if
+  write(6,*)' convert_binary_mass: sig_soil_regional=',&
+       nsig_soil_regional
+
 !                  nlon_regional, nlat_regional, nsig_regional
      call retrieve_index(index,'T',varname_all,nrecs)
      if(index<0) stop
@@ -215,20 +231,21 @@ subroutine convert_binary_mass
 !                  pt_regional
      call retrieve_index(index,'P_TOP',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
    
      write(6,*)' convert_binary_mass: pt_regional=',pt_regional
    
      write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond, &
-          nlon_regional,nlat_regional,nsig_regional,pt_regional
+          nlon_regional,nlat_regional,nsig_regional,pt_regional,nsig_soil_regional
      
      allocate(field1(nsig_regional),field1p(nsig_regional+1))
    
 !                  znu
      call retrieve_index(index,'ZNU',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional
         write(6,*)' convert_binary_mass: k,znu(k)=',k,field1(k)
@@ -238,7 +255,8 @@ subroutine convert_binary_mass
 !                  znw
      call retrieve_index(index,'ZNW',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional+1
         write(6,*)' convert_binary_mass: k,znw(k)=',k,field1p(k)
@@ -250,7 +268,7 @@ subroutine convert_binary_mass
 !                  rdx
      call retrieve_index(index,'RDX',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,rdx,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
    
      write(6,*)' convert_binary_mass: 1/rdx=',&
@@ -259,7 +277,7 @@ subroutine convert_binary_mass
 !                  rdy
      call retrieve_index(index,'RDY',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,rdy,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,rdy,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
    
      write(6,*)' convert_binary_mass: 1/rdy=',&
@@ -272,7 +290,8 @@ subroutine convert_binary_mass
 !                  mapfac_m
      call retrieve_index(index,'MAPFAC_M',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
    
      write(6,*)' convert_binary_mass: max,min mapfac_m=',maxval(field2),minval(field2)
@@ -292,7 +311,8 @@ subroutine convert_binary_mass
      call retrieve_index(index,'XLAT',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_mass: max,min XLAT(:,1)=',&
@@ -310,7 +330,8 @@ subroutine convert_binary_mass
      call retrieve_index(index,'XLONG',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_mass: max,min XLONG(:,1)=',&
@@ -352,6 +373,7 @@ subroutine convert_binary_mass
      write(lendian_out)n_position    ! offset for mu
   
 !                   PHB                  
+     k=nsig_regional
      call retrieve_index(index,'PHB',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
@@ -480,7 +502,7 @@ subroutine convert_binary_mass
         ksize=domainend_all(3,index)
      end if
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',k,') = ', &
+     write(6,*)'  byte offset, ksize, memoryorder for SMOIS(',ksize,') = ', &
                                            n_position,ksize,memoryorder_all(index)
      write(lendian_out)n_position,ksize,memoryorder_all(index)     !  SMOIS
 
@@ -494,7 +516,7 @@ subroutine convert_binary_mass
         ksize=domainend_all(3,index)
      end if
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, ksize, memoryorder for TSLB(',k,') = ', &
+     write(6,*)'  byte offset, ksize, memoryorder for TSLB(',ksize,') = ', &
                                               n_position,ksize,memoryorder_all(index)
      write(lendian_out)n_position,ksize,memoryorder_all(index)     !  TSLB
 
@@ -506,6 +528,21 @@ subroutine convert_binary_mass
      write(6,*)'  byte offset for TSK = ',n_position
 
      write(lendian_out)n_position     !  TSK
+
+     if(l_gsd_soilTQ_nudge) then
+!                      SOIL1              
+        call retrieve_index(index,'SOILT1',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset for SOILT1= ',n_position
+        write(lendian_out)n_position     ! SOILT1 
+!                   TH2                
+        call retrieve_index(index,'TH2',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset for TH2 = ',n_position
+        write(lendian_out)n_position     !  TH2
+     endif
 
      if(l_cloud_analysis .or. nguess>0) then
 !      QCLOUD
@@ -554,37 +591,43 @@ subroutine convert_binary_mass
 
 !??????????????????/later put in z0 here, but for now just fill with something
      call retrieve_index(index,'TSK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_mass: max,min Z0=', &
           maxval(field2),minval(field2)
      write(lendian_out)field2        !  Z0
      call retrieve_index(index,'SST',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_mass: max,min SST=', &
           maxval(field2),minval(field2)
      write(lendian_out)field2        !  SST
      call retrieve_index(index,'TSK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_mass: max,min TSK=', &
           maxval(field2),minval(field2)
      write(lendian_out)field2        !  TSK
      call retrieve_index(index,'LANDMASK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_mass: max,min LANDMASK=', &
           maxval(field2),minval(field2)
      write(lendian_out)field2        !  LANDMASK
      call retrieve_index(index,'SEAICE',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_mass: max,min XICE=', &
           maxval(field2),minval(field2)
      write(lendian_out)field2        !  XICE
      call retrieve_index(index,'SNOW',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_mass: max,min SNOW=', &
           maxval(field2),minval(field2)
@@ -634,6 +677,9 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !   2012-10-11  parrish - add call to initialize_byte_swap_wrf_binary_file routine, and also add this
 !                           subroutine to this file.
 !   2012-12-10  eliu    - modify to add the use of use_gfs_stratosphere
+!   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
+!                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -788,7 +834,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      if(index<0)then
         write(6,*)' ***WARNING*** NSTART_HOUR is not found, only need to be updated for WRF restart file'
      else
-        call retrieve_field(in_unit,wrfges,nstart_hour,start_block(index+1),end_block(index+1), &
+        call retrieve_field_i1(in_unit,wrfges,nstart_hour,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
         write(6,*)' convert_binary_nmm: nstart_hour=',nstart_hour
      end if 
@@ -797,7 +843,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  dlmd_regional
      call retrieve_index(index,'DLMD',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,dlmd_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,dlmd_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_nmm: dlmd_regional=',dlmd_regional
@@ -805,7 +851,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  dphd_regional
      call retrieve_index(index,'DPHD',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,dphd_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,dphd_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_nmm: dphd_regional=',dphd_regional
@@ -813,14 +859,14 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  pt_regional
      call retrieve_index(index,'PT',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,pt_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: pt_regional=',pt_regional
 
 !                  pdtop_regional
      call retrieve_index(index,'PDTOP',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,pdtop_regional,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,pdtop_regional,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: pdtop_regional=',pdtop_regional
 
@@ -833,7 +879,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  deta1
      call retrieve_index(index,'DETA1',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      do k=1,nsig_regional
@@ -846,7 +893,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  aeta1
      call retrieve_index(index,'AETA1',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional
         write(6,*)' convert_binary_nmm: k,aeta1(k)=',k,field1(k)
@@ -858,7 +906,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  eta1
      call retrieve_index(index,'ETA1',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional+1
         write(6,*)' convert_binary_nmm: k,eta1(k)=',k,field1p(k)
@@ -870,7 +919,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  deta2
      call retrieve_index(index,'DETA2',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      do k=1,nsig_regional
         write(6,*)' convert_binary_nmm: k,deta2(k)=',k,field1(k)
@@ -882,7 +932,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  aeta2
      call retrieve_index(index,'AETA2',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1,nsig_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      do k=1,nsig_regional
@@ -895,7 +946,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  eta2
      call retrieve_index(index,'ETA2',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field1p,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1(in_unit,wrfges,field1p,nsig_regional+1, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      do k=1,nsig_regional+1
@@ -909,8 +961,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !    Get global-regional blended vertical coordinate
      nsig_read=nsig_regional
      if(use_gfs_stratosphere) then  !get new vertical coordinate
-        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
-        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max+1))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max+1))
         call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
                                   pdtop_regional,pt_regional,nsig_regional, &
                                   deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)
@@ -954,7 +1006,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  GLAT
      call retrieve_index(index,'GLAT',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_nmm: max,min GLAT=', &
@@ -971,7 +1024,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  DX_NMM
      call retrieve_index(index,'DX_NMM',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_nmm: max,min DX_NMM=', &
@@ -986,7 +1040,8 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  GLON
      call retrieve_index(index,'GLON',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,field2,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
 
      write(6,*)' convert_binary_nmm: max,min GLON=', &
@@ -1004,7 +1059,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 !                  DY_NMM
      call retrieve_index(index,'DY_NMM',varname_all,nrecs)
      if(index<0) stop
-     call retrieve_field(in_unit,wrfges,dy_nmm,start_block(index+1),end_block(index+1), &
+     call retrieve_field_r1(in_unit,wrfges,dy_nmm,start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: DY_NMM=',dy_nmm
      field2b=dy_nmm
@@ -1210,38 +1265,44 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
 
 !????????????????????????????????????????????????????????????????read z0 here to see what it looks like
      call retrieve_index(index,'Z0',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: max,min Z0=', &
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  Z0
 !?????????????????????????????????????????????????????????????????
      call retrieve_index(index,'SST',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: max,min SST=', &
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SST
      call retrieve_index(index,'TSK',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: max,min TSK=', &
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  TSK
      call retrieve_index(index,'SM',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: max,min SM=', &
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SM
      call retrieve_index(index,'SICE',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: max,min SICE=', &
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SICE
      call retrieve_index(index,'SNO',varname_all,nrecs)
-     call retrieve_field(in_unit,wrfges,field2b,start_block(index+1),end_block(index+1), &
+     call retrieve_field_rn1n2(in_unit,wrfges,field2b,nlon_regional,nlat_regional, &
+                                  start_block(index+1),end_block(index+1), &
                                   start_byte(index+1),end_byte(index+1))
      write(6,*)' convert_binary_nmm: max,min SNO=', &
           maxval(field2b),minval(field2b)
@@ -1284,6 +1345,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !                          grid ordering for input 3D fields
 !   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
 !                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1531,8 +1593,8 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 
 !  check to see if merging with gfs stratosphere
      if(use_gfs_stratosphere) then
-        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
-        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max+1))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max+1))
 
 !  generate new mixed vertical coordinate info:
         call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
@@ -1772,8 +1834,8 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   character(10) cwrfges
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
-  integer(i_long) lenrec,lensave
-  equivalence (lenrec4(1),lenrec)
+  integer(i_long) lenrec(1),lensave
+  equivalence (lenrec4(1),lenrec(1))
   integer(i_byte) missing4(4)
   integer(i_long) missing
   equivalence (missing,missing4(1))
@@ -1814,8 +1876,8 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec <= 0_i_long .and. lastbuf) go to 900
-     if(lenrec <= 0_i_long .and. .not.lastbuf) go to 885
+     if(lenrec(1) <= 0_i_long .and. lastbuf) go to 900
+     if(lenrec(1) <= 0_i_long .and. .not.lastbuf) go to 885
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
@@ -1827,7 +1889,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
     
      loc_count=1
      do i=2,4
-        if(loc_count>=lenrec) exit
+        if(loc_count>=lenrec(1)) exit
         loc_count=loc_count+1
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -1837,7 +1899,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         end if
      end do
      do i=1,4
-        if(loc_count>=lenrec) exit
+        if(loc_count>=lenrec(1)) exit
         loc_count=loc_count+1
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -1846,13 +1908,13 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
            call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
         end if
      end do
-     nextbyte=nextbyte-loc_count+lenrec
-     locbyte=locbyte-loc_count+lenrec
+     nextbyte=nextbyte-loc_count+lenrec(1)
+     locbyte=locbyte-loc_count+lenrec(1)
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
      end if
-     lensave=lenrec
+     lensave=lenrec(1)
      do i=1,4
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -1866,7 +1928,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec /= lensave) go to 890
+     if(lenrec(1) /= lensave) go to 890
     
   end do
 
@@ -1877,14 +1939,14 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
 
 885 continue
   write(6,*)' problem in count_recs_wrf_binary_file, lenrec has bad value before end of file'
-  write(6,*)'     lenrec =',lenrec
+  write(6,*)'     lenrec =',lenrec(1)
   call closefile(in_unit,ierr)
   return
 
 890 continue
   write(6,*)' problem in count_recs_wrf_binary_file, beginning and ending rec len words unequal'
   write(6,*)'     begining reclen =',lensave
-  write(6,*)'       ending reclen =',lenrec
+  write(6,*)'       ending reclen =',lenrec(1)
   write(6,*)'             in_unit =',in_unit
   call closefile(in_unit,ierr)
   return
@@ -1934,9 +1996,9 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
   integer(i_byte) lenrec4_swap(4)
-  integer(i_long) lenrec,lensave
+  integer(i_long) lenrec(1),lensave
   integer(i_long) lenrec_swap
-  equivalence (lenrec4(1),lenrec)
+  equivalence (lenrec4(1),lenrec(1))
   equivalence (lenrec4_swap(1),lenrec_swap)
   integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_llong),parameter:: lword=2**18_i_llong
@@ -1966,10 +2028,10 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
      lenrec4(i)=buf(locbyte)
      lenrec4_swap(5-i)=buf(locbyte)
   end do
-  byte_swap = lenrec <= 0 .or. lenrec > 4096
+  byte_swap = lenrec(1) <= 0 .or. lenrec(1) > 4096
      
   write(6,*)' byte_swap,lenrec4,lenrec4_swap=',byte_swap,lenrec4,lenrec4_swap
-  write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec,lenrec_swap
+  write(6,*)' byte_swap,lenrec,lenrec_swap=',byte_swap,lenrec(1),lenrec_swap
 
   call closefile(in_unit,ierr)
 
@@ -2041,8 +2103,8 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_kind) irecs
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
-  integer(i_long) lenrec,lensave
-  equivalence (lenrec4(1),lenrec)
+  integer(i_long) lenrec(1),lensave
+  equivalence (lenrec4(1),lenrec(1))
   integer(i_byte) missing4(4)
   integer(i_long) missing
   equivalence (missing,missing4(1))
@@ -2108,9 +2170,9 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec <= 0_i_long .and. lastbuf) go to 900
-     if(lenrec <= 0_i_long .and. .not. lastbuf) go to 885
-     if(mod(lenrec,4)/=0) go to 886
+     if(lenrec(1) <= 0_i_long .and. lastbuf) go to 900
+     if(lenrec(1) <= 0_i_long .and. .not. lastbuf) go to 885
+     if(mod(lenrec(1),4)/=0) go to 886
      nextbyte=nextbyte+1_i_llong
      locbyte=locbyte+1_i_llong
      if(locbyte > lrecl .and. lastbuf) go to 900
@@ -2132,7 +2194,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
      loc_count=1
      do i=2,8
-        if(loc_count>=lenrec) exit
+        if(loc_count>=lenrec(1)) exit
         loc_count=loc_count+1
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -2147,12 +2209,12 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         call to_native_endianness_i4(hdrbuf,num_swap)
      end if
 
-!     if(lenrec==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
+!     if(lenrec(1)==2048_i_long) write(6,*)' irecs,hdrbuf(2),int_dom_ti_char,int_field=', &
 !                                       irecs,hdrbuf(2),int_dom_ti_char,int_field
-     if(lenrec==2048_i_long.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
+     if(lenrec(1)==2048_i_long.and.(hdrbuf(2) == int_dom_ti_char .or. hdrbuf(2) == int_field)) then
 
 !    bring in next full record, so we can unpack datestr, varname, and domainend
-        do i=9,lenrec
+        do i=9,lenrec(1)
            loc_count=loc_count+1
            nextbyte=nextbyte+1_i_llong
            locbyte=locbyte+1_i_llong
@@ -2163,7 +2225,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
            hdrbuf4(i)=buf(locbyte)
         end do
         if(byte_swap) then
-           num_swap=(lenrec/4)-2
+           num_swap=(lenrec(1)/4)-2
            call to_native_endianness_i4(hdrbuf(3),num_swap)
         end if
 
@@ -2193,15 +2255,15 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
      end if
 
-     nextbyte=nextbyte-loc_count+lenrec
-     locbyte=locbyte-loc_count+lenrec
+     nextbyte=nextbyte-loc_count+lenrec(1)
+     locbyte=locbyte-loc_count+lenrec(1)
      if(locbyte > lrecl .and. lastbuf) go to 900
      if(locbyte > lrecl) then
         call next_buf(in_unit,buf,nextbyte,locbyte,thisblock,lrecl,nreads,lastbuf)
      end if
      end_block(irecs)=thisblock
      end_byte(irecs)=locbyte
-     lensave=lenrec
+     lensave=lenrec(1)
      do i=1,4
         nextbyte=nextbyte+1_i_llong
         locbyte=locbyte+1_i_llong
@@ -2215,7 +2277,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
         num_swap=1
         call to_native_endianness_i4(lenrec,num_swap)
      end if
-     if(lenrec /= lensave) go to 890
+     if(lenrec(1) /= lensave) go to 890
     
   end do
 
@@ -2226,20 +2288,20 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
 
 885 continue
   write(6,*)' problem in inventory_wrf_binary_file, lenrec has bad value before end of file'
-  write(6,*)'     lenrec =',lenrec
+  write(6,*)'     lenrec =',lenrec(1)
   call closefile(in_unit,ierr)
   return
 
 886 continue
   write(6,*)' problem in inventory_wrf_binary_file, lenrec not a multiple of 4'
-  write(6,*)'     lenrec =',lenrec
+  write(6,*)'     lenrec =',lenrec(1)
   call closefile(in_unit,ierr)
   return
 
 890 continue
   write(6,*)' problem in inventory_wrf_binary_file, beginning and ending rec len words unequal'
   write(6,*)'     begining reclen =',lensave
-  write(6,*)'       ending reclen =',lenrec
+  write(6,*)'       ending reclen =',lenrec(1)
   write(6,*)'               irecs =',irecs
   write(6,*)'               nrecs =',nrecs
   call closefile(in_unit,ierr)
@@ -2432,11 +2494,11 @@ subroutine retrieve_index(index,string,varname_all,nrecs)
 
 end subroutine retrieve_index
 
-subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,end_byte)
+subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_byte,end_byte)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    retrieve_field  retrieve field from wrf binary file
-!   prgmmr: parrish          org: np22                date: 2004-11-29
+! subprogram:    retrieve_field_i1 retrieve single integer(4) variable from binary restart file
+!   prgmmr: parrish          org: np22                date: 2013-01-29
 !
 ! abstract: still using direct access, retrieve a field from the wrf binary restart file.
 !
@@ -2444,6 +2506,8 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
 !   2004-11-29  parrish
 !   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
 !                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          single integer(4) variable from wrf binary file
 !
 !   input argument list:
 !     in_unit          - fortran unit number where input file is opened through.
@@ -2471,13 +2535,14 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
   integer(i_kind),intent(in   ) :: in_unit
   character(9)   ,intent(in   ) :: wrfges
   integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
-  integer(i_byte),intent(  out) :: out(*)
+  integer(i_kind),intent(  out) :: outi1
 
   integer(i_llong),parameter:: lrecl=2**20_i_llong
   integer(i_llong),parameter:: lword=2**18_i_llong
   integer(i_llong) num_swap
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
+  integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
   integer(i_kind) i,ii,j,k,ibegin,iend,ierr
 
@@ -2506,8 +2571,276 @@ subroutine retrieve_field(in_unit,wrfges,out,start_block,end_block,start_byte,en
      end do
   end do
   close(in_unit)
+
+  outi1=transfer(out,outi1)
   
-end subroutine retrieve_field
+end subroutine retrieve_field_i1
+
+subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_byte,end_byte)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    retrieve_field_r1 retrieve single real(4) variable from binary restart file
+!   prgmmr: parrish          org: np22                date: 2013-01-29
+!
+! abstract: still using direct access, retrieve a field from the wrf binary restart file.
+!
+! program history log:
+!   2004-11-29  parrish
+!   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
+!                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          single real(4) variable from wrf binary file
+!
+!   input argument list:
+!     in_unit          - fortran unit number where input file is opened through.
+!     wrfges - filename of input wrf binary restart file
+!     start_block      - direct access block number containing 1st byte of record
+!                            (after 4 byte record mark)
+!     end_block        - direct access block number containing last byte of record
+!                            (before 4 byte record mark)
+!     start_byte       - relative byte address in direct access block of 1st byte of record
+!     end_byte         - relative byte address in direct access block of last byte of record
+!
+!   output argument list:
+!     out              - output buffer where desired field is deposited
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: i_byte,i_kind,i_llong,i_long,r_single
+  use native_endianness, only: byte_swap
+  implicit none
+
+  integer(i_kind),intent(in   ) :: in_unit
+  character(9)   ,intent(in   ) :: wrfges
+  integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
+  real(r_single),intent(  out) :: outr1
+
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_llong) num_swap
+  integer(i_long) buf4(lword)
+  integer(i_byte) buf(lrecl)
+  integer(i_byte) out(4)
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+
+  open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
+
+  write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
+       start_block,end_block,start_byte,end_byte
+  if(mod(start_byte-1,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(start_byte-1,4) /= 0'
+  if(mod(end_byte,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(end_byte,4) /= 0'
+  ii=0
+  do k=start_block,end_block
+     read(in_unit,rec=k,iostat=ierr)buf
+     if(byte_swap) then
+        ibegin=1 ; iend=lword
+        if(k == start_block) ibegin=1+(start_byte-1)/4
+        if(k == end_block) iend=end_byte/4
+        num_swap=iend-ibegin+1
+        call to_native_endianness_i4(buf4(ibegin),num_swap)
+     end if
+     ibegin=1 ; iend=lrecl
+     if(k == start_block) ibegin=start_byte
+     if(k == end_block) iend=end_byte
+     do i=ibegin,iend
+        ii=ii+1
+        out(ii)=buf(i)
+     end do
+  end do
+  close(in_unit)
+
+  outr1=transfer(out,outr1)
+  
+end subroutine retrieve_field_r1
+
+subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,start_byte,end_byte)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    retrieve_field_rn1 retrieve real(4) outrn1(n1) from wrf binary file
+!   prgmmr: parrish          org: np22                date: 2004-11-29
+!
+! abstract: still using direct access, retrieve a field from the wrf binary restart file.
+!
+! program history log:
+!   2004-11-29  parrish
+!   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
+!                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          real(4) outrn1(n1) from wrf binary file
+!   2013-01-26  parrish - change out(4) to out(4*n1)
+!
+!   input argument list:
+!     in_unit          - fortran unit number where input file is opened through.
+!     wrfges - filename of input wrf binary restart file
+!     start_block      - direct access block number containing 1st byte of record
+!                            (after 4 byte record mark)
+!     end_block        - direct access block number containing last byte of record
+!                            (before 4 byte record mark)
+!     start_byte       - relative byte address in direct access block of 1st byte of record
+!     end_byte         - relative byte address in direct access block of last byte of record
+!
+!   output argument list:
+!     out              - output buffer where desired field is deposited
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: i_byte,i_kind,i_llong,i_long,r_single
+  use native_endianness, only: byte_swap
+  use constants, only: zero
+  implicit none
+
+  integer(i_kind),intent(in   ) :: in_unit,n1
+  character(9)   ,intent(in   ) :: wrfges
+  integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
+  real(r_single),intent(  out) :: outrn1(n1)
+
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_llong) num_swap
+  integer(i_long) buf4(lword)
+  integer(i_byte) buf(lrecl)
+  integer(i_byte) out(4*n1)
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
+
+  open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
+
+  write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
+       start_block,end_block,start_byte,end_byte
+  if(mod(start_byte-1,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(start_byte-1,4) /= 0'
+  if(mod(end_byte,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(end_byte,4) /= 0'
+  ii=0
+  do k=start_block,end_block
+     read(in_unit,rec=k,iostat=ierr)buf
+     if(byte_swap) then
+        ibegin=1 ; iend=lword
+        if(k == start_block) ibegin=1+(start_byte-1)/4
+        if(k == end_block) iend=end_byte/4
+        num_swap=iend-ibegin+1
+        call to_native_endianness_i4(buf4(ibegin),num_swap)
+     end if
+     ibegin=1 ; iend=lrecl
+     if(k == start_block) ibegin=start_byte
+     if(k == end_block) iend=end_byte
+     do i=ibegin,iend
+        ii=ii+1
+        out(ii)=buf(i)
+     end do
+  end do
+  close(in_unit)
+
+  nretrieved=ii/4
+  ii=1
+  do i=1,min(nretrieved,n1)
+     outrn1(i)=transfer(out(ii:ii+3),outrn1(i))
+     ii=ii+4
+  end do
+  do i=min(nretrieved,n1)+1,n1
+     outrn1(i)=zero
+  end do
+  write(6,*)' in retrieve_field_rn1, num expected=',n1, ' num retrieved=',nretrieved
+  
+end subroutine retrieve_field_rn1
+
+subroutine retrieve_field_rn1n2(in_unit,wrfges,outrn1n2,n1,n2,start_block,end_block,start_byte,end_byte)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    retrieve_field_rn1n2 retrieve real(4) outrn1n2(n1,n2) from wrf binary file
+!   prgmmr: parrish          org: np22                date: 2004-11-29
+!
+! abstract: still using direct access, retrieve a field from the wrf binary restart file.
+!
+! program history log:
+!   2004-11-29  parrish
+!   2012-10-11  parrish - add calls to to_native_endianness_i4 (when byte_swap=.true.) after all
+!                           direct access reads from wrf binary file
+!   2013-01-24  parrish - specialized version of original subroutine retrieve_field for getting
+!                          real(4) outrn1n2(n1,n2) from wrf binary file
+!   2013-01-26  parrish - change out(4) to out(4*n1*n2)
+!
+!   input argument list:
+!     in_unit          - fortran unit number where input file is opened through.
+!     wrfges - filename of input wrf binary restart file
+!     start_block      - direct access block number containing 1st byte of record
+!                            (after 4 byte record mark)
+!     end_block        - direct access block number containing last byte of record
+!                            (before 4 byte record mark)
+!     start_byte       - relative byte address in direct access block of 1st byte of record
+!     end_byte         - relative byte address in direct access block of last byte of record
+!
+!   output argument list:
+!     out              - output buffer where desired field is deposited
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: i_byte,i_kind,i_llong,i_long,r_single
+  use native_endianness, only: byte_swap
+  implicit none
+
+  integer(i_kind),intent(in   ) :: in_unit,n1,n2
+  character(9)   ,intent(in   ) :: wrfges
+  integer(i_kind),intent(in   ) :: start_block,end_block,start_byte,end_byte
+  real(r_single),intent(  out) :: outrn1n2(n1,n2)
+
+  integer(i_llong),parameter:: lrecl=2**20_i_llong
+  integer(i_llong),parameter:: lword=2**18_i_llong
+  integer(i_llong) num_swap
+  integer(i_long) buf4(lword)
+  integer(i_byte) buf(lrecl)
+  integer(i_byte) out(4*n1*n2)
+  equivalence(buf4(1),buf(1))
+  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
+
+  open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
+
+  write(6,*)'RETRIEVE_FIELD:  start_block,end_block,s_,e_byte=',&
+       start_block,end_block,start_byte,end_byte
+  if(mod(start_byte-1,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(start_byte-1,4) /= 0'
+  if(mod(end_byte,4)/=0) write(6,*)' PROBLEM WITH RETRIEVE_FIELD, mod(end_byte,4) /= 0'
+  ii=0
+  do k=start_block,end_block
+     read(in_unit,rec=k,iostat=ierr)buf
+     if(byte_swap) then
+        ibegin=1 ; iend=lword
+        if(k == start_block) ibegin=1+(start_byte-1)/4
+        if(k == end_block) iend=end_byte/4
+        num_swap=iend-ibegin+1
+        call to_native_endianness_i4(buf4(ibegin),num_swap)
+     end if
+     ibegin=1 ; iend=lrecl
+     if(k == start_block) ibegin=start_byte
+     if(k == end_block) iend=end_byte
+     do i=ibegin,iend
+        ii=ii+1
+        out(ii)=buf(i)
+     end do
+  end do
+  close(in_unit)
+
+  nretrieved=ii/4
+  ii=1
+  do j=1,n2
+     do i=1,n1
+        outrn1n2(i,j)=transfer(out(ii:ii+3),outrn1n2(i,j))
+        ii=ii+4
+     end do
+  end do
+  write(6,*)' in retrieve_field_rn1n2, num expected=',n1*n2, ' num retrieved=',nretrieved
+  
+end subroutine retrieve_field_rn1n2
 
 SUBROUTINE int_get_ti_header_char( hdrbuf, hdrbufsize, itypesize, &
                               DataHandle, Element, VarName, Data, code )
