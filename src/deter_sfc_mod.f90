@@ -8,6 +8,7 @@ module deter_sfc_mod
 !
 ! program history log:
 !   2011-08-01  lueken - Moved all land surface type subroutines to new module
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 ! subroutines included:
 !   sub deter_sfc
@@ -139,8 +140,8 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats_sfc,nlat_sfc,1)
-        call grdcrd(dlon,1,rlons_sfc,nlon_sfc,1)
+        call grdcrd1(dlat,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(dlon,rlons_sfc,nlon_sfc,1)
      end if
      iy=int(dlon); ix=int(dlat)
      dy  =dlon-iy; dx  =dlat-ix
@@ -447,8 +448,8 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats_sfc,nlat_sfc,1)
-        call grdcrd(dlon,1,rlons_sfc,nlon_sfc,1)
+        call grdcrd1(dlat,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(dlon,rlons_sfc,nlon_sfc,1)
      end if
 
      iy=int(dlon); ix=int(dlat)
@@ -583,8 +584,8 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr,zz)
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats_sfc,nlat_sfc,1)
-        call grdcrd(dlon,1,rlons_sfc,nlon_sfc,1)
+        call grdcrd1(dlat,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(dlon,rlons_sfc,nlon_sfc,1)
      end if
 
      iy=int(dlon); ix=int(dlat)
@@ -674,8 +675,8 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr,zz)
         else
            dlat=dlat_earth
            dlon=dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         end if
 
         iy=int(dlon); ix=int(dlat)
@@ -852,7 +853,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
         nearest_j = nint(y)
      else
         y = dlat_earth_deg*deg2rad
-        call grdcrd(y,1,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(y,rlats_sfc,nlat_sfc,1)
         nearest_j = nint(y)
         jj = nearest_j
         if (jj > nlat_sfc/2) jj = nlat_sfc - nearest_j + 1
@@ -929,9 +930,9 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 !  Locate the fov on the model grid.  in the "j" direction, this is
 !  based on the latitudinal extent of the fov.
      yend = maxval(lats_edge_fov)*deg2rad
-     call grdcrd(yend,1,rlats_sfc,nlat_sfc,1)
+     call grdcrd1(yend,rlats_sfc,nlat_sfc,1)
      ystart = minval(lats_edge_fov)*deg2rad
-     call grdcrd(ystart,1,rlats_sfc,nlat_sfc,1)
+     call grdcrd1(ystart,rlats_sfc,nlat_sfc,1)
 !  Note two extra rows are added for the n/s poles.
      jstart = nint(ystart)
      jstart = max(jstart,2)
@@ -1230,8 +1231,8 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats_sfc,nlat_sfc,1)
-        call grdcrd(dlon,1,rlons_sfc,nlon_sfc,1)
+        call grdcrd1(dlat,rlats_sfc,nlat_sfc,1)
+        call grdcrd1(dlon,rlons_sfc,nlon_sfc,1)
      end if
 
      klon1=int(dlon); klat1=int(dlat)

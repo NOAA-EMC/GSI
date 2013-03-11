@@ -36,7 +36,7 @@ use gsi_bundlemod, only : self_add
 use constants, only: zero,max_varname_length
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
-use mod_strong, only: hybens_inmc_option
+use mod_strong, only: tlnmc_option
 implicit none
 
 ! Declare passed variables
@@ -137,8 +137,8 @@ do jj=1,ntlevs_ens
 
 ! If calling TLNMC, already have u,v (so set last argument to true)
    if(lstrong_bk_vars) then
-      if ( (hybens_inmc_option==3) .or. &
-         (jj==ibin_anl .and. hybens_inmc_option==2) ) then
+      if ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) ) then
 
 !  Adjoint of consistency for 3d pressure and sensible temperature
 !  Calculate sensible temperature

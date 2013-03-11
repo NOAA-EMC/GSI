@@ -1750,6 +1750,7 @@ subroutine generic_grid2sub(tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,n
 !   2004-10-26  kleist - u,v removed; periodicity accounted for only in
 !               sub2grid routine if necessary
 !   2004-11-29  parrish - adapt grid2sub for related use with mpi io.
+!   2013-01-26  parrish - WCOSS debug compile error -- change tempa from intent(in) to intent(inout)
 !
 !   input argument list:
 !     tempa    - input grid values in horizontal slab mode.
@@ -1776,7 +1777,7 @@ subroutine generic_grid2sub(tempa,all_loc,kbegin_loc,kend_loc,kbegin,kend,mype,n
   
   integer(i_kind),intent(in   ) :: kbegin_loc,kend_loc,mype,num_fields
   integer(i_kind),intent(in   ) :: kbegin(0:npe),kend(0:npe-1)
-  real(r_single) ,intent(in   ) :: tempa(itotsub,kbegin_loc:kend_loc)
+  real(r_single) ,intent(inout) :: tempa(itotsub,kbegin_loc:kend_loc)
   real(r_single) ,intent(  out) :: all_loc(lat2*lon2*num_fields)
   
   integer(i_kind) k

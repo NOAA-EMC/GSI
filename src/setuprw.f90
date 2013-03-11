@@ -49,6 +49,11 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-05-25  s.liu/parrish     - correct error in height assigned to radial wind
 !   2012-02-08  wu      - bug fix to keep from using below ground radar obs, with extra printout
 !                           added to identify which obs are below ground.  
+!   2013-01-22  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                             tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!   2013-01-22  parrish - WCOSS debug compile execution error rwgt not assigned a value.
+!                             set rwgt = 1 at beginning of obs loop.
+!   2013-02-15  parrish - WCOSS debug compile execution error, k1=k2 but data(iobs_type,i) <=3, causes 0./0.
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -101,9 +106,9 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r200   = 200.0_r_kind
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
-  external:: tintrp3
-  external:: grdcrd
+  external:: tintrp2a1,tintrp2a11
+  external:: tintrp31
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables
@@ -212,6 +217,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   call dtime_setup()
   do i=1,nobs
+     rwgt=one
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
@@ -298,19 +304,19 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
      end if
 
-     call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
+     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
      if(zsges>=dpres)then
         write(6,*) 'SETUPRW: zsges = ',zsges,'is greater than dpres ',dpres,'. Rejecting ob.'
         cycle
      endif
      dpres=dpres-zsges
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
-     call tintrp2a(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
 !    Convert geopotential height at layer midpoints to geometric height using
 !    equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
@@ -356,7 +362,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Convert observation height (in dpres) from meters to grid relative
 !    units.  Save the observation height in zob for later use.
      zob = dpres
-     call grdcrd(dpres,1,zges,nsig,1)
+     call grdcrd1(dpres,zges,nsig,1)
 
 !    Set indices of model levels below (k1) and above (k2) observation.
      k=dpres
@@ -364,9 +370,16 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      k2=min(k+1,nsig)
 
 !    Compute observation pressure (only used for diagnostics)
-     dz     = zges(k2)-zges(k1)
-     dlnp   = prsltmp(k2)-prsltmp(k1)
-     pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+     if(k2>k1) then    !???????????? to fix problem where k1=k2, which should only happen if k1=k2=nsig
+        dz     = zges(k2)-zges(k1)
+        dlnp   = prsltmp(k2)-prsltmp(k1)
+        pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+     else
+        write(6,*)' iobs_type,data(iobs_type,i),k,k1,k2,nsig,zob,zges(k1),prsltmp(k1)=',&     !  diagnostic only??????????????
+                          iobs_type,data(iobs_type,i),k,k1,k2,nsig,zob,zges(k1),prsltmp(k1)
+        pobl   = prsltmp(k1)
+     end if
+        
 
      if(data(iobs_type,i) > three .and. k1 == k2)then
        dz     = zges(k1)-zsges 
@@ -379,7 +392,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Determine location in terms of grid units for midpoint of
 !    first layer above surface
      sfcchk=log(psges)
-     call grdcrd(sfcchk,1,prsltmp,nsig,-1)
+     call grdcrd1(sfcchk,prsltmp,nsig,-1)
 
 !    Check to see if observation is below midpoint of first
 !    above surface layer.  If so, set rlow to that difference
@@ -435,8 +448,8 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                              ! for TDR radars, beam width is 1.9 for NOAA Parabolic 
                              ! and 2.0 degree for French dual-plate  
 
-     call grdcrd(elevtop,1,zges,nsig,1)
-     call grdcrd(elevbot,1,zges,nsig,1)
+     call grdcrd1(elevtop,zges,nsig,1)
+     call grdcrd1(elevbot,zges,nsig,1)
      kbeamtop=ceiling(elevtop)
      kbeambot=floor(elevbot)
      kbeamtop=max(1,min(kbeamtop,nsig))
@@ -451,14 +464,14 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(dpres < zero .or. dpres > rsig)ratio_errors = zero
 
 !    Interpolate guess u and v to observation location and time.
-     call tintrp3(ges_u,ugesin,dlat,dlon,dpres,dtime,&
-          hrdifsig,1,mype,nfldsig)
-     call tintrp3(ges_v,vgesin,dlat,dlon,dpres,dtime,&
-          hrdifsig,1,mype,nfldsig)
-     call tintrp2a(ges_u,ugesprofile,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
-     call tintrp2a(ges_v,vgesprofile,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
+     call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime,&
+          hrdifsig,mype,nfldsig)
+     call tintrp31(ges_v,vgesin,dlat,dlon,dpres,dtime,&
+          hrdifsig,mype,nfldsig)
+     call tintrp2a1(ges_u,ugesprofile,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_v,vgesprofile,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
      
 
 

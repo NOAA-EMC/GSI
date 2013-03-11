@@ -257,6 +257,8 @@ subroutine read_nems_nmmb_files(mype)
 !   2006-06-19  wu - changes to allow nfldsig=3 (multiple first guess)
 !   2008-04-16  safford - remove unsused vars
 !   2010-04-20  jing    - set hrdifsig_all and hrdifsfc_all for non-ESMF cases.
+!   2012-01-22  parrish - move nming2 calculation before write(6 statement to prevent runtime
+!                           failure in debug mode on WCOSS
 !
 !   input argument list:
 !     mype     - pe number
@@ -331,8 +333,8 @@ subroutine read_nems_nmmb_files(mype)
            close(in_unit)
 !           idate5(5)=0
            call w3fs21(idate5,nmings)
-           write(6,*)'READ_nems_nmmb_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            nming2=nmings+60*hourg
+           write(6,*)'READ_nems_nmmb_FILES:  sigma guess file, nming2 ',hourg,idate5,nming2
            t4dv=real((nming2-iwinbgn),r_kind)*r60inv
            if (l4dvar) then
               if (t4dv<zero .OR. t4dv>winlen) go to 110
