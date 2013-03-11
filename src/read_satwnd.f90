@@ -359,6 +359,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  write(6,*) 'READ_SATWND: wrong derived method value'
               endif
            endif
+        else if( trim(subset) == 'NC005019') then                   ! GOES short wave 
+           if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! NESDIS GOES
+              if(hdrdat(9) == one)  then                            ! IR winds
+                 itype=245
+                 iobsub=1
+                 if(hdrdat(1) == 259.0_r_kind) iobsub=151
+              endif
+           endif
         endif
 !  Match ob to proper convinfo type
         ncsave=0
@@ -628,7 +636,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif  
                     endif
                  enddo
-                 if(qifn <85.0_r_kind .and. qifn >r110)  then
+                 if(qifn <85.0_r_kind .and. qifn /=r110)  then
                     qm=15
                     pqm=15
                  endif
@@ -679,6 +687,34 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        else if( qcdat(2,j) == four .and. ee >105) then
                           ee=qcdat(3,j)
                        endif 
+                    endif
+                 enddo
+              endif
+           else if( trim(subset) == 'NC005019') then                   ! AVHRR
+              if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then
+                 if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+                 if(hdrdat(9) == one)  then                            ! IR winds
+                    itype=245
+                    qm=15
+                    pqm=15
+                    if(hdrdat(1) == 259.0_r_kind) then
+                       iobsub=151
+                     else
+                       iobsub=1
+                     endif
+                 endif
+! get quality information
+                 call ufbrep(lunin,qcdat,3,8,iret,qcstr)
+                 do j=1,6
+                    if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
+                    if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
+                       if(qcdat(2,j) ==  one  .and. qifn >r105) then
+                          qifn=qcdat(3,j)
+                       else if(qcdat(2,j) ==  three .and. qify >105) then
+                          qify=qcdat(3,j)
+                       else if( qcdat(2,j) == four .and. ee >105) then
+                          ee=qcdat(3,j)
+                       endif
                     endif
                  enddo
               endif
@@ -754,7 +790,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            do kl=1,32
               if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
            end do
-           if(ppb<=etabl(itype,33,1)) k1=5
+           if(ppb<=etabl(itype,33,1)) k1=33
            k2=k1+1
            ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
            if (abs(ediff) > tiny_r_kind) then
@@ -767,7 +803,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            obserr=max(obserr,werrmin)
 !  for GOES hourly winds, set error doubled
             if(itype==245 .or. itype==246) then
-               obserr=obserr*two
+!               obserr=obserr*two
 !  using  Santek quality control method,calculate the original ee value
                if(ee <105.0_r_kind) then
                   ree=(ee-r100)/(-10.0_r_kind)
