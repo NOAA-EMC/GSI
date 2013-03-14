@@ -128,6 +128,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-10-14  Hu      - add code for adjusting surface temperature observation error
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
 !                                       layer based on surface obs T
+!   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                          tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !
 ! !REMARKS:
 !   language: f90
@@ -149,9 +151,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare external calls for code analysis
   external:: SFC_WTQ_FWD
   external:: get_tlm_tsfc
-  external:: tintrp2a
-  external:: tintrp3
-  external:: grdcrd
+  external:: tintrp2a1,tintrp2a11
+  external:: tintrp31
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables
@@ -366,10 +368,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
      drpx=zero
      if(sfctype .and. .not.twodvar_regional) then
@@ -377,7 +379,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    Put obs pressure in correct units to get grid coord. number
-     call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+     call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 ! Implementation of forward model ----------
 
@@ -392,19 +394,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            msges=1
         endif
 
-        call tintrp2a(ges_tv,tvtmp,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(ges_u,utmp,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(ges_v,vtmp,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(geop_hgtl,hsges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
+        call tintrp2a1(ges_tv,tvtmp,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a1(ges_u,utmp,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a1(ges_v,vtmp,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a1(geop_hgtl,hsges,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
   
         psges2  = psges          ! keep in cb
-        prsltmp2 = prsltmp       ! keep in cb
+        prsltmp2 = exp(prsltmp)  ! convert from ln p to cb
         call SFC_WTQ_FWD (psges2, tgges,&
              prsltmp2(1), tvtmp(1), qtmp(1), utmp(1), vtmp(1), &
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &
@@ -414,19 +416,19 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      else
         if(iqtflg)then
 !          Interpolate guess tv to observation location and time
-           call tintrp3(ges_tv,tges,dlat,dlon,dpres,dtime, &
-                hrdifsig,1,mype,nfldsig)
+           call tintrp31(ges_tv,tges,dlat,dlon,dpres,dtime, &
+                hrdifsig,mype,nfldsig)
 
         else
 !          Interpolate guess tsen to observation location and time
-           call tintrp3(ges_tsen,tges,dlat,dlon,dpres,dtime, &
-                hrdifsig,1,mype,nfldsig)
+           call tintrp31(ges_tsen,tges,dlat,dlon,dpres,dtime, &
+                hrdifsig,mype,nfldsig)
         end if
      endif
 
 !    Get approximate k value of surface by using surface pressure
      sfcchk=log(psges)
-     call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
+     call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 !    Check to see if observations is above the top of the model (regional mode)
      if(sfctype)then
@@ -748,11 +750,11 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !!! find tges (tgint)
        dpk=k
         if(iqtflg)then
-           call tintrp3(ges_tv,tgint,dlat,dlon,dpk,dtime, &
-                hrdifsig,1,mype,nfldsig)
+           call tintrp31(ges_tv,tgint,dlat,dlon,dpk,dtime, &
+                hrdifsig,mype,nfldsig)
         else
-           call tintrp3(ges_tsen,tgint,dlat,dlon,dpk,dtime, &
-                hrdifsig,1,mype,nfldsig)
+           call tintrp31(ges_tsen,tgint,dlat,dlon,dpk,dtime, &
+                hrdifsig,mype,nfldsig)
         end if
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location
         call get_ijk(mm1,dlat,dlon,dpk,ttail(ibin)%head%ij(1),ttail(ibin)%head%wij(1))
@@ -801,8 +803,8 @@ endif    !   itype=120
         diffsfc=ddiff
         dthetav=ddiff*(r1000/prestsfc)**rd_over_cp_mass
 
-        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
-             1,1,mype,nfldsig)
+        call tintrp2a11(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
 !
         if (dthetav< -1.0_r_kind) then
            call tune_pbl_height(mype,station_id,dlat,dlon,prestsfc,thisPBL_height,dthetav)
@@ -823,18 +825,18 @@ endif    !   itype=120
 
 !    Put obs pressure in correct units to get grid coord. number
            dpres=log(prest/r10)
-           call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+           call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 !!! find tges (tgint)
            if(iqtflg)then
 !          Interpolate guess tv to observation location and time
-              call tintrp3(ges_tv,tges,dlat,dlon,dpres,dtime, &
-                   hrdifsig,1,mype,nfldsig)
+              call tintrp31(ges_tv,tges,dlat,dlon,dpres,dtime, &
+                   hrdifsig,mype,nfldsig)
 
            else
 !          Interpolate guess tsen to observation location and time
-              call tintrp3(ges_tsen,tges,dlat,dlon,dpres,dtime, &
-                   hrdifsig,1,mype,nfldsig)
+              call tintrp31(ges_tsen,tges,dlat,dlon,dpres,dtime, &
+                   hrdifsig,mype,nfldsig)
            endif
 
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location

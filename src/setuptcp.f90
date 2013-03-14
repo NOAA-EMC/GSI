@@ -11,6 +11,8 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2010-05-25  kleist  - output tc_ps observations to conv diag file
 !   2010-11-24  todling - add component to write obs sensitiviy to diag file
+!   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11,
+!                          tintrp2a to tintrp2a1, tintrp2a11 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !
@@ -50,9 +52,9 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical                                          ,intent(in)    :: conv_diagsave
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: intrp2a11,tintrp2a1,tintrp2a11
   external:: tintrp3
-  external:: grdcrd
+  external:: grdcrd1
   external:: stop2
 
 ! DECLARE LOCAL PARMS HERE
@@ -205,34 +207,34 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 ! Get guess sfc hght at obs location
-     call intrp2a(ges_z(1,1,ntguessig),zsges,dlat,dlon,1,1,mype)
+     call intrp2a11(ges_z(1,1,ntguessig),zsges,dlat,dlon,mype)
 
 ! Interpolate to get log(ps) and log(pres) at mid-layers
 ! at obs location/time
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-        1,1,mype,nfldsig)
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-        1,nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+        mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+        nsig,mype,nfldsig)
 
 ! Convert pressure to grid coordinates
      pgesorig = psges
 
 ! Take log for vertical interpolation
      psges = log(psges)
-     call grdcrd(psges,1,prsltmp,nsig,-1)
+     call grdcrd1(psges,prsltmp,nsig,-1)
 
 ! Get guess temperature at observation location and surface
-     call tintrp3(ges_tv,tges,dlat,dlon,psges,dtime, &
-          hrdifsig,1,mype,nfldsig)
+     call tintrp31(ges_tv,tges,dlat,dlon,psges,dtime, &
+          hrdifsig,mype,nfldsig)
 
 ! Adjust observation error and obs value due to differences in surface height
      rdelz=-zsges
 
 !  No observed temperature
      psges2=data(ipres,i)
-     call grdcrd(psges2,1,prsltmp,nsig,-1)
-     call tintrp3(ges_tv,tges2,dlat,dlon,psges2,dtime, &
-          hrdifsig,1,mype,nfldsig)
+     call grdcrd1(psges2,prsltmp,nsig,-1)
+     call tintrp31(ges_tv,tges2,dlat,dlon,psges2,dtime, &
+          hrdifsig,mype,nfldsig)
 
      drbx = half*abs(tges-tges2)+r2_5+r0_005*abs(rdelz)
      tges = half*(tges+tges2)

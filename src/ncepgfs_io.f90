@@ -2571,6 +2571,7 @@ end subroutine write_ghg_grid
 !   2008-02-26  derber  - original routine
 !   2008-05-28  safford - add subprogram doc block, rm unused uses
 !   2011-04-01  li - change kind of output field (b: single to r_kind)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     na_lon  - number of longitude grid analysis 
@@ -2617,7 +2618,7 @@ end subroutine write_ghg_grid
 !   Loop over all points to get interpolated value
     do j=1,ns_lat
        dlat=rlats_sfc(j)
-       call grdcrd(dlat,1,rlats,na_lat,1)
+       call grdcrd1(dlat,rlats,na_lat,1)
        iy=int(dlat)
        iy=min(max(1,iy),na_lat)
        dy  =dlat-iy
@@ -2627,7 +2628,7 @@ end subroutine write_ghg_grid
 
        do i=1,ns_lon
           dlon=rlons_sfc(i)
-          call grdcrd(dlon,1,rlons,na_lon,1)
+          call grdcrd1(dlon,rlons,na_lon,1)
           ix=int(dlon)
           dx  =dlon-ix
           dx=max(zero,min(dx,one))

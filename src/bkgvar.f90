@@ -191,6 +191,9 @@ subroutine bkg_stddev(cvec,svec)
 ! program history log:
 !   2010-06-05  el akkraoui
 !   2010-07-08  todling - revisit original code
+!   2013-01-12  parrish - remove sst,slndt,sicet -- no longer needed when calling bkgvar.
+!                             also now an argument conflict only caught with more sophisticated
+!                             debug tools turned on, since bkgvar not in a module.
 !
 !   input argument list:
 !     cvec - allocated bundle in control space
@@ -222,7 +225,6 @@ subroutine bkg_stddev(cvec,svec)
 
 ! Declare local variables  	
   integer(i_kind) :: ii,jj,istatus
-  real(r_kind),dimension(lat2,lon2) :: sst,slndt,sicet
   real(r_kind),pointer,dimension(:,:)   :: cv_ps
   real(r_kind),pointer,dimension(:,:,:) :: cv_t,cv_sf,cv_vp,cv_rh
   real(r_kind),pointer,dimension(:,:,:) :: sv_tsen,sv_u,sv_v,sv_q,sv_p3d
@@ -261,12 +263,13 @@ subroutine bkg_stddev(cvec,svec)
 
   cvec =one
 
-  sst  =one
-  slndt=one
-  sicet=one
 
 ! Get standard deviations (why is this called bkgvar?) in control space
-  call bkgvar(cvec,sst,slndt,sicet,1)
+!  bkgvar only applies sqrt of variance each time it is called.
+!  Normally, in bkgcov, it is called once before correlations are applied, and
+!  again after.  Perhaps it should be called bkgstd, but this subroutine is
+!  called bkg_stddev.
+  call bkgvar(cvec,1)
 
   call gsi_bundlegetpointer (cvec,'sf',cv_sf,istatus)
   call gsi_bundlegetpointer (cvec,'vp',cv_vp,istatus)

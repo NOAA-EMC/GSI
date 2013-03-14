@@ -174,7 +174,7 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
+	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x *__genmod*
 	- $(RM) loadmap.txt log.make.$(EXE_FILE)
 	- $(MAKE) -f ${MAKE_FILE} doclean
 

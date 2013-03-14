@@ -1,4 +1,4 @@
-subroutine smoothrf(work,nsc,nlevs)
+subroutine smoothrf(work,nlevs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    smoothrf    perform horizontal part of background error
@@ -24,7 +24,6 @@ subroutine smoothrf(work,nsc,nlevs)
 !
 !   input argument list:
 !     work     - horizontal fields to be smoothed
-!     nsc      - number of horizontal scales to smooth over 
 !     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
@@ -38,21 +37,21 @@ subroutine smoothrf(work,nsc,nlevs)
   use gridmod, only: nlat,nlon,regional
   use constants, only: zero,half
   use berror, only: ii,jj,ii1,jj1,ii2,jj2,slw,slw1,slw2, &
-       nx,ny,mr,nr,nf,hzscl,hswgt,nfg
+       nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nhscrf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   use smooth_polcarf, only: norsp,smooth_polcas,smooth_polcasa
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
+  integer(i_kind)                        ,intent(in   ) :: nlevs
   real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) j,i
   integer(i_kind) k,kk,kkk
 
-  real(r_kind),dimension(nsc):: totwgt
+  real(r_kind),dimension(nhscrf):: totwgt
   real(r_kind),allocatable,dimension(:,:) :: pall,zloc
   real(r_kind),dimension(nlat,nlon,3*nlevs) :: workout
 
@@ -60,11 +59,11 @@ subroutine smoothrf(work,nsc,nlevs)
 ! Regional case
   if(regional)then
 !$omp parallel do  schedule(dynamic,1) private(k,j,totwgt), &
-!$omp  shared(nlevs,hswgt,hzscl,nrf_var,nvar_id,work,nx,ny,ii,jj,slw,nsc),default(none)
+!$omp  shared(nlevs,hswgt,hzscl,nrf_var,nvar_id,work,nx,ny,ii,jj,slw,nhscrf),default(none)
      do k=1,nlevs
 
 !       apply horizontal recursive filters
-        do j=1,nsc
+        do j=1,nhscrf
            totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
         end do
         
@@ -73,20 +72,20 @@ subroutine smoothrf(work,nsc,nlevs)
         end if
         
         call rfxyyx(work(1,1,k),ny,nx,ii(1,1,1,k),&
-             jj(1,1,1,k),slw(1,k),nsc,totwgt)
+             jj(1,1,1,k),slw(1,k),totwgt)
         
      end do
 
 ! Global case
   else
 
-     do j=1,nsc
+     do j=1,nhscrf
         totwgt(j)=hswgt(j)*hzscl(j)*hzscl(j)
      end do
      
 !$omp parallel do  schedule(dynamic,1) private(kk) &
 !$omp private(i,j,k,kkk,pall), &
-!$omp shared(nlevs,workout,nx,ny,ii,jj,slw,nsc,nf,nfg,totwgt, &
+!$omp shared(nlevs,workout,nx,ny,ii,jj,slw,nhscrf,nf,nfg,totwgt, &
 !$omp        ii2,slw1,slw2,jj2,jj1,nlat,nlon,ii1,work),default(none)
      do kk=1,3*nlevs
 
@@ -106,7 +105,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !         equatorial/mid-latitude band
           allocate(pall(ny,nx))
           call grid2tr(work(1,1,k),pall)
-          call rfxyyx(pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+          call rfxyyx(pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),totwgt)
           call grid2tr_ad(workout(1,1,kk),pall)
           deallocate(pall)
 
@@ -115,7 +114,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !         North pole patch --interpolate - recursive filter - adjoint interpolate
           allocate(pall(-nf:nf,-nf:nf))
           call grid2nh(work(1,1,k),pall)
-          call rfxyyx(pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
+          call rfxyyx(pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),totwgt)
           call grid2nh_ad(workout(1,1,kk),pall)
           deallocate(pall)
  
@@ -124,7 +123,7 @@ subroutine smoothrf(work,nsc,nlevs)
 !         South pole patch --interpolate - recursive filter - adjoint interpolate
           allocate(pall(-nf:nf,-nf:nf))
           call grid2sh(work(1,1,k),pall)
-          call rfxyyx(pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
+          call rfxyyx(pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),totwgt)
           call grid2sh_ad(workout(1,1,kk),pall)
           deallocate(pall)
 
@@ -571,7 +570,7 @@ subroutine grid2sh_ad(work,pall)
 end subroutine grid2sh_ad
 
 
-subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
+subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,totwgt)
   
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -604,15 +603,15 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only:  zero
-  use berror, only: be,table,ndeg
+  use berror, only: be,table,ndeg,nhscrf
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
-  integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
-  real(r_kind),dimension(nx,ny)       ,intent(inout) :: p1
-  real(r_kind),dimension(nx,ny)       ,intent(in   ) :: dssx
-  real(r_kind),dimension(nsc)         ,intent(in   ) :: totwgt
+  integer(i_kind)                        ,intent(in   ) :: nx,ny
+  integer(i_kind),dimension(nx,ny,nhscrf),intent(in   ) :: iix,jjx
+  real(r_kind),dimension(nx,ny)          ,intent(inout) :: p1
+  real(r_kind),dimension(nx,ny)          ,intent(in   ) :: dssx
+  real(r_kind),dimension(nhscrf)         ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
@@ -630,7 +629,7 @@ subroutine rfxyyx(p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! Loop over number of scales
  
-  do n=1,nsc
+  do n=1,nhscrf
 
      do iy=1,ny
         do ix=1,nx
@@ -1082,7 +1081,7 @@ subroutine rfhy(p1,p2,nx,ny,ndegy,aly,be)
   return
 end subroutine rfhy
 ! ------------------------------------------------------------------------------
-subroutine sqrt_smoothrf(z,work,nsc,nlevs)
+subroutine sqrt_smoothrf(z,work,nlevs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    sqrt_smoothrf    perform sqrt horizontal part of background error
@@ -1106,7 +1105,6 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 !
 !   input argument list:
 !     work     - horizontal fields to be smoothed
-!     nsc      - number of horizontal scales to smooth over 
 !     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
@@ -1120,7 +1118,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   use gridmod, only: nlat,nlon,regional,nnnn1o
   use jfunc,only: nval_lenz
   use constants, only: zero,half
-  use berror, only: ii,jj,ii1,jj1,&
+  use berror, only: ii,jj,ii1,jj1,nhscrf,&
        ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nfnf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
@@ -1128,7 +1126,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
+  integer(i_kind)                        ,intent(in   ) :: nlevs
   real(r_kind),dimension(nval_lenz)      ,intent(in   ) :: z
   real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
@@ -1136,19 +1134,19 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   integer(i_kind) j,i
   integer(i_kind) k,iz,kk,kkk
 
-  real(r_kind),dimension(nsc):: totwgt
+  real(r_kind),dimension(nhscrf):: totwgt
   real(r_kind),allocatable,dimension(:,:)::pall,zloc
   real(r_kind),dimension(nlat,nlon,3*nlevs) :: workout
 
 ! Regional case
   if(regional)then
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,iz,totwgt,zloc), &
-!$omp  shared(nlevs,nsc,hswgt,hzscl,nrf_var,nvar_id,nlat,nlon,nnnn1o,slw,nx,ii,jj,z,work,ny),default(none)
+!$omp  shared(nlevs,nhscrf,hswgt,hzscl,nrf_var,nvar_id,nlat,nlon,nnnn1o,slw,nx,ii,jj,z,work,ny),default(none)
      do k=1,nlevs
 
-        allocate(zloc(nlat*nlon,nsc))
+        allocate(zloc(nlat*nlon,nhscrf))
 !       apply horizontal recursive filters
-        do j=1,nsc
+        do j=1,nhscrf
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
         end do
         
@@ -1156,7 +1154,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
            totwgt(3)=sqrt(half)*totwgt(3)
         end if
 
-        do j=1,nsc
+        do j=1,nhscrf
            iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
            do i=1,nlat*nlon
               zloc(i,j)=z(i+iz)
@@ -1164,7 +1162,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
         end do
         
         call sqrt_rfxyyx(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
-             jj(1,1,1,k),slw(1,k),nsc,totwgt)
+             jj(1,1,1,k),slw(1,k),totwgt)
         
         deallocate(zloc)
      end do
@@ -1172,7 +1170,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 ! Global case
   else
 
-     do j=1,nsc
+     do j=1,nhscrf
         totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
      end do
      
@@ -1181,7 +1179,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
      end do
 !$omp parallel do  schedule(dynamic,1) private(kk) &
 !$omp private(i,j,k,iz,kkk,pall,zloc), &
-!$omp   shared(nlevs,nlon,nlat,nsc,nfnf,nx,ny,nnnn1o,nfg,nf,z,ii,jj,ii1,jj1,ii2,jj2,slw2, &
+!$omp   shared(nlevs,nlon,nlat,nhscrf,nfnf,nx,ny,nnnn1o,nfg,nf,z,ii,jj,ii1,jj1,ii2,jj2,slw2, &
 !$omp          slw,slw1,workout,totwgt),default(none)
      do kk=1,3*nlevs
 
@@ -1199,14 +1197,14 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
 !          First do equatorial/mid-latitude band
 
-           allocate(pall(ny,nx),zloc(ny*nx,nsc))
-           do j=1,nsc
+           allocate(pall(ny,nx),zloc(ny*nx,nhscrf))
+           do j=1,nhscrf
               iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))
               do i=1,ny*nx
                  zloc(i,j)=z(i+iz)
               end do
            end do
-           call sqrt_rfxyyx(zloc,pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
+           call sqrt_rfxyyx(zloc,pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),totwgt)
            call grid2tr_ad(workout(1,1,kk),pall)
            deallocate(pall,zloc)
 
@@ -1214,28 +1212,28 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
 
 !          North pole patch --interpolate - recursive filter - adjoint interpolate
 
-           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
-           do j=1,nsc
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nhscrf))
+           do j=1,nhscrf
               iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx
               do i=1,nfnf
                  zloc(i,j)=z(i+iz)
               end do
            end do
-           call sqrt_rfxyyx(zloc,pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
+           call sqrt_rfxyyx(zloc,pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),totwgt)
            call grid2nh_ad(workout(1,1,kk),pall)
            deallocate(pall,zloc)
         else if(kkk == 3)then
 
 !          South pole patch --interpolate - recursive filter - adjoint interpolate
 
-           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
-           do j=1,nsc
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nhscrf))
+           do j=1,nhscrf
               iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx+nfnf
               do i=1,nfnf
                  zloc(i,j)=z(i+iz)
               end do
            end do
-           call sqrt_rfxyyx(zloc,pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
+           call sqrt_rfxyyx(zloc,pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),totwgt)
            call grid2sh_ad(workout(1,1,kk),pall)
            deallocate(pall,zloc)
         end if
@@ -1260,7 +1258,7 @@ subroutine sqrt_smoothrf(z,work,nsc,nlevs)
   return
 end subroutine sqrt_smoothrf
 ! ------------------------------------------------------------------------------
-subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
+subroutine sqrt_smoothrf_ad(z,work,nlevs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    smoothrf    perform horizontal part of background error
@@ -1281,10 +1279,10 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 !   2005-11-16  wgu - set nmix=nr+1+(ny-nlat)/2 to make sure
 !                   nmix+nrmxb=nr no matter what number nlat is.   
 !   2010-05-22  todling - remove implicit ordering requirement in nvar_id
+!   2013-01-26  parrish - change work from intent(in) to intent(inout)
 !
 !   input argument list:
 !     work     - horizontal fields to be smoothed
-!     nsc      - number of horizontal scales to smooth over 
 !     nlevs    - number of vertical levels for smoothing
 !
 !   output argument list:
@@ -1298,34 +1296,34 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   use gridmod, only: nlat,nlon,nnnn1o,regional
   use jfunc,only: nval_lenz
   use constants, only: zero,half
-  use berror, only: ii,jj,ii1,jj1,&
+  use berror, only: ii,jj,ii1,jj1,nhscrf,&
        ii2,jj2,slw,slw1,slw2,nx,ny,mr,nr,nf,hzscl,hswgt,nfg,nfnf
   use control_vectors, only:  nrf_var
   use mpimod, only:  nvar_id
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                        ,intent(in   ) :: nsc,nlevs
+  integer(i_kind)                        ,intent(in   ) :: nlevs
   real(r_kind),dimension(nval_lenz)      ,intent(inout) :: z
-  real(r_kind),dimension(nlat,nlon,nlevs),intent(in   ) :: work
+  real(r_kind),dimension(nlat,nlon,nlevs),intent(inout) :: work
 
 ! Declare local variables
   integer(i_kind) j,i
   integer(i_kind) k,iz,kk,kkk
 
-  real(r_kind),dimension(nsc):: totwgt
+  real(r_kind),dimension(nhscrf):: totwgt
   real(r_kind),allocatable,dimension(:,:):: zloc,pall
 
 
 ! Regional case
   if(regional)then
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,iz,totwgt,zloc), &
-!$omp  shared(nlevs,nsc,hswgt,hzscl,nrf_var,nvar_id,nlat,nlon,nnnn1o,slw,ii,jj,z,nx,ny,work),default(none)
+!$omp  shared(nlevs,nhscrf,hswgt,hzscl,nrf_var,nvar_id,nlat,nlon,nnnn1o,slw,ii,jj,z,nx,ny,work),default(none)
      do k=1,nlevs
 
-        allocate(zloc(nlat*nlon,nsc))
+        allocate(zloc(nlat*nlon,nhscrf))
 !       apply horizontal recursive filters
-        do j=1,nsc
+        do j=1,nhscrf
            totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
         end do
 
@@ -1334,9 +1332,9 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         end if
 		
         call sqrt_rfxyyx_ad(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
-             jj(1,1,1,k),slw(1,k),nsc,totwgt)
+             jj(1,1,1,k),slw(1,k),totwgt)
 
-        do j=1,nsc
+        do j=1,nhscrf
            iz=nlat*nlon*(k-1)+nlat*nlon*nnnn1o*(j-1)
            do i=1,nlat*nlon
               z(i+iz)=zloc(i,j)
@@ -1349,14 +1347,14 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 ! Global case
   else
 
-     do j=1,nsc
+     do j=1,nhscrf
         totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
      end do
      
 
 !$omp parallel do  schedule(dynamic,1) private(kk) &
 !$omp private(i,j,k,iz,kkk,pall,zloc), &
-!$omp   shared(nlevs,nlon,nlat,nsc,nfnf,nx,ny,nnnn1o,z,ii,jj,ii1,jj1,slw,slw1, &
+!$omp   shared(nlevs,nlon,nlat,nhscrf,nfnf,nx,ny,nnnn1o,z,ii,jj,ii1,jj1,slw,slw1, &
 !$omp          ii2,jj2,slw2,nfg,nf,work,totwgt),default(none)
      do kk=1,3*nlevs
 
@@ -1368,10 +1366,10 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
         if(kkk == 1)then
 
 !          First do equatorial/mid-latitude band
-           allocate(pall(ny,nx),zloc(ny*nx,nsc))
+           allocate(pall(ny,nx),zloc(ny*nx,nhscrf))
            call grid2tr(work(1,1,k),pall)
-           call sqrt_rfxyyx_ad(zloc,pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),nsc,totwgt)
-           do j=1,nsc
+           call sqrt_rfxyyx_ad(zloc,pall,ny,nx,ii(1,1,1,k),jj(1,1,1,k),slw(1,k),totwgt)
+           do j=1,nhscrf
               iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))
               do i=1,ny*nx
                  z(i+iz)=z(i+iz)+zloc(i,j)
@@ -1383,10 +1381,10 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 
 !          North pole patch --interpolate - recursive filter - adjoint interpolate
 
-           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nhscrf))
            call grid2nh(work(1,1,k),pall)
-           call sqrt_rfxyyx_ad(zloc,pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),nsc,totwgt)
-           do j=1,nsc
+           call sqrt_rfxyyx_ad(zloc,pall,nfg,nfg,ii1(1,1,1,k),jj1(1,1,1,k),slw1(1,k),totwgt)
+           do j=1,nhscrf
               iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx
               do i=1,nfnf
                  z(i+iz)=z(i+iz)+zloc(i,j)
@@ -1398,11 +1396,11 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
 
 !          South pole patch --interpolate - recursive filter - adjoint interpolate
 
-           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nsc))
+           allocate(pall(-nf:nf,-nf:nf),zloc(nfnf,nhscrf))
            call grid2sh(work(1,1,k),pall)
-           call sqrt_rfxyyx_ad(zloc,pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),nsc,totwgt)
+           call sqrt_rfxyyx_ad(zloc,pall,nfg,nfg,ii2(1,1,1,k),jj2(1,1,1,k),slw2(1,k),totwgt)
 
-           do j=1,nsc
+           do j=1,nhscrf
               iz=(ny*nx+2*nfnf)*(k-1+nnnn1o*(j-1))+ny*nx+nfnf
               do i=1,nfnf
                  z(i+iz)=z(i+iz)+zloc(i,j)
@@ -1420,7 +1418,7 @@ subroutine sqrt_smoothrf_ad(z,work,nsc,nlevs)
   return
 end subroutine sqrt_smoothrf_ad
 ! ------------------------------------------------------------------------------
-subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
+subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,totwgt)
   
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1453,16 +1451,16 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only:  zero
-  use berror, only: be,table,ndeg
+  use berror, only: be,table,ndeg,nhscrf
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
-  integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
+  integer(i_kind)                     ,intent(in   ) :: nx,ny
+  integer(i_kind),dimension(nx,ny,nhscrf),intent(in   ) :: iix,jjx
   real(r_kind)   ,dimension(nx,ny,3)  ,intent(in   ) :: z
   real(r_kind)   ,dimension(nx,ny)    ,intent(  out) :: p1
   real(r_kind)   ,dimension(nx,ny)    ,intent(in   ) :: dssx
-  real(r_kind)   ,dimension(nsc)      ,intent(in   ) :: totwgt
+  real(r_kind)   ,dimension(nhscrf)      ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
@@ -1479,7 +1477,7 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! Loop over number of scales
  
-  do n=1,nsc
+  do n=1,nhscrf
 
      do im=1,ndeg
         do j=1,ny
@@ -1506,7 +1504,7 @@ subroutine sqrt_rfxyyx(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
   return
 end subroutine sqrt_rfxyyx
 ! ------------------------------------------------------------------------------
-subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
+subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,totwgt)
   
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1539,16 +1537,16 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only:  zero
-  use berror, only: be,table,ndeg
+  use berror, only: be,table,ndeg,nhscrf
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                     ,intent(in   ) :: nx,ny,nsc
-  integer(i_kind),dimension(nx,ny,nsc),intent(in   ) :: iix,jjx
+  integer(i_kind)                     ,intent(in   ) :: nx,ny
+  integer(i_kind),dimension(nx,ny,nhscrf),intent(in   ) :: iix,jjx
   real(r_kind)   ,dimension(nx,ny,3)  ,intent(  out) :: z
   real(r_kind)   ,dimension(nx,ny)    ,intent(inout) :: p1
   real(r_kind)   ,dimension(nx,ny)    ,intent(in   ) :: dssx
-  real(r_kind)   ,dimension(nsc)      ,intent(in   ) :: totwgt
+  real(r_kind)   ,dimension(nhscrf)      ,intent(in   ) :: totwgt
 
 ! Declare local variables
   integer(i_kind) ix,iy,i,j,im,n
@@ -1558,7 +1556,7 @@ subroutine sqrt_rfxyyx_ad(z,p1,nx,ny,iix,jjx,dssx,nsc,totwgt)
 
 ! Loop over number of scales
  
-  do n=1,nsc
+  do n=1,nhscrf
 
      do iy=1,ny
         do ix=1,nx

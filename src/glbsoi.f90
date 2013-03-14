@@ -66,7 +66,7 @@ subroutine glbsoi(mype)
 !   2009-01-28  todling - move write_all to pcgsoi (for consistency w/ 4dvar branch of code)
 !                       - use observer to avoid redundant code
 !   2009-08-19  guo     - changed setuprhsall() interface for multi-pass observer.
-!   2009-08-31  parrish - add call to fmg_initialize_e when jcstrong_option=4.  Initializes
+!   2009-08-31  parrish - add call to fmg_initialize_e when tlnmc_type=4.  Initializes
 !                          alternative regional tangent linear normal mode constraint which
 !                          allows for variation of coriolis parameter and map factor.
 !   2009-09-12  parrish - add call to hybrid_ensemble_setup.  if l_hyb_ens=.true., then

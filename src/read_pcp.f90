@@ -42,6 +42,7 @@
 !   2008-04-18  safford - rm unused vars
 !   2011-04-01  li      - update argument list to deter_sfc
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -276,8 +277,8 @@
   else
      dlat = dlat_earth
      dlon = dlon_earth
-     call grdcrd(dlat,1,rlats,nlat,1)
-     call grdcrd(dlon,1,rlons,nlon,1)
+     call grdcrd1(dlat,rlats,nlat,1)
+     call grdcrd1(dlon,rlons,nlon,1)
   endif
 
 !

@@ -40,6 +40,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-21  safford - rm unused vars and uses
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-04-02  li      - set up Tr analysis and modify to save nst analysis related diagnostic variables
+!   2013-01-26  parrish - change intrp2a to intrp2a11 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -86,7 +87,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: intrp2a11
   external:: stop2
 
 ! Declare local variables
@@ -279,7 +280,7 @@ endif
 if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
-     call intrp2a(dsfct,dsfct_obx,dlat,dlon,1,1,mype)
+     call intrp2a11(dsfct,dsfct_obx,dlat,dlon,mype)
      sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
 ! Adjust observation error
      ratio_errors=error/data(ier,i)

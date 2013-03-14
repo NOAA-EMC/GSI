@@ -56,6 +56,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2010-06-02  sienkiewicz - care for closing bufr other than for o3lev
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -284,8 +285,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
 !    Special check for NOAA-17 version 6
@@ -443,6 +444,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      rsat = hdrozg(1); ksatid=rsat
 
      if(jsatid == 'metop-a')kidsat = 4
+     if(jsatid == 'metop-b')kidsat = 3
+     if(jsatid == 'metop-c')kidsat = 5
 
      if (ksatid /= kidsat) go to 120
 
@@ -466,8 +469,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
 !    Convert observation time to relative time
@@ -614,8 +617,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! convert observation time to relative time
@@ -766,8 +769,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         nmrecs=nmrecs+1
         idate5(1) = iy !year
@@ -928,8 +931,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! convert observation time to relative time
