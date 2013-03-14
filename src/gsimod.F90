@@ -549,10 +549,11 @@
 !     baldiag_inc
 !     tlnmc_option : integer flag for strong constraint (various capabilities for hybrid)
 !                   =0: no TLNMC
-!                   =1: TLNMC on static increment only (or if non-hybrid run)
-!                   =2: TLNMC on total increment for single time level only (or 3DHybrid)
-!                       if 4D mode, TLNMC applied to increment in center of window
-!                   =3: TLNMC on total increment over all time levels (if in 4D mode)
+!                   =1: TLNMC for 3DVAR mode
+!                   =2: TLNMC on total increment for single time level only (for 3D EnVar)
+!                       or if 4D EnVar mode, TLNMC applied to increment in center of window
+!                   =3: TLNMC on total increment over all time levels (if in 4D EnVar mode)
+!                   =4: TLNMC on static contribution to increment ONLY for any EnVar mode
 
   namelist/strongopts/tlnmc_type,tlnmc_option, &
                       nstrong,period_max,period_width,nvmodes_keep, &
@@ -927,21 +928,22 @@
      end if
   end if
 
-  if (tlnmc_option>0 .and. tlnmc_option<4) then
-     l_tlnmc=.true.
-     if(mype==0) write(6,*)' valid TLNMC option chosen, setting l_tlnmc logical to true'
-  end if
-
-  if (tlnmc_option==2 .or. tlnmc_option==3) then
+  if (tlnmc_option>=2 .and. tlnmc_option<=4) then
      if (.not.l_hyb_ens) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,tlnmc_option
-        call die(myname_,'tlnmc options inconsistent, check namelist settings',337)
+	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
+	if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
+	tlnmc_option=1
      end if
-  else if (tlnmc_option<0 .or. tlnmc_option>3) then
+  else if (tlnmc_option<0 .or. tlnmc_option>4) then
      if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
      if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
      tlnmc_option=0
   end if
+  if (tlnmc_option>0 .and. tlnmc_option<5) then
+     l_tlnmc=.true.
+     if(mype==0) write(6,*)' GSIMOD: valid TLNMC option chosen, setting l_tlnmc logical to true'
+  end if
+
 
 ! Ensure valid number of horizontal scales
   if (nhscrf<0 .or. nhscrf>3) then
