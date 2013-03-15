@@ -20,7 +20,7 @@ module balmod
 !                            when l_hyb_ens=.true.)
 !   2010-03-04  zhu  - add horizontally interpolated agvk,wgvk,bvk for regional
 !   2012-02-08  kleist - remove ref to l_hyb_ens in subroutines balance, tbalance, strong_bk, 
-!                          and strong_bk_ad.  add new parameter hybens_inmc_option.
+!                          and strong_bk_ad.  add new parameter tlnmc_option.
 !
 ! subroutines included:
 !   sub create_balance_vars      - create arrays for balance vars
@@ -488,9 +488,9 @@ contains
 !   2008-12-29  todling - remove q from arg list
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
 !   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
-!                           with   "use mod_strong, only: hybens_inmc_option".
+!                           with   "use mod_strong, only: tlnmc_option".
 !                           then trigger call to strong_bk at end of subroutine balance with 
-!                           new parameter hybens_inmc_option and add uvflag=.false. to call strong_bk.
+!                           new parameter tlnmc_option and add uvflag=.false. to call strong_bk.
 !
 !   input argument list:
 !     t        - t grid values 
@@ -512,7 +512,7 @@ contains
 !$$$
     use constants, only: one,half
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
-    use mod_strong, only: hybens_inmc_option
+    use mod_strong, only: tlnmc_option
     implicit none
     
 !   Declare passed variables
@@ -626,7 +626,7 @@ contains
 
 !!   Strong balance constraint
 !!   Pass uvflag=.false.
-    if (hybens_inmc_option==1) call strong_bk(st,vp,p,t,.false.)
+    if (tlnmc_option==1) call strong_bk(st,vp,p,t,.false.)
 
     return
   end subroutine balance
@@ -666,9 +666,9 @@ contains
 !                            when l_hyb_ens=.true.)
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
 !   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
-!                           with   "use mod_strong, only: hybens_inmc_option".
+!                           with   "use mod_strong, only: tlnmc_option".
 !                           then trigger call to strong_bk_ad at beginning of subroutine tbalance with 
-!                           new parameter hybens_inmc_option and add uvflag=.false. to call strong_bk_ad.
+!                           new parameter tlnmc_option and add uvflag=.false. to call strong_bk_ad.
 !
 !   input argument list:
 !     t        - t grid values from int routines 
@@ -690,7 +690,7 @@ contains
 !$$$
     use constants,   only: one,half
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
-    use mod_strong,  only: hybens_inmc_option
+    use mod_strong,  only: tlnmc_option
     implicit none
 
 !   Declare passed variables
@@ -706,7 +706,7 @@ contains
   
 !  Adjoint of strong balance constraint
 !  pass uvflag=.false.
-    if(hybens_inmc_option==1) call strong_bk_ad(st,vp,p,t,.false.)
+    if(tlnmc_option==1) call strong_bk_ad(st,vp,p,t,.false.)
 
 !   REGIONAL BRANCH
     if (regional) then

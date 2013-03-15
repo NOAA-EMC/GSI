@@ -66,8 +66,9 @@ program makeoneobbufr
     qm=1
 
     if (oneob_type=='ps') then
-       typ(1)=87.
        cat(1,1)=0
+       typ(1)=87
+       write(6,*) 'set to type 187'
     else
        typ(1)=20.
        cat(1,1)=1
@@ -75,7 +76,6 @@ program makeoneobbufr
 
     open(ludx,file='prepobs_prep.bufrtable',action='read')
     open(lendian_in,file='prepqc',action='write',form='unformatted')
-!!!    open(lendian_in,file='prepqc',action='write',form='unformatted',convert='little_endian')
 
     call datelen(10)
     call openbf(lendian_in,'OUT',ludx)
@@ -83,11 +83,17 @@ program makeoneobbufr
        hdr(1)=transfer(sid(n),hdr(1))
        hdr(2)=xob(n)
        hdr(3)=yob(n)
-       hdr(4)=dhr(n)
-       hdr(5)=r100+typ(n)
+       hdr(4)=dhr(n)     
+       if ( (oneob_type=='uv') ) then
+          hdr(5)=200+typ(n)
+       else
+          hdr(5)=100+typ(n)
+       end if
+
        obs=bmiss
        qms=bmiss
        err=bmiss
+
        do k=1,nlev
           obs(1,k)=obpres
           obs(7,k)=cat(k,n)
@@ -99,48 +105,31 @@ program makeoneobbufr
             qms(3,k)=qm(k,n)
             err(3,k)=oberror
             qms(2,k)=qm(k,n)
+          else if (oneob_type=='ps') then
+            obs(4,k)=ob1  ! observation "height"
+            qms(4,k)=qm(k,n)
           else if (oneob_type=='q') then
             obs(2,k)=ob1
             qms(2,k)=qm(k,n)
             err(2,k)=oberror
             qms(3,k)=qm(k,n)
+          else if ( (oneob_type=='uv') ) then
+            obs(5,k)=ob1
+            obs(6,k)=ob2
+            qms(5,k)=qm(k,n)
+            err(4,k)=oberror
           end if
        enddo
+
        call openmb(lendian_in,subset,idate)
        call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
        call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
        call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
        call ufbint(lendian_in,err,10,nlev,iret,errstr)
        call writsb(lendian_in)
-       hdr(1)=transfer(sid(n),hdr(1))
-       hdr(2)=xob(n)
-       hdr(3)=yob(n)
-       hdr(4)=dhr(n)
-       hdr(5)=200+typ(n)
-       obs=bmiss
-       qms=bmiss
-       err=bmiss
-       do k=1,nlev
-          obs(1,k)=obpres
-          obs(7,k)=cat(k,n)
-          qms(1,k)=qm(k,n)
-          err(1,k)=oberror
-          if ( (oneob_type=='uv') ) then
-             obs(5,k)=ob1
-             obs(6,k)=ob2
-             qms(5,k)=qm(k,n)
-             err(4,k)=oberror
-          end if
-       enddo
-       call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
-       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
-       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
-       call ufbint(lendian_in,err,10,nlev,iret,errstr)
-       call writsb(lendian_in)
+
     enddo
     call closbf(lendian_in)
 
-    return
 end program makeoneobbufr
 

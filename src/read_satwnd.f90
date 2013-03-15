@@ -25,6 +25,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -198,6 +200,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   rewind ietabl
   etabl=1.e9_r_kind
   lcount=0
+  pflag=0
   loopd : do
      read(ietabl,100,IOSTAT=iflag) itypex
      if( iflag /= 0 ) exit loopd
@@ -702,8 +705,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else
               dlon=dlon_earth
               dlat=dlat_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !!   detect surface type for infrad IR winds monitoring over land for lat greter than 20N

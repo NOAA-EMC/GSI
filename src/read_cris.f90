@@ -22,6 +22,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -116,7 +118,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
-  integer(i_kind)   :: jstart
+  integer(i_kind)   :: jstart, kidsat, ksatid
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
   integer(i_kind)   :: nchanl
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -133,7 +135,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: clr_amt,piece
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
-  real(r_kind)     :: sat_height_ratio
+  real(r_kind)     :: sat_height_ratio, rsat
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind)     :: sat_zenang, sat_look_angle, look_angle_est
   real(crtm_kind)  :: radiance
@@ -188,6 +190,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   ilat=4
   bad_line=-1
 
+  if(jsatid == 'npp') then
+     kidsat=224
+  else 
+     write(*,*) 'READ_CrIS: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
+
   if (nst_gsi > 0 ) then
     call skindepth(obstype,zob)
   endif
@@ -210,7 +219,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   senname = 'CRIS'
   
   allspotlist= &
-     'SIID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
+     'SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
@@ -373,6 +382,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         call ufbint(lnbufr,allspot,13,1,iret,allspotlist)
         if(iret /= 1) cycle read_loop
 
+!       Extract satellite id.  If not the one we want, read next record
+        rsat=allspot(1) 
+        ksatid=nint(allspot(1))
+        if(ksatid /= kidsat) cycle read_loop
+
 !    Check observing position
         dlat_earth = allspot(8)   ! latitude
         dlon_earth = allspot(9)   ! longitude
@@ -417,8 +431,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 !    Check obs time
@@ -495,6 +509,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !xxx        call ufbrep(lnbufr,cloud_frac,1,6,iret,'TOCC')
 !xxx!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 !xxx        pred = cloud_frac(1)
+            pred = 100.0_r_kind    ! pred needs to have a value for WCOSS debug execution to work.
 
 ! As cloud_frac is missing from BUFR, use proxy of warmest fov over 
 ! non ice surfaces.  Fixed channels (assuming the 399 set) for now.
@@ -605,7 +620,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
         endif
 
-        data_all(1,itx) = allspot(1)             ! satellite ID
+        data_all(1,itx) = rsat                   ! satellite ID
         data_all(2,itx) = t4dv                   ! time diff (obs-anal) (hrs)
         data_all(3,itx) = dlon                   ! grid relative longitude
         data_all(4,itx) = dlat                   ! grid relative latitude

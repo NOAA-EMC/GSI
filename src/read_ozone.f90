@@ -58,6 +58,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !   2012-10-12  h.liu  - read in MLS v2 Near Real Time (NRT) and v2.2 standard bufr data
 !   2013-01-17  h.liu  - read in MLS v3 Near Real Time (NRT) 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -293,8 +294,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
 !    Special check for NOAA-17 version 6
@@ -452,6 +453,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      rsat = hdrozg(1); ksatid=rsat
 
      if(jsatid == 'metop-a')kidsat = 4
+     if(jsatid == 'metop-b')kidsat = 3
+     if(jsatid == 'metop-c')kidsat = 5
 
      if (ksatid /= kidsat) go to 120
 
@@ -475,8 +478,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
      
 !    Convert observation time to relative time
@@ -623,8 +626,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! convert observation time to relative time
@@ -776,8 +779,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         nmrecs=nmrecs+1
         idate5(1) = iy !year
@@ -892,7 +895,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         write(6,*) 'invalid vertical level number: ', nloz
         write(6,*) '******STOP*******: error reading MLS vertical levels in read_ozone.f90'
-        call stop2(336)
+        call stop2(338)
      end if
      deallocate(hdrmlsl)
 
@@ -981,8 +984,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! convert observation time to relative time
