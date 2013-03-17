@@ -25,6 +25,13 @@ subroutine obs_para(ndata,mype)
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
 !   2009-04-21  derber  - reformulate to remove communication
 !   2008-05-10  meunier - handle for lagrangian data
+!   2013-01-26  parrish - attempt fix for bug flagged by WCOSS debug compiler.
+!                            Replace 
+!                              "call dislag(.....,nobs_s)"
+!                            with
+!                              "call dislag(.....,nobs_s(mm1))"
+!                           nobs_s is an array in current subroutine, but is a
+!                           scalar inside subroutine dislag.
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -81,7 +88,10 @@ subroutine obs_para(ndata,mype)
 
         if (dtype(is)=='lag') then    ! lagrangian data
            call dislag(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is),&
-                nobs_s)
+                nobs_s(mm1))    !!!!!!! WAS nobs_s), WHICH IS AN ERROR, because inside dislag, nobs_s
+                                !!!!!!! is not dimensioned, but here it has dimension nobs_s(npe)!!!!!!
+                                !!!!!!!! this is not necessarily the proper fix--just gets compile debug
+                                !!!!!!!!! to work!!!!!!!!!!!!!!!!!!!!
         else                          ! classical observations
            call disobs(ndata(is,1),mm1,lunout,obsfile_all(is),dtype(is), &
                  mype_diaghdr(is),nobs_s)

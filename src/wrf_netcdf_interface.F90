@@ -890,6 +890,7 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !                          wrf nmm netcdf format)
 !   2012-01-13  zhu     - add cloud hydrometeors
 !   2012-10-11  eliu    - modify to add the use of use_gfs_stratosphere
+!   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1203,8 +1204,8 @@ subroutine convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
 !                                         nsig_regional 
      nsig_read=nsig_regional  ! hold the original nsig_regional
      if(use_gfs_stratosphere) then  ! get new vertical coordinate           
-        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max))
-        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max))
+        allocate(deta1_new(nsig_max),aeta1_new(nsig_max),eta1_new(nsig_max+1))
+        allocate(deta2_new(nsig_max),aeta2_new(nsig_max),eta2_new(nsig_max+1))
         call mix_gfs_nmmb_vcoords(deta1,aeta1,eta1,deta2,aeta2,eta2, &
                                   pdtop_regional,pt_regional,nsig_regional, &
                                   deta1_new,aeta1_new,eta1_new,deta2_new,aeta2_new,eta2_new,nsig_regional_new)

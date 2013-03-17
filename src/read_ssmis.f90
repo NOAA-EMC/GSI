@@ -51,6 +51,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-02  gayno - add processing of future satellites for FOV-based
 !                       surface field calculation and improved its error handling
 !                       (isfcalc=1)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -96,7 +98,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(inout) :: mype,lunout,ithin,isfcalc
+  integer(i_kind) ,intent(in   ) :: mype
+  integer(i_kind) ,intent(inout) :: lunout,ithin,isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -376,8 +379,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         else
            dlat=dlat_earth
            dlon=dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
         if (l4dvar) then

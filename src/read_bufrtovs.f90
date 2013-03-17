@@ -79,6 +79,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
 !   2011-12-14  collard Remove ATMS
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -282,8 +283,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   if(jsatid == 'n18')kidsat=209
   if(jsatid == 'n19')kidsat=223
   if(jsatid == 'metop-a')kidsat=4
-  if(jsatid == 'metop-b')kidsat=5
-  if(jsatid == 'metop-c')kidsat=6
+  if(jsatid == 'metop-b')kidsat=3
+  if(jsatid == 'metop-c')kidsat=5
   if(jsatid == 'npp')kidsat=224
 
   radedge_min = 0
@@ -563,8 +564,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            else
               dlat=dlat_earth
               dlon=dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !          Extract date information.  If time outside window, skip this obs

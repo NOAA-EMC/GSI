@@ -186,6 +186,7 @@ contains
 !   2008-06-04  safford - rm unused vars
 !   2010-08-23  tong - add flg as an input argument of map3grids, so that the order of values 
 !                      of the vertical cooridnate can either increase or decrease 
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     flg        - marks order of values in vertical dirction (1=increasing, -1=decreasing)
@@ -246,17 +247,17 @@ contains
     dlon1=dlon_earth
     pob1=pob
 
-    call grdcrd(pob1,1,pcoord,nlevp,flg)
+    call grdcrd1(pob1,pcoord,nlevp,flg)
     ip=int(pob1)
     dp=pob1-ip
     ip=max(1,min(ip,nlevp))
     
-    call grdcrd(dlat1,1,glat,mlat,1)
+    call grdcrd1(dlat1,glat,mlat,1)
     iy=int(dlat1)
     dy=dlat1-iy
     iy=max(1,min(iy,mlat))
     
-    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
+    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
     ix=int(dlon1)
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))

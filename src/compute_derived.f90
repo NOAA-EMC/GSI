@@ -105,7 +105,7 @@ subroutine compute_derived(mype,init_pass)
   use gridmod, only: wrf_nmm_regional,wrf_mass_regional
   use berror, only: hswgt
   use balmod, only: rllat1,llmax
-  use mod_strong, only: jcstrong,baldiag_full
+  use mod_strong, only: l_tlnmc,baldiag_full
   use obsmod, only: write_diag
   use gsi_4dvar, only: l4dvar
 
@@ -283,7 +283,7 @@ subroutine compute_derived(mype,init_pass)
 !          ges_tv_ten ---> ges_tsen_ten
            ges_tsen_ten = ges_tv_ten*fact_tv
 
-           if(jcstrong .and. write_diag(jiter) .and. baldiag_full) then
+           if(l_tlnmc .and. write_diag(jiter) .and. baldiag_full) then
               fullfield=.true.
 
 

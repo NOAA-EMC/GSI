@@ -43,6 +43,8 @@ subroutine prewgt_reg(mype)
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
 !   2012-12-15  zhu     - add treatment of dssv for cw
+!   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
+!                          (fixes WCOSS debug compile error)
 !
 !   input argument list:
 !     mype     - pe number
@@ -66,7 +68,7 @@ subroutine prewgt_reg(mype)
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,slw
+       init_rftable,hzscl,slw,nhscrf
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: qoption
   use control_vectors, only: cvars2d,cvars3d
@@ -156,6 +158,7 @@ subroutine prewgt_reg(mype)
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
 
 ! find ozmz for background error variance
+  kb=0
   if(regional_ozone) then
 
      kb_loop: do k=1,nsig
@@ -225,7 +228,7 @@ subroutine prewgt_reg(mype)
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
 ! the parameter values here.
-  do i=1,3
+  do i=1,nhscrf
      hzscl(i)=one/hzscl(i)
   end do
 

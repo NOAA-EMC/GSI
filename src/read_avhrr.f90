@@ -34,8 +34,9 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !                         (5) add observation scoring for thinning
-!
 !   2011-08-01  lueken  - added module use deter_sfc_mod, fixed indentation
+!   2013-01-22  zhu     - add newpc4pred option
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   input argument list:
 !     mype     - mpi task id
 !     val_avhrr- weighting factor applied to super obs
@@ -64,7 +65,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
       finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
-  use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: cbias,predx,air_rad,ang_rad,retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl,newpc4pred
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
@@ -178,6 +179,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   if(jsatid == 'n18')bufsat = 209
   if(jsatid == 'n19')bufsat = 223
   if(jsatid == 'metop-a')bufsat = 4
+  if(jsatid == 'metop-b')bufsat = 3
+  if(jsatid == 'metop-c')bufsat = 5
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -281,8 +284,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         else
            dlat = dlat_earth
            dlon = dlon_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
         if (l4dvar) then
            crit1 = 0.01_r_kind
@@ -297,8 +300,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 !       Interpolate hi-res sst analysis to observation location
         dlat_sst = dlat_earth
         dlon_sst = dlon_earth
-        call grdcrd(dlat_sst,1,rlats_sst,nlat_sst,1)
-        call grdcrd(dlon_sst,1,rlons_sst,nlon_sst,1)
+        call grdcrd1(dlat_sst,rlats_sst,nlat_sst,1)
+        call grdcrd1(dlon_sst,rlons_sst,nlon_sst,1)
 
         klon1=int(dlon_sst); klat1=int(dlat_sst)
         dx  =dlon_sst-klon1; dy  =dlat_sst-klat1
@@ -352,8 +355,13 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
 
-        ch_win    = bufrf(3,2+ich_win) -ang_rad(ich_win)*cbias(ifov,ich_win)- &
-                   r01*predx(1,ich_win)*air_rad(ich_win)
+        if (newpc4pred) then
+           ch_win = bufrf(3,2+ich_win) -ang_rad(ich_win)*cbias(ifov,ich_win)- &
+                       predx(1,ich_win)*air_rad(ich_win)
+        else
+           ch_win = bufrf(3,2+ich_win) -ang_rad(ich_win)*cbias(ifov,ich_win)- &
+                       r01*predx(1,ich_win)*air_rad(ich_win)
+        end if
         ch_win_flg = tsavg-ch_win
         pred   = 10.0_r_kind*max(zero,ch_win_flg)
 

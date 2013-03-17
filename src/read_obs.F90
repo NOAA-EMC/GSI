@@ -109,6 +109,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !   2009-??-??  derber   - originally placed inside inquire
 !   2009-01-05  todling  - move time/type-check out of inquire
 !   2010-09-13  pagowski - add anow bufr and one obs chem
+!   2013-01-26  parrish - WCOSS debug compile fails with satid not initialized.
+!                         Set satid=1 at start of subroutine to allow debug compile.
+!                           
 !
 !   input argument list:
 !    lexist    - file status
@@ -147,6 +150,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   character(len=256) command, fname
   character(8) subset
 
+  satid=1      ! debug executable wants default value ???
   idate=0
   if(trim(dtype) == 'tcp')return
 ! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
@@ -180,9 +184,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
        else if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
-         kidsat=5
+         kidsat=3
        else if(jsatid == 'metop-c')then
-         kidsat=6
+         kidsat=5
        else if(jsatid == 'm08')then
          kidsat = 55 
        else if(jsatid == 'm09')then
@@ -422,6 +426,8 @@ subroutine read_obs(ndata,mype)
 !   2011-04-02  li       - add nst_gsi, getnst and destroy_nst
 !   2011-05-20  mccarty  - add cris/atms handling
 !   2011-05-26  todling  - add call to create_nst
+!   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
+!                         Commented out extra line of arguments not used.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -672,7 +678,9 @@ subroutine read_obs(ndata,mype)
           ears_possible(i) = ditype(i) == 'rad'  .and.       & 
                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
                    obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
-                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. dplat(i) == 'metop-a') 
+                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. &
+                   dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
+                   dplat(i) == 'metop-c') 
 !   Inquire data set to deterimine if input data available and size of dataset
           ii=ii+1
           if (ii>npem1) ii=0
@@ -1145,8 +1153,8 @@ subroutine read_obs(ndata,mype)
 !         Process aerosol data
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
-                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)   ! ?????, &
+             !    mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))      !??? extra args???
              string='READ_AEROSOL'
              
           end if
