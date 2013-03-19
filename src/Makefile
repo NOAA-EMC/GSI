@@ -191,6 +191,7 @@ clean:
 	gfs_stratosphere.f90 \
 	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
+        adjtest_obs.f90 \
 	aeroinfo.f90 \
         aircraftobsqc.f90 \
 	anberror.f90 \

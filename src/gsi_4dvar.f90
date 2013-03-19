@@ -20,6 +20,7 @@ module gsi_4dvar
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !   2011-07-10 guo/zhang- add liauon
 !   2012-02-08 kleist   - add new features for 4dvar with ensemble/hybrid.
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 ! Subroutines Included:
 !   sub init_4dvar    -
@@ -61,6 +62,7 @@ module gsi_4dvar
 !   iwrtinc           - When >0, writes out increment from iwrtinc-index slot
 !
 !   ladtest           - Run adjoint test
+!   ladtest_obs       - Run adjoint test for obervation
 !   lgrtest           - Run gradient test
 !   ltcost            - When .t., calc true cost within Lanczos (expensive)
 !
@@ -99,7 +101,7 @@ module gsi_4dvar
   public :: iadatebgn,l4dvar,nobs_bins,nhr_assimilation,lsqrtb,lbicg,nsubwin
   public :: hr_obsbin,ltlint,idmodel,iwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
-  public :: ladtest,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
+  public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
   public :: jsiga,ltcost,iorthomax,liauon
   public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
 
@@ -110,6 +112,7 @@ module gsi_4dvar
   logical         :: lbfgsmin
   logical         :: ltlint
   logical         :: ladtest
+  logical         :: ladtest_obs
   logical         :: lgrtest
   logical         :: idmodel
   logical         :: lanczosave
@@ -177,6 +180,7 @@ min_offset=180
 nhr_subwin=-1
 nhr_obsbin=-1
 ladtest=.false.
+ladtest_obs=.false.
 lgrtest=.false.
 idmodel= .true.
 lanczosave = .false.
@@ -331,7 +335,7 @@ if (mype==0) then
    write(6,*)'SETUP_4DVAR: lcongrad=',lcongrad
    write(6,*)'SETUP_4DVAR: lbfgsmin=',lbfgsmin
    write(6,*)'SETUP_4DVAR: ltlint=',ltlint
-   write(6,*)'SETUP_4DVAR: ladtest,lgrtest=',ladtest,lgrtest
+   write(6,*)'SETUP_4DVAR: ladtest,ladtest_obs,lgrtest=',ladtest,ladtest_obs,lgrtest
    write(6,*)'SETUP_4DVAR: iwrtinc=',iwrtinc
    write(6,*)'SETUP_4DVAR: lanczosave=',lanczosave
    write(6,*)'SETUP_4DVAR: ltcost=',ltcost

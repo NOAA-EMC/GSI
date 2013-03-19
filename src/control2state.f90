@@ -30,7 +30,7 @@ subroutine control2state(xhat,sval,bval)
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro
 !   2012-02-08  kleist   - remove call to strong_bk, ensemble_forward_model, 
 !                             ensemble_forward_model_dual_res, and related parameters
-
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - updated for obs adjoint test and added ladtest_obs  
 !
 !   input argument list:
 !     xhat - Control variable
@@ -46,8 +46,8 @@ use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
-use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
+use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb, ladtest_obs
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon
 use jfunc, only: nsclen,npclen,nrclen
 use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
@@ -61,6 +61,8 @@ use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
 use constants, only : max_varname_length, zero
+use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+use general_commvars_mod, only: s2g_cv
 implicit none
   
 ! Declare passed variables  
@@ -72,6 +74,7 @@ type(predictors)    , intent(inout) :: bval
 character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
+real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)      :: hwork
 integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle):: wbundle ! work bundle
 
@@ -176,7 +179,12 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
    if (icvis >0) call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
-
+   if(ladtest_obs) then
+! Convert from subdomain to full horizontal field distributed among processors
+      call general_sub2grid(s2g_cv,wbundle%values,hwork)
+! Put back onto subdomains
+      call general_grid2sub(s2g_cv,hwork,wbundle%values)
+   end if
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
