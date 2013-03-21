@@ -11,6 +11,7 @@ module inttmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intt_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intt_
@@ -70,6 +71,7 @@ subroutine intt_(thead,rval,sval)
 !                    - add nrf2_sst case; add pointer_state
 !   2010-05-13  todling  - update to use gsi_bundle
 !                        - on-the-spot handling of non-essential vars
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -111,6 +113,7 @@ subroutine intt_(thead,rval,sval)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundleprint
+  use gsi_4dvar, only: ladtest_obs 
   implicit none
   
 
@@ -280,7 +283,7 @@ subroutine intt_(thead,rval,sval)
            grad=tptr%diags%obssen(jiter)
 
         else
-           val=val-tptr%res
+           if( .not. ladtest_obs)   val=val-tptr%res
  
 !          gradient of nonlinear operator
 
@@ -293,8 +296,11 @@ subroutine intt_(thead,rval,sval)
               p0=wgross/(wgross+exp(-half*tptr%err2*val**2))
               val=val*(one-p0)                  
            endif
-
-           grad = val*tptr%raterr2*tptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*tptr%raterr2*tptr%err2
+           end if
         endif
 
 !       Adjoint of interpolation

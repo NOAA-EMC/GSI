@@ -1,4 +1,183 @@
-subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
+module nlmsas_ad_mod
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    nlmsas_ad_mod   module wrapper around subroutine nlmsas_ad
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract: This module has been added as a wrapper around subroutine nlmsas_ad
+!            to eliminate type mismatch compile errors when using the debug
+!            compile option on WCOSS.
+!
+! program history log:
+!   2012-01-26  parrish
+!
+! subroutines included:
+!  nlmsas_ad
+!  nlmsas_ad_1_1_
+!  nlmsas_ad_im_ix_
+
+  implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: nlmsas_ad
+
+  interface nlmsas_ad
+     module procedure nlmsas_ad_1_1_
+     module procedure nlmsas_ad_im_ix_
+  end interface
+
+contains
+
+subroutine nlmsas_ad_1_1_(im,ix,km,jcap,delt,del_,sl_,rcs_,&
+     slimsk_,xkt2_,ncloud,ps_, &
+     t0_,q0_,cwm0_,u0_,v0_,dot0_, &
+     t1_,q1_,cwm1_,u1_,v1_,rn1_, &
+     cldwrk_,kbot_,ktop_,jmin_,kuo_,kb_, &
+     t0_ad_,q0_ad_,cwm0_ad_,u0_ad_,v0_ad_,dot0_ad_, &
+     t1_ad_,q1_ad_,cwm1_ad_,u1_ad_,v1_ad_,rn1_ad_, &
+     adjoint)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nlmsas_ad_1_1_
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract:  interface for nlmsas_ad, where im=1,ix=1, and calling routine has
+!              no dimension index corresponding to im and ix.
+!
+! program history log:
+!   2013-01-26  parrish - initial documentation
+!
+!   input argument list:
+!     im,ix,km,jcap,ncloud,adjoint,delt
+!     del_(km),sl_(km),rcs_,slimsk_,xkt2_,ps_,t0_(km),q0_(km),cwm0_(km),u0_(km),v0_(km),dot0_(km)
+!     t1_(km),q1_(km),cwm1_(km),u1_(km),v1_(km),rn1_,cldwrk_,kbot_,ktop_,jmin_,kuo_,kb_
+!     t0_ad_(km),q0_ad_(km),cwm0_ad_(km),u0_ad_(km),v0_ad_(km),dot0_ad_(km)
+!     t1_ad_(km),q1_ad_(km),cwm1_ad_(km),u1_ad_(km),v1_ad_(km),rn1_ad_
+!
+!   output argument list:
+!     t1_(km),q1_(km),cwm1_(km),u1_(km),v1_(km),rn1_,cldwrk_,kbot_,ktop_,jmin_,kuo_,kb_
+!     t0_ad_(km),q0_ad_(km),cwm0_ad_(km),u0_ad_(km),v0_ad_(km),dot0_ad_(km)
+!     t1_ad_(km),q1_ad_(km),cwm1_ad_(km),u1_ad_(km),v1_ad_(km),rn1_ad_
+
+  use kinds, only: r_kind,i_kind
+  implicit none
+
+  integer(i_kind), intent(in   ) :: im,ix,km,jcap,ncloud
+  logical,         intent(in   ) :: adjoint
+  real(r_kind),    intent(in   ) :: delt
+
+  real(r_kind),    intent(in   ) :: del_(km),sl_(km),rcs_,slimsk_
+  real(r_kind),    intent(in   ) :: xkt2_,ps_,t0_(km),q0_(km),cwm0_(km),u0_(km),v0_(km)
+  real(r_kind),    intent(in   ) :: dot0_(km)
+  real(r_kind),    intent(inout) :: t1_(km),q1_(km),cwm1_(km)
+  real(r_kind),    intent(inout) :: u1_(km),v1_(km),rn1_,cldwrk_
+  integer(i_kind), intent(inout) :: kbot_,ktop_,jmin_,kuo_
+  integer(i_kind), intent(inout) :: kb_
+  real(r_kind),    intent(inout) :: t0_ad_(km),q0_ad_(km),cwm0_ad_(km)
+  real(r_kind),    intent(inout) :: u0_ad_(km),v0_ad_(km),dot0_ad_(km)
+  real(r_kind),    intent(inout) :: t1_ad_(km),q1_ad_(km),cwm1_ad_(km),u1_ad_(km),v1_ad_(km)
+  real(r_kind),    intent(inout) :: rn1_ad_
+
+
+  real(r_kind)     :: del(km,ix),sl(km,ix),rcs(ix),slimsk(ix)
+  real(r_kind)     :: xkt2(ix),ps(ix),t0(km,ix),q0(km,ix),cwm0(km,ix),u0(km,ix),v0(km,ix)
+  real(r_kind)     :: dot0(km,ix)
+  real(r_kind)     :: t1(km,ix),q1(km,ix),cwm1(km,ix)
+  real(r_kind)     :: u1(km,ix),v1(km,ix),rn1(ix),cldwrk(ix)
+  integer(i_kind)  :: kbot(ix),ktop(ix),jmin(ix),kuo(ix)
+  integer(i_kind)  :: kb(ix)
+  real(r_kind)     :: t0_ad(km,ix),q0_ad(km,ix),cwm0_ad(km,ix)
+  real(r_kind)     :: u0_ad(km,ix),v0_ad(km,ix),dot0_ad(km,ix)
+  real(r_kind)     :: t1_ad(km,ix),q1_ad(km,ix),cwm1_ad(km,ix),u1_ad(km,ix),v1_ad(km,ix)
+  real(r_kind)     :: rn1_ad(ix)
+
+  integer(i_kind) k
+
+  if( im /= 1 .or. ix /= 1 ) then
+     write(6,*)' NLMSAS_AD_1_1_, IM,IX=',IM,IX,' -- BOTH MUST BE 1.  PROGRAM FAILS'
+     stop
+  end if
+
+  rcs(1)=rcs_
+  slimsk(1)=slimsk_
+  xkt2(1)=xkt2_
+  ps(1)=ps_
+  rn1(1)=rn1_
+  cldwrk(1)=cldwrk_
+  kbot(1)=kbot_
+  ktop(1)=ktop_
+  jmin(1)=jmin_
+  kuo(1)=kuo_
+  kb(1)=kb_
+  rn1_ad(1)=rn1_ad_
+  do k=1,km
+     del(k,1)=del_(k)
+     sl(k,1)=sl_(k)
+     t0(k,1)=t0_(k)
+     q0(k,1)=q0_(k)
+     cwm0(k,1)=cwm0_(k)
+     u0(k,1)=u0_(k)
+     v0(k,1)=v0_(k)
+     dot0(k,1)=dot0_(k)
+     t1(k,1)=t1_(k)
+     q1(k,1)=q1_(k)
+     cwm1(k,1)=cwm1_(k)
+     u1(k,1)=u1_(k)
+     v1(k,1)=v1_(k)
+     t0_ad(k,1)=t0_ad_(k)
+     q0_ad(k,1)=q0_ad_(k)
+     cwm0_ad(k,1)=cwm0_ad_(k)
+     u0_ad(k,1)=u0_ad_(k)
+     v0_ad(k,1)=v0_ad_(k)
+     dot0_ad(k,1)=dot0_ad_(k)
+     t1_ad(k,1)=t1_ad_(k)
+     q1_ad(k,1)=q1_ad_(k)
+     cwm1_ad(k,1)=cwm1_ad_(k)
+     u1_ad(k,1)=u1_ad_(k)
+     v1_ad(k,1)=v1_ad_(k)
+  end do
+
+  call nlmsas_ad_im_ix_(im,ix,km,jcap,delt,del,sl,rcs,&
+     slimsk,xkt2,ncloud,ps, &
+     t0,q0,cwm0,u0,v0,dot0, &
+     t1,q1,cwm1,u1,v1,rn1, &
+     cldwrk,kbot,ktop,jmin,kuo,kb, &
+     t0_ad,q0_ad,cwm0_ad,u0_ad,v0_ad,dot0_ad, &
+     t1_ad,q1_ad,cwm1_ad,u1_ad,v1_ad,rn1_ad, &
+     adjoint)
+
+  rn1_=rn1(1)
+  cldwrk_=cldwrk(1)
+  kbot_=kbot(1)
+  ktop_=ktop(1)
+  jmin_=jmin(1)
+  kuo_=kuo(1)
+  kb_=kb(1)
+  rn1_ad_=rn1_ad(1)
+  do k=1,km
+     t1_(k)=t1(k,1)
+     q1_(k)=q1(k,1)
+     cwm1_(k)=cwm1(k,1)
+     u1_(k)=u1(k,1)
+     v1_(k)=v1(k,1)
+     t0_ad_(k)=t0_ad(k,1)
+     q0_ad_(k)=q0_ad(k,1)
+     cwm0_ad_(k)=cwm0_ad(k,1)
+     u0_ad_(k)=u0_ad(k,1)
+     v0_ad_(k)=v0_ad(k,1)
+     dot0_ad_(k)=dot0_ad(k,1)
+     t1_ad_(k)=t1_ad(k,1)
+     q1_ad_(k)=q1_ad(k,1)
+     cwm1_ad_(k)=cwm1_ad(k,1)
+     u1_ad_(k)=u1_ad(k,1)
+     v1_ad_(k)=v1_ad(k,1)
+  end do
+
+end subroutine nlmsas_ad_1_1_
+
+subroutine nlmsas_ad_im_ix_(im,ix,km,jcap,delt,del,sl,rcs,&
      slimsk,xkt2,ncloud,ps, &
      t0,q0,cwm0,u0,v0,dot0, &
      t1,q1,cwm1,u1,v1,rn1, &
@@ -31,6 +210,9 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
 !   2006-04-12  treadon - change del and sl from 1d to 2d arrays
 !   2008-04-29  safford - rm unused vars
 !   2008-10-29  min-jeong kim - make consistent with global_fcst
+!   2013-01-26  parrish - module added as a wrapper around subroutine nlmsas_ad
+!                            to eliminate type mismatch compile errors when using the debug
+!                            compile option on WCOSS.
 !
 !  input argument list:
 !     im       - integer number of points
@@ -92,23 +274,26 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
        half,rd,grav,r1000,r3600
   implicit none  
 
-  integer(i_kind) ix,km
-  integer(i_kind),dimension(ix):: kbot,ktop,kuo
-  real(r_kind) del(km,ix),sl(km,ix),ps(ix)
-  real(r_kind) t0(km,ix),q0(km,ix),t1(km,ix),q1(km,ix),cwm1(km,ix),&
-       u1(km,ix),v1(km,ix),rn1(ix),slimsk(ix),dot0(km,ix),cldwrk(ix)
-  real(r_kind) u0(km,ix),v0(km,ix),rcs(ix),cwm0(km,ix)
-  real(r_kind) t0_ad(km,ix),q0_ad(km,ix),cwm0_ad(km,ix)
-  real(r_kind) u0_ad(km,ix),v0_ad(km,ix),dot0_ad(km,ix)
-  real(r_kind) t1_ad(km,ix),q1_ad(km,ix),rn1_ad(ix)
-  real(r_kind) u1_ad(km,ix),v1_ad(km,ix),cwm1_ad(km,ix)
+  integer(i_kind), intent(in   ) :: im,ix,km,jcap,ncloud
+  logical adjoint
+  real(r_kind),    intent(in   ) :: delt
+  real(r_kind),    intent(in   ) :: del(km,ix),sl(km,ix),rcs(ix),slimsk(ix)
+  real(r_kind),    intent(in   ) :: xkt2(ix),ps(ix),t0(km,ix),q0(km,ix),cwm0(km,ix),u0(km,ix),v0(km,ix)
+  real(r_kind),    intent(in   ) :: dot0(km,ix)
+  real(r_kind),    intent(inout) :: t1(km,ix),q1(km,ix),cwm1(km,ix)
+  real(r_kind),    intent(inout) :: u1(km,ix),v1(km,ix),rn1(ix),cldwrk(ix)
+  integer(i_kind), intent(inout) :: kbot(ix),ktop(ix),jmin(ix),kuo(ix)
+  integer(i_kind), intent(inout) :: kb(ix)
+  real(r_kind),    intent(inout) :: t0_ad(km,ix),q0_ad(km,ix),cwm0_ad(km,ix)
+  real(r_kind),    intent(inout) :: u0_ad(km,ix),v0_ad(km,ix),dot0_ad(km,ix)
+  real(r_kind),    intent(inout) :: t1_ad(km,ix),q1_ad(km,ix),cwm1_ad(km,ix),u1_ad(km,ix),v1_ad(km,ix)
+  real(r_kind),    intent(inout) :: rn1_ad(ix)
 
 ! Local variables and arrays
-  logical adjoint
   logical,dimension(ix):: cnvflg,dwnflg,dwnflg2,flg
   logical,dimension(km,ix):: flgk
 
-  integer(i_kind) kb(ix),kbcon(ix),lmin(ix),jmin(ix),ktcon(ix),kbdtr(ix)
+  integer(i_kind) kbcon(ix),lmin(ix),ktcon(ix),kbdtr(ix)
  
   real(r_kind) term,r1200
   real(r_kind) to2(km,ix),qo2(km,ix)
@@ -142,7 +327,6 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   real(r_kind) mbdt
   real(r_kind) rntot(ix)
   
-  real(r_kind) xkt2(ix)
   integer(i_kind) kt2(ix)
       
 !new
@@ -203,7 +387,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   real(r_kind) etau_ad(km,ix),xlamdet1_ad(ix),xlamdet0_ad(ix)
   real(r_kind) sumz_ad(km,ix),sumh_ad(km,ix),qol0_ad(km,ix)
   
-  integer(i_kind) k,ncloud,indx,jmn,i,im,jcap
+  integer(i_kind) k,indx,jmn,i
   integer(i_kind),dimension(ix):: kbmax,kbm,kmax
   
   real(r_kind) rterm,fjcap
@@ -226,7 +410,7 @@ subroutine nlmsas_ad(im,ix,km,jcap,delt,del,sl,rcs,&
   real(r_kind) edtmaxl,edtmaxs,dz1,rfact,term6,qevap0,qevap1,delq2,qcond,term5
   real(r_kind) w1l,w2l,w3l,w4l,w1s,w2s,w3s,w4s,w1,w2,w3,w4,ratio,xpwd,evef,rn0
   real(r_kind) xpw,xqc,dqs,heol2,fuv,onemfu,uol2,vol2,dvv1,fixed,fkm,dtmin,dtmax
-  real(r_kind) dt2,delt,alphal,alphas,adt,es0,po,esl,alpha,pdetrn,pdpdwn,xlambu
+  real(r_kind) dt2,alphal,alphas,adt,es0,po,esl,alpha,pdetrn,pdpdwn,xlambu
   real(r_kind) dz,qevap,desdt,dqsdt,dqsdp,dt,pprime,qs,tem1,tem2,e1,dif,val,es
   real(r_kind) delqev,dlnsig,evfact
   
@@ -4426,4 +4610,6 @@ contains
     dftanh = half/(cosh(x)**2)
   end function dftanh
 
-end subroutine nlmsas_ad
+end subroutine nlmsas_ad_im_ix_
+
+end module nlmsas_ad_mod

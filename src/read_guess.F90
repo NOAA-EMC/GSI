@@ -60,6 +60,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !                         depend on obsmod - that's why idate not passed via common block
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
 !   2010-10-21  r. yang - pass dd for read_gsf_chem
+!   2012-02-21  wu      - remove regional_ozone--causes conflict with using gfs ozone
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -82,7 +83,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
   use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
-       twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone,regional_ozone
+       twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
   use gridmod, only: use_gfs_nemsio
   use gfs_stratosphere, only: use_gfs_stratosphere
 
@@ -184,7 +185,7 @@ subroutine read_guess(iyear,month,idd,mype)
   call load_geop_hgt
 
 !  If this is a regional run and ozone is desired from the gfs model, bring it in here:
-  if(regional.and.use_gfs_ozone.and.regional_ozone.and..not.use_gfs_stratosphere) &
+  if(regional.and.use_gfs_ozone.and..not.use_gfs_stratosphere) &
               call read_gfs_ozone_for_regional
   
   return

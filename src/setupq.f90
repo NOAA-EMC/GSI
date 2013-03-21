@@ -64,6 +64,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-10-14  Hu      - add code for adjusting surface moisture observation error
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
 !                                       layer based on surface obs Q
+!   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -122,9 +124,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(len=*),parameter:: myname='setupq'
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
-  external:: tintrp3
-  external:: grdcrd
+  external:: tintrp2a1,tintrp2a11
+  external:: tintrp31
+  external:: grdcrd1
   external:: genqsat
   external:: stop2
 
@@ -340,10 +342,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
-     call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
-     call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          1,nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
      presq=r10*exp(dpres)
      itype=ictype(ikx)
@@ -354,11 +356,11 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    Put obs pressure in correct units to get grid coord. number
-     call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+     call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 !    Get approximate k value of surface by using surface pressure
      sfcchk=log(psges)
-     call grdcrd(sfcchk,1,prsltmp(1),nsig,-1)
+     call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 !    Check to see if observations is above the top of the model (regional mode)
      if( dpres>=nsig+1)dprpx=1.e6_r_kind
@@ -366,8 +368,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Scale errors by guess saturation q
  
-     call tintrp3(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
-          1,mype,nfldsig)
+     call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+          mype,nfldsig)
 
 !    Load obs error and value into local variables
      obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
@@ -407,8 +409,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! Interpolate guess moisture to observation location and time
-     call tintrp3(ges_q,qges,dlat,dlon,dpres,dtime, &
-        hrdifsig,1,mype,nfldsig)
+     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+        hrdifsig,mype,nfldsig)
 
 ! Compute innovations
 
@@ -697,10 +699,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            +data(iqob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
 !!! find qges (qgint)
        dpk=k
-     call tintrp3(ges_q,qgint,dlat,dlon,dpk,dtime, &
-        hrdifsig,1,mype,nfldsig)
-     call tintrp3(qg,qsges,dlat,dlon,dpk,dtime,hrdifsig,&
-          1,mype,nfldsig)
+     call tintrp31(ges_q,qgint,dlat,dlon,dpk,dtime, &
+        hrdifsig,mype,nfldsig)
+     call tintrp31(qg,qsges,dlat,dlon,dpk,dtime,hrdifsig,&
+          mype,nfldsig)
 
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location
         call get_ijk(mm1,dlat,dlon,dpk,qtail(ibin)%head%ij(1),qtail(ibin)%head%wij(1))
@@ -736,8 +738,8 @@ endif    !   itype=120
            muse(i) .and. dpres > -1.0_r_kind ) then
         prestsfc=prest
         diffsfc=ddiff
-        call tintrp2a(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
-                1,1,mype,nfldsig)
+        call tintrp2a11(pbl_height,thisPBL_height,dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
         ratio_PBL_height = (prest - thisPBL_height) * pblH_ration
         if(ratio_PBL_height > zero) thisPBL_height = prest - ratio_PBL_height
         prest = prest - pps_press_incr
@@ -752,14 +754,14 @@ endif    !   itype=120
 
 !    Put obs pressure in correct units to get grid coord. number
            dpres=log(prest/r10)
-           call grdcrd(dpres,1,prsltmp(1),nsig,-1)
+           call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 
 ! Interpolate guess moisture to observation location and time
-           call tintrp3(ges_q,qges,dlat,dlon,dpres,dtime, &
-                             hrdifsig,1,mype,nfldsig)
-           call tintrp3(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
-                       1,mype,nfldsig)
+           call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+                             hrdifsig,mype,nfldsig)
+           call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+                       mype,nfldsig)
 
 !!! Set (i,j,k) indices of guess gridpoint that bound obs location
            call get_ijk(mm1,dlat,dlon,dpres,qtail(ibin)%head%ij(1),qtail(ibin)%head%wij(1))

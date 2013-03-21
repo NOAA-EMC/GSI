@@ -265,6 +265,8 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 !
 ! program history log:
 !   2009-09-18  lueken - added subprogram doc block
+!   2013-01-15  parrish - ansmoothrf_reg_subdomain_option now uses bundle input.
+!                             Add changes to update from old to new version.
 !
 !   input argument list:
 !    mype
@@ -284,6 +286,13 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
   use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
   use control_vectors, only: nvars
+  use gsi_bundlemod, only: gsi_bundlecreate
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetvar
+  use gsi_bundlemod, only: gsi_bundleputvar
+  use gsi_bundlemod, only: gsi_bundledestroy
+  use gsi_bundlemod, only: gsi_grid
+  use gsi_bundlemod, only: gsi_gridcreate
 
   implicit none
 
@@ -298,7 +307,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   character(80) var_plotcor
   character(80) plotname
   integer(i_kind) i_plotcor,j_plotcor,k_plotcor
-  integer(i_kind) iloc,jloc,kloc
+  integer(i_kind) iloc,jloc,kloc,ier
 
   real(r_kind) h00,h000
   integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot
@@ -306,7 +315,15 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   integer(i_kind) lvar
   integer(i_kind):: ips,ipe,jps,jpe,kps,kpe
   integer(i_kind):: nlatf,nlonf
+  type(gsi_bundle):: bundle_work
+  type(gsi_grid) :: grid
+  character(2) :: names2dwork(1),names3dwork(4)
 
+  names2dwork(1)='ps'
+  names3dwork(1)='sf'
+  names3dwork(2)='vp'
+  names3dwork(3)='t'
+  names3dwork(4)='q'
   ips=indices%ips; ipe=indices%ipe
   jps=indices%jps; jpe=indices%jpe
   kps=indices%kps; kpe=indices%kpe
@@ -339,6 +356,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
 ! End of choice section
 !*********************************************************************
 
+     call gsi_gridcreate(grid,lat2,lon2,nsig)
   ref_plotcor='theta'
   it=ntguessig
   do 200 lvar=1,5
@@ -379,8 +397,21 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
         if(ivar_plot==5) qwork(iloc,jloc,kloc)=one
      end if
 
+     call gsi_bundlecreate(bundle_work,grid,'bundle work',ier, &
+              names2d=names2dwork,names3d=names3dwork,bundle_kind=r_kind)
+     call gsi_bundleputvar(bundle_work,'ps',pwork,ier)
+     call gsi_bundleputvar(bundle_work,'sf',stwork,ier)
+     call gsi_bundleputvar(bundle_work,'vp',vpwork,ier)
+     call gsi_bundleputvar(bundle_work,'t' ,twork,ier)
+     call gsi_bundleputvar(bundle_work,'q' ,qwork,ier)
 
-     call ansmoothrf_reg_subdomain_option(twork,pwork,qwork,stwork,vpwork)
+     call ansmoothrf_reg_subdomain_option(bundle_work)
+     call gsi_bundlegetvar(bundle_work,'ps',pwork,ier)
+     call gsi_bundlegetvar(bundle_work,'sf',stwork,ier)
+     call gsi_bundlegetvar(bundle_work,'vp',vpwork,ier)
+     call gsi_bundlegetvar(bundle_work,'t' ,twork,ier)
+     call gsi_bundlegetvar(bundle_work,'q' ,qwork,ier)
+     call gsi_bundledestroy(bundle_work,ier)
  !   if(mype==0) write(lunin) ref_plotcor,var_plotcor,j_plotcor,i_plotcor,k_plotcor, &
  !                nlon,nlat,kvar_end(ivar_plot)-kvar_start(ivar_plot)+1
      if(mype==0) write(6,*) ' refvar= ',trim(ref_plotcor),' corvar= ',trim(var_plotcor), &
@@ -512,6 +543,7 @@ subroutine outgrads1(f,nx,ny,label)
 !
 ! program history log:
 !   2009-09-18  lueken - added subprogram doc block
+!   2012-12-11  parrish - assign np a value.
 !
 !   input argument list:
 !    label

@@ -17,6 +17,8 @@ subroutine read_gfs_ozone_for_regional
 !                           subroutine get_gefs_ensperts_dualres.f90.
 !   2011-07-05  todling - treatment of oz and prsl looks suspicious: fix to fit 
 !                         new interface to general_sub2grid (but equally suspicious)
+!   2013-02-20  wu      - add call to general_destroy_spec_vars to deallocate large arrays in sp_gfs.
+!                           Also deallocate other locally allocated arrays.
 !
 !   input argument list:
 !
@@ -35,7 +37,7 @@ subroutine read_gfs_ozone_for_regional
   use kinds, only: r_kind,i_kind
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
-  use general_specmod, only: spec_vars,general_init_spec_vars
+  use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ges_oz,ntguessig
@@ -384,6 +386,9 @@ subroutine read_gfs_ozone_for_regional
         write(6,'(" k,reg_ozmin,max=",i4,2e15.4)') k,reg_ozmin0(k),reg_ozmax0(k)
      end do
   end if
+  call general_destroy_spec_vars(sp_gfs)
+  deallocate(xspli,yspli,xsplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&
+             glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
 
   return
 end subroutine read_gfs_ozone_for_regional

@@ -50,6 +50,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-26  parrish - question about bmiss and hdr(15).  debug compile execution on WCOSS failed.  
+!                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
+!                          causes integer overflow with current logic.  Made quick fix, but needs review.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -287,7 +291,11 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
            end if
 
 !          test for case when hdr(15) comes back with bmiss signifying 1x1 data
-           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind) then
+         !      write(6,'(" in read_goesndr, bmiss,hdr(15)=",2ES25.18)')bmiss,hdr(15) !???????for debug only
+           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind.or.hdr(15)>bmiss) then !???bad way to test???
+                      ! dparrish fix: apparently there is a new definition of   ????????
+                      ! missing -- bmiss = 1e9, large numbers of hdr(15)=1e11 or  ????????
+                      ! 5x5 missing is 1e11 ???????????????????
               ifov = 0
            else ! 5x5 data
               ifov = nint(hdr(15)) ! number of averaged FOVS
@@ -340,8 +348,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         else
            dlon = dlon_earth 
            dlat = dlat_earth 
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 

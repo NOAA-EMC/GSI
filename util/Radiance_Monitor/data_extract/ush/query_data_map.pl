@@ -26,7 +26,11 @@
     use strict;
     use warnings;
     use XML::LibXML;
-    
+
+    if( $#ARGV < 2 ) { 
+       exit
+    }
+
     my $dmfile = $ARGV[0];
     my $source = $ARGV[1];
     my $field  = $ARGV[2];
@@ -41,8 +45,12 @@
 #   and output it's value for the requested field.  
 
     my @srcs = $doc->findnodes("/opt/$source");
+    if( @srcs <= 0 ) {
+       @srcs = $doc->findnodes("/opt/$default");
+    }
 
     if ( @srcs > 0 ) {
+
        my $src = $srcs[0];
        my($answer) = $src->findnodes("./$field");
        my($area) = $src->findnodes("./area");
@@ -51,7 +59,7 @@
        if( $answer ) {
           print $answer->to_literal;
        }
-       elsif( $area ) {
+       else {
           if( $src_area eq "rgn" ) {
              $default = "regional_default";
           }
@@ -62,3 +70,4 @@
           }
        }
     }
+    

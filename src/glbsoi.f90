@@ -66,7 +66,7 @@ subroutine glbsoi(mype)
 !   2009-01-28  todling - move write_all to pcgsoi (for consistency w/ 4dvar branch of code)
 !                       - use observer to avoid redundant code
 !   2009-08-19  guo     - changed setuprhsall() interface for multi-pass observer.
-!   2009-08-31  parrish - add call to fmg_initialize_e when jcstrong_option=4.  Initializes
+!   2009-08-31  parrish - add call to fmg_initialize_e when tlnmc_type=4.  Initializes
 !                          alternative regional tangent linear normal mode constraint which
 !                          allows for variation of coriolis parameter and map factor.
 !   2009-09-12  parrish - add call to hybrid_ensemble_setup.  if l_hyb_ens=.true., then
@@ -82,6 +82,7 @@ subroutine glbsoi(mype)
 !   2010-10-01  el akkraoui/todling - add Bi-CG as optional minimization scheme
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 !   input argument list:
 !     mype - mpi task id
@@ -96,6 +97,7 @@ subroutine glbsoi(mype)
   use kinds, only: r_kind,i_kind
   use constants, only: rearth
   use mpimod, only: npe
+  use adjtest_obs, only: adtest_obs
   use jfunc, only: miter,jiter,jiterstart,jiterend,iguess,&
       write_guess_solution,&
       tendsflag,xhatsave
@@ -119,7 +121,7 @@ subroutine glbsoi(mype)
       init_fc_sens, save_fc_sens, lobsensincr, lobsensjb
   use smooth_polcarf, only: norsp,destroy_smooth_polcas
   use jcmod, only: ljcdfi
-  use gsi_4dvar, only: l4dvar, lsqrtb, lbicg, lanczosave
+  use gsi_4dvar, only: l4dvar, lsqrtb, lbicg, lanczosave, ladtest_obs
   use pcgsoimod, only: pcgsoi
   use control_vectors, only: dot_product,read_cv,write_cv
   use radinfo, only: radinfo_write,passive_bc,newpc4pred
@@ -233,6 +235,7 @@ subroutine glbsoi(mype)
   jiterlast=miter
   if (lsensrecompute) jiterlast=jiterend
   if (l4dvar) jiterlast=jiterstart
+  if (ladtest_obs) jiterlast=jiterstart
 
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
@@ -242,6 +245,12 @@ subroutine glbsoi(mype)
 
 !    Set up right hand side of analysis equation
      call setuprhsall(ndata,mype,.true.,.true.)
+
+! implement obs adjoint test and return  
+     if( ladtest_obs) then
+        call adtest_obs
+        return
+     end if
 
      if (jiter<=miter) then
 

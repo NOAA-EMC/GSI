@@ -19,6 +19,7 @@ module state_vectors
 !                        - remove following:  assignment, sum(s)
 !   2011-05-20  guo      - add a rank-1 interface of dot_product()
 !   2011-07-04  todling  - fixes to run either single or double precision
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS - bug fix for function dot_prod_st
 !
 ! subroutines included:
 !   sub setup_state_vectors
@@ -564,6 +565,9 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 !   2009-08-12  lueken - added subprogram doc block
 !   2010-05-13  todling - update to use gsi_bundle
 !   2011-04-28  guo     - bug fix: .not.which was doing (x,x) instead of (x,y)
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS - bug fix: for 
+!                                    if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)
+!                                    if( present (which)), ipntx and ipnty indexes should be used and not i 
 !
 !   input argument list:
 !    xst,yst
@@ -592,7 +596,7 @@ real(r_quad) function dot_prod_st(xst,yst,which)
      do i = 1,ns3d
         ii=ii+1
         if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)then
-           zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+           zz(ii)= dplevs(xst%r3(i)%qr4,yst%r3(i)%qr4,ihalo=1)
         else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double)then
            zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
         else
@@ -628,9 +632,9 @@ real(r_quad) function dot_prod_st(xst,yst,which)
         allocate(zz(nv))
         zz=zero_quad
         if (irkx==2) then
-           if(xst%r2(i)%mykind==r_single .and. yst%r2(i)%mykind==r_single) then
+           if(xst%r2(ipntx)%mykind==r_single .and. yst%r2(ipnty)%mykind==r_single) then
               zz(1)=dplevs(xst%r2(ipntx)%qr4,yst%r2(ipnty)%qr4,ihalo=1)
-           else if(xst%r2(i)%mykind==r_double .and. yst%r2(i)%mykind==r_double) then
+           else if(xst%r2(ipntx)%mykind==r_double .and. yst%r2(ipnty)%mykind==r_double) then
               zz(1)=dplevs(xst%r2(ipntx)%q,yst%r2(ipnty)%q,ihalo=1)
            else ! this is an error
               dot_prod_st=zero_quad
@@ -638,9 +642,9 @@ real(r_quad) function dot_prod_st(xst,yst,which)
            endif
         endif
         if (irkx==3) then
-           if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single) then
+           if(xst%r3(ipntx)%mykind==r_single .and. yst%r3(ipnty)%mykind==r_single) then
               zz(1)=dplevs(xst%r3(ipntx)%qr4,yst%r3(ipnty)%qr4,ihalo=1)
-           else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double) then
+           else if(xst%r3(ipntx)%mykind==r_double .and. yst%r3(ipnty)%mykind==r_double) then
               zz(1)=dplevs(xst%r3(ipntx)%q,yst%r3(ipnty)%q,ihalo=1)
            else ! this is an error
               dot_prod_st=zero_quad

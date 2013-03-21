@@ -903,6 +903,7 @@ contains
 ! program history log:
 !   2006-05-03  derber (created from map2grids)
 !   2006-09-13  treadon - set itx=1 for the case use_all=.true.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     dlat_earth - earth relative observation latitude (radians)
@@ -956,12 +957,12 @@ contains
     dlat1=dlat_earth
     dlon1=dlon_earth
 
-    call grdcrd(dlat1,1,glat,mlat,1)
+    call grdcrd1(dlat1,glat,mlat,1)
     iy=int(dlat1)
     dy=dlat1-iy
     iy=max(1,min(iy,mlat))
 
-    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
+    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
     ix=int(dlon1)
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))

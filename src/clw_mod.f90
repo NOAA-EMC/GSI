@@ -53,6 +53,7 @@ contains
 ! program history log:
 !   2010-08-19  derber
 !   2011-05-20  mccarty - added placeholder for ATMS
+!   2013-01-22  zhu - add adp_anglebc option
 !
 !  input argument list:
 !     nadir     - scan position
@@ -82,7 +83,7 @@ contains
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use radinfo, only: ang_rad,cbias
+  use radinfo, only: ang_rad,cbias,air_rad,predx,adp_anglebc
   use constants, only: zero,amsua_clw_d1,amsua_clw_d2,t0c
 
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
@@ -105,8 +106,13 @@ contains
   if (amsua .or. atms) then
  
      if(tsavg5>t0c)then
-        tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
-        tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
+        if (adp_anglebc) then
+           tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))+predx(1,ich(1))*air_rad(ich(1))
+           tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))+predx(1,ich(2))*air_rad(ich(2))
+        else
+           tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
+           tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
+        end if
         if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
             .and. tb_obs(2) > zero) &
            clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
