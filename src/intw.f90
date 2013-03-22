@@ -11,6 +11,7 @@ module intwmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intw_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intw_
@@ -63,6 +64,7 @@ subroutine intw_(whead,rval,sval)
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-03-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     whead    - obs type pointer to obs structure
@@ -88,6 +90,7 @@ subroutine intw_(whead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs 
   implicit none
 
 ! Declare passed variables
@@ -177,8 +180,10 @@ subroutine intw_(whead,rval,sval)
            gradv = wptr%diagv%obssen(jiter)
 
         else
-           valu=valu-wptr%ures
-           valv=valv-wptr%vres
+           if( .not. ladtest_obs) then
+              valu=valu-wptr%ures
+              valv=valv-wptr%vres
+           end if
 
 !          gradient of nonlinear operator
  
@@ -195,8 +200,13 @@ subroutine intw_(whead,rval,sval)
               valv = valv*term
            endif
 
-           gradu = valu*wptr%raterr2*wptr%err2
-           gradv = valv*wptr%raterr2*wptr%err2
+           if( ladtest_obs) then
+              gradu = valu
+              gradv = valv
+           else
+              gradu = valu*wptr%raterr2*wptr%err2
+              gradv = valv*wptr%raterr2*wptr%err2
+           end if
         endif
 
 !       Adjoint

@@ -7,6 +7,7 @@ module intgustmod
 ! abstract: module for intgust and its tangent linear intgust_tl
 !
 ! program history log:
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intgust
@@ -37,6 +38,8 @@ subroutine intgust(gusthead,rval,sval)
 !
 ! program history log:
 !
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!
 !   input argument list:
 !     gusthead
 !     sgust    - increment in grid space
@@ -58,6 +61,7 @@ subroutine intgust(gusthead,rval,sval)
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -109,7 +113,7 @@ subroutine intgust(gusthead,rval,sval)
            grad = gustptr%diags%obssen(jiter)
  
         else
-           val=val-gustptr%res
+           if(.not.ladtest_obs)  val=val-gustptr%res
 
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. gustptr%pg > tiny_r_kind .and. &
@@ -121,8 +125,11 @@ subroutine intgust(gusthead,rval,sval)
               p0   = wgross/(wgross+exp(-half*gustptr%err2*val**2))
               val = val*(one-p0)
            endif
-
-           grad = val*gustptr%raterr2*gustptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*gustptr%raterr2*gustptr%err2
+           end if
         endif
 
 !       Adjoint
