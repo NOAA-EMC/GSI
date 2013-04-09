@@ -34,7 +34,6 @@ echo Z = $Z
 allmissing=1
 PDY=`echo $PDATE|cut -c1-8`
 ndays=$(($NUM_CYCLES/4))
-test_day=$PDATE
 
 for type in ${SATYPE}; do
    found=0
@@ -143,7 +142,7 @@ ${COMPRESS} -f ${imgndir}/*.ctl
   #-----------------------------------------------------------------
   # Loop over satellite types.  Submit job to make plots.
   #
-  export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,WEB_SVR,WEB_USER,WEBDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
   list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 

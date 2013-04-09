@@ -11,7 +11,7 @@
 #
 # web server resources
 #
-export WEBDIR=${WEBDIR}/${SUFFIX}/pngs
+export WEBDIR=${WEBDIR}/${SUFFIX}
 
 
 #

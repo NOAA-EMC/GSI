@@ -40,10 +40,7 @@ Without including child elements the document would look like this:
 </opt> 
 
 The element order (pr4ed, global_default, etc) does not matter.  Nor does the 
-order of child elements matter (that's one of the strengths of xml!).  Don't 
-worry if the element order changes from cycle to cycle.  The manipulating 
-perl scripts use a very lightweight perl module (XML::Simple), which is 
-effective but does not guarantee element order will be maintained.  
+order of child elements matter (that's one of the strengths of xml!).
 
 
 Default values

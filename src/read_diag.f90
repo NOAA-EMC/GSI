@@ -191,7 +191,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   integer(i_kind),intent(in)             :: npred_radiag
   logical,intent(in)                     :: retrieval
   type(diag_header_fix_list ),intent(out):: header_fix
-  type(diag_header_chan_list),pointer    :: header_chan(:)
+  type(diag_header_chan_list),allocatable :: header_chan(:)
   type(diag_data_name_list)              :: data_name
   integer(i_kind),intent(out)            :: iflag
   logical,optional,intent(in)            :: lverbose    
@@ -274,7 +274,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
        header_fix%npred,npred_radiag
   
 ! Allocate and initialize as needed
-     if (associated(header_chan)) deallocate(header_chan)
+     if (allocated(header_chan)) deallocate(header_chan)
      if (allocated(data_name%chn))  deallocate(data_name%chn)
 
      allocate(header_chan( header_fix%nchan))
@@ -421,8 +421,8 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   type(diag_header_fix_list ),intent(in) :: header_fix
   logical,intent(in)                     :: retrieval
   type(diag_data_fix_list)   ,intent(out):: data_fix
-  type(diag_data_chan_list)  ,pointer    :: data_chan(:)
-  type(diag_data_extra_list) ,pointer    :: data_extra(:,:)
+  type(diag_data_chan_list)  ,allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
   integer(i_kind),intent(out)            :: iflag
     
   integer(i_kind) :: ich,iang,i,j
@@ -431,7 +431,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   real(r_single),dimension(:,:),allocatable :: extra_tmp
 
 ! Allocate arrays as needed
-  if (associated(data_chan)) deallocate(data_chan)
+  if (allocated(data_chan)) deallocate(data_chan)
   allocate(data_chan(header_fix%nchan))
 
   do ich=1,header_fix%nchan
@@ -440,7 +440,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   end do
 
   if (header_fix%iextra > 0) then
-     if (associated(data_extra))   deallocate(data_extra)
+     if (allocated(data_extra))   deallocate(data_extra)
      allocate(data_extra(header_fix%iextra,header_fix%jextra))
      allocate(extra_tmp(header_fix%iextra,header_fix%jextra))
   end if

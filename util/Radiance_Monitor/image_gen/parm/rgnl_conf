@@ -12,7 +12,7 @@
 #
 # rename WEBDIR for this SUFFIX
 #
-export WEBDIR=${WEBDIR}/regional/${SUFFIX}/pngs
+export WEBDIR=${WEBDIR}/regional/${SUFFIX}
 
 
 #

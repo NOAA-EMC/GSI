@@ -10,7 +10,40 @@
 #  JGDAS_VRFYRAD.sms.prod job, which performs the data extraction 
 #  and validation checks. 
 #--------------------------------------------------------------------
+set -ax
+echo start VrfyRad_glbl.sh
 
+
+#--------------------------------------------------------------------
+#
+#  Question:  Which of these belongs in this file, in a top level parm file,
+#   or in image gen?  Makes sense to put as many as possible in one central 
+#   file so users know which one to hack.  
+#export ACCOUNT=${ACCOUNT:-GDAS-MTN}
+#export USE_ANL=${USE_ANL:-0}         	# 0 = extract ges data only, 1 = ges and analysis data
+#export AREA=${AREA:-glb}		# this isn't needed? 
+#export DO_DATA_RPT=${DO_DATA_RPT:-0}	# 0 = no data validation report, 1 = run data report (usually only done with operational data) 
+#export DO_DIAG_RPT=${DO_DIAG_RPT:-0}    # 0 = no diag report, 1 = run diag report (usually only done with operational data)
+#export USE_MAIL=${USE_MAIL:-0}          # this should go away -- journal all error reports to the log file and if this is set to 1 then
+                                        #  image gen can dig them out and send them
+#export MAIL_TO=${MAIL_TO:-}	        # list of email recipients
+#export MAIL_CC=${MAIL_CC:-}		# list of email cc list
+
+#    <radstat_location>/com/gfs/prod</radstat_location>
+#    <run_envir>dev</run_envir>
+#    <static_satype>0</static_satype>
+#    <user_class>dev</user_class>
+
+#   image_gen only
+#    <do_archive>0</do_archive>
+#    <plot_all_regions>1</plot_all_regions>  
+#    <plot_sub_avgs>0</plot_sub_avgs>
+#
+
+
+#--------------------------------------------------------------------
+#  usage
+#--------------------------------------------------------------------
 function usage {
   echo "Usage:  VrfyRad_glbl.sh suffix run_envir [pdate]"
   echo "            File name for VrfyRad_glbl.sh may be full or relative path"
@@ -19,15 +52,14 @@ function usage {
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 
-set -ax
-echo start VrfyRad_glbl.sh
-
+#--------------------------------------------------------------------
+#  VrfyRad_glbl.sh begins here
+#--------------------------------------------------------------------
 nargs=$#
 if [[ $nargs -lt 2 || $nargs -gt 3 ]]; then
    usage
    exit 1
 fi
-
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -277,5 +309,8 @@ if [[ ${data_available} -ne 1 ]]; then
 fi
 
 echo end VrfyRad_glbl.sh
+
+
+
 exit ${exit_value}
 
