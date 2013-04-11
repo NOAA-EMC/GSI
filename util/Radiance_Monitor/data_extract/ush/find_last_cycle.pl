@@ -57,7 +57,7 @@
    #  If there are no radmon.* subdirectories, then exit without 
    #    returning any date string.
    #
-   if( $#raddirs <= 0 ) {
+   if( $#raddirs < 0 ) {
       print "exiting with 0 raddirs\n";
       exit;
    }
@@ -85,7 +85,7 @@
       my @tfiles = grep { /time/ } readdir DIR;
       my @timefiles = grep { /ieee_d/ } @tfiles;
 
-      if( $#timefiles > 0 ) {
+      if( $#timefiles >= 0 ) {
          my @sorttime = sort( @timefiles );
          my @times;
 
@@ -96,7 +96,7 @@
             push( @times, $values[2] );
          }
 
-         if ( $#times > 0 ) {
+         if ( $#times >= 0 ) {
            $found_cycle = 1;
            my @utimes = sort( uniq( @times ) );
            print "$utimes[$#utimes]";
