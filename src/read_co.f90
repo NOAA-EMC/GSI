@@ -12,6 +12,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    2010-03-30  Tangborn, initial code.
 !    2011-08-01  Lueken  - replaced F90 with f90 (no machine logic), fixed indentation
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 
 !   input argument list:
 !     obstype  - observation type to process
@@ -180,8 +181,8 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 !    Convert observation time to relative time

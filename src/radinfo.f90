@@ -124,7 +124,7 @@ module radinfo
 
   real(r_kind),allocatable,dimension(:):: radstart    ! starting scan angle
   real(r_kind),allocatable,dimension(:):: radstep     ! step of scan angle
-  real(r_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
+  integer(i_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
 
   integer(i_kind),allocatable,dimension(:):: radedge1    ! cut-off of edge removal
   integer(i_kind),allocatable,dimension(:):: radedge2    ! cut-off of edge removal
@@ -191,7 +191,7 @@ contains
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-    use constants, only: one_tenth
+    use constants, only: one_tenth, one
 
     implicit none
 
@@ -418,6 +418,8 @@ contains
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
 !   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
+!   2-13-01-26  parrish - fix bug caught by WCOSS debug compile -- tlapmean used before allocated.
+!                          Move first use of tlapmean to after allocation.
 !
 !   input argument list:
 !
@@ -590,7 +592,6 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
-    tlapmean=zero
     if (adp_anglebc) then 
        allocate(count_tlapmean(jpch_rad),update_tlapmean(jpch_rad),tsum_tlapmean(jpch_rad))
        count_tlapmean=0
@@ -599,6 +600,10 @@ contains
     end if
 
     maxscan=90  ! Default value for old files
+    allocate(cbiasx(maxscan))
+    allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
+    cbias=zero
+    tlapmean=zero
     if (.not. adp_anglebc) then
        open(lunin,file='satbias_angle',form='formatted',iostat=istat)
        nfound = .false.
@@ -612,9 +617,6 @@ contains
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)
        endif
-       allocate(cbiasx(maxscan))
-       allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
-       cbias=zero
        read2: do
           read(lunin,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))',iostat=istat) &
                ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,maxscan)
@@ -761,7 +763,7 @@ contains
        if (adp_anglebc) then
           call init_predx
           do j=1,jpch_rad
-             call angle_cbias(trim(nusis(j)),j,cbias(1,j))
+             call angle_cbias(nusis(j),j,cbias(1,j))
           end do
 
 !         check inew_rad again
@@ -1002,7 +1004,7 @@ contains
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
       else if (index(isis,'atms') /= 0 .AND. maxscan < 96) then
-         ifov=ifov+3
+         ifov=iscan+3
       else
          ifov=iscan
       end if
@@ -1045,7 +1047,7 @@ contains
      real(r_kind),dimension(npred):: pred
      
      pred=zero
-     do i=1,radnstep(j)
+     do i=1,min(radnstep(j),90)
         pred(npred)=rnad_pos(isis,i,j)*deg2rad
         do k=2,angord
            pred(npred-k+1)=pred(npred)**k
@@ -1246,12 +1248,12 @@ contains
    real(r_kind),allocatable,dimension(:):: predr
 
 !  Declare types used for reading satellite data
-   type(diag_header_fix_list )         :: header_fix
-   type(diag_header_chan_list),pointer :: header_chan(:)
-   type(diag_data_name_list)           :: data_name
-   type(diag_data_fix_list   )         :: data_fix
-   type(diag_data_chan_list  ),pointer :: data_chan(:)
-   type(diag_data_extra_list ),pointer :: data_extra(:,:)
+   type(diag_header_fix_list )             :: header_fix
+   type(diag_header_chan_list),allocatable :: header_chan(:)
+   type(diag_data_name_list)               :: data_name
+   type(diag_data_fix_list   )             :: data_fix
+   type(diag_data_chan_list  ),allocatable :: data_chan(:)
+   type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
    data lunout / 53 / 
 

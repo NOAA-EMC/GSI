@@ -132,3 +132,56 @@
  return
 
  end subroutine to_native_endianness_i4
+
+!----------------------------------------------------------------------
+! convert 4-byte real scalar from big-endian to native-endian
+!----------------------------------------------------------------------
+
+ subroutine to_native_endianness_r4(r4,num)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    to_native_endianness_r4
+!   prgmmr: parrish          org: wx22                date: 2012-10-11
+!
+! abstract: swap bytes of argument.
+!
+! program history log:
+!   2012-10-11  parrish - add doc block
+!   2012-10-19  parrish - additional modifications to improve efficiency.  Remove interface and make
+!                          to_native_endianness to work only with integer(4) arguments.
+!                          Put to_native_endianness_r4 outside module.
+!
+!   input argument list:
+!    r4 - input 4 byte integer array
+!    num - length of array r4  (NOTE:  type of num must be i_llong (8 byte integer) )
+!
+!   output argument list:
+!    r4 - output 4 byte integer array with bytes in reverse order
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+ use kinds, only: i_byte,i_long,i_llong,r_single
+ implicit none
+
+ integer(i_llong), intent(in) :: num
+ real(r_single), intent(inout) :: r4(num)
+
+ integer(i_byte), dimension(4) :: byte_arr, byte_arr_tmp
+ integer(i_long) :: i,n
+
+ do n=1,num
+    byte_arr_tmp = transfer (r4(n), byte_arr)
+    byte_arr(1)=byte_arr_tmp(4)
+    byte_arr(2)=byte_arr_tmp(3)
+    byte_arr(3)=byte_arr_tmp(2)
+    byte_arr(4)=byte_arr_tmp(1)
+    r4(n) = transfer (byte_arr, r4(n))
+ end do
+
+ return
+
+ end subroutine to_native_endianness_r4

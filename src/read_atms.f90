@@ -24,6 +24,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !
 ! program history log:
 !  2011-12-06  Original version based on r16656 version of read_bufrtovs.  A. Collard
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -505,8 +506,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! Check time window

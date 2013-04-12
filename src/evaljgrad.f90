@@ -46,7 +46,7 @@ use jcmod, only: ljcdfi
 use gridmod, only: lat2,lon2,nsig
 use obsmod, only: yobs, lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
-use mod_strong, only: jcstrong,baldiag_inc
+use mod_strong, only: l_tlnmc,baldiag_inc
 use control_vectors, only: control_vector,prt_control_norms,dot_product,assignment(=)
 use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
@@ -231,7 +231,7 @@ if (l_do_adjoint) then
 endif
 
 ! Produce diagnostic when applying strong constraint
-if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval,size(sval))
+if (lupdfgs.and.l_tlnmc.and.baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
 ! Save increment (update guess)
 if (lupdfgs) then

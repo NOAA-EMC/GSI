@@ -15,6 +15,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 ! program history log:
 !   2010-09-13  pagowski adopted prepbufr reader code for 
 !  AIRNow bufr for pm2_5
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -201,8 +202,8 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            else
               dlat = dlat_earth
               dlon = dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
            
 !  extract date information.  if time outside window, skip this obs

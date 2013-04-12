@@ -13,6 +13,7 @@ module intcomod
 !   2008-11-26  Todling - remove intoz_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2010-06-02  tangborn - converted intoz into intco 
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intco_
@@ -92,6 +93,7 @@ subroutine intcolev_(colvkhead,rval,sval)
 ! program history log:
 !   1995-07-11  derber
 !   2010-06-07  tangborn - carbon monoxide based on ozone code
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     colvkhead  - level carbon monoxide obs type pointer to obs structure
@@ -113,6 +115,7 @@ subroutine intcolev_(colvkhead,rval,sval)
   use constants, only: one,zero,r3600,zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -223,10 +226,14 @@ subroutine intcolev_(colvkhead,rval,sval)
                  valx = colvkptr%diags(k)%ptr%obssen(jiter)
 
               else
-                 val1=val1-colvkptr%res(k)
+                 if( ladtest_obs ) then
+                    valx = val1
+                 else
+                    val1=val1-colvkptr%res(k)
 
-                 valx=val1*colvkptr%err2(k) 
-                 valx=valx*colvkptr%raterr2(k)
+                    valx=val1*colvkptr%err2(k) 
+                    valx=valx*colvkptr%raterr2(k)
+                 end if
               endif
               val_ret(k)=valx  
            endif 

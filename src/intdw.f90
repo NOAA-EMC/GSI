@@ -12,6 +12,7 @@ module intdwmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intdw_tl
 !   2009-08-13  lueken - updated documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intdw_
@@ -63,6 +64,7 @@ subroutine intdw_(dwhead,rval,sval)
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 ! usage: call intdw(ru,rv,su,sv)
 !   input argument list:
@@ -88,6 +90,7 @@ subroutine intdw_(dwhead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -175,7 +178,7 @@ subroutine intdw_(dwhead,rval,sval)
            grad = dwptr%diags%obssen(jiter)
  
         else
-           val=val-dwptr%res
+           if( .not. ladtest_obs)   val=val-dwptr%res
  
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. dwptr%pg > tiny_r_kind .and. &
@@ -188,7 +191,11 @@ subroutine intdw_(dwhead,rval,sval)
               val = val*(one-p0)
            endif
 
-           grad = val * dwptr%raterr2 * dwptr%err2
+           if( ladtest_obs)  then 
+              grad = val 
+           else
+              grad = val * dwptr%raterr2 * dwptr%err2
+           end if
         endif
 
 !       Adjoint

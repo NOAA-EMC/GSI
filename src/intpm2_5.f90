@@ -13,6 +13,7 @@ module intpm2_5mod
 !   2008-11-26  Todling - remove intq_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2010-10-15  pagowski - use for in-situ pm2_5
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intpm2_5_
@@ -67,6 +68,7 @@ contains
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundle; update interface 
 !   2010-10-15  pagowski  - convert for in-situ pm2_5
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     pm2_5head    - obs type pointer to obs structure
@@ -88,6 +90,7 @@ contains
     use jfunc, only: jiter
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_4dvar, only: ladtest_obs
     implicit none
     
 ! declare passed variables
@@ -148,7 +151,7 @@ contains
              grad = pm2_5ptr%diags%obssen(jiter)
              
           else
-             val=val-pm2_5ptr%res
+             if( .not. ladtest_obs ) val=val-pm2_5ptr%res
              
 !          gradient of nonlinear operator
              
@@ -162,7 +165,11 @@ contains
                 val=val*(one-p0)                         ! term is wqc in the referenc by enderson
              endif
              
-             grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+             if( ladtest_obs ) then
+                grad = val
+             else
+                grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+             end if
           endif
           
 !       adjoint

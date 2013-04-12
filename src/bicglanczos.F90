@@ -12,6 +12,8 @@ module bicglanczos
 !   2010-10-01  el akkraoui - revisit original implementation (still w/o precond)
 !   2011-04-19  el akkraoui - add preconditioning and orthogonalization
 !   2011-07-04  todling - determine precision based on kinds
+!   2013-01-23  parrish - in subroutine pcgprecond, change variable xcvx from
+!                          intent(in) to intent(inout) (flagged by WCOSS intel debug compiler)
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
@@ -805,7 +807,7 @@ subroutine pcgprecond(xcvx,ycvx,kmat)
 
 IMPLICIT NONE
 
-TYPE(CONTROL_VECTOR) , INTENT(IN)  :: xcvx
+TYPE(CONTROL_VECTOR) , INTENT(INout)  :: xcvx
 TYPE(CONTROL_VECTOR) , INTENT(INOUT) :: ycvx
 INTEGER(i_kind)      , INTENT(IN)  :: kmat
 
