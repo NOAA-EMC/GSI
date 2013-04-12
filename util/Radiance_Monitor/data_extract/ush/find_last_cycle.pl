@@ -89,7 +89,7 @@
          my @sorttime = sort( @timefiles );
          my @times;
 
-         for ( my $ii=$#sorttime; $ii > 0; $ii-- ) {
+         for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
             my $teststr = $sorttime[$ii];
 
             my @values = split( '\.', $sorttime[$ii] );
