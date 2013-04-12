@@ -1338,6 +1338,8 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   real(r_kind)                      ,intent(  out) :: clwp_amsua
   real(r_kind)                    ::  tpwc_amsua
   real(r_kind),parameter:: r285=285.0_r_kind
+  real(r_kind),parameter:: r284=284.0_r_kind
+  real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare local variables 
   real(r_kind) :: d0, d1, d2, c0, c1, c2
@@ -1350,17 +1352,21 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   d1 = 0.754_r_kind
   d2 = -2.265_r_kind
    
-  if(tsavg5>t0c)then
-     if (tb_obs(1) > zero .and. tb_obs(2) > zero) &
-!     clwp_amsua= cos(zasat)*(d0 + d1*log(tsavg5-tb_obs(1)) + d2*log(tsavg5-tb_obs(2)))
 
+  if (tsavg5>t0c .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
+     clwp_amsua = zero
+     tpwc_amsua = zero
+  else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then
+     ! The expectation is that observations with these values will be rejected
+     clwp_amsua = r1000
+     tpwc_amsua = r1000
+  else
      clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
-     if(clwp_amsua < zero) clwp_amsua = zero
-
      tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
+     if(clwp_amsua < zero) clwp_amsua = zero
      if(tpwc_amsua < zero) tpwc_amsua = zero
   end if
-     
+   
 end subroutine ret_amsua
 
 end module clw_mod
