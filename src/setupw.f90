@@ -123,7 +123,13 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2012-01-10  hu      - add additional quality control for PBL profiler 223, 224, 227 
 !   2011-12-14  wu      - add code for rawinsonde level enhancement ( ext_sonde )
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
-!                                       layer based on surface obs UV
+!                               layer based on surface obs UV
+!   2013-01-08  Su      -add more quality control for satellite winds and profiler winds
+!   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11, tintrp2a to tintrp2a1, tintrp2a11,
+!                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
+!                            num_bad_ikx and print 1st 10 instances of ikx out of range
+!                            and also print num_bad_ikx after all data processed if > 0 .
 !   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11, tintrp2a to tintrp2a1, tintrp2a11,
 !                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
@@ -635,11 +641,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
 
 ! QC PBL profiler  227 and 223, 224
-     if(itype==227 .or. itype==223 .or. itype==224) then
+     if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then
         if(abs(uob) < 1.0_r_kind .and. abs(vob) <1.0_r_kind )  then
            muse(i)=.false.
-           data(iqc,i)=10.0_r_kind
-           data(iuse,i)=101.0_r_kind
+           error=zero
         endif
      endif
 
@@ -773,7 +778,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if( itype == 245 .or. itype ==246) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
         endif
-        if(itype == 253 ) then
+        if(itype == 253 .or. itype ==254) then
            if( presw <400.0_r_kind .and. presw >200.0_r_kind) qcgross=r0_7*cgross(ikx)
         endif
         if(itype >=257 .and. itype <=259 ) then
