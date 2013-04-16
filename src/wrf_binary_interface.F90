@@ -1372,6 +1372,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar,nemsio_readrecv
   use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max
+  use gridmod, only: glatlon_type
   implicit none
 
 ! integer(i_kind),parameter:: in_unit = 15
@@ -1649,6 +1650,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      call nemsio_getfilehead(gfile,iret=iret,recname=recname,reclevtyp=reclevtyp, &
            reclev=reclev,lat=glata(:),lon=glona(:),dx=dxa(:),dy=dya(:))
      ii=0
+     if(glatlon_type==1)then
      do j=1,nlat_regional
         do i=1,nlon_regional
            ii=ii+1
@@ -1658,6 +1660,17 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
            dy  (i,j)=    dya  (ii)
         end do
      end do
+     else
+     do j=1,nlat_regional
+        do i=1,nlon_regional
+           ii=ii+1
+           glat(i,j)=glata(ii)               ! input lat in radians
+           glon(i,j)=glona(ii)               ! input lon in radians
+           dx  (i,j)=    dxa  (ii)
+           dy  (i,j)=    dya  (ii)
+        end do
+     end do
+     endif
   
 !                  GLAT
 
