@@ -882,7 +882,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 
 
-  logical :: sea,icmask
+  logical :: sea,icmask   
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
@@ -1472,7 +1472,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      surface(1)%snow_depth            = data_s(isn)
 
   sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
-  icmask = sea .and. abs(data_s(ilate))<60.0_r_kind
+! icmask = sea .and. abs(data_s(ilate))<60.0_r_kind   !orig      
+  icmask = lcw4crtm 
 
 ! assign tzbgr for Tz retrieval when necessary
      tzbgr = surface(1)%water_temperature
@@ -1550,7 +1551,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! Include cloud guess profiles in mw radiance computation
      if (n_clouds>0) then
         if (lcw4crtm) then
-           if (icmask) then
+          if (icmask) then 
               c6(k) = (atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
               auxdp(k)=abs(prsi_rtm(kk+1)-prsi_rtm(kk))*r10
               auxq (k)=q(kk2)
@@ -1567,7 +1568,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               end if
 
               clw_guess = clw_guess +  cloud_cont(k,1)
-           endif
+          endif   
         else 
            kgkg_kgm2=(atmosphere(1)%level_pressure(k)-atmosphere(1)%level_pressure(k-1))*r100/grav
            do ii=1,n_clouds
@@ -1684,7 +1685,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           kk = klevel(msig-k+1)
           temp(kk,i) = temp(kk,i) + atmosphere_k(i,1)%temperature(k)
           wmix(kk,i) = wmix(kk,i) + atmosphere_k(i,1)%absorber(k,1)
-          if(n_clouds>0 .and. icmask) then
+          if(n_clouds>0 .and. icmask) then 
              do ii=1,n_clouds
                 cwj(kk,i,ii) = cwj(kk,i,ii) + atmosphere_k(i,1)%cloud(ii)%water_content(k)*c6(k)
              enddo
@@ -1720,14 +1721,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           endif
 
           if (n_clouds>0) then
-             if (icmask) then
+             if (icmask) then        
                 do ii=1,n_clouds_jac
                    jacobian(icw(ii)+k,i) = cwj(k,i,ii)
                 end do
-             else
-                do ii=1,n_clouds_jac
-                   jacobian(icw(ii)+k,i) = zero
-                end do
+             else                                     
+                do ii=1,n_clouds_jac                  
+                   jacobian(icw(ii)+k,i) = zero       
+                end do                                
              endif
           endif
 

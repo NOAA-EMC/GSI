@@ -1281,6 +1281,9 @@ end subroutine write_ghg_grid
 !   2009-11-28  todling - add increment option (hook-only for now)
 !   2010-03-31  treadon - add hires_b, sp_a, and sp_b
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2013-02-26  m.kim -  recompute and write cw analysis (= original cw gues + increment)                  
+!                        where cw increments are calculated with nonnegative cw
+!                        gues while original cw gues still have negative values.
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -1301,10 +1304,13 @@ end subroutine write_ghg_grid
          ges_u,ges_v,ges_prsi,dsfct,isli2
     use guess_grids, only: ntguessig,ntguessfc
     use gridmod, only: hires_b,sp_a,sp_b
+    use gridmod, only: lat2,lon2,nsig   
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
+    use constants, only: qcmin 
+    use jfunc, only: cwgues0  
 
     implicit none
 
@@ -1312,6 +1318,7 @@ end subroutine write_ghg_grid
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
     integer(i_kind) itoutsig,istatus
+    integer(i_kind) i,j,k 
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
     character(24):: file_sfc,file_nst
 
@@ -1328,6 +1335,16 @@ end subroutine write_ghg_grid
 !   Get pointer to could water mixing ratio
     call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,istatus)
     if (istatus/=0) call die('WRITE_GFS','cannot get pointer to cwmr, istatus =',istatus)
+
+!   Get final cloud increments and add to the original cloud guess fields
+    do k=1,nsig
+       do j=1,lon2
+           do i=1,lat2
+              ges_cwmr_it(i,j,k) = cwgues0(i,j,k)  &
+                                 +(ges_cwmr_it(i,j,k)-max(cwgues0(i,j,k),qcmin))                                                       
+            enddo
+       enddo
+    enddo
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b

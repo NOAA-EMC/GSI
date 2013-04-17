@@ -183,6 +183,9 @@ module qcmod
   integer(i_kind),parameter:: ifail_factch6_qc=50
 !  Reject because factch4 > limit in subroutine qc_amsua
   integer(i_kind),parameter:: ifail_factch4_qc=51
+!  Reject because data over land and ocean area in subroutine qc_amsua 
+!  this only applys to all-sky radiances               
+  integer(i_kind),parameter:: ifail_sfctype_qc=52      
 
 ! QC_MHS          
 !  Reject because fact1 > limit in subroutine qc_mhs
@@ -1606,6 +1609,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                           applied to atms
 !     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
 !     2011-12-19  collard - ATMS 1-7 is always rejected over ice, snow or mixed surfaces.
+!     2013-04-01  eliu    - modify AMSU-A QC for all-sky condition
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1732,8 +1736,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
 ! Determine whether or not CW fed into CRTM
   lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  !emily
-  if(icw4crtm >0) lcw4crtm = .true.                          !emily
+  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  
+  if(icw4crtm >0) lcw4crtm = .true.                         
    
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
@@ -1775,74 +1779,68 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                  available for ATMS).
   latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
 
+  if (latms) lcw4crtm=.false.  !assimilate clear ATMS (for now) 
+
+! QC for all-sky condition
   if (lcw4crtm) then
 
-! Kim-------------------------------------------
-     if(factch6 >= one .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind)) &
-        .or. latms_surfaceqc) then   !Kim 
+     if (.not. sea) then  ! QC for data over land, sea ice, snow, and mixed area
+
+!       channels 1-4, and 15 are not assimilated
         efactmc=zero
         vfactmc=zero
-        errf(1:ich544)=zero
-        varinv(1:ich544)=zero
-        do i=1,ich544
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        errf(1:ich528)=zero
+        varinv(1:ich528)=zero
+        do i=1,ich528
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfctype_qc
         end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
-        errf(ich890) = zero
-        varinv(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_sfctype_qc
+        errf(ich890)= zero
+        varinv(ich890)=zero
+
+!       screen out channels 5 and 6 if channel 6 is affected by precipitation
+        if (factch6 >= one) then
+           efactmc=zero
+           vfactmc=zero
+           errf(ich536:ich544)=zero
+           varinv(ich536:ich544)=zero
+           do i=ich536,ich544
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
+           end do
+!          QC3 in statsrad
+           if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+!       screen out channels 5  if channel 4 is affected by clouds 
+        else if(factch4 > half)then
+           efactmc=zero
+           vfactmc=zero
+           errf(ich536)=zero
+           varinv(ich536)=zero
+           if(id_qc(ich536) == igood_qc)id_qc(ich536)=ifail_factch4_qc
+!          QC1 in statsrad
+           if(luse) aivals(8,is) = aivals(8,is) + one
         endif
-!       QC3 in statsrad
-        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
-     else if(factch4 > half .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind))) then   !Kim
-        efactmc=zero
-        vfactmc=zero
-        do i=1,ich536
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-           varinv(i) = zero 
-           errf(i) = zero
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
-        errf(ich890) = zero
-        varinv(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
-        endif
-!       QC1 in statsrad
-        if(luse) aivals(8,is) = aivals(8,is) + one
-     end if
+     else  !QC for data over open water
 
-     if(sea .and. abs(cenlat)<60.0_r_kind .and. (clwp_amsua > half .or. clw_guess_retrieval > half))  then
-        efactmc = zero
-        vfactmc=zero
-        do i=1,ich536
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-           errf(i) = zero
-           varinv(i) = zero
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
-        varinv(ich890) = zero
-        errf(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
+!       screen out channels 1 to 6, and 15 if channel 6 is affected by precipitation
+        if(factch6 >= one)then
+           efactmc=zero
+           vfactmc=zero
+           errf(1:ich544)=zero
+           varinv(1:ich544)=zero
+           do i=1,ich544
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+           end do
+           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+           errf(ich890) = zero
+           varinv(ich890) = zero
+!          QC3 in statsrad
+           if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
         endif
+
      endif
-! Kim-------------------------------------------
 
+! QC for clear condition
   else  ! <lcw4crtm>
 
      if(factch6 >= one .or. latms_surfaceqc)then
@@ -1926,12 +1924,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
            endif
         end if
      end if
-
   endif ! <lcw4crtm>
 
+! Apply to both clear and all-sky condition
 ! Reduce q.c. bounds over higher topography
   if (zsges > r2000) then
-!    QC4 in statsrad
+     !    QC4 in statsrad
      if(luse)aivals(11,is) = aivals(11,is) + one
      fact                  = r2000/zsges
      efactmc               = fact*efactmc
@@ -1949,13 +1947,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         if(luse)aivals(12,is) = aivals(12,is) + one
         fact                  = r4000/zsges
         errf(ich549)          = fact*errf(ich549)
-        varinv(ich549)         = fact*varinv(ich549)
+        varinv(ich549)        = fact*varinv(ich549)
      end if
   end if
 
 ! Generate q.c. bounds and modified variances.
   do i=1,nchanl
-
 !    Modify error based on transmittance at top of model
      varinv(i)=varinv(i)*ptau5(nsig,i)
      errf(i)=errf(i)*ptau5(nsig,i)
@@ -1974,7 +1971,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
         errf(i)   = efact*errf(i)
         if (term>tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
      end if
-
   end do
 
   return

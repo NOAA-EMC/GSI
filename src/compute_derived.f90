@@ -60,6 +60,8 @@ subroutine compute_derived(mype,init_pass)
 !   2012-02-08  kleist  - add ges_qsat, add uvflag arg in call to strong_bal_correction,
 !                         compute ges_qsat over nfldsig bins for limq (when nobs_bins /=0)
 !   2012-12-03  eliu    - add variables and computations related to total water
+!   2013-02-26  m.kim   - applying qcmin to  ges_cwmr_it
+!   2013-03-04  m.kim   - saving starting ges_cwmr_it(with negative values) as cwgues_original                          
 !   
 !
 !   input argument list:
@@ -76,7 +78,7 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: qsatg,qgues,ggues,vgues,pgues,jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq,dvisdlog,cwgues
+       tendsflag,varq,dvisdlog,cwgues,cwgues0 
   use jfunc, only: rhtgues,qtgues,qtdist_gues,cfgues,&  
                    sl,del_si
   use control_vectors, only: cvars3d,cvars2d
@@ -216,11 +218,20 @@ subroutine compute_derived(mype,init_pass)
   else
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
      if (istatus/=0) call die('compute_derived','cannot get pointer to cwmr, istatus =',istatus)
+     if(jiter==jiterstart) then
+        do j=1,lon2
+           do i=1,lat2
+              do k=1,nsig
+                 cwgues0(i,j,k)=ges_cwmr_it(i,j,k)
+              end do
+           end do
+        end do
+     endif
      do j=1,lon2
         do i=1,lat2
            do k=1,nsig
-              cwgues(i,j,k)=ges_cwmr_it(i,j,k)             
-!             cwgues(i,j,k)=max(ges_cwmr_it(i,j,k),qcmin)  
+              ges_cwmr_it(i,j,k) = max(ges_cwmr_it(i,j,k),qcmin)  
+              cwgues(i,j,k)      = ges_cwmr_it(i,j,k)           
            end do
         end do
      end do

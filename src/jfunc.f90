@@ -40,6 +40,7 @@ module jfunc
 !   2011-07-15  zhu     - add cwgues
 !   2012-12-03  eliu    - add variables realted to total water  
 !   2012-12-15  zhu     - add variables varcw and cwoption
+!   2013-02-26 m.kim    - add cwgues_orignal
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -128,6 +129,7 @@ module jfunc
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
   public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp,diag_precon,step_start
   public :: use_rhtot,do_gfsphys 
+  public :: cwgues0  
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
   logical use_rhtot,do_gfsphys
@@ -149,6 +151,7 @@ module jfunc
   real(r_kind),allocatable,dimension(:,:):: rnlrg  
 
   real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
+  real(r_kind),target,allocatable,dimension(:,:,:):: cwgues0  
   real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
   real(r_kind),allocatable,dimension(:,:):: varq
   real(r_kind),allocatable,dimension(:,:):: varcw
@@ -277,6 +280,7 @@ contains
          varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
          qgues(lat2,lon2,nsig))
     allocate(cwgues(lat2,lon2,nsig),varcw(1:mlat,1:nsig))
+    allocate(cwgues0(lat2,lon2,nsig))
     allocate(tgs(lat2,lon2,nsig),qgs(lat2,lon2,nsig),cwgs(lat2,lon2,nsig))            
     allocate(tlrg(lat2,lon2,nsig),qlrg(lat2,lon2,nsig),cwlrg(lat2,lon2,nsig))          
     allocate(rnlrg(lat2,lon2))                                                                  
@@ -324,6 +328,7 @@ contains
        do j=1,lon2
           do i=1,lat2
              cwgues(i,j,k)=zero
+             cwgues0(i,j,k)=zero  
           end do
        end do
     end do
@@ -385,7 +390,7 @@ contains
     deallocate(varq)
     deallocate(varcw)
     deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
-    deallocate(cwgues)
+    deallocate(cwgues,cwgues0) 
     deallocate(dqsdt,dqsdp,rhtgues,qtgues,qtdist_gues,cfgues)  
     deallocate(tgs,qgs,cwgs,tlrg,qlrg,cwlrg,rnlrg) 
     if (getindex(cvars2d,'gust')>0) deallocate(ggues)

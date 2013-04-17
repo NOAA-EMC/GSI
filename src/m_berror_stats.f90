@@ -289,7 +289,8 @@ end subroutine read_bal
      if (isig>1) allocate ( vscalesin(nlat,isig) )
 
      if (var/='sst') then
-        if (var=='q' .or. var=='Q' .or. var=='cw' .or. var=='CW') then
+!       if (var=='q' .or. var=='Q' .or. var=='cw' .or. var=='CW') then !yanqiu's change for cw2                            
+        if (var=='q' .or. var=='Q') then   !original from trunk
            read(inerr) corzin,corq2
         else
            read(inerr) corzin
