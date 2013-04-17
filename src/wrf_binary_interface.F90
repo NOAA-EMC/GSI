@@ -1346,6 +1346,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
 !                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
 !   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
+!   2013-04-17  wu      - option to accept input lat/lon in both degrees and radians
 !
 !   input argument list:
 !     update_pint:   false on input
