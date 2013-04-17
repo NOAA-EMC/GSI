@@ -184,8 +184,8 @@ module qcmod
 !  Reject because factch4 > limit in subroutine qc_amsua
   integer(i_kind),parameter:: ifail_factch4_qc=51
 !  Reject because data over land and ocean area in subroutine qc_amsua 
-!  this only applys to all-sky radiances               
-  integer(i_kind),parameter:: ifail_sfctype_qc=52      
+!  this only applys to all-sky radiances            
+  integer(i_kind),parameter:: ifail_sfctype_qc=52   
 
 ! QC_MHS          
 !  Reject because fact1 > limit in subroutine qc_mhs
@@ -1779,7 +1779,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                  available for ATMS).
   latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
 
-  if (latms) lcw4crtm=.false.  !assimilate clear ATMS (for now) 
+  if (latms) lcw4crtm=.false.  !assimilate clear ATMS (for now)
 
 ! QC for all-sky condition
   if (lcw4crtm) then
@@ -1787,35 +1787,44 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      if (.not. sea) then  ! QC for data over land, sea ice, snow, and mixed area
 
 !       channels 1-4, and 15 are not assimilated
-        efactmc=zero
-        vfactmc=zero
-        errf(1:ich528)=zero
-        varinv(1:ich528)=zero
-        do i=1,ich528
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfctype_qc
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_sfctype_qc
-        errf(ich890)= zero
-        varinv(ich890)=zero
+!       efactmc=zero
+!       vfactmc=zero
+!       errf(1:ich528)=zero
+!       varinv(1:ich528)=zero
+!       do i=1,ich528
+!          if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfctype_qc
+!       end do
+!       if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_sfctype_qc
+!       errf(ich890)= zero
+!       varinv(ich890)=zero
 
-!       screen out channels 5 and 6 if channel 6 is affected by precipitation
+!       screen out channels 1-6 and 15 if channel 6 is affected by precipitation
         if (factch6 >= one) then
            efactmc=zero
            vfactmc=zero
-           errf(ich536:ich544)=zero
-           varinv(ich536:ich544)=zero
-           do i=ich536,ich544
+           errf(1:ich544)=zero
+           varinv(1:ich544)=zero
+           do i=1,ich544
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
            end do
+           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+           errf(ich890) = zero
+           varinv(ich890) = zero
 !          QC3 in statsrad
            if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
-!       screen out channels 5  if channel 4 is affected by clouds 
+
+!       screen out channels 1-5 and 15 if channel 4 is affected by clouds 
         else if(factch4 > half)then
            efactmc=zero
            vfactmc=zero
-           errf(ich536)=zero
-           varinv(ich536)=zero
-           if(id_qc(ich536) == igood_qc)id_qc(ich536)=ifail_factch4_qc
+           errf(1:ich536)=zero
+           varinv(1:ich536)=zero
+           do i=1,ich536
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+           end do
+           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+           errf(ich890) = zero
+           varinv(ich890) = zero
 !          QC1 in statsrad
            if(luse) aivals(8,is) = aivals(8,is) + one
         endif
