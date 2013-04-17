@@ -42,6 +42,7 @@ module hybrid_ensemble_isotropic
 !   2012-02-08  parrish - cleanup
 !   2012-10-11  wu      - dual resolution for regional hybens options; 
 !                         use ensemble dimensions on control variable: alpha
+!   2013-04-17  wu      - fixing a bug when normalizing the recursive filter
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -719,6 +720,7 @@ subroutine normal_new_factorization_rf_x
 !   2010-02-20  parrish  modifications for dual resolution
 !   2010-03-11  parrish  correct error that can lead to infinite loop, and introduce grd_ens%kend_alloc
 !                         in dimension statements
+!   2013-04-17  wu       use grd_loc instead of grd_ens when defining normalization factor
 !
 !   input argument list:
 !
@@ -818,6 +820,7 @@ subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2013-04-17  wu       use grd_loc instead of grd_ens when defining normalization factor
 !
 !   input argument list:
 !
