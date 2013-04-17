@@ -45,6 +45,9 @@ subroutine prewgt_reg(mype)
 !   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
 !                          (fixes WCOSS debug compile error)
 !
+!   2013-04-17  wu      - use nnnn1o to deside whether to define B related veriables
+!                         avoid undefined input when the tasks are more than
+!                         levels of control vectors
 !   input argument list:
 !     mype     - pe number
 !
