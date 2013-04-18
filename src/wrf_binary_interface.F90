@@ -1652,25 +1652,25 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
            reclev=reclev,lat=glata(:),lon=glona(:),dx=dxa(:),dy=dya(:))
      ii=0
      if(glatlon_type==1)then
-     do j=1,nlat_regional
-        do i=1,nlon_regional
-           ii=ii+1
-           glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
-           glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
-           dx  (i,j)=    dxa  (ii)
-           dy  (i,j)=    dya  (ii)
+        do j=1,nlat_regional
+           do i=1,nlon_regional
+              ii=ii+1
+              glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
+              glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
+              dx  (i,j)=    dxa  (ii)
+              dy  (i,j)=    dya  (ii)
+           end do
         end do
-     end do
      else
-     do j=1,nlat_regional
-        do i=1,nlon_regional
-           ii=ii+1
-           glat(i,j)=glata(ii)               ! input lat in radians
-           glon(i,j)=glona(ii)               ! input lon in radians
-           dx  (i,j)=    dxa  (ii)
-           dy  (i,j)=    dya  (ii)
+        do j=1,nlat_regional
+           do i=1,nlon_regional
+              ii=ii+1
+              glat(i,j)=glata(ii)               ! input lat in radians
+              glon(i,j)=glona(ii)               ! input lon in radians
+              dx  (i,j)=    dxa  (ii)
+              dy  (i,j)=    dya  (ii)
+           end do
         end do
-     end do
      endif
   
 !                  GLAT
