@@ -42,7 +42,7 @@ module hybrid_ensemble_isotropic
 !   2012-02-08  parrish - cleanup
 !   2012-10-11  wu      - dual resolution for regional hybens options; 
 !                         use ensemble dimensions on control variable: alpha
-!   2013-04-17  wu      - fixing a bug when normalizing the recursive filter
+!   2013-04-17  wu      - bug fix in normalizing the recursive filter
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
