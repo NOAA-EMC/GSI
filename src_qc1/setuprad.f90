@@ -311,21 +311,21 @@
   ccld(:)=zero
   do i=1,nchanl
      cclr( 1)=0.05_r_kind
-     cclr( 2)=0.05_r_kind
-     cclr( 3)=0.05_r_kind
-     cclr( 4)=0.05_r_kind
-     cclr( 5)=0.05_r_kind
-     cclr( 6)=0.05_r_kind
+     cclr( 2)=0.01_r_kind
+     cclr( 3)=0.01_r_kind
+     cclr( 4)=0.02_r_kind
+     cclr( 5)=0.00_r_kind
+     cclr( 6)=0.00_r_kind
      cclr(15)=0.05_r_kind
   end do
   do i=1,nchanl
-     ccld( 1)=0.5_r_kind
-     ccld( 2)=0.5_r_kind
-     ccld( 3)=0.5_r_kind
-     ccld( 4)=0.5_r_kind
-     ccld( 5)=0.5_r_kind
-     ccld( 6)=0.5_r_kind
-     ccld(15)=0.5_r_kind
+     ccld( 1)=1.20_r_kind
+     ccld( 2)=1.20_r_kind
+     ccld( 3)=0.47_r_kind
+     ccld( 4)=0.38_r_kind
+     ccld( 5)=0.60_r_kind
+     ccld( 6)=1.00_r_kind
+     ccld(15)=1.20_r_kind
   end do
 !<<emily
 
