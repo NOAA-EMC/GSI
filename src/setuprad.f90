@@ -767,8 +767,7 @@
         if(microwave .and. sea) then 
            call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
                 tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
-!          if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then   !orig
-           if(lcw4crtm) then                                 
+           if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then  
               do i=1,nchanl
                  mm=ich(i)
                  if (adp_anglebc) then
@@ -808,8 +807,7 @@
            else
               pred(3,i) = clw*cosza*cosza
            end if
-!          if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) pred(3,i ) = zero       
-           if(lcw4crtm) pred(3,i) = zero 
+           if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) pred(3,i ) = zero       
  
 !       Apply bias correction
  
@@ -878,8 +876,7 @@
            error0(i)     = tnoise(i)
 
 !Kim ----------------------------------------
-!          if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind)  then  !orig     
-           if(lcw4crtm)  then   
+           if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind)  then      
               clwtmp=half*(clwp_amsua+clw_guess_retrieval)
               if(clwtmp <= cclr(i)) then
                  error0(i) = tnoise(i)
@@ -1086,8 +1083,7 @@
         do i = 1,nchanl
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
-!             if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
-              if(lcw4crtm) then
+              if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
                  tbc_normalized(i) = tbc(i)*sqrt(varinv(i)) 
                  if (abs(tbc_normalized(i)) > 2.50_r_kind) then
                     if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
@@ -1562,8 +1558,7 @@
               diagbuf(25)  = cld                        ! cloud fraction (%)
               diagbuf(26)  = cldp                       ! cloud top pressure (hPa)
            else
-!             if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then   !orig
-              if(lcw4crtm .and. sea) then                             
+              if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then   !orig
                  diagbuf(25)  = clwp_amsua                 ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = clw_guess                  ! total column precip. water (km/m**2)
               else

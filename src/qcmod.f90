@@ -1784,62 +1784,96 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 ! QC for all-sky condition
   if (lcw4crtm) then
 
-     if (.not. sea) then  ! QC for data over land, sea ice, snow, and mixed area
-
-!       channels 1-4, and 15 are not assimilated
+! Kim-------------------------------------------
+!    if(factch6 >= one .and. ((.not.sea) .or. (sea .and.  abs(cenlat)>=60.0_r_kind)) &     !orig
+!       .or. latms_surfaceqc) then   !Kim                                                  !orig        
+     if(factch6 >= one .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind))) then  !emily                      
         efactmc=zero
         vfactmc=zero
-        errf(1:ich528)=zero
-        varinv(1:ich528)=zero
-        do i=1,ich528
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfctype_qc
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
         end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_sfctype_qc
-        errf(ich890)= zero
-        varinv(ich890)=zero
-
-!       screen out channels 5 and 6 if channel 6 is affected by precipitation
-        if (factch6 >= one) then
-           efactmc=zero
-           vfactmc=zero
-           errf(ich536:ich544)=zero
-           varinv(ich536:ich544)=zero
-           do i=ich536,ich544
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-           end do
-!          QC3 in statsrad
-           if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
-!       screen out channels 5  if channel 4 is affected by clouds 
-        else if(factch4 > half)then
-           efactmc=zero
-           vfactmc=zero
-           errf(ich536)=zero
-           varinv(ich536)=zero
-           if(id_qc(ich536) == igood_qc)id_qc(ich536)=ifail_factch4_qc
-!          QC1 in statsrad
-           if(luse) aivals(8,is) = aivals(8,is) + one
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
         endif
+!       QC3 in statsrad
+        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
-     else  !QC for data over open water
+     else if(factch4 > half .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind))) then   !Kim           
+        efactmc=zero
+        vfactmc=zero
+        do i=1,ich536
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+           varinv(i) = zero
+           errf(i) = zero
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
+        endif
+!       QC1 in statsrad
+        if(luse) aivals(8,is) = aivals(8,is) + one
+     end if
 
-!       screen out channels 1 to 6, and 15 if channel 6 is affected by precipitation
-        if(factch6 >= one)then
-           efactmc=zero
-           vfactmc=zero
-           errf(1:ich544)=zero
-           varinv(1:ich544)=zero
-           do i=1,ich544
+!>>orig
+!     if(sea .and. abs(cenlat)<60.0_r_kind .and. (clwp_amsua > half .or. clw_guess_retrieval > half))  then !orig  
+!        efactmc = zero
+!        vfactmc=zero
+!        do i=1,ich536
+!           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+!           errf(i) = zero
+!           varinv(i) = zero
+!        end do
+!        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+!        varinv(ich890) = zero
+!        errf(ich890) = zero
+!        if (latms) then
+!           do i=17,22   !  AMSU-B/MHS like channels
+!              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+!              errf(i) = zero
+!              varinv(i) = zero
+!           enddo
+!        endif
+!     endif
+!<<orig
+
+!>>emily
+!     Screen out data affected by precipitation
+      if(sea .and. abs(cenlat)<60.0_r_kind .and. factch6 >= one)  then
+        efactmc=zero
+        vfactmc=zero
+        errf(1:ich544)=zero
+        varinv(1:ich544)=zero
+        do i=1,ich544
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+        end do
+        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+        errf(ich890) = zero
+        varinv(ich890) = zero
+        if (latms) then
+           do i=17,22   !  AMSU-B/MHS like channels
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-           end do
-           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
-           errf(ich890) = zero
-           varinv(ich890) = zero
-!          QC3 in statsrad
-           if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+              errf(i) = zero
+              varinv(i) = zero
+           enddo
         endif
-
-     endif
-
+      endif
+!<<emily
 ! QC for clear condition
   else  ! <lcw4crtm>
 
