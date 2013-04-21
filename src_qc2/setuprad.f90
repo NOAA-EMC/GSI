@@ -250,11 +250,11 @@
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv,tbobs_bc
-  real(r_kind),dimension(nchanl):: tbc_normalized 
+  real(r_kind),dimension(nchanl):: tbc_normalized  !emily
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
   real(r_kind),dimension(nchanl):: tsim,wavenumber
-  real(r_kind),dimension(nchanl):: cclr,ccld    
+  real(r_kind),dimension(nchanl):: cclr,ccld    !emily
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
@@ -303,29 +303,31 @@
      end do
   end do
 
-! Parameters for the AMSU-A observation error model 
+!>>emily
+! Parameters for the observation error model 
 ! cclr [kg/m2] & ccld [kg/m2]: range of cloud amounts over which the main icrease
 ! in error tale place
   cclr(:)=zero
   ccld(:)=zero
   do i=1,nchanl
      cclr( 1)=0.05_r_kind
-     cclr( 2)=0.01_r_kind
-     cclr( 3)=0.01_r_kind
-     cclr( 4)=0.02_r_kind
-     cclr( 5)=0.00_r_kind
-     cclr( 6)=0.00_r_kind
+     cclr( 2)=0.05_r_kind
+     cclr( 3)=0.05_r_kind
+     cclr( 4)=0.05_r_kind
+     cclr( 5)=0.05_r_kind
+     cclr( 6)=0.05_r_kind
      cclr(15)=0.05_r_kind
   end do
   do i=1,nchanl
-     ccld( 1)=1.20_r_kind
-     ccld( 2)=1.20_r_kind
-     ccld( 3)=0.47_r_kind
-     ccld( 4)=0.38_r_kind
-     ccld( 5)=0.60_r_kind
-     ccld( 6)=1.00_r_kind
-     ccld(15)=1.20_r_kind
+     ccld( 1)=0.5_r_kind
+     ccld( 2)=0.5_r_kind
+     ccld( 3)=0.5_r_kind
+     ccld( 4)=0.5_r_kind
+     ccld( 5)=0.5_r_kind
+     ccld( 6)=0.5_r_kind
+     ccld(15)=0.5_r_kind
   end do
+!<<emily
 
 ! Initialize logical flags for satellite platform
 
@@ -377,7 +379,7 @@
   end if
 
 ! lcw4crtm=lcw4crtm .and. (amsua .or. atms) !orig 
-  lcw4crtm=lcw4crtm .and.  amsua          
+  lcw4crtm=lcw4crtm .and.  amsua            !emily
 
 ! Initialize channel related information
   tnoise = r1e10
@@ -767,7 +769,8 @@
         if(microwave .and. sea) then 
            call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
                 tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
-           if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then  
+!          if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then   !orig
+           if(lcw4crtm) then                                 !emily
               do i=1,nchanl
                  mm=ich(i)
                  if (adp_anglebc) then
@@ -807,7 +810,8 @@
            else
               pred(3,i) = clw*cosza*cosza
            end if
-           if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) pred(3,i ) = zero       
+!          if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) pred(3,i ) = zero !emily      
+           if(lcw4crtm .and. sea) pred(3,i ) = zero  !emily2
  
 !       Apply bias correction
  
@@ -876,8 +880,11 @@
            error0(i)     = tnoise(i)
 
 !Kim ----------------------------------------
-           if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind)  then      
+!          if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind)  then  !orig     
+!          if(lcw4crtm)  then    !emily 
+           if(lcw4crtm .and. sea)  then    !emily2 
               clwtmp=half*(clwp_amsua+clw_guess_retrieval)
+!>>emily
               if(clwtmp <= cclr(i)) then
                  error0(i) = tnoise(i)
               else if(clwtmp > cclr(i) .and. clwtmp < ccld(i)) then
@@ -886,6 +893,8 @@
               else
                  error0(i) = tnoise_cld(i) 
               endif
+!             tbc_normalized(i) = tbc(i)/error0(i)
+!<<emily
            endif
 !Kim ----------------------------------------
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
@@ -1083,8 +1092,11 @@
         do i = 1,nchanl
            if (varinv(i) > tiny_r_kind ) then
               m=ich(i)
-              if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
-                 tbc_normalized(i) = tbc(i)*sqrt(varinv(i)) 
+!>>emily
+!             if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
+!             if(lcw4crtm) then
+              if(lcw4crtm .and. sea) then   !emily2
+                 tbc_normalized(i) = tbc(i)*sqrt(varinv(i))  !emily
                  if (abs(tbc_normalized(i)) > 2.50_r_kind) then
                     if(id_qc(i) == igood_qc)id_qc(i)=ifail_gross_qc
                     varinv(i) = zero
@@ -1104,6 +1116,7 @@
                     if(luse(n))aivals(7,is) = aivals(7,is) + one
                  end if
               end if
+!<<emily
            end if
         end do
 
@@ -1535,19 +1548,19 @@
               diagbuf(20) = dqa                               ! d(qa) corresponding to sstph
               diagbuf(21) = dtp_avh                           ! data type             
            endif
-           if(lcw4crtm .and. sea) then 
+           if(lcw4crtm .and. sea) then   
               diagbuf(22) = tpwc_amsua
            else
               diagbuf(22) = surface(1)%vegetation_fraction    ! vegetation fraction
            endif
 
-           if(lcw4crtm .and. sea) then    
+           if(lcw4crtm .and. sea) then   
               diagbuf(23) = (clw_guess_retrieval+clwp_amsua)*half 
            else
               diagbuf(23) = surface(1)%snow_depth             ! snow depth
            endif
 
-           if(lcw4crtm .and. sea) then   
+           if(lcw4crtm .and. sea) then  
               diagbuf(24) = clw_guess_retrieval
            else
               diagbuf(24) = surface(1)%wind_speed             ! surface wind speed (m/s)
@@ -1558,7 +1571,8 @@
               diagbuf(25)  = cld                        ! cloud fraction (%)
               diagbuf(26)  = cldp                       ! cloud top pressure (hPa)
            else
-              if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then   !orig
+!             if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then   !orig
+              if(lcw4crtm .and. sea) then                                 !emily
                  diagbuf(25)  = clwp_amsua                 ! cloud liquid water (kg/m**2)
                  diagbuf(26)  = clw_guess                  ! total column precip. water (km/m**2)
               else
@@ -1599,7 +1613,7 @@
               diagbufchan(5,i)= id_qc(ich_diag(i))*useflag            ! quality control mark or event indicator
 
 !             if (lcw4crtm .and. sea) then   !orig
-              if (lcw4crtm) then         
+              if (lcw4crtm) then             !emily
                  diagbufchan(6,i)=error0(ich_diag(i))
               else
                  diagbufchan(6,i)=emissivity(ich_diag(i))             ! surface emissivity
