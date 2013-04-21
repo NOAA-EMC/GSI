@@ -1472,7 +1472,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      surface(1)%snow_depth            = data_s(isn)
 
   sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
-  icmask = sea .and. abs(data_s(ilate))<60.0_r_kind       
+! icmask = sea .and. abs(data_s(ilate))<60.0_r_kind   !orig      
+! icmask = lcw4crtm !emily
+  icmask = sea      !emily2
 
 ! assign tzbgr for Tz retrieval when necessary
      tzbgr = surface(1)%water_temperature
