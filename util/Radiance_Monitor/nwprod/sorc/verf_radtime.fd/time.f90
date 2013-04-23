@@ -50,12 +50,12 @@ program time
   real,allocatable,dimension(:,:,:):: tot_cor,omg_nbc,omg_bc
  
 ! Variables for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list) ,pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
 
   logical valid_count, valid_penalty
   integer       nsnow, nland, nwater, nice, nmixed, ntotal

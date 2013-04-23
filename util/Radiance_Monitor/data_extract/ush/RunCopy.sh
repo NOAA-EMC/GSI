@@ -18,15 +18,20 @@ function usage {
   echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
   echo "            File name for RunCopy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
+  echo "            Area is either "glb" or "rgn" (global || regional)"
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
   echo "            End_date   is the optional ending cycle to process (YYYYMMDDHH format)."
 }
+
+#
+#  with no data_map.xml we'll need to add glb/rgn as a parm 
+#
 
 set -ax
 echo start RunCopy.sh
 
 nargs=$#
-if [[ $nargs -lt 1 ]]; then
+if [[ $nargs -lt 2 ]]; then
    usage
    exit 1
 fi
@@ -35,8 +40,9 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-START_DATE=$2
-END_DATE=$3
+AREA=$2
+START_DATE=$3
+END_DATE=$4
 
 RUN_ENVIR=${RUN_ENVIR:-dev}
 
@@ -58,18 +64,13 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
-#--------------------------------------------------------------------
-# Get the area (glb/rgn) for this suffix
-#--------------------------------------------------------------------
-area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
-
 log_file=${LOGSverf_rad}/CopyRad_${SUFFIX}.log
 err_file=${LOGSverf_rad}/CopyRad_${SUFFIX}.err
 
-if [[ $area = glb ]]; then
+if [[ $AREA = glb ]]; then
    copy_script=Copy_glbl.sh
    . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
-elif [[ $area = rgn ]]; then
+elif [[ $AREA = rgn ]]; then
    copy_script=Copy_rgnl.sh
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
@@ -90,14 +91,11 @@ fi
 
 
 #--------------------------------------------------------------------
-# If we have a START_DATE then set the prodate to the previous cycle 
-#   in the data_map file.  Otherwise, use the find_last_cycle.pl 
-#   script to determine the last copied cycle.
+# If we have a START_DATE then use it, otherwise use the 
+#   find_last_cycle.pl script to determine the last copied cycle.
 #--------------------------------------------------------------------
 start_len=`echo ${#START_DATE}`
-if [[ ${start_len} -gt 0 ]]; then
-   pdate=`${NDATE} -06 $START_DATE`
-else
+if [[ ${start_len} -le 0 ]]; then
    pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
    pdate_len=`echo ${#pdate}`
    if [[ ${pdate_len} -ne 10 ]]; then
@@ -111,7 +109,7 @@ cdate=$START_DATE
 
 #--------------------------------------------------------------------
 # Run in a loop until END_DATE is processed, or an error occurs, or 
-# we run out of data.
+#   we run out of data.
 #--------------------------------------------------------------------
 done=0
 ctr=0

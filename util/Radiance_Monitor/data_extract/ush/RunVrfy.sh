@@ -11,12 +11,18 @@
 #  radstat data is exhausted, from the input start date until 
 #  available data is exhausted, or from the start to the end date.
 # 
+#  Calling sequence is Suffix, Area, [start_date], [end_date}
+#    suffix     = identifier for this data source
+#    area       = "glb" or "rgn"
+#    start_date = optional starting cycle to process
+#    end_date   = optional ending cycle to process
 #--------------------------------------------------------------------
 
 function usage {
   echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
   echo "            File name for RunVrfy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
+  echo "            Area is either glb or rgn (global, regional)"
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
   echo "            End_date   is the optional ending cycle to process (YYYYMMDDHH format)."
 }
@@ -25,7 +31,7 @@ set -ax
 echo start RunVrfy.sh
 
 nargs=$#
-if [[ $nargs -lt 1 ]]; then
+if [[ $nargs -lt 22]]; then
    usage
    exit 1
 fi
@@ -34,8 +40,9 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-START_DATE=$2
-END_DATE=$3
+AREA=$2
+START_DATE=$3
+END_DATE=$4
 
 RUN_ENVIR=${RUN_ENVIR:-dev}
 
@@ -56,18 +63,14 @@ else
 fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
-#--------------------------------------------------------------------
-# Get the area (glb/rgn) for this suffix
-#--------------------------------------------------------------------
-area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 
 log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log
 err_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.err
 
-if [[ $area = glb ]]; then
+if [[ $AREA = glb ]]; then
    vrfy_script=VrfyRad_glbl.sh
    . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
-elif [[ $area = rgn ]]; then
+elif [[ $AREA = rgn ]]; then
    vrfy_script=VrfyRad_rgnl.sh
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
@@ -96,7 +99,6 @@ if [[ ${start_len} -gt 0 ]]; then
    pdate=`${NDATE} -06 $START_DATE`
    ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
 else
-#   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
    pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
    pdate_len=`echo ${#pdate}`
    if [[ ${pdate_len} -eq 10 ]]; then

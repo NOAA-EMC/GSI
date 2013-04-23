@@ -20,8 +20,8 @@ function usage {
   echo "              the $TANKDIR/stats directory."
   echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot" 
   echo "              will be for the specified cycle, provided data files are available."
-  echo "              If not included, the plot cycle will be the imgdate (found in"
-  echo "              Radiance_Monitor/parm/data_map.xml) + 6 hrs"
+  echo "              If not included, the plot cycle will be for the latest cycle found"
+  echo "              for this suffix."
 }
 
 set -ax
@@ -63,6 +63,12 @@ if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
 else
    echo "Unable to source ${top_parm}/RadMon_config"
+   exit
+fi
+if [[ -s ${top_parm}/RadMon_user_setttings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source ${top_parm}/RadMon_user_settings"
    exit
 fi
 
@@ -116,13 +122,12 @@ mkdir -p $LOGDIR
 # set PDATE to it.  Otherwise, use the IMGDATE from the DATA_MAP file
 # and add 6 hrs to determine the next cycle.
 #--------------------------------------------------------------------
-export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+export PRODATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
 
 if [[ $plot_time != "" ]]; then
    export PDATE=$plot_time
 else
-   export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
-   export PDATE=`$NDATE +6 $IMGDATE`
+   export PDATE=$PRODATE
 fi
 export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
@@ -176,12 +181,12 @@ mkdir $PLOT_WORK_DIR
 cd $PLOT_WORK_DIR
 
 
-export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-export PLOT_ALL_REGIONS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_all_regions`
-export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs`
+#export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
+#export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
+#export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
+#export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
+#export PLOT_ALL_REGIONS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_all_regions`
+#export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs`
 
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -274,10 +279,10 @@ fi
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+#do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
+#do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
 
-if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
+if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
    export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
    export MAIL_CC=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
 

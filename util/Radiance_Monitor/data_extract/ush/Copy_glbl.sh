@@ -4,7 +4,8 @@
 #  Copy_glbl.sh
 #
 #    This script searches for new radmon output from the global GDAS
-#    and copies those filess to the user's $TANKDIR directory. 
+#    and copies those filess to the user's $TANKDIR directory under the
+#    specified suffix argument. 
 #    The bad_penalty files are regenerated using the local copy of the 
 #    base file.
 #    
@@ -32,20 +33,12 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 export SUFFIX=$1
-#export SUFFIX=testopr
 export DATE=$2
 
 jobname=link_${SUFFIX}
 
 echo SUFFIX = $SUFFIX
 echo DATE   = $DATE
-
-# 3.  Regenerate the bad_penalty files by examining the time files and penatly values
-#     and comparing to the local radmon_base file.  
-#   a.  Add bad penalty files as real files in TANKDIR.
-#   b.  Re-run the reporting check and dump the report contents to new file?
-#   c.  Set the image gen to look for the report in the local directory instead of the file #       logs.
-#
 
 
 #--------------------------------------------------------------------
@@ -63,32 +56,12 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 export USHgfs=${USHgfs:-$HOMEgfs/ush}
-
-#--------------------------------------------------------------------
-# Get the area (glb/rgn) for this suffix
-#--------------------------------------------------------------------
-area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
-
-if [[ $area = glb ]]; then
-   export RAD_AREA=glb
-   . ${PARMverf_rad}/glbl_conf
-elif [[ $area = rgn ]]; then
-   export RAD_AREA=rgn
-   . ${PARMverf_rad}/rgnl_conf
-else
-  echo "Suffix $SUFFIX not found in ${DATA_MAP} file"
-  exit 3 
-fi
+. ${PARMverf_rad}/glbl_conf
 
 mkdir -p $TANKDIR
 mkdir -p $LOGSverf_rad
 
 
-#---------------------------------------------------------------
-# Get date of cycle to process.  Start with the last processed
-# date in the data_map file and work backwards until we find a
-# valid radstat file or hit the limit on $ctr. 
-#---------------------------------------------------------------
 day=`echo $DATE|cut -c1-8`
 cycle=`echo $DATE|cut -c9-10`
 echo day  = $day
@@ -99,12 +72,10 @@ echo PDATE = $PDATE
 prev=`$NDATE -06 $PDATE`
 prev_day=`echo $prev|cut -c1-8`
 prev_cyc=`echo $prev|cut -c9-10`
-
 echo prev_day, prev_cyc = $prev_day, $prev_cyc
 
-#export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+
 DATDIR=${DATDIR:-/com/verf/prod/radmon.${day}}
-#DATDIR=/com/verf/prod/radmon.${day}
 
 test_dir=${TANKDIR}/radmon.${day}
 
@@ -179,9 +150,7 @@ rm -f stdout.validate.*.${cycle}
 #--------------------------------------------------------------------
 #  Create a new penalty error report using the new bad_pen file
 #--------------------------------------------------------------------
-#$NCP $USHverf_rad/radmon_err_rpt.sh      ${test_dir}/.
 $NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
-#$NCP $USHgfs/radmon_getchgrp.pl      ${test_dir}/.
 
 prev_bad_pen=${TANKDIR}/radmon.${prev_day}/bad_pen.${prev}
 bad_pen=bad_pen.${PDATE}
@@ -321,9 +290,9 @@ if [[ exit_value -eq 0 && $nfile_src -ne $nfile_dest ]]; then
    exit_value=6 
 fi
 
-if [[ $exit_value -eq 0 ]]; then
-   `${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-fi
+#if [[ $exit_value -eq 0 ]]; then
+#   `${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
+#fi
 
 echo end Copy_glbl.sh
 exit ${exit_value}

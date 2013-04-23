@@ -63,6 +63,12 @@ else
    echo "Unable to source ${top_parm}/RadMon_config"
    exit
 fi
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source ${top_parm}/RadMon_user_settings"
+   exit
+fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
@@ -112,13 +118,12 @@ fi
 # set PDATE to it.  Otherwise, use the IMGDATE from the DATA_MAP file
 # and add 6 hrs to determine the next cycle.
 #--------------------------------------------------------------------
-export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+export PRODATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
 
 if [[ $plot_time != "" ]]; then
    export PDATE=$plot_time
 else
-   export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
-   export PDATE=`$NDATE +6 $IMGDATE`
+   export PDATE=$PRODATE
 fi
 export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
@@ -152,11 +157,6 @@ fi
 # radiance monitoring jobs.
 
 if [[ $PLOT -eq 1 ]]; then
-
-   export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs`
 
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
       PDY=`echo $PDATE|cut -c1-8`
@@ -213,7 +213,9 @@ if [[ $PLOT -eq 1 ]]; then
      `module load GrADS/2.0.1`
      echo GADDIR = $GADDIR
   fi
-  export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+#  export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+  export datdir=$RADSTAT_LOCATION
+
   export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_MACHINE,SUB_AVG,datdir,listvar
 
 

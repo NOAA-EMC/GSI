@@ -15,33 +15,6 @@ echo start VrfyRad_glbl.sh
 
 
 #--------------------------------------------------------------------
-#
-#  Question:  Which of these belongs in this file, in a top level parm file,
-#   or in image gen?  Makes sense to put as many as possible in one central 
-#   file so users know which one to hack.  
-#export ACCOUNT=${ACCOUNT:-GDAS-MTN}
-#export USE_ANL=${USE_ANL:-0}         	# 0 = extract ges data only, 1 = ges and analysis data
-#export AREA=${AREA:-glb}		# this isn't needed? 
-#export DO_DATA_RPT=${DO_DATA_RPT:-0}	# 0 = no data validation report, 1 = run data report (usually only done with operational data) 
-#export DO_DIAG_RPT=${DO_DIAG_RPT:-0}    # 0 = no diag report, 1 = run diag report (usually only done with operational data)
-#export USE_MAIL=${USE_MAIL:-0}          # this should go away -- journal all error reports to the log file and if this is set to 1 then
-                                        #  image gen can dig them out and send them
-#export MAIL_TO=${MAIL_TO:-}	        # list of email recipients
-#export MAIL_CC=${MAIL_CC:-}		# list of email cc list
-
-#    <radstat_location>/com/gfs/prod</radstat_location>
-#    <run_envir>dev</run_envir>
-#    <static_satype>0</static_satype>
-#    <user_class>dev</user_class>
-
-#   image_gen only
-#    <do_archive>0</do_archive>
-#    <plot_all_regions>1</plot_all_regions>  
-#    <plot_sub_avgs>0</plot_sub_avgs>
-#
-
-
-#--------------------------------------------------------------------
 #  usage
 #--------------------------------------------------------------------
 function usage {
@@ -56,7 +29,7 @@ function usage {
 #  VrfyRad_glbl.sh begins here
 #--------------------------------------------------------------------
 nargs=$#
-if [[ $nargs -lt 2 || $nargs -gt 3 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
    usage
    exit 1
 fi
@@ -64,22 +37,36 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
+#--------------------------------------------------------------------
+#  Eventually remove RUN_ENVIR argument but allow for it to possibly be
+#  present as $2 to ensure backward compatibility.
+#  
+#  if $COMOUT is defined then assume we're in a parallel.
+#--------------------------------------------------------------------
 export SUFFIX=$1
-export RUN_ENVIR=$2
+export RUN_ENVIR=""
 
-if [[ $nargs -eq 3 ]]; then
-   export PDATE=$3
+if [[ $nargs -ge 2 ]]; then
+   if [[ $2 = "dev" || $2 = "para" ]]; then
+      export RUN_ENVIR=$2;
+   else 
+      export PDATE=$2;
+   fi
+
+   if [[ $nargs -eq 3 ]]; then
+      export PDATE=$3;
+   fi
+fi
+
+if [[ $RUN_ENVIR = "" ]]; then
+  export RUN_ENVIR="para"
+  if [[ $COMOUT = "" ]]; then
+     export RUN_ENVIR="dev"
+  fi
 fi
 
 echo SUFFIX = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
-
-if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; then
-  echo  ${RUN_ENVIR} does not match dev, para, or prod.
-  echo
-  usage
-  exit 1
-fi
 
 
 #--------------------------------------------------------------------
@@ -98,12 +85,11 @@ top_parm=${this_dir}/../../parm
 
 if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
+   . ${top_parm}/RadMon_user_settings
 else
    echo "Unable to source RadMon_config file in ${top_parm}"
    exit 2
 fi
-
-echo endian = $LITTLE_ENDIAN
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/glbl_conf
@@ -112,8 +98,8 @@ echo endian = $LITTLE_ENDIAN
 mkdir -p $TANKDIR
 mkdir -p $LOGDIR
 
-
 jobname=${DATA_EXTRACT_JOBNAME}
+
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Are any earlier verf jobs still 
 # running?  If so, exit this script and wait for job to finish.  
@@ -145,19 +131,6 @@ fi
 #------------------------------------------------------------------
 if [[ $RUN_ENVIR = dev ]]; then
 
-   #--------------------------------------------------------------------
-   # Get and export settings for $SUFFIX.
-   #--------------------------------------------------------------------
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-#   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
-
    #---------------------------------------------------------------
    # Get date of cycle to process.
    #---------------------------------------------------------------
@@ -174,8 +147,8 @@ if [[ $RUN_ENVIR = dev ]]; then
 
    export PDY=`echo $PDATE|cut -c1-8`
    export CYC=`echo $PDATE|cut -c9-10`
- 
-   export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+
+   export DATDIR=${RADSTAT_LOCATION}
 
    #---------------------------------------------------------------
    # Locate required files.             
@@ -194,19 +167,6 @@ if [[ $RUN_ENVIR = dev ]]; then
 
 elif [[ $RUN_ENVIR = para ]]; then
 
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACCOUNT=$ACCOUNT
-   if [[ $ACCOUNT = "" ]]; then
-      export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   fi
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-#   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
-
    #---------------------------------------------------------------
    # Locate required files.             
    #---------------------------------------------------------------
@@ -224,19 +184,8 @@ elif [[ $RUN_ENVIR = para ]]; then
    echo radstat = $radstat
 
 else
-   export DATDIR=$COMOUT 
-   export PDATE=$CDATE
-   export PDY=`echo $PDATE|cut -c1-8`
-   export CYC=`echo $PDATE|cut -c9-10`
-
-   export biascr=$DATDIR/biascr.gdas.${CDATE}  
-   export satang=$DATDIR/satang.gdas.${CDATE}
-   export radstat=$DATDIR/radstat.gdas.${CDATE}
-
-   echo biascr  = $biascr
-   echo satang  = $satang
-   echo radstat = $radstat
-
+   echo "error RUN_ENVIR = $RUN_ENVIR, not dev or para"
+   exit 2
 fi
 
 
@@ -291,17 +240,15 @@ if [[ -e ${radstat} ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
   
- 
-   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-   if [[ $rc != 0 ]]; then
-      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
-   fi
-
 fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
 #--------------------------------------------------------------------
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
+
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=5
@@ -309,7 +256,6 @@ if [[ ${data_available} -ne 1 ]]; then
 fi
 
 echo end VrfyRad_glbl.sh
-
 
 
 exit ${exit_value}

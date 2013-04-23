@@ -19,7 +19,21 @@ satnam=subwrd(lin1,4)
 satnum=subwrd(lin1,5)
 nchan=subwrd(lin1,6)
 
+*
+* Set time and region
+*
+'set t last'
+'query time'
+date1=subwrd(result,3)
+say 'date1='date1
+
+region=1
+'set y 1'
+'set z 1'
+
+
 '!rm -f xsize.txt'
+say 'data ='data
 if (data = anl)
    '!cat ./'satype'_anl.ctl |grep "xdef" > xsize.txt'
    om=OmA
@@ -78,16 +92,6 @@ result=close(xsize.txt)
 
 xe=xs+xe1*nx
 
-
-* Set time
-'set t 1'
-'query time'
-date1=subwrd(result,3)
-say 'date1='date1
-
-region=1
-'set y 1'
-'set z 1'
 
 'clear'
 'set grads off'
@@ -278,7 +282,6 @@ function calcsdv(count,field,fldsqr)
 
    'define rterm1=1/count'
    'define rterm2=1/('count'-1)'
-   'define junk='field'-1'
    'define svar=(('count'*'fldsqr' - 'field'*'field') * 'rterm1'*'rterm2')'
    'define sdv=sqrt('svar')'
    'define sdv=const('sdv',0,-u)'

@@ -5,7 +5,14 @@
 #
 #  Extract data for regional source.  
 #--------------------------------------------------------------------
+set -ax
+echo start VrfyRad_rgnl.sh
 
+
+
+#--------------------------------------------------------------------
+#  useage function
+#--------------------------------------------------------------------
 function usage {
   echo "Usage:  VrfyRad_rgnl.sh suffix run_envir [pdate] "
   echo "            File name for VrfyRad_rgnl.sh can be full or relative path"
@@ -14,11 +21,12 @@ function usage {
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 
-set -ax
-echo start VrfyRad_rgnl.sh
 
+#--------------------------------------------------------------------
+#  VrfyRad_rgnl.sh begins here
+#--------------------------------------------------------------------
 nargs=$#
-if [[ $nargs -lt 2 || $nags -gt 3 ]]; then
+if [[ $nargs -lt 1 || $nags -gt 3 ]]; then
    usage
    exit 1
 fi
@@ -27,31 +35,44 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
+#--------------------------------------------------------------------
+#  Eventually remove RUN_ENVIR argument but allow for it to possibly be
+#  present as $2 to ensure backward compatibility.
+#
+#  if $COMOUT is defined then assume we're in a parallel.
+#--------------------------------------------------------------------
 export SUFFIX=$1
-export RUN_ENVIR=$2
+export RUN_ENVIR=""
 
-if [[ $nargs -eq 3 ]]; then
-   export PDATE=$3
+if [[ $nargs -ge 2 ]]; then
+   if [[ $2 = "dev" || $2 = "para" ]]; then
+      export RUN_ENVIR=$2;
+   else
+      export PDATE=$2;
+   fi
+
+   if [[ $nargs -eq 3 ]]; then
+      export PDATE=$3;
+   fi
 fi
 
+if [[ $RUN_ENVIR = "" ]]; then
+  export RUN_ENVIR="para"
+  if [[ $COMOUT = "" ]]; then
+     export RUN_ENVIR="dev"
+  fi
+fi
 
-echo SUFFIX    = $SUFFIX
+echo SUFFIX = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
-
-if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; then
-  echo  ${RUN_ENVIR} does not match dev, para, or prod.
-  echo
-  usage
-  exit 1
-fi
 
 
 #--------------------------------------------------------------------
 # Set environment variables
 #--------------------------------------------------------------------
 export RAD_AREA=rgn
-export MAKE_CTL=1
-export MAKE_DATA=1
+export MAKE_CTL=${MAKE_CTL:-1}
+export MAKE_DATA=${MAKE_DATE:-1}
 
 if [[ ${RUN_ENVIR} = para || ${RUN_ENVIR} = prod ]]; then
    this_dir=${VRFYRAD_DIR}
@@ -62,6 +83,7 @@ top_parm=${this_dir}/../../parm
 
 if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
+   . ${top_parm}/RadMon_user_settings
 else
    echo "Unable to source RadMon_config file in ${top_parm}"
    exit 2 
@@ -74,7 +96,6 @@ mkdir -p $TANKDIR
 mkdir -p $LOGDIR
 
 jobname=${DATA_EXTRACT_JOBNAME}
-
 
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Are any earlier verf jobs still
@@ -97,28 +118,10 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    fi
 fi
 
-
 tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
-
-if [[ $RUN_ENVIR = dev || $RUN_ENVIR = para ]]; then
-
-   #--------------------------------------------------------------------
-   # Get and export settings for $SUFFIX.
-   #--------------------------------------------------------------------
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACCOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-#  export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-#   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
-fi
 
 #------------------------------------------------------------------
 #  define data file sources depending on $RUN_ENVIR
@@ -149,12 +152,11 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
 
    export DATDIR=${PTMP_USER}/regional
-   export com=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
-
+   export com=${RADSTAT_LOCATION}
    /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
 
-elif [[ ${RUN_ENVIR} = para || ${RUN_ENVIR} = prod ]]; then
+elif [[ ${RUN_ENVIR} = para ]]; then
 
    #---------------------------------------------------------------
    # Locate required files.
@@ -163,7 +165,6 @@ elif [[ ${RUN_ENVIR} = para || ${RUN_ENVIR} = prod ]]; then
    export DATDIR=${PTMP_USER}/regional
    export com=`dirname ${COMOUT}`
    export PDATE=${CDATE}
-#   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
 
    sdate=`echo ${PDATE}|cut -c1-8`
    export CYA=`echo ${PDATE}|cut -c9-10`
@@ -197,23 +198,20 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    export cyc=`echo $PDATE|cut -c9-10`
 
    export job=ndas_vrfyrad_${PDY}${cyc}
-   export SENDSMS=NO
+   export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=/stmp/$LOGNAME/radmon_regional
+   export DATA=${DATA:-$STMP/$LOGNAME/radmon_regional}
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
    export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
 
-   export VERBOSE=YES
-   
+   export VERBOSE=${VERBOSE:-YES}
+  
+ 
    if [[ $cyc = "00" ]]; then
       mkdir -p ${TANKverf}/radmon.${PDY}
       prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
       cp ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
    fi
-
-#   if [[ $USE_STATIC_SATYPE -eq 1 && -e ${TANKverf}/info/SATYPE.txt ]]; then
-#      export satype_file=${TANKverf}/info/SATYPE.txt
-#   fi
 
    if [[ -s ${TANKverf}/info/radmon_base.tar.Z ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar
@@ -235,11 +233,6 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
       $SUB -q $ACCOUNT -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
-   fi
-
-   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-   if [[ $rc != 0 ]]; then
-      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
    fi
 
 fi

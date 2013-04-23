@@ -199,18 +199,42 @@
    # 
    #   Update the default account settings in the data_map.xml file.
    #
-   my $glbl_account = "GDAS-MTN";
-   my $rgnl_account = "RDAS-MTN";
+   print "\n";
+   print "Updating parm/RadMon_user_settings\n";
+
+   my $account = "export ACCOUNT=\${ACCOUNT:-GDAS-MTN}";
    if( $machine eq "zeus" ) {
-      $glbl_account = "ada";
-      $rgnl_account = "ada";
+      $account = "export ACCOUNT=\${ACCOUNT:-ada}";
+   }
+   elsif( $machine eq "wcoss" ) {
+      $account = "export ACCOUNT=\${ACCOUNT:-dev}";
    }
 
-   `/usr/bin/perl ./image_gen/ush/update_data_map.pl ./parm/data_map.xml global_default account $glbl_account`; 
-   `/usr/bin/perl ./image_gen/ush/update_data_map.pl ./parm/data_map.xml regional_default account $rgnl_account`; 
 
-   `./makeall.sh clean`;
-   `./makeall.sh`;
+    my $outfile = "tmp.file";
+    open (OUT, ">", $outfile) || die "Cannot open file ".$outfile." for write";
+
+    my $infile  = "./parm/RadMon_user_settings";
+    open (IN, "<", $infile) || die "Cannot open file ".$infile." for read";  
+
+    foreach $line (<IN>) {    
+       chomp( $line );
+       if ($line =~ m/export ACCOUNT/) {
+          $line = $account;
+       } 
+       print OUT "$line\n";    
+    }    
+    close OUT;    
+    close IN;
+
+    move $outfile, $infile;
+
+
+    print "\n";
+    print "Making all executables\n";
+
+    `./makeall.sh clean`;
+    `./makeall.sh`;
  
    exit 0;
 
