@@ -34,7 +34,7 @@ subroutine bkerror(gradx,grady)
 !                         bundles grady%step(ii) and grady%motley(ii) to new temporary bundle
 !                         mbundle.  If there are no motley variables (mvars<=0), then gsi_bundledup
 !                         is used in place of gsi_bundlemerge.
-!   2013-04-23 Pondecca - bug fix in callng gsi_bundledup
+!   2013-04-23 Pondecca - bug fix in calling gsi_bundledup
 !
 !   input argument list:
 !     gradx    - input field  
