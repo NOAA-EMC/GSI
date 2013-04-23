@@ -39,6 +39,7 @@ subroutine convert_binary_mass
 !   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
 !   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
 !                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
+!   2013-04-23  parrish - add internal check for types of GLAT/GLON
 !
 !   input argument list:
 !
