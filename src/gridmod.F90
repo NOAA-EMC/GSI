@@ -72,7 +72,6 @@ module gridmod
 !   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
 !   2011-11-14 whitaker - added a fix to sign_pole for large domain (rlat0max > 37N and rlat0min < 37S)
 !   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
-!   2013-04-16  wu      - add type of glat, glon from nmmb: glatlon_type
 !
 !
 ! !AUTHOR: 
@@ -128,7 +127,7 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: nsig3,nsig4,glatlon_type
+  public :: nsig3,nsig4
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,sp_b,grd_a,grd_b
   public :: jtstart,jtstop,nthreads
@@ -172,7 +171,6 @@ module gridmod
   integer(i_kind) nsig_soil         ! no. of levels of soil model
   integer(i_kind) idvc5             ! vertical coordinate identifier
   integer(i_kind) nvege_type        ! no. of types of vegetation; old=24, IGBP=20
-  integer(i_kind) glatlon_type      ! type of glat/glon from nmmb; deg=1, rad=2
 !                                        1: sigma
 !                                        2: sigma-pressure
 !                                        3: sigma-pressure-theta
@@ -362,7 +360,6 @@ contains
 !   2010-08-10  wu      - add initialization of nvege_type          
 !   2010-10-14  pagowski- add CMAQ
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio to determine whether to use NEMSIO to read global first guess field
-!   2013-04-16  wu      - add initialization of glatlon_type
 !
 ! !REMARKS:
 !   language: f90
@@ -426,7 +423,6 @@ contains
     jcap_b=62
     hires_b=.false.
     nvege_type=24
-    glatlon_type=1
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio = .false.

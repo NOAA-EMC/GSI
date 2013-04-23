@@ -72,10 +72,10 @@
   use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
-     diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,glatlon_type,&
+     diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
-     use_gfs_nemsio,glatlon_type
+     use_gfs_nemsio
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -237,7 +237,6 @@
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
-!  04-16-2013 wu        add glatlon_type to gridopts namelist 
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -444,7 +443,6 @@
 !     filled_grid       - logical to fill in puts on WRF-NMM E-grid
 !     half_grid         - logical to use every other row of WRF-NMM E-Grid
 !     nvege_type - number of types of vegetation; old=24, IGBP=20
-!     glatlon_type - unit of glat and glon in nmmb; deg=1, rad=2
 !     nlayers    - number of sub-layers to break indicated model layer into
 !                  prior to calling radiative transfer model
 
@@ -452,7 +450,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,glatlon_type
+       nmmb_reference_grid,grid_ratio_nmmb
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error

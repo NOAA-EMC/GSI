@@ -1373,7 +1373,6 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar,nemsio_readrecv
   use gfs_stratosphere, only: mix_gfs_nmmb_vcoords,use_gfs_stratosphere,nsig_max
-  use gridmod, only: glatlon_type
   implicit none
 
 ! integer(i_kind),parameter:: in_unit = 15
@@ -1651,28 +1650,21 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      call nemsio_getfilehead(gfile,iret=iret,recname=recname,reclevtyp=reclevtyp, &
            reclev=reclev,lat=glata(:),lon=glona(:),dx=dxa(:),dy=dya(:))
      ii=0
-     if(glatlon_type==1)then
-        do j=1,nlat_regional
-           do i=1,nlon_regional
-              ii=ii+1
-              glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
-              glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
-              dx  (i,j)=    dxa  (ii)
-              dy  (i,j)=    dya  (ii)
-           end do
+     do j=1,nlat_regional
+        do i=1,nlon_regional
+           ii=ii+1
+           glat(i,j)=glata(ii)
+           glon(i,j)=glona(ii)
+           dx  (i,j)=    dxa  (ii)
+           dy  (i,j)=    dya  (ii)
         end do
-     else
-        do j=1,nlat_regional
-           do i=1,nlon_regional
-              ii=ii+1
-              glat(i,j)=glata(ii)               ! input lat in radians
-              glon(i,j)=glona(ii)               ! input lon in radians
-              dx  (i,j)=    dxa  (ii)
-              dy  (i,j)=    dya  (ii)
-           end do
-        end do
-     endif
-  
+     end do
+
+!     following detects if glat, glon are in degree units.  If so,
+!      they are converted to radians.
+
+     call latlon2radians(glat,glon,dx,dy,nlon_regional,nlat_regional)
+
 !                  GLAT
 
      write(6,*)' convert_nems_nmmb: max,min GLAT=', &
@@ -1791,6 +1783,83 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   enddo n_loop
 
 end subroutine convert_nems_nmmb
+
+subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    latlon2radians  check for degrees and convert to radians
+!   prgmmr: parrish          org: np22                date: 2013-04-18
+!
+! abstract: Find 2x2 box with max range of glat, then compute ratio of 
+!             max_range_glat*rearth to max dx, dy over the 4 corners.
+!             This ratio should be between approximately 1 and 1.4 
+!             If the units of glat are degrees, then the ratio will be 
+!             between about 57 and 80.  So a unique determination
+!             can be made about the units of glat, glon.
+!             If it is determined that the units are degrees, then glat, glon
+!             will be converted to radians.
+!
+! program history log:
+!   2013-04-18  parrish - initial documentation
+!
+!   input argument list:
+!     glat             - latitudes at model gridpoints (degrees or radians)
+!     glon             - longitudes at model gridpoints (degrees or radians)
+!     dx               - grid increment at model gridpoints in x direction (meters)
+!     dy               - grid increment at model gridpoints in y direction (meters)
+!     nx               - number of points in x direction
+!     ny               - number of points in y direction
+!
+!   output argument list:
+!     glat             - latitudes at model gridpoints (radians)
+!     glon             - longitudes at model gridpoints (radians)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,i_kind
+  use constants, only: zero,deg2rad
+  implicit none
+
+  integer(i_kind),intent(in   ) :: nx,ny
+  real(r_single) ,intent(inout) :: glat(nx,ny),glon(nx,ny)
+  real(r_single) ,intent(in   ) :: dx(nx,ny),dy(nx,ny)
+
+  integer(i_kind) i,ip,j,jp,iskip,jskip
+  real(r_single) boxdlatmax,boxdxymax,ratiomax,rearth
+
+  rearth=6370000._r_single
+  ratiomax=zero
+!  don't need to check all 2x2 boxes.  Do every tenth in each direction
+  jskip=max(1,ny/10)
+  iskip=max(1,nx/10)
+  do j=1,ny-1,jskip
+     jp=j+1
+     do i=1,nx-1,iskip
+        ip=i+1
+        boxdlatmax=max(glat(i,j),glat(ip,j),glat(i,jp),glat(ip,jp)) &
+                  -min(glat(i,j),glat(ip,j),glat(i,jp),glat(ip,jp))
+        boxdxymax=max(dx(i,j),dx(ip,j),dx(i,jp),dx(ip,jp), &
+                      dy(i,j),dy(ip,j),dy(i,jp),dy(ip,jp))
+        ratiomax=max(rearth*boxdlatmax/boxdxymax,ratiomax)
+     end do
+  end do
+  write(6,'(" maximum ratio of boxdlatmax*rearth/boxdxymax =",f12.2)') ratiomax
+  write(6,'("   If 1 < ratiomax < 1.4, then glat,glon units are radians")')
+  write(6,'("   If 57 < ratiomax < 80, then glat,glon units are degrees")')
+  if(ratiomax > 20._r_single ) then
+     do j=1,ny
+        do i=1,nx
+           glat(i,j)=deg2rad*glat(i,j)
+           glon(i,j)=deg2rad*glon(i,j)
+        end do
+     end do
+  end if
+
+end subroutine latlon2radians
 
 #ifdef WRF
 subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
