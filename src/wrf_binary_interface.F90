@@ -1347,7 +1347,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
 !                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
 !   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
-!   2013-04-17  wu      - option to accept input lat/lon in both degrees and radians
+!   2013-04-17  parrish - option to accept input lat/lon in both degrees and radians
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1822,7 +1822,7 @@ subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
 !$$$
 
   use kinds, only: r_single,i_kind
-  use constants, only: zero,deg2rad
+  use constants, only: zero,deg2rad,rearth
   implicit none
 
   integer(i_kind),intent(in   ) :: nx,ny
@@ -1830,9 +1830,8 @@ subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
   real(r_single) ,intent(in   ) :: dx(nx,ny),dy(nx,ny)
 
   integer(i_kind) i,ip,j,jp,iskip,jskip
-  real(r_single) boxdlatmax,boxdxymax,ratiomax,rearth
+  real(r_single) boxdlatmax,boxdxymax,ratiomax
 
-  rearth=6370000._r_single
   ratiomax=zero
 !  don't need to check all 2x2 boxes.  Do every tenth in each direction
   jskip=max(1,ny/10)

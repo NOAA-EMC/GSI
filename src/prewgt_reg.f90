@@ -46,8 +46,8 @@ subroutine prewgt_reg(mype)
 !                          (fixes WCOSS debug compile error)
 !
 !   2013-04-17  wu      - use nnnn1o to deside whether to define B related veriables
-!                         avoid undefined input when the tasks are more than
-!                         levels of control vectors
+!                         avoid undefined input when number of tasks is larger than
+!                         that of the total levels of control vectors
 !   input argument list:
 !     mype     - pe number
 !
