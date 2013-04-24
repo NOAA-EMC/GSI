@@ -65,7 +65,7 @@ else
    echo "Unable to source ${top_parm}/RadMon_config"
    exit
 fi
-if [[ -s ${top_parm}/RadMon_user_setttings ]]; then
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then 
    . ${top_parm}/RadMon_user_settings
 else
    echo "Unable to source ${top_parm}/RadMon_user_settings"
