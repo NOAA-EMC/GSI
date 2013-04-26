@@ -618,6 +618,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
 !      5) update the qc criteria of the ssmis data over non-ocean surfaces
 !      6) realx the qc criteria for the data at channels from 1 to 2
 !      7) add two references
+!     2013-02-13  eliu     - tighten up the qc criteria for ssmis
 !
 ! input argument list:
 !     nchanl  - number of channels per obs
@@ -841,7 +842,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
            vfact = fact*vfact
         end if
 
-     else 
+     else  ! for ssmis 
        !Use dtbc at 52.8 GHz to detect cloud-affected data
         if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
            do i =1,2
@@ -871,18 +872,22 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
               if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
            end do
         end if
-
         if (sfchgt > r2000) then
-           varinv(9)=zero
-           if(id_qc(9)== igood_qc) id_qc(9)=ifail_topo_ssmi_qc
+           do i=1,24
+              varinv(i)=zero
+              if(id_qc(i)== igood_qc) id_qc(i)=ifail_topo_ssmi_qc
+           enddo
         end if
-        if (sfchgt > r4000) then
-           varinv(3)=zero
-           if(id_qc(3)== igood_qc) id_qc(3)=ifail_topo_ssmi_qc
-           varinv(10)=zero
-           if(id_qc(10)== igood_qc) id_qc(10)=ifail_topo_ssmi_qc
-        end if
-
+!        if (sfchgt > r2000) then
+!           varinv(9)=zero
+!           if(id_qc(9)== igood_qc) id_qc(9)=ifail_topo_ssmi_qc
+!        end if
+!        if (sfchgt > r4000) then
+!           varinv(3)=zero
+!           if(id_qc(3)== igood_qc) id_qc(3)=ifail_topo_ssmi_qc
+!           varinv(10)=zero
+!           if(id_qc(10)== igood_qc) id_qc(10)=ifail_topo_ssmi_qc
+!        end if
 
      end if
   end if
@@ -1732,8 +1737,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
 ! Determine whether or not CW fed into CRTM
   lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  !emily
-  if(icw4crtm >0) lcw4crtm = .true.                          !emily
+  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  
+  if(icw4crtm >0) lcw4crtm = .true.                         
    
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     

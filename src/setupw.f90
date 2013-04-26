@@ -135,6 +135,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
 !                            num_bad_ikx and print 1st 10 instances of ikx out of range
 !                            and also print num_bad_ikx after all data processed if > 0 .
+!   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11, tintrp2a to tintrp2a1, tintrp2a11,
+!                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
+!                            num_bad_ikx and print 1st 10 instances of ikx out of range
+!                            and also print num_bad_ikx after all data processed if > 0 .
 !
 ! REMARKS:
 !   language: f90

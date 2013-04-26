@@ -348,14 +348,18 @@ clean:
 	m_berror_stats.f90 \
 	m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
+	m_distance.f90	\
 	m_dtime.F90	\
+	m_find.f90 \
 	m_gpsrhs.F90 \
 	m_gsiBiases.f90 \
 	m_rerank.f90 \
 	m_obdiag.F90	\
 	m_rhs.F90	\
+	m_sortind.f90 \
 	m_stats.f90 \
 	m_tick.F90 \
+	m_uniq.f90 \
 	mpeu_mpif.F90 \
 	mpeu_util.F90 \
 	mod_nmmb_to_a.f90 \
@@ -433,6 +437,7 @@ clean:
 	smoothwwrf.f90 \
 	smoothzrf.f90 \
 	sqrtmin.f90 \
+	ssmis_spatial_average_mod.f90 \
 	state2control.f90 \
 	state2ensctl.f90 \
 	state_vectors.f90 \
