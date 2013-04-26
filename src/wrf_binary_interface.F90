@@ -1830,8 +1830,9 @@ subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
   real(r_single) ,intent(in   ) :: dx(nx,ny),dy(nx,ny)
 
   integer(i_kind) i,ip,j,jp,iskip,jskip
-  real(r_single) boxdlatmax,boxdxymax,ratiomax
-
+  real(r_single) boxdlatmax,boxdxymax,ratiomax,srearth
+ 
+  srearth=rearth
   ratiomax=zero
 !  don't need to check all 2x2 boxes.  Do every tenth in each direction
   jskip=max(1,ny/10)
@@ -1844,7 +1845,7 @@ subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
                   -min(glat(i,j),glat(ip,j),glat(i,jp),glat(ip,jp))
         boxdxymax=max(dx(i,j),dx(ip,j),dx(i,jp),dx(ip,jp), &
                       dy(i,j),dy(ip,j),dy(i,jp),dy(ip,jp))
-        ratiomax=max(rearth*boxdlatmax/boxdxymax,ratiomax)
+        ratiomax=max(srearth*boxdlatmax/boxdxymax,ratiomax)
      end do
   end do
   write(6,'(" maximum ratio of boxdlatmax*rearth/boxdxymax =",f12.2)') ratiomax
