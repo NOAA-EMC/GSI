@@ -318,6 +318,8 @@ module obsmod
   public :: mype_pm2_5,iout_pm2_5
   public :: codiags,use_limit,lrun_subdirs
 
+  public :: aircraft_t_bc
+
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
@@ -1226,6 +1228,7 @@ module obsmod
   logical lwrite_peakwt
   logical ext_sonde
   logical lrun_subdirs
+  logical aircraft_t_bc
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1252,6 +1255,8 @@ contains
 !   2007-05-03  todling - use values def above as indexes to cobstype
 !   2008-11-25  todling - remove line-by-line adj triggers
 !   2011-02-09  zhu     - add gust,vis and pblh
+!   2013-04-15  zhu     - add aircraft_t_bc for aircraft temperature bias
+!   correction
 !
 !   input argument list:
 !
@@ -1406,6 +1411,7 @@ contains
     lwrite_predterms = .false.
     lwrite_peakwt    = .false.
     lrun_subdirs     = .false.
+    aircraft_t_bc    = .false.
 
     return
   end subroutine init_obsmod_dflts

@@ -104,6 +104,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
 !                                    Initialize pflag=0 at beginning of subroutine.
+!   2013-04-15  zhu  - add phase of aircraft flight
 !
 !
 !   input argument list:
@@ -138,6 +139,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss
+  use obsmod, only: aircraft_t_bc
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -193,6 +195,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical sfctype
   logical luse,ithinp,windcorr
   logical patch_fog
+  logical aircraftobs
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
@@ -205,6 +208,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) c_station_id
   character(1) sidchr(8)
   character(8) stnid
+  character(8) aircraftstr
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
@@ -267,6 +271,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(1,255):: levdat
   real(r_double),dimension(255,20):: tpc
   real(r_double),dimension(2,255,20):: tobaux
+  real(r_double),dimension(1,255):: aircraftpof
 
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
@@ -291,6 +296,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
   data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
+  data aircraftstr /'POAF'/           ! phase of aircraft flight
 
   data lunin / 13 /
   data ithin / -9 /
@@ -372,6 +378,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if (tob)  lim_qqm=4
   endif
 
+  if (tob .and. aircraft_t_bc) nreal=nreal+1
   if(perturb_obs .and. (tob .or. psob .or. qob))nreal=nreal+1
   if(perturb_obs .and. uvob )nreal=nreal+2
 
@@ -758,6 +765,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               c_sprvstg=cspval
            endif
      
+!          aircraft data
+           aircraftobs=(kx>129.and.kx<140) .or. (kx>229.and.kx<240)
+
 !          Extract data information on levels
            call ufbint(lunin,obsdat,11,255,levs,obstr)
            if(kx==224 .and. newvad) then
@@ -768,6 +778,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            nread=nread+levs
            if(uvob)then
               nread=nread+levs
+           else if(tob) then 
+              if (aircraftobs .and. aircraft_t_bc) then 
+                 call ufbint(lunin,aircraftpof,1,255,levs,aircraftstr)
+                 do k=1,levs
+                 print*, 'aircraft P=',obsdat(1,k), ' T=',obsdat(3,k),' pof=',aircraftpof(1,k)
+                 end do
+                 print*
+              end if
            else if(sstob)then 
               sstdat=bmiss
               call ufbint(lunin,sstdat,8,1,levs,sststr)
@@ -1203,9 +1221,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
-                 if(perturb_obs)cdata_all(25,iout)=ran01dom()*perturb_fact ! t perturbation
+                 if (aircraftobs .and. aircraft_t_bc) cdata_all(25,iout)=aircraftpof(1,k)
+                 if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
+                 if (aircraftobs) write(55,*) nc,kx,c_station_id,t4dv,tqm(k),cdata_all(17,iout),cdata_all(18,iout),ppb,cdata_all(5,iout),cdata_all(25,iout)
 
 !             Winds 
               else if(uvob) then 
