@@ -43,6 +43,21 @@ SUFFIX=$1
 
 echo SUFFIX    = ${SUFFIX}
 
+#
+#  Temporary change, abort if running on prod.  This is an attempt to
+#  eliminate prossible crons running on the prod machine for me only.
+#
+#   machine=`hostname | cut -c1`
+#   prod=`cat /etc/prod | cut -c1`
+#
+#   if [[ $machine = $prod ]]; then
+#      exit 10
+#   fi
+#
+#  End temporary change
+#
+
+
 #--------------------------------------------------------------------
 #  Set plot_time if it is included as an argument.
 #--------------------------------------------------------------------
@@ -181,13 +196,6 @@ mkdir $PLOT_WORK_DIR
 cd $PLOT_WORK_DIR
 
 
-#export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-#export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-#export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-#export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-#export PLOT_ALL_REGIONS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_all_regions`
-#export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs`
-
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
 #  available data files in $TANKDIR/angle
@@ -253,7 +261,8 @@ ${SCRIPTS}/mk_bcoef_plots.sh
 ${SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
-   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+   export datdir=${RADSTAT_LOCATION}
+
    export listvar=PARM,RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,listvar
    jobname="plot_horiz_${SUFFIX}"
    logfile="${LOGDIR}/horiz.log"
@@ -279,19 +288,9 @@ fi
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-#do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-#do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-
 if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
-   export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
 
-   logfile_dir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} logfile_dir`
-
-   logfile=`ls ${logfile_dir}/${PDY}/gdas_verfrad_${CYA}.*`
-   if [[ ! -s $logfile ]]; then
-      logfile=${LOGDIR}/data_extract.${sdate}.${CYA}.log
-   fi
+   logfile=${LOGSverf_rad}/rad${SUFFIX}/data_extract.${sdate}.${CYA}.log
   
    if [[ -s $logfile ]]; then
       ${SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile

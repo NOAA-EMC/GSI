@@ -43,23 +43,30 @@ cd ${workdir}
 #------------------------------------------------------------------
 PDY=`echo $PDATE|cut -c1-8`
 
-if [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.${Z} ]]; then
-   $NCP ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.${Z} ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.${Z}
+target1=${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d
+dest1=${workdir}/${SUFFIX1}.${PDATE}.ieee_d
+if [[ -s ${target1}.${Z} ]]; then 
+   $NCP ${target1}.${Z} ${dest1}.${Z}
 else
-   $NCP $TANKDIR1/time/${type}.${PDATE}${anl}.ieee_d.${Z} ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.${Z}
+   $NCP ${target1} ${dest1}
 fi
 
-if [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.${Z} ]]; then
-   $NCP ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.${Z} ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.${Z}
+target2=${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d
+dest2=${workdir}/${SUFFIX2}.${PDATE}.ieee_d
+if [[ -s ${target2}.${Z} ]]; then 
+   $NCP ${target2}.${Z} ${dest2}.${Z}
 else
-   $NCP $TANKDIR2/time/${type}.${PDATE}${anl}.ieee_d.${Z} ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.${Z}
+   $NCP ${target2} ${dest2}
 fi
+
 
 if [[ $suff3 -gt 0 ]]; then
-   if [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.${Z} ]]; then
-      $NCP ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.${Z} ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.${Z}
+   target3=${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d
+   dest3=${workdir}/${SUFFIX3}.${PDATE}.ieee_d
+   if [[ -s ${target3}.${Z} ]]; then 
+      $NCP ${target3}.${Z} ${dest3}.${Z}
    else
-      $NCP $TANKDIR3/time/${type}.${PDATE}${anl}.ieee_d.${Z} ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.${Z}
+      $NCP ${target3} ${dest3}
    fi
 fi
 

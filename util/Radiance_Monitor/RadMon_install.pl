@@ -210,6 +210,10 @@
       $account = "export ACCOUNT=\${ACCOUNT:-dev}";
    }
 
+   my $user_class = "export USER_CLASS=dev";
+   if( $machine ne "ccs" ) {
+      $user_class="";
+   } 
 
     my $outfile = "tmp.file";
     open (OUT, ">", $outfile) || die "Cannot open file ".$outfile." for write";
@@ -222,6 +226,9 @@
        if ($line =~ m/export ACCOUNT/) {
           $line = $account;
        } 
+       elsif( $line =~ m/export USER_CLASS/ ){
+          $line = $user_class;
+       }
        print OUT "$line\n";    
     }    
     close OUT;    

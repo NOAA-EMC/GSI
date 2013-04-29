@@ -19,10 +19,9 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
+  echo "Usage:  RunVrfy.sh suffix rad_area start_date [end_date]"
   echo "            File name for RunVrfy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
-  echo "            Area is either glb or rgn (global, regional)"
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
   echo "            End_date   is the optional ending cycle to process (YYYYMMDDHH format)."
 }
@@ -31,7 +30,7 @@ set -ax
 echo start RunVrfy.sh
 
 nargs=$#
-if [[ $nargs -lt 22]]; then
+if [[ $nargs -lt 1 ]]; then
    usage
    exit 1
 fi
@@ -40,9 +39,8 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-AREA=$2
-START_DATE=$3
-END_DATE=$4
+START_DATE=$2
+END_DATE=$3
 
 RUN_ENVIR=${RUN_ENVIR:-dev}
 
@@ -67,10 +65,10 @@ fi
 log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log
 err_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.err
 
-if [[ $AREA = glb ]]; then
+if [[ $RAD_AREA = glb ]]; then
    vrfy_script=VrfyRad_glbl.sh
    . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
-elif [[ $AREA = rgn ]]; then
+elif [[ $RAD_AREA = rgn ]]; then
    vrfy_script=VrfyRad_rgnl.sh
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else

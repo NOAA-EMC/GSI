@@ -10,11 +10,24 @@
 #  ACCOUNT is set by the RadMon_instal.sh script, to GDAS-MTN, dev, or ada
 #    according to platform (ccs, wcoss, zeus respectively)
 #
-export ACCOUNT=${ACCOUNT:-dev}
+export ACCOUNT=${ACCOUNT:-GDAS-MTN}
+
+#
+#  USER_CLASS is set to "dev" on the CCS, empty on all other platforms
+#
+export USER_CLASS=${USER_CLASS:-dev}
+
+#
+#  RAD_AREA is either glb (global) or rgn (regional)
+#
+export RAD_AREA=${RAD_AREA:-glb}
 
 #
 #  RADSTAT_LOCATION is location of the radstat files.  If RadMon runs as a 
-#    job in a parallel then $COMOUT is used instead of this value
+#    job in a parallel then $COMOUT is used instead of the value defined below.  
+#    When plotting, if horizontal plots are desired then RADSTAT_LOCATION will
+#    need to be set to the directory of the radstat files (we only extract 
+#    horizontal data when it's needed rather than storing huge files all the time).
 #
 export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/com/gfs/prod}
 
@@ -39,7 +52,7 @@ export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 #  DO_ARCHIVE switches on archiving of extracted data files.  This is generally
 #    used for the operational data sets (GDAS, NDAS) and isn't normally necessary
 #    for parallels.  0 = off, 1 = on
-export DO_ARCHIVE=${DO_ARCHIVE:-0}
+export DO_ARCHIVE=${DO_ARCHIVE:-1}
 
 #
 #  STATIC_SATYPE switches on/off use of static satype list.  This is primarily

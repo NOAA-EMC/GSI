@@ -2,28 +2,30 @@
 
 #--------------------------------------------------------------------
 #
-#  CkPlt_comp.sh
+#  Plot_comp.sh
 #
 #  This script plots the requested comparision plots for the specified
-#  suffix (data source).  Data may be plotted from either global or 
+#  suffix (data sources).  Data may be plotted from either global or 
 #  regional sources.
-#
-#  The entry for the suffix in the ../../parm/data_map.xml file should
-#  include entries for the desired comparision source(s).
 #
 #  Supported plots include:
 #    plot_fs_obsnum_comp.sh
 #
 #  Note:  this does not generate any data files (*.ieee_d).  Those 
-#  must be already created for this script to function correctly.
+#  must be already created for this script to function correctly.  
 #
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  CkPlt_comp.sh suffix"
+  echo "Usage:  Plot_comp.sh suffix"
   echo "            File name for CkPlt_glbl.sh may be full or relative path"
-  echo "            Suffix is data source identifier that matches data in "
-  echo "              the $TANKDIR/stats directory."
+  echo "            Date in YYYYMMDDHH for plot"
+  echo "            Suffix1 data source identifier that corresponds to data"
+  echo "              in the $TANKDIR/stats directory/suffix1"
+  echo "            Suffix2 data source identifier that corresponds to data"
+  echo "              in the $TANKDIR/stats directory/suffix1"
+  echo "            [Suffix3] optional data source identifier that corresponds to data"
+  echo "              in the $TANKDIR/stats directory/suffix1"
 }
 
 
@@ -31,7 +33,7 @@ set -ax
 echo start CkPlt_comp.sh
 
 nargs=$#
-if [[ $nargs -ne 1 ]]; then
+if [[ $nargs -lt 3 ]]; then
    usage
    exit 1
 fi
@@ -39,8 +41,11 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-SUFFIX1=$1
-SUFFIX=$SUFFIX1
+export PDATE=$1
+export SUFFIX1=$2
+export SUFFIX2=$3
+export SUFFIX3=$4
+export SUFFIX=$SUFFIX1
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -52,29 +57,35 @@ if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
 else
    echo "Unable to source ${top_parm}/RadMon_config"
-   exit
+   exit 1
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source ${top_parm}/RadMon_user_settings"
+   exit 2
+fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
 #--------------------------------------------------------------------
 # Load necessary configuration parmeters from data_map file. 
 #--------------------------------------------------------------------
-SUFFIX2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_suffix2`
-SUFFIX3=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_suffix3`
-last_plot=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_plotdate`
-area=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} area`
-ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} account`
-USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} user_class`
+#SUFFIX2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_suffix2`
+#SUFFIX3=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_suffix3`
+#last_plot=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_plotdate`
+#area=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} area`
+#ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} account`
+#USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} user_class`
 
 data="ges"
 
 echo $SUFFIX2, $SUFFIX3, $last_plot
 
-if [[ $area == "glb" ]]; then
+if [[ $RAD_AREA == "glb" ]]; then
    . ${RADMON_IMAGE_GEN}/parm/glbl_comp_conf
-elif [[ $area == "rgn" ]]; then
+elif [[ $RAD_AREA == "rgn" ]]; then
    . ${RADMON_IMAGE_GEN}/parm/rgnl_comp_conf
 fi
 
@@ -93,17 +104,13 @@ echo ${IMGNDIR}
 
 export TANKDIR1=${TANKDIR}/${SUFFIX1}
 export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
-prodate1=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} prodate`
+#prodate1=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} prodate`
+prodate1=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR1}`
 
-suff2=`echo ${#SUFFIX2}`
-if [[ $suff2 -gt 0 ]]; then
-   export TANKDIR2=${TANKDIR}/${SUFFIX2}
-   export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
-   prodate2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX2} prodate`
-else
-   echo "unable to locate prodate field for source $SUFFIX2 in ${DATA_MAP} file"
-   exit
-fi
+export TANKDIR2=${TANKDIR}/${SUFFIX2}
+export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
+prodate2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX2} prodate`
+prodate2=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR2}`
 
 #-------------------------------------------------------------------
 #  SUFFIX3 may or may not exist (plots can include 2 or 3 different
@@ -113,7 +120,7 @@ suff3=`echo ${#SUFFIX3}`
 if [[ $suff3 -gt 0 ]]; then
    export TANKDIR3=${TANKDIR}/${SUFFIX3}
    export IMGNDIR3=${IMGNDIR}/${SUFFIX3}
-   prodate3=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX3} prodate`
+   prodate3=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR3}`
 fi
 
 #--------------------------------------------------------------
@@ -122,7 +129,7 @@ fi
 # the requested cycle.
 #--------------------------------------------------------------
 
-export PDATE=`$NDATE +06 $last_plot`  
+#export PDATE=`$NDATE +06 $last_plot`  
 
 abort_run=0
 if [[ ${prodate1} -lt $PDATE ]]; then
@@ -141,13 +148,13 @@ if [[ $suff3 -gt 0 ]]; then
 fi
 
 if [[ $abort_run -eq 1 ]]; then
-   exit
+   exit 3
 fi
 
 #-------------------------------------------------------------
 #  Get the SATYPE for SUFFIX
 #
-export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} static_satype`
+#export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} static_satype`
 
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -173,21 +180,21 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
    SATYPE=$SATYPE_LIST
 
-else
-   TANKDIR_INFO=${TANKDIR1}/info
-   STATIC_SATYPE_FILE=${TANKDIR_INFO}/SATYPE.txt
+#else
+#   TANKDIR_INFO=${TANKDIR1}/info
+#   STATIC_SATYPE_FILE=${TANKDIR_INFO}/SATYPE.txt
 
-   #-------------------------------------------------------------
-   #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit
-   #  if unable to locate it.
-   #-------------------------------------------------------------
-   if [[ -s $STATIC_SATYPE_FILE ]]; then
-      SATYPE=""
-      SATYPE=`cat ${STATIC_SATYPE_FILE}`
-   else
-      echo "Unable to locate $STATIC_SATYPE_FILE, must exit."
-      exit
-   fi
+#   #-------------------------------------------------------------
+#   #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit
+#   #  if unable to locate it.
+#   #-------------------------------------------------------------
+#   if [[ -s $STATIC_SATYPE_FILE ]]; then
+#      SATYPE=""
+#      SATYPE=`cat ${STATIC_SATYPE_FILE}`
+#   else
+#      echo "Unable to locate $STATIC_SATYPE_FILE, must exit."
+#      exit
+#   fi
 fi
 
 echo $SATYPE
@@ -230,10 +237,10 @@ fi
 #------------------------------------------------------------------
 #  Update comp plot time
 #------------------------------------------------------------------
-rc=`${SCRIPTS}/update_data_map.pl ${DATA_MAP} ${SUFFIX} comp_plotdate ${PDATE}`
-if [[ $rc -ne 0 ]]; then
-   echo "error updating ${DATA_MAP}, return code = $rc"
-fi
+#rc=`${SCRIPTS}/update_data_map.pl ${DATA_MAP} ${SUFFIX} comp_plotdate ${PDATE}`
+#if [[ $rc -ne 0 ]]; then
+#   echo "error updating ${DATA_MAP}, return code = $rc"
+#fi
 
 echo end CkPlt_comp.sh
 

@@ -22,7 +22,7 @@ nchan=subwrd(lin1,6)
 *
 * Set time and region
 *
-'set t last'
+'set t 1'
 'query time'
 date1=subwrd(result,3)
 say 'date1='date1

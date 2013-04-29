@@ -77,9 +77,14 @@ else
    echo "Unable to source ${top_parm}/RadMon_config"
    exit 4
 fi
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source ${top_parm}/RadMon_user_settings"
+   exit 6
+fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
-export RAD_AREA=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
 
 if [[ $RAD_AREA = "glb" ]]; then
    . ${RADMON_IMAGE_GEN}/parm/glbl_conf
@@ -183,13 +188,6 @@ mkdir $PLOT_WORK_DIR
 cd $PLOT_WORK_DIR
 
 
-export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-export ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-export RUN_ENVIR=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-export PLOT_ALL_REGIONS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_all_regions`
-export SUB_AVG=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} plot_sub_avgs`
-
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
 #  available data files in $TANKDIR/angle
@@ -225,28 +223,6 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
       ctr=$(($ctr-1))
    done
 
- 
-#   for dir in ${dir_list}; do 
-#      if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-#      test_list=`ls ${TANKDIR}/${dir}/angle.*${PDATE}.ieee_d*`
-#
-#         for test in ${test_list}; do
-#            this_file=`basename $test`
-#            tmp=`echo "$this_file" | cut -d. -f2`
-#            echo $tmp
-#            SATYPE_LIST="$SATYPE_LIST $tmp"
-#         done
-#      else
-#         test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
-#         for test in ${test_list}; do
-#            this_file=`basename $test`
-#            tmp=`echo "$this_file" | cut -d. -f1`
-#            echo $tmp
-#            SATYPE_LIST="$SATYPE_LIST $tmp"
-#         done
-#      fi
-#   done
- 
    SATYPE=$SATYPE_LIST
    echo $SATYPE
 
@@ -289,7 +265,8 @@ ${SCRIPTS}/mk_bcoef_plots.sh
 ${SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
-   export datdir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+   export datdir=$RADSTAT_LOCATION
+
    export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,datdir,MY_MACHINE,listvar
    jobname="plot_horiz_${SUFFIX}"
    logfile="${LOGDIR}/horiz.log"
@@ -308,15 +285,12 @@ ${SCRIPTS}/mk_time_plots.sh
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-do_diag_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-do_data_rpt=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
+do_diag_rpt=$DO_DIAG_RPT
+do_data_rpt=$DO_DATA_RPT
 
 if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
-   export MAIL_TO=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
 
-   logfile_dir=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} logfile_dir`
-
+   logfile_dir=${LOGSverf_rad}/rad${SUFFIX}
    logfile=`ls ${logfile_dir}/${PDY}/gdas_verfrad_${CYA}.*`
    if [[ ! -s $logfile ]]; then
       logfile=${LOGDIR}/data_extract.${sdate}.${CYA}.log

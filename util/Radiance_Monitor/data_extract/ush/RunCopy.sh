@@ -18,7 +18,6 @@ function usage {
   echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
   echo "            File name for RunCopy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
-  echo "            Area is either "glb" or "rgn" (global || regional)"
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
   echo "            End_date   is the optional ending cycle to process (YYYYMMDDHH format)."
 }
@@ -30,8 +29,23 @@ function usage {
 set -ax
 echo start RunCopy.sh
 
+#
+#  Temporary change, abort if running on prod.  This is an attempt to
+#  eliminate prossible crons running on the prod machine for me only.
+#
+#   machine=`hostname | cut -c1`
+#   prod=`cat /etc/prod | cut -c1`
+#
+#   if [[ $machine = $prod ]]; then
+#      exit 10 
+#   fi
+#
+#  End temporary change
+#
+
+
 nargs=$#
-if [[ $nargs -lt 2 ]]; then
+if [[ $nargs -lt 1 ]]; then
    usage
    exit 1
 fi
@@ -40,9 +54,8 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-AREA=$2
-START_DATE=$3
-END_DATE=$4
+START_DATE=$2
+END_DATE=$3
 
 RUN_ENVIR=${RUN_ENVIR:-dev}
 
@@ -62,15 +75,20 @@ else
    exit 2 
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 6 
+fi
+
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
-log_file=${LOGSverf_rad}/CopyRad_${SUFFIX}.log
-err_file=${LOGSverf_rad}/CopyRad_${SUFFIX}.err
-
-if [[ $AREA = glb ]]; then
+if [[ $RAD_AREA = glb ]]; then
    copy_script=Copy_glbl.sh
    . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
-elif [[ $AREA = rgn ]]; then
+elif [[ $RAD_AREA = rgn ]]; then
    copy_script=Copy_rgnl.sh
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
@@ -142,6 +160,9 @@ while [[ $done -eq 0 ]]; do
       #-----------------------------------------------------------------
       # Run the copy script
       #-----------------------------------------------------------------
+      log_file=${LOGSverf_rad}/CopyRad_${SUFFIX}_${cdate}.log
+      err_file=${LOGSverf_rad}/CopyRad_${SUFFIX}_${cdate}.err
+
       echo Processing ${cdate}
       ${USHverf_rad}/${copy_script} ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
 
