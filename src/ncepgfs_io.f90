@@ -260,7 +260,7 @@ contains
 ! check whether CO2 exist
     call gsi_chemguess_get ( 'i4crtm::co2', ico24crtm, ier )
     if(ier/=0) write(6,*) '$$$$$$no co2'
-    if (ico24crtm > 0 ) then
+    if (ico24crtm >= 0 ) then
        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
        if(ier/=0) write(6,*) '$$$$$$no co2' 
        call read_gfsco2 (iyear,month,idd,ico24crtm,xlats,&
@@ -423,7 +423,7 @@ end subroutine write_ghg_grid
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: ncepgfs_head
     use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
-    character(24),intent(in) :: filename
+    character(*),intent(in) :: filename
     type(sigio_head):: sighead
     type(sigio_data), intent(inout):: sigdata
     integer(i_kind), intent(inout) :: iret
@@ -507,7 +507,7 @@ end subroutine write_ghg_grid
     use sfcio_module, only: sfcio_srohdc,sfcio_head,sfcio_data
     use kinds, only: i_kind,r_single,r_kind
     use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
-    character(24),intent(in) :: filename
+    character(*),intent(in) :: filename
     type(sfcio_head), intent(inout) :: sfchead
     type(sfcio_data), intent(inout):: sfcdata
     integer(i_kind), intent(inout) :: iret
@@ -626,7 +626,7 @@ end subroutine write_ghg_grid
     real(r_kind),parameter:: r0_001 = 0.001_r_kind
 
 !   Declare passed variables
-    character(24)                         ,intent(in   ) :: filename
+    character(*)                         ,intent(in   ) :: filename
     integer(i_kind)                       , intent(in  ) :: iope
     integer(i_kind)                       ,intent(in   ) :: mype
     integer(i_kind)                       ,intent(  out) :: iret_read
@@ -996,7 +996,7 @@ end subroutine write_ghg_grid
     implicit none
 
 !   Declare passed variables
-    character(24)                               ,intent(in   ) :: filename
+    character(*)                               ,intent(in   ) :: filename
     integer(i_kind)                             ,intent(in   ) :: iope
     integer(i_kind)                             ,intent(in   ) :: mype
     integer(i_kind),dimension(nlat_sfc,nlon_sfc),intent(  out) :: isli
@@ -1161,7 +1161,7 @@ end subroutine write_ghg_grid
     implicit none
 
 !   Declare passed variables
-    character(6),intent(in):: filename
+    character(*),intent(in):: filename
     integer(i_kind),intent(in):: mype
     real(r_kind),dimension(nlat_sfc,nlon_sfc),intent(out):: tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d
 !   Declare local parameters
@@ -1476,7 +1476,7 @@ end subroutine write_ghg_grid
 
 ! !INPUT PARAMETERS:
 
-    character(24)                              ,intent(in   ) :: filename     ! file to open and write to
+    character(*)                               ,intent(in   ) :: filename     ! file to open and write to
 
     integer(i_kind)                            ,intent(in   ) :: mype      ! mpi task number
     integer(i_kind)                            ,intent(in   ) :: mype_out  ! mpi task to write output file
@@ -2054,7 +2054,7 @@ end subroutine write_ghg_grid
     implicit none
 
 ! !INPUT PARAMETERS:
-    character(24)                    ,intent(in   ) :: filename  ! file to open and write to
+    character(*)                     ,intent(in   ) :: filename  ! file to open and write to
 
     real(r_kind),dimension(lat2,lon2),intent(in   ) :: dsfct   ! delta skin temperature
 
@@ -2571,6 +2571,7 @@ end subroutine write_ghg_grid
 !   2008-02-26  derber  - original routine
 !   2008-05-28  safford - add subprogram doc block, rm unused uses
 !   2011-04-01  li - change kind of output field (b: single to r_kind)
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     na_lon  - number of longitude grid analysis 
@@ -2617,7 +2618,7 @@ end subroutine write_ghg_grid
 !   Loop over all points to get interpolated value
     do j=1,ns_lat
        dlat=rlats_sfc(j)
-       call grdcrd(dlat,1,rlats,na_lat,1)
+       call grdcrd1(dlat,rlats,na_lat,1)
        iy=int(dlat)
        iy=min(max(1,iy),na_lat)
        dy  =dlat-iy
@@ -2627,7 +2628,7 @@ end subroutine write_ghg_grid
 
        do i=1,ns_lon
           dlon=rlons_sfc(i)
-          call grdcrd(dlon,1,rlons,na_lon,1)
+          call grdcrd1(dlon,rlons,na_lon,1)
           ix=int(dlon)
           dx  =dlon-ix
           dx=max(zero,min(dx,one))

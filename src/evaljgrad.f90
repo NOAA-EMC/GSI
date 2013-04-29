@@ -46,7 +46,7 @@ use jcmod, only: ljcdfi
 use gridmod, only: lat2,lon2,nsig
 use obsmod, only: yobs, lsaveobsens, l_do_adjoint
 use obs_sensitivity, only: fcsens
-use mod_strong, only: jcstrong,baldiag_inc
+use mod_strong, only: l_tlnmc,baldiag_inc
 use control_vectors, only: control_vector,prt_control_norms,dot_product,assignment(=)
 use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
@@ -231,7 +231,7 @@ if (l_do_adjoint) then
 endif
 
 ! Produce diagnostic when applying strong constraint
-if (lupdfgs.and.jcstrong.and.baldiag_inc) call strong_baldiag_inc(sval,size(sval))
+if (lupdfgs.and.l_tlnmc.and.baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
 ! Save increment (update guess)
 if (lupdfgs) then
@@ -330,59 +330,77 @@ subroutine adtest_show_(x,p,q,y)
 
   character(len=*),parameter:: myname_=myname//".adtest_show_"
   real(r_quad):: dpp,dqq,dpq,cpq,rpq
-  real(r_quad):: dxx,dyy,dxy
+  real(r_quad):: dxx,dyy,dxy,adjcrit
   integer(i_kind):: ipq
   logical:: IamRoot_
   integer(i_kind):: iv
 
   IamRoot_ = mype==0
+  adjcrit=1.e-10_r_quad
 
-  dpp=0._r_quad
-  dqq=0._r_quad
+  if(IamROOT_)then
+    if( size(x)/=size(y) .or. &
+        size(p)/=size(q) ) then
+      call perr(myname_,'mismatched vector counts')
+      if(size(x)/=size(y)) then
+        call perr(myname_,'size(x)/=size(y)')
+        call perr(myname_,'size(x) =',size(x))
+        call perr(myname_,'size(y) =',size(y))
+      endif
+      if(size(p)/=size(q)) then
+        call perr(myname_,'size(p)/=size(q)')
+        call perr(myname_,'size(p) =',size(p))
+        call perr(myname_,'size(q) =',size(q))
+      endif
+      call die(myname_)
+    endif
+  endif
+
   dpq=0._r_quad
   do iv=1,size(p)
-    dpp=dpp+dot_product(p(iv),p(iv))		! (p,p)
-    dqq=dqq+dot_product(q(iv),q(iv))		! (q,q)
     dpq=dpq+dot_product(p(iv),q(iv))		! (p,q)
   enddo
-
-  dyy=0._r_quad
-  dxx=0._r_quad
+  
   dxy=0._r_quad
   do iv=1,size(x)
-    dyy=dyy+dot_product(y(iv),y(iv))		! (y,y)
-    dxx=dxx+dot_product(x(iv),x(iv))		! (x,x)
     dxy=dxy+dot_product(x(iv),y(iv))		! (x,y)
   enddo
 
-  if(.not.IamROOT_) return
-
-  if( size(x)/=size(y) .or. &
-      size(p)/=size(q) ) then
-    call perr(myname_,'mismatched vector counts')
-    if(size(x)/=size(y)) then
-      call perr(myname_,'size(x)/=size(y)')
-      call perr(myname_,'size(x) =',size(x))
-      call perr(myname_,'size(y) =',size(y))
-    endif
-    if(size(p)/=size(q)) then
-      call perr(myname_,'size(p)/=size(q)')
-      call perr(myname_,'size(p) =',size(p))
-      call perr(myname_,'size(q) =',size(q))
-    endif
-    call die(myname_)
-  endif
-
   cpq=1._r_quad
-  if(abs(dxy)>0._r_kind) cpq=dpq/dxy
+  if(abs(dxy)>0._r_quad) cpq=dpq/dxy
   rpq=cpq-1._r_quad
   ipq=int(-log(abs(rpq)+tiny(rpq))/log(10._r_quad))
 
-  write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
-        "() -- n, (    q,p=Mx), qq, pp =" ,size(p),dpq,dqq,dpp
-  write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
-        "() -- m, (y=M'q,   x), yy, xx =",size(x),dxy,dyy,dxx
-  write(stdout,'(1x,2a,2x,1x,1p,1e12.5,2(1x,f12.9),2x,i4)') trim(myname_), &
-        "() -- pq-xy, pq/xy,pq/xy-1,#d =",dpq-dxy,cpq,rpq,ipq
+  if(abs(rpq) > adjcrit)then
+    dpp=0._r_quad
+    dqq=0._r_quad
+    do iv=1,size(p)
+      dpp=dpp+dot_product(p(iv),p(iv))		! (p,p)
+      dqq=dqq+dot_product(q(iv),q(iv))		! (q,q)
+    enddo
+
+    dyy=0._r_quad
+    dxx=0._r_quad
+    do iv=1,size(x)
+      dyy=dyy+dot_product(y(iv),y(iv))		! (y,y)
+      dxx=dxx+dot_product(x(iv),x(iv))		! (x,x)
+    enddo
+
+    if(IamROOT_) then
+
+      write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
+            " -- n,   (    q,p=Mx), qq, pp =" ,size(p),dpq,dqq,dpp
+      write(stdout,'(1x,2a,i2,1x,1p,3e12.5)') trim(myname_), &
+            " -- m,   (y=M'q,   x), yy, xx =",size(x),dxy,dyy,dxx
+      write(stdout,'(1x,2a,2x,1x,1p,3e12.5,2x,i4)') trim(myname_), &
+            "() -- pq-xy, pq/xy,pq/xy-1,#d =",dpq-dxy,cpq,rpq,ipq," adtest failed"
+    end if
+  else
+    if(IamROOT_)then
+      write(stdout,'(1x,2a,2x,1x,1p,3e12.5,2x,i4,a)') trim(myname_), &
+            "() -- pq-xy, pq/xy,pq/xy-1,#d =",dpq-dxy,cpq,rpq,ipq," adtest success"
+    end if
+  end if
+  return
 end subroutine adtest_show_
 end subroutine evaljgrad

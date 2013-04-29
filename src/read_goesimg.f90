@@ -39,7 +39,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
-!   2011-08-01  lueken  - added module use deter_sfc_mod, remove _i_kind, fix indentation
+!   2011-08-01  lueken  - added module use deter_sfc_mod, fix indentation
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -263,8 +264,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         else
            dlon=dlon_earth
            dlat=dlat_earth
-           call grdcrd(dlat,1,rlats,nlat,1)
-           call grdcrd(dlon,1,rlons,nlon,1)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
         if (l4dvar) then

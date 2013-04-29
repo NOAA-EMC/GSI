@@ -100,7 +100,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use constants, only: zero,one,fv,zero_quad
   use guess_grids, only: load_prsges,load_geop_hgt,load_gsdpbl_hgt
   use guess_grids, only: ges_tv,ges_q,ges_tsen
-  use obsmod, only: nsat1,iadate,nobs_type,obscounts,&
+  use obsmod, only: nsat1,iadate,nobs_type,obscounts,mype_diaghdr,&
        nchan_total,ndat,obs_setup,&
        dirname,write_diag,nprof_gps,ditype,obsdiags,lobserver,&
        destroyobs,inquire_obsdiags,lobskeep,nobskeep,lobsdiag_allocated
@@ -306,21 +306,16 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 ! Compute derived quantities on grid
   call compute_derived(mype,init_pass)
 
-! Initialize observer for Lagrangian data
+  ! ------------------------------------------------------------------------
+
   if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
+
      ! Init for Lagrangian data assimilation (gather winds and NL integration)
      call lag_presetup()
      ! Save state for inner loop if in 4Dvar observer mode
      if (l4dvar.and.lobserver) then
         call lag_state_write()
      end if
-  else
-     ! Init for Lagrangian data assimilation (read saved parameters)
-     call lag_state_read()
-  end if
-  ! ------------------------------------------------------------------------
-
-  if ( (l4dvar.and.lobserver) .or. .not.l4dvar ) then
 
 !    Reset observation pointers
      do ii=1,nobs_bins
@@ -360,8 +355,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         if(nobs > 0)then
 
            read(lunin,iostat=ier) obstype,isis,nreal,nchanl
-           if(mype ==0) then
-              write(6,*) 'SETUPALL:,obstype,isis,nreal,nchanl=',obstype,isis,nreal,nchanl,nobs
+           if(mype == mype_diaghdr(is)) then
+              write(6,*) 'SETUPALL:,obstype,isis,nreal,nchanl=',obstype,isis,nreal,nchanl
            endif
            if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
            nele=nreal+nchanl
@@ -485,8 +480,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         end if
 
      end do
-125  continue
      close(lunin)
+
+  else
+
+     ! Init for Lagrangian data assimilation (read saved parameters)
+     call lag_state_read()
 
   endif ! < lobserver >
   lobsdiag_allocated=.true.
@@ -507,10 +506,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   if (conv_diagsave) close(7)
 
-  call inquire_obsdiags(miter)
-
-! Get moisture diagnostics
-! call q_diag(mype)
+! call inquire_obsdiags(miter)
 
 ! Collect information for preconditioning
   if (newpc4pred) then

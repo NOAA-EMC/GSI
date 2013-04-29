@@ -509,7 +509,7 @@
 !          = 325 - setup_precond: r_kind is neither default real nor double precision
 !          = 326 - setup_precond:  SSYEV/DSYEV returned non-zero return code
 !          = 327 - PRECOND: invalid value for kmat
-!          = 328 - jcstrong_option > 2 not allowed except for regional=.true.
+!          = 328 - tlnmc_type > 2 not allowed except for regional=.true.
 !          = 329 - problem with logicals or collective obs selection info file
 !          = 330 - grid --> spectral transform not safe for sptranf_s,v_b
 !          = 331 - trouble writing analysis errors
@@ -517,6 +517,8 @@
 !          = 333 - mismatch between variable info file and background error fixed file
 !          = 334 - newpc4pred: not for use with lsqrtb
 !          = 335 - error reading radiance diagnostic file
+!          = 336 - invalid namlist setting for nhsrf
+!          = 337 - inconsitent tlnmc namelist settings
 !
 !
 ! remarks: resolution, unit numbers and several constants are

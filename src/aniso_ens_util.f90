@@ -80,7 +80,7 @@ subroutine ens_uv_to_psichi(u,v,truewind)
 !
 !$$$ end documentation block
   use kinds, only: i_kind,r_kind,r_single
-  use constants, only: ione,one,two
+  use constants, only: one,two
   use gridmod, only: nlon,nlat,region_lon,region_lat,region_dx,region_dy, &
                      rotate_wind_ll2xy
   use wind_fft, only: divvort_to_psichi
@@ -136,11 +136,11 @@ subroutine ens_uv_to_psichi(u,v,truewind)
   allocate(div(nlat,nlon))
   allocate(vort(nlat,nlon))
   do i=1,nlat
-     im=max(ione,i-ione)
-     ip=min(nlat,i+ione)
+     im=max(1,i-1)
+     ip=min(nlat,i+1)
      do j=1,nlon
-        jm=max(ione,j-ione)
-        jp=min(nlon,j+ione)
+        jm=max(1,j-1)
+        jp=min(nlon,j+1)
         dxi=one/((jp-jm)*region_dx(i,j))
         dyi=one/((ip-im)*region_dy(i,j))
         div(i,j)= (u(i,jp)-u(i,jm))*dxi + (v(ip,j)-v(im,j))*dyi
@@ -155,18 +155,18 @@ subroutine ens_uv_to_psichi(u,v,truewind)
 !==>expand domain in preparation for fft use
 !==========================================================================
   n0=max(nlat,nlon)
-  ijext=4_i_kind
+  ijext=4
 100 continue
   n1=n0+2*ijext
   call check_32primes(n1,lprime)
   if (.not.lprime) then
-     ijext=ijext+ione
+     ijext=ijext+1
      goto 100
   endif
 
-  nxs=ijext+ione
+  nxs=ijext+1
   nxe=ijext+nlon
-  nys=ijext+ione
+  nys=ijext+1
   nye=ijext+nlat
 
   nxb=n1
@@ -193,8 +193,8 @@ subroutine ens_uv_to_psichi(u,v,truewind)
      enddo
   enddo
 
-  mmaxb=nxb/3-ione
-  nmaxb=nyb/3-ione
+  mmaxb=nxb/3-1
+  nmaxb=nyb/3-1
 
   call divvort_to_psichi(nxb,nyb,mmaxb,nmaxb,tdxyb,tqg)
 
@@ -251,8 +251,8 @@ subroutine set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
   integer(i_kind),intent(  out) :: iy,jx,jxp
   real(r_kind)   ,intent(  out) :: alat1,elon1,ds,elonv,alatan
 
-  iy=129_i_kind
-  jx=185_i_kind
+  iy=129
+  jx=185
   jxp=jx
   ds=40635.25_r_kind
   alat1=12.190_r_kind
@@ -292,8 +292,8 @@ subroutine set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
   integer(i_kind),intent(  out) :: iy,jx,jxp
   real(r_kind)   ,intent(  out) :: alat1,elon1,ds,elonv,alatan
 
-  iy=277_i_kind
-  jx=349_i_kind
+  iy=277
+  jx=349
   jxp=jx
   ds=32463.41_r_kind
   alat1=one
@@ -357,7 +357,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
 !
 !$$$
   use kinds, only: i_kind, r_kind
-  use constants, only: zero, one, half, izero, ione, rad2deg
+  use constants, only: zero, one, half, rad2deg
   use mpimod, only: npe, mpi_sum, mpi_itype, mpi_comm_world
   use gridmod, only: nlat,nlon,tll2xy, &
                      region_lon, region_lat, &
@@ -377,7 +377,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
   real(r_kind),   intent(  out) :: gblend(pf2aP1%nlatf,pf2aP1%nlonf,2)
 
 ! Declare local variables
-  integer(i_kind),parameter::ijadjust=4_i_kind
+  integer(i_kind),parameter::ijadjust=4
   integer(i_kind) iy,jx,jxp
   integer(i_kind) i,j,kg,ierr8,ierror
   integer(i_kind) iarea(npe),iarea2(npe),iprod,ilateral,jlateral
@@ -409,14 +409,14 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
 
   do kg=1,3
 
-     if      (kg==ione) then      !grid #212
+     if      (kg==1) then      !grid #212
         call set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-     else if (kg==2_i_kind) then  !grid #221
+     else if (kg==2) then  !grid #221
         call set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-     else if (kg==3_i_kind) then  !1dg x 1dg global grid
-        iy=181_i_kind
-        jx=360_i_kind
-        jxp=jx+ione
+     else if (kg==3) then  !1dg x 1dg global grid
+        iy=181
+        jx=360
+        jxp=jx+1
      end if
 
      do j=1,nlon
@@ -428,9 +428,9 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
            if (rlon<zero) rlon=rlon+r360
 
            ! correspoinding ensemble grid
-           if (kg==ione .or. kg==2_i_kind) then
+           if (kg==1 .or. kg==2) then
               call w3fb11(rlat,rlon,alat1,elon1,ds,elonv,alatan,xg,yg)
-           else if(kg==3_i_kind) then
+           else if(kg==3) then
               xg=rlon+one
               if (rlon>=r360) xg=rlon+one-r360
               yg=rlat+90._r_kind+one
@@ -452,7 +452,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
               iref(i,j,kg)=floor(yg)
               jref(i,j,kg)=floor(xg)
  
-              if (kg==ione .or. kg==2_i_kind) ensmask(i,j,kg)=one
+              if (kg==1 .or. kg==2) ensmask(i,j,kg)=one
 
            end if
 
@@ -468,9 +468,9 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      dlatmin=+huge(dlatmin)
      dlatmax=-huge(dlatmax)
 
-     if      (kg==ione) then      !grid #212
+     if      (kg==1) then      !grid #212
         call set_grdparm212(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
-     else if (kg==2_i_kind) then  !grid #221
+     else if (kg==2) then  !grid #221
         call set_grdparm221(iy,jx,jxp,alat1,elon1,ds,elonv,alatan)
      endif
 
@@ -496,12 +496,12 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      j1=ceiling(dlonmin)
      j2=floor  (dlonmax)
 
-     if (mype==izero) print*,'in ens_intpcoeffs_reg: kg, i1,i2,j1,j2=',kg, i1,i2,j1,j2
+     if (mype==0) print*,'in ens_intpcoeffs_reg: kg, i1,i2,j1,j2=',kg, i1,i2,j1,j2
 
 !==>adjust limits by trial and error
 
-     ilateral=2_i_kind
-     jlateral=2_i_kind
+     ilateral=2
+     jlateral=2
 100  continue
      ilower=i1+ilateral
      iupper=i2-ilateral
@@ -509,34 +509,34 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      jright=j2-jlateral
      ltest=any(ensmask(ilower:iupper,jleft:jright,kg)<zero)
      if (ltest) then
-        ilateral=ilateral+2_i_kind
-        jlateral=jlateral+2_i_kind
+        ilateral=ilateral+2
+        jlateral=jlateral+2
         goto 100
      endif
-     ilateral=ilateral+4_i_kind  !increase if necessary
-     jlateral=jlateral+4_i_kind
+     ilateral=ilateral+4  !increase if necessary
+     jlateral=jlateral+4
  
-     if (mype==izero) print*,'in ens_intpcoeffs_reg: kg,ilateral,jlateral=',kg,ilateral,jlateral
+     if (mype==0) print*,'in ens_intpcoeffs_reg: kg,ilateral,jlateral=',kg,ilateral,jlateral
 
      ilower_prev=i1+ilateral
      iupper_prev=i2-ilateral
      jleft_prev =j1+jlateral
      jright_prev=j2-jlateral
 
-     mype1=mype+ione
+     mype1=mype+1
 
-     ij=izero
-     iarea(:)=izero
-     iimin(:)=izero
-     iimax(:)=izero
-     jjmin(:)=izero
-     jjmax(:)=izero
-     do ilower=(i1+ilateral),i1,-ione
+     ij=0
+     iarea(:)=0
+     iimin(:)=0
+     iimax(:)=0
+     jjmin(:)=0
+     jjmax(:)=0
+     do ilower=(i1+ilateral),i1,-1
         do iupper=(i2-ilateral),i2
-           do jleft=(j1+jlateral),j1,-ione
+           do jleft=(j1+jlateral),j1,-1
               do jright=(j2-jlateral),j2
-                 ij=ij+ione
-                 if (mod(ij-ione,npe) == mype)then
+                 ij=ij+1
+                 if (mod(ij-1,npe) == mype)then
                     ltest1=any(ensmask(ilower:ilower_prev,jleft:jright,kg)<zero)
                     ltest2=any(ensmask(iupper_prev:iupper,jleft:jright,kg)<zero)
                     ltest3=any(ensmask(ilower:iupper,jleft:jleft_prev,kg)<zero)
@@ -561,11 +561,11 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
         end do
      end do
 
-     iarea2(:)=izero
-     iimin2(:)=izero
-     iimax2(:)=izero
-     jjmin2(:)=izero
-     jjmax2(:)=izero
+     iarea2(:)=0
+     iimin2(:)=0
+     iimax2(:)=0
+     jjmin2(:)=0
+     jjmax2(:)=0
 
      call mpi_allreduce(iarea,iarea2,npe,mpi_itype, &
                         mpi_sum,mpi_comm_world,ierror)
@@ -578,7 +578,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      call mpi_allreduce(jjmax,jjmax2,npe,mpi_itype, &
                         mpi_sum,mpi_comm_world,ierror)
 
-     iprod=izero
+     iprod=0
      do i=1,npe
         if (iarea2(i) > iprod) then
            iprod=iarea2(i)
@@ -594,7 +594,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
   end do
 
 !check limits
-  if (mype==izero) then
+  if (mype==0) then
      do kg=1,2
         do i=iimin0(kg),iimax0(kg)
            do j=jjmin0(kg),jjmax0(kg)
@@ -607,9 +607,9 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      end do
   end if
 
-  iimin0(3)=ione
+  iimin0(3)=1
   iimax0(3)=nlat
-  jjmin0(3)=ione
+  jjmin0(3)=1
   jjmax0(3)=nlon
 
   do kg=1,3
@@ -617,10 +617,10 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      igbox(2,kg)=iimax0(kg)
      igbox(3,kg)=jjmin0(kg)
      igbox(4,kg)=jjmax0(kg)
-     igbox0f(1,kg)=one+float((igbox(1,kg)-ione))/pf2aP1%grid_ratio_lat + ijadjust
-     igbox0f(2,kg)=one+float((igbox(2,kg)-ione))/pf2aP1%grid_ratio_lat - ijadjust
-     igbox0f(3,kg)=one+float((igbox(3,kg)-ione))/pf2aP1%grid_ratio_lon + ijadjust
-     igbox0f(4,kg)=one+float((igbox(4,kg)-ione))/pf2aP1%grid_ratio_lon - ijadjust
+     igbox0f(1,kg)=one+float((igbox(1,kg)-1))/pf2aP1%grid_ratio_lat + ijadjust
+     igbox0f(2,kg)=one+float((igbox(2,kg)-1))/pf2aP1%grid_ratio_lat - ijadjust
+     igbox0f(3,kg)=one+float((igbox(3,kg)-1))/pf2aP1%grid_ratio_lon + ijadjust
+     igbox0f(4,kg)=one+float((igbox(4,kg)-1))/pf2aP1%grid_ratio_lon - ijadjust
   end do
 
 !==> compute blending functions
@@ -656,7 +656,7 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      end do
   end do
 
-  if(mype==izero) then
+  if(mype==0) then
      open(94,file='gblend.dat',form='unformatted')
      write(94) gblend
      close(94)
@@ -700,7 +700,6 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 !
 !$$$
   use kinds, only: i_kind, r_single, r_kind
-  use constants, only: ione
   use gridmod, only: nlat,nlon
   implicit none
 
@@ -722,9 +721,9 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 
 !* *****************************************************************************
   select case(igrid)
-     case(212); kg=ione
-     case(221); kg=2_i_kind
-     case(  3); kg=3_i_kind
+     case(212); kg=1
+     case(221); kg=2
+     case(  3); kg=3
      case default
         print*,'in fillanlgrd: warning, unknown grid, igrid=',igrid
   end select
@@ -732,7 +731,7 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 ! print*,'in fillanlgrd: igrid,nx,ny=',igrid,nx,ny
 
   nxp=nx
-  if (kg ==3_i_kind) nxp=nx+ione
+  if (kg ==3) nxp=nx+1
 
   allocate(tworkin(ny,nxp))
 
@@ -742,7 +741,7 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
      enddo
   enddo
 
-  if (kg == 3_i_kind) tworkin(:,nxp)=tworkin(:,1)
+  if (kg == 3) tworkin(:,nxp)=tworkin(:,1)
 
   nxs=igbox(3,kg)
   nxe=igbox(4,kg)
@@ -756,8 +755,8 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
 
         ii=iref(i,j,kg)
         jj=jref(i,j,kg)
-        iip=min(ii+ione,ny)
-        jjp=min(jj+ione,nxp)
+        iip=min(ii+1,ny)
+        jjp=min(jj+1,nxp)
         asmall(i,j)=real(enscoeff(1,i,j,kg)*real(tworkin(ii ,jj ),r_kind)+ &
                          enscoeff(2,i,j,kg)*real(tworkin(iip,jj ),r_kind)+ &
                          enscoeff(3,i,j,kg)*real(tworkin(ii ,jjp),r_kind)+ &
@@ -765,7 +764,7 @@ subroutine fillanlgrd(workin,ngrds,igrid,nx,ny,workout, &
      enddo
   enddo
 
-  if (igrid == 3_i_kind) then
+  if (igrid == 3) then
      workout(:,:)=asmall(:,:)  !this should be ok. index ranges are the same for this case
   else
      call ens_mirror(asmall,workout,nxs,nxe,nys,nye,nlon,nlat)
@@ -811,7 +810,7 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
 !$$$ end documentation block
 
        use kinds, only: i_kind,r_single
-       use constants, only: ione,zero_single
+       use constants, only: zero_single
 
        implicit none
 
@@ -838,14 +837,14 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
 !==> start by mirroring field in the i-direction
 
        do j=nxs,nxe
-          do m=nye+ione,nyb
-             k=(m-nye-ione)/(nye-nys)
+          do m=nye+1,nyb
+             k=(m-nye-1)/(nye-nys)
              n=2*(nye+k*(nye-nys))-m
              alarge(m,j)=alarge(n,j)
           enddo
 
-          do m=nys-ione,1,-1
-             k=(nys-m-ione)/(nye-nys)
+          do m=nys-1,1,-1
+             k=(nys-m-1)/(nye-nys)
              n=2*(nys-k*(nye-nys))-m
              alarge(m,j)=alarge(n,j)
           enddo
@@ -854,14 +853,14 @@ subroutine ens_mirror(asmall,alarge,nxs,nxe,nys,nye,nxb,nyb)
 !==> fill out remaining part of large grid
 
        do i=1,nyb
-          do m=nxs-ione,1,-1
-             k=(nxs-m-ione)/(nxe-nxs)
+          do m=nxs-1,1,-1
+             k=(nxs-m-1)/(nxe-nxs)
              n=2*(nxs-k*(nxe-nxs))-m
              alarge(i,m)=alarge(i,n)
           enddo
 
-          do m=nxe+ione,nxb
-             k=(m-nxe-ione)/(nxe-nxs)
+          do m=nxe+1,nxb
+             k=(m-nxe-1)/(nxe-nxs)
              n=2*(nxe+k*(nxe-nxs))-m
              alarge(i,m)=alarge(i,n)
           enddo
@@ -895,7 +894,6 @@ subroutine pges_minmax(mype,pmin,pmax)
 !
 !$$$ end documentation block
   use kinds, only: i_kind, r_kind
-  use constants, only: izero,ione
   use gridmod, only: lat1,lon1,nsig,strip
   use guess_grids, only: ges_prsl
   use mpimod,only: mpi_real8, mpi_min, mpi_max, mpi_comm_world
@@ -915,14 +913,14 @@ subroutine pges_minmax(mype,pmin,pmax)
   do k=1,nsig
      p1=minval(p3d(:,:,k))
      p2=maxval(p3d(:,:,k))
-     call mpi_allreduce(p1,pmin(k),ione,mpi_real8,mpi_min,mpi_comm_world,ierror)
-     call mpi_allreduce(p2,pmax(k),ione,mpi_real8,mpi_max,mpi_comm_world,ierror)
+     call mpi_allreduce(p1,pmin(k),1,mpi_real8,mpi_min,mpi_comm_world,ierror)
+     call mpi_allreduce(p2,pmax(k),1,mpi_real8,mpi_max,mpi_comm_world,ierror)
   enddo
 
   pmin(:)=pmin(:)*10._r_kind
   pmax(:)=pmax(:)*10._r_kind
 
-  if (mype==izero) then
+  if (mype==0) then
      do k=1,nsig
         print*,'in pges_minmax,k,pmin(k),pmax(k)=',k,pmin(k),pmax(k)
      enddo
@@ -956,7 +954,6 @@ subroutine check_32primes(n,lprime)
 !$$$ end documentation block
 
   use kinds, only: i_kind
-  use constants, only: izero,ione
   implicit none
 
   integer(i_kind),intent(in   ) :: n
@@ -965,7 +962,7 @@ subroutine check_32primes(n,lprime)
   integer(i_kind) nn,nfax,ii
 
   lprime=.false.
-  nfax = izero
+  nfax = 0
   nn=n
 
 !
@@ -973,7 +970,7 @@ subroutine check_32primes(n,lprime)
 !
   do 10 ii = 1,20
      if (nn==3*(nn/3)) then
-        nfax = nfax+ione
+        nfax = nfax+1
         nn = nn/3
      else
         go to 20
@@ -983,16 +980,16 @@ subroutine check_32primes(n,lprime)
 !
 ! check for factors of 2
 !
-  do 30 ii = nfax+ione,20
+  do 30 ii = nfax+1,20
      if (nn==2*(nn/2)) then
-        nfax = nfax +ione
+        nfax = nfax +1
         nn = nn/2
      else
         go to 40
      end if
 30 continue
 40 continue
-  if (nn==ione) lprime=.true.
+  if (nn==1) lprime=.true.
 
   return
 
@@ -1026,7 +1023,7 @@ subroutine intp_spl(xi,yi,xo,yo,ni,no)
 !
 !$$$ end documentation block
   use kinds, only: i_kind, r_kind, r_single
-  use constants, only: zero,two,three,ione
+  use constants, only: zero,two,three
   implicit none
 
   integer(i_kind),intent(in   ) :: ni,no
@@ -1040,35 +1037,35 @@ subroutine intp_spl(xi,yi,xo,yo,ni,no)
   real(r_kind):: xe
   integer(i_kind):: k,kk,k0
 
-  do k=1,ni-ione
-     hi(k)=xi(k+ione)-xi(k)
+  do k=1,ni-1
+     hi(k)=xi(k+1)-xi(k)
   end do
 
-  do k=2,ni-ione
-     bi(k)=two*(hi(k)+hi(k-ione))
-     di(k)=three*((yi(k+ione)-yi(k))/hi(k)-(yi(k)-yi(k-ione))/hi(k-ione))
+  do k=2,ni-1
+     bi(k)=two*(hi(k)+hi(k-1))
+     di(k)=three*((yi(k+1)-yi(k))/hi(k)-(yi(k)-yi(k-1))/hi(k-1))
   end do
 
   gi(2)=hi(2)/bi(2)
-  do k=3,ni-ione
-     gi(k)=hi(k)/(bi(k)-hi(k-ione)*gi(k-ione))
+  do k=3,ni-1
+     gi(k)=hi(k)/(bi(k)-hi(k-1)*gi(k-1))
   end do
 
   ui(2)=di(2)/bi(2)
-  do k=3,ni-ione
-     ui(k)=(di(k)-hi(k-ione)*ui(k-ione))/(bi(k)-hi(k-ione)*gi(k-ione))
+  do k=3,ni-1
+     ui(k)=(di(k)-hi(k-1)*ui(k-1))/(bi(k)-hi(k-1)*gi(k-1))
   end do
 
   ri(ni)=zero
-  do k=ni-ione,2,-ione
-     ri(k)=ui(k)-gi(k)*ri(k+ione)
+  do k=ni-1,2,-1
+     ri(k)=ui(k)-gi(k)*ri(k+1)
   end do
   ri(1)=zero
 
-  do k=1,ni-ione
+  do k=1,ni-1
      pi(k)=yi(k)
-     qi(k)=(yi(k+ione)-yi(k))/hi(k)-hi(k)*(ri(k+ione)+two*ri(k))/three
-     si(k)=(ri(k+ione)-ri(k))/(three*hi(k))
+     qi(k)=(yi(k+1)-yi(k))/hi(k)-hi(k)*(ri(k+1)+two*ri(k))/three
+     si(k)=(ri(k+1)-ri(k))/(three*hi(k))
   end do
 
   do kk=1,no
@@ -1080,13 +1077,13 @@ subroutine intp_spl(xi,yi,xo,yo,ni,no)
 !
      if     (xo(kk)>=xi(1) ) then
 !       yo(kk)=yi(1)  ! use the end value
-        k0=ione       ! extrapolation
+        k0=1       ! extrapolation
      else if(xo(kk)<=xi(ni)) then
         yo(kk)=yi(ni) ! use the end value
-!       k0=ni-ione    ! extrapolation
+!       k0=ni-1    ! extrapolation
      else
-        do k=1,ni-ione
-           if( xo(kk)<xi(k) .and. xo(kk)>=xi(k+ione) ) then
+        do k=1,ni-1
+           if( xo(kk)<xi(k) .and. xo(kk)>=xi(k+1) ) then
               k0=k
               exit
            end if
@@ -1125,7 +1122,7 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
 !$$$ end documentation block
 
   use kinds, only: i_kind, r_single, r_kind
-  use constants, only: zero, half, one, four, ione
+  use constants, only: zero, half, one, four
   implicit none
 
   integer(i_kind),intent(in   ) :: nxx,ny,na,nb,itap
@@ -1142,7 +1139,7 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
   no_wgt=.false.
   if(no_wgt_in) no_wgt=.true.
 
-  pionp1=four*atan(one)/float(itap+ione)
+  pionp1=four*atan(one)/float(itap+1)
 
   do i=1,itap
      xi=float(i)
@@ -1174,10 +1171,10 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
   end do
 
 !!!!!!! lower !!!!!
-  ndjp=ndj+ione
+  ndjp=ndj+1
   do j=1,itap
      jm=ndjp-j
-     do i=ndi+ione,ndi+nxx
+     do i=ndi+1,ndi+nxx
         ur(i,jm)=ur(i,ndjp)*wt(j)
      end do
   end do
@@ -1186,15 +1183,15 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
   ndjp=ndj+ny
   do j=1,itap
      jp=ndjp+j
-     do i=ndi+ione,ndi+nxx
+     do i=ndi+1,ndi+nxx
         ur(i,jp)=ur(i,ndjp)*wt(j)
      end do
   end do
 
 !!!!!!! left+right  !!!!!
-  ndip=ndi+ione
+  ndip=ndi+1
   ndipx=ndi+nxx
-  do j=ndj+ione-itap,ndj+ny+itap
+  do j=ndj+1-itap,ndj+ny+itap
      do i=1,itap
         im=ndip-i
         ur(im,j)=ur(ndip ,j)*wt(i)

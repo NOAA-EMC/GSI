@@ -99,6 +99,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-08-01  lueken  - added module use deter_sfc_mod and fixed indentation
 !   2011-08-27  todling - add use_prepb_satwnd; cleaned out somebody's left over's
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
+!   2012-04-03  s.liu    - thin new VAD wind 
+!   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
+!                                    Initialize pflag=0 at beginning of subroutine.
+!
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -134,13 +140,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use obsmod, only: blacklst,offtime_data,bmiss
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
-  use qcmod, only: errormod,noiqc
+  use qcmod, only: errormod,noiqc,newvad
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use blacklist, only : blacklist_read,blacklist_destroy
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,get_gustqm,destroy_rjlists
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
+  use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use jfunc, only: tsensible
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
@@ -185,6 +192,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical outside,driftl,convobs,inflate_error
   logical sfctype
   logical luse,ithinp,windcorr
+  logical patch_fog
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
@@ -287,9 +295,28 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data lunin / 13 /
   data ithin / -9 /
   data rmesh / -99.999_r_kind /
+  !* test new vad wind
+  !* for match loction station and time
+        character(7*2000) cstn_idtime,cstn_idtime2
+        character(7) stn_idtime(2000),stn_idtime2(2000)
+        equivalence (stn_idtime(1),cstn_idtime)
+        equivalence (stn_idtime2(1),cstn_idtime2)
+        integer :: ii1,atmp,btmp,mytimeyy,ibyte
+        character(4) stid
+        real(8) :: rval
+        character(len=8) :: cval
+        equivalence (rval,cval)
+        character(7) flnm
+        integer:: icase,klev,ikkk,tkk
+        real:: diffhgt,diffuu,diffvv
+
+  real(r_double),dimension(3,1500):: fcstdat
+  character(80) fcststr
+  data fcststr  /'UFC VFC'/
   
 ! Initialize variables
 
+  pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
   nreal=0
   satqc=zero
   tob = obstype == 't'
@@ -303,6 +330,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   visob = obstype == 'vis'
   metarcldobs = obstype == 'mta_cld'
   geosctpobs = obstype == 'gos_ctp'
+  newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
      nreal=24
@@ -323,7 +351,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(visob) then
      nreal=21
   else if(metarcldobs) then
-     nreal=24
+     nreal=25
   else if(geosctpobs) then
      nreal=8
   else 
@@ -419,12 +447,28 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       Extract type information
         call ufbint(lunin,hdr,4,1,iret,hdstr2)
         kx=hdr(1)
+        !* for new vad wind
+        if(kx==224 .and. .not.newvad) then
+           call ufbint(lunin,obsdat,11,255,levs,obstr)
+           if(levs>1)then
+           do k=1, levs-1
+             diffuu=abs(obsdat(4,k+1)-obsdat(4,k))
+             if(diffuu==50.0) then
+                   newvad=.true.
+                   go to 288
+             end if
+           end do
+           end if
+288     continue
+        end if
+!       if(kx==224)write(6,*)'new vad wind',kx,newvad
+        !* END new vad wind
 
         if(twodvar_regional)then
 !          If running in 2d-var (surface analysis) mode, check to see if observation
 !          is surface type.  If not, read next observation report from bufr file
            sfctype=(kx>179.and.kx<190).or.(kx>=280.and.kx<=290).or. &
-                   (kx>=192.and.kx<=195).or.(kx>=292.and.kx<=295) 
+                   (kx>=192.and.kx<=199).or.(kx>=292.and.kx<=299)
            if (.not.sfctype ) cycle loop_report
 
         end if
@@ -432,6 +476,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! temporary specify iobsub until put in bufr file
         iobsub = 0                                                  
         if(kx == 280) iobsub=hdr(3)                                            
+        if(kx == 290) iobsub=hdr(2)
         if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
         if(use_prepb_satwnd .and. kx == 245  ) then
            if(hdr(2) == 259.0_r_kind) iobsub = 15 
@@ -517,6 +562,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
+  if (twodvar_regional) call init_ndfdgrid 
+
 ! loop over convinfo file entries; operate on matches
   
   allocate(cdata_all(nreal,maxobs),isort(maxobs))
@@ -566,6 +613,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
+     write(6,*)'new vad flag::', newvad 
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -603,6 +651,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(hdr(2) < zero)hdr(2)=hdr(2)+r360
            dlon_earth=hdr(2)*deg2rad
            dlat_earth=hdr(3)*deg2rad
+           kx=hdr(5)
+        !* thin new VAD in time level
+        if(kx==224.and.newvad)then
+        icase=0
+        if(abs(hdr(4))>0.75) icase=1
+!       if(abs(hdr(4))>0.17.and.abs(hdr(4))<0.32) icase=1
+!       if(abs(hdr(4))>0.67.and.abs(hdr(4))<0.82) icase=1
+!       if(abs(hdr(4))>1.17.and.abs(hdr(4))<1.32) icase=1
+!       if(abs(hdr(4))>1.67.and.abs(hdr(4))<1.82) icase=1
+!       if(abs(hdr(4))>2.17.and.abs(hdr(4))<2.62) icase=1
+!       if(abs(hdr(4))>2.67.and.abs(hdr(4))<2.82) icase=1
+        if(icase/=1) cycle
+        end if
+
            if(regional)then
               call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
               if(diagnostic_reg) then
@@ -618,8 +680,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else
               dlat = dlat_earth
               dlon = dlon_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !------------------------------------------------------------------------
@@ -686,7 +748,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            endif
 
            sfctype=(kx>179.and.kx<190).or.(kx>=280.and.kx<=290).or. &
-                   (kx>=192.and.kx<=195).or.(kx>=292.and.kx<=295) 
+                   (kx>=192.and.kx<=199).or.(kx>=292.and.kx<=299)
 
            if (sfctype) then
               call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
@@ -698,6 +760,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      
 !          Extract data information on levels
            call ufbint(lunin,obsdat,11,255,levs,obstr)
+           if(kx==224 .and. newvad) then
+           call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
+           end if
            call ufbint(lunin,qcmark,8,255,levs,qcstr)
            call ufbint(lunin,obserr,8,255,levs,oestr)
            nread=nread+levs
@@ -720,6 +785,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else if(geosctpobs) then
               geoscld=bmiss
               call ufbint(lunin,geoscld,4,1,levs,geoscldstr)
+           else if (visob) then
+              metarwth=bmiss
+              call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
            endif
 
 !          Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
@@ -855,6 +923,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               endif
            end if
            LOOP_K_LEVS: do k=1,levs
+                 if(kx==224 .and. newvad)then
+                    if(mod(k,6)/=0) cycle LOOP_K_LEVS
+                 end if
 
               icntpnt=icntpnt+1
 
@@ -893,6 +964,19 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
  
 
 !             Check qc marks to see if obs should be processed or skipped
+
+           if (visob) then
+              if (abs(obsdat(9,k)-bmiss) < r100) then
+                 patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
+                           (metarwth(1,1)>=130.0_r_kind .and. metarwth(1,1)<=135.0_r_kind) .or. &
+                           (metarwth(1,1)>=241.0_r_kind .and. metarwth(1,1)<=246.0_r_kind)
+                 if (patch_fog) obsdat(9,k)=1000.0_r_kind
+                 if (metarwth(1,1)==247.0_r_kind) obsdat(9,k)=75.0_r_kind
+                 if (metarwth(1,1)==248.0_r_kind) obsdat(9,k)=45.0_r_kind
+                 if (metarwth(1,1)==249.0_r_kind) obsdat(9,k)=15.0_r_kind
+              end if
+           end if
+
               if (psob) then
                  cat=nint(min(obsdat(10,k),qcmark_huge))
                  if ( cat /=0 ) cycle loop_k_levs
@@ -950,8 +1034,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     dlat = dlat_earth
                     dlon = dlon_earth
-                    call grdcrd(dlat,1,rlats,nlat,1)
-                    call grdcrd(dlon,1,rlons,nlon,1)
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
                  endif
 
                  if(levs > 1 .or. ithinp)then
@@ -1044,8 +1128,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if(qm >=lim_qm )usage=101._r_kind
               if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
               if((kx>=192.and.kx<=195) .and. psob )usage=r100
+              if (gustob .and. abs(obsdat(8,k)-bmiss) < r100) usage=103._r_kind
+              if (visob  .and. abs(obsdat(9,k)-bmiss) < r100) usage=103._r_kind
 
-              if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg,usage)
+              if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                                            dlon_earth,dlat_earth,idate,t4dv-toff, &
+                                            obsdat(5,k),obsdat(6,k),usage)
+
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
               endif
@@ -1064,7 +1153,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Get information from surface file necessary for conventional data here
               call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
-              if(lhilbert .and. .not.(gustob.or.visob)) & 
+              if(lhilbert) & 
                   call accum_hilbertcurve(usage,c_station_id,c_prvstg,c_sprvstg, &
                        dlat_earth,dlon_earth,dlat,dlon,t4dv,toff,nc,kx,iout)
 
@@ -1115,6 +1204,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
                  if(perturb_obs)cdata_all(25,iout)=ran01dom()*perturb_fact ! t perturbation
+                 if (twodvar_regional) &
+                    call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
 
 !             Winds 
               else if(uvob) then 
@@ -1147,6 +1238,51 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                Rotate winds to rotated coordinate
                  uob=obsdat(5,k)
                  vob=obsdat(6,k)
+                 !* thin new VAD wind and generate VAD superob
+                 if(kx==224.and.newvad)then
+                         klev=k+5 !*average over 6 points
+                       !  klev=k    !* no average
+                         if(klev>levs) cycle loop_readsb
+                         diffuu=obsdat(5,k)-fcstdat(1,k)
+                         diffvv=obsdat(6,k)-fcstdat(2,k)
+                         if(sqrt(diffuu**2+diffvv**2)>10.0) cycle loop_k_levs
+                         if(abs(diffvv)>8.0) cycle loop_k_levs
+                        !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
+                         if(oelev>7000.0) cycle loop_k_levs
+                         if(abs(diffvv)>5.0.and.oelev<5000.0) cycle loop_k_levs
+                        ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
+                         uob=0.0
+                         vob=0.0
+                         oelev=0.0
+                         tkk=0
+                         do ikkk=k,klev
+                           diffhgt=obsdat(4,ikkk)-obsdat(4,k)
+                           if(diffhgt<301.0)then
+                           uob=uob+obsdat(5,ikkk)
+                           vob=vob+obsdat(6,ikkk)
+                           oelev=oelev+obsdat(4,ikkk)
+                           tkk=tkk+1
+                           end if
+                         end do
+                         uob=uob/tkk
+                         vob=vob/tkk
+                         oelev=oelev/tkk
+
+                         diffuu=5.0;diffvv=5.0
+                         diffhgt=0.0
+                         do ikkk=k,klev
+                           diffuu=abs(obsdat(5,ikkk)-uob)
+                           if(diffhgt<diffuu)diffhgt=diffuu
+                           diffvv=abs(obsdat(6,ikkk)-vob)
+                           if(diffhgt<diffvv)diffhgt=diffvv
+                         end do
+
+                     if(diffhgt>5.0)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
+                     if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
+                     !* unreasonable observation, will fix this in QC package
+                     if(sqrt(uob**2+vob**2)>60.0)cycle LOOP_readsb
+                 end if
+
                  if(regional)then
                     u0=uob
                     v0=vob
@@ -1249,6 +1385,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(21,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(22,iout)=r_sprvstg(1,1)         ! subprovider name
                  if(perturb_obs)cdata_all(23,iout)=ran01dom()*perturb_fact ! ps perturbation
+                 if (twodvar_regional) &
+                    call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
 
 !             Specific humidity 
               else if(qob) then
@@ -1287,6 +1425,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(24,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(25,iout)=obsdat(10,k)            ! cat
                  if(perturb_obs)cdata_all(26,iout)=ran01dom()*perturb_fact ! q perturbation
+                 if (twodvar_regional) &
+                    call adjust_error(cdata_all(18,iout),cdata_all(19,iout),cdata_all(12,iout),cdata_all(1,iout))
  
 !             Total precipitable water (ssm/i)
               else if(pwob) then
@@ -1364,7 +1504,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
    
 !                need to find out gustoe
 !                gustoe=1.8
-                 gustoe=1.5
+                 gustoe=1.0
                  selev=stnelev
                  oelev=obsdat(4,k)
                  if(selev == oelev)oelev=r10+selev
@@ -1379,7 +1519,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
                    if ((kx==188).or.(kx==288) .or.(kx==195) .or.(kx==295)) then
 !                     gustoe=2.5
-                      gustoe=2.0
+                      gustoe=1.0
                       windcorr=abs(obsdat(5,k))<1.0 .and. abs(obsdat(6,k))<1.0 .and. obsdat(8,k)>10.0
                       if (windcorr) gustoe=gustoe*1.5_r_kind
 
@@ -1482,6 +1622,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  else
                     cdata_all(24,iout)=-99999.0_r_kind  ! temperature - dew point
                  endif
+! cdata_all(24,iout) and cdata_all(25,iout) will be used to save dlon and dlat
 ! NESDIS cloud products
               else if(geosctpobs) then
                  cdata_all(1,iout)=rstation_id    !  station ID
@@ -1516,9 +1657,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg)
 
-    if(lhilbert .and. .not.(gustob.or.visob)) & 
-       call apply_hilbertcurve(maxobs,cdata_all(11:14,1:maxobs),11,14,&
-                  tob,12,uvob,14,spdob,13,psob,12,qob,13,pwob,11,sstob,13)
+    if(lhilbert) &
+       call apply_hilbertcurve(maxobs,cdata_all(10:14,1:maxobs),10,14,&
+                  tob,12,uvob,14,spdob,13,psob,12,qob,13,pwob,11,sstob,13, &
+                  gustob,12,visob,10)
 
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))
@@ -1560,6 +1702,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call destroy_rjlists
   call destroy_aircraft_rjlists
   if (lhilbert) call destroy_hilbertcurve
+  if (twodvar_regional) call destroy_ndfdgrid
 
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_PREPBUFR:  ',&

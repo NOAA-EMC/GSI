@@ -18,7 +18,6 @@ module egrid2agrid_mod
 !   2011-07-26  todling  - generalize single/double prec and rank interface
 !   2012-02-08  parrish  - add single/double prec and rank interface for routines egrid2agrid,
 !                            egrid2agrid_ad, and agrid2egrid, to be used for regional dual resolution.
-!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
 !
 ! subroutines included:
 !   sub init_egrid2agrid         - initialize interpolation variables and constants to defaults
@@ -255,7 +254,6 @@ module egrid2agrid_mod
 !                           this routine when optional logical variable e2a_only is present and true.
 !                           Even though hbig is not used in this case, it can be very large (it was
 !                           4.7Gb for a high res nems-nmmb window run by Ed Colon, which seg-faulted).
-!   2012-02-08  parrish - remove references to izero, ione
 !
 !   input argument list:
 !     e2a           - structure variable with previous/default interpolation information
@@ -1190,6 +1188,7 @@ module egrid2agrid_mod
 !
 ! program history log:
 !   2010-10-29  parrish, initial documentation
+!   2012-11-28  tong - added p%lallocated=.true. after arrays of p are allocated
 !
 !   input argument list:
 !     np:     number of points to interpolate to
@@ -1213,6 +1212,7 @@ module egrid2agrid_mod
 !$$$ end documentation block
 
       use constants, only: zero,half,one,two
+      use blendmod, only: blend
       implicit none
 
       integer(i_kind),intent(in) :: np,nye,nxe,nord_e2a
@@ -1257,7 +1257,6 @@ module egrid2agrid_mod
          mm=nord_blend
          call blend(mm,iblend)
          allocate(blendx(nmix))
-         blendx(0)=zero
          blendx(nmix)=one
          dxx=one/nmix
          blendx(1)=zero
@@ -1293,6 +1292,8 @@ module egrid2agrid_mod
          deallocate(wgt_e,wgt_a,wgt_xe,wgt_ye,blendx)
 
       end if
+
+      p%lallocated=.true.
 
    end subroutine create_egrid2points_slow
 

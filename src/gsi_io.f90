@@ -81,7 +81,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: izero
     implicit none
 
 !   Declare passed variables
@@ -90,10 +89,10 @@ contains
 
 
 !   Set unit numbers reserved for little endian input and output
-    lendian_in  = 15_i_kind
-    lendian_out = 66_i_kind
+    lendian_in  = 15
+    lendian_out = 66
 
-    if (mype==izero) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
+    if (mype==0) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
        ' and lendian_out=',lendian_out,' for little endian i/o'
 
 !   Set mpi io task
@@ -144,13 +143,13 @@ contains
     use kinds, only: r_kind,r_single
     use gridmod, only: itotsub,nlon,nlat,lat2,lon2,nsig,displs_s,ijn_s,&
          ntracer,ncloud
-    use constants, only: izero,ione,zero
+    use constants, only: zero
     use mpimod, only: mpi_rtype,ierror,mpi_comm_world
     implicit none
     
 !   Declare local parameters
-    integer(i_kind):: lunin=11_i_kind
-    integer(i_kind):: nsize=4_i_kind
+    integer(i_kind):: lunin=11
+    integer(i_kind):: nsize=4
 
 !   Declare passed variables
     character(24)                             ,intent(in   ) :: filename
@@ -172,16 +171,16 @@ contains
     
 !******************************************************************************  
 !   Initialize variables used below
-    mype_in=izero
-    mm1=mype+ione
-    ib=-ione
+    mype_in=0
+    mm1=mype+1
+    ib=-1
     nb=nsize*nlon*nlat
 
 
 !   Open file to read bias fields
-    istatus=izero
+    istatus=0
     call baopenr(lunin,filename,iret)
-    if (iret/=izero) then
+    if (iret/=0) then
        if (mype==mype_in) write(6,*) &
           'READ_BIAS:  ***ERROR*** opening output file, iret=',iret,lunin,filename
        istatus=istatus+iret
@@ -328,7 +327,7 @@ contains
     
 
 !   Cloud condensate mixing ratio.
-       if (ntracer>2_i_kind .or. ncloud>=ione) then
+       if (ntracer>2 .or. ncloud>=1) then
           do k=1,nsig
              if (mype==mype_in) then
                 call baread(lunin,ib,nb,ka,grid4)
@@ -356,7 +355,7 @@ contains
     
 !   Close input file
     call baclose(lunin,iret)
-    if (iret/=izero) then
+    if (iret/=0) then
        write(6,*)'READ_BIAS:  ***ERROR*** closing input file, iret=',iret
     endif
     istatus=istatus+iret
@@ -382,8 +381,6 @@ contains
 !
     use kinds, only: r_kind,r_single
     
-    use constants, only: izero,ione
-  
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
     use mpimod, only: ierror
@@ -456,8 +453,8 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind),parameter::  lunout = 51_i_kind
-    integer(i_kind),parameter::  nsize=4_i_kind
+    integer(i_kind),parameter::  lunout = 51
+    integer(i_kind),parameter::  nsize=4
 
     integer(i_kind) k,mm1
     integer(i_kind):: iret
@@ -471,14 +468,14 @@ contains
 !*************************************************************************
 
 !   Initialize local variables
-    mm1=mype+ione
+    mm1=mype+1
     nb=nsize*nlon*nlat
 
 !   Open file to receive bias fields
-    istatus=izero
+    istatus=0
     if (mype==mype_out) then
        call baopenwt(lunout,filename,iret)
-       if (iret/=izero) then
+       if (iret/=0) then
           write(6,*)'WRITE_BIAS:  ***ERROR*** opening output file, iret=',iret
        endif
        istatus=istatus+iret
@@ -489,9 +486,9 @@ contains
     do n=1,nbc
 
 !   Strip off boundary points from subdomains
-       call strip(sub_z    (1,1,n)  ,zsm    ,ione)
-       call strip(sub_ps   (1,1,n)  ,psm    ,ione)
-       call strip(sub_tskin(1,1,n)  ,tskinsm,ione)
+       call strip(sub_z    (1,1,n)  ,zsm    ,1)
+       call strip(sub_ps   (1,1,n)  ,psm    ,1)
+       call strip(sub_tskin(1,1,n)  ,tskinsm,1)
        call strip(sub_vor  (1,1,1,n),vorsm  ,nsig)
        call strip(sub_div  (1,1,1,n),divsm  ,nsig)
        call strip(sub_u    (1,1,1,n),usm    ,nsig)
@@ -617,7 +614,7 @@ contains
     
 
 !   Cloud condensate mixing ratio
-       if (ntracer>2_i_kind .or. ncloud>=ione) then
+       if (ntracer>2 .or. ncloud>=1) then
           do k=1,nsig
              call mpi_gatherv(cwmrsm(1,k),ijn(mm1),mpi_rtype,&
                   work,ijn,displs_g,mpi_rtype,&
@@ -636,7 +633,7 @@ contains
        write(6,*) 'WRITE_BIAS:  bias file written to ',&
             trim(filename)
        call baclose(lunout,iret)
-       if (iret/=izero) then
+       if (iret/=0) then
           write(6,*)'WRITE_BIAS:  ***ERROR*** closing output file, iret=',iret
        endif
        istatus=istatus+iret

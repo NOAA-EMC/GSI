@@ -17,6 +17,15 @@ subroutine get_gefs_ensperts_dualres
 !   2010-04-14  kleist  - add ensemble mean ps array for use with vertical localizaion (lnp)
 !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !   2011-11-01  kleist  - 4d capability for ensemble/hybrid
+!   2013-01-16  parrish - strange error in make debug on wcoss related to
+!                          grd_ens%lat2, grd_ens%lon2, grd_ens%nsig
+!                        replaced with im, jm, km which are set equal to these
+!                        at beginning of program and this made error go away.
+!                         FOLLOWING is sample error message from make debug on tide:
+!
+!                         get_gefs_ensperts_dualres.f90(182): error #6460: This is not a field name that
+!                                 is defined in the encompassing structure.   [LAT2]
+!                         call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
 !
 !   input argument list:
 !
@@ -29,7 +38,7 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use gridmod, only: idsl5
-  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
+  use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens,enspreproc
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
@@ -45,6 +54,8 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_gridcreate
   implicit none
 
+  real(r_single),dimension(grd_ens%lat2,grd_ens%lon2):: scr2
+  real(r_single),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: scr3
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
   real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
@@ -61,6 +72,7 @@ subroutine get_gefs_ensperts_dualres
   integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,il,jl,mm1,iderivative,im,jm,km,m
   character(70) filename
   logical ice
+  integer(i_kind) :: lunges=11
 
   allocate(en_bar(ntlevs_ens))
   call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
@@ -95,18 +107,46 @@ subroutine get_gefs_ensperts_dualres
 
      do n=1,n_ens
 
-        if(.not.l4densvar) then
-           write(filename,100) n
- 100       format('sigf06_ens_mem',i3.3)
-        else
-           write(filename,103) ens4d_fhrlevs(m), n
- 103       format('sigf',i2.2,'_ens_mem',i3.3)
-        endif
-! Use read_gfs routine to get ensemble members
-! *** NOTE ***
-! For now, everything is assumed to be at the same resolution
-       if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',filename
-       call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+       if (enspreproc) then
+          ! read pre-processed ensemble data (one file for each bin that has all
+          ! the ensemble members for a subdomain).
+          if(l4densvar) then
+             write(filename,103) n, ens4d_fhrlevs(m), mype
+ 103         format('ensmem',i3.3,'_f',i2.2,'.pe',i4.4)
+          else
+             write(filename,103) n, 6, mype
+          end if
+          if (mype==0)write(6,*) 'READ PRE-PROCESSED ENS FILE: ',trim(filename)
+          open(lunges,file=filename,form='unformatted',iostat=iret)
+          if (iret /= 0) go to 104
+          read(lunges,err=104) scr2; ps = scr2
+          read(lunges,err=104) scr2; z = scr2
+          read(lunges,err=104) scr3; u = scr3
+          read(lunges,err=104) scr3; v = scr3
+          read(lunges,err=104) scr3; tv = scr3
+          read(lunges,err=104) scr3; q = scr3
+          read(lunges,err=104) scr3; oz = scr3
+          read(lunges,err=104) scr3; cwmr = scr3
+          close(lunges)
+          go to 105
+ 104      continue
+          iret = -1
+          beta1_inv=one
+          if (mype==0) &
+             write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
+          cycle
+ 105      continue
+       else
+          ! read from spectral file on root task, broadcast to other tasks.
+          if (l4densvar) then
+             write(filename,106) ens4d_fhrlevs(m), n
+ 106         format('sigf',i2.2,'_ens_mem',i3.3)
+          else
+             write(filename,106) 6, n
+          endif
+          if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
+          call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+       endif
 
 ! Check read return code.  Revert to static B if read error detected
        if (iret/=0) then
@@ -148,7 +188,7 @@ subroutine get_gefs_ensperts_dualres
 
        ice=.true.
        iderivative=0
-       call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+       call genqsat(qs,tsen,prsl,im,jm,km,ice,iderivative)
        deallocate(tsen,prsl)
 
        do ic3=1,nc3d
@@ -201,15 +241,15 @@ subroutine get_gefs_ensperts_dualres
 
              case('q','Q')
 !$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
-                do k=1,km
-                   do j=1,jm
-                      do i=1,im
-                         rh=q(i,j,k)/qs(i,j,k)
-                         w3(i,j,k) = rh
-                         x3(i,j,k)=x3(i,j,k)+rh
-                      end do
-                   end do
-                end do
+                 do k=1,km
+                    do j=1,jm
+                       do i=1,im
+                          rh=q(i,j,k)/qs(i,j,k)
+                          w3(i,j,k) = rh
+                          x3(i,j,k)=x3(i,j,k)+rh
+                       end do
+                    end do
+                 end do
 
              case('oz','OZ')
 !$omp parallel do schedule(dynamic,1) private(i,j,k)
@@ -295,8 +335,8 @@ subroutine get_gefs_ensperts_dualres
               call stop2(999)
            end if
 
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
+           do j=1,jm
+              do i=1,im
                  ps_bar(i,j,m)=x2(i,j)
               end do
            end do

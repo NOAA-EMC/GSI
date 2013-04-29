@@ -242,8 +242,10 @@ module obsmod
 !                          .true. - uses iextra,jextra to append information to diag file
 !                          .false. - write out standard diag file (default)
 !   def ext_sonde    - logical for extended forward model on sonde data
-!   bmiss            - parameter to define missing value from bufr
+!   def bmiss            - parameter to define missing value from bufr
 !                      [10e10 on IBM CCS, 10e08 elsewhere]
+!   def lrun_subdirs - logical to toggle use of subdirectories at run time for pe specific
+!                      files
 !
 ! attributes:
 !   langauge: f90
@@ -314,7 +316,7 @@ module obsmod
   public :: tcp_ob_head,colvk_ob_head,odiags
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
-  public :: codiags,use_limit
+  public :: codiags,use_limit,lrun_subdirs
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -1223,6 +1225,7 @@ module obsmod
   logical lwrite_predterms
   logical lwrite_peakwt
   logical ext_sonde
+  logical lrun_subdirs
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1402,6 +1405,7 @@ contains
     lread_obs_skip   = .false.
     lwrite_predterms = .false.
     lwrite_peakwt    = .false.
+    lrun_subdirs     = .false.
 
     return
   end subroutine init_obsmod_dflts
@@ -1438,16 +1442,17 @@ contains
     character(len=144):: command
     character(len=8):: pe_name
 
-#ifdef ibm_sp
-    write(pe_name,'(i4.4)') mype
-    dirname = 'dir.'//trim(pe_name)//'/'
-    command = 'mkdir -m 755 ' // trim(dirname)
-    call system(command)
-#else
-    write(pe_name,100) mype
+    if (lrun_subdirs) then
+       write(pe_name,'(i4.4)') mype
+       dirname = 'dir.'//trim(pe_name)//'/'
+       command = 'mkdir -m 755 ' // trim(dirname)
+       call system(command)
+    else
+       write(pe_name,100) mype
 100 format('pe',i4.4,'.')
-    dirname= trim(pe_name)
-#endif
+       dirname= trim(pe_name)
+    end if
+
     return
   end subroutine init_directories
   

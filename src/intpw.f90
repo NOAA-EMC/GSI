@@ -12,6 +12,7 @@ module intpwmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intpw_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intpw_
@@ -67,6 +68,7 @@ subroutine intpw_(pwhead,rval,sval)
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     pwhead   - obs type pointer to obs structure
@@ -87,10 +89,11 @@ subroutine intpw_(pwhead,rval,sval)
   use obsmod, only: pw_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: latlon11,latlon1n,nsig
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: ione,zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
+  use constants, only: zero,tpwcon,half,one,tiny_r_kind,cg_term,r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -137,10 +140,10 @@ subroutine intpw_(pwhead,rval,sval)
      i3(1)=pwptr%ij(3)
      i4(1)=pwptr%ij(4)
      do k=2,nsig
-        i1(k)=i1(k-ione)+latlon11
-        i2(k)=i2(k-ione)+latlon11
-        i3(k)=i3(k-ione)+latlon11
-        i4(k)=i4(k-ione)+latlon11
+        i1(k)=i1(k-1)+latlon11
+        i2(k)=i2(k-1)+latlon11
+        i3(k)=i3(k-1)+latlon11
+        i4(k)=i4(k-1)+latlon11
      end do
      
      val=zero
@@ -171,8 +174,7 @@ subroutine intpw_(pwhead,rval,sval)
  
         else
 !          Difference from observation
-           val=val-pwptr%res
- 
+           if( .not. ladtest_obs)   val=val-pwptr%res
 !          needed for gradient of nonlinear qc operator
            if (nlnqc_iter .and. pwptr%pg > tiny_r_kind .and.  &
                                 pwptr%b  > tiny_r_kind) then
@@ -183,8 +185,11 @@ subroutine intpw_(pwhead,rval,sval)
               p0   = wgross/(wgross+exp(-half*pwptr%err2*val**2))
               val = val*(one-p0)
            endif
- 
-           grad = val*pwptr%raterr2*pwptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*pwptr%raterr2*pwptr%err2
+           end if
         endif
 
 !       Adjoint

@@ -36,7 +36,6 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: izero,ione
   use gridmod, only: iglobal,ltosi,ltosj,itotsub,ltosj_s,ltosi_s
   implicit none
 
@@ -48,9 +47,9 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 ! Declare local variables  
   integer(i_kind) i,ip,j,jj,jm,jp,jjp
   real(r_single),dimension(nx,ny):: hin
-  real(r_single),dimension(nx,(ny+5_i_kind)/2):: c
+  real(r_single),dimension(nx,(ny+5)/2):: c
 
-  if(iorder==ione)then
+  if(iorder==1)then
      do i=1,itotsub
         c(ltosj_s(i),ltosi_s(i))=gout(i)
      end do
@@ -62,45 +61,45 @@ subroutine unhalf_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
   
   
 ! Transfer half grid to staggered grid
-  if(igtype==ione) then
-     jj=izero
+  if(igtype==1) then
+     jj=0
      do j=1,ny,2
-        jj=jj+ione
+        jj=jj+1
         do i=1,nx
            hin(i,j)=c(i,jj)
            gin(i,j)=gin(i,j)+c(i,jj)
         end do
      end do
      do j=2,ny,2
-        jm=j-ione ; jp=j+ione ; if(jp>ny) jp=j-ione
-        do i=1,nx-ione
-           ip=i+ione
+        jm=j-1 ; jp=j+1 ; if(jp>ny) jp=j-1
+        do i=1,nx-1
+           ip=i+1
            gin(i,j)=gin(i,j)+.25_r_single*(hin(i,jm)+hin(ip,jm)+hin(i,jp)+hin(ip,jp))
         end do
-        gin(nx,j)=gin(nx-ione,j)*2-gin(nx-2_i_kind,j)
+        gin(nx,j)=gin(nx-1,j)*2-gin(nx-2,j)
      end do
   else
-     jj=izero
+     jj=0
      do j=1,ny,2
-        jj=jj+ione
-        do i=1,nx-ione
-           ip=i+ione
+        jj=jj+1
+        do i=1,nx-1
+           ip=i+1
            hin(i,j)=.5_r_single*(c(i,jj)+c(ip,jj))
         end do
      end do
-     jj=izero
+     jj=0
      do j=2,ny,2
-        jj=jj+ione
-        jjp=jj+ione; if(j==ny) jjp=jj
+        jj=jj+1
+        jjp=jj+1; if(j==ny) jjp=jj
         do i=1,nx
            hin(i,j)=.5_r_single*(c(i,jj)+c(i,jjp))
         end do
      end do
      do j=1,ny,2
-        do i=1,nx-ione
+        do i=1,nx-1
            gin(i,j)=gin(i,j)+hin(i,j)
         end do
-        gin(nx,j)=gin(nx-ione,j)*2-gin(nx-2_i_kind,j)
+        gin(nx,j)=gin(nx-1,j)*2-gin(nx-2,j)
      end do
      do j=2,ny,2
         do i=1,nx

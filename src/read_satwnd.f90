@@ -25,6 +25,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -81,11 +83,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
   real(r_kind),parameter:: r50= 50.0_r_kind
-  real(r_kind),parameter:: r54= 54.0_r_kind
-  real(r_kind),parameter:: r55= 55.0_r_kind
-  real(r_kind),parameter:: r56= 56.0_r_kind
   real(r_kind),parameter:: r70= 70.0_r_kind
-  real(r_kind),parameter:: r85= 85.0_r_kind
   real(r_kind),parameter:: r90= 90.0_r_kind
   real(r_kind),parameter:: r105= 105.0_r_kind
   real(r_kind),parameter:: r110= 110.0_r_kind
@@ -93,6 +91,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r200=200.0_r_kind
   real(r_kind),parameter:: r250=250.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
+  real(r_kind),parameter:: r600=600.0_r_kind
   real(r_kind),parameter:: r700=700.0_r_kind
   real(r_kind),parameter:: r199=199.0_r_kind
   real(r_kind),parameter:: r299=299.0_r_kind
@@ -113,6 +112,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(8) subset
   character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
+  character(8) c_station_id
 
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
@@ -166,9 +166,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
+  real(r_double) rstation_id
+
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
   equivalence(r_sprvstg(1,1),c_sprvstg)
+  equivalence(rstation_id,c_station_id)
 
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA GCLONG SCCF SWQM'/ 
   data obstr/'HAMD PRLC WDIR WSPD'/ 
@@ -197,6 +200,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   rewind ietabl
   etabl=1.e9_r_kind
   lcount=0
+  pflag=0
   loopd : do
      read(ietabl,100,IOSTAT=iflag) itypex
      if( iflag /= 0 ) exit loopd
@@ -292,8 +296,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &
            trim(subset) == 'NC005066') then
            if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then          !     EUMETSAT wind
-              if(hdrdat(1) == r55) iobsub=55
-              if(hdrdat(1) == r56) iobsub=56
+               iobsub=int(hdrdat(1))
+               if(iobsub == 54) iobsub=0
+
               if(hdrdat(9) == one)  then                  ! IR winds
                  itype=253
               else if(hdrdat(9) == two) then              ! visible winds
@@ -486,6 +491,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
             .or. obsdat(4) > 100000000.0_r_kind) cycle loop_readsb
            if(ppb >r10000) ppb=ppb/r100
            if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
+           if (twodvar_regional .and. ppb <r600) cycle loop_readsb
 !   reject the data with bad quality mark from SDM
            if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb      
 !       Compare relative obs time with window.  If obs 
@@ -521,8 +527,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               trim(subset) == 'NC005066') then
               if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then          
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-                 if(hdrdat(1) == r55) iobsub=55 
-                 if(hdrdat(1) == r56) iobsub=56 
+                  iobsub=int(hdrdat(1))
+                  if (iobsub == 54) iobsub=0
                  if(hdrdat(9) == one)  then                  ! IR winds
                     itype=253
                  else if(hdrdat(9) == two) then              ! visible winds
@@ -699,8 +705,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else
               dlon=dlon_earth
               dlat=dlat_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !!   detect surface type for infrad IR winds monitoring over land for lat greter than 20N
@@ -710,11 +716,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                2 sea ice
 !                3 snow
 !                4 mixed
-           if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
-              if(hdrdat(2) >20.0_r_kind) then 
-                 call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-!                if (isflg /= 0) cycle loop_readsb 
-                 qm=15
+           if( .not. twodvar_regional) then
+              if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
+                 if(hdrdat(2) >20.0_r_kind) then 
+                    call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
+!                   if (isflg /= 0) cycle loop_readsb 
+                    qm=15
+                 endif
               endif
            endif
        
@@ -773,6 +781,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(itype==257) then;  c_prvstg='MODIS'    ;  c_sprvstg='IR'       ; endif
            if(itype==258) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVCTOP'   ; endif
            if(itype==259) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVDLAYER' ; endif
+
+           c_station_id='SATWND'
 
 ! Get information from surface file necessary for conventional data here
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
@@ -870,7 +880,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(5,iout)=ee                   !  quality information 
            cdata_all(6,iout)=uob                  ! u obs
            cdata_all(7,iout)=vob                  ! v obs 
-           cdata_all(8,iout)=ndata                ! station id 
+           cdata_all(8,iout)=rstation_id          ! station id 
            cdata_all(9,iout)=t4dv                 ! time
            cdata_all(10,iout)=nc                  ! index of type in convinfo file
            cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality mark infor  

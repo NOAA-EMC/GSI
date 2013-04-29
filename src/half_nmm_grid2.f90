@@ -60,7 +60,7 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: izero, ione, quarter, zero
+  use constants, only: quarter, zero
   use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
 
   implicit none
@@ -72,24 +72,24 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
 
 ! Declare local variables
   integer(i_kind) i,i0,im,j,jj,jm,jp
-  real(r_single),dimension(nx,(ny+5_i_kind)/2):: c
+  real(r_single),dimension(nx,(ny+5)/2):: c
   
-  if(igtype==ione) then
-     jj=izero
+  if(igtype==1) then
+     jj=0
      do j=1,ny,2
-        jj=jj+ione
+        jj=jj+1
         do i=1,nx
            c(i,jj)=gin(i,j)
         end do
      end do
   else
-     jj=izero
+     jj=0
      do j=1,ny,2
-        jj=jj+ione
-        jp=j+ione ; if(jp>ny)   jp=j-ione
-        jm=j-ione ; if(jm<ione) jm=j+ione
+        jj=jj+1
+        jp=j+1 ; if(jp>ny)   jp=j-1
+        jm=j-1 ; if(jm<1) jm=j+1
         do i=1,nx
-           im=i-ione ; if(im<ione) im=i
+           im=i-1 ; if(im<1) im=i
            i0=i      ; if(i==nx)   i0=im
            c(i,jj)=quarter*(gin(im,j)+gin(i0,j)+gin(i,jp)+gin(i,jm))
         end do
@@ -101,7 +101,7 @@ subroutine half_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
   do i=1,itotsub
      gout(i)=zero
   end do
-  if(iorder==ione)then
+  if(iorder==1)then
      do i=1,itotsub
         gout(i)=c(ltosj_s(i),ltosi_s(i))
      end do

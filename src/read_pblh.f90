@@ -7,6 +7,7 @@
 !   2009-06     whiting - coding rpf
 !   2009-10-20    zhu   - modify rpf for reading in pblh data in GSI
 !   2009-10-21  whiting - modify cnem & pblhob for reading Caterina's files
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -28,7 +29,7 @@
 !$$$
       use kinds, only: r_kind,r_double,i_kind
       use constants, only: zero,one_tenth,one,deg2rad,three,&
-            rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,izero
+            rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind
       use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
            tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
            rlats,rlons
@@ -100,7 +101,7 @@
       maxobs=0
       ctyp0=' '
       first=.true.
-      do while( ireadmg(lunin,ctyp,idate).EQ.izero )
+      do while( ireadmg(lunin,ctyp,idate).EQ.0 )
          if ( ctyp .ne. ctyp0 ) then
            ctyp0=ctyp
            nrtyp=0                        ! counter - rpts per type
@@ -121,7 +122,7 @@
             first=.false.
          end if
 
-         do while (ireadsb(lunin) .eq. izero)
+         do while (ireadsb(lunin) .eq. 0)
             nrtyp=nrtyp+1
             cnem='SID XOB YOB DHR ELV TYP T29 ITP'
             call ufbint(lunin,hdr,MXNM,1,iret,cnem)
@@ -158,7 +159,7 @@
       nmsg=0                         ! msg counter
 
       ctyp0=' '
-      do while( ireadmg(lunin,ctyp,idate).eq.izero )
+      do while( ireadmg(lunin,ctyp,idate).eq.0 )
       nmsg=nmsg+1
       msub = nmsub(lunin)
 
@@ -182,7 +183,7 @@
          cycle
       endif 
 
-      do while (ireadsb(lunin) .eq. izero) 
+      do while (ireadsb(lunin) .eq. 0) 
       nr=nr+1
       nrtyp=nrtyp+1
       nread=nread+1
@@ -307,8 +308,8 @@
       else
          dlat = dlat_earth
          dlon = dlon_earth
-         call grdcrd(dlat,1,rlats,nlat,1)
-         call grdcrd(dlon,1,rlons,nlon,1)
+         call grdcrd1(dlat,rlats,nlat,1)
+         call grdcrd1(dlon,rlons,nlon,1)
       endif
 
       if(offtime_data) then
@@ -373,14 +374,14 @@
 !     pblhob=clv(4,1,2)
       pblhob=clv(1,1,2)
       pblbak=clv(1,1,1)   ! model PBL; from Caterina's files
-!     if (ibfms(pblbak).ne.izero .or. ibfms(pblhob).ne.izero) then 
+!     if (ibfms(pblbak).ne.0 .or. ibfms(pblhob).ne.0) then 
       if (abs(pblbak-bmiss).lt.10.e5 .or. abs(pblhob-bmiss).lt.10.e5) cycle ! <skip processing of this report>
       
       pblhqm=0
       if (pblhob .lt. 0.0) pblhqm=15
 !     if (nkx==131 .or. nkx==133 .or. nkx==135) then
-!       anal_time=izero
-!       obs_time=izero
+!       anal_time=0
+!       obs_time=0
 !       tmp_time=zero
 !       tmp_time(2)=timeobs
 !       anal_time(1)=iadate(1)
@@ -389,7 +390,7 @@
 !       anal_time(5)=iadate(4)
 !       call w3movdat(tmp_time,anal_time,obs_time) ! observation time
 
-!       lobs_time=izero
+!       lobs_time=0
 !       tmp_time=zero
 !       cenlon_tmp=hdr(2)
 !       if (hdr(2) > 180.0) cenlon_tmp=hdr(2)-360.0_r_kind

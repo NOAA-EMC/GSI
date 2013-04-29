@@ -8,6 +8,8 @@ module intpblhmod
 !
 ! program history log:
 !
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!
 ! subroutines included:
 !   sub intpblh
 !
@@ -37,6 +39,7 @@ subroutine intpblh(pblhhead,rval,sval)
 !
 ! program history log:
 !
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !   input argument list:
 !     pblhhead
 !     spblh    - increment in grid space
@@ -58,6 +61,7 @@ subroutine intpblh(pblhhead,rval,sval)
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -109,7 +113,7 @@ subroutine intpblh(pblhhead,rval,sval)
            grad = pblhptr%diags%obssen(jiter)
  
         else
-           val=val-pblhptr%res
+        if( .not. ladtest_obs)   val=val-pblhptr%res
 
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. pblhptr%pg > tiny_r_kind .and. &
@@ -121,8 +125,11 @@ subroutine intpblh(pblhhead,rval,sval)
               p0   = wgross/(wgross+exp(-half*pblhptr%err2*val**2))
               val = val*(one-p0)
            endif
-
+           if( ladtest_obs ) then
+           grad = val
+           else
            grad = val*pblhptr%raterr2*pblhptr%err2
+           end if
         endif
 
 !       Adjoint

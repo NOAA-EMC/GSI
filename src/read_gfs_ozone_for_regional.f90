@@ -17,6 +17,8 @@ subroutine read_gfs_ozone_for_regional
 !                           subroutine get_gefs_ensperts_dualres.f90.
 !   2011-07-05  todling - treatment of oz and prsl looks suspicious: fix to fit 
 !                         new interface to general_sub2grid (but equally suspicious)
+!   2013-02-20  wu      - add call to general_destroy_spec_vars to deallocate large arrays in sp_gfs.
+!                           Also deallocate other locally allocated arrays.
 !
 !   input argument list:
 !
@@ -29,13 +31,13 @@ subroutine read_gfs_ozone_for_regional
 !$$$ end documentation block
 
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
-  use constants,only: zero,ione,izero,half,fv,rd_over_cp,one,h300
+  use constants,only: zero,half,fv,rd_over_cp,one,h300
                        use constants, only: rad2deg  !  debug
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
   use kinds, only: r_kind,i_kind
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
-  use general_specmod, only: spec_vars,general_init_spec_vars
+  use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ges_oz,ntguessig
@@ -107,26 +109,26 @@ subroutine read_gfs_ozone_for_regional
 ! Compute valid time from guess date and forecast length and compare to iadate, the analysis time
   iyr=idate4(4)
   ihourg=hourg
-  if(iyr>=izero.and.iyr<=99_i_kind) then
-     if(iyr>51_i_kind) then
-        iyr=iyr+1900_i_kind
+  if(iyr>=0.and.iyr<=99) then
+     if(iyr>51) then
+        iyr=iyr+1900
      else
-        iyr=iyr+2000_i_kind
+        iyr=iyr+2000
      end if
   end if
-  fha=zero ; ida=izero; jda=izero
+  fha=zero ; ida=0; jda=0
   fha(2)=ihourg    ! relative time interval in hours
   ida(1)=iyr       ! year
   ida(2)=idate4(2) ! month
   ida(3)=idate4(3) ! day
-  ida(4)=izero     ! time zone
+  ida(4)=0         ! time zone
   ida(5)=idate4(1) ! hour
   call w3movdat(fha,ida,jda)
   iadate_gfs(1)=jda(1) ! year
   iadate_gfs(2)=jda(2) ! mon
   iadate_gfs(3)=jda(3) ! day
   iadate_gfs(4)=jda(5) ! hour
-  iadate_gfs(5)=izero  ! minute
+  iadate_gfs(5)=0      ! minute
   if(mype == 0) then
      write(6,*)' in read_gfs_ozone_for_regional, iadate_gfs=',iadate_gfs
      write(6,*)' in read_gfs_ozone_for_regional, iadate    =',iadate
@@ -152,17 +154,17 @@ subroutine read_gfs_ozone_for_regional
      bk5(k)=zero
      ck5(k)=zero
   end do
-  if (sighead%nvcoord == ione) then
-     do k=1,sighead%levs+ione
+  if (sighead%nvcoord == 1) then
+     do k=1,sighead%levs+1
         bk5(k) = sighead%vcoord(k,1)
      end do
-  elseif (sighead%nvcoord == 2_i_kind) then
-     do k = 1,sighead%levs+ione
+  elseif (sighead%nvcoord == 2) then
+     do k = 1,sighead%levs+1
         ak5(k) = sighead%vcoord(k,1)*zero_001
         bk5(k) = sighead%vcoord(k,2)
      end do
-  elseif (sighead%nvcoord == 3_i_kind) then
-     do k = 1,sighead%levs+ione
+  elseif (sighead%nvcoord == 3) then
+     do k = 1,sighead%levs+1
         ak5(k) = sighead%vcoord(k,1)*zero_001
         bk5(k) = sighead%vcoord(k,2)
         ck5(k) = sighead%vcoord(k,3)*zero_001
@@ -227,15 +229,15 @@ subroutine read_gfs_ozone_for_regional
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
   pri=zero
-  k=ione
-  k2=grd_gfs%nsig+ione
+  k=1
+  k2=grd_gfs%nsig+1
   do j=1,grd_gfs%lon2
      do i=1,grd_gfs%lat2
         pri(i,j,k)=ps(i,j)
         pri(i,j,k2)=zero
      end do
   end do
-  if (sighead%idvc /= 3_i_kind) then
+  if (sighead%idvc /= 3) then
      do k=2,grd_gfs%nsig
         do j=1,grd_gfs%lon2
            do i=1,grd_gfs%lat2
@@ -247,7 +249,7 @@ subroutine read_gfs_ozone_for_regional
      do k=2,grd_gfs%nsig
         do j=1,grd_gfs%lon2
            do i=1,grd_gfs%lat2
-              trk=(half*(tv(i,j,k-ione)+tv(i,j,k))/tref5(k))**kapr
+              trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
               pri(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
            end do
         end do
@@ -263,12 +265,12 @@ subroutine read_gfs_ozone_for_regional
   end do
 
 ! next get pressure at layer midpoints.
-  if (sighead%idsl/=2_i_kind) then
+  if (sighead%idsl/=2) then
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
            do k=1,grd_gfs%nsig
-              prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+ione)**kap1)/&
-                           (kap1*(pri(i,j,k)-pri(i,j,k+ione))))**kapr
+              prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
+                           (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
            end do
         end do
      end do
@@ -276,7 +278,7 @@ subroutine read_gfs_ozone_for_regional
      do j=1,grd_gfs%lon2
         do i=1,grd_gfs%lat2
            do k=1,grd_gfs%nsig
-              prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+ione))*half
+              prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
            end do
         end do
      end do
@@ -384,6 +386,9 @@ subroutine read_gfs_ozone_for_regional
         write(6,'(" k,reg_ozmin,max=",i4,2e15.4)') k,reg_ozmin0(k),reg_ozmax0(k)
      end do
   end if
+  call general_destroy_spec_vars(sp_gfs)
+  deallocate(xspli,yspli,xsplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&
+             glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
 
   return
 end subroutine read_gfs_ozone_for_regional

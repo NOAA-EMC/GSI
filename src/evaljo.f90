@@ -112,14 +112,14 @@ ENDDO
 pjo=zjo
 
 ! Prints
-IF (kprt>=2_i_kind.and.mype==0) THEN
+IF (kprt>=2.and.mype==0) THEN
    if (louter) then
       write(6,*)'Begin Jo table outer loop'
    else
       write(6,*)'Begin Jo table inner loop'
    endif
 
-   IF (kprt>=3_i_kind.and.nobs_bins>1) THEN
+   IF (kprt>=3.and.nobs_bins>1) THEN
       write(6,400)'Observation Type','Bin','Nobs','Jo','Jo/n'
       DO ii=1,nobs_type
          DO jj=1,nobs_bins

@@ -11,6 +11,7 @@ module inttcpmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intps_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 ! subroutines included:
 !   sub inttcp_
@@ -68,6 +69,7 @@ subroutine inttcp_(tcphead,rval,sval)
   use jfunc, only: jiter,xhat_dt,dhat_dt,l_foto
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -131,7 +133,7 @@ subroutine inttcp_(tcphead,rval,sval)
            grad = tcpptr%diags%obssen(jiter)
 
         else
-           val=val-tcpptr%res
+           if( .not. ladtest_obs ) val=val-tcpptr%res
 !          gradient of nonlinear operator
  
            if (nlnqc_iter .and. tcpptr%pg > tiny_r_kind .and.  &
@@ -144,7 +146,11 @@ subroutine inttcp_(tcphead,rval,sval)
               val=val*(one-p0)                                ! term is Wqc in Enderson
            endif
 
-           grad     = val*tcpptr%raterr2*tcpptr%err2
+           if( ladtest_obs ) then
+              grad     = val
+           else
+              grad     = val*tcpptr%raterr2*tcpptr%err2
+           end if
         end if
 
 !       Adjoint

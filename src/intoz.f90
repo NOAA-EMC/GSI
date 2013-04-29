@@ -12,6 +12,7 @@ module intozmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intoz_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intoz_
@@ -115,6 +116,7 @@ subroutine intozlay_(ozhead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2009-01-18  todling  - treat val in quad precision (revisit later)
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -134,9 +136,10 @@ subroutine intozlay_(ozhead,rval,sval)
   use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use constants, only: ione,one,zero,r3600,zero_quad
+  use constants, only: one,zero,r3600,zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -196,8 +199,8 @@ subroutine intozlay_(ozhead,rval,sval)
 
 
 !    Accumulate contribution from layer observations
-     dz1=nsig+ione
-     if ( ozptr%nloz >= ione ) then
+     dz1=nsig+1
+     if ( ozptr%nloz >= 1 ) then
 
         if(l_foto) time_oz = ozptr%time*r3600
         do k=1,ozptr%nloz
@@ -220,10 +223,10 @@ subroutine intozlay_(ozhead,rval,sval)
                    w3* soz(j3,kk)+ &
                    w4* soz(j4,kk))*delz
               if (l_foto) then
-                 j1x=w1+(kk-ione)*lat2*lon2
-                 j2x=w2+(kk-ione)*lat2*lon2
-                 j3x=w3+(kk-ione)*lat2*lon2
-                 j4x=w4+(kk-ione)*lat2*lon2
+                 j1x=w1+(kk-1)*lat2*lon2
+                 j2x=w2+(kk-1)*lat2*lon2
+                 j3x=w3+(kk-1)*lat2*lon2
+                 j4x=w4+(kk-1)*lat2*lon2
                  val1=val1 + ( &
                      (w1*xhat_dt_oz(j1x)+ &
                       w2*xhat_dt_oz(j2x)+ &
@@ -243,10 +246,14 @@ subroutine intozlay_(ozhead,rval,sval)
                  valx = ozptr%diags(k)%ptr%obssen(jiter)
 
               else
-                 val1=val1-ozptr%res(k)
+                 if(ladtest_obs) then
+                    valx     = val1
+                 else
+                    val1=val1-ozptr%res(k)
 
-                 valx     = val1*ozptr%err2(k) 
-                 valx     = valx*ozptr%raterr2(k)
+                    valx     = val1*ozptr%err2(k) 
+                    valx     = valx*ozptr%raterr2(k)
+                 end if
               endif
 
               do kk=iz1,iz2,-1
@@ -271,10 +278,10 @@ subroutine intozlay_(ozhead,rval,sval)
                     w2=ozptr%wij(2,kk)
                     w3=ozptr%wij(3,kk)
                     w4=ozptr%wij(4,kk)
-                    j1x=w1+(kk-ione)*lat2*lon2
-                    j2x=w2+(kk-ione)*lat2*lon2
-                    j3x=w3+(kk-ione)*lat2*lon2
-                    j4x=w4+(kk-ione)*lat2*lon2
+                    j1x=w1+(kk-1)*lat2*lon2
+                    j2x=w2+(kk-1)*lat2*lon2
+                    j3x=w3+(kk-1)*lat2*lon2
+                    j4x=w4+(kk-1)*lat2*lon2
                     dhat_dt_oz(j1x) = dhat_dt_oz(j1x) + valx*w1*delz*time_oz
                     dhat_dt_oz(j2x) = dhat_dt_oz(j2x) + valx*w2*delz*time_oz
                     dhat_dt_oz(j3x) = dhat_dt_oz(j3x) + valx*w3*delz*time_oz
@@ -288,7 +295,7 @@ subroutine intozlay_(ozhead,rval,sval)
      end if   ! (ozptr%nloz >= 1)
 
 !    Add contribution from total column observation
-     k=ozptr%nloz+ione
+     k=ozptr%nloz+1
      val1= zero
      do kk=nsig,1,-1
         w1=ozptr%wij(1,kk)
@@ -307,10 +314,10 @@ subroutine intozlay_(ozhead,rval,sval)
            w2=ozptr%wij(2,kk)
            w3=ozptr%wij(3,kk)
            w4=ozptr%wij(4,kk)
-           j1x=w1+(kk-ione)*lat2*lon2
-           j2x=w2+(kk-ione)*lat2*lon2
-           j3x=w3+(kk-ione)*lat2*lon2
-           j4x=w4+(kk-ione)*lat2*lon2
+           j1x=w1+(kk-1)*lat2*lon2
+           j2x=w2+(kk-1)*lat2*lon2
+           j3x=w3+(kk-1)*lat2*lon2
+           j4x=w4+(kk-1)*lat2*lon2
            val1=val1 + &
                (w1*xhat_dt_oz(j1x)+ &
                 w2*xhat_dt_oz(j2x)+ &
@@ -330,10 +337,15 @@ subroutine intozlay_(ozhead,rval,sval)
            valx = ozptr%diags(k)%ptr%obssen(jiter)
 
         else
-           val1=val1-ozptr%res(k)
+           if(ladtest_obs) then
+              valx     = val1
+           else
+              val1=val1-ozptr%res(k)
 
-           valx     = val1*ozptr%err2(k)
-           valx     = valx*ozptr%raterr2(k)
+              valx     = val1*ozptr%err2(k)
+              valx     = valx*ozptr%raterr2(k)
+           end if
+
         endif
 
         do kk=nsig,1,-1
@@ -352,10 +364,10 @@ subroutine intozlay_(ozhead,rval,sval)
               w2=ozptr%wij(2,kk)
               w3=ozptr%wij(3,kk)
               w4=ozptr%wij(4,kk)
-              j1x=w1+(kk-ione)*lat2*lon2
-              j2x=w2+(kk-ione)*lat2*lon2
-              j3x=w3+(kk-ione)*lat2*lon2
-              j4x=w4+(kk-ione)*lat2*lon2
+              j1x=w1+(kk-1)*lat2*lon2
+              j2x=w2+(kk-1)*lat2*lon2
+              j3x=w3+(kk-1)*lat2*lon2
+              j4x=w4+(kk-1)*lat2*lon2
               dhat_dt_oz(j1x) =dhat_dt_oz(j1x) + valx*w1*time_oz
               dhat_dt_oz(j2x) =dhat_dt_oz(j2x) + valx*w2*time_oz
               dhat_dt_oz(j3x) =dhat_dt_oz(j3x) + valx*w3*time_oz
@@ -404,6 +416,7 @@ subroutine intozlev_(o3lhead,rval,sval)
 !   2009-01-08  todling - remove nonlinear qc
 !   2009-01-22  sienkiewicz - add time derivative
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
@@ -427,6 +440,7 @@ subroutine intozlev_(o3lhead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -506,9 +520,13 @@ subroutine intozlev_(o3lhead,rval,sval)
            grad = o3lptr%diags%obssen(jiter)
 
         else
-           val=val-o3lptr%res
+           if( ladtest_obs ) then
+              grad = val
+           else
+              val=val-o3lptr%res
 
-           grad = val*o3lptr%raterr2*o3lptr%err2
+              grad = val*o3lptr%raterr2*o3lptr%err2
+           end if
         endif
 
 !    Adjoint

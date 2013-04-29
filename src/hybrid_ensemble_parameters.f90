@@ -97,6 +97,8 @@ module hybrid_ensemble_parameters
 !     full_ensemble: if true, first ensemble member perturbed on first guess
 !                    if false, first member perturbed on ensemble mean as the rest of the menbers
 !     grid_ratio_ens: ratio of ensemble grid resolution to analysis resolution (default value is 1)
+!     enspreproc:      if .true., read in preprocessed ensemble members (in
+!                      files already subsetted for subdomains on each task).
 !=====================================================================================================
 !
 !
@@ -122,6 +124,7 @@ module hybrid_ensemble_parameters
 !                              1-5.  See def below for details. 
 !   2012-02-07  tong    - remove logical parameter gefs_in_regional and reduce regional_ensemble_option
 !                         to 4 options.
+!   2013-01-20  parrish - move initialization of beta1wgt, beta2wgt, pwgt to after allocation.
 !
 ! subroutines included:
 
@@ -178,6 +181,7 @@ module hybrid_ensemble_parameters
 !   def pwgt                - vertical integration function for beta2_inv a_en on Psfc
 !   def pwgtflg             - logical switch to use vertical integration function for ensemble contribution on Psfc
 !   def grid_ratio_ens:     - ratio of ensemble grid resolution to analysis resolution (default value is 1)
+!   def enspreproc           - flag to read (.true.) already subsetted ensemble data.
 !
 ! attributes:
 !   language: f90
@@ -218,8 +222,10 @@ module hybrid_ensemble_parameters
   public :: write_ens_sprd
   public :: nval_lenz_en
   public :: ntlevs_ens
+  public :: enspreproc
 
   logical l_hyb_ens,uv_hyb_ens,oz_univ_static
+  logical enspreproc
   logical aniso_a_en
   logical full_ensemble,pwgtflg,betaflg
   logical generate_ens
@@ -271,7 +277,6 @@ subroutine init_hybrid_ensemble_parameters
 !
 !$$$ end documentation block
   use constants, only: one
-  use constants, only: zero
   implicit none
 
   l_hyb_ens=.false.
@@ -288,15 +293,13 @@ subroutine init_hybrid_ensemble_parameters
   write_ens_sprd=.false.
   readin_localization=.false.
   eqspace_ensgrid=.false.
+  enspreproc=.false.
   n_ens=0
   nlat_ens=0
   jcap_ens=0
   jcap_ens_test=0
   nlon_ens=0
   beta1_inv=one
-  beta1wgt=one
-  beta2wgt=zero
-  pwgt=zero
   grid_ratio_ens=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
@@ -310,10 +313,14 @@ subroutine init_hybrid_ensemble_parameters
 end subroutine init_hybrid_ensemble_parameters
 
 subroutine create_hybens_localization_parameters
+  use constants, only: zero,one
   implicit none
   
   allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
   allocate( beta1wgt(grd_ens%nsig),beta2wgt(grd_ens%nsig),pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+  beta1wgt=one
+  beta2wgt=zero
+  pwgt=zero
   
 end subroutine create_hybens_localization_parameters
 

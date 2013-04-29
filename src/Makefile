@@ -174,7 +174,7 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
+	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x *__genmod*
 	- $(RM) loadmap.txt log.make.$(EXE_FILE)
 	- $(MAKE) -f ${MAKE_FILE} doclean
 
@@ -188,7 +188,10 @@ clean:
 # ------------
 
   SRCSF90C = \
+	gfs_stratosphere.f90 \
+	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
+        adjtest_obs.f90 \
 	aeroinfo.f90 \
         aircraftobsqc.f90 \
 	anberror.f90 \
@@ -210,6 +213,7 @@ clean:
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+	blendmod.f90 \
 	cal_tztr.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
@@ -253,6 +257,7 @@ clean:
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
+        general_commvars_mod.f90 \
 	general_read_gfsatm.f90 \
         general_read_nmmb.f90 \
 	general_specmod.f90 \
@@ -266,7 +271,6 @@ clean:
 	gesinfo.f90 \
 	get_derivatives.f90 \
 	get_derivatives2.f90 \
-	get_gefs_ensperts_dualres.f90 \
 	get_gefs_for_regional.f90 \
         get_nmmb_ensperts.f90 \
         get_pseudo_ensperts.f90 \
@@ -280,7 +284,6 @@ clean:
 	glbsoi.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
-	grid2sub.f90 \
 	gridmod.F90 \
 	gscond_ad.f90 \
 	gsd_terrain_match_surfTobs.f90 \
@@ -293,6 +296,7 @@ clean:
 	gsi_io.f90 \
 	gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
+	gsimain.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
@@ -301,7 +305,6 @@ clean:
 	hybrid_ensemble_isotropic.F90 \
 	hybrid_ensemble_parameters.f90 \
 	inc2guess.f90 \
-	init_commvars.f90 \
 	init_jcdfi.f90 \
 	insitu_info.f90 \
 	int3dvar.f90 \
@@ -366,6 +369,7 @@ clean:
 	mpimod.F90 \
 	mpl_allreduce.F90 \
 	mpl_bcast.f90 \
+        native_endianness.f90 \
 	ncepgfs_ghg.f90 \
 	ncepgfs_io.f90 \
 	ncepnems_io.f90 \
@@ -399,12 +403,9 @@ clean:
 	q_diag.f90 \
 	qcmod.f90 \
 	qnewton3.f90 \
-	radinfo.f90 \
 	raflib.f90 \
 	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_co.f90 \
-	read_diag.f90 \
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
@@ -470,7 +471,6 @@ clean:
 	strong_fast_global_mod.f90 \
 	strong_slow_global_mod.f90 \
 	sub2fslab_mod.f90 \
-	sub2grid.f90 \
 	support_2dvar.f90 \
 	stub_set_crtm_aerosol.f90 \
 	stub_pertmod.F90 \
@@ -507,9 +507,11 @@ clean:
 	zrnmi_mod.f90
 
   SRCSF90C_NOSWAP = \
+	get_gefs_ensperts_dualres.f90 \
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
+	radinfo.f90 \
 	read_Lightning.f90 \
 	read_NASA_LaRC.f90 \
 	read_RadarRef_mosaic.f90 \
@@ -523,6 +525,7 @@ clean:
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \
+	read_diag.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -630,8 +633,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) gsimain.o
-	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(OBJS_NOSWAP) $(LIBS)
+$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(OBJS_NOSWAP) $(LIBS)
 
 
 # ------------------------
@@ -646,7 +649,7 @@ all :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -661,7 +664,7 @@ library :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== CREATING LIBRARY ========================================'
 	$(MAKE) lib
@@ -675,7 +678,7 @@ debug :
 		"FFLAGS=$(FFLAGS_D)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -703,7 +706,7 @@ LIB =   libgsi.a
 
 lib: $(LIB)
 
-gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) gsimain.o
+gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB)
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
 ut_gsibundle.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) ut_gsibundle.o

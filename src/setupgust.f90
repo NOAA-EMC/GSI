@@ -15,6 +15,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! program history log:
 !   2009-03-10  zhu
 !   2011-02-18  zhu - update
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, 
+!                          tintrp2a to tintrp2a1, tintrp2a11 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -63,11 +65,10 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: tintrp2a1,tintrp2a11
   external:: stop2
 
 ! Declare local variables
-  logical,parameter::  closest_obs=.true.
   
   real(r_double) rstation_id
 
@@ -176,21 +177,9 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
            muse(k) .and. muse(l))then
 
-           if (closest_obs) then
-              if (abs(data(itime,k)) < abs(data(itime,l))) then
-                 dup(l)=r1000
-              else if (abs(data(itime,k)) > abs(data(itime,l))) then
-                 dup(k)=r1000
-              else if (abs(data(itime,k)) == abs(data(itime,l))) then
-                 tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-                 dup(k)=dup(k)+one+tfact*tfact*(one-dfact)
-                 dup(l)=dup(l)+one+tfact*tfact*(one-dfact)
-              end if
-           else
-              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           end if
+           tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+           dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+           dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
         end if
      end do
   end do
@@ -280,8 +269,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 ! Interpolate to get gust at obs location/time
-     call tintrp2a(ges_gust,gustges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
+     call tintrp2a11(ges_gust,gustges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
 
 !   Process observations with reported height
     drpx = zero
@@ -290,8 +279,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !   Get guess surface elevation and geopotential height profile
 !   at observation location.
-    call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-            1,1,mype,nfldsig)
+    call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+            mype,nfldsig)
 !   Subtract off combination of surface station elevation and
 !   model elevation depending on how close to surface
     fact = zero
@@ -306,8 +295,8 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
     drpx=0.003*abs(dstn-zsges)*(one-fact)
 
     if (.not. twodvar_regional) then
-       call tintrp2a(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
-               1,nsig,mype,nfldsig)
+       call tintrp2a1(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
+               nsig,mype,nfldsig)
 !      For observation reported with geometric height above sea level,
 !      convert geopotential to geometric height.
 !      Convert geopotential height at layer midpoints to geometric
@@ -344,7 +333,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   Convert observation height (in dpres) from meters to grid relative
 !   units.  Save the observation height in zob for later use.
     zob = dpres
-    call grdcrd(dpres,1,zges,nsig,1)
+    call grdcrd1(dpres,zges,nsig,1)
 
     if (zob >= zges(1)) then
        factw=one
@@ -378,10 +367,10 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   Get guess surface pressure and mid layer pressure
 !   at observation location.
     if (ictype(ikx)>=280 .and. ictype(ikx)<290) then
-       call tintrp2a(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-            1,1,mype,nfldsig)
-       call tintrp2a(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-            1,nsig,mype,nfldsig)
+       call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+            mype,nfldsig)
+       call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+            nsig,mype,nfldsig)
        if (dpres<one) then
           z1=zero;    p1=log(psges)
           z2=zges(1); p2=prsltmp(1)
@@ -410,7 +399,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   Determine location in terms of grid units for midpoint of
 !   first layer above surface
     sfcchk=zero
-    call grdcrd(sfcchk,1,zges,nsig,1)
+    call grdcrd1(sfcchk,zges,nsig,1)
 
 !    Checks based on observation location relative to model surface and top
      rlow=max(sfcchk-dpres,zero)
@@ -431,7 +420,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           wflate=0.8_r_kind*data(ier,i)
        end if
      end if
-     wflate=wflate+0.3*abs(dtime)*data(ier,i)   !inflate obs error as obs is far away from analysis time
      ratio_errors=error/((data(ier,i)+drpx+wflate+1.0e6*rhgh+four*rlow)*sqrt(dup(i)))
      error=one/error
 

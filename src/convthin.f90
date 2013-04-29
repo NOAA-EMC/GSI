@@ -22,7 +22,7 @@ module convthin
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_quad
   implicit none
 
 ! set default to private
@@ -85,16 +85,17 @@ contains
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj,itxmax
 
-    real(r_kind) delonx,delat,dgv,halfpi,dx,dy
+    real(r_kind) dgv,halfpi,dx,dy
     real(r_kind) twopi
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm
+    real(r_quad) delat
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
     if(abs(rmesh) <= one)then
        use_all=.true.
-       itxmax=2.e6_i_kind
+       itxmax=2.e6
        return
     end if
 
@@ -111,9 +112,8 @@ contains
     mlat  = dlat_grid/dy + half
     mlonx = dlon_grid/dx + half
     delat = dlat_grid/mlat
-    delonx= dlon_grid/mlonx
-    dgv  = delat*half
-    mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
+    dgv   = delat*half
+    mlat=max(2,mlat);   mlonx=max(2,mlonx)
 
     allocate(mlon(mlat),glat(mlat),glon(mlonx,mlat),hll(mlonx,mlat))
 
@@ -129,7 +129,7 @@ contains
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
           mlonj   = nint(mlonx*factor)	
-          mlon(j) = max(2_i_kind,mlonj)
+          mlon(j) = max(2,mlonj)
           delon = dlon_grid/mlon(j)
        else
           delon = factor*rmesh
@@ -186,6 +186,7 @@ contains
 !   2008-06-04  safford - rm unused vars
 !   2010-08-23  tong - add flg as an input argument of map3grids, so that the order of values 
 !                      of the vertical cooridnate can either increase or decrease 
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     flg        - marks order of values in vertical dirction (1=increasing, -1=decreasing)
@@ -201,10 +202,7 @@ contains
 !
 !   output argument list:
 !     iobs  - observation counter
-!     itx   - combined (i,j) index of observation on thinning grid
-!     itt   - superobs thinning counter
 !     iobsout- location for observation to be put
-!     ip    - vertical index
 !     iuse  - .true. if observation should be used
 !     iiout - counter of data replaced
 !     
@@ -224,7 +222,7 @@ contains
     real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
     real(r_kind),dimension(nlevp),intent(in   ) :: pcoord
     
-    integer(i_kind):: ip,itt,itx
+    integer(i_kind):: ip,itx
     integer(i_kind) ix,iy
     integer(i_kind),dimension(0:51):: istart_val
 
@@ -249,17 +247,17 @@ contains
     dlon1=dlon_earth
     pob1=pob
 
-    call grdcrd(pob1,1,pcoord,nlevp,flg)
+    call grdcrd1(pob1,pcoord,nlevp,flg)
     ip=int(pob1)
     dp=pob1-ip
     ip=max(1,min(ip,nlevp))
     
-    call grdcrd(dlat1,1,glat,mlat,1)
+    call grdcrd1(dlat1,glat,mlat,1)
     iy=int(dlat1)
     dy=dlat1-iy
     iy=max(1,min(iy,mlat))
     
-    call grdcrd(dlon1,1,glon(1,iy),mlon(iy),1)
+    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
     ix=int(dlon1)
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))
@@ -273,8 +271,6 @@ contains
     endif
 
     itx=hll(ix,iy)
-    itt=istart_val(ithin)+itx
-    if(ithin == 0) itt=0
 
 !   Compute distance metric (smaller is closer to center of cube)
     dist1=(dxx*dxx+dyy*dyy+dpp*dpp)*two/three+half

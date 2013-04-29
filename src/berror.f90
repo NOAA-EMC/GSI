@@ -127,15 +127,16 @@ module berror
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
-  public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv
+  public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv,nhscrf
 
   integer(i_kind) norh,ndeg,nta,nlath
   integer(i_kind) nx,ny,mr,nr,nf,ndx,ndy,ndx2,nmix,nymx,norm,nxem,nfg,nfnf
   integer(i_kind),allocatable,dimension(:,:):: inaxs,inxrs
   integer(i_kind),allocatable,dimension(:,:,:,:):: ii,jj,ii1,jj1,ii2,jj2
+  integer(i_kind) nhscrf
 
   real(r_kind) bw,vs
-  real(r_kind),dimension(3):: hzscl,hswgt
+  real(r_kind),dimension(1:3):: hzscl,hswgt
 
 ! hack to cope w/ namelist
   integer(i_kind),parameter::maxvars=50
@@ -194,6 +195,7 @@ contains
     ndeg=4
     nta=50000
     nlath=48
+    nhscrf=3
 
     bw=zero
 
@@ -244,9 +246,8 @@ contains
 !$$$
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
-  use jfunc, only: nrclen,nclen
+  use jfunc, only: nrclen,nclen,diag_precon
   use constants, only: zero,one
-  use radinfo, only: newpc4pred
   implicit none
   
   integer(i_kind) i
@@ -291,16 +292,15 @@ contains
      dssvs = zero
   endif
   allocate(varprd(nrclen))
-  if (newpc4pred) allocate(vprecond(nclen))
-  allocate(inaxs(nf,nlon/8), &
-           inxrs(nlon/8,mr:nr) )
+  if(diag_precon)allocate(vprecond(nclen))
+  allocate(inaxs(nf,nlon/8),inxrs(nlon/8,mr:nr) )
 
   allocate(slw(ny*nx,nnnn1o),&
            slw1((2*nf+1)*(2*nf+1),nnnn1o),&
            slw2((2*nf+1)*(2*nf+1),nnnn1o))
-  allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o),&
-           ii1(2*nf+1,2*nf+1,3,nnnn1o),jj1(2*nf+1,2*nf+1,3,nnnn1o),&
-           ii2(2*nf+1,2*nf+1,3,nnnn1o),jj2(2*nf+1,2*nf+1,3,nnnn1o))
+  allocate(ii(ny,nx,nhscrf,nnnn1o),jj(ny,nx,nhscrf,nnnn1o),&
+           ii1(2*nf+1,2*nf+1,nhscrf,nnnn1o),jj1(2*nf+1,2*nf+1,nhscrf,nnnn1o),&
+           ii2(2*nf+1,2*nf+1,nhscrf,nnnn1o),jj2(2*nf+1,2*nf+1,nhscrf,nnnn1o))
 
   return
  end subroutine create_berror_vars
@@ -329,7 +329,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use radinfo, only: newpc4pred
+    use jfunc, only: diag_precon
     implicit none
     if(allocated(table)) deallocate(table)
     deallocate(wtaxs)
@@ -341,9 +341,10 @@ contains
     if(allocated(alv))   deallocate(alv)
     if(allocated(dssv))  deallocate(dssv)
     if(allocated(dssvs)) deallocate(dssvs)
-    if (newpc4pred) deallocate(vprecond)
+    if(diag_precon)deallocate(vprecond)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
+
     return
   end subroutine destroy_berror_vars
 
@@ -363,6 +364,7 @@ contains
 !                         surface analysis option
 !   2010-04-30  zhu     - add handling of newpc4pred, set varprd based on diagonal
 !                         info of analysis error covariance
+!   2012-04-14  whitaker - variance can be specified in setup namelist.
 !
 !   input argument list:
 !
@@ -374,7 +376,7 @@ contains
 !
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
-    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred
+    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen
     implicit none
@@ -382,7 +384,7 @@ contains
     integer(i_kind) i,j,ii
     real(r_kind) stndev
     
-    stndev = one/one_tenth       ! 0.316 K background error
+    stndev = one/biaspredvar
     do i=1,max(1,nrclen)
        varprd(i)=stndev
     end do
@@ -430,9 +432,9 @@ contains
 !
 !$$$
     use kinds, only: r_kind,i_kind
-    use radinfo, only: ostats,rstats,varA,jpch_rad,npred
-    use jfunc, only: nclen,nrclen
-    use constants, only:  one
+    use radinfo, only: ostats,rstats,varA,jpch_rad,npred,newpc4pred
+    use jfunc, only: nclen,nrclen,diag_precon,step_start
+    use constants, only:  one,tiny_r_kind
     implicit none
 
 !   Declare local variables
@@ -440,27 +442,31 @@ contains
     integer(i_kind) nclen1
     real(r_kind) lfact
 
-    nclen1=nclen-nrclen
 
 !   Set up L=inverse(B)*M for preconditioning purpose
 !   Only diagonal elememts are considered
-    vprecond=one
 
 !   set a coeff. factor for variances of control variables
-    lfact=one
-    vprecond(1:nclen1)=lfact
+    if(diag_precon)then
+      lfact=step_start
+      vprecond=lfact
 
-!   for radiance bias predictor coeff.
-    ii=0
-    do i=1,jpch_rad
-       do j=1,npred
-          ii=ii+1
-          if (ostats(i)>=1.0_r_kind) then
-             vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
-             varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
-          end if
-       end do
-    end do
+      if(newpc4pred)then
+        nclen1=nclen-nrclen
+!       for radiance bias predictor coeff.
+        ii=0
+        do i=1,jpch_rad
+           do j=1,npred
+              ii=ii+1
+              if (ostats(i)>=1.0_r_kind) then
+                 vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
+                 varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
+              end if
+           end do
+        end do
+      end if
+    end if
+    return
 
   end subroutine pcinfo
 
@@ -511,7 +517,7 @@ contains
     integer(i_kind) ihwlb
     integer(i_kind) ntax,iloc
     
-    real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2
+    real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2,hzsmax,hzsmin
     real(r_kind),parameter:: r999         = 999.0_r_kind
     real(r_kind),allocatable,dimension(:):: dsh
     logical,allocatable,dimension(:):: iuse
@@ -558,15 +564,24 @@ contains
 ! factor from multi-Gaussian RF
 !   write(6,*)'INIT_RFTABLE:  hwlmax...=',hwlmax,hwlmin,&
 !        hzscl(1),hzscl(2),hzscl(3),mype,nynx,nnn
-    hwlmax=hwlmax*max(hzscl(1),hzscl(2),hzscl(3))
-    hwlmin=hwlmin*min(hzscl(1),hzscl(2),hzscl(3))
+    hzsmax=-r999
+    hzsmin=r999
+    do j=1,nhscrf
+       hzsmax=max(hzsmax,hzscl(j))
+       hzsmin=min(hzsmin,hzscl(j))
+    end do
+
+    hwlmax=hwlmax*hzsmax
+    hwlmin=hwlmin*hzsmin
 
 ! setup smoother coef and scale
-    if (hwlmax==zero .or. hwlmin==zero) then
+    if (nnn>0 .and. (hwlmax<=zero .or. hwlmin<=zero)) then
        write(6,*)'INIT_RFTABLE:  ***ERROR*** illegal value for min,max scale.',&
             '  hwlmin,hwlmax=',hwlmin,hwlmax,mype
        call stop2(41)
     endif
+
+
     hwlb=one/hwlmax
     hwle=one/hwlmin
 
@@ -583,7 +598,7 @@ contains
     do k=1,nnn
        do n=1,2
           do i=1,nynx
-             do j=1,3
+             do j=1,nhscrf
                 iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli(i,n,k))))
                 iloc=max(iloc,1)
                 iuse(iloc)=.true.
@@ -592,7 +607,7 @@ contains
 
           if(.not. regional)then
              do i=1,nfnf
-                do j=1,3
+                do j=1,nhscrf
                    iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli1(i,n,k))))
                    iloc=max(iloc,1)
                    iuse(iloc)=.true.
@@ -621,7 +636,7 @@ contains
     do k=1,nnn
 
 !      Load pointers into table array
-       do j=1,3
+       do j=1,nhscrf
 
           call initable(ny,nx,sli(1,1,k),ntax,ihwlb,&
              ii(1,1,j,k),jj(1,1,j,k),hzscl(j),tin,ipoint)
@@ -744,8 +759,7 @@ contains
     use constants, only: zero
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
-    use jfunc, only: nrclen,nclen
-    use radinfo, only: newpc4pred
+    use jfunc, only: nrclen,nclen,diag_precon
     implicit none
     
     nx=nlon
@@ -768,7 +782,7 @@ contains
     endif
     
     allocate(varprd(max(1,nrclen) ) )     
-    if (newpc4pred) allocate(vprecond(nclen))
+    if(diag_precon)allocate(vprecond(nclen))
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )
@@ -801,7 +815,7 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use radinfo, only: newpc4pred
+    use jfunc, only:diag_precon
     implicit none
 
     deallocate(be,qvar3d)
@@ -812,7 +826,7 @@ contains
     deallocate(ii,jj)
     deallocate(slw)
     deallocate(varprd)
-    if (newpc4pred) deallocate(vprecond)
+    if(diag_precon)deallocate(vprecond)
 
     return
   end subroutine destroy_berror_vars_reg

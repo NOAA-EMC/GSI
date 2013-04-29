@@ -215,7 +215,7 @@ real(r_quad)                :: pcostq
 real(r_kind)                :: zbeta(2:kmaxit+1),zdelta(kmaxit),zv(kmaxit+1,kmaxit+1),&
    zbnds(kmaxit),zritz(kmaxit+1),zsave(kmaxit+1,4),&
    zqg0(kmaxit+1),zsstwrk(2*kmaxit)
-real(r_kind)                :: zdla, zeta
+real(r_kind)                :: zdla, zeta, preduc_norm
 real(r_kind)                :: zbndlm, zgnorm, znorm2l1, zreqrd, ztheta1
 integer(i_kind)             :: ingood,itheta1,jm,imaxevecs,ii,jj,jk,isize,iii,jjj
 integer(i_kind)             :: kminit, kmaxevecs,iunit,iprt
@@ -360,11 +360,10 @@ Lanczos_loop : DO
 
    if (LMPCGL) call lanczos_precond(zww,+2)
 
-   preduc = SQRT(DOT_PRODUCT(zww,zww))
-   if (mype==0) write (6,*)'grepmin Estimated gradient norm=',preduc
+   preduc_norm = SQRT(DOT_PRODUCT(zww,zww))
+   preduc = preduc_norm/zgnorm
+   if (mype==0) write (6,*)'Estimated gradient norm=',preduc_norm,' Estimated reduction = ',preduc
 
-   preduc = preduc/zgnorm
-   if (mype==0) write (6,*)'Estimated reduction in norm of gradient is: ',preduc
 
 !--- determine eigenvalues and eigenvectors of the tri-diagonal problem
    if((LDECOMP .or. (iter==kmaxit)) .and. lsavevecs) then 
@@ -972,6 +971,11 @@ subroutine congrad_siga(siga,ivecs,rc)
 ! program history log:
 !  2010-03-17  todling  - initia code
 !  2010-05-16  todling  - update to use gsi_bundle
+!  2013-01-26  parrish  - WCOSS debug compile flagged type mismatch error for
+!                          "call bkg_stddev(aux,mval(ii))".
+!                         I changed to 
+!                          "call bkg_stddev(aux%step(ii),mval(ii))".
+!                         Don't know if this is the correct modification.
 !
 !   input argument list:
 !    siga
@@ -1030,7 +1034,7 @@ ENDDO
 
 do ii=1,nsubwin
 !-- get B standard deviations
-   call bkg_stddev(aux,mval(ii))
+   call bkg_stddev(aux%step(ii),mval(ii))
 !-- calculate diag(Pa) = diag(B) - diag(Delta P)
 !   i.e., add diag(B) as rank-1 update to diag(Delta P)
    call gsi_bundlehadamard(siga,mval(ii),mval(ii))

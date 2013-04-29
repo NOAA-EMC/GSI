@@ -31,6 +31,8 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !   2006-10-12  treadon - remove virtual temperature
 !   2008-04-29  safford - rm unused uses
 !   2010-03-31  treadon - replace jcap with sp_a%jcap
+!   2013-01-15  parrish - convert gscond_ad.f90,nlmsas_ad.f90,omegas_ad.f90 to modules
+!                           and add interfaces to account for type mismatch
 !
 !   input argument list:
 !     km        - number of levels in vertical profile
@@ -98,9 +100,12 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !$$$
 !    
   use kinds, only: r_kind,i_kind
-  use constants, only: rhcbot,rhctop,dx_inv,dx_min,izero,ione,one,zero
+  use constants, only: rhcbot,rhctop,dx_inv,dx_min,one,zero
   use pcpinfo, only: tiny_obs
   use gridmod, only: nlon,sp_a
+  use gscond_ad_mod, only: gscond_ad
+  use nlmsas_ad_mod, only: nlmsas_ad
+  use omegas_ad_mod, only: omegas_ad
   implicit none
 
 
@@ -150,14 +155,14 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 
 !**************************************************************************
 ! Initialize output arrays to zero
-  im=ione
-  ix=ione
+  im=1
+  ix=1
   cldwrk = zero
-  kb     = izero
-  jmin   = izero
-  kbcon  = izero
-  ktcon  = izero
-  kuo    = izero
+  kb     = 0
+  jmin   = 0
+  kbcon  = 0
+  ktcon  = 0
+  kuo    = 0
   rn_out = zero
   do k = 1,km
      t_out(k)   = zero
@@ -255,7 +260,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
   work1 = (log(one/(rcs*nlon))-dx_min) * dx_inv
   work2 = one - work1
   do k=1,km
-     rhc(k) = rhcbot + tem*(k-ione)
+     rhc(k) = rhcbot + tem*(k-1)
      rhc(k) = r0_99*work1 + rhc(k)*work2
   end do
 

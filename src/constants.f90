@@ -14,7 +14,6 @@ module constants
 !   2004-10-28  treadon - replace parameter tiny=1.e-12 with tiny_r_kind
 !                         and tiny_single
 !   2004-11-16  treadon - add huge_single, huge_r_kind parameters
-!   2005-01-27  cucurull - add ione
 !   2005-08-24  derber   - move cg_term to constants from qcmod
 !   2006-03-07  treadon  - add rd_over_cp_mass
 !   2006-05-18  treadon  - add huge_i_kind
@@ -53,7 +52,7 @@ module constants
   public :: init_constants
   public :: gps_constants
 ! set passed variables to public
-  public :: one,two,ione,half,zero,izero,deg2rad,pi,three,quarter,one_tenth
+  public :: one,two,half,zero,deg2rad,pi,three,quarter,one_tenth
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
   public :: rd,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
@@ -101,8 +100,6 @@ module constants
   real(r_kind),parameter::  stndrd_atmos_ps = 1013.25e2_r_kind   ! 1976 US standard atmosphere ps   (Pa)
 
 ! Numeric constants
-  integer(i_kind),parameter::  izero  = 0_i_kind
-  integer(i_kind),parameter::  ione   = 1_i_kind
 
   integer(i_long),parameter::  zero_ilong = 0_i_long
 
@@ -271,7 +268,7 @@ contains
     huge_r_kind = huge(zero)
     tiny_single = tiny(zero_single)
     huge_single = huge(zero_single)
-    huge_i_kind = huge(izero)
+    huge_i_kind = huge(0)
     r60inv=one/r60
 
 !   Geophysical parameters used in conversion of geopotential to

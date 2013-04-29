@@ -28,7 +28,7 @@ subroutine get_wrf_mass_ensperts_netcdf
 
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
-    use hybrid_ensemble_isotropic, only: en_perts,nelen
+    use hybrid_ensemble_isotropic, only: en_perts,nelen,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass,rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens
@@ -70,6 +70,10 @@ subroutine get_wrf_mass_ensperts_netcdf
 ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
     en_bar%values=zero
 
+    do n=1,n_ens
+       en_perts(n,1)%valuesr4 = zero
+    enddo
+
     mm1=mype+1
     kap1=rd_over_cp+one
     kapr=one/rd_over_cp
@@ -106,7 +110,7 @@ subroutine get_wrf_mass_ensperts_netcdf
                    do i=1,grd_ens%lon2
                       do j=1,grd_ens%lat2
                          w3(j,i,k) = u(j,i,k)
-                         x3(j,i,k)=x3(i,j,k)+u(j,i,k)
+                         x3(j,i,k)=x3(j,i,k)+u(j,i,k)
                       end do
                    end do
                 end do
@@ -117,7 +121,7 @@ subroutine get_wrf_mass_ensperts_netcdf
                    do i=1,grd_ens%lon2
                       do j=1,grd_ens%lat2
                          w3(j,i,k) = v(j,i,k)
-                         x3(j,i,k)=x3(i,j,k)+v(j,i,k)
+                         x3(j,i,k)=x3(j,i,k)+v(j,i,k)
                       end do
                    end do
                 end do
@@ -210,6 +214,28 @@ subroutine get_wrf_mass_ensperts_netcdf
 ! CALCULATE ENSEMBLE MEAN
     bar_norm = one/float(n_ens)
     en_bar%values=en_bar%values*bar_norm
+
+! Copy pbar to module array.  ps_bar may be needed for vertical localization
+! in terms of scale heights/normalized p/p
+    do ic2=1,nc2d
+ 
+       if(trim(cvars2d(ic2)) == 'ps'.or.trim(cvars2d(ic2)) == 'PS') then
+
+          call gsi_bundlegetpointer(en_bar,trim(cvars2d(ic2)),x2,istatus)
+          if(istatus/=0) then
+             write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for en_bar to get ps_bar'
+             call stop2(999)
+          end if
+ 
+          do i=1,grd_ens%lon2
+             do j=1,grd_ens%lat2
+                ps_bar(j,i,1)=x2(j,i)
+             end do
+          end do
+          exit
+       end if
+    end do
+
     call mpi_barrier(mpi_comm_world,ierror)
 !
 ! CALCULATE ENSEMBLE SPREAD
