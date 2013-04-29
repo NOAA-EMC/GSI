@@ -112,7 +112,7 @@ module gridmod
   public :: strip_periodic
 
 ! set passed variables to public
-  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
+  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
   public :: ltosj,ltosi,bk5,regional,latlon11,latlon1n,twodvar_regional
   public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional,cmaq_regional
@@ -169,7 +169,6 @@ module gridmod
   integer(i_kind) nlat_sfc          ! no. of latitudes surface files
   integer(i_kind) nlon_sfc          ! no. of longitudes surface files
   integer(i_kind) nsig              ! no. of levels
-  integer(i_kind) nsig_soil         ! no. of levels of soil model
   integer(i_kind) idvc5             ! vertical coordinate identifier
   integer(i_kind) nvege_type        ! no. of types of vegetation; old=24, IGBP=20
 !                                        1: sigma
@@ -377,7 +376,6 @@ contains
     integer(i_kind) k
 
     nsig = 42
-    nsig_soil = 6
     nsig1o = 7
     nlat = 96
     nlon = 384
@@ -1030,7 +1028,6 @@ contains
 
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
        write(filename,'("sigf",i2.2)') ihrmid
-       if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, filename  =',filename       
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig, &
@@ -1067,8 +1064,7 @@ contains
           do k=1,nsig
              write(6,'(" k,deta1,deta2=",i3,2f10.4)') k,deta1(k),deta2(k)
           end do
-!         write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:' 
-          write(6,*)' in init_reg_glob_ll,  eta1  eta2 follow:'   
+          write(6,*)' in init_reg_glob_ll, deta1 deta2 follow:'
           do k=1,nsig+1
              write(6,'(" k,eta1,eta2=",i3,2f10.4)') k,eta1(k),eta2(k)
           end do
@@ -1211,7 +1207,7 @@ contains
        write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
-       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,nsig_soil 
+       read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt
        regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
 
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
@@ -1221,7 +1217,6 @@ contains
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nlat_regional=",i6)') &
                 nlat_regional
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
-       if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig_soil=",i6)') nsig_soil 
  
 ! Get vertical info for wrf mass core
        allocate(aeta1_ll(nsig),eta1_ll(nsig+1))
@@ -1333,7 +1328,7 @@ contains
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,regional_fhr,nlon_regional,nlat_regional,nsig, &
-                   dlmd,dphd,pt,pdtop,nmmb_verttype
+                   dlmd,dphd,pt,pdtop
  
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
                 regional_time
@@ -1384,6 +1379,14 @@ contains
        read(lendian_in) deta2
        read(lendian_in) aeta2
        read(lendian_in) eta2
+!----------------------------------------detect if new nmmb coordinate:
+       nmmb_verttype='OLD'
+       if(aeta1(1)<.6_r_single) then
+          if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, detect new nmmb vert coordinate'
+          aeta1=aeta1+aeta2
+          eta1=eta1+eta2
+          nmmb_verttype='NEW'
+       end if
 
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, pdtop,pt=',pdtop,pt
        if(diagnostic_reg.and.mype==0) then

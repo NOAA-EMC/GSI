@@ -32,7 +32,7 @@ module phil
 !$$$ end documentation block
 !=============================================================================
 use kinds, only: r_kind,i_kind
-use constants, only: zero,one,two,four
+use constants, only: izero,ione,zero,one,two,four
 
 implicit none
 
@@ -90,22 +90,23 @@ real(r_kind),dimension(n1:n2),    intent(IN   ) :: v
 integer(i_kind), dimension(n1:n2),intent(  OUT) :: next
 integer(i_kind),                  intent(  OUT) :: first
 !-----------------------------------------------------------------------------
-integer(i_kind),parameter  :: L=6
-integer(i_kind)            :: n,na1,na2,nb1,nb2,i,j,k, &
-                                    maxk,maxl,left,firsta,firstb
-real(r_kind)               :: maxv
+integer(i_kind),parameter                      :: L=6_i_kind
+integer(i_kind)                                :: n,na1,na2,nb1,nb2,i,j,k, &
+                                          maxk,maxl,left, &
+                                          firsta,firstb
+real(r_kind)                               :: maxv
 !=============================================================================
-n=n2+1-n1
+n=n2+ione-n1
 if(n<=L)then
 !  Sort the small number of items by an order (n*n) algorithm:
-   do i=n1,n2-1
-      next(i)=i+1
+   do i=n1,n2-ione
+      next(i)=i+ione
    enddo
-   next(n2)=0
+   next(n2)=izero
    first=n1
-   do i=n-1,1,-1
+   do i=n-ione,1,-1
       k=first
-      left=0
+      left=izero
       maxv=v(k)
       maxl=left
       maxk=k
@@ -119,7 +120,7 @@ if(n<=L)then
          endif
       enddo
       if(k/=maxk)then
-         if(maxl==0)then
+         if(maxl==izero)then
             first=next(maxk)
          else
             next(maxl)=next(maxk)
@@ -130,7 +131,7 @@ if(n<=L)then
    enddo
    write(11,*) k,next(k)
 else
-   na1=n1; na2=(n1+n2)/2; nb1=na2+1; nb2=n2
+   na1=n1; na2=(n1+n2)/2; nb1=na2+ione; nb2=n2
    call bsort(na1,na2,v(na1:na2),next(na1:na2),firsta)
    call bsort(nb1,nb2,v(nb1:nb2),next(nb1:nb2),firstb)
    call mergeab(na1,nb2,firsta,firstb, &
@@ -181,16 +182,16 @@ real(r_kind),dimension(na1:nb2),    intent(IN   ) :: v
 integer(i_kind), dimension(na1:nb2),intent(INOUT) :: next
 integer(i_kind),                    intent(  OUT) :: first
 !-----------------------------------------------------------------------------
-integer(i_kind),parameter                        :: hugeint= 1000000
+integer(i_kind),parameter                        :: hugeint= 1000000_i_kind
 integer(i_kind)                                  :: idum,ia,ib,ic,id
 !=============================================================================
 ia=firsta
 ib=firstb
-if(ia==0)then
+if(ia==izero)then
    first=firstb
    return
 endif
-if(ib==0)then
+if(ib==izero)then
    first=firsta
    return
 endif
@@ -205,11 +206,11 @@ else
 endif
 
 do idum=1,hugeint
-   if(ia==0)then
+   if(ia==izero)then
       next(ic)=ib
       return
    endif
-   if(ib==0)then
+   if(ib==izero)then
       next(ic)=ia
       return
    endif
@@ -261,7 +262,7 @@ real(r_kind),parameter                          :: f=one/four
 real(r_kind)                                    :: p
 integer(i_kind)                                 :: i
 !=============================================================================
-r=zero; if(lgen==0)r=hil4(lgen)
+r=zero; if(lgen==izero)r=hil4(lgen)
 p=f
 do i=1,ngen
    r=r+p*hil4(i)
@@ -303,7 +304,7 @@ real(r_kind)                                    :: t
 integer(i_kind)                                 :: i
 !=============================================================================
 t=r
-if(lgen==0)then
+if(lgen==izero)then
    hil4(0)=t
    t=4*(t-hil4(0))
 endif
@@ -369,19 +370,19 @@ yr=y
 do igen=1,ngen
    xr=xr*2
    yr=yr*2
-   dig4(igen)=0
+   dig4(igen)=izero
    if(xr>=one)then
-      dig4(igen)=dig4(igen)+1
+      dig4(igen)=dig4(igen)+ione
       xr=xr-one
    endif
    if(yr>=one)then
-      dig4(igen)=dig4(igen)+2
+      dig4(igen)=dig4(igen)+2_i_kind
       yr=yr-one
    endif
 enddo
 
 ! Initialized the present (coarsest scale) orientation code to 0:
-presor=0
+presor=izero
 
 ! At successive refinements, update the present orientation and refine the
 ! segment on the hilbert curve according to the quadrant of the present
@@ -437,7 +438,7 @@ data ytable/0,1,1,0, 0,0,1,1, 1,0,0,1, 1,1,0,0, &
 data ptable/4,0,0,6, 7,1,1,5, 6,2,2,4, 5,3,3,7, &
             0,4,4,2, 3,5,5,1, 2,6,6,0, 1,7,7,3/
 !=============================================================================
-presor=0
+presor=izero
 x=zero
 y=zero
 frac=one
@@ -503,11 +504,11 @@ z=xc(3)
 if(z>=zero)then
    x=x/(one+z)
    y=y/(one+z)
-   hil4(0)=0    ! Northern hemisphere
+   hil4(0)=izero    ! Northern hemisphere
 else
    x=-x/(one-z)
    y=-y/(one-z)
-   hil4(0)=4 ! Southern hemisphere
+   hil4(0)=4_i_kind ! Southern hemisphere
 endif
 ax=abs(x)
 ay=abs(y)
@@ -527,18 +528,18 @@ y=y*s
 ! Subdivide into quadrants of this square = octants of the original sphere:
 if(y>zero)then
    if(x>zero)then
-      hil4(0)=hil4(0)+3
+      hil4(0)=hil4(0)+3_i_kind
    else
       x=x+one
    endif
 else
    if(x>zero)then
-      hil4(0)=hil4(0)+2
+      hil4(0)=hil4(0)+2_i_kind
       t=x
       x=one+y
       y=t
    else
-      hil4(0)=hil4(0)+1
+      hil4(0)=hil4(0)+ione
       t=x
       x=-y
       y=-t
@@ -591,7 +592,7 @@ real(r_kind)                                  :: ax,ay,s,t,x,y,z,rr
 integer(i_kind)                               :: quad
 !=============================================================================
 call hil_to_xy(ngen,hil4(1:ngen),x,y)
-quad=mod(hil4(0),4)
+quad=mod(hil4(0),4_i_kind)
 select case(quad)
    case(0)
       x=x-one
@@ -625,7 +626,7 @@ z=(one-rr)/(one+rr)
 xc(1)=x*(one+z)
 xc(2)=y*(one+z)
 xc(3)=z
-if(hil4(0)>=4)xc=-xc
+if(hil4(0)>=4_i_kind)xc=-xc
 end subroutine hil_to_xc_s
 !=============================================================================
 

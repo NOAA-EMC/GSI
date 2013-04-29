@@ -24,10 +24,6 @@ subroutine wrwrfnmma_binary(mype)
 !   2008-04-01  safford - rm unused uses
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2012-01-15  zhu     - add cloud hydrometeors
-!   2012-03-09  parrish - added the output of boundary variables
-!   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at and
-!                           before every call to mpi_file_write_at (to handle cases of big-endian
-!                           file/little-endian machine and vice-versa)
 !
 !   input argument list:
 !     mype     - pe number
@@ -44,22 +40,17 @@ subroutine wrwrfnmma_binary(mype)
   use regional_io, only: update_pint
   use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
        ntguessfc,ntguessig,ifilesig,dsfct,ges_tsen
-  use mpimod, only: mpi_comm_world,ierror,mpi_byte,mpi_integer4,mpi_real4,mpi_sum,npe, &
+  use mpimod, only: mpi_comm_world,ierror,mpi_byte,mpi_integer4,npe, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdwr,mpi_status_size
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,eta2_ll,lat2,lon2
   use constants, only: zero_single,r10,r100,qcmin,zero,one
-  use gsi_io, only: lendian_in,lendian_out
+  use gsi_io, only: lendian_in
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use native_endianness, only: byte_swap
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
-  use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save 
-  use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save 
-
   implicit none
 
 ! Declare passed variables
@@ -72,15 +63,13 @@ subroutine wrwrfnmma_binary(mype)
   character(9) wrfanl
 
   integer(i_kind) im,jm,lm
-  integer(i_kind) nsig_write 
   real(r_single),allocatable::temp1(:),tempa(:,:),tempb(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
   integer(i_kind),allocatable::igtype(:),kdim(:),kord(:)
   integer(kind=mpi_offset_kind),allocatable::offset(:)
-  integer(kind=mpi_offset_kind) this_offset,offset_start_date,offset_nstart_hour
+  integer(kind=mpi_offset_kind) this_offset,offset_start_date
   integer(i_kind),allocatable::length(:)
   integer(i_kind) this_length,length_start_date
-  integer(i_llong) num_swap
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
   integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,i_f_rimef
@@ -89,7 +78,6 @@ subroutine wrwrfnmma_binary(mype)
   real(r_kind) pd,psfc_this
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -112,12 +100,6 @@ subroutine wrwrfnmma_binary(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qs
   real(r_kind),pointer,dimension(:,:,:):: ges_qg
   real(r_kind),pointer,dimension(:,:,:):: ges_qh
-  real(r_single),allocatable:: pdbg(:),tbg(:,:),qbg(:,:),cwmbg(:,:),ubg(:,:),vbg(:,:)
-  real(r_single),allocatable:: pdba(:),tba(:,:),qba(:,:),cwmba(:,:),uba(:,:),vba(:,:)
-  real(r_single),allocatable:: pdbg0(:),tbg0(:,:),qbg0(:,:),cwmbg0(:,:),ubg0(:,:),vbg0(:,:)
-  real(r_single),allocatable:: pdba0(:),tba0(:,:),qba0(:,:),cwmba0(:,:),uba0(:,:),vba0(:,:)
-  integer(i_kind) bdim
-  integer(i_kind) nstart_hour
 
 !   1. get offsets etc only for records to be updated
 
@@ -126,35 +108,6 @@ subroutine wrwrfnmma_binary(mype)
   im=nlon_regional
   jm=nlat_regional
   lm=nsig
-
-! if use_gfs_stratosphere is true, then convert ges fields from nmm-gfs
-! extended vertical coordinate to nmmb vertical coordinate.
-  if(use_gfs_stratosphere) then
-     call revert_to_nmmb
-     nsig_write=nsig_save
-     lm=nsig_save
-  else
-     nsig_write=nsig
-     lm=nsig
-  endif
-   if (mype==0) write(6,*)'wrwrfnmma_binary: nsig_write =   ', nsig_write
-   if (mype==0) write(6,*)'wrwrfnmma_binary: nsig =         ', nsig
-   if (mype==0) write(6,*)'wrwrfnmma_binary: lm =           ', lm
-   if (mype==0) write(6,*)'wrwrfnmma_binary: jm =           ', jm
-   if (mype==0) write(6,*)'wrwrfnmma_binary: im =           ', im
-   if (mype==0) write(6,*)'wrwrfnmma_binary: nlat_regional =', nlat_regional                     
-   if (mype==0) write(6,*)'wrwrfnmma_binary: nlon_regional =', nlon_regional                 
-
-!  allocate boundary file arrays
-  bdim=2*im+jm-3
-  allocate(pdbg(bdim),tbg(bdim,lm),qbg(bdim,lm),cwmbg(bdim,lm),ubg(bdim,lm),vbg(bdim,lm))
-  allocate(pdba(bdim),tba(bdim,lm),qba(bdim,lm),cwmba(bdim,lm),uba(bdim,lm),vba(bdim,lm))
-  allocate(pdbg0(bdim),tbg0(bdim,lm),qbg0(bdim,lm),cwmbg0(bdim,lm),ubg0(bdim,lm),vbg0(bdim,lm))
-  allocate(pdba0(bdim),tba0(bdim,lm),qba0(bdim,lm),cwmba0(bdim,lm),uba0(bdim,lm),vba0(bdim,lm))
-  pdbg=zero  ; tbg=zero  ; qbg=zero  ; cwmbg=zero  ; ubg=zero  ; vbg=zero
-  pdba=zero  ; tba=zero  ; qba=zero  ; cwmba=zero  ; uba=zero  ; vba=zero
-  pdbg0=zero ; tbg0=zero ; qbg0=zero ; cwmbg0=zero ; ubg0=zero ; vbg0=zero
-  pdba0=zero ; tba0=zero ; qba0=zero ; cwmba0=zero ; uba0=zero ; vba0=zero
 
   it=ntguessig
 
@@ -221,19 +174,6 @@ subroutine wrwrfnmma_binary(mype)
   if(mype==0)  then
      call update_start_date(chdrbuf,iyear,imonth,iday,ihour,iminute,isecond)
      call mpi_file_write_at(mfcst,offset_start_date,chdrbuf,length_start_date,mpi_byte,status,ierror)
-  end if
-
-!    update NSTART_HOUR for wrf restart file
-  read(lendian_in) n_position
-  offset_nstart_hour=n_position
-  if(offset_nstart_hour > 0)then
-     call mpi_file_read_at(mfcst,offset_nstart_hour,nstart_hour,1,mpi_integer4,status,ierror)
-     if(mype==0)print *,'nstart_hour=', nstart_hour
-     if(mype==0)  then
-        nstart_hour=ihour
-        print *,'new nstart_hour=', nstart_hour
-        call mpi_file_write_at(mfcst,offset_nstart_hour,nstart_hour,1,mpi_integer4,status,ierror)
-     end if
   end if
 
   if(mype==0) write(6,*)' in read_wrf_nmm_binary_guess, wrfanl=',trim(wrfanl)
@@ -443,7 +383,7 @@ subroutine wrwrfnmma_binary(mype)
   kq=i_q-1
   ku=i_u-1
   kv=i_v-1
-  do k=1,nsig_write   
+  do k=1,nsig
      kt=kt+1
      kq=kq+1
      ku=ku+1
@@ -456,13 +396,6 @@ subroutine wrwrfnmma_binary(mype)
            all_loc(j,i,kt)=ges_tsen(j+1,i+1,k,it)   ! sensible temperature
         end do
      end do
-     if (mype==0) then
-        write(6,*)'all_loc for t    = ',k,maxval(all_loc(:,:,kt)),minval(all_loc(:,:,kt))                
-        write(6,*)'all_loc for q    = ',k,maxval(all_loc(:,:,kq)),minval(all_loc(:,:,kq)) 
-        write(6,*)'all_loc for u    = ',k,maxval(all_loc(:,:,ku)),minval(all_loc(:,:,ku))              
-        write(6,*)'all_loc for v    = ',k,maxval(all_loc(:,:,kv)),minval(all_loc(:,:,kv))                   
-      endif
-
   end do
   do i=1,lon1
      do j=1,lat1
@@ -471,13 +404,10 @@ subroutine wrwrfnmma_binary(mype)
         all_loc(j,i,i_pd)=r100*pd
      end do
   end do
-  if (mype==0) &
-  write(6,*)'all_loc for pd   = ',k,maxval(all_loc(:,:,i_pd)),minval(all_loc(:,:,i_pd))                 
-
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
      kpint=i_pint-1
-     do k=1,nsig_write+1
+     do k=1,nsig+1
         kpint=kpint+1
         do i=1,lon1
            do j=1,lat1
@@ -485,8 +415,6 @@ subroutine wrwrfnmma_binary(mype)
                           +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j+1,i+1,it))   ! pint
            end do
         end do
-        if (mype==0) &
-        write(6,*)'all_loc for pint = ',k,maxval(all_loc(:,:,kpint)),minval(all_loc(:,:,kpint))      
      end do
   end if
   if(update_regsfc) then
@@ -555,10 +483,6 @@ subroutine wrwrfnmma_binary(mype)
      this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
      this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
      deallocate(jbuf)
@@ -570,10 +494,6 @@ subroutine wrwrfnmma_binary(mype)
      this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
      deallocate(jbuf)
@@ -585,10 +505,6 @@ subroutine wrwrfnmma_binary(mype)
      this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
      deallocate(jbuf)
@@ -600,10 +516,6 @@ subroutine wrwrfnmma_binary(mype)
      this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
      deallocate(jbuf)
@@ -615,10 +527,6 @@ subroutine wrwrfnmma_binary(mype)
      this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
      this_length=(jend(mype)-jbegin(mype)+1)*im*lm
      call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
      deallocate(jbuf)
@@ -656,10 +564,6 @@ subroutine wrwrfnmma_binary(mype)
   do k=kbegin(mype),kend(mype)
      if(kdim(k)==1.or.kord(k)==1) then
         call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
-        if(byte_swap) then
-           num_swap=length(k)
-           call to_native_endianness_i4(ibuf(1,k),num_swap)
-        end if
      end if
   end do
 
@@ -670,8 +574,6 @@ subroutine wrwrfnmma_binary(mype)
   do ifld=kbegin(mype),kend(mype)
      if((ifld==i_sst.or.ifld==i_tsk).and..not.update_regsfc) cycle
      call move_ibuf_hg(ibuf(1,ifld),temp1,im,jm,im,jm)
-     call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtype(ifld))
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb(1,ifld),igtype(ifld),2)
      if(ifld==i_sst.or.ifld==i_tsk) then
@@ -689,59 +591,8 @@ subroutine wrwrfnmma_binary(mype)
      end if
      if(filled_grid) call unfill_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
      if(half_grid)   call unhalf_nmm_grid2(tempa(1,ifld),im,jm,temp1,igtype(ifld),2)
-     call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtype(ifld))
      call move_hg_ibuf(temp1,ibuf(1,ifld),im,jm,im,jm)
   end do
-
-!  do reduce add to pe 0 of all boundary variables, then write out boundary variables.
-      ! write(6,'(" pdbg(1)=",e10.1)')pdbg(1)
-      ! do k=1,lm
-      !    write(6,'(" k,t,q,u,v=",i3,4e10.1)')k,tbg(1,k),qbg(1,k),ubg(1,k),vbg(1,k)
-      ! end do
-  call mpi_reduce(pdbg,pdbg0,bdim,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(pdba,pdba0,bdim,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(tbg,tbg0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(tba,tba0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(qbg,qbg0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(qba,qba0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(cwmbg,cwmbg0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(cwmba,cwmba0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(ubg,ubg0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(uba,uba0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(vbg,vbg0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  call mpi_reduce(vba,vba0,bdim*lm,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
-  if(mype==0) then
-     open(lendian_out,file='wrf_nmm_bnd',form='unformatted')
-     write(lendian_out)'WRF-NMM-BINARY'
-     write(lendian_out) iyear,imonth,iday,ihour,iminute,isecond,im,jm,lm,bdim
-     write(lendian_out) pdbg0,tbg0,qbg0,cwmbg0,ubg0,vbg0
-     write(lendian_out) pdba0,tba0,qba0,cwmba0,uba0,vba0
-     close(lendian_out)
-       write(6,*)' min,max pdbg0=',minval(pdbg0),maxval(pdbg0)
-       write(6,*)' min,max tbg0=',minval(tbg0),maxval(tbg0)
-       write(6,*)' min,max qbg0=',minval(qbg0),maxval(qbg0)
-       write(6,*)' min,max cwmbg0=',minval(cwmbg0),maxval(cwmbg0)
-       write(6,*)' min,max ubg0=',minval(ubg0),maxval(ubg0)
-       write(6,*)' min,max vbg0=',minval(vbg0),maxval(vbg0)
-       write(6,*)' min,max pdba0=',minval(pdba0),maxval(pdba0)
-       write(6,*)' min,max tba0=',minval(tba0),maxval(tba0)
-       write(6,*)' min,max qba0=',minval(qba0),maxval(qba0)
-       write(6,*)' min,max cwmba0=',minval(cwmba0),maxval(cwmba0)
-       write(6,*)' min,max uba0=',minval(uba0),maxval(uba0)
-       write(6,*)' min,max vba0=',minval(vba0),maxval(vba0)
-       write(6,*)' min,max pdba0-pdbg0=',minval(pdba0-pdbg0),maxval(pdba0-pdbg0)
-       write(6,*)' min,max tba0-tbg0=',minval(tba0-tbg0),maxval(tba0-tbg0)
-       write(6,*)' min,max qba0-qbg0=',minval(qba0-qbg0),maxval(qba0-qbg0)
-       write(6,*)' min,max cwmba0-cwmbg0=',minval(cwmba0-cwmbg0),maxval(cwmba0-cwmbg0)
-       write(6,*)' min,max uba0-ubg0=',minval(uba0-ubg0),maxval(uba0-ubg0)
-       write(6,*)' min,max vba0-vbg0=',minval(vba0-vbg0),maxval(vba0-vbg0)
-  end if
-
-  deallocate(pdbg ,tbg ,qbg ,cwmbg ,ubg ,vbg )
-  deallocate(pdba ,tba ,qba ,cwmba ,uba ,vba )
-  deallocate(pdbg0,tbg0,qbg0,cwmbg0,ubg0,vbg0)
-  deallocate(pdba0,tba0,qba0,cwmba0,uba0,vba0)
 
 !           finally write ibuf back out ( ibuf --> jbuf -->  mpi_file_write )
 
@@ -753,10 +604,6 @@ subroutine wrwrfnmma_binary(mype)
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
      this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
@@ -769,10 +616,6 @@ subroutine wrwrfnmma_binary(mype)
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
      this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
@@ -783,10 +626,6 @@ subroutine wrwrfnmma_binary(mype)
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
      this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
@@ -797,10 +636,6 @@ subroutine wrwrfnmma_binary(mype)
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
      this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
@@ -811,10 +646,6 @@ subroutine wrwrfnmma_binary(mype)
      call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                         jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
      this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
-     if(byte_swap) then
-        num_swap=this_length
-        call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-     end if
      call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
      deallocate(jbuf)
   end if
@@ -826,10 +657,6 @@ subroutine wrwrfnmma_binary(mype)
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_cwm,i_cwm+lm-1)
         this_offset=offset(i_cwm)+(jbegin(mype)-1)*4*im*lm
-        if(byte_swap) then
-           num_swap=this_length
-           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-        end if
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
@@ -839,10 +666,6 @@ subroutine wrwrfnmma_binary(mype)
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_ice,i_f_ice+lm-1)
         this_offset=offset(i_f_ice)+(jbegin(mype)-1)*4*im*lm
-        if(byte_swap) then
-           num_swap=this_length
-           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-        end if
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
@@ -852,10 +675,6 @@ subroutine wrwrfnmma_binary(mype)
         call transfer_ibuf2jbuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                            jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_rain,i_f_rain+lm-1)
         this_offset=offset(i_f_rain)+(jbegin(mype)-1)*4*im*lm
-        if(byte_swap) then
-           num_swap=this_length
-           call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
-        end if
         call mpi_file_write_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer4,status,ierror)
         deallocate(jbuf)
      end if
@@ -863,10 +682,6 @@ subroutine wrwrfnmma_binary(mype)
 !---------------------- write surface files last
   do k=kbegin(mype),kend(mype)
      if(kdim(k)==1.or.kord(k)==1) then
-        if(byte_swap) then
-           num_swap=length(k)
-           call to_native_endianness_i4(ibuf(1,k),num_swap)
-        end if
         call mpi_file_write_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer4,status,ierror)
      end if
   end do
@@ -882,143 +697,8 @@ subroutine wrwrfnmma_binary(mype)
   deallocate(temp1)
 
   call mpi_file_close(mfcst,ierror)
- 
-  if(use_gfs_stratosphere) then
-      if(mype==0) write(6,*)' at wrwrfnmma_binary: restore ges fields back to extended vertical grid'    
-      call restore_nmmb_gfs 
-  endif
   
 end subroutine wrwrfnmma_binary
-
-subroutine get_bndy_file(temp1,pdb,tb,qb,cwmb,ub,vb,ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                         nguess,im,jm,lm,bdim,igtype)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    get_bndy_file          collect boundary variables on nmm grid
-!   prgmmr: parrish          org: np22                date: 2012-03-09
-!
-! abstract:  transfer boundary values from wrf nmm (E-grid) variables to boundary arrays.
-!
-! program history log:
-!   2004-06-23  parrish, document
-!   2012-11-19  tong, added nguess > 0 condition for cloud variable cwm.
-!
-!   input argument list:
-!     temp1    - input 2d field
-!     ifld     - counter for all vars/levels concatenated together
-!     i_pd     - if ifld==i_pd, then contents of temp1 are i_pd
-!     i_t      - if ifld>=i_t and ifld-i_t+1 <= lm, then contents of temp1 are T(ifld-i_t+1)
-!     i_q      - same as for i_t but for specific humidity
-!     i_cwm    - same as for i_t but for cloud variable
-!     i_u      - same as for i_t but for u
-!     i_v      - same as for i_t but for v
-!     nguess   - number of cloud guess variables
-!     im,jm,lm - wrf nmm grid dimensions
-!     bdim     - number of points around boundary
-!     igtype   - =1, then h grid, =2, then v grid
-!
-!
-!   output argument list:
-!     pdb      - boundary values of pd
-!     tb       - same for T
-!     qb       - same for q
-!     cwmb     - same for cwm
-!     ub       - same for u
-!     vb       - same for v
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: r_single,i_kind
-  implicit none
-
-  integer(i_kind),intent(in   ) :: ifld,i_pd,i_t,i_q,i_cwm,i_u,i_v,im,jm,lm,bdim,igtype
-  integer(i_kind),intent(in   ) :: nguess
-  real(r_single), intent(in   ) :: temp1(im,jm)
-  real(r_single), intent(  out) :: pdb(bdim),tb(bdim,lm),qb(bdim,lm),cwmb(bdim,lm),ub(bdim,lm),vb(bdim,lm)
-
-  integer(i_kind) i,j,ii
-  real(r_single) bndy(bdim)
-
-!   transfer boundary points to bndy
-
-  if(igtype==1) then
-
-!    transfer h-grid boundary points:
-
-     ii=0
-     do i=1,im
-        ii=ii+1
-        bndy(ii)=temp1(i,1)
-     end do
-     do i=1,im
-        ii=ii+1
-        bndy(ii)=temp1(i,jm)
-     end do
-     do j=3,jm-2,2
-        ii=ii+1
-        bndy(ii)=temp1(1,j)
-     end do
-     do j=3,jm-2,2
-        ii=ii+1
-        bndy(ii)=temp1(im,j)
-     end do
-
-  else
-
-!    transfer v-grid boundary points:
-
-     ii=0
-     do i=1,im-1
-        ii=ii+1
-        bndy(ii)=temp1(i,1)
-     end do
-     do i=1,im-1
-        ii=ii+1
-        bndy(ii)=temp1(i,jm)
-     end do
-     do j=2,jm-1,2
-        ii=ii+1
-        bndy(ii)=temp1(1,j)
-     end do
-     do j=2,jm-1,2
-        ii=ii+1
-        bndy(ii)=temp1(im,j)
-     end do
-
-  end if
-
-!   now transfer bndy to appropriate output array:
-
-  if(ifld==i_pd) then
-
-     pdb(:)=bndy(:)
-
-  elseif(ifld>=i_t.and.ifld-i_t+1 <= lm) then
-
-     tb(:,ifld-i_t+1)=bndy(:)
-
-  elseif(ifld >= i_q .and. ifld-i_q+1 <= lm) then
-
-     qb(:,ifld-i_q+1)=bndy(:)
-
-  elseif(ifld >= i_cwm .and. ifld-i_cwm+1 <= lm .and. nguess > 0) then
-
-     cwmb(:,ifld-i_cwm+1)=bndy(:)
-
-  elseif(ifld >= i_u .and. ifld-i_u+1 <= lm) then
-
-     ub(:,ifld-i_u+1)=bndy(:)
-
-  elseif(ifld >= i_v .and. ifld-i_v+1 <= lm) then
-
-     vb(:,ifld-i_v+1)=bndy(:)
-
-  end if
-
-end subroutine get_bndy_file
 
 subroutine wrnemsnmma_binary(mype)
 !$$$  subprogram documentation block
@@ -1073,7 +753,6 @@ subroutine wrnemsnmma_binary(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype,mpi_integer4,mpi_min,mpi_max,mpi_sum
 
   implicit none
@@ -1086,7 +765,7 @@ subroutine wrnemsnmma_binary(mype)
   character(255) wrfanl
   logical add_saved
 
-  integer(i_kind) i,it,j,k,kr,mype_input,nsig_write
+  integer(i_kind) i,it,j,k,kr,mype_input
   integer(i_kind) near_sfc,kp
   integer(i_kind) icw4crtm,iqtotal
   real(r_kind) pd,psfc_this,pd_to_ps,wmag
@@ -1107,16 +786,6 @@ subroutine wrnemsnmma_binary(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qs
   real(r_kind),pointer,dimension(:,:,:):: ges_qg
   real(r_kind),pointer,dimension(:,:,:):: ges_qh
-
-!   if use_gfs_stratosphere is true, then convert ges fields from nmmb-gfs 
-!        extended vertical coordinate to nmmb vertical coordinate.
-
-  if(use_gfs_stratosphere) then
-     call revert_to_nmmb
-     nsig_write=nsig_save
-  else
-     nsig_write=nsig
-  end if
 
   use_fact10=.true.
   use_fact2=.false.
@@ -1155,7 +824,6 @@ subroutine wrnemsnmma_binary(mype)
   add_saved=.true.
 
   call gsi_metguess_get('dim',nguess,iret)
-  if(mype == 0) write(6,*)' in wrnemsnmma_binary after gsi_metguess_get, nguess,iret=',nguess,iret
   if (nguess>0) then
 
 !    Determine whether or not cloud-condensate is the control variable
@@ -1183,9 +851,9 @@ subroutine wrnemsnmma_binary(mype)
 !   open output file for read-write so we can update fields.
   call gsi_nemsio_open(wrfanl,'rdwr','WRNEMSNMMA_BINARY:  problem with wrfanl',mype,mype_input)
 
-  do kr=1,nsig_write
+  do kr=1,nsig
 
-     k=nsig_write+1-kr
+     k=nsig+1-kr
                                    !   u
 
      call gsi_nemsio_read('ugrd','mid layer','V',kr,work_sub(:,:),mype,mype_input)
@@ -1333,8 +1001,8 @@ subroutine wrnemsnmma_binary(mype)
 
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
-     do kr=1,nsig_write+1
-        k=nsig_write+2-kr
+     do kr=1,nsig+1
+        k=nsig+2-kr
         call gsi_nemsio_read('pres','layer','H',kr,work_sub(:,:),mype,mype_input)
 
         do i=1,lon2
@@ -1497,8 +1165,6 @@ subroutine wrnemsnmma_binary(mype)
   end if
 
   call gsi_nemsio_close(wrfanl,'WRNEMSNMMA_BINARY',mype,mype_input)
-
-  if(use_gfs_stratosphere) call restore_nmmb_gfs
   
 end subroutine wrnemsnmma_binary
 
@@ -1524,9 +1190,6 @@ subroutine wrwrfnmma_netcdf(mype)
 !   2008-12-05  todling - adjustment for dsfct time dimension addition
 !   2010-04-01  treadon - move strip_single to gridmod
 !   2012-01-18  zhu     - add cloud hydrometeors
-!   2012-07-19  tong    - added the output of boundary variables
-!   2012-10-11  eliu    - add capability of using global-regional blended 
-!                         vertical coordinate for wrf_nmm_regional (HWRF)      
 !
 !   input argument list:
 !     mype     - pe number
@@ -1543,7 +1206,7 @@ subroutine wrwrfnmma_netcdf(mype)
   use regional_io, only: update_pint
   use guess_grids, only: ges_ps,ges_pint,ges_pd,ges_u,ges_v,ges_q,&
        ntguessfc,ntguessig,ifilesig,dsfct,ges_tsen
-  use mpimod, only: mpi_comm_world,ierror,mpi_real4,mpi_sum
+  use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use gridmod, only: iglobal,itotsub,pt_ll,update_regsfc,&
        half_grid,filled_grid,pdtop_ll,nlat_regional,nlon_regional,&
        nsig,lat1,lon1,ijn,displs_g,eta2_ll,strip_single,lat2,lon2
@@ -1553,10 +1216,6 @@ subroutine wrwrfnmma_netcdf(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save  
-  use gfs_stratosphere, only: eta1_save,aeta1_save,deta1_save
-  use gfs_stratosphere, only: eta2_save,aeta2_save,deta2_save
-
   implicit none
 
 ! Declare passed variables
@@ -1567,13 +1226,12 @@ subroutine wrwrfnmma_netcdf(mype)
 
 ! Declare local variables
   integer(i_kind) im,jm,lm
-  integer(i_kind) nsig_write  
   real(r_single),allocatable::temp1(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
   real(r_single),allocatable::strp(:)
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,kcwm,kf_ice,kf_rain
+  integer(i_kind) i_sst,i_skt,i_cwm,i_f_ice,i_f_rain,kcwm,kf_ice,kf_rain
   integer(i_kind) igtypeh,igtypev,num_nmm_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) pd,psfc_this
@@ -1595,37 +1253,9 @@ subroutine wrwrfnmma_netcdf(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qg
   real(r_kind),pointer,dimension(:,:,:):: ges_qh
 
-  real(r_single),allocatable:: pdbg(:),tbg(:,:),qbg(:,:),cwmbg(:,:),ubg(:,:),vbg(:,:)
-  real(r_single),allocatable:: pdba(:),tba(:,:),qba(:,:),cwmba(:,:),uba(:,:),vba(:,:)
-  integer(i_kind) bdim
-
-! if use_gfs_stratosphere is true, then convert ges fields from nmm-gfs
-! extended vertical coordinate to nmmb vertical coordinate.
-  if(use_gfs_stratosphere) then
-     call revert_to_nmmb
-     nsig_write=nsig_save
-  else
-     nsig_write=nsig
-  endif
-
   im=nlon_regional
   jm=nlat_regional
-  lm=nsig_write      
-
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: nsig_write =   ', nsig_write
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: nsig =         ', nsig
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: lm =           ', lm
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: jm =           ', jm
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: im =           ', im
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: nlat_regional =', nlat_regional
-  if (mype==0) write(6,*)'wrwrfnmma_netcdf: nlon_regional =', nlon_regional
-
-!  allocate boundary file arrays
-  bdim=2*im+jm-3
-  allocate(pdbg(bdim),tbg(bdim,lm),qbg(bdim,lm),cwmbg(bdim,lm),ubg(bdim,lm),vbg(bdim,lm))
-  allocate(pdba(bdim),tba(bdim,lm),qba(bdim,lm),cwmba(bdim,lm),uba(bdim,lm),vba(bdim,lm))
-  pdbg=zero  ; tbg=zero  ; qbg=zero  ; cwmbg=zero  ; ubg=zero  ; vbg=zero
-  pdba=zero  ; tba=zero  ; qba=zero  ; cwmba=zero  ; uba=zero  ; vba=zero
+  lm=nsig
 
   it=ntguessig
 
@@ -1669,9 +1299,9 @@ subroutine wrwrfnmma_netcdf(mype)
   i_u=i_q+lm
   i_v=i_u+lm
   i_sst=i_v+lm
-  i_tsk=i_sst+1
+  i_skt=i_sst+1
   if (nguess>0) then
-     i_cwm=i_tsk+1
+     i_cwm=i_skt+1
      i_f_ice=i_cwm+lm
      i_f_rain=i_f_ice+lm
   end if
@@ -1680,7 +1310,7 @@ subroutine wrwrfnmma_netcdf(mype)
   
   allocate(temp1(im*jm))
 
-! if(mype == 0) write(6,*)' at 2 in wrwrfnmma'
+  if(mype == 0) write(6,*)' at 2 in wrwrfnmma'
 
 
   if(mype == 0) then
@@ -1694,13 +1324,13 @@ subroutine wrwrfnmma_netcdf(mype)
   it=ntguessig
 
 ! Create all_loc from ges_*
-! if(mype == 0) write(6,*)' at 3 in wrwrfnmma'
+  if(mype == 0) write(6,*)' at 3 in wrwrfnmma'
   all_loc=zero_single
   kt=i_t-1
   kq=i_q-1
   ku=i_u-1
   kv=i_v-1
-  do k=1,nsig_write        
+  do k=1,nsig
      kt=kt+1
      kq=kq+1
      ku=ku+1
@@ -1708,8 +1338,8 @@ subroutine wrwrfnmma_netcdf(mype)
      do i=1,lon1+2
         do j=1,lat1+2
            all_loc(j,i,ku)=ges_u(j,i,k,it)
-!          if(k == 1.and.abs(all_loc(j,i,ku)) > 1.e15_r_single) &
-!               write(6,*)' at 3.01 in wrwrfnmma, j,i,ku,all_loc(j,i,ku)=',j,i,ku,all_loc(j,i,ku)
+           if(k == 1.and.abs(all_loc(j,i,ku)) > 1.e15_r_single) &
+                write(6,*)' at 3.01 in wrwrfnmma, j,i,ku,all_loc(j,i,ku)=',j,i,ku,all_loc(j,i,ku)
            all_loc(j,i,kv)=ges_v(j,i,k,it)
            all_loc(j,i,kq)=ges_q(j,i,k,it)
            all_loc(j,i,kt)=ges_tsen(j,i,k,it)   ! sensible temperature
@@ -1723,12 +1353,10 @@ subroutine wrwrfnmma_netcdf(mype)
         all_loc(j,i,i_pd)=r100*pd
      end do
   end do
-  if (mype==0) &
-  write(6,*)'all_loc for pd   = ',k,maxval(all_loc(:,:,i_pd)),minval(all_loc(:,:,i_pd))                                                                                                               
 !                    update pint by adding eta2(k)*pdinc
   if(update_pint) then
      kpint=i_pint-1
-     do k=1,nsig_write+1         
+     do k=1,nsig+1
         kpint=kpint+1
         do i=1,lon1+2
            do j=1,lat1+2
@@ -1736,17 +1364,15 @@ subroutine wrwrfnmma_netcdf(mype)
                           +eta2_ll(k)*(all_loc(j,i,i_pd)-ges_pd(j,i,it))   ! pint
            end do
         end do
-        if (mype==0) &
-        write(6,*)'all_loc for pint = ',k,maxval(all_loc(:,:,kpint)),minval(all_loc(:,:,kpint))                                                                                                               
      end do
   end if
-
+  
 ! cloud info: currently no new f_rimef info is written out
   if (nguess>0) then ! cloud
      kcwm=i_cwm-1
      kf_ice=i_f_ice-1
      kf_rain=i_f_rain-1
-     do k=1,nsig_write       
+     do k=1,nsig
         do i=1,lon2
            do j=1,lat2
               if (ges_ql(j,i,k)<=qcmin) ges_ql(j,i,k)=zero
@@ -1786,67 +1412,50 @@ subroutine wrwrfnmma_netcdf(mype)
 
   if(mype == 0) then
      read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,dlmd0,dphd0,pt0,pdtop0
+     write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,dlmd0,dphd0,pt0,pdtop0
      read(lendian_in) deta10
+     write(lendian_out) deta10
      read(lendian_in) aeta10
+     write(lendian_out) aeta10
      read(lendian_in) eta10
+     write(lendian_out) eta10
      read(lendian_in) deta20
+     write(lendian_out) deta20
      read(lendian_in) aeta20
+     write(lendian_out) aeta20
      read(lendian_in) eta20
+     write(lendian_out) eta20
      read(lendian_in) glat0,dx0_nmm
-     read(lendian_in) glon0,dy0_nmm
-     if (use_gfs_stratosphere) then
-        write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig_save,dlmd0,dphd0,pt0,pdtop0
-        write(lendian_out) deta1_save       
-        write(lendian_out) aeta1_save      
-        write(lendian_out) eta1_save        
-        write(lendian_out) deta2_save      
-        write(lendian_out) aeta2_save       
-        write(lendian_out) eta2_save       
-     else
-        write(lendian_out) regional_time0,nlon_regional0,nlat_regional0,nsig0,dlmd0,dphd0,pt0,pdtop0
-        write(lendian_out) deta10       
-        write(lendian_out) aeta10      
-        write(lendian_out) eta10        
-        write(lendian_out) deta20      
-        write(lendian_out) aeta20       
-        write(lendian_out) eta20       
-     endif 
      write(lendian_out) glat0,dx0_nmm
+     read(lendian_in) glon0,dy0_nmm
      write(lendian_out) glon0,dy0_nmm
   end if
   
 ! Update pd
-! if(mype == 0) write(6,*)' at 6 in wrwrfnmma'
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update PD' 
+  if(mype == 0) write(6,*)' at 6 in wrwrfnmma'
 
   allocate(tempa(itotsub),tempb(itotsub))
   tempa=0.0_r_single
   tempb=0.0_r_single
   if(mype == 0) read(lendian_in)temp1
-! if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-  if(mype == 0) write(6,*)' max,min(temp1) PD in       =',maxval(temp1),minval(temp1)       
+  if(mype == 0) write(6,*)' at 6.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
   call strip_single(all_loc(1,1,i_pd),strp,1)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
-     call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,i_pd,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtypeh)
-!    if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+     if(mype == 0) write(6,*)' at 6.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
      if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
      if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-!     if(mype == 0) write(6,*)' at 6.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
+     if(mype == 0) write(6,*)' at 6.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
      do i=1,iglobal
         tempa(i)=tempa(i)-tempb(i)
      end do
-!    if(mype == 0) write(6,*)' at 6.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+     if(mype == 0) write(6,*)' at 6.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
      if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-!    if(mype == 0) write(6,*)' at 6.5 in wrwrfnmma'
+     if(mype == 0) write(6,*)' at 6.5 in wrwrfnmma'
      if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-!    if(mype == 0) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+     if(mype == 0) write(6,*)' at 6.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      write(lendian_out)temp1
-     if(mype == 0) write(6,*)' max,min(temp1) PD out      =',maxval(temp1),minval(temp1)     
-     call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,i_pd,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                        nguess,im,jm,lm,bdim,igtypeh)
   end if
 
 !  FIS read/write
@@ -1855,14 +1464,12 @@ subroutine wrwrfnmma_netcdf(mype)
      write(lendian_out)temp1
   end if
 
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update PINT' 
 ! Update pint
   if(update_pint) then
      kpint=i_pint-1
-     do k=1,nsig_write+1    
+     do k=1,nsig+1
         kpint=kpint+1
         if(mype == 0) read(lendian_in)temp1
-        if(mype == 0) write(6,*)' k,max,min(temp1) PINT in   =',k,maxval(temp1),minval(temp1)                                           
         call strip_single(all_loc(1,1,kpint),strp,1)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
@@ -1875,24 +1482,19 @@ subroutine wrwrfnmma_netcdf(mype)
            if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
            write(lendian_out)temp1
-           write(6,*)' k,max,min(temp1) PINT out  =',k,maxval(temp1),minval(temp1)                                 
         end if
      end do
   endif
 
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update PINT' 
 ! Update t
   kt=i_t-1
-  do k=1,nsig_write    
+  do k=1,nsig
      kt=kt+1
      if(mype == 0) read(lendian_in)temp1
-     if(mype == 0) write(6,*)' k,max,min(temp1) T in      =',k,maxval(temp1),minval(temp1)                                             
      call strip_single(all_loc(1,1,kt),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
-        call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         do i=1,iglobal
@@ -1901,27 +1503,20 @@ subroutine wrwrfnmma_netcdf(mype)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         write(lendian_out)temp1
-        write(6,*)' k,max,min(temp1) T out     =',k,maxval(temp1),minval(temp1)                                  
-        call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kt,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
      end if
   end do
-! if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
+  if(mype == 0) write(6,*)' at 7 in wrwrfnmma'
 
 
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update Q'  
 ! Update q
   kq=i_q-1
-  do k=1,nsig_write    
+  do k=1,nsig
      kq=kq+1
      if(mype == 0) read(lendian_in)temp1
-     if(mype == 0) write(6,*)' k,max,min(temp1) Q in    =',k,maxval(temp1),minval(temp1)                                             
      call strip_single(all_loc(1,1,kq),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
-        call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         do i=1,iglobal
@@ -1930,60 +1525,46 @@ subroutine wrwrfnmma_netcdf(mype)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
         write(lendian_out)temp1
-        write(6,*)' k,max,min(temp1) Q out   =',k,maxval(temp1),minval(temp1)        
-        call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kq,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypeh)
      end if
   end do
 
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update U'  
 ! Update u
   ku=i_u-1
-  do k=1,nsig_write       
+  do k=1,nsig
      ku=ku+1
      if(mype == 0) read(lendian_in)temp1
-     if(mype == 0) write(6,*)' k,max,min(temp1) U in    =',k,maxval(temp1),minval(temp1)                                             
      call strip_single(all_loc(1,1,ku),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-!    if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
+     if(mype == 0) write(6,*)' at 7.2 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
      if(mype == 0) then
-        call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
-!       if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
-!            k,maxval(temp1),minval(temp1)
-!       if(mype == 0) write(6,*)' at 7.22 in wrwrfnmma,k,max,min(tempb)=',&
-!            k,maxval(tempb),minval(tempb)
+        if(mype == 0) write(6,*)' at 7.21 in wrwrfnmma,k,max,min(temp1)=',&
+             k,maxval(temp1),minval(temp1)
+        if(mype == 0) write(6,*)' at 7.22 in wrwrfnmma,k,max,min(tempb)=',&
+             k,maxval(tempb),minval(tempb)
         do i=1,iglobal
            tempa(i)=tempa(i)-tempb(i)
         end do
-!       if(mype == 0) write(6,*)' at 7.3 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
+        if(mype == 0) write(6,*)' at 7.3 in wrwrfnmma,k,max,min(tempa)=',k,maxval(tempa),minval(tempa)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
-!       if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
+        if(mype == 0) write(6,*)' at 7.4 in wrwrfnmma,k,max,min(temp1)=',k,maxval(temp1),minval(temp1)
         write(lendian_out)temp1
-        write(6,*)' k,max,min(temp1) U out   =',k,maxval(temp1),minval(temp1)                                  
-        call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,ku,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
      end if
   end do
-! if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
+  if(mype == 0) write(6,*)' at 8 in wrwrfnmma'
 
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update V'  
 ! Update v
   kv=i_v-1
-  do k=1,nsig_write    
+  do k=1,nsig
      kv=kv+1
      if(mype == 0) read(lendian_in)temp1
-     if(mype == 0) write(6,*)' k,max,min(temp1) V in    =',k,maxval(temp1),minval(temp1)                                             
      call strip_single(all_loc(1,1,kv),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
-        call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypev,2)
         do i=1,iglobal
@@ -1992,20 +1573,15 @@ subroutine wrwrfnmma_netcdf(mype)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
         write(lendian_out)temp1
-        write(6,*)' k,max,min(temp1) V out   =',k,maxval(temp1),minval(temp1)                                  
-        call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kv,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                           nguess,im,jm,lm,bdim,igtypev)
      end if
   end do
 
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update surface '                
-  if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update_regsfc= ',update_regsfc
 ! Load updated skin temperature array if writing out to analysis file
   if (update_regsfc) then
      do i=1,lon1+2
         do j=1,lat1+2
            all_loc(j,i,i_sst)=dsfct(j,i,ntguessfc)
-           all_loc(j,i,i_tsk)=dsfct(j,i,ntguessfc)
+           all_loc(j,i,i_skt)=dsfct(j,i,ntguessfc)
         end do
      end do
   end if
@@ -2021,17 +1597,16 @@ subroutine wrwrfnmma_netcdf(mype)
 
 ! SST
   if(update_regsfc) then
-     if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update SST '    
      if(mype == 0) read(lendian_in)temp1
-!    if (mype==0)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+     if (mype==0)write(6,*)' at 9.1 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
      call strip_single(all_loc(1,1,i_sst),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
-!       if(mype == 0) write(6,*)' at 9.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+        if(mype == 0) write(6,*)' at 9.2 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
         if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
         if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempb,igtypeh,2)
-!       if(mype == 0) write(6,*)' at 9.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
+        if(mype == 0) write(6,*)' at 9.3 in wrwrfnmma,max,min(tempb)=',maxval(tempb),minval(tempb)
         do i=1,iglobal
            if(tempb(i) < r225) then
               tempa(i)=zero_single
@@ -2039,16 +1614,15 @@ subroutine wrwrfnmma_netcdf(mype)
               tempa(i)=tempa(i)-tempb(i)
            end if
         end do
-!       if(mype == 0) write(6,*)' at 9.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
+        if(mype == 0) write(6,*)' at 9.4 in wrwrfnmma,max,min(tempa)=',maxval(tempa),minval(tempa)
         if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-!       if(mype == 0) write(6,*)' at 9.5 in wrwrfnmma'
+        if(mype == 0) write(6,*)' at 9.5 in wrwrfnmma'
         if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-!       if(mype == 0) write(6,*)' at 9.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+        if(mype == 0) write(6,*)' at 9.6 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(lendian_out)temp1
      end if     !endif mype==0
   else
      if(mype==0) then
-        write(6,*)' at wrwrfnmma_netcdf: read/write SST '    
         read(lendian_in)temp1
         write(lendian_out)temp1
      end if
@@ -2056,7 +1630,6 @@ subroutine wrwrfnmma_netcdf(mype)
   
 ! REST OF FIELDS
   if (mype == 0) then
-     write(6,*)' at wrwrfnmma_netcdf: read/write various surface fields '    
      do k=4,11
         read(lendian_in)temp1
         write(lendian_out)temp1
@@ -2065,10 +1638,9 @@ subroutine wrwrfnmma_netcdf(mype)
   
 ! Update SKIN TEMP
   if(update_regsfc) then
-     if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update TSK '   
      if(mype == 0) read(lendian_in)temp1
-!    if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_tsk),strp,1)
+     if (mype==0)write(6,*)' at 10.0 in wrwrfnmma,max,min(temp1)=',maxval(temp1),minval(temp1)
+     call strip_single(all_loc(1,1,i_skt),strp,1)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if (mype==0)write(6,*)' at 10.1'
@@ -2088,7 +1660,6 @@ subroutine wrwrfnmma_netcdf(mype)
      end if
   else
      if (mype == 0) then
-        write(6,*)' at wrwrfnmma_netcdf: read/write TSK '   
         read(lendian_in)temp1
         write(lendian_out)temp1
      end if
@@ -2096,59 +1667,54 @@ subroutine wrwrfnmma_netcdf(mype)
 
 ! update cloud hydrometeors
   if (nguess>0) then
-     if(mype == 0) write(6,*)' at wrwrfnmma_netcdf: update clouds '   
 !    Update cwm
      kcwm=i_cwm-1
-     do k=1,nsig_write   
+     do k=1,nsig
         kcwm=kcwm+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
         call strip_single(all_loc(1,1,kcwm),strp,1)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
-           call get_bndy_file(temp1,pdbg,tbg,qbg,cwmbg,ubg,vbg,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                              nguess,im,jm,lm,bdim,igtypeh)
-           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
+           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
+           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
            write(lendian_out)temp1
-           call get_bndy_file(temp1,pdba,tba,qba,cwmba,uba,vba,kcwm,i_pd,i_t,i_q,i_cwm,i_u,i_v, &
-                              nguess,im,jm,lm,bdim,igtypeh)
         end if
      end do
 
 !    Update f_ice
      kf_ice=i_f_ice-1
-     do k=1,nsig_write
+     do k=1,nsig
         kf_ice=kf_ice+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
         call strip_single(all_loc(1,1,kf_ice),strp,1)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
-           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
+           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
+           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
            write(lendian_out)temp1
         end if
      end do
 
 !    Update f_rain
      kf_rain=i_f_rain-1
-     do k=1,nsig_write
+     do k=1,nsig
         kf_rain=kf_rain+1
         if(mype == 0) temp1=zero  ! no read-in of guess fields
         call strip_single(all_loc(1,1,kf_rain),strp,1)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
-           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
-           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypeh,2)
+           if(filled_grid) call unfill_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
+           if(half_grid)   call unhalf_nmm_grid2(tempa,im,jm,temp1,igtypev,2)
            write(lendian_out)temp1
         end if
      end do
 
 !    write out f_rimef
      if (mype == 0) then
-        do k=1,nsig_write
+        do k=1,nsig
            read(lendian_in)temp1
            write(lendian_out)temp1
         end do
@@ -2159,43 +1725,6 @@ subroutine wrwrfnmma_netcdf(mype)
      close(lendian_in)
      close(lendian_out)
   endif
-
-  if(use_gfs_stratosphere) then 
-      if(mype==0) write(6,*)' at wrwrfnmma_netcdf: restore ges fields back to extended vertical grid'                             
-      call restore_nmmb_gfs  
-  endif
-
-! write out boundary variables
-  if(mype==0) then
-     open(lendian_out,file='wrf_nmm_bnd',form='unformatted')
-     write(lendian_out)'WRF-NMM-NETCDF'
-     write(lendian_out) regional_time0,im,jm,lm,bdim   
-     write(lendian_out) pdbg,tbg,qbg,cwmbg,ubg,vbg
-     write(lendian_out) pdba,tba,qba,cwmba,uba,vba 
-     close(lendian_out)
-     write(6,*)' min,max pdbg=',minval(pdbg),maxval(pdbg)
-     write(6,*)' min,max tbg=',minval(tbg),maxval(tbg)
-     write(6,*)' min,max qbg=',minval(qbg),maxval(qbg)
-     write(6,*)' min,max cwmbg=',minval(cwmbg),maxval(cwmbg)
-     write(6,*)' min,max ubg=',minval(ubg),maxval(ubg)
-     write(6,*)' min,max vbg=',minval(vbg),maxval(vbg)
-     write(6,*)' min,max pdba=',minval(pdba),maxval(pdba)
-     write(6,*)' min,max tba=',minval(tba),maxval(tba)
-     write(6,*)' min,max qba=',minval(qba),maxval(qba)
-     write(6,*)' min,max cwmba=',minval(cwmba),maxval(cwmba)
-     write(6,*)' min,max uba=',minval(uba),maxval(uba)
-     write(6,*)' min,max vba=',minval(vba),maxval(vba)
-     write(6,*)' min,max pdba-pdbg=',minval(pdba-pdbg),maxval(pdba-pdbg)
-     write(6,*)' min,max tba-tbg=',minval(tba-tbg),maxval(tba-tbg)
-     write(6,*)' min,max qba-qbg=',minval(qba-qbg),maxval(qba-qbg)
-     write(6,*)' min,max cwmba-cwmbg=',minval(cwmba-cwmbg),maxval(cwmba-cwmbg)
-     write(6,*)' min,max uba-ubg=',minval(uba-ubg),maxval(uba-ubg)
-     write(6,*)' min,max vba-vbg=',minval(vba-vbg),maxval(vba-vbg)
-  end if
-
-  deallocate(pdbg ,tbg ,qbg ,cwmbg ,ubg ,vbg )
-  deallocate(pdba ,tba ,qba ,cwmba ,uba ,vba )
-
   
   deallocate(all_loc)
   deallocate(strp)

@@ -129,9 +129,6 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 !   2010-06-22  todling - update interface (remove cwmr since it's in bunlde)
 !   2010-06-29  lueken - added if(ipnts(2)>0) to second call of anbkgvar
 !   2011-02-22  zhu - replace the argument list of ansmoothrf_reg_subdomain_option by a bundle
-!   2012-06-25  parrish - replace sub2grid and grid2sub calls with general_sub2grid, general_grid2sub.
-!                 NOTE:  This will not work with sst and the motley variables slndt,sicet.  However
-!                        this is not currently used in this version of RTMA.
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -168,8 +165,6 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
@@ -178,7 +173,7 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 
 ! Local Variables
   integer(i_kind) iflg,ier,istatus
-  real(r_kind),dimension(nlat*nlon*nsig1o):: hwork
+  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
   real(r_kind),pointer,dimension(:,:)  :: p,skint
   real(r_kind),pointer,dimension(:,:,:):: t,q,cwmr,oz,st,vp
 
@@ -230,15 +225,14 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
-     call general_sub2grid(s2g_raf,bundle%values,hwork)
-!  need to modify this to use with sst and motley variables slndt,sicet, but apparently this
-!    not implemented yet in RTMA.
+     iflg=1
+     call sub2grid(hwork,bundle,sst,slndt,sicet,iflg)
 
 ! Apply horizontal smoother for number of horizontal scales
      call ansmoothrf(hwork)
 
 ! Put back onto subdomains
-     call general_grid2sub(s2g_raf,hwork,bundle%values)
+     call grid2sub(hwork,bundle,sst,slndt,sicet)
 
   end if
 
@@ -266,7 +260,6 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 ! program history log:
 !   2005-01-22  parrish
 !   2008-06-05  safford - rm unused uses
-!   2012-06-25  parrish - remove _i_kind from integer constants
 !
 !   input argument list:
 !     skint    - skin temperature grid values
@@ -309,7 +302,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
                 if(isli2(i,j) == 1) then
                    slndt(i,j)=skint(i,j)
 !          If ice
-                else if(isli2(i,j) == 2) then
+                else if(isli2(i,j) == 2_i_kind) then
                    sicet(i,j)=skint(i,j)
 !          Else treat as a water point
                 else
@@ -322,7 +315,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
                 if(isli2(i,j) == 1) then
                    skint(i,j)=slndt(i,j)
 !          Ice, load ice temp into skint
-                else if(isli2(i,j) == 2) then
+                else if(isli2(i,j) == 2_i_kind) then
                    skint(i,j)=sicet(i,j)
 !          Treat as a water point, load sst into skint
                 else
@@ -569,7 +562,7 @@ subroutine vert_smther(g,nsmooth,nsmooth_shapiro)
               gaux(1:nsig)=g(i,j,1:nsig)
               do k=1,nsig
                  kp=min(k+1,nsig) ; km=max(1,k-1)
-                 kp3=min(k+3,nsig) ; km3=max(1,k-3)
+                 kp3=min(k+3_i_kind,nsig) ; km3=max(1,k-3)
                  g(i,j,k)=.28125_r_kind*(gaux(kp)+gaux(km))+half*gaux(k)-.03125_r_kind*(gaux(kp3)+gaux(km3))
               enddo
            enddo
@@ -653,7 +646,7 @@ subroutine tvert_smther(g,nsmooth,nsmooth_shapiro)
               gaux(1:nsig)=zero
               do k=1,nsig
                  kp=min(k+1,nsig) ; km=max(1,k-1)
-                 kp3=min(k+3,nsig) ; km3=max(1,k-3)
+                 kp3=min(k+3_i_kind,nsig) ; km3=max(1,k-3)
                  gaux(km3)=gaux(km3)-.03125_r_kind*g(i,j,k)
                  gaux(kp3)=gaux(kp3)-.03125_r_kind*g(i,j,k)
                  gaux(k)=gaux(k)+half*g(i,j,k)

@@ -22,7 +22,7 @@ module convthin
 !
 !$$$ end documentation block
 
-  use kinds, only: r_kind,i_kind,r_quad
+  use kinds, only: r_kind,i_kind
   implicit none
 
 ! set default to private
@@ -85,17 +85,16 @@ contains
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj,itxmax
 
-    real(r_kind) dgv,halfpi,dx,dy
+    real(r_kind) delonx,delat,dgv,halfpi,dx,dy
     real(r_kind) twopi
     real(r_kind) factor,delon
     real(r_kind) rkm2dg,glatm
-    real(r_quad) delat
 
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
     if(abs(rmesh) <= one)then
        use_all=.true.
-       itxmax=2.e6
+       itxmax=2.e6_i_kind
        return
     end if
 
@@ -112,8 +111,9 @@ contains
     mlat  = dlat_grid/dy + half
     mlonx = dlon_grid/dx + half
     delat = dlat_grid/mlat
-    dgv   = delat*half
-    mlat=max(2,mlat);   mlonx=max(2,mlonx)
+    delonx= dlon_grid/mlonx
+    dgv  = delat*half
+    mlat=max(2_i_kind,mlat);   mlonx=max(2_i_kind,mlonx)
 
     allocate(mlon(mlat),glat(mlat),glon(mlonx,mlat),hll(mlonx,mlat))
 
@@ -129,7 +129,7 @@ contains
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
           mlonj   = nint(mlonx*factor)	
-          mlon(j) = max(2,mlonj)
+          mlon(j) = max(2_i_kind,mlonj)
           delon = dlon_grid/mlon(j)
        else
           delon = factor*rmesh
@@ -201,7 +201,10 @@ contains
 !
 !   output argument list:
 !     iobs  - observation counter
+!     itx   - combined (i,j) index of observation on thinning grid
+!     itt   - superobs thinning counter
 !     iobsout- location for observation to be put
+!     ip    - vertical index
 !     iuse  - .true. if observation should be used
 !     iiout - counter of data replaced
 !     
@@ -221,7 +224,7 @@ contains
     real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
     real(r_kind),dimension(nlevp),intent(in   ) :: pcoord
     
-    integer(i_kind):: ip,itx
+    integer(i_kind):: ip,itt,itx
     integer(i_kind) ix,iy
     integer(i_kind),dimension(0:51):: istart_val
 
@@ -270,6 +273,8 @@ contains
     endif
 
     itx=hll(ix,iy)
+    itt=istart_val(ithin)+itx
+    if(ithin == 0) itt=0
 
 !   Compute distance metric (smaller is closer to center of cube)
     dist1=(dxx*dxx+dyy*dyy+dpp*dpp)*two/three+half

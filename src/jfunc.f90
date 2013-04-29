@@ -67,8 +67,6 @@ module jfunc
 !   def jiterend   - last outloop iteration number
 !   def iter       - do loop iteration integer
 !   def nclen      - length of control (x,y) vectors
-!   def diag_precon- logical, if true do  preconditioning
-!   def step_start - initial stepsize
 !   def nvals_levs - number of 2d (x/y) state-vector variables
 !   def nvals_len  - number of 2d state-vector variables * subdomain size (with buffer)
 !   def nval_levs  - number of 2d (x/y) control-vector variables
@@ -122,9 +120,9 @@ module jfunc
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
-  public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp,diag_precon,step_start
+  public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp
 
-  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
@@ -135,7 +133,7 @@ module jfunc
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
-  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,step_start
+  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
   real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
@@ -184,8 +182,6 @@ contains
     print_diag_pcg=.false.
     tsensible=.false.
     lgschmidt=.false.
-    diag_precon=.false.
-    step_start=1.e-4_r_kind
 
     factqmin=one
     factqmax=one

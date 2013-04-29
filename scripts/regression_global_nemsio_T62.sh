@@ -198,14 +198,10 @@ if [ $ICO2 -gt 0 ] ; then
         co2dir=${CO2DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./global_co2_data.txt
-        co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        while [ ! -s $co2 ] ; do
-                ((yyyy-=1))
                 co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        done
-        if [ -s $co2 ] ; then
-                $ncp $co2 ./global_co2_data.txt
-        fi
+                if [ -s $co2 ] ; then
+                        $ncp $co2 ./global_co2_data.txt
+                fi
         if [ ! -s ./global_co2_data.txt ] ; then
                 echo "\./global_co2_data.txt" not created
                 exit 1
@@ -218,14 +214,10 @@ if [ $ICH4 -gt 0 ] ; then
         ch4dir=${CH4DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./ch4globaldata.txt
-        ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        while [ ! -s $ch4 ] ; do
-                ((yyyy-=1))
                 ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        done
-        if [ -s $ch4 ] ; then
-                $ncp $ch4 ./ch4globaldata.txt
-        fi
+                if [ -s $ch4 ] ; then
+                        $ncp $ch4 ./ch4globaldata.txt
+                fi
         if [ ! -s ./ch4globaldata.txt ] ; then
                 echo "\./ch4globaldata.txt" not created
                 exit 1
@@ -237,14 +229,10 @@ if [ $IN2O -gt 0 ] ; then
         n2odir=${N2ODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./n2oglobaldata.txt
-        n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        while [ ! -s $n2o ] ; do
-                ((yyyy-=1))
                 n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        done
-        if [ -s $n2o ] ; then
-                $ncp $n2o ./n2oglobaldata.txt
-        fi
+                if [ -s $n2o ] ; then
+                        $ncp $n2o ./n2oglobaldata.txt
+                fi
         if [ ! -s ./n2oglobaldata.txt ] ; then
                 echo "\./n2oglobaldata.txt" not created
                 exit 1
@@ -256,14 +244,10 @@ if [ $ICO -gt 0 ] ; then
         codir=${CODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./coglobaldata.txt
-        co=$codir/global_co_esrlctm_$yyyy.txt
-        while [ ! -s $co ] ; do
-                ((yyyy-=1))
                 co=$codir/global_co_esrlctm_$yyyy.txt
-        done
-        if [ -s $co ] ; then
-                $ncp $co ./coglobaldata.txt
-        fi
+                if [ -s $co ] ; then
+                        $ncp $co ./coglobaldata.txt
+                fi
         if [ ! -s ./coglobaldata.txt ] ; then
                 echo "\./coglobaldata.txt" not created
                 exit 1
@@ -313,7 +297,7 @@ EOF
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 
 anavinfo=$fix_file/global_anavinfo.l64.txt
-berror=$fix_file/$endianness/global_berror.l${LEVS}y${NLAT}.f77
+berror=$fix_file/global_berror.l${LEVS}y${NLAT}.f77
 emiscoef=$crtm_coef/EmisCoeff/Big_Endian/EmisCoeff.bin
 aercoef=$crtm_coef/AerosolCoeff/Big_Endian/AerosolCoeff.bin
 cldcoef=$crtm_coef/CloudCoeff/Big_Endian/CloudCoeff.bin
@@ -585,14 +569,10 @@ if [ $ICO2 -gt 0 ] ; then
         co2dir=${CO2DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./global_co2_data.txt
-        co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        while [ ! -s $co2 ] ; do
-                ((yyyy-=1))
                 co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        done
-        if [ -s $co2 ] ; then
-                $ncp $co2 ./global_co2_data.txt
-        fi
+                if [ -s $co2 ] ; then
+                        $ncp $co2 ./global_co2_data.txt
+                fi
         if [ ! -s ./global_co2_data.txt ] ; then
                 echo "\./global_co2_data.txt" not created
                 exit 1
@@ -605,14 +585,10 @@ if [ $ICH4 -gt 0 ] ; then
         ch4dir=${CH4DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./ch4globaldata.txt
-        ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        while [ ! -s $ch4 ] ; do
-                ((yyyy-=1))
                 ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        done
-        if [ -s $ch4 ] ; then
-                $ncp $ch4 ./ch4globaldata.txt
-        fi
+                if [ -s $ch4 ] ; then
+                        $ncp $ch4 ./ch4globaldata.txt
+                fi
         if [ ! -s ./ch4globaldata.txt ] ; then
                 echo "\./ch4globaldata.txt" not created
                 exit 1
@@ -624,14 +600,10 @@ if [ $IN2O -gt 0 ] ; then
         n2odir=${N2ODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./n2oglobaldata.txt
-        n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        while [ ! -s $n2o ] ; do
-                ((yyyy-=1))
                 n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        done
-        if [ -s $n2o ] ; then
-                $ncp $n2o ./n2oglobaldata.txt
-        fi
+                if [ -s $n2o ] ; then
+                        $ncp $n2o ./n2oglobaldata.txt
+                fi
         if [ ! -s ./n2oglobaldata.txt ] ; then
                 echo "\./n2oglobaldata.txt" not created
                 exit 1
@@ -643,14 +615,10 @@ if [ $ICO -gt 0 ] ; then
         codir=${CODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./coglobaldata.txt
-        co=$codir/global_co_esrlctm_$yyyy.txt
-        while [ ! -s $co ] ; do
-                ((yyyy-=1))
                 co=$codir/global_co_esrlctm_$yyyy.txt
-        done
-        if [ -s $co ] ; then
-                $ncp $co ./coglobaldata.txt
-        fi
+                if [ -s $co ] ; then
+                        $ncp $co ./coglobaldata.txt
+                fi
         if [ ! -s ./coglobaldata.txt ] ; then
                 echo "\./coglobaldata.txt" not created
                 exit 1
@@ -699,7 +667,7 @@ EOF
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 
 anavinfo=$fix_file/global_anavinfo.l64.txt
-berror=$fix_file/$endianness/global_berror.l${LEVS}y${NLAT}.f77
+berror=$fix_file/global_berror.l${LEVS}y${NLAT}.f77
 emiscoef=$crtm_coef/EmisCoeff/Big_Endian/EmisCoeff.bin
 aercoef=$crtm_coef/AerosolCoeff/Big_Endian/AerosolCoeff.bin
 cldcoef=$crtm_coef/CloudCoeff/Big_Endian/CloudCoeff.bin
@@ -971,14 +939,10 @@ if [ $ICO2 -gt 0 ] ; then
         co2dir=${CO2DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./global_co2_data.txt
-        co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        while [ ! -s $co2 ] ; do
-                ((yyyy-=1))
                 co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        done
-        if [ -s $co2 ] ; then
-                $ncp $co2 ./global_co2_data.txt
-        fi
+                if [ -s $co2 ] ; then
+                        $ncp $co2 ./global_co2_data.txt
+                fi
         if [ ! -s ./global_co2_data.txt ] ; then
                 echo "\./global_co2_data.txt" not created
                 exit 1
@@ -991,14 +955,10 @@ if [ $ICH4 -gt 0 ] ; then
         ch4dir=${CH4DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./ch4globaldata.txt
-        ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        while [ ! -s $ch4 ] ; do
-                ((yyyy-=1))
                 ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        done
-        if [ -s $ch4 ] ; then
-                $ncp $ch4 ./ch4globaldata.txt
-        fi
+                if [ -s $ch4 ] ; then
+                        $ncp $ch4 ./ch4globaldata.txt
+                fi
         if [ ! -s ./ch4globaldata.txt ] ; then
                 echo "\./ch4globaldata.txt" not created
                 exit 1
@@ -1010,14 +970,10 @@ if [ $IN2O -gt 0 ] ; then
         n2odir=${N2ODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./n2oglobaldata.txt
-        n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        while [ ! -s $n2o ] ; do
-                ((yyyy-=1))
                 n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        done
-        if [ -s $n2o ] ; then
-                $ncp $n2o ./n2oglobaldata.txt
-        fi
+                if [ -s $n2o ] ; then
+                        $ncp $n2o ./n2oglobaldata.txt
+                fi
         if [ ! -s ./n2oglobaldata.txt ] ; then
                 echo "\./n2oglobaldata.txt" not created
                 exit 1
@@ -1029,14 +985,10 @@ if [ $ICO -gt 0 ] ; then
         codir=${CODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./coglobaldata.txt
-        co=$codir/global_co_esrlctm_$yyyy.txt
-        while [ ! -s $co ] ; do
-                ((yyyy-=1))
                 co=$codir/global_co_esrlctm_$yyyy.txt
-        done
-        if [ -s $co ] ; then
-                $ncp $co ./coglobaldata.txt
-        fi
+                if [ -s $co ] ; then
+                        $ncp $co ./coglobaldata.txt
+                fi
         if [ ! -s ./coglobaldata.txt ] ; then
                 echo "\./coglobaldata.txt" not created
                 exit 1
@@ -1085,7 +1037,7 @@ EOF
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 
 anavinfo=$fix_file/global_anavinfo.l64.txt
-berror=$fix_file/$endianness/global_berror.l${LEVS}y${NLAT}.f77
+berror=$fix_file/global_berror.l${LEVS}y${NLAT}.f77
 emiscoef=$crtm_coef/EmisCoeff/Big_Endian/EmisCoeff.bin
 aercoef=$crtm_coef/AerosolCoeff/Big_Endian/AerosolCoeff.bin
 cldcoef=$crtm_coef/CloudCoeff/Big_Endian/CloudCoeff.bin
@@ -1363,14 +1315,10 @@ if [ $ICO2 -gt 0 ] ; then
         co2dir=${CO2DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./global_co2_data.txt
-        co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        while [ ! -s $co2 ] ; do
-                ((yyyy-=1))
                 co2=$co2dir/global_co2.gcmscl_$yyyy.txt
-        done
-        if [ -s $co2 ] ; then
-                $ncp $co2 ./global_co2_data.txt
-        fi
+                if [ -s $co2 ] ; then
+                        $ncp $co2 ./global_co2_data.txt
+                fi
         if [ ! -s ./global_co2_data.txt ] ; then
                 echo "\./global_co2_data.txt" not created
                 exit 1
@@ -1383,14 +1331,10 @@ if [ $ICH4 -gt 0 ] ; then
         ch4dir=${CH4DIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./ch4globaldata.txt
-        ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        while [ ! -s $ch4 ] ; do
-                ((yyyy-=1))
                 ch4=$ch4dir/global_ch4_esrlctm_$yyyy.txt
-        done
-        if [ -s $ch4 ] ; then
-                $ncp $ch4 ./ch4globaldata.txt
-        fi
+                if [ -s $ch4 ] ; then
+                        $ncp $ch4 ./ch4globaldata.txt
+                fi
         if [ ! -s ./ch4globaldata.txt ] ; then
                 echo "\./ch4globaldata.txt" not created
                 exit 1
@@ -1402,14 +1346,10 @@ if [ $IN2O -gt 0 ] ; then
         n2odir=${N2ODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./n2oglobaldata.txt
-        n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        while [ ! -s $n2o ] ; do
-                ((yyyy-=1))
                 n2o=$n2odir/global_n2o_esrlctm_$yyyy.txt
-        done
-        if [ -s $n2o ] ; then
-                $ncp $n2o ./n2oglobaldata.txt
-        fi
+                if [ -s $n2o ] ; then
+                        $ncp $n2o ./n2oglobaldata.txt
+                fi
         if [ ! -s ./n2oglobaldata.txt ] ; then
                 echo "\./n2oglobaldata.txt" not created
                 exit 1
@@ -1421,14 +1361,10 @@ if [ $ICO -gt 0 ] ; then
         codir=${CODIR:-$fix_file}
         yyyy=$(echo ${CDATE:-$adate}|cut -c1-4)
         rm ./coglobaldata.txt
-        co=$codir/global_co_esrlctm_$yyyy.txt
-        while [ ! -s $co ] ; do
-                ((yyyy-=1))
                 co=$codir/global_co_esrlctm_$yyyy.txt
-        done
-        if [ -s $co ] ; then
-                $ncp $co ./coglobaldata.txt
-        fi
+                if [ -s $co ] ; then
+                        $ncp $co ./coglobaldata.txt
+                fi
         if [ ! -s ./coglobaldata.txt ] ; then
                 echo "\./coglobaldata.txt" not created
                 exit 1
@@ -1477,7 +1413,7 @@ EOF
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 
 anavinfo=$fix_file/global_anavinfo.l64.txt
-berror=$fix_file/$endianness/global_berror.l${LEVS}y${NLAT}.f77
+berror=$fix_file/global_berror.l${LEVS}y${NLAT}.f77
 emiscoef=$crtm_coef/EmisCoeff/Big_Endian/EmisCoeff.bin
 aercoef=$crtm_coef/AerosolCoeff/Big_Endian/AerosolCoeff.bin
 cldcoef=$crtm_coef/CloudCoeff/Big_Endian/CloudCoeff.bin
@@ -1690,7 +1626,7 @@ done
 # Grep out penalty/gradient information, run time, and maximum resident memory from stdout file
 list="$exp1 $exp2 $exp3"
 for exp in $list; do
-   grep 'cost,grad,step' stdout.$exp > penalty.$exp.txt
+   grep 'grepcost J,Jb' stdout.$exp > penalty.$exp.txt
    grep 'The total amount of wall time' stdout.$exp > runtime.$exp.txt
    grep 'The maximum resident set size' stdout.$exp > memory.$exp.txt
 done
@@ -1839,13 +1775,13 @@ scale1thresh=$((scale1 / scaledif + scale1))
 
 {
 
-if [[ $(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt) = 0 ]]; then
+if [[ $(grep -c 'grepcost J,Jb' penalty.${exp1}-${exp2}.txt) = 0 ]]; then
    echo 'The results between the two runs ('${exp1}' and '${exp2}') are reproducible'
-   echo 'since the corresponding penalties and gradients are identical with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt)' lines different.'
+   echo 'since the corresponding penalties and gradients are identical with '$(grep -c 'grepcost J,Jb' penalty.${exp1}-${exp2}.txt)' lines different.'
    echo
 else
    echo 'The results between the two runs are nonreproducible,'
-   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt)' lines different.'
+   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'grepcost J,Jb' penalty.${exp1}-${exp2}.txt)' lines different.'
    echo
 fi
 
@@ -1868,13 +1804,13 @@ fi
 
 {
 
-if [[ $(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt) = 0 ]]; then
+if [[ $(grep -c 'penalty,grad ,a,b' penalty.${exp1}-${exp3}.txt) = 0 ]]; then
    echo 'The results between the two runs ('${exp1}' and '${exp3}') are reproducible'
-   echo 'since the corresponding penalties and gradients are identical with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt)' lines different.'
+   echo 'since the corresponding penalties and gradients are identical with '$(grep -c 'penalty,grad ,a,b' penalty.${exp1}-${exp3}.txt)' lines different.'
    echo
 else
    echo 'The results between the two runs are nonreproducible,'
-   echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt)' lines different.'
+   echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'penalty,grad ,a,b' penalty.${exp1}-${exp3}.txt)' lines different.'
    echo
 fi
 

@@ -59,7 +59,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 ! all entries are defined explicitly
 !==============================================
   use kinds, only: r_kind,i_kind
-  use constants, only: zero, half, one, two, el2orc, cclimit, elocp, rcp, &
+  use constants, only: izero, ione, zero, half, one, two, el2orc, cclimit, elocp, rcp, &
        cp, cpr, h1000, eps, climit, epsq, epsm1, hsub, hvap, ttp
   implicit none
 
@@ -290,7 +290,7 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
 !----------------------------------------------
   rdt = one/dt
   do i = 1, im
-     iw0 = 0
+     iw0 = izero
      iw1 = iw0
      iw0k(km,i) = iw0
      iw1k(km,i) = iw0
@@ -327,23 +327,23 @@ subroutine gscond_ad( im, ix, km, dt, sl, ps, rhc, advt, advq, &
         if (tmt0 < (-15._r_kind)) then
            u00ik = rhc(k,i)
            if (qik-u00ik*qsik > zero .or. cwmik > climit) then
-              iw0 = 1
+              iw0 = ione
            else
-              iw0 = 0
+              iw0 = izero
            endif
         endif
         if (tmt0 >= zero) then
-           iw0 = 0
+           iw0 = izero
         endif
         if (tmt0 < zero .and. tmt0 >= (-15._r_kind)) then
-           iw0 = 0
+           iw0 = izero
            if (k < km) then
-              if (iw1 == 1 .and. cwmik > climit) then
-                 iw0 = 1
+              if (iw1 == ione .and. cwmik > climit) then
+                 iw0 = ione
               endif
            endif
         endif
-        if (iw0 == 0) then
+        if (iw0 == izero) then
            elv = hvap
         else
            elv = hsub

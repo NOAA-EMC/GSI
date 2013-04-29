@@ -137,7 +137,6 @@ LIBsys          = $(MYLIBsys)
 	fill_mass_grid2.o \
 	fill_nmm_grid2.o \
 	fpvsx_ad.o \
-        general_commvars_mod.o \
 	general_read_gfsatm.o \
 	general_read_nmmb.o \
 	general_specmod.o \
@@ -165,6 +164,7 @@ LIBsys          = $(MYLIBsys)
 	glbsoi.o \
 	grtest.o \
 	grdcrd.o \
+	grid2sub.o \
 	gridmod.o \
 	gscond_ad.o \
 	gsd_terrain_match_surfTobs.o \
@@ -185,6 +185,7 @@ LIBsys          = $(MYLIBsys)
 	hybrid_ensemble_isotropic.o \
 	hybrid_ensemble_parameters.o \
 	inc2guess.o \
+	init_commvars.o \
 	init_jcdfi.o \
 	insitu_info.o \
 	int3dvar.o \
@@ -249,7 +250,6 @@ LIBsys          = $(MYLIBsys)
 	mpimod.o \
 	mpl_allreduce.o \
 	mpl_bcast.o \
-        native_endianness.o \
 	ncepgfs_ghg.o \
 	ncepgfs_io.o \
 	ncepnems_io.o \
@@ -413,6 +413,7 @@ LIBsys          = $(MYLIBsys)
 	strong_fast_global_mod.o \
 	strong_slow_global_mod.o \
 	sub2fslab_mod.o \
+	sub2grid.o \
 	support_2dvar.o \
 	stub_set_crtm_aerosol.o \
 	stub_pertmod.o \

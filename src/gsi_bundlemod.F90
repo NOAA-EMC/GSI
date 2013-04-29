@@ -269,7 +269,6 @@ module GSI_BundleMod
 !  18Aug2010      Hu - declared GSI_1D, GSI_2D, and GSI_3D as public.
 !  28Apr2011 Todling - complete overload to support REAL*4 and REAL*8
 !  04Jul2011 Todling - large revision of REAL*4 or REAL*8 implementation
-!  27Jun2012 Parrish - set verbose_ to .false. to turn off diagnostic print in subroutine merge_.
 !
 ! !SEE ALSO:  
 !           gsi_metguess_mod.F90
@@ -330,7 +329,7 @@ module GSI_BundleMod
 !noBOC
 
    character(len=*), parameter :: myname='GSI_BundleMod'
-   logical, parameter :: VERBOSE_=.false.
+   logical, parameter :: VERBOSE_=.true.
    integer, parameter :: bundle_kind_def = r_kind ! default kind
 
 CONTAINS

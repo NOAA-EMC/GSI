@@ -132,7 +132,6 @@ subroutine glbsoi(mype)
   use timermod, only: timer_ini, timer_fnl
   use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
   use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble
-  use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
 
   implicit none
 
@@ -265,7 +264,7 @@ subroutine glbsoi(mype)
            endif
         else
 !          Set up additional preconditioning information
-           call pcinfo
+           if (newpc4pred) call pcinfo
 
 !          Standard run
            if (mype==0) write(6,*)'GLBSOI:  START pcgsoi jiter=',jiter
@@ -305,7 +304,7 @@ subroutine glbsoi(mype)
 !    If requested, write obs-anl information to output files
      if (write_diag(jiter)) then 
         call setuprhsall(ndata,mype,.true.,.true.)
-        if (.not. lsqrtb) call pcinfo
+        if (.not. lsqrtb .and. newpc4pred) call pcinfo
         if (any(ditype=='rad') .and. passive_bc) call prad_bias
      end if
 
@@ -322,7 +321,6 @@ subroutine glbsoi(mype)
         call destroy_berror_vars_reg
      end if
      call destroy_balance_vars_reg
-     if(use_gfs_stratosphere) call destroy_nmmb_vcoords
   else
      if(anisotropic) then
         call destroy_anberror_vars

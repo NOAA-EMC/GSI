@@ -10,43 +10,11 @@
 
   set $SETOPT
 
-if [ -d /global ]; then
-  TOPDIR=/global   # This would be the CCS
-  MACHINE=CCS
-elif [ -d /scratch1/portfolios/NCEPDEV/da ]; then
-  TOPDIR=/scratch1/portfolios/NCEPDEV/da     #This is zeus
-  MACHINE=ZEUS
-else
-  echo CANNOT FIND A VALID TOP-LEVEL DIRECTORY
-  exit 1
-fi
-
-# Other Executables and scripts
-if [ $MACHINE = CCS ]; then
-   export NDATE=/nwprod/util/exec/ndate
-elif [ $MACHINE = ZEUS ]; then
-   export NDATE=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
-else
-  echo "Unsupported machine $MACHINE (not sure how you got to here)"
-  exit 1
-fi
-
-
-#--- Set directories
-#     HOME     = directory containing diag2grads
-#     DIAG_DIR = input directory containing diagnostic file(s)
-#     GRADSDIR = output directory for GrADS station files
-
-HOME=$TOPDIR/save/$USER/svn/EXP-port-r20613/util/Radiance_Utilities/diag2grads
-DIAG_DIR=/scratch2/portfolios/NCEPDEV/ptmp/$USER/tmp574_sigmap/globalprod.2012012212.zeus
-GRADSDIR=/scratch2/portfolios/NCEPDEV/ptmp/$USER/map
-
-
 #=== parameters ======================================================
 
 #--- time
 
-  TIME_TOP=2012012212
+  TIME_TOP=2010120100
   TIME_INT=06
   TIME_NUM=1
 
@@ -73,7 +41,7 @@ GRADSDIR=/scratch2/portfolios/NCEPDEV/ptmp/$USER/map
 #--- case
 
 #CASE=pro	; COMMENT='PRODUCTION'	; DIAG_DIR=###          
-CASE=new	; COMMENT='TEST RUN'
+CASE=new	; COMMENT='TEST RUN'	; DIAG_DIR=/ptmp/$USER
 
 
 
@@ -83,6 +51,10 @@ CASE=new	; COMMENT='TEST RUN'
 ## OMF=02    # read observed - guess files
 ## OMF=anl   # read observed - analysis files
 
+
+#--- directory for GrADS station files
+
+  GRADSDIR=/ptmp/$USER/map
 
 #--- clean up working directory after the processing
 
@@ -99,6 +71,8 @@ CASE=new	; COMMENT='TEST RUN'
 
 
 #--- dirs and files
+
+HOME=/global/save/$USER/svn/util/Radiance_Utilities/diag2grads
 WORK=${GRADSDIR}/WORK
 
 EXEFILE=$HOME/diag2grads
@@ -259,19 +233,11 @@ DATDIR=$WORK                           # directory of unzipped diagnostic files
 
 #-- org or new or 'prx'
 
-#--- set zip suffix
-ZIP_SUFFIX=Z
-
-if [ $MACHINE = CCS ]; then
-  ZIP_SUFFIX=Z
-elif [ $MACHINE = ZEUS ]; then
-  ZIP_SUFFIX=gz
-fi
 
 if [ $CASE = 'org' -o $CASE = 'new' -o $CASE = 'prx' ]; then
   set_DATFIL() {
     set $SETOPT
-    ZIPFIL=${ZIPDIR}/diag_${senname}_${satname}_${OMF}.${TIME}.${ZIP_SUFFIX}
+    ZIPFIL=${ZIPDIR}/diag_${senname}_${satname}_${OMF}.${TIME}.Z
     UNZIPFIL=${ZIPDIR}/diag_${senname}_${satname}_${OMF}.${TIME}
     DATFIL=${DATDIR}/diag_${senname}_${satname}_${OMF}.${TIME}
   }
@@ -289,7 +255,7 @@ echo " "
 if [ $CASE = 'pro' ]; then
   set_DATFIL() {
     set $SETOPT
-    ZIPFIL=${ZIPDIR}/fnl.${DATE}/gdas1.t${ZTIME}z.radstat.${ZIP_SUFFIX}
+    ZIPFIL=${ZIPDIR}/fnl.${DATE}/gdas1.t${ZTIME}z.radstat.Z
     DATFIL=${DATDIR}/radstat.$TIME
   }
 fi
@@ -317,16 +283,16 @@ do
   echo ${UNZIPFIL}
   if [ ! -e $DATFIL ]; then
     echo "--> Unzip" ${ZIPFIL} 1>&2
-    if [ ! -e ${DATFIL}.${ZIP_SUFFIX} ]; then
-      cp ${ZIPFIL} ${DATFIL}.${ZIP_SUFFIX}
+    if [ ! -e ${DATFIL}.Z ]; then
+      cp ${ZIPFIL} ${DATFIL}.Z
     fi
-    gzip -d ${DATFIL}.${ZIP_SUFFIX}
+    gzip -d ${DATFIL}.Z
   fi
   echo ${UNZIPFIL}
   ln -s ${DATFIL}  fort.$FT
   TIME_END=$TIME
   FT=`expr $FT + 1`
-  TIME=`$NDATE $TIME_INT $TIME`
+  TIME=`ndate $TIME_INT $TIME`
 done
 
 ls -l fort.* 1>&2

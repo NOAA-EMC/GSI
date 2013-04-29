@@ -40,7 +40,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 !_____________________________________________________________________
 !
   use kinds, only: r_kind,r_double,i_kind
-  use constants, only: zero,one
+  use constants, only: zero,one,izero,ione
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
@@ -71,8 +71,8 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='HREF'
 
-    INTEGER(i_kind),PARAMETER ::  MXBF = 160000
-    INTEGER(i_kind) :: ibfmsg = MXBF/4
+    INTEGER(i_kind),PARAMETER ::  MXBF = 160000_i_kind
+    INTEGER(i_kind) :: ibfmsg = MXBF/4_i_kind
 
     character(8) subset,sid
     integer(i_kind)  :: lunin,idate
@@ -81,10 +81,10 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
     INTEGER(i_kind)  ::  maxlvl,nlon,nlat
     INTEGER(i_kind)  ::  numlvl,numref
     INTEGER(i_kind)  ::  n,k,iret
-    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
+    INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000_i_kind
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=200000
+    INTEGER(i_kind),PARAMETER  ::  maxobs=200000_i_kind
 
     REAL(r_kind),allocatable :: ref3d_column(:,:)   ! 3D reflectivity in column
 
@@ -99,47 +99,47 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 !            END OF DECLARATIONS....start of program
 !
    nsslrefobs = .false.
-   ikx=0
-   do i=1,nconvtype
-       if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== 1) then
+   ikx=izero
+   do i=ione,nconvtype
+       if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== ione) then
            nsslrefobs=.true.
            ikx=i
        endif
    end do
 
-   nread=0
-   ndata=0
-   nchanl=0
-   ifn = 15
+   nread=izero
+   ndata=izero
+   nchanl=izero
+   ifn = 15_i_kind
 
    if(nsslrefobs) then
-      lunin = 10            
-      maxlvl= 31
-      allocate(ref3d_column(maxlvl+2,maxobs))
+      lunin = 10_i_kind            
+      maxlvl= 31_i_kind
+      allocate(ref3d_column(maxlvl+2_i_kind,maxobs))
 
       OPEN  ( UNIT = lunin, FILE = trim(infile),form='unformatted',err=200)
       CALL OPENBF  ( lunin, 'IN', lunin )
-      CALL DATELEN  ( 10 )
+      CALL DATELEN  ( 10_i_kind )
 
-      nmsg=0
-      nrep=0
-      ntb = 0
-      msg_report: do while (ireadmg(lunin,subset,idate) == 0)
-         nmsg=nmsg+1
+      nmsg=izero
+      nrep=izero
+      ntb = izero
+      msg_report: do while (ireadmg(lunin,subset,idate) == izero)
+         nmsg=nmsg+ione
          if (nmsg>nmsgmax) then
             write(6,*)'read_RadarRef_mosaic: messages exceed maximum ',nmsgmax
             call stop2(50)
          endif
-         loop_report: do while (ireadsb(lunin) == 0)
-            ntb = ntb+1
-            nrep(nmsg)=nrep(nmsg)+1
+         loop_report: do while (ireadsb(lunin) == izero)
+            ntb = ntb+ione
+            nrep(nmsg)=nrep(nmsg)+ione
             if (ntb>maxobs) then
                 write(6,*)'read_RadarRef_mosaic: reports exceed maximum ',maxobs
                 call stop2(50)
             endif
 
 !    Extract type, date, and location information
-            call ufbint(lunin,hdr,5,1,iret,hdrstr)
+            call ufbint(lunin,hdr,5_i_kind,ione,iret,hdrstr)
 
 ! check time window in subset
             if (l4dvar) then
@@ -158,13 +158,13 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
                endif
             endif
 ! read in observations
-            call ufbint(lunin,obs,1,35,iret,obsstr)
+            call ufbint(lunin,obs,ione,35_i_kind,iret,obsstr)
             numlvl=iret
 
-            ref3d_column(1,ntb)=hdr(2)*10.0_r_kind    ! observation location, grid index i
+            ref3d_column(ione,ntb)=hdr(2)*10.0_r_kind    ! observation location, grid index i
             ref3d_column(2,ntb)=hdr(3)*10.0_r_kind       ! observation location, grid index j
 
-            do k=1,numlvl
+            do k=ione,numlvl
               ref3d_column(2+k,ntb)=obs(1,k)             ! reflectivity (column 31 levels)
             enddo
 
@@ -187,12 +187,12 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
         enddo
       enddo
 
-      ilon=1
-      ilat=2
+      ilon=ione
+      ilat=2_i_kind
       nread=numref
       ndata=numref
-      nreal=maxlvl+2
-      if(numref > 0 ) then
+      nreal=maxlvl+2_i_kind
+      if(numref > izero ) then
         write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
         write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
         deallocate(ref3d_column)

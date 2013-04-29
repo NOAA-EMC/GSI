@@ -98,7 +98,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !$$$
 !    
   use kinds, only: r_kind,i_kind
-  use constants, only: rhcbot,rhctop,dx_inv,dx_min,one,zero
+  use constants, only: rhcbot,rhctop,dx_inv,dx_min,izero,ione,one,zero
   use pcpinfo, only: tiny_obs
   use gridmod, only: nlon,sp_a
   implicit none
@@ -150,14 +150,14 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 
 !**************************************************************************
 ! Initialize output arrays to zero
-  im=1
-  ix=1
+  im=ione
+  ix=ione
   cldwrk = zero
-  kb     = 0
-  jmin   = 0
-  kbcon  = 0
-  ktcon  = 0
-  kuo    = 0
+  kb     = izero
+  jmin   = izero
+  kbcon  = izero
+  ktcon  = izero
+  kuo    = izero
   rn_out = zero
   do k = 1,km
      t_out(k)   = zero
@@ -255,7 +255,7 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
   work1 = (log(one/(rcs*nlon))-dx_min) * dx_inv
   work2 = one - work1
   do k=1,km
-     rhc(k) = rhcbot + tem*(k-1)
+     rhc(k) = rhcbot + tem*(k-ione)
      rhc(k) = r0_99*work1 + rhc(k)*work2
   end do
 

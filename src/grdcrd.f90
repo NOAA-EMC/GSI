@@ -31,7 +31,7 @@ subroutine grdcrd(d,nd,x,nx,flg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: one
+  use constants, only: ione,one
   implicit none
 
   integer(i_kind)           ,intent(in   ) :: nd,nx
@@ -42,32 +42,32 @@ subroutine grdcrd(d,nd,x,nx,flg)
   integer(i_kind) id,ix,isrchf
 
 ! Treat "normal" case in which nx>1
-  if(nx>1) then
+  if(nx>ione) then
      do id=1,nd
-        if (flg==1) then
+        if (flg==ione) then
 
 !          Case in which x is in increasing order
            if(d(id)<=x(1)) then
-              ix=1
+              ix=ione
            else
-              ix=isrchf(nx-1,x,d(id),flg)-1
+              ix=isrchf(nx-ione,x,d(id),flg)-ione
            end if
-           if(ix==nx) ix=ix-1
+           if(ix==nx) ix=ix-ione
 
-        else if (flg==(-1)) then
+        else if (flg==(-ione)) then
 
 !          Case in which x is in decreasing order
            if(d(id)>=x(1)) then
-              ix=1
+              ix=ione
            else
-              ix=isrchf(nx-1,x,d(id),flg)-1
+              ix=isrchf(nx-ione,x,d(id),flg)-ione
            end if
         end if
-        d(id)=float(ix)+(d(id)-x(ix))/(x(ix+1)-x(ix))
+        d(id)=float(ix)+(d(id)-x(ix))/(x(ix+ione)-x(ix))
      end do
 
 ! Treat special case of nx=1
-  elseif (nx==1) then
+  elseif (nx==ione) then
      do id=1,nd
         d(id) = one
      end do
@@ -105,6 +105,7 @@ function isrchf(nx1,x,y,flg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: izero,ione
   implicit none
 
   integer(i_kind)            ,intent(in   ) :: nx1
@@ -115,7 +116,7 @@ function isrchf(nx1,x,y,flg)
   integer(i_kind) k
   integer(i_kind):: isrchf
 
-  if(flg==1) then
+  if(flg==ione) then
      do k=1,nx1
         if(y<=x(k)) then
            isrchf=k
@@ -131,8 +132,8 @@ function isrchf(nx1,x,y,flg)
      end do
   end if
 
-  isrchf=nx1+1
-  if(nx1<=0) isrchf=0
+  isrchf=nx1+ione
+  if(nx1<=izero) isrchf=izero
 
 100 continue
   return

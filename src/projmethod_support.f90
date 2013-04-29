@@ -137,7 +137,7 @@ subroutine mgram_schmidt(gradx,grady)
 !$$$
   use kinds, only: i_kind
   use jfunc, only: iter,nclen
-  use constants, only: tiny_r_kind
+  use constants, only: izero,ione,tiny_r_kind
   use mpimod, only: mype
 
   implicit none
@@ -156,14 +156,14 @@ subroutine mgram_schmidt(gradx,grady)
 !==> orthogonalization + renormalization
 
   do k=1,2
-     do i=0,iter-1
+     do i=izero,iter-ione
         prd0=dplev_mask(gy(1,iter),gx(1,i),mype)
         gx(1:nclen,iter)=gx(1:nclen,iter)-gx(1:nclen,i)*prd0
         gy(1:nclen,iter)=gy(1:nclen,iter)-gy(1:nclen,i)*prd0
      enddo
      prd0=dplev_mask(gx(1,iter),gy(1,iter),mype)
      if (prd0 <= tiny_r_kind) then
-        if (mype==0) then 
+        if (mype==izero) then 
            print*,'in mgram_schmidt: unable to bi-orthogonalize due to round-off error for iter,k=',iter,k
            print*,'in mgram_schmidt: likely to happen when using fast version of inner product'
            print*,'in mgram_schmidt: iter,k,prd0=',iter,k,prd0
@@ -281,14 +281,14 @@ real(r_kind) function fast_dplev(dx,dy,mask)
   sum=zero
   do k=1,nval_levs
      if(.not.mask(k)) cycle
-     do j=2,lon2-1
-        do i=2,lat2-1
+     do j=2,lon2-ione
+        do i=2,lat2-ione
            sum=sum+dx(i,j,k)*dy(i,j,k)
         end do
      end do
   end do
 
-  call mpi_allgather(sum,1,mpi_rtype,sumall,1,mpi_rtype,mpi_comm_world,ierror)
+  call mpi_allgather(sum,ione,mpi_rtype,sumall,ione,mpi_rtype,mpi_comm_world,ierror)
   fast_dplev=zero
   do i=1,npe
      fast_dplev=fast_dplev+sumall(i)
@@ -346,7 +346,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
   integer(i_kind) i,j,k,mm1
   real(r_kind) e,y,temp
 
-  mm1=mype+1
+  mm1=mype+ione
   sum=zero
   do k=1,nval_levs
      if(.not.mask(k)) cycle
@@ -360,7 +360,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
      zsm(j)=zero
   end do
 
-  call strip(sum,zsm,1)
+  call strip(sum,zsm,ione)
 
   call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
      work1,ijn,displs_g,mpi_rtype,&
@@ -432,6 +432,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   use jfunc, only: iter,jiter
   use gsi_bundlemod, only: gsi_bundlegetvar
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use constants, only: izero,ione
   use control_vectors, only: control_vector,allocate_cv,deallocate_cv, &
       assignment(=)
   use control_vectors, only: cvars3d,cvars2d
@@ -501,10 +502,10 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   lun=19
   do icase=1,2
  
-     if (icase==1) then 
+     if (icase==ione) then 
         dz=dx
         open (lun,file='gradx.dat_'//clun1//'_'//clun2,form='unformatted')
-     else if (icase==2) then 
+     else if (icase==2_i_kind) then 
         dz=dy
         open (lun,file='grady.dat_'//clun1//'_'//clun2,form='unformatted')
      endif
@@ -519,14 +520,14 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
         if (istatus==0) then
 
            do k=1,nsig
-              k1=1+(k-1)*latlon11
-              k2=k1+latlon11-1
-              call strip(field(k1:k2),strp,1)
+              k1=ione+(k-ione)*latlon11
+              k2=k1+latlon11-ione
+              call strip(field(k1:k2),strp,ione)
    
-              call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-                   tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+              call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+                   tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-              if(mype == 0) then
+              if(mype == izero) then
                  do i=1,iglobal
                     slab(ltosj(i),ltosi(i))=tempa(i)
                  end do
@@ -540,11 +541,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt sfcp
      call gsi_bundlegetpointer(dz%step(ii),'ps',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-        if(mype == 0) then
+        if(mype == izero) then
            do i=1,iglobal
               slab(ltosj(i),ltosi(i))=tempa(i)
            end do
@@ -556,11 +557,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt sfct
      call gsi_bundlegetpointer(dz%step(ii),'sst',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-        if(mype == 0) then
+        if(mype == izero) then
            do i=1,iglobal
               slab(ltosj(i),ltosi(i))=tempa(i)
            end do
@@ -572,11 +573,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt gust
      call gsi_bundlegetpointer(dz%step(ii),'gust',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-        if(mype == 0) then
+        if(mype == izero) then
            do i=1,iglobal
               slab(ltosj(i),ltosi(i))=tempa(i)
            end do
@@ -588,11 +589,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt vis
      call gsi_bundlegetpointer(dz%step(ii),'vis',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-        if(mype == 0) then
+        if(mype == izero) then
            do i=1,iglobal
               slab(ltosj(i),ltosi(i))=tempa(i)
            end do
@@ -603,11 +604,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt pblh
      call gsi_bundlegetpointer(dz%step(ii),'pblh',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-        if(mype == 0) then
+        if(mype == izero) then
            do i=1,iglobal
               slab(ltosj(i),ltosi(i))=tempa(i)
            end do
@@ -618,11 +619,11 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt dist
      call gsi_bundlegetpointer(dz%step(ii),'dist',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
-        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
-             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+        call strip(ptr2d,strp,ione)
+        call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
 
-        if(mype == 0) then
+        if(mype == izero) then
            do i=1,iglobal
               slab(ltosj(i),ltosi(i))=tempa(i)
            end do
@@ -631,10 +632,10 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      endif !ip>0
 
 !                   gradient wrt satellite radiance bias correction coefficients
-     if (mype==0) write(lun) dz%predr
+     if (mype==izero) write(lun) dz%predr
 
 !                   gradient wrt precipitation bias correction coefficients
-     if (mype==0)write(lun) dz%predp
+     if (mype==izero)write(lun) dz%predp
 
      close(lun)
   end do ! icase

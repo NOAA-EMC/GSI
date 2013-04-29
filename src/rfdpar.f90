@@ -44,13 +44,13 @@ subroutine rfdpar1(be,rate,m)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,one
+  use constants, only: ione,zero,half,one
   implicit none
 
   integer(i_kind)          ,intent(in   ) :: m
   real(r_kind),dimension(*),intent(  out) :: be,rate
 
-  integer(i_kind),parameter:: nn=12
+  integer(i_kind),parameter:: nn=12_i_kind
   real(r_kind),parameter:: qcrit=0.001_r_kind
 
 
@@ -65,20 +65,20 @@ subroutine rfdpar1(be,rate,m)
   data polish/.true./
 
   polish=.true.
-  kmod2=mod(m,2)
+  kmod2=mod(m,2_i_kind)
 ! Set up the coefficients of the polynomial in z of degree m that approximates
 ! the function, exp(z/2):
   cof=zero
   cof(0)=one
   do i=1,m
-     cof(i)=half*cof(i-1)/float(i)
+     cof(i)=half*cof(i-ione)/float(i)
   enddo
 ! Locate the m roots of this polynomial:
   call zroots(cof,m,croot,polish)
 
 ! If m is even, all roots are complex; if odd, there is one real root,
 ! which is the first in the list, croot, returned by subr. zroots:
-  if(kmod2==1)then    ! treat the single real root:
+  if(kmod2==ione)then    ! treat the single real root:
      r=-real(croot(1),r_kind)
      q=-aimag(croot(1))
      qa=abs(q)
@@ -91,7 +91,7 @@ subroutine rfdpar1(be,rate,m)
      van(1,1)=one
      van(2,1)=r
      do i=3,m
-        van(i,1)=van(i-1,1)*r*r
+        van(i,1)=van(i-ione,1)*r*r
      enddo
   endif
 ! The complex roots occur in conjugate pairs and emerge from zroots
@@ -99,7 +99,7 @@ subroutine rfdpar1(be,rate,m)
 ! when looping through the part of the list, croot, that contains the
 ! complex roots.
   do j2=2,m,2         ! loop over remaining independent complex roots
-     jreal=kmod2+j2-1
+     jreal=kmod2+j2-ione
      jimag=kmod2+j2
      ca=-croot(j2)
      cb=sqrt(ca)
@@ -115,7 +115,7 @@ subroutine rfdpar1(be,rate,m)
      van(1,jreal)=one
      van(1,jimag)=zero
      do i=2,m
-        ipow=i*2-3
+        ipow=i*2_i_kind-3_i_kind
         cc=cb**ipow
         van(i,jreal)=real(cc,r_kind)
         van(i,jimag)=-aimag(cc)
@@ -125,7 +125,7 @@ subroutine rfdpar1(be,rate,m)
   do i=2,m
      be(i)=zero
   enddo
-  call linmm(van,be,m,1,nn,m)
+  call linmm(van,be,m,ione,nn,m)
   return
 end subroutine rfdpar1
 
@@ -155,7 +155,7 @@ subroutine rfdpar2(be,rate,turn,samp,m)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,half,two
+  use constants, only: ione,zero,half,two
   implicit none
 
   integer(i_kind)            ,intent(in   ) :: m
@@ -168,15 +168,15 @@ subroutine rfdpar2(be,rate,turn,samp,m)
   complex(r_kind) cbe,crl,cl1,c1l,crk,crj,cbeh,clk,clj
   complex(r_kind) clkr,clki
 
-  kmod2=mod(m,2)
+  kmod2=mod(m,2_i_kind)
   s=zero
-  if(kmod2==1)then     ! the first root is real:
+  if(kmod2==ione)then     ! the first root is real:
      r1=rate(1)
      be1=be(1)
      turn(1,1)=be1/(two*r1)
      s=s+turn(1,1)*be1
-     do lr=kmod2+1,m,2
-        li=lr+1
+     do lr=kmod2+ione,m,2
+        li=lr+ione
         cbe=cmplx(be(lr),be(li),r_kind)
         crl=cmplx(rate(lr),rate(li),r_kind)
         cl1=cbe/(r1+crl)
@@ -188,14 +188,14 @@ subroutine rfdpar2(be,rate,turn,samp,m)
         s=s+turn(lr,1)*be1+turn(1,lr)*be(lr)+turn(1,li)*be(li)
      enddo
   endif
-  do kr=kmod2+1,m,2
-     ki=kr+1
+  do kr=kmod2+ione,m,2
+     ki=kr+ione
      crk=cmplx(rate(kr),rate(ki),r_kind)
      crj=conjg(crk)
      bekr=be(kr)
      beki=be(ki)
-     do lr=kmod2+1,m,2
-        li=lr+1
+     do lr=kmod2+ione,m,2
+        li=lr+ione
         cbeh=half*cmplx(be(lr),be(li),r_kind)
         crl=cmplx(rate(lr),rate(li),r_kind)
         clk=cbeh/(crl+crk)
@@ -240,6 +240,7 @@ subroutine rfdparv(dsh,rate,al,n,m)
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use constants, only: ione
   implicit none
 
   integer(i_kind)            ,intent(in   ) :: n,m
@@ -250,15 +251,15 @@ subroutine rfdparv(dsh,rate,al,n,m)
   integer(i_kind) i,kr,ki,kmod2
   real(r_kind):: c0i,c0r,c1,c2
   
-  kmod2=mod(m,2)
-  if(kmod2 == 1)then
+  kmod2=mod(m,2_i_kind)
+  if(kmod2 == ione)then
      c0r=-rate(1)
      do i=1,n
         al(i,1)=exp(c0r*dsh(i))
      enddo
   endif
-  do kr=kmod2+1,m,2
-     ki=kr+1
+  do kr=kmod2+ione,m,2
+     ki=kr+ione
      c0i=-rate(ki)
      c0r=-rate(kr)
      do i=1,n
@@ -339,7 +340,7 @@ subroutine ldum(a,ipiv,d,m,na)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,one
+  use constants, only: ione,zero,one
   implicit none
 
   integer(i_kind)                ,intent(in   ) :: m,na
@@ -347,7 +348,7 @@ subroutine ldum(a,ipiv,d,m,na)
   real(r_kind)   ,dimension(na,*),intent(inout) :: a
   real(r_kind)                   ,intent(  out) :: d
 
-  integer(i_kind),parameter:: nn=500
+  integer(i_kind),parameter:: nn=500_i_kind
 
   integer(i_kind) k,ibig,jm,i,jp,j
   real(r_kind) aa,aam,t,abig,ajji,aij,ajj
@@ -373,8 +374,8 @@ subroutine ldum(a,ipiv,d,m,na)
   enddo
   d=one
   ipiv(m)=m ! <- set default to "no swap"
-  do j=1,m-1
-     jp=j+1
+  do j=1,m-ione
+     jp=j+ione
      abig=s(j)*abs(a(j,j))
      ibig=j
      do i=jp,m
@@ -397,7 +398,7 @@ subroutine ldum(a,ipiv,d,m,na)
      endif
      ajj=a(j,j)
      if(ajj==zero)then
-        jm=j-1
+        jm=j-ione
         write(6,*)'LDUM:  ***failure*** matrix singular, rank=',jm
         call stop2(66)
      endif
@@ -444,7 +445,7 @@ subroutine udlmm(a,b,ipiv,m,mm,na,nb)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: one
+  use constants, only: ione,one
   implicit none
 
   integer(i_kind)                ,intent(in   ) :: na,nb,m,mm
@@ -459,13 +460,13 @@ subroutine udlmm(a,b,ipiv,m,mm,na,nb)
         l=ipiv(i)
         s=b(l,k)
         b(l,k)=b(i,k)
-        call dsbvr(b(1,k),a(i,1),s,i-1,na)
+        call dsbvr(b(1,k),a(i,1),s,i-ione,na)
         b(i,k)=s
      enddo
      b(m,k)=b(m,k)/a(m,m)
-     do i=m-1,1,-1
+     do i=m-ione,1,-1
         aiii=one/a(i,i)
-        call dsbvr(b(i+1,k),a(i,i+1),b(i,k),m-i,na)
+        call dsbvr(b(i+ione,k),a(i,i+ione),b(i,k),m-i,na)
         b(i,k)=b(i,k)*aiii
      enddo
   enddo
@@ -546,7 +547,7 @@ subroutine zroots(a,m,roots,polish)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: zero,two,tiny_r_kind
+  use constants, only: izero,ione,zero,two,tiny_r_kind
   implicit none
 
   logical                     ,intent(in   ) :: polish
@@ -554,7 +555,7 @@ subroutine zroots(a,m,roots,polish)
   complex(r_kind),dimension(*),intent(in   ) :: a
   complex(r_kind),dimension(m),intent(  out) :: roots
 
-  integer(i_kind),parameter:: maxm=101
+  integer(i_kind),parameter:: maxm=101_i_kind
 
   integer(i_kind) j,i,jj
   real(r_kind)::  small,twosmall2
@@ -565,7 +566,7 @@ subroutine zroots(a,m,roots,polish)
   small=sqrt(tiny_r_kind)
   twosmall2=two*small*small
 
-  do j=1,m+1
+  do j=1,m+ione
      ad(j)=a(j)
   end do
   do j=m,1,-1
@@ -575,7 +576,7 @@ subroutine zroots(a,m,roots,polish)
         x=cmplx(real(x,r_kind),zero,r_kind)
      end if
      roots(j)=x
-     b=ad(j+1)
+     b=ad(j+ione)
      do jj=j,1,-1
         c=ad(jj)
         ad(jj)=b
@@ -589,13 +590,13 @@ subroutine zroots(a,m,roots,polish)
   endif
   do j=2,m
      x=roots(j)
-     do i=j-1,1,-1
+     do i=j-ione,1,-1
         if(real(roots(i),r_kind)<=real(x,r_kind))go to 10
-        roots(i+1)=roots(i)
+        roots(i+ione)=roots(i)
      end do
-     i=0
+     i=izero
 10   continue
-     roots(i+1)=x
+     roots(i+ione)=x
   end do
   return
 end subroutine zroots
@@ -629,7 +630,7 @@ subroutine laguer(a,m,x,small,polish)
 ! 
 !$$$
   use kinds, only: r_kind,i_kind,r_single,r_double
-  use constants, only: zero,two
+  use constants, only: ione,zero,two
   implicit none
 
   logical                     ,intent(in   ) :: polish
@@ -638,7 +639,7 @@ subroutine laguer(a,m,x,small,polish)
   integer(i_kind)             ,intent(in   ) :: m
   real(r_kind)                ,intent(in   ) :: small
 
-  integer(i_kind),parameter:: maxit=100
+  integer(i_kind),parameter:: maxit=100_i_kind
 
   integer(i_kind) iter,j
   real(r_kind) abx,cdx,err,dxold
@@ -656,7 +657,7 @@ subroutine laguer(a,m,x,small,polish)
 
   dxold=abs(x)
   do iter=1,maxit
-     b=a(m+1)
+     b=a(m+ione)
      err=abs(b)
      d=zero
      f=zero
@@ -674,7 +675,7 @@ subroutine laguer(a,m,x,small,polish)
         g=d/b
         g2=g*g
         h=g2-two*f/b
-        sq=sqrt((m-1)*(m*h-g2))
+        sq=sqrt((m-ione)*(m*h-g2))
         gp=g+sq
         gm=g-sq
         if(abs(gp)<abs(gm)) then
