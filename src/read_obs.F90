@@ -152,7 +152,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 
   satid=1      ! debug executable wants default value ???
   idate=0
-  if(trim(dtype) == 'tcp')return
+  if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
 ! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
 #ifdef _INTEL_11_0_083_
   return

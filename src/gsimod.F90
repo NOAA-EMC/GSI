@@ -48,7 +48,7 @@
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,&
-      erradar_inflate,use_poq7,&
+      erradar_inflate,tdrerr_adjust,tdrgross_fact,use_poq7,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
@@ -236,7 +236,9 @@
 !                       from two forecast domains to analysis domain  
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
-!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
+!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                
+!  05-07-2013 tong      add tdrerr_adjust for tdr obs err adjustment and
+!                       tdrgross_fact for tdr gross error adjustment
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -575,6 +577,8 @@
 !     dfact    - factor for duplicate obs at same location for conv. data
 !     dfact1   - time factor for duplicate obs at same location for conv. data
 !     erradar_inflate - radar error inflation factor
+!     tdrerr_adjust - logical for adjusting obs error for tdr data
+!     tdrgross_fact - factor applies to tdr gross error
 !     oberrflg - logical for reading in new obs error table (if set to true)
 !     vadfile  - character(10) variable holding name of vadwnd bufr file
 !     noiqc    - logical flag to bypass OIQC (if set to true)
@@ -588,9 +592,9 @@
 !     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
 !     qc_noirjaco3_pole - controls wheter to use O3 Jac from IR instruments near poles
 
-  namelist/obsqc/ dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
-       qc_noirjaco3,qc_noirjaco3_pole
+  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_adjust,tdrgross_fact,oberrflg,&
+       vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name

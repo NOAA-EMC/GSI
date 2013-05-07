@@ -33,6 +33,8 @@ module qcmod
 !   2011-05-20  mccarty - add qc_atms routine
 !   2011-07-08  collard - reverse relaxation of AMSU-A Ch 5 QC introduced at revision 5986.
 !   2012-11-10  s.liu   - add logical variable newvad to identify new and old vad wind
+!   2013-05-07  tong    - add logical variable tdrerr_adjust for tdr obs err adjustment
+!                         and tdrgross_fact to adjust tdr gross error 
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -54,6 +56,8 @@ module qcmod
 !   def dfact           - factor for duplicate obs at same location for conv. data
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
 !   def erradar_inflate - radar error inflation factor
+!   def tdrerr_adjust   - logical for adjusting obs error for tdr data
+!   def tdrgross_fact   - factor applies to tdr gross error
 !   def npres_print     - number of levels for print
 !   def ptop,pbot       - arrays containing top pressure and bottom pressure of print levels
 !   def ptopq,pbotq     - arrays containing top pressure and bottom pressure of print levels for q
@@ -102,8 +106,8 @@ module qcmod
   public :: qc_noirjaco3_pole
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
-  public :: pboto3,ptopo3,pbotq,ptopq,newvad
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
+  public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_adjust
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,ifail_gross_qc
 
   logical nlnqc_iter
@@ -112,10 +116,11 @@ module qcmod
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
   logical newvad
+  logical tdrerr_adjust
 
   character(10):: vadfile
   integer(i_kind) npres_print
-  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
+  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc,tdrgross_fact
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -282,6 +287,8 @@ contains
     varqc_iter=one
 
     erradar_inflate   = one
+    tdrerr_adjust     = .false.
+    tdrgross_fact     = one
 
     nlnqc_iter= .false.
     noiqc = .false.
