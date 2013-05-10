@@ -40,6 +40,13 @@ else
    exit
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
+   exit
+fi
+
 
 #--------------------------------------------------------------
 #  source plot_rad_conf to get WEB_SVR, WEB_USER, WEBDIR
@@ -50,7 +57,8 @@ fi
 #--------------------------------------------------------------
 #  Get the area for this SUFFIX from the data_map file
 #
-AREA=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+AREA=${AREA:-glb}
+
 if [[ $AREA == "" ]]; then
    echo "ERROR:  Suffix $SUFFIX not found in ${DATA_MAP} file."
    exit
@@ -78,12 +86,7 @@ cd $workdir
 #--------------------------------------------------------------
 #  source glbl/rgnl_conf to get the satype list
 #
-use_static_satype=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-if [[ $use_static_satype == "" ]]; then
-   echo "ERROR:  Suffix $SUFFIX not found in ${DATA_MAP} file."
-   exit
-fi
-
+use_static_satype=${STATIC_SATYPE:-0}
 echo "use_static_satype =  $use_static_satype"
 
 #-------------------------------------------------------------
@@ -98,15 +101,16 @@ if [[ $use_static_satype -eq 0 ]]; then
    #  Find the first date with data.  Start at today and work
    #  backwards.  Stop after 90 days and exit.
    #
-#   PDATE=`date +%Y%m%d`
-#   PDATE=${PDATE}00
+   PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
 
-   PDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
    echo PDATE= $PDATE
 
    limit=`$NDATE -2160 $PDATE`		# 90 days
    echo limit, PDATE = $limit, $PDATE
 
+   #-----------------------------------------------------------
+   #  Build test_list which will contain all data files for
+   #  one cycle in $PDATE. 
    data_found=0
    while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
       PDY=`echo $PDATE|cut -c1-8`
@@ -148,12 +152,10 @@ if [[ $use_static_satype -eq 0 ]]; then
    fi
 
    #-----------------------------------------------------------
-   #  Build test_list which will contain all data files for
-   #  the $PDATE cycle.  Go through this list and identify 
-   #  all unique sat_instrument combinations.  That is the 
+   #  Go through test_list  and identify all unique 
+   #  sat_instrument combinations.  The results are the 
    #  SATYPE list for this source.
    # 
-#   test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
 
    for test in ${test_list}; do
       this_file=`basename $test`
@@ -201,7 +203,7 @@ for satype in $SATYPE; do
    ins=${satype%_*}
    tmp="${ins}_"
    sat=${satype#$tmp} 
-   sat=${sat%-*}
+#   sat=${sat%-*}
 
    sat_num=`echo $sat | tr -d '[[:alpha:]]'`	
 
@@ -216,7 +218,7 @@ for satype in $SATYPE; do
       elif [[ $char == "n" ]]; then
          sat="NOAA-${sat_num}"
       else
-	 echo WARNING ==> unable to parse $sat into recognizable satellite name
+         sat=`echo $sat | tr 'a-z' 'A-Z'`
       fi
    else
       sat=`echo $sat | tr 'a-z' 'A-Z'`
@@ -248,7 +250,7 @@ done
 #  Sort the list by Satellite 
 #
 `sort -d $UNSORTED_LIST > $SORTED_LIST`
-rm -f $UNSORTED_LIST
+#rm -f $UNSORTED_LIST
 
 #--------------------------------------------------------------
 #  Read the sorted list and create the platform table
@@ -366,13 +368,13 @@ $NCP ${RADMON_IMAGE_GEN}/html/index.html.$AREA .
 html_files="bcoef bcor_angle  bcor comp horiz index intro menu summary time"
 
 #--------------------------------------------------------------
-#  If we're running on the CCS (aix), push the html files to 
-#  the web server.  If we're on zeus (linux) move the html to
+#  If we're running on the CCS or WCOSS, push the html files to 
+#  the web server.  If we're on zeus move the html files to
 #  the $IMGNDIR so they can be pulled from the server.
 #  Make the starting directory on the server and copy the
 #  html files to it.
 #
-if [[ $MY_MACHINE = "ccs" ]]; then
+if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then
    ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
    for file in $html_files; do
       scp ${file}.html.${AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html

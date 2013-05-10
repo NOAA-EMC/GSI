@@ -29,13 +29,19 @@ else
    exit
 fi
 
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
+   exit
+fi
 
+. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-area=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=$RAD_AREA
 
 if [[ $area == "glb" ]]; then
   . ${RADMON_IMAGE_GEN}/parm/glbl_conf

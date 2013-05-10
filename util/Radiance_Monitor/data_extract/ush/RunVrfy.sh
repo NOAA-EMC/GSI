@@ -60,6 +60,13 @@ else
    exit 2 
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 2 
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
 log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log

@@ -60,6 +60,13 @@ else
    exit 2 
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 2 
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/rgnl_conf
 
@@ -77,13 +84,13 @@ cd $tmpdir
 # data_map file and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
-export PDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
- 
+export PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}` 
+
 #---------------------------------------------------------------
 # Locate required files.
 #---------------------------------------------------------------
 export DATDIR=${PTMP_USER}/regional
-export com=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+export com=$RADSTAT_LOCATION
 
 biascr=$DATDIR/satbias.${PDATE}
 satang=$DATDIR/satang.${PDATE}

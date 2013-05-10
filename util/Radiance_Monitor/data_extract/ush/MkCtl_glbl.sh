@@ -52,12 +52,19 @@ else
    exit 2
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 2
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=${RAD_AREA}
 echo $area
 
 if [[ $area = glb ]]; then
@@ -76,7 +83,6 @@ mkdir -p $LOGSverf_rad
 
 export MAKE_CTL=1
 export MAKE_DATA=0
-export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
 export RUN_ENVIR=dev
 
 #---------------------------------------------------------------
@@ -84,8 +90,8 @@ export RUN_ENVIR=dev
 # date in the data_map file and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-PDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+export DATDIR=$RADSTAT_LOCATION
    
 ctr=0
 need_radstat=1
@@ -150,7 +156,7 @@ if [[ -s ${radstat} ]]; then
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/make_ctl.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
-   else
+   elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvar -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
 

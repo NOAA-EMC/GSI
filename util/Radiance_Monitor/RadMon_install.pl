@@ -197,7 +197,7 @@
 
 
    # 
-   #   Update the default account settings in the data_map.xml file.
+   #   Update the default account settings in the RadMon_user_settings script.
    #
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
@@ -210,10 +210,13 @@
       $account = "export ACCOUNT=\${ACCOUNT:-dev}";
    }
 
-   my $user_class = "export USER_CLASS=dev";
+   my $user_class = "export USER_CLASS:-dev";
    if( $machine ne "ccs" ) {
       $user_class="";
    } 
+
+    my $uname = $ENV{ 'USER' };
+    my $hpss_dir = "export HPSS_DIR=\${HPSS_DIR:-/NCEPDEV/hpssuser/g01/$uname/nbns/stats}";
 
     my $outfile = "tmp.file";
     open (OUT, ">", $outfile) || die "Cannot open file ".$outfile." for write";
@@ -228,6 +231,9 @@
        } 
        elsif( $line =~ m/export USER_CLASS/ ){
           $line = $user_class;
+       }
+       elsif( $line =~ m/export HPSS_DIR/ ){
+          $line = $hpss_dir;
        }
        print OUT "$line\n";    
     }    

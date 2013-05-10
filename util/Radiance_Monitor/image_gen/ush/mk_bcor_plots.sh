@@ -239,9 +239,9 @@ ${COMPRESS} ${imgndir}/*.ctl
 
            echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
            if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then            
-              wall_tm="0:20:00"
+              wall_tm="0:40:00"
            else
-              wall_tm="0:50:00"
+              wall_tm="1:20:00"
            fi
 
            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile

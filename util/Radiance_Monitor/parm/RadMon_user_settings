@@ -10,12 +10,12 @@
 #  ACCOUNT is set by the RadMon_instal.sh script, to GDAS-MTN, dev, or ada
 #    according to platform (ccs, wcoss, zeus respectively)
 #
-export ACCOUNT=${ACCOUNT:-GDAS-MTN}
+export ACCOUNT=${ACCOUNT:-ada}
 
 #
 #  USER_CLASS is set to "dev" on the CCS, empty on all other platforms
 #
-export USER_CLASS=${USER_CLASS:-dev}
+
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
@@ -41,7 +41,7 @@ export USE_ANL=${USE_ANL:-0}
 #  PLOT_ALL_REGIONS switches on/off plotting of all 5 regions (global, land, 
 #    water, ice/snow, mixed).   0 = off, 1 = on
 #
-export PLOT_ALL_REGIONGS=${PLOT_ALL_REGIONS:-1}
+export PLOT_ALL_REGIONGS=${PLOT_ALL_REGIONS:-0}
 
 #
 #  PLOT_SUB_AVGS switches on/off plotting of subset averages in certain plots,
@@ -52,7 +52,12 @@ export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 #  DO_ARCHIVE switches on archiving of extracted data files.  This is generally
 #    used for the operational data sets (GDAS, NDAS) and isn't normally necessary
 #    for parallels.  0 = off, 1 = on
-export DO_ARCHIVE=${DO_ARCHIVE:-1}
+export DO_ARCHIVE=${DO_ARCHIVE:-0}
+
+#
+#  HPSS_DIR is the location for archived data on the hpss.  It will only
+#    be used if DO_ARCHIVE is set to on (1).
+export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/Edward.Safford/nbns/stats}
 
 #
 #  STATIC_SATYPE switches on/off use of static satype list.  This is primarily

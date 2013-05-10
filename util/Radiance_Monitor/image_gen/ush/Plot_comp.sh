@@ -72,13 +72,6 @@ fi
 #--------------------------------------------------------------------
 # Load necessary configuration parmeters from data_map file. 
 #--------------------------------------------------------------------
-#SUFFIX2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_suffix2`
-#SUFFIX3=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_suffix3`
-#last_plot=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} comp_plotdate`
-#area=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} area`
-#ACCOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} account`
-#USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} user_class`
-
 data="ges"
 
 echo $SUFFIX2, $SUFFIX3, $last_plot
@@ -104,12 +97,10 @@ echo ${IMGNDIR}
 
 export TANKDIR1=${TANKDIR}/${SUFFIX1}
 export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
-#prodate1=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} prodate`
 prodate1=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR1}`
 
 export TANKDIR2=${TANKDIR}/${SUFFIX2}
 export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
-prodate2=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX2} prodate`
 prodate2=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR2}`
 
 #-------------------------------------------------------------------
@@ -151,10 +142,6 @@ if [[ $abort_run -eq 1 ]]; then
    exit 3
 fi
 
-#-------------------------------------------------------------
-#  Get the SATYPE for SUFFIX
-#
-#export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX1} static_satype`
 
 #-------------------------------------------------------------
 #  If USE_STATIC_SATYPE == 0 then assemble the SATYPE list from
@@ -180,21 +167,21 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
    SATYPE=$SATYPE_LIST
 
-#else
-#   TANKDIR_INFO=${TANKDIR1}/info
-#   STATIC_SATYPE_FILE=${TANKDIR_INFO}/SATYPE.txt
+else
 
-#   #-------------------------------------------------------------
-#   #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit
-#   #  if unable to locate it.
-#   #-------------------------------------------------------------
-#   if [[ -s $STATIC_SATYPE_FILE ]]; then
-#      SATYPE=""
-#      SATYPE=`cat ${STATIC_SATYPE_FILE}`
-#   else
-#      echo "Unable to locate $STATIC_SATYPE_FILE, must exit."
-#      exit
-#   fi
+   STATIC_SATYPE_FILE=${TANKDIR}/radmon.${PDY}/gdas_radmon_satype.txt
+
+   #-------------------------------------------------------------
+   #  Load the SATYPE list from the STATIC_SATYPE_FILE or exit
+   #  if unable to locate it.
+   #-------------------------------------------------------------
+   if [[ -s $STATIC_SATYPE_FILE ]]; then
+      SATYPE=""
+      SATYPE=`cat ${STATIC_SATYPE_FILE}`
+   else
+      echo "Unable to locate $STATIC_SATYPE_FILE, must exit."
+      exit
+   fi
 fi
 
 echo $SATYPE
@@ -204,7 +191,7 @@ echo $SATYPE
 #------------------------------------------------------------------
 # Export variables and submit plot script
 #------------------------------------------------------------------
-export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,LLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,COMPRESS,UNCOMPRESS,Z,listvar
+export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,COMPRESS,UNCOMPRESS,Z,listvar
 
 
 #------------------------------------------------------------------
@@ -227,20 +214,12 @@ ntasks=`cat $cmdfile|wc -l`
 if [[ $MY_MACHINE = "ccs" ]]; then
    $SUB -a $ACCOUNT -e $listvar -j $jobname -u $USER -t 0:10:00 -o $logfile -p $ntasks/1/N -q dev -g $USER_CLASS  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 elif [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q transfer -n $ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
+   $SUB -q dev -n $ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
 elif [[ $MY_MACHINE = "zeus" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -v $listvar -j oe -o $logfile $cmdfile
 fi
 
 
-
-#------------------------------------------------------------------
-#  Update comp plot time
-#------------------------------------------------------------------
-#rc=`${SCRIPTS}/update_data_map.pl ${DATA_MAP} ${SUFFIX} comp_plotdate ${PDATE}`
-#if [[ $rc -ne 0 ]]; then
-#   echo "error updating ${DATA_MAP}, return code = $rc"
-#fi
 
 echo end CkPlt_comp.sh
 

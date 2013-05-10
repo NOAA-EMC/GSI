@@ -54,6 +54,13 @@ else
    exit 2
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 2
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
 
@@ -62,7 +69,7 @@ fi
 #--------------------------------------------------------------------
 echo DATA_MAP = $DATA_MAP
 
-area=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=$RAD_AREA
 echo $area
 
 if [[ $area = glb ]]; then
@@ -77,7 +84,7 @@ fi
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-EDATE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
+EDATE=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`

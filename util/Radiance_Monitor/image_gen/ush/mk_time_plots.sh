@@ -274,7 +274,7 @@ fi
             rm -f ${cmdfile}
 
             if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-               wall_tm="0:40:00"
+               wall_tm="0:60:00"
             else
                wall_tm="2:00:00"
             fi
