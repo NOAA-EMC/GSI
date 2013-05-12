@@ -14,10 +14,9 @@ echo start VrfyRad_rgnl.sh
 #  useage function
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  VrfyRad_rgnl.sh suffix run_envir [pdate] "
+  echo "Usage:  VrfyRad_rgnl.sh suffix [pdate] "
   echo "            File name for VrfyRad_rgnl.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
-  echo "            The run_envir maybe dev, para, or prod."
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 

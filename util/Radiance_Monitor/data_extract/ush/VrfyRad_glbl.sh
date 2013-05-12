@@ -18,10 +18,8 @@ echo start VrfyRad_glbl.sh
 #  usage
 #--------------------------------------------------------------------
 function usage {
-  echo "Usage:  VrfyRad_glbl.sh suffix run_envir [pdate]"
-  echo "            File name for VrfyRad_glbl.sh may be full or relative path"
+  echo "Usage:  VrfyRad_glbl.sh suffix [pdate]"
   echo "            Suffix is the indentifier for this data source."
-  echo "            The run_envir may be dev, para, or prod." 
   echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
 }
 

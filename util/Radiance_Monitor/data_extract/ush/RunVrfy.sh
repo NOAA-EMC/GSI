@@ -20,7 +20,6 @@
 
 function usage {
   echo "Usage:  RunVrfy.sh suffix rad_area start_date [end_date]"
-  echo "            File name for RunVrfy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
   echo "            End_date   is the optional ending cycle to process (YYYYMMDDHH format)."
