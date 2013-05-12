@@ -156,7 +156,7 @@ fi
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o ${logfile} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
+      $SUB -q dev -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
    fi
@@ -208,7 +208,7 @@ fi
 #      ((nprocs=(ntasks+1)/2))
 
       if [[ $MY_MACHINE = "wcoss" ]]; then   
-         $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
+         $SUB -q dev -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
       else
         $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
       fi
@@ -261,7 +261,7 @@ fi
          ntasks=`cat $cmdfile|wc -l `
 
          if [[ $MY_MACHINE = "wcoss" ]]; then
-            $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
+            $SUB -q dev -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
          else
             $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
          fi

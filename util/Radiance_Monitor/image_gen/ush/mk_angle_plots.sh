@@ -165,7 +165,7 @@ ${COMPRESS} -f ${imgndir}/*.ctl
      ntasks=`cat $cmdfile|wc -l `
 
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q transfer -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+        $SUB -q dev -n $ntasks -o ${logfile} -W 1:45 -J ${jobname} $cmdfile
      else
         $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi
@@ -223,14 +223,14 @@ for sat in ${bigSATLIST}; do
 
          echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
          (( test=ii+1 ))
-         (( test=test%3 ))
+         (( test=test%2 ))
 
          if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
             ntasks=`cat $cmdfile|wc -l `
             chmod 755 $cmdfile
 
             if [[ $MY_MACHINE = "wcoss" ]]; then
-               $SUB -q transfer -n $ntasks -o ${logfile} -W 1:00 -J ${jobname} $cmdfile
+               $SUB -q dev -n $ntasks -o ${logfile} -W 2:30 -J ${jobname} $cmdfile
             else
                $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
             fi

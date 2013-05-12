@@ -111,13 +111,11 @@ cat << EOF > ${type}_${var}.gs
 EOF
 
       elif [ "$var" =  'penalty' ]; then
-
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
-
       else
 
 cat << EOF > ${type}_${var}.gs

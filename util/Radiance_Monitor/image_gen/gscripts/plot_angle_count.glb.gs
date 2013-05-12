@@ -216,7 +216,6 @@ while (chn<=nchan)
 
       rec14=sublin(result,14)
       avgsdv=subwrd(rec14,2)
-      'define sdv3='field'(t=3)'
       'set gxout line'
       'set t 'tlast
    endif
@@ -234,7 +233,6 @@ while (chn<=nchan)
       'd avg3'
       rec14=sublin(result,14)
       avgsdv=subwrd(rec14,2)
-      'define sdv3='field'(t=3)'
       'set gxout line'
       'set t 'tlast
    endif

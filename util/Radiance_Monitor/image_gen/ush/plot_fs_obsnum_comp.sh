@@ -115,7 +115,18 @@ if [[ ${nctldir} -gt 0 ]]; then
       ${UNCOMPRESS} ${workdir}/${type}${anl}.ctl.${Z}
    fi
 
-   ${SCRIPTS}/update_ctl_tdef.sh ${type}${anl}.ctl ${PDATE}
+   #-------------------------------------------------------------------
+   #   Update the time definition (tdef) line in the angle control
+   #   files. Conditionally rm "cray_32bit_ieee" from the options line.
+  
+   ctl_file=${type}${anl}.ctl 
+
+   ${SCRIPTS}/update_ctl_tdef.sh ${ctl_file} ${PDATE}
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      sed -e 's/cray_32bit_ieee/ /' ${ctl_file} > tmp_${type}.ctl
+      mv -f tmp_${type}.ctl ${ctl_file}
+   fi
 
    $NCP ${type}${anl}.ctl ${SUFFIX1}${anl}.ctl
    ${SCRIPTS}/update_ctl_fname.sh ${SUFFIX1}${anl}.ctl ${SUFFIX1} 
