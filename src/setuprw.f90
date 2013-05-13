@@ -80,13 +80,13 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: rw_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use qcmod, only: npres_print,ptop,pbot,tdrerr_adjust,tdrgross_fact
+  use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate,tdrgross_fact
   use guess_grids, only: ges_ps,hrdifsig,geop_hgtl,nfldsig,&
        ges_lnprsl,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10,ges_z
   use gridmod, only: nsig,get_ijk
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad
-  use constants, only: tiny_r_kind,cg_term,huge_single,r2000,three
+  use constants, only: tiny_r_kind,cg_term,huge_single,r2000,three,one
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
@@ -132,7 +132,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) dlat,dlon,dtime,dpres,ddiff,error,slat
   real(r_kind) sinazm,cosazm,costilt
-  real(r_kind) ratio_errors,qcgross,err_change,err_rate,err_adjust
+  real(r_kind) ratio_errors,qcgross
   real(r_kind) ugesin,vgesin,factw,skint,sfcr
   real(r_kind) rwwind,presw
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -518,13 +518,10 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ddiff = data(irwob,i) - rwwind
 
 !    adjust obs error for TDR data
-     err_change=r15
-     err_rate=r0_4
-     err_adjust=r2_5
      if(data(iobs_type,i) > three .and. ratio_errors*error > tiny_r_kind &
-        .and. tdrerr_adjust) then
-        ratio_errors = data(ier2,i)/(abs(data(ier,i) + 1.0e6_r_kind*rhgh +  &
-          r8*rlow + tanh((abs(ddiff)-err_change)*err_rate)*err_adjust+err_adjust))
+        .and. tdrerr_inflate) then
+        ratio_errors = data(ier2,i)/abs(data(ier,i) + 1.0e6_r_kind*rhgh +  &
+          r8*rlow + min(max((abs(ddiff)-ten),zero)/ten,one)*data(ier,i))
      end if 
 
 !    Gross error checks
