@@ -237,6 +237,8 @@
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
+!  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
+!                       convert_regional_guess so that rearth is defined when used
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1135,6 +1137,10 @@
 ! Set up directories (or pe specific filenames)
   call init_directories(mype)
 
+! Initialize constants
+  call init_constants(regional)
+  call gps_constants(use_compress)
+
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
   if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
@@ -1142,8 +1148,6 @@
 
 
 ! Initialize variables, create/initialize arrays
-  call init_constants(regional)
-  call gps_constants(use_compress)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe,cvars3d,cvars2d,nrf_var,mype)
   call init_general_commvars

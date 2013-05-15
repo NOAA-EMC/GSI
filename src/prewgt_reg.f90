@@ -45,6 +45,9 @@ subroutine prewgt_reg(mype)
 !   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
 !                          (fixes WCOSS debug compile error)
 !
+!   2013-04-17  wu      - use nnnn1o to deside whether to define B related veriables
+!                         avoid undefined input when number of tasks is larger than
+!                         that of the total levels of control vectors
 !   input argument list:
 !     mype     - pe number
 !
@@ -207,7 +210,6 @@ subroutine prewgt_reg(mype)
         enddo
      enddo
   endif ! regional_ozone
-
 ! Normalize vz with del sigmma and convert to vertical grid units!
   dlsig(1)=rlsig(1)-rlsig(2)
   do k=2,nsig-1
@@ -346,19 +348,20 @@ subroutine prewgt_reg(mype)
      endif
   end do
 
-  allocate(sli(ny,nx,2,nnnn1o))
+  if(nnnn1o > 0)then
+     allocate(sli(ny,nx,2,nnnn1o))
 
 ! sli in scale  unit (can add in sea-land mask)
-  samp2=samp*samp
-  do i=1,nx
-     do j=1,ny
-        fact=one/(one+(one-sl(j,i))*bw)
-        slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
-        sli(j,i,1,1)=region_dy(j,i)*fact
-        sli(j,i,2,1)=region_dx(j,i)*fact
+     samp2=samp*samp
+     do i=1,nx
+        do j=1,ny
+           fact=one/(one+(one-sl(j,i))*bw)
+           slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
+           sli(j,i,1,1)=region_dy(j,i)*fact
+           sli(j,i,2,1)=region_dx(j,i)*fact
+        enddo
      enddo
-  enddo
-
+  endif
 
 ! Set up scales
 
@@ -448,9 +451,10 @@ subroutine prewgt_reg(mype)
 
 
 ! Load tables used in recursive filters
-  call init_rftable(mype,rate,nnnn1o,sli)
-
-  deallocate( sli) 
+  if(nnnn1o>0) then
+     call init_rftable(mype,rate,nnnn1o,sli)
+     deallocate( sli) 
+  endif
 
   return
 end subroutine prewgt_reg
