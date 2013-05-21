@@ -302,6 +302,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
+       else if(trim(filename) == 'hdobbufr')then
+         lexist = .false.
+         loop_hdob: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC004015') then
+               lexist = .true.
+               exit loop_hdob
+            endif
+         end do loop_hdob
        else if(trim(dtype) == 'pm2_5')then
           if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
              lexist=.true.
@@ -927,9 +935,16 @@ subroutine read_obs(ndata,mype)
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
-                call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                     prsl_full)
-                string='READ_PREPBUFR'
+!               Process flight-letel high-density data not included in prepbufr
+                if ( index(infile,'hdobbufr') /=0 ) then
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                                    prsl_full)
+                  string='READ_FL_HDOB'
+                else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full)
+                   string='READ_PREPBUFR'
+                endif
 !            Process winds in the prepbufr
              else if(obstype == 'uv') then
 !             Process satellite winds which seperate from prepbufr
@@ -937,6 +952,10 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'
+                else if ( index(infile,'hdobbufr') /=0 ) then
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&                                                                     
+                     prsl_full)
+                  string='READ_FL_HDOB'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)

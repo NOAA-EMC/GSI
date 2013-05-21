@@ -526,6 +526,7 @@ clean:
 	read_co.f90 \
 	read_cris.f90 \
 	read_diag.f90 \
+        read_fl_hdob.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
