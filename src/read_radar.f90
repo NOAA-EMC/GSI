@@ -48,10 +48,12 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !   2011-08-01  lueken  - remove deter_zsfc_model (placed in deter_sfc_mod) and fix indentation
 !   2012-01-11 m.Hu  -   add subtype to radial wind observation and limit the use
 !                           of level2.5 and level3 data in Conus domain for ARW
+!   2012-06-26 y.li/x.wang add TDR fore/aft sweep separation for thinning,xuguang.wang@ou.edu
 !   2012-04-28  s.liu  -  use new VAD wind
 !   2012-11-12  s.liu  -  add new VAD wind flag
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-05-07  tong   -  add reading tdr superobs data 
+!   2013-05-22  tong   -  add the criteria of seperating fore and aft sweeps for TDR FRENCH antenna
 !
 !
 !   input argument list:
@@ -78,7 +80,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
       eccentricity,somigliana,grav_ratio,grav, &
       semi_major_axis,flattening,two
   use qcmod, only: erradar_inflate,vadfile,newvad
-  use obsmod, only: iadate
+  use obsmod, only: iadate,l_foreaft_thin
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
@@ -196,6 +198,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real(r_double),dimension(4,maxlevs):: tdr_obs
   integer(i_kind) :: ii,jjj,nmissing,nirrr,noutside,ntimeout,nsubzero,iimax
   integer(i_kind) ntdrvr_in,ntdrvr_kept,ntdrvr_thin1,ntdrvr_thin2
+  integer(i_kind) ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp
   integer(i_kind) maxout,maxdata
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind),allocatable,dimension(:):: isort
@@ -230,6 +233,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real :: RLAT, RLON, TIM
   character(8) :: STID
   logical check
+
+! following variables are for fore/aft separation
+  real(r_kind) tdrele1,tdrele2,tdrele3
+  integer(i_kind) nswp,firstbeam,nforeswp,naftswp,nfore,naft
+  logical foreswp,aftswp
   
   data lnbufr/10/
   data hdrstr(1) / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
@@ -1282,11 +1290,18 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   ntdrvr_kept=0
   ntdrvr_thin1=0
   ntdrvr_thin2=0
+  ntdrvr_thin2_foreswp=0
+  ntdrvr_thin2_aftswp=0
   maxout=0
   maxdata=0
   nmissing=0
   subset_check(3)='NC006070'
   icntpnt=0
+  nswp=0
+  nforeswp=0
+  naftswp=0
+  nfore=0
+  naft=0
 
   xscale=100._r_kind
   xscalei=one/xscale
@@ -1350,6 +1365,18 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   nmrecs=0
 !    Big loop over bufr file
 
+  if(l_foreaft_thin) then 
+     firstbeam = 0
+     foreswp = .true.
+     aftswp = .false.
+     nforeswp=1
+     naftswp=0
+     nswp=1
+  else
+     foreswp = .false.
+     aftswp = .false.
+  endif
+
 70   call readsb(lnbufr,iret)
 80   continue
   if(iret/=0) then
@@ -1377,6 +1404,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      print *,'Antenna Number is not correct'
      go to 900
   endif
+
+  if(nmrecs==1)print *,'Antenna ID:', hdr(1),cstaid
   
   iyr = hdr(2)
   imo = hdr(3)
@@ -1427,6 +1456,66 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   thistilt=hdr(12)
   elevmax=max(elevmax,thistilt)
   elevmin=min(elevmin,thistilt)
+
+!  define fore/aft sweeps for thinning (pseduo dual Doppler)
+
+  if(l_foreaft_thin)then
+     if (firstbeam.eq.0) then
+        tdrele1 = hdr(12)
+        tdrele2 = hdr(12)
+        if(hdr(1) == zero)then
+           tdrele3 = hdr(12)
+        end if 
+        firstbeam = 1
+     endif
+
+     if(hdr(1) == zero)then
+        tdrele1 = tdrele2
+        tdrele2 = tdrele3
+        tdrele3 = hdr(12)
+
+        if(tdrele2.gt.tdrele1.and.tdrele2.gt.tdrele3) then
+!           if(nmrecs<2000)print *,'tdrele1,tdrele2,tdrele3=',tdrele1,tdrele2,tdrele3
+           if(foreswp) then
+              foreswp = .false.
+              aftswp = .true.
+              naftswp = naftswp+1
+           else
+              aftswp = .false.
+              foreswp = .true.
+              nforeswp = nforeswp+1
+           endif
+   
+           nswp = nswp+1
+        endif
+
+     else if(hdr(1) == one)then
+        tdrele1 = tdrele2
+        tdrele2 = hdr(12)
+
+        if(abs(tdrele2-tdrele1)>100.) then
+!           if(nmrecs < 2000)print *,'tdrele1,tdrele2=',tdrele1,tdrele2
+
+           if(foreswp) then
+              foreswp = .false.
+              aftswp = .true.
+              naftswp = naftswp+1
+           else
+              aftswp = .false.
+              foreswp = .true.
+              nforeswp = nforeswp+1
+           endif
+
+           nswp = nswp+1
+        endif
+     else
+        foreswp = .false.
+        aftswp = .false.
+     end if
+  else
+     foreswp = .false.
+     aftswp = .false.
+  endif
 
   if(abs(thistilt)>r75)then
      ibadtilt=ibadtilt+1; goto 70
@@ -1621,11 +1710,16 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
               crit1 = timedif/r6+half
 
               call map3grids(1,zflag,zl_thin,nlevz,dlat_earth,dlon_earth,&
-                 zobs,crit1,ithin,ndata,iout,icntpnt,iiout,luse)
+                 zobs,crit1,ithin,ndata,iout,icntpnt,iiout,luse,foreswp,aftswp)
               maxout=max(maxout,iout)
               maxdata=max(maxdata,ndata)
 
               if (.not. luse) then
+                 if (foreswp) then
+                    ntdrvr_thin2_foreswp=ntdrvr_thin2_foreswp+1  
+                 else if (aftswp) then
+                    ntdrvr_thin2_aftswp=ntdrvr_thin2_aftswp+1
+                 end if
                  ntdrvr_thin2=ntdrvr_thin2+1
                  cycle
               endif
@@ -1686,6 +1780,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
            do j=1,maxdat
               cdata_all(j,iout)=cdata(j)
            end do
+           if(foreswp)nfore=nfore+1
+           if(aftswp)naft=naft+1
            jjj=jjj+1
         else
            notgood = notgood + 1
@@ -1938,7 +2034,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
               crit1 = timedif/r6+half
 
               call map3grids(1,zflag,zl_thin,nlevz,dlat_earth,dlon_earth,&
-                 zobs,crit1,ithin,ndata,iout,icntpnt,iiout,luse)
+                 zobs,crit1,ithin,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
               maxout=max(maxout,iout)
               maxdata=max(maxdata,ndata)
 
@@ -2028,6 +2124,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   write(6,*)'READ_RADAR: nsubzero=', nsubzero
   write(6,*)'READ_RADAR: maxout, maxdata=', maxout, maxdata
   write(6,*)'READ_RADAR: ntdrvr_in,ntdrvr_kept=',ntdrvr_in,ntdrvr_kept
+  if(l_foreaft_thin)then
+    write(6,*)'READ_RADAR: nforeswp,naftswp,nswp=',nforeswp,naftswp,nswp
+    write(6,*)'READ_RADAR: ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp=',ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp
+    write(6,*)'READ_RADAR: data retained for further processing nfore,naft=',nfore,naft
+  end if
   write(6,*)'READ_RADAR: ntdrvr_thin1,ntdrvr_thin2=',ntdrvr_thin1,ntdrvr_thin2
   write(6,*)'READ_RADAR: data retained for further processing =', jjj
   write(6,*)'READ_RADAR: # out of domain =', noutside

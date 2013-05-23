@@ -19,7 +19,7 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
-     lwrite_peakwt,use_limit,lrun_subdirs
+     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -234,13 +234,14 @@
 !  02-08-2012 kleist    add parameters to control new 4d-ensemble-var features.
 !  02-17-2012 tong      add parameter merge_two_grid_ensperts to merge ensemble perturbations
 !                       from two forecast domains to analysis domain  
+!  05-25-2012 li/wang   add TDR fore/aft sweep separation for thinning,xuguang.wang@ou.edu
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                
-!  05-07-2013 tong      add tdrerr_inflate for tdr obs err inflation and
-!                       tdrgross_fact for tdr gross error adjustment
 !  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
 !                       convert_regional_guess so that rearth is defined when used
+!  05-07-2013 tong      add tdrerr_inflate for tdr obs err inflation and
+!                       tdrgross_fact for tdr gross error adjustment
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -615,8 +616,10 @@
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
 !      ext_sonde        - logical for extended forward model on sonde data
+!      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
-  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max,ext_sonde
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max, &
+       ext_sonde,l_foreaft_thin
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob

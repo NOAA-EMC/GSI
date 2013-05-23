@@ -749,7 +749,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               endif
 
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,& 
-                             pob_cb,crit1,ithin,ndata,iout,igood,iiout,luse)
+                             pob_cb,crit1,ithin,ndata,iout,igood,iiout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb2
 
