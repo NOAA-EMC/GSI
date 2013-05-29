@@ -20,7 +20,7 @@ say 'plot_all_Regions = 'plot_all_regions
 say 'process 'field' from 'plotfile
 *'open amsua.016.ctl'
 
-debug=1
+debug=0
 
 'q file'
 lin1=sublin(result,1)

@@ -135,7 +135,7 @@ if [[ $MY_MACHINE = "ccs" ]]; then
 elif [[ $MY_MACHINE = "wcoss" ]]; then
    $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "zeus" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=1:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
+   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
 fi
 
 exit

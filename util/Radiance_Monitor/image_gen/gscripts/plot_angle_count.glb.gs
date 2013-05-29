@@ -21,7 +21,7 @@ say 'sub_avg          = 'sub_avg
 say 'plot_all_Regions = 'plot_all_regions
 say 'process 'field' from 'plotfile
 
-debug=1
+debug=0
 
 
 if (field = count)
