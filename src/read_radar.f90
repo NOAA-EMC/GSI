@@ -53,7 +53,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !   2012-11-12  s.liu  -  add new VAD wind flag
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-05-07  tong   -  add reading tdr superobs data 
-!   2013-05-22  tong   -  add the criteria of seperating fore and aft sweeps for TDR FRENCH antenna
+!   2013-05-22  tong   -  Modified the criteria of seperating fore and aft sweeps for TDR NOAA/FRENCH antenna
 !
 !
 !   input argument list:
@@ -113,6 +113,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real(r_kind),parameter:: r8 = 8.0_r_kind
   real(r_kind),parameter:: r90 = 90.0_r_kind
   real(r_kind),parameter:: r200 = 200.0_r_kind
+  real(r_kind),parameter:: r150 = 150.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: r50000 = 50000.0_r_kind
   real(r_kind),parameter:: r60 = 60.0_r_kind
@@ -236,7 +237,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 ! following variables are for fore/aft separation
   real(r_kind) tdrele1,tdrele2,tdrele3
-  integer(i_kind) nswp,firstbeam,nforeswp,naftswp,nfore,naft
+  integer(i_kind) nswp,firstbeam,nforeswp,naftswp,nfore,naft,nswptype,irec
   logical foreswp,aftswp
   
   data lnbufr/10/
@@ -288,6 +289,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   kx0=22500
 
   nmrecs=0
+  irec=0
 
   errzmax=zero
   nvad=0
@@ -1335,15 +1337,74 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   if(infile == 'tldplrso') goto 75
 
+  nswptype=0
+  if(l_foreaft_thin)then
+! read the first 500 records to deterine which criterion
+! should be used to seperate fore/aft sweep
+    open(lnbufr,file=infile,form='unformatted')
+    call openbf(lnbufr,'IN',lnbufr)
+    call datelen(10)
+    call readmg(lnbufr,subset,idate,iret)
+    if(iret/=0) then
+       write(6,*)'READ_RADAR: problem reading tail Doppler radar bufr file tldplrbufr'
+       call closbf(lnbufr)
+       go to 1100
+    end if
+
+    nmrecs=0
+    irec=0
+!   Big loop over bufr file
+
+700   call readsb(lnbufr,iret)
+800   continue
+    if(iret/=0) then
+       call readmg(lnbufr,subset,idate,iret)
+       if(iret/=0) go to 85
+       go to 700
+    end if
+    if(subset/=subset_check(loop)) then
+       iret=99
+       go to 800
+    end if
+    nmrecs = nmrecs+1
+
+!   Read header.  Extract elevation angle
+    call ufbint(lnbufr,hdr,12,1,levs,hdrstr(2))
+    thistilt=hdr(12)
+
+    if(nmrecs == 1)then
+      tdrele1 = hdr(12)
+      tdrele2 = hdr(12)
+    end if
+
+    tdrele1 = tdrele2
+    tdrele2 = hdr(12)
+    if(abs(tdrele2-tdrele1)>r100) then
+       print *,'tdrele2,tdrele1=',tdrele2,tdrele1
+       nswptype=1
+       go to 85
+    end if
+
+    if(nmrecs <= 500)then
+       go to 700
+    else
+       go to 85
+    end if
+
+85 continue
+    call closbf(lnbufr)
+    close(lnbufr)
+  end if
+
+  print *,'nmrecs, nswptype=', nmrecs, nswptype
+
 ! Open, then read bufr data
   open(lnbufr,file=infile,form='unformatted')
-!  open( 32, file = "/u/wx21mt/bufrtab.006")
-!  call openbf(lnbufr,'IN',32)
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
   if(iret/=0) then
-     write(6,*)'READ_RADAR: problem reading tail Doppler radar bufr file abrobsbufr'
+     write(6,*)'READ_RADAR: problem reading tail Doppler radar bufr file tldplrbufr'
      call closbf(lnbufr)
      go to 1100
   end if
@@ -1389,6 +1450,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      go to 80
   end if
   nmrecs = nmrecs+1
+  irec = irec+1
 
 !    Read header.  Extract station infomration
   call ufbint(lnbufr,hdr,12,1,levs,hdrstr(2))
@@ -1460,50 +1522,52 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 !  define fore/aft sweeps for thinning (pseduo dual Doppler)
 
   if(l_foreaft_thin)then
-     if (firstbeam.eq.0) then
+     if (firstbeam == 0) then
         tdrele1 = hdr(12)
         tdrele2 = hdr(12)
-        if(hdr(1) == zero)then
+        if(nswptype == 0)then
            tdrele3 = hdr(12)
         end if 
         firstbeam = 1
      endif
 
-     if(hdr(1) == zero)then
+     if(nswptype == 0)then
         tdrele1 = tdrele2
         tdrele2 = tdrele3
         tdrele3 = hdr(12)
 
-        if(tdrele2.gt.tdrele1.and.tdrele2.gt.tdrele3) then
-!           if(nmrecs<2000)print *,'tdrele1,tdrele2,tdrele3=',tdrele1,tdrele2,tdrele3
+        if(firstbeam > 0 .and. tdrele2>=tdrele1 .and. tdrele2>=tdrele3 .and. tdrele2 > r60 &
+           .and. irec > r150)then  
            if(foreswp) then
               foreswp = .false.
               aftswp = .true.
               naftswp = naftswp+1
+              irec=0
            else
               aftswp = .false.
               foreswp = .true.
               nforeswp = nforeswp+1
+              irec=0
            endif
    
            nswp = nswp+1
         endif
 
-     else if(hdr(1) == one)then
+     else if(nswptype == 1)then
         tdrele1 = tdrele2
         tdrele2 = hdr(12)
 
-        if(abs(tdrele2-tdrele1)>100.) then
-!           if(nmrecs < 2000)print *,'tdrele1,tdrele2=',tdrele1,tdrele2
-
+        if(abs(tdrele2-tdrele1)>r100) then
            if(foreswp) then
               foreswp = .false.
               aftswp = .true.
               naftswp = naftswp+1
+              irec=0
            else
               aftswp = .false.
               foreswp = .true.
               nforeswp = nforeswp+1
+              irec=0
            endif
 
            nswp = nswp+1
