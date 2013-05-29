@@ -83,6 +83,7 @@ subroutine glbsoi(mype)
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2013-05-19  zhu     - add aircraft temperature bias correction
 !
 !   input argument list:
 !     mype - mpi task id
@@ -135,6 +136,7 @@ subroutine glbsoi(mype)
   use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
   use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
+  use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc
 
   implicit none
 
@@ -349,10 +351,12 @@ subroutine glbsoi(mype)
      if (l4dvar) then
         if(mype == 0) call radinfo_write
         if(mype == npe-1) call pcpinfo_write
+        if(mype==0 .and. aircraft_t_bc) call aircraftinfo_write
      else
         if (jiter==miter+1 ) then
            if(mype == 0) call radinfo_write
            if(mype == npe-1) call pcpinfo_write
+           if(mype==0 .and. aircraft_t_bc) call aircraftinfo_write
         endif
      endif
   endif

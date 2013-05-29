@@ -19,7 +19,8 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
-     lwrite_peakwt,use_limit,lrun_subdirs,aircraft_t_bc
+     lwrite_peakwt,use_limit,lrun_subdirs
+  use aircraftinfo, only: init_aircraft,aircraft_t_bc,biaspredt
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -592,7 +593,7 @@
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
        c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
-       qc_noirjaco3,qc_noirjaco3_pole,aircraft_t_bc
+       qc_noirjaco3,qc_noirjaco3_pole,aircraft_t_bc,biaspredt
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -811,6 +812,7 @@
   call init_rapidrefresh_cldsurf
   call init_chem
   call init_tcps_errvals
+  call init_aircraft
   call init_gfs_stratosphere
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional

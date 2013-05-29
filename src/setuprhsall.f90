@@ -79,6 +79,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2012-01-11  Hu      - add load_gsdgeop_hgt to compute 2d subdomain pbl heights from the guess fields
 !   2012-04-08  Hu      - add code to skip the observations that are not used in minimization
+!   2013-05-24      zhu - add ostats_t and rstats_t for aircraft temperature bias correction
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -107,6 +108,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
+  use aircraftinfo, only: aircraft_t_bc,ostats_t,rstats_t,npredt,ntail
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
@@ -348,6 +350,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         rstats=zero_quad
      end if
 
+     if (aircraft_t_bc) then
+        ostats_t=zero
+        rstats_t=zero_quad
+     end if
+
+
 !    Loop over data types to process
      do is=1,ndat
         nobs=nsat1(is)
@@ -512,6 +520,18 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   if (newpc4pred) then
      call mpl_allreduce(jpch_rad,rpvals=ostats)
      call mpl_allreduce(npred,jpch_rad,rstats)
+  end if
+
+! Collect information for aircraft data
+  if (aircraft_t_bc) then
+     call mpl_allreduce(ntail,rpvals=ostats_t)
+     call mpl_allreduce(npredt,ntail,rstats_t)
+     if (mype==0 .or. mype==20) then
+        print*, 'ostats=',(ostats_t(ier),ier=1,30)
+        print*, 'rstats1=',(rstats_t(1,ier),ier=1,30)
+        print*, 'rstats2=',(rstats_t(2,ier),ier=1,30)
+        print*, 'rstats3=',(rstats_t(3,ier),ier=1,30)
+     end if
   end if
 
 ! Collect satellite and precip. statistics

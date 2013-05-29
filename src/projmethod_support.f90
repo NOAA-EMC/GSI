@@ -429,6 +429,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
                      ltosi,ltosj,latlon11,ijn,displs_g,strip
   use radinfo, only: npred,jpch_rad
   use pcpinfo, only: npredp,npcptype
+  use aircraftinfo, only: npredt,ntail
   use jfunc, only: iter,jiter
   use gsi_bundlemod, only: gsi_bundlegetvar
   use gsi_bundlemod, only: gsi_bundlegetpointer

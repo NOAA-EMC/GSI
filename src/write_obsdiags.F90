@@ -290,6 +290,7 @@ _ENTRY_(myname_)
                     tptr%time, tptr%b,   tptr%pg, &
                     tptr%use_sfc_model,  tptr%tlm_tsfc, &
                     tptr%luse, tptr%tpertb, tptr%tv_ob, &
+                    tptr%idx, tptr%pred, &
                     tptr%k1,   tptr%kx,  tptr%wij,  tptr%ij 
        tptr => tptr%llpoint
     enddo

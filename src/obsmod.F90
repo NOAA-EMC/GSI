@@ -85,6 +85,7 @@ module obsmod
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
 !   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
 !   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
+!   2013-05-19  zhu      - add pred and idx in t_ob_type for aircraft temperature bias correction
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -318,8 +319,6 @@ module obsmod
   public :: mype_pm2_5,iout_pm2_5
   public :: codiags,use_limit,lrun_subdirs
 
-  public :: aircraft_t_bc
-
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
@@ -465,6 +464,9 @@ module obsmod
      logical         :: luse          !  flag indicating if ob is used in pen.
      logical         :: use_sfc_model !  logical flag for using boundary model
      logical         :: tv_ob         !  logical flag for virtual temperature or
+     integer(i_kind) :: idx           !  index of tail number
+     real(r_kind),dimension(:),pointer :: pred => NULL() 
+                                      !  predictor for aircraft temperature bias 
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: ij(8)         !  horizontal locations
@@ -1228,7 +1230,6 @@ module obsmod
   logical lwrite_peakwt
   logical ext_sonde
   logical lrun_subdirs
-  logical aircraft_t_bc
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1255,8 +1256,6 @@ contains
 !   2007-05-03  todling - use values def above as indexes to cobstype
 !   2008-11-25  todling - remove line-by-line adj triggers
 !   2011-02-09  zhu     - add gust,vis and pblh
-!   2013-04-15  zhu     - add aircraft_t_bc for aircraft temperature bias
-!   correction
 !
 !   input argument list:
 !
@@ -1411,7 +1410,6 @@ contains
     lwrite_predterms = .false.
     lwrite_peakwt    = .false.
     lrun_subdirs     = .false.
-    aircraft_t_bc    = .false.
 
     return
   end subroutine init_obsmod_dflts
@@ -1716,6 +1714,8 @@ contains
        ttail(ii)%head => thead(ii)%head
        do while (associated(ttail(ii)%head))
           thead(ii)%head => ttail(ii)%head%llpoint
+          deallocate(ttail(ii)%head%pred,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t arrays, istatus=',istatus
           deallocate(ttail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
           ttail(ii)%head => thead(ii)%head

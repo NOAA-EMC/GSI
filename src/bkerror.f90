@@ -34,6 +34,7 @@ subroutine bkerror(gradx,grady)
 !                         bundles grady%step(ii) and grady%motley(ii) to new temporary bundle
 !                         mbundle.  If there are no motley variables (mvars<=0), then gsi_bundledup
 !                         is used in place of gsi_bundlemerge.
+!   2013-05-23  zhu     - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
 !     gradx    - input field  
@@ -51,7 +52,7 @@ subroutine bkerror(gradx,grady)
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
   use gridmod, only: lat2,lon2,nlat,nlon,periodic,latlon11
-  use jfunc, only: nsclen,npclen
+  use jfunc, only: nsclen,npclen,ntclen
   use jfunc, only: set_sqrt_2dsize
   use constants, only:  zero
   use control_vectors, only: control_vector,assignment(=)
@@ -184,6 +185,11 @@ subroutine bkerror(gradx,grady)
   do i=1,npclen
      grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
   end do
+  if (ntclen>0) then
+     do i=1,ntclen
+        grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
+     end do
+  end if
 
 ! Finalize timer
   call timer_fnl('bkerror')

@@ -18,6 +18,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: t_ob_type
   use obsmod, only: obs_diag
+  use obsmod, only: bmiss
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot
@@ -40,6 +41,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use converr, only: ptabl 
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
+
+  use aircraftinfo, only: npredt,predt,ntail,taillist,aircraft_t_bc,ostats_t,rstats_t
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
@@ -130,6 +133,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                                       layer based on surface obs T
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!   2013-05-17  zhu     - add contribution from aircraft temperature bias correction
 !
 ! !REMARKS:
 !   language: f90
@@ -162,6 +166,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) rsig,drpx,rsigp
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh,ramp
+  real(r_kind) dvvlc
   real(r_kind) tges
   real(r_kind) obserror,ratio,val2,obserrlm
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
@@ -172,6 +177,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nobs)::dup
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nele,nobs):: data
+  real(r_kind),dimension(npredt):: predbias
+  real(r_kind),dimension(npredt):: pred
+  real(r_kind),dimension(npredt):: predcoef
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
   real(r_kind) tgges,roges
   real(r_kind),dimension(nsig):: tvtmp,qtmp,utmp,vtmp,hsges
@@ -180,10 +188,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) dpreso,dpk,tint,tgint
   real(r_kind),dimension(nsig):: prsltmp2
 
-  integer(i_kind) i,nchar,nreal,k,ii,jj,l,nn,ibin,idia
+  integer(i_kind) i,j,nchar,nreal,k,ii,jj,l,nn,ibin,idia,ix
   integer(i_kind) mm1,jsig,iqt
   integer(i_kind) itype,msges
-  integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat
+  integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat,ipof,ivvlc,idx
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
@@ -198,6 +206,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical,dimension(nobs):: luse,muse
   logical sfctype
   logical iqtflg
+  logical aircraft_data
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -214,6 +223,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   m_alloc(:)=0
   cato=0
   station_ido=''
+
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
@@ -248,7 +258,14 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iprvd=22    ! index of observation provider
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
-  iptrb=25    ! index of t perturbation
+  if (aircraft_t_bc) then
+     ipof=25     ! index of data pof
+     ivvlc=26    ! index of data vertical velocity
+     idx=27      ! index of tail number
+     iptrb=28    ! index of t perturbation
+  else
+     iptrb=25    ! index of t perturbation
+  end if
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -270,14 +287,17 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end do
   end do
 
+
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
      ii=0
      nchar=1
      nreal=19
+     if (aircraft_t_bc) nreal=nreal+npredt+1
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
+     rdiagbuf=zero
   end if
   scale=one
   rsig=float(nsig)
@@ -367,6 +387,50 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
 
+! Compute bias correction for aircraft data
+     if (aircraft_t_bc) then 
+        do j = 1, npredt
+           pred(j) = zero
+           predbias(j) = zero
+        end do
+     end if
+
+     dvvlc = zero
+     aircraft_data = (ikx==131) .or. (ikx==133)
+     ix = data(idx,i)
+     if (ix>0 .and. aircraft_data .and. aircraft_t_bc) then
+        do j = 1, npredt
+           predcoef(j) = predt(j,ix)
+        end do
+        print*, 'setupt: id,ix,predt=',data(id,i),ix,(predt(j,ix),j=1,npredt)
+
+!       inflate obs error for any uninitialized tail number
+        if (all(predcoef==zero)) then
+           dvvlc = dvvlc + data(ier,i)
+        end if
+
+!       define predictors
+        pred(1) = one
+        if (data(ivvlc,i)-bmiss<=tiny_r_kind) then
+           dvvlc = dvvlc + 0.2_r_kind*data(ier,i)
+           pred(2) = zero
+           pred(3) = zero
+        else
+           if (data(ivvlc,i)>zero) then
+              pred(2) = data(ivvlc,i)
+              pred(3) = zero
+           end if
+           if (data(ivvlc,i)<zero) then
+              pred(2) = zero
+              pred(3) = data(ivvlc,i)
+           end if
+        end if
+
+        do j = 1, npredt
+           predbias(j) = predcoef(j)*pred(j)
+        end do
+     end if
+
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
      call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
           mype,nfldsig)
@@ -454,7 +518,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
      
-     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp+dvvlc)
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then
@@ -467,6 +531,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Compute innovation
      ddiff = tob-tges
+
+! Apply bias correction to innovation
+     if (aircraft_data .and. aircraft_t_bc) then
+        do j = 1, npredt
+           ddiff = ddiff - predbias(j) 
+        end do
+     end if
 
 ! If requested, setup for single obs test.
      if (oneobtest) then
@@ -589,6 +660,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 	my_head%idv = is
 	my_head%iob = i
 
+        allocate(ttail(ibin)%head%pred(npredt))
+
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
         call get_ijk(mm1,dlat,dlon,dpres,ttail(ibin)%head%ij(1),ttail(ibin)%head%wij(1))
 
@@ -609,6 +682,23 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
         ttail(ibin)%head%luse    = luse(i)
         ttail(ibin)%head%tv_ob   = iqtflg
+
+        if (aircraft_t_bc) then
+           ttail(ibin)%head%idx = data(idx,i)
+           do j=1,npredt
+              ttail(ibin)%head%pred(j) = pred(j)
+           end do
+        end if
+
+
+!       summation of observation number
+        if (luse(i) .and. aircraft_data .and. aircraft_t_bc) then
+           ostats_t(ix)  = ostats_t(ix) + one
+           do j=1,npredt
+              rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
+                           *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
+           end do
+        end if
 
         if(oberror_tune) then
            ttail(ibin)%head%kx=ikx
@@ -690,8 +780,17 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(17,ii) = data(itob,i)       ! temperature observation (K)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
-
-        idia=19
+        if (aircraft_t_bc) then
+           if (aircraft_data) then 
+              rdiagbuf(20,ii) = data(ipof,i)       ! data pof
+              do j=1,npredt
+                 rdiagbuf(20+j,ii) = predbias(j)
+              end do
+              idia=20+npredt
+           end if
+        else
+           idia=19
+        end if
         if (lobsdiagsave) then
            do jj=1,miter
               idia=idia+1

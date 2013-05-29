@@ -31,6 +31,7 @@ module berror
 !   2010-04-25  zhu - add handling of option newpc4pred for new pre-conditioning of predictors
 !   2010-06-01  todling - revist as,tsfc_sdv to allow alloc depending on size of CVec
 !   2011-04-07  todling - move newpc4pred to radinfo
+!   2013-05-27  zhu - add background error variances for aircraft temperature bias correction coefficients
 !
 ! subroutines included:
 !   sub init_berror         - initialize background error related variables
@@ -365,6 +366,7 @@ contains
 !   2010-04-30  zhu     - add handling of newpc4pred, set varprd based on diagonal
 !                         info of analysis error covariance
 !   2012-04-14  whitaker - variance can be specified in setup namelist.
+!   2013-05-27  zhu - add background error variances for aircraft temperature bias correction coefficients
 !
 !   input argument list:
 !
@@ -377,8 +379,9 @@ contains
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
     use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
+    use aircraftinfo, only: aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,rstats_t,varA_t
     use gridmod, only: twodvar_regional
-    use jfunc, only: nrclen
+    use jfunc, only: nrclen, ntclen
     implicit none
 
     integer(i_kind) i,j,ii
@@ -388,6 +391,12 @@ contains
     do i=1,max(1,nrclen)
        varprd(i)=stndev
     end do
+
+    if (aircraft_t_bc .and. ntclen>0) then 
+       do i=nrclen-ntclen+1,max(1,nrclen)
+          varprd(i)=one/biaspredt
+       end do
+    end if
 
 !   set variances for bias predictor coeff. based on diagonal info
 !   of previous analysis error variance
@@ -409,6 +418,24 @@ contains
              end if
           end do
        end do
+
+       if (aircraft_t_bc .and. ntclen>0) then
+          ii=nrclen-ntclen
+          do i=1,ntail
+             do j=1,npredt
+                ii=ii+1
+                if (varA_t(j,i) /= zero) then
+                   if (ostats_t(i)<=3.0_r_kind) then
+                      varA_t(j,i)=two*varA_t(j,i)
+                      varprd(ii)=varA_t(j,i)
+                   else
+                      varprd(ii)=1.1_r_kind*varA_t(j,i)
+                   end if
+                   if (varprd(ii)>r10) varprd(ii)=r10      
+                end if
+             end do
+          end do
+       end if
     end if
 
     return
@@ -433,7 +460,8 @@ contains
 !$$$
     use kinds, only: r_kind,i_kind
     use radinfo, only: ostats,rstats,varA,jpch_rad,npred,newpc4pred
-    use jfunc, only: nclen,nrclen,diag_precon,step_start
+    use aircraftinfo, only: aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
+    use jfunc, only: nclen,nrclen,diag_precon,step_start,ntclen
     use constants, only:  one,tiny_r_kind
     implicit none
 
@@ -461,9 +489,28 @@ contains
               if (ostats(i)>=1.0_r_kind) then
                  vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
                  varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
+              else
+                 vprecond(nclen1+ii)=one
               end if
            end do
         end do
+
+        if (aircraft_t_bc .and. ntclen>0) then
+          nclen1=nclen-ntclen
+!         for aircraft temperature bias predictor coeff.
+          ii=0
+          do i=1,ntail
+             do j=1,npredt
+                ii=ii+1
+                if (ostats_t(i)>=3.0_r_kind) then
+                   vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(ii))
+                   varA_t(j,i)=one/(one/varprd(ii)+rstats_t(j,i))
+                else
+                   vprecond(nclen1+ii)=one
+                end if
+             end do
+          end do
+        end if
       end if
     end if
     return

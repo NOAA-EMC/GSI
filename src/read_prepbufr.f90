@@ -104,7 +104,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
 !                                    Initialize pflag=0 at beginning of subroutine.
-!   2013-04-15  zhu  - add phase of aircraft flight
+!   2013-05-15  zhu  - add phase of aircraft flight and vertical velocity for aircraft data
+!                    - match aircraft obs with temperature bias file 
+!                    - add new tail number info if there is any
 !
 !
 !   input argument list:
@@ -139,7 +141,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss
-  use obsmod, only: aircraft_t_bc
+  use aircraftinfo, only: aircraft_t_bc,ntail,taillist,idx_tail,npredt,predt,ntail_update,max_tail
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -208,7 +210,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) c_station_id
   character(1) sidchr(8)
   character(8) stnid
-  character(8) aircraftstr
+  character(10) aircraftstr
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
@@ -229,6 +231,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) minobs,minan
   integer(i_kind) ntb,ntmatch,ncx
   integer(i_kind) nmsg                ! message index
+  integer(i_kind) idx                 ! order index of aircraft temperature bias 
   integer(i_kind) tab(mxtb,3)
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(nmsgmax):: nrep
@@ -271,7 +274,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(1,255):: levdat
   real(r_double),dimension(255,20):: tpc
   real(r_double),dimension(2,255,20):: tobaux
-  real(r_double),dimension(1,255):: aircraftpof
+  real(r_double),dimension(2,255):: aircraftwk
 
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
@@ -296,7 +299,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
   data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
-  data aircraftstr /'POAF'/           ! phase of aircraft flight
+  data aircraftstr /'POAF IALR'/           ! phase of aircraft flight and vertical velocity
 
   data lunin / 13 /
   data ithin / -9 /
@@ -378,7 +381,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if (tob)  lim_qqm=4
   endif
 
-  if (tob .and. aircraft_t_bc) nreal=nreal+1
+  if (tob .and. aircraft_t_bc) nreal=nreal+3
   if(perturb_obs .and. (tob .or. psob .or. qob))nreal=nreal+1
   if(perturb_obs .and. uvob )nreal=nreal+2
 
@@ -766,7 +769,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            endif
      
 !          aircraft data
-           aircraftobs=(kx>129.and.kx<140) .or. (kx>229.and.kx<240)
+!          aircraftobs=(kx>129.and.kx<140) .or. (kx>229.and.kx<240)
+           aircraftobs=(kx==131) .or. (kx==133)
 
 !          Extract data information on levels
            call ufbint(lunin,obsdat,11,255,levs,obstr)
@@ -779,10 +783,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(uvob)then
               nread=nread+levs
            else if(tob) then 
+              aircraftwk = zero
               if (aircraftobs .and. aircraft_t_bc) then 
-                 call ufbint(lunin,aircraftpof,1,255,levs,aircraftstr)
+                 call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                 print*, 'levs=',levs
                  do k=1,levs
-                 print*, 'aircraft P=',obsdat(1,k), ' T=',obsdat(3,k),' pof=',aircraftpof(1,k)
+                 print*, 'aircraft P=',obsdat(1,k), ' T=',obsdat(3,k), &
+                         ' pof=',aircraftwk(1,k), ' ialr=', aircraftwk(2,k)
                  end do
                  print*
               end if
@@ -1191,6 +1198,37 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qtflg=tvflg(k) 
                  if (inflate_error) toe=toe*r1_2
                  if(ppb < r100)toe=toe*r1_2
+
+                 idx = 0
+                 if (aircraftobs .and. aircraft_t_bc) then
+                    do j = 1,ntail
+!                      if (rstation_id == taillist(j)) then
+                       if (c_station_id == taillist(j)) then
+                          idx = j
+                          exit
+                       end if
+                    end do
+
+!                   append new tail number and inflate obs error.
+!                   at 1st analysis, the obs will be used without bias correction and 
+!                   no bias coefficients will be generated for this new tail number; bias 
+!                   coefficients will be generated for this new tail number at 2nd analysis.
+                    if (idx == 0) then
+                       toe = three*toe
+                       ntail_update = ntail_update+1
+                       if (ntail_update > max_tail) then
+                          write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
+                          write(6,*)'READ_PREPBUFR: stop program execution'
+                          call stop2(339)
+                       end if
+                       idx_tail(ntail_update) = ntail_update
+!                      taillist(ntail_update) = rstation_id
+                       taillist(ntail_update) = c_station_id
+                       do j = 1,npredt
+                          predt(j,ntail_update) = zero
+                       end do
+                    end if
+                 end if
                  cdata_all(1,iout)=toe                     ! temperature error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
@@ -1221,7 +1259,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
-                 if (aircraftobs .and. aircraft_t_bc) cdata_all(25,iout)=aircraftpof(1,k)
+                 if (aircraft_t_bc) then 
+                    cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
+                    cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
+                    cdata_all(27,iout)=idx                 ! index of temperature bias
+                 end if
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))

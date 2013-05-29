@@ -519,6 +519,8 @@
 !          = 335 - error reading radiance diagnostic file
 !          = 336 - invalid namlist setting for nhsrf
 !          = 337 - inconsitent tlnmc namelist settings
+!          = 338 - error reading aircraft temperature bias file
+!          = 339 - aircraft tail number exceeds maximum
 !
 !
 ! remarks: resolution, unit numbers and several constants are
