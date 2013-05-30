@@ -87,7 +87,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,sp_b     
+    use gridmod, only: hires_b,sp_a,sp_b,grd_a
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
          ges_u,ges_v,ges_tv,ges_q,ges_oz,&
          ifilesig,nfldsig 
@@ -108,75 +108,51 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
 
+    do it=1,nfldsig
+
+!      Get pointer to cloud water mixing ratio
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw) 
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
+       if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
+       if (iret_ql/=0) then 
+          if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
+       endif
+       if (iret_qi/=0) then 
+          if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
+       endif
+
+       l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
+
+       write(filename,100) ifilesig(it)
+100    format('sigf',i2.2)
+       if (hires_b) then
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
-    if (hires_b) then
-       do it=1,nfldsig
-
-!         Get pointer to cloud water mixing ratio
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw) 
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
-          if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
-          if (iret_ql/=0) then 
-             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
-          endif
-          if (iret_qi/=0) then 
-             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
-          endif
-
-          l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
-
-          write(filename,100) ifilesig(it)
-100       format('sigf',i2.2)
-          call read_gfsatm(filename,mype_io,mype,sp_a,sp_b,&
+          call general_read_gfsatm(grd_a,sp_a,sp_b,filename,mype,.true., &
                ges_z(1,1,it),ges_ps(1,1,it),&
                ges_vor(1,1,1,it),ges_div(1,1,1,it),&
                ges_u(1,1,1,it),ges_v(1,1,1,it),&
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
 
-!         call set_cloud_lower_bound(ges_cwmr_it)
-          if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
-
-          if (l_cld_derived) &            
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
-
-       end do
+       else
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
-    else
-       do it=1,nfldsig
-
-!         Get pointer to cloud water mixing ratio
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw)    
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql)    
-          call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)    
-          if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
-          if (iret_ql/=0) then 
-             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
-          endif
-          if (iret_qi/=0) then 
-             if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
-          endif
-
-          l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
-
-          write(filename,100) ifilesig(it)
-          call read_gfsatm(filename,mype_io,mype,sp_a,sp_a,&
+          call general_read_gfsatm(grd_a,sp_a,sp_a,filename,mype,.true., &
                ges_z(1,1,it),ges_ps(1,1,it),&
                ges_vor(1,1,1,it),ges_div(1,1,1,it),&
                ges_u(1,1,1,it),ges_v(1,1,1,it),&
                ges_tv(1,1,1,it),ges_q(1,1,1,it),&
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
+       endif
 
-!         call set_cloud_lower_bound(ges_cwmr_it)
-          if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
+!      call set_cloud_lower_bound(ges_cwmr_it)
+       if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
-          if (l_cld_derived) &            
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
+       if (l_cld_derived) &            
+       call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
 
-       end do
-    endif
+    end do
 
   end subroutine read_gfs
 
@@ -453,14 +429,7 @@ end subroutine write_ghg_grid
     call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
     call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
     call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    gfshead%fhour   = fhour
-    gfshead%idate   = idate
-    gfshead%lonb    = lonb
-    gfshead%latb    = latb
-    gfshead%levs    = levs
-    gfshead%ntrac   = ntrac
-    gfshead%ncldt   = ncldt
-    if (mype /= iope) then
+    if(mype /= iope) then
         ! allocate data structure for non-IO tasks.
         allocate(sigdata%hs(nc),sigdata%ps(nc),&
              sigdata%t(nc,levs),sigdata%d(nc,levs),sigdata%z(nc,levs),&
@@ -472,6 +441,14 @@ end subroutine write_ghg_grid
     call mpi_bcast(sigdata%z(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
     call mpi_bcast(sigdata%d(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
     call mpi_bcast(sigdata%q(1,1,1),nc*levs*ntrac,mpi_real4,iope,mpi_comm_world,iret)
+    gfshead%fhour   = fhour
+    gfshead%idate   = idate
+    gfshead%lonb    = lonb
+    gfshead%latb    = latb
+    gfshead%levs    = levs
+    gfshead%ntrac   = ntrac
+    gfshead%ncldt   = ncldt
+    return
   end subroutine read_sigma
 
   subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
@@ -559,391 +536,6 @@ end subroutine write_ghg_grid
     call mpi_bcast(sfcdata%orog(1,1),lonb*latb,mpi_real4,iope,mpi_comm_world,iret)
   end subroutine read_sfc
 
-  subroutine read_gfsatm(filename,iope,mype,sp_a,sp_b,g_z,g_ps,g_vor,g_div,g_u,g_v,&
-       g_tv,g_q,g_cwmr,g_oz,iret_read)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    read_gfsatm         read gfs atm, convert to grid and
-!                                    send to all mpi tasks
-!   prgmmr: parrish          org: np22                date: 1990-10-10
-!
-! abstract: read ncep gfs atmospheric guess, convert to grid, and 
-!           scatter to subdomains
-!
-! program history log:
-!   1990-10-10  parrish
-!   1997-09-23  weiyu yang
-!   1998-05-15  weiyu yang       mpp version
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-05-18  kleist, documentation
-!   2004-05-15  treadon - transform spectral coef to grid, 
-!                         communicate grids to all tasks
-!   2004-06-17  treadon - update documentation
-!   2004-08-03  treadon - add only to module use, add intent in/out
-!   2004-08-23  treadon - declare tracers,vtid,pdryini,xncld as real(single)
-!   2004-08-27  treadon - use splib routines for grid <---> spectral transforms
-!   2005-03-07  dee     - support gmao model interface
-!   2005-03-30  treadon - clean up formatting of write statement
-!   2005-12-09  guo     - removed special GMAO spectral input format
-!   2006-01-09  treadon - use sigio
-!   2006-03-13  treadon - increase filename to 24 characters
-!   2006-09-18  treadon - replace lnps with ps
-!   2007-05-08  kleist - add option for lnps or ps
-!   2008-05-28  safford - rm unused vars
-!   2010-03-10  sela,iredell,lueken - remove hires_b
-!   2010-03-18  treadon - remove zonal mean q check
-!   2010-03-31  treadon - add sp_a and sp_b
-!
-!   input argument list:
-!     inges    - unit number of guess coefs
-!     iope     - mpi task handling i/o
-!     mype     - mpi task id
-!
-!   output argument list:
-!     hourg    - guess forecast hour
-!     idateg   - initial date of guess
-!     g_*      - guess fields
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use kinds, only: r_kind,r_single,i_kind
-    use gridmod, only: displs_s,irc_s,ijn_s,&
-         ird_s,nsig,nlat,nlon,lat2,lon2,&
-         itotsub,fill_ns,filluv_ns,ncepgfs_head,idpsfc5,idthrm5,&
-         ntracer,idvc5,cp5,idvm5,reload
-    use general_specmod, only: spec_vars
-    use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
-    use constants, only: zero,one,fv
-    use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
-         sigio_axdata
-    implicit none
-    
-!   Declare local parameters
-    integer(sigio_intkind):: lunges = 11
-    real(r_kind),parameter:: r0_001 = 0.001_r_kind
-
-!   Declare passed variables
-    character(*)                         ,intent(in   ) :: filename
-    integer(i_kind)                       , intent(in  ) :: iope
-    integer(i_kind)                       ,intent(in   ) :: mype
-    integer(i_kind)                       ,intent(  out) :: iret_read
-    real(r_kind),dimension(lat2,lon2)     ,intent(  out) :: g_z,g_ps
-    real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: g_u,g_v,&
-         g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
-    type(spec_vars)                       ,intent(in   ) :: sp_a,sp_b
-    
-!   Declare local variables
-    integer(i_kind):: iret,nlatm2,ij,n,ii1,l,m
-    integer(i_kind) i,j,k,icount,icount_prev,mm1
-    integer(i_kind) mype_hs,mype_ps
-    real(r_kind),dimension(nlon,nlat-2):: grid,grid_u,grid_v,&
-         grid_vor,grid_div,grid2
-    real(r_kind),dimension(nlon,nlat-2,ntracer):: grid_q
-    real(r_kind),dimension(sp_b%nc):: spec_work,spec_vor,spec_div
-    real(r_kind),dimension(sp_a%nc):: spec2_work,spec2_vor,spec2_div
-    real(r_kind),dimension(itotsub):: work,work_vor,work_div,&
-         work_u,work_v
-    real(r_kind),dimension(lat2*lon2,max(2*nsig,npe)):: sub,sub_div,sub_vor,&
-         sub_u,sub_v
-    
-    type(sigio_head):: sighead
-    type(sigio_data):: sigdata
-    type(ncepgfs_head):: gfshead
-
-
-!******************************************************************************  
-!   Initialize variables used below
-    mm1=mype+1
-    mype_hs=0
-    mype_ps=npe-1
-    iret_read=0
-    nlatm2=nlat-2
-
-
-!   Read NCEP gfs guess file using appropriate io module
-!   Do IO on task iope, bcast data to other tasks.
-    call read_sigma(lunges,filename,gfshead,sigdata,iope,mype,iret)
-    if (iret /= 0) goto 1000
-
-
-!   Process guess fields according to type of input file.   NCEP_SIGIO files
-!   are spectral coefficient files and need to be transformed to the grid.
-!   Once on the grid, fields need to be scattered from the full domain to
-!   sub-domains.
-
-!   Terrain:  spectral --> grid transform, scatter to all mpi tasks
-    if (mype==mype_hs) then
-       do i=1,sp_b%nc
-          spec_work(i)=sigdata%hs(i)
-          if(sp_b%factsml(i))spec_work(i)=zero
-       end do
-       call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-       call fill_ns(grid,work)
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-         g_z,ijn_s(mm1),mpi_rtype,mype_hs,mpi_comm_world,ierror)
-
-
-!   Surface pressure:  same procedure as terrain, but handled by task mype_ps
-!   NCEP SIGIO has two options for surface pressure.  Variable idpsfc5 
-!   indicates the type:   
-!      idpsfc5= 0,1 for ln(psfc)
-!      idpsfc5= 2 for psfc
-!   
-    if (mype==mype_ps) then
-       do i=1,sp_b%nc
-          spec_work(i)=sigdata%ps(i)
-          if(sp_b%factsml(i))spec_work(i)=zero
-       end do
-       call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-       call fill_ns(grid,work)
-       
-!      If ln(ps), take exponential to convert to ps in cb
-       if (idpsfc5 /= 2) then
-          do i=1,itotsub
-             work(i)=exp(work(i))
-          end do
-       endif
-    endif
-    call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype,&
-         g_ps,ijn_s(mm1),mpi_rtype,mype_ps,mpi_comm_world,ierror)
-    
-    
-!   Thermodynamic variable:  s-->g transform, communicate to all tasks
-!   For multilevel fields, each task handles a given level.  Periodic
-!   mpi_alltoallv calls communicate the grids to all mpi tasks.  
-!   Finally, the grids are loaded into guess arrays used later in the 
-!   code.
-    sub=zero
-    icount=0
-    icount_prev=1
-    do k=1,gfshead%levs
-       icount=icount+1
-       if (mype==mod(icount-1,npe)) then
-          do i=1,sp_b%nc
-             spec_work(i)=sigdata%t(i,k)
-             if(sp_b%factsml(i))spec_work(i)=zero
-          end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-
-!         SIGIO has three possible thermodynamic variables
-!         Variable idthrm5 indicates the type
-!            idthrm5 = 0,1 = virtual temperature (Tv)
-!            idthrm5 = 2   = sensible (dry) temperature (T)
-!            idthrm5 = 3   = enthalpy (h=CpT)
-!         The GSI analysis variable is Tv
-
-!         If needed, convert T or h to Tv
-
-          if (idthrm5==2 .or. idthrm5==3) then
-
-!            Convert tracers from spectral coefficients to grid
-             do n=1,ntracer
-                do i=1,sp_b%nc
-                   spec_work(i)=sigdata%q(i,k,n)
-                   if(sp_b%factsml(i))spec_work(i)=zero
-                end do
-                call general_sptez_s_b(sp_a,sp_b,spec_work,grid_q(1,1,n),1)
-             end do
-
-!            Convert input thermodynamic variable to dry temperature
-             call sigio_cnvtdv8(nlon*nlatm2,nlon*nlatm2,1,idvc5,&
-                  idvm5,ntracer,iret,grid,grid_q,cp5,1)
-
-!            Convert dry temperature to virtual
-             do j=1,nlatm2
-                do i=1,nlon
-                   grid(i,j) = grid(i,j)*(one+fv*grid_q(i,j,1))
-                end do
-             end do
-             
-          endif
-
-!         Load values into rows for south and north pole
-          call fill_ns(grid,work)
-       endif
-
-       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-               sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          icount_prev=icount+1
-       endif
-    end do
-    call reload(sub,g_tv)
-
-
-
-!   Divergence and voriticity.  Compute u and v from div and vor
-    sub_vor=zero
-    sub_div=zero
-    sub_u=zero
-    sub_v=zero
-    icount=0
-    icount_prev=1
-    do k=1,gfshead%levs
-       icount=icount+1
-
-!      The work in the loop below is spread over all mpi tasks
-       if (mype==mod(icount-1,npe)) then
-
-!         Convert spectral coefficients of div and vor to grid space
-          do i=1,sp_b%nc
-             spec_div(i)=sigdata%d(i,k)   !div
-             spec_vor(i)=sigdata%z(i,k)   !vor
-             if(sp_b%factvml(i))then
-                spec_div(i)=zero
-                spec_vor(i)=zero
-             end if
-          end do
-          call general_sptez_s_b(sp_a,sp_b,spec_div,grid_div,1)
-          call general_sptez_s_b(sp_a,sp_b,spec_vor,grid_vor,1)
-          call general_sptez_v_b(sp_a,sp_b,spec_div,spec_vor,grid_u,grid_v,1)
-          
-          call fill_ns(grid_div,work_div)
-          call fill_ns(grid_vor,work_vor)
-          call filluv_ns(grid_u,grid_v,work_u,work_v)
-          
-       endif
-
-!      Periodically exchange vor,div,u,v between all mpi tasks.
-       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
-          call mpi_alltoallv(work_vor,ijn_s,displs_s,mpi_rtype,&
-               sub_vor(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          call mpi_alltoallv(work_div,ijn_s,displs_s,mpi_rtype,&
-               sub_div(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          call mpi_alltoallv(work_u,ijn_s,displs_s,mpi_rtype,&
-               sub_u(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          call mpi_alltoallv(work_v,ijn_s,displs_s,mpi_rtype,&
-               sub_v(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          icount_prev=icount+1
-       endif
-    end do
-    
-!   Transfer vor,div,u,v into real(r_kind) guess arrays
-    call reload(sub_vor,g_vor)
-    call reload(sub_div,g_div)
-    call reload(sub_u,g_u)
-    call reload(sub_v,g_v)
-
-
-!   Specific humidity
-    sub=zero
-    icount=0
-    icount_prev=1
-    do k=1,gfshead%levs
-       icount=icount+1
-       if (mype==mod(icount-1,npe)) then
-          do i=1,sp_b%nc
-             spec_work(i)=sigdata%q(i,k,1)
-             if(sp_b%factsml(i))spec_work(i)=zero
-          end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-          call fill_ns(grid,work)
-       endif
-       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-               sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          icount_prev=icount+1
-       endif
-    end do
-    call reload(sub,g_q)
-
-
-!   Ozone mixing ratio
-    sub=zero
-    icount=0
-    icount_prev=1
-    do k=1,gfshead%levs
-       icount=icount+1
-       if (mype==mod(icount-1,npe)) then
-          do i=1,sp_b%nc
-             spec_work(i)=sigdata%q(i,k,2)
-             if(sp_b%factsml(i))spec_work(i)=zero
-          end do
-          call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-          call fill_ns(grid,work)
-       endif
-       if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
-          call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-               sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-               mpi_comm_world,ierror)
-          icount_prev=icount+1
-       endif
-    end do
-    call reload(sub,g_oz)
-    
-
-!   Cloud condensate mixing ratio.
-    if (gfshead%ntrac>2 .or. gfshead%ncldt>=1) then
-       sub=zero
-       icount=0
-       icount_prev=1
-       do k=1,gfshead%levs
-          icount=icount+1
-          if (mype==mod(icount-1,npe)) then
-             do i=1,sp_b%nc
-                spec_work(i)=sigdata%q(i,k,3)
-                if(sp_b%factsml(i))spec_work(i)=zero
-             end do
-             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-             call fill_ns(grid,work)
-          endif
-          if (mod(icount,npe)==0 .or. icount==gfshead%levs) then
-             call mpi_alltoallv(work,ijn_s,displs_s,mpi_rtype,&
-                  sub(1,icount_prev),irc_s,ird_s,mpi_rtype,&
-                  mpi_comm_world,ierror)
-             icount_prev=icount+1
-          endif
-       end do
-       call reload(sub,g_cwmr)
-    else
-       do k=1,gfshead%levs
-          do j=1,lon2
-             do i=1,lat2
-                g_cwmr(i,j,k)=zero
-             end do
-          end do
-       end do
-    endif
-    
-!   Deallocate sigio data array
-    call sigio_axdata(sigdata,iret)
-    iret_read=iret_read+iret
-
-
-!   Print date/time stamp 
-    if(mype==iope) then
-       write(6,700) gfshead%lonb,gfshead%latb,gfshead%levs,&
-            gfshead%fhour,gfshead%idate
-700    format('READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
-            3i6,', hour=',f10.1,', idate=',4i5)
-    end if
-
-    return
-
-
-!   ERROR detected while reading file
-1000 continue
-    if (mype==iope) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
-         filename,' from unit ',lunges,'.   iret=',iret
-    call sigio_axdata(sigdata,iret)
-    iret_read=iret_read+iret
-
-
-!   End of routine.  Return
-    return
-  end subroutine read_gfsatm
-
-
 
   subroutine read_gfssfc(filename,iope,mype,fact10,sfct,sno,veg_type,&
        veg_frac,soil_type,soil_temp,soil_moi,isli,sfc_rough,terrain)
@@ -1008,15 +600,13 @@ end subroutine write_ghg_grid
     integer(i_kind),parameter:: nsfc=11
 
 !   Declare local variables
-    integer(i_kind) i,j,k,latb,lonb,mm1
+    integer(i_kind) i,j,k,latb,lonb,n
     integer(sfcio_intkind):: irets,iret
-    real(r_kind) sumn,sums
-    real(r_kind),allocatable,dimension(:,:,:):: work,sfcges
+    real(r_kind),allocatable,dimension(:,:):: outtmp
 
     type(sfcio_head):: sfc_head
     type(sfcio_data):: sfc_data
 
-    mm1=mype+1
 !-----------------------------------------------------------------------------
 !   Read surface file
     call read_sfc(lunges,filename,sfc_head,sfc_data,iope,mype,irets)
@@ -1041,76 +631,68 @@ end subroutine write_ghg_grid
     endif
 
 !   Load surface fields into local work array
-    allocate(work(lonb,latb,nsfc),sfcges(latb+2,lonb,nsfc))
-    do k=1,nsfc
-       do j=1,latb
-          do i=1,lonb
-             work(i,j,k) = zero
+
+!$omp parallel do private(n,i,j,outtmp)
+    do n=1,nsfc
+      if(n == 1)then                                  !skin temperature
+
+        call tran_gfssfc(sfc_data%tsea,sfct,lonb,latb)                                 
+
+      else if(n == 2) then                            ! soil moisture
+
+        call tran_gfssfc(sfc_data%smc(1:lonb,1:latb,1),soil_moi,lonb,latb)  
+
+      else if(n == 3) then                            ! snow depth
+
+        call tran_gfssfc(sfc_data%sheleg,sno,lonb,latb)        
+
+      else if(n == 4) then                            ! soil temperature
+
+        call tran_gfssfc(sfc_data%stc(1:lonb,1:latb,1),soil_temp,lonb,latb)  
+
+      else if(n == 5) then                            ! sea/land/ice mask
+
+        allocate(outtmp(latb+2,lonb))
+        call tran_gfssfc(sfc_data%slmsk,outtmp,lonb,latb)                       
+        do j=1,lonb
+          do i=1,latb+2
+             isli(i,j) = nint(outtmp(i,j))
           end do
-       end do
-    end do
-    do j=1,latb
-       do i=1,lonb
-          work(i,j,1)  = sfc_data%tsea  (i,j)    ! skin temperature
-          work(i,j,2)  = sfc_data%smc (i,j,1)    ! soil moisture
-          work(i,j,3)  = sfc_data%sheleg(i,j)    ! snow depth
-          work(i,j,4)  = sfc_data%stc (i,j,1)    ! soil temperature
-          work(i,j,5)  = sfc_data%slmsk (i,j)    ! sea/land/ice mask
-          work(i,j,6)  = sfc_data%vfrac (i,j)    ! vegetation cover
-          work(i,j,7)  = sfc_data%f10m  (i,j)    ! 10m wind factor
-          work(i,j,8)  = sfc_data%vtype (i,j)    ! vegetation type
-          work(i,j,9)  = sfc_data%stype (i,j)    ! soil type
-          work(i,j,10) = sfc_data%zorl  (i,j)    ! surface roughness length (cm)
-          work(i,j,11) = sfc_data%orog  (i,j)    ! terrain
-       end do
-    end do
-    call sfcio_axdata(sfc_data,iret)
+        end do
+        deallocate(outtmp)
 
-!   Fill surface guess array
-    do k=1,nsfc
+      else if(n == 6) then                             ! vegetation cover
 
-!      Compute mean for southern- and northern-most rows
-!      of surface guess array
-       sumn = zero
-       sums = zero
-       do i=1,lonb
-          sumn = work(i,1,k)    + sumn
-          sums = work(i,latb,k) + sums
-       end do
-       sumn = sumn/float(lonb)
-       sums = sums/float(lonb)
+        call tran_gfssfc(sfc_data%vfrac,veg_frac,lonb,latb)                       
 
-!      Transfer from local work array to surface guess array
-       do j = 1,lonb
-          sfcges(1,j,k)=sums
-          sfcges(latb+2,j,k)=sumn
-          do i=2,latb+1
-             sfcges(i,j,k) = work(j,latb+2-i,k)
-          end do
-       end do
+      else if(n == 7) then                             ! 10m wind factor
+
+        call tran_gfssfc(sfc_data%f10m,fact10,lonb,latb)                           
+
+      else if(n == 8) then                             ! vegetation type
+
+        call tran_gfssfc(sfc_data%vtype,veg_type,lonb,latb)            
+
+      else if(n == 9) then                             ! soil type
+
+        call tran_gfssfc(sfc_data%stype,soil_type,lonb,latb)                     
+
+      else if(n == 10) then                            ! surface roughness length (cm)
+
+        call tran_gfssfc(sfc_data%zorl,sfc_rough,lonb,latb)            
+
+      else if(n == 11) then                            ! terrain
+
+        call tran_gfssfc(sfc_data%orog,terrain,lonb,latb)            
+
+      end if
+
 
 !   End of loop over data records
     end do
 
-!   Deallocate local work arrays
-    deallocate(work)
-!   Load data into output arrays
-    do j=1,lonb
-       do i=1,latb+2
-          sfct(i,j)      = sfcges(i,j,1)
-          soil_moi(i,j)  = sfcges(i,j,2)
-          sno(i,j)       = sfcges(i,j,3)
-          soil_temp(i,j) = sfcges(i,j,4)
-          isli(i,j)      = nint(sfcges(i,j,5)+0.0000001_r_kind)
-          veg_frac(i,j)  = sfcges(i,j,6)
-          fact10(i,j)    = sfcges(i,j,7)
-          veg_type(i,j)  = sfcges(i,j,8)
-          soil_type(i,j) = sfcges(i,j,9)
-          sfc_rough(i,j) = sfcges(i,j,10)
-          terrain(i,j)   = sfcges(i,j,11)
-       end do
-    end do
-    deallocate(sfcges)
+    call sfcio_axdata(sfc_data,iret)
+
 
 !   Print date/time stamp
     if(mype==iope) then
@@ -1121,6 +703,66 @@ end subroutine write_ghg_grid
 
     return
   end subroutine read_gfssfc
+
+subroutine tran_gfssfc(ain,aout,lonb,latb)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    tran_gfssfc     transform gfs surface file to analysis grid
+!   prgmmr: derber          org: np2                date: 2003-04-10
+!
+! abstract: transform gfs surface file to analysis grid
+!
+! program history log:
+!   2012-31-38  derber  - initial routine
+!
+!   input argument list:
+!     ain      - input surface record on processor iope
+!     lonb     - input number of longitudes
+!     latb     - input number of latitudes
+!
+!   output argument list:
+!     aout     - output transposed surface record
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind
+    use constants, only: zero
+    use sfcio_module, only: sfcio_realkind
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind)                  ,intent(in ) :: lonb,latb
+    real(sfcio_realkind),dimension(lonb,latb),intent(in ) :: ain
+    real(r_kind),dimension(latb+2,lonb),intent(out) :: aout
+
+!   Declare local variables
+    integer(i_kind) i,j
+    real(r_kind) sumn,sums
+!   of surface guess array
+    sumn = zero
+    sums = zero
+    do i=1,lonb
+       sumn = ain(i,1)    + sumn
+       sums = ain(i,latb) + sums
+    end do
+    sumn = sumn/float(lonb)
+    sums = sums/float(lonb)
+
+!    Transfer from local work array to surface guess array
+    do j = 1,lonb
+       aout(1,j)=sums
+       do i=2,latb+1
+          aout(i,j) = ain(j,latb+2-i)
+       end do
+       aout(latb+2,j)=sumn
+    end do
+
+    return
+    end subroutine tran_gfssfc
+
 
   subroutine read_gfsnst(filename,mype,tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 
