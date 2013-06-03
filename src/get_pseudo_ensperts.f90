@@ -115,7 +115,6 @@ subroutine get_pseudo_ensperts
   rewind lendian_in
   read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig, &
               dlmd,dphd
-  if(mype == 0)print *,'dlmd,dphd=', dlmd, dphd
   close(lendian_in)
 
 
@@ -143,8 +142,8 @@ subroutine get_pseudo_ensperts
   open(lendian_in,file=trim(filename),form='unformatted')
   rewind lendian_in
   read(lendian_in) nlon_regional_lib,nlat_regional_lib,nsig,dlmd_lib,dphd_lib
-  if(mype == 0)print *,'nlon_lib, nlat_lib, nsig=', nlon_regional_lib,nlat_regional_lib,nsig
-  if(mype == 0)print *,'dlmd_lib,dphd_lib=', dlmd_lib,dphd_lib
+!  if(mype == 0)print *,'nlon_lib, nlat_lib, nsig=', nlon_regional_lib,nlat_regional_lib,nsig
+!  if(mype == 0)print *,'dlmd_lib,dphd_lib=', dlmd_lib,dphd_lib
   if(filled_grid) then
      nlon_lib=2*nlon_regional_lib-1
      nlat_lib=nlat_regional_lib
@@ -154,9 +153,9 @@ subroutine get_pseudo_ensperts
      nlat_lib=1+nlat_regional_lib/2
   endif
   close(lendian_in)
-  if(mype == 0)print *,'nlon_lib, nlat_lib, nsig=', nlon_lib, nlat_lib, nsig
+!  if(mype == 0)print *,'nlon_lib, nlat_lib, nsig=', nlon_lib, nlat_lib, nsig
   num_fields=1+4*nsig 
-  if(mype == 0)print *,'num_fields=', num_fields
+!  if(mype == 0)print *,'num_fields=', num_fields
   inner_vars=1
   allocate(vector(num_fields))
   vector=.false.
@@ -171,7 +170,7 @@ subroutine get_pseudo_ensperts
 
   call get_bgtc_center(bc_lon,bc_lat)
 
-  if(mype == 0) print *,'bc_lon,bc_lat=', bc_lon,bc_lat
+!  if(mype == 0) print *,'bc_lon,bc_lat=', bc_lon,bc_lat
 
   if(filled_grid)then
      dlmd2=dlmd
@@ -229,13 +228,13 @@ subroutine get_pseudo_ensperts
   do n=1,n_ens
      read(100,'(a120)',err=20,end=60)filename
      filename=trim(filename)
-     if(mype == 0)print *,'mtong filename=', filename
+     if(mype == 0)print *,'get_pseudo_ensperts: filename=', filename
      inquire(file=filename,exist=fexist)
      if(.not. fexist) call stop2(401)
 
      read(200,'(a120)',err=20,end=60)infofile
      infofile=trim(infofile)
-     if(mype == 0)print *,'mtong infofile=', infofile
+     if(mype == 0)print *,'get_pseudo_ensperts: infofile=', infofile
      inquire(file=infofile,exist=fexist)
      if(.not. fexist) call stop2(401) 
 
@@ -245,7 +244,7 @@ subroutine get_pseudo_ensperts
      read(30,*)lclon,lclat,lc_lon,lc_lat
      close(30)
 
-     if(mype == 0)print *,'n,lc_lon,lc_lat=', n,lc_lon, lc_lat
+!     if(mype == 0)print *,'n,lc_lon,lc_lat=', n,lc_lon, lc_lat
 
      if(filled_grid)then
         lc_lon=(2*lc_lon)-1
@@ -255,12 +254,12 @@ subroutine get_pseudo_ensperts
         lc_lat=1+lc_lat/2
      end if
 
-     if(mype == 0)print *,'n,lc_lon,lc_lat=', n,lc_lon, lc_lat
+!     if(mype == 0)print *,'n,lc_lon,lc_lat=', n,lc_lon, lc_lat
 
      lc_lonm=lc_lon-(bc_lon-NINT(bc_lon))*dlmd_ens/dlmd_lib
      lc_latm=lc_lat-(bc_lat-NINT(bc_lat))*dphd_ens/dphd_lib
 
-     if(mype == 0)print *,'n,lc_lonm,lc_latm=', n,lc_lonm, lc_latm
+!     if(mype == 0)print *,'n,lc_lonm,lc_latm=', n,lc_lonm, lc_latm
 
      lon_bc=NINT(bc_lon) 
      lat_bc=NINT(bc_lat)
@@ -276,9 +275,9 @@ subroutine get_pseudo_ensperts
 !     ratio_lat=1
 ! test
 
-     if(mype == 0)print *,'lon_bc,lat_bc=',lon_bc,lat_bc
-     if(mype == 0)print *,'lon_lc,lat_lc=',lon_lc,lat_lc
-     if(mype == 0)print *,'ratio_lon,ratio_lat=',ratio_lon,ratio_lat
+!     if(mype == 0)print *,'lon_bc,lat_bc=',lon_bc,lat_bc
+!     if(mype == 0)print *,'lon_lc,lat_lc=',lon_lc,lat_lc
+!     if(mype == 0)print *,'ratio_lon,ratio_lat=',ratio_lon,ratio_lat
 
      allocate(   u(grd_lib%lat2,grd_lib%lon2,grd_lib%nsig))
      allocate(   v(grd_lib%lat2,grd_lib%lon2,grd_lib%nsig))
@@ -291,8 +290,8 @@ subroutine get_pseudo_ensperts
 
      call read_wrf_nmm_tclib(grd_lib,filename,mype,ps,u,v,tv,rh)
 
-     write(fileout,'("tclib",i3.3)') n
-     call grads3a(grd_lib,u,v,tv,rh,ps,grd_lib%nsig,mype,fileout)
+!     write(fileout,'("tclib",i3.3)') n
+!     call grads3a(grd_lib,u,v,tv,rh,ps,grd_lib%nsig,mype,fileout)
 
      allocate(work_sub(grd_lib%inner_vars,grd_lib%lat2,grd_lib%lon2,num_fields))
      work_sub=zero
@@ -362,8 +361,8 @@ subroutine get_pseudo_ensperts
      end do
      deallocate(work_sub)
 
-     write(fileout,'("tclibe2a",i3.3)') n
-     call grads3a(grd_ens,u,v,tv,rh,ps,grd_ens%nsig,mype,fileout)
+!     write(fileout,'("tclibe2a",i3.3)') n
+!     call grads3a(grd_ens,u,v,tv,rh,ps,grd_ens%nsig,mype,fileout)
 !
 ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
      do ic3=1,nc3d
@@ -473,7 +472,7 @@ subroutine get_pseudo_ensperts
 !  call ens_spread_dualres_regional(en_bar,mype)
 !  call mpi_barrier(mpi_comm_world,ierror)
 
-  test=.true.
+  test=.false.
   if(test)then
      allocate(u(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
      allocate(v(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
@@ -630,7 +629,7 @@ subroutine get_pseudo_ensperts
 
 ! output perturbations
 
-  test=.true.
+  test=.false.
   if(test)then
      allocate(u(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
      allocate(v(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
@@ -807,11 +806,11 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
 
   num_all_fields=num_nmm_fields*1
   num_loc_groups=num_all_fields/npe
-  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, lm            =",i6)')lm
-  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, num_nmm_fields=",i6)')num_nmm_fields
-  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, num_all_fields=",i6)')num_all_fields
-  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, npe           =",i6)')npe
-  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, num_loc_groups=",i6)')num_loc_groups
+!  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, lm            =",i6)')lm
+!  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, num_nmm_fields=",i6)')num_nmm_fields
+!  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, num_all_fields=",i6)')num_all_fields
+!  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, npe           =",i6)')npe
+!  if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_tclib, num_loc_groups=",i6)')num_loc_groups
   do
      num_all_pad=num_loc_groups*npe
      if(num_all_pad >= num_all_fields) exit
@@ -863,8 +862,8 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
   icount_prev=1
   open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
   read(lendian_in) nlon_regional,nlat_regional,nsig,dlmd,dphd,pt,pdtop
-  if(mype == 0)print *,'nlon_regional,nlat_regional,nsig,dlmd,dphd,pt,pdtop'
-  if(mype == 0)print *,nlon_regional,nlat_regional,nsig,dlmd,dphd,pt,pdtop
+!  if(mype == 0)print *,'nlon_regional,nlat_regional,nsig,dlmd,dphd,pt,pdtop'
+!  if(mype == 0)print *,nlon_regional,nlat_regional,nsig,dlmd,dphd,pt,pdtop
   im=nlon_regional
   jm=nlat_regional
   allocate(aeta1(nsig),aeta2(nsig))
@@ -888,7 +887,6 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
      end if
      if(mype == mod(icount-1,npe)) then
         read(lendian_in)((temp1(i,j),i=1,im),j=1,jm)
-        write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')ifld,temp1(im/2,jm/2)
         if(filled_grid) call general_fill_nmm_grid2(grd,temp1,im,jm,tempa,abs(igtype(ifld)),1,ireturn)
         if(half_grid)   call general_half_nmm_grid2(grd,temp1,im,jm,tempa,abs(igtype(ifld)),1,ireturn)
         if(ireturn == 1)call stop2(500)
@@ -977,8 +975,8 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
   end do
 
 ! test
-  write(fileout,'("tclib",i3.3)') 0
-  call grads3a(grd,u,v,tsen,q,ps,grd%nsig,mype,fileout)
+!  write(fileout,'("tclib",i3.3)') 0
+!  call grads3a(grd,u,v,tsen,q,ps,grd%nsig,mype,fileout)
 ! test
 
   deallocate(aeta1,aeta2,aeta1_ll,aeta2_ll)
@@ -1121,7 +1119,6 @@ subroutine create_pseudo_enpert_blend(bc_lon,bc_lat,dlmd,dphd,nord_blend,blndmsk
   do j=jmin,jmax
      do i=imin,imax
         dr=sqrt((dy*(i-bc_lat))*(dy*(i-bc_lat))+(dx*(j-bc_lon))*(dx*(j-bc_lon)))
-!        if(i==imin .and. j==jmin) print *,'dr=',dr
         if(dr <= r150)then
            blndmsk(i,j)=one
         else if(dr <= r300)then
@@ -1133,7 +1130,6 @@ subroutine create_pseudo_enpert_blend(bc_lon,bc_lat,dlmd,dphd,nord_blend,blndmsk
            y=y*x**(mm+1)
            blndmsk(i,j)=y
         end if
-!        if(i==imin .and. j==jmin) print *,'blndmsk=', blndmsk(i,j)
      end do
   end do
 
@@ -1192,7 +1188,6 @@ subroutine pseudo_ens_e2a(lon_bc,lat_bc,lon_lc,lat_lc,nlone,nlate,e,blend,ratio_
      if( jj > 0 .and. jj <= nlone )then
         do i=1,nlata 
            ii=lat_lc+ratio_lat*(i-lat_bc)
-!           if(j == 217 .and. i == 202)print *,'ii, jj=', ii, jj 
            if(blend(i,j) > zero .and. ii > 0 .and. ii <= nlate)then
               a(i,j)=e(ii,jj)
            end if

@@ -699,7 +699,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse)
+                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0

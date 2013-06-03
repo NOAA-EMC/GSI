@@ -739,18 +739,11 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
         ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)       
 
-        write(6,2001) 'Li_290',data(ilate,i), data(ilone,i), &
-                   uob, vob, ugesin, vgesin, jiter, ascat_vec
-
         if ( abs(dudiff) > qcu  .or. &       ! u component check
              abs(dvdiff) > qcv  .or. &       ! v component check
              vecdiff > vecdiff_opp ) then    ! ambiguity check
  
            error = zero
-        else
-           write(6,2000) "999290290", data(ilate,i), &
-                      data(ilone,i), uob, vob, ugesin, vgesin, &
-                      jiter
         endif
      endif
 
@@ -759,9 +752,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcu = r6
         qcv = r6
         oscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
-
-        write(6,2001) 'Li_291',data(ilate,i), data(ilone,i), &
-                   uob, vob, ugesin, vgesin, jiter, oscat_vec
 
 !        if ( spdob > r20 .or. &          ! high wind speed check
 !             abs(dudiff) > qcu  .or. &   ! u component check
@@ -779,13 +769,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             oscat_vec > r0_1 .or. &
             abs(dvdiff) > qcv) then                                               
            error = zero
-           write(6,2000) "999999291", data(ilate,i), &
-                      data(ilone,i), uob, vob, ugesin, vgesin, &
-                      jiter 
-        else
-           write(6,2000) "999291291", data(ilate,i), &
-                      data(ilone,i), uob, vob, ugesin, vgesin, &
-                      jiter 
         endif
      endif
 
