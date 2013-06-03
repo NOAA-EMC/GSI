@@ -382,7 +382,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (blacklst) call blacklist_read(obstype)
 
-  if(ext_sonde) write(6,*)'raob level enhancement on type 120 only'
 !------------------------------------------------------------------------
 ! Open, then read date from bufr data
   call closbf(lunin)
@@ -814,7 +813,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          If data with drift position, get drift information
            if(driftl)call ufbint(lunin,drfdat,8,255,iret,drift)
      
-! raob level enhancement on temp and q obs
+! raob level enhancement on temp and q obs 
            if(ext_sonde .and. kx==120) call sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levs,kx,vtcd)
 
            nread=nread+levs

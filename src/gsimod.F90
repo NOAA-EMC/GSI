@@ -1118,7 +1118,7 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
-     write(6,*)'EXT_SONDE=',ext_sonde
+     write(6,*)'EXT_SONDE on type 120 =',ext_sonde
      ngroup=0
      do i=1,ndat
         dthin(i) = max(dthin(i),0)
