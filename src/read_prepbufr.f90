@@ -1776,8 +1776,8 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   real(r_double),dimension(8,255), intent(inout) :: drfdat,qcmark,obserr
   real(r_double),dimension(255,20), intent(inout) :: tpc
 
-    real(r_kind) wim,wi
-    real(r_kind),dimension(nsig) :: rlsig,prsltmp,dpmdl
+  real(r_kind) wim,wi
+  real(r_kind),dimension(nsig) :: rlsig,prsltmp,dpmdl
   integer(i_kind) i,j,k,levs
   integer(i_kind) ku,kl,ll,im
   real rsig(60)
@@ -1785,164 +1785,156 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   real(r_kind),dimension(255):: dpres,tvflg,dpobs
 
 !!! find averaged sigma levels !!!!!!!!
-     levs=levsio
-     ll=levsio
-    do k=1,nsig
-       rsig(k)=ges_prslavg(k)/ges_psfcavg
-    enddo
+  levs=levsio
+  ll=levsio
 
-     do k=1,levs
-      cat(k)=nint(obsdat(10,k))
-     enddo
+  do k=1,nsig
+     rsig(k)=ges_prslavg(k)/ges_psfcavg
+  enddo
+
+  do k=1,levs
+     cat(k)=nint(obsdat(10,k))
+  enddo
 
 
 !!! find model levels at obs location in log(cb) !!!!!!!!
-     do k=1,nsig
+  do k=1,nsig
      dpmdl(k)=obsdat(1,1)*rsig(k)
      prsltmp(k)=log(dpmdl(k)*one_tenth)
-     enddo
+  enddo
 !!! find obs levels in log(cb)     !!!!!!!!
-     do k=1,levs
+  do k=1,levs
      dpres(k)=log(obsdat(1,k)*one_tenth)
      dpobs(k)=dpres(k)
-     enddo
+  enddo
 
 
-      if(kx==120)then
-              pqm(1)=nint(qcmark(1,1))
-              qqm(1)=nint(qcmark(2,1))
-              tqm(1)=nint(qcmark(3,1))
-              zqm(1)=nint(qcmark(4,1))
+  if(kx==120)then
+     pqm(1)=nint(qcmark(1,1))
+     qqm(1)=nint(qcmark(2,1))
+     tqm(1)=nint(qcmark(3,1))
+     zqm(1)=nint(qcmark(4,1))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
-                 do k=1,levs
-                    tvflg(k)=one                               ! initialize as sensible
-                    do j=1,20
-                       if (tpc(k,j)==vtcd) tvflg(k)=zero       ! reset flag if virtual
-                       if (tpc(k,j)>=bmiss) exit               ! end of stack
-                    end do
+        do k=1,levs
+           tvflg(k)=one                               ! initialize as sensible
+           do j=1,20
+              if (tpc(k,j)==vtcd) tvflg(k)=zero       ! reset flag if virtual
+              if (tpc(k,j)>=bmiss) exit               ! end of stack
+           end do
+        end do
+
+        do i=2,levs
+           im=i-1
+           pqm(i)=nint(qcmark(1,i))
+           qqm(i)=nint(qcmark(2,i))
+           tqm(i)=nint(qcmark(3,i))
+           zqm(i)=nint(qcmark(4,i))
+           if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
+           pqm(i)<4 .and.  pqm(im)<4    )then
+              ku=dpres(i)-1
+              ku=min(nsig,ku)
+              kl=dpres(im)+2
+              kl=max(2,kl)
+              do k = kl,ku
+                 ll=ll+1
+                 if(ll>255)then
+                    write(6,*)'error in SONDE_EXT levs > 255'
+                    stop
+                 endif
+                 obsdat(1,ll)=dpmdl(k)
+                 qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
+                 qcmark(2,ll) = bmiss
+                 qcmark(3,ll) = bmiss
+                 qcmark(4,ll) = bmiss
+                 qcmark(5,ll) = bmiss
+                 qcmark(7,ll) = bmiss
+                 do j=1,20
+                    tpc(ll,j)=tpc(i,j)
                  end do
-
-                 do i=2,levs
-               im=i-1
-              pqm(i)=nint(qcmark(1,i))
-              qqm(i)=nint(qcmark(2,i))
-              tqm(i)=nint(qcmark(3,i))
-              zqm(i)=nint(qcmark(4,i))
-       if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
-             pqm(i)<4 .and.  pqm(im)<4    )then
-      ku=dpres(i)-1
-      ku=min(nsig,ku)
-      kl=dpres(im)+2
-      kl=max(2,kl)
-      do k = kl,ku
-
-      ll=ll+1
-      if(ll>255)then
-       write(6,*)'error in SONDE_EXT levs > 255'
-       stop
-      endif
-      obsdat(1,ll)=dpmdl(k)
-      qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
-      qcmark(2,ll) = bmiss
-      qcmark(3,ll) = bmiss
-      qcmark(4,ll) = bmiss
-      qcmark(5,ll) = bmiss
-      qcmark(7,ll) = bmiss
-      do j=1,20
-      tpc(ll,j)=tpc(i,j)
-      end do
-
-       wim=(prsltmp(k)-dpobs(i))/(dpobs(im)-dpobs(i))
-       wi=(dpobs(im)-prsltmp(k))/(dpobs(im)-dpobs(i))
-
+                 wim=(prsltmp(k)-dpobs(i))/(dpobs(im)-dpobs(i))
+                 wi=(dpobs(im)-prsltmp(k))/(dpobs(im)-dpobs(i))
 !!! find tob, only bogus if both good obs and of the same type (sensible/virtual)
-       if(  tqm(i)<4 .and.  tqm(im)<4 .and. tvflg(i)==tvflg(im) ) then
-       obsdat(3,ll)=obsdat(3,im)*wim + obsdat(3,i)*wi
-       drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
-       drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
-       drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
-       qcmark(3,ll)  =max (qcmark(3,i),qcmark(3,im)) !TQM
-       obserr(3,ll)  =max (obserr(3,i),obserr(3,im))  ! TOE
-       endif
+                 if(  tqm(i)<4 .and.  tqm(im)<4 .and. tvflg(i)==tvflg(im) ) then
+                    obsdat(3,ll)=obsdat(3,im)*wim + obsdat(3,i)*wi
+                    drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
+                    drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
+                    drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
+                    qcmark(3,ll)  =max (qcmark(3,i),qcmark(3,im)) !TQM
+                    obserr(3,ll)  =max (obserr(3,i),obserr(3,im))  ! TOE
+                 endif
 !!! find qob
-       if(  qqm(i)<4 .and.  qqm(im)<4  ) then
-      obsdat(2,ll)=obsdat(2,im)*wim + obsdat(2,i)*wi
-       drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
-       drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
-       drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
-       qcmark(2,ll)  =max (qcmark(2,i),qcmark(2,im)) !QQM
-       obserr(2,ll)  =max (obserr(2,i),obserr(2,im))  ! QOE
-       endif
+                 if(  qqm(i)<4 .and.  qqm(im)<4  ) then
+                    obsdat(2,ll)=obsdat(2,im)*wim + obsdat(2,i)*wi
+                    drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
+                    drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
+                    drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
+                    qcmark(2,ll)  =max (qcmark(2,i),qcmark(2,im)) !QQM
+                    obserr(2,ll)  =max (obserr(2,i),obserr(2,im))  ! QOE
+                 endif
 !!! define zob
-       if(  zqm(i)<4 .and.  zqm(im)<4  ) then
-      obsdat(4,ll)=obsdat(4,im)*wim + obsdat(4,i)*wi
-       else
-      obsdat(4,ll)=max(obsdat(4,im),obsdat(4,i))
-       endif
+                 if(  zqm(i)<4 .and.  zqm(im)<4  ) then
+                    obsdat(4,ll)=obsdat(4,im)*wim + obsdat(4,i)*wi
+                 else
+                    obsdat(4,ll)=max(obsdat(4,im),obsdat(4,i))
+                 endif
+                 qcmark(4,ll)  =max (qcmark(4,i),qcmark(4,im)) !ZQM
 
-       qcmark(4,ll)  =max (qcmark(4,i),qcmark(4,im)) !ZQM
-
-
-      enddo !kl,ku
-       endif
-                 enddo !levs
+              enddo !kl,ku
+           endif !cat
+        enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
-   elseif(kx==220)then
-              pqm(1)=nint(qcmark(1,1))
-              wqm(1)=nint(qcmark(5,1))
+  elseif(kx==220)then
+     pqm(1)=nint(qcmark(1,1))
+     wqm(1)=nint(qcmark(5,1))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
-                 do i=2,levs
-               im=i-1
-              wqm(i)=nint(qcmark(5,i))
-              zqm(i)=nint(qcmark(4,i))
-              pqm(i)=nint(qcmark(1,i))
-       if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
+     do i=2,levs
+        im=i-1
+        wqm(i)=nint(qcmark(5,i))
+        zqm(i)=nint(qcmark(4,i))
+        pqm(i)=nint(qcmark(1,i))
+        if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
-      ku=dpres(i)-1
-      ku=min(nsig,ku)
-      kl=dpres(im)+2
-      kl=max(2,kl)
-      do k = kl,ku
-      ll=ll+1
-      if(ll>255)then
-       write(6,*)'error in SONDE_EXT levs > 255'
-       stop
-      endif
-      obsdat(1,ll)=dpmdl(k)
-      qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
-      qcmark(2,ll) = bmiss
-      qcmark(3,ll) = bmiss
-      qcmark(4,ll) = bmiss
-      qcmark(5,ll) = bmiss
-      qcmark(7,ll) = bmiss
-       wim=(prsltmp(k)-dpobs(i))/(dpobs(im)-dpobs(i))
-       wi=(dpobs(im)-prsltmp(k))/(dpobs(im)-dpobs(i))
+           ku=dpres(i)-1
+           ku=min(nsig,ku)
+           kl=dpres(im)+2
+           kl=max(2,kl)
+           do k = kl,ku
+              ll=ll+1
+              if(ll>255)then
+                 write(6,*)'error in SONDE_EXT levs > 255'
+                 stop
+              endif
+              obsdat(1,ll)=dpmdl(k)
+              qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
+              qcmark(2,ll) = bmiss
+              qcmark(3,ll) = bmiss
+              qcmark(4,ll) = bmiss
+              qcmark(5,ll) = bmiss
+              qcmark(7,ll) = bmiss
+              wim=(prsltmp(k)-dpobs(i))/(dpobs(im)-dpobs(i))
+              wi=(dpobs(im)-prsltmp(k))/(dpobs(im)-dpobs(i))
 !!! find wob (wint)
-      obsdat(5,ll)=obsdat(5,im)*wim + obsdat(5,i)*wi
-      obsdat(6,ll)=obsdat(6,im)*wim + obsdat(6,i)*wi
-       drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
-       drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
-       drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
-       qcmark(5,ll)  =max (qcmark(5,i),qcmark(5,im)) !WQM
-       obserr(5,ll)  =max (obserr(5,i),obserr(5,im))  ! WOE
-       qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im))
-
+              obsdat(5,ll)=obsdat(5,im)*wim + obsdat(5,i)*wi
+              obsdat(6,ll)=obsdat(6,im)*wim + obsdat(6,i)*wi
+              drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
+              drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
+              drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
+              qcmark(5,ll)  =max (qcmark(5,i),qcmark(5,im)) !WQM
+              obserr(5,ll)  =max (obserr(5,i),obserr(5,im))  ! WOE
+              qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im))
 !!! find zob
-       if(  zqm(i)<4 .and.  zqm(im)<4  ) then
-      obsdat(4,ll)=obsdat(4,im)*wim + obsdat(4,i)*wi
-       else
-      obsdat(4,ll)=max(obsdat(4,im),obsdat(4,i))
-       endif
-
-
-      enddo
-       endif
-
-                 enddo !levs
-   endif
+              if(  zqm(i)<4 .and.  zqm(im)<4  ) then
+                 obsdat(4,ll)=obsdat(4,im)*wim + obsdat(4,i)*wi
+              else
+                 obsdat(4,ll)=max(obsdat(4,im),obsdat(4,i))
+              endif
+           enddo !kl,ku
+        endif !cat
+     enddo !levs
+  endif ! 120,220
 
 !11 change the number of levels and output
-     levsio=ll
+  levsio=ll
 
 ! End of routine
   return
