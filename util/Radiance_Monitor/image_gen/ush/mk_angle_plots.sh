@@ -201,7 +201,12 @@ ${COMPRESS} -f ${imgndir}/*.ctl
   #   
 
 echo starting $bigSATLIST
-set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
+
+if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then 	
+   set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
+else
+   set -A list count penalty omgnbc total omgbc lapse lapse2 clw
+fi
 
 for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST
@@ -259,16 +264,16 @@ for sat in ${bigSATLIST}; do
          echo "${SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
 
          if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-            wall_tm="4:00:00"
+            wall_tm="2:00:00"
          else
-            wall_tm="8:00:00"
+            wall_tm="4:00:00"
          fi
 
-#         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
+         $SUB -A $ACCOUNT -l nodes=1:ppn=6,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
 
          (( ii=ii+1 ))
       done
-   fi
+  fi
 
 done
 
