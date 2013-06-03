@@ -382,6 +382,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (blacklst) call blacklist_read(obstype)
 
+  if(ext_sonde) write(6,*)'raob level enhancement on type 120 only'
 !------------------------------------------------------------------------
 ! Open, then read date from bufr data
   call closbf(lunin)
