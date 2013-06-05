@@ -411,7 +411,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !       define predictors
         pred(1) = one
-        if (data(ivvlc,i)-bmiss<=tiny_r_kind) then
+        if (abs(data(ivvlc,i)-bmiss)<=tiny_r_kind) then
            dvvlc = dvvlc + 0.2_r_kind*data(ier,i)
            pred(2) = zero
            pred(3) = zero

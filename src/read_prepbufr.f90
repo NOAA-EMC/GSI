@@ -129,7 +129,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !$$$
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
-      three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
+      two,three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
       r60inv,r10,r100,r2000
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
@@ -241,7 +241,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),allocatable,dimension(:):: isort,iloc
 
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
-  real(r_kind) qtflg,tdry,rmesh,ediff,usage
+  real(r_kind) qtflg,tdry,rmesh,ediff,usage,pof
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,gustoe,visoe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
@@ -299,7 +299,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
   data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
-  data aircraftstr /'POAF IALR'/           ! phase of aircraft flight and vertical velocity
+  data aircraftstr /'POAF'/           ! phase of aircraft flight 
 
   data lunin / 13 /
   data ithin / -9 /
@@ -783,15 +783,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(uvob)then
               nread=nread+levs
            else if(tob) then 
-              aircraftwk = zero
+              aircraftwk = bmiss
               if (aircraftobs .and. aircraft_t_bc) then 
-                 call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
-                 print*, 'levs=',levs
-                 do k=1,levs
-                 print*, 'aircraft P=',obsdat(1,k), ' T=',obsdat(3,k), &
-                         ' pof=',aircraftwk(1,k), ' ialr=', aircraftwk(2,k)
-                 end do
-                 print*
+                 call ufbint(lunin,aircraftwk(1,:),1,255,levs,aircraftstr)
+                 pof=aircraftwk(1,1)
+!                ascending or descending
+                 if (pof.eq.5.0_r_kind .or. pof.eq.6.0_r_kind) cycle loop_readsb
+!                unsteady or missing value
+                 if (pof<=2.0_r_kind .or. pof>=7.0_r_kind) aircraftwk(2,1)=bmiss
+!                level flight or level flight, highest wind encountered
+                 if (pof==3.0_r_kind .or. pof==4.0_r_kind) aircraftwk(2,1)=zero
               end if
            else if(sstob)then 
               sstdat=bmiss
@@ -1192,6 +1193,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
  
 !             Temperature
               if(tob) then
+                 if (aircraftobs .and. aircraft_t_bc) then
+                    pof=aircraftwk(1,k)
+                    if (pof.eq.5.0_r_kind .or. pof.eq.6.0_r_kind) cycle LOOP_K_LEVS
+                 end if
+
                  ppb=obsdat(1,k)
                  call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  toe=obserr(3,k)*errout
@@ -1201,7 +1207,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
                  idx = 0
                  if (aircraftobs .and. aircraft_t_bc) then
-                    do j = 1,ntail
+                    do j = 1,ntail_update
 !                      if (rstation_id == taillist(j)) then
                        if (c_station_id == taillist(j)) then
                           idx = j
@@ -1209,18 +1215,19 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        end if
                     end do
 
-!                   append new tail number and inflate obs error.
-!                   at 1st analysis, the obs will be used without bias correction and 
-!                   no bias coefficients will be generated for this new tail number; bias 
-!                   coefficients will be generated for this new tail number at 2nd analysis.
+!                   append new tail number at the end of existing tail numbers.
+!                   at 1st analysis, the obs will be used without bias correction but
+!                   bias coefficients will be generated for this new tail number.
+!                   if (idx > ntail) toe = two*toe
                     if (idx == 0) then
-                       toe = three*toe
+!                      toe = two*toe
                        ntail_update = ntail_update+1
                        if (ntail_update > max_tail) then
                           write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
                           write(6,*)'READ_PREPBUFR: stop program execution'
                           call stop2(339)
                        end if
+                       idx=ntail_update
                        idx_tail(ntail_update) = ntail_update
 !                      taillist(ntail_update) = rstation_id
                        taillist(ntail_update) = c_station_id

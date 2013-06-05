@@ -428,6 +428,7 @@ subroutine read_obs(ndata,mype)
 !   2011-05-26  todling  - add call to create_nst
 !   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
 !                         Commented out extra line of arguments not used.
+!   2013-06-01  zhu     - add call to aircraft profile file
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -462,6 +463,7 @@ subroutine read_obs(ndata,mype)
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
+    use aircraftinfo, only: aircraft_t_bc
 
     implicit none
 
@@ -479,6 +481,7 @@ subroutine read_obs(ndata,mype)
     logical :: modis
     character(10):: obstype,platid
     character(13):: string,infile
+    character(15):: infilen
     character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
@@ -921,15 +924,22 @@ subroutine read_obs(ndata,mype)
 
 !         Process conventional (prepbufr) data
           if(ditype(i) == 'conv')then
-!             if (obstype == 't'  .or. obstype == 'uv' .or. &
-             if (obstype == 't'  .or. &
-                 obstype == 'q'  .or. obstype == 'ps' .or. &
+              if(obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                 string='READ_PREPBUFR'
+!            Process temperature in the prepbufr
+             else if(obstype == 't' ) then 
+                call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                     prsl_full)
+                if (aircraft_t_bc) then  ! aircraft prepbufr profile file
+                   write(infilen,'(a,"_profl")') trim(infile)
+                   call read_aircraft_profile(nread,npuse,nouse,infilen,obstype,lunout,twind,sis, &
+                     prsl_full)
+                end if
 !            Process winds in the prepbufr
              else if(obstype == 'uv') then
 !             Process satellite winds which seperate from prepbufr
