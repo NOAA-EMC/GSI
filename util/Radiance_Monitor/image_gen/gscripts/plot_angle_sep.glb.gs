@@ -236,26 +236,28 @@ while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set y 'chn
 
-   'define cnt1=ave(count, t='t1day', t='tlast')' 
-   'define avg=ave('field', t='t1day', t='tlast')'
-   'define avgs=ave('field'_2, t='t1day', t='tlast')'
-   'define rterm1=1/cnt1'
-   'define rterm2=1/ave(count-1, t='t1day', t='tlast')'
-   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+   if (sub_avg = 1)
+     'define cnt1=ave(count, t='t1day', t='tlast')' 
+     'define avg=ave('field', t='t1day', t='tlast')'
+     'define avgs=ave('field'_2, t='t1day', t='tlast')'
+     'define rterm1=1/cnt1'
+     'define rterm2=1/ave(count-1, t='t1day', t='tlast')'
+     'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
 
-   'define avg1=ave('field'/count, t='t1day', t='tlast')'
-   'define avg1=maskout(avg1,avg1-0)'
-   'define sdv1=sqrt(svar)'
+     'define avg1=ave('field'/count, t='t1day', t='tlast')'
+     'define avg1=maskout(avg1,avg1-0)'
+     'define sdv1=sqrt(svar)'
 
-   'define cnt1=ave(count, t='t7days', t='tlast')' 
-   'define avg=ave('field', t='t7days', t='tlast')'
-   'define avgs=ave('field'_2, t='t7days', t='tlast')'
-   'define rterm1=1/cnt1'
-   'define rterm2=1/ave(count-1, t='t7days', t='tlast')'
-   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+     'define cnt1=ave(count, t='t7days', t='tlast')' 
+     'define avg=ave('field', t='t7days', t='tlast')'
+     'define avgs=ave('field'_2, t='t7days', t='tlast')'
+     'define rterm1=1/cnt1'
+     'define rterm2=1/ave(count-1, t='t7days', t='tlast')'
+     'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
 
-   'define avg2=ave('field'/count, t='t7days', t='tlast')'
-   'define sdv2=sqrt(svar)'
+     'define avg2=ave('field'/count, t='t7days', t='tlast')'
+     'define sdv2=sqrt(svar)'
+   endif
 
    'define cnt1=ave(count, t='t30days', t='tlast')' 
    'define avg=ave('field', t='t30days', t='tlast')'

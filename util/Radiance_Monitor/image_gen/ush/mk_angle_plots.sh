@@ -202,11 +202,7 @@ ${COMPRESS} -f ${imgndir}/*.ctl
 
 echo starting $bigSATLIST
 
-if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then 	
-   set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
-else
-   set -A list count penalty omgnbc total omgbc lapse lapse2 clw
-fi
+set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
 
 for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST

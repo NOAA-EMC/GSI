@@ -35,5 +35,6 @@ elif [[ $MY_MACHINE = "wcoss" ]]; then
 elif [[ $MY_MACHINE = "zeus" ]]; then
    export GRADS=/apps/grads/2.0.1a/bin/grads
    export STNMAP=/apps/grads/2.0.1a/bin/stnmap
+   'module load grads/2.0.1a'
 fi
 
