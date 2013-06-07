@@ -264,17 +264,18 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
       fi
       echo $new_satype > ${TANKverf}/radmon.${PDY}/${satype_file}
    fi
-    
+   
+   #------------------------------------------------------------------
+   # Refresh SATYPE with any additions
+   #------------------------------------------------------------------
+   
+   export SATYPE=$new_satype
+  
  
    #------------------------------------------------------------------
    # Rename the diag files and uncompress
    #------------------------------------------------------------------
 
-   # TMP HACK 
-#   if [[ $MY_MACHINE = 'wcoss' && $SUFFIX = 'nrx' ]]; then 
-#      export Z="Z" 
-#   fi
-   # /TMP HACK 
    for type in ${SATYPE}; do
       mv diag_${type}_ges.${PDATE}.${Z} ${type}.${Z}
       ${UNCOMPRESS} ./${type}.${Z}
