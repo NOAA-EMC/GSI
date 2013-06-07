@@ -34,6 +34,7 @@ subroutine bkerror(gradx,grady)
 !                         bundles grady%step(ii) and grady%motley(ii) to new temporary bundle
 !                         mbundle.  If there are no motley variables (mvars<=0), then gsi_bundledup
 !                         is used in place of gsi_bundlemerge.
+!   2013-04-23 Pondecca - bug fix in calling gsi_bundledup
 !
 !   input argument list:
 !     gradx    - input field  
@@ -124,7 +125,7 @@ subroutine bkerror(gradx,grady)
      if(mvars>0) then
         call gsi_bundlemerge(mbundle,grady%step(ii),grady%motley(ii),' add motley to step',istatus)
      else
-        call gsi_bundledup(mbundle,grady%step(ii),' copy of step ',istatus)
+        call gsi_bundledup(grady%step(ii),mbundle,' copy of step ',istatus) 
      end if
 
 !    Transpose of balance equation

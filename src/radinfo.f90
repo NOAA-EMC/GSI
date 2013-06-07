@@ -600,6 +600,10 @@ contains
     end if
 
     maxscan=90  ! Default value for old files
+    allocate(cbiasx(maxscan))
+    allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
+    cbias=zero
+    tlapmean=zero
     if (.not. adp_anglebc) then
        open(lunin,file='satbias_angle',form='formatted',iostat=istat)
        nfound = .false.
@@ -613,10 +617,6 @@ contains
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)
        endif
-       allocate(cbiasx(maxscan))
-       allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
-       cbias=zero
-       tlapmean=zero
        read2: do
           read(lunin,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))',iostat=istat) &
                ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,maxscan)
@@ -763,7 +763,7 @@ contains
        if (adp_anglebc) then
           call init_predx
           do j=1,jpch_rad
-             call angle_cbias(trim(nusis(j)),j,cbias(1,j))
+             call angle_cbias(nusis(j),j,cbias(1,j))
           end do
 
 !         check inew_rad again
@@ -1248,12 +1248,12 @@ contains
    real(r_kind),allocatable,dimension(:):: predr
 
 !  Declare types used for reading satellite data
-   type(diag_header_fix_list )         :: header_fix
-   type(diag_header_chan_list),pointer :: header_chan(:)
-   type(diag_data_name_list)           :: data_name
-   type(diag_data_fix_list   )         :: data_fix
-   type(diag_data_chan_list  ),pointer :: data_chan(:)
-   type(diag_data_extra_list ),pointer :: data_extra(:,:)
+   type(diag_header_fix_list )             :: header_fix
+   type(diag_header_chan_list),allocatable :: header_chan(:)
+   type(diag_data_name_list)               :: data_name
+   type(diag_data_fix_list   )             :: data_fix
+   type(diag_data_chan_list  ),allocatable :: data_chan(:)
+   type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
    data lunout / 53 / 
 

@@ -1777,20 +1777,20 @@ contains
 
 ! !USES:
 
-    use constants, only: half,ten
+    use constants, only: half,one_tenth
     use gridmod, only: nsig,msig,nlayers
     use crtm_module, only: toa_pressure
 
     implicit none
 
 ! !INPUT PARAMETERS:
-    integer(i_kind),dimension(msig)     ,intent(  out) :: klevel
+    integer(i_kind),dimension(msig)  ,intent(  out) :: klevel
 
     real(r_kind)   ,dimension(nsig+1),intent(in   ) :: prsitmp
-    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: prsltmp
+    real(r_kind)   ,dimension(nsig)  ,intent(in   ) :: prsltmp
 
     real(r_kind)   ,dimension(msig+1),intent(  out) :: prsitmp_ext
-    real(r_kind)   ,dimension(msig)     ,intent(  out) :: prsltmp_ext
+    real(r_kind)   ,dimension(msig)  ,intent(  out) :: prsltmp_ext
 
 
 ! !DESCRIPTION:  Add pressure layers for use in RTM
@@ -1811,14 +1811,16 @@ contains
 
 !   Declare local variables
     integer(i_kind) k,kk,l
-    real(r_kind) dprs
+    real(r_kind) dprs,toa_pressure01
+
+    toa_pressure01=toa_pressure*one_tenth
 
 !   Check if model top pressure above rtm top pressure, where prsitmp
 !   is in kPa and toa_pressure is in hPa.
-    if (ten*prsitmp(nsig) < toa_pressure)then
+    if (prsitmp(nsig) < toa_pressure01)then
        write(6,*)'ADD_RTM_LAYERS:  model top pressure(hPa)=', &
-            ten*prsitmp(nsig),&
-            ' above rtm top pressure(hPa)=',toa_pressure
+            prsitmp(nsig),&
+            ' above rtm top pressure(hPa)=',toa_pressure01
        call stop2(35)
     end if
 
@@ -1834,7 +1836,7 @@ contains
           if (k/=nsig) then
              dprs = (prsitmp(k+1)-prsitmp(k))/nlayers(k)
           else
-             dprs = (toa_pressure-prsitmp(k))/nlayers(k)
+             dprs = (toa_pressure01-prsitmp(k))/nlayers(k)
           end if
           prsitmp_ext(kk+1) = prsitmp(k)
           do l=1,nlayers(k)
@@ -1847,7 +1849,7 @@ contains
     end do
 
 !   Set top of atmosphere pressure
-    prsitmp_ext(msig+1) = toa_pressure
+    prsitmp_ext(msig+1) = toa_pressure01
 
   end subroutine add_rtm_layers
 

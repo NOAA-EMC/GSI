@@ -24,7 +24,7 @@
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
-                       lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,lgrtest,&
+                       lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,ladtest_obs, lgrtest,&
                        idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon, &
 		       l4densvar,ens4d_nstarthr
   use obs_ferrscale, only: lferrscale
@@ -237,6 +237,8 @@
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
+!  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
+!                       convert_regional_guess so that rearth is defined when used
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -382,7 +384,13 @@
 !     pblend0,pblend1 - see above comment for use_gfs_stratosphere
 !     l4densvar - logical to turn on ensemble 4dvar
 !     ens4d_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
+!     ladtest -  if true, doing the adjoint test for the operator that maps
+!                    control_vector to the model state_vector
+!     ladtest_obs -  if true, doing the adjoint adjoint check for the
+!                     observation operators that are currently used in the NCEP GSI variational
+!                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
+!
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -405,7 +413,7 @@
        berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &
        biaspredvar,lobsdiagsave, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
-       nwrvecs,iorthomax,ladtest,lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
+       nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
        idmodel,iwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
@@ -1131,6 +1139,10 @@
 ! Set up directories (or pe specific filenames)
   call init_directories(mype)
 
+! Initialize constants
+  call init_constants(regional)
+  call gps_constants(use_compress)
+
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
   if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
@@ -1138,8 +1150,6 @@
 
 
 ! Initialize variables, create/initialize arrays
-  call init_constants(regional)
-  call gps_constants(use_compress)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe,cvars3d,cvars2d,nrf_var,mype)
   call init_general_commvars
