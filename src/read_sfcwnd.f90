@@ -165,22 +165,12 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   equivalence(r_prvstg(1,1),c_prvstg)
   equivalence(r_sprvstg(1,1),c_sprvstg)
 
-!  data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA GCLONG SCCF SWQM'/ 
-!  data obstr/'HAMD PRLC WDIR WSPD'/ 
-!  data heightr/'MDPT '/ 
-!  data derdwtr/'TWIND'/
-!  data satqctr/'RFFL EEQF QIFN QIFY'/
-!  data qcstr /' OGCE GNAP PCCF'/
 
 !******** Modify below from the bufrtable: 
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU'/ 
-!  data obstr/'WD10 WS10'/ 
   data obstr/'WD10 WS10 SWVQ NWVA ISWV'/ 
   data wndstr/'WS10 FUWS WD10 FUWD LKCS'/ 
-!  data heightr/'MDPT '/ 
-!  data derdwtr/'TWIND'/
   data satqctr/'NWVA SPRR'/
-!  data qcstr /' OGCE GNAP PCCF'/
   
   
   data ithin / -9 /
@@ -195,7 +185,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Read observation error table
 ! itype 291 has been modified in the error table 
 
-  write(6,*) 'OSCAT_test_1: check before read'                        
   allocate(etabl(300,33,6))
   etabl=1.e9_r_kind
   ietabl=19
@@ -213,7 +202,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   end do   loopd
 100     format(1x,i3)
 110     format(1x,6e12.5)
-  write(6,*) 'OSCAT_test_2: read obs error table--stop here'
   if(lcount<=0 ) then
      write(6,*)'READ_SFCWND: obs error table not available to 3dvar. the program will stop'
      call stop2(49) 
@@ -228,9 +216,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! nreal keep the dimension of cdata_all 
   werrmin=one
   nsattype=0
-!  nreal=24
   nreal=23
-!  if(perturb_obs ) nreal=nreal+2
   if (noiqc) then
      lim_qm=8
   else
@@ -266,7 +252,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   open(lunin,file=infile,form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
-  write(6,*) ' OSCAT_Li: get data read in ', infile
 
   allocate(lmsg(nmsgmax,ntread))
   lmsg = .false.
@@ -301,7 +286,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   iobsub is the prepbufr subtype, still part of the convinfo file
 !********* iobsub=0 for OSCAT*
 
-!        call ufbint(lunin,hdrdat,13,1,iret,hdrtr)
         call ufbint(lunin,hdrdat,8,1,iret,hdrtr)
 !       determine the satellite wind type 
 !       291: KNMI OSCAT data                                              
@@ -433,9 +417,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            obsdat=bmiss
            wnddat=bmiss
            satqc=bmiss
-!           heightdat=bmiss
-!           derdwdat=bmiss
-!           qcdat=bmiss
            iobsub=0
            itype=-1
            uob=bmiss
@@ -464,26 +445,14 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Extract type, date, and location information
            call ufbint(lunin,hdrdat,8,1,iret,hdrtr) 
-!           call ufbint(lunin,obsdat,2,1,iret,obstr)
            call ufbint(lunin,obsdat,5,1,iret,obstr)
            call ufbrep(lunin,wnddat,5,4,iret,wndstr)
-
-! Can be place holder here for more QC step
-
-!           ppb=obsdat(2)
-!           if (ppb > 100000000.0_r_kind .or. hdrdat(3) >100000000.0_r_kind &
-!            .or. obsdat(4) > 100000000.0_r_kind) cycle loop_readsb
-!           if(ppb >r10000) ppb=ppb/r100
-!           if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
-
- 
 
 
 !** potential can reject bad cell, etc, place holder for now
 !   reject the data with bad quality mark from SDM
 !** cycle loop means skip to the next record     
 
-!           if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb      
            if(hdrdat(1) /= r421) cycle loop_readsb
 
 !       Compare relative obs time with window.  If obs 
@@ -515,36 +484,12 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(abs(obsdat(2)) >= 100) cycle loop_readsb
            if(obsdat(3) >=1) cycle loop_readsb
 
-!              pqm=2
-!              qm=2
            if(trim(subset) == 'NC012255') then    ! OSCAT KNMI wind
               if( hdrdat(1) == r421) then          
                    itype=291
-                 !if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-
-                ! call ufbrep(lunin,qcdat,3,12,iret,qcstr) 
-                ! do j=4,9
-                !    if( qify <r105 .and. qifn <r105 .and. ee <r105) exit
-                !    if(qcdat(2,j) < r10000 .and. qcdat(3,j) <r10000) then
-                !       if(qcdat(2,j) == one .and. qify >r105) then
-                !          qify=qcdat(3,j)
-                !       else if(qcdat(2,j) == two .and. qifn >r105) then
-                !          qifn=qcdat(3,j)
-                !       else if(qcdat(2,j) ==  three .and. ee >r105) then
-                !          ee=qcdat(3,j)
-                !       endif
-                !    endif
-                ! enddo
-                ! if(qifn <85.0_r_kind)  then
-                !    qm=15
-                !    pqm=15
-                ! endif 
               endif
            endif
 
-!           if ( qify == zero) qify=r110
-!           if ( qifn == zero) qifn=r110
-!           if (  ee == zero) ee=r110
 
            nread=nread+1
            dlon_earth=hdrdat(3)*deg2rad
@@ -589,10 +534,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            qc2=obsdat(4)
            qc3=obsdat(5)
 
-           if(abs(uob) < 100.0)then
-             write(6,*) 'Li_qccheck', qc1, qc2, qc3  
-           endif
-
            uob_1=-wnddat(1,1)*sin(wnddat(3,1)*deg2rad)
            vob_1=-wnddat(1,1)*cos(wnddat(3,1)*deg2rad)
            uob_2=-wnddat(1,2)*sin(wnddat(3,2)*deg2rad)
@@ -608,16 +549,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            lkcs_4=wnddat(5,4)
            
 
-           if(abs(uob_1) < 100.0 .and. abs(uob_2) < 100.0 )then
-             write(6,1001) 'vector check', uob_1, vob_1, &
-                           uob_2, vob_2, uob_3, vob_3, &
-                           uob_4, vob_4
-             write(6,1003) 'LKCS check', lkcs_1, lkcs_2, &
-                           lkcs_3, lkcs_4
-           endif
 
-1001 format (a12,1x,8f10.1)
-1003 format (a10,1x,4f10.1)
 
 !!  Get observation error from PREPBUFR observation error table
 !   only need read the 4th column for type 291 from the right
@@ -644,8 +576,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            usage = 0 
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
-!           if(qm == 15 .or. qm == 12 .or. qm == 9)usage=r100
-!           if(itype==291) then;  c_prvstg='KNMI'      ;  c_sprvstg='VI'       ; endif
 
 ! Get information from surface file necessary for conventional data here
 ! This is different from the previous sfc_type call
@@ -655,7 +585,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                 
            ithin=ithin_conv(nc)
            ithinp = ithin > 0 .and. pflag /= 0
-!          if(ithinp  .and. iuse >=0 )then
            if(ithinp   )then
 !          Interpolate guess pressure profile to observation location
               klon1= int(dlon);  klat1= int(dlat)
@@ -709,18 +638,14 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               isort(ntb)=iout
 
            else
-!             write(6,*) 'READ_SATWND,ndata=',ndata,iout
               ndata=ndata+1
               nodata=nodata+1
               iout=ndata
               isort(ntb)=iout
            endif
 
-!           inflate_error=.false.
-!           if (qm==3 .or. qm==7) inflate_error=.true.
            woe=obserr
            oelev=r10
-!           if (inflate_error) woe=woe*r1_2
 
            if(regional)then
               u0=uob
@@ -736,34 +661,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Output result to array, need restruct from here. 
 
-!           cdata_all(1,iout)=woe                  ! wind error
-!           cdata_all(2,iout)=dlon                 ! grid relative longitude
-!           cdata_all(3,iout)=dlat                 ! grid relative latitude
-!           cdata_all(4,iout)=dlnpob               ! ln(pressure in cb)
-!           cdata_all(5,iout)=ee                   !  quality information 
-!           cdata_all(6,iout)=uob                  ! u obs
-!           cdata_all(7,iout)=vob                  ! v obs 
-!           cdata_all(8,iout)=ndata                ! station id 
-!           cdata_all(9,iout)=t4dv                 ! time
-!           cdata_all(10,iout)=nc                  ! index of type in convinfo file
-!           cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality mark infor  
-!           cdata_all(12,iout)=qm                  ! quality mark
-!           cdata_all(13,iout)=obserr              ! original obs error
-!           cdata_all(14,iout)=usage               ! usage parameter
-!           cdata_all(15,iout)=idomsfc             ! dominate surface type
-!           cdata_all(16,iout)=tsavg               ! skin temperature
-!           cdata_all(17,iout)=ff10                ! 10 meter wind factor
-!           cdata_all(18,iout)=sfcr                ! surface roughness
-!           cdata_all(19,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-!           cdata_all(20,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
-!           cdata_all(21,iout)=zz                  ! terrain height at ob location
-!           cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
-!           cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
-
-!           if(perturb_obs)then
-!              cdata_all(24,iout)=ran01dom()*perturb_fact ! u perturbation
-!              cdata_all(25,iout)=ran01dom()*perturb_fact ! v perturbation
-!           endif
 
            cdata_all(1,iout)=woe                  ! wind error
            cdata_all(2,iout)=dlon                 ! grid relative longitude
@@ -789,31 +686,9 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
 
-!           cdata_all(1,iout)=dlon                 ! grid relative longitude
-!           cdata_all(2,iout)=dlat                 ! grid relative latitude
-!           cdata_all(3,iout)=dlnpob               ! ln(pressure in cb)
-!           cdata_all(4,iout)=uob                  ! u obs
-!           cdata_all(5,iout)=vob                  ! v obs 
-!           cdata_all(6,iout)=ndata                ! station id 
-!           cdata_all(7,iout)=t4dv                 ! time
-!           cdata_all(8,iout)=nc                  ! index of type in convinfo file
-!           cdata_all(9,iout)=obserr              ! original obs error
-!           cdata_all(10,iout)=usage               ! usage parameter
-!           cdata_all(11,iout)=idomsfc             ! dominate surface type
-!           cdata_all(12,iout)=tsavg               ! skin temperature
-!           cdata_all(13,iout)=ff10                ! 10 meter wind factor
-!           cdata_all(14,iout)=sfcr                ! surface roughness
-!           cdata_all(15,iout)=dlon_earth*rad2deg  ! earth relative longitude (degrees)
-!           cdata_all(16,iout)=dlat_earth*rad2deg  ! earth relative latitude (degrees)
 
-           if(abs(uob) < 100.0)then
-             write(6,2000) '012255',uob, vob,dlat_earth*rad2deg,dlon_earth*rad2deg
-           endif
-
-2000 format(a6,1x,4(f8.1,1x))
 
         enddo  loop_readsb
- !   End of bufr read loop
 
      enddo loop_msg
 
