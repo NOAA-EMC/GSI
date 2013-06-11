@@ -171,7 +171,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 #     ((nprocs=(ntasks+1)/2))
 
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q dev -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
+        $SUB -q dev -n 1,$ntasks -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
      else
         $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi
@@ -224,7 +224,7 @@ ${COMPRESS} ${imgndir}/*.ctl
         ntasks=`cat $cmdfile|wc -l `
 
         if [[ $MY_MACHINE = "wcoss" ]]; then
-           $SUB -q dev -n $ntasks -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
+           $SUB -q dev -n 1,$ntasks -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
         else
            $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
         fi
