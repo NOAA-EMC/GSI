@@ -149,6 +149,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !  If no t data return
   if(.not. associated(thead))return
 
+  print*, 'start intt'
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0; isst=0
@@ -276,9 +277,11 @@ subroutine intt_(thead,rval,sval,rpred,spred)
      end if
 
 !    Include contributions from bias correction terms
-     if (.not. ladtest_obs .and. aircraft_t_bc) then
+     if (.not. ladtest_obs .and. aircraft_t_bc .and. tptr%idx>0) then
         ix=(tptr%idx-1)*npredt
+        print*, 'npredt=', npredt, ' idx=',tptr%idx, 'ix+n=',ix+n
         do n=1,npredt
+           print*, 'pred=', tptr%pred(n)
            val=val+spred(ix+n)*tptr%pred(n)
         end do
      end if
@@ -317,7 +320,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 
 !       Adjoint of interpolation
 !       Extract contributions from bias correction terms
-        if (.not. ladtest_obs .and. aircraft_t_bc) then
+        if (.not. ladtest_obs .and. aircraft_t_bc .and. tptr%idx>0) then
            do n=1,npredt
               rpred(ix+n)=rpred(ix+n)+tptr%pred(n)*grad
            end do

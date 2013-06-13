@@ -206,7 +206,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical,dimension(nobs):: luse,muse
   logical sfctype
   logical iqtflg
-  logical aircraft_data
+  logical aircraftobst
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -395,40 +395,45 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end do
      end if
 
+!    aircraftobst = kx>129.and.kx<140
+     aircraftobst = (ikx==131) .or. (ikx==133)
      dvvlc = zero
-     aircraft_data = (ikx==131) .or. (ikx==133)
      ix = data(idx,i)
-     if (ix>0 .and. aircraft_data .and. aircraft_t_bc) then
-        do j = 1, npredt
-           predcoef(j) = predt(j,ix)
-        end do
-        print*, 'setupt: id,ix,predt=',data(id,i),ix,(predt(j,ix),j=1,npredt)
-
-!       inflate obs error for any uninitialized tail number
-        if (all(predcoef==zero)) then
+     if (aircraftobst .and. aircraft_t_bc) then 
+        if (ix==0) then
            dvvlc = dvvlc + data(ier,i)
-        end if
-
-!       define predictors
-        pred(1) = one
-        if (abs(data(ivvlc,i)-bmiss)<=tiny_r_kind) then
-           dvvlc = dvvlc + 0.2_r_kind*data(ier,i)
-           pred(2) = zero
-           pred(3) = zero
         else
-           if (data(ivvlc,i)>zero) then
-              pred(2) = data(ivvlc,i)
-              pred(3) = zero
-           end if
-           if (data(ivvlc,i)<zero) then
-              pred(2) = zero
-              pred(3) = data(ivvlc,i)
-           end if
-        end if
+           do j = 1, npredt
+              predcoef(j) = predt(j,ix)
+           end do
+           print*, 'setupt: id,ix,predt=',data(id,i),ix,(predt(j,ix),j=1,npredt)
 
-        do j = 1, npredt
-           predbias(j) = predcoef(j)*pred(j)
-        end do
+!          inflate obs error for any uninitialized tail number
+           if (all(predcoef==zero)) then
+              dvvlc = dvvlc + data(ier,i)
+           end if
+
+!          define predictors
+           pred(1) = one
+           if (abs(data(ivvlc,i)-bmiss)<=tiny_r_kind) then
+              dvvlc = dvvlc + 0.2_r_kind*data(ier,i)
+              pred(2) = zero
+              pred(3) = zero
+           else
+              if (data(ivvlc,i)>zero) then
+                 pred(2) = data(ivvlc,i)
+                 pred(3) = zero
+              end if
+              if (data(ivvlc,i)<zero) then
+                 pred(2) = zero
+                 pred(3) = data(ivvlc,i)
+              end if
+           end if
+
+           do j = 1, npredt
+              predbias(j) = predcoef(j)*pred(j)
+           end do
+        end if
      end if
 
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
@@ -533,7 +538,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ddiff = tob-tges
 
 ! Apply bias correction to innovation
-     if (aircraft_data .and. aircraft_t_bc) then
+     if (aircraftobst .and. aircraft_t_bc) then
         do j = 1, npredt
            ddiff = ddiff - predbias(j) 
         end do
@@ -692,7 +697,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 !       summation of observation number
-        if (luse(i) .and. aircraft_data .and. aircraft_t_bc) then
+        if (luse(i) .and. aircraftobst .and. aircraft_t_bc) then
            ostats_t(ix)  = ostats_t(ix) + one
            do j=1,npredt
               rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
@@ -781,7 +786,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
         if (aircraft_t_bc) then
-           if (aircraft_data) then 
+           if (aircraftobst) then 
               rdiagbuf(20,ii) = data(ipof,i)       ! data pof
               do j=1,npredt
                  rdiagbuf(20+j,ii) = predbias(j)

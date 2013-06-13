@@ -290,6 +290,35 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
            end do
           end do 
          end do fileloop
+       else if(trim(filename) == 'prepbufr_profl')then  
+         lexist = .false.
+         airploop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+          do while(ireadsb(lnbufr)>=0)
+           call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+           kx=nint(rtype)
+           if (trim(dtype)=='uv') then
+              if (kx==330 .or. kx==430 .or. kx==530) kx=230
+              if (kx==331 .or. kx==431 .or. kx==531) kx=231
+              if (kx==332 .or. kx==432 .or. kx==532) kx=232
+              if (kx==333 .or. kx==433 .or. kx==533) kx=233
+              if (kx==334 .or. kx==434 .or. kx==534) kx=234
+              if (kx==335 .or. kx==435 .or. kx==535) kx=235
+           else
+              if (kx==330 .or. kx==430 .or. kx==530) kx=130
+              if (kx==331 .or. kx==431 .or. kx==531) kx=131
+              if (kx==332 .or. kx==432 .or. kx==532) kx=132
+              if (kx==333 .or. kx==433 .or. kx==533) kx=133
+              if (kx==334 .or. kx==434 .or. kx==534) kx=134
+              if (kx==335 .or. kx==435 .or. kx==535) kx=135
+           end if
+           do nc=1,nconvtype
+             if(trim(ioctype(nc)) == trim(dtype) .and. kx == ictype(nc) .and. icuse(nc) > minuse)then
+               lexist = .true.
+               exit airploop
+             end if
+           end do
+          end do
+         end do fileloop
        else if(trim(filename) == 'satwnd')then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -480,7 +509,7 @@ subroutine read_obs(ndata,mype)
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
     character(10):: obstype,platid
-    character(13):: string,infile
+    character(15):: string,infile
     character(15):: infilen
     character(16):: filesave
     character(20):: sis
@@ -924,22 +953,13 @@ subroutine read_obs(ndata,mype)
 
 !         Process conventional (prepbufr) data
           if(ditype(i) == 'conv')then
-              if(obstype == 'q'  .or. obstype == 'ps' .or. &
+              if(obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
                 call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                 string='READ_PREPBUFR'
-!            Process temperature in the prepbufr
-             else if(obstype == 't' ) then 
-                call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                     prsl_full)
-                if (aircraft_t_bc) then  ! aircraft prepbufr profile file
-                   write(infilen,'(a,"_profl")') trim(infile)
-                   call read_aircraft_profile(nread,npuse,nouse,infilen,obstype,lunout,twind,sis, &
-                     prsl_full)
-                end if
 !            Process winds in the prepbufr
              else if(obstype == 'uv') then
 !             Process satellite winds which seperate from prepbufr
@@ -1180,7 +1200,7 @@ subroutine read_obs(ndata,mype)
 
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(1x,a13,': file=',a10,&
+8000         format(1x,a15,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)

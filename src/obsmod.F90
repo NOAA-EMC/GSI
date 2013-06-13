@@ -1213,7 +1213,7 @@ module obsmod
   character(128) obs_input_common
   character(14),dimension(ndatmax):: obsfile_all
   character(10),dimension(ndatmax):: dtype,ditype,dplat
-  character(13),dimension(ndatmax):: dfile
+  character(15),dimension(ndatmax):: dfile
   character(20),dimension(ndatmax):: dsis
   character(len=20) :: cobstype(nobs_type)
 

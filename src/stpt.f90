@@ -232,7 +232,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
            end if
 
 !          contribution from bias correction
-           if (aircraft_t_bc) then
+           if (aircraft_t_bc .and. tptr%idx>0) then
               ix=tptr%idx
               do n=1,npredt
                  val2=val2+spred(n,ix)*tptr%pred(n)

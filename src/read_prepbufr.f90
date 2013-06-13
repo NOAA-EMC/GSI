@@ -107,6 +107,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2013-05-15  zhu  - add phase of aircraft flight and vertical velocity for aircraft data
 !                    - match aircraft obs with temperature bias file 
 !                    - add new tail number info if there is any
+!   2013-06-07  zhu  - read aircraft data from prepbufr_profl when aircraft_t_bc=.true.
 !
 !
 !   input argument list:
@@ -197,7 +198,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical sfctype
   logical luse,ithinp,windcorr
   logical patch_fog
-  logical aircraftobs
+  logical aircraftset,aircraftobst,aircrafttype
+  logical acft_profl_file
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
@@ -219,7 +221,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) nc,nx,id,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs
-  integer(i_kind) kx,nreal,nchanl,ilat,ilon,ithin
+  integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm
   integer(i_kind) lim_tqm,lim_qqm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -241,7 +243,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),allocatable,dimension(:):: isort,iloc
 
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
-  real(r_kind) qtflg,tdry,rmesh,ediff,usage,pof
+  real(r_kind) qtflg,tdry,rmesh,ediff,usage
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,gustoe,visoe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
@@ -299,7 +301,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
   data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
-  data aircraftstr /'POAF'/           ! phase of aircraft flight 
+  data aircraftstr /'POAF IALR'/      ! phase of aircraft flight and vertical velocity
 
   data lunin / 13 /
   data ithin / -9 /
@@ -323,6 +325,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(80) fcststr
   data fcststr  /'UFC VFC'/
   
+! File type
+  acft_profl_file = index(infile,'_profl')/=0 
+
 ! Initialize variables
 
   pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
@@ -405,24 +410,28 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   do nc=1,nconvtype
      if(trim(ioctype(nc)) == trim(obstype))then
        if(.not.use_prepb_satwnd .and. trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
-          .and. ictype(nc) <260) then 
-          cycle
-       else
-           ntmatch=ntmatch+1
-           ntxall(ntmatch)=nc
-       endif
+          .and. ictype(nc) <260) cycle
+       if (aircraft_t_bc) then
+          aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or. (ictype(nc)>229 .and. ictype(nc)<240)
+          if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
+          if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
+       end if
+       ntmatch=ntmatch+1
+       ntxall(ntmatch)=nc
      end if
      if(trim(ioctype(nc)) == trim(obstype) .and. abs(icuse(nc)) <= 1)then
         if(.not.use_prepb_satwnd .and. trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
-            .and. ictype(nc) <260) then
-            cycle
-        else
-           ithin=ithin_conv(nc)
-           if(ithin > 0)then
-              ntread=ntread+1
-              ntx(ntread)=nc
-           end if
-        endif
+            .and. ictype(nc) <260) cycle
+        if (aircraft_t_bc) then
+           aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or. (ictype(nc)>229 .and. ictype(nc)<240)
+           if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
+           if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
+        end if
+        ithin=ithin_conv(nc)
+        if(ithin > 0)then
+           ntread=ntread+1
+           ntx(ntread)=nc
+        end if
      end if
   end do
   if(ntmatch == 0)then
@@ -439,6 +448,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ntb = 0
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
      if(.not.use_prepb_satwnd .and. trim(subset) == 'SATWND') cycle msg_report
+     if (aircraft_t_bc) then 
+        aircraftset = trim(subset)=='AIRCFT' .or. trim(subset)=='AIRCAR'
+        if (.not. acft_profl_file .and. aircraftset) cycle msg_report
+        if (acft_profl_file .and. (.not. aircraftset)) cycle msg_report
+     end if
+
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
@@ -457,6 +472,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       Extract type information
         call ufbint(lunin,hdr,4,1,iret,hdstr2)
         kx=hdr(1)
+        if (aircraft_t_bc .and. acft_profl_file) then 
+           kx0=kx
+           if (.not. uvob) then
+              if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
+              if (kx0==331 .or. kx0==431 .or. kx0==531) kx=131
+              if (kx0==332 .or. kx0==432 .or. kx0==532) kx=132
+              if (kx0==333 .or. kx0==433 .or. kx0==533) kx=133
+              if (kx0==334 .or. kx0==434 .or. kx0==534) kx=134
+              if (kx0==335 .or. kx0==435 .or. kx0==535) kx=135
+           else
+              if (kx0==330 .or. kx0==430 .or. kx0==530) kx=230
+              if (kx0==331 .or. kx0==431 .or. kx0==531) kx=231
+              if (kx0==332 .or. kx0==432 .or. kx0==532) kx=232
+              if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
+              if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
+              if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+           end if
+        end if
         !* for new vad wind
         if(kx==224 .and. .not.newvad) then
            call ufbint(lunin,obsdat,11,255,levs,obstr)
@@ -636,6 +669,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      icntpnt2=0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
         if(.not.use_prepb_satwnd .and. trim(subset) =='SATWND') cycle loop_msg
+        if (aircraft_t_bc) then
+           aircraftset = trim(subset)=='AIRCFT' .or. trim(subset)=='AIRCAR'
+           if (.not. acft_profl_file .and. aircraftset) cycle loop_msg
+           if (acft_profl_file .and. (.not. aircraftset)) cycle loop_msg
+        end if
+
         nmsg = nmsg+1
         if(.not.lmsg(nmsg,nx)) then
            do i=ntb+1,ntb+nrep(nmsg)
@@ -662,6 +701,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            dlon_earth=hdr(2)*deg2rad
            dlat_earth=hdr(3)*deg2rad
            kx=hdr(5)
+           if (aircraft_t_bc .and. acft_profl_file) then
+              kx0=kx
+              if (.not. uvob) then
+                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
+                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=131
+                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=132
+                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=133
+                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=134
+                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=135
+              else
+                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=230
+                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=231
+                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=232
+                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
+                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
+                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+              end if
+           end if
         !* thin new VAD in time level
         if(kx==224.and.newvad)then
         icase=0
@@ -731,6 +788,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            t4dv=t4dv + time_correction
            time=timeobs + time_correction
            kx=hdr(5)
+           if (aircraft_t_bc .and. acft_profl_file) then
+              kx0=kx
+              if (.not. uvob) then
+                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
+                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=131
+                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=132
+                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=133
+                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=134
+                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=135
+              else
+                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=230
+                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=231
+                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=232
+                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
+                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
+                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+              end if
+           end if
            if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
            if(use_prepb_satwnd .and. kx == 245  ) then
               if(hdr(2) == 259.0_r_kind) iobsub = 15
@@ -768,10 +843,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               c_sprvstg=cspval
            endif
      
-!          aircraft data
-!          aircraftobs=(kx>129.and.kx<140) .or. (kx>229.and.kx<240)
-           aircraftobs=(kx==131) .or. (kx==133)
-
 !          Extract data information on levels
            call ufbint(lunin,obsdat,11,255,levs,obstr)
            if(kx==224 .and. newvad) then
@@ -783,16 +854,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(uvob)then
               nread=nread+levs
            else if(tob) then 
+!             aircraft temperature data
+!             aircraftobst = kx>129.and.kx<140
+              aircraftobst = (kx==131) .or. (kx==133)
+
               aircraftwk = bmiss
-              if (aircraftobs .and. aircraft_t_bc) then 
-                 call ufbint(lunin,aircraftwk(1,:),1,255,levs,aircraftstr)
-                 pof=aircraftwk(1,1)
-!                ascending or descending
-                 if (pof.eq.5.0_r_kind .or. pof.eq.6.0_r_kind) cycle loop_readsb
-!                unsteady or missing value
-                 if (pof<=2.0_r_kind .or. pof>=7.0_r_kind) aircraftwk(2,1)=bmiss
-!                level flight or level flight, highest wind encountered
-                 if (pof==3.0_r_kind .or. pof==4.0_r_kind) aircraftwk(2,1)=zero
+              if (aircraftobst .and. aircraft_t_bc) then 
+                 call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                 if (kx0>=330 .and. kx0<340) aircraftwk(2,:) = zero
               end if
            else if(sstob)then 
               sstdat=bmiss
@@ -826,6 +895,40 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  obsdat(1,k)=bmiss
               endif
            end do
+
+!          Determine tail number for aircraft temperature data
+           idx = 0
+           if (aircraftobst .and. aircraft_t_bc) then
+              do j = 1,ntail_update
+!                if (rstation_id == taillist(j)) then
+                 if (c_station_id == taillist(j)) then
+                    idx = j
+                    exit
+                 end if
+              end do
+
+!             Append new tail number at the end of existing tail numbers.
+!             At 1st analysis, the obs will be used without bias correction, patch new tail number;
+!             At 2nd analysis, bias coefficients will be generated for this new tail number.
+              if (idx == 0) then
+                 ntail_update = ntail_update+1
+                 if (ntail_update > max_tail) then
+                    write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
+                    write(6,*)'READ_PREPBUFR: stop program execution'
+                    call stop2(339)
+                 end if
+                 idx_tail(ntail_update) = ntail_update
+!                taillist(ntail_update) = rstation_id
+                 taillist(ntail_update) = c_station_id
+                 do j = 1,npredt
+                    predt(j,ntail_update) = zero
+                 end do
+              end if
+
+!             Re-set idx if idx>ntail 
+              if (idx>ntail) idx = 0
+           end if
+
 
 !          If available, get obs errors from error table
            if(oberrflg)then
@@ -1193,11 +1296,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
  
 !             Temperature
               if(tob) then
-                 if (aircraftobs .and. aircraft_t_bc) then
-                    pof=aircraftwk(1,k)
-                    if (pof.eq.5.0_r_kind .or. pof.eq.6.0_r_kind) cycle LOOP_K_LEVS
-                 end if
-
                  ppb=obsdat(1,k)
                  call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                  toe=obserr(3,k)*errout
@@ -1205,37 +1303,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (inflate_error) toe=toe*r1_2
                  if(ppb < r100)toe=toe*r1_2
 
-                 idx = 0
-                 if (aircraftobs .and. aircraft_t_bc) then
-                    do j = 1,ntail_update
-!                      if (rstation_id == taillist(j)) then
-                       if (c_station_id == taillist(j)) then
-                          idx = j
-                          exit
-                       end if
-                    end do
-
-!                   append new tail number at the end of existing tail numbers.
-!                   at 1st analysis, the obs will be used without bias correction but
-!                   bias coefficients will be generated for this new tail number.
-!                   if (idx > ntail) toe = two*toe
-                    if (idx == 0) then
-!                      toe = two*toe
-                       ntail_update = ntail_update+1
-                       if (ntail_update > max_tail) then
-                          write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
-                          write(6,*)'READ_PREPBUFR: stop program execution'
-                          call stop2(339)
-                       end if
-                       idx=ntail_update
-                       idx_tail(ntail_update) = ntail_update
-!                      taillist(ntail_update) = rstation_id
-                       taillist(ntail_update) = c_station_id
-                       do j = 1,npredt
-                          predt(j,ntail_update) = zero
-                       end do
-                    end if
-                 end if
                  cdata_all(1,iout)=toe                     ! temperature error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
@@ -1274,7 +1341,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
-                 if (aircraftobs) write(55,*) nc,kx,c_station_id,t4dv,tqm(k),cdata_all(17,iout),cdata_all(18,iout),ppb,cdata_all(5,iout),cdata_all(25,iout)
 
 !             Winds 
               else if(uvob) then 
