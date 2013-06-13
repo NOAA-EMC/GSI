@@ -489,6 +489,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
               if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
            end if
+           print*, 'kx0=',kx0,kx
         end if
         !* for new vad wind
         if(kx==224 .and. .not.newvad) then
@@ -1337,6 +1338,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
                     cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
                     cdata_all(27,iout)=idx                 ! index of temperature bias
+                    print*,'read_prepbufr: pof,vvlc,idx,nc,kx0,kx=',aircraftwk(1,k),aircraftwk(2,k),idx,nc,kx0,kx
                  end if
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &

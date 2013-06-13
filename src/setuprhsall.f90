@@ -526,12 +526,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   if (aircraft_t_bc) then
      call mpl_allreduce(ntail,rpvals=ostats_t)
      call mpl_allreduce(npredt,ntail,rstats_t)
-     if (mype==0 .or. mype==20) then
-        print*, 'ostats=',(ostats_t(ier),ier=1,30)
-        print*, 'rstats1=',(rstats_t(1,ier),ier=1,30)
-        print*, 'rstats2=',(rstats_t(2,ier),ier=1,30)
-        print*, 'rstats3=',(rstats_t(3,ier),ier=1,30)
-     end if
   end if
 
 ! Collect satellite and precip. statistics

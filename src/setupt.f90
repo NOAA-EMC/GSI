@@ -387,7 +387,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      if(.not.in_curbin) cycle
 
-! Compute bias correction for aircraft data
+!    Compute bias correction for aircraft data
      if (aircraft_t_bc) then 
         do j = 1, npredt
            pred(j) = zero
@@ -395,8 +395,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         end do
      end if
 
-!    aircraftobst = kx>129.and.kx<140
-     aircraftobst = (ikx==131) .or. (ikx==133)
+!    aircraftobst = itype>129.and.itype<140
+     aircraftobst = (itype==131) .or. (itype==133)
      dvvlc = zero
      ix = data(idx,i)
      if (aircraftobst .and. aircraft_t_bc) then 

@@ -149,7 +149,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !  If no t data return
   if(.not. associated(thead))return
 
-  print*, 'start intt'
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0; isst=0
