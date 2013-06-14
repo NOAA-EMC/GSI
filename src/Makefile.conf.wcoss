@@ -56,12 +56,12 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
   		-I $(INCnetcdf) -I $(INCw3) \
                 -O3 -fp-model strict -convert big_endian -assume byterecl \
-                -implicitnone -traceback $(OMP)
+                -implicitnone $(OMP)
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
   		       -I $(INCnetcdf) -I $(INCw3) \
                        -O3 -fp-model strict -convert big_endian -assume byterecl \
-                       -implicitnone -traceback $(OMP)
+                       -implicitnone $(OMP)
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
   FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
