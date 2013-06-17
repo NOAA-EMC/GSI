@@ -751,31 +751,52 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
   real(r_kind)      beta(2), beta2(2), a(2,2)
   real(r_kind)      t0,t1,p0,p1,zz,xx,yy
 
-  data   nday/one,   6.0_r_kind,  11.0_r_kind,  16.0_r_kind,  21.0_r_kind,  26.0_r_kind,  31.0_r_kind,  36.0_r_kind,  41.0_r_kind,  46.0_r_kind,&
-             51.0_r_kind,  56.0_r_kind,  61.0_r_kind,  66.0_r_kind,  71.0_r_kind,  76.0_r_kind,  81.0_r_kind,  86.0_r_kind,  91.0_r_kind,  96.0_r_kind,&
-             101.0_r_kind, 106.0_r_kind, 111.0_r_kind, 116.0_r_kind, 121.0_r_kind, 126.0_r_kind, 131.0_r_kind, 136.0_r_kind, 141.0_r_kind, 146.0_r_kind,&
-             151.0_r_kind, 156.0_r_kind, 161.0_r_kind, 166.0_r_kind, 171.0_r_kind, 176.0_r_kind, 181.0_r_kind, 186.0_r_kind, 191.0_r_kind, 196.0_r_kind,&
-             201.0_r_kind, 206.0_r_kind, 211.0_r_kind, 216.0_r_kind, 221.0_r_kind, 226.0_r_kind, 231.0_r_kind, 236.0_r_kind, 241.0_r_kind, 246.0_r_kind,&
-             251.0_r_kind, 256.0_r_kind, 261.0_r_kind, 266.0_r_kind, 271.0_r_kind, 276.0_r_kind, 281.0_r_kind, 286.0_r_kind, 291.0_r_kind, 296.0_r_kind,&
-             301.0_r_kind, 306.0_r_kind, 311.0_r_kind, 316.0_r_kind, 321.0_r_kind, 326.0_r_kind, 331.0_r_kind, 336.0_r_kind, 341.0_r_kind, 346.0_r_kind,&
+  data   nday/one,   6.0_r_kind,  11.0_r_kind,  16.0_r_kind,  21.0_r_kind,  26.0_r_kind,  &
+                                    31.0_r_kind,  36.0_r_kind,  41.0_r_kind,  46.0_r_kind,&
+             51.0_r_kind,  56.0_r_kind,  61.0_r_kind,  66.0_r_kind,  71.0_r_kind,  &
+                76.0_r_kind,  81.0_r_kind,  86.0_r_kind,  91.0_r_kind,  96.0_r_kind,&
+             101.0_r_kind, 106.0_r_kind, 111.0_r_kind, 116.0_r_kind, 121.0_r_kind, &
+              126.0_r_kind, 131.0_r_kind, 136.0_r_kind, 141.0_r_kind, 146.0_r_kind,&
+             151.0_r_kind, 156.0_r_kind, 161.0_r_kind, 166.0_r_kind, 171.0_r_kind, &
+              176.0_r_kind, 181.0_r_kind, 186.0_r_kind, 191.0_r_kind, 196.0_r_kind,&
+             201.0_r_kind, 206.0_r_kind, 211.0_r_kind, 216.0_r_kind, 221.0_r_kind, &
+             226.0_r_kind, 231.0_r_kind, 236.0_r_kind, 241.0_r_kind, 246.0_r_kind,&
+             251.0_r_kind, 256.0_r_kind, 261.0_r_kind, 266.0_r_kind, 271.0_r_kind, &
+             276.0_r_kind, 281.0_r_kind, 286.0_r_kind, 291.0_r_kind, 296.0_r_kind,&
+             301.0_r_kind, 306.0_r_kind, 311.0_r_kind, 316.0_r_kind, 321.0_r_kind, &
+             326.0_r_kind, 331.0_r_kind, 336.0_r_kind, 341.0_r_kind, 346.0_r_kind,&
              351.0_r_kind, 356.0_r_kind, 361.0_r_kind, 366.0_r_kind/
 
-  data  eqt/ -3.23_r_kind, -5.49_r_kind, -7.60_r_kind, -9.48_r_kind,-11.09_r_kind,-12.39_r_kind,-13.34_r_kind,-13.95_r_kind,-14.23_r_kind,-14.19_r_kind,&
-            -13.85_r_kind,-13.22_r_kind,-12.35_r_kind,-11.26_r_kind,-10.01_r_kind, -8.64_r_kind, -7.18_r_kind, -5.67_r_kind, -4.16_r_kind, -2.69_r_kind,&
-             -1.29_r_kind, -0.02_r_kind,  1.10_r_kind,  2.05_r_kind,  2.80_r_kind,  3.33_r_kind,  3.63_r_kind,  3.68_r_kind,  3.49_r_kind,  3.09_r_kind,&
-              2.48_r_kind,  1.71_r_kind,  0.79_r_kind, -0.24_r_kind, -1.33_r_kind, -2.41_r_kind, -3.45_r_kind, -4.39_r_kind, -5.20_r_kind, -5.84_r_kind,&
-             -6.28_r_kind, -6.49_r_kind, -6.44_r_kind, -6.15_r_kind, -5.60_r_kind, -4.82_r_kind, -3.81_r_kind, -2.60_r_kind, -1.19_r_kind,  0.36_r_kind,&
-              2.03_r_kind,  3.76_r_kind,  5.54_r_kind,  7.31_r_kind,  9.04_r_kind, 10.69_r_kind, 12.20_r_kind, 13.53_r_kind, 14.65_r_kind, 15.52_r_kind,&
-             16.12_r_kind, 16.41_r_kind, 16.36_r_kind, 15.95_r_kind, 15.19_r_kind, 14.09_r_kind, 12.67_r_kind, 10.93_r_kind,  8.93_r_kind,  6.70_r_kind,&
+  data  eqt/ -3.23_r_kind, -5.49_r_kind, -7.60_r_kind, -9.48_r_kind,-11.09_r_kind,&
+             -12.39_r_kind,-13.34_r_kind,-13.95_r_kind,-14.23_r_kind,-14.19_r_kind,&
+            -13.85_r_kind,-13.22_r_kind,-12.35_r_kind,-11.26_r_kind,-10.01_r_kind, &
+            -8.64_r_kind, -7.18_r_kind, -5.67_r_kind, -4.16_r_kind, -2.69_r_kind,&
+             -1.29_r_kind, -0.02_r_kind,  1.10_r_kind,  2.05_r_kind,  2.80_r_kind,  &
+              3.33_r_kind,  3.63_r_kind,  3.68_r_kind,  3.49_r_kind,  3.09_r_kind,&
+              2.48_r_kind,  1.71_r_kind,  0.79_r_kind, -0.24_r_kind, -1.33_r_kind, &
+              -2.41_r_kind, -3.45_r_kind, -4.39_r_kind, -5.20_r_kind, -5.84_r_kind,&
+             -6.28_r_kind, -6.49_r_kind, -6.44_r_kind, -6.15_r_kind, -5.60_r_kind, &
+              -4.82_r_kind, -3.81_r_kind, -2.60_r_kind, -1.19_r_kind,  0.36_r_kind,&
+              2.03_r_kind,  3.76_r_kind,  5.54_r_kind,  7.31_r_kind,  9.04_r_kind, &
+             10.69_r_kind, 12.20_r_kind, 13.53_r_kind, 14.65_r_kind, 15.52_r_kind,&
+             16.12_r_kind, 16.41_r_kind, 16.36_r_kind, 15.95_r_kind, 15.19_r_kind, &
+             14.09_r_kind, 12.67_r_kind, 10.93_r_kind,  8.93_r_kind,  6.70_r_kind,&
               4.32_r_kind,  1.86_r_kind, -0.62_r_kind, -3.23_r_kind/
 
-  data dec/ -23.06_r_kind,-22.57_r_kind,-21.91_r_kind,-21.06_r_kind,-20.05_r_kind,-18.88_r_kind,-17.57_r_kind,-16.13_r_kind,-14.57_r_kind,-12.91_r_kind,&
-            -11.16_r_kind, -9.34_r_kind, -7.46_r_kind, -5.54_r_kind, -3.59_r_kind, -1.62_r_kind,  0.36_r_kind,  2.33_r_kind,  4.28_r_kind,  6.19_r_kind,&
-              8.06_r_kind,  9.88_r_kind, 11.62_r_kind, 13.29_r_kind, 14.87_r_kind, 16.34_r_kind, 17.70_r_kind, 18.94_r_kind, 20.04_r_kind, 21.00_r_kind,&
-             21.81_r_kind, 22.47_r_kind, 22.95_r_kind, 23.28_r_kind, 23.43_r_kind, 23.40_r_kind, 23.21_r_kind, 22.85_r_kind, 22.32_r_kind, 21.63_r_kind,&
-             20.79_r_kind, 19.80_r_kind, 18.67_r_kind, 17.42_r_kind, 16.05_r_kind, 14.57_r_kind, 13.00_r_kind, 11.33_r_kind,  9.60_r_kind,  7.80_r_kind,&
-              5.95_r_kind,  4.06_r_kind,  2.13_r_kind,  0.19_r_kind, -1.75_r_kind, -3.69_r_kind, -5.62_r_kind, -7.51_r_kind, -9.36_r_kind,-11.16_r_kind,&
-            -12.88_r_kind,-14.53_r_kind,-16.07_r_kind,-17.50_r_kind,-18.81_r_kind,-19.98_r_kind,-20.99_r_kind,-21.85_r_kind,-22.52_r_kind,-23.02_r_kind,&
+  data dec/ -23.06_r_kind,-22.57_r_kind,-21.91_r_kind,-21.06_r_kind,-20.05_r_kind,&
+            -18.88_r_kind,-17.57_r_kind,-16.13_r_kind,-14.57_r_kind,-12.91_r_kind,&
+            -11.16_r_kind, -9.34_r_kind, -7.46_r_kind, -5.54_r_kind, -3.59_r_kind,&
+             -1.62_r_kind,  0.36_r_kind,  2.33_r_kind,  4.28_r_kind,  6.19_r_kind,&
+              8.06_r_kind,  9.88_r_kind, 11.62_r_kind, 13.29_r_kind, 14.87_r_kind,&
+             16.34_r_kind, 17.70_r_kind, 18.94_r_kind, 20.04_r_kind, 21.00_r_kind,&
+             21.81_r_kind, 22.47_r_kind, 22.95_r_kind, 23.28_r_kind, 23.43_r_kind,&
+             23.40_r_kind, 23.21_r_kind, 22.85_r_kind, 22.32_r_kind, 21.63_r_kind,&
+             20.79_r_kind, 19.80_r_kind, 18.67_r_kind, 17.42_r_kind, 16.05_r_kind,&
+             14.57_r_kind, 13.00_r_kind, 11.33_r_kind,  9.60_r_kind,  7.80_r_kind,&
+              5.95_r_kind,  4.06_r_kind,  2.13_r_kind,  0.19_r_kind, -1.75_r_kind,&
+             -3.69_r_kind, -5.62_r_kind, -7.51_r_kind, -9.36_r_kind,-11.16_r_kind,&
+            -12.88_r_kind,-14.53_r_kind,-16.07_r_kind,-17.50_r_kind,-18.81_r_kind,&
+            -19.98_r_kind,-20.99_r_kind,-21.85_r_kind,-22.52_r_kind,-23.02_r_kind,&
             -23.33_r_kind,-23.44_r_kind,-23.35_r_kind,-23.06_r_kind/
 
 !

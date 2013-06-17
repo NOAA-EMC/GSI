@@ -618,8 +618,11 @@ contains
           call stop2(79)
        endif
        read2: do
-          read(lunin,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))',iostat=istat) &
-               ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,maxscan)
+          read(lunin,'(I5,1x,A20,2x,I4,e15.6)',iostat=istat,end=1111) &
+               ich,isis,ichan,tlapm
+          if (istat /= 0) exit
+          read(lunin,'(100(4x,10f7.3/))',iostat=istat,end=1111) &
+               (cbiasx(ip),ip=1,maxscan)
           if (istat /= 0) exit
           cfound = .false.
           do j =1,jpch_rad
@@ -636,6 +639,7 @@ contains
                write(6,*) '***WARNING instrument/channel ',isis,ichan, &
                'found in satbias_angle file but not found in satinfo'
        end do read2
+1111   continue
        close(lunin)
        if (istat>0) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, istat=',istat
@@ -665,7 +669,7 @@ contains
     if (pcexist) then
        open(lunin,file='scaninfo',form='formatted')
        do
-          read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep,edge1,edge2
+          read(lunin,1000,IOSTAT=istat,end=1222) cflg,satscan_sis,start,step,nstep,edge1,edge2
           if (istat /= 0) exit
           if (cflg == '!') cycle
 
@@ -680,6 +684,7 @@ contains
           end do
        end do
 1000   format(a1,a20,2f11.3,i10,2i6)
+1222   continue
        close(lunin)
     else
        if(mype == 0) write(6,*) '***WARNING file scaninfo not found, use default'
@@ -710,10 +715,10 @@ contains
        nfound = .false.
        read4: do
           if (.not. adp_anglebc) then
-             read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat) ich,isis,&
+             read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat,end=1333) ich,isis,&
                   ichan,(predr(ip),ip=1,npred)
           else
-             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat) ich,isis,&
+             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat,end=1333) ich,isis,&
                   ichan,tlapm,tsum,ntlapupdate,(predr(ip),ip=1,npred)
           end if
           if (istat /= 0) exit
@@ -738,6 +743,7 @@ contains
              write(6,*) '***WARNING instrument/channel ',isis,ichan, &
              'found in satbias_in file but not found in satinfo'
        end do read4
+1333   continue
        close(lunin)
        if (istat>0) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_in, istat=',istat
@@ -802,7 +808,7 @@ contains
 
 !      Loop over satellites sensors & channels
        read5: do
-          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat) ich,isis,ichan,(fbiasx(i),i=1,numt)
+          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat,end=1444) ich,isis,ichan,(fbiasx(i),i=1,numt)
           if (istat /= 0) exit
           cfound = .false.
           do j=1,jpch_rad
@@ -817,6 +823,7 @@ contains
           if(.not. cfound)write(6,*) ' WARNING instrument/channel ',isis,ichan, &
              'found in satbias_sst file and not found in satinfo'
        end do read5
+1444   continue
        close(lunin)
     endif           ! endif for if (retrieval) then
 

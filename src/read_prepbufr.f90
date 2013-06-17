@@ -624,6 +624,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      nmsg = 0
      icntpnt=0
      icntpnt2=0
+     disterrmax=-9999.0_r_kind
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
         if(.not.use_prepb_satwnd .and. trim(subset) =='SATWND') cycle loop_msg
         nmsg = nmsg+1

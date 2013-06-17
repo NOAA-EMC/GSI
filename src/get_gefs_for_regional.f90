@@ -1384,7 +1384,9 @@ end subroutine get_gefs_for_regional
                       DUM2DB(i,j)=exp(DUM2DB(i,j))
  
                       IF (I == Ilook .and. J == Jlook) THEN
-                         write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
+                         write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', &
+                                   L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), &
+                                   Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
                          write(0,*) 'TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L): ', TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L)
                          write(0,*) 'here(2b) set dum2db to: ', I,J, Dum2db(I,J)
                       ENDIF

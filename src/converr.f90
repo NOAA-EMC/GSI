@@ -82,7 +82,7 @@ contains
      etabl=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ietabl,100,IOSTAT=iflag) itypex
+        read(ietabl,100,IOSTAT=iflag,end=120) itypex
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1
@@ -91,6 +91,7 @@ contains
 110        format(1x,6e12.5)
         end do
      end do   loopd
+120  continue
 
      if(lcount<=0 .and. mype==0) then
         write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'
