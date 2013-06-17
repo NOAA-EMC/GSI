@@ -574,7 +574,8 @@
         write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
            idiag,angord,iversion_radiag,inewpc
         write(6,*)'SETUPRAD:  write header record for ',&
-           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
+           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
+                      ' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle

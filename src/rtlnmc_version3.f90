@@ -2073,8 +2073,7 @@ contains
     allocate(v(0:ny1,0:nx1))
     allocate(w(0:ny1,0:nx1))
     f=test_div
-               time0=timef()
-              write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
+        write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
         call fmg(v,f,helmholtz_on,1,1,20,mg(1)%nx,mg(1)%ny)
                write(6,'(" time in fmg =",f15.6," seconds")') .001*(timef()-time0)
         w=zero
