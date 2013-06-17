@@ -15,6 +15,7 @@ date
 #export list=$listvar
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
+echo MAX_WCOSS_TASKS = $MAX_WCOSS_TASKS
 
 imgndir=${IMGNDIR}/angle
 tankdir=${TANKDIR}/angle
@@ -165,7 +166,18 @@ ${COMPRESS} -f ${imgndir}/*.ctl
      ntasks=`cat $cmdfile|wc -l `
 
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q dev -n 1,$ntasks -o ${logfile} -W 1:45 -J ${jobname} $cmdfile
+        nodes=$(($ntasks/$MAX_WCOSS_TASKS))
+        echo nodes = $nodes
+        if [[ $nodes = 0 ]]; then
+           nodes=1
+        fi
+        echo nodes = $nodes
+        echo ntasks = $ntasks
+        if [[ $ntasks > $MAX_WCOSS_TASKS ]]; then
+           ntasks=$MAX_WCOSS_TASKS
+        fi
+        echo ntasks = $ntasks
+        $SUB -q dev -n $nodes -R "span[ptile=$ntasks]" -o ${logfile} -W 1:45 -J ${jobname} $cmdfile
      else
         $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi
@@ -207,10 +219,10 @@ set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl cl
 for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST
 
-#
-#  CCS and wcoss, submit 4 jobs for each $sat
-#
-   if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then 	
+   #
+   #  CCS submit 4 jobs for each $sat
+   #
+   if [[ $MY_MACHINE = "ccs" ]]; then 	
       batch=1
       ii=0
 
@@ -230,11 +242,7 @@ for sat in ${bigSATLIST}; do
             ntasks=`cat $cmdfile|wc -l `
             chmod 755 $cmdfile
 
-            if [[ $MY_MACHINE = "wcoss" ]]; then
-               $SUB -q dev -n 1,$ntasks -o ${logfile} -W 2:30 -J ${jobname} $cmdfile
-            else
-               $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-            fi
+            $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
 
             (( batch=batch+1 ))
 
@@ -246,7 +254,41 @@ for sat in ${bigSATLIST}; do
          fi
          (( ii=ii+1 ))
       done
+   #
+   #  wcoss submit count and penalty as 1 job, all others as separate jobs.
+   elif [[ $MY_MACHINE = "wcoss" ]]; then	
+      set -A list omgnbc total omgbc fixang lapse lapse2 const scangl clw
+      batch=1
 
+      suffix="${sat}_${batch}"
+      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+      rm -f $cmdfile
+      jobname=plot_${SUFFIX}_ang_${suffix}
+      logfile=${LOGDIR}/plot_angle_${suffix}.log
+
+      echo "$SCRIPTS/plot_angle.sh $sat $suffix count" >> $cmdfile
+      echo "$SCRIPTS/plot_angle.sh $sat $suffix penalty" >> $cmdfile
+      chmod 755 $cmdfile
+
+      $SUB -q dev -n 2,4 -R "span[ptile=$MAX_WCOSS_TASKS]" -o ${logfile} -W 1:30 -J ${jobname} $cmdfile
+
+      (( batch=batch+1 ))
+      ii=0
+      while [[ $ii -le ${#list[@]}-1 ]]; do
+         suffix="${sat}_${batch}"
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+         rm -f $cmdfile
+         jobname=plot_${SUFFIX}_ang_${suffix}
+         logfile=${LOGDIR}/plot_angle_${suffix}.log
+
+         echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+         chmod 755 $cmdfile
+
+         $SUB -q dev -n 8,10 -R "span[ptile=$MAX_WCOSS_TASKS]" -o ${logfile} -W 4:00 -J ${jobname} $cmdfile
+
+         (( batch=batch+1 ))
+         (( ii=ii+1 ))
+      done
    else					# Zeus, submit 1 job for each sat/list item
       ii=0
       suffix="${sat}"
