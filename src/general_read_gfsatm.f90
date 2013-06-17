@@ -36,13 +36,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     use gridmod, only: &
          ncepgfs_head,idpsfc5,idthrm5,&
          ntracer,idvc5,cp5,idvm5
-    use ncepgfs_io, only: read_sigma
+    use ncepgfs_io, only: read_sighead
     use general_sub2grid_mod, only: sub2grid_info
     use general_specmod, only: spec_vars
     use mpimod, only: npe
     use constants, only: zero,one,fv,r0_01
-    use sigio_module, only: sigio_intkind,sigio_head,sigio_data,&
-         sigio_srohdc,sigio_axdata
+    use sigio_module, only: sigio_intkind,sigio_head,sigio_alhead
+    use sigio_r_module, only: sigio_dbti,sigio_rrhead,sigio_rropen,&
+        sigio_axdbti,sigio_rrdbti
     use ncepgfs_io, only: sigio_cnvtdv8
     use gsi_io, only: mype_io
 
@@ -68,14 +69,18 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     integer(i_kind) i,j,k,icount
     integer(i_kind),dimension(npe)::ilev,iflag
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
+
+    real(r_kind),dimension(sp_b%nc),target ::  specwrk_4,specdiv_4
     real(r_kind),dimension(sp_b%nc):: spec_work
+
     real(r_kind),dimension(grd%itotsub):: work
     real(r_kind),allocatable,dimension(:,:,:):: grid_q
     real(r_kind),allocatable,dimension(:):: spec_div,work_x
     real(r_kind),allocatable,dimension(:,:):: grid_v
         
     type(sigio_head):: sighead
-    type(sigio_data):: sigdata
+    type(sigio_dbti):: sigdati
+
     type(ncepgfs_head):: gfshead
 
 
@@ -85,9 +90,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     nlatm2=grd%nlat-2
 
 !   Do IO on a single task, bcast data to other tasks.
-    call read_sigma(lunges,filename,gfshead,sigdata,mype_io,mype,iret_read)
+!!  Keep old way for now, can probably replace with RR calls later
+    call read_sighead(lunges,filename,gfshead,mype_io,mype,iret_read)
     if (iret_read /= 0) goto 1000
 
+! Have all files open and read header for now with RanRead
+    call sigio_rropen(lunges,filename,iret)
+    call sigio_alhead(sighead,iret)
+    call sigio_rrhead(lunges,sighead,iret)
 
     icount=0
 
@@ -101,8 +111,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     iflag(icount)=1
     ilev(icount)=1
     if (mype==icount-1) then
+
+! read hs
+      sigdati%i = 1                                           ! hs
+      sigdati%f => specwrk_4
+      call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
        do i=1,sp_b%nc
-          spec_work(i)=sp_b%test_mask(i)*sigdata%hs(i)
+          spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
           if(sp_b%factsml(i))spec_work(i)=zero
        end do
        call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
@@ -124,8 +140,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     iflag(icount)=2
     ilev(icount)=1
     if (mype==icount-1) then
+
+! read ps
+      sigdati%i = 2                                           ! ps
+      sigdati%f => specwrk_4
+      call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
        do i=1,sp_b%nc
-          spec_work(i)=sp_b%test_mask(i)*sigdata%ps(i)
+          spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
           if(sp_b%factsml(i))spec_work(i)=zero
        end do
        call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
@@ -153,8 +175,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        iflag(icount)=3
        ilev(icount)=k
        if (mype==icount-1) then
+
+! read T/Tv/etc.
+       sigdati%i = 2+k                                           ! hs
+       sigdati%f => specwrk_4
+       call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
           do i=1,sp_b%nc
-             spec_work(i)=sp_b%test_mask(i)*sigdata%t(i,k)
+             spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
@@ -165,36 +193,35 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !            idthrm5 = 2   = sensible (dry) temperature (T)
 !            idthrm5 = 3   = enthalpy (h=CpT)
 !         The GSI analysis variable is Tv
-
 !         If needed, convert T or h to Tv
 
-          if (idthrm5==2 .or. idthrm5==3) then
-
-             allocate(grid_q(grd%nlon,grd%nlat-2,ntracer))
+!! OR ADDRESS LATER SOMEHOPE
+!! DTK DO THIS AT THE END ON THE SUBDOMAINS???
+!!
+!          if (idthrm5==2 .or. idthrm5==3) then
+!             allocate(grid_q(grd%nlon,grd%nlat-2,ntracer))
 !            Convert tracers from spectral coefficients to grid
-             do n=1,ntracer
-                do i=1,sp_b%nc
-                   spec_work(i)=sp_b%test_mask(i)*sigdata%q(i,k,n)
-                   if(sp_b%factsml(i))spec_work(i)=zero
-                end do
-                call general_sptez_s(sp_a,sp_b,spec_work,grid_q(1,1,n),1)
-             end do
+!             do n=1,ntracer
+!                do i=1,sp_b%nc
+!                   spec_work(i)=sp_b%test_mask(i)*sigdata%q(i,k,n)
+!                   if(sp_b%factsml(i))spec_work(i)=zero
+!                end do
+!                call general_sptez_s(sp_a,sp_b,spec_work,grid_q(1,1,n),1)
+!             end do
 
 !            Convert input thermodynamic variable to dry temperature
-             call sigio_cnvtdv8(grd%nlon*nlatm2,grd%nlon*nlatm2,1,idvc5,&
-                  idvm5,ntracer,iret,grid,grid_q,cp5,1)
-                            iret_read=iret_read+iret
-             if (iret_read /= 0) goto 1000
-
+!             call sigio_cnvtdv8(grd%nlon*nlatm2,grd%nlon*nlatm2,1,idvc5,&
+!                  idvm5,ntracer,iret,grid,grid_q,cp5,1)
+!                            iret_read=iret_read+iret
+!             if (iret_read /= 0) goto 1000
 !            Convert dry temperature to virtual
-             do j=1,nlatm2
-                do i=1,grd%nlon
-                   grid(i,j) = grid(i,j)*(one+fv*grid_q(i,j,1))
-                end do
-             end do
-             deallocate(grid_q)
-
-          endif
+!             do j=1,nlatm2
+!                do i=1,grd%nlon
+!                   grid(i,j) = grid(i,j)*(one+fv*grid_q(i,j,1))
+!                end do
+!             end do
+!             deallocate(grid_q)
+!          endif
 
 !         Load values into rows for south and north pole
           call general_fill_ns(grd,grid,work)
@@ -210,13 +237,16 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        ilev(icount)=k
        if (mype==icount-1) then
 !  Vorticity
+          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
 !         Convert spectral coefficients of vor to grid space
           do i=1,sp_b%nc
-             spec_work(i)=sp_b%test_mask(i)*sigdata%z(i,k)   !vor
+             spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)   !vor
              if(sp_b%factvml(i))spec_work(i)=zero
           end do
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-
 
 !         Convert grid u,v to div and vor
           call general_fill_ns(grd,grid,work)
@@ -233,9 +263,13 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        ilev(icount)=k
        if (mype==icount-1) then
 !   Divergence 
+          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 1     ! Divergence
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
 !         Convert spectral coefficients of div to grid space
           do i=1,sp_b%nc
-             spec_work(i)=sp_b%test_mask(i)*sigdata%d(i,k)   !div
+             spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)   !div
              if(sp_b%factvml(i))spec_work(i)=zero
           end do
              
@@ -256,12 +290,24 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        ilev(icount)=k
        if (mype==icount-1) then
 !   U  Compute u and v from div and vor
+
+! Divergence
+          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 1     ! Divergence
+          sigdati%f => specdiv_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
+!  Vorticity
+          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
+
 !         Convert spectral coefficients of div and vor to grid space
           if (uvflag) then
              allocate(spec_div(sp_b%nc),work_x(grd%itotsub),grid_v(grd%nlon,grd%nlat-2))
              do i=1,sp_b%nc
-                spec_div(i)=sp_b%test_mask(i)*sigdata%d(i,k)   !div
-                spec_work(i)=sp_b%test_mask(i)*sigdata%z(i,k)   !vor
+                spec_div(i)=sp_b%test_mask(i)*specdiv_4(i)   !div
+                spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)   !vor
                 if(sp_b%factvml(i))then
                    spec_div(i)=zero
                    spec_work(i)=zero
@@ -273,7 +319,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 ! if streamfunction/velocity potential:
           else
              do i=1,sp_b%nc
-                spec_work(i)=sp_b%test_mask(i)*sigdata%z(i,k)   !vor
+                spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)   !vor
                 if(sp_b%factvml(i))spec_work(i)=zero
              end do
              do i=2,sp_b%ncd2
@@ -295,12 +341,23 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        ilev(icount)=k
        if (mype==icount-1) then
 !   Divergence and voriticity.  Compute u and v from div and vor
+
+! Divergence
+          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 1     ! Divergence
+          sigdati%f => specdiv_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
+!  Vorticity
+          sigdati%i = gfshead%levs + 2 + (k-1) * 2 + 2     ! Vorticity
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
 !         Convert spectral coefficients of div and vor to grid space
           if (uvflag) then
              allocate(spec_div(sp_b%nc),work_x(grd%itotsub),grid_v(grd%nlon,grd%nlat-2))
              do i=1,sp_b%nc
-                spec_div(i)=sp_b%test_mask(i)*sigdata%d(i,k)   !div
-                spec_work(i)=sp_b%test_mask(i)*sigdata%z(i,k)   !vor
+                spec_div(i)=sp_b%test_mask(i)*specdiv_4(i)   !div
+                spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)   !vor
                 if(sp_b%factvml(i))then
                    spec_div(i)=zero
                    spec_work(i)=zero
@@ -312,7 +369,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 ! if velocity potential:
           else
              do i=1,sp_b%nc
-                spec_work(i)=sp_b%test_mask(i)*sigdata%d(i,k)   !div
+                spec_work(i)=sp_b%test_mask(i)*specdiv_4(i)   !div
                 if(sp_b%factvml(i))spec_work(i)=zero
              end do
              do i=2,sp_b%ncd2
@@ -333,9 +390,14 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        iflag(icount)=8
        ilev(icount)=k
        if (mype==icount-1) then
+
 !   Specific humidity
+          sigdati%i = gfshead%levs * (2+1) + 2 + k    ! q
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
           do i=1,sp_b%nc
-             spec_work(i)=sp_b%test_mask(i)*sigdata%q(i,k,1)
+             spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
@@ -352,8 +414,12 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        ilev(icount)=k
        if (mype==icount-1) then
 !   Ozone mixing ratio
+          sigdati%i = gfshead%levs * (2+2) + 2 + k    ! oz
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
           do i=1,sp_b%nc
-             spec_work(i)=sp_b%test_mask(i)*sigdata%q(i,k,2)
+             spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
@@ -372,8 +438,13 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        if (mype==icount-1) then
 !   Cloud condensate mixing ratio.
          if (gfshead%ntrac>2 .or. gfshead%ncldt>=1) then
+! 
+          sigdati%i = gfshead%levs * (2+3) + 2 + k    ! cw, 3rd tracer
+          sigdati%f => specwrk_4
+          call sigio_rrdbti(lunges,sighead,sigdati,iret)
+
             do i=1,sp_b%nc
-               spec_work(i)=sp_b%test_mask(i)*sigdata%q(i,k,3)
+               spec_work(i)=sp_b%test_mask(i)*specwrk_4(i)
                if(sp_b%factsml(i))spec_work(i)=zero
             end do
             call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
@@ -390,8 +461,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     end do
     
 !   Deallocate sigio data array
-    call sigio_axdata(sigdata,iret)
-
+!!    call sigio_axdata(sigdata,iret)
+    call sigio_axdbti(sigdati,iret)
 
 !   Print date/time stamp 
     if(mype==mype_io) then
@@ -408,7 +479,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 1000 continue
     if (mype==0) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
          filename,' from unit ',lunges,'.   iret_read=',iret_read
-    call sigio_axdata(sigdata,iret)
+!!    call sigio_axdata(sigdata,iret)
 
     
 !   End of routine.  Return

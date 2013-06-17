@@ -45,7 +45,7 @@ module ncepgfs_io
   implicit none
 
   private
-  public read_sigma
+  public read_sighead
   public read_sfc
   public read_gfs
   public read_gfs_chem
@@ -366,10 +366,10 @@ subroutine write_ghg_grid(a,char_ghg,mype)
   return
 end subroutine write_ghg_grid
 
-  subroutine read_sigma(lunges,filename,gfshead,sigdata,iope,mype,iret)
+  subroutine read_sighead(lunges,filename,gfshead,iope,mype,iret)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    read_sigma
+! subprogram:    read_sighead
 !
 !   prgrmmr: whitaker
 !
@@ -395,23 +395,33 @@ end subroutine write_ghg_grid
 !   machine:   ibm RS/6000 SP
 !
 !$$$ end documentation block
-    use sigio_module, only: sigio_srohdc,sigio_head,sigio_data
+!    use sigio_module, only: sigio_srohdc,sigio_head,sigio_data
+    use sigio_module, only: sigio_head,sigio_sropen,sigio_srhead,sigio_sclose
     use kinds, only: i_kind,r_single,r_kind
     use gridmod, only: ncepgfs_head
     use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
     character(*),intent(in) :: filename
     type(sigio_head):: sighead
-    type(sigio_data), intent(inout):: sigdata
+
+!!    type(sigio_data), intent(inout):: sigdata
+
     integer(i_kind), intent(inout) :: iret
     integer(i_kind), intent(in) :: iope,mype,lunges
     type(ncepgfs_head), intent(inout):: gfshead
     integer(i_kind) nc,idate(4),levs,ntrac,ncldt,latb,lonb
+
     real(r_single) fhour
-    ! read a file on a specified task, broadcast data to other tasks.
+    ! read header on a specified task, broadcast data to other tasks.
     ! iope is task that does IO for this file.
+
     if (mype == iope) then
-        call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
-        if (iret /= 0) print *,'error in read_sigma',trim(filename),iret
+!!        call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
+! on io task, open, read header, and close sigma file
+
+        call sigio_sropen(lunges,filename,iret)
+        call sigio_srhead(lunges,sighead,iret)
+        call sigio_sclose(lunges,iret)
+        if (iret /= 0) print *,'error in read_sighead',trim(filename),iret
         nc = (sighead%jcap+1)*(sighead%jcap+2)
         levs = sighead%levs
         idate = sighead%idate
@@ -421,6 +431,7 @@ end subroutine write_ghg_grid
         lonb = sighead%lonb
         latb = sighead%latb
     endif
+
     call mpi_bcast(nc,1,mpi_integer4,iope,mpi_comm_world,iret)
     call mpi_bcast(levs,1,mpi_integer4,iope,mpi_comm_world,iret)
     call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
@@ -429,18 +440,21 @@ end subroutine write_ghg_grid
     call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
     call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
     call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    if(mype /= iope) then
-        ! allocate data structure for non-IO tasks.
-        allocate(sigdata%hs(nc),sigdata%ps(nc),&
-             sigdata%t(nc,levs),sigdata%d(nc,levs),sigdata%z(nc,levs),&
-             sigdata%q(nc,levs,ntrac))
-    endif
-    call mpi_bcast(sigdata%ps(1),nc,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sigdata%hs(1),nc,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sigdata%t(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sigdata%z(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sigdata%d(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(sigdata%q(1,1,1),nc*levs*ntrac,mpi_real4,iope,mpi_comm_world,iret)
+
+!    if(mype /= iope) then
+!        ! allocate data structure for non-IO tasks.
+!        allocate(sigdata%hs(nc),sigdata%ps(nc),&
+!             sigdata%t(nc,levs),sigdata%d(nc,levs),sigdata%z(nc,levs),&
+!             sigdata%q(nc,levs,ntrac))
+!    endif
+
+!    call mpi_bcast(sigdata%ps(1),nc,mpi_real4,iope,mpi_comm_world,iret)
+!    call mpi_bcast(sigdata%hs(1),nc,mpi_real4,iope,mpi_comm_world,iret)
+!    call mpi_bcast(sigdata%t(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
+!    call mpi_bcast(sigdata%z(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
+!    call mpi_bcast(sigdata%d(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
+!    call mpi_bcast(sigdata%q(1,1,1),nc*levs*ntrac,mpi_real4,iope,mpi_comm_world,iret)
+
     gfshead%fhour   = fhour
     gfshead%idate   = idate
     gfshead%lonb    = lonb
@@ -448,8 +462,9 @@ end subroutine write_ghg_grid
     gfshead%levs    = levs
     gfshead%ntrac   = ntrac
     gfshead%ncldt   = ncldt
+
     return
-  end subroutine read_sigma
+  end subroutine read_sighead
 
   subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
 !$$$  subprogram documentation block
