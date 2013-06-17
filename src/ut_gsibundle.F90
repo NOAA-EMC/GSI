@@ -562,7 +562,7 @@ implicit none
 !EOP
 !-------------------------------------------------------------------------
 !BOC
-type(gsi_bundle),target,intent(inout) :: bundle
+type(gsi_bundle),intent(inout) :: bundle
 real(r_kind),pointer,dimension(:,:,:)::pe
 real(r_kind),pointer,dimension(:)::r1pe
 integer(i_kind) ipe,ierr,ival,nsz

@@ -865,9 +865,11 @@ subroutine alpha_beta4(info_string,aspect_full,rgauss,lnf,bnf,igauss,ngauss, &
             aspect_full
   integer(i_long)                               ,intent(in   ) :: igauss,ngauss
   real(r_double)                                ,intent(in   ) :: rgauss
-  real(r_single)                                ,intent(inout) :: lnf(ifilt_ord,npoints_mype,npass,ngauss),bnf(npoints_mype,npass,ngauss)
+  real(r_single)                                ,intent(inout) :: &
+                             lnf(ifilt_ord,npoints_mype,npass,ngauss),bnf(npoints_mype,npass,ngauss)
   integer(i_long)                               ,intent(  out) :: istart_out(*)
-  integer(i_long)                               ,intent(  out) :: lenmax(nvars),lenmin(nvars),npoints1(nvars) !  diagnostic output--to look at string
+  integer(i_long)                               ,intent(  out) :: lenmax(nvars),lenmin(nvars),&
+                             npoints1(nvars) !  diagnostic output--to look at string
   real(r_double)                                ,intent(  out) :: lenbar(nvars)
 
   integer(i_long) i,iend,ipass,istart,ivar
@@ -4679,7 +4681,8 @@ REAL(r_kind),DIMENSION(4,3)                 :: w4l
 INTEGER(i_kind)                             :: kt
 DATA b123/.5_r_kind,0._r_kind,.5_r_kind,  -.5_r_kind,0._r_kind,.5_r_kind,  0._r_kind,1._r_kind,1._r_kind/
 DATA w4c/ 1._r_kind,1._r_kind,-.5_r_kind,-.5_r_kind/
-DATA w4l/ 1._r_kind,-1._r_kind,0._r_kind,0._r_kind, 0._r_kind,0._r_kind,.5_r_kind,-.5_r_kind, -1._r_kind,-1._r_kind,1._r_kind,1._r_kind/
+DATA w4l/ 1._r_kind,-1._r_kind,0._r_kind,0._r_kind, 0._r_kind,0._r_kind,.5_r_kind,-.5_r_kind, &
+          -1._r_kind,-1._r_kind,1._r_kind,1._r_kind/
 !=============================================================================
 CALL gettri3(us,lguess,lv(:,1:3),lui,v,kt)
 lv(:,4)=lv(:,1)-lv(:,2)
@@ -5270,7 +5273,8 @@ subroutine smther_two_x(gx,g,ngauss,ids,ide,ips,ipe,jps,jpe,kps,kpe)
         do i=istart,iend
            ip=i+1 ; im=i-1 ; ip3=i+3_i_long ; im3=i-3_i_long
            do n=1,ngauss
-              g(n,i,j,k)=.28125_r_single*(gx(n,ip,j,k)+gx(n,im,j,k))+.5_r_single*gx(n,i,j,k)-.03125_r_single*(gx(n,ip3,j,k)+gx(n,im3,j,k))
+              g(n,i,j,k)=.28125_r_single*(gx(n,ip,j,k)+gx(n,im,j,k))+.5_r_single*gx(n,i,j,k) &
+                         -.03125_r_single*(gx(n,ip3,j,k)+gx(n,im3,j,k))
            end do
         end do
      end do
@@ -5378,7 +5382,8 @@ subroutine smther_two_y(gy,g,ngauss,jds,jde,ips,ipe,jps,jpe,kps,kpe)
         jp=j+1 ; jm=j-1 ; jp3=j+3_i_long ; jm3=j-3_i_long
         do i=ips,ipe
            do n=1,ngauss
-              g(n,i,j,k)=.28125_r_single*(gy(n,i,jp,k)+gy(n,i,jm,k))+.5_r_single*gy(n,i,j,k)-.03125_r_single*(gy(n,i,jp3,k)+gy(n,i,jm3,k))
+              g(n,i,j,k)=.28125_r_single*(gy(n,i,jp,k)+gy(n,i,jm,k))+.5_r_single*gy(n,i,j,k) &
+                         -.03125_r_single*(gy(n,i,jp3,k)+gy(n,i,jm3,k))
            end do
         end do
      end do

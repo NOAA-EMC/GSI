@@ -1076,8 +1076,10 @@
 
   if (l4densvar .and. (.not.ljc4tlevs) ) then
      if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
-        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time levels not activated with 4Densvar'
-        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended, limq/pdry will only be applied to center of window '
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time', &
+                              ' levels not activated with 4Densvar'
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended,',&
+                              ' limq/pdry will only be applied to center of window '
      end if
   end if
 

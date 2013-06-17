@@ -330,8 +330,10 @@ contains
     elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
       tzchk = 0.85_r_kind
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
-              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
-              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. obstype == 'cris' .or. obstype == 'seviri' ) then
+              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
+              obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
+              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
+              obstype == 'cris' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
 
@@ -421,7 +423,7 @@ contains
 
 ! The check (l>=2) ensures that plevs(l-1) is defined
        if (l>=2) then
-          dwprof: do while (abs(plevs(l-one)-plevs(k)) < vmag .and. l >= 2) 
+          dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2) 
              l=l-1
              if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
                 pdiffd=abs(plevs(l)-plevs(k))
