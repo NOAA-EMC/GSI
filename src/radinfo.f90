@@ -420,6 +420,7 @@ contains
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
 !   2-13-01-26  parrish - fix bug caught by WCOSS debug compile -- tlapmean used before allocated.
 !                          Move first use of tlapmean to after allocation.
+!   2013-05-14  guo     - add read error messages to alarm user a format change.
 !
 !   input argument list:
 !
@@ -436,6 +437,7 @@ contains
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
     use mpimod, only: mype
+    use mpeu_util, only: perr,die
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -521,8 +523,13 @@ contains
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        j=j+1
-       read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
+       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
             varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j)
+       if(istat/=0) then
+          call perr('radinfo_read','read(crecord), crecord =',trim(crecord))
+          call perr('radinfo_read','                 istat =',istat)
+          call  die('radinfo_read')
+       endif
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
@@ -605,14 +612,22 @@ contains
     cbias=zero
     tlapmean=zero
     if (.not. adp_anglebc) then
-       open(lunin,file='satbias_angle',form='formatted',iostat=istat)
-       nfound = .false.
-       if (istat == 0) then 
-         read(lunin,'(a6)') word
-         rewind(lunin)
-         if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
+       open(lunin,file='satbias_angle',form='formatted',status='old',iostat=istat)
+       if (istat /= 0 ) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" does not exist'
+          call stop2(79)
        endif
 
+       nfound = .false.
+       word=""
+       read(lunin,'(a6)',iostat=istat) word
+       if (istat /= 0 ) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" is empty'
+          call stop2(79)
+       endif
+
+       rewind(lunin)
+       if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
        if (istat /= 0 .OR. maxscan <= 0 .OR. maxscan > 1000) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)

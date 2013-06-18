@@ -14,7 +14,7 @@ module gridmod
   use kinds, only: i_byte,r_kind,r_single,i_kind
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-  use omp_lib
+  use omp_lib, only: omp_get_max_threads
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -72,6 +72,8 @@ module gridmod
 !   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
 !   2011-11-14 whitaker - added a fix to sign_pole for large domain (rlat0max > 37N and rlat0min < 37S)
 !   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
+!   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
+!                         a redundant "use omp_lib".
 !
 !
 ! !AUTHOR: 
@@ -444,7 +446,6 @@ contains
 ! !USES:
 
     use mpeu_util, only: getindex
-    use omp_lib
     implicit none
 
 ! !INPUT PARAMETERS:
