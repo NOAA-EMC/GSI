@@ -11,6 +11,7 @@ module intspdmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intspd_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intspd_
@@ -63,6 +64,7 @@ subroutine intspd_(spdhead,rval,sval)
 !   2010-01-29  zhang,b  - fix adjoint of linearization
 !   2010-02-26  todling  - fix for observation sensitivity
 !   2010-05-13  todling  - update to use gsi_bundle; udpate interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     spdhead  - obs type pointer to obs structure
@@ -90,6 +92,7 @@ subroutine intspd_(spdhead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -110,6 +113,7 @@ subroutine intspd_(spdhead,rval,sval)
   real(r_kind),pointer,dimension(:) :: su,sv
   real(r_kind),pointer,dimension(:) :: ru,rv
   type(spd_ob_type), pointer :: spdptr
+  logical :: ltlint_tmp
 
 !  If no spd data return
   if(.not. associated(spdhead))return
@@ -129,6 +133,10 @@ subroutine intspd_(spdhead,rval,sval)
   endif
   if(ier/=0)return
 
+  if( ladtest_obs) then
+     ltlint_tmp = ltlint   
+     ltlint = .true.
+  end if
   spdptr => spdhead
   do while (associated(spdptr))
 
@@ -165,8 +173,12 @@ subroutine intspd_(spdhead,rval,sval)
               if (lsaveobsens) then
                  grad=spdptr%diags%obssen(jiter)
               else
-                 spd=spdatl-spdptr%diags%nldepart(jiter)
-                 grad=spdptr%raterr2*spdptr%err2*spd
+                 if( ladtest_obs ) then
+                    grad=spdatl
+                 else
+                    spd=spdatl-spdptr%diags%nldepart(jiter)
+                    grad=spdptr%raterr2*spdptr%err2*spd
+                 end if
               endif
 
 !             Adjoint
@@ -254,6 +266,7 @@ subroutine intspd_(spdhead,rval,sval)
      spdptr => spdptr%llpoint
 
   end do
+  if( ladtest_obs) ltlint = ltlint_tmp
   return
 end subroutine intspd_
 

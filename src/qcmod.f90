@@ -32,6 +32,7 @@ module qcmod
 !   2011-05-05  mccarty - removed declaration and assignment of repe_dw
 !   2011-05-20  mccarty - add qc_atms routine
 !   2011-07-08  collard - reverse relaxation of AMSU-A Ch 5 QC introduced at revision 5986.
+!   2012-11-10  s.liu   - add logical variable newvad to identify new and old vad wind
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -102,7 +103,7 @@ module qcmod
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
-  public :: pboto3,ptopo3,pbotq,ptopq
+  public :: pboto3,ptopo3,pbotq,ptopq,newvad
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,ifail_gross_qc
 
   logical nlnqc_iter
@@ -110,6 +111,7 @@ module qcmod
   logical use_poq7
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
+  logical newvad
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -328,8 +330,10 @@ contains
     elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
       tzchk = 0.85_r_kind
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
-              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
-              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. obstype == 'cris' .or. obstype == 'seviri' ) then
+              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
+              obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
+              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
+              obstype == 'cris' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
 
@@ -419,7 +423,7 @@ contains
 
 ! The check (l>=2) ensures that plevs(l-1) is defined
        if (l>=2) then
-          dwprof: do while (abs(plevs(l-one)-plevs(k)) < vmag .and. l >= 2) 
+          dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2) 
              l=l-1
              if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
                 pdiffd=abs(plevs(l)-plevs(k))
@@ -949,7 +953,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
   return
 end subroutine qc_ssmi
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
-     zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+     cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
 
@@ -977,6 +981,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     snow         - logical, snow flag
 !     luse         - logical use flag
 !     goessndr     - logical flag - if goessndr data - true
+!     cris         - logical flag - if cris data - true
 !     avhrr        - logical flag - if avhrr data - true
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
@@ -1024,7 +1029,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris
   logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
@@ -1230,6 +1235,22 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
         end do
      end if
   endif
+
+!
+! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
+!
+  if (cris .and. .not. sea) then
+     do i=1,nchanl
+        if (ts(i) > 0.2_r_kind) then
+           !             QC3 in statsrad
+           if(luse .and. varinv(i) > zero) &
+                aivals(10,is)   = aivals(10,is) + one
+           varinv(i) = zero
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+        end if
+     end do
+  end if
+
 
 !
 ! Apply Tz retrieval

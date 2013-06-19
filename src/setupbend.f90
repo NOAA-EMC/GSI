@@ -73,6 +73,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2011-06-17 treadon  - remove call tell at end of routine
 !   2011-08-16 cucurull - fix bug in statistics qc
 !   2011-08-17 cucurull - add Oceansat-2, METOP-B GRAS, SAC-D, and M-T assimilation capabilities
+!   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                          tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -298,16 +300,16 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
 !    Interpolate log(pres),temperature,specific humidity, 
 !    corrected geopotential heights and topography to obs location
-     call tintrp2a(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
-        1,nsig+1,mype,nfldsig)
-     call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-        1,nsig,mype,nfldsig)
-     call tintrp2a(ges_q,qges,dlat,dlon,dtime,hrdifsig,&
-        1,nsig,mype,nfldsig)
-     call tintrp2a(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
-          1,nsig+1,mype,nfldsig)
-     call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
+     call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
+     call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_q,qges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
+     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
 
      prsltmp_o(1:nsig,i)=prsltmp(1:nsig) ! needed in minimization
 
@@ -426,7 +428,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !    domain.
 
      hob=tpdpres(i)
-     call grdcrd(hob,1,ref_rad(1),nsig,1)
+     call grdcrd1(hob,ref_rad(1),nsig,1)
      data(ihgt,i)=hob
      if (hob<one .or. hob>rsig) then 
         data(ier,i) = zero
@@ -466,8 +468,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      if (ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
 !       get pressure (in mb) and temperature at obs location    
-        call tintrp3(ges_lnprsi,dpressure,dlat,dlon,hob,&
-               dtime,hrdifsig,1,mype,nfldsig)
+        call tintrp31(ges_lnprsi,dpressure,dlat,dlon,hob,&
+               dtime,hrdifsig,mype,nfldsig)
         ihob=hob
         k1=min(max(1,ihob),nsig)
         k2=max(1,min(ihob+1,nsig))
@@ -496,7 +498,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            ref_rad_s(j)=sqrt(grid_s(j)*grid_s(j)+tpdpres(i)*tpdpres(i)) !x_j
            xj(j,i)=ref_rad_s(j)
            hob_s=ref_rad_s(j)
-           call grdcrd(hob_s,1,ref_rad(1),nsig_up,1)
+           call grdcrd1(hob_s,ref_rad(1),nsig_up,1)
            dbend_loc(j,i)=hob_s  !location of x_j with respect to extended x_i
  
            if (hob_s < rsig_up) then  !obs insided the new grid
@@ -532,7 +534,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                  enddo
               endif
               hob_s=ref_rad_s(j)
-              call grdcrd(hob_s,1,ref_rad_out,nsig_up+20,1)
+              call grdcrd1(hob_s,ref_rad_out,nsig_up+20,1)
               hob_s_top=max(hob_s,hob_s_top) 
            endif !obs in new grid
         end do intloop

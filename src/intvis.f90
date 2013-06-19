@@ -7,6 +7,7 @@ module intvismod
 ! abstract: module for intvis and its tangent linear intvis_tl
 !
 ! program history log:
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intvis
@@ -37,6 +38,8 @@ subroutine intvis(vishead,rval,sval)
 !
 ! program history log:
 !
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!
 !   input argument list:
 !     vishead
 !     svis    - increment in grid space
@@ -58,6 +61,7 @@ subroutine intvis(vishead,rval,sval)
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -109,7 +113,7 @@ subroutine intvis(vishead,rval,sval)
            grad = visptr%diags%obssen(jiter)
  
         else
-           val=val-visptr%res
+           if(.not. ladtest_obs)  val=val-visptr%res
 
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. visptr%pg > tiny_r_kind .and. &
@@ -121,8 +125,11 @@ subroutine intvis(vishead,rval,sval)
               p0   = wgross/(wgross+exp(-half*visptr%err2*val**2))
               val = val*(one-p0)
            endif
-
-           grad = val*visptr%raterr2*visptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*visptr%raterr2*visptr%err2
+           end if
         endif
 
 !       Adjoint

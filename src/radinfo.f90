@@ -124,7 +124,7 @@ module radinfo
 
   real(r_kind),allocatable,dimension(:):: radstart    ! starting scan angle
   real(r_kind),allocatable,dimension(:):: radstep     ! step of scan angle
-  real(r_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
+  integer(i_kind),allocatable,dimension(:):: radnstep    ! nstep of scan angle
 
   integer(i_kind),allocatable,dimension(:):: radedge1    ! cut-off of edge removal
   integer(i_kind),allocatable,dimension(:):: radedge2    ! cut-off of edge removal
@@ -191,7 +191,7 @@ contains
 !   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
 !
 !$$$ end documentation block
-    use constants, only: one_tenth
+    use constants, only: one_tenth, one
 
     implicit none
 
@@ -418,6 +418,9 @@ contains
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
 !   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
+!   2-13-01-26  parrish - fix bug caught by WCOSS debug compile -- tlapmean used before allocated.
+!                          Move first use of tlapmean to after allocation.
+!   2013-05-14  guo     - add read error messages to alarm user a format change.
 !
 !   input argument list:
 !
@@ -434,6 +437,7 @@ contains
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
     use mpimod, only: mype
+    use mpeu_util, only: perr,die
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -519,8 +523,13 @@ contains
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        j=j+1
-       read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
+       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
             varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j)
+       if(istat/=0) then
+          call perr('radinfo_read','read(crecord), crecord =',trim(crecord))
+          call perr('radinfo_read','                 istat =',istat)
+          call  die('radinfo_read')
+       endif
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
@@ -590,7 +599,6 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
-    tlapmean=zero
     if (adp_anglebc) then 
        allocate(count_tlapmean(jpch_rad),update_tlapmean(jpch_rad),tsum_tlapmean(jpch_rad))
        count_tlapmean=0
@@ -599,25 +607,37 @@ contains
     end if
 
     maxscan=90  ! Default value for old files
+    allocate(cbiasx(maxscan))
+    allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
+    cbias=zero
+    tlapmean=zero
     if (.not. adp_anglebc) then
-       open(lunin,file='satbias_angle',form='formatted',iostat=istat)
-       nfound = .false.
-       if (istat == 0) then 
-         read(lunin,'(a6)') word
-         rewind(lunin)
-         if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
+       open(lunin,file='satbias_angle',form='formatted',status='old',iostat=istat)
+       if (istat /= 0 ) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" does not exist'
+          call stop2(79)
        endif
 
+       nfound = .false.
+       word=""
+       read(lunin,'(a6)',iostat=istat) word
+       if (istat /= 0 ) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" is empty'
+          call stop2(79)
+       endif
+
+       rewind(lunin)
+       if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
        if (istat /= 0 .OR. maxscan <= 0 .OR. maxscan > 1000) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)
        endif
-       allocate(cbiasx(maxscan))
-       allocate(cbias(maxscan,jpch_rad),tlapmean(jpch_rad))
-       cbias=zero
        read2: do
-          read(lunin,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))',iostat=istat) &
-               ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,maxscan)
+          read(lunin,'(I5,1x,A20,2x,I4,e15.6)',iostat=istat,end=1111) &
+               ich,isis,ichan,tlapm
+          if (istat /= 0) exit
+          read(lunin,'(100(4x,10f7.3/))',iostat=istat,end=1111) &
+               (cbiasx(ip),ip=1,maxscan)
           if (istat /= 0) exit
           cfound = .false.
           do j =1,jpch_rad
@@ -634,6 +654,7 @@ contains
                write(6,*) '***WARNING instrument/channel ',isis,ichan, &
                'found in satbias_angle file but not found in satinfo'
        end do read2
+1111   continue
        close(lunin)
        if (istat>0) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, istat=',istat
@@ -663,7 +684,7 @@ contains
     if (pcexist) then
        open(lunin,file='scaninfo',form='formatted')
        do
-          read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep,edge1,edge2
+          read(lunin,1000,IOSTAT=istat,end=1222) cflg,satscan_sis,start,step,nstep,edge1,edge2
           if (istat /= 0) exit
           if (cflg == '!') cycle
 
@@ -678,6 +699,7 @@ contains
           end do
        end do
 1000   format(a1,a20,2f11.3,i10,2i6)
+1222   continue
        close(lunin)
     else
        if(mype == 0) write(6,*) '***WARNING file scaninfo not found, use default'
@@ -708,10 +730,10 @@ contains
        nfound = .false.
        read4: do
           if (.not. adp_anglebc) then
-             read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat) ich,isis,&
+             read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat,end=1333) ich,isis,&
                   ichan,(predr(ip),ip=1,npred)
           else
-             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat) ich,isis,&
+             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat,end=1333) ich,isis,&
                   ichan,tlapm,tsum,ntlapupdate,(predr(ip),ip=1,npred)
           end if
           if (istat /= 0) exit
@@ -736,6 +758,7 @@ contains
              write(6,*) '***WARNING instrument/channel ',isis,ichan, &
              'found in satbias_in file but not found in satinfo'
        end do read4
+1333   continue
        close(lunin)
        if (istat>0) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_in, istat=',istat
@@ -761,7 +784,7 @@ contains
        if (adp_anglebc) then
           call init_predx
           do j=1,jpch_rad
-             call angle_cbias(trim(nusis(j)),j,cbias(1,j))
+             call angle_cbias(nusis(j),j,cbias(1,j))
           end do
 
 !         check inew_rad again
@@ -786,7 +809,10 @@ contains
 
 ! Read SST dependent radiance bias correction lookup table
     if (retrieval) then
-      
+    
+       allocate(predx(npred,jpch_rad))
+       predx=zero
+
        allocate(fbias(numt,jpch_rad))
        fbias=zero
        
@@ -797,7 +823,7 @@ contains
 
 !      Loop over satellites sensors & channels
        read5: do
-          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat) ich,isis,ichan,(fbiasx(i),i=1,numt)
+          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat,end=1444) ich,isis,ichan,(fbiasx(i),i=1,numt)
           if (istat /= 0) exit
           cfound = .false.
           do j=1,jpch_rad
@@ -812,6 +838,7 @@ contains
           if(.not. cfound)write(6,*) ' WARNING instrument/channel ',isis,ichan, &
              'found in satbias_sst file and not found in satinfo'
        end do read5
+1444   continue
        close(lunin)
     endif           ! endif for if (retrieval) then
 
@@ -999,7 +1026,7 @@ contains
                                        index(isis,'n17')/=0)) then
          ifov=iscan+1
       else if (index(isis,'atms') /= 0 .AND. maxscan < 96) then
-         ifov=ifov+3
+         ifov=iscan+3
       else
          ifov=iscan
       end if
@@ -1042,7 +1069,7 @@ contains
      real(r_kind),dimension(npred):: pred
      
      pred=zero
-     do i=1,radnstep(j)
+     do i=1,min(radnstep(j),90)
         pred(npred)=rnad_pos(isis,i,j)*deg2rad
         do k=2,angord
            pred(npred-k+1)=pred(npred)**k
@@ -1158,6 +1185,12 @@ contains
       nstep = 60
       edge1 = 5
       edge2 = 56
+   else if (index(isis,'cris')/=0) then
+      step  = 3.322_r_kind
+      start = -51.675_r_kind
+      nstep = 30
+      edge1 = 1
+      edge2 = 30
    end if
 
    return
@@ -1237,12 +1270,12 @@ contains
    real(r_kind),allocatable,dimension(:):: predr
 
 !  Declare types used for reading satellite data
-   type(diag_header_fix_list )         :: header_fix
-   type(diag_header_chan_list),pointer :: header_chan(:)
-   type(diag_data_name_list)           :: data_name
-   type(diag_data_fix_list   )         :: data_fix
-   type(diag_data_chan_list  ),pointer :: data_chan(:)
-   type(diag_data_extra_list ),pointer :: data_extra(:,:)
+   type(diag_header_fix_list )             :: header_fix
+   type(diag_header_chan_list),allocatable :: header_chan(:)
+   type(diag_data_name_list)               :: data_name
+   type(diag_data_fix_list   )             :: data_fix
+   type(diag_data_chan_list  ),allocatable :: data_chan(:)
+   type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
    data lunout / 53 / 
 

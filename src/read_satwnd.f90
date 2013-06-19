@@ -25,6 +25,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -81,11 +83,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r3_33= 3.33_r_kind
   real(r_kind),parameter:: r6= 6.0_r_kind
   real(r_kind),parameter:: r50= 50.0_r_kind
-  real(r_kind),parameter:: r54= 54.0_r_kind
-  real(r_kind),parameter:: r55= 55.0_r_kind
-  real(r_kind),parameter:: r56= 56.0_r_kind
   real(r_kind),parameter:: r70= 70.0_r_kind
-  real(r_kind),parameter:: r85= 85.0_r_kind
   real(r_kind),parameter:: r90= 90.0_r_kind
   real(r_kind),parameter:: r105= 105.0_r_kind
   real(r_kind),parameter:: r110= 110.0_r_kind
@@ -202,6 +200,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   rewind ietabl
   etabl=1.e9_r_kind
   lcount=0
+  pflag=0
   loopd : do
      read(ietabl,100,IOSTAT=iflag) itypex
      if( iflag /= 0 ) exit loopd
@@ -297,8 +296,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &
            trim(subset) == 'NC005066') then
            if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then          !     EUMETSAT wind
-              if(hdrdat(1) == r55) iobsub=55
-              if(hdrdat(1) == r56) iobsub=56
+               iobsub=int(hdrdat(1))
+               if(iobsub == 54) iobsub=0
+
               if(hdrdat(9) == one)  then                  ! IR winds
                  itype=253
               else if(hdrdat(9) == two) then              ! visible winds
@@ -527,8 +527,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               trim(subset) == 'NC005066') then
               if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then          
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-                 if(hdrdat(1) == r55) iobsub=55 
-                 if(hdrdat(1) == r56) iobsub=56 
+                  iobsub=int(hdrdat(1))
+                  if (iobsub == 54) iobsub=0
                  if(hdrdat(9) == one)  then                  ! IR winds
                     itype=253
                  else if(hdrdat(9) == two) then              ! visible winds
@@ -705,8 +705,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else
               dlon=dlon_earth
               dlat=dlat_earth
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !!   detect surface type for infrad IR winds monitoring over land for lat greter than 20N

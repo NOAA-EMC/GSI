@@ -40,6 +40,8 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !
 ! program history log:
 !   2009-01-05  todling
+!   2013-05-14  guo     - changed the compiler #ifdef dependency on _size_
+!                         inquire to a more portable way.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -67,29 +69,41 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
   character(len=*),intent(in   ) :: filename
   integer(i_kind) ,intent(in   ) :: mype
 
-  logical :: lhere
-  integer(i_kind) :: lenb,iret
   character(len=256) command, fname
 
-#ifdef _INTEL_11_0_083_
-  lenb=0; lbytes = lenb
-  inquire(file=trim(filename),exist=lhere)
-  if(lhere)then
-    write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
-    write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
-    call system(command)
-    open(unit=999,file=trim(fname),form='formatted')
-    read(999,*) lenb
-    close(999)
-    lbytes=lenb
-  endif
-#else
-  inquire(file=trim(filename),exist=lhere,size=lbytes)
+#if defined(__INTEL_COMPILER) && (__INTEL_COMPILER < 1110)
+#define __X_OR_Y_OR_Z_FORTRAN_COMPILERS__
 #endif
-  lexist=.false.
-  if(lhere)then
-     lexist=lbytes>0_i_llong
-  end if
+
+#ifdef __X_OR_Y_OR_Z_FORTRAN_COMPILERS__
+#define _DO_NOT_SUPPORT_SIZE_INQUIRE_
+#endif
+
+  lbytes=-1  ! in case that _size_ specifier is not supported.
+#ifndef _DO_NOT_SUPPORT_SIZE_INQUIRE_
+  inquire(file=trim(filename),exist=lexist,size=lbytes)
+  ! Note that the value of _size_ is defined by Fortran in "file storage units",
+  ! which is not neccesary in byte units.  It is not clear if this code had
+  ! assumed the size value to be in byte units, or in whatever units.
+#else
+  inquire(file=trim(filename),exist=lexist)
+#endif
+  if(lexist) then
+     ! Even with a compiler supporting 'size=' specifier, the size value may
+     ! return -1, if a compiler considers that the size can not be determined.
+     ! In that case, the size may be obtained through a user supported
+     ! mechanism, such as reading the size from a system("wc -c") call result.
+     if(lbytes<0) then
+        write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
+        write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
+        call system(command)
+        open(unit=999,file=trim(fname),form='formatted')
+        read(999,*) lbytes
+        close(999)
+        lexist = lbytes>0_i_llong ! skip this file if lbytes <=0
+     endif
+  endif
+
   return
 end subroutine gsi_inquire
 
@@ -106,9 +120,12 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !            WARNING: some of it looks inconsistent with long-window 4dvar
 !
 ! program history log:
-!   2009-??-??  derber   - originally placed inside inquire
+!   2009-xx-xx  derber   - originally placed inside inquire
 !   2009-01-05  todling  - move time/type-check out of inquire
 !   2010-09-13  pagowski - add anow bufr and one obs chem
+!   2013-01-26  parrish - WCOSS debug compile fails with satid not initialized.
+!                         Set satid=1 at start of subroutine to allow debug compile.
+!                           
 !
 !   input argument list:
 !    lexist    - file status
@@ -147,12 +164,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   character(len=256) command, fname
   character(8) subset
 
+  satid=1      ! debug executable wants default value ???
   idate=0
   if(trim(dtype) == 'tcp')return
-! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
-#ifdef _INTEL_11_0_083_
-  return
-#else 
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -180,9 +194,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
        else if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
-         kidsat=5
+         kidsat=3
        else if(jsatid == 'metop-c')then
-         kidsat=6
+         kidsat=5
        else if(jsatid == 'm08')then
          kidsat = 55 
        else if(jsatid == 'm09')then
@@ -348,7 +362,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   else
       write(6,*)'read_obs_check: bufr file ',dtype,jsatid,' not available ',trim(filename)
   end if
-#endif /* non _INTEL_11_0_083_ */
   return
 end subroutine read_obs_check
 
@@ -401,7 +414,7 @@ subroutine read_obs(ndata,mype)
 !   2008-04-18  safford - rm unused vars and uses
 !   2008-05-01    h.liu - add gome ozone
 !   2008-06-20   derber - move destroy_sfc to this routine 
-!   2008-09-08   lueken - merged ed's cahnges into q1fy09 code
+!   2008-09-08   lueken - merged ed''s cahnges into q1fy09 code
 !   2008-12-30  todling - handle inquire for diff versions of fortran
 !   2009-01-05  todling - need tendency alloc in observer mode
 !   2009-01-23  todling - echo surface state info 
@@ -422,6 +435,8 @@ subroutine read_obs(ndata,mype)
 !   2011-04-02  li       - add nst_gsi, getnst and destroy_nst
 !   2011-05-20  mccarty  - add cris/atms handling
 !   2011-05-26  todling  - add call to create_nst
+!   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
+!                         Commented out extra line of arguments not used.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -672,7 +687,9 @@ subroutine read_obs(ndata,mype)
           ears_possible(i) = ditype(i) == 'rad'  .and.       & 
                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
                    obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
-                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. dplat(i) == 'metop-a') 
+                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. &
+                   dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
+                   dplat(i) == 'metop-c') 
 !   Inquire data set to deterimine if input data available and size of dataset
           ii=ii+1
           if (ii>npem1) ii=0
@@ -1145,8 +1162,8 @@ subroutine read_obs(ndata,mype)
 !         Process aerosol data
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
-                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)   ! ?????, &
+             !    mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))      !??? extra args???
              string='READ_AEROSOL'
              
           end if

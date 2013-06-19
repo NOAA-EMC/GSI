@@ -31,6 +31,8 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
 !   2006-10-12  treadon - remove virtual temperature
 !   2008-04-29  safford - rm unused uses
 !   2010-03-31  treadon - replace jcap with sp_a%jcap
+!   2013-01-15  parrish - convert gscond_ad.f90,nlmsas_ad.f90,omegas_ad.f90 to modules
+!                           and add interfaces to account for type mismatch
 !
 !   input argument list:
 !     km        - number of levels in vertical profile
@@ -101,6 +103,9 @@ subroutine pcp_k(km,dtp,del_in,sl_in,rbs,&
   use constants, only: rhcbot,rhctop,dx_inv,dx_min,one,zero
   use pcpinfo, only: tiny_obs
   use gridmod, only: nlon,sp_a
+  use gscond_ad_mod, only: gscond_ad
+  use nlmsas_ad_mod, only: nlmsas_ad
+  use omegas_ad_mod, only: omegas_ad
   implicit none
 
 

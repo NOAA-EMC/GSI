@@ -161,7 +161,7 @@ rm -rf core*
 
 
 # determine whether using prescribed CO2,CH4,N2O,and CO data, or using CRTM default one
-ICO2=${ICO2:-2}
+ICO2=${ICO2:-0}
 if [ $ICO2 -gt 0 ] ; then
         # Copy co2 files to $tmpdir
         co2dir=${CO2DIR:-$fix_file}
@@ -181,7 +181,7 @@ if [ $ICO2 -gt 0 ] ; then
    fi
 fi
 #CH4 file 
-ICH4=${ICH4:-2}
+ICH4=${ICH4:-0}
 if [ $ICH4 -gt 0 ] ; then
 #        # Copy ch4 files to $tmpdir
         ch4dir=${CH4DIR:-$fix_file}
@@ -200,7 +200,7 @@ if [ $ICH4 -gt 0 ] ; then
                 exit 1
    fi
 fi
-IN2O=${IN2O:-2}
+IN2O=${IN2O:-0}
 if [ $IN2O -gt 0 ] ; then
 #        # Copy ch4 files to $tmpdir
         n2odir=${N2ODIR:-$fix_file}
@@ -219,7 +219,7 @@ if [ $IN2O -gt 0 ] ; then
                 exit 1
    fi
 fi
-ICO=${ICO:-2}
+ICO=${ICO:-0}
 if [ $ICO -gt 0 ] ; then
 #        # Copy CO files to $tmpdir
         codir=${CODIR:-$fix_file}
@@ -317,22 +317,9 @@ $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr
 
 # Copy CRTM coefficient files based on entries in satinfo file
-nsatsen=`cat $satinfo | wc -l`
-isatsen=1
-while [[ $isatsen -le $nsatsen ]]; do
-   flag=`head -n $isatsen $satinfo | tail -1 | cut -c1-1`
-   if [[ "$flag" != "!" ]]; then
-      satsen=`head -n $isatsen $satinfo | tail -1 | cut -f 2 -d" "`
-      spccoeff=${satsen}.SpcCoeff.bin
-      if  [[ ! -s $spccoeff ]]; then
-         $ncp $crtm_coef/SpcCoeff/Big_Endian/$spccoeff ./
-         $ncp $crtm_coef/TauCoeff/Big_Endian/${satsen}.TauCoeff.bin ./
-#!!!!!! IMPORTANT!!!!!!!!!!!!! 
-# use Yong Chen's new tau coeff. Ask Paul when he will integrate the new coef. into CRTM
-#         $ncp /global/save/wx23ry/CH4TAU/${satsen}.TauCoeff.bin ./
-      fi
-   fi
-   isatsen=` expr $isatsen + 1 `
+for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
+   $ncp $crtm_coef/SpcCoeff/Big_Endian/${file}.SpcCoeff.bin ./
+   $ncp $crtm_coef/TauCoeff/Big_Endian/${file}.TauCoeff.bin ./
 done
 
 # Copy observational data to $tmpdir
@@ -546,7 +533,7 @@ rm -rf core*
 # Make gsi namelist
 
 # determine whether using prescribed CO2,CH4,N2O,and CO data, or using CRTM default one
-ICO2=${ICO2:-2}
+ICO2=${ICO2:-0}
 if [ $ICO2 -gt 0 ] ; then
         # Copy co2 files to $tmpdir
         co2dir=${CO2DIR:-$fix_file}
@@ -566,7 +553,7 @@ if [ $ICO2 -gt 0 ] ; then
    fi
 fi
 #CH4 
-ICH4=${ICH4:-2}
+ICH4=${ICH4:-0}
 if [ $ICH4 -gt 0 ] ; then
 #        # Copy ch4 files to $tmpdir
         ch4dir=${CH4DIR:-$fix_file}
@@ -585,7 +572,7 @@ if [ $ICH4 -gt 0 ] ; then
                 exit 1
    fi
 fi
-IN2O=${IN2O:-2}
+IN2O=${IN2O:-0}
 if [ $IN2O -gt 0 ] ; then
 #        # Copy ch4 files to $tmpdir
         n2odir=${N2ODIR:-$fix_file}
@@ -604,7 +591,7 @@ if [ $IN2O -gt 0 ] ; then
                 exit 1
    fi
 fi
-ICO=${ICO:-2}
+ICO=${ICO:-0}
 if [ $ICO -gt 0 ] ; then
 #        # Copy CO files to $tmpdir
         codir=${CODIR:-$fix_file}
@@ -703,22 +690,9 @@ $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr
 
 # Copy CRTM coefficient files based on entries in satinfo file
-nsatsen=`cat $satinfo | wc -l`
-isatsen=1
-while [[ $isatsen -le $nsatsen ]]; do
-   flag=`head -n $isatsen $satinfo | tail -1 | cut -c1-1`
-   if [[ "$flag" != "!" ]]; then
-      satsen=`head -n $isatsen $satinfo | tail -1 | cut -f 2 -d" "`
-      spccoeff=${satsen}.SpcCoeff.bin
-      if  [[ ! -s $spccoeff ]]; then
-         $ncp $crtm_coef/SpcCoeff/Big_Endian/$spccoeff ./
-         $ncp $crtm_coef/TauCoeff/Big_Endian/${satsen}.TauCoeff.bin ./
-#!!!!!! IMPORTANT!!!!!!!!!!!!!
-# use Yong Chen's new tau coeff. Ask Paul when he will integrate the new coef. into CRTM
-#         $ncp /global/save/wx23ry/CH4TAU/${satsen}.TauCoeff.bin ./
-      fi
-   fi
-   isatsen=` expr $isatsen + 1 `
+for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
+   $ncp $crtm_coef/SpcCoeff/Big_Endian/${file}.SpcCoeff.bin ./
+   $ncp $crtm_coef/TauCoeff/Big_Endian/${file}.TauCoeff.bin ./
 done
 
 # Copy observational data to $tmpdir

@@ -42,6 +42,7 @@ module hybrid_ensemble_isotropic
 !   2012-02-08  parrish - cleanup
 !   2012-10-11  wu      - dual resolution for regional hybens options; 
 !                         use ensemble dimensions on control variable: alpha
+!   2013-04-17  wu      - bug fix in normalizing the recursive filter
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -719,6 +720,7 @@ subroutine normal_new_factorization_rf_x
 !   2010-02-20  parrish  modifications for dual resolution
 !   2010-03-11  parrish  correct error that can lead to infinite loop, and introduce grd_ens%kend_alloc
 !                         in dimension statements
+!   2013-04-17  wu       use grd_loc instead of grd_ens when defining normalization factor
 !
 !   input argument list:
 !
@@ -731,48 +733,48 @@ subroutine normal_new_factorization_rf_x
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens
+  use hybrid_ensemble_parameters, only: grd_loc
   use constants, only: zero,one
 
   integer(i_kind) i,j,k,kcount,lcount,iadvance,iback
-  real(r_kind) f(grd_ens%nlat,grd_ens%nlon,grd_ens%kend_alloc+1-grd_ens%kbegin_loc)
-  real(r_kind) diag(grd_ens%nlat,grd_ens%nlon)
+  real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
+  real(r_kind) diag(grd_loc%nlat,grd_loc%nlon)
 
 !                       possible to have kend_loc - kbegin_loc-1 for processors not involved
 !                          which results in infinite loops
 
-  if(grd_ens%kend_loc < grd_ens%kbegin_loc) return
+  if(grd_loc%kend_loc < grd_loc%kbegin_loc) return
 
   if(allocated(xnorm_new)) deallocate(xnorm_new)
-  allocate(xnorm_new(grd_ens%nlat,grd_ens%nlon))
+  allocate(xnorm_new(grd_loc%nlat,grd_loc%nlon))
   xnorm_new=one
 
   kcount=0
   lcount=0
   do
      f=zero
-     do k=1,min(grd_ens%nlon,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     do k=1,min(grd_loc%nlon,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
         kcount=kcount+1
-        do i=1,grd_ens%nlat
+        do i=1,grd_loc%nlat
            f(i,kcount,k)=one
         end do
-        if(kcount == grd_ens%nlon) exit
+        if(kcount == grd_loc%nlon) exit
      end do
      iadvance=1 ; iback=2
-     call new_factorization_rf_x(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     call new_factorization_rf_x(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
      iadvance=2 ; iback=1
-     call new_factorization_rf_x(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
-     do k=1,min(grd_ens%nlon,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     call new_factorization_rf_x(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     do k=1,min(grd_loc%nlon,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
         lcount=lcount+1
-        do i=1,grd_ens%nlat
+        do i=1,grd_loc%nlat
            diag(i,lcount)=sqrt(one/f(i,lcount,k))
         end do
-        if(lcount == grd_ens%nlon) exit
+        if(lcount == grd_loc%nlon) exit
      end do
-     if(lcount == grd_ens%nlon) exit
+     if(lcount == grd_loc%nlon) exit
   end do
-  do j=1,grd_ens%nlon
-     do i=1,grd_ens%nlat
+  do j=1,grd_loc%nlon
+     do i=1,grd_loc%nlat
         xnorm_new(i,j)=diag(i,j)
      end do
   end do
@@ -782,25 +784,25 @@ subroutine normal_new_factorization_rf_x
   lcount=0
   do
      f=zero
-     do k=1,min(grd_ens%nlon,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     do k=1,min(grd_loc%nlon,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
         kcount=kcount+1
-        do i=1,grd_ens%nlat
+        do i=1,grd_loc%nlat
            f(i,kcount,k)=one
         end do
-        if(kcount == grd_ens%nlon) exit
+        if(kcount == grd_loc%nlon) exit
      end do
      iadvance=1 ; iback=2
-     call new_factorization_rf_x(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     call new_factorization_rf_x(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
      iadvance=2 ; iback=1
-     call new_factorization_rf_x(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
-     do k=1,min(grd_ens%nlon,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     call new_factorization_rf_x(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     do k=1,min(grd_loc%nlon,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
         lcount=lcount+1
-        do i=1,grd_ens%nlat
+        do i=1,grd_loc%nlat
            diag(i,lcount)=f(i,lcount,k)
         end do
-        if(lcount == grd_ens%nlon) exit
+        if(lcount == grd_loc%nlon) exit
      end do
-     if(lcount == grd_ens%nlon) exit
+     if(lcount == grd_loc%nlon) exit
   end do
   if(debug) write(6,*)' in normal_new_factorization_rf_x, min,max(diag)=',minval(diag),maxval(diag)
 
@@ -818,6 +820,7 @@ subroutine normal_new_factorization_rf_y
 ! program history log:
 !   2009-09-28  parrish  initial documentation
 !   2010-02-20  parrish  modifications for dual resolution
+!   2013-04-17  wu       use grd_loc instead of grd_ens when defining normalization factor
 !
 !   input argument list:
 !
@@ -830,44 +833,44 @@ subroutine normal_new_factorization_rf_y
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens
+  use hybrid_ensemble_parameters, only: grd_loc
   use constants, only: zero,one
   use mpimod, only: mype
   implicit none
 
   integer(i_kind) k,kcount,lcount,iadvance,iback
-  real(r_kind) f(grd_ens%nlat,grd_ens%nlon*(grd_ens%kend_alloc+1-grd_ens%kbegin_loc)),diag(grd_ens%nlat)
+  real(r_kind) f(grd_loc%nlat,grd_loc%nlon*(grd_loc%kend_alloc+1-grd_loc%kbegin_loc)),diag(grd_loc%nlat)
 
 !                       possible to have kend_loc - kbegin_loc-1 for processors not involved
 !                          which results in infinite loops
 
-  if(grd_ens%kend_loc < grd_ens%kbegin_loc) return
+  if(grd_loc%kend_loc < grd_loc%kbegin_loc) return
 
   if(allocated(ynorm_new)) deallocate(ynorm_new)
-  allocate(ynorm_new(grd_ens%nlat))
+  allocate(ynorm_new(grd_loc%nlat))
   ynorm_new=one
 
   kcount=0
   lcount=0
   do
      f=zero
-     do k=1,min(grd_ens%nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),grd_ens%nlat)
+     do k=1,min(grd_loc%nlon*(grd_loc%kend_loc+1-grd_loc%kbegin_loc),grd_loc%nlat)
         kcount=kcount+1
         f(kcount,k)=one
-        if(kcount == grd_ens%nlat) exit
+        if(kcount == grd_loc%nlat) exit
      end do
      iadvance=1 ; iback=2
-     call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     call new_factorization_rf_y(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
      iadvance=2 ; iback=1
-     call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
-     do k=1,min(grd_ens%nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),grd_ens%nlat)
+     call new_factorization_rf_y(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     do k=1,min(grd_loc%nlon*(grd_loc%kend_loc+1-grd_loc%kbegin_loc),grd_loc%nlat)
         lcount=lcount+1
         diag(lcount)=sqrt(one/f(lcount,k))
-        if(lcount == grd_ens%nlat) exit
+        if(lcount == grd_loc%nlat) exit
      end do
-     if(lcount == grd_ens%nlat) exit
+     if(lcount == grd_loc%nlat) exit
   end do
-  do k=1,grd_ens%nlat
+  do k=1,grd_loc%nlat
      ynorm_new(k)=diag(k)
   end do
 
@@ -876,21 +879,21 @@ subroutine normal_new_factorization_rf_y
   lcount=0
   do
      f=zero
-     do k=1,min(grd_ens%nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),grd_ens%nlat)
+     do k=1,min(grd_loc%nlon*(grd_loc%kend_loc+1-grd_loc%kbegin_loc),grd_loc%nlat)
         kcount=kcount+1
         f(kcount,k)=one
-        if(kcount == grd_ens%nlat) exit
+        if(kcount == grd_loc%nlat) exit
      end do
      iadvance=1 ; iback=2
-     call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
+     call new_factorization_rf_y(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
      iadvance=2 ; iback=1
-     call new_factorization_rf_y(f,iadvance,iback,grd_ens%kend_loc+1-grd_ens%kbegin_loc)
-     do k=1,min(grd_ens%nlon*(grd_ens%kend_loc+1-grd_ens%kbegin_loc),grd_ens%nlat)
+     call new_factorization_rf_y(f,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     do k=1,min(grd_loc%nlon*(grd_loc%kend_loc+1-grd_loc%kbegin_loc),grd_loc%nlat)
         lcount=lcount+1
         diag(lcount)=f(lcount,k)
-        if(lcount == grd_ens%nlat) exit
+        if(lcount == grd_loc%nlat) exit
      end do
-     if(lcount == grd_ens%nlat) exit
+     if(lcount == grd_loc%nlat) exit
   end do
   if(debug) write(6,*)' in normal_new_factorization_rf_y, min,max(diag)=',minval(diag),maxval(diag)
 
@@ -1189,6 +1192,7 @@ end subroutine normal_new_factorization_rf_y
 !                         to its original value after exiting from the call to ckgcov.  Also, this is
 !                         now an argument in ckgcov, which was missing in this call to ckgcov.
 !   2012-06-12  parrish - remove variable nvar_pe (not used)
+!   2013-01-12  parrish - remove extra argument nnnn1o from call ckgcov--no longer used
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -1246,7 +1250,7 @@ end subroutine normal_new_factorization_rf_y
           call random_number(seed)
           do is=1,nscl
              do i=1,nval2f
-                iseed=1+nint(seed(i,is)*2147483000._r_kind)
+                iseed=1+nint(seed(i,is)*1234567._r_kind)
                 seed(i,is)=iseed
              end do
           end do
@@ -1276,7 +1280,7 @@ end subroutine normal_new_factorization_rf_y
 !     temporarily redefine nval_lenz
     nval_lenz_save=nval_lenz
     nval_lenz=nval2f*nnnn1o*nscl
-    call ckgcov(z,bundle_anl,nnnn1o,nval_lenz)
+    call ckgcov(z,bundle_anl,nval_lenz)
 !     restore nval_lenz
     nval_lenz=nval_lenz_save
 

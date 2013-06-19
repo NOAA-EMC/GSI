@@ -423,12 +423,18 @@ module general_sub2grid_mod
 
 !      next, determine vertical layout:
       allocate(idoit(0:s%npe-1))
-      idoit=0
-      npe_used=0
-      do n=0,s%npe-1,s%nskip
-         npe_used=npe_used+1
-         idoit(n)=1
-      end do
+      if(.not.present(nskip).and.s%num_fields<s%npe) then
+         call get_iuse_pe(s%npe,s%num_fields,idoit)
+         npe_used=s%num_fields
+         if(s%mype==0) write(6,*)' npe,num_fields,npe_used,idoit=',s%npe,s%num_fields,npe_used,idoit
+      else
+         idoit=0
+         npe_used=0
+         do n=0,s%npe-1,s%nskip
+            npe_used=npe_used+1
+            idoit(n)=1
+         end do
+      end if
       allocate(s%kbegin(0:s%npe),s%kend(0:s%npe-1))
       num_loc_groups=s%num_fields/npe_used
       nextra=s%num_fields-num_loc_groups*npe_used
@@ -487,6 +493,56 @@ module general_sub2grid_mod
       s%lallocated=.true.
 
    end subroutine general_sub2grid_create_info
+
+subroutine get_iuse_pe(npe,nz,iuse_pe)
+
+  use constants, only: one
+  implicit none
+
+  integer(i_kind),intent(in) ::npe,nz
+  integer(i_kind),intent(out)::iuse_pe(0:npe-1)
+
+  integer(i_kind) iskip_start,iskip,iskiptest,i,icount,left,iright
+
+
+     iskip_start= nint((npe-one)/nz)
+     iskip=0
+     do iskiptest=iskip_start+1,1,-1
+        icount=0
+        do i=1,npe,iskiptest
+           icount=icount+1
+        end do
+        if(icount>=nz) then
+           iskip=iskiptest
+           exit
+        end if
+     end do
+     if(iskip==0) then
+        write(6,*)' nz,npe=',nz,npe,' ---- no iskip found, program stops'
+        stop
+     end if
+     icount=0
+     iuse_pe(:)=0
+     do i=npe-1,0,-iskip
+        icount=icount+1
+        iuse_pe(i)=1
+        if(icount==nz) exit
+     end do
+     left=0
+     do i=0,npe-1
+        if(iuse_pe(i)==1) exit
+        left=left+1
+     end do
+     iright=left/2
+     iuse_pe(:)=0
+     icount=0
+     do i=npe-1-iright,0,-iskip
+        icount=icount+1
+        iuse_pe(i)=1
+        if(icount==nz) exit
+     end do
+     
+end subroutine get_iuse_pe
 
    subroutine general_sub2grid_destroy_info(s,s_ref)
 !$$$  subprogram documentation block

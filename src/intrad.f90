@@ -13,6 +13,7 @@ module intradmod
 !   2008-11-26  Todling - remove intrad_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2011-05-17  todling - add internal routine set_
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intrad_
@@ -219,6 +220,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 !   2011-05-04  todling - merge in Min-Jeong Kim's cloud clear assimilation (connect to Metguess)
 !   2011-05-16  todling - generalize entries in radiance jacobian
 !   2011-05-17  auligne/todling - add hydrometeors
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     radhead  - obs type pointer to obs structure
@@ -263,6 +265,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -532,9 +535,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         end do
 
 !       Include contributions from remaining bias correction terms
-        do n=1,npred
-           val=val+spred(ix+n)*radptr%pred(n,nn)
-        end do
+        if( .not. ladtest_obs) then
+           do n=1,npred
+              val=val+spred(ix+n)*radptr%pred(n,nn)
+           end do
+        end if
 
         if (lsaveobsens) then
            radptr%diags(nn)%ptr%obssen(jiter) = val*radptr%err2(nn)*radptr%raterr2(nn)
@@ -547,7 +552,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
               val=radptr%diags(nn)%ptr%obssen(jiter)
 
            else
-              val=val-radptr%res(nn)
+              if( .not. ladtest_obs)   val=val-radptr%res(nn)
 
 !             Multiply by variance.
               if (nlnqc_iter .and. pg_rad(ic) > tiny_r_kind .and. &
@@ -559,7 +564,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
                  val = val*(one-p0)
               endif
 
-              val = val*radptr%err2(nn)*radptr%raterr2(nn)
+              if(.not. ladtest_obs )val = val*radptr%err2(nn)*radptr%raterr2(nn)
            endif
 
 !          Begin adjoint
@@ -571,11 +576,13 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !          Extract contributions from bias correction terms
 !          use compensated summation
-           if(radptr%luse)then
-              do n=1,npred
-                 rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
-              end do
-           end if
+           if( .not. ladtest_obs) then
+              if(radptr%luse)then
+                 do n=1,npred
+                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val
+                 end do
+              end if
+           end if ! not ladtest_obs
         endif
      end do
 

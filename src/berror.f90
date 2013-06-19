@@ -127,15 +127,16 @@ module berror
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
-  public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv
+  public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv,nhscrf
 
   integer(i_kind) norh,ndeg,nta,nlath
   integer(i_kind) nx,ny,mr,nr,nf,ndx,ndy,ndx2,nmix,nymx,norm,nxem,nfg,nfnf
   integer(i_kind),allocatable,dimension(:,:):: inaxs,inxrs
   integer(i_kind),allocatable,dimension(:,:,:,:):: ii,jj,ii1,jj1,ii2,jj2
+  integer(i_kind) nhscrf
 
   real(r_kind) bw,vs
-  real(r_kind),dimension(3):: hzscl,hswgt
+  real(r_kind),dimension(1:3):: hzscl,hswgt
 
 ! hack to cope w/ namelist
   integer(i_kind),parameter::maxvars=50
@@ -194,6 +195,7 @@ contains
     ndeg=4
     nta=50000
     nlath=48
+    nhscrf=3
 
     bw=zero
 
@@ -296,9 +298,9 @@ contains
   allocate(slw(ny*nx,nnnn1o),&
            slw1((2*nf+1)*(2*nf+1),nnnn1o),&
            slw2((2*nf+1)*(2*nf+1),nnnn1o))
-  allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o),&
-           ii1(2*nf+1,2*nf+1,3,nnnn1o),jj1(2*nf+1,2*nf+1,3,nnnn1o),&
-           ii2(2*nf+1,2*nf+1,3,nnnn1o),jj2(2*nf+1,2*nf+1,3,nnnn1o))
+  allocate(ii(ny,nx,nhscrf,nnnn1o),jj(ny,nx,nhscrf,nnnn1o),&
+           ii1(2*nf+1,2*nf+1,nhscrf,nnnn1o),jj1(2*nf+1,2*nf+1,nhscrf,nnnn1o),&
+           ii2(2*nf+1,2*nf+1,nhscrf,nnnn1o),jj2(2*nf+1,2*nf+1,nhscrf,nnnn1o))
 
   return
  end subroutine create_berror_vars
@@ -342,6 +344,7 @@ contains
     if(diag_precon)deallocate(vprecond)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
+
     return
   end subroutine destroy_berror_vars
 
@@ -514,7 +517,7 @@ contains
     integer(i_kind) ihwlb
     integer(i_kind) ntax,iloc
     
-    real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2
+    real(r_kind):: hwlmax,hwlmin,hwlb,hwle,wni2,hzsmax,hzsmin
     real(r_kind),parameter:: r999         = 999.0_r_kind
     real(r_kind),allocatable,dimension(:):: dsh
     logical,allocatable,dimension(:):: iuse
@@ -561,15 +564,24 @@ contains
 ! factor from multi-Gaussian RF
 !   write(6,*)'INIT_RFTABLE:  hwlmax...=',hwlmax,hwlmin,&
 !        hzscl(1),hzscl(2),hzscl(3),mype,nynx,nnn
-    hwlmax=hwlmax*max(hzscl(1),hzscl(2),hzscl(3))
-    hwlmin=hwlmin*min(hzscl(1),hzscl(2),hzscl(3))
+    hzsmax=-r999
+    hzsmin=r999
+    do j=1,nhscrf
+       hzsmax=max(hzsmax,hzscl(j))
+       hzsmin=min(hzsmin,hzscl(j))
+    end do
+
+    hwlmax=hwlmax*hzsmax
+    hwlmin=hwlmin*hzsmin
 
 ! setup smoother coef and scale
-    if (hwlmax==zero .or. hwlmin==zero) then
+    if (nnn>0 .and. (hwlmax<=zero .or. hwlmin<=zero)) then
        write(6,*)'INIT_RFTABLE:  ***ERROR*** illegal value for min,max scale.',&
             '  hwlmin,hwlmax=',hwlmin,hwlmax,mype
        call stop2(41)
     endif
+
+
     hwlb=one/hwlmax
     hwle=one/hwlmin
 
@@ -586,7 +598,7 @@ contains
     do k=1,nnn
        do n=1,2
           do i=1,nynx
-             do j=1,3
+             do j=1,nhscrf
                 iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli(i,n,k))))
                 iloc=max(iloc,1)
                 iuse(iloc)=.true.
@@ -595,7 +607,7 @@ contains
 
           if(.not. regional)then
              do i=1,nfnf
-                do j=1,3
+                do j=1,nhscrf
                    iloc=min(ntax,nint(one-ihwlb+wni2/(hzscl(j)*sli1(i,n,k))))
                    iloc=max(iloc,1)
                    iuse(iloc)=.true.
@@ -624,7 +636,7 @@ contains
     do k=1,nnn
 
 !      Load pointers into table array
-       do j=1,3
+       do j=1,nhscrf
 
           call initable(ny,nx,sli(1,1,k),ntax,ihwlb,&
              ii(1,1,j,k),jj(1,1,j,k),hzscl(j),tin,ipoint)

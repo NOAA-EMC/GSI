@@ -1414,8 +1414,8 @@
  bearing_to_test_deg = bearing_to_test*rad2deg ! convert to degrees
 
 ! this is the arc distance to the test point
- d=two*asin(sqrt((sind((testlat-lat)/two))**2 +     &
-                 cosd(testlat)*cosd(lat)*(sind((testlon-lon)/two))**2))
+ d=two*asin(sqrt((sin(dellat/two))**2 +     &
+                 cos(testlat*deg2rad)*cos(lat*deg2rad)*(sin(dellon/two))**2))
  d = d*rad2deg  ! convert to degrees
 
  psip = bearing_to_test_deg

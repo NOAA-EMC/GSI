@@ -2073,8 +2073,7 @@ contains
     allocate(v(0:ny1,0:nx1))
     allocate(w(0:ny1,0:nx1))
     f=test_div
-               time0=timef()
-              write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
+        write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
         call fmg(v,f,helmholtz_on,1,1,20,mg(1)%nx,mg(1)%ny)
                write(6,'(" time in fmg =",f15.6," seconds")') .001*(timef()-time0)
         w=zero
@@ -3703,9 +3702,14 @@ subroutine outgrad1(f,label,nx,ny)
          character(80) dsdes,dsdat
          character(80) datdes(1000)
          character(1) blank
+         integer np,ioutcor,ioutdat,ntime
+         integer i,j,k,next,last,koutmax
+         real(4) out(nx,ny)
+         real(4) undef,rlonmap0,rlatmap0,dlonmap,dlatmap
+         real(4) startp,pinc
          data blank/' '/
          data undef/-9.99e33/
-         real(4) out(nx,ny)
+
 
          np=1
          ioutcor=10

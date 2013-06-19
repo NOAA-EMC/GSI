@@ -7,6 +7,7 @@
 !   2009-06     whiting - coding rpf
 !   2009-10-20    zhu   - modify rpf for reading in pblh data in GSI
 !   2009-10-21  whiting - modify cnem & pblhob for reading Caterina's files
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -307,8 +308,8 @@
       else
          dlat = dlat_earth
          dlon = dlon_earth
-         call grdcrd(dlat,1,rlats,nlat,1)
-         call grdcrd(dlon,1,rlons,nlon,1)
+         call grdcrd1(dlat,rlats,nlat,1)
+         call grdcrd1(dlon,rlons,nlon,1)
       endif
 
       if(offtime_data) then

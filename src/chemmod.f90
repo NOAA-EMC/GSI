@@ -176,6 +176,7 @@ contains
 !
 ! program history log:
 !   2010-11-18  pagowski
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -282,8 +283,8 @@ contains
     else
        dlat = dlat_earth
        dlon = dlon_earth
-       call grdcrd(dlat,1,rlats,nlat,1)
-       call grdcrd(dlon,1,rlons,nlon,1)
+       call grdcrd1(dlat,rlats,nlat,1)
+       call grdcrd1(dlon,rlons,nlon,1)
     endif
     
     do i = 1, nconvtype
