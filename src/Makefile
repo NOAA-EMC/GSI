@@ -508,6 +508,7 @@ clean:
 
   SRCSF90C_NOSWAP = \
 	get_gefs_ensperts_dualres.f90 \
+	gsi_unformatted.F90 \
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
@@ -717,6 +718,15 @@ prepbykx.x: prepbykx.o
 $(LIB): $(OBJS) $(OBJS_NOSWAP)
 	$(RM) $(LIB)
 	$(AR) $@ $(OBJS) $(OBJS_NOSWAP)
+
+MAIN_OBJS = gsimain.o
+LIBS_OBJS = $(OBJS) $(OBJS_NOSWAP)
+
+list-main_objs:
+	@ for f in $(MAIN_OBJS); do echo $$f; done | env LC_ALL=C sort -u
+
+list-libs_objs:
+	@ for f in $(LIBS_OBJS); do echo $$f; done | grep -v `for p in $(MAIN_OBJS); do echo "-e $$p"; done` | env LC_ALL=C sort -u
 
 export: libgsi.a gsi.x prepbykx.x
 	$(MKDIR)               $(COREBIN)

@@ -239,6 +239,7 @@
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
 !  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
 !                       convert_regional_guess so that rearth is defined when used
+!  05-31-2013 wu        write ext_sonde output to standard out
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1119,6 +1120,7 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
+     write(6,*)'EXT_SONDE on type 120 =',ext_sonde
      ngroup=0
      do i=1,ndat
         dthin(i) = max(dthin(i),0)
