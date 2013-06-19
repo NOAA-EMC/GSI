@@ -958,7 +958,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   end if
   dtsfcp=one-dtsfc
   jacobian=zero
-  jacobian_aero=zero
 
   if (lcf4crtm) then
     call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'cf',cfges_itsig ,ier)
@@ -1753,6 +1752,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      wmix         = zero
      layer_od     = zero
      jaero        = zero
+     jacobian_aero=zero
      do i=1,nchanl
         do k=1,msig
            kk = klevel(msig-k+1)
