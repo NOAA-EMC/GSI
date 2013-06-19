@@ -12,6 +12,7 @@ module mpeu_util
 !   2010-03-17  j guo   - added this document block
 !   2010-05-30  todling - add some real dirty mimic of i90's table read 
 !   2010-87-19  todling - remove reference to abor1
+!   2013-05-14  guo     - added getarec(), for not-commented text buffer.
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -59,6 +60,7 @@ module mpeu_util
       public :: luavail
       public :: stdin, stdout, stderr
       public :: strTemplate
+      public :: getarec			! (lu,line,ier[,nrec][,commchar])
       public :: GetTableSize,GetTable
       public :: GetIndex                ! get index in array given user entry
 
@@ -140,6 +142,8 @@ module mpeu_util
 
     interface GetIndex; module procedure &
       getindex_; end interface
+
+    interface getarec; module procedure getarec_; end interface
 
 
 ! !REVISION HISTORY:
@@ -1983,4 +1987,49 @@ integer(IK) function getindex_(varnames,usrname)
   enddo
 end function getindex_
 
+subroutine getarec_(lu,line,ier,nrec,commchar)
+  implicit none
+  integer,intent(in) :: lu
+  character(len=*),intent(out) :: line
+  integer,intent(out) :: ier
+  integer,optional,intent(out) :: nrec ! count of record readings
+  character(len=*),optional,intent(in) :: commchar ! set of comment chars
+
+character(len=1) :: c
+character(len=*),parameter :: SPC=achar(32),TAB=achar(09)
+character(len=*),parameter :: NUL=achar(00),COM='#'
+
+if(present(nrec)) nrec=0
+
+    ! Read records until a line of non-blank and any non-comment text.
+    ! A pure commont text record is a record with non-block content
+    ! lead by a "#".
+  read(lu,'(a)',iostat=ier) line
+  do while(ier==0)
+    if(present(nrec)) nrec=nrec+1
+    c=leadchar_(line)
+    if(present(commchar)) then
+      if(c/=SPC .and. c/=TAB .and. index(commchar,c)/=1) exit
+    else
+      if(c/=SPC .and. c/=TAB .and. c/=COM) exit
+    endif
+    read(lu,'(a)',iostat=ier) line
+  enddo
+contains
+function leadchar_(line) result(c)
+  implicit none
+  character(len=*),intent(in) :: line
+  character(len=1) :: c
+  integer :: i,l
+  i=0
+  l=len(line)
+  c=SPC
+  do while(i<l)
+    i=i+1
+    if(line(i:i)==SPC .or. line(i:i)==TAB) cycle
+    c=line(i:i)
+    return
+  enddo
+end function leadchar_
+end subroutine getarec_
 end module mpeu_util
