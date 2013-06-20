@@ -957,7 +957,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
          ges_tv,ges_q,ges_oz,ges_prsl,&
          ges_u,ges_v,ges_prsi,dsfct,isli2
     use guess_grids, only: ntguessig,ntguessfc
-    use gridmod, only: hires_b,sp_a,sp_b
+    use gridmod, only: hires_b,sp_a,sp_b,grd_a
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
@@ -968,7 +968,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
-    integer(i_kind) itoutsig,istatus
+    integer(i_kind) itoutsig,istatus,iret_write
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
     character(24):: file_sfc,file_nst
 
@@ -988,26 +988,42 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
+
     if (hires_b) then
-       call write_gfsatm(filename,mype,mype_atm,&
-            sp_a,sp_b,&
+       call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
             ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
             ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
             ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
             ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
-            ges_prsl(1,1,1,itoutsig),ges_u(1,1,1,itoutsig),&
-            ges_v(1,1,1,itoutsig),ges_prsi(1,1,1,itoutsig))
+            iret_write)
+
+!       call write_gfsatm(filename,mype,mype_atm,&
+!            sp_a,sp_b,&
+!            ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
+!            ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
+!            ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
+!            ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
+!            ges_prsl(1,1,1,itoutsig),ges_u(1,1,1,itoutsig),&
+!            ges_v(1,1,1,itoutsig),ges_prsi(1,1,1,itoutsig))
 
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
     else
-       call write_gfsatm(filename,mype,mype_atm,&
-            sp_a,sp_a,&
+       call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
             ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
             ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
             ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
             ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
-            ges_prsl(1,1,1,itoutsig),ges_u(1,1,1,itoutsig),&
-            ges_v(1,1,1,itoutsig),ges_prsi(1,1,1,itoutsig))
+            iret_write)
+
+!       call write_gfsatm(filename,mype,mype_atm,&
+!            sp_a,sp_a,&
+!            ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
+!            ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
+!            ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
+!            ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
+!            ges_prsl(1,1,1,itoutsig),ges_u(1,1,1,itoutsig),&
+!            ges_v(1,1,1,itoutsig),ges_prsi(1,1,1,itoutsig))
+
     endif
 
 !   Write surface analysis file

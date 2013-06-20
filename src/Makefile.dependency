@@ -74,6 +74,7 @@ general_spectral_transforms.o : general_spectral_transforms.f90 guess_grids.o co
 general_sub2grid_mod.o : general_sub2grid_mod.f90 egrid2agrid_mod.o m_rerank.o mpeu_util.o constants.o mpimod.o kinds.o 
 general_tll2xy_mod.o : general_tll2xy_mod.f90 gridmod.o mpimod.o egrid2agrid_mod.o constants.o kinds.o 
 general_transform.o : general_transform.f90 general_specmod.o constants.o kinds.o 
+general_write_gfsatm.o : general_write_gfsatm.f90 constants.o mpimod.o general_specmod.o general_sub2grid_mod.o ncepgfs_io.o gridmod.o kinds.o
 gengrid_vars.o : gengrid_vars.f90 constants.o gridmod.o kinds.o 
 genqsat.o : genqsat.f90 guess_grids.o gridmod.o jfunc.o constants.o kinds.o 
 genstats_gps.o : genstats_gps.f90 convinfo.o gsi_4dvar.o jfunc.o mpimod.o qcmod.o constants.o gridmod.o obsmod.o kinds.o 

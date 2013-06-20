@@ -265,6 +265,7 @@ clean:
 	general_sub2grid_mod.f90 \
 	general_transform.f90 \
         general_tll2xy_mod.f90 \
+	general_write_gfsatm.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
