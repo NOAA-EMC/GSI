@@ -422,6 +422,7 @@ contains
 !                          Move first use of tlapmean to after allocation.
 !   2013-02-13  eliu    - change write-out format for iout_rad (for two
 !                         additional SSMIS bias correction coefficients)
+!   2013-05-14  guo     - add read error messages to alarm user a format change.
 !
 !   input argument list:
 !
@@ -438,6 +439,7 @@ contains
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
     use mpimod, only: mype
+    use mpeu_util, only: perr,die
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -523,8 +525,13 @@ contains
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        j=j+1
-       read(crecord,*) nusis(j),nuchan(j),iuse_rad(j),&
+       read(crecord,*,iostat=istat) nusis(j),nuchan(j),iuse_rad(j),&
             varch(j),varch_cld(j),ermax_rad(j),b_rad(j),pg_rad(j),icld_det(j)
+       if(istat/=0) then
+          call perr('radinfo_read','read(crecord), crecord =',trim(crecord))
+          call perr('radinfo_read','                 istat =',istat)
+          call  die('radinfo_read')
+       endif
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2)air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3)ang_rad(j)=zero
        if (mype==mype_rad) write(iout_rad,110) j,nusis(j), &
@@ -607,21 +614,32 @@ contains
     cbias=zero
     tlapmean=zero
     if (.not. adp_anglebc) then
-       open(lunin,file='satbias_angle',form='formatted',iostat=istat)
-       nfound = .false.
-       if (istat == 0) then 
-         read(lunin,'(a6)') word
-         rewind(lunin)
-         if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
+       open(lunin,file='satbias_angle',form='formatted',status='old',iostat=istat)
+       if (istat /= 0 ) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" does not exist'
+          call stop2(79)
        endif
 
+       nfound = .false.
+       word=""
+       read(lunin,'(a6)',iostat=istat) word
+       if (istat /= 0 ) then
+          write(6,*)'RADINFO_READ:  ***ERROR*** file "satbias_angle" is empty'
+          call stop2(79)
+       endif
+
+       rewind(lunin)
+       if (word == 'nscan=') read(lunin,'(6x,i8)',iostat=istat) maxscan
        if (istat /= 0 .OR. maxscan <= 0 .OR. maxscan > 1000) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, maxscan out of range: ',maxscan
           call stop2(79)
        endif
        read2: do
-          read(lunin,'(I5,1x,A20,2x,I4,e15.6/100(4x,10f7.3/))',iostat=istat) &
-               ich,isis,ichan,tlapm,(cbiasx(ip),ip=1,maxscan)
+          read(lunin,'(I5,1x,A20,2x,I4,e15.6)',iostat=istat,end=1111) &
+               ich,isis,ichan,tlapm
+          if (istat /= 0) exit
+          read(lunin,'(100(4x,10f7.3/))',iostat=istat,end=1111) &
+               (cbiasx(ip),ip=1,maxscan)
           if (istat /= 0) exit
           cfound = .false.
           do j =1,jpch_rad
@@ -638,6 +656,7 @@ contains
                write(6,*) '***WARNING instrument/channel ',isis,ichan, &
                'found in satbias_angle file but not found in satinfo'
        end do read2
+1111   continue
        close(lunin)
        if (istat>0) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_angle, istat=',istat
@@ -667,7 +686,7 @@ contains
     if (pcexist) then
        open(lunin,file='scaninfo',form='formatted')
        do
-          read(lunin,1000,IOSTAT=istat) cflg,satscan_sis,start,step,nstep,edge1,edge2
+          read(lunin,1000,IOSTAT=istat,end=1222) cflg,satscan_sis,start,step,nstep,edge1,edge2
           if (istat /= 0) exit
           if (cflg == '!') cycle
 
@@ -682,6 +701,7 @@ contains
           end do
        end do
 1000   format(a1,a20,2f11.3,i10,2i6)
+1222   continue
        close(lunin)
     else
        if(mype == 0) write(6,*) '***WARNING file scaninfo not found, use default'
@@ -712,10 +732,10 @@ contains
        nfound = .false.
        read4: do
           if (.not. adp_anglebc) then
-             read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat) ich,isis,&
+             read(lunin,'(I5,1x,A20,1x,I5,10f12.6)',iostat=istat,end=1333) ich,isis,&
                   ichan,(predr(ip),ip=1,npred)
           else
-             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat) ich,isis,&
+             read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat,end=1333) ich,isis,&
                   ichan,tlapm,tsum,ntlapupdate,(predr(ip),ip=1,npred)
           end if
           if (istat /= 0) exit
@@ -740,6 +760,7 @@ contains
              write(6,*) '***WARNING instrument/channel ',isis,ichan, &
              'found in satbias_in file but not found in satinfo'
        end do read4
+1333   continue
        close(lunin)
        if (istat>0) then
           write(6,*)'RADINFO_READ:  ***ERROR*** error reading satbias_in, istat=',istat
@@ -806,7 +827,7 @@ contains
 
 !      Loop over satellites sensors & channels
        read5: do
-          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat) ich,isis,ichan,(fbiasx(i),i=1,numt)
+          read(lunin,'(I5,1x,a20,1x,I5/3(4x,11f10.3/) )',iostat=istat,end=1444) ich,isis,ichan,(fbiasx(i),i=1,numt)
           if (istat /= 0) exit
           cfound = .false.
           do j=1,jpch_rad
@@ -821,6 +842,7 @@ contains
           if(.not. cfound)write(6,*) ' WARNING instrument/channel ',isis,ichan, &
              'found in satbias_sst file and not found in satinfo'
        end do read5
+1444   continue
        close(lunin)
     endif           ! endif for if (retrieval) then
 
