@@ -89,15 +89,19 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     iret_read=0
     nlatm2=grd%nlat-2
 
-!   Do IO on a single task, bcast data to other tasks.
-!!  Keep old way for now, can probably replace with RR calls later
-    call read_sighead(lunges,filename,gfshead,mype_io,mype,iret_read)
-    if (iret_read /= 0) goto 1000
-
-! Have all files open and read header for now with RanRead
+!   All tasks open and read header with RanRead
     call sigio_rropen(lunges,filename,iret)
     call sigio_alhead(sighead,iret)
-    call sigio_rrhead(lunges,sighead,iret)
+    call sigio_rrhead(lunges,sighead,iret_read)
+    if (iret_read /=0) goto 1000
+    gfshead%fhour   = sighead%fhour
+    gfshead%idate   = sighead%idate
+    gfshead%lonb    = sighead%lonb
+    gfshead%latb    = sighead%latb
+    gfshead%levs    = sighead%levs
+    gfshead%ntrac   = sighead%ntrac
+    gfshead%ncldt   = sighead%ncldt
+
 
     icount=0
 
@@ -477,8 +481,8 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 
 !   ERROR detected while reading file
 1000 continue
-    if (mype==0) write(6,*)'READ_GFSATM:  ***ERROR*** while reading ',&
-         filename,' from unit ',lunges,'.   iret_read=',iret_read
+    if (mype==0) write(6,*)'READ_GFSATM:  ***ERROR*** reading ',&
+         trim(filename),' iret_read=',iret_read
 !!    call sigio_axdata(sigdata,iret)
 
     

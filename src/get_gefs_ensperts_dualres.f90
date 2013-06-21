@@ -152,7 +152,7 @@ subroutine get_gefs_ensperts_dualres
        if (iret/=0) then
           beta1_inv=one
           if (mype==0) &
-               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',filename,' IRET=',IRET,' RESET beta1_inv=',beta1_inv
+               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
           cycle
        endif
 
