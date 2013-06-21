@@ -195,6 +195,21 @@ result=close(area.txt)
 'set xlopts 1 4 0.12'
 'set ylopts 1 4 0.13'
 
+if (field = "count")
+   if (sub_avg=1)
+      'define avg1=ave(rcount,t='t1day',t='tlast')'
+      'define avg2=ave(rcount,t='t7days',t='tlast')'
+   endif
+   'define avg3=ave(rcount,t='t30days',t='tlast')'
+endif
+if (field = "penalty")
+   if (sub_avg=1)
+      'define avg1=ave(penalty/rcount,t='t1day',t='tlast')'
+      'define avg2=ave(penalty/rcount,t='t7days',t='tlast')'
+   endif
+   'define avg3=ave(penalty/rcount,t='t30days',t='tlast')'
+endif
+
 fr=0
 i=1
 chn=1
@@ -202,14 +217,8 @@ nt=3
 while (chn<=nchan)
    say 'top of channel loop with chn='chn
    'set y 'chn
+
    if (field = "count")
-
-      if (sub_avg=1)
-         'define avg1=ave(rcount,t='t1day',t='tlast')'
-         'define avg2=ave(rcount,t='t7days',t='tlast')'
-      endif
-      'define avg3=ave(rcount,t='t30days',t='tlast')'
-
       'set t 't30days' 'tlast
       'set gxout stat'
       'd avg3'
@@ -221,13 +230,6 @@ while (chn<=nchan)
    endif
 
    if (field = "penalty")
-
-      if (sub_avg=1)
-         'define avg1=ave(penalty/rcount,t='t1day',t='tlast')'
-         'define avg2=ave(penalty/rcount,t='t7days',t='tlast')'
-      endif
-      'define avg3=ave(penalty/rcount,t='t30days',t='tlast')'
-
       'set t 't30days' 'tlast
       'set gxout stat'
       'd avg3'

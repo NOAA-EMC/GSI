@@ -16,7 +16,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use kinds, only: r_kind,r_single,r_double,i_kind
   use obsmod, only: wtail,whead,rmiss_single,perturb_obs,oberror_tune,&
        i_w_ob_type,obsdiags,obsptr,lobsdiagsave,nobskeep,lobsdiag_allocated,&
-       time_offset,ext_sonde,bmiss
+       time_offset,bmiss
   use obsmod, only: w_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -129,6 +129,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
 !                            num_bad_ikx and print 1st 10 instances of ikx out of range
 !                            and also print num_bad_ikx after all data processed if > 0 .
+!   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
 !
 ! REMARKS:
 !   language: f90
@@ -181,8 +182,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
-  real(r_kind) dpreso,dpk,uint,ugint,vint,vgint
-
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
   integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,kk,iptrbu_sat,iptrbv_sat,icat
   integer(i_kind) k1,k2,ikxx,nn,isli,ibin,ioff
@@ -191,11 +190,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
-  integer(i_kind) ku,kl,im
-  integer(i_kind) cat,cato
   integer(i_kind) num_bad_ikx
 
-  character(8) station_id,station_ido
+  character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
   character(8) c_prvstg,c_sprvstg
@@ -218,8 +215,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   n_alloc(:)=0
   m_alloc(:)=0
-  cato=0
-  station_ido=''
 !******************************************************************************
 ! Read and reformat observations in work arrays.
   spdb=zero
@@ -1097,65 +1092,6 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         endif
 
      endif
-!!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
-     cat = nint(data(icat,i))
-     im=max(i-1,1)
-     if(   .not. last .and. ext_sonde .and. itype==220 .and. &
-        muse(i) .and.  muse(im) .and. &
-       (cat==3 .or. cato==3 .or. cat==5 .or. cato==5) .and. &
-        dpres > 0._r_kind .and. station_id== station_ido  )  then
-
-        ku=dpres-1
-        ku=min(nsig,ku)
-        kl=dpreso+2
-        kl=max(2,kl)
-        do k = kl,ku
-           allocate(wtail(ibin)%head%llpoint,stat=istat)
-           if(istat /= 0)write(6,*)' failure to write wtail%llpoint '
-           wtail(ibin)%head => wtail(ibin)%head%llpoint
-
-!!! find wob (wint)
-           uint=(data(iuob,im)*(prsltmp(k)-data(ipres,i)) &
-                +data(iuob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
-           vint=(data(ivob,im)*(prsltmp(k)-data(ipres,i))  &
-                +data(ivob,i)*(data(ipres,im)-prsltmp(k))) /(data(ipres,im)-data(ipres,i))
-!!! find wges (wgint)
-           dpk=k
-           call tintrp31(ges_u,ugesin,dlat,dlon,dpk,dtime, &
-              hrdifsig,mype,nfldsig)
-           call tintrp31(ges_v,vgesin,dlat,dlon,dpk,dtime, &
-              hrdifsig,mype,nfldsig)
-
-!!! Set (i,j,k) indices of guess gridpoint that bound obs location
-           call get_ijk(mm1,dlat,dlon,dpk,wtail(ibin)%head%ij(1),wtail(ibin)%head%wij(1))
-
-!!! find ddiff
-           dudiff=uint-ugesin
-           dvdiff=vint-vgesin
-
-!!! set oberror of pseudo_obs
-           error=one/max(data(ier2,i),data(ier2,im))
-
-           wtail(ibin)%head%ures=dudiff
-           wtail(ibin)%head%vres=dvdiff
-           wtail(ibin)%head%err2=error**2
-           wtail(ibin)%head%raterr2=ratio_errors **2
-           wtail(ibin)%head%time = dtime
-           wtail(ibin)%head%b=cvar_b(ikx)
-           wtail(ibin)%head%pg=cvar_pg(ikx)
-           wtail(ibin)%head%luse=luse(i)
-           wtail(ibin)%head%diagu => obsptr
-           wtail(ibin)%head%diagv => obsdiags(i_w_ob_type,ibin)%tail
-
-        enddo
-
-     endif    !   itype=120
-
-     station_ido=station_id
-     dpreso=dpres
-     cato=cat
-
-!!!!!!!!!!!!!!!!!!  sonde ext  !!!!!!!!!!!!!!!!!!!!!!!
 
 !!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!
      if( .not. last .and. l_PBL_pseudo_SurfobsUV .and.        &

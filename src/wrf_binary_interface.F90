@@ -40,6 +40,7 @@ subroutine convert_binary_mass
 !   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
 !                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
 !   2013-04-23  parrish - add internal check for types of GLAT/GLON
+!   2013-05-14  guo     - added #ifdef WRF arround "call initialize_byte_swap_wrf_binary_file()".
 !
 !   input argument list:
 !
@@ -171,9 +172,9 @@ subroutine convert_binary_mass
      close(in_unit)
 
 !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
-
+#ifdef WRF
      call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
-
+#endif
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
                     write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
    
@@ -781,9 +782,9 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      close(in_unit)
 
 !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
-
+#ifdef WRF
      call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
-
+#endif
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
 

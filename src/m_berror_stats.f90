@@ -38,6 +38,7 @@ module m_berror_stats
       use constants, only: one
       use control_vectors,only: cvars2d,cvars3d
       use mpeu_util,only: getindex
+      use mpeu_util,only: perr,die
 
       implicit none
 
@@ -63,6 +64,8 @@ module m_berror_stats
 !       25Feb10 - Zhu
 !               - made changes for generalizing control variables
 !               - remove berror_nvars
+!       14May13 - Jing Guo <jing.guo@nasa.gov>
+!               - added I/O messages to aid run-time error diagnosis.
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats'
@@ -148,19 +151,23 @@ end subroutine get_dims
 !   workspaces/variables for data not returned
 
   integer(i_kind):: nsigstat,nlatstat
-  integer(i_kind):: inerr
+  integer(i_kind):: inerr,ier
 
 
 !   Open background error statistics file
     inerr=default_unit_
     if(present(unit)) inerr=unit
-    open(inerr,file=berror_stats,form='unformatted',status='old')
+    open(inerr,file=berror_stats,form='unformatted',status='old',iostat=ier)
+    if(ier/=0) call die(myname_, &
+       'open("'//trim(berror_stats)//'") error, iostat =',ier)
 
 !   Read header.  Ensure that vertical resolution is consistent
 !   with that specified via the user namelist
 
     rewind inerr
-    read(inerr) nsigstat,nlatstat
+    read(inerr,iostat=ier) nsigstat,nlatstat
+    if(ier/=0) call die(myname_, &
+       'read("'//trim(berror_stats)//'") for (nsigstat,nlatstat) error, iostat =',ier)
 
     if(mype==0) then
        if (nsig/=nsigstat .or. nlat/=nlatstat) then
@@ -181,8 +188,12 @@ end subroutine get_dims
     end if
 
 !   Read background error file to get balance variables
-    read(inerr) agvin,bvin,wgvin
-    close(inerr)
+    read(inerr,iostat=ier) agvin,bvin,wgvin
+    if(ier/=0) call die(myname_, &
+       'read("'//trim(berror_stats)//'") for (agvin,bvin,wgvin) error, iostat =',ier)
+    close(inerr,iostat=ier)
+    if(ier/=0) call die(myname_, &
+       'close("'//trim(berror_stats)//'") error, iostat =',ier)
 
     return
 end subroutine read_bal
@@ -252,13 +263,18 @@ end subroutine read_bal
 ! Open background error statistics file
   inerr=default_unit_
   if(present(unit)) inerr=unit
-  open(inerr,file=berror_stats,form='unformatted',status='old')
+  open(inerr,file=berror_stats,form='unformatted',status='old',iostat=ier)
+  if(ier/=0) call die(myname_, &
+     'open("'//trim(berror_stats)//'") error, iostat =',ier)
 
 ! Read header.  Ensure that vertical resolution is consistent
 ! with that specified via the user namelist
 
   rewind inerr
-  read(inerr)nsigstat,nlatstat
+  read(inerr,iostat=ier)nsigstat,nlatstat
+  if(ier/=0) call die(myname_, &
+     'read("'//trim(berror_stats)//'") for (nsigstat,nlatstat) error, iostat =',ier)
+
   if(mype==0) then
      if(nsigstat/=nsig .or. nlatstat/=nlat) then
         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
@@ -272,7 +288,9 @@ end subroutine read_bal
         'mype,nsigstat,nlatstat =', &
          mype,nsigstat,nlatstat
   end if
-  read(inerr) agvin,bvin,wgvin
+  read(inerr,iostat=ier) agvin,bvin,wgvin
+  if(ier/=0) call die(myname_, &
+     'read("'//trim(berror_stats)//'") for (agvin,bvin,wgvin) error, iostat =',ier)
 
 ! Read amplitudes
   allocate(found3d(size(cvars3d)),found2d(size(cvars2d)))
@@ -289,15 +307,29 @@ end subroutine read_bal
 
      if (var/='sst') then
         if (var=='q' .or. var=='Q') then
-           read(inerr) corzin,corq2
+           read(inerr,iostat=ier) corzin,corq2
+           if(ier/=0) call die(myname_, &
+              'read("'//trim(berror_stats)//'") for (corzin,corq2) error, iostat =',ier)
         else
-           read(inerr) corzin
+           read(inerr,iostat=ier) corzin
+           if(ier/=0) call die(myname_, &
+              'read("'//trim(berror_stats)//'") for (corzin) error, iostat =',ier)
         end if
-        read(inerr) hwllin
-        if (isig>1) read(inerr) vscalesin
+        read(inerr,iostat=ier) hwllin
+        if(ier/=0) call die(myname_, &
+           'read("'//trim(berror_stats)//'") for (hwllin) error, iostat =',ier)
+        if (isig>1) then
+           read(inerr,iostat=ier) vscalesin
+           if(ier/=0) call die(myname_, &
+              'read("'//trim(berror_stats)//'") for (vscalesin) error, iostat =',ier)
+        endif
      else
-        read(inerr) corsst
-        read(inerr) hsst
+        read(inerr,iostat=ier) corsst
+        if(ier/=0) call die(myname_, &
+           'read("'//trim(berror_stats)//'") for (corsst) error, iostat =',ier)
+        read(inerr,iostat=ier) hsst
+        if(ier/=0) call die(myname_, &
+           'read("'//trim(berror_stats)//'") for (hsst) error, iostat =',ier)
      end if
 
      if (isig>1) then

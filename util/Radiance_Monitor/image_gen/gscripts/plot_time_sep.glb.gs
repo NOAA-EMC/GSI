@@ -83,6 +83,28 @@ result=close(area.txt)
 'set strsiz 0.11 0.11'
 'set xlopts 1 4 0.11'
 'set ylopts 1 2 0.09'
+
+'define rterm1=1/count'
+*'define rterm2=1/(count-1)'
+
+if (field = omgnbc)
+   'define avg=omgnbc/count'
+   'define svar=(omgnbc2*rterm1) - (avg*avg)'
+endif
+if (field = total)
+   'define avg=total/count'
+   'define svar=(total2*rterm1) - (avg*avg)'
+endif
+if (field = omgbc)
+   'define avg=omgbc/count'
+   'define svar=(omgbc2*rterm1) - (avg*avg)'
+endif
+
+'define sdv=sqrt(svar)'
+'undefine svar'
+'undefine rterm1'
+*'undefine rterm2' 
+
 fr=0
 i=1
 chn=1
@@ -90,26 +112,6 @@ while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set x 'chn
 
-   'define rterm1=1/count'
-*   'define rterm2=1/(count-1)'
-
-   if (field = omgnbc)
-     'define avg=omgnbc/count'
-     'define svar=(omgnbc2*rterm1) - (avg*avg)'
-   endif
-   if (field = total)
-     'define avg=total/count'
-     'define svar=(total2*rterm1) - (avg*avg)'
-   endif
-   if (field = omgbc)
-     'define avg=omgbc/count'
-     'define svar=(omgbc2*rterm1) - (avg*avg)'
-   endif
-
-   'define sdv=sqrt(svar)'
-   'undefine svar'
-   'undefine rterm1'
-*   'undefine rterm2' 
 
    chi=chn
    if (i=1) 

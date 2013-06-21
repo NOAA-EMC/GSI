@@ -239,6 +239,7 @@
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
 !  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
 !                       convert_regional_guess so that rearth is defined when used
+!  05-31-2013 wu        write ext_sonde output to standard out
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1076,8 +1077,10 @@
 
   if (l4densvar .and. (.not.ljc4tlevs) ) then
      if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
-        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time levels not activated with 4Densvar'
-        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended, limq/pdry will only be applied to center of window '
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time', &
+                              ' levels not activated with 4Densvar'
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended,',&
+                              ' limq/pdry will only be applied to center of window '
      end if
   end if
 
@@ -1117,6 +1120,7 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
+     write(6,*)'EXT_SONDE on type 120 =',ext_sonde
      ngroup=0
      do i=1,ndat
         dthin(i) = max(dthin(i),0)

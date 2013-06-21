@@ -182,7 +182,7 @@ ${COMPRESS} ${imgndir}/*.ctl
            ntasks=$MAX_WCOSS_TASKS
         fi
         echo ntasks = $ntasks
-        $SUB -q dev -n $nodes -R "span[ptile=$ntasks]" -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
+        $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
      else
         $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi

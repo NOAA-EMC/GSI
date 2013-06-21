@@ -183,19 +183,19 @@ if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	#ccs, wcoss
    jobname=plot_${SUFFIX}_hrz_${PID}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      nodes=$(($ntasks/$MAX_WCOSS_TASKS))
-      echo nodes = $nodes
-      if [[ $nodes = 0 ]]; then
-         nodes=1
-      fi
-      echo nodes = $nodes
-      echo ntasks = $ntasks
-      if [[ $ntasks > $MAX_WCOSS_TASKS ]]; then
-         ntasks=$MAX_WCOSS_TASKS
-      fi
-      echo ntasks = $ntasks
+#      nodes=$(($ntasks/$MAX_WCOSS_TASKS))
+#      echo nodes = $nodes
+#      if [[ $nodes = 0 ]]; then
+#         nodes=1
+#      fi
+#      echo nodes = $nodes
+#      echo ntasks = $ntasks
+#      if [[ $ntasks > $MAX_WCOSS_TASKS ]]; then
+#         ntasks=$MAX_WCOSS_TASKS
+#      fi
+#      echo ntasks = $ntasks
 
-      $SUB -q dev -n $nodes -R "span[ptile=$ntasks]" -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+      $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
    else
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
    fi

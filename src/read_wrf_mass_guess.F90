@@ -1205,6 +1205,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      if (nguess>0) then
 !       Get pointer for each of the hydrometeors from guess at time index "it"
         it=ntguessig
+        ier=0
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql', ges_qc, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi', ges_qi, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus

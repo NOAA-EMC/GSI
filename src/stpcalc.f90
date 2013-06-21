@@ -542,11 +542,11 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
 
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
-  if(mype == 0)then
-    do i=1,ipen
+  do i=1,ipen
       psum(i)=pbc(1,i)+(stp(iis-1)-stp(iis))*(2.0_r_quad*bsum(i)+ &
                        (stp(iis-1)-stp(iis))*csum(i))
-    end do
+  end do
+  if(mype == 0)then
     write(iout_iter,101) (psum(i),i=1,ipen)
   end if
   pjcostnew(1) = psum(1)                                 ! Jb

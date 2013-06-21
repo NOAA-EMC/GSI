@@ -222,7 +222,7 @@ for sat in ${bigSATLIST}; do
    #
    #  CCS submit 4 jobs for each $sat
    #
-   if [[ $MY_MACHINE = "ccs" ]]; then 	
+   if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then 	
       batch=1
       ii=0
 
@@ -236,14 +236,17 @@ for sat in ${bigSATLIST}; do
 
          echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
          (( test=ii+1 ))
-         (( test=test%2 ))
+         (( test=test%3 ))
 
          if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
             ntasks=`cat $cmdfile|wc -l `
             chmod 755 $cmdfile
 
-            $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-
+            if [[ $MY_MACHINE = "ccs" ]]; then
+               $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+            else
+               $SUB -q dev -o ${logfile} -W 1:00 -R affinity[core] -J ${jobname} $cmdfile
+            fi
             (( batch=batch+1 ))
 
             suffix="${sat}_${batch}"
@@ -256,39 +259,40 @@ for sat in ${bigSATLIST}; do
       done
    #
    #  wcoss submit count and penalty as 1 job, all others as separate jobs.
-   elif [[ $MY_MACHINE = "wcoss" ]]; then	
-      set -A list omgnbc total omgbc fixang lapse lapse2 const scangl clw
-      batch=1
+#   elif [[ $MY_MACHINE = "wcoss" ]]; then	
+#      set -A list omgnbc total omgbc fixang lapse lapse2 const scangl clw
+#      batch=1
+#
+#      suffix="${sat}_${batch}"
+#      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+#      rm -f $cmdfile
+#      jobname=plot_${SUFFIX}_ang_${suffix}
+#      logfile=${LOGDIR}/plot_angle_${suffix}.log
+#
+#      echo "$SCRIPTS/plot_angle.sh $sat $suffix count" >> $cmdfile
+#      echo "$SCRIPTS/plot_angle.sh $sat $suffix penalty" >> $cmdfile
+#      chmod 755 $cmdfile
 
-      suffix="${sat}_${batch}"
-      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-      rm -f $cmdfile
-      jobname=plot_${SUFFIX}_ang_${suffix}
-      logfile=${LOGDIR}/plot_angle_${suffix}.log
+##      $SUB -q dev -n 2,4 -R "span[ptile=$MAX_WCOSS_TASKS]" -o ${logfile} -W 1:30 -J ${jobname} $cmdfile
+#      $SUB -q dev -o ${logfile} -W 1:30 -J ${jobname} $cmdfile
 
-      echo "$SCRIPTS/plot_angle.sh $sat $suffix count" >> $cmdfile
-      echo "$SCRIPTS/plot_angle.sh $sat $suffix penalty" >> $cmdfile
-      chmod 755 $cmdfile
+#      (( batch=batch+1 ))
+#      ii=0
+#      while [[ $ii -le ${#list[@]}-1 ]]; do
+##         suffix="${sat}_${batch}"
+#         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+#         rm -f $cmdfile
+#         jobname=plot_${SUFFIX}_ang_${suffix}
+#         logfile=${LOGDIR}/plot_angle_${suffix}.log
 
-      $SUB -q dev -n 2,4 -R "span[ptile=$MAX_WCOSS_TASKS]" -o ${logfile} -W 1:30 -J ${jobname} $cmdfile
+#         echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+#         chmod 755 $cmdfile
 
-      (( batch=batch+1 ))
-      ii=0
-      while [[ $ii -le ${#list[@]}-1 ]]; do
-         suffix="${sat}_${batch}"
-         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-         rm -f $cmdfile
-         jobname=plot_${SUFFIX}_ang_${suffix}
-         logfile=${LOGDIR}/plot_angle_${suffix}.log
+#         $SUB -q dev -o ${logfile} -W 1:00 -R affinity[core] -J ${jobname} $cmdfile
 
-         echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
-         chmod 755 $cmdfile
-
-         $SUB -q dev -n 8,10 -R "span[ptile=$MAX_WCOSS_TASKS]" -o ${logfile} -W 4:00 -J ${jobname} $cmdfile
-
-         (( batch=batch+1 ))
-         (( ii=ii+1 ))
-      done
+#         (( batch=batch+1 ))
+#         (( ii=ii+1 ))
+#      done
    else					# Zeus, submit 1 job for each sat/list item
       ii=0
       suffix="${sat}"

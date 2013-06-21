@@ -312,7 +312,8 @@ if (l4densvar) then
    if (mype==0) write(6,*)'SETUP_4DVAR: 4densvar mode, ibin_anl and nobs_bins = ',ibin_anl,nobs_bins
 else
    ntlevs_ens=1
-   if (l4dvar .and. mype==0) write(6,*)'SETUP_4DVAR: option to run hybrid 4dvar chosen.  nobs_bins,ntlevs_ens = ',nobs_bins,ntlevs_ens
+   if (l4dvar .and. mype==0) write(6,*)'SETUP_4DVAR: option to run hybrid 4dvar chosen.  nobs_bins,ntlevs_ens = ',&
+      nobs_bins,ntlevs_ens
 endif !l4densvar
 
 if( (.not.l4dvar) .and. (.not.l4densvar) ) then
