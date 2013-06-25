@@ -257,26 +257,26 @@ export listvar=RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOG
 #------------------------------------------------------------------
 ${SCRIPTS}/mk_angle_plots.sh
 
-${SCRIPTS}/mk_bcoef_plots.sh
+#${SCRIPTS}/mk_bcoef_plots.sh
 
-${SCRIPTS}/mk_bcor_plots.sh
+#${SCRIPTS}/mk_bcor_plots.sh
 
-if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
-   export datdir=${RADSTAT_LOCATION}
+#if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
+#   export datdir=${RADSTAT_LOCATION}
+#
+#   export listvar=PARM,RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,listvar
+#   jobname="plot_horiz_${SUFFIX}"
+#   logfile="${LOGDIR}/horiz.log"
+#   if [[ $MY_MACHINE = "ccs" ]]; then
+#      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh
+#   elif [[ $MY_MACHINE = "wcoss" ]]; then
+#      $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+#   else
+#      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
+#   fi
+#fi
 
-   export listvar=PARM,RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,listvar
-   jobname="plot_horiz_${SUFFIX}"
-   logfile="${LOGDIR}/horiz.log"
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
-   else
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
-   fi
-fi
-
-${SCRIPTS}/mk_time_plots.sh
+#${SCRIPTS}/mk_time_plots.sh
 
 #------------------------------------------------------------------
 #  Run the plot_update.sh script if no $plot_time was specified on 

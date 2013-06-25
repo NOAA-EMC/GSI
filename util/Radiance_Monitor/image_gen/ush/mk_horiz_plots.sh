@@ -67,16 +67,6 @@ for date in ${DATES}; do
       mv ./radstat.${date} ${date}.radstat
    fi
 
-# testing
-#   export SATYPE="airs_aqua sndrd1_g15"
-
-#
-#  tmp hack for wcoss -- com_p6 files are coming from ccs so compression suffix = Z not gz
-#
-#   if [[ $MY_MACHINE = "wcoss" ]]; then
-#      Z="Z"
-#   fi
-
    for sat in ${SATYPE}; do
       if [[ -s ./${sat}.${Z} ]]; then		#  rm previous files 
          rm -f ./${sat}.${Z}
@@ -183,18 +173,6 @@ if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	#ccs, wcoss
    jobname=plot_${SUFFIX}_hrz_${PID}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-#      nodes=$(($ntasks/$MAX_WCOSS_TASKS))
-#      echo nodes = $nodes
-#      if [[ $nodes = 0 ]]; then
-#         nodes=1
-#      fi
-#      echo nodes = $nodes
-#      echo ntasks = $ntasks
-#      if [[ $ntasks > $MAX_WCOSS_TASKS ]]; then
-#         ntasks=$MAX_WCOSS_TASKS
-#      fi
-#      echo ntasks = $ntasks
-
       $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
    else
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
@@ -237,18 +215,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
    elif [[ $MY_MACHINE = "wcoss" ]]; then
-      nodes=$(($ntasks/$MAX_WCOSS_TASKS))
-      echo nodes = $nodes
-      if [[ $nodes = 0 ]]; then
-         nodes=1
-      fi
-      echo nodes = $nodes
-      echo ntasks = $ntasks
-      if [[ $ntasks > $MAX_WCOSS_TASKS ]]; then
-         ntasks=$MAX_WCOSS_TASKS
-      fi
-      echo ntasks = $ntasks
-      $SUB -q dev -n $nodes -R "span[ptile=$ntasks]" -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
@@ -270,7 +237,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "ccs" ]]; then
       $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
    elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -n $ntasks -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
