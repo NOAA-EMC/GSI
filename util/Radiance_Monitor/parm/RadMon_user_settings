@@ -41,12 +41,12 @@ export USE_ANL=${USE_ANL:-0}
 #  PLOT_ALL_REGIONS switches on/off plotting of all 5 regions (global, land, 
 #    water, ice/snow, mixed).   0 = off, 1 = on
 #
-export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-0}
+export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 
 #
-#  SUB_AVG switches on/off plotting of subset averages in certain plots,
+#  PLOT_SUB_AVGS switches on/off plotting of subset averages in certain plots,
 #    such as the 7 day avgs in the summary plots.  0 = off, 1 = on
-export SUB_AVG=${SUB_AVG:-1}
+export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 
 #
 #  DO_ARCHIVE switches on archiving of extracted data files.  This is generally

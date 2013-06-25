@@ -16,7 +16,9 @@ echo
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
+
 export SUB_AVG=${SUB_AVG:-1}
+export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 
 plot_angle_count=plot_angle_count.${RAD_AREA}.gs
 plot_angle_sep=plot_angle_sep.${RAD_AREA}.gs

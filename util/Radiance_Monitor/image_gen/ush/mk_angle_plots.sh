@@ -130,21 +130,21 @@ ${COMPRESS} -f ${imgndir}/*.ctl
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to angle subdir.
 #
-  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plotangle_${SUFFIX}"
+export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plotangle_${SUFFIX}"
 
-  if [[ -d $PLOT_WORK_DIR ]]; then
-     rm -f $PLOT_WORK_DIR
-  fi
-  mkdir -p $PLOT_WORK_DIR
-  cd $PLOT_WORK_DIR
+if [[ -d $PLOT_WORK_DIR ]]; then
+   rm -f $PLOT_WORK_DIR
+fi
+mkdir -p $PLOT_WORK_DIR
+cd $PLOT_WORK_DIR
 
 
   #-----------------------------------------------------------------
   # Loop over satellite types.  Submit job to make plots.
   #
-  export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvar
+export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
-  list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
+list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
   if [[ ${MY_MACHINE} = "ccs" || ${MY_MACHINE} = "wcoss" ]]; then
      suffix=a
@@ -182,9 +182,9 @@ ${COMPRESS} -f ${imgndir}/*.ctl
         echo "$SCRIPTS/plot_angle.sh $sat $suffix '$list'" >> $cmdfile
 
         if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-           wall_tm="3:00:00"
+           wall_tm="2:00:00"
         else
-           wall_tm="5:00:00"
+           wall_tm="4:00:00"
         fi
 
         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
@@ -265,7 +265,7 @@ for sat in ${bigSATLIST}; do
             wall_tm="4:00:00"
          fi
 
-         $SUB -A $ACCOUNT -l nodes=1:ppn=6,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
 
          (( ii=ii+1 ))
       done
