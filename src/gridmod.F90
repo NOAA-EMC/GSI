@@ -1620,19 +1620,16 @@ contains
        do i=0,12
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
-          if(fexist) then
-             if (ihr < 0) ihr1=i
-             ihr=i
-          end if
-       end do
+          if(fexist) then                     !Note: for the twodvar_regional option,
+             ihr=i                            !the first 'sigfnn' file is the one that
+             exit                             !is valid at the analysis time. hence,
+          end if                              !there is no need for the ihrmid variable
+       end do                                 !that is used for the other options
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (SURFACE) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
-       ihr2 = ihr
-       ihrmid = (ihr1+ihr2)/2
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
-       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig
