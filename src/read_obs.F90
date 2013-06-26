@@ -318,7 +318,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
              end if
            end do
           end do
-         end do fileloop
+         end do airploop
        else if(trim(filename) == 'satwnd')then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -457,7 +457,7 @@ subroutine read_obs(ndata,mype)
 !   2011-05-26  todling  - add call to create_nst
 !   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
 !                         Commented out extra line of arguments not used.
-!   2013-06-01  zhu     - add call to aircraft profile file
+!   2013-06-01  zhu     - add mype_airobst to handle aircraft temperature bias correction 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -472,7 +472,7 @@ subroutine read_obs(ndata,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
-    use kinds, only: r_kind,i_kind,i_llong
+    use kinds, only: r_kind,i_kind,i_llong,r_double
     use gridmod, only: nlon,nlat,nsig,iglobal,ijn,itotsub,lat1,lon1,&
          ltosi,ltosj,displs_g,strip,reorder
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
@@ -492,7 +492,7 @@ subroutine read_obs(ndata,mype)
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
-    use aircraftinfo, only: aircraft_t_bc
+    use aircraftinfo, only: aircraft_t_bc,mype_airobst
 
     implicit none
 
@@ -508,6 +508,7 @@ subroutine read_obs(ndata,mype)
     logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
+    logical :: acft_profl_file
     character(10):: obstype,platid
     character(15):: string,infile
     character(15):: infilen
@@ -850,10 +851,16 @@ subroutine read_obs(ndata,mype)
        end if
 
     end do
+    mype_airobst = mype_root
     do ii=1,mmdat
        i=npe_order(ii)
        if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,3i4)') &
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
+
+       acft_profl_file = index(dfile(i),'_profl')/=0
+       if (aircraft_t_bc .and. acft_profl_file .and. dtype(i) == 't') &
+                   mype_airobst = mype_root_sub(i)
+
     end do
 
 
@@ -1211,6 +1218,15 @@ subroutine read_obs(ndata,mype)
     end do
     if(use_prsl_full_proc)deallocate(prsl_full)
     if(use_hgtl_full_proc)deallocate(hgtl_full)
+
+!   Broadcast aircraft new tail numbers for aircraft
+!   temperature bias correction
+!   if (aircraft_t_bc) then
+!      call mpi_barrier(mpi_comm_world,ierror)
+!      call mpi_bcast(ntail_update,1,mpi_itype,mype_airobst,mpi_comm_world,ierror)
+!      call mpi_bcast(idx_tail,max_tail,mpi_itype,mype_airobst,mpi_comm_world,ierror)
+!      call mpi_bcast(taillist,max_tail,MPI_CHARACTER,mype_airobst,mpi_comm_world,ierror)
+!   end if
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc

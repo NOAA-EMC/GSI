@@ -142,7 +142,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss
-  use aircraftinfo, only: aircraft_t_bc,ntail,taillist,idx_tail,npredt,predt,ntail_update,max_tail
+  use aircraftinfo, only: aircraft_t_bc,ntail,taillist,idx_tail,npredt,predt, &
+      ntail_update,max_tail
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -489,7 +490,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
               if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
            end if
-           print*, 'kx0=',kx0,kx
         end if
         !* for new vad wind
         if(kx==224 .and. .not.newvad) then
@@ -901,8 +901,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            idx = 0
            if (aircraftobst .and. aircraft_t_bc) then
               do j = 1,ntail_update
-!                if (rstation_id == taillist(j)) then
-                 if (c_station_id == taillist(j)) then
+                 if (c_station_id == trim(taillist(j))) then
                     idx = j
                     exit
                  end if
@@ -913,13 +912,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             At 2nd analysis, bias coefficients will be generated for this new tail number.
               if (idx == 0) then
                  ntail_update = ntail_update+1
+!                print*, c_station_id, 'idx=', idx, 'ntail_update=',ntail_update,' ntail=',ntail
                  if (ntail_update > max_tail) then
                     write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
                     write(6,*)'READ_PREPBUFR: stop program execution'
                     call stop2(339)
                  end if
                  idx_tail(ntail_update) = ntail_update
-!                taillist(ntail_update) = rstation_id
                  taillist(ntail_update) = c_station_id
                  do j = 1,npredt
                     predt(j,ntail_update) = zero
@@ -1338,7 +1337,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
                     cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
                     cdata_all(27,iout)=idx                 ! index of temperature bias
-                    print*,'read_prepbufr: pof,vvlc,idx,nc,kx0,kx=',aircraftwk(1,k),aircraftwk(2,k),idx,nc,kx0,kx
                  end if
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &

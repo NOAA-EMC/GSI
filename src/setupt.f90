@@ -42,7 +42,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
 
-  use aircraftinfo, only: npredt,predt,ntail,taillist,aircraft_t_bc,ostats_t,rstats_t
+  use aircraftinfo, only: npredt,predt,aircraft_t_bc,ostats_t,rstats_t
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
@@ -401,12 +401,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ix = data(idx,i)
      if (aircraftobst .and. aircraft_t_bc) then 
         if (ix==0) then
+!          Inflate obs error for new tail number
            dvvlc = dvvlc + data(ier,i)
         else
+!          Bias for existing tail numbers
            do j = 1, npredt
               predcoef(j) = predt(j,ix)
            end do
-           print*, 'setupt: id,ix,predt=',data(id,i),ix,(predt(j,ix),j=1,npredt)
 
 !          inflate obs error for any uninitialized tail number
            if (all(predcoef==zero)) then
@@ -697,7 +698,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 !       summation of observation number
-        if (luse(i) .and. aircraftobst .and. aircraft_t_bc) then
+        if (luse(i) .and. aircraftobst .and. aircraft_t_bc .and. ix/=0) then
            ostats_t(ix)  = ostats_t(ix) + one
            do j=1,npredt
               rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &

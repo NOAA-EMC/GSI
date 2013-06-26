@@ -278,9 +278,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 !    Include contributions from bias correction terms
      if (.not. ladtest_obs .and. aircraft_t_bc .and. tptr%idx>0) then
         ix=(tptr%idx-1)*npredt
-        print*, 'npredt=', npredt, ' idx=',tptr%idx, 'ix+n=',ix+n
         do n=1,npredt
-           print*, 'pred=', tptr%pred(n)
            val=val+spred(ix+n)*tptr%pred(n)
         end do
      end if
