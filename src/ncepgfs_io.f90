@@ -2432,7 +2432,8 @@ end subroutine write_ghg_grid
          do j=1,latb
             do i=1,lonb
               if ( nint(data_sfc%slmsk(i,j)) == 0) then
-                data_sfc%tsea(i,j) = max(data_nst%tref(i,j)+buffer2(i,j)+two*data_nst%xt(i,j)/data_nst%xz(i,j)-data_nst%dt_cool(i,j),271.0_r_kind)
+                data_sfc%tsea(i,j) = max(data_nst%tref(i,j)+buffer2(i,j)+& 
+                     two*data_nst%xt(i,j)/data_nst%xz(i,j)-data_nst%dt_cool(i,j),271.0_r_kind)
               endif
             end do
          end do
