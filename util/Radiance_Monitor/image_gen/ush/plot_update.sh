@@ -21,15 +21,6 @@ cd $tmpdir
 
 
 #------------------------------------------------------------------
-# Store the processing date
-#------------------------------------------------------------------
-   rc=`${SCRIPTS}/update_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate ${PDATE}`
-   echo rc = $rc
-   if [[ $rc != 0 ]]; then
-      echo "ERROR:  Update to $DATA_MAP, $SUFFIX, imgdate with $PDATE failed"
-   fi 
-
-#------------------------------------------------------------------
 #  Archive yesterday's files to hpss 
 #
 #  Do this after the 06 cycle; don't want to lengthen the 00 

@@ -70,7 +70,7 @@ fi
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
 #--------------------------------------------------------------------
-# Load necessary configuration parmeters from data_map file. 
+# Source necessary configuration files
 #--------------------------------------------------------------------
 data="ges"
 
