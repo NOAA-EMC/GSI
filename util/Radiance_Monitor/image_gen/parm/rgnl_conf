@@ -12,13 +12,14 @@
 #
 # rename WEBDIR for this SUFFIX
 #
-export WEBDIR=${WEBDIR}/regional/${SUFFIX}/pngs
+export WEBDIR=${WEBDIR}/regional/${SUFFIX}
 
 
 #
 # internal package reference   
 #
-export IMGNDIR=${MY_TANKDIR}/imgn/regional/${SUFFIX}
+export TOP_IMGNDIR=${MY_TANKDIR}/imgn/regional/${SUFFIX}
+export IMGNDIR=${MY_TANKDIR}/imgn/regional/${SUFFIX}/pngs
 export TANKDIR=${MY_TANKDIR}/stats/regional/${SUFFIX}
 
 
@@ -27,4 +28,9 @@ export TANKDIR=${MY_TANKDIR}/stats/regional/${SUFFIX}
 #
 export PLOT_ANGLE_COUNT=plot_angle_count.rgn.gs
 export PLOT_ANGLE_SEP=plot_angle_sep.rgn.gs
+
+#
+#  Empty out PLOT_ALL_REGIONS flag
+#
+export PLOT_ALL_REGIONS=""
 

@@ -7,7 +7,7 @@ program angle
 
   character(10),dimension(ntype):: ftype
   character(8) stid
-  character(20) satname,stringd
+  character(20) satname,stringd,dfile
   character(10) satype,dplat
   character(20) dum,satsis,satscan_sis
   character(40) string,diag_rad,data_file,ctl_file
@@ -37,12 +37,12 @@ program angle
 
 
 ! Variables for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list ),pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
 ! Namelist with defaults
   logical               :: retrieval            = .false.
@@ -50,8 +50,9 @@ program angle
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag,iscan / 5, 51, 52, 21, 31 /
   data lunang / 22 /
@@ -77,15 +78,31 @@ program angle
   write(6,input)
   write(6,*)' '
   write(6,*)' suffix = ', suffix
+  write(6,*)'gesanl = ', gesanl
+  write(6,*)' '
+
+  if ( trim(gesanl) == 'anl' ) then
+     ftype(4)  = 'omanbc'
+     ftype(6)  = 'omabc'
+     ftype(13) = 'omanbc_2'
+     ftype(15) = 'omabc_2'
+  endif
 
 
 
 ! Create filenames for diagnostic input, binary output file
   write(stringd,100) iyy,imm,idd,ihh
 100 format('.',i4.4,3i2.2)
-  diag_rad = trim(satname)
-  data_file= trim(satname) // trim(stringd) // '.ieee_d'
-  ctl_file = trim(satname) // '.ctl'
+
+  if ( trim(gesanl) == 'ges' ) then
+     diag_rad = trim(satname)
+     data_file= trim(satname) // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '.ctl'
+  else
+     diag_rad = trim(satname) // '_anl'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '_anl.ctl'
+  endif
 
   write(6,*)'diag_rad =',diag_rad
   write(6,*)'data_file=',data_file
@@ -120,11 +137,11 @@ program angle
      call errexit(92)
   endif
 
-  if ( jiter /=1) then
-   write(6,*)  '***ERROR***  not the guess vs. satellite radiance'
-   write(6,*) 'outloop no. ',jiter
-   call errexit(92)
-  endif
+!  if ( jiter /=1) then
+!   write(6,*)  '***ERROR***  not the guess vs. satellite radiance'
+!   write(6,*) 'outloop no. ',jiter
+!   call errexit(92)
+!  endif
     
 !  open scan info file compiled in the source directory
 
@@ -283,9 +300,16 @@ program angle
 ! Create control file
   if ( imkctl == 1 ) then
      write(6,*)'call create_ctl_angle'
+
+     if ( trim(gesanl) == 'ges' ) then
+        dfile = trim(satname)
+     else
+        dfile = trim(satname) // '_anl'
+     endif
+
      call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
-          ctl_file,lunctl,rmiss,satname,satype,dplat,1,&
-          nu_chan,use,error,frequency,wavenumbr,nstep,start,step)
+          ctl_file,lunctl,rmiss,dfile,satype,dplat,1,nu_chan,&
+          use,error,frequency,wavenumbr,nstep,start,step,little_endian)
   endif
 
 

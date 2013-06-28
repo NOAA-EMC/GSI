@@ -13,7 +13,9 @@
 #
 #  If the xml element associated with the suffix does not have the
 #  requested field defined, then the default_global or 
-#  default_regional element's corresponding field will be used.
+#  default_regional element's corresponding field will be used.  The
+#  default is default_global, but if the suffix contains an area of
+#  "rgn" then the regional_default element will be used.
 #
 #  The contents of that field are echoed to stdout for the calling
 #  script to access.  If the field is empty or missing nothing
@@ -21,41 +23,51 @@
 #  been returned before use.
 #
 #-------------------------------------------------------------------
-    use Data::Dumper;
-    use IO::File;
+    use strict;
+    use warnings;
+    use XML::LibXML;
 
-    require XML::Simple;
-    my $xs = XML::Simple->new;
+    if( $#ARGV < 2 ) { 
+       exit
+    }
 
-    my $dmfile = @ARGV[0];
-    my $source = @ARGV[1];
-    my $field  = @ARGV[2];
+    my $dmfile = $ARGV[0];
+    my $source = $ARGV[1];
+    my $field  = $ARGV[2];
+    my $default="global_default";
+    use XML::LibXML;
 
-    $fh = IO::File->new( $dmfile );
-    $config = $xs->XMLin($fh, KeyAttr => {source => name} );
-#    print Dumper( $config->{$source} );
+    my $parser = XML::LibXML->new();
+    my $doc    = $parser->parse_file($dmfile);
 
-#   Print the contents of the field if it's found.
-#   Note that the hash tree gets a little confused with "" 
-#   contents of elements and returns "HASH[number]" instead
-#   of "" if the element exists but has no contents.  Catch
-#   that condition with the =~ m/HASH/ check
-#
-#   If the element is not found then get the default element
-#   and output it's value for the requested field.
+#   Print the contents of the field if it's found in source.
+#   If the field is not found in source then use the default element
+#   and output it's value for the requested field.  
 
-    if( ! exists( $config->{$source}->{$field} )) {
-       if( $config->{$source}->{ 'area' } eq "glb" ) {
-          $source = "global_default";
+    my @srcs = $doc->findnodes("/opt/$source");
+    if( @srcs <= 0 ) {
+       @srcs = $doc->findnodes("/opt/$default");
+    }
+
+    if ( @srcs > 0 ) {
+
+       my $src = $srcs[0];
+       my($answer) = $src->findnodes("./$field");
+       my($area) = $src->findnodes("./area");
+       my $src_area = $area->to_literal;
+
+       if( $answer ) {
+          print $answer->to_literal;
        }
        else {
-          $source = "regional_default";
+          if( $src_area eq "rgn" ) {
+             $default = "regional_default";
+          }
+          my($def_src) = $src->findnodes("/opt/$default");
+          my($def_answer) = $def_src->findnodes("./$field");
+          if( $def_answer ) {
+             print $def_answer->to_literal;
+          }
        }
     }
-
-    if( $config->{$source}->{$field} =~ m/HASH/ ) {
-       print "";
-    }
-    else {
-       print "$config->{$source}->{$field}";
-    }
+    

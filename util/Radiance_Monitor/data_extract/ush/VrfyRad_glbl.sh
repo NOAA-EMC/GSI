@@ -10,19 +10,24 @@
 #  JGDAS_VRFYRAD.sms.prod job, which performs the data extraction 
 #  and validation checks. 
 #--------------------------------------------------------------------
-
-function usage {
-  echo "Usage:  VrfyRad_glbl.sh suffix run_envir"
-  echo "            File name for VrfyRad_glbl.sh may be full or relative path"
-  echo "            Suffix is the indentifier for this data source."
-  echo "            The run_envir may be dev, para, or prod." 
-}
-
 set -ax
 echo start VrfyRad_glbl.sh
 
+
+#--------------------------------------------------------------------
+#  usage
+#--------------------------------------------------------------------
+function usage {
+  echo "Usage:  VrfyRad_glbl.sh suffix [pdate]"
+  echo "            Suffix is the indentifier for this data source."
+  echo "            Pdate is the full YYYYMMDDHH cycle to run.  This param is optional"
+}
+
+#--------------------------------------------------------------------
+#  VrfyRad_glbl.sh begins here
+#--------------------------------------------------------------------
 nargs=$#
-if [[ $nargs -ne 2 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 3 ]]; then
    usage
    exit 1
 fi
@@ -30,20 +35,37 @@ fi
 this_file=`basename $0`
 this_dir=`dirname $0`
 
+#--------------------------------------------------------------------
+#  Eventually remove RUN_ENVIR argument but allow for it to possibly be
+#  present as $2 to ensure backward compatibility.
+#  
+#  if $COMOUT is defined then assume we're in a parallel.
+#--------------------------------------------------------------------
 export SUFFIX=$1
-export RUN_ENVIR=$2
+export RUN_ENVIR=""
+
+if [[ $nargs -ge 2 ]]; then
+   if [[ $2 = "dev" || $2 = "para" ]]; then
+      export RUN_ENVIR=$2;
+   else 
+      export PDATE=$2;
+   fi
+
+   if [[ $nargs -eq 3 ]]; then
+      export PDATE=$3;
+   fi
+fi
+
+if [[ $RUN_ENVIR = "" ]]; then
+  export RUN_ENVIR="para"
+  if [[ $COMOUT = "" ]]; then
+     export RUN_ENVIR="dev"
+  fi
+fi
 
 echo SUFFIX = $SUFFIX
 echo RUN_ENVIR = $RUN_ENVIR
 
-if [[ $RUN_ENVIR != "dev" && $RUN_ENVIR != "prod" && $RUN_ENVIR != "para" ]]; then
-  echo  ${RUN_ENVIR} does not match dev, para, or prod.
-  echo
-  usage
-  exit 1
-fi
-
-jobname=data_extract_${SUFFIX}
 
 #--------------------------------------------------------------------
 # Set environment variables
@@ -61,11 +83,11 @@ top_parm=${this_dir}/../../parm
 
 if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
+   . ${top_parm}/RadMon_user_settings
 else
    echo "Unable to source RadMon_config file in ${top_parm}"
    exit 2
 fi
-
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/glbl_conf
@@ -74,6 +96,7 @@ fi
 mkdir -p $TANKDIR
 mkdir -p $LOGDIR
 
+jobname=${DATA_EXTRACT_JOBNAME}
 
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Are any earlier verf jobs still 
@@ -83,16 +106,19 @@ mkdir -p $LOGDIR
 #--------------------------------------------------------------------
 
 if [[ $RUN_ENVIR = dev ]]; then
-   count=`ls ${LOADLQ}/${jobname}* | wc -l`
-   complete=`grep "COMPLETED" ${LOADLQ}/${jobname}* | wc -l`
+   if [[ $MY_MACHINE = "ccs" ]]; then
 
-   total=`expr $count - $complete`
+      total=`llq -u ${LOGNAME} -f %jn | grep ${jobname} | wc -l`
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      total=`bjobs -l | grep ${jobname} | wc -l`
+   elif [[ $MY_MACHINE = "zeus" ]]; then
+      total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
+   fi
 
    if [[ $total -gt 0 ]]; then
       exit 3
-   else
-      rm -f ${LOADLQ}/${jobname}*
    fi
+
 fi
 
 
@@ -103,32 +129,24 @@ fi
 #------------------------------------------------------------------
 if [[ $RUN_ENVIR = dev ]]; then
 
-   #--------------------------------------------------------------------
-   # Get and export settings for $SUFFIX.
-   #--------------------------------------------------------------------
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
-
    #---------------------------------------------------------------
    # Get date of cycle to process.
    #---------------------------------------------------------------
-   pdate=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-
-   qdate=`${NDATE} +06 $pdate`
-   export PDATE=${qdate}
+   if [[ $PDATE = "" ]]; then
+      pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+      if [[ ${#pdate} -ne 10 ]]; then
+         echo "ERROR:  Unable to locate any previous cycle's data files"
+         echo "        Please re-run this script with a specified starting cycle as the last argument"
+         exit 4
+      fi
+      qdate=`${NDATE} +06 $pdate`
+      export PDATE=${qdate}
+   fi
 
    export PDY=`echo $PDATE|cut -c1-8`
    export CYC=`echo $PDATE|cut -c9-10`
- 
-   export DATDIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+
+   export DATDIR=${RADSTAT_LOCATION}
 
    #---------------------------------------------------------------
    # Locate required files.             
@@ -147,17 +165,6 @@ if [[ $RUN_ENVIR = dev ]]; then
 
 elif [[ $RUN_ENVIR = para ]]; then
 
-   export USER_CLASS=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACOUNT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
-   export USE_STATIC_SATYPE=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USE_ANL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_anl`
-   export DO_DIAG_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_diag_rpt`
-   export DO_DATA_RPT=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} do_data_rpt`
-   export RUN_ENVIR=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} run_envir`
-   export USE_MAIL=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} use_mail`
-   export MAIL_TO=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_to`
-   export MAIL_CC=`${USHverf_rad}/query_data_map.pl ${DATA_MAP} ${SUFFIX} mail_cc`
-
    #---------------------------------------------------------------
    # Locate required files.             
    #---------------------------------------------------------------
@@ -175,19 +182,8 @@ elif [[ $RUN_ENVIR = para ]]; then
    echo radstat = $radstat
 
 else
-   export DATDIR=$COMOUT 
-   export PDATE=$CDATE
-   export PDY=`echo $PDATE|cut -c1-8`
-   export CYC=`echo $PDATE|cut -c9-10`
-
-   export biascr=$DATDIR/biascr.gdas.${CDATE}  
-   export satang=$DATDIR/satang.gdas.${CDATE}
-   export radstat=$DATDIR/radstat.gdas.${CDATE}
-
-   echo biascr  = $biascr
-   echo satang  = $satang
-   echo radstat = $radstat
-
+   echo "error RUN_ENVIR = $RUN_ENVIR, not dev or para"
+   exit 2
 fi
 
 
@@ -197,7 +193,7 @@ fi
 #--------------------------------------------------------------------
 data_available=0
 
-if [[ -s ${radstat} ]]; then
+if [[ -e ${radstat} ]]; then
    data_available=1                                         
 
    export MP_SHARED_MEMORY=yes
@@ -208,33 +204,49 @@ if [[ -s ${radstat} ]]; then
    export job=gdas_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-/stmp/$LOGNAME/radmon}
+   export DATA=${DATA:-$STMP/$LOGNAME/radmon}
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
    export TANKverf=${MY_TANKDIR}/stats/${SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
-   export satype_file=${TANKverf}/info/SATYPE.txt
+  
+
+   if [[ $CYC = "00" ]]; then
+      mkdir -p ${TANKverf}/radmon.${PDY}
+      prev_day=`${NDATE} -06 $PDATE | cut -c1-8`
+      cp ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
+   fi
+
    if [[ -s ${TANKverf}/info/radmon_base.tar.Z || -s ${TANKverf}/info/radmon_base.tar ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar 
    fi
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,listvar
+   export JOBNAME=${jobname}
+
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NDATE,DO_DIAG_RPT,DO_DATA_RPT,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   if [[ $MY_MACHINE = "ccs" ]]; then
+      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:10:00 -o $LOGDIR/data_extract.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
-   rc=`${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-   if [[ $rc != 0 ]]; then
-      echo "ERROR:  Attempt to update $DATA_MAP $PDATE failed"
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -a $ACCOUNT -q dev -o $LOGDIR/data_extract.${PDY}.${cyc}.log -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+
+   elif [[ $MY_MACHINE = "zeus" ]]; then
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
-
+  
 fi
 
 #--------------------------------------------------------------------
 # Clean up and exit
 #--------------------------------------------------------------------
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
+
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    exit_value=5
@@ -242,5 +254,7 @@ if [[ ${data_available} -ne 1 ]]; then
 fi
 
 echo end VrfyRad_glbl.sh
+
+
 exit ${exit_value}
 

@@ -8,9 +8,3 @@
 
 export TANKDIR=${TANKverf_rad}/${SUFFIX}
 
-export PTMP_USER=/ptmp/${LOGIN}
-export STMP_USER=/stmp/${LOGIN}
-
-
-
-

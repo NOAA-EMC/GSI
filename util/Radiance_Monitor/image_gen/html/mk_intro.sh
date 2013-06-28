@@ -133,9 +133,9 @@ quote='"'
 #  Read the SORTED_LIST and construct the table elements.
 #
 while read line; do
-   sat=`echo $line | nawk '{print $1}'`
-   ins=`echo $line | nawk '{print $2}'`
-   satype=`echo $line | nawk '{print $3}'`
+   sat=`echo $line | gawk '{print $1}'`
+   ins=`echo $line | gawk '{print $2}'`
+   satype=`echo $line | gawk '{print $3}'`
 
    ctr=`expr $ctr + 1`
    echo ctr, row_end = $ctr, $row_end			# load table data info
