@@ -1,7 +1,7 @@
 subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
      incr,ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
      region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use,error,&
-     frequency,wavenumbr)
+     frequency,wavenumbr,little_endian)
 
   implicit none
 
@@ -20,7 +20,7 @@ subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
   character(40),dimension(nregion):: region
   character(80),dimension(nregion):: stringr
 
-  integer idsat,nregion,iuse
+  integer idsat,nregion,iuse,little_endian
   integer lunctl,iyy,imm,idd,ihh,j,i,n_chan,idhh,incr
   integer iyy2,imm2,idd2,ihh2,ntime
   integer,dimension(8):: ida,jda
@@ -92,7 +92,11 @@ subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 ! Write header information
   grad_file = trim(satname) // stringd // '.ieee_d'
   write(lunctl,100) grad_file
-  write(lunctl,110) 
+  if ( little_endian == 1 ) then
+     write(lunctl,112) 
+  else
+     write(lunctl,110) 
+  endif
   write(lunctl,120) rmiss
   write(lunctl,130) adjustl(satype),dplat,n_chan
   write(lunctl,132)
@@ -115,6 +119,7 @@ subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 
 100 format('dset ^',a40)
 110 format('options template big_endian cray_32bit_ieee sequential')
+112 format('options template little_endian sequential')
 120 format('undef ',f5.0)
 130 format('title ',a10,1x,a10,1x,i4)
 132 format('*XDEF is channel number')

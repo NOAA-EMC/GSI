@@ -41,12 +41,12 @@ program angle
   real,allocatable,dimension(:,:,:,:):: const_cor,scangl_cor,clw_cor 
 
 ! Variables for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list) ,pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
 
   integer       nsnow, nland, nwater, nice, nmixed, ntotal
   integer       nnsnow, nnland, nnwater, nnmixed, nntotal
@@ -57,8 +57,9 @@ program angle
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag,iscan / 5, 51, 52, 21, 31 /
   data lunang / 22 /
@@ -116,7 +117,7 @@ program angle
      ctl_file = trim(satname) // '.ctl'
   else 
      diag_rad = trim(satname) // '_anl'
-     data_file= trim(satname) // trim(stringd) // '_anl.ieee_d'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
      ctl_file = trim(satname) // '_anl.ctl'
   endif
 
@@ -127,6 +128,7 @@ program angle
   write(6,*)'ctl_file =',ctl_file
   write(6,*)'imkctl    =',imkctl
   write(6,*)'imkdata   =',imkdata
+  write(6,*)'little_endian =', little_endian
 
 
 ! Open unit to diagnostic file.  Read portion of 
@@ -179,12 +181,14 @@ program angle
    open(iscan,file='scaninfo.txt',form='formatted')
   do 
    read(iscan,1000,IOSTAT=iflag) cflg,satscan_sis,start,step,nstep
+   write(6,*) 'satscan_sis,start,step,nstep=',satscan_sis,start,step,nstep
    if( iflag /= 0 ) exit
    if(trim(satname) == trim(satscan_sis)) exit
   enddo
-1000 format(a1,a20,2f10.2,i10)
+!1000 format(a1,a20,2f10.2,i10)
+1000 format(a1,a20,2f10.3,i10)
 
-  write(6,*) satscan_sis,start,step,nstep
+  write(6,*) 'satscan_sis,start,step,nstep=',satscan_sis,start,step,nstep
 
 
 ! Allocate arrays to hold observational information
@@ -384,7 +388,7 @@ program angle
   open(lunang,file='satang.txt',form='formatted')
   call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
   close(lunang)
-  write(6,*)'read satang.txt'
+  write(6,*)'read satang.txt, nstep, '
 
   ! Create Control file
   if ( imkctl == 1 ) then
@@ -398,7 +402,7 @@ program angle
      call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
        ctl_file,lunctl,rmiss,dfile,satype,dplat,surf_nregion,&
        surf_region,surf_rlonmin,surf_rlonmax,surf_rlatmin,surf_rlatmax,&
-       nu_chan,use, error, frequency,wavenumbr,nstep,start,step)
+       nu_chan,use, error, frequency,wavenumbr,nstep,start,step, little_endian)
   else
      write(6,*) 'imkctl =',imkctl
   endif

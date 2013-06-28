@@ -105,7 +105,7 @@ for type in ${SATYPE}; do
       if [[ "$VERBOSE" = "YES" ]]; then
          echo  stdout.${type}
       fi
-      match=`nawk "/$error_msg/" stdout.$type`
+      match=`gawk "/$error_msg/" stdout.$type`
 
       match_len=`echo ${#match}`
       if [[ $match_len > 0 ]]; then

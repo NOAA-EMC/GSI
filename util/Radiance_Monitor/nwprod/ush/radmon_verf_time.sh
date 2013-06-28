@@ -64,6 +64,8 @@
 #			defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag for little endian machine
+#                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -146,8 +148,9 @@ SATYPE=${SATYPE:-}
 MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 time_exec=radmon_time.${RAD_AREA}
-gesanl=ges
+USE_ANL=${USE_ANL:-0}
 err=0 
 
 if [[ "$VERBOSE" = "YES" ]]; then
@@ -159,6 +162,12 @@ fi
 #  Preprocessing
 $INISCRIPT
 $LOGSCRIPT
+
+if [[ $USE_ANL -eq 1 ]]; then
+   gesanl="ges anl"
+else
+   gesanl="ges"
+fi
 
 iyy=`echo $PDATE | cut -c1-4`
 imm=`echo $PDATE | cut -c5-6`
@@ -177,7 +186,9 @@ fi
 
 if [[ $DO_DATA_RPT -eq 1 ]]; then
    $NCP ${base_file}* ./
-   uncompress ${base_file}.Z
+   if [[ -e ${base_file}.${Z} ]]; then
+      ${UNCOMPRESS} ${base_file}.${Z}
+   fi
    tar -xf ${base_file}
    if [[ ! -s ${base_file} ]]; then
       err=9
@@ -197,13 +208,21 @@ if [[ $err -eq 0 ]]; then
       for dtype in ${gesanl}; do
          rm input
 
-         data_file=${type}.${PDATE}.ieee_d
-         time_file=time.${data_file}
-         ctl_file=${type}.ctl
-         time_ctl=time.${ctl_file}
-         stdout_file=stdout.${type}
-         time_stdout=time.${stdout_file}
-
+         if [[ $dtype == "anl" ]]; then
+            data_file=${type}_anl.${PDATE}.ieee_d
+            time_file=time.${data_file}
+            ctl_file=${type}_anl.ctl
+            time_ctl=time.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            time_stdout=time.${stdout_file}
+         else
+            data_file=${type}.${PDATE}.ieee_d
+            time_file=time.${data_file}
+            ctl_file=${type}.ctl
+            time_ctl=time.${ctl_file}
+            stdout_file=stdout.${type}
+            time_stdout=time.${stdout_file}
+         fi
 #--------------------------------------------------------------------
 #   Run program for given satellite/instrument
 #--------------------------------------------------------------------
@@ -222,9 +241,10 @@ cat << EOF > input
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-        timex ./${time_exec} < input >   ${stdout_file}
+        $TIMEX ./${time_exec} < input >   ${stdout_file}
         if [[ $? -ne 0 ]]; then
             fail=`expr $fail + 1`
         fi
@@ -236,19 +256,19 @@ EOF
          if [[ -s ${data_file} ]]; then
             mv ${data_file} ${time_file}
             mv ${time_file} $TANKverf_rad/.
-            compress -f $TANKverf_rad/${time_file}
+            ${COMPRESS} -f $TANKverf_rad/${time_file}
          fi
 
          if [[ -s ${ctl_file} ]]; then
             $NCP ${ctl_file} ${time_ctl}
             mv ${time_ctl}  ${TANKverf_rad}/.
-            compress -f ${TANKverf_rad}/${time_ctl}
+            ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
          fi
 
          if [[ -s ${stdout_file} ]]; then
             $NCP ${stdout_file} ${time_stdout}
             mv ${time_stdout}  ${TANKverf_rad}/.
-            compress -f ${TANKverf_rad}/${time_stdout}
+            ${COMPRESS} -f ${TANKverf_rad}/${time_stdout}
          fi
 
       done
@@ -350,7 +370,7 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    bad_pen=bad_pen.${PDATE}
    bad_chan=bad_chan.${PDATE}
 
-   qdate=`ndate -06 $PDATE`
+   qdate=`$NDATE -06 $PDATE`
    pday=`echo $qdate | cut -c1-8`
    
    prev_bad_pen=bad_pen.${qdate}

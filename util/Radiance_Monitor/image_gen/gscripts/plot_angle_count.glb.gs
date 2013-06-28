@@ -10,10 +10,15 @@ function plotangle (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+plot_all_regions=subwrd(args,3)
+sub_avg=subwrd(args,4)
+xsize=subwrd(args,5)
+ysize=subwrd(args,6)
+
 platform=plotfile
 
+say 'sub_avg          = 'sub_avg
+say 'plot_all_Regions = 'plot_all_regions
 say 'process 'field' from 'plotfile
 
 debug=0
@@ -37,6 +42,10 @@ satnum=subwrd(lin1,5)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
 nregion=subwrd(lin5,9)
+if (plot_all_regions = 0)
+   nregion=1
+endif
+
 '!rm -f xsize.txt'
 '!cat 'plotfile'.ctl |grep "xdef" > xsize.txt'
 result=read(xsize.txt)
@@ -58,7 +67,7 @@ say 'nregion='nregion
 *
 * Set time
 *
-'set t last'
+'set t 1 last'
 'query time'
 date1=subwrd(result,3)
 date2=subwrd(result,5)
@@ -66,14 +75,35 @@ date2=subwrd(result,5)
 say 'date1='date1
 say 'date2='date2
 
+*'set t last'
+*'query time'
+*date1=subwrd(result,3)
+*date2=subwrd(result,5)
+
+say 'date1='date1
+say 'date2='date2
+
 'q dims'
 lin5=sublin(result,5)
-tlast=subwrd(lin5,9)
+tfirst=subwrd(lin5,11)
+tlast=subwrd(lin5,13)
 t1day=tlast-3
 t7days=tlast-27
-t30days=tlast-119
+*t30days=tlast-119
+t30days=1
 say 'tlast,t1day,t7days,t30days='tlast' 't1day' 't7days' 't30days
 
+*
+*  Determine number of days in plot (4 cycles per day)
+*
+rslt=tlast-tfirst
+if (rslt > 4)
+  mrslt=math_mod(rslt, 4)
+  ndays=(rslt-mrslt)/4
+else
+  ndays=1
+endif
+say 'rslt,mrslt,ndays = 'rslt' 'mrslt' 'ndays
 
 *
 * For count some sat/instruments have zero counts at the beginning and/or
@@ -99,7 +129,7 @@ while (it<=new_xe & done=0)
    avgvar=subwrd(rec11,2)
    say ' it, avgvar = 'it', 'avgvar
 
-   if (avgvar > 0.0 )
+   if (avgvar > 0.0)
       done = 1
    else
       it=it+1
@@ -118,7 +148,7 @@ while (it>=new_xs & done=0)
    rec11=sublin(result,11)
    avgvar=subwrd(rec11,2)
    say ' it, avgvar = 'it', 'avgvar
-   if (avgvar > 0.0 )
+   if (avgvar > 0.0)
       done=1
    else
       it=it-1
@@ -165,6 +195,21 @@ result=close(area.txt)
 'set xlopts 1 4 0.12'
 'set ylopts 1 4 0.13'
 
+if (field = "count")
+   if (sub_avg=1)
+      'define avg1=ave(rcount,t='t1day',t='tlast')'
+      'define avg2=ave(rcount,t='t7days',t='tlast')'
+   endif
+   'define avg3=ave(rcount,t='t30days',t='tlast')'
+endif
+if (field = "penalty")
+   if (sub_avg=1)
+      'define avg1=ave(penalty/rcount,t='t1day',t='tlast')'
+      'define avg2=ave(penalty/rcount,t='t7days',t='tlast')'
+   endif
+   'define avg3=ave(penalty/rcount,t='t30days',t='tlast')'
+endif
+
 fr=0
 i=1
 chn=1
@@ -172,35 +217,24 @@ nt=3
 while (chn<=nchan)
    say 'top of channel loop with chn='chn
    'set y 'chn
+
    if (field = "count")
-
-      'define avg1=ave(rcount,t='t1day',t='tlast')'
-      'define avg2=ave(rcount,t='t7days',t='tlast')'
-      'define avg3=ave(rcount,t='t30days',t='tlast')'
-
       'set t 't30days' 'tlast
       'set gxout stat'
       'd avg3'
 
       rec14=sublin(result,14)
       avgsdv=subwrd(rec14,2)
-      'define sdv3='field'(t=3)'
       'set gxout line'
       'set t 'tlast
    endif
 
    if (field = "penalty")
-
-      'define avg1=ave(penalty/rcount,t='t1day',t='tlast')'
-      'define avg2=ave(penalty/rcount,t='t7days',t='tlast')'
-      'define avg3=ave(penalty/rcount,t='t30days',t='tlast')'
-
       'set t 't30days' 'tlast
       'set gxout stat'
       'd avg3'
       rec14=sublin(result,14)
       avgsdv=subwrd(rec14,2)
-      'define sdv3='field'(t=3)'
       'set gxout line'
       'set t 'tlast
    endif
@@ -226,8 +260,15 @@ while (chn<=nchan)
    maxsdv0=-9999
 
    'set gxout stat'
-   it=1
+*   say ' sub_avg = 'sub_avg
+   if (sub_avg=0)
+      it=3
+   else
+      it=1
+   endif
+*   say ' before while it<=nt, it = 'it
    while (it<=nt)
+*      say ' it = 'it
       'd avg'it
       rec7=sublin(result,7)
       rec8=sublin(result,8)
@@ -292,21 +333,22 @@ while (chn<=nchan)
    'draw string 0.1 'y1+1.8' `3l`0 'wavelength' `3m`0m'
    if (field != "count" & field != "penalty")
       'set string 4 l 6'
-      'draw string 0.1 'y1+1.5' 30d avg: 'digs(avgvar,2)
+      'draw string 0.1 'y1+1.5' 'ndays'd avg: 'digs(avgvar,2)
       'set string 2 l 6'
-      'draw string 0.1 'y1+1.3' 30d sdv: 'digs(avgsdv,2)
+      'draw string 0.1 'y1+1.3' 'ndays'd sdv: 'digs(avgsdv,2)
    endif
    if (field = "count")
       'set string 4 l 6'
-      'draw string 0.1 'y1+1.5' 30d avg: 'digs(avgvar,1)
+*      'draw string 0.1 'y1+1.5' 30d avg: 'digs(avgvar,1)
+      'draw string 0.1 'y1+1.5' 'ndays'd avg: 'digs(avgvar,1)
       'set string 2 l 6'
-      'draw string 0.1 'y1+1.3' 30d sdv: 'digs(avgsdv,1)
+      'draw string 0.1 'y1+1.3' 'ndays'd sdv: 'digs(avgsdv,1)
    endif
    if (field = "penalty")
       'set string 4 l 6'
-      'draw string 0.1 'y1+1.5' 30d avg: 'digs(avgvar,2)
+      'draw string 0.1 'y1+1.5' 'ndays'd avg: 'digs(avgvar,2)
       'set string 2 l 6'
-      'draw string 0.1 'y1+1.3' 30d sdv: 'digs(avgsdv,2)
+      'draw string 0.1 'y1+1.3' 'ndays'd sdv: 'digs(avgsdv,2)
    endif
 
    if (iuse<=0) 
@@ -343,11 +385,13 @@ while (chn<=nchan)
    'set cmark 0'
    'set cstyle 1'
    'set ccolor 7'
-   'd avg1'
-   'set cmark 0'
-   'set cstyle 1'
-   'set ccolor 3'
-   'd avg2'
+   if (sub_avg=1)
+      'd avg1'
+      'set cmark 0'
+      'set cstyle 1'
+      'set ccolor 3'
+      'd avg2'
+   endif
    'set cmark 0'
    'set cstyle 1'
    'set ccolor 4'
@@ -366,12 +410,15 @@ while (chn<=nchan)
       'draw string 0.2 10.80 platform:  'plotfile
       'draw string 0.2 10.55 region  :  'area
       'draw string 0.2 10.30 variable:  'type
-      'draw string 0.2 10.05 valid   :  'date1
+      'draw string 0.2 10.05 valid   :  'date1' - 'date2
       'set strsiz 0.12 0.12'
       'set string 7 r 6'
-      'draw string 8.3 10.80 yellow: 1d'
-      'set string 3 r 6'
-      'draw string 8.3 10.60 green: 7d'
+      if (sub_avg=1)
+         'draw string 8.3 10.80 yellow: 1d'
+         'set string 3 r 6'
+         'draw string 8.3 10.60 green: 7d'
+      endif
+
       if (field = "omgnbc" | field = "total" | field = "omgbc")
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
@@ -395,7 +442,7 @@ while (chn<=nchan)
 
       if (field = "count" | field = "penalty")
          'set string 4 r 6'
-         'draw string 8.42 10.4 blue: 30d '
+         'draw string 8.42 10.4 blue: 'ndays'd '
       endif
       if (field = "omgnbc")
          'set string 1 r 6'

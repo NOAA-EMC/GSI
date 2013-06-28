@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-  MY_RADMON=/global/save/${USER}/GSI/util/Radiance_Monitor
+export MY_RADMON=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/Radmon_265/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,48 +24,108 @@
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-  export MY_TANKDIR=/u/${USER}/nbns
+export MY_TANKDIR=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/nbns
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-  export WEB_SVR=rzdm
-  export WEB_USER=my_account_on_server
-  export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/${WEB_USER}
+export WEB_SVR=emcrzdm
+export WEB_USER=esafford
+export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford
 
 
 ###############################################################################
 ###############################################################################
+#                                                                             #
 #  The definitions below are for internal reference and shouldn't need to be  #
-#  edited, unless you wish to put the log or work files somewhere other than  #
-#  ptmp and stmp.                                                             #
+#  edited, once they are set up by the RadMon_install.sh script.              #
+#                                                                             #
 ###############################################################################
 ###############################################################################
+
+export MY_MACHINE=zeus
+export LITTLE_ENDIAN=1
+echo endian = $LITTLE_ENDIAN
+
 
 #
 #  Log and work space definitions
 #
-  export LOGSverf_rad=/ptmp/$LOGNAME/logs    
-  export WORKverf_rad=/stmp/$LOGNAME         
-  export LOADLQ=/stmp/loadlq/$LOGNAME
+export PTMP=/scratch2/portfolios/NCEPDEV/ptmp
+export STMP=/scratch2/portfolios/NCEPDEV/stmp
+  
+export LOGSverf_rad=$PTMP/$LOGNAME/logs    
+export WORKverf_rad=$STMP/$LOGNAME         
+
+
+#
+#  Job queue check definition
+#
+if [[ $MY_MACHINE = "ccs" ]]; then
+  export LOADLQ=$STMP/loadlq/$LOGNAME
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+  export CHECKQ="bjobs"
+else
+  export CHECKQ="showq -u $LOGNAME"
+fi
+
 
 #
 #  Definitions for internal reference
 #
-  export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
-  export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
-  export RADMON_PARM=${MY_RADMON}/parm
-  export DATA_MAP=${RADMON_PARM}/data_map.xml
-  export HOMEgfs=${MY_RADMON}/nwprod
+export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
+export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
+export RADMON_PARM=${MY_RADMON}/parm
+export DATA_MAP=${RADMON_PARM}/data_map.xml
+export HOMEgfs=${MY_RADMON}/nwprod
+
+
 #
 #  Utilities used by the RadMon package
 #
-  export NCP=/bin/cp                          
-  export UTILS_BIN=/u/wx20mi/bin             
-  export LLQ=${UTILS_BIN}/llq2		    
-  export SUB=${UTILS_BIN}/sub              
-  export NDATE=/nwprod/util/exec/ndate    
+export NCP=/bin/cp 
 
-  echo "end RadMon_config"
+if [[ $MY_MACHINE = "ccs" ]]; then
+   export UTILS_BIN=/u/wx20mi/bin             
+   export SUB=${UTILS_BIN}/sub              
+   export NCP="/bin/cp -f"
+   export NWPROD=/nwprod
+   export NDATE=$NWPROD/util/exec/ndate    
+   export COMPRESS=compress
+   export UNCOMPRESS="uncompress -f"
+   export Z="Z"
+   export TIMEX=/usr/bin/timex
+
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+#   shell=`echo $SHELL | sed 's/\// /g' | gawk '{print $NF}'`
+   shell=sh
+   . /usrx/local/Modules/default/init/${shell}
+   module load lsf
+   export UTILS_BIN=
+   export SUB="bsub"
+   export NWPROD=/nwprod
+   export NDATE=${NWPROD}/util/exec/ndate
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+   export TIMEX=
+
+else    # zeus 
+   shell=sh
+   /usr/bin/modulecmd $shell load ncep
+ 
+   export SUB=/apps/torque/default/bin/qsub
+   export NWPROD=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/
+   export NDATE=${NWPROD}util/exec/ndate
+   export COMPRESS=gzip
+   export UNCOMPRESS="gunzip -f"
+   export Z="gz"
+   export NCP="/bin/cp -f"
+   export TIMEX=
+   export UTILS_BIN=
+fi
+
+
+echo "end RadMon_config"

@@ -17,7 +17,15 @@ PTYPE=$3
 #------------------------------------------------------------------
 # Set environment variables.
 
-tmpdir=${PLOT_WORK_DIR}/plot_bcor_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
+word_count=`echo $PTYPE | wc -w`
+echo word_count = $word_count
+
+if [[ $word_count -le 1 ]]; then
+   tmpdir=${PLOT_WORK_DIR}/plot_bcor_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}.${PTYPE}
+else
+   tmpdir=${PLOT_WORK_DIR}/plot_bcor_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
+fi
+
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -59,7 +67,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
 
    $NCP $ctldir/${type}.ctl* ./
-   uncompress *.ctl.Z
+   ${UNCOMPRESS} *.ctl.${Z}
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
@@ -69,36 +77,36 @@ for type in ${SATYPE2}; do
         test_file=${TANKDIR}/radmon.${day}/bcor.${type}.${cdate}.ieee_d
         if [[ -s $test_file ]]; then
            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-        elif [[ -s ${test_file}.Z ]]; then
-           $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+        elif [[ -s ${test_file}.${Z} ]]; then
+           $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
         fi
      fi
-     if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+     if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
         $NCP $TANKDIR/bcor/${type}.${cdate}.ieee_d* ./
      fi
      adate=`$NDATE +6 $cdate`
      cdate=$adate
    done
-   uncompress *.ieee_d.Z
+   ${UNCOMPRESS} *.ieee_d.${Z}
 
    for var in ${PTYPE}; do
       echo $var
       if [ "$var" =  'count' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_bcor_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_bcor_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
       else
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_bcor_sep} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_bcor_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
       fi
 
       echo ${tmpdir}/${type}_${var}.gs
-      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 #--------------------------------------------------------------------
@@ -118,9 +126,6 @@ if [[ ! -d ${IMGNDIR}/bcor ]]; then
 fi
 cp -r *.png  ${IMGNDIR}/bcor
 
-for var in ${PTYPE}; do
-   rm -f ${type}.${var}*.png
-done
 
 
 #--------------------------------------------------------------------
@@ -135,10 +140,10 @@ rm -rf $tmpdir
 # If this is the last bcor plot job to finish then rm PLOT_WORK_DIR.
 #
 
-count=`ls ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
+#count=`ls ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
+#complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
 
-running=`expr $count - $complete`
+#running=`expr $count - $complete`
 
 #if [[ $running -eq 1 ]]; then
 #   cd ${PLOT_WORK_DIR}
