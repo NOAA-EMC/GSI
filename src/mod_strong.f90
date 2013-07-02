@@ -14,6 +14,8 @@ module mod_strong
 ! program history log:
 !   2007-02-15 parrish
 !   2012-02-08 kleist - add option tlnmc_option to control how TLNMC is applied
+!   2013-07-02 parrish - change tlnmc_type to reg_tlnmc_type.  tlnmc_type no
+!                          longer used for global application of tlnmc.
 !
 ! Subroutines Included:
 !   sub init_strongvars  - set default namelist variable values
@@ -37,9 +39,8 @@ module mod_strong
 ! Variable Definitions:
 !   def l_tlnmc          - Logical for TLNMC (set to true if namelist option tlnmc_option
 !                          is 1, 2, or 3
-!   def tlnmc_type       - =1 for slow global strong constraint
-!                          =2 for faster global strong constraint
-!                          =3 for regional strong constraint
+!   def reg_tlnmc_type   - =1 for regional 1st version of strong constraint
+!                          =2 for regional 2nd version of strong constraint
 !   def nstrong          - number of iterations of strong constraint initialization
 !   def scheme           - which scheme (B, C or D) is being used (see reference above)
 !   def period_max       - max period (hours) of gravity modes to be balanced
@@ -86,11 +87,11 @@ implicit none
 
 ! set passed variables to public
   public :: nstrong,baldiag_full,l_tlnmc,baldiag_inc,period_width,period_max,scheme
-  public :: tlnmc_type
+  public :: reg_tlnmc_type
   public :: tlnmc_option
 
   integer(i_kind) nstrong
-  integer(i_kind) tlnmc_type,tlnmc_option
+  integer(i_kind) reg_tlnmc_type,tlnmc_option
   real(r_kind) period_max,period_width
   logical l_tlnmc,baldiag_full,baldiag_inc
   character(1) scheme
@@ -109,6 +110,7 @@ contains
 !
 ! program history log:
 !   2008-05-05  safford -- add subprogram doc block
+!   2013-07-02 parrish - change tlnmc_type to reg_tlnmc_type.  Set default for reg_tlnmc_type = 1.
 !
 !   input argument list:
 !
@@ -123,7 +125,7 @@ contains
     implicit none
 
     l_tlnmc=.false.
-    tlnmc_type=2
+    reg_tlnmc_type=1
     tlnmc_option=0
     nstrong=0
     period_max=1000000._r_kind
