@@ -92,7 +92,7 @@ getsiga.o : getsiga.f90 bias_predictors.o control_vectors.o gsi_bundlemod.o gsi_
 getuv.o : getuv.f90 general_commvars_mod.o general_sub2grid_mod.o compact_diffs.o gridmod.o constants.o kinds.o 
 getvvel.o : getvvel.f90 guess_grids.o tendsmod.o gridmod.o constants.o kinds.o 
 gfs_stratosphere.o : gfs_stratosphere.f90 mpimod.o gridmod.o guess_grids.o blendmod.o constants.o kinds.o 
-glbsoi.o : glbsoi.f90 gfs_stratosphere.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o timermod.o observer.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o adjtest_obs.o mpimod.o constants.o kinds.o 
+glbsoi.o : glbsoi.f90 gfs_stratosphere.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o timermod.o observer.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o adjtest_obs.o mpimod.o constants.o kinds.o 
 grdcrd.o : grdcrd.f90 constants.o kinds.o 
 gridmod.o : gridmod.F90 mpimod.o mod_nmmb_to_a.o mpeu_util.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o 
 grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o 
@@ -192,7 +192,7 @@ nstio_module.o : nstio_module.f90
 obs_ferrscale.o : obs_ferrscale.F90 intjo.o obsmod.o bias_predictors.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o mpimod.o gsi_4dvar.o constants.o kinds.o 
 obs_para.o : obs_para.f90 lag_fields.o gridmod.o obsmod.o mpimod.o jfunc.o constants.o kinds.o 
 obs_sensitivity.o : obs_sensitivity.f90 gsi_4dcouplermod.o mpl_allreduce.o bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o obsmod.o jfunc.o gsi_4dvar.o constants.o kinds.o 
-observer.o : observer.F90 mytrace.H mpeu_util.o mp_compact_diffs_mod1.o compact_diffs.o turblmod.o tendsmod.o zrnmi_mod.o strong_fast_global_mod.o strong_slow_global_mod.o mod_vtrans.o mod_strong.o lag_fields.o read_obs.o timermod.o m_berror_stats_reg.o m_berror_stats.o m_gsiBiases.o convinfo.o gsi_4dvar.o satthin.o obsmod.o guess_grids.o gridmod.o jfunc.o mpimod.o constants.o kinds.o 
+observer.o : observer.F90 mytrace.H mpeu_util.o mp_compact_diffs_mod1.o compact_diffs.o turblmod.o tendsmod.o zrnmi_mod.o strong_fast_global_mod.o mod_vtrans.o mod_strong.o lag_fields.o read_obs.o timermod.o m_berror_stats_reg.o m_berror_stats.o m_gsiBiases.o convinfo.o gsi_4dvar.o satthin.o obsmod.o guess_grids.o gridmod.o jfunc.o mpimod.o constants.o kinds.o 
 obsmod.o : obsmod.F90 gridmod.o mpimod.o constants.o gsi_4dvar.o kinds.o 
 omegas_ad.o : omegas_ad.f90 constants.o kinds.o 
 oneobmod.o : oneobmod.F90 obsmod.o gsi_io.o constants.o kinds.o 
@@ -341,10 +341,9 @@ stpt.o : stpt.f90 gsi_bundlemod.o jfunc.o gridmod.o constants.o qcmod.o obsmod.o
 stptcp.o : stptcp.f90 gsi_bundlemod.o jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpvis.o : stpvis.f90 gsi_bundlemod.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
 stpw.o : stpw.f90 gsi_bundlemod.o jfunc.o gridmod.o constants.o qcmod.o obsmod.o kinds.o 
-strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global_mod.o strong_slow_global_mod.o zrnmi_mod.o mod_strong.o kinds.o 
+strong_bal_correction.o : strong_bal_correction.f90 gridmod.o strong_fast_global_mod.o zrnmi_mod.o mod_strong.o kinds.o 
 strong_baldiag_inc.o : strong_baldiag_inc.f90 constants.o gsi_metguess_mod.o gsi_bundlemod.o state_vectors.o mod_vtrans.o gsi_4dvar.o gridmod.o mpimod.o kinds.o 
 strong_fast_global_mod.o : strong_fast_global_mod.f90 mod_strong.o mod_vtrans.o mpimod.o constants.o gridmod.o kinds.o 
-strong_slow_global_mod.o : strong_slow_global_mod.f90 mpimod.o general_sub2grid_mod.o constants.o mod_strong.o mod_vtrans.o general_commvars_mod.o gridmod.o kinds.o 
 stub_pertmod.o : stub_pertmod.F90 mytrace.H constants.o gsi_bundlemod.o gsi_4dcouplermod.o mpeu_util.o kinds.o 
 stub_set_crtm_aerosol.o : stub_set_crtm_aerosol.f90 mpimod.o kinds.o 
 stub_timermod.o : stub_timermod.f90 kinds.o 

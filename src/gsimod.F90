@@ -67,7 +67,7 @@
   use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer,ljc4tlevs
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
-  use mod_strong, only: l_tlnmc,tlnmc_type,nstrong,tlnmc_option,&
+  use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
@@ -240,6 +240,10 @@
 !  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
 !                       convert_regional_guess so that rearth is defined when used
 !  05-31-2013 wu        write ext_sonde output to standard out
+!  07-02-2013 parrish   change tlnmc_type to reg_tlnmc_type.  tlnmc_type no
+!                         longer used for global analysis.  
+!                         for regional analysis, reg_tlnmc_type=1 or 2 for two
+!                         different regional balance methods.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -541,10 +545,8 @@
       ljc4tlevs
 
 ! STRONGOPTS (strong dynamic constraint)
-!     tlnmc_type -      =1 for slow global strong constraint
-!                       =2 for fast global strong constraint
-!                       =3 for regional strong constraint
-!                       =4 version 3 of regional strong constraint
+!     reg_tlnmc_type -  =1 for 1st version of regional strong constraint
+!                       =2 for 2nd version of regional strong constraint
 !     nstrong  - if > 0, then number of iterations of implicit normal mode initialization
 !                   to apply for each inner loop iteration
 !     period_max     - cutoff period for gravity waves included in implicit normal mode
@@ -558,12 +560,13 @@
 !     baldiag_inc
 !     tlnmc_option : integer flag for strong constraint (various capabilities for hybrid)
 !                   =0: no TLNMC
-!                   =1: TLNMC on static increment only (or if non-hybrid run)
-!                   =2: TLNMC on total increment for single time level only (or 3DHybrid)
-!                       if 4D mode, TLNMC applied to increment in center of window
-!                   =3: TLNMC on total increment over all time levels (if in 4D mode)
+!                   =1: TLNMC for 3DVAR mode
+!                   =2: TLNMC on total increment for single time level only (for 3D EnVar)
+!                       or if 4D EnVar mode, TLNMC applied to increment in center of window
+!                   =3: TLNMC on total increment over all time levels (if in 4D EnVar mode)
+!                   =4: TLNMC on static contribution to increment ONLY for any EnVar mode
 
-  namelist/strongopts/tlnmc_type,tlnmc_option, &
+  namelist/strongopts/reg_tlnmc_type,tlnmc_option, &
                       nstrong,period_max,period_width,nvmodes_keep, &
 		      baldiag_full,baldiag_inc
 
@@ -916,41 +919,33 @@
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
   if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
                           use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional                  
-                                                                                                                       
-! Check that regional=.true. if tlnmc_type > 2
-  if(tlnmc_type>2.and..not.regional) then
-     if(mype==0) then
-        write(6,*) ' tlnmc_type>2 not allowed except for regional=.true.'
-        write(6,*) ' ERROR EXIT FROM GSI'
-     end if
-     call stop2(328)
-  end if
 
-!  tlnmc_type=4 currently requires that 2*nvmodes_keep <= npe
-  if(tlnmc_type==4) then
+!  reg_tlnmc_type=2 currently requires that 2*nvmodes_keep <= npe
+  if(reg_tlnmc_type==2) then
      if(2*nvmodes_keep>npe) then
-        if(mype==0) write(6,*)' tlnmc_type=4 and nvmodes_keep > npe'
+        if(mype==0) write(6,*)' reg_tlnmc_type=2 and nvmodes_keep > npe'
         if(mype==0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
         nvmodes_keep=npe/2
         if(mype==0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
      end if
   end if
 
-  if (tlnmc_option>0 .and. tlnmc_option<4) then
-     l_tlnmc=.true.
-     if(mype==0) write(6,*)' valid TLNMC option chosen, setting l_tlnmc logical to true'
-  end if
-
-  if (tlnmc_option==2 .or. tlnmc_option==3) then
+  if (tlnmc_option>=2 .and. tlnmc_option<=4) then
      if (.not.l_hyb_ens) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,tlnmc_option
-        call die(myname_,'tlnmc options inconsistent, check namelist settings',337)
+	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
+	if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
+	tlnmc_option=1
      end if
-  else if (tlnmc_option<0 .or. tlnmc_option>3) then
+  else if (tlnmc_option<0 .or. tlnmc_option>4) then
      if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
      if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
      tlnmc_option=0
   end if
+  if (tlnmc_option>0 .and. tlnmc_option<5) then
+     l_tlnmc=.true.
+     if(mype==0) write(6,*)' GSIMOD: valid TLNMC option chosen, setting l_tlnmc logical to true'
+  end if
+
 
 ! Ensure valid number of horizontal scales
   if (nhscrf<0 .or. nhscrf>3) then
