@@ -9,8 +9,9 @@ function plottime (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+sub_avg=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
 platform=plotfile
 *plotfile=amsua.016
 *field=lapse
@@ -64,7 +65,8 @@ endif
 lin1=sublin(result,1)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
-nregion=subwrd(lin5,9)
+*nregion=subwrd(lin5,9)
+nregion=1
 
 '!rm -f xsize.txt'
 '!cat 'plotfile'.ctl |grep "xdef" > xsize.txt'
@@ -88,7 +90,7 @@ xe=xs+xe1*nx
 *say 'nregion='nregion
 
 * Set time
-'set t last'
+'set t 1 last'
 'query time'
 date1=subwrd(result,3)
 date2=subwrd(result,5)
@@ -98,12 +100,26 @@ say 'date2='date2
 
 'q dims'
 lin5=sublin(result,5)
-tlast=subwrd(lin5,9)
+tfirst=subwrd(lin5,11)
+tlast=subwrd(lin5,13)
 t1day=tlast-3
 t7days=tlast-27
-t30days=tlast-119
+*t30days=tlast-119
+t30days=1
 
 say 'tlast,t1day,t7days,t30days='tlast' 't1day' 't7days' 't30days
+
+*
+*  Determine number of days in plot (4 cycles per day)
+*
+rslt=tlast-tfirst
+if (rslt > 4)
+  mrslt=math_mod(rslt, 4)
+  ndays=(rslt-mrslt)/4
+else
+  ndays=1
+endif
+say 'rslt,mrslt,ndays = 'rslt' 'mrslt' 'ndays
 
 
 * 
@@ -113,6 +129,9 @@ say 'tlast,t1day,t7days,t30days='tlast' 't1day' 't7days' 't30days
 * 0 count for the 30 day average.  Define the new grid, fixed, from
 * satang, using the appropriately reduced scan positions.
 *
+
+'set t last'
+
 if (field = "omgnbc")
    new_xs=xs
    new_xe=xe
@@ -197,51 +216,52 @@ say 'xe = 'xe
 'set xlopts 1 4 0.11'
 'set ylopts 1 2 0.09'
 
+'set y 'chn
+
+'define cnt1=ave(count, t='t1day', t='tlast')' 
+'define avg=ave('field', t='t1day', t='tlast')'
+'define avgs=ave('field'_2, t='t1day', t='tlast')'
+'define rterm1=1/cnt1'
+'define rterm2=1/ave(count-1, t='t1day', t='tlast')'
+'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+
+'define avg1=ave('field'/count, t='t1day', t='tlast')'
+'define avg1=maskout(avg1,avg1-0)'
+'define sdv1=sqrt(svar)'
+
+'define cnt1=ave(count, t='t7days', t='tlast')' 
+'define avg=ave('field', t='t7days', t='tlast')'
+'define avgs=ave('field'_2, t='t7days', t='tlast')'
+'define rterm1=1/cnt1'
+'define rterm2=1/ave(count-1, t='t7days', t='tlast')'
+'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+
+'define avg2=ave('field'/count, t='t7days', t='tlast')'
+'define sdv2=sqrt(svar)'
+
+'define cnt1=ave(count, t='t30days', t='tlast')' 
+'define avg=ave('field', t='t30days', t='tlast')'
+'define avgs=ave('field'_2, t='t30days', t='tlast')'
+'define rterm1=1/cnt1'
+'define rterm2=1/ave(count-1, t='t30days', t='tlast')'
+'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+
+'define avg3=ave('field'/count, t='t30days', t='tlast')'
+'define sdv3=sqrt(svar)'
+
+'undefine cnt1'
+'undefine avg'
+'undefine avgs'
+'undefine rterm1'
+'undefine rterm2'
+'undefine svar'
+
 fr=0
 i=1
 chn=1
 nt=3
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
-   'set y 'chn
-
-   'define cnt1=ave(count, t='t1day', t='tlast')' 
-   'define avg=ave('field', t='t1day', t='tlast')'
-   'define avgs=ave('field'_2, t='t1day', t='tlast')'
-   'define rterm1=1/cnt1'
-   'define rterm2=1/ave(count-1, t='t1day', t='tlast')'
-   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
-
-   'define avg1=ave('field'/count, t='t1day', t='tlast')'
-   'define avg1=maskout(avg1,avg1-0)'
-   'define sdv1=sqrt(svar)'
-
-   'define cnt1=ave(count, t='t7days', t='tlast')' 
-   'define avg=ave('field', t='t7days', t='tlast')'
-   'define avgs=ave('field'_2, t='t7days', t='tlast')'
-   'define rterm1=1/cnt1'
-   'define rterm2=1/ave(count-1, t='t7days', t='tlast')'
-   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
-
-   'define avg2=ave('field'/count, t='t7days', t='tlast')'
-   'define sdv2=sqrt(svar)'
-
-   'define cnt1=ave(count, t='t30days', t='tlast')' 
-   'define avg=ave('field', t='t30days', t='tlast')'
-   'define avgs=ave('field'_2, t='t30days', t='tlast')'
-   'define rterm1=1/cnt1'
-   'define rterm2=1/ave(count-1, t='t30days', t='tlast')'
-   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
-
-   'define avg3=ave('field'/count, t='t30days', t='tlast')'
-   'define sdv3=sqrt(svar)'
-
-   'undefine cnt1'
-   'undefine avg'
-   'undefine avgs'
-   'undefine rterm1'
-   'undefine rterm2'
-   'undefine svar'
 
    chi=chn
    if (i=1) 
@@ -261,7 +281,13 @@ while (chn<=nchan)
    maxsdv0=-9999
 
    'set gxout stat'
-   it=1
+
+   if (sub_avg=1)
+      it=1
+   else
+      it=3
+   endif
+
    while (it<=nt)
       'd avg'it
       rec7=sublin(result,7)
@@ -344,9 +370,9 @@ while (chn<=nchan)
    'draw string 0.1 'y1+1.6' f 'freq' GHz'
    'draw string 0.1 'y1+1.4' `3l`0 'wavelength' `3m`0m'
    'set string 4 l 6'
-   'draw string 0.1 'y1+1.1' 30d avg: 'digs(avgvar,2)
+   'draw string 0.1 'y1+1.1' 'ndays'd avg: 'digs(avgvar,2)
    'set string 2 l 6'
-   'draw string 0.1 'y1+0.9' 30d sdv: 'digs(avgsdv,2)
+   'draw string 0.1 'y1+0.9' 'ndays'd sdv: 'digs(avgsdv,2)
    if (iuse<=0) 
       'set string 3 l 6'
       'draw string 0.1 'y1+0.7' CHANNEL 'channel
@@ -380,14 +406,17 @@ while (chn<=nchan)
     dy=0.2*yrange
     'set ylint 'dy
    'set cthick 8'
-   'set cmark 0'
-   'set cstyle 1'
-   'set ccolor 7'
-   'd avg1'
-   'set cmark 0'
-   'set cstyle 1'
-   'set ccolor 3'
-   'd avg2'
+
+   if (sub_avg=1)
+     'set cmark 0'
+     'set cstyle 1'
+     'set ccolor 7'
+     'd avg1'
+     'set cmark 0'
+     'set cstyle 1'
+     'set ccolor 3'
+     'd avg2'
+   endif
    'set cmark 0'
    'set cstyle 1'
    'set ccolor 4'
@@ -430,6 +459,7 @@ while (chn<=nchan)
     'set ylab %.4f'
     endif
 
+   if (sub_avg=1)
       'set cmark 0'
       'set cstyle 2'
       'set ccolor 7'
@@ -438,10 +468,12 @@ while (chn<=nchan)
       'set cstyle 2'
       'set ccolor 3'
       'd sdv2'
-      'set cmark 0'
-      'set cstyle 2'
-      'set ccolor 2'
-      'd sdv3'
+   endif
+
+   'set cmark 0'
+   'set cstyle 2'
+   'set ccolor 2'
+   'd sdv3'
 
    if (i=4 | chn=nchan)
       'set string 1 l 6'
@@ -460,17 +492,20 @@ while (chn<=nchan)
          'draw string 0.2 10.55 region  :  'area
       endif
       'draw string 0.2 10.30 variable:  'type
-      'draw string 0.2 10.05 valid   :  'date1
+      'draw string 0.2 10.05 valid   :  'date1' - 'date2
       'set strsiz 0.12 0.12'
       'set string 7 r 6'
-      'draw string 8.3 10.80 yellow: 1d'
-      'set string 3 r 6'
-      'draw string 8.3 10.60 green: 7d'
+
+      if (sub_avg=1)
+         'draw string 8.3 10.80 yellow: 1d'
+         'set string 3 r 6'
+         'draw string 8.3 10.60 green: 7d'
+      endif
       if (field = "omgnbc" | field = "total" | field = "omgbc")
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
          'set string 2 r 6'
-         'draw string 8.3 10.40 red: 30d'
+         'draw string 8.3 10.40 red: 'ndays'd'
          'set string 4 r 6'
          'draw string 7.4 10.20 solid=avg, '
          'set string 2 r 6'
@@ -480,7 +515,7 @@ while (chn<=nchan)
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
          'set string 2 r 6'
-         'draw string 8.3 10.40 red: 30d'
+         'draw string 8.3 10.40 red: 'ndays'd'
          'set string 4 r 6'
          'draw string 7.4 10.20 solid=avg, '
          'set string 2 r 6'
@@ -489,7 +524,7 @@ while (chn<=nchan)
 
       if (field = "count" | field = "penalty")
          'set string 4 r 6'
-         'draw string 8.42 10.4 blue: 30d '
+         'draw string 8.42 10.4 blue: 'ndays'd '
       endif
       if (field = "omgnbc")
          'set string 1 r 6'

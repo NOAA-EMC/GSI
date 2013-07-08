@@ -12,18 +12,23 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  CkPlt_rgnl.sh suffix"
+  echo "Usage:  CkPlt_rgnl.sh suffix [plot_date]"
   echo "            File name for CkPlt_rgnl.sh may be full or relative path"
   echo "            Suffix is data source identifier that matches data in"
   echo "              TANKDIR/stats directory."
+  echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot"
+  echo "              will be for the specified cycle, provided data files are available."
+  echo "              If not included, the plot cycle will be the last processed cycle.
 }
 
 
 set -ax
 echo start CkPlt_rgnl.sh
 
+
+
 nargs=$#
-if [[ $nargs -ne 1 ]]; then
+if [[ $nargs -lt 1 || $nargs -gt 2 ]]; then
    usage
    exit 1
 fi
@@ -32,16 +37,22 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 SUFFIX=$1
-#RUN_ENVIR=$2
-
 echo SUFFIX    = ${SUFFIX}
-#echo RUN_ENVIR = ${RUN_ENVIR}
+
+#--------------------------------------------------------------------
+#  Set plot_time if it is included as an argument.
+#--------------------------------------------------------------------
+plot_time=
+if [[ $nargs -eq 2 ]]; then
+   plot_time=$2
+fi
 
 
 #--------------------------------------------------------------------
 # Set environment variables
 #--------------------------------------------------------------------
 export RAD_AREA=rgn
+export PLOT_ALL_REGIONS=
 
 top_parm=${this_dir}/../../parm
 
@@ -49,6 +60,12 @@ if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
 else
    echo "Unable to source ${top_parm}/RadMon_config"
+   exit
+fi
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source ${top_parm}/RadMon_user_settings"
    exit
 fi
 
@@ -66,9 +83,6 @@ export PLOT_HORIZ=0
 
 mkdir -p $LOGDIR
 
-rm -rf $tmpdir
-mkdir -p $tmpdir
-cd $tmpdir
 
 #--------------------------------------------------------------------
 # Check status of plot jobs.  If any are still running then exit
@@ -76,10 +90,14 @@ cd $tmpdir
 # in the $LOADLQ directory.
 #--------------------------------------------------------------------
 
-count=`ls ${LOADLQ}/plot*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/plot*_$SUFFIX* | wc -l`
-
-running=`expr $count - $complete`
+running=0
+if [[ $MY_MACHINE = "ccs" ]]; then
+   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
+elif [[ $MY_MACHINE = "wcoss" ]]; then
+   running=`bjobs -l | grep plot_${SUFFIX} | wc -l`
+else
+   running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
+fi
 
 if [[ $running -ne 0 ]]; then
    echo plot jobs still running for $SUFFIX, must exit
@@ -87,35 +105,27 @@ if [[ $running -ne 0 ]]; then
    cd ../
    rm -rf $tmpdir
    exit
-else
-   rm -f ${LOADLQ}/*plot*_${SUFFIX}*
 fi
 
-running=0
-count=`ls ${LOADLQ}/verf*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/verf*_$SUFFIX* | wc -l`
 
-running=`expr $count - $complete`
-if [[ $running -ne 0 ]]; then
-   echo verf jobs still running for $SUFFIX, must exit
-   cd $tmpdir
-   cd ../
-   rm -rf $tmpdir
-   exit
-fi
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Exit if images are up to current
 # $PRODATE.
+#
+# If plot_time has been specified via command line argument, then
+# set PDATE to it.  Otherwise, use the IMGDATE from the DATA_MAP file
+# and add 6 hrs to determine the next cycle.
 #--------------------------------------------------------------------
+export PRODATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
 
-export PRODATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-export IMGDATE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} imgdate`
-
-export PDATE=`$NDATE +6 $IMGDATE`
+if [[ $plot_time != "" ]]; then
+   export PDATE=$plot_time
+else
+   export PDATE=$PRODATE
+fi
+export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
-
-
 
 
 #--------------------------------------------------------------------
@@ -146,10 +156,6 @@ fi
 # radiance monitoring jobs.
 
 if [[ $PLOT -eq 1 ]]; then
-
-   export USE_STATIC_SATYPE=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} static_satype`
-   export USER_CLASS=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} user_class`
-   export ACOUNT=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} account`
 
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
       PDY=`echo $PDATE|cut -c1-8`
@@ -191,8 +197,7 @@ if [[ $PLOT -eq 1 ]]; then
  
    fi
 
-   echo $SATYPE
-
+ 
   #------------------------------------------------------------------
   # Set environment variables.
 
@@ -203,8 +208,13 @@ if [[ $PLOT -eq 1 ]]; then
 
   #--------------------------------------------------------------------
   #   Set environment variables to export to subsequent scripts
+  if [[ $MY_MACHINE = "wcoss" ]]; then
+     `module load GrADS/2.0.1`
+     echo GADDIR = $GADDIR
+  fi
+  export datdir=$RADSTAT_LOCATION
 
-  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,WEB_SVR,WEB_USER,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACOUNT,RADMON_DATA_EXTRACT,DATA_MAP,listvar
+  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_MACHINE,SUB_AVG,datdir,listvar
 
 
   #------------------------------------------------------------------
@@ -215,7 +225,13 @@ if [[ $PLOT -eq 1 ]]; then
      rm ${logfile}
 
      jobname=mk_plot_horiz_${SUFFIX}
-     ${SUB} -a ${ACOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+     if [[ $MY_MACHINE = "ccs" ]]; then
+        ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
+     elif [[ $MY_MACHINE = "wcoss" ]]; then
+        $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+     else
+        $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
+     fi
   fi
 
   ${SCRIPTS}/mk_angle_plots.sh
@@ -226,8 +242,13 @@ if [[ $PLOT -eq 1 ]]; then
 
   ${SCRIPTS}/mk_time_plots.sh
 
-  ${SCRIPTS}/plot_update.sh
-
+  #------------------------------------------------------------------
+  #  Run the plot_update.sh script if no $plot_time was specified on
+  #  the command line
+  #------------------------------------------------------------------
+  if [[ $plot_time = "" ]]; then
+     ${SCRIPTS}/plot_update.sh
+  fi
 fi
 
 #--------------------------------------------------------------------

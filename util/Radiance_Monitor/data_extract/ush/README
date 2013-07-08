@@ -17,24 +17,39 @@ They poll for new diagnostic files and, if a new diag file is found, they
 submit ../nwprod/jobs/JGDAS_VRFYRAD.sms.prod to peform the data extraction 
 and optional data validation.  
 
-The VrfyRad_*.sh scripts take 2 parameters as input:  the desired suffix, and
-the running environment ("dev", "para", or "prod", though "prod" should only
-be used in the production environment).  Suffix is the identifier for a data
-source, typically an experiment name from a parallel (i.e.  es_pri, nrx, etc.).
-Each suffix used should have an entry in the ../../parms/data_map file.  
+IMPORTANT:  When running the package from the command line the 
+$RADSTAT_LOCATION should be set to the location of your radstat files.
+This is in parm/RadMon_user_settings, or it can be exported in your shell
+script environment and the package will use that value in preference
+to the setting in /parm/RadMon_user_settings.
 
-The resulting data files are saved in $TANKDIR/${SUFFIX} and 
-$TANKDIR/regional/${SUFFIX} directories.   $TANKDIR is defined within the 
-*_conf files in the parm directory. 
+This is an example of a command line call to VrfyRad_glbl.sh:
 
-The RunVrfy.sh script may be used as a batch processor.  It can be used 
-to process data for a given suffix (source) in 3 ways:
+  >  ./VrfyRad_glbl.sh mysfx 2013060712
+
+In this example "mysfx" is the suffix or name given to a specific data set.  
+The date [yyyymmddhh] is an optional argument which specifies exactly which
+cycle is to be processed.  If no cycle is specified, the package will 
+scan the TANKDIR/stats/mysfx directory and determine the last cycle processed,
+add 6 hrs to that, and attempt to process that cycle.  When running the data
+extraction for a new source, provide a date argument for your first cycle.
+
+The resulting data files from the data extraction step are saved in 
+$TANKDIR/stats/${SUFFIX} and $TANKDIR/stats/regional/${SUFFIX} directories.   $TANKDIR is 
+defined within the *_conf files in the parm directory. 
+
+
+There is one other top level script, RunVrfy.sh, which may be used as a batch 
+processor.  It can be used to process data for a given suffix (source) in 3 
+ways:
+
   1.  Between explicit starting and ending dates.
   2.  From a specified starting date until it runs out of data.
-  3.  From the last date processed in the ../../parm/data_map file 
+  3.  From the last date processed in the $TANKDIR/stats/$SUFFIX directory
       until it runs out of data. 
+
 The calling sequence is > RunVrfy.sh suffix [start date] [end date].
-The suffix must match an entry in the ../../parm/data_map file.
+
 
 The MkBase.sh script is used to create the base history files which are
 used by the data validation reports.  If you do not wish to turn on data error

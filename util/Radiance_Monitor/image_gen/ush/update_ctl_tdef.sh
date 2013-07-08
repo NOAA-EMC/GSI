@@ -10,7 +10,7 @@
 #-------------------------------------------------------------
 
 function usage {
-  echo "Usage:  update_ctl_tdef.sh control_file_path_and_name yyymmddcc"
+  echo "Usage:  update_ctl_tdef.sh control_file_path_and_name yyyymmddcc [num_cycles]"
 }
 
 
@@ -19,13 +19,16 @@ function usage {
 #
   echo "enter update_ctl_tdef.sh"
 
-  if [[ $# -lt 2 ]]; then
+  if [[ $# -lt 2 && $# -gt 3 ]]; then
     usage
     exit 1
   fi
 
   ctl_file=$1
   datestr=$2
+  if [[ $# -eq 3 ]]; then
+     num_cycles=$3
+  fi
 
   iyy=`echo $datestr | cut -c1-4`
   imm=`echo $datestr | cut -c5-6`
@@ -106,18 +109,19 @@ function usage {
   found_tdef=0
   while read line; do
 
-    tdef=`echo $line | nawk '{print $1}'`
+    tdef=`echo $line | gawk '{print $1}'`
 
     if [[ $tdef == "tdef" ]]; then
-#      echo "found tdef"
-#      echo "$line"
-      v2=`echo $line | nawk '{print $2}'`
-      v3=`echo $line | nawk '{print $3}'`
-      v5=`echo $line | nawk '{print $5}'`
+      if [[ ${#num_cycles} -gt 0 ]]; then
+         v2=${num_cycles}
+      else
+         v2=`echo $line | gawk '{print $2}'`
+      fi
+      v3=`echo $line | gawk '{print $3}'`
+      v5=`echo $line | gawk '{print $5}'`
 
       ndate="${ihh}Z${idd}${smon}${iyy}"
       newline="${tdef} ${v2} ${v3} ${ndate} ${v5}"
-#      echo "$newline"
       echo "$newline" >> $tmp_file
       found_tdef=1
     else

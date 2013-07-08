@@ -1,1 +1,1 @@
-/global/save/wx20ml/svn1/src/kinds.F90
+../../../nwprod/sorc/verf_radang.fd/kinds.F90

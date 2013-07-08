@@ -43,16 +43,16 @@ fi
 
 start=`grep -n 'cat diag_report.txt' $file`
 if [[ ! $start = "" ]]; then
-   diag_start=`echo $start | sed 's/:/ /' | nawk '{print $1}'`
+   diag_start=`echo $start | sed 's/:/ /' | gawk '{print $1}'`
    diag_start=`expr $diag_start + 1`
 
    end=`grep -n 'End Problem Reading Diagnostic File' $file`
-   diag_end=`echo $end | sed 's/:/ /2' | nawk '{print $9}'`
+   diag_end=`echo $end | sed 's/:/ /2' | gawk '{print $9}'`
    diag_end=`expr $diag_end - 1`
 
    echo "Source = ${SUFFIX}" >> $err_rpt
    echo " " >> $err_rpt
-   awk "NR>=$diag_start && NR<=$diag_end" $file >> $err_rpt
+   gawk "NR>=$diag_start && NR<=$diag_end" $file >> $err_rpt
    echo " " >> $err_rpt
    echo " " >> $err_rpt
    echo " " >> $err_rpt
@@ -61,16 +61,16 @@ fi
 
 start=`grep -n 'cat report.txt' $file`
 if [[ ! $start = "" ]]; then
-   data_start=`echo $start | sed 's/:/ /' | nawk '{print $1}'`
+   data_start=`echo $start | sed 's/:/ /' | gawk '{print $1}'`
    data_start=`expr $data_start + 1`
 
    end=`grep -n 'End Cycle Data Integrity Report' $file`
-   data_end=`echo $end | sed 's/:/ /2' | nawk '{print $9}'`
+   data_end=`echo $end | sed 's/:/ /2' | gawk '{print $9}'`
    data_end=`expr $data_end - 1`
 
    if [[ ! data_start = "" && ! data_end = "" ]]; then
       echo "Source = ${SUFFIX}" >> $err_rpt
-      awk "NR>=$data_start && NR<=$data_end" $file >> $err_rpt
+      gawk "NR>=$data_start && NR<=$data_end" $file >> $err_rpt
    fi
 fi
 
