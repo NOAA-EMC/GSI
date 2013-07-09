@@ -8,8 +8,9 @@ function plottime (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
-xsize=subwrd(args,3)
-ysize=subwrd(args,4)
+plot_all_regions=subwrd(args,3)
+xsize=subwrd(args,4)
+ysize=subwrd(args,5)
 platform=plotfile
 
 *say 'process 'field' from 'plotfile
@@ -40,7 +41,9 @@ lin1=sublin(result,1)
 nchan=subwrd(lin1,6)
 lin5=sublin(result,5)
 nregion=subwrd(lin5,6)
-
+if (plot_all_regions = 0)
+   nregion=1
+endif
 
 *say 'nchan='nchan
 *say 'nregion='nregion
@@ -80,33 +83,34 @@ result=close(area.txt)
 'set strsiz 0.11 0.11'
 'set xlopts 1 4 0.11'
 'set ylopts 1 2 0.09'
+
+'define rterm1=1/count'
+*'define rterm2=1/(count-1)'
+
+if (field = omgnbc)
+   'define avg=omgnbc/count'
+   'define svar=(omgnbc2*rterm1) - (avg*avg)'
+endif
+if (field = total)
+   'define avg=total/count'
+   'define svar=(total2*rterm1) - (avg*avg)'
+endif
+if (field = omgbc)
+   'define avg=omgbc/count'
+   'define svar=(omgbc2*rterm1) - (avg*avg)'
+endif
+
+'define sdv=sqrt(svar)'
+'undefine svar'
+'undefine rterm1'
+*'undefine rterm2' 
+
 fr=0
 i=1
 chn=1
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set x 'chn
-
-   'define rterm1=1/count'
-*   'define rterm2=1/(count-1)'
-
-   if (field = omgnbc)
-     'define avg=omgnbc/count'
-     'define svar=(omgnbc2*rterm1) - (avg*avg)'
-   endif
-   if (field = total)
-     'define avg=total/count'
-     'define svar=(total2*rterm1) - (avg*avg)'
-   endif
-   if (field = omgbc)
-     'define avg=omgbc/count'
-     'define svar=(omgbc2*rterm1) - (avg*avg)'
-   endif
-
-   'define sdv=sqrt(svar)'
-   'undefine svar'
-   'undefine rterm1'
-*   'undefine rterm2' 
 
    chi=chn
    if (i=1) 
@@ -245,11 +249,13 @@ y2=y3+0.05
       'draw string 0.2 'yy' variable:  'type
       yy=yy-0.25
       'draw string 0.2 'yy' valid   :  'date1' to 'date2
+
       if (nregion > 1) 
          outfile=plotfile'.'field'_region'region'_fr'fr'.png'
       else 
          outfile=plotfile'.'field'_fr'fr'.png'
       endif
+
       'printim 'outfile' 'xsize' 'ysize' white'
 *      say 'output to file 'outfile
       if (debug=1) 

@@ -1353,7 +1353,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   d2 = -2.265_r_kind
    
 
-  if (tsavg5>t0c .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
+  if (tsavg5 <= t0c .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
      clwp_amsua = zero
      tpwc_amsua = zero
   else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then

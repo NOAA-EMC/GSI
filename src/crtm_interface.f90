@@ -1,6 +1,6 @@
 module crtm_interface
 !$$$ module documentation block
-!           .      .    .                                       .
+!           .      .    .                                       
 ! module:   crtm_interface module for setuprad. Calculates profile and calls crtm
 !  prgmmr:
 !
@@ -38,16 +38,13 @@ use crtm_module, only: crtm_atmosphere_type,crtm_surface_type,crtm_geometry_type
     crtm_options_type,crtm_rtsolution_type,crtm_destroy,crtm_options_destroy, &
     crtm_options_create,crtm_options_associated,success,crtm_atmosphere_create, &
     crtm_surface_create,crtm_k_matrix, &
-    urban_concrete,compacted_soil,irrigated_low_vegetation,grass_soil,meadow_grass, &
-    broadleaf_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil, &
-    broadleaf_pine_forest,pine_forest,tundra,irrigated_low_vegetation,wet_soil, &
-    scrub,tilled_soil,scrub_soil,broadleaf_brush,grass_scrub,invalid_land, &
     crtm_channelinfo_type, &
     crtm_surface_destroy, crtm_surface_associated, crtm_surface_zero, &
     crtm_atmosphere_associated, &
     crtm_atmosphere_destroy,crtm_atmosphere_zero, &
     crtm_rtsolution_type, crtm_rtsolution_create, &
     crtm_rtsolution_destroy, crtm_rtsolution_associated, &
+    crtm_irlandcoeff_classification, &
     crtm_kind => fp
 use gridmod, only: lat2,lon2,nsig,msig,nvege_type,regional,wrf_mass_regional,netcdf,use_gfs_ozone
 use mpeu_util, only: die
@@ -105,7 +102,25 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
 !  Note other module variables are only used within this routine
 
   character(len=*), parameter :: myname='crtm_interface'
-
+  
+  ! Indices for the CRTM NPOESS EmisCoeff file
+  integer(i_kind), parameter :: INVALID_LAND = 0
+  integer(i_kind), parameter :: COMPACTED_SOIL = 1
+  integer(i_kind), parameter :: TILLED_SOIL = 2
+  integer(i_kind), parameter :: IRRIGATED_LOW_VEGETATION = 5
+  integer(i_kind), parameter :: MEADOW_GRASS = 6
+  integer(i_kind), parameter :: SCRUB = 7
+  integer(i_kind), parameter :: BROADLEAF_FOREST = 8
+  integer(i_kind), parameter :: PINE_FOREST = 9
+  integer(i_kind), parameter :: TUNDRA = 10
+  integer(i_kind), parameter :: GRASS_SOIL = 11
+  integer(i_kind), parameter :: BROADLEAF_PINE_FOREST = 12
+  integer(i_kind), parameter :: GRASS_SCRUB = 13
+  integer(i_kind), parameter :: URBAN_CONCRETE = 15
+  integer(i_kind), parameter :: BROADLEAF_BRUSH = 17
+  integer(i_kind), parameter :: WET_SOIL = 18
+  integer(i_kind), parameter :: SCRUB_SOIL = 19
+  
   character(len=20),save,allocatable,dimension(:)   :: aero_names   ! aerosol names
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero         ! aerosol (guess) profiles at obs location
   real(r_kind)   , save ,allocatable,dimension(:,:) :: aero_conc    ! aerosol (guess) concentrations at obs location
@@ -121,7 +136,8 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
 
   real(r_kind)   , save ,allocatable,dimension(:,:,:,:)  :: gesqsat ! qsat to calc rh for aero particle size estimate
 
-  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm
+  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_ir
+  integer(i_kind),save, allocatable,dimension(:) :: nmm_to_crtm_mwave 
   integer(i_kind),save, allocatable,dimension(:) :: icw
   integer(i_kind),save, allocatable,dimension(:) :: iaero_jac
   integer(i_kind),save :: isatid,itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang
@@ -129,7 +145,7 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   integer(i_kind),save :: ifrac_sno,its_sea,its_lnd,its_ice,its_sno,itsavg
   integer(i_kind),save :: ivty,ivfr,isty,istp,ism,isn,izz,idomsfc,isfcr,iff10,ilone,ilate
   integer(i_kind),save :: iclr_sky,isst_navy,idata_type,isst_hires,iclavr
-  integer(i_kind),save :: itref,idtw,idtc,itz_tr
+  integer(i_kind),save :: itref,idtw,idtc,itz_tr,istype,ivtype
   integer(i_kind),save :: sensorindex
   integer(i_kind),save :: ico2,ier,ico24crtm
   integer(i_kind),save :: n_aerosols_jac     ! number of aerosols in jocabian
@@ -158,13 +174,50 @@ public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
   type(crtm_rtsolution_type),save,allocatable,dimension(:,:):: rtsolution_k
 
 ! Mapping land surface type of GFS to CRTM
-!  Note: index 0 is water, and index 13 is ice. The two indices are not
-!        used and just assigned to COMPACTED_SOIL.
+!  Notes: index 0 is water, and index 13 is ice. The two indices are not
+!         used and just assigned to COMPACTED_SOIL. Also, since there
+!         is currently one relevant mapping for the global we apply
+!         'crtm' in the naming convention.  
   integer(i_kind), parameter, dimension(0:13) :: gfs_to_crtm=(/COMPACTED_SOIL, &
      BROADLEAF_FOREST, BROADLEAF_FOREST, BROADLEAF_PINE_FOREST, PINE_FOREST, &
      PINE_FOREST, BROADLEAF_BRUSH, SCRUB, SCRUB, SCRUB_SOIL, TUNDRA, &
      COMPACTED_SOIL, TILLED_SOIL, COMPACTED_SOIL/)
-
+! Mapping nmm to CRTM
+  integer(i_kind), parameter :: USGS_N_TYPES = 24
+  integer(i_kind), parameter :: IGBP_N_TYPES = 20
+  integer(i_kind), parameter :: NAM_SOIL_N_TYPES = 16
+  integer(i_kind), parameter :: GFS_SOIL_N_TYPES = 9
+  integer(i_kind), parameter :: GFS_VEGETATION_N_TYPES = 13
+  integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_npoess=(/URBAN_CONCRETE, &
+     COMPACTED_SOIL, IRRIGATED_LOW_VEGETATION, GRASS_SOIL, MEADOW_GRASS, &
+     MEADOW_GRASS, MEADOW_GRASS, SCRUB, GRASS_SCRUB, MEADOW_GRASS, &
+     BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, PINE_FOREST, &
+     BROADLEAF_PINE_FOREST, INVALID_LAND, WET_SOIL, WET_SOIL, &
+     IRRIGATED_LOW_VEGETATION, TUNDRA, TUNDRA, TUNDRA, TUNDRA, &
+     INVALID_LAND/)
+  integer(i_kind), parameter, dimension(1:IGBP_N_TYPES) :: igbp_to_npoess=(/PINE_FOREST, &
+    BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, BROADLEAF_PINE_FOREST, &
+    SCRUB, SCRUB_SOIL, BROADLEAF_BRUSH, BROADLEAF_BRUSH, SCRUB, BROADLEAF_BRUSH, &
+    TILLED_SOIL, URBAN_CONCRETE, TILLED_SOIL, INVALID_LAND, COMPACTED_SOIL, &
+    INVALID_LAND, TUNDRA, TUNDRA, TUNDRA/)
+  integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_usgs=(/1, &
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, &
+    20, 21, 22, 23, 24/)
+  integer(i_kind), parameter, dimension(1:IGBP_N_TYPES) :: igbp_to_igbp=(/1, &
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, &
+    20/)
+  integer(i_kind), parameter, dimension(1:IGBP_N_TYPES) :: igbp_to_gfs=(/4, &
+    1, 5, 2, 3, 8, 9, 6, 6, 7, 8, 12, 7, 12, 13, 11, 0, 10, 10, 11/)
+  integer(i_kind), parameter, dimension(1:USGS_N_TYPES) :: usgs_to_gfs=(/7, &
+    12, 12, 12, 12, 12, 7, 9, 8, 6, 2, 5, 1, 4, 3, 0, 8, 8, 11, 10, 10, &
+    10, 11, 13/)
+ ! Mapping nmm soil to CRTM soil
+ ! The CRTM soil types for microwave calculations are based on the 
+ ! GFS use of the 9 category Zobler dataset. The regional soil types
+ ! are based on a 16 category representation of FAO/STATSGO. 
+  integer(i_kind), parameter, dimension(1:NAM_SOIL_N_TYPES) :: nmm_soil_to_crtm=(/1, &
+    1, 4, 2, 2, 8, 7, 2, 6, 5, 2, 3, 8, 1, 6, 9/)
+  
 contains
 subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
 !$$$  subprogram documentation block
@@ -551,7 +604,7 @@ subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! Turn off antenna correction
 
- options(1)%use_antenna_correction = .false.
+ options(1)%use_antenna_correction = .false. 
 
 ! Check for consistency with information in crtm for number of channels
 
@@ -613,27 +666,27 @@ subroutine init_crtm(mype_diaghdr,mype,nchanl,isis,obstype)
 
 ! Mapping land surface type of NMM to CRTM
  if (regional) then
-    allocate(nmm_to_crtm(nvege_type) )
-
-    if(nvege_type==24)then
-!    Note: index 16 is water, and index 24 is ice. The two indices are not
-!          used and just assigned to COMPACTED_SOIL.
-       nmm_to_crtm=(/URBAN_CONCRETE, &
-          COMPACTED_SOIL, IRRIGATED_LOW_VEGETATION, GRASS_SOIL, MEADOW_GRASS, &
-          MEADOW_GRASS, MEADOW_GRASS, SCRUB, GRASS_SCRUB, MEADOW_GRASS, &
-          BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, PINE_FOREST, &
-          BROADLEAF_PINE_FOREST, COMPACTED_SOIL, WET_SOIL, WET_SOIL, &
-          IRRIGATED_LOW_VEGETATION, TUNDRA, TUNDRA, TUNDRA, TUNDRA, &
-          COMPACTED_SOIL/)
-    else if(nvege_type==20)then
-       nmm_to_crtm=(/PINE_FOREST, &
-          BROADLEAF_FOREST, PINE_FOREST, BROADLEAF_FOREST, &
-          BROADLEAF_PINE_FOREST, SCRUB, SCRUB_SOIL, BROADLEAF_BRUSH, &
-          BROADLEAF_BRUSH, SCRUB, BROADLEAF_BRUSH, TILLED_SOIL, URBAN_CONCRETE, &
-          TILLED_SOIL, INVALID_LAND, COMPACTED_SOIL, INVALID_LAND, TUNDRA, &
-          TUNDRA, TUNDRA/)
+    allocate(nmm_to_crtm_ir(nvege_type))
+    allocate(nmm_to_crtm_mwave(nvege_type))
+    if(nvege_type==USGS_N_TYPES)then
+       ! Assign mapping for CRTM microwave calculations
+       nmm_to_crtm_mwave=usgs_to_gfs
+       ! nmm usgs to CRTM
+       select case ( TRIM(CRTM_IRlandCoeff_Classification()) ) 
+         case('NPOESS'); nmm_to_crtm_ir=usgs_to_npoess
+         case('USGS')  ; nmm_to_crtm_ir=usgs_to_usgs
+       end select
+    else if(nvege_type==IGBP_N_TYPES)then
+       ! Assign mapping for CRTM microwave calculations
+       nmm_to_crtm_mwave=igbp_to_gfs
+       ! nmm igbp to CRTM 
+       select case ( TRIM(CRTM_IRlandCoeff_Classification()) )
+         case('NPOESS'); nmm_to_crtm_ir=igbp_to_npoess
+         case('IGBP')  ; nmm_to_crtm_ir=igbp_to_igbp
+       end select
     else
-       write(6,*)'SETUPRAD:  ***ERROR*** invalid number of vegetation types', &
+       write(6,*)'SETUPRAD:  ***ERROR*** invalid vegetation types' &
+          //' for the CRTM IRland EmisCoeff file used.', &
           ' (only 20 and 24 are setup)  nvege_type=',nvege_type, &
           '  ***STOP IN SETUPRAD***'
        call stop2(71)
@@ -710,7 +763,8 @@ subroutine destroy_crtm
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
   if(allocated(icw)) deallocate(icw)
-  if(regional)deallocate(nmm_to_crtm)
+  if(regional)deallocate(nmm_to_crtm_ir)
+  if(regional)deallocate(nmm_to_crtm_mwave)
 
   return
 end subroutine destroy_crtm
@@ -840,6 +894,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
 
+! ****************************** 
+! Constrained indexing for lai
+! CRTM 2.1 implementation change
+! ******************************
+  integer(i_kind):: lai_type
+
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
   real(r_kind):: w_weights(4)
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp
@@ -881,7 +941,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
-
+  real(r_kind),dimension(13)::   lai
 
   m1=mype+1
 
@@ -1428,17 +1488,24 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !          mapping below is specific to the versions NCEP
 !          GFS and NNM as of September 2005
 
-     itype = int(data_s(ivty))
+     itype  = nint(data_s(ivty))
+     istype = nint(data_s(isty))
      if (regional) then
-        itype = min(max(1,itype),nvege_type)
-        surface(1)%land_type = nmm_to_crtm(itype)
+        itype  = min(max(1,itype),nvege_type)
+        istype = min(max(1,istype),NAM_SOIL_N_TYPES)
+        surface(1)%land_type = max(1,nmm_to_crtm_ir(itype))
+        surface(1)%Vegetation_Type = max(1,nmm_to_crtm_mwave(itype))
+        surface(1)%Soil_Type = nmm_soil_to_crtm(istype)
+        lai_type = nmm_to_crtm_mwave(itype)
      else
-        itype = min(max(0,itype),13)
+        itype  = min(max(0,itype),GFS_VEGETATION_N_TYPES)
+        istype = min(max(1,istype),GFS_SOIL_N_TYPES)
         surface(1)%land_type = gfs_to_crtm(itype)
+        surface(1)%Vegetation_Type = max(1,itype)
+        surface(1)%Soil_Type = istype
+        lai_type = itype
      end if
- 
-
-
+                                    
      surface(1)%wind_speed           = sfc_speed
      surface(1)%wind_direction       = rad2deg*atan2(-uu5,-vv5)
      if ( surface(1)%wind_direction < zero ) surface(1)%wind_direction = &
@@ -1451,6 +1518,29 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      surface(1)%land_coverage         = min(max(zero,data_s(ifrac_lnd)),one)
      surface(1)%ice_coverage          = min(max(zero,data_s(ifrac_ice)),one)
      surface(1)%snow_coverage         = min(max(zero,data_s(ifrac_sno)),one)
+     
+!
+! get vegetation lai from summer and winter values.
+!
+     if(lai_type>0 .AND. surface(1)%land_coverage>zero)then
+       call get_lai(obstime,data_s,nchanl,nreal,ich,itime,ilate,lai)
+     endif
+
+     if(lai_type>0 .AND. surface(1)%land_coverage>zero)then                        
+      surface(1)%Lai  = lai( lai_type )   ! LAI  
+     else                                     
+      surface(1)%Lai  = 0.0_r_kind            
+     endif     
+     
+
+     if (surface(1)%land_coverage>zero) then
+        ! for Glacial land ice soil type and vegetation type
+        if(surface(1)%Soil_Type == 9 .OR. surface(1)%Vegetation_Type == 13) then
+           surface(1)%ice_coverage = min(surface(1)%ice_coverage + surface(1)%land_coverage, one)
+           surface(1)%land_coverage = zero
+        endif
+     endif
+
      surface(1)%water_temperature     = max(data_s(its_sea)+dtskin(0),270._r_kind)
      if(nst_gsi>1 .and. surface(1)%water_coverage>zero) then
         surface(1)%water_temperature  = max(data_s(itref)+data_s(idtw)-data_s(idtc)+dtskin(0),271._r_kind)
@@ -1794,5 +1884,109 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
       intresult = intresult * dtsig
     end function crtm_interface_interp
   end subroutine call_crtm
+subroutine get_lai(obstime,data_s,nchanl,nreal,ich,itime,ilate,lai)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_lai   interpolate vegetation LAI data for call_crtm
+!
+!   prgmmr:
+!
+! abstract:
+!
+! program history log:
+!
+!   input argument list:
+!     obstime      - time of observations for which to get profile
+!     data_s       - array containing input data information
+!     nchanl       - number of channels
+!     nreal        - number of descriptor information in data_s
+!     ich          - channel number array
+!     itime        - index of analysis relative obs time
+!     ilate        - index of earth relative latitude (degrees)
+!
+!   output argument list:
+!     lai          - interpolated vegetation leaf-area-index for various types (13)
+!
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!   
+!$$$
+!--------
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use obsmod, only: iadate
+  implicit none
+
+! Declare passed variables
+  real(r_kind)                          ,intent(in   ) :: obstime
+  integer(i_kind)                       ,intent(in   ) :: nchanl,nreal
+  integer(i_kind),dimension(nchanl)     ,intent(in   ) :: ich
+  real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
+  integer(i_kind)                       ,intent(in   ) :: itime, ilate
+
+! Declare local variables
+  integer(i_kind):: i
+  integer(i_kind),dimension(8)::obs_time,anal_time
+  real(r_kind),dimension(5)     :: tmp_time
+  
+  integer(i_kind) jdow, jdoy, jday
+  real(r_kind)    rjday
+  real(r_kind),dimension(3):: dayhf
+  data dayhf/15.5_r_kind, 196.5_r_kind, 380.5_r_kind/
+  real(r_kind),dimension(13):: lai_min, lai_max
+  data lai_min/3.08_r_kind, 1.85_r_kind, 2.80_r_kind, 5.00_r_kind, 1.00_r_kind, &
+               0.50_r_kind, 0.52_r_kind, 0.60_r_kind, 0.50_r_kind, 0.60_r_kind, &
+               0.10_r_kind, 1.56_r_kind, 0.01_r_kind            /
+  data lai_max/6.48_r_kind, 3.31_r_kind, 5.50_r_kind, 6.40_r_kind, 5.16_r_kind, &
+               3.66_r_kind, 2.90_r_kind, 2.60_r_kind, 3.66_r_kind, 2.60_r_kind, &
+               0.75_r_kind, 5.68_r_kind, 0.01_r_kind            /
+  real(r_kind),dimension(13,2):: lai_season
+  real(r_kind),dimension(13)::   lai
+  real(r_kind)    wei1s, wei2s
+  integer(i_kind) n1, n2, mm, mmm, mmp
+!
+        anal_time=0
+        obs_time=0
+        tmp_time=zero
+        tmp_time(2)=data_s(itime)
+        anal_time(1)=iadate(1)
+        anal_time(2)=iadate(2)
+        anal_time(3)=iadate(3)
+        anal_time(5)=iadate(4)
+        call w3movdat(tmp_time,anal_time,obs_time)
+
+      jdow = 0
+      jdoy = 0
+      jday = 0
+      call w3doxdat(obs_time,jdow,jdoy,jday)
+      rjday=jdoy+obs_time(5)/24.0_r_kind
+      if(rjday.lt.dayhf(1)) rjday=rjday+365.0
+
+          DO MM=1,2
+            MMM=MM
+            MMP=MM+1
+            IF(RJDAY.GE.DAYHF(MMM).AND.RJDAY.LT.DAYHF(MMP)) THEN
+                 N1=MMM
+                 N2=MMP
+               GO TO 10
+            ENDIF
+          ENDDO
+          PRINT *,'WRONG RJDAY',RJDAY
+   10     CONTINUE
+          WEI1S = (DAYHF(N2)-RJDAY)/(DAYHF(N2)-DAYHF(N1))
+          WEI2S = (RJDAY-DAYHF(N1))/(DAYHF(N2)-DAYHF(N1))
+          IF(N2.EQ.3) N2=1
+
+      do i =1,13
+        lai_season(i,1) = lai_min(i)
+        lai_season(i,2) = lai_max(i)
+           lai(i) = wei1s * lai_season(i,n1) + wei2s * lai_season(i,n2)
+           if(data_s(ilate) < 0.0_r_kind) then
+              lai(i) = wei1s * lai_season(i,n2) + wei2s * lai_season(i,n1)
+           endif
+      enddo
+
+  return
+  end subroutine get_lai
 
   end module crtm_interface

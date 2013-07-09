@@ -31,7 +31,7 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-ln ${DATADIR}/${SAT}.* ${tmpdir}/. 
+ln -s ${DATADIR}/${SAT}.* ${tmpdir}/. 
 
 
 #------------------------------------------------------------------
@@ -42,10 +42,6 @@ ln ${DATADIR}/${SAT}.* ${tmpdir}/.
 #  Loop over satellite types.  Submit plot job for each type.
 
 $NCP ${GSCRIPTS}/cbarnew.gs ./
-STNMAP="/usrx/local/grads/bin/stnmap"
-GRADS="/usrx/local/grads/bin/grads"
-
-
 $STNMAP -i ${SAT}.ctl
 
 for var in ${PTYPE}; do
@@ -63,7 +59,8 @@ cat << EOF > ${cmdfile}
 ${GRADS} -blc run ${SAT}_${var}.gs
 EOF
 
-   timex $GRADS -blc "run ${SAT}_${var}.gs"
+   $TIMEX $GRADS -blc "run ${SAT}_${var}.gs"
+#   $GRADS -blc "run ${SAT}_${var}.gs"
 done
 
 
@@ -75,8 +72,8 @@ done
 if [[ ! -d ${IMGNDIR}/horiz ]]; then
    mkdir -p ${IMGNDIR}/horiz
 fi
-$NCP -r *.png  ${IMGNDIR}/horiz
-
+#$NCP *.png  ${IMGNDIR}/horiz
+find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/horiz/ \;
 
 #--------------------------------------------------------------------
 # Delete images and data files in $tmpdir
@@ -97,11 +94,11 @@ $NCP -r *.png  ${IMGNDIR}/horiz
 #   running).
 #
 
-cd $tmpdir
-cd ..
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ..
+#rm -rf $tmpdir
 
-cat ${LOADLQ}/plot_${SUFFIX}_horiz* 
+#cat ${LOADLQ}/plot_${SUFFIX}_horiz* 
 
 #count=`ls ${LOADLQ}/plot_${SUFFIX}* | wc -l`
 #complete=`grep "COMPLETED" ${LOADLQ}/plot_${SUFFIX}* | wc -l`

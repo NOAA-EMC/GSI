@@ -626,7 +626,7 @@ contains
 
 !!   Strong balance constraint
 !!   Pass uvflag=.false.
-    if (tlnmc_option==1) call strong_bk(st,vp,p,t,.false.)
+    if (tlnmc_option==1 .or. tlnmc_option==4) call strong_bk(st,vp,p,t,.false.)
 
     return
   end subroutine balance
@@ -706,7 +706,7 @@ contains
   
 !  Adjoint of strong balance constraint
 !  pass uvflag=.false.
-    if(tlnmc_option==1) call strong_bk_ad(st,vp,p,t,.false.)
+    if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
 
 !   REGIONAL BRANCH
     if (regional) then

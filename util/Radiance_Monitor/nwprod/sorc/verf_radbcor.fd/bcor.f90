@@ -11,7 +11,7 @@ program bcor
   parameter( iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5 )
 
   character(10),dimension(ntype):: ftype
-  character(20) satname,stringd,satsis
+  character(20) satname,stringd,satsis,mod_satname
   character(10) dum,satype,dplat
   character(40) string,diag_rad,data_file,ctl_file
   character(40),dimension(surf_nregion):: region
@@ -38,12 +38,12 @@ program bcor
   logical no_obs
 
 ! Variables for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list) ,pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
 
   integer  nsnow, nland, nwater, nice, nmixed, ntotal
   integer  nnsnow, nnland, nnwater, nnmixed, nntotal
@@ -53,8 +53,10 @@ program bcor
   integer               :: nchanl               = 19
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
+  character(3)          :: gesanl               ='ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -82,6 +84,7 @@ program bcor
 ! Read namelist input
   read(luname,input)
   write(6,input)
+  write(6,*)'gesanl = ', gesanl
   write(6,*)' '
 
 ! Ensure number of requested regions does not exceed specified upper limit
@@ -96,9 +99,16 @@ program bcor
 ! Create filenames for diagnostic input, binary output file
   write(stringd,100) iyy,imm,idd,ihh
 100 format('.',i4.4,3i2.2)
-  diag_rad = trim(satname)
-  data_file= trim(satname) // trim(stringd) // '.ieee_d'
-  ctl_file = trim(satname) // '.ctl'
+
+  if ( trim(gesanl) == 'ges' ) then
+     diag_rad = trim(satname)
+     data_file= trim(satname) // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '.ctl'
+  else
+     diag_rad = trim(satname) // '_anl'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '_anl.ctl'
+  endif
 
   write(6,*)'diag_rad =',diag_rad
   write(6,*)'data_file=',data_file
@@ -189,10 +199,18 @@ program bcor
 ! Create GrADS control file
   if ( imkctl == 1 ) then
      write(6,*)'call create_ctl_bcor'
+
+     if ( trim(gesanl) == 'ges' ) then
+        mod_satname = trim(satname)
+     else
+        mod_satname = trim(satname) // '_anl'
+     endif
+
+
      call create_ctl_bcor(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
-          incr,ctl_file,lunctl,rmiss,satname,satype,dplat,surf_nregion,&
+          incr,ctl_file,lunctl,rmiss,mod_satname,satype,dplat,surf_nregion,&
           region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use(1,1),error(1,1),&
-          frequency(1,1),wavenumbr)
+          frequency(1,1),wavenumbr,little_endian)
   endif
 
   nwater = 0; nnwater = 0

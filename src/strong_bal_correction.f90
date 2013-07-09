@@ -10,18 +10,21 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !           which zeroes out input gravity component of perturbation tendencies.
 !           also output, for later use, input tendencies projected onto gravity modes.
 !           this is higher level routine, which calls more specific routines, based
-!           on the value of parameter tlnmc_type, passed through module mod_strong
+!           on the value of parameters regional and reg_tlnmc_type, passed through module mod_strong
 !
-!               tlnmc_type = 1   -- then call original slow global application
-!                               = 2   -- then call faster global applicatioin
-!                               = 3   -- then call regional application
-!                               = 4   -- then call version 3 regional application
+!           If .not. regional then call global application
+!           If regional, then
+!               reg_tlnmc_type = 1 for 1st version of regional application
+!                              = 2 for 2nd version of regional application
 !           
 !
 ! program history log:
 !   2007-02-15  parrish
 !   2008-08-10  derber - update to output correction to psi and chi for global
 !   2012-02-08  kleist - add uvflag to argument list
+!   2013-07-02  parrish - changes to eliminate tlnmc_type for global tlnmc and
+!                          add new variable reg_tlnmc_type for two versions of
+!                          regional tlnmc.
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency (subdomains)
@@ -56,11 +59,10 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use mod_strong, only: tlnmc_type
+  use mod_strong, only: reg_tlnmc_type
   use zrnmi_mod, only: zrnmi_strong_bal_correction
-  use strong_slow_global_mod, only: strong_bal_correction_slow_global
   use strong_fast_global_mod, only: strong_bal_correction_fast_global
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,regional
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
@@ -70,32 +72,30 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps
 
-  if(tlnmc_type==1) then
+  if(.not.regional) then
 
-!    slow global option:
-
-     call strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
-
-  elseif(tlnmc_type==2) then
-
-!    faster global option:
+!    global option:
 
      call strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
 
-  elseif(tlnmc_type==3) then
+  else
 
-!    regional option:
+     if(reg_tlnmc_type==1) then
 
-     call zrnmi_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
+!       regional option 1:
 
-  elseif(tlnmc_type==4) then
+        call zrnmi_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
 
-!    version 3 regional option
+     elseif(reg_tlnmc_type==2) then
 
-     !call fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
-     !call zrnmi_filter_uvm_ad_test(mype)
+!       regional option 2:
 
-     call fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
+        !call fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
+        !call zrnmi_filter_uvm_ad_test(mype)
+
+        call fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
+
+     end if
 
   end if
 
@@ -113,12 +113,12 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 !           which zeroes out input gravity component of perturbation tendencies.
 !           also output, for later use, input tendencies projected onto gravity modes.
 !           this is higher level routine, which calls more specific routines, based
-!           on the value of parameter tlnmc_type, passed through module mod_strong
+!           on the value of parameters regional and reg_tlnmc_type, passed through module mod_strong
 !
-!               tlnmc_type = 1   -- then call original slow global application
-!                               = 2   -- then call faster global applicatioin
-!                               = 3   -- then call regional application
-!                               = 4   -- then call version 3 regional application
+!           If .not. regional then call global application
+!           If regional, then
+!               reg_tlnmc_type = 1 for 1st version of regional application
+!                              = 2 for 2nd version of regional application
 !           
 !
 ! program history log:
@@ -154,11 +154,10 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use mod_strong, only: tlnmc_type
+  use mod_strong, only: reg_tlnmc_type
   use zrnmi_mod, only: zrnmi_strong_bal_correction_ad
-  use strong_slow_global_mod, only: strong_bal_correction_slow_global_ad
   use strong_fast_global_mod, only: strong_bal_correction_fast_global_ad
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,regional
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
@@ -170,31 +169,28 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
   logical update
 
-  if(tlnmc_type==1) then
+  if(.not.regional) then
 
-!    slow global option:
-
-     call strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
-
-  elseif(tlnmc_type==2) then
-
-!    faster global option:
+!    global option:
 
      call strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
-  elseif(tlnmc_type==3) then
+  else
 
-!    regional option:
+     if(reg_tlnmc_type==1) then
 
-     update=.true.
-     call zrnmi_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+!       regional option 1:
 
-  elseif(tlnmc_type==4) then
+        update=.true.
+        call zrnmi_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
 
-!    version 3 regional option
+     elseif(reg_tlnmc_type==2) then
 
-     update=.true.
-     call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+!       regional option 2:
+
+        update=.true.
+        call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+     end if
 
   end if
 

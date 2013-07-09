@@ -26,8 +26,8 @@ fi
 
 suffix=$1
 pdate=$2
-CYA=`echo $PDATE|cut -c9-10`
-PDY=`echo $PDATE|cut -c1-8`
+CYA=`echo $pdate|cut -c9-10`
+PDY=`echo $pdate|cut -c1-8`
 
 angle_cnt=`ls -la ${TANKDIR}/radmon.${PDY}/angle.*${pdate}.ieee_d* | wc -l`
 bcoef_cnt=`ls -la ${TANKDIR}/radmon.${PDY}/bcoef.*${pdate}.ieee_d* | wc -l`

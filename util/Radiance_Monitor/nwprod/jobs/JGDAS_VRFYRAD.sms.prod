@@ -68,6 +68,7 @@ export HOMEgfs=${HOMEgfs:-/nw${envir}}
 export EXECgfs=${EXECgfs:-$HOMEgfs/exec}
 export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
 export USHgfs=${USHgfs:-$HOMEgfs/ush}
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 ###################################
 # Set up the UTILITIES
@@ -80,7 +81,8 @@ sh $utilscript/setup.sh
 
 # Run setpdy and initialize PDY variables
 sh $utilscript/setpdy.sh
-. PDY
+. ./PDY
+
 
 #############################################
 # COMOUT - WHERE GSI OUTPUT RESIDES
@@ -118,6 +120,7 @@ postmsg "$jlogfile" "$msg"
 ################################
 # Remove the Working Directory
 ################################
+RM_TMPDIR=NO
 cd $DATA_IN
 if [ ${RM_TMPDIR:-YES} = YES ] ; then 
   rm -rf $DATA 
