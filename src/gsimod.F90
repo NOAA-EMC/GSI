@@ -19,7 +19,7 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
-     lwrite_peakwt,use_limit,lrun_subdirs
+     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -48,7 +48,7 @@
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,&
-      erradar_inflate,use_poq7,&
+      erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
@@ -234,11 +234,14 @@
 !  02-08-2012 kleist    add parameters to control new 4d-ensemble-var features.
 !  02-17-2012 tong      add parameter merge_two_grid_ensperts to merge ensemble perturbations
 !                       from two forecast domains to analysis domain  
+!  05-25-2012 li/wang   add TDR fore/aft sweep separation for thinning,xuguang.wang@ou.edu
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
-!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
+!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                
 !  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
 !                       convert_regional_guess so that rearth is defined when used
+!  05-07-2013 tong      add tdrerr_inflate for tdr obs err inflation and
+!                       tdrgross_fact for tdr gross error adjustment
 !  05-31-2013 wu        write ext_sonde output to standard out
 !  07-02-2013 parrish   change tlnmc_type to reg_tlnmc_type.  tlnmc_type no
 !                         longer used for global analysis.  
@@ -581,6 +584,8 @@
 !     dfact    - factor for duplicate obs at same location for conv. data
 !     dfact1   - time factor for duplicate obs at same location for conv. data
 !     erradar_inflate - radar error inflation factor
+!     tdrerr_inflate - logical for tdr obs error inflation
+!     tdrgross_fact - factor applies to tdr gross error
 !     oberrflg - logical for reading in new obs error table (if set to true)
 !     vadfile  - character(10) variable holding name of vadwnd bufr file
 !     noiqc    - logical flag to bypass OIQC (if set to true)
@@ -594,9 +599,9 @@
 !     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
 !     qc_noirjaco3_pole - controls wheter to use O3 Jac from IR instruments near poles
 
-  namelist/obsqc/ dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
-       qc_noirjaco3,qc_noirjaco3_pole
+  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
+       vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -615,8 +620,10 @@
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
 !      ext_sonde        - logical for extended forward model on sonde data
+!      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
-  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max,ext_sonde
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max, &
+       ext_sonde,l_foreaft_thin
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob

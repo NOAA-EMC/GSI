@@ -4,8 +4,8 @@
 # ----------------------------------
 # Redefine variables for NOAA HPCS
 # ----------------------------------
-COREINC  = /nwprod/lib/incmod
-CORELIB  = /nwprod/lib
+COREINC  = /home/mlueken/nwprod/incmod
+CORELIB  = /home/mlueken/nwprod/lib
 
 
 # ---------------------------
@@ -18,22 +18,19 @@ CORELIB  = /nwprod/lib
 # Fortran compiler and options
 # ----------------------------
 
-  CF            = mpfort
+  CF            = mpif90
   FC            = $(CF)
 
 #--- Normal mode options
   PROF= #-pg
-  OMP = #-openmp
+  OMP = #-qsmp=noauto
 
-  FFLAGS_F90    = -D_REAL8_ 
-  FFLAGS_COM_N  = -I ./  -O3 -fp-model strict -convert big_endian -assume byterecl \
-  		-implicitnone
-  FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
+  FFLAGS_F90    = -D_REAL8_ -fp-model strict -assume byterecl -g -traceback
+  FFLAGS_COM_N  = -I ./
+  FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -O0 -fp-model strict -convert big_endian -assume byterecl \
-  		-implicitnone -g -traceback -debug -check -warn
-
+  FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
 
 
@@ -41,11 +38,11 @@ CORELIB  = /nwprod/lib
 # C Compiler and options
 # ----------------------
 
-  CC            = mpcc
+  CC            = gcc
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
 
 #--- Debug mode options
 
@@ -59,9 +56,9 @@ CORELIB  = /nwprod/lib
   LD            = $(CF)
 
 #--- Normal mode options
-  LIBS_N        = -L$(CORELIB) -lw3nco_4
+  LIBS_N        = -L$(CORELIB) -lw3lib-1.9_d
 
-  LDFLAGS_N     = -Wl,-Map,loadmap.txt
+  LDFLAGS_N     =
 
   LDFLAGS       = $(LDFLAGS_N)
 
@@ -69,7 +66,7 @@ CORELIB  = /nwprod/lib
 
   LIBS_D        = $(LIBS_N)
 
-  LDFLAGS_D     = $(LDFLAGS_N)
+  LDFLAGS_D     =
 
 #--- Empty out mpi library definition: embedded in compiler
 

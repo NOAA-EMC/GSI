@@ -126,6 +126,10 @@
 !   2011-07-10  zhu     - add jacobian assignments for regional cloudy radiance
 !   2011-09-28  collard - Fix error trapping for CRTM failures.         
 !   2012-11-02  collard - Use cloud detection channel flag for IR.
+!   2013-02-13  eliu    - Add options for SSMIS instruments
+!                       - Add two additional bias predictors for SSMIS radiances  
+!                       - Tighten up QC checks for SSMIS  
+
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -169,7 +173,7 @@
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-      two,three,cg_term,wgtlim,r100,r10,r0_01
+      two,three,cg_term,wgtlim,r100,r10,r0_01,pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -216,16 +220,19 @@
   integer(i_kind) iqs,iqg,iqh,iqr
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
+  real(r_kind) node 
   real(r_kind) term,tlap,tb_obsbc1
   real(r_kind) drad,dradnob,varrad,error,errinv,useflag
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
+  real(r_kind) wltm1,wltm2,wltm3  
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
   real(r_kind) dtsavg,r90,coscon,sincon
+  real(r_kind) dlat,wlat 
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
@@ -262,6 +269,7 @@
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
   real(r_kind) :: dtw,dtc,tz_tr
+  real(r_kind) :: predchan6_save   
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -624,6 +632,10 @@
         zsges=data_s(izz,n)
         nadir = nint(data_s(iscan_pos,n))
         pangs  = data_s(iszen_ang,n)
+!       Extract warm load temperatures
+!       wltm1 = data_s(isty,n)
+!       wltm2 = data_s(istp,n)
+!       wltm3 = data_s(ism,n)
 
 !  If desired recompute 10meter wind factor 
         if(sfcmod_gfs .or. sfcmod_mm5) then
@@ -713,7 +725,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. seviri) then
+              if (goessndr .or. goes_img .or. seviri .or. ssmis) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -806,19 +818,48 @@
            tlap = tlapchn(i)-tlapmean(mm)
            pred(4,i)=tlap*tlap
            pred(5,i)=tlap
-           do j=1,5
+!          additional bias predictor (as/ds node) for SSMIS         
+           pred(6,i)= zero                                      
+           pred(7,i)= zero                                     
+           node = data_s(ilazi_ang,n)                              
+           if (ssmis) then                                         
+              if (.not. newpc4pred) then                           
+                 pred(6,i)= r0_01*node*cos(cenlat*deg2rad)          
+                 pred(7,i)= r0_01*sin(cenlat*deg2rad)               
+              else                                               
+                 pred(6,i)= node*cos(cenlat*deg2rad)            
+                 pred(7,i)= sin(cenlat*deg2rad)                  
+              endif                                                
+           endif                                                   
+           do j=1,7                               
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
            if (adp_anglebc) then
-              do j=6,npred
+              do j=8,npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
            end if
- 
+!          Smooth the channel dependent asc/dsc coefficient to zero at the
+!          transition zone
+!          in order to remove sudden changes near 90N and 90S latitudes (for
+!          SSMIS only)
+!           if (ssmis) then
+!              wlat = one
+!              dlat = 90.0_r_kind-70.0_r_kind
+!              if (cenlat >=  70.0_r_kind) &
+!                 wlat = abs(tanh((90.0_r_kind-cenlat)*pi/dlat))
+!              if (cenlat <= -70.0_r_kind) &
+!                 wlat = abs(tanh((90.0_r_kind+cenlat)*pi/dlat))
+!              predchan6_save = predchan(6,i)    ! save the orginal (unscaled)
+!              coefficient for asc/dsc node
+!              predchan(6,i) = wlat*predchan(6,i)
+!           endif
            do j = 1,npred
               predbias(j,i) = predchan(j,i)*pred(j,i)
            end do
            predbias(npred+1,i) = cbias(nadir,mm)*ang_rad(mm)      !global_satangbias
+!          if (ssmis) predchan(6,i) = predchan6_save  ! recovered the original
+!          coefficient for asc/dsc node
  
 !          Apply SST dependent bias correction with cubic spline
            if (retrieval) then
@@ -832,7 +873,7 @@
            tbcnob(i)    = tb_obs(i) - tsim(i)  
            tbc(i)       = tbcnob(i)                     
  
-           do j=1,5
+           do j=1,7
               tbc(i)=tbc(i) - predbias(j,i) !obs-ges with bias correction
            end do
            tbc(i)=tbc(i) - predbias(npred+1,i)
@@ -1054,7 +1095,9 @@
 
               if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
                  errf(i) = three*errf(i)
-              else 
+              else if (ssmis) then
+                 errf(i) = min(1.5_r_kind*errf(i),ermax_rad(m))  ! tighten up gross check for SSMIS
+              else
                  errf(i) = min(three*errf(i),ermax_rad(m))
               endif
 

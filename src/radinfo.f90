@@ -181,6 +181,7 @@ contains
 !   2010-05-12  zhu     - add passive_bc
 !   2010-09-02  zhu     - add use_edges
 !   2010-04-25  zhu     - add logical newpc4pred (todling move here)
+!   2013-02-13  eliu    - add two additional bias correction predictors for SSMIS 
 !
 !   input argument list:
 !
@@ -200,8 +201,7 @@ contains
     retrieval = .false.     ! .true. = apply physical SST retrieval with AVHRR data
     diag_rad = .true.       ! .true.=generate radiance diagnostic file
     mype_rad = 0            ! mpi task to collect and print radiance use information on/from
-    npred=5                 ! number of bias correction predictors
-
+    npred=7                 ! number of bias correction predictors
     nst_gsi   = 0          ! 0 = no nst info at all in gsi
                            ! 1 = read nst info but not applied
                            ! 2 = read nst info, applied to Tb simulation but no Tr analysis
@@ -418,8 +418,10 @@ contains
 !   2010-05-06  zhu     - add option adp_anglebc for variational angle bias correction
 !   2011-01-04  zhu     - add tlapmean update for new channels when adp_anglebc is turned on
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
-!   2-13-01-26  parrish - fix bug caught by WCOSS debug compile -- tlapmean used before allocated.
+!   2013-01-26  parrish - fix bug caught by WCOSS debug compile -- tlapmean used before allocated.
 !                          Move first use of tlapmean to after allocation.
+!   2013-02-13  eliu    - change write-out format for iout_rad (for two
+!                         additional SSMIS bias correction coefficients)
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
 !
 !   input argument list:
@@ -776,7 +778,9 @@ contains
                 nusis(j),nuchan(j),' not found in satbias_in file - set to zero '
              endif
           end do
-140       format(i4,1x,a20,10f12.6)
+!140      format(i4,1x,a20,10f12.6)
+140       format(i4,1x,a20,12f12.6)
+
        endif
 
 
@@ -1236,6 +1240,7 @@ contains
 
 !  Declare local variables
    logical lexist
+   logical lverbose 
    logical data_on_edges
    logical update
    logical mean_only
@@ -1334,7 +1339,8 @@ contains
          cycle loopf
       endif
 
-      call read_radiag_header(lndiag,npred,retrieval,header_fix,header_chan,data_name,istatus)
+      lverbose=.false. 
+      call read_radiag_header(lndiag,npred,retrieval,header_fix,header_chan,data_name,istatus,lverbose) 
       if (istatus/=0) then
          write(6,*)'INIT_PREDX:  Task ',mype,' problem reading file ',trim(fdiag_rad),' header, iostat=',istatus
          close(lndiag)
@@ -1645,7 +1651,7 @@ contains
          end if  ! end of lexist
       end do ! end of ndat
 
-      deallocate(tsum0,tsum,tlap0,tlap1,tlap2,tcnt)
+      deallocate(tsum0,tsum,tlap0,tlap1,tlap2,tcnt) 
    end if
 
    if (mype==mype_rad) then  

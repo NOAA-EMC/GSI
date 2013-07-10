@@ -59,6 +59,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
 !                         (isfcalc=1)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-02-13  eliu    - bug fix for solar zenith calculation 
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -542,7 +543,10 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
         clath_sun_glint_calc = clath
         clonh_sun_glint_calc = clonh
         if(clonh>180_r_kind) clonh_sun_glint_calc = clonh -360.0_r_kind
-        date5_4_sun_glint_calc = idate5(4)
+!       date5_4_sun_glint_calc = idate5(4)  
+        date5_4_sun_glint_calc =  &                                                                                                
+        real(idate5(4),r_kind)+real(idate5(5),r_kind)*r60inv+real(amsrspot_d(7),r_kind)*r60inv*r60inv   
+     
         call zensun(doy,date5_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth)
 
         if(amsre_low .or. amsre_mid) then
@@ -894,7 +898,7 @@ subroutine zensun(day,time,lat,lon,sun_zenith,sun_azimuth)
 
 !============== finished least squares regression on doy**3 ==============
 
-  if ((di < 3) .or. (di > 72)) tt = tt + 365._r_kind
+! if ((di < 3) .or. (di > 72)) tt = tt + 365._r_kind
 
   eqtime=(beta(1) + beta(2)*tt**3)*r60inv
   decang=beta2(1) + beta2(2)*tt**3

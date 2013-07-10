@@ -12,6 +12,7 @@ module m_gpsrhs
 !   2010-03-22  j guo   - added this document block
 !   2010-05-27  j guo   - derived from m_rhs.f90
 !   2011-01-04  l cucurull - add nsig_ext in gpsrhs_alloc
+!   2012-12-17  l cucurull - remove qcfail_stats_1 and qcfail_stats_2
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -71,8 +72,6 @@ module m_gpsrhs
   public:: qcfail_loc
   public:: qcfail_high
   public:: qcfail_gross
-  public:: qcfail_stats_1
-  public:: qcfail_stats_2
 
   public:: data_ier
   public:: data_igps
@@ -121,8 +120,6 @@ module m_gpsrhs
     real(r_single  ), pointer, dimension(  :):: qcfail_loc  => null()
     real(r_single  ), pointer, dimension(  :):: qcfail_high => null()
     real(r_single  ), pointer, dimension(  :):: qcfail_gross=> null()
-    real(r_single  ), pointer, dimension(  :):: qcfail_stats_1 => null()
-    real(r_single  ), pointer, dimension(  :):: qcfail_stats_2 => null()
 
     real(r_kind    ), pointer, dimension(  :):: data_ier  => null()
     real(r_kind    ), pointer, dimension(  :):: data_igps => null()
@@ -155,7 +152,6 @@ module m_gpsrhs
 
   logical         , pointer, dimension(  :), save:: qcfail
   real(r_single  ), pointer, dimension(  :), save:: qcfail_loc,qcfail_high,qcfail_gross
-  real(r_single  ), pointer, dimension(  :), save:: qcfail_stats_1,qcfail_stats_2
 
   real(r_kind    ), pointer, dimension(  :), save:: data_ier
   real(r_kind    ), pointer, dimension(  :), save:: data_igps
@@ -270,15 +266,11 @@ _ENTRY_(myname_)
   allocate(b%qcfail_loc    (nobs))
   allocate(b%qcfail_high   (nobs))
   allocate(b%qcfail_gross  (nobs))
-  allocate(b%qcfail_stats_1(nobs))
-  allocate(b%qcfail_stats_2(nobs))
 
   b%qcfail=.false.
   b%qcfail_loc    =zero
   b%qcfail_high   =zero
   b%qcfail_gross  =zero
-  b%qcfail_stats_1=zero
-  b%qcfail_stats_2=zero
 
   allocate(b%data_ier (nobs))
   allocate(b%data_igps(nobs))
@@ -355,8 +347,6 @@ _ENTRY_(myname_)
   deallocate(b%qcfail_loc    )
   deallocate(b%qcfail_high   )
   deallocate(b%qcfail_gross  )
-  deallocate(b%qcfail_stats_1)
-  deallocate(b%qcfail_stats_2)
 
   deallocate(b%data_ier )
   deallocate(b%data_igps)
@@ -414,8 +404,6 @@ _ENTRY_(myname_)
   qcfail_loc	=> b%qcfail_loc
   qcfail_high	=> b%qcfail_high
   qcfail_gross	=> b%qcfail_gross
-  qcfail_stats_1=> b%qcfail_stats_1
-  qcfail_stats_2=> b%qcfail_stats_2
 
   data_ier	=> b%data_ier
   data_igps	=> b%data_igps
@@ -450,7 +438,7 @@ _ENTRY_(myname_)
   nullify(error,error_adjst,ratio_errors)
   nullify(rdiagbuf,cdiagbuf)
   nullify(qcfail,qcfail_loc,qcfail_gross)
-  nullify(qcfail_stats_1,qcfail_stats_2,qcfail_high)
+  nullify(qcfail_high)
   nullify(data_ier,data_igps,data_ihgt)
 _EXIT_(myname_)
 end subroutine gpsrhs_unaliases

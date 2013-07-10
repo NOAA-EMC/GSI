@@ -29,6 +29,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
 !   2010-11-03  derber - moved threading calculations to gridmod and modified
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
+!   2012-03-11  tong    - added condition to calcuate cw_t
 !
 ! usage:
 !   input argument list:
@@ -72,7 +73,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       ges_cwmr_lat,ges_teta,ges_prsi
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: die
+  use control_vectors, only: cvars3d
+  use mpeu_util, only: die, getindex
   implicit none
 
 ! Declare passed variables
@@ -95,7 +97,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
   real(r_kind) tmp,tmp2,tmp3,sumk,sumvk,sum2k,sum2vk,uduvdv
-  integer(i_kind) i,j,k,ix,it,kk,istatus,nguess,ier
+  integer(i_kind) i,j,k,ix,it,kk,istatus,nguess,ier,icw
 
 ! linearized about guess solution, so set it flag accordingly
   it=ntguessig
@@ -114,6 +116,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
   else
      ges_cwmr_it => cwgues
   end if
+
+  icw=getindex(cvars3d,'cw')  
 
 ! preliminaries:
   sst=zero
@@ -383,8 +387,10 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
               v(i,j,k)*ges_qlat    (i,j,k) - ges_v(i,j,k,it)*q_y (i,j,k)
            oz_t(i,j,k) = -u(i,j,k)*ges_ozlon   (i,j,k) - ges_u(i,j,k,it)*oz_x(i,j,k) - &
               v(i,j,k)*ges_ozlat   (i,j,k) - ges_v(i,j,k,it)*oz_y(i,j,k)
-           cw_t(i,j,k) = -u(i,j,k)*ges_cwmr_lon(i,j,k) - ges_u(i,j,k,it)*cw_x(i,j,k) - &
-              v(i,j,k)*ges_cwmr_lat(i,j,k) - ges_v(i,j,k,it)*cw_y(i,j,k)
+           if (icw>0) then
+              cw_t(i,j,k) = -u(i,j,k)*ges_cwmr_lon(i,j,k) - ges_u(i,j,k,it)*cw_x(i,j,k) - &
+                 v(i,j,k)*ges_cwmr_lat(i,j,k) - ges_v(i,j,k,it)*cw_y(i,j,k)
+           end if
            if(k > 1)then
               tmp=half*what(i,j,k)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
@@ -394,9 +400,11 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
               oz_t(i,j,k) = oz_t(i,j,k) - tmp*(ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it)) - &
                  tmp2*( (oz(i,j,k-1)-oz(i,j,k)) - (ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k)) - &
-                 tmp2*( (cw(i,j,k-1)-cw(i,j,k)) - (ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
+              if (icw>0) then 
+                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k)) - &
+                    tmp2*( (cw(i,j,k-1)-cw(i,j,k)) - (ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k))* &
+                    prdif(i,j,k)*r_prdif9(i,j,k))
+              end if
            end if
            if(k < nsig)then
               tmp=half*what(i,j,k+1)*r_prdif9(i,j,k)
@@ -407,9 +415,11 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
               oz_t(i,j,k) = oz_t(i,j,k) - tmp*(ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it)) - &
                  tmp2*( (oz(i,j,k)-oz(i,j,k+1)) - (ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1)) - &
-                 tmp2*( (cw(i,j,k)-cw(i,j,k+1)) - (ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1))* &
-                 prdif(i,j,k)*r_prdif9(i,j,k))
+              if (icw>0) then
+                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1)) - &
+                    tmp2*( (cw(i,j,k)-cw(i,j,k+1)) - (ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1))* &
+                    prdif(i,j,k)*r_prdif9(i,j,k))
+              end if
            end if
         end do
       end do

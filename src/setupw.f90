@@ -123,7 +123,8 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2012-01-10  hu      - add additional quality control for PBL profiler 223, 224, 227 
 !   2011-12-14  wu      - add code for rawinsonde level enhancement ( ext_sonde )
 !   2011-10-14  Hu      - add code for producing pseudo-obs in PBL 
-!                                       layer based on surface obs UV
+!                               layer based on surface obs UV
+!   2013-01-08  Su      -add more quality control for satellite winds and profiler winds
 !   2013-01-26  parrish - change grdcrd to grdcrd1, intrp2a to intrp2a11, tintrp2a to tintrp2a1, tintrp2a11,
 !                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-02-15  parrish - WCOSS debug runtime error--ikx outside range 1 to nconvtype.  Add counter
@@ -142,6 +143,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Declare local parameters
   real(r_kind),parameter:: r0_7=0.7_r_kind
+  real(r_kind),parameter:: r0_1=1.0_r_kind
   real(r_kind),parameter:: r6=6.0_r_kind
   real(r_kind),parameter:: r7=7.0_r_kind
   real(r_kind),parameter:: r15=15.0_r_kind
@@ -176,6 +178,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
+  real(r_kind) oscat_vec,ascat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
@@ -630,11 +633,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      spdb=sqrt(uob**2+vob**2)-sqrt(ugesin**2+vgesin**2)
 
 ! QC PBL profiler  227 and 223, 224
-     if(itype==227 .or. itype==223 .or. itype==224) then
+     if(itype==227 .or. itype==223 .or. itype==224 .or. itype==228 .or. itype==229) then
         if(abs(uob) < 1.0_r_kind .and. abs(vob) <1.0_r_kind )  then
            muse(i)=.false.
-           data(iqc,i)=10.0_r_kind
-           data(iuse,i)=101.0_r_kind
+           error=zero
         endif
      endif
 
@@ -730,14 +732,44 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         dvdiff_opp = -vob - vgesin
         vecdiff = sqrt(dudiff**2 + dvdiff**2)
         vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
+        ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)       
+
         if ( abs(dudiff) > qcu  .or. &       ! u component check
              abs(dvdiff) > qcv  .or. &       ! v component check
              vecdiff > vecdiff_opp ) then    ! ambiguity check
  
            error = zero
-
         endif
      endif
+
+!    QC OSCAT winds     
+     if (itype==291) then
+        qcu = r6
+        qcv = r6
+        oscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
+
+!        if ( spdob > r20 .or. &          ! high wind speed check
+!             abs(dudiff) > qcu  .or. &   ! u component check
+!             oscat_vec > r0_1 .or. &
+!             abs(dvdiff) > qcv ) then    ! v component check
+!           error = zero
+!        else
+!           write(6,2000) "999291291", data(ilate,i), &
+!                      data(ilone,i), uob, vob, ugesin, vgesin, &
+!                      jiter 
+!        endif
+
+        if (spdob > r20 .or. &
+            abs(dudiff) > qcu .or. &
+            oscat_vec > r0_1 .or. &
+            abs(dvdiff) > qcv) then                                               
+           error = zero
+        endif
+     endif
+
+
+2000 format(a9,1x,2(f8.2,1x),4(f8.2,1x),3x,i3)
+2001 format(a6,1x,2(f8.2,1x),4(f8.2,1x),3x,i3,3x,f8.2)
 
 !    If requested, setup for single obs test.
      if (oneobtest) then
@@ -768,7 +800,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if( itype == 245 .or. itype ==246) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
         endif
-        if(itype == 253 ) then
+        if(itype == 253 .or. itype ==254) then
            if( presw <400.0_r_kind .and. presw >200.0_r_kind) qcgross=r0_7*cgross(ikx)
         endif
         if(itype >=257 .and. itype <=259 ) then

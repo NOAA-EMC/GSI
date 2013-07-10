@@ -520,6 +520,8 @@
 !          = 335 - error reading radiance diagnostic file
 !          = 336 - invalid namlist setting for nhsrf
 !          = 337 - inconsitent tlnmc namelist settings
+!          = 338 - error reading MLS vertical levels from MLS bufr 
+!          = 339 - error:more than one MLS  data type not allowed
 !
 !
 ! remarks: resolution, unit numbers and several constants are

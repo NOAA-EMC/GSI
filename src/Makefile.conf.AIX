@@ -71,8 +71,6 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
           -I $(INCnetcdf) -I ${INCnemsio} -I $(INCw3) -qarch=auto \
           -qmaxmem=-1 -qfullpath -qdbg -qstrict -q64 \
           -O0 \
-          -qsigtrap=xl__trcedump \
-          -qflttrap=overflow:zero:enable \
           -qinitauto=7FF7FFFF \
           -qcheck \
           -qwarn64 \

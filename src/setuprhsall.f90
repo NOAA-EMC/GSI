@@ -453,7 +453,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !          set up ozone (sbuv/omi/mls) data
            else if(ditype(is) == 'ozone' .and. ihave_oz)then
-              if (obstype == 'o3lev' .or. obstype == 'mls' ) then
+              if (obstype == 'o3lev' .or. index(obstype,'mls')/=0 ) then
                  call setupozlev(lunin,mype,stats_oz,nchanl,nreal,nobs,&
                       obstype,isis,is,ozone_diagsave,init_pass,last_pass)
               else

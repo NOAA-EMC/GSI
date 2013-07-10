@@ -33,6 +33,8 @@ module qcmod
 !   2011-05-20  mccarty - add qc_atms routine
 !   2011-07-08  collard - reverse relaxation of AMSU-A Ch 5 QC introduced at revision 5986.
 !   2012-11-10  s.liu   - add logical variable newvad to identify new and old vad wind
+!   2013-05-07  tong    - add logical variable tdrerr_inflate for tdr obs err
+!                         inflation and tdrgross_fact to adjust tdr gross error
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -54,6 +56,8 @@ module qcmod
 !   def dfact           - factor for duplicate obs at same location for conv. data
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
 !   def erradar_inflate - radar error inflation factor
+!   def tdrerr_inflate  - logical variable to inflate obs error for tdr data
+!   def tdrgross_fact   - factor applies to tdr gross error
 !   def npres_print     - number of levels for print
 !   def ptop,pbot       - arrays containing top pressure and bottom pressure of print levels
 !   def ptopq,pbotq     - arrays containing top pressure and bottom pressure of print levels for q
@@ -102,8 +106,8 @@ module qcmod
   public :: qc_noirjaco3_pole
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
-  public :: pboto3,ptopo3,pbotq,ptopq,newvad
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
+  public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,ifail_gross_qc
 
   logical nlnqc_iter
@@ -112,10 +116,11 @@ module qcmod
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
   logical newvad
+  logical tdrerr_inflate
 
   character(10):: vadfile
   integer(i_kind) npres_print
-  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
+  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc,tdrgross_fact
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -282,6 +287,8 @@ contains
     varqc_iter=one
 
     erradar_inflate   = one
+    tdrerr_inflate    = .false.
+    tdrgross_fact     = one
 
     nlnqc_iter= .false.
     noiqc = .false.
@@ -620,6 +627,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
 !      5) update the qc criteria of the ssmis data over non-ocean surfaces
 !      6) realx the qc criteria for the data at channels from 1 to 2
 !      7) add two references
+!     2013-02-13  eliu     - tighten up the qc criteria for ssmis
 !
 ! input argument list:
 !     nchanl  - number of channels per obs
@@ -843,7 +851,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
            vfact = fact*vfact
         end if
 
-     else 
+     else  ! for ssmis 
        !Use dtbc at 52.8 GHz to detect cloud-affected data
         if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
            do i =1,2
@@ -873,18 +881,22 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
               if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
            end do
         end if
-
         if (sfchgt > r2000) then
-           varinv(9)=zero
-           if(id_qc(9)== igood_qc) id_qc(9)=ifail_topo_ssmi_qc
+           do i=1,24
+              varinv(i)=zero
+              if(id_qc(i)== igood_qc) id_qc(i)=ifail_topo_ssmi_qc
+           enddo
         end if
-        if (sfchgt > r4000) then
-           varinv(3)=zero
-           if(id_qc(3)== igood_qc) id_qc(3)=ifail_topo_ssmi_qc
-           varinv(10)=zero
-           if(id_qc(10)== igood_qc) id_qc(10)=ifail_topo_ssmi_qc
-        end if
-
+!        if (sfchgt > r2000) then
+!           varinv(9)=zero
+!           if(id_qc(9)== igood_qc) id_qc(9)=ifail_topo_ssmi_qc
+!        end if
+!        if (sfchgt > r4000) then
+!           varinv(3)=zero
+!           if(id_qc(3)== igood_qc) id_qc(3)=ifail_topo_ssmi_qc
+!           varinv(10)=zero
+!           if(id_qc(10)== igood_qc) id_qc(10)=ifail_topo_ssmi_qc
+!        end if
 
      end if
   end if
@@ -1734,8 +1746,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
 ! Determine whether or not CW fed into CRTM
   lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  !emily
-  if(icw4crtm >0) lcw4crtm = .true.                          !emily
+  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  
+  if(icw4crtm >0) lcw4crtm = .true.                         
    
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
