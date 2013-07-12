@@ -28,6 +28,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !   2009-08-20  parrish - replace curvfct with curvx, curvy.  this allows tendency computation to 
 !                          work for any general orthogonal coordinate.
 !   2010-11-03  derber - added threading
+!   2012-03-11  tong - added condition to calculate cw tendency
 !
 ! usage:
 !   input argument list:
@@ -72,6 +73,9 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   use constants, only: zero,half,one,two,rearth,rd,rcp,omega,grav
   use tendsmod, only: what9,prsth9,r_prsum9,r_prdif9,prdif9,pr_xsum9,pr_xdif9,pr_ysum9,&
      pr_ydif9,curvx,curvy,coriolis
+  use control_vectors, only: cvars3d
+  use mpeu_util, only: getindex
+
   implicit none
 
 ! Declare passed variables
@@ -89,7 +93,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind) tmp,tmp2
-  integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,kk
+  integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,kk,icw
   real(r_kind) sumk,sumvk,sum2k,sum2vk,uuvv
 
 
@@ -251,6 +255,7 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 
 !   Compute tendencies for wind components & Temperature
 
+    icw=getindex(cvars3d,'cw')
     do k=1,nsig
       do j=jtstart(kk),jtstop(kk)
         do i=1,lat2
@@ -268,7 +273,9 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 
            q_t (i,j,k) = -u(i,j,k)*q_x (i,j,k) - v(i,j,k)*q_y (i,j,k)
            oz_t(i,j,k) = -u(i,j,k)*oz_x(i,j,k) - v(i,j,k)*oz_y(i,j,k)
-           cw_t(i,j,k) = -u(i,j,k)*cw_x(i,j,k) - v(i,j,k)*cw_y(i,j,k)
+           if(icw>0)then
+              cw_t(i,j,k) = -u(i,j,k)*cw_x(i,j,k) - v(i,j,k)*cw_y(i,j,k)
+           end if
  
 !   vertical flux terms
 
@@ -279,7 +286,9 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
               t_t (i,j,k) = t_t (i,j,k) - tmp*(t (i,j,k-1)-t (i,j,k))
               q_t (i,j,k) = q_t (i,j,k) - tmp*(q (i,j,k-1)-q (i,j,k))
               oz_t(i,j,k) = oz_t(i,j,k) - tmp*(oz(i,j,k-1)-oz(i,j,k))
-              cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k-1)-cw(i,j,k))
+              if(icw>0)then
+                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k-1)-cw(i,j,k))
+              end if
            end if
            if (k<nsig) then
               tmp = half*what9(i,j,k+1)*r_prdif9(i,j,k)
@@ -288,7 +297,9 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
               t_t (i,j,k) = t_t (i,j,k) - tmp*(t (i,j,k)-t (i,j,k+1))
               q_t (i,j,k) = q_t (i,j,k) - tmp*(q (i,j,k)-q (i,j,k+1))
               oz_t(i,j,k) = oz_t(i,j,k) - tmp*(oz(i,j,k)-oz(i,j,k+1))
-              cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k)-cw(i,j,k+1))
+              if(icw>0)then 
+                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(cw(i,j,k)-cw(i,j,k+1))
+              end if
            end if        
         end do  !end do j
       end do    !end do i

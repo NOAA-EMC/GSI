@@ -318,7 +318,7 @@ contains
     use gridmod, only: ijn_s,ltosj_s,ltosi_s,displs_s,itotsub,&
        lat2,lon2,nlat,nlon
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
-    use mersenne_twister, only: random_seed, random_number
+    use mersenne_twister, only: random_setseed, random_number
     implicit none
 
 ! Declare passed variables
@@ -326,8 +326,7 @@ contains
     integer(i_kind),dimension(5),intent(in   ) :: iadate    
 
 ! Declare local variables
-    integer(i_kind) krsize,i,j,k,mm1,myper
-    integer(i_kind),allocatable,dimension(:):: nrnd
+    integer(i_kind) i,j,k,mm1,myper,iseed
     
     real(r_kind) rseed
     real(r_kind),allocatable,dimension(:):: rwork,rgrid1
@@ -338,16 +337,10 @@ contains
     allocate(rwork(itotsub),xkt2d(lat2,lon2))
     myper=npe-1
     if (mype==myper) then
-       call random_seed(size=krsize)
-       allocate(nrnd(krsize))
-       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) &
-          + 1e2_r_kind*iadate(3) + iadate(4)
-       write(6,*)'CREATE_PCP_RANDOM:  rseed,krsize=',rseed,krsize
-       do i=1,krsize
-          nrnd(i) = rseed
-       end do
-       call random_seed(put=nrnd)
-       deallocate(nrnd)
+       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) + 1e2_r_kind*iadate(3) + iadate(4)
+       iseed=rseed
+       write(6,*)'CREATE_PCP_RANDOM:  iseed=',iseed
+       call random_setseed(iseed)
        allocate(rgrid1(nlat*nlon),rgrid2(nlat,nlon))
        call random_number(rgrid1)
        k=0

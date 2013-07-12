@@ -11,9 +11,10 @@ module strong_fast_global_mod
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
 !   2012-11-23  parrish - Replace calls to spanaly_ns and spsynth_ns with inline code.
 !                          Remove subroutines spanaly_ns and spsynth_ns.
+!   2013-07-02  parrish - change name of init_strongvars_2 to init_strongvars.
 !
 ! subroutines included:
-!    init_strongvars_2        --
+!    init_strongvars          --
 !    strong_bal_correction_fast_global
 !    strong_bal_correction_fast_global_ad -- adjoint of strong_bal_correction
 !    gather_rmstends0         -- get bal diagnostics
@@ -53,7 +54,7 @@ module strong_fast_global_mod
 ! set default to private
   private
 ! set subroutines to public
-  public :: init_strongvars_2
+  public :: init_strongvars
   public :: strong_bal_correction_fast_global
   public :: strong_bal_correction_fast_global_ad
   public :: gather_rmstends0
@@ -102,10 +103,10 @@ module strong_fast_global_mod
 
 contains
 
-subroutine init_strongvars_2(mype)
+subroutine init_strongvars(mype)
 !$$$  subprogram documentation block
 !                .      .    .
-! subprogram:    init_strongvars_2
+! subprogram:    init_strongvars
 !
 !   prgrmmr: parrish
 !
@@ -139,7 +140,7 @@ subroutine init_strongvars_2(mype)
   call inmi_coupler_ew2sd1(mype)
 
   return
-end subroutine init_strongvars_2
+end subroutine init_strongvars
 
 
 subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps, &

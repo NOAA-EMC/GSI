@@ -1097,7 +1097,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
 
                  call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                    plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse)
+                    plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
 
                  if (.not. luse) then
                     if(k==levs) then

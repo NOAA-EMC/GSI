@@ -25,6 +25,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2012-10-13 Su      -modify the code to assimilate GOES hourly wind, changed the error and quality control
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
 !
@@ -146,7 +147,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) toff,t4dv
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
-  real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
+  real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,ree
   real(r_kind) woe,errout,dlat,dlon,dlat_earth,dlon_earth
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
@@ -359,6 +360,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  itype=244
               else
                  write(6,*) 'READ_SATWND: wrong derived method value'
+              endif
+           endif
+        else if( trim(subset) == 'NC005019') then                   ! GOES short wave 
+           if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! NESDIS GOES
+              if(hdrdat(9) == one)  then                            ! IR winds
+                 itype=245
+                 iobsub=1
+                 if(hdrdat(1) == 259.0_r_kind) iobsub=151
               endif
            endif
         endif
@@ -630,6 +639,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif  
                     endif
                  enddo
+                 if(qifn <85.0_r_kind .and. qifn /=r110)  then
+                    qm=15
+                    pqm=15
+                 endif
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
@@ -680,6 +693,34 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  enddo
               endif
+           else if( trim(subset) == 'NC005019') then                   ! AVHRR
+              if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then
+                 if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+                 if(hdrdat(9) == one)  then                            ! IR winds
+                    itype=245
+                    qm=15
+                    pqm=15
+                    if(hdrdat(1) == 259.0_r_kind) then
+                       iobsub=151
+                     else
+                       iobsub=1
+                     endif
+                 endif
+! get quality information
+                 call ufbrep(lunin,qcdat,3,8,iret,qcstr)
+                 do j=1,6
+                    if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
+                    if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
+                       if(qcdat(2,j) ==  one  .and. qifn >r105) then
+                          qifn=qcdat(3,j)
+                       else if(qcdat(2,j) ==  three .and. qify >105) then
+                          qify=qcdat(3,j)
+                       else if( qcdat(2,j) == four .and. ee >105) then
+                          ee=qcdat(3,j)
+                       endif
+                    endif
+                 enddo
+              endif
            endif
            if ( qify == zero) qify=r110
            if ( qifn == zero) qifn=r110
@@ -720,8 +761,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
                  if(hdrdat(2) >20.0_r_kind) then 
                     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
-!                   if (isflg /= 0) cycle loop_readsb 
-                    qm=15
+                    if(isflg /= 0) cycle loop_readsb 
                  endif
               endif
            endif
@@ -753,7 +793,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            do kl=1,32
               if(ppb>=etabl(itype,kl+1,1).and.ppb<=etabl(itype,kl,1)) k1=kl
            end do
-           if(ppb<=etabl(itype,33,1)) k1=5
+           if(ppb<=etabl(itype,33,1)) k1=33
            k2=k1+1
            ediff = etabl(itype,k2,1)-etabl(itype,k1,1)
            if (abs(ediff) > tiny_r_kind) then
@@ -764,6 +804,29 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            del=max(zero,min(del,one))
            obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
            obserr=max(obserr,werrmin)
+!  for GOES hourly winds, set error doubled
+            if(itype==245 .or. itype==246) then
+!               obserr=obserr*two
+!  using  Santek quality control method,calculate the original ee value
+               if(ee <105.0_r_kind) then
+                  ree=(ee-r100)/(-10.0_r_kind)
+                  if(obsdat(4) >zero) then
+                    ree=ree/obsdat(4)
+                  else
+                    ree=two
+                  endif
+               else
+                  ree=0.2_r_kind
+               endif
+               if( ppb >= 800.0_r_kind .and. ree >0.55_r_kind) then
+                  qm=15
+                  pqm=15
+                else if (ree >0.8_r_kind) then
+                  qm=15
+                  pqm=15
+               endif
+            endif
+
 !         Set usage variable
            usage = 0 
            iuse=icuse(nc)
@@ -844,7 +907,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse)
+                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then

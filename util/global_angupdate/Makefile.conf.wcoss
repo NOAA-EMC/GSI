@@ -27,7 +27,7 @@ CORELIB  = /nwprod/lib
 
   FFLAGS_F90    = -D_REAL8_ 
   FFLAGS_COM_N  = -I ./  -O3 -fp-model strict -convert big_endian -assume byterecl \
-  		-implicitnone -traceback
+  		-implicitnone
   FFLAGS_N      = $(FFLAGS_F90) $(FFLAGS_COM_N)
 
 #--- Debug mode options

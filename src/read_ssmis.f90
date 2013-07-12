@@ -1,6 +1,6 @@
 subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
-     infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
-     mype_root,mype_sub,npe_sub,mpi_comm_sub)
+           infile,lunout,obstype,nread,ndata,nodata,twind,sis,&
+           mype_root,mype_sub,npe_sub,mpi_comm_sub)
 
 ! subprogram:    read_ssmis            read ssmis data
 ! prgmmr: okamoto          org: np23                date: 2005-01-05
@@ -9,14 +9,13 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !     (brightness temperature) files.  Optionally, the data 
 !     are thinned to a specified resolution using simple 
 !     quality control checks.
+!         1) obs time check  |obs-anal|<time_window;
+!         2) remove overlap orbit; 
+!         3) climate check  reject for tb<tbmin or tb>tbmax
 !
 !     When running the gsi in regional mode, the code only
 !     retains those observations that fall within the regional
 !     domain
-!     QC performed in this subroutine:
-!         1) obs time check  |obs-anal|<time_window;
-!         2) remove overlap orbit; 
-!         3)climate check  reject for tb<tbmin or tb>tbmax
 !
 ! program history log:
 !   2005-01-05 okamoto 
@@ -47,10 +46,14 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
-!   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2011-08-01  lueken  - added module use deter_sfc_mod
 !   2011-09-02  gayno - add processing of future satellites for FOV-based
 !                       surface field calculation and improved its error handling
 !                       (isfcalc=1)
+!   2011-12-10  eliu  - add handling and call to zensun to calculate solar zenith/azimuth angles;
+!                       fix UTC hour used by zensun
+!   2012-01-10  eliu  - add handling to do spatial averaging (noise reduction) for 
+!                       observed brightness temperatures 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error--change mype from intent(inout) to intent(in)
 !
@@ -86,46 +89,56 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
   use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad,&   
+      use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,adp_anglebc         
+  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl    
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
       tll2xy,txy2ll
   use constants, only: deg2rad,rad2deg,zero,half,one,two,four,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
-  
+  use ssmis_spatial_average_mod, only : ssmis_spatial_average 
+  use m_sortind
+ 
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=*),intent(in   ) :: sis
+  real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
+  real(r_kind)    ,intent(inout) :: val_ssmis
   integer(i_kind) ,intent(in   ) :: mype
   integer(i_kind) ,intent(inout) :: lunout,ithin,isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
-  real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
-  real(r_kind)    ,intent(inout) :: val_ssmis
   integer(i_kind) ,intent(in   ) :: mype_root
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
 
-! Number of channels for sensors in BUFR
-  character(7),parameter:: fov_flag="conical"
+! Declare local variables
+  character(7),parameter    :: fov_flag="conical"
   integer(i_kind),parameter :: maxchanl  =  24
   integer(i_kind),parameter :: maxinfo   =  33
   integer(i_kind),parameter :: mxscen_img = 180   !img
   integer(i_kind),parameter :: mxscen_env = 90    !env
   integer(i_kind),parameter :: mxscen_las = 60    !las
   integer(i_kind),parameter :: mxscen_uas = 30    !uas
-  real(r_kind),parameter:: r360=360.0_r_kind
-  real(r_kind),parameter:: tbmin=70.0_r_kind
-  real(r_kind),parameter:: tbmax=320.0_r_kind
+  integer(i_kind),parameter :: maxobs = 800000
+  real(r_kind),parameter    :: r360=360.0_r_kind
+  real(r_kind),parameter    :: tbmin=70.0_r_kind
+  real(r_kind),parameter    :: tbmax=320.0_r_kind
+  real(r_kind),parameter    :: one_minute=0.01666667_r_kind
+  real(r_kind),parameter    :: minus_one_minute=-0.01666667_r_kind
 
-! Declare local variables
+  logical :: do_noise_reduction
   logical :: ssmis_las,ssmis_uas,ssmis_img,ssmis_env,ssmis
   logical :: outside,iuse,assim,valid
-  character(len=8)  :: subset
-  integer(i_kind) :: i,k,ifov,ifovoff,ntest
+
+  character(len=8):: subset
+
+  integer(i_kind) :: i,k,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
   integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
   integer(i_kind) :: nmind,itx,nele,itt
@@ -135,58 +148,96 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: nscan,jc,bufsat,incangl,said
   integer(i_kind) :: nfov_bad
   integer(i_kind) :: ichan, instr
-  integer(i_kind) isflg_1,isflg_2,isflg_3,isflg_4
-  integer(i_kind),dimension(5):: iobsdate
-  integer(i_kind),allocatable,dimension(:)::nrec
-  real(r_kind) sfcr,r07
-  real(r_kind) pred
-  real(r_kind) rsat,sstime,tdiff,t4dv
-  real(r_kind) crit1,dist1
-  real(r_kind) timedif
-  real(r_kind),dimension(0:3):: sfcpct
-  real(r_kind),dimension(0:4):: rlndsea
-  real(r_kind),dimension(0:3):: ts
+  integer(i_kind) :: isflg_1,isflg_2,isflg_3,isflg_4
+  integer(i_kind) :: radedge_min, radedge_max  
+  integer(i_kind) :: iobs,num_obs,method,iret
+  integer(i_kind) :: irain
+  integer(i_kind) :: bch
+  integer(i_kind) :: doy,mon,m
+
+  integer(i_kind),pointer :: ifov,iscan,iorbn,inode
+
+  integer(i_kind),allocatable        :: sorted_index(:)
+  integer(i_kind),allocatable,target :: ifov_save(:)
+  integer(i_kind),allocatable,target :: iscan_save(:)
+  integer(i_kind),allocatable,target :: iorbn_save(:)
+  integer(i_kind),allocatable,target :: inode_save(:)
+
+  integer(i_kind),dimension(12):: mlen,mday
+  integer(i_kind),dimension(5) :: iobsdate
+  integer(i_kind),allocatable  :: nrec(:)  
+
+  real(r_kind) :: sfcr,r07
+  real(r_kind) :: pred
+  real(r_kind) :: tdiff,timedif,dist1
+  real(r_kind) :: step,start 
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind),allocatable,dimension(:,:):: data_all
-  real(r_kind) disterr,disterrmax,dlon00,dlat00
-  real(r_kind) :: fovn
+  real(r_kind) :: disterr,disterrmax,dlon00,dlat00
+  real(r_kind) :: fovn,scan,orbn,rainf
+  real(r_kind) :: sort_time1, sort_time2   
+  real(r_kind) :: flgch
+  real(r_kind) :: clat,clon
+  real(r_kind) :: dlat,dlon
+  real(r_kind) :: dlon_earth_deg,dlat_earth_deg,expansion,sat_aziang
+  real(r_kind) :: utc_hour,sun_zenith,sun_azimuth
+  real(r_kind) :: sstx_1,sstx_2,sstx_3,sstx_4
 
-! BUFR variables
-  integer(i_kind) :: bch
-  real(r_double),dimension(7)::   bufrinit
-  real(r_double),dimension(3,5):: bufrymd
-  real(r_double),dimension(2,2):: bufrhm
-  real(r_double),dimension(2,29)::bufrloc
+  real(r_double),dimension(7)         :: bufrinit
+  real(r_double),dimension(3,5)       :: bufrymd
+  real(r_double),dimension(2,2)       :: bufrhm
+  real(r_double),dimension(2,29)      :: bufrloc
   real(r_double),dimension(2,maxchanl):: bufrtbb
 
-! For qc
-  real(r_kind):: flgch
-  real(r_kind),dimension(maxchanl):: tbob
-  real(r_kind) :: dlat,dlon,dlon_earth,dlat_earth
-  real(r_kind) :: dlon_earth_deg,dlat_earth_deg,expansion,sat_aziang
+  real(r_kind),dimension(0:3) :: sfcpct_1,sfcpct_2,sfcpct_3,sfcpct_4
+  real(r_kind),dimension(0:3) :: sfcpct
+  real(r_kind),dimension(0:4) :: rlndsea
+  real(r_kind),dimension(0:3) :: ts
 
-  real(r_kind) sstx_1,sstx_2,sstx_3,sstx_4
-  real(r_kind),dimension(0:3):: sfcpct_1,sfcpct_2,sfcpct_3,sfcpct_4
+  real(r_kind),pointer :: bt_in(:)
+  real(r_kind),pointer :: crit1,rsat,t4dv,solzen,solazi,dlon_earth,dlat_earth,satazi,lza
 
+  real(r_kind),allocatable,target :: rsat_save(:)
+  real(r_kind),allocatable,target :: t4dv_save(:)
+  real(r_kind),allocatable,target :: dlon_earth_save(:)
+  real(r_kind),allocatable,target :: dlat_earth_save(:)
+  real(r_kind),allocatable,target :: crit1_save(:)
+  real(r_kind),allocatable,target :: lza_save(:)
+  real(r_kind),allocatable,target :: satazi_save(:)
+  real(r_kind),allocatable,target :: solzen_save(:)
+  real(r_kind),allocatable,target :: solazi_save(:)
+  real(r_kind),allocatable,target :: bt_save(:,:)
+  real(r_kind),allocatable        :: relative_time_in_seconds(:)
+  real(r_kind),allocatable        :: data_all(:,:)
+
+! For solar zenith/azimuth angles calculation
+  data  mlen/31,28,31,30,31,30, &
+             31,31,30,31,30,31/
 
 !----------------------------------------------------------------------
 ! Initialize variables
-  lnbufr = 15
-  disterrmax=zero
-  ntest  = 0
+  m = 0
+  do mon=1,12
+     mday(mon) = m
+     m = m + mlen(mon)
+  end do
 
-  nchanl = maxchanl
-  ndata  = 0
-  nodata = 0
-  nread  = 0
-  nfov_bad = 0
-  ilon=3
-  ilat=4
+  do_noise_reduction = .true.
+
+  nchanl     = maxchanl
+  disterrmax = zero
+  ntest      = 0
+  ndata      = 0
+  nodata     = 0
+  nread      = 0
+  nfov_bad   = 0
+  ilon       = 3
+  ilat       = 4
+  lnbufr     = 15
+  r07        = 0.7_r_kind * deg2rad
   if (nst_gsi > 0 ) then
      call skindepth(obstype,zob)
   endif
-  r07 = 0.7_r_kind * deg2rad
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -202,64 +253,51 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   end do search
   if (.not.assim) val_ssmis=zero
 
-
 ! Make thinning grids
   call makegrids(rmesh,ithin)
 
-
 ! Set various variables depending on type of data to be read
-  ssmis_uas=     obstype == 'ssmis_uas'
-  ssmis_las=     obstype == 'ssmis_las'
-  ssmis_img=     obstype == 'ssmis_img'
-  ssmis_env=     obstype == 'ssmis_env'
-  ssmis    =     obstype == 'ssmis'
+  ssmis_uas= obstype == 'ssmis_uas'
+  ssmis_las= obstype == 'ssmis_las'
+  ssmis_img= obstype == 'ssmis_img'
+  ssmis_env= obstype == 'ssmis_env'
+  ssmis    = obstype == 'ssmis'
   
-! Common
-  bufsat = 249
+! Define WMO satellite number 
+  bufsat = 0                                
+  if (trim(sis) == 'ssmis_f16') bufsat=249  
+  if (trim(sis) == 'ssmis_f17') bufsat=285  
+  if (trim(sis) == 'ssmis_f18') bufsat=286 
+
+  write(6,*) 'READ_SSMIS: reading bufsat = ', bufsat, trim(sis)
 
 ! Humidity imager:180
   if(ssmis)then
-     nscan  = mxscen_las
+     nscan   = mxscen_las
      ifovoff = 270
      incangl = 53.0_r_kind
   else if(ssmis_img) then
-     nscan  = mxscen_img
+     nscan   = mxscen_img
      ifovoff = 0
      incangl = 53.0_r_kind
 ! env:90
   else if(ssmis_env) then
-     nscan  = mxscen_env
+     nscan   = mxscen_env
      ifovoff = 180
      incangl = 53.1_r_kind
 ! las:60
   else if(ssmis_las) then
-     nscan  = mxscen_las
+     nscan   = mxscen_las
      ifovoff = 270
      incangl = 53.0_r_kind
 ! uas:30
   else if(ssmis_uas) then
-     nscan  = mxscen_uas
+     nscan   = mxscen_uas
      ifovoff = 330
      incangl = 52.4_r_kind
-
   end if
-  rlndsea(0) = zero
-  rlndsea(1) = 15._r_kind
-  rlndsea(2) = 10._r_kind
-  rlndsea(3) = 15._r_kind
-  rlndsea(4) = 100._r_kind
 
-! Open unit to satellite bufr file
-  open(lnbufr,file=infile,form='unformatted')
-  call openbf(lnbufr,'IN',lnbufr)
-  call datelen(10)
-
-! Write header record to scratch file.  Also allocate array
-! to hold all data for given satellite
-  nreal  = maxinfo + nstinfo
-  nele   = nreal   + nchanl
-  allocate(data_all(nele,itxmax),nrec(itxmax))
-
+! Initialize variables for use by FOV-based surface code 
   if (isfcalc == 1) then
      instr=25  ! circular fov, use as default
      if (trim(jsatid) == 'f16') instr=26
@@ -267,8 +305,8 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
      if (trim(jsatid) == 'f18') instr=28
      if (trim(jsatid) == 'f19') instr=29
      if (trim(jsatid) == 'f20') instr=30
-! right now, all ssmis data is mapped to a common fov -
-! that of the las channels.
+!    right now, all ssmis data is mapped to a common fov -
+!    that of the las channels.
      ichan = 1
      expansion = 2.9_r_kind
      sat_aziang = 90.0_r_kind  ! 'fill' value; need to get this from file
@@ -284,268 +322,474 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
     endif
   endif
 
-! Big loop to read data file
-  nrec=999999
-  irec=0
-  next=0
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
-     irec=irec+1
-     next=next+1
-     if(next == npe_sub)next=0
-     if(next/=mype_sub) cycle
-     read_loop: do while(ireadsb(lnbufr)==0)
+  radedge_min = 0
+  radedge_max = 1000
+  do i=1,jpch_rad
+     if (trim(nusis(i))==trim(sis)) then
+        step  = radstep(i)
+        start = radstart(i)
+        if (radedge1(i)/=-1 .or. radedge2(i)/=-1) then
+           radedge_min=radedge1(i)
+           radedge_max=radedge2(i)
+        end if
+        exit
+     endif
+  end do
 
+  rlndsea(0) = zero
+  rlndsea(1) = 15._r_kind
+  rlndsea(2) = 10._r_kind
+  rlndsea(3) = 15._r_kind
+  rlndsea(4) = 100._r_kind
+
+! Allocate arrays for BUFR I/O
+  allocate(ifov_save(maxobs))
+  allocate(iscan_save(maxobs))
+  allocate(iorbn_save(maxobs))
+  allocate(inode_save(maxobs))
+  allocate(rsat_save(maxobs))
+  allocate(t4dv_save(maxobs))
+  allocate(dlon_earth_save(maxobs))
+  allocate(dlat_earth_save(maxobs))
+  allocate(crit1_save(maxobs))
+  allocate(lza_save(maxobs))
+  allocate(satazi_save(maxobs))
+  allocate(solzen_save(maxobs))
+  allocate(solazi_save(maxobs))
+  allocate(bt_save(maxchanl,maxobs))
+
+  inode_save = 0 
+
+! Read in data from bufr into arrays first      
+! Open unit to satellite bufr file
+  iobs=1
+  call closbf(lnbufr)
+  open(lnbufr,file=infile,form='unformatted',status='old',err=500)  
+  call openbf(lnbufr,'IN',lnbufr)
+  call datelen(10)
+
+! Loop to read bufr file
+  irec=0   
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0 .and. iobs < maxobs)
+     read_loop: do while(ireadsb(lnbufr)==0 .and. iobs < maxobs)
+
+        rsat        => rsat_save(iobs)
+        t4dv        => t4dv_save(iobs)
+        dlon_earth  => dlon_earth_save(iobs)
+        dlat_earth  => dlat_earth_save(iobs)
+        crit1       => crit1_save(iobs)
+        ifov        => ifov_save(iobs)
+        iscan       => iscan_save(iobs)
+        iorbn       => iorbn_save(iobs)
+        inode       => inode_save(iobs)
+        lza         => lza_save(iobs)
+        satazi      => satazi_save(iobs)
+        solzen      => solzen_save(iobs)
+        solazi      => solazi_save(iobs)
+ 
 !       BUFR read 1/3
         call ufbint(lnbufr,bufrinit,7,1,nlv, &
-           "SAID SECO SLNM FOVN RSURF RAINF ORBN" )
+                    "SAID SECO SLNM FOVN SFLG RFLAG ORBN" )
 
 !       Extract satellite id.  If not the one we want, read next record
-        said = nint(bufrinit(1)) 
+        said = nint( bufrinit(1))  
         if( said /= bufsat) cycle read_subset
-        
+
         rsat=bufsat
-        
-        fovn = bufrinit(4)
-        ifov = nint(fovn)
 
-        if(ifov>nscan) then
-!           write(6,*) 'READ_SSMIS(',obstype,'): unreliable FOV number fovn=',fovn, &
-!              ' ifov=',ifov
-           nfov_bad = nfov_bad+1
-           cycle read_loop
-        end if
+        fovn  = bufrinit(4)
+        scan  = bufrinit(3)
+        orbn  = bufrinit(7)
+        rainf = bufrinit(6)
+        ifov  = nint(fovn)
+        iscan = nint(scan)
+        iorbn = nint(orbn)
+        irain = nint(rainf)
+  
+!       Rain check (-1=indeterminate 0=no rain 1=rain)
+        if(irain == 1 .or. irain < 0) cycle read_loop    ! rain check
 
-        if( bufrinit(6) == one) cycle read_loop
-
-
-!       SSMIS imager has 180 scan positions.  Select every other position.
-!        if(ssmis_img) then
-!           if (mod(ifov,2)/=0) then
-!              cycle read_loop
-!           else
-!              ifov = min(max(1,nint(float(ifov)/two + half)),90)
-!           endif
-!        endif
-
-!       BUFR read 2/3
+!       Check date/time
+!       BUFR read 2/3 --- read in observation date/time
         call ufbrep(lnbufr,bufrymd,3,5,nlv,"YEAR MNTH DAYS" )
         call ufbrep(lnbufr,bufrhm, 2,2,nlv,"HOUR MINU" )
 
-        
 !       Calc obs seqential time  If time outside window, skip this obs
         iobsdate(1:3) = bufrymd(1:3,1) !year,month,day for scan start time  kozo
         iobsdate(4:5) = bufrhm(1:2,1)  !hour,min for scan start time  kozo
+
         call w3fs21(iobsdate,nmind)
         t4dv=(real(nmind-iwinbgn,r_kind) + real(bufrinit(2),r_kind)*r60inv)*r60inv
         if (l4dvar) then
            if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
         else
-           sstime=real(nmind,r_kind) + real(bufrinit(2),r_kind)*r60inv
-           tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind) cycle read_loop
+           tdiff=t4dv+(iwinbgn-gstime)*r60inv
+           if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
-        
-!       Extract obs location, TBB, other information
 
-!       BUFR read 3/3
+!       Give score based on time in the window 
+        if (l4dvar) then
+!          crit1 = 0.01_r_kind+ flgch  
+           crit1 = zero              
+        else
+           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
+!          crit1 = 0.01_r_kind+timedif + flgch  
+           crit1 = timedif                   
+        endif
+
+!       Extract obs location, TBB, other information
+!       BUFR read 3/3 --- read in observation lat/lon
         call ufbrep(lnbufr,bufrloc,  2,29,      nlv,"CLAT CLON" )
-        
-!       Regional case
+!       call ufbrep(lnbufr,bufrinfo, 1,3,       nlv,"SELV" )
+!       call ufbrep(lnbufr,bufrlleaa,2,28,      nlv,"RAIA BEARAZ" )
+
         dlat_earth = bufrloc(1,1)  !degrees
         dlon_earth = bufrloc(2,1)  !degrees
         if(abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) cycle read_loop
-        if(dlon_earth<zero ) dlon_earth = dlon_earth+r360
-        if(dlon_earth==r360) dlon_earth = dlon_earth-r360
-        dlat_earth_deg = dlat_earth
-        dlon_earth_deg = dlon_earth
+        if(dlon_earth <  zero) dlon_earth = dlon_earth+r360
+        if(dlon_earth == r360) dlon_earth = dlon_earth-r360
 
-        dlat_earth = dlat_earth*deg2rad
-        dlon_earth = dlon_earth*deg2rad
+        lza    = incangl    ! conical scanning instrument has fixed local zenith angle 
+        satazi = 0          ! currently missing from bufr
 
-        if(regional)then
-           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-           if(diagnostic_reg) then
-              call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+1
-              disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                   (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
-              disterrmax=max(disterrmax,disterr)
-           end if
+!       Calculate solar zenith/azimuth angle
+        clat = dlat_earth
+        clon = dlon_earth
+        if(clon > 180_r_kind) clon = clon-360.0_r_kind
+        utc_hour = real(iobsdate(4),r_kind)+real(iobsdate(5),r_kind)*r60inv+real(bufrinit(2),r_kind)*r60inv*r60inv
+!       utc_hour = real(iobsdate(4),r_kind)    !orig
+
+        doy = mday( int(iobsdate(2)) ) + int(iobsdate(3))
+        if ((mod( int(iobsdate(1)),4)==0).and.( int(iobsdate(2)) > 2))  then
+           doy = doy + 1
+        end if
+
+        call zensun(doy,utc_hour,clat,clon,sun_zenith,sun_azimuth) ! output solar zenith angles are between -90 and 90
+        sun_zenith = 90.-sun_zenith                                ! make sure solar zenith angles are between 0 and 180
+        solzen     = sun_zenith 
+        solazi     = sun_azimuth
            
-!          Check to see if in domain
-           if(outside) cycle read_loop
+!       Check Tb
+!       Transfer observed brightness temperature to work array.
 
-!       Global case
-        else
-           dlat=dlat_earth
-           dlon=dlon_earth
-           call grdcrd1(dlat,rlats,nlat,1)
-           call grdcrd1(dlon,rlons,nlon,1)
-        endif
-
-        if (l4dvar) then
-           crit1 = 0.01_r_kind
-        else
-           timedif = 6.0_r_kind*abs(tdiff) ! range:  0 to 18
-           crit1 = 0.01_r_kind+timedif
-        endif
-!       Map obs to thinning grid
-        call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
-        if(.not. iuse)cycle read_loop
-
-!       Transfer observed brightness temperature to work array.  
-!       If any temperature exceeds limits, reset observation 
-!       to "bad" value
-        call ufbrep(lnbufr,bufrtbb,  2,maxchanl,nlv,"CHNM TMBR" )
-        iskip=0
-        do jc=1,maxchanl
-           bch=nint( bufrtbb(1,jc) ) !ch index from bufr
-           if(bch/=jc) cycle read_loop
-           tbob(jc) = bufrtbb(2,jc)
-           if(tbob(jc)<tbmin .or. tbob(jc)>tbmax) then
-              iskip = iskip + 1
-           else
-              nread=nread+1
-           end if
-        end do
+        call ufbrep(lnbufr,bufrtbb,  2,maxchanl,nlv,"CHNM TMBR" )  
+        bt_save(1:maxchanl,iobs) = bufrtbb(2,1:maxchanl)
         
-        if(iskip>=maxchanl)  cycle read_loop!if all ch for any position are bad, skip 
-
-        flgch = iskip*two   !used for thinning priority range 0-14
-        crit1 = crit1 + flgch
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
-
-!       Locate the observation on the analysis grid.  Get sst and land/sea/ice
-!       mask.  
-
-!     isflg    - surface flag
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!                4 mixed                     
-!      sfcpct(0:3)- percentage of 4 surface types
-!                 (0) - sea percentage
-!                 (1) - land percentage
-!                 (2) - sea ice percentage
-!                 (3) - snow percentage
-        if (isfcalc==1) then
-
-           call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-              dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
-              sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
-        else
-           call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
-              idomsfc(1),sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-           call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
-              idomsfc(1),sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-           call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
-              idomsfc(1),sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-           call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
-              idomsfc(1),sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-
-           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
-              ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-
-
-           sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/four
-           sfcpct(1)= (sfcpct_1(1)+ sfcpct_2(1)+ sfcpct_3(1)+ sfcpct_4(1))/four
-           sfcpct(2)= (sfcpct_1(2)+ sfcpct_2(2)+ sfcpct_3(2)+ sfcpct_4(2))/four
-           sfcpct(3)= (sfcpct_1(3)+ sfcpct_2(3)+ sfcpct_3(3)+ sfcpct_4(3))/four
-        endif ! isfcalc==1
-
-
-        crit1 = crit1 + rlndsea(isflg)
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
-
-!       Set common predictor parameters
-        pred = zero
-        
-!       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-        crit1 = crit1+pred 
-
-        call finalcheck(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
-
-!
-!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
-!
-        if ( nst_gsi > 0 ) then
-           tref  = ts(0)
-           dtw   = zero
-           dtc   = zero
-           tz_tr = one
-           if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
-           endif
-        endif
-
-        data_all( 1,itx)= rsat                      ! satellite id
-        data_all( 2,itx)= t4dv                      ! time diff between obs and anal (min)
-        data_all( 3,itx)= dlon                      ! grid relative longitude
-        data_all( 4,itx)= dlat                      ! grid relative latitude
-        data_all( 5,itx)= incangl*deg2rad           ! local zenith angle (rad)
-        data_all( 6,itx)= zero                      ! local azimuth angle (missing)
-        data_all( 7,itx)= zero                      ! look angle (rad)
-        data_all( 8,itx)= ifov                      ! FOV scan position
-        data_all( 9,itx)= zero                      ! solar zenith angle (deg) : not used for MW-RT calc
-        data_all(10,itx)= zero                      ! solar azimuth angle (deg) : not used for MW-RT calc
-        data_all(11,itx) = sfcpct(0)                ! sea percentage of
-        data_all(12,itx) = sfcpct(1)                ! land percentage
-        data_all(13,itx) = sfcpct(2)                ! sea ice percentage
-        data_all(14,itx) = sfcpct(3)                ! snow percentage
-        data_all(15,itx)= ts(0)                     ! ocean skin temperature
-        data_all(16,itx)= ts(1)                     ! land skin temperature
-        data_all(17,itx)= ts(2)                     ! ice skin temperature
-        data_all(18,itx)= ts(3)                     ! snow skin temperature
-        data_all(19,itx)= tsavg                     ! average skin temperature
-        data_all(20,itx)= vty                       ! vegetation type
-        data_all(21,itx)= vfr                       ! vegetation fraction
-        data_all(22,itx)= sty                       ! soil type
-        data_all(23,itx)= stp                       ! soil temperature
-        data_all(24,itx)= sm                        ! soil moisture
-        data_all(25,itx)= sn                        ! snow depth
-        data_all(26,itx)= zz                        ! surface height
-        data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
-        data_all(28,itx)= sfcr                      ! surface roughness
-        data_all(29,itx)= ff10                      ! ten meter wind factor
-        data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
-        data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
-        data_all(maxinfo-1,itx)=val_ssmis
-        data_all(maxinfo,itx)=itt
-
-        if ( nst_gsi > 0 ) then
-           data_all(maxinfo+1,itx) = tref         ! foundation temperature
-           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
-        endif
-
-        do jc=1,maxchanl
-           data_all(nreal+jc,itx) = tbob(jc)
-        end do
-        nrec(itx)=irec
+        iobs=iobs+1 
 
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
 
+  num_obs = iobs-1
+
+500 continue  
+  write(*,*) 'READ_SSMIS: num_obs  = ', num_obs, num_obs*nchanl
+  if (num_obs <= 0 ) then
+     write(*,*) 'READ_SSMIS: No ', trim(sis),  &
+               ' data read in at mype mype_sub ', mype, mype_sub
+     return 
+  endif
+
+  if (do_noise_reduction) then 
+
+     call cpu_time(sort_time1)
+     write(*,*) 'READ_SSMIS: num_obs  = ', num_obs, num_obs*nchanl
+
+!    Sort time in ascending order and get sorted index 
+!    relative_time_in_seconds referenced at the beginning of the assimilation window
+     allocate(relative_time_in_seconds(num_obs))  
+     allocate(sorted_index(num_obs))
+     relative_time_in_seconds  = 3600.0_r_kind*t4dv_save(1:num_obs)  
+     sorted_index              = sortind(relative_time_in_seconds)  
+     
+!    Sort data according to observation time in ascending order  
+     relative_time_in_seconds(1:num_obs) = relative_time_in_seconds(sorted_index)
+     rsat_save(1:num_obs)                = rsat_save(sorted_index)
+     t4dv_save(1:num_obs)                = t4dv_save(sorted_index)
+     dlon_earth_save(1:num_obs)          = dlon_earth_save(sorted_index)
+     dlat_earth_save(1:num_obs)          = dlat_earth_save(sorted_index)
+     crit1_save(1:num_obs)               = crit1_save(sorted_index)
+     ifov_save(1:num_obs)                = ifov_save(sorted_index)
+     iscan_save(1:num_obs)               = iscan_save(sorted_index)
+     iorbn_save(1:num_obs)               = iorbn_save(sorted_index)
+     lza_save(1:num_obs)                 = lza_save(sorted_index)
+     satazi_save(1:num_obs)              = satazi_save(sorted_index)
+     solzen_save(1:num_obs)              = solzen_save(sorted_index)
+     solazi_save(1:num_obs)              = solazi_save(sorted_index)
+     bt_save(:,1:num_obs)                = bt_save(:,sorted_index)
+
+     call cpu_time(sort_time2)
+!    write(*,*)'READ_SSMIS: cpu_time (sorting)  ', sort_time2-sort_time1
+!    write(*,*)'READ_SSMIS: min/max time        ', minval(relative_time_in_seconds(1:num_obs)), &
+!                                                  maxval(relative_time_in_seconds(1:num_obs))  
+!    write(*,*)'READ_SSMIS: min/max lat         ', minval(dlat_earth_save(1:num_obs)), &
+!                                                  maxval(dlat_earth_save(1:num_obs))  
+!    write(*,*)'READ_SSMIS: min/max lon         ', minval(dlon_earth_save(1:num_obs)), &
+!                                                  maxval(dlon_earth_save(1:num_obs))  
+!    write(*,*)'READ_SSMIS: min/max iscan_save  ', minval(iscan_save(1:num_obs)), & 
+!                                                  maxval(iscan_save(1:num_obs))  
+!    write(*,*)'READ_SSMIS: min/max ifov_save   ', minval(ifov_save(1:num_obs)), &
+!                                                  maxval(ifov_save(1:num_obs))  
+!    write(*,*)'READ_SSMIS: min/max bt_save     ', minval(bt_save(:,1:num_obs)), &
+!                                                  maxval(bt_save(:,1:num_obs))  
+
+!========================================================================================================================
+
+!    Do SSMIS spatial averaging  
+!    method=1 --- simply averaging over circular domains centered on each field of view
+!    method=2 --- similar to 1 (for testing only)
+!    method=3 --- AAPP package 
+
+     write(*,*) 'READ_SSMIS: Calling ssmis_spatial_average'
+     method = 1 
+     call ssmis_spatial_average(mype,mype_sub,bufsat,method,num_obs,nchanl, & 
+                                ifov_save,iscan_save,inode_save,relative_time_in_seconds, & 
+                                dlat_earth_save,dlon_earth_save, &
+                                bt_save(1:nchanl,1:num_obs),iret)  ! inout 
+     if (iret /= 0) then
+        write(*,*) 'Error calling ssmis_spatial_average from READ_SSMIS'
+        return
+     endif
+
+     if (num_obs > 0) then 
+        deallocate(sorted_index)
+        deallocate(relative_time_in_seconds)
+     endif
+
+  endif ! do_noise_reduction
+
+!========================================================================================================================
+
+! Complete thinning and QC steps for SSMIS
+! Write header record to scratch file.  Also allocate array
+! to hold all data for given satellite
+  nreal  = maxinfo + nstinfo
+  nele   = nreal   + nchanl
+  allocate(data_all(nele,itxmax),nrec(itxmax)) 
+
+  nrec=999999  
+  obsloop: do iobs = 1, num_obs
+
+     rsat       => rsat_save(iobs) 
+     t4dv       => t4dv_save(iobs) 
+     dlon_earth => dlon_earth_save(iobs) 
+     dlat_earth => dlat_earth_save(iobs) 
+     crit1      => crit1_save(iobs) 
+     ifov       => ifov_save(iobs) 
+     inode      => inode_save(iobs) 
+     lza        => lza_save(iobs) 
+     satazi     => satazi_save(iobs) 
+     solzen     => solzen_save(iobs) 
+     solazi     => solazi_save(iobs) 
+     bt_in      => bt_save(1:nchanl,iobs) 
+
+     if (inode == 0) cycle obsloop   ! this indicate duplicated data
+
+     dlat_earth_deg = dlat_earth 
+     dlon_earth_deg = dlon_earth 
+     dlat_earth     = dlat_earth*deg2rad 
+     dlon_earth     = dlon_earth*deg2rad 
+
+!    Regional case
+     if(regional)then
+        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+        if(diagnostic_reg) then
+           call txy2ll(dlon,dlat,dlon00,dlat00)
+           ntest=ntest+1
+           disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                       (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
+           disterrmax=max(disterrmax,disterr)
+        end if
+
+!       Check to see if in domain
+        if(outside) cycle obsloop
+
+!    Global case
+     else
+        dlat=dlat_earth
+        dlon=dlon_earth
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
+     endif
+
+!    Check time window
+     if (l4dvar) then
+        if (t4dv<zero .OR. t4dv>winlen) cycle obsloop 
+     else
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
+        if(abs(tdiff) > twind) cycle ObsLoop
+     endif
+
+!    Map obs to thinning grid
+     call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+     if(.not. iuse)cycle obsloop
+
+    if (.not. use_edges .and. (ifov < radedge_min .or. ifov > radedge_max)) &
+       cycle obsloop
+
+     nread=nread+nchanl
+
+!    Transfer observed brightness temperature to work array.
+!    If any temperature exceeds limits, reset observation
+!    to "bad" value
+     iskip=0
+     do jc=1,nchanl
+        if(bt_in(jc)<tbmin .or. bt_in(jc)>tbmax) then
+              iskip = iskip + 1
+        endif
+     end do
+     if(iskip>=nchanl) cycle obsloop !if all ch for any position are bad, skip
+
+     flgch = iskip*two   !used for thinning priority range 0-14
+     crit1 = crit1 + flgch 
+     call checkob(dist1,crit1,itx,iuse)
+     if (.not. iuse) cycle obsloop
+
+!    Locate the observation on the analysis grid.  Get sst and land/sea/ice
+!    mask.
+!    isflg    - surface flag
+!               0 sea
+!               1 land
+!               2 sea ice
+!               3 snow
+!               4 mixed
+!     sfcpct(0:3)- percentage of 4 surface types
+!                (0) - sea percentage
+!                (1) - land percentage
+!                (2) - sea ice percentage
+!                (3) - snow percentage
+
+!    FOV-based surface code requires fov number; if out-of-range, then 
+!    skip this obs.
+
+     if (isfcalc==1) then
+        call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
+             dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
+             sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+     else
+        call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth+r07,t4dv,isflg_1, &
+           idomsfc(1),sfcpct_1,ts,sstx_1,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        call deter_sfc(dlat,dlon,dlat_earth+r07,dlon_earth-r07,t4dv,isflg_2, &
+           idomsfc(1),sfcpct_2,ts,sstx_2,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth+r07,t4dv,isflg_3, &
+           idomsfc(1),sfcpct_3,ts,sstx_3,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        call deter_sfc(dlat,dlon,dlat_earth-r07,dlon_earth-r07,t4dv,isflg_4, &
+           idomsfc(1),sfcpct_4,ts,sstx_4,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+        call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc(1),sfcpct, &
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+
+        sfcpct(0)= (sfcpct_1(0)+ sfcpct_2(0)+ sfcpct_3(0)+ sfcpct_4(0))/four
+        sfcpct(1)= (sfcpct_1(1)+ sfcpct_2(1)+ sfcpct_3(1)+ sfcpct_4(1))/four
+        sfcpct(2)= (sfcpct_1(2)+ sfcpct_2(2)+ sfcpct_3(2)+ sfcpct_4(2))/four
+        sfcpct(3)= (sfcpct_1(3)+ sfcpct_2(3)+ sfcpct_3(3)+ sfcpct_4(3))/four
+     endif ! isfcalc==1
+
+     crit1 = crit1 + rlndsea(isflg)
+     call checkob(dist1,crit1,itx,iuse)
+     if(.not. iuse)cycle obsloop
+
+!    Set common predictor parameters
+     pred = zero
+
+!    Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+     crit1 = crit1+pred
+
+     call finalcheck(dist1,crit1,itx,iuse)
+     if(.not. iuse)cycle obsloop
+
+!
+!    interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+     if ( nst_gsi > 0 ) then
+        tref  = ts(0)
+        dtw   = zero
+        dtc   = zero
+        tz_tr = one
+        if ( sfcpct(0) > zero ) then
+           call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+        endif
+     endif
+
+!    Load selected observation into data array  
+
+     data_all( 1,itx)= rsat                      ! satellite id
+     data_all( 2,itx)= t4dv                      ! time diff between obs and anal (min)
+     data_all( 3,itx)= dlon                      ! grid relative longitude
+     data_all( 4,itx)= dlat                      ! grid relative latitude
+     data_all( 5,itx)= incangl*deg2rad           ! local zenith angle (rad)
+     data_all( 6,itx)= inode                     ! local azimuth angle (missing)   ** AS/DS node infomation for SSMIS 
+     data_all( 7,itx)= zero                      ! look angle (rad)   
+     data_all( 8,itx)= ifov                      ! FOV scan position
+!    data_all( 9,itx)= zero                      ! solar zenith angle (deg)  : not used for MW-RT calc
+!    data_all(10,itx)= zero                      ! solar azimuth angle (deg) : not used for MW-RT calc
+     data_all( 9,itx)= solzen                    ! calculated solar zenith angle (deg)    
+     data_all(10,itx)= solazi                    ! calculated solar azimuth angle (deg) 
+     data_all(11,itx) = sfcpct(0)                ! sea percentage of       
+     data_all(12,itx) = sfcpct(1)                ! land percentage        
+     data_all(13,itx) = sfcpct(2)                ! sea ice percentage
+     data_all(14,itx) = sfcpct(3)                ! snow percentage
+     data_all(15,itx)= ts(0)                     ! ocean skin temperature     
+     data_all(16,itx)= ts(1)                     ! land skin temperature
+     data_all(17,itx)= ts(2)                     ! ice skin temperature
+     data_all(18,itx)= ts(3)                     ! snow skin temperature
+     data_all(19,itx)= tsavg                     ! average skin temperature
+     data_all(20,itx)= vty                       ! vegetation type
+     data_all(21,itx)= vfr                       ! vegetation fraction
+     data_all(22,itx)= sty                       ! soil type              
+     data_all(23,itx)= stp                       ! soil temperature        
+     data_all(24,itx)= sm                        ! soil moisture          
+     data_all(25,itx)= sn                        ! snow depth
+     data_all(26,itx)= zz                        ! surface height
+     data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+     data_all(28,itx)= sfcr                      ! surface roughness
+     data_all(29,itx)= ff10                      ! ten meter wind factor
+     data_all(30,itx)= dlon_earth_deg            ! earth relative longitude (degrees)
+     data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
+     data_all(maxinfo-1,itx)=val_ssmis
+     data_all(maxinfo,itx)=itt
+
+     if ( nst_gsi > 0 ) then
+        data_all(maxinfo+1,itx) = tref         ! foundation temperature
+        data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+        data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+        data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+     endif
+
+     do jc=1,nchanl
+        data_all(nreal+jc,itx) = bt_in(jc)
+     end do
+     nrec(itx)=iobs 
+
+  end do obsloop
+
+! Deallocate I/O arrays
+  deallocate(rsat_save)
+  deallocate(ifov_save)
+  deallocate(iscan_save)
+  deallocate(inode_save)
+  deallocate(iorbn_save)
+  deallocate(t4dv_save)
+  deallocate(dlon_earth_save)
+  deallocate(dlat_earth_save)
+  deallocate(crit1_save)
+  deallocate(lza_save)
+  deallocate(satazi_save)
+  deallocate(solzen_save)
+  deallocate(solazi_save)
+  deallocate(bt_save)
+
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
-
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec) 
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
   if (mype_sub==mype_root.and.ndata>0) then
-
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
-
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
@@ -553,7 +797,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
         end do
         itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_ssmis
-
      end do
 
 !    Write final set of "best" observations to output file
@@ -563,12 +806,12 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   endif
 
 ! Deallocate local arrays
-  deallocate(data_all,nrec)
+  deallocate(data_all,nrec) 
 
 ! Deallocate satthin arrays
 1000 continue
   call destroygrids
-    
+
   if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
      write(6,*)'READ_SSMIS:  mype,ntest,disterrmax=',&
      mype,ntest,disterrmax
