@@ -18,7 +18,7 @@ function usage {
   echo "              TANKDIR/stats directory."
   echo "            Plot_date, format YYYYMMDDHH is optional.  If included the plot"
   echo "              will be for the specified cycle, provided data files are available."
-  echo "              If not included, the plot cycle will be the last processed cycle.
+  echo "              If not included, the plot cycle will be the last processed cycle."
 }
 
 

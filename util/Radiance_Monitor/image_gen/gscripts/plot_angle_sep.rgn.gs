@@ -216,7 +216,6 @@ say 'xe = 'xe
 'set xlopts 1 4 0.11'
 'set ylopts 1 2 0.09'
 
-'set y 'chn
 
 'define cnt1=ave(count, t='t1day', t='tlast')' 
 'define avg=ave('field', t='t1day', t='tlast')'
@@ -262,6 +261,7 @@ chn=1
 nt=3
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
+   'set y 'chn
 
    chi=chn
    if (i=1) 
