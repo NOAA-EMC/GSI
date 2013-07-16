@@ -91,7 +91,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind),dimension(nsig,max(1,nprof_gps)):: super_gps_sub,super_gps
   real(r_kind),dimension(max(1,nprof_gps)):: toss_gps
   real(r_kind),dimension(max(1,nprof_gps)):: high_gps,high_gps_sub
-  real(r_kind),dimension(max(1,nprof_gps)):: dobs_height
+  real(r_kind),dimension(max(1,nprof_gps)):: dobs_height,dobs_height_sub
 
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
@@ -113,7 +113,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
        mpi_comm_world,ierror)
 
 ! Get height of maximum bending angle
-  dobs_height = zero
+  dobs_height_sub = zero
   DO ii=1,nobs_bins
      gps_allptr => gps_allhead(ii)%head
      do while (associated(gps_allptr))
@@ -125,7 +125,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
         elev         = gps_allptr%rdiag(7)
 
         if (dtype == one .and. toss_gps(kprof) > zero .and. dobs == toss_gps(kprof)) then
-           dobs_height(kprof)=elev
+           dobs_height_sub(kprof)=elev
         endif
 
         gps_allptr => gps_allptr%llpoint
@@ -135,6 +135,11 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 
 ! End of loop over time bins
   END DO
+
+! Reduce sub-domain specific QC'd profile height to maximum global value for each profile
+  dobs_height=zero
+  call mpi_allreduce(dobs_height_sub,dobs_height,nprof_gps,mpi_rtype,mpi_max,&
+       mpi_comm_world,ierror)
 
 
 ! Compute superobs factor on sub-domains using global QC'd profile height
