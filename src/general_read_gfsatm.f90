@@ -93,7 +93,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !   All tasks open and read header with RanRead
     rewind(lunges)
     call sigio_rropen(lunges,filename,iret)
-!!!    call sigio_alhead(sighead,iret)
     call sigio_rrhead(lunges,sighead,iret_read)
     if (iret_read /=0) goto 1000
     gfshead%fhour   = sighead%fhour
@@ -200,7 +199,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !         The GSI analysis variable is Tv
 !         If needed, convert T or h to Tv
 
-!! OR ADDRESS LATER SOMEHOPE
+!! OR ADDRESS LATER SOMEHOW
 !! DTK DO THIS AT THE END ON THE SUBDOMAINS???
 !!
 !          if (idthrm5==2 .or. idthrm5==3) then
