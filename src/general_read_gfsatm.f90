@@ -87,11 +87,13 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 !******************************************************************************  
 !   Initialize variables used below
     iret_read=0
+    iret=0
     nlatm2=grd%nlat-2
 
 !   All tasks open and read header with RanRead
+    rewind(lunges)
     call sigio_rropen(lunges,filename,iret)
-    call sigio_alhead(sighead,iret)
+!!!    call sigio_alhead(sighead,iret)
     call sigio_rrhead(lunges,sighead,iret_read)
     if (iret_read /=0) goto 1000
     gfshead%fhour   = sighead%fhour
@@ -101,7 +103,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     gfshead%levs    = sighead%levs
     gfshead%ntrac   = sighead%ntrac
     gfshead%ncldt   = sighead%ncldt
-
 
     icount=0
 
@@ -481,12 +482,12 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 
 !   ERROR detected while reading file
 1000 continue
-    if (mype==0) write(6,*)'READ_GFSATM:  ***ERROR*** reading ',&
-         trim(filename),' iret_read=',iret_read
-!!    call sigio_axdata(sigdata,iret)
+     write(6,*)'READ_GFSATM:  ***ERROR*** reading ',&
+         trim(filename),' mype,iret_read=',mype,iret_read
 
-    
+!!    call sigio_axdata(sigdata,iret)    
 !   End of routine.  Return
+
     return
 end subroutine general_read_gfsatm
 

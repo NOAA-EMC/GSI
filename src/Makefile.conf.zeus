@@ -7,14 +7,15 @@
 COREINC  = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/incmod
 CORELIB  = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
 INCsfcio = $(COREINC)/sfcio_4
-INCsigio = $(COREINC)/sigio_4
-#INCnemsio= $(COREINC)/nemsio
+
+INCsigio=/scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist/nwprod/lib/sorc/sigio_v1.0.1/incmod/sigio_4
+
 INCnemsio= /scratch1/portfolios/NCEPDEV/nceplibs/save/incmod/nemsio_mergedv1.0.0_intel
 CORELIB_nemsio  = /scratch1/portfolios/NCEPDEV/nceplibs/save/lib/nemsio/
 LIBnemsio=-L$(CORELIB_nemsio)  -l_nemsio_mergedv1.0.0_intel
-CORELIB_bacio=/home/Ratko.Vasic/lib_tmp/GSI_libs_2/lib
-LIBbacio=-L$(CORELIB_bacio) -lbacio_4
-LIBbacio=/home/Ratko.Vasic/lib_tmp/GSI_libs_2/lib/libbacio_4.a
+
+LIBbacio=/scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist/nwprod/lib/sorc/bacio_v2.0.1/src/libbacio_4.a
+
 INCw3    = $(COREINC)/w3lib-2.0_d
 
 
@@ -35,7 +36,7 @@ INCnetcdf       = ${NETCDF}/include
 
 INCcrtm=$(COREINC)/crtm_2.0.5
 LIBcrtm=-L$(CORELIB)/ -lcrtm_2.0.5
-
+LIBsigio=/scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist/nwprod/lib/sorc/sigio_v1.0.1/libsigio_4.a
 # Empty out definition of libs use by GMAO GSI building structure
 LIBtransf = #-L$(CORELIB) -ltransf
 LIBhermes = #-L$(CORELIB) -lhermes
@@ -65,11 +66,11 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 
   FFLAGS_COM_N  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) -I $(INCnemsio) \
                 -I $(INCnetcdf) -I $(INCw3) -O3 -traceback -convert big_endian -assume byterecl \
-	        -g -fp-model strict
+	        -g -fp-model strict -implicitnone
 
   FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCcrtm) -I $(INCsfcio) -I $(INCsigio) \
                   -I $(INCnemsio) -I $(INCnetcdf) -I $(INCw3) \
-		  -O3 -traceback -g -fp-model strict
+		  -O3 -traceback -g -fp-model strict -implicitnone
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N) $(PROF)
   FFLAGS_NOSWAP_N  = $(FFLAGS_F90) $(FFLAGS_COM_N_NOSWAP) $(PROF)
@@ -112,8 +113,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
 #--- Normal mode options
 # LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
 #      -lsfcio_4 -lbufr_d_64 -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
-  LIBS_N        = $(LIBnemsio) -L$(CORELIB) -lsp_d -lsigio_4 \
-       -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) $(LIBbacio) -L$(NETCDF)/lib -lnetcdf
+  LIBS_N        = $(LIBsigio) $(LIBbacio) $(LIBnemsio) -L$(CORELIB) -lsp_d  \
+       -lsfcio_4 -lbufr_dc -lw3lib-2.0_d $(LIBcrtm) $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
 
   LDFLAGS_N     = 
 
