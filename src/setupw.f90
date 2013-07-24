@@ -131,7 +131,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                            num_bad_ikx and print 1st 10 instances of ikx out of range
 !                            and also print num_bad_ikx after all data processed if > 0 .
 !   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
-!   2013-07-19  Carley/Hu  - Add tall tower (tpe=261) winds
+!   2013-07-19  Hu/Olson/Carley  - Add tall tower (type=261) winds
 !
 ! REMARKS:
 !   language: f90
