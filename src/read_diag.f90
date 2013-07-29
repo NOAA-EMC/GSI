@@ -147,7 +147,7 @@ module read_diag
      real(r_single) :: extra              ! extra information
   end type diag_data_extra_list
 
-  integer(i_kind),parameter:: iversion_radiag   = 13784   ! Current version
+  integer(i_kind),parameter:: iversion_radiag   = 19180   ! Current version
   integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
   integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
   integer(i_kind),parameter:: iversion_radiag_3 = 19180   ! Version when SSMIS added
