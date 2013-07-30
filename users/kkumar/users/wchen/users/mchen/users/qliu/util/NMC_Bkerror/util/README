@@ -1,0 +1,20 @@
+This utility will convert a GFS-GSI compatible background error fixed
+   file from the old "assumed" format to the new, generalized control
+   variable format.  This is especially useful since the NMC-stats
+   code does not output the new format (yet).
+
+To compile:
+   xlf90 convert2gcv.f -o convert.x /nwprod/lib/libbacio_4.a
+
+The program will then expect to read in a file of the old format with 
+   the name "berror_stats_in1".  The utility will figure out the proper
+   dimensions of the file from the header information, and output a new
+   file in the "gcv" format of the name "berror_stats_genvar".
+
+The utility can only handle files with the following number of latitude
+   points (since it also adds corresponding longitude information to the
+   new file format):
+   
+   nlat=882  ; nlat=578  ; nlat=386 ; nlat=290 ; nlat=258 ; nlat=192 ; nlat=130 ; nlat=96
+
+   These values correspond to the commonly used Gaussian grids with the GFS-GSI.
