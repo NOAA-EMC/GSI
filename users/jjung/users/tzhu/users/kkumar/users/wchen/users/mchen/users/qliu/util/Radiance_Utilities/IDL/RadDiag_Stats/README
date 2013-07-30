@@ -1,0 +1,37 @@
+IDL Routines for Plotting NetCDF files produced by RadDiag_Stats package.
+--------------------------------------------------------------------------
+
+RadDiag_Stats files are produced by code found at 
+util/Radiance_Utilities/Fortran/RadDiag_Stats
+
+Some of these routines have just been copied across from CRTM and are not yet 
+documented here.
+
+**** Some routines use the Coyote IDL library - available at ****
+**** http://www.dfanning.com/documents/programs.html         ****
+
+Main reading routine:
+
+read_netcdf.pro:   Reads any netCDF file and outputs the result to a structure.
+                   Typical calling sequence is a=read_netcdf(file,data) where
+                   file is the file to be read, data contains the structure
+                   a is the output status. 
+                   This uses the functions contain in is_netcdf.pro and 
+                   valid_string.pro in this directory.
+
+
+General Plotting Routines:
+
+Plot_Observation_Summary_NetCDF.pro:  Plots summary of first-guess and analysis
+                              departures for a number of specified instruments.
+                              x-axis for these plots is channel number.
+Plot_RadDiag_2D_netCDF.pro:   Plots 2D maps of radiance statistics
+Plot_ScanDep_NetCDF.pro:      Plot scan-dependent departure statistics.
+
+All of the above are IDL programs which are run with the .rnew directive. Users
+edit the part of the program file above the dotted line to control what is read
+in and plotted.
+These programs require the colour_setup.pro file found in 
+util/Radiance_Utilities/IDL/Misc
+
+

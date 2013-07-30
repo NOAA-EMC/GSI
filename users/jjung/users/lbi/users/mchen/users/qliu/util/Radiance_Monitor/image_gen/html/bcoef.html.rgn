@@ -1,0 +1,170 @@
+<HTML>
+<head>
+<!--  Rewritten by Guy Middleton on 12/11/98 12:18:06 --><TITLE>
+Radiance Monitoring
+</TITLE>
+<BODY TEXT="#000000" BGCOLOR="#FFFFFF" LINK="#3366FF" VLINK="#51188E" ALINK="#FF0000">
+
+
+<SCRIPT LANGUAGE="JavaScript">
+
+function plotCoef() {
+var ssat_index = document.datacover.sat.selectedIndex;
+var ssat = document.datacover.sat[ssat_index].value;
+var type_index = document.datacover.term.selectedIndex;
+var type = document.datacover.term[type_index].value;
+var chan_index = document.datacover.channels.selectedIndex;
+var chan = document.datacover.channels[chan_index].value;
+var parentnew='pngs/bcoef/'+ ssat + '.' + type + '_fr' + chan + '.png'
+
+parent.fmain.document.location.href=parentnew
+
+}
+
+
+</SCRIPT></HEAD>
+
+
+
+<FORM NAME="datacover">
+<TABLE BORDER=0 CELLPADDING=0>
+
+
+<a name="biascoef"></a>
+<h3>Bias correction coefficients</h3>
+</TD></TR>
+
+</TD></TR>
+
+<TR><TD ALIGN=LEFT><B> Select Platform:<br>
+<SELECT NAME="sat" size=1 OnChange=plotCoef()>
+<OPTION VALUE="sndrd1_g11">GOES-11 SNDRD1
+<OPTION VALUE="sndrd2_g11">GOES-11 SNDRD2
+<OPTION VALUE="sndrd3_g11">GOES-11 SNDRD3
+<OPTION VALUE="sndrd4_g11">GOES-11 SNDRD4
+
+<OPTION VALUE="sndrd1_g13">GOES-13 SNDRD1
+<OPTION VALUE="sndrd2_g13">GOES-13 SNDRD2
+<OPTION VALUE="sndrd3_g13">GOES-13 SNDRD3
+<OPTION VALUE="sndrd4_g13">GOES-13 SNDRD4
+
+<OPTION VALUE="amsua_n15">NOAA-15 AMSU-A
+<!--
+<OPTION VALUE="amsub_n15">NOAA-15 AMSU-B
+-->
+<OPTION VALUE="hirs3_n16">NOAA-16 HIRS/3
+<OPTION VALUE="amsub_n16">NOAA-16 AMSU-B
+<OPTION VALUE="hirs3_n17">NOAA-17 HIRS/3
+<OPTION VALUE="amsub_n17">NOAA-17 AMSU-B
+<OPTION VALUE="hirs4_n18">NOAA-18 HIRS/4
+<OPTION VALUE="amsua_n18">NOAA-18 AMSU-A
+<OPTION VALUE="mhs_n18">NOAA-18 MHS
+<OPTION VALUE="airs_aqua">AQUA AIRS
+<OPTION VALUE="hirs4_metop-a">METOP HIRS/4
+<OPTION VALUE="amsua_metop-a">METOP AMSU-A
+<OPTION VALUE="mhs_metop-a">METOP MHS
+</SELECT><P>
+</TD></TR>
+
+
+<TR><TD ALIGN=LEFT><B> Bias correction term:<br>
+<SELECT NAME="term" size=5 OnChange=plotCoef()>
+<OPTION VALUE="mean">Mean
+<OPTION VALUE="atmpath">Scan angle
+<OPTION VALUE="lapse">Lapse rate
+<OPTION VALUE="lapse2">(Lapse rate)**2
+<OPTION VALUE="clw">Cloud liquid water
+</SELECT><P>
+</TD></TR>
+
+
+<TR><TD ALIGN=LEFT><B> Channel groupings:<br>
+<SELECT NAME="channels" size=1 OnChange=plotCoef()>
+<OPTION VALUE="1">1-4
+<OPTION VALUE="2">5-8
+<OPTION VALUE="3">9-12
+<OPTION VALUE="4">13-16
+<OPTION VALUE="5">17-20
+<OPTION VALUE="6">21-24
+<OPTION VALUE="7">25-28
+<OPTION VALUE="8">29-32
+<OPTION VALUE="9">33-36
+<OPTION VALUE="10">37-40
+<OPTION VALUE="11">41-44
+<OPTION VALUE="12">45-48
+<OPTION VALUE="13">49-52
+<OPTION VALUE="14">53-56
+<OPTION VALUE="15">57-60
+<OPTION VALUE="16">61-64
+<OPTION VALUE="17">65-68
+<OPTION VALUE="18">69-72
+<OPTION VALUE="19">73-76
+<OPTION VALUE="20">77-80
+<OPTION VALUE="21">81-84
+<OPTION VALUE="22">85-88
+<OPTION VALUE="23">89-92
+<OPTION VALUE="24">93-96
+<OPTION VALUE="25">97-100
+<OPTION VALUE="26">101-104
+<OPTION VALUE="27">105-108
+<OPTION VALUE="28">109-112
+<OPTION VALUE="29">113-116
+<OPTION VALUE="30">117-120
+<OPTION VALUE="31">121-124
+<OPTION VALUE="32">125-128
+<OPTION VALUE="33">129-132
+<OPTION VALUE="34">133-136
+<OPTION VALUE="35">137-140
+<OPTION VALUE="36">141-144
+<OPTION VALUE="37">145-148
+<OPTION VALUE="38">149-152
+<OPTION VALUE="39">153-156
+<OPTION VALUE="40">157-160
+<OPTION VALUE="41">161-164
+<OPTION VALUE="42">165-168
+<OPTION VALUE="43">169-172
+<OPTION VALUE="44">173-176
+<OPTION VALUE="45">177-180
+<OPTION VALUE="46">181-184
+<OPTION VALUE="47">185-188
+<OPTION VALUE="48">189-192
+<OPTION VALUE="49">193-196
+<OPTION VALUE="50">197-200
+<OPTION VALUE="51">201-204
+<OPTION VALUE="52">205-208
+<OPTION VALUE="53">209-212
+<OPTION VALUE="54">213-216
+<OPTION VALUE="55">217-220
+<OPTION VALUE="56">221-224
+<OPTION VALUE="57">225-228
+<OPTION VALUE="58">229-232
+<OPTION VALUE="59">233-236
+<OPTION VALUE="60">237-240
+<OPTION VALUE="61">241-244
+<OPTION VALUE="62">245-248
+<OPTION VALUE="63">249-252
+<OPTION VALUE="64">253-256
+<OPTION VALUE="65">257-260
+<OPTION VALUE="66">261-264
+<OPTION VALUE="67">265-268
+<OPTION VALUE="68">269-272
+<OPTION VALUE="69">273-276
+<OPTION VALUE="70">277-280
+<OPTION VALUE="71">281-284
+</SELECT><P>
+</TD></TR>
+
+
+
+<TR><TD ALIGN=LEFT><B>
+Click button to...<br>
+<INPUT TYPE="button" VALUE="plot time series" onClick="plotCoef (); return true;"> <BR>
+
+</B></TD></TR>  </TABLE>
+
+
+</FORM>
+
+
+
+</BODY></HTML>
