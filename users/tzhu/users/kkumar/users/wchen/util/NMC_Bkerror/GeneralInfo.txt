@@ -1,0 +1,34 @@
+All,
+
+I've uploaded the NMC-method background error stats package:
+https://svnemc.ncep.noaa.gov/projects/gsi/branches/dtk-berr/util/NMC_Bkerror
+
+You can check out the code, with the following command:
+svn checkout https://svnemc.ncep.noaa.gov/projects/gsi/branches/dtk-berr/util/NMC_Bkerror NMC_Bkerror
+
+Once you download/check out the code, you will see the following directories:
+sorc, scripts, fix, and util
+
+To compile, simple type "make" in the sorc code directory (this will generate the executable calcstats.exe).  
+
+The driver for the program is statsmain.f90 which does nothing more than read in a namelist, some preliminary 
+  stuff, and then calls the various component routines.  You should be able to follow the calling sequence fairly easily:
+getcases: reads in the headers of the spectral files to see how many are available for processing
+readpairs: reads in the 1,2 day lagged forecast pairs, convert to gridded fields, and right out subdomain scratch files
+biascor: perform a systematic bias removal (this is mainly to remove huge biases near top of model)
+balprojs: compute matrices that allow for transforms from streamfunction to balanced vel. pot, ps, and temperature
+variances3d/variances: compute variance of each of the fields
+vertsc: computes vertical length scales (in inverse model grid units) using recursive filter method (see Wu paper)
+horizsc: computes horizontal length scales (km i think) as per Wu paper
+
+The code should be fairly straightforward to follow, but feel free to pass along questions or comments.  
+  I've set up a database of T126 GFS forecast pairs on vapor (450 pairs) for you to use/test the code.  If you look in 
+  the scripts directory, you will see nmcstats_t126_vapor.sh
+
+This script will compute the background error stats for the 450 forecast pairs at T126 (you just need to modify a few 
+  things, like my user id to yours and whatever account you run under).  The test I ran took a little over 20 minutes 
+  using two nodes on vapor.  If you get the code to run, there will be several things left over in the run directory upon completion:
+gsir4.berror_stats (this is the file that is used by GSI...but this is the OLD, non-gcv format)
+bgstats_sp.grd (this is a byte-addressable file that will allow you to view the 2d fields easily using GrADS....
+  I need to find a control file for the T126 grid)
+gsistats.out: standard output, there is nothing really of use in here unless diagnosing how/where things failed 
