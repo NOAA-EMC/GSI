@@ -1,1 +1,0 @@
-../../src/read_diag.f90
