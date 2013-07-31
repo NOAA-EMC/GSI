@@ -223,7 +223,7 @@ if [[ -e ${radstat} ]]; then
 
    export JOBNAME=${jobname}
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NDATE,DO_DIAG_RPT,DO_DATA_RPT,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NDATE,DO_DIAG_RPT,DO_DATA_RPT,NWPROD,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.

@@ -219,7 +219,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #--------------------------------------------------------------------
    # Export listvar
    export JOBNAME=$jobname
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NWPROD,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
