@@ -54,7 +54,7 @@ module constants
 ! set passed variables to public
   public :: one,two,half,zero,deg2rad,pi,three,quarter,one_tenth
   public :: rad2deg,zero_quad,r3600,r1000,r60inv,five,four,rd_over_cp,grav
-  public :: rd,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
+  public :: rd,rv,rozcon,rearth_equator,zero_single,tiny_r_kind,tiny_single,ten
   public :: omega,rcp,rearth,fv,h300,cp,cg_term,tpwcon,xb,ttp,psatk,xa,tmix
   public :: xai,xbi,psat,eps,omeps,wgtlim,one_quad,two_quad,epsq,climit,epsm1,hvap
   public :: hsub,cclimit,el2orc,elocp,h1000,cpr,pcpeff0,pcpeff2,delta,pcpeff1

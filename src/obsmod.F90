@@ -246,6 +246,7 @@ module obsmod
 !                      [10e10 on IBM CCS, 10e08 elsewhere]
 !   def lrun_subdirs - logical to toggle use of subdirectories at run time for pe specific
 !                      files
+!   def l_foreaft_thin -   separate TDR fore/aft scan for thinning
 !
 ! attributes:
 !   langauge: f90
@@ -317,6 +318,7 @@ module obsmod
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
   public :: codiags,use_limit,lrun_subdirs
+  public :: l_foreaft_thin
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -1226,6 +1228,7 @@ module obsmod
   logical lwrite_peakwt
   logical ext_sonde
   logical lrun_subdirs
+  logical l_foreaft_thin
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1406,6 +1409,7 @@ contains
     lwrite_predterms = .false.
     lwrite_peakwt    = .false.
     lrun_subdirs     = .false.
+    l_foreaft_thin   = .false.
 
     return
   end subroutine init_obsmod_dflts

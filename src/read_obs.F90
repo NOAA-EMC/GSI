@@ -125,6 +125,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !   2010-09-13  pagowski - add anow bufr and one obs chem
 !   2013-01-26  parrish - WCOSS debug compile fails with satid not initialized.
 !                         Set satid=1 at start of subroutine to allow debug compile.
+!   2013-02-13  eliu     - add ssmis 
 !                           
 !
 !   input argument list:
@@ -166,7 +167,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 
   satid=1      ! debug executable wants default value ???
   idate=0
-  if(trim(dtype) == 'tcp')return
+  if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -240,9 +241,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
        else if(jsatid == 'f15')then
          kidsat=248
        else if(jsatid == 'f16')then
-         kidsat=249
+         kidsat=249    
        else if(jsatid == 'f17')then
-         kidsat=250
+         kidsat=285                  
+       else if(jsatid == 'f18')then  
+         kidsat=286                  
        else if(jsatid == 'g08' .or. jsatid == 'g08_prep')then
          kidsat=252
        else if(jsatid == 'g09' .or. jsatid == 'g09_prep')then
@@ -312,6 +315,22 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
+       else if(trim(filename) == 'oscatbufr')then
+         lexist = .false.
+         oscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC012255') then                                         
+               lexist = .true.
+               exit oscatloop
+            endif
+         end do oscatloop
+       else if(trim(filename) == 'hdobbufr')then
+         lexist = .false.
+         loop_hdob: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC004015') then
+               lexist = .true.
+               exit loop_hdob
+            endif
+         end do loop_hdob
        else if(trim(dtype) == 'pm2_5')then
           if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
              lexist=.true.
@@ -437,6 +456,8 @@ subroutine read_obs(ndata,mype)
 !   2011-05-26  todling  - add call to create_nst
 !   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
 !                         Commented out extra line of arguments not used.
+!   2013-02-13  eliu     - turn off parallel I/O for SSMIS (due to the need to
+!                          do spatial averaging for noise reduction) 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -483,7 +504,7 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
     character(10):: obstype,platid
@@ -505,6 +526,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),dimension(npe,ndat):: mype_work,mype_work_r1,mype_work_r2
     integer(i_kind),dimension(npe,ndat):: mype_sub,mype_sub_r1,mype_sub_r2
     integer(i_kind),allocatable,dimension(:):: nrnd
+    integer(i_kind):: nmls_type
 
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
     real(r_kind),dimension(lat1*lon1):: prslsm,hgtlsm
@@ -555,6 +577,7 @@ subroutine read_obs(ndata,mype)
     ii=0
     ref_obs = .false.    !.false. = assimilate GPS bending angle
     ears_possible = .false.
+    nmls_type=0
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
        amsre= index(obstype,'amsre') /= 0
@@ -564,6 +587,14 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
+       mls = index(obstype,'mls') /= 0
+       if(obstype == 'mls20' ) nmls_type=nmls_type+1
+       if(obstype == 'mls22' ) nmls_type=nmls_type+1
+       if(obstype == 'mls30' ) nmls_type=nmls_type+1
+       if(nmls_type>1) then
+          write(6,*) '******ERROR***********: there is more than one MLS data type, not allowed, please check'
+          call stop2(339)
+       end if
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -588,7 +619,7 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev' &
-           .or. obstype == 'mls' ) then
+           .or. mls ) then
           ditype(i) = 'ozone'
        else if (obstype == 'mopitt') then
           ditype(i) = 'co'
@@ -664,7 +695,7 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'atms')then
 !                 parallel_read(i)= .true.
              else if(ssmis)then
-                parallel_read(i)= .true.
+!               parallel_read(i)= .true.  
              else if(seviri)then
                 parallel_read(i)= .true.
              else if(obstype == 'cris' )then
@@ -936,9 +967,16 @@ subroutine read_obs(ndata,mype)
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
-                call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                     prsl_full)
-                string='READ_PREPBUFR'
+!               Process flight-letel high-density data not included in prepbufr
+                if ( index(infile,'hdobbufr') /=0 ) then
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                                    prsl_full)
+                  string='READ_FL_HDOB'
+                else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full)
+                   string='READ_PREPBUFR'
+                endif
 !            Process winds in the prepbufr
              else if(obstype == 'uv') then
 !             Process satellite winds which seperate from prepbufr
@@ -946,11 +984,21 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'
+!             Process oscat winds which seperate from prepbufr
+                elseif ( index(infile,'oscatbufr') /=0 ) then
+                  call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                     prsl_full)
+                  string='READ_SFCWND'
+                else if ( index(infile,'hdobbufr') /=0 ) then
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&                                                                     
+                     prsl_full)
+                  string='READ_FL_HDOB'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                   string='READ_PREPBUFR'
                 endif
+
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'mods') then

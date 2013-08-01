@@ -11,6 +11,6 @@ The install script requires one parameter:  the data suffix (identifier).  The s
 is used to access the corresponding entry in the ../../parm/data_map.xml file.
 An example calling sequence is thus:
 
->  install_html.sh newd 
+>  Install_html.sh newd 
 
 

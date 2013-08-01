@@ -83,6 +83,7 @@ subroutine glbsoi(mype)
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2013-07-02  parrish - remove references to init_strongvars_1, init_strongvars_2
 !
 !   input argument list:
 !     mype - mpi task id
@@ -128,8 +129,6 @@ subroutine glbsoi(mype)
   use pcpinfo, only: pcpinfo_write
   use converr, only: converr_destroy
   use zrnmi_mod, only: zrnmi_initialize
-  use strong_slow_global_mod, only: init_strongvars_1
-  use strong_fast_global_mod, only: init_strongvars_2
   use observermod, only: observer_init,observer_set,observer_finalize,ndata
   use timermod, only: timer_ini, timer_fnl
   use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters

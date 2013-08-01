@@ -210,18 +210,19 @@ subroutine init_rf_z(z_len)
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
   integer(i_kind) k,km,kp,nxy,i,ii,jj
-  real(r_kind) aspect(nsig),p_interface(nsig+1),lnp_layer(nsig)
-  real(r_kind) p_layer,dlnp,kap1,kapr,d1,d2
+  real(r_kind) aspect(nsig),p_interface(nsig+1),ln_p_int(nsig+1)
+  real(r_kind) p_layer,dlnp,kap1,kapr,d1,d2,rnsig
 
-    kap1=rd_over_cp+one
-    kapr=one/rd_over_cp
-    nxy=grd_ens%latlon11
+  kap1=rd_over_cp+one
+  kapr=one/rd_over_cp
+  nxy=grd_ens%latlon11
+  rnsig=float(nsig)
 
 !    use new factorization:
   allocate(fmatz(2,nsig,2,nxy),fmat0z(nsig,2,nxy))
 
 !   for z_len < zero, use abs val z_len and assume localization scale is in units of ln(p)
-   if(s_ens_v > zero) then
+  if(s_ens_v > zero) then
 
 !  z_len is in grid units
      do k=1,nsig
@@ -242,74 +243,43 @@ subroutine init_rf_z(z_len)
 !
      i=0
      do jj=1,grd_ens%lon2
-      do ii=1,grd_ens%lat2
-       i=i+1
+        do ii=1,grd_ens%lat2
+           i=i+1
 
-       if(regional)then
+           if(regional)then
 
-          do k=1,nsig
-             if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
-                p_layer=one_tenth* &
-                        (aeta1_ll(k)*pdtop_ll + &
-                         aeta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
-                         pt_ll)
-             endif
-             if (wrf_mass_regional .or. twodvar_regional) then
-                p_layer=one_tenth*(aeta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
-             endif
-             lnp_layer(k)=log(p_layer)
-          end do
+              do k=1,nsig+1
+                 if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+   	            p_interface(k)= one_tenth* &
+                          (aeta1_ll(k)*pdtop_ll + &
+                           aeta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
+                           pt_ll)
+                 endif
+                 if (wrf_mass_regional .or. twodvar_regional) then
+		    p_interface(k)=one_tenth*(aeta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
+                 endif
+	         ln_p_int(k)=log(max(p_interface(k),0.0001_r_kind))
+              end do
 
-       else
+           else
+              do k=1,nsig+1
+                 p_interface(k)=ak5(k)+(bk5(k)*ps_bar(ii,jj,1))
+                 ln_p_int(k)=log(max(p_interface(k),0.0001_r_kind))
+              end do
+           endif
 
-          do k=1,nsig+1
-             p_interface(k)=ak5(k)+(bk5(k)*ps_bar(ii,jj,1))
-          end do
-          do k=1,nsig
-             p_layer=((p_interface(k)**kap1-p_interface(k+1)**kap1)/&
-                                (kap1*(p_interface(k)-p_interface(k+1))))**kapr
-             lnp_layer(k)=log(p_layer)
-          end do
-
-       endif
-
-! Start with assuming no localization
-       do k=1,nsig
-         d1=float(nsig)**two ; d2=float(nsig)**two
-! Search downward from k for dlnp difference larger than specified parameter
-          if(k > 1) then
-            do km=k-1,1,-1
-               dlnp=abs(lnp_layer(km)-lnp_layer(k))
-               if (dlnp.ge.abs(z_len(k))) then
-                  d1=(float(km-k))**two
-                  exit
-               end if
-             end do
-	  end if
-	
-! Search upward from k for dlnp difference larger than specified parameter
-	   if (k < nsig) then
-             do kp=k+1,nsig,1
-                dlnp=abs(lnp_layer(k)-lnp_layer(kp))
-                if (dlnp.ge.abs(z_len(k))) then
-                  d2=(float(kp-k))**two
-                  exit
-                end if
-
-             end do
-	   end if
-	
-! Set aspect (localization distance in grid units squared) based on minimum of up/down searches
-           aspect(k)=min(d1,d2)
-
-!!         if(mype == 0) write(400,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
+           do k=1,nsig
+              dlnp=abs(ln_p_int(k)-ln_p_int(k+1))
+ 	      d1=abs(z_len(k))/dlnp
+              d1=min(rnsig,d1)
+              aspect(k)=d1**2
+!!            if(mype == 0) write(400,'(" k, vertical localization in grid units for ln(p) scaling =",i4,f10.2,f10.2,f10.2)') &
 !!                                         k,sqrt(aspect(k))
-	end do
-
-     	call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
-      end do
+           enddo
+   
+           call get_new_alpha_beta(aspect,nsig,fmatz(1,1,1,i),fmat0z(1,1,i))
+        end do
      end do
-
   end if
 
 end subroutine init_rf_z

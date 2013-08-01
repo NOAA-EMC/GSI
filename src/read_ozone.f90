@@ -56,6 +56,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2010-06-02  sienkiewicz - care for closing bufr other than for o3lev
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
+!   2012-10-12  h.liu  - read in MLS v2 Near Real Time (NRT) and v2.2 standard bufr data
+!   2013-01-17  h.liu  - read in MLS v3 Near Real Time (NRT) 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
@@ -161,11 +163,18 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   real(r_double),dimension(10):: hdrozo
   real(r_double),dimension(8) :: hdrozo2
   real(r_double),dimension(13):: hdrmls
-  real(r_double),dimension(3,37):: hdrmlsl
+  real(r_double),allocatable,dimension(:,:) :: hdrmlsl
   real(r_kind),allocatable,dimension(:):: mlspres,mlsoz,mlsozpc,usage1
   integer(i_kind),allocatable,dimension(:):: ipos
 
   real(r_double) totoz,hdrmls13
+  integer(i_kind) :: k0
+  logical :: first
+
+! MLS data version: mlsv=22 is version 2.2 standard data; 
+!                   mlsv=20 is v2 near-real-time data
+!                   mlsv=30 is v3 near-real-time data
+  integer(i_kind) :: mlsv
 
   data lozstr &
        / 'OSP12 OSP11 OSP10 OSP9 OSP8 OSP7 OSP6 OSP5 OSP4 OSP3 OSP2 OSP1 ' /
@@ -703,6 +712,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   else if (obstype == 'o3lev') then
 
 !    o3lev data has 37 levels
+!    this only works for version2 data
      allocate(ipos(37))
 
      nreal = 11
@@ -843,7 +853,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      deallocate(ipos)
 
 ! Process MLS bufr data
-  else if ( obstype == 'mls') then
+  else if ( index(obstype,'mls')/=0 ) then
 
      nmrecs=0
 
@@ -859,17 +869,52 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         goto 170
      endif
 
-!    Set dependent variables and allocate arrays
-     nreal=11
-     nloz=37
-     nchanl=1
-     nozdat=nreal+nchanl
-     allocate (ozout(nozdat,maxobs))
+     if(iret/=0) goto 160
+
+180  continue
+     call readsb(lunin,iret)
+     if (iret/=0) then
+        call readmg(lunin,subset,jdate,iret)
+        if (iret/=0) goto 150
+        goto 180
+     endif
+
+!    Get # of vertical pressure levels nloz and MLS NRT data version which depends on nloz
+     allocate(hdrmlsl(3,100))
+     call ufbrep(lunin,hdrmlsl,3,100,iret,mlstrl)
+     nloz=iret
+!    for NRT data, mlsv=20 or 30 depending on the nloz
+     if(nloz==37) then
+        if(index(sis,'mls22')/=0 ) then       !mls v2.2 data
+           mlsv=22
+        else if(index(sis,'mls20')/=0 ) then  !mls v2 nrt data
+           mlsv=20
+        end if
+     else if(nloz==55) then                  !mls v3 nrt data
+        mlsv=30
+     else
+        write(6,*) 'invalid vertical level number: ', nloz
+        write(6,*) '******STOP*******: error reading MLS vertical levels in read_ozone.f90'
+        call stop2(338)
+     end if
+     deallocate(hdrmlsl)
+
+     write(6,*) 'READ_OZONE: MLS data version=',mlsv
+     write(6,*) 'READ_OZONE: MLS vertical level number=',nloz
+
+!    Allocate arrays
+     allocate(hdrmlsl(3,nloz))
      allocate (mlspres(nloz))
      allocate (mlsoz(nloz))
      allocate (mlsozpc(nloz))
      allocate(ipos(nloz))
      allocate (usage1(nloz))
+ 
+!    Set dependent variables and allocate arrays
+     nreal=12
+     nchanl=1
+     nozdat=nreal+nchanl
+     allocate (ozout(nozdat,maxobs))
 
      do k=1,maxobs
         do i=1,nozdat
@@ -878,18 +923,26 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      end do
 
      ikx=0
+     k0=0
+     ipos=999
+     first=.false.
      do k=1,jpch_oz
-        if(index(nusis_oz(k),'mls_')/=0) then  ! mls_aura
+        if( (.not. first) .and. index(nusis_oz(k),sis)/=0 ) then
+           k0=k
+           first=.true.
+        end if
+        if(first .and. index(nusis_oz(k),sis)/=0 ) then
            ikx=ikx+1
-           ipos(ikx)=k
+           ipos(ikx)=k0+ikx-1
         end if
      end do
-    
-     iy=0
-     im=0
-     idd=0
-     ihh=0
-     if(iret/=0) goto 160
+
+!    Reopen unit to bufr file
+     call closbf(lunin)
+     open(lunin,file=infile,form='unformatted')
+     call openbf(lunin,'IN',lunin)
+     call datelen(10)
+     call readmg(lunin,subset,idate,iret)
 
 140  continue
      call readsb(lunin,iret)
@@ -953,21 +1006,40 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      end if
 
 !    v2.2 data screening, only accept:
-!    Pressure range:       215-0.02mb
-!    Precision:            positive OZMP;    
-!    Status flag:          only use even number
-!    Quality(PCCF):        use >1.2 for data at 215-100mb & low latitude, 
-!                          use >0.4 for data elsewhere
-!    Convergence:          use <1.8
+!    Pressure range(PRLC):       215-0.02mb (lev5-27)
+!    Precision(OZMP):            positive OZMP;    
+!    Status flag(MLST):          only use even number
+!    Quality(PCCF):              use >1.2 for data at 215-100mb & low latitude, 
+!                                use >0.4 for data elsewhere
+!    Convergence(CONV):          use <1.8
 
-!    Bit 1 in MLST represents data should not be used
+!    v2 NRT data screening, only accept:
+!    Pressure range(PRLC):       68-0.2mb (lev8-23)
+!    Precision(OZMP):            positive OZMP;    
+!    Status flag(MLST):          only use even number
+!    Quality(PCCF):              do NOT use <1.2 or >3.0
+
+!    v3 NRT data screening, only accept:
+!    Pressure range(PRLC):       261-0.1mb (lev8-43)
+!    Precision(OZMP):            positive OZMP;
+!    Status flag(MLST):          only use even number
+!    Quality(PCCF):              only use if >0.4 
+!    Convergence(CONV):          use <1.2
+
+!    status: Bit 1 in MLST represents data should not be used
 !    Note: in BUFR bits are defined from left to right as: 123456789...
 !    whereas in HDF5 (and the nasa document) bits are defined from right to left as: ...876543210
      decimal=int(hdrmls(12))
      call dec2bin(decimal,binary_mls,18)
      if (binary_mls(1) == 1 ) goto 140
 
-     if(hdrmls(11) >= 1.8_r_kind) go to 140
+!    v2.2 data, remove data when convergence>1.8 
+!    v3 NRT data,remove data when convergence>1.2 
+     if(mlsv==22) then
+        if(hdrmls(11) >= 1.8_r_kind) go to 140
+     else if(mlsv==30) then
+        if(hdrmls(11) >= 1.2_r_kind) go to 140
+     end if
 
 !    extract pressure, ozone mixing ratio and precision
      call ufbrep(lunin,hdrmlsl,3,nloz,iret,mlstrl)
@@ -976,23 +1048,56 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         mlspres(k)=log(hdrmlsl(1,k)*0.001_r_kind)    ! mls pressure in Pa, coverted to log(cb)
         mlsoz(k)=hdrmlsl(2,k)                     ! ozone mixing ratio in ppmv
         mlsozpc(k)=hdrmlsl(3,k)                   ! ozone mixing ratio precision in ppmv
+!       there is possibility that mlsoz in bufr is 0 or negative or larger than 100 which are not reasonable values.
+        if(mlsoz(k)<1.0e-8_r_kind .or. mlsoz(k)>100.0_r_kind ) then 
+          usage1(k)=1000._r_kind
+!         for v2.2 data, if this unreasonable value happens between 215mb (lev5) and 0.02mb (lev27), throw the whole profile
+!         for v2 NRT data, if this unreasonable value happens between 68mb (lev8) and 0.2mb (lev23), throw the whole profile
+!         for v3 NRT data, if this unreasonable value happens between 261mb (lev8) and 0.1mb (lev43), throw the whole profile
+          if(mlsv==22 .and. (k<=27 .and. k>=5)) go to 140
+          if(mlsv==20 .and. (k<=23 .and. k>=8)) go to 140
+          if(mlsv==30 .and. (k<=43 .and. k>=8)) go to 140
+        end if
      end do
         
      do k=1,nloz
-        if(hdrmlsl(1,k)>21600._r_kind .or. hdrmlsl(1,k)<2._r_kind) usage1(k)=1000._r_kind
+!       pressure range
+        if(mlsv==22) then
+          if(hdrmlsl(1,k)>21700._r_kind .or. hdrmlsl(1,k)<1._r_kind) usage1(k)=1000._r_kind
+        else if(mlsv==20) then
+          if(hdrmlsl(1,k)>6900._r_kind .or. hdrmlsl(1,k)<10._r_kind) usage1(k)=1000._r_kind
+        else if(mlsv==30) then
+          if(hdrmlsl(1,k)>26500._r_kind .or. hdrmlsl(1,k)<10._r_kind) usage1(k)=1000._r_kind
+        end if
+!       only positive precision accepted
         if(hdrmlsl(3,k)<=0._r_kind) usage1(k)=1000._r_kind
      end do
 
+!   status screening
      hdrmls13=hdrmls(13)*0.1_r_kind
-     if (abs(slats0)<30._r_kind) then
-        do k=1,nloz
-           if(hdrmlsl(1,k)>10000._r_kind .and. hdrmlsl(1,k)<21600._r_kind) then
-              if(hdrmls13 <= 1.2_r_kind) usage1(k)=1000._r_kind
-           else
-              if(hdrmls13 <= 0.4_r_kind) usage1(k)=1000._r_kind
-           endif
-        end do
-     else
+     if(mlsv==22) then
+        if (abs(slats0)<30._r_kind) then
+           do k=1,nloz
+              if(hdrmlsl(1,k)>10100._r_kind .and. hdrmlsl(1,k)<21700._r_kind) then
+                 if(hdrmls13 <= 1.2_r_kind) usage1(k)=1000._r_kind
+              else
+                 if(hdrmls13 <= 0.4_r_kind) usage1(k)=1000._r_kind
+              endif
+           end do
+        else
+           if(hdrmls13 <= 0.4_r_kind) then
+              do k=1,nloz
+                 usage1(k)=1000._r_kind
+              end do
+           end if
+        end if
+     else if(mlsv==20) then
+        if(hdrmls13 <= 1.2_r_kind .or. hdrmls13 >= 3.0_r_kind) then
+           do k=1,nloz
+              usage1(k)=1000._r_kind
+           end do
+        end if
+     else if(mlsv==30) then
         if(hdrmls13 <= 0.4_r_kind) then
            do k=1,nloz
               usage1(k)=1000._r_kind
@@ -1000,18 +1105,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         end if
      end if
 
-!    NRT data screening, only accept:
-!    Pressure range:       68-0.2mb
-!    Precision:            positive PCCF;    
-!    Status flag:          only use even number
-!    Quality:              do NOT use <1.2 or >3.0
-
-!    if(ndata >= 1) goto 140
-
      do k=1,nloz
 
         ndata=min(ndata+1,maxobs)
-        nodata=nodata+1
+        nodata=ndata
+!       if(ndata >= nloz) goto 140
 
         ozout(1,ndata)=rsat
         ozout(2,ndata)=t4dv
@@ -1022,10 +1120,11 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         ozout(7,ndata)=hdrmls(10)         ! solar zenith angle
 
         ozout(8,ndata)=usage1(k)          ! 
-        ozout(9,ndata)=mlspres(k)          ! mls pressure in log(cb)
-        ozout(10,ndata)=mlsozpc(k)   ! ozone mixing ratio precision in ppmv
-        ozout(11,ndata)=float(ipos(k))       ! pointer of obs level index in ozinfo.txt
-        ozout(12,ndata)=mlsoz(k)       ! ozone mixing ratio in ppmv
+        ozout(9,ndata)=mlspres(k)         ! mls pressure in log(cb)
+        ozout(10,ndata)=mlsozpc(k)        ! ozone mixing ratio precision in ppmv
+        ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in ozinfo.txt
+        ozout(12,ndata)=nloz              ! # of mls vertical levels
+        ozout(nreal+1,ndata)=mlsoz(k)     ! ozone mixing ratio in ppmv
      end do
 
      go to 140
@@ -1057,12 +1156,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   write(lunout) ((ozout(k,i),k=1,nozdat),i=1,ndata)
   nread=nmrecs
 
-
 ! Deallocate local arrays
 160 continue
   deallocate(ozout)
   if (obstype == 'sbuv2') deallocate(poz)
-  if (obstype == 'mls') then
+  if (index(obstype,'mls')/=0) then
+     deallocate(hdrmlsl)
      deallocate(mlspres)
      deallocate(mlsoz)
      deallocate(mlsozpc)

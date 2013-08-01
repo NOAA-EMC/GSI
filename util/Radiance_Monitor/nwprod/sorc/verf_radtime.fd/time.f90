@@ -50,12 +50,12 @@ program time
   real,allocatable,dimension(:,:,:):: tot_cor,omg_nbc,omg_bc
  
 ! Variables for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list) ,pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
 
   logical valid_count, valid_penalty
   integer       nsnow, nland, nwater, nice, nmixed, ntotal
@@ -67,8 +67,9 @@ program time
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl
+       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -123,7 +124,7 @@ program time
      ctl_file = trim(satname) // '.ctl'
   else
      diag_rad = trim(satname) // '_anl'
-     data_file= trim(satname) // trim(stringd) // '_anl.ieee_d'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
      ctl_file = trim(satname) // '_anl.ctl'
   endif
 
@@ -232,10 +233,9 @@ program time
      endif
 
      call create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
-!          incr,ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
           incr,ctl_file,lunctl,rmiss,dfile,satype,dplat,nregion,&
           region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use(1,1),&
-          error(1,1),frequency(1,1),wavenumbr)
+          error(1,1),frequency(1,1),wavenumbr,little_endian)
   endif
 
   nwater = 0; nnwater=0

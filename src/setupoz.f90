@@ -726,7 +726,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   use gridmod, only : get_ijk,nsig
 
-  use ozinfo, only : jpch_oz
+  use ozinfo, only : jpch_oz,nusis_oz,iuse_oz
   use ozinfo, only : b_oz,pg_oz
 
   use jfunc, only : jiter,last,miter
@@ -786,7 +786,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind) k,j,idia,irdim1
   integer(i_kind) nkeep
   integer(i_kind) isolz,iuse
-  integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,iozmr,ilev,ipres,iprcs
+  integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,iozmr,ilev,ipres,iprcs,imls_levs
   integer(i_kind),dimension(iint,nobs):: idiagbuf
 
   character(12) string
@@ -800,6 +800,14 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(o3l_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+
+  real(r_kind),allocatable,dimension(:):: pobs
+  real(r_single),allocatable,dimension(:):: pob4,err4
+  integer(i_kind),allocatable,dimension(:):: iouse
+  integer(i_kind) :: n_levs,kk,jc
+
+  real(r_kind),allocatable,dimension(:)::sum_obserr,sum_obs,sum_ges
+  integer(i_kind),allocatable,dimension(:) :: count_k
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -829,10 +837,28 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
   ipres=9     ! index of pressure in log(cb)
   iprcs=10    ! index of mixing ratio precision in ppmv
   ilev=11     ! index of obs level
-  iozmr=12    ! index of ozone mixing ratio in ppmv
+  imls_levs=12 ! index of mls nrt vertical levels
+  iozmr=13    ! index of ozone mixing ratio in ppmv
 
 ! Read and transform ozone data
   read(lunin) data,luse
+
+  if(index(obstype,'mls')/=0) then
+     n_levs=int(data(imls_levs,1))
+  end if
+ 
+  allocate(iouse(n_levs))
+  allocate(pobs(n_levs))
+  allocate(pob4(n_levs))
+  allocate(err4(n_levs))
+
+  jc=0
+  do j=1,jpch_oz
+     if (isis == nusis_oz(j)) then
+        jc=jc+1
+        iouse(jc)=iuse_oz(j)
+     endif
+  end do
 
 ! Set flag for obs use
   do i=1,nobs
@@ -853,6 +879,18 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 ! Convert observation (lat,lon) from earth to grid relative values
   call dtime_setup()
+
+  allocate(sum_obserr(n_levs))
+  allocate(sum_obs(n_levs))
+  allocate(sum_ges(n_levs))
+  allocate(count_k(n_levs))
+  do kk=1,n_levs
+     sum_obserr(kk)=zero
+     sum_obs(kk)=zero
+     sum_ges(kk)=zero
+     count_k(kk)=0
+  end do
+
   do i=1,nobs
      dtime=data(itime,i)
 
@@ -861,14 +899,17 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
      dpres=data(ipres,i)   !pressure in log(cb)
 
+     kk=mod(i,n_levs)     
+     if(kk==0) kk=n_levs
+     pobs(kk)=exp(dpres)*10._r_kind !convert the pressure from log(cb) to mb
+
      dlat=data(ilat,i)
      dlon=data(ilon,i)
-     dtime=data(itime,i)
-     obserror=data(iprcs,i)
+     obserror=data(iprcs,i)*2.0_r_kind  ! obs error provided too small
               
      if (nobskeep>0) then
         write(6,*)'setupozlev: nobskeep',nobskeep
-        call stop2(336)
+        call stop2(338)
      end if
  
 !    Link observation to appropriate observation bin
@@ -983,10 +1024,10 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
 !    Perform gross checks, and accumualte numbers for statistics
 
-     j=nint(data(ilev,i))
+     j=nint(data(ilev,i))  !the entry # in ozinfo.txt
 
 !    Set inverse obs error squared and ratio_errors
-     if (obserror<1.e4_r_kind) then
+     if (obserror>zero .and. obserror<1.e4_r_kind) then
         varinv3 = one/(obserror**2)
         ratio_errors = one*ratio_errors
      else
@@ -1001,7 +1042,8 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
      endif
 
 !    Perform gross check
-     if( ozlv > 1.e+02_r_kind ) then
+     if( ozlv > 1.e+02_r_kind .or. ozlv <= zero .or. &
+         abs(ozone_inv)*100/o3ppmv>30.0_r_kind ) then
         varinv3=zero
         ratio_errors=zero
         if(luse(i))stats_oz(2,j) = stats_oz(2,j) + one ! number of obs tossed
@@ -1012,9 +1054,17 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
          muse(i)=.false.
      end if
 
+     if (varinv3>tiny_r_kind) then
+        sum_obserr(kk)=sum_obserr(kk)+obserror
+        count_k(kk)=count_k(kk)+1
+        sum_ges(kk)=sum_ges(kk)+o3ppmv
+        sum_obs(kk)=sum_obs(kk)+ozlv
+     end if
+
 !    Accumulate numbers for statistics
      rat_err2 = ratio_errors**2
-     if (varinv3>tiny_r_kind .or. ozone_diagsave) then
+     if (varinv3>tiny_r_kind .or. &
+        (iouse(kk)==-1 .and. ozone_diagsave)) then
         if(luse(i))then
            omg=ozone_inv
            stats_oz(1,j) = stats_oz(1,j) + one                          ! # obs
@@ -1112,7 +1162,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         rdiagbuf(3,1,ii) = errorinv            ! inverse observation error
         rdiagbuf(4,1,ii) = data(isolz,i)       ! solar zenith angle
         rdiagbuf(5,1,ii) = rmiss               ! fovn
-        rdiagbuf(6,1,ii) = obserror               ! ozone mixing ratio precision
+        rdiagbuf(6,1,ii) = obserror            ! ozone mixing ratio precision*factor
 
         if (lobsdiagsave) then
            idia=6
@@ -1141,6 +1191,14 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   end do   ! end do i=1,nobs
 
+  do kk=1,n_levs
+     if(count_k(kk)>0) then
+       sum_obserr(kk)=sum_obserr(kk)/count_k(kk)
+       sum_obs(kk)=sum_obs(kk)/count_k(kk)
+       sum_ges(kk)=sum_ges(kk)/count_k(kk)
+     end if
+  end do
+
 ! If requested, write to diagnostic file
   if (ozone_diagsave .and. ii>0) then
      filex=obstype
@@ -1157,11 +1215,21 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
         write(4) isis,dplat(is),obstype,jiter,nlevs,ianldate,iint,ireal,iextra
         write(6,*)'SETUPOZLV:   write header record for ',&
              isis,iint,ireal,iextra,' to file ',trim(diag_ozone_file),' ',ianldate
+        do kk=1,n_levs
+           pob4(kk)=pobs(kk)
+           err4(kk)=sum_obserr(kk)
+        end do
+        write(4) pob4,err4,iouse
      endif
      write(4) ii
-     write(4) idiagbuf(:,1:ii),diagbuf(:,1:ii),rdiagbuf(:,:,1:ii)
+     write(4) idiagbuf(:,1:ii),diagbuf(:,1:ii),rdiagbuf(:,1,1:ii)
      close(4)
   endif
+
+  deallocate(sum_obserr)
+  deallocate(sum_obs)
+  deallocate(sum_ges)
+  deallocate(count_k)
 
 ! clean up
   call dtime_show('setupozlev','diagsave:ozlv',i_o3l_ob_type)

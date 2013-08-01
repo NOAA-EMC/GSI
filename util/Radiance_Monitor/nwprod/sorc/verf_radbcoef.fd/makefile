@@ -15,12 +15,13 @@ OBJS = kinds.o read_diag.o bcoef.o create_ctl_bcoef.o
 # *****************************************************************
 #
 
-CF=xlf90
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
 
-LIBS    = -L/nwprod/lib -lw3_4
-FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1 -WF,-D_REAL8_
 
-LDFLAGS=
 
 CMD = radmon_bcoef.glb
 

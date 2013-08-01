@@ -52,13 +52,19 @@ else
    exit 2
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 2
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-#area=`${SCRIPTS}/get_area.sh ${SUFFIX} ${DATA_MAP}`
-area=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=${RAD_AREA}
 echo $area
 
 if [[ $area = glb ]]; then
@@ -77,8 +83,6 @@ mkdir -p $LOGSverf_rad
 
 export MAKE_CTL=1
 export MAKE_DATA=0
-#export USE_ANL=`${SCRIPTS}/get_anl.sh ${SUFFIX} ${DATA_MAP}`
-export USE_ANL=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} anl`
 export RUN_ENVIR=dev
 
 #---------------------------------------------------------------
@@ -86,10 +90,8 @@ export RUN_ENVIR=dev
 # date in the data_map file and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-#PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${RADMON_PARM}/data_map`
-PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
-#export DATDIR=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
-export DATDIR=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+export DATDIR=$RADSTAT_LOCATION
    
 ctr=0
 need_radstat=1
@@ -114,7 +116,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
       export radstat=$DATDIR/radstat.gdas.${PDATE}
       need_radstat=0
    else
-      export PDATE=`ndate -06 $PDATE`
+      export PDATE=`$NDATE -06 $PDATE`
       ctr=$(( $ctr + 1 ))
    fi
 done
@@ -138,11 +140,11 @@ if [[ -s ${radstat} ]]; then
    export cyc=$CYC
    export job=gdas_mkctl_${PDY}${cyc}
    export SENDSMS=NO
-   export DATA_IN=/stmp/$LOGNAME
-   export DATA=/stmp/$LOGNAME/radmon
-   export jlogfile=/stmp/$LOGNAME/jlogfile
+   export DATA_IN=$STMP/$LOGNAME
+   export DATA=$STMP/$LOGNAME/radmon
+   export jlogfile=$STMP/$LOGNAME/jlogfile
    export TANKverf=${TANKDIR}
-   export LOGDIR=/ptmp/$LOGNAME/logs/radopr
+   export LOGDIR=$PTMP/$LOGNAME/logs/radopr
 
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt
@@ -152,7 +154,12 @@ if [[ -s ${radstat} ]]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/make_ctl.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   if [[ $MY_MACHINE = "ccs" ]]; then
+      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/make_ctl.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   elif [[ $MY_MACHINE = "zeus" ]]; then
+      $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvar -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   fi
+
 
 fi
 

@@ -1,1 +1,1 @@
-/global/save/wx20ml/svn1/src/read_diag.f90
+../../../nwprod/sorc/verf_radang.fd/read_diag.f90

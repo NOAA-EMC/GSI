@@ -25,30 +25,45 @@ top_parm=${this_dir}/../../parm
 if [[ -s ${top_parm}/RadMon_config ]]; then
    . ${top_parm}/RadMon_config
 else
-   echo "Unable to source ${top_parm}/RadMon_config"
+   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
+   exit
+fi
+
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
    exit
 fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
-
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
-area=`${SCRIPTS}/query_data_map.pl ${DATA_MAP} ${SUFFIX} area`
+area=$RAD_AREA
 
 if [[ $area == "glb" ]]; then
   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
 elif [[ $area == "rgn" ]]; then
   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
+else
+  echo "ERROR:  Unable to determine area for ${SUFFIX}"
+  exit
 fi
 
 log_file=${LOGSverf_rad}/Transfer_${SUFFIX}.log
 err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
 
-
-/usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${IMGNDIR}/ \
-   esafford@rzdm.ncep.noaa.gov:${WEBDIR}/
+if [[ ${TOP_IMGNDIR} != "/" ]]; then
+   if [[ $MY_MACHINE = "ccs" ]]; then
+      /usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${TOP_IMGNDIR}/ \
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+   elif [[ $MY_MACHINE = "wcoss" ]]; then
+      /usr/bin/rsync -ave ssh --exclude *.ctl*  ${TOP_IMGNDIR}/ \
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+   fi
+fi
 
 echo end Transfer.sh
 exit
