@@ -25,7 +25,7 @@ plot_bcoef=plot_bcoef.gs
 
 #------------------------------------------------------------------
 #   Set dates
-bdate=`$NDATE -720 $PDATE`
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`

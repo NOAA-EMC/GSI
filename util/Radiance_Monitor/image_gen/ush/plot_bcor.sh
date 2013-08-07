@@ -37,7 +37,7 @@ plot_bcor_sep=plot_bcor_sep.${RAD_AREA}.gs
 #------------------------------------------------------------------
 #   Set dates
 
-bdate=`$NDATE -720 $PDATE`
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`

@@ -44,7 +44,6 @@ cd $tmpdir
 #------------------------------------------------------------------
 #   Set dates
 
-#bdate=`$NDATE -720 $PDATE`
 bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`

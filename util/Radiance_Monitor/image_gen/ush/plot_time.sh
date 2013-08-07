@@ -33,8 +33,8 @@ echo PLOT_WORK_DIR = $PLOT_WORK_DIR
 
 #------------------------------------------------------------------
 #   Set dates
-bdate=`$NDATE -720 $PDATE`
-bdate=`$NDATE -1440 $PDATE`
+
+bdate=${START_DATE}
 rdate=`$NDATE -72 $PDATE`
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
