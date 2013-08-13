@@ -112,8 +112,8 @@ EOF
 #--------------------------------------------------------------------
 # Delete data files
 
-   rm -f ${type}.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -131,9 +131,9 @@ cp -r *.png  ${IMGNDIR}/bcor
 #--------------------------------------------------------------------
 # Clean $tmpdir  
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------

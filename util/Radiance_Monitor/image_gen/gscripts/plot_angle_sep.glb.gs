@@ -195,39 +195,6 @@ say ' new_xs, new_xe ='new_xs','new_xe
 
 'set lon 'xs' 'xe
 
-
-region=1
-while (region<=nregion)
-
-say 'top of region loop with region='region
-
-'!rm -f area.txt'
-'!cat 'plotfile'.ctl |grep "region= 'region' " > area.txt'
-result=read(area.txt)
-rc=sublin(result,1)
-area="uknown"
-if (rc = 0)
-   info=sublin(result,2)
-   area=substr(info,14,60)
-endif
-result=close(area.txt)
-*say 'area = 'area
-say 'xs = 'xs
-say 'xe = 'xe
-
-
-'clear'
-'set grads off'
-'set missconn on'
-'set lon 'xs' 'xe
-'set z 'region
-'set mproj off'
-
-'set string 1 l 5'
-'set strsiz 0.11 0.11'
-'set xlopts 1 4 0.11'
-'set ylopts 1 2 0.09'
-
 if (sub_avg = 1)
    'define cnt1=ave(count, t='t1day', t='tlast')' 
    'define avg=ave('field', t='t1day', t='tlast')'
@@ -267,6 +234,80 @@ endif
 'undefine rterm1'
 'undefine rterm2'
 'undefine svar'
+
+
+
+region=1
+while (region<=nregion)
+
+say 'top of region loop with region='region
+
+'!rm -f area.txt'
+'!cat 'plotfile'.ctl |grep "region= 'region' " > area.txt'
+result=read(area.txt)
+rc=sublin(result,1)
+area="uknown"
+if (rc = 0)
+   info=sublin(result,2)
+   area=substr(info,14,60)
+endif
+result=close(area.txt)
+*say 'area = 'area
+say 'xs = 'xs
+say 'xe = 'xe
+
+
+'clear'
+'set grads off'
+'set missconn on'
+'set lon 'xs' 'xe
+'set z 'region
+'set mproj off'
+
+'set string 1 l 5'
+'set strsiz 0.11 0.11'
+'set xlopts 1 4 0.11'
+'set ylopts 1 2 0.09'
+
+*if (sub_avg = 1)
+*   'define cnt1=ave(count, t='t1day', t='tlast')' 
+*   'define avg=ave('field', t='t1day', t='tlast')'
+*   'define avgs=ave('field'_2, t='t1day', t='tlast')'
+*   'define rterm1=1/cnt1'
+*   'define rterm2=1/ave(count-1, t='t1day', t='tlast')'
+*   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+*
+*   'define avg1=ave('field'/count, t='t1day', t='tlast')'
+*   'define avg1=maskout(avg1,avg1-0)'
+*   'define sdv1=sqrt(svar)'
+*
+*   'define cnt1=ave(count, t='t7days', t='tlast')' 
+*   'define avg=ave('field', t='t7days', t='tlast')'
+*   'define avgs=ave('field'_2, t='t7days', t='tlast')'
+*   'define rterm1=1/cnt1'
+*   'define rterm2=1/ave(count-1, t='t7days', t='tlast')'
+*   'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+*
+*   'define avg2=ave('field'/count, t='t7days', t='tlast')'
+*   'define sdv2=sqrt(svar)'
+*endif
+*
+*'define cnt1=ave(count, t='t30days', t='tlast')' 
+*'define avg=ave('field', t='t30days', t='tlast')'
+*'define avgs=ave('field'_2, t='t30days', t='tlast')'
+*'define rterm1=1/cnt1'
+*'define rterm2=1/ave(count-1, t='t30days', t='tlast')'
+*'define svar=(abs(cnt1*avgs-avg*avg))*rterm1*rterm2'
+*
+*'define avg3=ave('field'/count, t='t30days', t='tlast')'
+*'define sdv3=sqrt(svar)'
+*
+*'undefine cnt1'
+*'undefine avg'
+*'undefine avgs'
+*'undefine rterm1'
+*'undefine rterm2'
+*'undefine svar'
 
 fr=0
 i=1

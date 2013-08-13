@@ -205,9 +205,15 @@ fi
       chmod 755 $cmdfile
 
 #      ((nprocs=(ntasks+1)/2))
+      if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+         wall_tm="1:30"
+      else
+         wall_tm="0:45"
+      fi
 
       if [[ $MY_MACHINE = "wcoss" ]]; then   
-         $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
+#         $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
+         $SUB -q dev -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
       else
         ntasks=`cat $cmdfile|wc -l `
         $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
@@ -224,8 +230,8 @@ fi
 
          echo "$SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
 
-         if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-            wall_tm="0:20:00"
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="1:30:00"
          else
             wall_tm="0:40:00"
          fi
@@ -260,8 +266,15 @@ fi
 
          ntasks=`cat $cmdfile|wc -l `
 
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="2:00"
+         else
+            wall_tm="1:00"
+         fi
+
          if [[ $MY_MACHINE = "wcoss" ]]; then
-            $SUB -q dev  -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} ${cmdfile}
+#            $SUB -q dev  -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} ${cmdfile}
+            $SUB -q dev  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
          else
             $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
          fi
@@ -273,10 +286,10 @@ fi
             rm -f ${logfile}
             rm -f ${cmdfile}
 
-            if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-               wall_tm="0:60:00"
-            else
+            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
                wall_tm="2:00:00"
+            else
+               wall_tm="1:00:00"
             fi
 
             echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile

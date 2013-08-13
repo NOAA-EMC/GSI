@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/RadMon_331/util/Radiance_Monitor
+export MY_RADMON=/scratch2/portfolios/NCEPDEV/global/save/Edward.Safford/RadMon_333/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and

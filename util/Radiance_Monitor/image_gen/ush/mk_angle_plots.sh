@@ -164,8 +164,15 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
      ntasks=`cat $cmdfile|wc -l `
 
+     if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+        wall_tm="2:30"
+     else
+        wall_tm="1:45"
+     fi
+
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q dev -o ${logfile} -W 1:45 -R affinity[core] -J ${jobname} $cmdfile
+#        $SUB -q dev -o ${logfile} -W 1:45 -R affinity[core] -J ${jobname} $cmdfile
+        $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
      else
         $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi
@@ -181,10 +188,10 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
         echo "$SCRIPTS/plot_angle.sh $sat $suffix '$list'" >> $cmdfile
 
-        if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-           wall_tm="2:00:00"
+        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+           wall_tm="5:00:00"
         else
-           wall_tm="4:00:00"
+           wall_tm="2:30:00"
         fi
 
         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
@@ -230,10 +237,17 @@ for sat in ${bigSATLIST}; do
             ntasks=`cat $cmdfile|wc -l `
             chmod 755 $cmdfile
 
+            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+               wall_tm="2:00"
+            else
+               wall_tm="1:00"
+            fi
+
             if [[ $MY_MACHINE = "ccs" ]]; then
                $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
             else
-               $SUB -q dev -o ${logfile} -W 1:00 -R affinity[core] -J ${jobname} $cmdfile
+#               $SUB -q dev -o ${logfile} -W 1:00 -R affinity[core] -J ${jobname} $cmdfile
+               $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
             fi
             (( batch=batch+1 ))
 
@@ -259,10 +273,10 @@ for sat in ${bigSATLIST}; do
 
          echo "${SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
 
-         if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-            wall_tm="2:00:00"
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="5:00:00"
          else
-            wall_tm="4:00:00"
+            wall_tm="2:30:00"
          fi
 
          $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}

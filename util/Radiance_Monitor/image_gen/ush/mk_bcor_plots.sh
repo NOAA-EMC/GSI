@@ -18,7 +18,7 @@ export NUM_CYCLES=${NUM_CYCLES:-121}
 
 #
 # testing
-#export SATYPE="iasi_metop-a"
+export SATYPE="iasi_metop-a"
 
 imgndir=${IMGNDIR}/bcor
 tankdir=${TANKDIR}/bcor
@@ -170,8 +170,15 @@ ${COMPRESS} ${imgndir}/*.ctl
      ntasks=`cat $cmdfile|wc -l `
 #     ((nprocs=(ntasks+1)/2))
 
+     if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+        wall_tm="1:30"
+     else
+        wall_tm="0:45"
+     fi
+
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
+#        $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
+        $SUB -q dev -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
      else
         $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi
@@ -187,10 +194,10 @@ ${COMPRESS} ${imgndir}/*.ctl
 
         echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
 
-        if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then
-           wall_tm="0:20:00"
+        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+           wall_tm="0:50:00"
         else
-           wall_tm="0:40:00"
+           wall_tm="0:25:00"
         fi
 
         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
@@ -223,8 +230,15 @@ ${COMPRESS} ${imgndir}/*.ctl
         chmod 755 $cmdfile
         ntasks=`cat $cmdfile|wc -l `
 
+        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+           wall_tm="2:00"
+        else
+           wall_tm="1:00"
+        fi
+
         if [[ $MY_MACHINE = "wcoss" ]]; then
-           $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
+#           $SUB -q dev -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} ./$cmdfile
+           $SUB -q dev -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
         else
            $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
         fi
@@ -238,10 +252,11 @@ ${COMPRESS} ${imgndir}/*.ctl
            rm -f ${logfile}
 
            echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
-           if [[ $PLOT_ALL_REGIONS -eq 0 ]]; then            
-              wall_tm="0:40:00"
+
+           if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+              wall_tm="4:00:00"
            else
-              wall_tm="1:20:00"
+              wall_tm="2:00:00"
            fi
 
            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile

@@ -80,14 +80,15 @@ date2=subwrd(result,5)
 'set xlopts 1 4 0.11'
 'set ylopts 1 2 0.09'
 
+'define avg=avg'field
+'define sdv=sdv'field
+
 fr=0
 i=1
 chn=1
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set x 'chn
-      'define avg=avg'field
-      'define sdv=sdv'field
    chi=chn
    if (i=1) 
       'clear'
