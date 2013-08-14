@@ -70,11 +70,14 @@ export FIXgfs=${FIXgfs:-$HOMEgfs/fix}
 export USHgfs=${USHgfs:-$HOMEgfs/ush}
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
+export NWPROD=${NWPROD:-/nwprod}
+
 ###################################
 # Set up the UTILITIES
 ###################################
-export utilscript=/nwprod/util/ush
-export utilexec=/nwprod/util/exec
+echo PDY = $PDY
+export utilscript=${utilscript:-$NWPROD/util/ush}
+export utilexec=${utilexec:-$NWPROD/util/exec}
 
 # Run setup to initialize working directory and utility scripts
 sh $utilscript/setup.sh
@@ -107,7 +110,7 @@ export satang=${satang:-$COMOUT/gdas1.t${cyc}z.satang}
 export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
 
 msg="JOB HAS STARTED"
-postmsg "$jlogfile" "$msg"
+${utilscript}/postmsg.sh "$jlogfile" "$msg"
 
 ########################################################
 # Execute the script.
@@ -115,7 +118,7 @@ ${RADMONSH:-$HOMEgfs/scripts/exgdas_vrfyrad.sh.sms} ${PDY} ${cyc}
 ########################################################
 
 msg="JOB COMPLETED NORMALLY"
-postmsg "$jlogfile" "$msg"
+${utilscript}/postmsg.sh "$jlogfile" "$msg"
 
 ################################
 # Remove the Working Directory
