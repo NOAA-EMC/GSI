@@ -90,7 +90,7 @@ export RUN_ENVIR=dev
 # date in the data_map file and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
 export DATDIR=$RADSTAT_LOCATION
    
 ctr=0

@@ -95,6 +95,18 @@ else
    exit 7
 fi
 
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
 
 #--------------------------------------------------------------------
 #  Deterine the number of cycles between start_dt and end_dt.
@@ -115,7 +127,7 @@ fi
 #  have a cycle delta of 1 from $start_dt.  (Two cycles are necessary
 #  for grads to plot.)
 #--------------------------------------------------------------------
-proc_dt=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+proc_dt=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 echo proc_date = $proc_dt
 delta_proc_start=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
 if [[ $delta_proc_start -le 0 ]]; then

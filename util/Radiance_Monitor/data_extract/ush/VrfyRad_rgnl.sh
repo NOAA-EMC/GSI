@@ -30,7 +30,6 @@ if [[ $nargs -lt 1 || $nags -gt 3 ]]; then
    exit 1
 fi
 
-
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -91,6 +90,22 @@ fi
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/rgnl_conf
 
+
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+
+#--------------------------------------------------------------------
+
 mkdir -p $TANKDIR
 mkdir -p $LOGDIR
 
@@ -130,10 +145,22 @@ cd $tmpdir
 if [[ $RUN_ENVIR = dev ]]; then
 
    #--------------------------------------------------------------------
-   # Get date of cycle to process.
+   # Get date of cycle to process.  Use the specified date from the 
+   #   command line, if provided.
+   #
+   #   If no date was provided then determine the last processed date
+   #   ($pdate) and add 06 hrs to determine the next cycle ($qdate).  
+   #   Also run the find_ndas_radstat.pl script to determine the 
+   #   earliest date for which a radstat file exists ($fdate).  
+   #   Sometimes there are breaks in radstat file availability.  If the 
+   #   next cycle is for a date less than the next available date, then 
+   #   we have to use the next available date.
    #--------------------------------------------------------------------
+   export DATDIR=${PTMP_USER}/regional
+   export com=${RADSTAT_LOCATION}
+
    if [[ $PDATE = "" ]]; then
-      pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+      pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
          echo "        Re-run this script with a specified starting cycle"
@@ -141,7 +168,15 @@ if [[ $RUN_ENVIR = dev ]]; then
       fi
 
       qdate=`${NDATE} +06 $pdate`
-      export PDATE=${qdate}
+
+      fdate=`${USHverf_rad}/find_ndas_radstat.pl 0 $com`
+      echo $fdate
+
+      if [[ $qdate -ge $fdate ]]; then
+         export PDATE=$qdate
+      else 
+         export PDATE=$fdate
+      fi
    fi 
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
@@ -149,11 +184,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
    # Locate required files.
    #---------------------------------------------------------------
-
-   export DATDIR=${PTMP_USER}/regional
-   export com=${RADSTAT_LOCATION}
    /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
-
 
 elif [[ ${RUN_ENVIR} = para ]]; then
 
@@ -219,7 +250,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #--------------------------------------------------------------------
    # Export listvar
    export JOBNAME=$jobname
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NWPROD,listvar
+   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.

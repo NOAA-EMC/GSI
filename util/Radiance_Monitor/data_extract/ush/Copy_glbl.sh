@@ -61,6 +61,19 @@ export USHgfs=${USHgfs:-$HOMEgfs/ush}
 mkdir -p $TANKDIR
 mkdir -p $LOGSverf_rad
 
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+
 #---------------------------------------------------------------
 # Create working directory and move to it
 #---------------------------------------------------------------

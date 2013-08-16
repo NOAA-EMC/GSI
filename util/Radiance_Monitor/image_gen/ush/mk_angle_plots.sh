@@ -230,33 +230,28 @@ for sat in ${bigSATLIST}; do
       while [[ $ii -le ${#list[@]}-1 ]]; do
 
          echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
-         (( test=ii+1 ))
-         (( test=test%3 ))
+         ntasks=`cat $cmdfile|wc -l `
+         chmod 755 $cmdfile
 
-         if [[ $test -eq 0 || $ii -eq ${#list[@]}-1 ]]; then
-            ntasks=`cat $cmdfile|wc -l `
-            chmod 755 $cmdfile
-
-            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-               wall_tm="2:00"
-            else
-               wall_tm="1:00"
-            fi
-
-            if [[ $MY_MACHINE = "ccs" ]]; then
-               $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-            else
-#               $SUB -q dev -o ${logfile} -W 1:00 -R affinity[core] -J ${jobname} $cmdfile
-               $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
-            fi
-            (( batch=batch+1 ))
-
-            suffix="${sat}_${batch}"
-            cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-            rm -f $cmdfile
-            jobname=plot_${SUFFIX}_ang_${suffix}
-            logfile=${LOGDIR}/plot_angle_${suffix}.log
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="2:00"
+         else
+            wall_tm="1:00"
          fi
+
+         if [[ $MY_MACHINE = "ccs" ]]; then
+            $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
+         else
+            $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+         fi
+         (( batch=batch+1 ))
+
+         suffix="${sat}_${batch}"
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+         rm -f $cmdfile
+         jobname=plot_${SUFFIX}_ang_${suffix}
+         logfile=${LOGDIR}/plot_angle_${suffix}.log
+
          (( ii=ii+1 ))
       done
 

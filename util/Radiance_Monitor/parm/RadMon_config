@@ -109,6 +109,7 @@ elif [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
    export Z="gz"
    export TIMEX=
+   export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-0}
 
 else    # zeus 
    shell=sh

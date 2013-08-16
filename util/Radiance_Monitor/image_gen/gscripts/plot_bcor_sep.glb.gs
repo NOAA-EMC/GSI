@@ -18,15 +18,6 @@ xsize=subwrd(args,4)
 ysize=subwrd(args,5)
 platform=plotfile
 
-*plotfile=goes.010
-*field=lapse
-*xsize=x750
-*ysize=y700
-*platform=goes.010
-
-*say 'process 'field' from 'plotfile
-*'open 'plotfile'.ctl'
-
 debug=0
 
 'q file'
@@ -76,8 +67,6 @@ endif
 date1=subwrd(result,3)
 date2=subwrd(result,5)
 
-*say 'date1='date1
-*say 'date2='date2
 
 'define avg=avg'field
 'define sdv=sdv'field

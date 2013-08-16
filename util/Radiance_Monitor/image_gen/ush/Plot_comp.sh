@@ -70,6 +70,18 @@ fi
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
 #--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+#--------------------------------------------------------------------
 # Source necessary configuration files
 #--------------------------------------------------------------------
 data="ges"
@@ -97,11 +109,11 @@ echo ${IMGNDIR}
 
 export TANKDIR1=${TANKDIR}/${SUFFIX1}
 export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
-prodate1=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR1}`
+prodate1=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR1}`
 
 export TANKDIR2=${TANKDIR}/${SUFFIX2}
 export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
-prodate2=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR2}`
+prodate2=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR2}`
 
 #-------------------------------------------------------------------
 #  SUFFIX3 may or may not exist (plots can include 2 or 3 different
@@ -111,7 +123,7 @@ suff3=`echo ${#SUFFIX3}`
 if [[ $suff3 -gt 0 ]]; then
    export TANKDIR3=${TANKDIR}/${SUFFIX3}
    export IMGNDIR3=${IMGNDIR}/${SUFFIX3}
-   prodate3=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR3}`
+   prodate3=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR3}`
 fi
 
 #--------------------------------------------------------------

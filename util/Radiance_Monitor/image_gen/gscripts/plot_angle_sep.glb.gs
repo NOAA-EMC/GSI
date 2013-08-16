@@ -525,6 +525,8 @@ while (chn<=nchan)
    'set ccolor 2'
    'd sdv3'
 
+*  Add page lables
+*
    if (i=4 | chn=nchan)
       'set string 1 l 6'
       'set strsiz 0.15 0.15'

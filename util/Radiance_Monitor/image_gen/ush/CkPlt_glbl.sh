@@ -43,21 +43,6 @@ SUFFIX=$1
 
 echo SUFFIX    = ${SUFFIX}
 
-#
-#  Temporary change, abort if running on prod.  This is an attempt to
-#  eliminate prossible crons running on the prod machine for me only.
-#
-#   machine=`hostname | cut -c1`
-#   prod=`cat /etc/prod | cut -c1`
-#
-#   if [[ $machine = $prod ]]; then
-#      exit 10
-#   fi
-#
-#  End temporary change
-#
-
-
 #--------------------------------------------------------------------
 #  Set plot_time if it is included as an argument.
 #--------------------------------------------------------------------
@@ -89,6 +74,21 @@ fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${RADMON_IMAGE_GEN}/parm/glbl_conf
+
+
+#--------------------------------------------------------------------
+#  Check for my monitoring use.  Abort if running on prod machine.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+#--------------------------------------------------------------------
+
 
 export PLOT=1
 export PLOT_HORIZ=0
@@ -137,7 +137,7 @@ mkdir -p $LOGDIR
 # set PDATE to it.  Otherwise, use the IMGDATE from the DATA_MAP file
 # and add 6 hrs to determine the next cycle.
 #--------------------------------------------------------------------
-export PRODATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+export PRODATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 
 if [[ $plot_time != "" ]]; then
    export PDATE=$plot_time
@@ -264,7 +264,7 @@ ${SCRIPTS}/mk_bcor_plots.sh
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=${RADSTAT_LOCATION}
 
-   export listvar=PARM,RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,listvar
+   export listvar=PARM,RAD_AREA,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE,ARCHIVE_DIR,listvar
    jobname="plot_horiz_${SUFFIX}"
    logfile="${LOGDIR}/horiz.log"
    if [[ $MY_MACHINE = "ccs" ]]; then
@@ -279,11 +279,10 @@ fi
 ${SCRIPTS}/mk_time_plots.sh
 
 #------------------------------------------------------------------
-#  Run the plot_update.sh script if no $plot_time was specified on 
-#  the command line
+#  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
 #------------------------------------------------------------------
-if [[ $plot_time = "" ]]; then
-   ${SCRIPTS}/plot_update.sh
+if [[ $DO_ARCHIVE = 1 ]]; then
+   ${SCRIPTS}/make_archive.sh
 fi
 
 #--------------------------------------------------------------------

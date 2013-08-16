@@ -84,7 +84,7 @@ cd $tmpdir
 # data_map file and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
-export PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}` 
+export PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}` 
 
 #---------------------------------------------------------------
 # Locate required files.
