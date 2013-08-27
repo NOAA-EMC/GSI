@@ -54,6 +54,8 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-22  parrish - WCOSS debug compile execution error rwgt not assigned a value.
 !                             set rwgt = 1 at beginning of obs loop.
 !   2013-02-15  parrish - WCOSS debug compile execution error, k1=k2 but data(iobs_type,i) <=3, causes 0./0.
+!   2013-06-07  tong    - add a factor to adjust tdr obs gross error and add an option to adjust
+!                         tdr obs error
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -78,13 +80,13 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: rw_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use qcmod, only: npres_print,ptop,pbot
+  use qcmod, only: npres_print,ptop,pbot,tdrerr_inflate,tdrgross_fact
   use guess_grids, only: ges_ps,hrdifsig,geop_hgtl,nfldsig,&
        ges_lnprsl,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10,ges_z
   use gridmod, only: nsig,get_ijk
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim,&
        half,one,two,grav_equator,eccentricity,somigliana,rad2deg,deg2rad
-  use constants, only: tiny_r_kind,cg_term,huge_single,r2000,three
+  use constants, only: tiny_r_kind,cg_term,huge_single,r2000,three,one
   use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
@@ -104,6 +106,9 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),parameter:: r8     = 8.0_r_kind
   real(r_kind),parameter:: ten    = 10.0_r_kind
   real(r_kind),parameter:: r200   = 200.0_r_kind
+  real(r_kind),parameter:: r2_5   = 2.5_r_kind
+  real(r_kind),parameter:: r0_4   = 0.4_r_kind
+  real(r_kind),parameter:: r15    = 15.0_r_kind
 
 ! Declare external calls for code analysis
   external:: tintrp2a1,tintrp2a11
@@ -127,7 +132,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) dlat,dlon,dtime,dpres,ddiff,error,slat
   real(r_kind) sinazm,cosazm,costilt
-  real(r_kind) ratio_errors
+  real(r_kind) ratio_errors,qcgross
   real(r_kind) ugesin,vgesin,factw,skint,sfcr
   real(r_kind) rwwind,presw
   real(r_kind) errinv_input,errinv_adjst,errinv_final
@@ -512,12 +517,25 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      
      ddiff = data(irwob,i) - rwwind
 
+!    adjust obs error for TDR data
+     if(data(iobs_type,i) > three .and. ratio_errors*error > tiny_r_kind &
+        .and. tdrerr_inflate) then
+        ratio_errors = data(ier2,i)/abs(data(ier,i) + 1.0e6_r_kind*rhgh +  &
+          r8*rlow + min(max((abs(ddiff)-ten),zero)/ten,one)*data(ier,i))
+     end if 
+
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
      ratio    = residual/obserrlm
-     if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
+     if(data(iobs_type,i) > three) then
+        qcgross=cgross(ikx)*tdrgross_fact
+     else
+        qcgross=cgross(ikx)
+     end if
+
+     if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
         if (luse(i)) awork(4) = awork(4)+one
         error = zero
         ratio_errors = zero

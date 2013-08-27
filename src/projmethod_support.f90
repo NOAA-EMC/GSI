@@ -224,12 +224,12 @@ real(r_kind) function dplev_mask(dx,dy,mype)
 !                set fast to .true. for twodvar_regional,
 !                  substantially faster, but no roundoff error reduction and
 !                  results differ for different number of processors.
-  if(twodvar_regional) then
-!    fast=.true.
-     mask(5)=.false.
-     mask(6)=.false.
-     mask(8)=.false.
-  end if
+!  if(twodvar_regional) then
+!!    fast=.true.
+!     mask(5)=.false.
+!     mask(6)=.false.
+!     mask(8)=.false.
+!  end if
 
   if(fast) then
      dplev_mask=fast_dplev(dx,dy,mask)

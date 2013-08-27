@@ -54,6 +54,8 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag for LE machine
+#                       defaults to 0 (big endian)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -110,6 +112,8 @@ MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+USE_ANL=${USE_ANL:-0}
 err=0
 bcoef_exec=radmon_bcoef.${RAD_AREA}
 
@@ -121,6 +125,12 @@ fi
 #  Preprocessing
 $INISCRIPT
 $LOGSCRIPT
+
+if [[ $USE_ANL -eq 1 ]]; then
+   gesanl="ges anl"
+else
+   gesanl="ges"
+fi
 
 #--------------------------------------------------------------------
 #   Copy extraction program and supporting files to working directory
@@ -145,13 +155,24 @@ else
    fail=0
 
    for type in ${SATYPE}; do
+      for dtype in ${gesanl}; do
       ctr=`expr $ctr + 1`
-      data_file=${type}.${PDATE}.ieee_d
-      bcoef_file=bcoef.${data_file}
-      ctl_file=${type}.ctl
-      bcoef_ctl=bcoef.${ctl_file}
-      stdout_file=stdout.${type}
-      bcoef_stdout=bcoef.${stdout_file}
+
+         if [[ $dtype == "anl" ]]; then
+            data_file=${type}_anl.${PDATE}.ieee_d
+            bcoef_file=bcoef.${data_file}
+            ctl_file=${type}_anl.ctl
+            bcoef_ctl=bcoef.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            bcoef_stdout=bcoef.${stdout_file}
+         else
+            data_file=${type}.${PDATE}.ieee_d
+            bcoef_file=bcoef.${data_file}
+            ctl_file=${type}.ctl
+            bcoef_ctl=bcoef.${ctl_file}
+            stdout_file=stdout.${type}
+            bcoef_stdout=bcoef.${stdout_file}
+         fi 
 
       rm input
 
@@ -172,9 +193,11 @@ cat << EOF > input
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
+  gesanl='${dtype}',
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      timex ./${bcoef_exec} < input >   stdout.$type
+      $TIMEX ./${bcoef_exec} < input >   stdout.$type
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi
@@ -187,23 +210,24 @@ EOF
       if [[ -s ${data_file} ]]; then
          mv ${data_file} ${bcoef_file}
          mv ${bcoef_file} $TANKverf_rad/.
-         compress -f $TANKverf_rad/${bcoef_file}
+         ${COMPRESS} -f $TANKverf_rad/${bcoef_file}
       fi
 
       if [[ -s ${ctl_file} ]]; then
          mv ${ctl_file} ${bcoef_ctl}
          mv ${bcoef_ctl}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${bcoef_ctl}
+         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_ctl}
       fi
 
       if [[ -s ${stdout_file} ]]; then
          mv ${stdout_file} ${bcoef_stdout}
          mv ${bcoef_stdout}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${bcoef_stdout}
+         ${COMPRESS} -f ${TANKverf_rad}/${bcoef_stdout}
       fi
 
+      done  # dtype in $gesanl loop
+   done     # type in $SATYPE loop
 
-   done
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=5
    fi

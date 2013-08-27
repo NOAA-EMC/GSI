@@ -10,7 +10,7 @@ program bcoef
   logical no_obs
 
   character(10),dimension(ntype):: ftype
-  character(20) dum,satname,stringd,satsis,isis
+  character(20) dum,satname,stringd,satsis,isis,mod_satname
   character(10) satype,dplat
   character(40) string,diag_rad,data_file,ctl_file
   character(10) suffix
@@ -28,20 +28,22 @@ program bcoef
   real,allocatable,dimension(:,:):: coefs
 
 ! Variables for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list) ,pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
 
 ! Namelist with defaults
   logical               :: retrieval            = .false.
   integer               :: nchanl               = 19
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
+  character(3)          :: gesanl               ='ges'
+  integer               :: little_endian        = 1
   namelist /input/ satname,npredr,nchanl,iyy,imm,idd,ihh,idhh,&
-       incr,suffix,imkctl,imkdata,retrieval
+       incr,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl / 5, 51, 52 /
   data lncoef,lndiag /  21, 22 /
@@ -60,6 +62,7 @@ program bcoef
 ! Read namelist input
   read(luname,input)
   write(6,input)
+  write(6,*)'gesanl = ', gesanl
   write(6,*)' '
 
 ! Check for user requests exceeding assumed limits
@@ -78,9 +81,16 @@ program bcoef
 ! Create filenames for diagnostic input, binary output file
   write(stringd,100) iyy,imm,idd,ihh
 100 format('.',i4.4,3i2.2)
-  diag_rad = trim(satname)
-  data_file= trim(satname) // trim(stringd) // '.ieee_d'
-  ctl_file = trim(satname) // '.ctl'
+
+  if ( trim(gesanl) == 'ges' ) then
+     diag_rad = trim(satname)
+     data_file= trim(satname) // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '.ctl'
+  else
+     diag_rad = trim(satname) // '_anl'
+     data_file= trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
+     ctl_file = trim(satname) // '_anl.ctl'
+  endif 
 
   write(6,*)'diag_rad =',diag_rad
   write(6,*)'data_file=',data_file
@@ -227,9 +237,16 @@ program bcoef
   ! Create Control file
   if ( imkctl == 1 ) then
      write(6,*)'call create_ctl_bcoef'
+
+     if ( trim(gesanl) == 'ges' ) then
+        mod_satname = trim(satname)
+     else
+        mod_satname = trim(satname) // '_anl'
+     endif
+   
      call create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
-          incr,ctl_file,lunctl,rmiss,satname,satype,dplat,&
-          nu_chan,use,penalty,frequency,wavenumbr)
+          incr,ctl_file,lunctl,rmiss,mod_satname,satype,dplat,&
+          nu_chan,use,penalty,frequency,wavenumbr,little_endian)
   else
      write(6,*) 'imkctl =',imkctl
   endif

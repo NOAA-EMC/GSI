@@ -14,7 +14,7 @@ module gridmod
   use kinds, only: i_byte,r_kind,r_single,i_kind
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-  use omp_lib
+  use omp_lib, only: omp_get_max_threads
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -72,6 +72,8 @@ module gridmod
 !   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
 !   2011-11-14 whitaker - added a fix to sign_pole for large domain (rlat0max > 37N and rlat0min < 37S)
 !   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
+!   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
+!                         a redundant "use omp_lib".
 !
 !
 ! !AUTHOR: 
@@ -444,7 +446,6 @@ contains
 ! !USES:
 
     use mpeu_util, only: getindex
-    use omp_lib
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -1619,19 +1620,16 @@ contains
        do i=0,12
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
-          if(fexist) then
-             if (ihr < 0) ihr1=i
-             ihr=i
-          end if
-       end do
+          if(fexist) then                     !Note: for the twodvar_regional option,
+             ihr=i                            !the first 'sigfnn' file is the one that
+             exit                             !is valid at the analysis time. hence,
+          end if                              !there is no need for the ihrmid variable
+       end do                                 !that is used for the other options
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (SURFACE) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
-       ihr2 = ihr
-       ihrmid = (ihr1+ihr2)/2
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
-       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig

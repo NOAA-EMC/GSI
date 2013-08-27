@@ -70,12 +70,12 @@ program diag2grads
 
 
 ! Declare variables for reading / processing satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list ),pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list ),allocatable :: data_extra(:,:)
   
   real(4),allocatable :: nuchan(:)
   real(4),allocatable :: data_sfc(:)
