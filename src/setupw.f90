@@ -131,6 +131,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                            num_bad_ikx and print 1st 10 instances of ikx out of range
 !                            and also print num_bad_ikx after all data processed if > 0 .
 !   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
+!   2013-07-19  Hu/Olson/Carley  - Add tall tower (type=261) winds
 !
 ! REMARKS:
 !   language: f90
@@ -396,6 +397,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
      z_height = .false.
      if ((itype>=221 .and. itype <= 229) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
+     if ((itype==261) .and. (data(ihgt,i)<r0_1_bmiss)) z_height = .true.
 
 !    Process observations reported with height differently than those
 !    reported with pressure.  Type 223=profiler and 224=vadwnd are 
@@ -423,7 +425,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            end if
         end if
         dpres=dpres-(dstn+fact*(zsges-dstn))
-
+        if(itype==261) dpres = data(ihgt,i)
 !       Get guess surface elevation and geopotential height profile 
 !       at observation location.
         call tintrp2a1(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
@@ -841,6 +843,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
+     if ( (itype==261) .and. (ratio_errors*error <= 1.0E-100_r_kind) ) muse(i)=.false.
 
      if (nobskeep>0) muse(i)=obsdiags(i_w_ob_type,ibin)%tail%muse(nobskeep)
 
