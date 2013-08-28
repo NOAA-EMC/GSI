@@ -15,7 +15,7 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
+  echo "Usage:  RunCopy.sh suffix start_date [end_date]"
   echo "            File name for RunCopy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
@@ -92,6 +92,17 @@ elif [[ $RAD_AREA = rgn ]]; then
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
    exit 3
+fi
+
+#--------------------------------------------------------------------
+#  Check for running on prod machine.
+#--------------------------------------------------------------------
+
+if [[ RUN_ON_PROD -eq 0 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod -eq 1 ]]; then
+      exit 10
+   fi
 fi
 
 

@@ -20,7 +20,7 @@ export WEBDIR=${WEBDIR}/${SUFFIX}
 export TOP_IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}
 export IMGNDIR=${MY_TANKDIR}/imgn/${SUFFIX}/pngs
 export TANKDIR=${MY_TANKDIR}/stats/${SUFFIX}
-
+export ARCHIVE_DIR=${ARCHIVE_DIR}/${SUFFIX}
 
 #
 #  GrADS script definitions

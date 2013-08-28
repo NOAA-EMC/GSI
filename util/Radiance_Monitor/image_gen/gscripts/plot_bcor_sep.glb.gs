@@ -87,7 +87,7 @@ while (region<=nregion)
       area=substr(info,14,60)
    endif
    result=close(area.txt)
-   *say 'area = 'area
+*  say 'area = 'area
  
  
    'clear'

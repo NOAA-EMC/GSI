@@ -34,6 +34,18 @@ if [[ $nargs -lt 1 ]]; then
    exit 1
 fi
 
+#
+#  Check for my monitoring use.  Abort if running on prod machine.
+#
+   machine=`hostname | cut -c1`
+   prod=`cat /etc/prod | cut -c1`
+
+   if [[ $machine = $prod ]]; then
+      exit 10
+   fi
+#
+#  End check.
+
 this_file=`basename $0`
 this_dir=`dirname $0`
 

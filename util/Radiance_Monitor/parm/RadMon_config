@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=/gpfs/td2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radiance_Monitor
+export MY_RADMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radiance_Monitor
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,7 +24,7 @@ export MY_RADMON=/gpfs/td2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radianc
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/nbns
+export MY_TANKDIR=/gpfs/gd2/emc/da/noscrub/Edward.Safford/nbns
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
@@ -109,7 +109,6 @@ elif [[ $MY_MACHINE = "wcoss" ]]; then
    export UNCOMPRESS="/usrx/local/bin/unpigz -f"
    export Z="gz"
    export TIMEX=
-   export RUN_ONLY_ON_DEV=${RUN_ONLY_ON_DEV:-0}
 
 else    # zeus 
    shell=sh

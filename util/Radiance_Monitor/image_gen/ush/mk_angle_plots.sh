@@ -91,16 +91,10 @@ if [[ $allmissing = 1 ]]; then
    exit
 fi
 
-# TESTING
-#export SATYPE="iasi_metop-a sndrd1_g15 sndrd2_g15"
-#export SATYPE="sndrd1_g15"
-
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the angle control 
 #   files. Conditionally rm "cray_32bit_ieee" from the options line.
  
-#thirtydays=`$NDATE -720 $PDATE`
-
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
@@ -171,7 +165,6 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
      fi
 
      if [[ $MY_MACHINE = "wcoss" ]]; then
-#        $SUB -q dev -o ${logfile} -W 1:45 -R affinity[core] -J ${jobname} $cmdfile
         $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
      else
         $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
@@ -252,6 +245,13 @@ for sat in ${bigSATLIST}; do
          jobname=plot_${SUFFIX}_ang_${suffix}
          logfile=${LOGDIR}/plot_angle_${suffix}.log
 
+         (( batch=batch+1 ))
+
+         suffix="${sat}_${batch}"
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
+         rm -f $cmdfile
+         jobname=plot_${SUFFIX}_ang_${suffix}
+         logfile=${LOGDIR}/plot_angle_${suffix}.log
          (( ii=ii+1 ))
       done
 
