@@ -16,10 +16,6 @@ export list=$listvar
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
-#
-# testing
-#export SATYPE="iasi_metop-a"
-
 imgndir=${IMGNDIR}/bcor
 tankdir=${TANKDIR}/bcor
 

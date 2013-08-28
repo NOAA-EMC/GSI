@@ -84,9 +84,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    total=`ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | wc -l`
    ((extra=total-61)) 
 
-   if [[ $extra > 0 ]]; then
-#      `ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | head -n $extra | xargs rm -rf`
-       `ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | head -n +${extra} | xargs`
+   if [[ $extra -gt 0 ]]; then
+      `ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | head -n $extra | xargs rm -rf`
    fi
 
 fi
