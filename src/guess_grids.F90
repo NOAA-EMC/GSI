@@ -91,6 +91,7 @@ module guess_grids
 !                         cloud water tendencies and derivatives 
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
+!   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -1696,19 +1697,20 @@ contains
 ! !USES:
 
     use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
-    use gridmod, only: lat2, lon2, nsig, &
-         twodvar_regional
+    use gridmod, only: lat2, lon2, nsig,wrf_mass_regional, &
+         twodvar_regional,nems_nmmb_regional
 
     implicit none
 
 ! !INPUT PARAMETERS:
 
 
-! !DESCRIPTION: populate guess geopotential height
+! !DESCRIPTION: populate guess geopotential height in millibars
 !
 !
 ! !REVISION HISTORY:
 !   2011-06-06  Ming Hu
+!   2013-02-22  Jacob Carley - Added NMMB
 !
 ! !REMARKS:
 !   language: f90
@@ -1733,11 +1735,15 @@ contains
           do i=1,lat2
 
              do k=1,nsig
-                pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
-                thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
-             end do
-!  q_bk = water vapor mixing ratio
 
+                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
+		if (nems_nmmb_regional) then
+		   pbk(k) = aeta1_ll(k)*pdtop_ll + aeta2_ll(k)*(ten*ges_ps(i,j,jj) & 
+		            -pdtop_ll-pt_ll) + pt_ll   			    			    
+		end if
+				
+		thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
+             end do
 
              pbl_height(i,j,jj) = zero
              thsfc = thetav(1)

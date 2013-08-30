@@ -79,15 +79,11 @@ fi
 
 
 #---------------------------------------------------------------
-# Create working directory and move to it
+# Create any missing directories.
 #---------------------------------------------------------------
 mkdir -p $TANKDIR
 mkdir -p $LOGSverf_rad
 
-#workdir=$WORKverf_rad/Copy_${SUFFIX}_${DATE}
-#mkdir -p $workdir
-#cd $workdir
-
 day=`echo $DATE|cut -c1-8`
 cycle=`echo $DATE|cut -c9-10`
 echo day  = $day
@@ -120,64 +116,36 @@ if [[ ! -s gdas_radmon_satype.txt  ]]; then
 fi
 
 
-#nfile_src=`ls -l ${DATDIR}/*${PDATE}*ieee_d* | egrep -c '^-'`
-#
-#if [[ $nfile_src -gt 0 ]]; then
-#   type_list="angle bcoef bcor time"
-#
-#   for type in ${type_list}; do 
-#
-#      file_list=`ls ${DATDIR}/${type}.*${PDATE}*ieee_d* `
-#
-#
-#      for file in ${file_list}; do
-#         bfile=`basename ${file}`
-#         echo "testing ${file}"
-# 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
-#export USHgfs=${USHgfs:-$HOMEgfs/ush}
-#. ${PARMverf_rad}/glbl_conf
+#day=`echo $DATE|cut -c1-8`
+#cycle=`echo $DATE|cut -c9-10`
+#echo day  = $day
 
-#mkdir -p $TANKDIR
-#mkdir -p $LOGSverf_rad
+#PDATE=${DATE}
+#echo PDATE = $PDATE
 
-#---------------------------------------------------------------
-# Create working directory and move to it
-#---------------------------------------------------------------
-#workdir=$WORKverf_rad/Copy_${SUFFIX}_${DATE}
-#mkdir -p $workdir
-#cd $workdir
-
-day=`echo $DATE|cut -c1-8`
-cycle=`echo $DATE|cut -c9-10`
-echo day  = $day
-
-PDATE=${DATE}
-echo PDATE = $PDATE
-
-prev=`$NDATE -06 $PDATE`
-prev_day=`echo $prev|cut -c1-8`
-prev_cyc=`echo $prev|cut -c9-10`
-echo prev_day, prev_cyc = $prev_day, $prev_cyc
-echo next_day, next_cyc = $next_day, $next_cyc
+#prev=`$NDATE -06 $PDATE`
+#prev_day=`echo $prev|cut -c1-8`
+#prev_cyc=`echo $prev|cut -c9-10`
+#echo prev_day, prev_cyc = $prev_day, $prev_cyc
+#echo next_day, next_cyc = $next_day, $next_cyc
 
 
-DATDIR=${DATDIR:-/com/verf/prod/radmon.${day}}
+#DATDIR=${DATDIR:-/com/verf/prod/radmon.${day}}
 
-test_dir=${TANKDIR}/radmon.${day}
+#test_dir=${TANKDIR}/radmon.${day}
 
-if [[ ! -d ${test_dir} ]]; then
-   mkdir -p ${test_dir}
-fi
-cd ${test_dir}
+#if [[ ! -d ${test_dir} ]]; then
+#   mkdir -p ${test_dir}
+#fi
+#cd ${test_dir}
 
-if [[ ! -s gdas_radmon_satype.txt  ]]; then
-   if [[ -s ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
-      $NCP ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt .
-   else
-      echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKDIR}/radmon.${prev_day}
-   fi 
-fi
+#if [[ ! -s gdas_radmon_satype.txt  ]]; then
+#   if [[ -s ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
+#      $NCP ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt .
+#   else
+#      echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKDIR}/radmon.${prev_day}
+#   fi 
+#fi
 
 
 nfile_src=`ls -l ${DATDIR}/*${PDATE}*ieee_d* | egrep -c '^-'`
@@ -340,10 +308,11 @@ if [[ $exit_value == 0 ]]; then
       opr_log_start=1
 
 
-      #-----------------------------------------------------------------------------
-      #  If $outfile exists, replace existing penalty report with $outfile contents 
-      #  or remove the penalty report altogether if there is no $outfile
-      #-----------------------------------------------------------------------------
+      #------------------------------------------------------------------------
+      #  If $outfile exists, replace existing penalty report with $outfile 
+      #  contents or remove the penalty report altogether if there is no
+      #  $outfile
+      #------------------------------------------------------------------------
       if [[ -s $outfile ]]; then
          opr_log_end=`expr $opr_log_end + 1`
          gawk "NR>=$opr_log_start && NR<=$opr_log_end" ${opr_log} >> $new_log
@@ -405,12 +374,12 @@ if [[ $exit_value == 0 ]]; then
 
 
    #--------------------------------------------------------------------
-   # Advance prodate and exit
+   # Remove processing scripts/executables and exit.
    #--------------------------------------------------------------------
-#   rm -f validate_time.x
-#   rm -f validate.sh 
-#   rm -f radmon_err_rpt.sh  
-#   rm -f radmon_getchgrp.pl  
+   rm -f validate_time.x
+   rm -f validate.sh 
+   rm -f radmon_err_rpt.sh  
+   rm -f radmon_getchgrp.pl  
    rm -f opr_log.bu
 
    nfile_dest=`ls -l ${test_dir}/*${PDATE}*ieee_d* | egrep -c '^-'`
@@ -421,13 +390,6 @@ if [[ $exit_value == 0 ]]; then
 
 fi
 
-#if [[ $exit_value -eq 0 ]]; then
-#   `${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-#fi
-
-#---------------------------------------------------------------
-# Clean up working directory 
-#---------------------------------------------------------------
 
 echo end Copy_glbl.sh
 exit ${exit_value}
