@@ -66,20 +66,6 @@ export USHgfs=${USHgfs:-$HOMEgfs/ush}
 
 
 #--------------------------------------------------------------------
-#  Check for running on prod machine.
-#--------------------------------------------------------------------
-
-if [[ RUN_ON_PROD -eq 0 ]]; then
-   is_prod=`${USHverf_rad}/AmIOnProd.sh`
-   if [[ $is_prod -eq 1 ]]; then
-      exit 10
-   fi
-fi
-
-mkdir -p $TANKDIR
-mkdir -p $LOGSverf_rad
-
-#--------------------------------------------------------------------
 #  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
 #  not permitted to run there.
 #--------------------------------------------------------------------
@@ -95,6 +81,9 @@ fi
 #---------------------------------------------------------------
 # Create working directory and move to it
 #---------------------------------------------------------------
+mkdir -p $TANKDIR
+mkdir -p $LOGSverf_rad
+
 #workdir=$WORKverf_rad/Copy_${SUFFIX}_${DATE}
 #mkdir -p $workdir
 #cd $workdir
@@ -131,26 +120,26 @@ if [[ ! -s gdas_radmon_satype.txt  ]]; then
 fi
 
 
-nfile_src=`ls -l ${DATDIR}/*${PDATE}*ieee_d* | egrep -c '^-'`
+#nfile_src=`ls -l ${DATDIR}/*${PDATE}*ieee_d* | egrep -c '^-'`
+#
+#if [[ $nfile_src -gt 0 ]]; then
+#   type_list="angle bcoef bcor time"
+#
+#   for type in ${type_list}; do 
+#
+#      file_list=`ls ${DATDIR}/${type}.*${PDATE}*ieee_d* `
+#
+#
+#      for file in ${file_list}; do
+#         bfile=`basename ${file}`
+#         echo "testing ${file}"
+# 
+#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
+#export USHgfs=${USHgfs:-$HOMEgfs/ush}
+#. ${PARMverf_rad}/glbl_conf
 
-if [[ $nfile_src -gt 0 ]]; then
-   type_list="angle bcoef bcor time"
-
-   for type in ${type_list}; do 
-
-      file_list=`ls ${DATDIR}/${type}.*${PDATE}*ieee_d* `
-
-
-      for file in ${file_list}; do
-         bfile=`basename ${file}`
-         echo "testing ${file}"
- 
-. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
-export USHgfs=${USHgfs:-$HOMEgfs/ush}
-. ${PARMverf_rad}/glbl_conf
-
-mkdir -p $TANKDIR
-mkdir -p $LOGSverf_rad
+#mkdir -p $TANKDIR
+#mkdir -p $LOGSverf_rad
 
 #---------------------------------------------------------------
 # Create working directory and move to it
