@@ -84,7 +84,7 @@ contains
 !$$$
   use kinds, only: r_kind,i_kind
   use radinfo, only: ang_rad,cbias,air_rad,predx,adp_anglebc
-  use constants, only: zero,amsua_clw_d1,amsua_clw_d2,t0c
+  use constants, only: zero,one,amsua_clw_d1,amsua_clw_d2,t0c
 
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
@@ -98,14 +98,17 @@ contains
 ! Declare local parameters
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r285=285.0_r_kind
+  real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare local variables
   real(r_kind) tbcx1,tbcx2
 
-
   if (amsua .or. atms) then
  
-     if(tsavg5>t0c)then
+     ! We want to reject sea ice points that may be frozen.  The sea freezes
+     ! around -1.9C but we set the threshold at 1C to be safe.
+     if(tsavg5>t0c-one .and. tbcx1 <=r284 .and. tbcx2<=r284 .and. &
+            tb_obs(1) > zero .and. tb_obs(2) > zero) then
         if (adp_anglebc) then
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))+predx(1,ich(1))*air_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))+predx(1,ich(2))*air_rad(ich(2))
@@ -113,10 +116,12 @@ contains
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
         end if
-        if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
-            .and. tb_obs(2) > zero) &
-           clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
-               amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+        clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+            amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+        ierrret = 0
+     else 
+        clw=r1000
+        ierrret = 1
      end if
      
   else if(ssmi) then
@@ -1353,9 +1358,11 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   d2 = -2.265_r_kind
    
 
-  if (tsavg5 <= t0c .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
-     clwp_amsua = zero
-     tpwc_amsua = zero
+  if (tsavg5 <=  t0c-one .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
+     ! We want to reject sea ice points that may be frozen.  The sea freezes
+     ! around -1.9C but we set the threshold at 1C to be safe.
+     clwp_amsua = r1000
+     tpwc_amsua = r1000
   else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then
      ! The expectation is that observations with these values will be rejected
      clwp_amsua = r1000
