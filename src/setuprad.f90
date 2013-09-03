@@ -185,7 +185,7 @@
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
-  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3
+  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: setup_tzr_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
@@ -756,6 +756,10 @@
               call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua)
               call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval)
            end if
+           if (ierrret /= 0) then 
+             varinv(1:nchanl)=zero
+             id_qc(1:nchanl) = ifail_cloud_qc
+           endif
         endif
         predbias=zero
         do i=1,nchanl
