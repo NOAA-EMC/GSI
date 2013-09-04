@@ -95,7 +95,7 @@
 
 
     if (newpc4pred .and. adp_anglebc) then
-       npred_new=npred+angord
+       npred_new=npred+angord+3
        tlapm=0.0
        tsum=0.0
        count_tlap = 0
