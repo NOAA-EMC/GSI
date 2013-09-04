@@ -107,9 +107,7 @@ mkdir -p $LOGDIR
 #--------------------------------------------------------------------
 
 running=0
-if [[ $MY_MACHINE = "ccs" ]]; then
-   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
-elif [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss" ]]; then
    running=`bjobs -l | grep plot_${SUFFIX} | wc -l`
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
@@ -241,10 +239,8 @@ if [[ $PLOT -eq 1 ]]; then
      rm ${logfile}
 
      jobname=mk_plot_horiz_${SUFFIX}
-     if [[ $MY_MACHINE = "ccs" ]]; then
-        ${SUB} -a ${ACCOUNT} -e ${listvar} -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh ${SUFFIX} ${PDATE}
-     elif [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+     if [[ $MY_MACHINE = "wcoss" ]]; then
+        $SUB -q $ACCOUNT -M 80 -R affinity[core]  -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
      else
         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
      fi

@@ -223,10 +223,8 @@ done
 ntasks=`cat $cmdfile|wc -l`
 ((nprocs=(ntasks+1)/2))
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   $SUB -a $ACCOUNT -e $listvar -j $jobname -u $USER -t 0:10:00 -o $logfile -p $ntasks/1/N -q dev -g $USER_CLASS  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q dev -n 1,$ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   $SUB -q $ACCOUNT -M 80 -R affinity[core] -n 1,$ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
 elif [[ $MY_MACHINE = "zeus" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -v $listvar -j oe -o $logfile $cmdfile
 fi

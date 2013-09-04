@@ -140,7 +140,7 @@ export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR
 
 list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
-  if [[ ${MY_MACHINE} = "ccs" || ${MY_MACHINE} = "wcoss" ]]; then
+  if [[ ${MY_MACHINE} = "wcoss" ]]; then
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
      jobname=plot_${SUFFIX}_ang_${suffix}
@@ -165,7 +165,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
      fi
 
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+        $SUB -q $ACCOUNT -o ${logfile} -M 200 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
      else
         $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
      fi
@@ -210,7 +210,7 @@ for sat in ${bigSATLIST}; do
    #
    #  CCS submit 4 jobs for each $sat
    #
-   if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then 	
+   if [[ $MY_MACHINE = "wcoss" ]]; then 	
       batch=1
       ii=0
 
@@ -227,23 +227,12 @@ for sat in ${bigSATLIST}; do
          chmod 755 $cmdfile
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-            wall_tm="2:00"
+            wall_tm="2:30"
          else
             wall_tm="1:00"
          fi
 
-         if [[ $MY_MACHINE = "ccs" ]]; then
-            $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-         else
-            $SUB -q dev -o ${logfile} -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
-         fi
-         (( batch=batch+1 ))
-
-         suffix="${sat}_${batch}"
-         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
-         rm -f $cmdfile
-         jobname=plot_${SUFFIX}_ang_${suffix}
-         logfile=${LOGDIR}/plot_angle_${suffix}.log
+         $SUB -q $ACCOUNT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
          (( batch=batch+1 ))
 
@@ -252,6 +241,7 @@ for sat in ${bigSATLIST}; do
          rm -f $cmdfile
          jobname=plot_${SUFFIX}_ang_${suffix}
          logfile=${LOGDIR}/plot_angle_${suffix}.log
+
          (( ii=ii+1 ))
       done
 

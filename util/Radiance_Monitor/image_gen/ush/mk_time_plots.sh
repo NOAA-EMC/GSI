@@ -153,10 +153,8 @@ fi
    ntasks=`cat $cmdfile|wc -l `
    ((nprocs=(ntasks+1)/2))
 
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 0:30:00 -o ${logfile} $SCRIPTS/plot_summary.sh
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
    fi
@@ -188,7 +186,7 @@ fi
 
    list="count penalty omgnbc total omgbc"
 
-   if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then		# ccs and wcoss
+   if [[ $MY_MACHINE = "wcoss" ]]; then	
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
       jobname=plot_${SUFFIX}_tm_${suffix}
@@ -204,21 +202,14 @@ fi
       done
       chmod 755 $cmdfile
 
-#      ((nprocs=(ntasks+1)/2))
       if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
          wall_tm="1:30"
       else
          wall_tm="0:45"
       fi
 
-      if [[ $MY_MACHINE = "wcoss" ]]; then   
-#         $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ${cmdfile}
-         $SUB -q dev -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
-      else
-        ntasks=`cat $cmdfile|wc -l `
-        $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-      fi
-
+      $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      
    else							# zeus/linux
       for sat in ${SATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
@@ -250,7 +241,7 @@ fi
 #---------------------------------------------------------------------------
    for sat in ${bigSATLIST}; do 
 
-      if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	# ccs and wcoss
+      if [[ $MY_MACHINE = "wcoss" ]]; then	
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${SUFFIX}_tm_${sat}
          logfile=${LOGDIR}/plot_time_${sat}.log
@@ -272,12 +263,8 @@ fi
             wall_tm="1:00"
          fi
 
-         if [[ $MY_MACHINE = "wcoss" ]]; then
-#            $SUB -q dev  -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} ${cmdfile}
-            $SUB -q dev  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
-         else
-            $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g {USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-         fi
+         $SUB -q $ACCOUNT -M 80  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+
       else						# zeus/linux
          for var in $list; do
             cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}

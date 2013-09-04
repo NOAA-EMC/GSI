@@ -148,7 +148,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 
   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
 
-  if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then		#CCS and wcoss
+  if [[ $MY_MACHINE = "wcoss" ]]; then		#CCS and wcoss
      suffix=a
      cmdfile=cmdfile_pbcor_${suffix}
      jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -172,12 +172,8 @@ ${COMPRESS} ${imgndir}/*.ctl
         wall_tm="0:45"
      fi
 
-     if [[ $MY_MACHINE = "wcoss" ]]; then
-#        $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} ./$cmdfile
-        $SUB -q dev -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
-     else
-        $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-     fi
+     $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+
   else					#Zeus/linux
      for sat in ${SATLIST}; do
         suffix=${sat}
@@ -210,7 +206,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   for sat in ${bigSATLIST}; do
      suffix=$sat
 
-     if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	# CCS/aix
+     if [[ $MY_MACHINE = "wcoss" ]]; then	# CCS/aix
 
         cmdfile=cmdfile_pbcor_${suffix}
         jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -232,12 +228,8 @@ ${COMPRESS} ${imgndir}/*.ctl
            wall_tm="1:00"
         fi
 
-        if [[ $MY_MACHINE = "wcoss" ]]; then
-#           $SUB -q dev -R affinity[core] -o ${logfile} -W 1:00 -J ${jobname} ./$cmdfile
-           $SUB -q dev -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
-        else
-           $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS} /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-        fi
+        $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+        
      else					# zeus/linux
         for var in $plot_list; do
            cmdfile=cmdfile_pbcor_${suffix}_${var}

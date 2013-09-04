@@ -150,9 +150,7 @@ export PLOT_HORIZ=0
 # all verf jobs have been completed.
 #--------------------------------------------------------------------
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
-elif [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss" ]]; then
    running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
@@ -284,10 +282,9 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,datdir,MY_MACHINE,listvar
    jobname="plot_horiz_${SUFFIX}"
    logfile="${LOGDIR}/horiz.log"
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $ACCOUNT -o ${logfile} -M 80 -W 0:45 -J ${jobname}  -R affinity[core] ${SCRIPTS}/mk_horiz_plots.sh
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
    fi

@@ -150,9 +150,7 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      running=`llq -u ${LOGNAME} -f %jn | grep data_extract_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       running=`bjobs -l | grep data_extract_${SUFFIX} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
       running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`

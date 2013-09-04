@@ -69,18 +69,44 @@ for tar_date in ${tar_list}; do
 
    htar -cvf ${HPSSDIR}/radmon.${tar_date}.tar ${TANKDIR}/radmon.${tar_date}
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
-      cp -r ${TANKDIR}/radmon.${tar_date} ${ARCHIVE_DIR}/${SUFFIX}/radmon.${tar_date}      
-   fi
+#   if [[ $MY_MACHINE = "wcoss" ]]; then
+#      cp -r ${TANKDIR}/radmon.${tar_date} ${ARCHIVE_DIR}/${SUFFIX}/radmon.${tar_date}      
+#   fi
 
 done
 
-#------------------------------------------------------------------
-#  Remove any directories in $ARCHIVE_DIR in excess of 60 
-#------------------------------------------------------------------
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
 
+   #------------------------------------------------------------------
+   #  Determine the last date stored on /sss for this source.
+   #------------------------------------------------------------------
+   TDATE=$LASTARCH
+   TDAY=`echo $TDATE|cut -c1-8`
+   cntr=0
+   while [[ -d ${TANKDIR}/radmon.$TDAY && && $cntr < 31 ]]; do
+
+      if [[ ! -d ${ARCHIVE_DIR}/${SUFFIX}/radmon.${TDATE}
+         echo adding $TDAY to list:
+         tar_list="$tar_list $TDAY"
+      fi
+
+      TDATE=`$NDATE -24 $TDATE`
+      TDAY=`echo $TDATE|cut -c1-8`
+
+      ((cntr=cntr+1)) 
+   done
+
+   #------------------------------------------------------------------
+   #  Copy directories to the ${ARCHIVE_DIR}
+   #------------------------------------------------------------------
+   for tar_date in ${tar_list}; do
+      cp -r ${TANKDIR}/radmon.${tar_date} ${ARCHIVE_DIR}/${SUFFIX}/radmon.${tar_date}      
+   done
+
+   #------------------------------------------------------------------
+   #  Remove any directories in $ARCHIVE_DIR in excess of 60 
+   #------------------------------------------------------------------
    total=`ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | wc -l`
    ((extra=total-61)) 
 

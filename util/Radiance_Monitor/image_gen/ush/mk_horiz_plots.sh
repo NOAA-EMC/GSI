@@ -158,7 +158,7 @@ done
 #
 export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
-if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then	#ccs, wcoss
+if [[ $MY_MACHINE = "wcoss" ]]; then
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
    logfile=${LOGDIR}/horiz_${PID}.log
    rm -f $cmdfile
@@ -212,9 +212,7 @@ for sat in ${bigSATLIST}; do
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
    
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
@@ -234,9 +232,7 @@ for sat in ${bigSATLIST}; do
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
    
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 3:45:00 -o $LOGDIR/horiz_${PID}.log -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile

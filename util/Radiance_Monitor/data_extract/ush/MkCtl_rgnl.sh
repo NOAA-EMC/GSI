@@ -162,8 +162,12 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
-
-   $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   #
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $ACCOUNT -o $LOGDIR/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   elif [[ $MY_MACHINE = "zeus" ]]; then
+      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   fi
 
 fi
 

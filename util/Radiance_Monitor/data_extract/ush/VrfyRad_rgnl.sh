@@ -119,9 +119,7 @@ jobname=${DATA_EXTRACT_JOBNAME}
 #--------------------------------------------------------------------
 
 if [[ ${RUN_ENVIR} = dev ]]; then
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      total=`llq -u ${LOGNAME} -f %jn | grep ${jobname} | wc -l`
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
       total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
@@ -257,10 +255,8 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
 
    logfile=$LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log
 
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${logfile} -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -a $ACCOUNT -q dev -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $ACCOUNT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
    fi

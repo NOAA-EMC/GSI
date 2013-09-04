@@ -130,10 +130,8 @@ jobname="plot_${SUFFIX}_bcoef"
 logfile="$LOGDIR/plot_bcoef.log"
 rm ${logfile}
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -q dev  -g ${USER_CLASS} -t 1:00:00 -o ${logfile} $SCRIPTS/plot_bcoef.sh
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q dev -o ${logfile} -W 0:45 -R affinity[core] -J ${jobname} $SCRIPTS/plot_bcoef.sh
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   $SUB -q $ACCOUNT -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} $SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "zeus" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
 fi
