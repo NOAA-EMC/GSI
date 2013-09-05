@@ -202,7 +202,13 @@ if [[ $exit_value == 0 ]]; then
       tar -rvf ${valid_tar} stdout.validate.*.${cycle}
    fi
 
-
+   #--------------------------------------------------------------------
+   #  Remove extra spaces in new bad_pen file
+   #--------------------------------------------------------------------
+   bad_pen=bad_pen.${PDATE}
+   gawk '{$1=$1}1' $bad_pen > tmp.bad_pen
+   mv -f tmp.bad_pen $bad_pen
+    
    #--------------------------------------------------------------------
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------

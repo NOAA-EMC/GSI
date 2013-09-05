@@ -48,6 +48,7 @@ module read_diag
   public :: iversion_radiag_1
   public :: iversion_radiag_2
   public :: iversion_radiag_3
+  public :: iversion_radiag_4
   public :: ireal_radiag
   public :: ipchan_radiag
 
@@ -139,6 +140,7 @@ module read_diag
      real(r_single) :: bilap              ! lapse rate bias correction term
      real(r_single) :: bicos              ! node*cos(lat) bias correction term
      real(r_single) :: bisin              ! sin(lat) bias correction term
+     real(r_single) :: biemis             ! emissivity sensitivity bias correction term
      real(r_single),dimension(:),allocatable :: bifix          ! angle dependent bias
      real(r_single) :: bisst              ! SST bias correction term
   end type diag_data_chan_list
@@ -151,6 +153,7 @@ module read_diag
   integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
   integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
   integer(i_kind),parameter:: iversion_radiag_3 = 19180   ! Version when SSMIS added
+  integer(i_kind),parameter:: iversion_radiag_4 = 30303   ! Version when emissivity predictor added
 
   real(r_single),parameter::  rmiss_radiag    = -9.9e11_r_single
 
@@ -352,7 +355,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(13+header_fix%angord+1)= 'bifix     '
         data_name%chn(13+header_fix%angord+2)= 'bisst     '
-     else
+     elseif ( header_fix%iversion < iversion_radiag_4 .and. header_fix%iversion >= iversion_radiag_3 ) then
         data_name%chn( 9)= 'bicons    '
         data_name%chn(10)= 'biang     '
         data_name%chn(11)= 'biclw     '
@@ -366,6 +369,21 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(15+header_fix%angord+1)= 'bifix     '
         data_name%chn(15+header_fix%angord+2)= 'bisst     '
+     else
+        data_name%chn( 9)= 'bicons    '
+        data_name%chn(10)= 'biang     '
+        data_name%chn(11)= 'biclw     '
+        data_name%chn(12)= 'bilap2    '
+        data_name%chn(13)= 'bilap     '
+        data_name%chn(14)= 'bicos     '
+        data_name%chn(15)= 'bisin     '
+        data_name%chn(16)= 'biemis    '
+        do i=1,header_fix%angord
+           write(string,'(i2.2)') header_fix%angord-i+1
+           data_name%chn(16+i)= 'bifix' // string
+        end do
+        data_name%chn(16+header_fix%angord+1)= 'bifix     '
+        data_name%chn(16+header_fix%angord+2)= 'bisst     '
      endif
 
 ! Read header (channel part)
@@ -557,7 +575,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         end do
         data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)
      end do
-  else
+  elseif ( header_fix%iversion < iversion_radiag_4 .and. header_fix%iversion >= iversion_radiag_3 ) then
      do ich=1,header_fix%nchan
         data_chan(ich)%bicons=data_tmp(9,ich)
         data_chan(ich)%biang =data_tmp(10,ich)
@@ -571,7 +589,24 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         do iang=1,header_fix%angord+1
            data_chan(ich)%bifix(iang)=data_tmp(15+iang,ich)
         end do
-        data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)  
+        data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)
+     end do
+  else
+     do ich=1,header_fix%nchan
+        data_chan(ich)%bicons=data_tmp(9,ich)
+        data_chan(ich)%biang =data_tmp(10,ich)
+        data_chan(ich)%biclw =data_tmp(11,ich)
+        data_chan(ich)%bilap2=data_tmp(12,ich)
+        data_chan(ich)%bilap =data_tmp(13,ich)
+        data_chan(ich)%bicos =data_tmp(14,ich) 
+        data_chan(ich)%bisin =data_tmp(15,ich)
+        data_chan(ich)%biemis=data_tmp(16,ich)
+     end do
+     do ich=1,header_fix%nchan
+        do iang=1,header_fix%angord+1
+           data_chan(ich)%bifix(iang)=data_tmp(16+iang,ich)
+        end do
+        data_chan(ich)%bisst = data_tmp(16+header_fix%angord+2,ich)  
      end do
   endif
 

@@ -54,6 +54,7 @@ contains
 !   2010-08-19  derber
 !   2011-05-20  mccarty - added placeholder for ATMS
 !   2013-01-22  zhu - add adp_anglebc option
+!   2013-07-19  zhu - include negative clw values for amsua or atms when adp_anglebc=.true.
 !
 !  input argument list:
 !     nadir     - scan position
@@ -124,22 +125,26 @@ contains
         ierrret = 1
      end if
      
+     if (.not. adp_anglebc) clw = max(zero,clw)
+
   else if(ssmi) then
 
      call retrieval_mi(tb_obs(1),nchanl,no85GHz, &
           tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
 
   else if (ssmis) then
 
      call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
+     clw = max(zero,clw)
 
   else if (amsre) then
 
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
 
   endif
-  clw = max(zero,clw)
 
   return
  end subroutine calc_clw

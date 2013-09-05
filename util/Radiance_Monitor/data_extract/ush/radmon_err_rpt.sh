@@ -166,9 +166,7 @@ fi
          if [[ $type == "chan" ]]; then
             match=`gawk "/$satname/ && /channel=  $channel/" $file2`
          else
-#            match=`gawk "/$satname/ && /channel=  $channel / && /region=  $region /" $file2`
-#            match=`gawk "/$satname/ && /channel=     $channel /" $file2`
-            match=`gawk "/$satname/" $file2`
+            match=`gawk "/$satname/ && /channel= $channel / && /region= $region /" $file2`
             echo match = $match
 
             match_len=`echo ${#match}`

@@ -36,6 +36,7 @@ shell=ksh
 # 
 # Need better reference here!
 HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/wopr"
+HTAR="/usrx/local/hpss/htar"
 #
 #
 
@@ -45,11 +46,11 @@ tar_cnt=0
 cntr=0
 while [[ -d ${TANKDIR}/radmon.$TDAY && $tar_cnt < 5 && $cntr < 31 ]]; do
 
-   tar_cnt=$( htar -tf ${HPSSDIR}/radmon.${TDAY}.tar | wc -l )
-   echo $tar_cnt
+   tar_cnt=$( $HTAR -tf ${HPSSDIR}/radmon.${TDAY}.tar | wc -l )
+   echo "tar_cnt = $tar_cnt"
 
    if [[ $tar_cnt < 5 ]] then
-      echo adding $TDAY to list:
+      echo "adding $TDAY to list"
       tar_list="$tar_list $TDAY"
    fi
 
@@ -59,7 +60,7 @@ while [[ -d ${TANKDIR}/radmon.$TDAY && $tar_cnt < 5 && $cntr < 31 ]]; do
    ((cntr=cntr+1)) 
 done
 
-echo tar_list = $tar_list
+#echo "tar_list = $tar_list"
 
 #------------------------------------------------------------------
 #  Archive tar_list to hpss and the $ARCHIVE_DIR
@@ -67,11 +68,7 @@ echo tar_list = $tar_list
 
 for tar_date in ${tar_list}; do
 
-   htar -cvf ${HPSSDIR}/radmon.${tar_date}.tar ${TANKDIR}/radmon.${tar_date}
-
-#   if [[ $MY_MACHINE = "wcoss" ]]; then
-#      cp -r ${TANKDIR}/radmon.${tar_date} ${ARCHIVE_DIR}/${SUFFIX}/radmon.${tar_date}      
-#   fi
+   $HTAR -cvf ${HPSSDIR}/radmon.${tar_date}.tar ${TANKDIR}/radmon.${tar_date}
 
 done
 
@@ -81,18 +78,18 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    #------------------------------------------------------------------
    #  Determine the last date stored on /sss for this source.
    #------------------------------------------------------------------
-   TDATE=$LASTARCH
-   TDAY=`echo $TDATE|cut -c1-8`
+   ADATE=$LASTARCH
+   ADAY=`echo $ADATE|cut -c1-8`
    cntr=0
-   while [[ -d ${TANKDIR}/radmon.$TDAY && && $cntr < 31 ]]; do
+   while [[ -d ${TANKDIR}/radmon.$ADAY && $cntr < 31 ]]; do
 
-      if [[ ! -d ${ARCHIVE_DIR}/${SUFFIX}/radmon.${TDATE}
-         echo adding $TDAY to list:
-         tar_list="$tar_list $TDAY"
+      if [[ ! -d ${ARCHIVE_DIR}/radmon.${ADAY} ]]; then
+#         echo "adding $ADAY to list"
+         arch_list="$arch_list $ADAY"
       fi
 
-      TDATE=`$NDATE -24 $TDATE`
-      TDAY=`echo $TDATE|cut -c1-8`
+      ADATE=`$NDATE -24 $ADATE`
+      ADAY=`echo $ADATE|cut -c1-8`
 
       ((cntr=cntr+1)) 
    done
@@ -100,18 +97,18 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    #------------------------------------------------------------------
    #  Copy directories to the ${ARCHIVE_DIR}
    #------------------------------------------------------------------
-   for tar_date in ${tar_list}; do
-      cp -r ${TANKDIR}/radmon.${tar_date} ${ARCHIVE_DIR}/${SUFFIX}/radmon.${tar_date}      
+   for arch_date in ${arch_list}; do
+      cp -r ${TANKDIR}/radmon.${arch_date} ${ARCHIVE_DIR}/radmon.${arch_date}      
    done
 
    #------------------------------------------------------------------
    #  Remove any directories in $ARCHIVE_DIR in excess of 60 
    #------------------------------------------------------------------
-   total=`ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | wc -l`
+   total=`ls -d1 ${ARCHIVE_DIR}/radmon.* | wc -l`
    ((extra=total-61)) 
 
    if [[ $extra -gt 0 ]]; then
-      `ls -d1 ${ARCHIVE_DIR}/${SUFFIX}/radmon.* | head -n $extra | xargs rm -rf`
+      `ls -d1 ${ARCHIVE_DIR}/radmon.* | head -n $extra | xargs rm -rf`
    fi
 
 fi

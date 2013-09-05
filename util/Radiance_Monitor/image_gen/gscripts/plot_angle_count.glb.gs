@@ -121,39 +121,39 @@ new_xe=xe
 'set gxout stat'
 
 it=new_xs
-done=0
-while (it<=new_xe & done=0)
-   'set lon 'it' 'it
-   'd ave(count, t='t30days', t='tlast')'
-   rec11=sublin(result,11)
-   avgvar=subwrd(rec11,2)
-   say ' it, avgvar = 'it', 'avgvar
-
-   if (avgvar > 0.0)
-      done = 1
-   else
-      it=it+1
-   endif
-endwhile
+*done=0
+*while (it<=new_xe & done=0)
+*   'set lon 'it' 'it
+*   'd ave(count, t='t30days', t='tlast')'
+*   rec11=sublin(result,11)
+*   avgvar=subwrd(rec11,2)
+*   say ' it, avgvar = 'it', 'avgvar
+*
+*   if (avgvar > 0.0)
+*      done = 1
+*   else
+*      it=it+1
+*   endif
+*endwhile
 new_xs=it
 say 'new_xs = 'new_xs
 
 it=new_xe-1
-done=0
-say 'it = 'it
-while (it>=new_xs & done=0)
-   'set lon 'it' 'it
-
-   'd ave(count, t='t30days', t='tlast')'
-   rec11=sublin(result,11)
-   avgvar=subwrd(rec11,2)
-   say ' it, avgvar = 'it', 'avgvar
-   if (avgvar > 0.0)
-      done=1
-   else
-      it=it-1
-   endif
-endwhile
+*done=0
+*say 'it = 'it
+*while (it>=new_xs & done=0)
+*   'set lon 'it' 'it
+*
+*   'd ave(count, t='t30days', t='tlast')'
+*   rec11=sublin(result,11)
+*   avgvar=subwrd(rec11,2)
+*   say ' it, avgvar = 'it', 'avgvar
+*   if (avgvar > 0.0)
+*      done=1
+*   else
+*      it=it-1
+*   endif
+*endwhile
 new_xe=it
 
 'set lon 'new_xs' 'new_xe
