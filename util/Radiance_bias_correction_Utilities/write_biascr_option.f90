@@ -13,11 +13,11 @@
     real*8 tsum
     real*8 ostats
     real*8,dimension(90)::cbiasx
-    real*8 tlapmean(2000),chn(2000)
+    real*8 tlapmean(4000),chn(4000)
     real*8,allocatable,dimension(:):: predr0,predr,varx
     logical :: newpc4pred,adp_anglebc
     character(len=20) :: isis
-    character(len=20),dimension(2000) :: nsis
+    character(len=20),dimension(4000) :: nsis
 
     integer iarg,argc
     integer iargc
@@ -95,7 +95,7 @@
 
 
     if (newpc4pred .and. adp_anglebc) then
-       npred_new=npred+angord
+       npred_new=npred+angord+3
        tlapm=0.0
        tsum=0.0
        count_tlap = 0
