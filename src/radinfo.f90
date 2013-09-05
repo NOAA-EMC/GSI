@@ -33,6 +33,8 @@ module radinfo
 !   2011-07-14  zhu     - add varch_cld for cloudy radiance
 !   2012-11-02  collard - add icld_det for greater flexibility in QC step and
 !                         add number of scan positions to satang file
+!   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
+!   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -74,7 +76,9 @@ module radinfo
   public :: ifactq,mype_rad
   public :: ostats,rstats,varA
   public :: adp_anglebc,angord,use_edges, maxscan
+  public :: emiss_bc
   public :: passive_bc
+  public :: upd_pred
   public :: radstart,radstep
   public :: newpc4pred
   public :: biaspredvar
@@ -90,6 +94,7 @@ module radinfo
   logical tzr_bufrsave! logical to turn off or on the bufr file output for Tz retrieval (true=on)
 
   logical adp_anglebc ! logical to turn off or on the variational radiance angle bias correction
+  logical emiss_bc    ! logical to turn off or on the emissivity predictor
   logical passive_bc  ! logical to turn off or on radiance bias correction for monitored channels
   logical use_edges   ! logical to use data on scan edges (.true.=to use)
 
@@ -105,6 +110,7 @@ module radinfo
   integer(i_kind) angord        ! order of polynomial for angle bias correction
   integer(i_kind) maxscan       ! number of scan positions in satang file 
 
+  real(r_kind),dimension(20):: upd_pred  ! indicator if bias correction coefficients evolve
   real(r_kind),allocatable,dimension(:):: varch       ! variance for clear radiance each satellite channel
   real(r_kind),allocatable,dimension(:):: varch_cld   ! variance for cloudy radiance
   real(r_kind),allocatable,dimension(:):: ermax_rad   ! error maximum (qc)
@@ -182,6 +188,7 @@ contains
 !   2010-09-02  zhu     - add use_edges
 !   2010-04-25  zhu     - add logical newpc4pred (todling move here)
 !   2013-02-13  eliu    - add two additional bias correction predictors for SSMIS 
+!   2013-07-19  zhu     - add emiss_bc for emissivity sensitivity bias predictor
 !
 !   input argument list:
 !
@@ -214,8 +221,10 @@ contains
 
     passive_bc = .false.  ! .true.=turn on bias correction for monitored channels
     adp_anglebc = .false. ! .true.=turn on angle bias correction
+    emiss_bc = .false.    ! .true.=turn on emissivity bias correction
     angord = 0            ! order of polynomial for angle bias correction
     use_edges = .true.    ! .true.=to use data on scan edges
+    upd_pred = one        ! 1.0=bias correction coefficients evolve
   end subroutine init_rad
 
 
@@ -271,6 +280,7 @@ contains
     end if
 
     if (adp_anglebc) npred=npred+angord
+    if (emiss_bc) npred=npred+1
     
 !   inquire about variables in guess
     mxlvs = 0
@@ -778,7 +788,6 @@ contains
                 nusis(j),nuchan(j),' not found in satbias_in file - set to zero '
              endif
           end do
-!140      format(i4,1x,a20,10f12.6)
 140       format(i4,1x,a20,12f12.6)
 
        endif
@@ -1208,11 +1217,12 @@ contains
 !
 !   prgrmmr:     zhu      org: np23                date: 2010-07-13
 !
-! abstract:  For a given satellite/sensor produce predictor coeficients for angle bias correction
+! abstract:  initialize predictor coeficients for a given satellite/sensor 
 !
 ! program history log:
 !   2010-07-13  zhu  - modified from global_angupdate
 !   2011-04-07  todling - adjust argument list (interface) since newpc4pred is local now
+!   2013-07-19  zhu  - unify the weight assignments for both active and passive channels
 !
 ! attributes:
 !   language: f90
@@ -1472,10 +1482,11 @@ contains
 !           the observation did not pass quality control.  In this
 !           case, do not use this observation in computing the update
 !           to the angle dependent bias
-            if (iuse_rad(jj)>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
+!           if (iuse_rad(jj)>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
 
-            errinv=data_chan(j)%errinv
-            if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
+!           errinv=data_chan(j)%errinv
+!           if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
+            errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
 
             if (update_tlapmean(jj)) then
                tlaptmp=data_chan(j)%tlap

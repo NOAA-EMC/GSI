@@ -35,6 +35,7 @@ module qcmod
 !   2012-11-10  s.liu   - add logical variable newvad to identify new and old vad wind
 !   2013-05-07  tong    - add logical variable tdrerr_inflate for tdr obs err
 !                         inflation and tdrgross_fact to adjust tdr gross error
+!   2013-07-19  zhu     - tighten quality control for amsua surface sensitive channels when emiss_bc=.t.
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -108,7 +109,8 @@ module qcmod
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
-  public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,ifail_gross_qc
+  public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
+            ifail_gross_qc,ifail_cloud_qc
 
   logical nlnqc_iter
   logical noiqc
@@ -1620,6 +1622,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                           applied to atms
 !     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
 !     2011-12-19  collard - ATMS 1-7 is always rejected over ice, snow or mixed surfaces.
+!     2013-07-19  zhu     - tighten qc when emiss_bc=.t.
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1670,6 +1673,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
+  use radinfo, only: emiss_bc
   implicit none
 
 ! Declare passed variables
@@ -1696,10 +1700,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   real(r_kind),parameter:: w2f4=1.0_r_kind/1.8_r_kind
 
   real(r_kind)    :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact
-  real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dsval,clwx
-  real(r_kind)    :: factch6,de1,de2,de3
+  real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dtde15,dsval,clwx
+  real(r_kind)    :: factch6,de1,de2,de3,de15
+  real(r_kind)    :: thrd1,thrd2,thrd3,thrd15
   integer(i_kind) :: i,n,icw4crtm,ier
   logical lcw4crtm
+  logical qc4emiss
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
@@ -1769,7 +1775,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      dsval=max(zero,dsval)
   end if
 
-  if(sea .and. tsavg5 > t0c)then
+  if(sea)then
      clwx=cosza*clw*w1f4
   else
      clwx=0.6_r_kind
@@ -1901,46 +1907,79 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !       QC1 in statsrad
         if(luse) aivals(8,is) = aivals(8,is) + one
  
-     else if(sea)then
+     else
 !       QC based on ratio of obs-ges increment versus the sensitivity of
 !       the simulated brightness temperature to the surface emissivity
 !       Y2K hurricane season runs by QingFu Liu found the hurricane
 !       forecast tracks to be degraded without this QC.
 !       (Is this still true?)
 
-        dtde1 = emissivity_k(ich238)
-        de1   = zero
-        if (dtde1 /= zero) de1=abs(tbc(ich238))/dtde1
-        dtde2 = emissivity_k(ich314)
-        de2   = zero
-        if (dtde2 /= zero) de2=abs(tbc(ich314))/dtde2
-        dtde3 = emissivity_k(ich503)
-        de3   = zero
-        if (dtde3 /= zero) de3=abs(tbc(ich503))/dtde3
- 
-        if (de2 > r0_03 .or. de3 > r0_05 .or. de1 > r0_05) then
-!          QC2 in statsrad
-           if(luse)aivals(9,is) = aivals(9,is) + one
-           efactmc=zero
-           vfactmc=zero
-           do i=1,ich536
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
-              varinv(i) = zero
-              errf(i) = zero 
-           end do
-           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_emiss_qc
-           errf(ich890) = zero
-           varinv(ich890) = zero
-           if (latms) then
-              do i=17,22   !  AMSU-B/MHS like channels 
+        if (sea .and. (.not.emiss_bc)) then
+           thrd1=r0_05
+           thrd2=r0_03
+           thrd3=r0_05
+        end if
+
+        if (emiss_bc) then
+           if (sea) then
+              thrd1=0.025_r_kind
+              thrd2=0.015_r_kind
+              thrd3=0.030_r_kind
+              thrd15=0.030_r_kind
+           else
+              thrd1=0.020_r_kind
+              thrd2=0.015_r_kind
+              thrd3=0.035_r_kind
+              thrd15=0.015_r_kind
+           end if
+        end if
+
+        if ((sea .and. (.not.emiss_bc)) .or. emiss_bc) then
+           dtde1 = emissivity_k(ich238)
+           de1   = zero
+           if (dtde1 /= zero) de1=abs(tbc(ich238))/dtde1
+           dtde2 = emissivity_k(ich314)
+           de2   = zero
+           if (dtde2 /= zero) de2=abs(tbc(ich314))/dtde2
+           dtde3 = emissivity_k(ich503)
+           de3   = zero
+           if (dtde3 /= zero) de3=abs(tbc(ich503))/dtde3
+
+           if (sea .and. (.not.emiss_bc)) then
+              qc4emiss = de2>thrd2 .or. de3>thrd3 .or. de1>thrd1
+           end if
+
+           if (emiss_bc) then
+              dtde15= emissivity_k(ich890)
+              de15  = zero
+              if (dtde15 /= zero) de15=abs(tbc(ich890))/dtde15
+
+              qc4emiss= de2>thrd2 .or. de3>thrd3 .or. de1>thrd1 .or. de15>thrd15
+           end if
+
+           if (qc4emiss) then 
+!             QC2 in statsrad
+              if(luse)aivals(9,is) = aivals(9,is) + one
+              efactmc=zero
+              vfactmc=zero
+              do i=1,ich536
                  if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
-                 errf(i) = zero
                  varinv(i) = zero
-              enddo
-           endif
+                 errf(i) = zero 
+              end do
+              if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_emiss_qc
+              errf(ich890) = zero
+              varinv(ich890) = zero
+              if (latms) then
+                 do i=17,22   !  AMSU-B/MHS like channels 
+                    if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
+                    errf(i) = zero
+                    varinv(i) = zero
+                 enddo
+              endif
+           end if
         end if
      end if
-
   endif ! <lcw4crtm>
 
 ! Reduce q.c. bounds over higher topography
