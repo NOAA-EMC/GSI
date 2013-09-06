@@ -129,7 +129,8 @@
 !   2013-02-13  eliu    - Add options for SSMIS instruments
 !                       - Add two additional bias predictors for SSMIS radiances  
 !                       - Tighten up QC checks for SSMIS  
-
+!   2013-07-10  zhu     - add upd_pred as an update indicator for bias correction coeficitient
+!   2013-07-19  zhu     - add emissivity sensitivity predictor for radiance bias correction
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -158,7 +159,7 @@
   use crtm_spccoeff, only: sc
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
       npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
-      air_rad,ang_rad,adp_anglebc,angord,&
+      air_rad,ang_rad,adp_anglebc,angord,emiss_bc,upd_pred, &
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
       nst_gsi,nstinfo,nst_tzr
   use read_diag, only: iversion_radiag,ireal_radiag,ipchan_radiag
@@ -185,7 +186,7 @@
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
-  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3
+  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: setup_tzr_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
@@ -756,6 +757,10 @@
               call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua)
               call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval)
            end if
+           if (ierrret /= 0) then 
+             varinv(1:nchanl)=zero
+             id_qc(1:nchanl) = ifail_cloud_qc
+           endif
         endif
         predbias=zero
         do i=1,nchanl
@@ -831,11 +836,20 @@
                  pred(7,i)= sin(cenlat*deg2rad)                  
               endif                                                
            endif                                                   
-           do j=1,7                               
+
+!          emissivity sensitivity bias predictor
+           if (adp_anglebc .and. emiss_bc) then 
+              pred(8,i)=zero
+              if (.not.sea .and. abs(emissivity_k(i))>0.001_r_kind) then
+                 pred(8,i)=emissivity_k(i)
+              end if
+           end if
+
+           do j=1, npred-angord                              
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
            if (adp_anglebc) then
-              do j=8,npred                                         
+              do j=npred-angord+1, npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
            end if
@@ -873,7 +887,7 @@
            tbcnob(i)    = tb_obs(i) - tsim(i)  
            tbc(i)       = tbcnob(i)                     
  
-           do j=1,7
+           do j=1, npred-angord
               tbc(i)=tbc(i) - predbias(j,i) !obs-ges with bias correction
            end do
            tbc(i)=tbc(i) - predbias(npred+1,i)
@@ -1284,7 +1298,7 @@
                     radtail(ibin)%head%icx(iii)= m                         ! channel index
 
                     do k=1,npred
-                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)
+                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)*upd_pred(k)
                     end do
 
                     do k=1,nsigradjac
@@ -1481,7 +1495,7 @@
                     radtailm(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     radtailm(ibin)%head%icx(iii)=m                       ! channel index
                     do k=1,npred
-                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)
+                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*upd_pred(k)
                     end do
 
 !                   compute hessian contribution,
