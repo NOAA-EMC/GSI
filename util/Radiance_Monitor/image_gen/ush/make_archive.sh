@@ -35,7 +35,12 @@ shell=ksh
 
 # 
 # Need better reference here!
-HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/wopr"
+if [[ $SUFFIX = "wopr" ]]; then
+   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/wopr"
+else
+   HPSSDIR="/NCEPDEV/hpssuser/g01/wx20es/nbns/stats/regional/nrx"
+fi
+
 HTAR="/usrx/local/hpss/htar"
 #
 #
@@ -111,6 +116,13 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
       `ls -d1 ${ARCHIVE_DIR}/radmon.* | head -n $extra | xargs rm -rf`
    fi
 
+   #------------------------------------------------------------------
+   #  Copy the data_map.xml file to the $TOP_ARCHIVE_DIR 
+   #------------------------------------------------------------------
+   if [[ -e ${RADMON_PARM}/data_map.xml ]]; then
+      cp -f ${RADMON_PARM}/data_map.xml ${TOP_ARCHIVE_DIR}/.
+   fi 
+ 
 fi
 
 
