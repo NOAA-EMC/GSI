@@ -346,6 +346,16 @@ $ERRSCRIPT||exit 2
 $NCP satbias_ang.out  $SATANGO
 
 ################################################################################
+
+#if test "$RUN" = 'gdas1'
+#then
+    #if test "$SENDDBN" = 'YES'
+    #then
+       #$DBNROOT/bin/dbn_alert MODEL GDAS1_MSC_satang $job $SATANGO
+    #fi
+#fi
+
+################################################################################
 #  Postprocessing
 cd $pwd
 [[ $mkdata = YES ]]&&rmdir $DATA
