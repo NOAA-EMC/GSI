@@ -44,7 +44,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use oneobmod, only: magoberr,maginnov,oneobtest
   use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
   use gridmod, only: get_ij
-  use constants, only: zero,tiny_r_kind,one,half,wgtlim, &
+  use constants, only: zero,tiny_r_kind,one,half,one_tenth,wgtlim, &
             two,cg_term,pi,huge_single
   use jfunc, only: jiter,last,miter
   use qcmod, only: dfact,dfact1,npres_print
@@ -63,6 +63,10 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare external calls for code analysis
   external:: tintrp2a11
   external:: stop2
+
+! Declare local parameters
+  real(r_kind),parameter:: r0_1_bmiss=one_tenth*bmiss
+  character(len=*),parameter:: myname='setupvis'
 
 ! Declare local variables
   
@@ -101,7 +105,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(vis_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-  character(len=*),parameter:: myname='setupvis'
 
 
   equivalence(rstation_id,station_id)
@@ -141,7 +144,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check for missing data  !need obs value and error
   do i=1,nobs
-    if (abs(data(ivis,i)-bmiss) .lt. 100.0_r_kind)  then
+    if (data(ivis,i) > r0_1_bmiss)  then
        muse(i)=.false.
        data(ivis,i)=rmiss_single   ! for diag output
        data(iobshgt,i)=rmiss_single! for diag output

@@ -973,7 +973,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Check qc marks to see if obs should be processed or skipped
 
            if (visob) then
-              if (abs(obsdat(9,k)-bmiss) < r100) then
+              if (obsdat(9,k) > r0_1_bmiss) then
                  patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
                            (metarwth(1,1)>=130.0_r_kind .and. metarwth(1,1)<=135.0_r_kind) .or. &
                            (metarwth(1,1)>=241.0_r_kind .and. metarwth(1,1)<=246.0_r_kind)
@@ -1135,8 +1135,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if(qm >=lim_qm )usage=101._r_kind
               if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
               if((kx>=192.and.kx<=195) .and. psob )usage=r100
-              if (gustob .and. abs(obsdat(8,k)-bmiss) < r100) usage=103._r_kind
-              if (visob  .and. abs(obsdat(9,k)-bmiss) < r100) usage=103._r_kind
+              if (gustob .and. obsdat(8,k) > r0_1_bmiss) usage=103._r_kind
+              if (visob  .and. obsdat(9,k) > r0_1_bmiss) usage=103._r_kind
 
               if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff, &
