@@ -68,6 +68,10 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   external:: tintrp2a1,tintrp2a11
   external:: stop2
 
+! Declare local parameters
+  real(r_kind),parameter:: r0_1_bmiss=one_tenth*bmiss
+  character(len=*),parameter:: myname='setupgust'
+
 ! Declare local variables
   
   real(r_double) rstation_id
@@ -109,7 +113,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(gust_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-  character(len=*),parameter:: myname='setupgust'
 
 
   equivalence(rstation_id,station_id)
@@ -161,7 +164,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Check for missing data
   if (.not. oneobtest) then
   do i=1,nobs
-    if (abs(data(igust,i)-bmiss) .lt. 100.)  then
+    if (data(igust,i) > r0_1_bmiss)  then
        muse(i)=.false.
        data(igust,i)=rmiss_single   ! for diag output
     end if

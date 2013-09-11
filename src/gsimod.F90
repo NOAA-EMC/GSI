@@ -29,8 +29,8 @@
 		       l4densvar,ens4d_nstarthr
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,mype
-  use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
-                       biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars
+  use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
+                       biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc
   use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
@@ -247,6 +247,8 @@
 !                         longer used for global analysis.  
 !                         for regional analysis, reg_tlnmc_type=1 or 2 for two
 !                         different regional balance methods.
+!  07-10-2013 zhu       add upd_pred as bias update indicator for radiance bias correction
+!  07-19-2013 zhu       add emiss_bc for emissivity predictor in radiance bias correction scheme
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -398,6 +400,7 @@
 !                     observation operators that are currently used in the NCEP GSI variational
 !                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
+!     emiss_bc    - option to turn on emissivity bias predictor
 !
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
@@ -417,8 +420,8 @@
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
-       crtm_coeffs_path, &
-       berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &
+       crtm_coeffs_path,berror_stats, &
+       newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
        biaspredvar,lobsdiagsave, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
