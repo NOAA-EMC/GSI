@@ -102,7 +102,7 @@ subroutine update_guess(sval,sbias)
   use gsi_4dvar, only: nobs_bins, hr_obsbin
   use radinfo, only: npred,jpch_rad,predx
   use pcpinfo, only: npredp,npcptype,predxp
-  use aircraftinfo, only: aircraft_t_bc,npredt,predt,ntail
+  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,npredt,predt,ntail
   use m_gsiBiases,only : bias_hour, update_bias
   use bias_predictors, only: predictors
   use gsi_bundlemod, only: gsi_bundle
@@ -448,7 +448,7 @@ subroutine update_guess(sval,sbias)
      end do
 
 !    Aircraft temperature bias 
-     if (aircraft_t_bc) then 
+     if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
         ij=0
         do j=1,ntail
            do i=1,npredt

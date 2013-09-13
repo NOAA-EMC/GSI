@@ -38,7 +38,8 @@ module jfunc
 !   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
 !   2011-02-16  zhu     - add ggues,vgues,pgues
 !   2011-07-15  zhu     - add cwgues
-!   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true.
+!   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
+!                         or aircraft_t_bc_pof=.true.
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -654,7 +655,7 @@ contains
     use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
-    use aircraftinfo, only: npredt,ntail,aircraft_t_bc
+    use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
     use state_vectors, only: ns3d,ns2d,edges
     use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
@@ -676,7 +677,7 @@ contains
     end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype
-    if (aircraft_t_bc) then 
+    if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
        ntclen=npredt*ntail
     else
        ntclen=0

@@ -18,7 +18,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        i_t_ob_type,obsdiags,lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: t_ob_type
   use obsmod, only: obs_diag
-  use obsmod, only: bmiss
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
   use qcmod, only: npres_print,dfact,dfact1,ptop,pbot
@@ -42,7 +41,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
 
-  use aircraftinfo, only: npredt,predt,aircraft_t_bc,ostats_t,rstats_t
+  use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
+       ostats_t,rstats_t,upd_pred_t
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   implicit none
@@ -166,7 +166,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) rsig,drpx,rsigp
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh,ramp
-  real(r_kind) dvvlc
+  real(r_kind) pof_idx
   real(r_kind) tges
   real(r_kind) obserror,ratio,val2,obserrlm
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
@@ -258,7 +258,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iprvd=22    ! index of observation provider
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
-  if (aircraft_t_bc) then
+  if (aircraft_t_bc_pof .or. aircraft_t_bc) then
      ipof=25     ! index of data pof
      ivvlc=26    ! index of data vertical velocity
      idx=27      ! index of tail number
@@ -293,7 +293,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ii=0
      nchar=1
      nreal=19
-     if (aircraft_t_bc) nreal=nreal+npredt+1
+     if (aircraft_t_bc_pof .or. aircraft_t_bc) nreal=nreal+npredt+1
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -388,7 +388,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 !    Compute bias correction for aircraft data
-     if (aircraft_t_bc) then 
+     if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
         do j = 1, npredt
            pred(j) = zero
            predbias(j) = zero
@@ -397,12 +397,11 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    aircraftobst = itype>129.and.itype<140
      aircraftobst = (itype==131) .or. (itype==133)
-     dvvlc = zero
      ix = data(idx,i)
-     if (aircraftobst .and. aircraft_t_bc) then 
+     if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then 
         if (ix==0) then
 !          Inflate obs error for new tail number
-           dvvlc = dvvlc + data(ier,i)
+           data(ier,i) = 1.2_r_kind*data(ier,i)
         else
 !          Bias for existing tail numbers
            do j = 1, npredt
@@ -411,23 +410,43 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !          inflate obs error for any uninitialized tail number
            if (all(predcoef==zero)) then
-              dvvlc = dvvlc + data(ier,i)
+              data(ier,i) = 1.2_r_kind*data(ier,i)
            end if
 
 !          define predictors
-           pred(1) = one
-           if (abs(data(ivvlc,i)-bmiss)<=tiny_r_kind) then
-              dvvlc = dvvlc + 0.2_r_kind*data(ier,i)
-              pred(2) = zero
-              pred(3) = zero
-           else
-              if (data(ivvlc,i)>zero) then
-                 pred(2) = data(ivvlc,i)
-                 pred(3) = zero
-              end if
-              if (data(ivvlc,i)<zero) then
+           if (aircraft_t_bc) then
+              pred(1) = one
+              if (abs(data(ivvlc,i))>=50.0_r_kind .or. data(ipof,i)==3.0_r_kind) then
                  pred(2) = zero
-                 pred(3) = data(ivvlc,i)
+                 pred(3) = zero
+                 if (abs(data(ivvlc,i))>=50.0_r_kind) data(ier,i) = 1.2_r_kind*data(ier,i)
+              else
+                 pred(2) = data(ivvlc,i)
+                 pred(3) = data(ivvlc,i)*data(ivvlc,i)
+              end if
+           end if
+           if (aircraft_t_bc_pof) then
+!             data(ipof,i)==5 (ascending); 6 (descending); 3 (cruise level)
+              if (data(ipof,i) == 3.0_r_kind) then 
+                 pof_idx = one
+                 pred(1) = one
+                 pred(2) = zero
+                 pred(3) = zero
+              else if (data(ipof,i) == 6.0_r_kind) then 
+                 pof_idx = one
+                 pred(1) = zero
+                 pred(2) = zero
+                 pred(3) = one
+              else if (data(ipof,i) == 5.0_r_kind) then
+                 pof_idx = one
+                 pred(1) = zero
+                 pred(2) = one
+                 pred(3) = zero
+              else
+                 pof_idx = zero
+                 pred(1) = one
+                 pred(2) = zero
+                 pred(3) = zero
               end if
            end if
 
@@ -524,7 +543,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
      
-     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp+dvvlc)
+     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then
@@ -539,7 +558,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ddiff = tob-tges
 
 ! Apply bias correction to innovation
-     if (aircraftobst .and. aircraft_t_bc) then
+     if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
         do j = 1, npredt
            ddiff = ddiff - predbias(j) 
         end do
@@ -649,7 +668,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
-     if ( .not. last .and. muse(i)) then
+!    if ( .not. last .and. muse(i)) then
+     if (muse(i)) then
 
         if(.not. associated(thead(ibin)%head))then
            allocate(thead(ibin)%head,stat=istat)
@@ -689,18 +709,27 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ttail(ibin)%head%luse    = luse(i)
         ttail(ibin)%head%tv_ob   = iqtflg
 
-        if (aircraft_t_bc) then
+        if (aircraft_t_bc_pof .or. aircraft_t_bc) then
            ttail(ibin)%head%idx = data(idx,i)
            do j=1,npredt
-              ttail(ibin)%head%pred(j) = pred(j)
+              ttail(ibin)%head%pred(j) = pred(j)*upd_pred_t*pof_idx
            end do
         end if
 
 
 !       summation of observation number
-        if (luse(i) .and. aircraftobst .and. aircraft_t_bc .and. ix/=0) then
-           ostats_t(ix)  = ostats_t(ix) + one
+        if (luse(i) .and. aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc) .and. ix/=0) then
            do j=1,npredt
+              if (aircraft_t_bc_pof) then
+                 if (j==1 .and. data(ipof,i) == 3.0_r_kind) ostats_t(1,ix)  = ostats_t(1,ix) + one
+                 if (j==2 .and. data(ipof,i) == 5.0_r_kind) ostats_t(2,ix)  = ostats_t(2,ix) + one
+                 if (j==3 .and. data(ipof,i) == 6.0_r_kind) ostats_t(3,ix)  = ostats_t(3,ix) + one
+              end if
+
+              if (aircraft_t_bc) then
+                 ostats_t(1,ix)  = ostats_t(1,ix) + one
+              end if
+
               rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
                            *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
            end do
@@ -786,14 +815,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(17,ii) = data(itob,i)       ! temperature observation (K)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
-        if (aircraft_t_bc) then
-           if (aircraftobst) then 
-              rdiagbuf(20,ii) = data(ipof,i)       ! data pof
-              do j=1,npredt
-                 rdiagbuf(20+j,ii) = predbias(j)
-              end do
-              idia=20+npredt
-           end if
+        if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+           rdiagbuf(20,ii) = data(ipof,i)       ! data pof
+           do j=1,npredt
+              rdiagbuf(20+j,ii) = predbias(j)
+           end do
+           idia=20+npredt
         else
            idia=19
         end if

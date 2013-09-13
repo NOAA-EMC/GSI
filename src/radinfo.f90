@@ -1444,10 +1444,11 @@ contains
 !           the observation did not pass quality control.  In this
 !           case, do not use this observation in computing the update
 !           to the angle dependent bias
-            if (iuse_rad(jj)>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
+!           if (iuse_rad(jj)>0 .and. data_chan(j)%errinv<1.e-6) cycle loopc
 
-            errinv=data_chan(j)%errinv
-            if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
+!           errinv=data_chan(j)%errinv
+!           if (iuse_rad(jj)<=0) errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
+            errinv=exp(-(data_chan(j)%omgnbc/3.0_r_kind)**2)
 
             if (update_tlapmean(jj)) then
                tlaptmp=data_chan(j)%tlap

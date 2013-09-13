@@ -492,7 +492,7 @@ subroutine read_obs(ndata,mype)
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
-    use aircraftinfo, only: aircraft_t_bc,mype_airobst
+    use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,mype_airobst
 
     implicit none
 
@@ -858,7 +858,7 @@ subroutine read_obs(ndata,mype)
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
 
        acft_profl_file = index(dfile(i),'_profl')/=0
-       if (aircraft_t_bc .and. acft_profl_file .and. dtype(i) == 't') &
+       if ((aircraft_t_bc_pof .or. (aircraft_t_bc .and. acft_profl_file)) .and. dtype(i) == 't') &
                    mype_airobst = mype_root_sub(i)
 
     end do

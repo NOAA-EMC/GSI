@@ -381,7 +381,7 @@ subroutine read_thead_ ()
     use obsmod, only: t_ob_type
     use m_obdiag, only: obdiag_locate
     use m_obdiag, only: ob_verify
-    use aircraftinfo, only: npredt,aircraft_t_bc
+    use aircraftinfo, only: npredt,aircraft_t_bc,aircraft_t_bc_pof
     implicit none
 
     real(r_kind)    :: zres           !  residual
@@ -440,7 +440,7 @@ _EXIT_(myname_)
 		if(iostat/=0) then
 		  call die(myname_,'read(idv,iob), (iostat,type,ibin,mobs,iobs) =',(/iostat,jj,ii,mobs,kk/))
 		endif
-       if (.not. aircraft_t_bc) then
+       if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
           read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
                                     ztime, zb,       zpg, &
                                     zuse_sfc_model,  ztlm_tsfc, &
@@ -466,7 +466,7 @@ _EXIT_(myname_)
        ttail(ii)%head%tlm_tsfc = ztlm_tsfc
        ttail(ii)%head%tpertb   = ztpertb
        ttail(ii)%head%tv_ob    = ztv_ob
-       if (aircraft_t_bc) then
+       if (aircraft_t_bc_pof .or. aircraft_t_bc) then
           do j=1,npredt
              ttail(ii)%head%pred(j)=zpred(j)
           end do

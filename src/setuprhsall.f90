@@ -108,7 +108,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use obs_sensitivity, only: lobsensfc, lsensrecompute
   use radinfo, only: newpc4pred
   use radinfo, only: mype_rad,diag_rad,jpch_rad,retrieval,fbias,npred,ostats,rstats
-  use aircraftinfo, only: aircraft_t_bc,ostats_t,rstats_t,npredt,ntail
+  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ostats_t,rstats_t,npredt,max_tail
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
@@ -350,8 +350,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
         rstats=zero_quad
      end if
 
-     if (aircraft_t_bc) then
-        ostats_t=zero
+     if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+        ostats_t=zero_quad
         rstats_t=zero_quad
      end if
 
@@ -523,9 +523,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   end if
 
 ! Collect information for aircraft data
-  if (aircraft_t_bc) then
-     call mpl_allreduce(ntail,rpvals=ostats_t)
-     call mpl_allreduce(npredt,ntail,rstats_t)
+  if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+     call mpl_allreduce(npredt,max_tail,ostats_t)
+     call mpl_allreduce(npredt,max_tail,rstats_t)
   end if
 
 ! Collect satellite and precip. statistics

@@ -99,7 +99,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
-  use aircraftinfo, only: npredt,ntail,aircraft_t_bc
+  use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -232,7 +232,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
            end if
 
 !          contribution from bias correction
-           if (aircraft_t_bc .and. tptr%idx>0) then
+           if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
               ix=tptr%idx
               do n=1,npredt
                  val2=val2+spred(n,ix)*tptr%pred(n)

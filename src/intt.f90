@@ -115,7 +115,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundleprint
   use gsi_4dvar, only: ladtest_obs 
-  use aircraftinfo, only: npredt,ntail,aircraft_t_bc
+  use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   implicit none
   
 
@@ -276,7 +276,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
      end if
 
 !    Include contributions from bias correction terms
-     if (.not. ladtest_obs .and. aircraft_t_bc .and. tptr%idx>0) then
+     if (.not. ladtest_obs .and. (aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
         ix=(tptr%idx-1)*npredt
         do n=1,npredt
            val=val+spred(ix+n)*tptr%pred(n)
@@ -317,10 +317,12 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 
 !       Adjoint of interpolation
 !       Extract contributions from bias correction terms
-        if (.not. ladtest_obs .and. aircraft_t_bc .and. tptr%idx>0) then
-           do n=1,npredt
-              rpred(ix+n)=rpred(ix+n)+tptr%pred(n)*grad
-           end do
+        if (.not. ladtest_obs .and. (aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
+           if (tptr%luse) then 
+              do n=1,npredt
+                 rpred(ix+n)=rpred(ix+n)+tptr%pred(n)*grad
+              end do
+           end if
         end if
 
         if(tptr%use_sfc_model) then

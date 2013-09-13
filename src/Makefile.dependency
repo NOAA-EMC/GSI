@@ -3,6 +3,7 @@ adjtest.o : adjtest.f90 bias_predictors.o gsi_bundlemod.o state_vectors.o contro
 adjtest_obs.o : adjtest_obs.f90 intall.o bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o constants.o jfunc.o obsmod.o gsi_4dvar.o kinds.o 
 aeroinfo.o : aeroinfo.f90 obsmod.o gridmod.o gsi_chemguess_mod.o mpimod.o kinds.o 
 aircraftobsqc.o : aircraftobsqc.f90 kinds.o 
+aircraftinfo.o : aircraftinfo.f90 kinds.o
 anberror.o : anberror.f90 mpeu_util.o mpimod.o jfunc.o control_vectors.o fgrid2agrid_mod.o gridmod.o berror.o raflib.o constants.o kinds.o 
 anbkerror.o : anbkerror.f90 raflib.o fgrid2agrid_mod.o mpimod.o patch2grid_mod.o guess_grids.o general_commvars_mod.o general_sub2grid_mod.o anberror.o gsi_bundlemod.o gsi_4dvar.o control_vectors.o constants.o berror.o balmod.o jfunc.o gridmod.o kinds.o 
 aniso_ens_util.o : aniso_ens_util.f90 guess_grids.o anberror.o mpimod.o wind_fft.o gridmod.o constants.o kinds.o 

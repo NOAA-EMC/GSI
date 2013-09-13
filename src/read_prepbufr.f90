@@ -107,6 +107,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2013-05-15  zhu  - add phase of aircraft flight and vertical velocity for aircraft data
 !                    - match aircraft obs with temperature bias file 
 !                    - add new tail number info if there is any
+!                    - add aircraft_t_bc_pof and aircraft_t_bc
 !   2013-06-07  zhu  - read aircraft data from prepbufr_profl when aircraft_t_bc=.true.
 !
 !
@@ -142,7 +143,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss
-  use aircraftinfo, only: aircraft_t_bc,ntail,taillist,idx_tail,npredt,predt, &
+  use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       ntail_update,max_tail
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
@@ -387,7 +388,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if (tob)  lim_qqm=4
   endif
 
-  if (tob .and. aircraft_t_bc) nreal=nreal+3
+  if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) nreal=nreal+3
   if(perturb_obs .and. (tob .or. psob .or. qob))nreal=nreal+1
   if(perturb_obs .and. uvob )nreal=nreal+2
 
@@ -860,6 +861,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               aircraftobst = (kx==131) .or. (kx==133)
 
               aircraftwk = bmiss
+              if (aircraftobst .and. aircraft_t_bc_pof) then
+                 call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                 aircraftwk(2,:) = bmiss
+              end if
               if (aircraftobst .and. aircraft_t_bc) then 
                  call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
                  if (kx0>=330 .and. kx0<340) aircraftwk(2,:) = zero
@@ -899,7 +904,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !          Determine tail number for aircraft temperature data
            idx = 0
-           if (aircraftobst .and. aircraft_t_bc) then
+           if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+!             print*, 'read_prepbufr: ntail_update=', ntail_update, ' npredt=', npredt
               do j = 1,ntail_update
                  if (c_station_id == trim(taillist(j))) then
                     idx = j
@@ -1333,7 +1339,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
-                 if (aircraft_t_bc) then 
+                 if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
                     cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
                     cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
                     cdata_all(27,iout)=idx                 ! index of temperature bias

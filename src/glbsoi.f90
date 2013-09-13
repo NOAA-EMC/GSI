@@ -136,7 +136,7 @@ subroutine glbsoi(mype)
   use hybrid_ensemble_parameters, only: l_hyb_ens,destroy_hybens_localization_parameters
   use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble
   use gfs_stratosphere, only: destroy_nmmb_vcoords,use_gfs_stratosphere
-  use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc,mype_airobst
+  use aircraftinfo, only: aircraftinfo_write,aircraft_t_bc_pof,aircraft_t_bc,mype_airobst
 
   implicit none
 
@@ -351,12 +351,12 @@ subroutine glbsoi(mype)
      if (l4dvar) then
         if(mype == 0) call radinfo_write
         if(mype == npe-1) call pcpinfo_write
-        if(mype==mype_airobst .and. aircraft_t_bc) call aircraftinfo_write
+        if(mype==mype_airobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) call aircraftinfo_write
      else
         if (jiter==miter+1 ) then
            if(mype == 0) call radinfo_write
            if(mype == npe-1) call pcpinfo_write
-           if(mype==mype_airobst .and. aircraft_t_bc) call aircraftinfo_write
+           if(mype==mype_airobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) call aircraftinfo_write
         endif
      endif
   endif
