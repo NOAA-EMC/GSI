@@ -253,7 +253,14 @@ contains
     use mpimod, only: mype
     implicit none
 
-    integer(i_kind) i,j,lunout
+    character(len=10),allocatable,dimension(:) :: taillist_csort
+    character(40),allocatable,dimension(:) :: csort
+    integer,allocatable,dimension(:) :: idx_csort
+    real(r_kind),allocatable,dimension(:,:):: predt_csort
+    real(r_quad),allocatable,dimension(:,:):: ostats_t_csort
+    real(r_kind),allocatable,dimension(:,:):: varA_t_csort
+
+    integer(i_kind) i,j,jj,lunout
     real(r_kind),dimension(npredt):: varx
 
     data lunout / 51 /
@@ -262,18 +269,51 @@ contains
     rewind lunout
 
 !   append new tail numbers at the end of the original list
+!   do j=1,ntail_update
+!      do i=1,npredt
+!         varx(i)=varA_t(i,j)
+!      end do
+!      write(lunout,'(1x,a10,1x,i5,10(1x,f10.4))') &
+!           taillist(j),idx_tail(j),(predt(i,j),i=1,npredt),(ostats_t(i,j),i=1,npredt),(varx(i),i=1,npredt)
+!   end do
+
     print*, 'ntail=', ntail, ' ntail_update=',ntail_update
-    do j=1,ntail_update
+    allocate(csort(ntail_update),idx_csort(ntail_update))
+
+    allocate(taillist_csort(ntail_update))
+    allocate(predt_csort(npredt,ntail_update))
+    allocate(ostats_t_csort(npredt,ntail_update))
+    allocate(varA_t_csort(npredt,ntail_update))
+
+!   sorting in aphabetic order with new tail numbers
+    do i=1,ntail_update
+       csort(i) = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+       idx_csort(i) = i
+    end do
+    do i=1,ntail_update
+       csort(i) = taillist(i)
+    end do
+    call indexc40(ntail_update,csort,idx_csort)
+
+    do jj=1,ntail_update
+       j = idx_csort(jj)
+       taillist_csort(jj) = taillist(j)
        do i=1,npredt
-          varx(i)=varA_t(i,j)
+          predt_csort(i,jj) = predt(i,j)
+          ostats_t_csort(i,jj) = ostats_t(i,j)
+          varA_t_csort(i,jj) = varA_t(i,j)
        end do
        write(lunout,'(1x,a10,1x,i5,10(1x,f10.4))') &
-            taillist(j),idx_tail(j),(predt(i,j),i=1,npredt),(ostats_t(i,j),i=1,npredt),(varx(i),i=1,npredt)
+            taillist_csort(jj),jj,(predt_csort(i,jj),i=1,npredt), &
+            (ostats_t_csort(i,jj),i=1,npredt),(varA_t_csort(i,jj),i=1,npredt)
     end do
 
     close(lunout)
     deallocate(predt)
     deallocate(ostats_t,rstats_t,varA_t)
+
+    deallocate(csort,idx_csort)
+    deallocate(taillist_csort,predt_csort,ostats_t_csort,varA_t_csort)
   end subroutine aircraftinfo_write
 
 
