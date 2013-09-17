@@ -266,6 +266,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd
   real(r_double),dimension(8):: hdr
+  real(r_double),dimension(3,255):: hdr3
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr
   real(r_double),dimension(11,255):: obsdat
   real(r_double),dimension(8,1):: sstdat
@@ -697,12 +698,51 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  
 !          Extract type, date, and location information
            call ufbint(lunin,hdr,8,1,iret,hdstr)
-           if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
-           if(hdr(2)== r360)hdr(2)=hdr(2)-r360
-           if(hdr(2) < zero)hdr(2)=hdr(2)+r360
-           dlon_earth=hdr(2)*deg2rad
-           dlat_earth=hdr(3)*deg2rad
+           if (aircraft_t_bc .and. acft_profl_file) then 
+              call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
+!             if (levs==1) then 
+!                if(abs(hdr3(2,1))>r90 .or. abs(hdr3(1,1))>r360) cycle loop_readsb
+!             end if
+           else
+              if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
+              if(hdr(2)== r360)hdr(2)=hdr(2)-r360
+              if(hdr(2) < zero)hdr(2)=hdr(2)+r360
+              dlon_earth=hdr(2)*deg2rad
+              dlat_earth=hdr(3)*deg2rad
+
+              if(regional)then
+                 call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
+                 if(diagnostic_reg) then
+                    call txy2ll(dlon,dlat,rlon00,rlat00)
+                    ntest=ntest+1
+                    cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
+                         (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+                    cdist=max(-one,min(cdist,one))
+                    disterr=acos(cdist)*rad2deg
+                    disterrmax=max(disterrmax,disterr)
+                 end if
+                 if(outside) cycle loop_readsb   ! check to see if outside regional domain
+              else
+                 dlat = dlat_earth
+                 dlon = dlon_earth
+                 call grdcrd1(dlat,rlats,nlat,1)
+                 call grdcrd1(dlon,rlons,nlon,1)
+              endif
+           end if
+
            kx=hdr(5)
+           !* thin new VAD in time level
+           if(kx==224.and.newvad)then
+           icase=0
+           if(abs(hdr(4))>0.75) icase=1
+!          if(abs(hdr(4))>0.17.and.abs(hdr(4))<0.32) icase=1
+!          if(abs(hdr(4))>0.67.and.abs(hdr(4))<0.82) icase=1
+!          if(abs(hdr(4))>1.17.and.abs(hdr(4))<1.32) icase=1
+!          if(abs(hdr(4))>1.67.and.abs(hdr(4))<1.82) icase=1
+!          if(abs(hdr(4))>2.17.and.abs(hdr(4))<2.62) icase=1
+!          if(abs(hdr(4))>2.67.and.abs(hdr(4))<2.82) icase=1
+           if(icase/=1) cycle
+           end if
            if (aircraft_t_bc .and. acft_profl_file) then
               kx0=kx
               if (.not. uvob) then
@@ -721,37 +761,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
               end if
            end if
-        !* thin new VAD in time level
-        if(kx==224.and.newvad)then
-        icase=0
-        if(abs(hdr(4))>0.75) icase=1
-!       if(abs(hdr(4))>0.17.and.abs(hdr(4))<0.32) icase=1
-!       if(abs(hdr(4))>0.67.and.abs(hdr(4))<0.82) icase=1
-!       if(abs(hdr(4))>1.17.and.abs(hdr(4))<1.32) icase=1
-!       if(abs(hdr(4))>1.67.and.abs(hdr(4))<1.82) icase=1
-!       if(abs(hdr(4))>2.17.and.abs(hdr(4))<2.62) icase=1
-!       if(abs(hdr(4))>2.67.and.abs(hdr(4))<2.82) icase=1
-        if(icase/=1) cycle
-        end if
-
-           if(regional)then
-              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
-              if(diagnostic_reg) then
-                 call txy2ll(dlon,dlat,rlon00,rlat00)
-                 ntest=ntest+1
-                 cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                      (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
-                 cdist=max(-one,min(cdist,one))
-                 disterr=acos(cdist)*rad2deg
-                 disterrmax=max(disterrmax,disterr)
-              end if
-              if(outside) cycle loop_readsb   ! check to see if outside regional domain
-           else
-              dlat = dlat_earth
-              dlon = dlon_earth
-              call grdcrd1(dlat,rlats,nlat,1)
-              call grdcrd1(dlon,rlons,nlon,1)
-           endif
 
 !------------------------------------------------------------------------
 
@@ -782,31 +791,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               time_correction=zero
            end if
 
-           timeobs=real(real(hdr(4),r_single),r_double)
-           t4dv=timeobs + toff
-           zeps=1.0e-8_r_kind
-           if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
-           if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
-           t4dv=t4dv + time_correction
-           time=timeobs + time_correction
-           kx=hdr(5)
-           if (aircraft_t_bc .and. acft_profl_file) then
-              kx0=kx
-              if (.not. uvob) then
-                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
-                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=131
-                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=132
-                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=133
-                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=134
-                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=135
-              else
-                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=230
-                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=231
-                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=232
-                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
-                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
-                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
-              end if
+           if (.not. (aircraft_t_bc .and. acft_profl_file)) then
+              timeobs=real(real(hdr(4),r_single),r_double)
+              t4dv=timeobs + toff
+              zeps=1.0e-8_r_kind
+              if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
+              if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
+              t4dv=t4dv + time_correction
+              time=timeobs + time_correction
            end if
            if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
            if(use_prepb_satwnd .and. kx == 245  ) then
@@ -817,14 +809,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          Balloon drift information available for these data
            driftl=kx==120.or.kx==220.or.kx==221
 
-           if (l4dvar) then
-              if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
-           else
-              if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
-                 .and. .not. driftl)cycle loop_readsb ! outside time window
-           endif
+           if (.not. (aircraft_t_bc .and. acft_profl_file)) then
+              if (l4dvar) then
+                 if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
+              else
+                 if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
+                    .and. .not. driftl)cycle loop_readsb ! outside time window
+              endif
 
-           timex=time
+              timex=time
+           end if
 
 !          If ASCAT data, determine primary surface type.  If not open sea,
 !          skip this observation.  This check must be done before thinning.
@@ -901,6 +895,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  obsdat(1,k)=bmiss
               endif
            end do
+
+!          print*,'aircraft_t_bc=',aircraft_t_bc,' acft_profl_file=',acft_profl_file,trim(c_station_id)
+           if (aircraft_t_bc .and. acft_profl_file) then
+              if (trim(c_station_id)=='AFZA04') then
+                 do k=1,levs
+                    write(6,*) c_station_id,' lat=',hdr3(2,k),' lon=',hdr3(1,k),' time=',hdr3(3,k),' type=',hdr(5), &
+                           'pob=',obsdat(1,k),' tob=',obsdat(3,k)
+                 end do
+              end if
+           end if
 
 !          Determine tail number for aircraft temperature data
            idx = 0
@@ -1100,17 +1104,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Check qc marks to see if obs should be processed or skipped
 
-           if (visob) then
-              if (abs(obsdat(9,k)-bmiss) < r100) then
-                 patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
+              if (visob) then
+                 if (abs(obsdat(9,k)-bmiss) < r100) then
+                    patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
                            (metarwth(1,1)>=130.0_r_kind .and. metarwth(1,1)<=135.0_r_kind) .or. &
                            (metarwth(1,1)>=241.0_r_kind .and. metarwth(1,1)<=246.0_r_kind)
-                 if (patch_fog) obsdat(9,k)=1000.0_r_kind
-                 if (metarwth(1,1)==247.0_r_kind) obsdat(9,k)=75.0_r_kind
-                 if (metarwth(1,1)==248.0_r_kind) obsdat(9,k)=45.0_r_kind
-                 if (metarwth(1,1)==249.0_r_kind) obsdat(9,k)=15.0_r_kind
+                    if (patch_fog) obsdat(9,k)=1000.0_r_kind
+                    if (metarwth(1,1)==247.0_r_kind) obsdat(9,k)=75.0_r_kind
+                    if (metarwth(1,1)==248.0_r_kind) obsdat(9,k)=45.0_r_kind
+                    if (metarwth(1,1)==249.0_r_kind) obsdat(9,k)=15.0_r_kind
+                 end if
               end if
-           end if
 
               if (psob) then
                  cat=nint(min(obsdat(10,k),qcmark_huge))
@@ -1123,6 +1127,38 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             if(convobs .and. pqm(k) >=lim_qm .and. qm/=15 .and. qm/=9 )cycle loop_k_levs
 !             if(qm >=lim_qm .and. qm /=15 .and. qm /=9)cycle loop_k_levs
               if(qm > 15 .or. qm < 0) cycle loop_k_levs
+
+!             extract aircraft profile information
+              if (aircraft_t_bc .and. acft_profl_file) then
+                 if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
+                 if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
+                 if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
+                 dlon_earth=hdr3(1,k)*deg2rad
+                 dlat_earth=hdr3(2,k)*deg2rad
+
+                 if(regional)then   
+                    call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    !  convert to rotated coordinate
+                    if(outside) cycle loop_readsb   ! check to see if outside regional domain
+                 else
+                    dlat = dlat_earth
+                    dlon = dlon_earth
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
+                 endif
+
+                 timeobs=real(real(hdr3(3,k),r_single),r_double)
+                 t4dv=timeobs + toff
+                 zeps=1.0e-8_r_kind
+                 if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
+                 if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
+                 t4dv=t4dv + time_correction
+                 time=timeobs + time_correction
+                 if (l4dvar) then
+                    if (t4dv<zero.OR.t4dv>winlen) cycle LOOP_K_LEVS
+                 else
+                    if (real(abs(time))>real(ctwind(nc)) .or. real(abs(time))>real(twindin)) cycle LOOP_K_LEVS
+                 endif
+              end if
 
 !             If needed, extract drift information.   
               if(driftl)then
