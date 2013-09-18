@@ -700,9 +700,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            call ufbint(lunin,hdr,8,1,iret,hdstr)
            if (aircraft_t_bc .and. acft_profl_file) then 
               call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
-!             if (levs==1) then 
-!                if(abs(hdr3(2,1))>r90 .or. abs(hdr3(1,1))>r360) cycle loop_readsb
-!             end if
            else
               if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
               if(hdr(2)== r360)hdr(2)=hdr(2)-r360
@@ -897,14 +894,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end do
 
 !          print*,'aircraft_t_bc=',aircraft_t_bc,' acft_profl_file=',acft_profl_file,trim(c_station_id)
-           if (aircraft_t_bc .and. acft_profl_file) then
-              if (trim(c_station_id)=='AFZA04') then
-                 do k=1,levs
-                    write(6,*) c_station_id,' lat=',hdr3(2,k),' lon=',hdr3(1,k),' time=',hdr3(3,k),' type=',hdr(5), &
-                           'pob=',obsdat(1,k),' tob=',obsdat(3,k)
-                 end do
-              end if
-           end if
+!          if (aircraft_t_bc .and. acft_profl_file) then
+!             if (trim(c_station_id)=='AFZA04') then
+!                do k=1,levs
+!                   write(6,*) c_station_id,' lat=',hdr3(2,k),' lon=',hdr3(1,k),' time=',hdr3(3,k),' type=',hdr(5), &
+!                          'pob=',obsdat(1,k),' tob=',obsdat(3,k)
+!                end do
+!             end if
+!          end if
 
 !          Determine tail number for aircraft temperature data
            idx = 0
@@ -1130,6 +1127,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             extract aircraft profile information
               if (aircraft_t_bc .and. acft_profl_file) then
+                 if (nint(obsdat(10,k))==7) cycle LOOP_K_LEVS
                  if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
                  if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
                  if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
