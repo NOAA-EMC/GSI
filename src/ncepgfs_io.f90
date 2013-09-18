@@ -87,7 +87,7 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use gridmod, only: hires_b,sp_a,sp_b,grd_a
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
     use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
          ges_u,ges_v,ges_tv,ges_q,ges_oz,&
          ifilesig,nfldsig 
@@ -96,17 +96,31 @@ contains
     use mpeu_util, only: die
     use cloud_efr, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
+    use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     character(24) filename
     logical:: l_cld_derived
-    integer(i_kind):: it,i,j,k    
+    integer(i_kind):: it,i,j,k,nlon_b
     integer(i_kind):: iret,iret_cw,iret_ql,iret_qi,istatus 
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
+    type(spec_vars):: sp_b
+
+
+
+!   If needed, initialize for hires_b transforms
+    nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+    if (nlon_b /= sp_a%imax) then
+       hires_b=.true.
+       call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+       if (mype==0) &
+            write(6,*)'READ_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
+            sp_b%jcap,sp_b%imax,sp_b%jmax
+    endif
 
     do it=1,nfldsig
 
@@ -127,8 +141,10 @@ contains
        write(filename,100) ifilesig(it)
 100    format('sigf',i2.2)
        if (hires_b) then
-!   If hires_b, spectral to grid transform for background
-!   uses double FFT.   Need to pass in sp_a and sp_b
+
+!         If hires_b, spectral to grid transform for background
+!         uses double FFT.   Need to pass in sp_a and sp_b
+
           call general_read_gfsatm(grd_a,sp_a,sp_b,filename,mype,.true., &
                ges_z(1,1,it),ges_ps(1,1,it),&
                ges_vor(1,1,1,it),ges_div(1,1,1,it),&
@@ -137,7 +153,9 @@ contains
                ges_cwmr_it,ges_oz(1,1,1,it),iret)
 
        else
-!   Otherwise, use standard transform.  Use sp_a in place of sp_b.
+
+!         Otherwise, use standard transform.  Use sp_a in place of sp_b.
+
           call general_read_gfsatm(grd_a,sp_a,sp_a,filename,mype,.true., &
                ges_z(1,1,it),ges_ps(1,1,it),&
                ges_vor(1,1,1,it),ges_div(1,1,1,it),&
@@ -153,6 +171,8 @@ contains
        call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
 
     end do
+
+    if (hires_b) call general_destroy_spec_vars(sp_b)
 
   end subroutine read_gfs
 
@@ -957,20 +977,22 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
          ges_tv,ges_q,ges_oz,ges_prsl,&
          ges_u,ges_v,ges_prsi,dsfct,isli2
     use guess_grids, only: ntguessig,ntguessfc
-    use gridmod, only: hires_b,sp_a,sp_b,grd_a
+    use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
+    use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
 
     implicit none
 
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
-    integer(i_kind) itoutsig,istatus,iret_write
+    integer(i_kind) itoutsig,istatus,iret_write,nlon_b
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
     character(24):: file_sfc,file_nst
+    type(spec_vars):: sp_b
 
 !   Write atmospheric analysis file
     if (increment>0) then
@@ -988,14 +1010,22 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
+    nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+    if (nlon_b /= sp_a%imax) then
+       hires_b=.true.
+       call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+       if (mype==0) &
+            write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
+            sp_b%jcap,sp_b%imax,sp_b%jmax
 
-    if (hires_b) then
        call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
             ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
             ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
             ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
             ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
             iret_write)
+
+       call general_destroy_spec_vars(sp_b)
 
 !       call write_gfsatm(filename,mype,mype_atm,&
 !            sp_a,sp_b,&
