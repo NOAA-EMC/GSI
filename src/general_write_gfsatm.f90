@@ -10,8 +10,9 @@
     use obsmod, only: iadate
     use mpimod, only: npe
     use general_specmod, only: spec_vars
-    use gridmod, only: ntracer,ncepgfs_head,load_grid
-    use constants, only: zero,zero_single
+    use gridmod, only: ntracer,ncepgfs_head,load_grid,idpsfc5,idthrm5,cp5,idvc5,idvm5
+    use ncepgfs_io, only: sigio_cnvtdv8
+    use constants, only: zero,zero_single,one,fv
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -35,12 +36,14 @@
 
     real(r_kind),dimension(grd%itotsub):: work
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid,grid2
+    real(r_kind),dimension(grd%lat2,grd%lon2):: work_ps
+    real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig):: work_tv
 
     real(r_kind),dimension(sp_b%nc):: spec_work
     real(r_kind),dimension(sp_a%nc):: spec_work_sm
     real(r_kind),dimension(sp_b%nc),target ::  specges_4
 
-    integer nlatm2,icount,itotflds,i,iret,kvar,klev,k
+    integer nlatm2,icount,itotflds,i,j,iret,kvar,klev,k
     integer(i_kind),dimension(npe)::ilev,ivar
 
     type(sigio_head):: sigges_head,siganl_head
@@ -52,6 +55,7 @@
 
 !*************************************************************************
 !   Initialize local variables
+    iret_write=0
     nlatm2=grd%nlat-2
     itotflds=6*grd%nsig+2  ! Hardwired for now!  vor,div,tv,q,oz,cwmr,ps,z
     lloop=.true.
@@ -67,7 +71,8 @@
     call sigio_rrhead(lunges,sigges_head,iret)
 
 ! All tasks should also open output file for random write
-    call sigio_rwopen(lunanl,filename,iret)
+    call sigio_rwopen(lunanl,filename,iret_write)
+    if (iret_write /=0) goto 1000
 
 !    if (mype==mype_out) then
 !      Replace header record date with analysis time
@@ -93,7 +98,50 @@
 !      Write header to analysis file
     if (mype==mype_out) then
        call sigio_rwhead(lunanl,siganl_head,iret)
+       iret_write=iret_write+iret
     end if
+
+!   Surface pressure.
+!   NCEP SIGIO has two options for surface pressure.  Variable idpsfc5
+!   indicates the type:
+!      idpsfc5= 0,1 for ln(psfc)
+!      idpsfc5= 2 for psfc
+    work_ps=sub_ps
+!   If output ln(ps), take log of ps in cb
+    if (idpsfc5 /= 2) then
+       do j=1,grd%lon2
+          do i=1,grd%lat2
+             work_ps(i,j)=log(work_ps(i,j))
+          end do
+       end do
+    endif
+
+!   Thermodynamic variable
+!   The GSI analysis variable is virtual temperature (Tv).  For SIGIO
+!   we have three possibilities:  Tv, sensible temperature (T), or
+!   enthalpy (h=CpT).  Variable idthrm5 indicates the type
+!       idthrm5 = 0,1 = virtual temperature (Tv)
+!       idthrm5 = 2   = sensible (dry) temperature (T)
+!       idthrm5 = 3   = enthalpy (h=CpT)
+    
+    work_tv=sub_tv
+    if (idthrm5==2 .or. idthrm5==3) then
+
+!      Convert virtual temperature to dry temperature
+       do k=1,grd%nsig
+          do j=1,grd%lon2
+             do i=1,grd%lat2
+                work_tv(i,j,k)=work_tv(i,j,k)/(one+fv*sub_q(i,j,k))
+             end do
+          end do
+       end do
+
+!      If output is enthalpy, convert dry temperature to CpT
+       if (idthrm5==3) call sigio_cnvtdv8(grd%lat2*grd%lon2,&
+            grd%lat2*grd%lon2,grd%nsig,idvc5,idvm5,ntracer,&
+            iret,work_tv,sub_q,cp5,-1)
+    endif
+
 
 ! Do loop until total fields have been processed.  Stop condition on itotflds
 
@@ -101,7 +149,7 @@
     gfsfields:  do while (lloop)
 
 ! First, perform sub2grid for up to npe
-       call general_gather(grd,sub_z,sub_ps,sub_tv,sub_vor,sub_div,sub_q,sub_oz,&
+       call general_gather(grd,sub_z,work_ps,work_tv,sub_vor,sub_div,sub_q,sub_oz,&
               sub_cwmr,icount,ivar,ilev,work)
 
        do k=1,npe  ! loop over pe distributed data
@@ -153,6 +201,7 @@
 
 ! Write out using RanWrite
              call sigio_rwdbti(lunanl,siganl_head,sigdati,iret)
+             iret_write=iret_write+iret
 
           endif ! end if pe and ivar check
 
@@ -166,8 +215,24 @@
     end do gfsfields
 
     call sigio_rclose(lunanl,iret)
+    iret_write=iret_write+iret
+    if (iret_write /=0) goto 1000
 
-  return
+!   Print date/time stamp
+    if (mype==mype_out) then
+       write(6,700) gfshead%jcap,gfshead%lonb,gfshead%latb,gfshead%levs,&
+            gfshead%fhour,gfshead%idate
+700    format('GENERAL_WRITE_GFSATM:  anl write, jcap,lonb,latb,levs=',&
+            4i6,', hour=',f10.1,', idate=',4i5)
+    endif
+    return
+
+!   ERROR detected while reading file
+1000 continue
+     write(6,*)'GENERAL_WRITE_GFSATM:  ***ERROR*** writing ',&
+         trim(filename),' mype,iret_write=',mype,iret_write
+     return
+
 end subroutine general_write_gfsatm
 
 
@@ -179,7 +244,7 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
   use kinds, only: r_kind,i_kind
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
   use general_sub2grid_mod, only: sub2grid_info
-  use gridmod, only: idpsfc5,strip
+  use gridmod, only: strip
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -226,10 +291,6 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
         ivar(k)=2
         ilev(k)=1
         call strip(g_ps ,sub(:,k) ,1)
-
-        if (idpsfc5 /= 2) then
-           sub(:,k)=log(sub(:,k))
-        end if
 
      else if( icount>= 3 .and. icount<=(grd%nsig+2) )then
         ivar(k)=3

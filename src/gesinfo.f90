@@ -360,6 +360,7 @@ subroutine gesinfo(mype)
         allocate(cp5(gfshead%ntrac+1))
         do k=1,gfshead%ntrac+1
            cp5(k)=gfsheadv%cpi(k)
+           write(6,*)'gesinfo:  k=',k,' cp5=',cp5(k)
         end do
      end if
 

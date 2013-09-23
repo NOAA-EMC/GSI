@@ -135,11 +135,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 
 
 !   Surface pressure:  same procedure as terrain
-!   NCEP SIGIO has two options for surface pressure.  Variable idpsfc5 
-!   indicates the type:   
-!      idpsfc5= 0,1 for ln(psfc)
-!      idpsfc5= 2 for psfc
-!   
     icount=icount+1
     iflag(icount)=2
     ilev(icount)=1
@@ -156,13 +151,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
        end do
        call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
        call general_fill_ns(grd,grid,work)
-
-!      If ln(ps), take exponential to convert to ps in cb
-       if (idpsfc5 /= 2) then
-          do i=1,grd%itotsub
-             work(i)=exp(work(i))
-          end do
-       endif
     endif
     if(icount == npe)then
        call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
@@ -190,42 +178,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
              if(sp_b%factsml(i))spec_work(i)=zero
           end do
           call general_sptez_s_b(sp_a,sp_b,spec_work,grid,1)
-
-!         SIGIO has three possible thermodynamic variables
-!         Variable idthrm5 indicates the type
-!            idthrm5 = 0,1 = virtual temperature (Tv)
-!            idthrm5 = 2   = sensible (dry) temperature (T)
-!            idthrm5 = 3   = enthalpy (h=CpT)
-!         The GSI analysis variable is Tv
-!         If needed, convert T or h to Tv
-
-!! OR ADDRESS LATER SOMEHOW
-!! DTK DO THIS AT THE END ON THE SUBDOMAINS???
-!!
-!          if (idthrm5==2 .or. idthrm5==3) then
-!             allocate(grid_q(grd%nlon,grd%nlat-2,ntracer))
-!            Convert tracers from spectral coefficients to grid
-!             do n=1,ntracer
-!                do i=1,sp_b%nc
-!                   spec_work(i)=sp_b%test_mask(i)*sigdata%q(i,k,n)
-!                   if(sp_b%factsml(i))spec_work(i)=zero
-!                end do
-!                call general_sptez_s(sp_a,sp_b,spec_work,grid_q(1,1,n),1)
-!             end do
-
-!            Convert input thermodynamic variable to dry temperature
-!             call sigio_cnvtdv8(grd%nlon*nlatm2,grd%nlon*nlatm2,1,idvc5,&
-!                  idvm5,ntracer,iret,grid,grid_q,cp5,1)
-!                            iret_read=iret_read+iret
-!             if (iret_read /= 0) goto 1000
-!            Convert dry temperature to virtual
-!             do j=1,nlatm2
-!                do i=1,grd%nlon
-!                   grid(i,j) = grid(i,j)*(one+fv*grid_q(i,j,1))
-!                end do
-!             end do
-!             deallocate(grid_q)
-!          endif
 
 !         Load values into rows for south and north pole
           call general_fill_ns(grd,grid,work)
@@ -465,14 +417,52 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     end do
     
 !   Deallocate sigio data array
-!!    call sigio_axdata(sigdata,iret)
     call sigio_axdbti(sigdati,iret)
+
+!   Surface pressure.
+!   NCEP SIGIO has two options for surface pressure.  Variable idpsfc5
+!   indicates the type:
+!      idpsfc5= 0,1 for ln(psfc)
+!      idpsfc5= 2 for psfc
+!   If input ln(ps), take exponential to convert to ps in cb
+    if (idpsfc5 /= 2) then
+       do j=1,grd%lon2
+          do i=1,grd%lat2
+             g_ps(i,j)=exp(g_ps(i,j))
+          end do
+       end do
+    endif
+
+!   NCEP SIGIO has three possible thermodynamic variables
+!     Variable idthrm5 indicates the type
+!       idthrm5 = 0,1 = virtual temperature (Tv)
+!       idthrm5 = 2   = sensible (dry) temperature (T)
+!       idthrm5 = 3   = enthalpy (h=CpT)
+!     The GSI analysis variable is Tv
+
+    if (idthrm5==2 .or. idthrm5==3) then
+
+!      Convert input enthalpy to dry temperature
+       if (idthrm5==3) then
+          call sigio_cnvtdv8(grd%lat2*grd%lon2,grd%lat2*grd%lon2,&
+               grd%nsig,idvc5,idvm5,ntracer,iret,g_tv,g_q,cp5,1)
+       endif
+
+!      Convert dry temperature to virtual temperature
+       do k=1,grd%nsig
+          do j=1,grd%lon2
+             do i=1,grd%lat2
+                g_tv(i,j,k) = g_tv(i,j,k)*(one+fv*g_q(i,j,k))
+             end do
+          end do
+       end do
+    endif
 
 !   Print date/time stamp 
     if(mype==mype_io) then
        write(6,700) gfshead%lonb,gfshead%latb,gfshead%levs,grd%nlon,nlatm2,&
             gfshead%fhour,gfshead%idate
-700    format('READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
+700    format('GENERAL_READ_GFSATM:  ges read/scatter, lonb,latb,levs=',&
             3i6,', nlon,nlat=',2i6,', hour=',f10.1,', idate=',4i5)
     end if
 
@@ -481,10 +471,10 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
 
 !   ERROR detected while reading file
 1000 continue
-     write(6,*)'READ_GFSATM:  ***ERROR*** reading ',&
+     write(6,*)'GENERAL_READ_GFSATM:  ***ERROR*** reading ',&
          trim(filename),' mype,iret_read=',mype,iret_read
+     return
 
-!!    call sigio_axdata(sigdata,iret)    
 !   End of routine.  Return
 
     return
