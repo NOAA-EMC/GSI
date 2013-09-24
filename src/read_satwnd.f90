@@ -294,12 +294,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !       257: MODIS IR, 258: WV cloud top, 259:  WV deep layer
         iobsub=0
         itype=-1
+        iobsub=int(hdrdat(1))
         if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &
            trim(subset) == 'NC005066') then
            if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then          !     EUMETSAT wind
-               iobsub=int(hdrdat(1))
-               if(iobsub == 54) iobsub=0
-
               if(hdrdat(9) == one)  then                  ! IR winds
                  itype=253
               else if(hdrdat(9) == two) then              ! visible winds
@@ -327,13 +325,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         else if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or. &
            trim(subset) == 'NC005012' ) then
            if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! NESDIS GOES 
-              if(hdrdat(1) == 259.0_r_kind) iobsub=15
               if(hdrdat(9) == one)  then                            ! IR winds
                  if(hdrdat(12) <50000000000000.0_r_kind) then
                     itype=245
                  else
-                    itype=245
-                    iobsub=1
+                    itype=240
                  endif
               else if(hdrdat(9) == two  ) then    ! visible winds
                  itype=251
@@ -365,9 +361,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         else if( trim(subset) == 'NC005019') then                   ! GOES short wave 
            if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! NESDIS GOES
               if(hdrdat(9) == one)  then                            ! IR winds
-                 itype=245
-                 iobsub=1
-                 if(hdrdat(1) == 259.0_r_kind) iobsub=151
+                 itype=240
               endif
            endif
         endif
@@ -530,14 +524,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(hdrdat(3) <zero) hdrdat(3)=hdrdat(3)+r360
            if(hdrdat(3) == r360) hdrdat(3)=hdrdat(3)-r360
            if(hdrdat(3) >r360) cycle loop_readsb 
-              pqm=2
-              qm=2
+           pqm=2
+           qm=2
+           iobsub=int(hdrdat(1))
            if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &    !     EUMETSAT wind
               trim(subset) == 'NC005066') then
               if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then          
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-                  iobsub=int(hdrdat(1))
-                  if (iobsub == 54) iobsub=0
                  if(hdrdat(9) == one)  then                  ! IR winds
                     itype=253
                  else if(hdrdat(9) == two) then              ! visible winds
@@ -608,14 +601,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                    trim(subset) == 'NC005012' ) then
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-                 if(hdrdat(1) == 259.0_r_kind) iobsub=15 
                  if(hdrdat(9) == one)  then                            ! IR winds
                     if(hdrdat(12) <50000000000000.0_r_kind) then        ! for channel 4
                        itype=245
                     else
-!                      cycle loop_readsb                              ! for short wave IR
-                       itype=245
-                       iobsub=1
+                       itype=240
                     endif
                  else if(hdrdat(9) == two ) then                       ! visible winds
                     itype=251
@@ -697,14 +687,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                            ! IR winds
-                    itype=245
-                    qm=15
-                    pqm=15
-                    if(hdrdat(1) == 259.0_r_kind) then
-                       iobsub=151
-                     else
-                       iobsub=1
-                     endif
+                    itype=240
                  endif
 ! get quality information
                  call ufbrep(lunin,qcdat,3,8,iret,qcstr)
