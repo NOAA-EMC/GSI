@@ -134,6 +134,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-05-17  zhu     - add contribution from aircraft temperature bias correction
+!                       - with option aircraft_t_bc_pof or aircraft_t_bc
 !
 ! !REMARKS:
 !   language: f90
@@ -416,10 +417,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !          define predictors
            if (aircraft_t_bc) then
               pred(1) = one
-              if (abs(data(ivvlc,i))>=50.0_r_kind .or. data(ipof,i)==3.0_r_kind) then
+              if (abs(data(ivvlc,i))>=50.0_r_kind) then
                  pred(2) = zero
                  pred(3) = zero
-                 if (abs(data(ivvlc,i))>=50.0_r_kind) data(ier,i) = 1.2_r_kind*data(ier,i)
+                 data(ier,i) = 1.2_r_kind*data(ier,i)
               else
                  pred(2) = data(ivvlc,i)
                  pred(3) = data(ivvlc,i)*data(ivvlc,i)
