@@ -194,10 +194,18 @@
              grid=grid-grid2
              call general_sptez_s(sp_a,spec_work_sm,grid,-1)
              call sppad(0,sp_a%jcap,spec_work_sm,0,sp_b%jcap,spec_work)
-             do i=1,sp_b%nc
-                specges_4(i)=specges_4(i)+spec_work(i)
-                if(sp_b%factsml(i))specges_4(i)=zero_single
-             end do
+             if (kvar/=4 .and. kvar/=5) then
+                do i=1,sp_b%nc
+                   specges_4(i)=specges_4(i)+spec_work(i)
+                   if(sp_b%factsml(i))specges_4(i)=zero_single
+                end do
+             else
+                do i=1,sp_b%nc
+                   specges_4(i)=specges_4(i)+spec_work(i)
+                   if(sp_b%factvml(i))specges_4(i)=zero_single
+                end do
+             endif
+
 
 ! Write out using RanWrite
              call sigio_rwdbti(lunanl,siganl_head,sigdati,iret)
