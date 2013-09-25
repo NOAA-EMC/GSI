@@ -416,6 +416,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !          define predictors
            if (aircraft_t_bc) then
+              pof_idx = one
               pred(1) = one
               if (abs(data(ivvlc,i))>=50.0_r_kind) then
                  pred(2) = zero
