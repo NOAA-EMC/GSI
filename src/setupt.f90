@@ -36,6 +36,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two,cg_term
   use constants, only: huge_single,r1000,wgtlim,r10
+  use constants, only: one_quad
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use converr, only: ptabl 
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surfTobs,l_sfcobserror_ramp_t
@@ -167,7 +168,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) rsig,drpx,rsigp
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh,ramp
-  real(r_kind) pof_idx
+  real(r_kind) pof_idx,poaf
   real(r_kind) tges
   real(r_kind) obserror,ratio,val2,obserrlm
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
@@ -723,17 +724,22 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         if (luse(i) .and. aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc) .and. ix/=0) then
            do j=1,npredt
               if (aircraft_t_bc_pof) then
-                 if (j==1 .and. data(ipof,i) == 3.0_r_kind) ostats_t(1,ix)  = ostats_t(1,ix) + one
-                 if (j==2 .and. data(ipof,i) == 5.0_r_kind) ostats_t(2,ix)  = ostats_t(2,ix) + one
-                 if (j==3 .and. data(ipof,i) == 6.0_r_kind) ostats_t(3,ix)  = ostats_t(3,ix) + one
+                 poaf=data(ipof,i)
+                 if (poaf==3.0_r_kind .or. poaf==5.0_r_kind .or. poaf==6.0_r_kind) then
+                    if (j==1 .and. poaf == 3.0_r_kind) ostats_t(1,ix)  = ostats_t(1,ix) + one_quad
+                    if (j==2 .and. poaf == 5.0_r_kind) ostats_t(2,ix)  = ostats_t(2,ix) + one_quad
+                    if (j==3 .and. poaf == 6.0_r_kind) ostats_t(3,ix)  = ostats_t(3,ix) + one_quad
+                    rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
+                                  *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
+                 end if
               end if
 
               if (aircraft_t_bc) then
-                 ostats_t(1,ix)  = ostats_t(1,ix) + one
+                 ostats_t(1,ix)  = ostats_t(1,ix) + one_quad
+                 rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
+                               *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
               end if
 
-              rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
-                           *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
            end do
         end if
 
