@@ -642,6 +642,40 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 
          if (alt <= gpstop) then ! go into qc checks
 
+!           Statistics QC check if obs passed gross error check
+            cutoff=zero
+            cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+            cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
+            if(trefges<=r240) then
+               cutoff3=two
+            else
+               cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
+            endif
+            cutoff3=cutoff3*two/three
+            cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+            cutoff12=((36_r_kind-alt)/two)*cutoff2+&
+                     ((alt-34_r_kind)/two)*cutoff1
+            cutoff23=((eleven-alt)/two)*cutoff3+&
+                     ((alt-nine)/two)*cutoff2
+            cutoff34=((six-alt)/two)*cutoff4+&
+                     ((alt-four)/two)*cutoff3
+            if(alt>36_r_kind) cutoff=cutoff1
+            if((alt<=36_r_kind).and.(alt>34_r_kind)) cutoff=cutoff12
+            if((alt<=34_r_kind).and.(alt>eleven)) cutoff=cutoff2
+            if((alt<=eleven).and.(alt>nine)) cutoff=cutoff23
+            if((alt<=nine).and.(alt>six)) cutoff=cutoff3
+            if((alt<=six).and.(alt>four)) cutoff=cutoff34
+            if(alt<=four) cutoff=cutoff4
+
+            cutoff=three*cutoff*r0_01
+
+            if(abs(rdiagbuf(5,i)) > cutoff) then
+               qcfail(i)=.true.
+               data(ier,i) = zero
+               ratio_errors(i) = zero
+               muse(i) = .false.
+            end if
+
 !           Gross error check
             obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
             obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
@@ -656,40 +690,6 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                 data(ier,i) = zero
                 ratio_errors(i) = zero
                 muse(i)=.false.
-            else   
-!               Statistics QC check if obs passed gross error check
-                cutoff=zero
-                cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
-                cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
-                if(trefges<=r240) then
-                   cutoff3=two
-                else
-                   cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
-                endif
-                cutoff3=cutoff3*two/three
-                cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
-                cutoff12=((36_r_kind-alt)/two)*cutoff2+&
-                         ((alt-34_r_kind)/two)*cutoff1
-                cutoff23=((eleven-alt)/two)*cutoff3+&
-                         ((alt-nine)/two)*cutoff2
-                cutoff34=((six-alt)/two)*cutoff4+&
-                         ((alt-four)/two)*cutoff3
-                if(alt>36_r_kind) cutoff=cutoff1
-                if((alt<=36_r_kind).and.(alt>34_r_kind)) cutoff=cutoff12
-                if((alt<=34_r_kind).and.(alt>eleven)) cutoff=cutoff2
-                if((alt<=eleven).and.(alt>nine)) cutoff=cutoff23
-                if((alt<=nine).and.(alt>six)) cutoff=cutoff3
-                if((alt<=six).and.(alt>four)) cutoff=cutoff34
-                if(alt<=four) cutoff=cutoff4
-
-                cutoff=three*cutoff*r0_01
- 
-                if(abs(rdiagbuf(5,i)) > cutoff) then
-                   qcfail(i)=.true.
-                   data(ier,i) = zero
-                   ratio_errors(i) = zero
-                   muse(i) = .false.
-                end if
             end if ! gross qc check
          end if ! qc checks (only below 50km)
 
@@ -723,6 +723,42 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! Loop over observation profiles. Compute penalty
 ! terms, and accumulate statistics.
   if(last_pass) then
+
+!wm-reinsert qcfail screening, only apply to gross check failures:
+
+     do i=1,nobs
+
+        if(qcfail_gross(i) .eq. one) then
+           kprof = data(iprof,i)
+           do j=1,nobs
+              jprof = data(iprof,j)
+              if( kprof == jprof .and. .not. qcfail_gross(j) == one .and. qcfail_loc(j) == zero)then
+
+!          Remove data below
+                 if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
+                    if((rdiagbuf(1,i)==41).or.(rdiagbuf(1,i)==722).or.&
+                       (rdiagbuf(1,i)==723).or.(rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786).or.&
+                       (rdiagbuf(1,i)==3)) then
+                       if(r1em3*rdiagbuf(7,i)<= ten) then
+                          qcfail_gross(j)=one
+                          data(ier,j) = zero
+                          ratio_errors(j) = zero
+                          muse(j)=.false.
+                       endif
+                    else
+                       if(r1em3*rdiagbuf(7,i)< five) then
+                          qcfail_gross(j)=one
+                          data(ier,j) = zero
+                          ratio_errors(j) = zero
+                          muse(j)=.false.
+                       endif
+                    endif
+                 endif
+              end if
+           end do
+        endif
+     end do
+
 
      do i=1,nobs
 
