@@ -46,6 +46,7 @@ module aircraftinfo
   public :: mype_airobst
   public :: upd_pred_t
   public :: upd_aircraft
+  public :: nsort,itail_sort,idx_sort
 
   logical :: aircraft_t_bc ! logical to turn off or on the aircraft temperature bias correction
   logical :: aircraft_t_bc_pof ! logical to turn off or on the aircraft temperature bias correction with pof
@@ -55,11 +56,14 @@ module aircraftinfo
   integer(i_kind) npredt          ! predictor number
   integer(i_kind) ntail           ! total tail number
   integer(i_kind) ntail_update    ! new total tail number
-  integer(i_kind):: mype_airobst  ! processor reading in aircraft profile data 
+  integer(i_kind) mype_airobst    ! processor reading in aircraft profile data 
+  integer(i_kind) nsort           ! used in sorting tail number
   
   character(len=10),dimension(max_tail):: taillist  ! tail number
   character(len=10),dimension(max_tail):: typelist  ! type 
+  character(len=1),dimension(max_tail):: itail_sort ! used in sorting tail number
   integer(i_kind),dimension(max_tail):: idx_tail    ! index of tail
+  integer(i_kind),dimension(max_tail):: idx_sort    ! used in sorting tail number
   real(r_kind):: biaspredt                          ! berror var for temperature bias correction coefficients
   real(r_kind):: upd_pred_t                         ! =1 update bias; =0 no update
   real(r_kind),allocatable,dimension(:,:):: predt        ! coefficients for predictor part of bias correction
@@ -143,11 +147,14 @@ contains
 
     integer(i_kind) i,j,k,lunin,nlines,ip,istat
     integer(i_kind) anal_time
+    integer(i_kind) isort
     real(r_kind),dimension(npredt):: ostatsx
     real(r_kind),dimension(npredt)::varx
     real(r_kind),dimension(npredt):: predr
     character(len=1):: cflg
-    character(len=126) crecord
+    character(len=1):: cb,cb0
+    character(len=10):: tailwk
+    character(len=126):: crecord
     logical pcexist
 
     data lunin / 49 /
@@ -222,6 +229,25 @@ contains
        if (anal_time==6 .or. anal_time==18) upd_pred_t = zero
        if (mype==0) print*, 'aircraft_info anal_time upd_pred_t=', anal_time, upd_pred_t
     end if
+
+!   Sort the tail number based on the first char
+    cb0 = ' '
+    isort = 0
+    do k=1,ntail
+       tailwk = trim(taillist(k))
+       cb = tailwk(1:1)
+       if (cb /= cb0) then
+          isort = isort+1
+          itail_sort(isort) = cb
+          idx_sort(isort) = k
+          cb0 = cb
+       end if 
+    end do
+    nsort = isort
+    if (mype==0) print*, 'nsort = ', nsort
+!   do k=1,nsort
+!      print*, itail_sort(k),idx_sort(k)
+!   end do
   end subroutine aircraftinfo_read
 
 

@@ -144,7 +144,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
-      ntail_update,max_tail
+      ntail_update,max_tail,nsort,itail_sort,idx_sort
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -215,6 +215,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(1) sidchr(8)
   character(8) stnid
   character(10) aircraftstr
+  character(1) cb
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
@@ -236,6 +237,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ntb,ntmatch,ncx
   integer(i_kind) nmsg                ! message index
   integer(i_kind) idx                 ! order index of aircraft temperature bias 
+  integer(i_kind) jj,start,next
   integer(i_kind) tab(mxtb,3)
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(nmsgmax):: nrep
@@ -844,6 +846,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            call ufbint(lunin,qcmark,8,255,levs,qcstr)
            call ufbint(lunin,obserr,8,255,levs,oestr)
            nread=nread+levs
+           aircraftobst = .false.
            if(uvob)then
               nread=nread+levs
            else if(tob) then 
@@ -893,33 +896,43 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               endif
            end do
 
-!          print*,'aircraft_t_bc=',aircraft_t_bc,' acft_profl_file=',acft_profl_file,trim(c_station_id)
-!          if (aircraft_t_bc .and. acft_profl_file) then
-!             if (trim(c_station_id)=='AFZA04') then
-!                do k=1,levs
-!                   write(6,*) c_station_id,' lat=',hdr3(2,k),' lon=',hdr3(1,k),' time=',hdr3(3,k),' type=',hdr(5), &
-!                          'pob=',obsdat(1,k),' tob=',obsdat(3,k)
-!                end do
-!             end if
-!          end if
-
 !          Determine tail number for aircraft temperature data
            idx = 0
            if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
-!             print*, 'read_prepbufr: ntail_update=', ntail_update, ' npredt=', npredt
-              do j = 1,ntail_update
-                 if (c_station_id == trim(taillist(j))) then
-                    idx = j
-                    exit
+!             Determine if the tail number is included in the taillist
+              do j=1,nsort
+                 cb = c_station_id(1:1)
+                 if (cb==itail_sort(j)) then
+                    start = idx_sort(j)
+                    if (j==nsort) then
+                       next = ntail
+                    else
+                       next=idx_sort(j+1)-1
+                    end if
+                    do jj=start,next
+                       if (trim(c_station_id)==trim(taillist(jj))) then
+                          idx = jj
+                          exit
+                       end if
+                    end do
                  end if
               end do
+
+              if (idx==0 .and. ntail_update>ntail) then
+                 do j = ntail+1,ntail_update
+                    if (c_station_id == trim(taillist(j))) then
+                       idx = j
+                       exit
+                    end if
+                 end do
+              end if
 
 !             Append new tail number at the end of existing tail numbers.
 !             At 1st analysis, the obs will be used without bias correction, patch new tail number;
 !             At 2nd analysis, bias coefficients will be generated for this new tail number.
               if (idx == 0) then
                  ntail_update = ntail_update+1
-!                print*, c_station_id, 'idx=', idx, 'ntail_update=',ntail_update,' ntail=',ntail
+!                print*, c_station_id, ' ntail_update=',ntail_update,' ntail=',ntail
                  if (ntail_update > max_tail) then
                     write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
                     write(6,*)'READ_PREPBUFR: stop program execution'
