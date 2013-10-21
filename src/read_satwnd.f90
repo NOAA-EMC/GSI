@@ -252,8 +252,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=241 &
-             .and. ictype(nc) <260) then
+     if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=240 &
+             .and. ictype(nc) <=260) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
@@ -367,12 +367,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  write(6,*) 'READ_SATWND: wrong derived method value'
               endif
            endif
-           if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! the range of NESDIS satellite IDs  
+        else if( trim(subset) == 'NC005019') then                   ! GOES shortwave winds
+           if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then   ! The range of NESDIS satellite IDS
               if(hdrdat(9) == one)  then                            ! short wave IR winds
                  itype=240
               endif
            endif
-        endif
+         endif
 !  Match ob to proper convinfo type
         ncsave=0
         matchloop:do ncx=1,ntmatch
@@ -556,7 +557,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                        endif
                     endif
                  enddo
-                 if(qifn <85.0_r_kind)  then    !  qifn, QI without forecast
+                 if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
                     qm=15
                  endif 
               endif
@@ -589,7 +590,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  enddo 
 
-                 if(qifn <85.0_r_kind)  then     ! qifn: QI value without forecast 
+                 if(qifn <85.0_r_kind )  then     ! qifn: QI value without forecast 
                     qm=15
                  endif 
               endif
@@ -734,7 +735,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                3 snow
 !                4 mixed
            if( .not. twodvar_regional) then
-              if(itype ==245 .or. itype ==252 .or. itype ==253 ) then 
+              if(itype ==245 .or. itype ==252 .or. itype ==253 .or. itype ==240) then 
                  if(hdrdat(2) >20.0_r_kind) then 
                     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
                     if(isflg /= 0) cycle loop_readsb 
