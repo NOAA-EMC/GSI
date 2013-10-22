@@ -242,7 +242,7 @@ if [[ $PLOT -eq 1 ]]; then
      if [[ $MY_MACHINE = "wcoss" ]]; then
         $SUB -q $ACCOUNT -M 80 -R affinity[core]  -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
      else
-        $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
+        $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
      fi
   fi
 

@@ -10,6 +10,15 @@ echo start mk_horiz_plots.sh
 set -ax
 export list=$listvar
 
+echo "GRADS = ${GRADS}"
+echo "PARM  = ${PARM}"
+echo "RAD_AREA = ${RAD_AREA}"
+echo "MY_MACHINE = ${MY_MACHINE}"
+echo "SUFFIX = ${SUFFIX}"
+echo "PDATE  = ${PDATE}"
+
+#PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE
+
 #SUFFIX=$1
 #PDATE=$2
 
@@ -172,11 +181,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
 
-   if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
-   else
-      $SUB -a $ACCOUNT -e $listvars -j ${jobname} -u $USER -t 1:00:00 -o ${logfile} -p $ntasks -q dev -g $USER_CLASS /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes 
-   fi
+   $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+
 else							# zeus/linux
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
@@ -188,7 +194,7 @@ else							# zeus/linux
 
       echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
 
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} -V -j oe -o ${logfile} $cmdfile
    done
 fi
 
@@ -215,7 +221,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
 
 #  --------
@@ -235,7 +241,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -v $listvars -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
 
 done 
