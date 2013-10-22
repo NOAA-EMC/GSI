@@ -1740,6 +1740,10 @@ end subroutine write_ghg_grid
 !   NCEP SIGIO outputs surface pressure or ln(surface pressure)
     if (idpsfc5 /= 2) then
        do i=1,lat1*lon1
+          if(psm(i)<=zero)then
+             write(6,*) 'surface pressure is ',psm(i),'. Exiting the code now.'
+             exit
+          end if
           psm(i)=log(psm(i))
        end do
     endif

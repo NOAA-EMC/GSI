@@ -396,10 +396,10 @@ if(.not.in_curbin) cycle
            ssttail(ibin)%head => ssttail(ibin)%head%llpoint
         end if
 
-	m_alloc(ibin) = m_alloc(ibin) + 1
-	my_head => ssttail(ibin)%head
-	my_head%idv = is
-	my_head%iob = i
+        m_alloc(ibin) = m_alloc(ibin) + 1
+        my_head => ssttail(ibin)%head
+        my_head%idv = is
+        my_head%iob = i
 
 !       Set (i,j) indices of guess gridpoint that bound obs location
         call get_ij(mm1,dlat,dlon,ssttail(ibin)%head%ij(1),ssttail(ibin)%head%wij(1))
@@ -409,22 +409,24 @@ if(.not.in_curbin) cycle
         ssttail(ibin)%head%raterr2 = ratio_errors**2    
         ssttail(ibin)%head%time    = dtime
         ssttail(ibin)%head%zob     = zob
-        ssttail(ibin)%head%tz_tr   = tz_tr
+        if(nst_gsi > 0)then
+           ssttail(ibin)%head%tz_tr   = tz_tr
+        end if
         ssttail(ibin)%head%b       = cvar_b(ikx)
         ssttail(ibin)%head%pg      = cvar_pg(ikx)
         ssttail(ibin)%head%luse    = luse(i)
         ssttail(ibin)%head%diags => obsdiags(i_sst_ob_type,ibin)%tail
  
-	my_head => ssttail(ibin)%head
-	my_diag => ssttail(ibin)%head%diags
+        my_head => ssttail(ibin)%head
+        my_diag => ssttail(ibin)%head%diags
         if(my_head%idv /= my_diag%idv .or. &
-	   my_head%iob /= my_diag%iob ) then
-	  call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
-	  	(/is,i,ibin/))
-	  call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
-	  call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
-	  call die(myname)
-	endif
+           my_head%iob /= my_diag%iob ) then
+           call perr(myname,'mismatching %[head,diags]%(idv,iob,ibin) =', &
+                 (/is,i,ibin/))
+           call perr(myname,'my_head%(idv,iob) =',(/my_head%idv,my_head%iob/))
+           call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
+           call die(myname)
+        endif
      endif
 
 

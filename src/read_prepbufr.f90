@@ -1812,9 +1812,21 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
   if(kx==120)then
      pqm(1)=nint(qcmark(1,1))
-     qqm(1)=nint(qcmark(2,1))
-     tqm(1)=nint(qcmark(3,1))
-     zqm(1)=nint(qcmark(4,1))
+     if(qcmark(2,1) > 15._r_kind)then
+        qqm(1)=15
+     else
+        qqm(1)=nint(qcmark(2,1))
+     endif
+     if(qcmark(3,1) > 15._r_kind)then
+        tqm(1)=15
+     else
+        tqm(1)=nint(qcmark(3,1))
+     endif
+     if(qcmark(4,1) > 15._r_kind)then
+        zqm(1)=15
+     else
+        zqm(1)=nint(qcmark(4,1))
+     endif
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -1827,9 +1839,21 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         do i=2,levs
            im=i-1
            pqm(i)=nint(qcmark(1,i))
-           qqm(i)=nint(qcmark(2,i))
-           tqm(i)=nint(qcmark(3,i))
-           zqm(i)=nint(qcmark(4,i))
+           if(qcmark(2,i) > 15._r_kind)then
+              qqm(i)=15
+           else
+              qqm(i)=nint(qcmark(2,i))
+           endif
+           if(qcmark(3,i) > 15._r_kind)then
+              tqm(i)=15
+           else
+              tqm(i)=nint(qcmark(3,i))
+           endif
+           if(qcmark(4,i) > 15._r_kind)then
+              zqm(i)=15
+           else
+              zqm(i)=nint(qcmark(4,i))
+           endif
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1

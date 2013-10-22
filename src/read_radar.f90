@@ -1251,6 +1251,9 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 65 continue
 
+! Initialize logical check
+  check=.false.
+
   if(check)then
      open(300,file='track',form='unformatted')
 
