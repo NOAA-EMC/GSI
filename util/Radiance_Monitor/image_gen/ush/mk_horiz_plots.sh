@@ -8,16 +8,7 @@
 echo start mk_horiz_plots.sh
 
 set -ax
-export list=$listvar
-
-echo "GRADS = ${GRADS}"
-echo "PARM  = ${PARM}"
-echo "RAD_AREA = ${RAD_AREA}"
-echo "MY_MACHINE = ${MY_MACHINE}"
-echo "SUFFIX = ${SUFFIX}"
-echo "PDATE  = ${PDATE}"
-
-#PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,datdir,MY_MACHINE
+#export list=$listvar
 
 #SUFFIX=$1
 #PDATE=$2
@@ -165,7 +156,7 @@ done
 #---------------------------------------------------------------------------
 #  submit the plot jobs
 #
-export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
+#export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
@@ -205,7 +196,7 @@ for sat in ${bigSATLIST}; do
 
 #  --------
    export PTYPE="obs cor"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
+#   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    PID="${sat}_1"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
@@ -219,7 +210,7 @@ for sat in ${bigSATLIST}; do
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q $ACCOUNT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
@@ -228,7 +219,7 @@ for sat in ${bigSATLIST}; do
    PID="${sat}_2"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
    export PTYPE="obsges obsnbc"
-   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
+#   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    rm -f $cmdfile
 >$cmdfile
@@ -239,7 +230,7 @@ for sat in ${bigSATLIST}; do
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q $ACCOUNT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi

@@ -11,7 +11,7 @@
 set -ax
 date
 
-export list=$listvar
+#export list=$listvar
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
 imgndir=${IMGNDIR}/time
@@ -41,11 +41,8 @@ for type in ${SATYPE}; do
    done=0
    test_day=$PDATE
    ctr=$ndays
-#   echo "before while loop, found, done = $found, $done"
 
    while [[ $found -eq 0 && $done -ne 1 ]]; do
-#      echo "top of while loop"
-
       pdy=`echo $test_day|cut -c1-8`
       if [[ -s ${TANKDIR}/radmon.${pdy}/time.${type}.ctl.${Z} ]]; then
          $NCP ${TANKDIR}/radmon.${pdy}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
@@ -128,7 +125,7 @@ fi
 
    ${COMPRESS} ${imgndir}/*.ctl
 
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
+#   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
 
 
 #-------------------------------------------------------------------
@@ -156,7 +153,7 @@ fi
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -182,7 +179,7 @@ fi
 #-------------------------------------------------------------------
 #  Look over satellite types.  Submit plot job for each type.
 #
-   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
+#   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
 
    list="count penalty omgnbc total omgbc"
 
@@ -227,7 +224,7 @@ fi
             wall_tm="0:40:00"
          fi
 
-         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
       done
    fi
 
@@ -281,7 +278,7 @@ fi
 
             echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
 
-            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvars -j oe -o ${logfile} $cmdfile
+            $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
          done
       fi
    done

@@ -164,11 +164,8 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
         wall_tm="1:45"
      fi
 
-     if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $ACCOUNT -o ${logfile} -M 200 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
-     else
-        $SUB -a $ACCOUNT -e $listvar -j ${jobname} -u $USER -t 0:45:00 -o ${logfile} -p $ntasks/1/N -q dev -g ${USER_CLASS}  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-     fi
+     $SUB -q $ACCOUNT -o ${logfile} -M 200 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+     
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
         suffix=${sat} 
@@ -187,7 +184,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
            wall_tm="2:30:00"
         fi
 
-        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
+        $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} ${cmdfile}
      done
   fi
 
