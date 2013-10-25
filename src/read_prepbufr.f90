@@ -144,7 +144,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
-      ntail_update,max_tail,nsort,itail_sort,idx_sort
+      ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -237,6 +237,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ntb,ntmatch,ncx
   integer(i_kind) nmsg                ! message index
   integer(i_kind) idx                 ! order index of aircraft temperature bias 
+  integer(i_kind) iyyyymm
   integer(i_kind) jj,start,next
   integer(i_kind) tab(mxtb,3)
   integer(i_kind),dimension(5):: idate5
@@ -898,6 +899,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !          Determine tail number for aircraft temperature data
            idx = 0
+           iyyyymm = iadate(1)*100+iadate(2)
            if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
 !             Determine if the tail number is included in the taillist
               do j=1,nsort
@@ -912,6 +914,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     do jj=start,next
                        if (trim(c_station_id)==trim(taillist(jj))) then
                           idx = jj
+                          if (timelist(jj)/=iyyyymm) timelist(jj) = iyyyymm
                           exit
                        end if
                     end do
@@ -940,6 +943,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
                  idx_tail(ntail_update) = ntail_update
                  taillist(ntail_update) = c_station_id
+                 timelist(ntail_update) = iyyyymm
                  do j = 1,npredt
                     predt(j,ntail_update) = zero
                  end do

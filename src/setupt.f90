@@ -168,7 +168,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind) rsig,drpx,rsigp
   real(r_kind) psges,sfcchk,pres_diff,rlow,rhgh,ramp
-  real(r_kind) pof_idx,poaf
+  real(r_kind) pof_idx,poaf,effective
   real(r_kind) tges
   real(r_kind) obserror,ratio,val2,obserrlm
   real(r_kind) residual,ressw2,scale,ress,ratio_errors,tob,ddiff
@@ -391,6 +391,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    Compute bias correction for aircraft data
      if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
+        pof_idx = zero
         do j = 1, npredt
            pred(j) = zero
            predbias(j) = zero
@@ -713,9 +714,10 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         ttail(ibin)%head%tv_ob   = iqtflg
 
         if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+           effective=upd_pred_t*pof_idx
            ttail(ibin)%head%idx = data(idx,i)
            do j=1,npredt
-              ttail(ibin)%head%pred(j) = pred(j)*upd_pred_t*pof_idx
+              ttail(ibin)%head%pred(j) = pred(j)*effective
            end do
         end if
 
@@ -730,14 +732,14 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                     if (j==2 .and. poaf == 5.0_r_kind) ostats_t(2,ix)  = ostats_t(2,ix) + one_quad
                     if (j==3 .and. poaf == 6.0_r_kind) ostats_t(3,ix)  = ostats_t(3,ix) + one_quad
                     rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
-                                  *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
+                              *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2*effective
                  end if
               end if
 
               if (aircraft_t_bc) then
-                 ostats_t(1,ix)  = ostats_t(1,ix) + one_quad
+                 ostats_t(1,ix)  = ostats_t(1,ix) + one_quad*effective
                  rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
-                               *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2
+                               *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2*effective
               end if
 
            end do

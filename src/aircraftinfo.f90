@@ -39,9 +39,10 @@ module aircraftinfo
 ! set passed variables to public
   public :: aircraft_t_bc
   public :: aircraft_t_bc_pof
+  public :: cleanup_tail
   public :: biaspredt
   public :: max_tail
-  public :: ntail, ntail_update, idx_tail, taillist, typelist, npredt, predt
+  public :: ntail, ntail_update, idx_tail, taillist, typelist, timelist, npredt, predt
   public :: ostats_t,rstats_t,varA_t
   public :: mype_airobst
   public :: upd_pred_t
@@ -50,6 +51,7 @@ module aircraftinfo
 
   logical :: aircraft_t_bc ! logical to turn off or on the aircraft temperature bias correction
   logical :: aircraft_t_bc_pof ! logical to turn off or on the aircraft temperature bias correction with pof
+  logical :: cleanup_tail ! logical to remove tail number no longer used
   logical :: upd_aircraft ! indicator if update bias at 06Z & 18Z
   
   integer(i_kind), parameter :: max_tail=10000  ! max tail numbers
@@ -64,6 +66,7 @@ module aircraftinfo
   character(len=1),dimension(max_tail):: itail_sort ! used in sorting tail number
   integer(i_kind),dimension(max_tail):: idx_tail    ! index of tail
   integer(i_kind),dimension(max_tail):: idx_sort    ! used in sorting tail number
+  integer(i_kind),dimension(max_tail):: timelist    ! time stamp
   real(r_kind):: biaspredt                          ! berror var for temperature bias correction coefficients
   real(r_kind):: upd_pred_t                         ! =1 update bias; =0 no update
   real(r_kind),allocatable,dimension(:,:):: predt        ! coefficients for predictor part of bias correction
@@ -108,6 +111,7 @@ contains
     biaspredt = one
     aircraft_t_bc = .false.   ! .true.=turn on bias correction
     aircraft_t_bc_pof = .false.   ! .true.=turn on bias correction
+    cleanup_tail = .false.    ! no removal of tail number 
     mype_airobst = 0
 
     upd_aircraft=.true.
@@ -199,6 +203,7 @@ contains
 
     allocate(predt(npredt,max_tail))
     idx_tail = 0
+    timelist = 111111
     predt = zero
 
     allocate(ostats_t(npredt,max_tail), rstats_t(npredt,max_tail),varA_t(npredt,max_tail))
@@ -211,8 +216,10 @@ contains
        read(lunin,100) cflg,crecord
        if (cflg == '!') cycle
        j=j+1
-       read(crecord,*) taillist(j),idx_tail(j),(predr(ip),ip=1,npredt),(ostatsx(ip),ip=1,npredt),(varx(ip),ip=1,npredt)
-       if (mype==0) write(6,110) taillist(j),idx_tail(j),(predr(ip),ip=1,npredt),(ostatsx(ip),ip=1,npredt),(varx(ip),ip=1,npredt)
+       read(crecord,*) taillist(j),idx_tail(j),(predr(ip),ip=1,npredt),(ostatsx(ip),ip=1,npredt), &
+                       (varx(ip),ip=1,npredt),timelist(j)
+       if (mype==0) write(6,110) taillist(j),idx_tail(j),(predr(ip),ip=1,npredt), &
+                    (ostatsx(ip),ip=1,npredt),(varx(ip),ip=1,npredt),timelist(j)
        do ip=1,npredt
           ostats_t(ip,j)=ostatsx(ip)
           predt(ip,j)=predr(ip)
@@ -277,16 +284,19 @@ contains
 
     use constants, only: zero
     use mpimod, only: mype
+    use obsmod, only: iadate
     implicit none
 
     character(len=10),allocatable,dimension(:) :: taillist_csort
     character(40),allocatable,dimension(:) :: csort
     integer,allocatable,dimension(:) :: idx_csort
+    integer,allocatable,dimension(:) :: time_csort
     real(r_kind),allocatable,dimension(:,:):: predt_csort
     real(r_quad),allocatable,dimension(:,:):: ostats_t_csort
     real(r_kind),allocatable,dimension(:,:):: varA_t_csort
 
     integer(i_kind) i,j,jj,lunout
+    integer(i_kind) iyyyymm,obsolete
     real(r_kind),dimension(npredt):: varx
 
     data lunout / 51 /
@@ -318,10 +328,21 @@ contains
     end do
     do i=1,ntail_update
        csort(i) = taillist(i)
-    end do
+    end do 
+!   cleanup tailnumber in the aircraft bias file
+    obsolete = 0
+    if (cleanup_tail) then
+       iyyyymm = iadate(1)*100+iadate(2)
+       do i=1,ntail_update
+          if (abs(iyyyymm-timelist(i))>=100) then 
+             csort(i) = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'
+             obsolete = obsolete+1
+          end if
+       end do
+    end if
     call indexc40(ntail_update,csort,idx_csort)
 
-    do jj=1,ntail_update
+    do jj=1,ntail_update-obsolete
        j = idx_csort(jj)
        taillist_csort(jj) = taillist(j)
        do i=1,npredt
