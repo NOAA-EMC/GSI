@@ -145,14 +145,14 @@ subroutine get_gefs_ensperts_dualres
              write(filename,106) 6, n
           endif
           if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
-          call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+          call general_read_gfsatm(grd_ens,sp_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
        endif
 
 ! Check read return code.  Revert to static B if read error detected
        if (iret/=0) then
           beta1_inv=one
           if (mype==0) &
-               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',filename,' IRET=',IRET,' RESET beta1_inv=',beta1_inv
+               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
           cycle
        endif
 

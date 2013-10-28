@@ -766,13 +766,16 @@ subroutine pcgsoi()
   endif
 
 ! Write output analysis files
+  call prt_guess('analysis')
+  call prt_state_norms(sval(1),'wwww')
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
-      if(jiter == miter)call write_all(-1,mype)
+      if(jiter == miter) then
+         call clean_
+         call write_all(-1,mype)
+      endif
   endif
-  call prt_guess('analysis')
-  call prt_state_norms(sval(1),'wwww')
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -785,7 +788,7 @@ subroutine pcgsoi()
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  call clean_
+  if (jiter < miter) call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')
