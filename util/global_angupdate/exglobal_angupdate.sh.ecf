@@ -241,10 +241,7 @@ else
 
    # Guess fields
    ln -fs $GSATANG  satbias_ang.in
-   ln -fs $RADSTAT  radstat
-
-   # Output file
-   ln -fs $SATANGO  satbias_ang.out
+   $NCP $RADSTAT    radstat
 fi
 
 # local input files assumed to already exist are
@@ -345,11 +342,8 @@ export ERR=$?
 export err=$ERR
 $ERRSCRIPT||exit 2
 
-if [[ $FILESTYLE = 'C' ]]
-then
-   # Output file
-   $NCP satbias_ang.out  $SATANGO
-fi
+# Output file
+$NCP satbias_ang.out  $SATANGO
 
 ################################################################################
 
