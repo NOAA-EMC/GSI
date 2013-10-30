@@ -76,7 +76,7 @@ subroutine prewgt(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single,r_double
+  use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
   use berror, only: dssvs,wtaxs,&
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
@@ -116,7 +116,7 @@ subroutine prewgt(mype)
 
   real(r_kind) wlipi,wlipih,df
   real(r_kind) samp,s2u,df2,pi2
-  real(r_double) y,x,dxx
+  real(r_quad) y,x,dxx
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
   real(r_kind),dimension(lat2,lon2)::temp
@@ -199,19 +199,19 @@ subroutine prewgt(mype)
 !  nbuf=nolp/4
   nbuf=0
   nmix=nolp-nbuf*2
-  dxx=1._r_double/(nmix+1)
-  bl2=0._r_double
+  dxx=1._r_quad/real((nmix+1),r_quad)
+  bl2=0._r_kind
   k=0
   do i=1,nmix
      k=k+1
      x=i*dxx
-     y=0._r_double
-     y=real(iblend(mm),r_double)
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
      do j=mm-1,0,-1
-        y=x*y+real(iblend(j),r_double)
+        y=x*y+real(iblend(j),r_quad)
      enddo
      y=y*x**(mm+1)
-     bl2(k)=1._r_double-y
+     bl2(k)=1._r_quad-y
   enddo
   if(minval(bl2)<zero) then
      write(6,*) 'prewgt: trouble bl2 coeffs negative ', bl2
@@ -221,22 +221,26 @@ subroutine prewgt(mype)
     bl2(k)=sqrt(bl2(k))
   end do
   
+! Modify precision to be consistent with bl2 for higher res grids
+! ** NOTE ** bl and bl2 are actually defined to be r_kind
+! 
   nmix=(nx-nlon)
-  dxx=one/(nmix+1)
+  dxx=1._r_quad/real((nmix+1),r_quad)
   ndx=(nx-nlon)
-  bl=zero
+  bl=0._r_kind
   k=ndx-nmix
   do i=1,nmix
      k=k+1
-     x=i*dxx
-     y=zero
-     y=real(iblend(mm),r_kind)
+     x=real(i,r_quad)*dxx
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
      do j=mm-1,0,-1
-        y=x*y+real(iblend(j),r_kind)
+        y=x*y+real(iblend(j),r_quad)
      enddo
-     y=y*x**(mm+1)
-     bl(k)=one-y
+     y=y*x**real((mm+1),r_quad)
+     bl(k)=1._r_quad-y
   enddo
+
   if(minval(bl)<zero) then
      write(6,*) 'prewgt: trouble bl coeffs negative ', bl
      call stop2(99)

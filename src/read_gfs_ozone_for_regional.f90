@@ -215,7 +215,7 @@ subroutine read_gfs_ozone_for_regional
   allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
 
-  call general_read_gfsatm(grd_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+  call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
   deallocate(vor,div,u,v,q,cwmr,z)
   do k=1,grd_gfs%nsig
      ozmin=minval(oz(:,:,k))
