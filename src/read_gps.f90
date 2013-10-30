@@ -54,6 +54,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2011-01-06 cucurull - replace obstype (gps_ref/gps_bnd) with sis (gps) due to replacing
 !                         gps_ref/gps_bnd with gps in convinfo files 
 !   2011-08-24 cucurull - add preliminaty qc flags for C/NOFS, SAC-C, Oceansat-2, METOP-B, SAC-D, and M-T
+!   2012-10-25 cucurull - add qc flag for bnd=0 case
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
@@ -356,7 +357,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                  good=.false.
               endif
            else
-              if ((bend>=1.e+9_r_kind).or.(bend<zero).or.(impact>=1.e+9_r_kind).or.(impact<roc)) then
+              if ((bend>=1.e+9_r_kind).or.(bend<=zero).or.(impact>=1.e+9_r_kind).or.(impact<roc)) then
                  good=.false.
               endif
            endif

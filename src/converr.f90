@@ -38,9 +38,9 @@ implicit none
 ! set passed variables as public
   public :: etabl,ptabl
 
-  integer(i_kind) ietabl,itypex,lcount,iflag,k,m
-  real(r_single),allocatable,dimension(:,:,:) :: etabl
-  real(r_kind),allocatable,dimension(:)  :: ptabl
+  integer(i_kind),save:: ietabl,itypex,lcount,iflag,k,m
+  real(r_single),save,allocatable,dimension(:,:,:) :: etabl
+  real(r_kind),save,allocatable,dimension(:)  :: ptabl
 
 contains
 
@@ -56,6 +56,9 @@ contains
 !
 ! program history log:
 !   2008-06-04  safford -- add subprogram doc block
+!   2013-05-14  guo     -- add status and iostat in open, to correctly
+!                          handle the error case of "obs error table not
+!                          available to 3dvar".
 !
 !   input argument list:
 !
@@ -71,18 +74,26 @@ contains
 
      integer(i_kind),intent(in   ) :: mype
 
+     integer(i_kind):: ier
+
      allocate(etabl(300,33,6))
 
      etabl=1.e9_r_kind
       
-     
      ietabl=19
-     open(ietabl,file='errtable',form='formatted')
+     open(ietabl,file='errtable',form='formatted',status='old',iostat=ier)
+     if(ier/=0) then
+        write(6,*)'CONVERR:  ***WARNING*** obs error table ("errtable") not available to 3dvar.'
+        lcount=0
+        oberrflg=.false.
+        return
+     endif
+
      rewind ietabl
      etabl=1.e9_r_kind
      lcount=0
      loopd : do 
-        read(ietabl,100,IOSTAT=iflag) itypex
+        read(ietabl,100,IOSTAT=iflag,end=120) itypex
         if( iflag /= 0 ) exit loopd
 100     format(1x,i3)
         lcount=lcount+1
@@ -91,6 +102,7 @@ contains
 110        format(1x,6e12.5)
         end do
      end do   loopd
+120  continue
 
      if(lcount<=0 .and. mype==0) then
         write(6,*)'CONVERR:  ***WARNING*** obs error table not available to 3dvar.'

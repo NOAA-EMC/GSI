@@ -125,6 +125,7 @@
 !			  gsi_4dcoupler_init_traj() from gsimain_initialize(),
 !			  and gsi_4dcoupler_final_traj() from gsimain_finalize(),
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic)
+!   2013-07-02  parrish - remove error message 328 - tlnmc_type > 2 not allowed
 !
 ! usage:
 !   input files:
@@ -509,7 +510,7 @@
 !          = 325 - setup_precond: r_kind is neither default real nor double precision
 !          = 326 - setup_precond:  SSYEV/DSYEV returned non-zero return code
 !          = 327 - PRECOND: invalid value for kmat
-!          = 328 - tlnmc_type > 2 not allowed except for regional=.true.
+!          = 328 -
 !          = 329 - problem with logicals or collective obs selection info file
 !          = 330 - grid --> spectral transform not safe for sptranf_s,v_b
 !          = 331 - trouble writing analysis errors
@@ -519,8 +520,10 @@
 !          = 335 - error reading radiance diagnostic file
 !          = 336 - invalid namlist setting for nhsrf
 !          = 337 - inconsitent tlnmc namelist settings
-!          = 338 - error reading aircraft temperature bias file
-!          = 339 - aircraft tail number exceeds maximum
+!          = 338 - error reading MLS vertical levels from MLS bufr 
+!          = 339 - error:more than one MLS  data type not allowed
+!          = 340 - error reading aircraft temperature bias file
+!          = 341 - aircraft tail number exceeds maximum
 !
 !
 ! remarks: resolution, unit numbers and several constants are

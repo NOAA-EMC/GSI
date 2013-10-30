@@ -8,6 +8,7 @@ module convthin
 !
 ! program history log:
 !   2008-06-04  safford - add module doc block
+!   2012-06-26  li/wang - add TDR fore/aft sweep arrays,xuguang.wang@ou.edu
 !
 ! subroutines included:
 !   make3grids
@@ -36,10 +37,10 @@ module convthin
 
   integer(i_kind):: mlat
   integer(i_kind),allocatable,dimension(:):: mlon
-  integer(i_kind),allocatable,dimension(:,:):: icount,ibest_obs,ibest_save
+  integer(i_kind),allocatable,dimension(:,:):: icount,icount_fore,icount_aft,ibest_obs,ibest_save
 
   real(r_kind),allocatable,dimension(:):: glat
-  real(r_kind),allocatable,dimension(:,:):: glon,hll,score_crit
+  real(r_kind),allocatable,dimension(:,:):: glon,hll,score_crit,score_crit_fore,score_crit_aft
   logical use_all
 
 contains
@@ -60,6 +61,7 @@ contains
 !   2006-01-27  kistler - added vertical dimension
 !   2007-11-03       su - added vertical p level array 
 !   2008-06-04  safford - rm unused vars and uses
+!   2012-06-26  li/wang - add TDR fore/aft sweep arrays
 !
 !   input argument list:
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
@@ -150,16 +152,24 @@ contains
 
 !   Allocate  and initialize arrays
     allocate(icount(itxmax,nlevp))
+    allocate(icount_fore(itxmax,nlevp))
+    allocate(icount_aft(itxmax,nlevp))
     allocate(ibest_obs(itxmax,nlevp))
     allocate(ibest_save(itxmax,nlevp))
     allocate(score_crit(itxmax,nlevp))
+    allocate(score_crit_fore(itxmax,nlevp))
+    allocate(score_crit_aft(itxmax,nlevp))
 
     do j=1,nlevp
        do i=1,itxmax
           icount(i,j) = 0
+          icount_fore(i,j) = 0
+          icount_aft(i,j) = 0
           ibest_obs(i,j)= 0
           ibest_save(i,j)= 0
           score_crit(i,j)= 9.99e6_r_kind
+          score_crit_fore(i,j) = 9.99e6_r_kind
+          score_crit_aft(i,j) = 9.99e6_r_kind
        end do
     end do
 
@@ -167,7 +177,7 @@ contains
   end subroutine make3grids
 
   subroutine map3grids(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,ithin,iobs,&
-            iobsout,iin,iiout,iuse)
+            iobsout,iin,iiout,iuse,foreswp,aftswp)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -186,6 +196,7 @@ contains
 !   2008-06-04  safford - rm unused vars
 !   2010-08-23  tong - add flg as an input argument of map3grids, so that the order of values 
 !                      of the vertical cooridnate can either increase or decrease 
+!   2012-05-25  li, wang - add TDR fore/aft sweep separation for thinning,xuguang.wang@ou.edu
 !   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
@@ -199,6 +210,8 @@ contains
 !     crit1      - quality indicator for observation (smaller = better)
 !     ithin      - number of obs to retain per thinning grid box
 !     iin        - counter of input data
+!     foreswp    - if true, TDR scan is fore
+!     aftswp     - if true, TDR scan is aft
 !
 !   output argument list:
 !     iobs  - observation counter
@@ -230,6 +243,7 @@ contains
     real(r_kind) dx,dy,dp,dxx,dyy,dpp
     real(r_kind) crit,dist1
 
+    logical foreswp, aftswp
 
     iiout = 0
 
@@ -283,6 +297,8 @@ contains
 !   Determine "score" for observation.  Lower score is better.
     crit = crit1*dist1
 
+    if(foreswp .or. aftswp) goto 65
+
 !   Case:  obs score > best value at this location, 
 !     -->  do not use this obs, return to calling program.
     if(crit > score_crit(itx,ip) .and. icount(itx,ip) > 0) then
@@ -315,6 +331,84 @@ contains
     end if
 
     return
+
+65  continue
+!   TDR fore/aft (Pseudo-dual-Doppler-radars)
+
+    if(foreswp) then   !   fore sweeps
+ 
+!   Case(1):  first obs at this location, keep this obs as starting point
+    if (icount_fore(itx,ip)==0) then
+       iobs=iobs+1
+       iobsout=iobs
+       score_crit_fore(itx,ip)= crit
+       icount_fore(itx,ip)=icount_fore(itx,ip)+1
+       ibest_obs(itx,ip) = iobs
+       ibest_save(itx,ip) = iin
+       return
+
+!   Case(2): obs score < best value at this location, 
+!     -->  update score, count, and best obs counters
+    elseif (icount_fore(itx,ip) > 0 .and. crit < score_crit_fore(itx,ip)) then
+       score_crit_fore(itx,ip)= crit
+       icount_fore(itx,ip)=icount_fore(itx,ip)+1
+       iobsout=ibest_obs(itx,ip)
+       iiout = ibest_save(itx,ip)
+       ibest_save(itx,ip)=iin
+       return
+
+!   Case(3): obs score > best value at this location, 
+!    -->  do not use this obs, return to calling program.
+    elseif (icount_fore(itx,ip) > 0 .and. crit > score_crit_fore(itx,ip)) then
+       iuse=.false.
+       return
+
+!   Case(4): none of the above cases are satisified, don't use this obs
+    else
+       iuse = .false.
+       return
+    endif                 ! cases
+    end if                ! fore sweeps ended
+
+    if(aftswp) then   !   aft sweeps
+
+!   Case(1):  first obs at this location, keep this obs as starting point
+    if (icount_aft(itx,ip)==0) then
+       iobs=iobs+1
+       iobsout=iobs
+       score_crit_aft(itx,ip)= crit
+       icount_aft(itx,ip)=icount_aft(itx,ip)+1
+       ibest_obs(itx,ip) = iobs
+       ibest_save(itx,ip) = iin
+       return
+
+
+!   Case(2):  obs score < best value at this location, 
+!     -->  update score, count, and best obs counters
+    elseif (icount_aft(itx,ip) > 0 .and. crit < score_crit_aft(itx,ip)) then
+       score_crit_aft(itx,ip)= crit
+       icount_aft(itx,ip)=icount_aft(itx,ip)+1
+       iobsout=ibest_obs(itx,ip)
+       iiout = ibest_save(itx,ip)
+       ibest_save(itx,ip)=iin
+       return
+
+!   Case(3): obs score > best value at this location, 
+!    -->  do not use this obs, return to calling program.
+    elseif(icount_aft(itx,ip) > 0 .and. crit > score_crit_aft(itx,ip)) then
+       iuse=.false.
+       return
+
+!   Case(4):  none of the above cases are satisified, 
+!     -->  don't use this obs
+    else
+       iuse = .false.
+       return
+    endif                 ! cases
+    end if                ! fore sweeps ended
+
+       return
+
   end subroutine map3grids
 
 
@@ -328,6 +422,7 @@ contains
 !
 ! program history log:
 !   2006-01-25  kistler - original routine
+!   2012-06-26  li/wang - add TDR fore/aft arrays,xuguang.wang@ou.edu
 !
 !   input argument list:
 !
@@ -343,9 +438,13 @@ contains
     if (.not.use_all) then
        deallocate(mlon,glat,glon,hll)
        deallocate(icount)
+       deallocate(icount_fore)
+       deallocate(icount_aft)
        deallocate(ibest_obs)
        deallocate(ibest_save)
        deallocate(score_crit)
+       deallocate(score_crit_fore)
+       deallocate(score_crit_aft)
     endif
   end subroutine del3grids
 

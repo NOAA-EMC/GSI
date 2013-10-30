@@ -168,7 +168,7 @@ contains
     inquire(file='aircftbias_in',exist=pcexist)
     if (.not. pcexist) then 
        write(6,*)'AIRCRAFTINFO_READ:  ***ERROR*** aircftbias_in not found'
-       call stop2(338)
+       call stop2(340)
     end if
 
     open(lunin,file='aircftbias_in',form='formatted')
@@ -185,7 +185,7 @@ contains
        close(lunin)
        write(6,*)'AIRCRAFTINFO_READ:  ***ERROR*** error reading aircftbias_in, istat=',istat
        write(6,*)'AIRCRAFTINFO_READ:  stop program execution'
-       call stop2(338)
+       call stop2(340)
     endif
     ntail = j
     ntail_update = j
@@ -196,7 +196,7 @@ contains
        if (ntail > max_tail) then 
           write(6,*)'AIRCRAFTINFO_READ:  ***ERROR*** ntail exceeds max_tail'
           write(6,*)'AIRCRAFTINFO_READ:  stop program execution'
-          call stop2(338)
+          call stop2(340)
        end if
     endif
     rewind(lunin)

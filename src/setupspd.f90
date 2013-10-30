@@ -329,7 +329,10 @@ subroutine setupspd(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nty=ictype(ikx)
 
      z_height = .false.
-     if ( nty == 260 .or. nty == 261) z_height = .true.
+!    if ( nty == 260 .or. nty == 261) z_height = .true.
+!    nty == 292 is temporarily assigned to SFMR retrieved wind speed from recon
+!    and is subjet to change in the future
+     if ( nty == 260 .or. nty == 261 .or. nty == 292) z_height = .true.
 
 !    Process observations reported with height differently than those
 !    reported with pressure.  Type 260=nacelle 261=tower wind spd are

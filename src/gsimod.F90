@@ -19,7 +19,7 @@
      dtbduv_on,time_window_max,offtime_data,init_directories,oberror_tune,ext_sonde, &
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
-     lwrite_peakwt,use_limit,lrun_subdirs
+     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin
   use aircraftinfo, only: init_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
                           biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
@@ -31,8 +31,8 @@
 		       l4densvar,ens4d_nstarthr
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,mype
-  use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,&
-                       biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars
+  use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
+                       biaspredvar,use_edges,passive_bc,newpc4pred,final_rad_vars,emiss_bc
   use radinfo, only: nst_gsi,nstinfo,nst_tzr,fac_dtl,fac_tsl,tzr_bufrsave
   use radinfo, only: crtm_coeffs_path
   use ozinfo, only: diag_ozone,init_oz
@@ -50,7 +50,7 @@
   use balmod, only: fstat
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,&
-      erradar_inflate,use_poq7,&
+      erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
@@ -69,7 +69,7 @@
   use jcmod, only: init_jcvars,ljcdfi,alphajc,ljcpdry,bamp_jcpdry,eps_eer,ljc4tlevs
   use tendsmod, only: ctph0,stph0,tlm0
   use mod_vtrans, only: nvmodes_keep,init_vtrans
-  use mod_strong, only: l_tlnmc,tlnmc_type,nstrong,tlnmc_option,&
+  use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,&
@@ -236,9 +236,21 @@
 !  02-08-2012 kleist    add parameters to control new 4d-ensemble-var features.
 !  02-17-2012 tong      add parameter merge_two_grid_ensperts to merge ensemble perturbations
 !                       from two forecast domains to analysis domain  
+!  05-25-2012 li/wang   add TDR fore/aft sweep separation for thinning,xuguang.wang@ou.edu
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
-!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                                    
+!  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                
+!  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
+!                       convert_regional_guess so that rearth is defined when used
+!  05-07-2013 tong      add tdrerr_inflate for tdr obs err inflation and
+!                       tdrgross_fact for tdr gross error adjustment
+!  05-31-2013 wu        write ext_sonde output to standard out
+!  07-02-2013 parrish   change tlnmc_type to reg_tlnmc_type.  tlnmc_type no
+!                         longer used for global analysis.  
+!                         for regional analysis, reg_tlnmc_type=1 or 2 for two
+!                         different regional balance methods.
+!  07-10-2013 zhu       add upd_pred as bias update indicator for radiance bias correction
+!  07-19-2013 zhu       add emiss_bc for emissivity predictor in radiance bias correction scheme
 !  04-15-2013 zhu       add aircraft_t_bc_pof and aircraft_t_bc for aircraft temperature bias correction
 !
 !EOP
@@ -391,6 +403,7 @@
 !                     observation operators that are currently used in the NCEP GSI variational
 !                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
+!     emiss_bc    - option to turn on emissivity bias predictor
 !
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
@@ -410,8 +423,8 @@
        conv_bias_ps,conv_bias_t,conv_bias_spd, &
        stndev_conv_ps,stndev_conv_t,stndev_conv_spd,use_pbl,use_compress,nsig_ext,gpstop,&
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
-       crtm_coeffs_path, &
-       berror_stats,newpc4pred,adp_anglebc,angord,passive_bc,use_edges, &
+       crtm_coeffs_path,berror_stats, &
+       newpc4pred,adp_anglebc,angord,passive_bc,use_edges,emiss_bc,upd_pred, &
        biaspredvar,lobsdiagsave, &
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
@@ -541,10 +554,8 @@
       ljc4tlevs
 
 ! STRONGOPTS (strong dynamic constraint)
-!     tlnmc_type -      =1 for slow global strong constraint
-!                       =2 for fast global strong constraint
-!                       =3 for regional strong constraint
-!                       =4 version 3 of regional strong constraint
+!     reg_tlnmc_type -  =1 for 1st version of regional strong constraint
+!                       =2 for 2nd version of regional strong constraint
 !     nstrong  - if > 0, then number of iterations of implicit normal mode initialization
 !                   to apply for each inner loop iteration
 !     period_max     - cutoff period for gravity waves included in implicit normal mode
@@ -558,12 +569,13 @@
 !     baldiag_inc
 !     tlnmc_option : integer flag for strong constraint (various capabilities for hybrid)
 !                   =0: no TLNMC
-!                   =1: TLNMC on static increment only (or if non-hybrid run)
-!                   =2: TLNMC on total increment for single time level only (or 3DHybrid)
-!                       if 4D mode, TLNMC applied to increment in center of window
-!                   =3: TLNMC on total increment over all time levels (if in 4D mode)
+!                   =1: TLNMC for 3DVAR mode
+!                   =2: TLNMC on total increment for single time level only (for 3D EnVar)
+!                       or if 4D EnVar mode, TLNMC applied to increment in center of window
+!                   =3: TLNMC on total increment over all time levels (if in 4D EnVar mode)
+!                   =4: TLNMC on static contribution to increment ONLY for any EnVar mode
 
-  namelist/strongopts/tlnmc_type,tlnmc_option, &
+  namelist/strongopts/reg_tlnmc_type,tlnmc_option, &
                       nstrong,period_max,period_width,nvmodes_keep, &
 		      baldiag_full,baldiag_inc
 
@@ -578,6 +590,8 @@
 !     dfact    - factor for duplicate obs at same location for conv. data
 !     dfact1   - time factor for duplicate obs at same location for conv. data
 !     erradar_inflate - radar error inflation factor
+!     tdrerr_inflate - logical for tdr obs error inflation
+!     tdrgross_fact - factor applies to tdr gross error
 !     oberrflg - logical for reading in new obs error table (if set to true)
 !     vadfile  - character(10) variable holding name of vadwnd bufr file
 !     noiqc    - logical flag to bypass OIQC (if set to true)
@@ -594,10 +608,10 @@
 !                          is used for predictor
 !     aircraft_t_bc  - logical for aircraft temperature bias correction
 
-  namelist/obsqc/ dfact,dfact1,erradar_inflate,oberrflg,vadfile,noiqc,&
-       c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,tcp_ermin,tcp_ermax,&
-       qc_noirjaco3,qc_noirjaco3_pole,aircraft_t_bc_pof,aircraft_t_bc,biaspredt, &
-       upd_aircraft,cleanup_tail
+  namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
+       vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,aircraft_t_bc_pof,aircraft_t_bc,&
+       biaspredt,upd_aircraft,cleanup_tail
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -616,8 +630,10 @@
 !      dmesh(max(dthin))- thinning mesh for each group
 !      time_window_max  - upper limit on time window for all input data
 !      ext_sonde        - logical for extended forward model on sonde data
+!      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
-  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max,ext_sonde
+  namelist/obs_input/dfile,dtype,dplat,dsis,dthin,dval,dmesh,dsfcalc,time_window,time_window_max, &
+       ext_sonde,l_foreaft_thin
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -921,41 +937,33 @@
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
   if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
                           use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional                  
-                                                                                                                       
-! Check that regional=.true. if tlnmc_type > 2
-  if(tlnmc_type>2.and..not.regional) then
-     if(mype==0) then
-        write(6,*) ' tlnmc_type>2 not allowed except for regional=.true.'
-        write(6,*) ' ERROR EXIT FROM GSI'
-     end if
-     call stop2(328)
-  end if
 
-!  tlnmc_type=4 currently requires that 2*nvmodes_keep <= npe
-  if(tlnmc_type==4) then
+!  reg_tlnmc_type=2 currently requires that 2*nvmodes_keep <= npe
+  if(reg_tlnmc_type==2) then
      if(2*nvmodes_keep>npe) then
-        if(mype==0) write(6,*)' tlnmc_type=4 and nvmodes_keep > npe'
+        if(mype==0) write(6,*)' reg_tlnmc_type=2 and nvmodes_keep > npe'
         if(mype==0) write(6,*)' npe, old value of nvmodes_keep=',npe,nvmodes_keep
         nvmodes_keep=npe/2
         if(mype==0) write(6,*)'    new nvmodes_keep, npe=',nvmodes_keep,npe
      end if
   end if
 
-  if (tlnmc_option>0 .and. tlnmc_option<4) then
-     l_tlnmc=.true.
-     if(mype==0) write(6,*)' valid TLNMC option chosen, setting l_tlnmc logical to true'
-  end if
-
-  if (tlnmc_option==2 .or. tlnmc_option==3) then
+  if (tlnmc_option>=2 .and. tlnmc_option<=4) then
      if (.not.l_hyb_ens) then
-	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options Hybrid & TLNMC = ',l_hyb_ens,tlnmc_option
-        call die(myname_,'tlnmc options inconsistent, check namelist settings',337)
+	if(mype==0) write(6,*)' GSIMOD: inconsistent set of options for Hybrid/EnVar & TLNMC = ',l_hyb_ens,tlnmc_option
+	if(mype==0) write(6,*)' GSIMOD: resetting tlnmc_option to 1 for 3DVAR mode'
+	tlnmc_option=1
      end if
-  else if (tlnmc_option<0 .or. tlnmc_option>3) then
+  else if (tlnmc_option<0 .or. tlnmc_option>4) then
      if(mype==0) write(6,*)' GSIMOD: This option does not yet exist for tlnmc_option: ',tlnmc_option
      if(mype==0) write(6,*)' GSIMOD: Reset to default 0'
      tlnmc_option=0
   end if
+  if (tlnmc_option>0 .and. tlnmc_option<5) then
+     l_tlnmc=.true.
+     if(mype==0) write(6,*)' GSIMOD: valid TLNMC option chosen, setting l_tlnmc logical to true'
+  end if
+
 
 ! Ensure valid number of horizontal scales
   if (nhscrf<0 .or. nhscrf>3) then
@@ -1082,8 +1090,10 @@
 
   if (l4densvar .and. (.not.ljc4tlevs) ) then
      if( ljcpdry .or. (factqmin>zero) .or. (factqmax>zero) )  then
-        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time levels not activated with 4Densvar'
-        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended, limq/pdry will only be applied to center of window '
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, option for Jc terms over all time', &
+                              ' levels not activated with 4Densvar'
+        if (mype==0) write(6,*)'GSIMOD: **WARNING**, This configuration not recommended,',&
+                              ' limq/pdry will only be applied to center of window '
      end if
   end if
 
@@ -1123,6 +1133,7 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
+     write(6,*)'EXT_SONDE on type 120 =',ext_sonde
      ngroup=0
      do i=1,ndat
         dthin(i) = max(dthin(i),0)
@@ -1143,6 +1154,10 @@
 ! Set up directories (or pe specific filenames)
   call init_directories(mype)
 
+! Initialize constants
+  call init_constants(regional)
+  call gps_constants(use_compress)
+
 ! If this is a wrf regional run, then run interface with wrf
   update_pint=.false.
   if (regional) call convert_regional_guess(mype,ctph0,stph0,tlm0)
@@ -1150,8 +1165,6 @@
 
 
 ! Initialize variables, create/initialize arrays
-  call init_constants(regional)
-  call gps_constants(use_compress)
   call init_reg_glob_ll(mype,lendian_in)
   call init_grid_vars(jcap,npe,cvars3d,cvars2d,nrf_var,mype)
   call init_general_commvars

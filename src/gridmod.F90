@@ -14,7 +14,7 @@ module gridmod
   use kinds, only: i_byte,r_kind,r_single,i_kind
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
-  use omp_lib
+  use omp_lib, only: omp_get_max_threads
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -72,6 +72,8 @@ module gridmod
 !   2011-04-07 todling  - create/destroy_mapping no longer public; add final_grid_vars
 !   2011-11-14 whitaker - added a fix to sign_pole for large domain (rlat0max > 37N and rlat0min < 37S)
 !   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
+!   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
+!                         a redundant "use omp_lib".
 !
 !
 ! !AUTHOR: 
@@ -129,7 +131,7 @@ module gridmod
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: nsig3,nsig4
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
-  public :: jcap,jcap_b,hires_b,sp_a,sp_b,grd_a,grd_b
+  public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
 
@@ -330,8 +332,8 @@ module gridmod
      real(r_single),allocatable:: cpi(:)    
   end type ncepgfs_headv
 
-  type(spec_vars),save:: sp_a,sp_b
-  type(sub2grid_info),save:: grd_a,grd_b
+  type(spec_vars),save:: sp_a
+  type(sub2grid_info),save:: grd_a
 
 contains
    
@@ -444,7 +446,6 @@ contains
 ! !USES:
 
     use mpeu_util, only: getindex
-    use omp_lib
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -521,21 +522,9 @@ contains
 !      Call general specmod for analysis grid
        call general_init_spec_vars(sp_a,jcap,jcap,nlat,nlon)
 
-!      If needed, initialize for hires_b transforms
-       nlon_b=((2*jcap_b+1)/nlon+1)*nlon
-       if (nlon_b /= sp_a%imax) then
-          hires_b=.true.
-          call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
-       endif
-
-       if (mype==0) then
-          write(6,*) 'INIT_GRID_VARS:  allocate and load sp_a with jcap,imax,jmax=',&
-               sp_a%jcap,sp_a%imax,sp_a%jmax,' nlon_b=',nlon_b,' hires_b=',hires_b
-          if (hires_b) &
-               write(6,*)'INIT_GRID_VARS:  allocate and load sp_b with jcap,imax,jmax=',&
-               sp_b%jcap,sp_b%imax,sp_b%jmax
-       endif
-       
+       if (mype==0) &
+            write(6,*) 'INIT_GRID_VARS:  allocate and load sp_a with jcap,imax,jmax=',&
+            sp_a%jcap,sp_a%imax,sp_a%jmax
     endif
 
 ! Initialize structures for grid(s)
@@ -576,9 +565,7 @@ contains
     endif
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
-    if (hires_b) &
-         call general_sub2grid_create_info(grd_b,inner_vars,nlat,nlon_b,nsig,num_fields, &
-         regional,vector)
+
     deallocate(vector)
 
 ! Set values from grd_a to pertinent gridmod variables 
@@ -792,7 +779,7 @@ contains
     if (allocated(coeffy)) deallocate(coeffy)
 
     call general_destroy_spec_vars(sp_a)
-    if (hires_b) call general_destroy_spec_vars(sp_b)
+
     return
   end subroutine destroy_grid_vars
 
@@ -1619,19 +1606,16 @@ contains
        do i=0,12
           write(filename,'("sigf",i2.2)')i
           inquire(file=filename,exist=fexist)
-          if(fexist) then
-             if (ihr < 0) ihr1=i
-             ihr=i
-          end if
-       end do
+          if(fexist) then                     !Note: for the twodvar_regional option,
+             ihr=i                            !the first 'sigfnn' file is the one that
+             exit                             !is valid at the analysis time. hence,
+          end if                              !there is no need for the ihrmid variable
+       end do                                 !that is used for the other options
        if(ihr<0) then
           write(6,*)' NO INPUT FILE AVAILABLE FOR REGIONAL (SURFACE) ANALYSIS.  PROGRAM STOPS'
           call stop2(99)
        end if
-       ihr2 = ihr
-       ihrmid = (ihr1+ihr2)/2
        if(diagnostic_reg.and.mype==0) write(6,*)' in init_reg_glob_ll, lendian_in=',lendian_in
-       write(filename,'("sigf",i2.2)') ihrmid
        open(lendian_in,file=filename,form='unformatted')
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig

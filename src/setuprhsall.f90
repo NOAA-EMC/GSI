@@ -79,6 +79,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2011-04-07  todling - newpc4pred now in radinfo
 !   2012-01-11  Hu      - add load_gsdgeop_hgt to compute 2d subdomain pbl heights from the guess fields
 !   2012-04-08  Hu      - add code to skip the observations that are not used in minimization
+!   2013-02-22  Carley  - Add call to load_gsdgeop_hgt for NMMB/WRF-NMM if using
+!                         PBL pseudo obs
 !   2013-05-24      zhu - add ostats_t and rstats_t for aircraft temperature bias correction
 !
 !   input argument list:
@@ -114,7 +116,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
-  use gridmod, only: nsig,twodvar_regional,wrf_mass_regional
+  use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use jfunc, only: jiter,jiterstart,miter,first,last
   use qcmod, only: npres_print
@@ -126,7 +128,8 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use mpl_allreducemod, only: mpl_allreduce
   use aeroinfo, only: diag_aero
   use berror, only: reset_predictors_var
-
+  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,&
+                                      l_PBL_pseudo_SurfobsUV
   use m_rhs, only: rhs_alloc
   use m_rhs, only: rhs_dealloc
   use m_rhs, only: rhs_allocated
@@ -302,10 +305,15 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    endif
   endif
 
-! Compute 2d subdomain pbl heights from the guess fields
-   if (wrf_mass_regional) then
-      call load_gsdpbl_hgt(mype)
-   endif
+! Compute 2d subdomain pbl heights from the guess fields	
+   if (wrf_mass_regional) then					
+      call load_gsdpbl_hgt(mype)				
+   else if (nems_nmmb_regional) then
+      if (l_PBL_pseudo_SurfobsT .or. l_PBL_pseudo_SurfobsQ .or. l_PBL_pseudo_SurfobsUV) then
+         call load_gsdpbl_hgt(mype)
+      end if
+   endif							      
+
 
 ! Compute derived quantities on grid
   call compute_derived(mype,init_pass)
@@ -463,7 +471,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 !          set up ozone (sbuv/omi/mls) data
            else if(ditype(is) == 'ozone' .and. ihave_oz)then
-              if (obstype == 'o3lev' .or. obstype == 'mls' ) then
+              if (obstype == 'o3lev' .or. index(obstype,'mls')/=0 ) then
                  call setupozlev(lunin,mype,stats_oz,nchanl,nreal,nobs,&
                       obstype,isis,is,ozone_diagsave,init_pass,last_pass)
               else

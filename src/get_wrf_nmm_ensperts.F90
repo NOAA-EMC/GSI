@@ -274,7 +274,8 @@ subroutine get_wrf_nmm_ensperts
              end do
           end do
           deallocate(u,v,tv,rh,oz,cwmr,ps)
-          allocate(fields_e(grd_ens_d01%inner_vars,grd_ens_d01%nlat,grd_ens_d01%nlon,grd_ens_d01%kbegin_loc:grd_ens_d01%kend_alloc),stat=istatus)
+          allocate(fields_e(grd_ens_d01%inner_vars,grd_ens_d01%nlat,grd_ens_d01%nlon,& 
+                            grd_ens_d01%kbegin_loc:grd_ens_d01%kend_alloc),stat=istatus)
           if(istatus /= 0)print *,'error allocate fields_e'
           call general_sub2grid(grd_ens_d01,work_sub,fields_e)
           deallocate(work_sub)
@@ -522,7 +523,8 @@ subroutine get_wrf_nmm_ensperts
           end do  
 
           deallocate(u,v,tv,rh,oz,cwmr,ps)
-          allocate(fields_e(grd_ens_d02%inner_vars,grd_ens_d02%nlat,grd_ens_d02%nlon,grd_ens_d02%kbegin_loc:grd_ens_d02%kend_alloc), &
+          allocate(fields_e(grd_ens_d02%inner_vars,grd_ens_d02%nlat,grd_ens_d02%nlon,& 
+                       grd_ens_d02%kbegin_loc:grd_ens_d02%kend_alloc), &
                    stat=istatus)
           if(istatus /= 0)print *,'error allocate fields_e'
           call general_sub2grid(grd_ens_d02,work_sub,fields_e)
