@@ -126,7 +126,7 @@ cat << EOF > ${type}_${var}.gs
 EOF
       fi
 
-      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 #   rm -f ${type}*.ieee_d

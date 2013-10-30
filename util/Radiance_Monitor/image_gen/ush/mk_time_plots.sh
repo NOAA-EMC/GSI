@@ -11,7 +11,6 @@
 set -ax
 date
 
-#export list=$listvar
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
 imgndir=${IMGNDIR}/time
@@ -20,11 +19,6 @@ tankdir=${TANKDIR}/time
 if [[ ! -d ${imgndir} ]]; then
    mkdir -p ${imgndir}
 fi
-
-#
-# testing
-#export SATYPE="sndrd1_g15"
-#export SATYPE="iasi_metop-a"
 
 #-------------------------------------------------------------------
 #  Locate/update the control files.  If no ctl file is available
@@ -65,22 +59,6 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
-
-#   elif [[ -s ${TANKDIR}/radmon.${PDY}/time.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/time.${type}.ctl.${Z} ]]; then
-#      $NCP ${TANKDIR}/radmon.${PDY}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-#      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
-#         $NCP ${TANKDIR}/radmon.${PDY}/time.${type}.ctl ${imgndir}/${type}.ctl
-#      fi
-#      allmissing=0
-#      found=1
-#
-#   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
-#      $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
-#      allmissing=0
-#      found=1
-#
-#   else
-#      echo WARNING:  unable to locate ${type}.ctl
    fi
 done
 
@@ -93,19 +71,12 @@ fi
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the time control
 #   files.  Conditionally remove cray_32bit_ieee from the options line.
-#
-#   Note that the logic for the tdef in time series is backwards 
-#   from angle series.  Time tdefs start at -720 from PDATE.  For
-#   angle series the tdef = $PDATE and the script works backwards.
-#   Some consistency on this point would be great.
 
-   start_date=`$NDATE -720 $PDATE`
 
    for type in ${SATYPE}; do
       if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
         ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
       fi
-#      ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${start_date}
       ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
  
       if [[ $MY_MACHINE = "wcoss" ]]; then
@@ -124,8 +95,6 @@ fi
    done
 
    ${COMPRESS} ${imgndir}/*.ctl
-
-#   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
 
 
 #-------------------------------------------------------------------
@@ -151,7 +120,7 @@ fi
    ((nprocs=(ntasks+1)/2))
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
    fi
@@ -179,7 +148,6 @@ fi
 #-------------------------------------------------------------------
 #  Look over satellite types.  Submit plot job for each type.
 #
-#   export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,NPREDR,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
 
    list="count penalty omgnbc total omgbc"
 
@@ -205,7 +173,7 @@ fi
          wall_tm="0:45"
       fi
 
-      $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
       
    else							# zeus/linux
       for sat in ${SATLIST}; do
@@ -260,7 +228,7 @@ fi
             wall_tm="1:00"
          fi
 
-         $SUB -q $ACCOUNT -M 80  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 80  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
 
       else						# zeus/linux
          for var in $list; do

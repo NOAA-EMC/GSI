@@ -106,7 +106,7 @@ EOF
       fi
 
       echo ${tmpdir}/${type}_${var}.gs
-      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 #--------------------------------------------------------------------

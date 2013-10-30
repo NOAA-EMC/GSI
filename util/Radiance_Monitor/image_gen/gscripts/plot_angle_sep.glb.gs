@@ -5,7 +5,7 @@
 *    field  = field to plot  (valid strings are:  count total fixang lapse lapse2 const scangl clw
 
 
-function plottime (args)
+function plotangle (args)
 
 plotfile=subwrd(args,1)
 field=subwrd(args,2)
@@ -18,7 +18,7 @@ platform=plotfile
 say 'plot_all_Regions = 'plot_all_regions
 
 say 'process 'field' from 'plotfile
-*'open amsua.016.ctl'
+*say 'using fixed1'
 
 debug=0
 
@@ -188,7 +188,8 @@ if (field = "omgnbc")
    'set y 1 'nchan
    'set z 1'
    'set lon 'new_xs' 'new_xe
-   'define fixed=-1*satang(t='tlast')'
+   'define satang1=fixang(t='tlast')/count(t='tlast')'
+   'define fixed1=-1*satang1(t='tlast')'
 endif
 say ' new_xs, new_xe ='new_xs','new_xe
 
@@ -362,7 +363,7 @@ while (chn<=nchan)
          say 'sdv'it' min,max,avg='minsdv','maxsdv','avgsdv
 
       if (field = "omgnbc")
-         'd fixed'
+         'd fixed1'
          rec7=sublin(result,7)
          rec8=sublin(result,8)
          valsat=subwrd(rec7,8)
@@ -483,7 +484,7 @@ while (chn<=nchan)
       'set cmark 0'
       'set cstyle 3'
       'set ccolor 1'
-      'd fixed'
+      'd fixed1'
       'set z 'region
    endif
 

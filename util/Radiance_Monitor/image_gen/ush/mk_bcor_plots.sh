@@ -12,7 +12,6 @@
 
 set -ax
 date
-#export list=$listvar
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
@@ -40,10 +39,8 @@ for type in ${SATYPE}; do
    done=0
    test_day=$PDATE
    ctr=$ndays
-#   echo "before while loop, found, done = $found, $done"
 
    while [[ $found -eq 0 && $done -ne 1 ]]; do
-#      echo "top of while loop"
 
       pdy=`echo $test_day|cut -c1-8`
       if [[ -s ${TANKDIR}/radmon.${pdy}/bcor.${type}.ctl.${Z} ]]; then
@@ -95,13 +92,6 @@ fi
 #-------------------------------------------------------------------
 #   Update the time definition (tdef) line in the bcor control
 #   files. Conditionally rm cray_32bit_ieee from options line.
-#
-#   Note that the logic for the tdef in time series is backwards
-#   from angle series.  Time tdefs start at -720 from PDATE.  For
-#   angle series the tdef = $PDATE and the script works backwards.
-#   Some consistency on this point would be great.
-
-start_date=`$NDATE -720 $PDATE`
 
 for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
@@ -146,9 +136,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   # Loop over satellite/instruments.  Submit poe job to make plots.  Each task handles
   # a single satellite/insrument.
 
-#  export listvars=RAD_AREA,LOADLQ,PDATE,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvars
-
-  if [[ $MY_MACHINE = "wcoss" ]]; then		#CCS and wcoss
+  if [[ $MY_MACHINE = "wcoss" ]]; then	
      suffix=a
      cmdfile=cmdfile_pbcor_${suffix}
      jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -164,7 +152,6 @@ ${COMPRESS} ${imgndir}/*.ctl
      chmod 755 $cmdfile
 
      ntasks=`cat $cmdfile|wc -l `
-#     ((nprocs=(ntasks+1)/2))
 
      if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
         wall_tm="1:30"
@@ -172,7 +159,7 @@ ${COMPRESS} ${imgndir}/*.ctl
         wall_tm="0:45"
      fi
 
-     $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+     $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
 
   else					#Zeus/linux
      for sat in ${SATLIST}; do
@@ -206,7 +193,7 @@ ${COMPRESS} ${imgndir}/*.ctl
   for sat in ${bigSATLIST}; do
      suffix=$sat
 
-     if [[ $MY_MACHINE = "wcoss" ]]; then	# CCS/aix
+     if [[ $MY_MACHINE = "wcoss" ]]; then
 
         cmdfile=cmdfile_pbcor_${suffix}
         jobname=plot_${SUFFIX}_bcor_${suffix}
@@ -228,7 +215,7 @@ ${COMPRESS} ${imgndir}/*.ctl
            wall_tm="1:00"
         fi
 
-        $SUB -q $ACCOUNT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
         
      else					# zeus/linux
         for var in $plot_list; do

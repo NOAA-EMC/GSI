@@ -8,10 +8,6 @@
 echo start mk_horiz_plots.sh
 
 set -ax
-#export list=$listvar
-
-#SUFFIX=$1
-#PDATE=$2
 
 
 #------------------------------------------------------------------
@@ -109,7 +105,7 @@ cat << EOF > input.$sat.$ihh
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      $TIMEX ./horiz.x < input.$sat.$ihh >   stdout.$sat.$ihh
+      ./horiz.x < input.$sat.$ihh >   stdout.$sat.$ihh
 
       rm -f $TANKDIR/horiz/stdout.$sat.$ihh
       $NCP stdout.$sat.$ihh        $TANKDIR/horiz/stdout.$sat.$ihh
@@ -156,7 +152,6 @@ done
 #---------------------------------------------------------------------------
 #  submit the plot jobs
 #
-#export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
@@ -172,7 +167,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
 
-   $SUB -q dev -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+   $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
 
 else							# zeus/linux
    for sat in ${SATLIST}; do
@@ -196,7 +191,6 @@ for sat in ${bigSATLIST}; do
 
 #  --------
    export PTYPE="obs cor"
-#   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    PID="${sat}_1"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
@@ -210,7 +204,7 @@ for sat in ${bigSATLIST}; do
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
@@ -219,7 +213,6 @@ for sat in ${bigSATLIST}; do
    PID="${sat}_2"
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
    export PTYPE="obsges obsnbc"
-#   export listvars=LOADLQ,PDATE,DATES,NDATE,NCP,DATADIR,TANKDIR,EXEDIR,LOGDIR,PLOT_WORK_DIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,PID,ACCOUNT,PTYPE,SATLIST,IMGNDIR,Z,COMPRESS,UNCOMPRESS,listvars
 
    rm -f $cmdfile
 >$cmdfile
@@ -230,7 +223,7 @@ for sat in ${bigSATLIST}; do
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi

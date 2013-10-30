@@ -12,7 +12,6 @@
 
 set -ax
 date
-#export list=$listvar
 
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
@@ -40,10 +39,8 @@ for type in ${SATYPE}; do
    done=0
    test_day=$PDATE
    ctr=$ndays
-#   echo "before while loop, found, done = $found, $done"
 
    while [[ $found -eq 0 && $done -ne 1 ]]; do
-#      echo "top of while loop"
 
       pdy=`echo $test_day|cut -c1-8`    
       if [[ -s ${TANKDIR}/radmon.${pdy}/angle.${type}.ctl.${Z} ]]; then
@@ -67,22 +64,6 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
       found=1
-
-#   elif [[ -s ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl || -s ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl.${Z} ]]; then
-#      $NCP ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-#      if [[ ! -s ${imgndir}/${type}.ctl.${Z} ]]; then
-#         $NCP ${TANKDIR}/radmon.${PDY}/angle.${type}.ctl ${imgndir}/${type}.ctl
-#      fi
-#      allmissing=0
-#      found=1
-#
-#   elif [[ -s ${tankdir}/${type}.ctl.${Z} || -s ${tankdir}/${type}.ctl  ]]; then
-#      $NCP ${tankdir}/${type}.ctl* ${imgndir}/.
-#      allmissing=0
-#      found=1
-#
-#   else
-#      echo WARNING:  unable to locate ${type}.ctl
    fi
 done
 
@@ -136,7 +117,6 @@ cd $PLOT_WORK_DIR
   #-----------------------------------------------------------------
   # Loop over satellite types.  Submit job to make plots.
   #
-export listvar=RAD_AREA,LOADLQ,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,STMP_USER,PTMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,Z,COMPRESS,UNCOMPRESS,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
 list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
@@ -164,7 +144,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
         wall_tm="1:45"
      fi
 
-     $SUB -q $ACCOUNT -o ${logfile} -M 200 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 200 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
      
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
@@ -229,7 +209,7 @@ for sat in ${bigSATLIST}; do
             wall_tm="1:00"
          fi
 
-         $SUB -q $ACCOUNT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
          (( batch=batch+1 ))
 
@@ -261,7 +241,7 @@ for sat in ${bigSATLIST}; do
             wall_tm="2:30:00"
          fi
 
-         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -v $listvar -j oe -o ${logfile} ${cmdfile}
+         $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} ${cmdfile}
 
          (( ii=ii+1 ))
       done

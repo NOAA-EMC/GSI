@@ -143,9 +143,10 @@ $LOGSCRIPT
 
 $NCP ${EXECgfs}/${angle_exec}  ./
 $NCP $FIXgfs/radmon_scaninfo.txt  ./${scaninfo}
-$NCP ${satang} ./satang.txt
+#$NCP ${satang} ./satang.txt
 
-if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} || ! -s ./satang.txt ]]; then
+#if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} || ! -s ./satang.txt ]]; then
+if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} ]]; then
    err=2
 else
 #--------------------------------------------------------------------

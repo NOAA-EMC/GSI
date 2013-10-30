@@ -192,6 +192,11 @@ program angle
         end do
   end do
 
+  do j=1,n_chan
+     do i=1,mstep
+        timang(i,j) = rmiss
+     end do
+  end do
 
 ! Extract satinfo relative index
   do j=1,n_chan
@@ -292,10 +297,10 @@ program angle
   write(6,*)' '
 
 
-  open(lunang,file='satang.txt',form='formatted')
-  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-  close(lunang)
-  write(6,*)'read satang.txt'
+!  open(lunang,file='satang.txt',form='formatted')
+!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
+!  close(lunang)
+!  write(6,*)'read satang.txt'
 
 ! Create control file
   if ( imkctl == 1 ) then
@@ -361,13 +366,20 @@ program angle
        tot_cor(mstep,n_chan,2),&
        omg_bc(mstep,n_chan,2))
 
-  open(lunang,file='satang.txt',form='formatted')
-  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-  close(lunang)
-  write(6,*)'read satang.txt'
+!  open(lunang,file='satang.txt',form='formatted')
+!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
+!  close(lunang)
+!  write(6,*)'read satang.txt'
 
   write(6,*)'load missing value ',rmiss,' into output arrays.  ',&
        nstep,n_chan
+
+  do j=1,n_chan
+     do i=1,mstep
+        timang(i,j) = rmiss
+     end do
+  end do
+
   do ii=1,2
         do j=1,n_chan
            do i=1,mstep

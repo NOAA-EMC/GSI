@@ -20,6 +20,7 @@ platform=plotfile
 *platform=amsua.016
 
 say 'process 'field' from 'plotfile
+say 'using xsize ysize: 'xsize' and 'ysize
 *'open amsua.016.ctl'
 
 debug=0
@@ -176,7 +177,8 @@ if (field = "omgnbc")
    'set y 1 'nchan
    'set z 1'
    'set lon 'new_xs' 'new_xe
-   'define fixed=-1*satang(t='tlast')'
+   'define satang1=fixang(t='tlast')/count(t='tlast')'
+   'define fixed1=-1*satang1(t='tlast')'
 endif
 *say ' new_xs, new_xe ='new_xs','new_xe
 
@@ -310,7 +312,7 @@ while (chn<=nchan)
          say 'sdv'it' min,max,avg='minsdv','maxsdv','avgsdv
 
       if (field = "omgnbc")
-         'd fixed'
+         'd fixed1'
          rec7=sublin(result,7)
          rec8=sublin(result,8)
          valsat=subwrd(rec7,8)
@@ -432,7 +434,7 @@ while (chn<=nchan)
       'set cmark 0'
       'set cstyle 3'
       'set ccolor 1'
-      'd fixed'
+      'd fixed1'
       'set z 'region
    endif
 

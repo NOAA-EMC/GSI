@@ -229,6 +229,16 @@ program angle
      end do
   end do
 
+! Note:  timang has been deprecated and the satang file is no longer 
+!   used.  See the plot_angle_sep.*.gs scripts for how the timang
+!   values are derived from the diagnostic file contents.  The 
+!   timang variable has been kept to avoid making a change in
+!   ieee_d file format.
+  do j=1,n_chan
+     do i=1,mstep
+        timang(i,j) = rmiss
+     end do
+  end do
 
 ! Extract satinfo relative index
   do j=1,n_chan
@@ -385,10 +395,10 @@ program angle
   write(6,*)'nnwater, nnland, nnsnow, nnmixed, nntotal = ', nnwater, nnland, nnsnow, nnmixed, nntotal
 
 ! Read angle dependent bias from fixed file and time evolving file.
-  open(lunang,file='satang.txt',form='formatted')
-  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-  close(lunang)
-  write(6,*)'read satang.txt, nstep, '
+!  open(lunang,file='satang.txt',form='formatted')
+!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
+!  close(lunang)
+!  write(6,*)'read satang.txt, nstep, '
 
   ! Create Control file
   if ( imkctl == 1 ) then
@@ -481,10 +491,19 @@ program angle
        tot_cor(mstep,n_chan,surf_nregion,2),&
        omg_bc(mstep,n_chan,surf_nregion,2))
 
-  open(lunang,file='satang.txt',form='formatted')
-  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-  close(lunang)
-  write(6,*)'read satang.txt'
+!
+! Initialze all output variables to rmiss
+!
+!    
+  do j=1,n_chan
+     do i=1,mstep
+        timang(i,j) = rmiss
+     end do
+  end do
+!  open(lunang,file='satang.txt',form='formatted')
+!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
+!  close(lunang)
+!  write(6,*)'read satang.txt'
 
   write(6,*)'load missing value ',rmiss,' into output arrays.  ',&
        nstep,surf_nregion,n_chan

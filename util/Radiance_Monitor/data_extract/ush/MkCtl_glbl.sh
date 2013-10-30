@@ -107,12 +107,12 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
    if [[ -s $testdir/gdas1.t${CYA}z.radstat ]]; then
 
       export biascr=${testdir}/gdas1.t${CYA}z.abias
-      export satang=${testdir}/gdas1.t${CYA}z.satang
+#      export satang=${testdir}/gdas1.t${CYA}z.satang
       export radstat=${testdir}/gdas1.t${CYA}z.radstat
       need_radstat=0
    elif [[ -s $testdir/radstat.gdas.${PDATE} ]]; then
       export biascr=$DATDIR/biascr.gdas.${PDATE}  
-      export satang=$DATDIR/satang.gdas.${PDATE}
+#      export satang=$DATDIR/satang.gdas.${PDATE}
       export radstat=$DATDIR/radstat.gdas.${PDATE}
       need_radstat=0
    else
@@ -149,15 +149,14 @@ if [[ -s ${radstat} ]]; then
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,MAKE_DATA,MAKE_CTL,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -o $LOGDIR/mk_ctl.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/mk_ctl.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvar -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -A $ACCOUNT -l walltime=0:05:00 -V -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
 
 

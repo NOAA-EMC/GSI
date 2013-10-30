@@ -228,8 +228,6 @@ if [[ $PLOT -eq 1 ]]; then
   fi
   export datdir=$RADSTAT_LOCATION
 
-#  export listvar=RAD_AREA,LOADLQ,PDATE,NDATE,START_DATE,TANKDIR,IMGNDIR,PLOT_WORK_DIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,GADDIR,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,FIXANG,SATYPE,NCP,PLOT,ACCOUNT,RADMON_DATA_EXTRACT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,MY_MACHINE,SUB_AVG,ARCHIVE_DIR,datdir,listvar
-
 
   #------------------------------------------------------------------
   #   Submit plot jobs.
@@ -240,7 +238,7 @@ if [[ $PLOT -eq 1 ]]; then
 
      jobname=mk_plot_horiz_${SUFFIX}
      if [[ $MY_MACHINE = "wcoss" ]]; then
-        $SUB -q $ACCOUNT -M 80 -R affinity[core]  -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+        $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core]  -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
      else
         $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o $LOGDIR/mk_horiz_plots.log $SCRIPTS/mk_horiz_plots.sh
      fi

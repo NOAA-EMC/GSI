@@ -205,7 +205,7 @@ else
 fi
 
 export biascr=$DATDIR/satbias.${PDATE}
-export satang=$DATDIR/satang.${PDATE}
+#export satang=$DATDIR/satang.${PDATE}
 export radstat=$DATDIR/radstat.${PDATE}
 
 #--------------------------------------------------------------------
@@ -215,7 +215,7 @@ export radstat=$DATDIR/radstat.${PDATE}
 
 data_available=0
 
-if [ -s $radstat -a -s $satang -a -s $biascr ]; then
+if [ -s $radstat -a -s $biascr ]; then
    data_available=1
 
    export MP_SHARED_MEMORY=yes
@@ -245,10 +245,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
       export base_file=${TANKverf}/info/radmon_base.tar
    fi
 
-   #--------------------------------------------------------------------
-   # Export listvar
    export JOBNAME=$jobname
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
@@ -256,9 +253,9 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    logfile=$LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -v $listvar -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V -j oe -o ${logfile} ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod 
    fi
 
 fi

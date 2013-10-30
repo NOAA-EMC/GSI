@@ -165,11 +165,11 @@ if [[ $RUN_ENVIR = dev ]]; then
       export DATDIR=${DATDIR}/gdas.${PDY}
 
       export biascr=$DATDIR/gdas1.t${CYC}z.abias  
-      export satang=$DATDIR/gdas1.t${CYC}z.satang
+#      export satang=$DATDIR/gdas1.t${CYC}z.satang
       export radstat=$DATDIR/gdas1.t${CYC}z.radstat
    else
       export biascr=$DATDIR/biascr.gdas.${PDATE}  
-      export satang=$DATDIR/satang.gdas.${PDATE}
+#      export satang=$DATDIR/satang.gdas.${PDATE}
       export radstat=$DATDIR/radstat.gdas.${PDATE}
    fi
 
@@ -184,11 +184,11 @@ elif [[ $RUN_ENVIR = para ]]; then
    export CYC=`echo $PDATE|cut -c9-10`
 
    export biascr=$DATDIR/biascr.gdas.${CDATE}  
-   export satang=$DATDIR/satang.gdas.${CDATE}
+#   export satang=$DATDIR/satang.gdas.${CDATE}
    export radstat=$DATDIR/radstat.gdas.${CDATE}
 
    echo biascr  = $biascr
-   echo satang  = $satang
+#   echo satang  = $satang
    echo radstat = $radstat
 
 else
@@ -233,16 +233,15 @@ if [[ -e ${radstat} ]]; then
 
    export JOBNAME=${jobname}
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,USE_MAIL,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,base_file,LITTLE_ENDIAN,PTMP,STMP,JOBNAME,Z,COMPRESS,UNCOMPRESS,TIMEX,MY_MACHINE,NDATE,DO_DIAG_RPT,DO_DATA_RPT,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -v $listvar -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
   
 fi

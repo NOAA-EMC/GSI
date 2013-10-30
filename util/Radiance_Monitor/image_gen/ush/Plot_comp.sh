@@ -201,12 +201,6 @@ echo $SATYPE
 
 
 #------------------------------------------------------------------
-# Export variables and submit plot script
-#------------------------------------------------------------------
-export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,COMPRESS,UNCOMPRESS,Z,listvar
-
-
-#------------------------------------------------------------------
 # submit plot script
 #------------------------------------------------------------------
 plotfile=${SCRIPTS}/plot_fs_obsnum_comp.sh
@@ -224,9 +218,9 @@ ntasks=`cat $cmdfile|wc -l`
 ((nprocs=(ntasks+1)/2))
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $ACCOUNT -M 80 -R affinity[core] -n 1,$ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
+   $SUB -P $PROJECT -q $JOB_QUEUE -M 80 -R affinity[core] -n 1,$ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
 elif [[ $MY_MACHINE = "zeus" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -v $listvar -j oe -o $logfile $cmdfile
+   $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -V -j oe -o $logfile $cmdfile
 fi
 
 

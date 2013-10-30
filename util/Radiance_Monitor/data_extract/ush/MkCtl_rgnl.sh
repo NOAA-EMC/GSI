@@ -93,7 +93,7 @@ export DATDIR=${PTMP_USER}/regional
 export com=$RADSTAT_LOCATION
 
 biascr=$DATDIR/satbias.${PDATE}
-satang=$DATDIR/satang.${PDATE}
+#satang=$DATDIR/satang.${PDATE}
 radstat=$DATDIR/radstat.${PDATE}
 
 ctr=0
@@ -104,7 +104,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
    export CYA=`echo $PDATE|cut -c9-10`
    /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
-   if [ -s $radstat -a -s $satang -a -s $biascr ]; then
+   if [ -s $radstat -a -s $biascr ]; then
       need_radstat=0
    else
       export PDATE=`$NDATE -06 $PDATE`
@@ -115,7 +115,7 @@ done
 
 
 export biascr=$biascr
-export satang=$satang
+#export satang=$satang
 export radstat=$radstat
 
 #--------------------------------------------------------------------
@@ -125,7 +125,7 @@ export radstat=$radstat
 
 data_available=0
 
-if [ -s $radstat -a -s $satang -a -s $biascr ]; then
+if [ -s $radstat -a -s $biascr ]; then
    data_available=1
 
    export MP_SHARED_MEMORY=yes
@@ -156,17 +156,14 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
       export base_file=${TANKverf}/info/radmon_base.tar
    fi
 
-   #--------------------------------------------------------------------
-   # Export listvar
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,DO_DIAG_RPT,DO_DATA_RPT,RAD_AREA,MAKE_DATA,MAKE_CTL,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $ACCOUNT -o $LOGDIR/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
    fi
 
 fi
