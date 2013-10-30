@@ -7,15 +7,22 @@
 #------------------------------------------------------------------------------
 
 #
-#  ACCOUNT is set by the RadMon_instal.sh script, to GDAS-MTN, dev, or ada
-#    according to platform (ccs, wcoss, zeus respectively)
+#  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
+#  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-dev}
+export ACCOUNT=${ACCOUNT:-ada}
 
 #
-#  USER_CLASS is set to "dev" on the CCS, empty on all other platforms
+#  PROJECT is used on wcoss only with the bjob -P flag.  It is 
+#  empty on other platforms.
 #
+export PROJECT=${PROJECT:-GDAS-T20}
 
+#
+#  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
+#  empty on other platforms.
+#
+export JOB_QUEUE=${JOB_QUEUE:-dev}
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
