@@ -57,10 +57,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !
 !$$$  end documentation block
 
-  use kinds, only: i_kind,i_llong,r_kind,r_double
-  use gsi_4dvar, only: iadatebgn,iadateend
-  use obsmod, only: offtime_data
-  use convinfo, only: nconvtype,ictype,ioctype,icuse
+  use kinds, only: i_kind,i_llong
 
   implicit none
 
