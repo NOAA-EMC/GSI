@@ -17,8 +17,7 @@
 function usage {
   echo "Usage:  MkCtl_glbl.sh suffix"
   echo "            File name for MkCtl_glbl.sh may be full or relative path"
-  echo "            Suffix is the indentifier for this data source, and should"
-  echo "             correspond to an entry in the ../../parm/data_map file."
+  echo "            Suffix is the indentifier for this data source"
 }
 
 set -ax
@@ -74,7 +73,7 @@ elif [[ $area = rgn ]]; then
    export RAD_AREA=rgn
    . ${PARMverf_rad}/rgnl_conf
 else
-  echo "Suffix $SUFFIX not found in ../../data_map file"
+  echo "area = $area -- must be either glb or rgn"
   exit 3 
 fi
 
@@ -87,7 +86,7 @@ export RUN_ENVIR=dev
 
 #---------------------------------------------------------------
 # Get date of cycle to process.  Start with the last processed
-# date in the data_map file and work backwards until we find a
+# date in the $TANKDIR and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
 PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`

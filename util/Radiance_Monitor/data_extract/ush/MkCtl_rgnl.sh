@@ -17,8 +17,7 @@
 function usage {
   echo "Usage:  MkCtl_rgnl.sh suffix"
   echo "            File name for MkCtl_rgnl.sh may be full or relative path"
-  echo "            Suffix is the indentifier for this data source, and should"
-  echo "             correspond to an entry in the ../../parm/data_map file."
+  echo "            Suffix is the indentifier for this data source."
 }
 
 
@@ -81,7 +80,7 @@ cd $tmpdir
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Start with the last time in the 
-# data_map file and work backwards until we find a diag file to use
+# $TANKDIR and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
 export PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}` 

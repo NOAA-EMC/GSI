@@ -25,11 +25,11 @@ echo "       TEST:  COMPRESS = $COMPRESS"
    ihh=`echo $PDATE | cut -c9-10`
 
 #
-#  Get the radmon_base.tar file and open it
+#  Get the gdas_radmon_base.tar file and open it
 #
-   cp ~/nbns/stats/wopr/info/radmon_base.tar .
-   tar -xvf radmon_base.tar
-   rm -f radmon_base.tar
+   cp ~/nbns/stats/wopr/info/gdas_radmon_base.tar .
+   tar -xvf gdas_radmon_base.tar
+   rm -f gdas_radmon_base.tar
 
 #
 #  Get satype list, loop over satype

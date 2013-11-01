@@ -126,16 +126,11 @@ fi
 start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -gt 0 ]]; then
    pdate=`${NDATE} -06 $START_DATE`
-   ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
 else
    pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
    pdate_len=`echo ${#pdate}`
-   if [[ ${pdate_len} -eq 10 ]]; then
-      ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
-   fi 
    START_DATE=`${NDATE} +06 $pdate`
 fi
-
 
 
 #--------------------------------------------------------------------
