@@ -727,6 +727,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call grdcrd1(dlon,rlons,nlon,1)
            endif
 
+       
+
 !!   detect surface type for  IR winds monitoring over land for lat greter than 20N
 !     isflg    - surface flag
 !                0 sea
