@@ -532,8 +532,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            write(stationid,'(i3)') iobsub
            if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &  
               trim(subset) == 'NC005066') then
-              c_prvstg='EUMETSAT'
               if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then    ! the range of EUMETSAT satellite IDs      
+                 c_prvstg='EUMETSAT'
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                  ! IR winds
                     itype=253
@@ -574,16 +574,25 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else if(trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or. &   ! JMA
                    trim(subset) == 'NC005046') then           
               if(hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then   !  the range of JMA satellite IDS 
+                 c_prvstg='JMA'
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                      ! IR winds
                     itype=252
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
                  else if(hdrdat(9) == two) then                  ! visible winds
                     itype=242
+                    c_station_id='VI'//stationid
+                    c_sprvstg='VI'
                  else if(hdrdat(9) == three) then                ! WV cloud top 
                     itype=250
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WV'
                  else if(hdrdat(9) >=four) then                  ! WV deep layer,as monitoring
                     itype=250
                     qm=9
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WV'
                  endif
 ! get quality information
                  call ufbrep(lunin,qcdat,3,12,iret,qcstr)
