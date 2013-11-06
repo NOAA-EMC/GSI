@@ -134,7 +134,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(8) subset
   character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
-  character(8) c_station_id
+  character(8) c_station_id,stationid
 
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
@@ -529,19 +529,29 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(hdrdat(3) >r360) cycle loop_readsb 
            qm=2
            iobsub=int(hdrdat(1))
+           write(stationid,'(i3)') iobsub
            if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &  
               trim(subset) == 'NC005066') then
+              c_prvstg='EUMETSAT'
               if( hdrdat(1) <r70 .and. hdrdat(1) >= r50) then    ! the range of EUMETSAT satellite IDs      
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                  ! IR winds
                     itype=253
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
                  else if(hdrdat(9) == two) then              ! visible winds
                     itype=243
+                    c_station_id='VI'//stationid
+                    c_sprvstg='VI'
                  else if(hdrdat(9) == three) then            ! WV cloud top, try to assimilate
                     itype=254                                
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WV'
                  else if(hdrdat(9) >= four) then             ! WV deep layer,monitoring
                     itype=254
                     qm=9                                     !  quality mark as 9, means the observation error needed to be set
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WV'
                  endif
 !  get quality information
                  call ufbrep(lunin,qcdat,3,12,iret,qcstr) 
@@ -597,19 +607,30 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or. &  ! NESDIS GOES 
                    trim(subset) == 'NC005012' ) then
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! the range of NESDIS satellite IDS 
+                 c_prvstg='NESDIS'
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                            ! IR winds
                     if(hdrdat(12) <50000000000000.0_r_kind) then        ! for channel 4
                        itype=245
+                       c_station_id='IR'//stationid
+                       c_sprvstg='IR'
                     else
                        itype=240                                      !short wave winds
+                       c_station_id='IR'//stationid
+                       c_sprvstg='IR'
                     endif
                  else if(hdrdat(9) == two ) then                       ! visible winds
                     itype=251
+                    c_station_id='VI'//stationid
+                    c_sprvstg='VI'
                  else if(hdrdat(9) == three) then                      ! WV cloud top
                     itype=246
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WV'
                  else if(hdrdat(9) >= four) then                       ! WV deep layer.mornitored set in convinfo file
                      itype=247
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WV'
                  endif
                  call ufbrep(lunin,qcdat,3,8,iret,qcstr)
 ! get quality information
@@ -631,12 +652,19 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
            else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071') then  ! MODIS  
               if(hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then
+                 c_prvstg='MODIS'
                  if(hdrdat(9) == one)  then                            ! IR winds
                     itype=257
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
                  else if(hdrdat(9) == three) then                      ! WV cloud top
                     itype=258
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WVCLOP'
                  else if(hdrdat(9) >= four) then                       ! WV deep layer
                     itype=259 
+                    c_station_id='WV'//stationid
+                    c_sprvstg='WVDLAYER'
                  endif
 !  get quality information
                  call ufbrep(lunin,qcdat,3,8,iret,qcstr) 
@@ -656,9 +684,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else if( trim(subset) == 'NC005080') then                   ! AVHRR 
               if(hdrdat(1) <10.0_r_kind .or. (hdrdat(1) >= 200.0_r_kind .and. &
                  hdrdat(1) <=223.0_r_kind) ) then      
+                 c_prvstg='AVHRR'
                  if(hdrdat(9) == one)  then                            ! IR winds
                     itype=244
                     qm=15
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
                  else
                     write(6,*) 'READ_SATWND: wrong derived method value'
                  endif
@@ -678,10 +709,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  enddo
               endif
            else if( trim(subset) == 'NC005019') then                   ! GOES shortwave winds 
-              if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then   ! The range of NESDIS satellite IDS
+               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then   ! The range of NESDIS satellite IDS
+                 c_prvstg='NESDIS'
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                            ! short wave IR winds
                     itype=240
+                    qm=15
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
                  endif
 ! get quality information
                  call ufbrep(lunin,qcdat,3,8,iret,qcstr)
@@ -809,21 +844,21 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
            if(qm == 15 .or. qm == 12 .or. qm == 9)usage=r100
-           if(itype==240) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
-           if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
-           if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
-           if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
-           if(itype==246) then;  c_prvstg='NESDIS'   ;  c_sprvstg='WV'       ; endif
-           if(itype==250) then;  c_prvstg='JMA'      ;  c_sprvstg='WV'       ; endif
-           if(itype==251) then;  c_prvstg='NESDIS'   ;  c_sprvstg='VI'       ; endif
-           if(itype==252) then;  c_prvstg='JMA'      ;  c_sprvstg='IR'       ; endif
-           if(itype==253) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='IR'       ; endif
-           if(itype==254) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='WV'       ; endif
-           if(itype==257) then;  c_prvstg='MODIS'    ;  c_sprvstg='IR'       ; endif
-           if(itype==258) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVCTOP'   ; endif
-           if(itype==259) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVDLAYER' ; endif
-
-           c_station_id='SATWND'
+!           if(itype==240) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
+!           if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
+!           if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
+!           if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
+!           if(itype==246) then;  c_prvstg='NESDIS'   ;  c_sprvstg='WV'       ; endif
+!           if(itype==250) then;  c_prvstg='JMA'      ;  c_sprvstg='WV'       ; endif
+!           if(itype==251) then;  c_prvstg='NESDIS'   ;  c_sprvstg='VI'       ; endif
+!           if(itype==252) then;  c_prvstg='JMA'      ;  c_sprvstg='IR'       ; endif
+!           if(itype==253) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='IR'       ; endif
+!           if(itype==254) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='WV'       ; endif
+!           if(itype==257) then;  c_prvstg='MODIS'    ;  c_sprvstg='IR'       ; endif
+!           if(itype==258) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVCTOP'   ; endif
+!           if(itype==259) then;  c_prvstg='MODIS'    ;  c_sprvstg='WVDLAYER' ; endif
+!
+!           c_station_id='SATWND'
 
 ! Get information from surface file necessary for conventional data here
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
