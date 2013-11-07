@@ -478,10 +478,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         iobsub = 0                                                  
         if(kx == 280) iobsub=hdr(3)                                            
         if(kx == 290) iobsub=hdr(2)
-        if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
-        if(use_prepb_satwnd .and. kx == 245  ) then
-           if(hdr(2) == 259.0_r_kind) iobsub = 15 
-        endif
+        if(use_prepb_satwnd .and. (kx >= 240 .and. kx <=260 )) iobsub = hdr(2)
 
 !       For the satellite wind to get quality information and check if it will be used
         if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx ==254) ) then
@@ -723,10 +720,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            t4dv=t4dv + time_correction
            time=timeobs + time_correction
            kx=hdr(5)
-           if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
-           if(use_prepb_satwnd .and. kx == 245  ) then
-              if(hdr(2) == 259.0_r_kind) iobsub = 15
-           endif
+           if(use_prepb_satwnd .and. (kx >= 240 .or. kx <= 260)) iobsub = hdr(7)
 
  
 !          Balloon drift information available for these data
