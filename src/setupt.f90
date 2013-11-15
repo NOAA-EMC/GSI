@@ -734,7 +734,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
               end if
 
               if (aircraft_t_bc) then
-                 ostats_t(1,ix)  = ostats_t(1,ix) + one_quad*effective
+                 if (j==1) ostats_t(1,ix)  = ostats_t(1,ix) + one_quad*effective
                  rstats_t(j,ix)=rstats_t(j,ix)+ttail(ibin)%head%pred(j) &
                                *ttail(ibin)%head%pred(j)*(ratio_errors*error)**2*effective
               end if
