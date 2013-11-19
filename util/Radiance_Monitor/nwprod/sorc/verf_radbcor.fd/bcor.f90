@@ -5,8 +5,8 @@ program bcor
   use read_diag
 
   implicit none
-  integer ntype,mregion,surf_nregion
-  parameter (ntype=16,mregion=25,surf_nregion=5)
+  integer ntype,mregion,surf_nregion,max_surf_region
+  parameter (ntype=16,mregion=25,max_surf_region=5)
   integer iglobal, iland, iwater, isnowice, imixed
   parameter( iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5 )
 
@@ -14,10 +14,10 @@ program bcor
   character(20) satname,stringd,satsis,mod_satname
   character(10) dum,satype,dplat
   character(40) string,diag_rad,data_file,ctl_file
-  character(40),dimension(surf_nregion):: region
+  character(40),dimension(max_surf_region):: region
   character(10) suffix
 
-  integer luname,lungrd,lunctl,lndiag,nregion
+  integer luname,lungrd,lunctl,lndiag
   integer iyy,imm,idd,ihh,idhh,incr,iread,iflag
   integer n_chan,j,idsat,i,k,ii,nsub
   integer,dimension(mregion):: jsub
@@ -28,7 +28,7 @@ program bcor
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm
   real,dimension(2):: cor_total,cor_fixang,cor_lapse,cor_lapse2,&
        cor_const,cor_scangl,cor_clw
-  real,dimension(surf_nregion):: rlatmin,rlatmax,rlonmin,rlonmax
+  real,dimension(max_surf_region):: rlatmin,rlatmax,rlonmin,rlonmax
 
   real,allocatable,dimension(:):: wavenumbr
   real,allocatable,dimension(:,:):: count,error,use,frequency,penalty
@@ -53,10 +53,11 @@ program bcor
   integer               :: nchanl               = 19
   integer               :: imkctl               = 1
   integer               :: imkdata              = 1
-  character(3)          :: gesanl               ='ges'
+  character(3)          :: gesanl               = 'ges'
   integer               :: little_endian        = 1
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
+  character(3)          :: rad_area             = 'glb'
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
+       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -78,14 +79,22 @@ program bcor
 !
 ! Initialize variables
   iread=0
-  nregion=surf_nregion
   npred_radiag = 5
 
 ! Read namelist input
   read(luname,input)
   write(6,input)
   write(6,*)'gesanl = ', gesanl
+  write(6,*)'rad_area = ', rad_area
   write(6,*)' '
+
+  surf_nregion = 5
+  if ( trim(rad_area) == 'rgn' ) then
+     surf_nregion = 1
+  endif
+
+  write(6,*)'surf_nregion = ', surf_nregion
+
 
 ! Ensure number of requested regions does not exceed specified upper limit
   if (surf_nregion>mregion) then
@@ -211,6 +220,7 @@ program bcor
           incr,ctl_file,lunctl,rmiss,mod_satname,satype,dplat,surf_nregion,&
           region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use(1,1),error(1,1),&
           frequency(1,1),wavenumbr,little_endian)
+     
   endif
 
   nwater = 0; nnwater = 0
@@ -237,44 +247,49 @@ program bcor
         if (rlon>180.) rlon = rlon - 360.
         rread  = rread + 1.0 
 
-        if ( data_fix%water_frac > 0.99 ) then
-           nwater = nwater + 1
-        else if ( data_fix%land_frac  > 0.99 ) then
-           nland  = nland  + 1
-        else if ( data_fix%snow_frac  > 0.99 ) then
-           nsnow  = nsnow  + 1
-        else if ( data_fix%ice_frac   > 0.99 ) then
-           nice   = nice   + 1
-        else
-           nmixed = nmixed + 1
-        end if
-
         ntotal = ntotal + 1
+        jsub(1)= iglobal
+        nsub   = 1
+
+        if ( surf_nregion > 1 ) then
+           if ( data_fix%water_frac > 0.99 ) then
+              nwater = nwater + 1
+           else if ( data_fix%land_frac  > 0.99 ) then
+              nland  = nland  + 1
+           else if ( data_fix%snow_frac  > 0.99 ) then
+              nsnow  = nsnow  + 1
+           else if ( data_fix%ice_frac   > 0.99 ) then
+              nice   = nice   + 1
+           else
+              nmixed = nmixed + 1
+           end if
 
 
-!       Detemine into which subdomains the observation falls.
-!       These are now based on surface type, not geography.  All
-!       obs match global (surf_region 1).
+
+!          Detemine into which subdomains the observation falls.
+!          These are now based on surface type, not geography.  All
+!          obs match global (surf_region 1).
 !
-        ii=0; jsub=0;
-        jsub(1)=iglobal
-        if ( data_fix%land_frac  > 0.99 ) then
-           jsub(2)=iland
-           nsub=2
-           nnland=nnland+1
-        else if ( data_fix%water_frac > 0.99 ) then
-           jsub(2)=iwater
-           nsub=2
-           nnwater=nnwater+1
-        else if (( data_fix%snow_frac > 0.99 ) .OR. ( data_fix%ice_frac > 0.99 )) then
-           jsub(2)=isnowice
-           nsub=2
-           nnsnow=nnsnow+1
-        else
-           jsub(2)=imixed
-           nsub=2
-           nnmixed=nnmixed+1
-           write(6,*)'data_fix%land_frac,water,snow,ice = ',data_fix%land_frac, data_fix%water_frac, data_fix%snow_frac, data_fix%ice_frac
+           ii=0; 
+!jsub=0;
+           if ( data_fix%land_frac  > 0.99 ) then
+              jsub(2)=iland
+              nsub=2
+              nnland=nnland+1
+           else if ( data_fix%water_frac > 0.99 ) then
+              jsub(2)=iwater
+              nsub=2
+              nnwater=nnwater+1
+           else if (( data_fix%snow_frac > 0.99 ) .OR. ( data_fix%ice_frac > 0.99 )) then
+              jsub(2)=isnowice
+              nsub=2
+              nnsnow=nnsnow+1
+           else
+              jsub(2)=imixed
+              nsub=2
+              nnmixed=nnmixed+1
+              write(6,*)'data_fix%land_frac,water,snow,ice = ',data_fix%land_frac, data_fix%water_frac, data_fix%snow_frac, data_fix%ice_frac
+           end if
         end if
 
 
@@ -371,9 +386,13 @@ program bcor
 ! Deallocate arrays
   write(6,*)' '
   write(6,*)'deallocate arrays'
-  deallocate(io_chan,nu_chan,wavenumbr,total_cor,fixang_cor,lapse_cor,&
-       lapse2_cor,const_cor,scangl_cor,clw_cor,count,penalty,error,use,&
-       frequency)
+!   deallocate(io_chan,nu_chan,wavenumbr)
+
+!  deallocate(io_chan,nu_chan,wavenumbr,total_cor,fixang_cor,lapse_cor,&
+!       lapse2_cor,const_cor,scangl_cor,clw_cor,count,penalty,error,use,&
+!       frequency)
+
+  write(6,*)'deallocated arrays'
   goto 950
 
 ! Jump to here if eof or error reading diagnostic file.
@@ -435,5 +454,6 @@ program bcor
 
 ! End of program
 950 continue
+  write(6,*) 'exiting program bcor'
   stop
 end program bcor

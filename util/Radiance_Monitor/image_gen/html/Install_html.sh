@@ -101,7 +101,7 @@ if [[ $use_static_satype -eq 0 ]]; then
    #  Find the first date with data.  Start at today and work
    #  backwards.  Stop after 90 days and exit.
    #
-   PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+   PDATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 
    echo PDATE= $PDATE
 

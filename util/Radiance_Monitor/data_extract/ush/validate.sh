@@ -27,7 +27,10 @@ echo "       TEST:  COMPRESS = $COMPRESS"
 #
 #  Get the gdas_radmon_base.tar file and open it
 #
-   cp ~/nbns/stats/wopr/info/gdas_radmon_base.tar .
+   cp ~/nbns/stats/wopr/info/gdas_radmon_base.tar* .
+   if [[ -s gdas_radmon_base.tar.gz ]]; then
+      gunzip gdas_radmon_base.tar.gz
+   fi
    tar -xvf gdas_radmon_base.tar
    rm -f gdas_radmon_base.tar
 

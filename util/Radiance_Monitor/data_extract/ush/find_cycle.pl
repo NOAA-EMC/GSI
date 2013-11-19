@@ -65,7 +65,7 @@
       print "exiting with 0 raddirs\n";
       exit;
    }
-
+  
    
    #  Sort the raddirs array and loop through it from end to beginning
    #

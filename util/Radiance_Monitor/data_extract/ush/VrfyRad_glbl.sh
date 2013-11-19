@@ -227,6 +227,11 @@ if [[ -e ${radstat} ]]; then
       cp ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ${TANKverf}/radmon.${PDY}/.
    fi
 
+   
+   #------------------------------------------------------------------
+   #   Override the default base_file declaration if there is an  
+   #   available base file for this source.
+   #------------------------------------------------------------------
    if [[ -s ${TANKverf}/info/radmon_base.tar.Z || -s ${TANKverf}/info/radmon_base.tar ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar 
    fi
@@ -238,7 +243,7 @@ if [[ -e ${radstat} ]]; then
    #   Submit data processing jobs.
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:15 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod

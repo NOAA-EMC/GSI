@@ -25,7 +25,7 @@ MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 
-CMD = radmon_angle.glb
+CMD = radmon_angle
 
 all:  $(CMD)
 

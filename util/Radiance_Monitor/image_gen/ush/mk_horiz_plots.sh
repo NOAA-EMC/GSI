@@ -34,7 +34,7 @@ cd $DATADIR
 #--------------------------------------------------------------------
 #   Copy extraction program to working directory
 
-$NCP $EXEDIR/horiz.${RAD_AREA}.x  ./horiz.x
+$NCP $EXEDIR/horiz.x  ./horiz.x
 
 
 #--------------------------------------------------------------------

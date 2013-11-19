@@ -2,18 +2,18 @@ program angle
   use read_diag
 
   implicit none
-  integer ntype,mregion,mstep,surf_nregion
-  parameter (ntype=21,mregion=25,mstep=100,surf_nregion=5)
+  integer ntype,mregion,mstep,surf_nregion,max_surf_region
+  parameter (ntype=21,mregion=25,mstep=100,max_surf_region=5)
   integer iglobal, iland, iwater, isnowice, imixed
   parameter (iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5)
-  
+ 
   character(10),dimension(ntype):: ftype
   character(8) stid
   character(20) satname,stringd
   character(10) satype,dplat
   character(20) dum,satsis,satscan_sis
   character(40) string,diag_rad,data_file,dfile,ctl_file
-  character(40),dimension(surf_nregion):: surf_region
+  character(40),dimension(max_surf_region):: surf_region
   character(8)  date,suffix,cycle
   character(len=1024) :: command
 
@@ -31,7 +31,7 @@ program angle
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm,rread
   real,dimension(2):: cor_tot,nbc_omg,bc_omg
   real,dimension(2):: cor_fixang,cor_lapse,cor_lapse2,cor_const,cor_scangl,cor_clw
-  real,dimension(surf_nregion):: surf_rlatmin,surf_rlatmax,surf_rlonmin,surf_rlonmax
+  real,dimension(max_surf_region):: surf_rlatmin,surf_rlatmax,surf_rlonmin,surf_rlonmax
 
   real,allocatable,dimension(:):: wavenumbr,error,use,frequency
   real,allocatable,dimension(:,:):: timang
@@ -58,8 +58,9 @@ program angle
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
   integer               :: little_endian        = 1
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
+  character(3)          :: rad_area             = 'glb'
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
+       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area
 
   data luname,lungrd,lunctl,lndiag,iscan / 5, 51, 52, 21, 31 /
   data lunang / 22 /
@@ -88,6 +89,12 @@ program angle
   write(6,input)
   write(6,*)' '
   write(6,*)'gesanl = ', gesanl
+  write(6,*)'rad_area = ', rad_area
+
+  surf_nregion = 5
+  if ( trim(rad_area) == 'rgn' ) then
+     surf_nregion = 1
+  endif
 
   if ( trim(gesanl) == 'anl' ) then
      ftype(4)  = 'omanbc'
@@ -169,15 +176,7 @@ program angle
      call errexit(92)
   endif
 
-! if ( jiter /=1) then
-!   write(6,*)  '***ERROR***  not the guess vs. satellite radiance'
-!   write(6,*) 'outloop no. ',jiter
-!   call errexit(92)
-!endif
-    
 !  open scan info file compiled in the source directory
-
- 
    open(iscan,file='scaninfo.txt',form='formatted')
   do 
    read(iscan,1000,IOSTAT=iflag) cflg,satscan_sis,start,step,nstep
@@ -278,56 +277,60 @@ program angle
      ipos   = data_fix%senscn_pos         !! sensor scan position(integer)     
      rang   = data_fix%satzen_ang         !! satellite zenith angle (deg) 
 
-     if ( data_fix%water_frac > 0.99 ) then
-        nwater = nwater + 1
-     else if ( data_fix%land_frac  > 0.99 ) then
-        nland  = nland  + 1
-     else if ( data_fix%snow_frac  > 0.99 ) then
-        nsnow  = nsnow  + 1
-     else if ( data_fix%ice_frac   > 0.99 ) then
-        nice   = nice   + 1
-     else 
-        nmixed = nmixed + 1 
-     end if
-
      ntotal = ntotal + 1
-
-     if (rlon>180.) rlon = rlon - 360.
-     if (ipos<1) then
-        write(6,*)'scan position less than 1.  ipos=',ipos
-        ipos=1
-     endif
-     if (ipos>nstep) then
-        write(6,*)'scan position > nstep.  ipos,nstep,',&
-             ipos,nstep
-        ipos=nstep
-     endif
-     rread  = rread + 1.0 
-
-
-!    Detemine which subdomains the observation falls into
-!    These are now based on surface type, not geography.  All
-!    obs match global (surf_region 1).
-!
-     ii=0; jsub=0; 
      jsub(1)=iglobal
-     if ( data_fix%land_frac  > 0.99 ) then
-        jsub(2)=iland
-        nsub=2
-        nnland=nnland+1
-     else if ( data_fix%water_frac > 0.99 ) then
-        jsub(2)=iwater
-        nsub=2
-        nnwater=nnwater+1
-     else if (( data_fix%snow_frac > 0.99 ) .OR. ( data_fix%ice_frac > 0.99 )) then
-        jsub(2)=isnowice
-        nsub=2
-        nnsnow=nnsnow+1
-     else 
-        jsub(2)=imixed
-        nsub=2
-        nnmixed=nnmixed+1
-        write(6,*)'data_fix%land_frac,water,snow,ice = ',data_fix%land_frac, data_fix%water_frac, data_fix%snow_frac, data_fix%ice_frac
+
+     if ( surf_nregion > 1 ) then
+        if ( data_fix%water_frac > 0.99 ) then
+           nwater = nwater + 1
+        else if ( data_fix%land_frac  > 0.99 ) then
+           nland  = nland  + 1
+        else if ( data_fix%snow_frac  > 0.99 ) then
+           nsnow  = nsnow  + 1
+        else if ( data_fix%ice_frac   > 0.99 ) then
+           nice   = nice   + 1
+        else 
+           nmixed = nmixed + 1 
+        end if
+
+
+        if (rlon>180.) rlon = rlon - 360.
+        if (ipos<1) then
+           write(6,*)'scan position less than 1.  ipos=',ipos
+           ipos=1
+        endif
+        if (ipos>nstep) then
+           write(6,*)'scan position > nstep.  ipos,nstep,',&
+                ipos,nstep
+           ipos=nstep
+        endif
+        rread  = rread + 1.0 
+
+
+!       Detemine which subdomains the observation falls into
+!       These are now based on surface type, not geography.  All
+!       obs match global (surf_region 1).
+!
+        ii=0; jsub=0; 
+        jsub(1)=iglobal
+        if ( data_fix%land_frac  > 0.99 ) then
+           jsub(2)=iland
+           nsub=2
+           nnland=nnland+1
+        else if ( data_fix%water_frac > 0.99 ) then
+           jsub(2)=iwater
+           nsub=2
+           nnwater=nnwater+1
+        else if (( data_fix%snow_frac > 0.99 ) .OR. ( data_fix%ice_frac > 0.99 )) then
+           jsub(2)=isnowice
+           nsub=2
+           nnsnow=nnsnow+1
+        else 
+           jsub(2)=imixed
+           nsub=2
+           nnmixed=nnmixed+1
+           write(6,*)'data_fix%land_frac,water,snow,ice = ',data_fix%land_frac, data_fix%water_frac, data_fix%snow_frac, data_fix%ice_frac
+        end if
      end if
 
 

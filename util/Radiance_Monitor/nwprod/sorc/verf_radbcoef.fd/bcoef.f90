@@ -7,7 +7,6 @@ program bcoef
   parameter (maxpred=10)
 
   logical eof
-  logical no_obs
 
   character(10),dimension(ntype):: ftype
   character(20) dum,satname,stringd,satsis,isis,mod_satname
@@ -17,7 +16,7 @@ program bcoef
 
   integer npredr
   integer luname,lungrd,lunctl,lncoef,lndiag,ich
-  integer iyy,imm,idd,ihh,idhh,incr,iread,iflag,nchan
+  integer iyy,imm,idd,ihh,idhh,incr,iread,iflag
   integer n_chan,j,i,k,idum,ichan
   integer,allocatable,dimension(:):: io_chan,nu_chan
   integer npred_radiag
@@ -33,7 +32,7 @@ program bcoef
   type(diag_data_name_list  )             :: data_name
   type(diag_data_fix_list   )             :: data_fix
   type(diag_data_chan_list  ),allocatable :: data_chan(:)
-  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
+  type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
 ! Namelist with defaults
   logical               :: retrieval            = .false.
@@ -175,14 +174,6 @@ program bcoef
            pen        =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
            count(j)   = count(j) + 1.0 
            penalty(j) = penalty(j) + pen
-           
-           !
-           ! update the no_obs flag if record is valid
-           !
-           if( no_obs .eqv. .TRUE. ) then
-              no_obs = .FALSE.
-           endif
- 
         endif
 
      enddo ! channel loop
@@ -231,8 +222,6 @@ program bcoef
   end do
   close(lncoef)
   deallocate(predr)
-
-  nchan=k
 
   ! Create Control file
   if ( imkctl == 1 ) then
