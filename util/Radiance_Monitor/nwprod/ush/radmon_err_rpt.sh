@@ -135,15 +135,15 @@ fi
       bound=""
 
       echo $myline
-      satname=`echo $myline | nawk '{print $1}'`
+      satname=`echo $myline | gawk '{print $1}'`
       echo satname = $satname
-      channel=`echo $myline | nawk '{print $3}'`
+      channel=`echo $myline | gawk '{print $3}'`
       echo channel = $channel
-      region=`echo $myline | nawk '{print $5}'`
+      region=`echo $myline | gawk '{print $5}'`
       echo region = $region
-      value1=`echo $myline | nawk '{print $7}'`
+      value1=`echo $myline | gawk '{print $7}'`
       echo value1 = $value1
-      bound=`echo $myline | nawk '{print $9}'`
+      bound=`echo $myline | gawk '{print $9}'`
 
 #
 #     Check findings against diag_report.  If the satellite/instrument is on the 
@@ -156,7 +156,7 @@ fi
       diag_match_len=0 
 
       if [[ $have_diag_rpt == 1 ]]; then
-         diag_match=`nawk "/$satname/" $diag_rpt`
+         diag_match=`gawk "/$satname/" $diag_rpt`
          diag_match_len=`echo ${#diag_match}`
       fi
 
@@ -164,16 +164,16 @@ fi
       if [[ $diag_match_len == 0 ]]; then  
 
          if [[ $type == "chan" ]]; then
-            match=`nawk "/$satname/ && /channel=  $channel/" $file2`
+            match=`gawk "/$satname/ && /channel=  $channel/" $file2`
          else
-            match=`nawk "/$satname/ && /channel=  $channel / && /region=  $region /" $file2`
+            match=`gawk "/$satname/ && /channel=  $channel / && /region=  $region /" $file2`
          fi
          match_len=`echo ${#match}`
 
          if [[ $match_len > 0 ]]; then
             echo $match_len
-            value2=`echo $match | nawk '{print $7}'`
-            bound2=`echo $match | nawk '{print $9}'`
+            value2=`echo $match | gawk '{print $7}'`
+            bound2=`echo $match | gawk '{print $9}'`
 
             if [[ $type == "chan" ]]; then
                tmpa="$satname  channel= $channel"
@@ -209,7 +209,10 @@ fi
             #  channels, and we need to map the channel to the correct
             #  grouping number in order to produce an accurate hyperlink.
             #
-            ctlfile="${satname}.ctl"
+            ctlfile="time.${satname}.ctl"
+            if [[ -s ${ctlfile}.Z ]]; then
+               uncompress ${ctlfile}.Z
+            fi
             changrp=`${USHgfs}/radmon_getchgrp.pl ${ctlfile} ${channel}`
             echo changrp = $changrp
             line3="   http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/esafford/opr/index.html?sat=${satname}&region=region${region}&channel=${changrp}&stat=${type}"

@@ -58,7 +58,7 @@ function usage {
   found_dset=0
   while read line; do
 
-    dset=`echo $line | nawk '{print $1}'`
+    dset=`echo $line | gawk '{print $1}'`
 
     if [[ $dset == "dset" ]]; then
 #      echo "found tdef"
