@@ -28,7 +28,7 @@ PUBLIC stpt
 
 contains
 
-subroutine stpt(thead,dval,xval,out,sges,nstep)
+subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpt        calculate penalty and contribution to stepsize
@@ -62,6 +62,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
 !                       - add handling of sst case; add pointer_state
 !   2010-05-13  todling - update to use gsi_bundle
 !                       - on-the-spot handling of non-essential vars
+!   2013-05-23  zhu     - add search direction for aircraft data bias predictors
 !
 !   input argument list:
 !     thead
@@ -81,6 +82,8 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
 !     ssst     - analysis increment for sst
 !     sges     - step size estimates (nstep)
 !     nstep    - number of stepsizes (==0 means use outer iteration values)
+!     rpred    - search direction for predictors
+!     spred    - input predictor values
 !                                         
 !   output argument list:         
 !     out(1:nstep)   - penalty from temperature observations sges(1:nstep)
@@ -96,6 +99,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
   use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -105,12 +109,13 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
   integer(i_kind)                     ,intent(in   ) :: nstep
   real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
   real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_kind),dimension(npredt,ntail),optional,intent(in   ) :: rpred,spred
   type(gsi_bundle),intent(in) :: dval
   type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
   integer(i_kind) ier,istatus,isst
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,n,ix
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind) cg_t,val,val2,wgross,wnotgross,t_pg
   real(r_kind),dimension(max(1,nstep))::pen,tt
@@ -224,6 +229,15 @@ subroutine stpt(thead,dval,xval,out,sges,nstep)
                              w5*xhat_dt_tsen(j5)+w6*xhat_dt_tsen(j6)+ &
                              w7*xhat_dt_tsen(j7)+w8*xhat_dt_tsen(j8))*time_t
               end if
+           end if
+
+!          contribution from bias correction
+           if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
+              ix=tptr%idx
+              do n=1,npredt
+                 val2=val2+spred(n,ix)*tptr%pred(n)
+                 val =val +rpred(n,ix)*tptr%pred(n)
+              end do 
            end if
 
            do kk=1,nstep
