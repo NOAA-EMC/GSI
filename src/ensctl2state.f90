@@ -3,6 +3,7 @@ subroutine ensctl2state(xhat,mval,eval)
 !                .      .    .                                       .
 ! subprogram:    ensctl2state
 !   prgmmr: kleist
+!   2013-11-22  kleist - add option for q perturbations
 !
 ! abstract:  Converts ensemble control variable to state vector space
 !
@@ -22,7 +23,7 @@ use constants, only:  zero,max_varname_length
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
-use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
+use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
 use balmod, only: strong_bk
 use gsi_bundlemod, only: gsi_bundlecreate
@@ -92,7 +93,7 @@ ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
 do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
-do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
+do_normal_rh_to_q=(.not.q_hyb_ens).and.lc_rh.and.lc_t .and.ls_p3d.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
@@ -139,8 +140,10 @@ do jj=1,ntlevs_ens
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_p3d)
 
-!  Convert input normalized RH to q
+!  Convert RH to Q
    if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_tv,sv_p3d,sv_q)
+!  Else copy directly
+   if(q_hyb_ens) call gsi_bundlegetvar ( wbundle_c, 'q'  , sv_q,  istatus )
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_tv,sv_q,sv_tsen)
