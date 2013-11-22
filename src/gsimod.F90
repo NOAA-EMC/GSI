@@ -53,7 +53,7 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
-     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start
+     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
@@ -249,6 +249,7 @@
 !                         different regional balance methods.
 !  07-10-2013 zhu       add upd_pred as bias update indicator for radiance bias correction
 !  07-19-2013 zhu       add emiss_bc for emissivity predictor in radiance bias correction scheme
+!  10-30-2013 jung      added clip_supersaturation to setup namelist
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -268,6 +269,7 @@
 !     gencode  - source generation code
 !     factqmin - weighting factor for negative moisture constraint
 !     factqmax - weighting factor for supersaturated moisture constraint
+!     clip_supersaturation - flag to remove supersaturation during each outer loop default=.false.
 !     deltim   - model timestep
 !     dtphys   - physics timestep
 !     biascor  - background error bias correction coefficient
@@ -406,7 +408,7 @@
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,factv,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        ndat,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
