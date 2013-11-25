@@ -146,7 +146,7 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
          ' , wlth= ',f9.2,' , freq= ',f9.2)
 138 format('*ZDEF is geographic region')
 140 format(a80)
-145 format('xdef ',i3,' linear ',f5.1,1x,f4.2)
+145 format('xdef ',i3,' linear ',f5.1,1x,f5.1)
 150 format('ydef ',i4,' linear 1.0 1.0')
 160 format('zdef ',i2,' linear 1.0 1.0')
 170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' 06hr')

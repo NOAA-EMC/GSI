@@ -91,8 +91,8 @@ EOF
 
 
 
-   rm -f ${type}.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -112,9 +112,9 @@ done
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 exit
