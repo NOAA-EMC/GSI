@@ -31,7 +31,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_isotropic, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_anl,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
-  use hybrid_ensemble_parameters, only: full_ensemble
+  use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -376,18 +376,6 @@ subroutine get_gefs_for_regional
         end do
      end if
 
-     allocate(tsen(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-     allocate(qs(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
-!    Compute RH and potential virtual temp
-!    First step is go get sensible temperature and 3d pressure
-     do k=1,grd_mix%nsig
-        kt=k+2*grd_mix%nsig ; kq=k+3*grd_mix%nsig
-        do j=1,grd_mix%lon2
-           do i=1,grd_mix%lat2
-              tsen(i,j,k)= work_sub(1,i,j,kt)/(one+fv*max(zero,work_sub(1,i,j,kq)))
-           end do
-        end do
-     end do
 !    Get 3d pressure field now on interfaces
      allocate(prsl(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
      if (idsl5/=2) then
@@ -483,21 +471,45 @@ subroutine get_gefs_for_regional
      !                                                write(fname,'("ges_ps")')
      !                                                call grads1a(ges_ps(:,:,ntguessig),1,mype,trim(fname))
 
-     ice=.true.
-     iderivative=0
-     call genqsat(qs,tsen,prsl,grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,ice,iderivative)
-     deallocate(tsen)
 
+! If not using Q perturbations, convert to RH
+     if (.not.q_hyb_ens) then
+        allocate(tsen(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+        allocate(qs(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig))
+!    Compute RH and potential virtual temp
+!    First step is go get sensible temperature and 3d pressure
+        do k=1,grd_mix%nsig
+           kt=k+2*grd_mix%nsig ; kq=k+3*grd_mix%nsig
+           do j=1,grd_mix%lon2
+              do i=1,grd_mix%lat2
+                 tsen(i,j,k)= work_sub(1,i,j,kt)/(one+fv*max(zero,work_sub(1,i,j,kq)))
+              end do
+           end do 
+        end do
+
+        ice=.true.
+        iderivative=0
+        call genqsat(qs,tsen,prsl,grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,ice,iderivative)
+
+        do k=1,grd_mix%nsig
+           kt=k+2*grd_mix%nsig ; kq=k+3*grd_mix%nsig
+           do j=1,grd_mix%lon2
+              do i=1,grd_mix%lat2
+                 work_sub(1,i,j,kq) = work_sub(1,i,j,kq)/qs(i,j,k)
+              end do
+           end do
+        end do
+        deallocate(qs,tsen)
+     end if
      do k=1,grd_mix%nsig
-        kt=k+2*grd_mix%nsig ; kq=k+3*grd_mix%nsig
+        kt=k+2*grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
-              work_sub(1,i,j,kq) = work_sub(1,i,j,kq)/qs(i,j,k)
               work_sub(1,i,j,kt)=work_sub(1,i,j,kt)/(0.01_r_kind*prsl(i,j,k))**rd_over_cp
            end do
         end do
      end do
-     deallocate(qs)
+
      deallocate(prsl)
 
      iimax=0
@@ -846,11 +858,19 @@ subroutine get_gefs_for_regional
            allocate ( tmp_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
            allocate ( tmp_ens2(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1) )
            allocate ( tmp_anl(lat2,lon2,nsig,1) )
-           tmp_anl(:,:,:,1)=qs(:,:,:)
-           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
-           tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
-           call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
-           rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)/tmp_ens(:,:,:,1)
+
+           if (.not.q_hyb_ens) then
+              tmp_anl(:,:,:,1)=qs(:,:,:)
+              call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
+              tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
+              call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
+              rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)/tmp_ens(:,:,:,1)
+           else
+              tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
+              call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
+              rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)
+           end if
+
            tmp_anl(:,:,:,1)=ges_u(:,:,:,ntguessig)
            call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
            ut(:,:,:) = ut(:,:,:)-tmp_ens(:,:,:,1)
@@ -871,10 +891,27 @@ subroutine get_gefs_for_regional
                     ut(i,j,k) = ut(i,j,k)-ges_u(i,j,k,ntguessig)
                     vt(i,j,k) = vt(i,j,k)-ges_v(i,j,k,ntguessig)
                     tt(i,j,k) = tt(i,j,k)-ges_tv(i,j,k,ntguessig)
-                   rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)/qs(i,j,k)
                  end do
               end do
            end do
+
+           if (.not.q_hyb_ens) then
+              do k=1,grd_ens%nsig
+                 do j=1,grd_ens%lon2
+                    do i=1,grd_ens%lat2
+                       rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)/qs(i,j,k)
+                    end do
+                 end do
+              end do
+           else
+              do k=1,grd_ens%nsig
+                 do j=1,grd_ens%lon2
+                    do i=1,grd_ens%lat2
+                       rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)
+                    end do
+                 end do
+              end do
+           end if
 
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
