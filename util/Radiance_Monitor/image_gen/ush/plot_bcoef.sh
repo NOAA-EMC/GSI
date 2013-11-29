@@ -79,7 +79,7 @@ for type in ${SATYPE}; do
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
 
-   list="mean atmpath clw lapse2 lapse"
+   list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
    for var in $list; do
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'

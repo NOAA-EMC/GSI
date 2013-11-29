@@ -102,7 +102,7 @@ logfile="$LOGDIR/plot_bcoef.log"
 rm ${logfile}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} $SCRIPTS/plot_bcoef.sh
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -R affinity[core] -J ${jobname} $SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "zeus" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
 fi
