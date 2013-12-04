@@ -230,7 +230,6 @@ raflib.o : raflib.f90 plib8.o constants.o mpimod.o kinds.o
 rapidrefresh_cldsurf_mod.o : rapidrefresh_cldsurf_mod.f90 gsi_metguess_mod.o kinds.o 
 rdgrbsst.o : rdgrbsst.f90 constants.o kinds.o 
 read_aerosol.o : read_aerosol.f90 gsi_4dvar.o obsmod.o constants.o gridmod.o kinds.o 
-read_aircraft_profile.o : read_aircraft_profile.f90 aircraftobsqc.o deter_sfc_mod.o jfunc.o support_2dvar.o blacklist.o convthin.o qcmod.o gsi_4dvar.o converr.o aircraftinfo.o obsmod.o convinfo.o gridmod.o constants.o kinds.o 
 read_airs.o : read_airs.f90 deter_sfc_mod.o calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_amsre.o : read_amsre.f90 deter_sfc_mod.o calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_anowbufr.o : read_anowbufr.f90 chemmod.o gsi_4dvar.o convinfo.o gridmod.o constants.o kinds.o 
