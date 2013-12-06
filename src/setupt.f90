@@ -397,8 +397,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    aircraftobst = itype>129.and.itype<140
      aircraftobst = (itype==131) .or. (itype==133)
-     ix = data(idx,i)
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then 
+        ix = data(idx,i)
         if (ix==0) then
 !          Inflate obs error for new tail number
            data(ier,i) = 1.2_r_kind*data(ier,i)
