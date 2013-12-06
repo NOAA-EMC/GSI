@@ -397,6 +397,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !    aircraftobst = itype>129.and.itype<140
      aircraftobst = (itype==131) .or. (itype==133)
+     ix = 0
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then 
         ix = data(idx,i)
         if (ix==0) then
