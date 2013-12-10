@@ -12,6 +12,7 @@ module intozmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intoz_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intoz_
@@ -115,6 +116,7 @@ subroutine intozlay_(ozhead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2009-01-18  todling  - treat val in quad precision (revisit later)
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -137,6 +139,7 @@ subroutine intozlay_(ozhead,rval,sval)
   use constants, only: one,zero,r3600,zero_quad
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -243,10 +246,14 @@ subroutine intozlay_(ozhead,rval,sval)
                  valx = ozptr%diags(k)%ptr%obssen(jiter)
 
               else
-                 val1=val1-ozptr%res(k)
+                 if(ladtest_obs) then
+                    valx     = val1
+                 else
+                    val1=val1-ozptr%res(k)
 
-                 valx     = val1*ozptr%err2(k) 
-                 valx     = valx*ozptr%raterr2(k)
+                    valx     = val1*ozptr%err2(k) 
+                    valx     = valx*ozptr%raterr2(k)
+                 end if
               endif
 
               do kk=iz1,iz2,-1
@@ -330,10 +337,15 @@ subroutine intozlay_(ozhead,rval,sval)
            valx = ozptr%diags(k)%ptr%obssen(jiter)
 
         else
-           val1=val1-ozptr%res(k)
+           if(ladtest_obs) then
+              valx     = val1
+           else
+              val1=val1-ozptr%res(k)
 
-           valx     = val1*ozptr%err2(k)
-           valx     = valx*ozptr%raterr2(k)
+              valx     = val1*ozptr%err2(k)
+              valx     = valx*ozptr%raterr2(k)
+           end if
+
         endif
 
         do kk=nsig,1,-1
@@ -404,6 +416,7 @@ subroutine intozlev_(o3lhead,rval,sval)
 !   2009-01-08  todling - remove nonlinear qc
 !   2009-01-22  sienkiewicz - add time derivative
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
@@ -427,6 +440,7 @@ subroutine intozlev_(o3lhead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -506,9 +520,13 @@ subroutine intozlev_(o3lhead,rval,sval)
            grad = o3lptr%diags%obssen(jiter)
 
         else
-           val=val-o3lptr%res
+           if( ladtest_obs ) then
+              grad = val
+           else
+              val=val-o3lptr%res
 
-           grad = val*o3lptr%raterr2*o3lptr%err2
+              grad = val*o3lptr%raterr2*o3lptr%err2
+           end if
         endif
 
 !    Adjoint

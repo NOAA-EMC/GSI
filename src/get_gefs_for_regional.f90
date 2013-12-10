@@ -301,7 +301,7 @@ subroutine get_gefs_for_regional
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     call general_read_gfsatm(grd_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
      deallocate(vor,div)
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
@@ -1384,7 +1384,9 @@ end subroutine get_gefs_for_regional
                       DUM2DB(i,j)=exp(DUM2DB(i,j))
  
                       IF (I == Ilook .and. J == Jlook) THEN
-                         write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
+                         write(0,*) 'L, L+1, p3d_in(L), p3d_in(L+1), z3d_in(L), z3d_in(L+1): ', &
+                                   L, L+1, PRESS3D_IN(i,j,l), PRESS3D_IN(i,j,L+1), &
+                                   Z3D_IN(i,j,l), Z3D_IN(i,j,L+1)
                          write(0,*) 'TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L): ', TERRAIN_HGT_T(I,J) , Z3D_IN(i,j,L)
                          write(0,*) 'here(2b) set dum2db to: ', I,J, Dum2db(I,J)
                       ENDIF

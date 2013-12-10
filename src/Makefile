@@ -81,7 +81,7 @@ LIBsp     = -L$(CORELIB) -lsp
 LIBbacio  = -L$(CORELIB) -lbacio
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
-LIBcrtm   = -L$(CORELIB) -lcrtm_2.0.5
+LIBcrtm   = -L$(CORELIB) -lcrtm_2.1.3
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBgfio   = -L$(CORELIB) -lgfio
@@ -191,6 +191,7 @@ clean:
 	gfs_stratosphere.f90 \
 	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
+        adjtest_obs.f90 \
 	aeroinfo.f90 \
         aircraftobsqc.f90 \
 	anberror.f90 \
@@ -264,6 +265,7 @@ clean:
 	general_sub2grid_mod.f90 \
 	general_transform.f90 \
         general_tll2xy_mod.f90 \
+	general_write_gfsatm.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
@@ -352,14 +354,18 @@ clean:
 	m_berror_stats.f90 \
 	m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
+	m_distance.f90	\
 	m_dtime.F90	\
+	m_find.f90 \
 	m_gpsrhs.F90 \
 	m_gsiBiases.f90 \
 	m_rerank.f90 \
 	m_obdiag.F90	\
 	m_rhs.F90	\
+	m_sortind.f90 \
 	m_stats.f90 \
 	m_tick.F90 \
+	m_uniq.f90 \
 	mpeu_mpif.F90 \
 	mpeu_util.F90 \
 	mod_nmmb_to_a.f90 \
@@ -438,6 +444,7 @@ clean:
 	smoothwwrf.f90 \
 	smoothzrf.f90 \
 	sqrtmin.f90 \
+	ssmis_spatial_average_mod.f90 \
 	state2control.f90 \
 	state2ensctl.f90 \
 	state_vectors.f90 \
@@ -474,7 +481,6 @@ clean:
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
-	strong_slow_global_mod.f90 \
 	sub2fslab_mod.f90 \
 	support_2dvar.f90 \
 	stub_set_crtm_aerosol.f90 \
@@ -514,6 +520,7 @@ clean:
 
   SRCSF90C_NOSWAP = \
 	get_gefs_ensperts_dualres.f90 \
+	gsi_unformatted.F90 \
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
@@ -532,6 +539,7 @@ clean:
 	read_co.f90 \
 	read_cris.f90 \
 	read_diag.f90 \
+        read_fl_hdob.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -547,6 +555,7 @@ clean:
 	read_prepbufr.f90 \
 	read_radar.f90 \
 	read_satwnd.f90 \
+	read_sfcwnd.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
@@ -723,6 +732,15 @@ prepbykx.x: prepbykx.o
 $(LIB): $(OBJS) $(OBJS_NOSWAP)
 	$(RM) $(LIB)
 	$(AR) $@ $(OBJS) $(OBJS_NOSWAP)
+
+MAIN_OBJS = gsimain.o
+LIBS_OBJS = $(OBJS) $(OBJS_NOSWAP)
+
+list-main_objs:
+	@ for f in $(MAIN_OBJS); do echo $$f; done | env LC_ALL=C sort -u
+
+list-libs_objs:
+	@ for f in $(LIBS_OBJS); do echo $$f; done | grep -v `for p in $(MAIN_OBJS); do echo "-e $$p"; done` | env LC_ALL=C sort -u
 
 export: libgsi.a gsi.x prepbykx.x
 	$(MKDIR)               $(COREBIN)

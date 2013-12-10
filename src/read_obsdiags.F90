@@ -341,7 +341,8 @@ _EXIT_(myname_)
        if(.not.lobserver) then
           my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 		if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                        (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
 		endif
        endif
     enddo
@@ -463,7 +464,8 @@ _EXIT_(myname_)
        if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                       (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
 		end if
        endif
     enddo
@@ -701,7 +703,8 @@ _EXIT_(myname_)
        if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                  (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
        		end if
        endif
     enddo
@@ -813,7 +816,8 @@ _EXIT_(myname_)
          if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                    (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
        endif
        endif      
     enddo
@@ -1903,7 +1907,8 @@ _EXIT_(myname_)
 	 if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                       (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
           end if
        endif
 
@@ -2243,7 +2248,8 @@ _EXIT_(myname_)
        if(.not.lobserver) then 
           my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_) 
                 if(.not.associated(my_node%diags)) then 
-                  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/)) 
+                  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                       (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/)) 
                 endif 
        endif 
     enddo 

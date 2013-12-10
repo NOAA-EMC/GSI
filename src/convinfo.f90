@@ -203,7 +203,7 @@ contains
     nconvtype=0
     nlines=0
     read1: do
-       read(lunin,1030,iostat=istat)cflg,iotype,crecord
+       read(lunin,1030,iostat=istat,end=1130)cflg,iotype,crecord
 1030   format(a1,a7,2x,a120)
        if (istat /= 0) exit
        nlines=nlines+1
@@ -212,6 +212,7 @@ contains
        if (icuset < use_limit) cycle
        nconvtype=nconvtype+1
     enddo read1
+1130 continue
     if (istat>0) then
        write(6,*)'CONVINFO_READ:  ***ERROR*** error reading convinfo, istat=',istat
        close(lunin)
@@ -297,7 +298,8 @@ contains
              iob /= ictype(nc) .or. &		
              isub /= icsubtype(nc) .or. &
              np /= npred_conv(nc)) then
-             write(6,*) 'CONVINFO_READ: convbias.in mismatch: ',nc,ioctype(nc),ictype(nc),icsubtype(nc),npred_conv(nc),cob,iob,isub,np
+             write(6,*) 'CONVINFO_READ: convbias.in mismatch: ',& 
+                 nc,ioctype(nc),ictype(nc),icsubtype(nc),npred_conv(nc),cob,iob,isub,np
              call stop2(48)
           endif
           stndev_conv(nc)=one

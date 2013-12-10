@@ -2495,7 +2495,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
       if(ncross.gt.0) then
         ! count number of obs in each cross-validation dataset
-        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',&
+                ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
         ncvcount=0
         do n=1,ncnumgrp0
            do i=1,ncross

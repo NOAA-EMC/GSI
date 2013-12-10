@@ -515,7 +515,8 @@ subroutine pcgsoi()
         write(6,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         write(iout_iter,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         if (zgini>tiny_r_kind .and. zfini>tiny_r_kind) then
-           write(iout_iter,9993) 'estimated penalty reduction this iteration',jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
+           write(iout_iter,9993) 'estimated penalty reduction this iteration',&
+                 jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
            write(iout_iter,999)'penalty and grad reduction WRT outer and initial iter=', &
                jiter,iter,penalty/zfini,sqrt(gnorm(1)/zgini),penx,gnormx
         else
@@ -765,13 +766,16 @@ subroutine pcgsoi()
   endif
 
 ! Write output analysis files
+  call prt_guess('analysis')
+  call prt_state_norms(sval(1),'wwww')
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
-      if(jiter == miter)call write_all(-1,mype)
+      if(jiter == miter) then
+         call clean_
+         call write_all(-1,mype)
+      endif
   endif
-  call prt_guess('analysis')
-  call prt_state_norms(sval(1),'wwww')
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -784,7 +788,7 @@ subroutine pcgsoi()
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  call clean_
+  if (jiter < miter) call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')

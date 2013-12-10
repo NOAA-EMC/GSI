@@ -10,6 +10,7 @@ subroutine evaljcdfi(svalue,pjc,rvalue)
 !   2009-08-14  lueken   - update documentation
 !   2010-05-14  todling  - update to use gsi_bundle
 !   2011-08-01  lueken   - replace F90 with f90 (no machine logic) 
+!   2013-03-08  x. zhang - bug fix for pjc calculation
 !
 !   input argument list:
 !    svalue
@@ -67,7 +68,7 @@ call self_mul(sfilter,alphajc)
 ! Jc = 1/2 * wgt * sfilter *sfilter
 ! afilter = wgt * sfilter
 call enorm_state(sfilter,pjc,afilter)
-pjc=half_quad*pjc
+! pjc=half_quad*pjc
 if (mype==0) write(6,*)'Jc DFI=',pjc
 
 ! Adjoint Jc multiplicative factor

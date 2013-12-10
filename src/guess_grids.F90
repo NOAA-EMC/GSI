@@ -91,7 +91,8 @@ module guess_grids
 !                         cloud water tendencies and derivatives 
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
-!   2012-12-03  eliu    - add sensible temperature tendency (ges_tsen_gen) 
+!   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
+!   2013-12-10  eliu    - add sensible temperature tendency (ges_tsen_gen) 
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -1700,19 +1701,20 @@ contains
 ! !USES:
 
     use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
-    use gridmod, only: lat2, lon2, nsig, &
-         twodvar_regional
+    use gridmod, only: lat2, lon2, nsig,wrf_mass_regional, &
+         twodvar_regional,nems_nmmb_regional
 
     implicit none
 
 ! !INPUT PARAMETERS:
 
 
-! !DESCRIPTION: populate guess geopotential height
+! !DESCRIPTION: populate guess geopotential height in millibars
 !
 !
 ! !REVISION HISTORY:
 !   2011-06-06  Ming Hu
+!   2013-02-22  Jacob Carley - Added NMMB
 !
 ! !REMARKS:
 !   language: f90
@@ -1737,11 +1739,15 @@ contains
           do i=1,lat2
 
              do k=1,nsig
-                pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
-                thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
-             end do
-!  q_bk = water vapor mixing ratio
 
+                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
+		if (nems_nmmb_regional) then
+		   pbk(k) = aeta1_ll(k)*pdtop_ll + aeta2_ll(k)*(ten*ges_ps(i,j,jj) & 
+		            -pdtop_ll-pt_ll) + pt_ll   			    			    
+		end if
+				
+		thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
+             end do
 
              pbl_height(i,j,jj) = zero
              thsfc = thetav(1)
@@ -1781,20 +1787,20 @@ contains
 
 ! !USES:
 
-    use constants, only: half,ten
+    use constants, only: half,one_tenth
     use gridmod, only: nsig,msig,nlayers
     use crtm_module, only: toa_pressure
 
     implicit none
 
 ! !INPUT PARAMETERS:
-    integer(i_kind),dimension(msig)     ,intent(  out) :: klevel
+    integer(i_kind),dimension(msig)  ,intent(  out) :: klevel
 
     real(r_kind)   ,dimension(nsig+1),intent(in   ) :: prsitmp
-    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: prsltmp
+    real(r_kind)   ,dimension(nsig)  ,intent(in   ) :: prsltmp
 
     real(r_kind)   ,dimension(msig+1),intent(  out) :: prsitmp_ext
-    real(r_kind)   ,dimension(msig)     ,intent(  out) :: prsltmp_ext
+    real(r_kind)   ,dimension(msig)  ,intent(  out) :: prsltmp_ext
 
 
 ! !DESCRIPTION:  Add pressure layers for use in RTM
@@ -1815,14 +1821,16 @@ contains
 
 !   Declare local variables
     integer(i_kind) k,kk,l
-    real(r_kind) dprs
+    real(r_kind) dprs,toa_pressure01
+
+    toa_pressure01=toa_pressure*one_tenth
 
 !   Check if model top pressure above rtm top pressure, where prsitmp
 !   is in kPa and toa_pressure is in hPa.
-    if (ten*prsitmp(nsig) < toa_pressure)then
+    if (prsitmp(nsig) < toa_pressure01)then
        write(6,*)'ADD_RTM_LAYERS:  model top pressure(hPa)=', &
-            ten*prsitmp(nsig),&
-            ' above rtm top pressure(hPa)=',toa_pressure
+            prsitmp(nsig),&
+            ' above rtm top pressure(hPa)=',toa_pressure01
        call stop2(35)
     end if
 
@@ -1838,7 +1846,7 @@ contains
           if (k/=nsig) then
              dprs = (prsitmp(k+1)-prsitmp(k))/nlayers(k)
           else
-             dprs = (toa_pressure-prsitmp(k))/nlayers(k)
+             dprs = (toa_pressure01-prsitmp(k))/nlayers(k)
           end if
           prsitmp_ext(kk+1) = prsitmp(k)
           do l=1,nlayers(k)
@@ -1851,7 +1859,7 @@ contains
     end do
 
 !   Set top of atmosphere pressure
-    prsitmp_ext(msig+1) = toa_pressure
+    prsitmp_ext(msig+1) = toa_pressure01
 
   end subroutine add_rtm_layers
 

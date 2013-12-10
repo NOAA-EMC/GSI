@@ -39,6 +39,8 @@ subroutine convert_binary_mass
 !   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
 !   2013-01-29  parrish - replace retrieve_field calls with retrieve_field_r1, retrieve_field_rn1,
 !                           retrieve_field_rn1n2 (so debug compile works on WCOSS)
+!   2013-04-23  parrish - add internal check for types of GLAT/GLON
+!   2013-05-14  guo     - added #ifdef WRF arround "call initialize_byte_swap_wrf_binary_file()".
 !
 !   input argument list:
 !
@@ -170,9 +172,9 @@ subroutine convert_binary_mass
      close(in_unit)
 
 !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
-
+#ifdef WRF
      call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
-
+#endif
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
                     write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
    
@@ -780,9 +782,9 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      close(in_unit)
 
 !    first determine if endian mismatch between machine and file, and set logical byte_swap accordingly.
-
+#ifdef WRF
      call initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
-
+#endif
      call count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
      write(6,*) '  after count_recs_wrf_binary_file, nrecs=',nrecs
 
@@ -1346,6 +1348,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
 !   2012-02-08  parrish - 1. modify subroutine convert_nems_nmmb to add use of use_gfs_stratosphere.
 !                         2. move conversion of aeta1, eta1 from init_reg_glob_ll (in gridmod.F90) to here.
 !   2013-02-15  parrish - change dimension of eta1_new,eta2_new from nsig_max to nsig_max+1.
+!   2013-04-17  parrish - option to accept input lat/lon in both degrees and radians
 !
 !   input argument list:
 !     update_pint:   false on input
@@ -1652,13 +1655,18 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
      do j=1,nlat_regional
         do i=1,nlon_regional
            ii=ii+1
-           glat(i,j)=glata(ii)*deg2rad       ! input lat in degrees
-           glon(i,j)=glona(ii)*deg2rad       ! input lon in degrees
+           glat(i,j)=glata(ii)
+           glon(i,j)=glona(ii)
            dx  (i,j)=    dxa  (ii)
            dy  (i,j)=    dya  (ii)
         end do
      end do
-  
+
+!     following detects if glat, glon are in degree units.  If so,
+!      they are converted to radians.
+
+     call latlon2radians(glat,glon,dx,dy,nlon_regional,nlat_regional)
+
 !                  GLAT
 
      write(6,*)' convert_nems_nmmb: max,min GLAT=', &
@@ -1777,6 +1785,83 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   enddo n_loop
 
 end subroutine convert_nems_nmmb
+
+subroutine latlon2radians(glat,glon,dx,dy,nx,ny)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    latlon2radians  check for degrees and convert to radians
+!   prgmmr: parrish          org: np22                date: 2013-04-18
+!
+! abstract: Find 2x2 box with max range of glat, then compute ratio of 
+!             max_range_glat*rearth to max dx, dy over the 4 corners.
+!             This ratio should be between approximately 1 and 1.4 
+!             If the units of glat are degrees, then the ratio will be 
+!             between about 57 and 80.  So a unique determination
+!             can be made about the units of glat, glon.
+!             If it is determined that the units are degrees, then glat, glon
+!             will be converted to radians.
+!
+! program history log:
+!   2013-04-18  parrish - initial documentation
+!
+!   input argument list:
+!     glat             - latitudes at model gridpoints (degrees or radians)
+!     glon             - longitudes at model gridpoints (degrees or radians)
+!     dx               - grid increment at model gridpoints in x direction (meters)
+!     dy               - grid increment at model gridpoints in y direction (meters)
+!     nx               - number of points in x direction
+!     ny               - number of points in y direction
+!
+!   output argument list:
+!     glat             - latitudes at model gridpoints (radians)
+!     glon             - longitudes at model gridpoints (radians)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
+  use kinds, only: r_single,i_kind
+  use constants, only: zero,deg2rad,rearth
+  implicit none
+
+  integer(i_kind),intent(in   ) :: nx,ny
+  real(r_single) ,intent(inout) :: glat(nx,ny),glon(nx,ny)
+  real(r_single) ,intent(in   ) :: dx(nx,ny),dy(nx,ny)
+
+  integer(i_kind) i,ip,j,jp,iskip,jskip
+  real(r_single) boxdlatmax,boxdxymax,ratiomax,srearth
+ 
+  srearth=rearth
+  ratiomax=zero
+!  don't need to check all 2x2 boxes.  Do every tenth in each direction
+  jskip=max(1,ny/10)
+  iskip=max(1,nx/10)
+  do j=1,ny-1,jskip
+     jp=j+1
+     do i=1,nx-1,iskip
+        ip=i+1
+        boxdlatmax=max(glat(i,j),glat(ip,j),glat(i,jp),glat(ip,jp)) &
+                  -min(glat(i,j),glat(ip,j),glat(i,jp),glat(ip,jp))
+        boxdxymax=max(dx(i,j),dx(ip,j),dx(i,jp),dx(ip,jp), &
+                      dy(i,j),dy(ip,j),dy(i,jp),dy(ip,jp))
+        ratiomax=max(srearth*boxdlatmax/boxdxymax,ratiomax)
+     end do
+  end do
+  write(6,'(" maximum ratio of boxdlatmax*rearth/boxdxymax =",f12.2)') ratiomax
+  write(6,'("   If 1 < ratiomax < 1.4, then glat,glon units are radians")')
+  write(6,'("   If 57 < ratiomax < 80, then glat,glon units are degrees")')
+  if(ratiomax > 20._r_single ) then
+     do j=1,ny
+        do i=1,nx
+           glat(i,j)=deg2rad*glat(i,j)
+           glon(i,j)=deg2rad*glon(i,j)
+        end do
+     end do
+  end if
+
+end subroutine latlon2radians
 
 #ifdef WRF
 subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)

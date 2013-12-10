@@ -96,6 +96,7 @@ subroutine intgps_(gpshead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -191,7 +192,7 @@ subroutine intgps_(gpshead,rval,sval)
            grad=gpsptr%diags%obssen(jiter)
 
         else
-           val=val-gpsptr%res
+           if( .not. ladtest_obs)  val=val-gpsptr%res
  
 !          needed for gradient of nonlinear qc operator
            if (nlnqc_iter .and. gpsptr%pg > tiny_r_kind .and.  &
@@ -203,8 +204,12 @@ subroutine intgps_(gpshead,rval,sval)
               p0   = wgross/(wgross+exp(-half*gpsptr%err2*val**2))
               val = val*(one-p0)
            endif
-
-           grad = val*gpsptr%raterr2*gpsptr%err2
+       
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*gpsptr%raterr2*gpsptr%err2
+           end if
         endif
 
 

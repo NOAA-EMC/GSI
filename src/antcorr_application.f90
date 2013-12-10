@@ -9,6 +9,8 @@
 !       Written by:     Paul van Delst, CIMSS/SSEC 11-Aug-2008
 !                       paul.vandelst@noaa.gov
 !
+!   2011-04-25   A.Collard   Modified to be consistent with CRTM 2.1
+! 
 
 MODULE AntCorr_Application
 
@@ -18,17 +20,7 @@ MODULE AntCorr_Application
   ! Module use statements
   USE Type_Kinds       , ONLY: fp
   USE Message_Handler  , ONLY: Display_Message, FAILURE
-  USE AntCorr_Define   , ONLY: AntCorr_type, &
-                               Associated_AntCorr, &
-                               Destroy_AntCorr, &
-                               Allocate_AntCorr, &
-                               Assign_AntCorr, &
-                               Equal_AntCorr, &
-                               Info_AntCorr, &
-                               CheckRelease_AntCorr
-  USE AntCorr_Binary_IO, ONLY: Inquire_AntCorr_Binary, &
-                               Read_AntCorr_Binary, &
-                               Write_AntCorr_Binary
+  USE ACCoeff_Define   , ONLY: ACCoeff_type
   ! Disable all implicit typing
   IMPLICIT NONE
 
@@ -41,33 +33,13 @@ MODULE AntCorr_Application
   ! Inherited procedures from definition module
   ! -------------------------------------------
   ! The AntCorr structure definition
-  PUBLIC :: AntCorr_type
-  ! The AntCorr structure methods
-  PUBLIC :: Associated_AntCorr
-  PUBLIC :: Destroy_AntCorr
-  PUBLIC :: Allocate_AntCorr
-  PUBLIC :: Assign_AntCorr
-  PUBLIC :: Equal_AntCorr
-  PUBLIC :: Info_AntCorr
-  PUBLIC :: CheckRelease_AntCorr
-  ! Inherited procedures from I/O modules
-  ! -------------------------------------
-  ! The Binary I/O functions
-  PUBLIC :: Inquire_AntCorr_Binary
-  PUBLIC :: Read_AntCorr_Binary
-  PUBLIC :: Write_AntCorr_Binary
-  ! Module procedures
-  ! -----------------
-  PUBLIC :: Remove_AntCorr
+  PUBLIC :: ACCoeff_type
   PUBLIC :: Apply_AntCorr
-
-
+  PUBLIC :: Remove_AntCorr
+  
   ! -----------------
   ! Module parameters
   ! -----------------
-  CHARACTER(*),  PARAMETER :: MODULE_RCS_ID = &
-  '$Id: antcorr_application.f90,v 1.1.6.1.2.1.2.1 2010-04-08 10:15:23 rtodling Exp $'
-
   ! Invalid result
   REAL(fp), PARAMETER :: INVALID = -1.0_fp
     
@@ -107,7 +79,7 @@ CONTAINS
 !       AC:             Structure containing the antenna correction coefficients
 !                       for the sensor of interest.
 !                       UNITS:      N/A
-!                       TYPE:       TYPE(AntCorr_type)
+!                       TYPE:       TYPE(ACCoeff_type)
 !                       DIMENSION:  Scalar
 !                       ATTRIBUTES: INTENT(IN)
 !
@@ -159,7 +131,7 @@ CONTAINS
     implicit none
 
     ! Arguments
-    TYPE(AntCorr_type), INTENT(IN)     :: AC
+    TYPE(ACCoeff_type), INTENT(IN)     :: AC
     INTEGER           , INTENT(IN)     :: iFOV
     REAL(fp)          , INTENT(IN OUT) :: T(:)
     ! Local parameters
@@ -202,7 +174,7 @@ CONTAINS
 !       AC:             Structure containing the antenna correction coefficients
 !                       for the sensor of interest.
 !                       UNITS:      N/A
-!                       TYPE:       TYPE(AntCorr_type)
+!                       TYPE:       TYPE(ACCoeff_type)
 !                       DIMENSION:  Scalar
 !                       ATTRIBUTES: INTENT(IN)
 !
@@ -256,7 +228,7 @@ CONTAINS
     implicit none
 
     ! Arguments
-    TYPE(AntCorr_type), INTENT(IN)     :: AC
+    TYPE(ACCoeff_type), INTENT(IN)     :: AC
     INTEGER           , INTENT(IN)     :: iFOV
     REAL(fp)          , INTENT(IN OUT) :: T(:)
     ! Local parameters
