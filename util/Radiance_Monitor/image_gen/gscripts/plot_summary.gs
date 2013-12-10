@@ -9,6 +9,7 @@
 function plotsummary (args)
 
 plotfile=subwrd(args,1)
+sub_avg=subwrd(args,2)
 xsize=subwrd(args,3)
 ysize=subwrd(args,4)
 platform=plotfile
@@ -47,19 +48,36 @@ say 'nchan='nchan
 *say 'nregion='nregion
 
 * Set time
-'set t last'
+'set t 1 last'
 'query time'
 date1=subwrd(result,3)
+date2=subwrd(result,5)
 say 'date1='date1
 
 'q dims'
 lin5=sublin(result,5)
-tlast=subwrd(lin5,9)
+tfirst=subwrd(lin5,11)
+tlast=subwrd(lin5,13)
 t1day=tlast-3
 t30days=tlast-119
 *t30days=tlast-79
+t30days=1
 *say 'tlast,t1day,t30days='tlast' 't1day' 't30days
 
+*
+*  Determine number of days in plot (4 cycles per day)
+*
+rslt=tlast-tfirst
+if (rslt > 4)
+  mrslt=math_mod(rslt, 4)
+  ndays=(rslt-mrslt)/4
+else
+  ndays=1
+endif
+say 'rslt,mrslt,ndays = 'rslt' 'mrslt' 'ndays
+
+
+'set t last'
 
 'clear'
 'set grads off'
@@ -307,8 +325,12 @@ if (field.i = "total")
    color.3=4
    day.1='1 cycle'
    day.2='1 day avg'
-   day.3='30 day avg'
-   ic=1
+   day.3=ndays' day avg'
+   if (sub_avg=1)
+      ic=1
+   else
+      ic=3
+   endif
    nc=3
    while (ic<=nc)
       'set ccolor 'color.ic
@@ -492,9 +514,9 @@ if (field.i = "omgbc")
    color.3=6
    color.4=5
    day.1='1 cyc avg'
-   day.2='30 day avg'
+   day.2=ndays' day avg'
    day.3='1 cyc sdv'
-   day.4='30 day sdv'
+   day.4=ndays 'day sdv'
    ii=0
    ic=1
    nc=4
@@ -502,19 +524,25 @@ if (field.i = "omgbc")
       'set ccolor 'color.ic
       'set cmark 0'
       if (ic<=2) 
-         'set cstyle 1'
-         'd avgomgbc'ic
-         fact=2.1
+         if (ic=2 | sub_avg=1)
+            'set cstyle 1'
+            'd avgomgbc'ic
+            fact=2.1
+         endif
       endif
       if (ic>2)
          ii=ii+1
          'set cstyle 2'
-         'd sdv'ii
-         fact=2.0
+         if (ii>1 | sub_avg=1)
+            'd sdv'ii
+            fact=2.0
+         endif
       endif
       'set strsiz 0.12'
       'set string 'color.ic' l 6'
-      'draw string 7.45 'y1+fact-ic*0.2' 'day.ic
+      if (sub_avg=1 | ic=2 | ic=4)
+         'draw string 7.45 'y1+fact-ic*0.2' 'day.ic
+      endif
       ic=ic+1
    endwhile
    'set ccolor 1'
@@ -602,8 +630,12 @@ if (field.i = "penalty")
    color.3=4
    day.1='1 cycle'
    day.2='1 day avg'
-   day.3='30 day avg'
-   ic=1
+   day.3=ndays' day avg'
+   if (sub_avg=1)
+      ic=1
+   else
+      ic=3
+   endif
    nc=3
    while (ic<=nc)
       'set ccolor 'color.ic
@@ -627,7 +659,7 @@ endwhile
 'set string 1 l 6'
 'set strsiz 0.15 0.15'
 'draw string 0.2 10.80 platform:  'plotfile
-'draw string 0.2 10.55 valid   :  'date1
+'draw string 0.2 10.55 valid   :  'date1' - 'date2
 'set string 1 c 6'
 'draw string 4.05 0.2 c  h  a  n  n  e  l      n  u  m  b  e  r'
 

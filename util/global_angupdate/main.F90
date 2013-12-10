@@ -99,12 +99,12 @@ program main
 
 
 ! Declare types used for reading satellite data
-  type(diag_header_fix_list )         :: header_fix
-  type(diag_header_chan_list),pointer :: header_chan(:)
-  type(diag_data_name_list  )         :: data_name
-  type(diag_data_fix_list   )         :: data_fix
-  type(diag_data_chan_list  ),pointer :: data_chan(:)
-  type(diag_data_extra_list ),pointer :: data_extra(:,:)
+  type(diag_header_fix_list )             :: header_fix
+  type(diag_header_chan_list),allocatable :: header_chan(:)
+  type(diag_data_name_list  )             :: data_name
+  type(diag_data_fix_list   )             :: data_fix
+  type(diag_data_chan_list  ),allocatable :: data_chan(:)
+  type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
 
 ! Declare namelists for user input
@@ -120,7 +120,7 @@ program main
   call mpi_comm_rank(mpi_comm_world,mype,ierror)
   mype_out=npe-1
 
-  npred=5               ! number of bias correction predictors
+  npred=7               ! number of bias correction predictors
   retrieval=.false.     ! .true. if bisst present
 
   outask=.false.

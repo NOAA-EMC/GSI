@@ -54,6 +54,10 @@
 #                       defaults to none
 #     VERBOSE           Verbose flag (YES or NO)
 #                       defaults to NO
+#     LITTLE_ENDIAN     flag to indicate LE machine
+#                       defaults to 0 (big endian)
+#     USE_ANL           use analysis files as inputs in addition to 
+#                         the ges files.  Default is 0 (ges only)
 #
 #   Exported Shell Variables:
 #     err           Last return code
@@ -111,6 +115,15 @@ MAKE_DATA=${MAKE_DATA:-1}
 RAD_AREA=${RAD_AREA:-glb}
 SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
+LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+USE_ANL=${USE_ANL:-0}
+
+if [[ $USE_ANL -eq 1 ]]; then
+   gesanl="ges anl"
+else
+   gesanl="ges"
+fi
+
 err=0
 angle_exec=radmon_angle.${RAD_AREA}
 scaninfo=scaninfo.txt
@@ -123,11 +136,6 @@ fi
 #  Preprocessing
 $INISCRIPT
 $LOGSCRIPT
-
-#--------------------------------------------------------------------
-# Set environment variables.
-
-gesanl=ges
 
 
 #--------------------------------------------------------------------
@@ -152,17 +160,30 @@ else
    fail=0
 
    for type in ${SATYPE}; do
-      ctr=`expr $ctr + 1`
-      data_file=${type}.${PDATE}.ieee_d
-      angl_file=angle.${data_file}
-      ctl_file=${type}.ctl
-      angl_ctl=angle.${ctl_file}
-      stdout_file=stdout.${type}
-      angl_stdout=angle.${stdout_file}
 
-      rm input
+      for dtype in ${gesanl}; do
 
-      nchanl=-999
+         ctr=`expr $ctr + 1`
+
+         if [[ $dtype == "anl" ]]; then
+            data_file=${type}_anl.${PDATE}.ieee_d
+            angl_file=angle.${data_file}
+            ctl_file=${type}_anl.ctl
+            angl_ctl=angle.${ctl_file}
+            stdout_file=stdout.${type}_anl
+            angl_stdout=angle.${stdout_file}
+         else
+            data_file=${type}.${PDATE}.ieee_d
+            angl_file=angle.${data_file}
+            ctl_file=${type}.ctl
+            angl_ctl=angle.${ctl_file}
+            stdout_file=stdout.${type}
+            angl_stdout=angle.${stdout_file}
+         fi
+
+         rm input
+
+         nchanl=-999
 cat << EOF > input
  &INPUT
   satname='${type}',
@@ -176,35 +197,36 @@ cat << EOF > input
   suffix='${SUFFIX}',
   imkctl=${MAKE_CTL},
   imkdata=${MAKE_DATA},
-  gesanl='${gesanl}',
+  gesanl='${dtype}',
+  little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      timex ${angle_exec} < input >   ${stdout_file}
-      if [[ $? -ne 0 ]]; then
-          fail=`expr $fail + 1`
-      fi
+         $TIMEX ./${angle_exec} < input >   ${stdout_file}
+         if [[ $? -ne 0 ]]; then
+             fail=`expr $fail + 1`
+         fi
 #-------------------------------------------------------------------
 #  move data, control, and stdout files to $TANKverf_rad and compress
 #
-      if [[ -s ${data_file} ]]; then
-         mv ${data_file} ${angl_file}
-         mv ${angl_file} $TANKverf_rad/.
-         compress -f $TANKverf_rad/${angl_file}
-      fi
+         if [[ -s ${data_file} ]]; then
+            mv ${data_file} ${angl_file}
+            mv ${angl_file} $TANKverf_rad/.
+            ${COMPRESS} -f $TANKverf_rad/${angl_file}
+         fi
 
-      if [[ -s ${ctl_file} ]]; then
-         mv ${ctl_file} ${angl_ctl}
-         mv ${angl_ctl}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${angl_ctl}
-      fi 
+         if [[ -s ${ctl_file} ]]; then
+            mv ${ctl_file} ${angl_ctl}
+            mv ${angl_ctl}  ${TANKverf_rad}/.
+            ${COMPRESS} -f ${TANKverf_rad}/${angl_ctl}
+         fi 
 
-      if [[ -s ${stdout_file} ]]; then
-         mv ${stdout_file} ${angl_stdout}
-         mv ${angl_stdout}  ${TANKverf_rad}/.
-         compress -f ${TANKverf_rad}/${angl_stdout}
-      fi
+         if [[ -s ${stdout_file} ]]; then
+            mv ${stdout_file} ${angl_stdout}
+            mv ${angl_stdout}  ${TANKverf_rad}/.
+            ${COMPRESS} -f ${TANKverf_rad}/${angl_stdout}
+         fi
 
-
+      done    # for dtype in ${gesanl} loop
    done    # for type in ${SATYPE} loop
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then

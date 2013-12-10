@@ -7,20 +7,30 @@
 #------------------------------------------------------------------
 
 set -ax
-export list=$listvars
+export list=$listvar
+
+echo
+echo PATH=$PATH
+echo
 
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
+
+export SUB_AVG=${SUB_AVG:-1}
+export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 
 plot_angle_count=plot_angle_count.${RAD_AREA}.gs
 plot_angle_sep=plot_angle_sep.${RAD_AREA}.gs
 
 
 #------------------------------------------------------------------
-# Set environment variables.
+# Create $tmpdir.
 
-if [[ "$SATYPE2" = 'airs_aqua' || "$SATYPE2" = 'iasi_metop-a' ]]; then
+word_count=`echo $PTYPE | wc -w`
+echo word_count = $word_count
+
+if [[ $word_count -le 1 ]]; then
    tmpdir=${PLOT_WORK_DIR}/plot_angle_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}.${PTYPE}
 else
    tmpdir=${PLOT_WORK_DIR}/plot_angle_${SUFFIX}_${SATYPE2}.$PDATE.${PVAR}
@@ -34,8 +44,8 @@ cd $tmpdir
 #------------------------------------------------------------------
 #   Set dates
 
-bdate=`$NDATE -720 $PDATE`
-rdate=`$NDATE -72 $PDATE`
+#bdate=`$NDATE -720 $PDATE`
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -57,7 +67,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
   $NCP $ctldir/${type}.ctl* ./
 done
-uncompress *.ctl.Z
+${UNCOMPRESS} *.ctl.${Z}
 
 
 #--------------------------------------------------------------------
@@ -78,11 +88,11 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/angle.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/angle/${type}.${cdate}.ieee_d* ./
       fi
      
@@ -90,7 +100,7 @@ for type in ${SATYPE2}; do
       cdate=$adate
 
    done
-   uncompress $tmpdir/*.ieee_d.Z
+   ${UNCOMPRESS} $tmpdir/*.ieee_d.${Z}
 
    for var in ${PTYPE}; do
       echo $var
@@ -98,32 +108,30 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 
       elif [ "$var" =  'penalty' ]; then
-
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
-
       else
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_angle_sep} ${type} ${var} x1100 y850'
+'run ${GSCRIPTS}/${plot_angle_sep} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
       fi
 
-      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-   rm -f ${type}*.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}*.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -134,31 +142,32 @@ done
 if [[ ! -d ${IMGNDIR}/angle ]]; then
    mkdir -p ${IMGNDIR}/angle
 fi
-cp -r *.png  ${IMGNDIR}/angle
+#$NCP *.png  ${IMGNDIR}/angle/.
+find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/angle/ \;
 
-for var in ${PTYPE}; do
-   rm -f ${type}.${var}*.png
-done
+#for var in ${PTYPE}; do
+#   rm -f ${type}.${var}*.png
+#done
 
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 #--------------------------------------------------------------------
 # If this is the last angle plot job to finish then rm PLOT_WORK_DIR.
 # 
-echo ${LOADLQ}
+#echo ${LOADLQ}
 
-count=`ls ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
-complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
+#count=`ls ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
+#complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${SUFFIX}* | wc -l`
 
-running=`expr $count - $complete`
+#running=`expr $count - $complete`
 
 #if [[ $running -eq 1 ]]; then
 #   cd ${PLOT_WORK_DIR}

@@ -19,7 +19,21 @@ satnam=subwrd(lin1,4)
 satnum=subwrd(lin1,5)
 nchan=subwrd(lin1,6)
 
+*
+* Set time and region
+*
+'set t 1'
+'query time'
+date1=subwrd(result,3)
+say 'date1='date1
+
+region=1
+'set y 1'
+'set z 1'
+
+
 '!rm -f xsize.txt'
+say 'data ='data
 if (data = anl)
    '!cat ./'satype'_anl.ctl |grep "xdef" > xsize.txt'
    om=OmA
@@ -31,13 +45,13 @@ if (data = anl)
    'define sdvnbc1='calcsdv(count.1,omanbc.1,omanbc2.1)
 
    'define avgbc2=omabc.2/count.2'
-   'define sdvbc2='calcsdv(omabc.2,omabc2.2,count.2)
+   'define sdvbc2='calcsdv(count.2,omabc.2,omabc2.2)
    'define avgnbc2=omanbc.2/count.2'
    'define sdvnbc2='calcsdv(count.2,omanbc.2,omanbc2.2)
 
    if (exp3 !="")
       'define avgbc3=omabc.3/count.3'
-      'define sdvbc3='calcsdv(omabc.3,omabc2.3,count.3)
+      'define sdvbc3='calcsdv(count.3,omabc.3,omabc2.3)
       'define avgnbc3=omanbc.3/count.3'
       'define sdvnbc3='calcsdv(count.3,omanbc.3,omanbc2.3)
    endif
@@ -53,13 +67,13 @@ else
    'define sdvnbc1='calcsdv(count.1,omgnbc.1,omgnbc2.1)
 
    'define avgbc2=omgbc.2/count.2'
-   'define sdvbc2='calcsdv(omgbc.2,omgbc2.2,count.2)
+   'define sdvbc2='calcsdv(count.2,omgbc.2,omgbc2.2)
    'define avgnbc2=omgnbc.2/count.2'
    'define sdvnbc2='calcsdv(count.2,omgnbc.2,omgnbc2.2)
 
    if (exp3 !="")
       'define avgbc3=omgbc.3/count.3'
-      'define sdvbc3='calcsdv(omgbc.3,omgbc2.3,count.3)
+      'define sdvbc3='calcsdv(count.3,omgbc.3,omgbc2.3)
       'define avgnbc3=omgnbc.3/count.3'
       'define sdvnbc3='calcsdv(count.3,omgnbc.3,omgnbc2.3)
    endif
@@ -78,16 +92,6 @@ result=close(xsize.txt)
 
 xe=xs+xe1*nx
 
-
-* Set time
-'set t 1'
-'query time'
-date1=subwrd(result,3)
-say 'date1='date1
-
-region=1
-'set y 1'
-'set z 1'
 
 'clear'
 'set grads off'
@@ -255,11 +259,12 @@ region=1
    'draw string 0.2 10.35 valid   :  'date1
    'set parea off'
 
-if (exp3 !="")
-outfile=satype'_'exp1'_'exp2'_'exp3'_comp_'om'.png'
-else
-outfile=satype'_'exp1'_'exp2'_comp_'om'.png'
-endif
+*if (exp3 !="")
+*outfile=satype'_'exp1'_'exp2'_'exp3'_comp_'om'.png'
+outfile=satype'.comp.png'
+*else
+*outfile=satype'_'exp1'_'exp2'_comp_'om'.png'
+*endif
 'printim 'outfile' x1100 y850 white'
 
 return
@@ -277,7 +282,6 @@ function calcsdv(count,field,fldsqr)
 
    'define rterm1=1/count'
    'define rterm2=1/('count'-1)'
-   'define junk='field'-1'
    'define svar=(('count'*'fldsqr' - 'field'*'field') * 'rterm1'*'rterm2')'
    'define sdv=sqrt('svar')'
    'define sdv=const('sdv',0,-u)'
