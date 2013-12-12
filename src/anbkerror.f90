@@ -19,6 +19,7 @@ subroutine anbkerror(gradx,grady)
 !   2010-06-22  todling - update to better handle bundle pointers
 !   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
 !   2010-08-19  lueken - add only to module use
+!   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction 
 !
 !   input argument list:
 !     gradx    - input field  
@@ -33,7 +34,7 @@ subroutine anbkerror(gradx,grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use jfunc, only: nsclen,npclen
+  use jfunc, only: nsclen,npclen,ntclen
   use balmod, only: balance,tbalance
   use berror, only: varprd,fpsproj
   use constants, only: zero
@@ -108,6 +109,11 @@ do_balance=lc_sf.and.lc_vp.and.lc_ps .and.lc_t
   if(npclen>0)then
      do i=1,npclen
         grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
+     end do
+  end if
+  if(ntclen>0)then
+     do i=1,ntclen
+        grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
      end do
   end if
 

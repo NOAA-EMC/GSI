@@ -35,7 +35,7 @@ end interface
 
 contains
 
-subroutine intt_(thead,rval,sval)
+subroutine intt_(thead,rval,sval,rpred,spred)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intt        apply nonlin qc observation operator for temps
@@ -72,6 +72,7 @@ subroutine intt_(thead,rval,sval)
 !   2010-05-13  todling  - update to use gsi_bundle
 !                        - on-the-spot handling of non-essential vars
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2013-05-26  zhu  - add aircraft temperature bias correction contribution
 !
 !   input argument list:
 !     thead    - obs type pointer to obs structure
@@ -104,7 +105,7 @@ subroutine intt_(thead,rval,sval)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_quad
   use constants, only: half,one,zero,tiny_r_kind,cg_term,r3600
   use obsmod, only: t_ob_type,lsaveobsens,l_do_adjoint
   use qcmod, only: nlnqc_iter,varqc_iter
@@ -114,6 +115,7 @@ subroutine intt_(thead,rval,sval)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundleprint
   use gsi_4dvar, only: ladtest_obs 
+  use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
   implicit none
   
 
@@ -121,6 +123,8 @@ subroutine intt_(thead,rval,sval)
   type(t_ob_type),pointer,intent(in   ) :: thead
   type(gsi_bundle)       ,intent(in   ) :: sval
   type(gsi_bundle)       ,intent(inout) :: rval
+  real(r_kind),optional,dimension(npredt*ntail),intent(in   ) :: spred
+  real(r_quad),optional,dimension(npredt*ntail),intent(inout) :: rpred
 
   real(r_kind),dimension(:),pointer :: st,stv,sq,su,sv
   real(r_kind),dimension(:),pointer :: ssst
@@ -132,7 +136,7 @@ subroutine intt_(thead,rval,sval)
   real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_p3d
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus,isst
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus,isst,ix,n
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_t
 ! real(r_kind) penalty
   real(r_kind) cg_t,val,p0,grad,wnotgross,wgross,t_pg
@@ -271,6 +275,14 @@ subroutine intt_(thead,rval,sval)
 
      end if
 
+!    Include contributions from bias correction terms
+     if (.not. ladtest_obs .and. (aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
+        ix=(tptr%idx-1)*npredt
+        do n=1,npredt
+           val=val+spred(ix+n)*tptr%pred(n)
+        end do
+     end if
+
      if (lsaveobsens) then
         tptr%diags%obssen(jiter) = val*tptr%raterr2*tptr%err2
      else
@@ -304,6 +316,15 @@ subroutine intt_(thead,rval,sval)
         endif
 
 !       Adjoint of interpolation
+!       Extract contributions from bias correction terms
+        if (.not. ladtest_obs .and. (aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
+           if (tptr%luse) then 
+              do n=1,npredt
+                 rpred(ix+n)=rpred(ix+n)+tptr%pred(n)*grad
+              end do
+           end if
+        end if
+
         if(tptr%use_sfc_model) then
 
 !          Surface model
