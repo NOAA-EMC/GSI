@@ -28,7 +28,8 @@ subroutine state2control(rval,bval,grad)
 !   2011-07-12  zhu      - add do_cw_to_hydro_ad and cw2hydro_ad
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro_ad
 !   2012-02-08  kleist   - remove strong_bk_ad and ensemble_forward_model_ad and related parameters
-!   2012-12-03  eliu     - add calls to linearized GFS moisture physics, normalized RH total, an                                 
+!   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
+!   2013-12-10  eliu     - add calls to linearized GFS moisture physics, normalized RH total, an                                 
 !                          additional conversion of tsen to tv if linearized GFS moisture physics                           
 !                          is turned on
 !
@@ -46,7 +47,7 @@ use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
-use jfunc, only: nsclen,npclen
+use jfunc, only: nsclen,npclen,ntclen
 use jfunc, only: use_rhtot,do_gfsphys  
 use cwhydromod, only: cw2hydro_ad
 use gfs_moistphys_mod, only: moistphys_ad 
@@ -314,6 +315,11 @@ enddo
 do ii=1,npclen
   grad%predp(ii)=bval%predp(ii)
 enddo
+if (ntclen>0) then 
+   do ii=1,ntclen
+     grad%predt(ii)=bval%predt(ii)
+   enddo
+end if
 
 ! Clean up
 if (ngases>0) then

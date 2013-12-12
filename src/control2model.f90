@@ -23,6 +23,7 @@ subroutine control2model(xhat,sval,bval)
 !   2011-12-14   mkim    - changed clouds4crtm to clouds in metguess 
 !   2012-06-25  parrish  - modify wbundle by adding motley variables to control vector
 !                          so will be in form expected by new version of ckgcov which uses general_grid2sub.
+!   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
 !     xhat - Control variable
@@ -45,7 +46,7 @@ use control_vectors, only: nc2d,nc3d,mvars
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
 use gridmod, only: lat2,lon2,nsig,nnnn1o
-use jfunc, only: nsclen,npclen
+use jfunc, only: nsclen,npclen,ntclen
 use berror, only: varprd,fpsproj
 use balmod, only: balance
 use cwhydromod, only: cw2hydro_tl
@@ -253,6 +254,12 @@ enddo
 do ii=1,npclen
    bval%predp(ii)=xhat%predp(ii)*sqrt(varprd(nsclen+ii))
 enddo
+
+if (ntclen>0) then
+   do ii=1,ntclen
+      bval%predt(ii)=xhat%predt(ii)*sqrt(varprd(nsclen+npclen+ii))
+   enddo
+end if
 
 ! Clean up
 if (ngases>0) then

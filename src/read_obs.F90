@@ -57,10 +57,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !
 !$$$  end documentation block
 
-  use kinds, only: i_kind,i_llong,r_kind,r_double
-  use gsi_4dvar, only: iadatebgn,iadateend
-  use obsmod, only: offtime_data
-  use convinfo, only: nconvtype,ictype,ioctype,icuse
+  use kinds, only: i_kind,i_llong
 
   implicit none
 
@@ -303,6 +300,35 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
            end do
           end do 
          end do fileloop
+       else if(trim(filename) == 'prepbufr_profl')then  
+         lexist = .false.
+         airploop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+          do while(ireadsb(lnbufr)>=0)
+           call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+           kx=nint(rtype)
+           if (trim(dtype)=='uv') then
+              if (kx==330 .or. kx==430 .or. kx==530) kx=230
+              if (kx==331 .or. kx==431 .or. kx==531) kx=231
+              if (kx==332 .or. kx==432 .or. kx==532) kx=232
+              if (kx==333 .or. kx==433 .or. kx==533) kx=233
+              if (kx==334 .or. kx==434 .or. kx==534) kx=234
+              if (kx==335 .or. kx==435 .or. kx==535) kx=235
+           else
+              if (kx==330 .or. kx==430 .or. kx==530) kx=130
+              if (kx==331 .or. kx==431 .or. kx==531) kx=131
+              if (kx==332 .or. kx==432 .or. kx==532) kx=132
+              if (kx==333 .or. kx==433 .or. kx==533) kx=133
+              if (kx==334 .or. kx==434 .or. kx==534) kx=134
+              if (kx==335 .or. kx==435 .or. kx==535) kx=135
+           end if
+           do nc=1,nconvtype
+             if(trim(ioctype(nc)) == trim(dtype) .and. kx == ictype(nc) .and. icuse(nc) > minuse)then
+               lexist = .true.
+               exit airploop
+             end if
+           end do
+          end do
+         end do airploop
        else if(trim(filename) == 'satwnd')then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -458,6 +484,7 @@ subroutine read_obs(ndata,mype)
 !                         Commented out extra line of arguments not used.
 !   2013-02-13  eliu     - turn off parallel I/O for SSMIS (due to the need to
 !                          do spatial averaging for noise reduction) 
+!   2013-06-01  zhu     - add mype_airobst to handle aircraft temperature bias correction 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -472,7 +499,7 @@ subroutine read_obs(ndata,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
-    use kinds, only: r_kind,i_kind,i_llong
+    use kinds, only: r_kind,i_kind,i_llong,r_double
     use gridmod, only: nlon,nlat,nsig,iglobal,ijn,itotsub,lat1,lon1,&
          ltosi,ltosj,displs_g,strip,reorder
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
@@ -492,6 +519,7 @@ subroutine read_obs(ndata,mype)
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
+    use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,mype_airobst
 
     implicit none
 
@@ -507,8 +535,10 @@ subroutine read_obs(ndata,mype)
     logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
+    logical :: acft_profl_file
     character(10):: obstype,platid
-    character(13):: string,infile
+    character(15):: string,infile
+    character(15):: infilen
     character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
@@ -858,10 +888,16 @@ subroutine read_obs(ndata,mype)
        end if
 
     end do
+    mype_airobst = mype_root
     do ii=1,mmdat
        i=npe_order(ii)
        if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,3i4)') &
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
+
+       acft_profl_file = index(dfile(i),'_profl')/=0
+       if ((aircraft_t_bc_pof .or. (aircraft_t_bc .and. acft_profl_file)) .and. dtype(i) == 't') &
+                   mype_airobst = mype_root_sub(i)
+
     end do
 
 
@@ -961,9 +997,7 @@ subroutine read_obs(ndata,mype)
 
 !         Process conventional (prepbufr) data
           if(ditype(i) == 'conv')then
-!             if (obstype == 't'  .or. obstype == 'uv' .or. &
-             if (obstype == 't'  .or. &
-                 obstype == 'q'  .or. obstype == 'ps' .or. &
+              if(obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
@@ -1227,7 +1261,7 @@ subroutine read_obs(ndata,mype)
 
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(1x,a13,': file=',a10,&
+8000         format(1x,a15,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)
@@ -1238,6 +1272,15 @@ subroutine read_obs(ndata,mype)
     end do
     if(use_prsl_full_proc)deallocate(prsl_full)
     if(use_hgtl_full_proc)deallocate(hgtl_full)
+
+!   Broadcast aircraft new tail numbers for aircraft
+!   temperature bias correction
+!   if (aircraft_t_bc) then
+!      call mpi_barrier(mpi_comm_world,ierror)
+!      call mpi_bcast(ntail_update,1,mpi_itype,mype_airobst,mpi_comm_world,ierror)
+!      call mpi_bcast(idx_tail,max_tail,mpi_itype,mype_airobst,mpi_comm_world,ierror)
+!      call mpi_bcast(taillist,max_tail,MPI_CHARACTER,mype_airobst,mpi_comm_world,ierror)
+!   end if
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc

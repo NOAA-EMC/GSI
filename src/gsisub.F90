@@ -57,6 +57,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2010-07-19  lueken  - remove call to deter_subdomain (general_deter_subdomain is also used)
 !   2010-11-08  treadon - remove create_mapping and init_subdomain_vars (now in init_grid_vars)
 !   2012-06-12  parrish - remove init_commvars (replaced in gsimod.F90 with general_commvars).
+!   2013-05-19  zhu     - add aircraft temperature bias correction
 !
 !   input argument list:
 !     mype - mpi task id
@@ -85,6 +86,7 @@ subroutine gsisub(mype,init_pass,last_pass)
   use coinfo, only: coinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr
+  use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -139,6 +141,7 @@ subroutine gsisub(mype,init_pass,last_pass)
         call coinfo_read
         call pcpinfo_read
         call aeroinfo_read
+        if (aircraft_t_bc_pof .or. aircraft_t_bc) call aircraftinfo_read
      endif
      call convinfo_read
 #ifdef VERBOSE

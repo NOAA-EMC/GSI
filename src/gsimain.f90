@@ -522,7 +522,9 @@
 !          = 337 - inconsitent tlnmc namelist settings
 !          = 338 - error reading MLS vertical levels from MLS bufr 
 !          = 339 - error:more than one MLS  data type not allowed
-!          = 340 - use_rhtot: invalid option; normalized RH total is not ready for hybrid option
+!          = 340 - error reading aircraft temperature bias file
+!          = 341 - aircraft tail number exceeds maximum
+!          = 342 - use_rhtot: invalid option; normalized RH total is not ready for hybrid option
 !
 !
 ! remarks: resolution, unit numbers and several constants are
