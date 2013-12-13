@@ -351,6 +351,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   visob = obstype == 'vis'
   metarcldobs = obstype == 'mta_cld'
   geosctpobs = obstype == 'gos_ctp'
+  aircraftobst=.false.
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
