@@ -210,6 +210,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2012-06-12  parrish - make changes to replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
 !                         Remove arrays slndt, sicet, slndt_x, sicet_x, slndt_y, sicet_y,
 !                         and variable nsig1o.
+!   2013-12-18  parrish - change "call delx_reg" to "call tdelx_reg" and "call dely_reg" to "call tdely_reg"
 !
 !   input argument list:
 !     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
@@ -311,7 +312,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !     !$omp parallel do private(k,vector)   !  fix later ???????????
   do k=s2g_d%kbegin_loc,s2g_d%kend_loc
      if(regional) then
-        call dely_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
+        call tdely_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
      else
         call tcompact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
      end if
@@ -333,7 +334,7 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !     !$omp parallel do private(k,vector)   ! fix later ?????
   do k=s2g_d%kbegin_loc,s2g_d%kend_loc
      if(regional) then
-        call delx_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
+        call tdelx_reg(hworkd(1,:,:,k),hwork(1,:,:,k),s2g_d%vector(k))
      else
         call tcompact_dlon(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
      end if
