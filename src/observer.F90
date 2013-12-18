@@ -18,6 +18,8 @@ module observermod
 !			  glbsoi here.
 !   2010-05-19  todling - revist initialization/finalization of chem
 !   2011-04-29  todling - add metguess initialization/finalization
+!   2013-07-02  parrish - changes to remove tlnmc_type for global tlnmc and add
+!                          reg_tlnmc_type for two kinds of regional tlnmc.
 !
 !   input argument list:
 !     mype - mpi task id
@@ -52,10 +54,9 @@ module observermod
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini
 
-  use mod_strong, only: jcstrong,jcstrong_option
+  use mod_strong, only: l_tlnmc,reg_tlnmc_type
   use mod_vtrans, only: nvmodes_keep,create_vtrans,destroy_vtrans
-  use strong_slow_global_mod, only: init_strongvars_1
-  use strong_fast_global_mod, only: init_strongvars_2
+  use strong_fast_global_mod, only: init_strongvars
   use zrnmi_mod, only: zrnmi_initialize
   use tendsmod, only: create_tendvars,destroy_tendvars
   use turblmod, only: create_turblvars,destroy_turblvars
@@ -199,12 +200,14 @@ subroutine guess_init_
      call create_tendvars()
      call create_turblvars()
   endif
-  if ( (jcstrong) .and. nvmodes_keep>0) then
+  if ( (l_tlnmc) .and. nvmodes_keep>0) then
      call create_vtrans(mype)
-     if(jcstrong_option==1) call init_strongvars_1(mype)
-     if(jcstrong_option==2) call init_strongvars_2(mype)
-     if(jcstrong_option==3) call zrnmi_initialize(mype)
-     if(jcstrong_option==4) call fmg_initialize_e(mype)
+     if(regional) then
+        if(reg_tlnmc_type==1) call zrnmi_initialize(mype)
+        if(reg_tlnmc_type==2) call fmg_initialize_e(mype)
+     else
+        call init_strongvars(mype)
+     end if
   end if
 
 ! End of routine
@@ -532,7 +535,7 @@ _ENTRY_(Iam)
      call destroy_tendvars()
      call destroy_turblvars()
   endif
-  if ( (jcstrong ) .and. nvmodes_keep>0) call destroy_vtrans
+  if ( (l_tlnmc ) .and. nvmodes_keep>0) call destroy_vtrans
 
   if(.not.regional)then
      call destroy_cdiff_coefs()

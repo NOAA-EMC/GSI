@@ -19,6 +19,7 @@ subroutine anbkerror(gradx,grady)
 !   2010-06-22  todling - update to better handle bundle pointers
 !   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
 !   2010-08-19  lueken - add only to module use
+!   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction 
 !
 !   input argument list:
 !     gradx    - input field  
@@ -33,7 +34,7 @@ subroutine anbkerror(gradx,grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use jfunc, only: nsclen,npclen
+  use jfunc, only: nsclen,npclen,ntclen
   use balmod, only: balance,tbalance
   use berror, only: varprd,fpsproj
   use constants, only: zero
@@ -110,6 +111,11 @@ do_balance=lc_sf.and.lc_vp.and.lc_ps .and.lc_t
         grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
      end do
   end if
+  if(ntclen>0)then
+     do i=1,ntclen
+        grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
+     end do
+  end if
 
 end subroutine anbkerror
 
@@ -129,6 +135,9 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 !   2010-06-22  todling - update interface (remove cwmr since it's in bunlde)
 !   2010-06-29  lueken - added if(ipnts(2)>0) to second call of anbkgvar
 !   2011-02-22  zhu - replace the argument list of ansmoothrf_reg_subdomain_option by a bundle
+!   2012-06-25  parrish - replace sub2grid and grid2sub calls with general_sub2grid, general_grid2sub.
+!                 NOTE:  This will not work with sst and the motley variables slndt,sicet.  However
+!                        this is not currently used in this version of RTMA.
 !
 !   input argument list:
 !     t        - t on subdomain
@@ -165,6 +174,8 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   use constants, only: zero
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
@@ -173,7 +184,7 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
 
 ! Local Variables
   integer(i_kind) iflg,ier,istatus
-  real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
+  real(r_kind),dimension(nlat*nlon*nsig1o):: hwork
   real(r_kind),pointer,dimension(:,:)  :: p,skint
   real(r_kind),pointer,dimension(:,:,:):: t,q,cwmr,oz,st,vp
 
@@ -225,14 +236,15 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   else
 
 ! Convert from subdomain to full horizontal field distributed among processors
-     iflg=1
-     call sub2grid(hwork,bundle,sst,slndt,sicet,iflg)
+     call general_sub2grid(s2g_raf,bundle%values,hwork)
+!  need to modify this to use with sst and motley variables slndt,sicet, but apparently this
+!    not implemented yet in RTMA.
 
 ! Apply horizontal smoother for number of horizontal scales
      call ansmoothrf(hwork)
 
 ! Put back onto subdomains
-     call grid2sub(hwork,bundle,sst,slndt,sicet)
+     call general_grid2sub(s2g_raf,hwork,bundle%values)
 
   end if
 
@@ -260,6 +272,7 @@ subroutine anbkgvar(skint,sst,slndt,sicet,iflg)
 ! program history log:
 !   2005-01-22  parrish
 !   2008-06-05  safford - rm unused uses
+!   2012-06-25  parrish - remove _i_kind from integer constants
 !
 !   input argument list:
 !     skint    - skin temperature grid values

@@ -166,7 +166,7 @@ contains
     j=0
     nlines=0
     read1:  do
-       read(lunin,100,iostat=istat) cflg,crecord
+       read(lunin,100,iostat=istat,end=120) cflg,crecord
        if (istat /= 0) exit
        nlines=nlines+1
        if (cflg == '!') cycle
@@ -174,6 +174,7 @@ contains
        if (iusept < use_limit) cycle
        j=j+1
     end do read1
+120 continue
     if (istat>0) then
        write(6,*)'PCPINFO_READ:  ***ERROR*** error reading pcpinfo, istat=',istat
        close(lunin)
@@ -317,6 +318,7 @@ contains
     use gridmod, only: ijn_s,ltosj_s,ltosi_s,displs_s,itotsub,&
        lat2,lon2,nlat,nlon
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
+    use mersenne_twister, only: random_setseed, random_number
     implicit none
 
 ! Declare passed variables
@@ -324,35 +326,35 @@ contains
     integer(i_kind),dimension(5),intent(in   ) :: iadate    
 
 ! Declare local variables
-    integer(i_kind) krsize,i,j,k,mm1,myper
-    integer(i_kind),allocatable,dimension(:):: nrnd
+    integer(i_kind) i,j,k,mm1,myper,iseed
     
     real(r_kind) rseed
-    real(r_kind),allocatable,dimension(:):: rwork
-    real(r_kind),allocatable,dimension(:,:):: rgrid
+    real(r_kind),allocatable,dimension(:):: rwork,rgrid1
+    real(r_kind),allocatable,dimension(:,:):: rgrid2
 
 ! Compute random number for precipitation forward model.  
     mm1=mype+1
     allocate(rwork(itotsub),xkt2d(lat2,lon2))
     myper=npe-1
     if (mype==myper) then
-       allocate(rgrid(nlat,nlon))
-       call random_seed(size=krsize)
-       allocate(nrnd(krsize))
-       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) &
-          + 1e2_r_kind*iadate(3) + iadate(4)
-       write(6,*)'CREATE_PCP_RANDOM:  rseed,krsize=',rseed,krsize
-       do i=1,krsize
-          nrnd(i) = rseed
+       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) + 1e2_r_kind*iadate(3) + iadate(4)
+       iseed=rseed
+       write(6,*)'CREATE_PCP_RANDOM:  iseed=',iseed
+       call random_setseed(iseed)
+       allocate(rgrid1(nlat*nlon),rgrid2(nlat,nlon))
+       call random_number(rgrid1)
+       k=0
+       do j=1,nlon
+          do i=1,nlat
+             k=k+1
+             rgrid2(i,j)=rgrid1(k)
+          end do
        end do
-       call random_seed(put=nrnd)
-       deallocate(nrnd)
-       call random_number(rgrid)
        do k=1,itotsub
           i=ltosi_s(k); j=ltosj_s(k)
-          rwork(k)=rgrid(i,j)
+          rwork(k)=rgrid2(i,j)
        end do
-       deallocate(rgrid)
+       deallocate(rgrid1,rgrid2)
     endif
     call mpi_scatterv(rwork,ijn_s,displs_s,mpi_rtype,xkt2d,ijn_s(mm1),&
          mpi_rtype,myper,mpi_comm_world,ierror)

@@ -224,12 +224,12 @@ real(r_kind) function dplev_mask(dx,dy,mype)
 !                set fast to .true. for twodvar_regional,
 !                  substantially faster, but no roundoff error reduction and
 !                  results differ for different number of processors.
-  if(twodvar_regional) then
-!    fast=.true.
-     mask(5)=.false.
-     mask(6)=.false.
-     mask(8)=.false.
-  end if
+!  if(twodvar_regional) then
+!!    fast=.true.
+!     mask(5)=.false.
+!     mask(6)=.false.
+!     mask(8)=.false.
+!  end if
 
   if(fast) then
      dplev_mask=fast_dplev(dx,dy,mask)
@@ -429,6 +429,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
                      ltosi,ltosj,latlon11,ijn,displs_g,strip
   use radinfo, only: npred,jpch_rad
   use pcpinfo, only: npredp,npcptype
+  use aircraftinfo, only: npredt,ntail
   use jfunc, only: iter,jiter
   use gsi_bundlemod, only: gsi_bundlegetvar
   use gsi_bundlemod, only: gsi_bundlegetpointer

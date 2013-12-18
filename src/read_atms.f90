@@ -24,6 +24,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !
 ! program history log:
 !  2011-12-06  Original version based on r16656 version of read_bufrtovs.  A. Collard
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -61,7 +62,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
-      use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred
+      use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
   use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
@@ -103,6 +104,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ! The next two are one minute in hours
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
+  real(r_kind),parameter:: rato=1.1363987_r_kind ! ratio of satellite height to 
+                                                 ! distance from Earth's centre
 
 ! Declare local variables
   logical outside,iuse,assim,valid
@@ -119,7 +122,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments, num_obs
   integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
-  integer(i_kind) ilat,ilon,ifovmod
+  integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm
   integer(i_kind):: error_status,ier
@@ -140,7 +143,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) pred
-  real(r_kind) dlat,panglr,dlon,rato,sstime,tdiff
+  real(r_kind) dlat,panglr,dlon,tdiff
   real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
   real(r_kind) step,start,dist1
   real(r_kind) tt,lzaest
@@ -190,6 +193,16 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Make thinning grids
   call makegrids(rmesh,ithin)
 
+! Set nadir position based on value of maxscan
+  if (maxscan < 96) then
+     ! For ATMS when using the old style satang files, 
+     ! we shift the FOV number down by three as we can only use
+     ! 90 of the 96 positions right now because of the scan bias limitation.
+     nadir=45
+  else
+     nadir=48
+  endif
+
 ! Set various variables depending on type of data to be read
 
   if (obstype /= 'atms') then
@@ -238,8 +251,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         exit 
      endif
   end do 
-
-  rato=1.1363987_r_kind
 
 ! IFSCALC setup
   nchanl=22
@@ -366,8 +377,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            if (t4dv<minus_one_minute .OR. t4dv>winlen+one_minute) &
                 cycle read_loop
         else
-           sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-           tdiff=(sstime-gstime)*r60inv
+           tdiff=t4dv+(iwinbgn-gstime)*r60inv
            if(abs(tdiff) > twind+one_minute) cycle read_loop
         endif
  
@@ -496,16 +506,15 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      else
         dlat=dlat_earth
         dlon=dlon_earth
-        call grdcrd(dlat,1,rlats,nlat,1)
-        call grdcrd(dlon,1,rlons,nlon,1)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
 ! Check time window
      if (l4dvar) then
         if (t4dv<zero .OR. t4dv>winlen) cycle ObsLoop
      else
-        sstime= real(nmind,r_kind) + bfr1bhdr(8)*r60inv    ! add in seconds
-        tdiff=(sstime-gstime)*r60inv
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
         if(abs(tdiff) > twind) cycle ObsLoop
      endif
  
@@ -518,12 +527,19 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      if (.not. use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
           cycle ObsLoop
 
-     ! For ATMS we shift the FOV number down by three as we can only use
-     ! 90 of the 96 positions right now because of the scan bias limitation.
-     ifovmod=ifov-3
-     ! Check that ifov is not out of range of cbias dimension
-     if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop
-     
+     if (maxscan < 96) then
+       ! For ATMS when using the old style satang files, 
+       ! we shift the FOV number down by three as we can only use
+       ! 90 of the 96 positions right now because of the scan bias limitation.
+       ifovmod=ifov-3
+       ! Check that ifov is not out of range of cbias dimension
+       if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop
+     else
+       ! This line is for consistency with previous treatment
+       if (ifov < 4 .OR. ifov > 93) cycle ObsLoop
+       ifovmod=ifov
+     endif
+
      nread=nread+nchanl
      
 !    Transfer observed brightness temperature to work array.  If any
@@ -580,9 +596,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
      else
         ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
-             air_rad(ichan1)*cbias(45,ichan1)
+             air_rad(ichan1)*cbias(nadir,ichan1)
         ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
-             air_rad(ichan2)*cbias(45,ichan2)   
+             air_rad(ichan2)*cbias(nadir,ichan2)   
      end if
      if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
         cosza = cos(lza)
@@ -601,9 +617,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
         else
            ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
-                air_rad(ichan3)*cbias(45,ichan3)   
+                air_rad(ichan3)*cbias(nadir,ichan3)   
            ch16 = bt_in(ich16)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
-                air_rad(ichan16)*cbias(45,ichan16)
+                air_rad(ichan16)*cbias(nadir,ichan16)
         end if
         pred = abs(ch1-ch16)
         if(ch1-ch16 >= three) then

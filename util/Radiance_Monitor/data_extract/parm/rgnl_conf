@@ -11,7 +11,5 @@ export DIR_SUFFIX=regional
 
 export TANKDIR=${TANKverf_rad}/${DIR_SUFFIX}/${SUFFIX}
 
-export PTMP_USER=/ptmp/${LOGIN}
-export STMP_USER=/stmp/${LOGIN}
 
 

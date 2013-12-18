@@ -9,6 +9,7 @@ module bias_predictors
 ! program history log:
 !   2007-04-16  tremolet - initial code
 !   2009-08-14  lueken - update documentation
+!   2013-05-21  zhu    - add aircraft temperature bias correction coefficients
 !
 ! subroutines included:
 !   sub setup_predictors
@@ -39,11 +40,12 @@ type predictors
 
    real(r_kind), pointer :: predr(:) => NULL()
    real(r_kind), pointer :: predp(:) => NULL()
+   real(r_kind), pointer :: predt(:) => NULL()
 
    logical :: lallocated = .false.
 end type predictors
 
-integer(i_kind) :: nrclen,nsclen,npclen
+integer(i_kind) :: nrclen,nsclen,npclen,ntclen
 
 logical :: llinit = .false.
 
@@ -54,7 +56,7 @@ END INTERFACE
 ! ----------------------------------------------------------------------
 contains
 ! ----------------------------------------------------------------------
-subroutine setup_predictors(krclen,ksclen,kpclen)
+subroutine setup_predictors(krclen,ksclen,kpclen,ktclen)
 !$$$  subprogram documentation block
 !                .      .    .                                      .
 ! subprogram:    setup_predictors
@@ -79,11 +81,12 @@ subroutine setup_predictors(krclen,ksclen,kpclen)
 !$$$ end documentation block
 
   implicit none
-  integer(i_kind), intent(in   ) :: krclen,ksclen,kpclen
+  integer(i_kind), intent(in   ) :: krclen,ksclen,kpclen,ktclen
 
   nrclen=krclen
   nsclen=ksclen
   npclen=kpclen
+  ntclen=ktclen
 
   llinit = .true.
 
@@ -129,6 +132,10 @@ subroutine allocate_preds(yst)
   ii=ii+nsclen
   yst%predp => yst%values(ii+1:ii+npclen)
   ii=ii+npclen
+  if (ntclen>0) then
+     yst%predt => yst%values(ii+1:ii+ntclen)
+     ii=ii+ntclen
+  end if
 
   if (ii/=nrclen) then
      write(6,*)' allocate_preds: error length',ii,nrclen
@@ -167,6 +174,7 @@ subroutine deallocate_preds(yst)
   if (yst%lallocated) then 
      NULLIFY(yst%predr)
      NULLIFY(yst%predp)
+     NULLIFY(yst%predt)
      DEALLOCATE(yst%values)
      yst%lallocated = .false.
   else

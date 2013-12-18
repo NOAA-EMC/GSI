@@ -60,6 +60,13 @@ else
    exit 2 
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 2 
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${PARMverf_rad}/rgnl_conf
 
@@ -77,15 +84,13 @@ cd $tmpdir
 # data_map file and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
-#export PDATE=`${SCRIPTS}/get_prodate.sh ${SUFFIX} ${DATA_MAP}`
-export PDATE=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} prodate`
- 
+export PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}` 
+
 #---------------------------------------------------------------
 # Locate required files.
 #---------------------------------------------------------------
 export DATDIR=${PTMP_USER}/regional
-#export com=`${SCRIPTS}/get_datadir.sh ${SUFFIX} ${DATA_MAP}`
-export com=`${USHverf_rad}/querry_data_map.pl ${DATA_MAP} ${SUFFIX} radstat_location`
+export com=$RADSTAT_LOCATION
 
 biascr=$DATDIR/satbias.${PDATE}
 satang=$DATDIR/satang.${PDATE}
@@ -102,7 +107,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
    if [ -s $radstat -a -s $satang -a -s $biascr ]; then
       need_radstat=0
    else
-      export PDATE=`ndate -06 $PDATE`
+      export PDATE=`$NDATE -06 $PDATE`
       ctr=$(( $ctr + 1 ))
    fi
 
@@ -140,7 +145,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    export DATA=${WORKverf_rad}/radmon_regional
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
    export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
-   export LOGDIR=/ptmp/$LOGNAME/logs/radnrx
+   export LOGDIR=$PTMP/$LOGNAME/logs/radnrx
    export USER_CLASS=dev
    export DO_DIAG_RPT=0
    export DO_DATA_RPT=0
@@ -158,7 +163,7 @@ if [ -s $radstat -a -s $satang -a -s $biascr ]; then
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
-   $SUB -a $ACOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+   $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
 
 fi
 

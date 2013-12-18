@@ -48,6 +48,7 @@ module read_diag
   public :: iversion_radiag_1
   public :: iversion_radiag_2
   public :: iversion_radiag_3
+  public :: iversion_radiag_4
   public :: ireal_radiag
   public :: ipchan_radiag
 
@@ -139,6 +140,7 @@ module read_diag
      real(r_single) :: bilap              ! lapse rate bias correction term
      real(r_single) :: bicos              ! node*cos(lat) bias correction term
      real(r_single) :: bisin              ! sin(lat) bias correction term
+     real(r_single) :: biemis             ! emissivity sensitivity bias correction term
      real(r_single),dimension(:),allocatable :: bifix          ! angle dependent bias
      real(r_single) :: bisst              ! SST bias correction term
   end type diag_data_chan_list
@@ -147,10 +149,11 @@ module read_diag
      real(r_single) :: extra              ! extra information
   end type diag_data_extra_list
 
-  integer(i_kind),parameter:: iversion_radiag   = 13784   ! Current version
+  integer(i_kind),parameter:: iversion_radiag   = 30303   ! Current version
   integer(i_kind),parameter:: iversion_radiag_1 = 11104   ! Version when bias-correction entries were modified 
   integer(i_kind),parameter:: iversion_radiag_2 = 13784   ! Version when NSST entries were added 
   integer(i_kind),parameter:: iversion_radiag_3 = 19180   ! Version when SSMIS added
+  integer(i_kind),parameter:: iversion_radiag_4 = 30303   ! Version when emissivity predictor added
 
   real(r_single),parameter::  rmiss_radiag    = -9.9e11_r_single
 
@@ -191,7 +194,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
   integer(i_kind),intent(in)             :: npred_radiag
   logical,intent(in)                     :: retrieval
   type(diag_header_fix_list ),intent(out):: header_fix
-  type(diag_header_chan_list),pointer    :: header_chan(:)
+  type(diag_header_chan_list),allocatable :: header_chan(:)
   type(diag_data_name_list)              :: data_name
   integer(i_kind),intent(out)            :: iflag
   logical,optional,intent(in)            :: lverbose    
@@ -274,7 +277,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
        header_fix%npred,npred_radiag
   
 ! Allocate and initialize as needed
-     if (associated(header_chan)) deallocate(header_chan)
+     if (allocated(header_chan)) deallocate(header_chan)
      if (allocated(data_name%chn))  deallocate(data_name%chn)
 
      allocate(header_chan( header_fix%nchan))
@@ -352,7 +355,7 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(13+header_fix%angord+1)= 'bifix     '
         data_name%chn(13+header_fix%angord+2)= 'bisst     '
-     else
+     elseif ( header_fix%iversion < iversion_radiag_4 .and. header_fix%iversion >= iversion_radiag_3 ) then
         data_name%chn( 9)= 'bicons    '
         data_name%chn(10)= 'biang     '
         data_name%chn(11)= 'biclw     '
@@ -366,6 +369,21 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
         end do
         data_name%chn(15+header_fix%angord+1)= 'bifix     '
         data_name%chn(15+header_fix%angord+2)= 'bisst     '
+     else
+        data_name%chn( 9)= 'bicons    '
+        data_name%chn(10)= 'biang     '
+        data_name%chn(11)= 'biclw     '
+        data_name%chn(12)= 'bilap2    '
+        data_name%chn(13)= 'bilap     '
+        data_name%chn(14)= 'bicos     '
+        data_name%chn(15)= 'bisin     '
+        data_name%chn(16)= 'biemis    '
+        do i=1,header_fix%angord
+           write(string,'(i2.2)') header_fix%angord-i+1
+           data_name%chn(16+i)= 'bifix' // string
+        end do
+        data_name%chn(16+header_fix%angord+1)= 'bifix     '
+        data_name%chn(16+header_fix%angord+2)= 'bisst     '
      endif
 
 ! Read header (channel part)
@@ -421,17 +439,17 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   type(diag_header_fix_list ),intent(in) :: header_fix
   logical,intent(in)                     :: retrieval
   type(diag_data_fix_list)   ,intent(out):: data_fix
-  type(diag_data_chan_list)  ,pointer    :: data_chan(:)
-  type(diag_data_extra_list) ,pointer    :: data_extra(:,:)
+  type(diag_data_chan_list)  ,allocatable :: data_chan(:)
+  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
   integer(i_kind),intent(out)            :: iflag
     
-  integer(i_kind) :: ich,iang
+  integer(i_kind) :: ich,iang,i,j
   real(r_single),dimension(:,:),allocatable :: data_tmp
   real(r_single),dimension(:),allocatable   :: fix_tmp
-!  type(old_diag_data_fix_list)              :: old_data_fix
+  real(r_single),dimension(:,:),allocatable :: extra_tmp
 
 ! Allocate arrays as needed
-  if (associated(data_chan)) deallocate(data_chan)
+  if (allocated(data_chan)) deallocate(data_chan)
   allocate(data_chan(header_fix%nchan))
 
   do ich=1,header_fix%nchan
@@ -440,11 +458,12 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
   end do
 
   if (header_fix%iextra > 0) then
-     if (associated(data_extra))   deallocate(data_extra)
+     if (allocated(data_extra))   deallocate(data_extra)
      allocate(data_extra(header_fix%iextra,header_fix%jextra))
+     allocate(extra_tmp(header_fix%iextra,header_fix%jextra))
   end if
 
-! Allocate array to hold data record
+! Allocate arrays to hold data record
   allocate(data_tmp(header_fix%idiag,header_fix%nchan))
 
   if (header_fix%iversion < iversion_radiag_2) then
@@ -456,11 +475,9 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
 ! Read data record
 
   if (header_fix%iextra == 0) then
-!     read(ftin,IOSTAT=iflag) old_data_fix, data_tmp
      read(ftin,IOSTAT=iflag) fix_tmp, data_tmp
   else
-!     read(ftin,IOSTAT=iflag) old_data_fix, data_tmp, data_extra
-     read(ftin,IOSTAT=iflag) fix_tmp, data_tmp, data_extra
+     read(ftin,IOSTAT=iflag) fix_tmp, data_tmp, extra_tmp
   endif
 
 
@@ -558,7 +575,7 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         end do
         data_chan(ich)%bisst = data_tmp(13+header_fix%angord+2,ich)
      end do
-  else
+  elseif ( header_fix%iversion < iversion_radiag_4 .and. header_fix%iversion >= iversion_radiag_3 ) then
      do ich=1,header_fix%nchan
         data_chan(ich)%bicons=data_tmp(9,ich)
         data_chan(ich)%biang =data_tmp(10,ich)
@@ -572,11 +589,38 @@ subroutine read_radiag_data(ftin,header_fix,retrieval,data_fix,data_chan,data_ex
         do iang=1,header_fix%angord+1
            data_chan(ich)%bifix(iang)=data_tmp(15+iang,ich)
         end do
-        data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)  
+        data_chan(ich)%bisst = data_tmp(15+header_fix%angord+2,ich)
+     end do
+  else
+     do ich=1,header_fix%nchan
+        data_chan(ich)%bicons=data_tmp(9,ich)
+        data_chan(ich)%biang =data_tmp(10,ich)
+        data_chan(ich)%biclw =data_tmp(11,ich)
+        data_chan(ich)%bilap2=data_tmp(12,ich)
+        data_chan(ich)%bilap =data_tmp(13,ich)
+        data_chan(ich)%bicos =data_tmp(14,ich) 
+        data_chan(ich)%bisin =data_tmp(15,ich)
+        data_chan(ich)%biemis=data_tmp(16,ich)
+     end do
+     do ich=1,header_fix%nchan
+        do iang=1,header_fix%angord+1
+           data_chan(ich)%bifix(iang)=data_tmp(16+iang,ich)
+        end do
+        data_chan(ich)%bisst = data_tmp(16+header_fix%angord+2,ich)  
      end do
   endif
+
+  if (header_fix%iextra > 0) then
+     do j=1,header_fix%jextra
+        do i=1,header_fix%iextra
+           data_extra(i,j)%extra=extra_tmp(i,j)
+        end do
+     end do
+  endif
+
   deallocate(data_tmp, fix_tmp)
-    
+  if (header_fix%iextra > 0) deallocate(extra_tmp)
+
 end subroutine read_radiag_data
 
 end module read_diag

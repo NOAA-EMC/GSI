@@ -3,30 +3,17 @@
 #  rgnl_comp_conf
 #
 #  Contains configuration information for producing comparison
-#  images from 2 or 3 different regional data sources.
+#  images.
 #
-#  Users may need to edit the SATYPE list and web server
-#  resources.
 #----------------------------------------------------------------
 
 #
-# web server resources
+#  Reassign references for this SUFFIX
 #
-export WEB_SVR=rzdm
-export WEB_USER=esafford
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/${WEB_USER}/comp_plots/rgnl/pngs
-
-
-export LOGDIR=${LOGSverf_rad}/rad_comp/regional
-export PLOT_WORK_DIR=${STMP_USER}/plot_comp_jobs
+export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+export PLOT_WORK_DIR=${STMP_USER}/plot_comp_${SUFFIX}
 
 export TANKDIR=${MY_TANKDIR}/stats/regional
 export IMGNDIR=${MY_TANKDIR}/imgn/regional
 
-
-#
-# default settings
-#
-export USER_CLASS=${USER_CLASS:-dev}
-export ACOUNT=${ACOUNT:-RDAS-MTN}
 

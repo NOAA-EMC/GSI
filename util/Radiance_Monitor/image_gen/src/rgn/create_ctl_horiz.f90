@@ -1,6 +1,6 @@
 subroutine create_ctl_horiz(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
      incr,ctl_file,lunctl,rmiss,satname,io_chan,nu_chan,frequency,&
-     wavenumbr,error,iuse,satype,dplat)
+     wavenumbr,error,iuse,satype,dplat,little_endian)
 
   implicit none
 
@@ -15,7 +15,7 @@ subroutine create_ctl_horiz(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
   character(40) ctl_file,grad_file
   character(80) string
 
-  integer idsat
+  integer idsat, little_endian
   integer,dimension(n_chan):: iuse,io_chan,nu_chan
   integer,dimension(8):: ida,jda
   real wavelength
@@ -59,7 +59,13 @@ subroutine create_ctl_horiz(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
   write(lunctl,110) 
   string = trim(satname) // '.map'
   write(lunctl,120) adjustl(string(1:20))
-  write(lunctl,130) 
+
+  if (little_endian == 1 ) then
+     write( lunctl,132 )
+  else
+     write( lunctl,130 )
+  endif
+ 
   write(lunctl,140) rmiss
   write(lunctl,150) adjustl(satype),dplat,n_chan
   write(lunctl,152)
@@ -74,6 +80,7 @@ subroutine create_ctl_horiz(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 110 format('dtype station')
 120 format('stnmap ^',a20)
 130 format('options template big_endian cray_32bit_ieee sequential')
+132 format('options template little_endian sequential')
 140 format('undef ',f5.0)
 150 format('title ',a10,1x,a10,1x,i4)
 152 format('*XDEF is channel number')

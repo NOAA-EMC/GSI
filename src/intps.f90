@@ -12,6 +12,7 @@ module intpsmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intps_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intps_
@@ -64,6 +65,7 @@ subroutine intps_(pshead,rval,sval)
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2010-05-13  todling  - update to use gsi_bundlemod; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -86,6 +88,7 @@ subroutine intps_(pshead,rval,sval)
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -150,8 +153,7 @@ subroutine intps_(pshead,rval,sval)
            grad = psptr%diags%obssen(jiter)
   
         else
-           val=val-psptr%res
-
+           if( .not. ladtest_obs)   val=val-psptr%res
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                                 psptr%b  > tiny_r_kind) then
@@ -162,8 +164,11 @@ subroutine intps_(pshead,rval,sval)
               p0=wgross/(wgross+exp(-half*psptr%err2*val**2)) ! p0 is P in Enderson
               val=val*(one-p0)                                ! term is Wqc in Enderson
            endif
-
-           grad = val*psptr%raterr2*psptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*psptr%raterr2*psptr%err2
+           end if
         endif
 
 !       Adjoint

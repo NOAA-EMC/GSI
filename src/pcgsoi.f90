@@ -95,6 +95,11 @@ subroutine pcgsoi()
 !   2011-04-25  eL akkraoui - add option for re-orthogonalization.
 !   2011-07-10  todling - minor fixes for general precision handling. 
 !   2011-11-17  kleist - add handling for separate state vector for ensemble bits (hybrid ens/var)
+!   2013-01-26  parrish - WCOSS debug compile flags type mismatch for calls to state2ensctl
+!                          and ensctl2state.  I put in temporary fix to allow debug compile
+!                          by replacing mval with mval(1).  This is likely not
+!                          correct for multiple obs bins.
+!                       
 !
 ! input argument list:
 !
@@ -125,7 +130,7 @@ subroutine pcgsoi()
   use mpimod, only: mype
   use intallmod, only: intall
   use stpcalcmod, only: stpcalc
-  use mod_strong, only: jcstrong,baldiag_inc
+  use mod_strong, only: l_tlnmc,baldiag_inc
   use adjtest, only : adtest
   use control_vectors, only: control_vector, allocate_cv, deallocate_cv,&
        prt_control_norms,dot_product,assignment(=)
@@ -253,7 +258,7 @@ subroutine pcgsoi()
 !       Convert from control space to model space
         call control2state(xhat,mval,sbias)
         if (l_hyb_ens) then
-           call ensctl2state(xhat,mval,eval)
+           call ensctl2state(xhat,mval(1),eval)
            mval(1)=eval(1)
         end if
 
@@ -267,7 +272,7 @@ subroutine pcgsoi()
 !       space for comparison with obs.
         call control2state(xhat,mval,sbias)
         if (l_hyb_ens) then
-           call ensctl2state(xhat,mval,eval)
+           call ensctl2state(xhat,mval(1),eval)
            do ii=1,nobs_bins
               sval(ii)=eval(ii)
            end do
@@ -299,7 +304,7 @@ subroutine pcgsoi()
 
         if (l_hyb_ens) then
            eval(1)=mval(1)
-           call state2ensctl(eval,mval,gradx)
+           call state2ensctl(eval,mval(1),gradx)
         end if
 !       Adjoint of convert control var to physical space
         call state2control(mval,rbias,gradx)
@@ -310,7 +315,7 @@ subroutine pcgsoi()
            do ii=1,nobs_bins
               eval(ii)=rval(ii)
            end do
-           call state2ensctl(eval,mval,gradx)
+           call state2ensctl(eval,mval(1),gradx)
         else
            mval(1)=rval(1)
            if (nobs_bins > 1 ) then
@@ -453,7 +458,7 @@ subroutine pcgsoi()
 !       Convert from control space to model space
         call control2state(dirx,mval,rbias)
         if (l_hyb_ens) then
-           call ensctl2state(dirx,mval,eval)
+           call ensctl2state(dirx,mval(1),eval)
            mval(1)=eval(1)
         end if
 
@@ -467,7 +472,7 @@ subroutine pcgsoi()
 !       Convert search direction form control space to physical space
         call control2state(dirx,mval,rbias)
         if (l_hyb_ens) then
-           call ensctl2state(dirx,mval,eval)
+           call ensctl2state(dirx,mval(1),eval)
            do ii=1,nobs_bins
               rval(ii)=eval(ii)
            end do
@@ -510,7 +515,8 @@ subroutine pcgsoi()
         write(6,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         write(iout_iter,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         if (zgini>tiny_r_kind .and. zfini>tiny_r_kind) then
-           write(iout_iter,9993) 'estimated penalty reduction this iteration',jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
+           write(iout_iter,9993) 'estimated penalty reduction this iteration',&
+                 jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
            write(iout_iter,999)'penalty and grad reduction WRT outer and initial iter=', &
                jiter,iter,penalty/zfini,sqrt(gnorm(1)/zgini),penx,gnormx
         else
@@ -581,7 +587,7 @@ subroutine pcgsoi()
      if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
      call control2state(xhat,mval,sbias)
      if (l_hyb_ens) then
-        call ensctl2state(xhat,mval,eval)
+        call ensctl2state(xhat,mval(1),eval)
         do ii=1,nobs_bins
            sval(ii)=eval(ii)
         end do
@@ -600,20 +606,20 @@ subroutine pcgsoi()
 
 ! Update contributions of incremental values from current outer loop
 
-  if (jcstrong .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
+  if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
   llprt=(mype==0)
   if (l4dvar) then
     call control2state(xhat,mval,sbias)
     if (l_hyb_ens) then
-       call ensctl2state(xhat,mval,eval)
+       call ensctl2state(xhat,mval(1),eval)
        mval(1)=eval(1)
     end if
     call model_tl(mval,sval,llprt)
   else
     call control2state(xhat,mval,sbias)
     if (l_hyb_ens) then
-       call ensctl2state(xhat,mval,eval)
+       call ensctl2state(xhat,mval(1),eval)
        do ii=1,nobs_bins
           sval(ii)=eval(ii)
        end do
@@ -638,7 +644,7 @@ subroutine pcgsoi()
        call model_ad(mval,rval,llprt)
        if (l_hyb_ens) then
           eval(1)=mval(1)
-          call state2ensctl(eval,mval,gradx)
+          call state2ensctl(eval,mval(1),gradx)
        end if
        call state2control(mval,rbias,gradx)
      else
@@ -646,7 +652,7 @@ subroutine pcgsoi()
           do ii=1,nobs_bins
             eval(ii)=rval(ii)
           end do
-          call state2ensctl(eval,mval,gradx)
+          call state2ensctl(eval,mval(1),gradx)
        else
           mval(1)=rval(1)
           if (nobs_bins > 1 ) then
@@ -760,13 +766,16 @@ subroutine pcgsoi()
   endif
 
 ! Write output analysis files
+  call prt_guess('analysis')
+  call prt_state_norms(sval(1),'wwww')
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
-      if(jiter == miter)call write_all(-1,mype)
+      if(jiter == miter) then
+         call clean_
+         call write_all(-1,mype)
+      endif
   endif
-  call prt_guess('analysis')
-  call prt_state_norms(sval(1),'wwww')
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -779,7 +788,7 @@ subroutine pcgsoi()
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  call clean_
+  if (jiter < miter) call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')

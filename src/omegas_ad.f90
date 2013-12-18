@@ -1,4 +1,114 @@
-subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
+module omegas_ad_mod
+!$$$   module documentation block
+!                .      .    .                                       .
+! module:    omegas_ad_mod   module wrapper around subroutine omegas_ad
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract: This module has been added as a wrapper around subroutine omegas_ad
+!            to eliminate type mismatch compile errors when using the debug
+!            compile option on WCOSS.
+!
+! program history log:
+!   2012-01-26  parrish
+!
+! subroutines included:
+!  omegas_ad
+!  omegas_ad_1_1_
+!  omegas_ad_im_ix_
+
+  implicit none
+
+! set default to private
+  private
+! set subroutines to public
+  public :: omegas_ad
+
+  interface omegas_ad
+     module procedure omegas_ad_1_1_
+     module procedure omegas_ad_im_ix_
+  end interface
+
+contains
+
+subroutine omegas_ad_1_1_( im, ix, km, dphi_i_, dlam_i_, u_i_, v_i_, div_i_, &
+     ps_i_, rcl_, del_, sl_, vvel_o_, u_i_ad_, v_i_ad_, div_i_ad_, vvel_o_ad_, &
+     adjoint)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    omegas_ad_1_1_
+!   prgmmr: parrish          org: np22                date: 2013-01-26
+!
+! abstract:  interface for omegas_ad, where im=1,ix=1, and calling routine has
+!              no dimension index corresponding to im and ix.
+!
+! program history log:
+!   2013-01-26  parrish - initial documentation
+!
+!   input argument list:
+!     im,ix,km,adjoint
+!     dphi_i_,dlam_i_,u_i_(km),v_i_(km),div_i_(km),ps_i_,rcl_,del_(km),sl_(km)
+!     vvel_o_(km),u_i_ad_(km),v_i_ad_(km),div_i_ad_(km),vvel_o_ad_(km)
+!
+!   output argument list:
+!     vvel_o_(km),u_i_ad_(km),v_i_ad_(km),div_i_ad_(km),vvel_o_ad_(km)
+
+  use kinds, only: r_kind,i_kind
+  implicit none
+
+  integer(i_kind),intent(in   ) :: im,ix,km
+  logical        ,intent(in   ) :: adjoint
+
+  real(r_kind)   ,intent(in   ) :: dphi_i_,dlam_i_,u_i_(km),v_i_(km),div_i_(km)
+  real(r_kind)   ,intent(in   ) :: ps_i_,rcl_
+  real(r_kind)   ,intent(in   ) :: del_(km),sl_(km)
+  real(r_kind)   ,intent(inout) :: vvel_o_(km),u_i_ad_(km),v_i_ad_(km)
+  real(r_kind)   ,intent(inout) :: div_i_ad_(km),vvel_o_ad_(km)
+
+  real(r_kind) :: dphi_i(ix),dlam_i(ix),u_i(km,ix),v_i(km,ix),div_i(km,ix)
+  real(r_kind) :: ps_i(ix),rcl(ix)
+  real(r_kind) :: del(km,ix),sl(km,ix)
+  real(r_kind) :: vvel_o(km,ix),u_i_ad(km,ix),v_i_ad(km,ix)
+  real(r_kind) :: div_i_ad(km,ix),vvel_o_ad(km,ix)
+
+  integer(i_kind) k
+
+  if( im /= 1 .or. ix /= 1 ) then
+     write(6,*)' GSCOND_AD_1_1_, IM,IX=',IM,IX,' -- BOTH MUST BE 1.  PROGRAM FAILS'
+     stop
+  end if
+
+  dphi_i(1)=dphi_i_
+  dlam_i(1)=dlam_i_
+  ps_i(1)=ps_i_
+  rcl(1)=rcl_
+  do k=1,km
+     u_i(k,1)=u_i_(k)
+     v_i(k,1)=v_i_(k)
+     div_i(k,1)=div_i_(k)
+     del(k,1)=del_(k)
+     sl(k,1)=sl_(k)
+     vvel_o(k,1)=vvel_o_(k)
+     u_i_ad(k,1)=u_i_ad_(k)
+     v_i_ad(k,1)=v_i_ad_(k)
+     div_i_ad(k,1)=div_i_ad_(k)
+     vvel_o_ad(k,1)=vvel_o_ad_(k)
+  end do
+
+  call omegas_ad_im_ix_( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
+     ps_i, rcl, del, sl, vvel_o, u_i_ad, v_i_ad, div_i_ad, vvel_o_ad, &
+     adjoint)
+
+  do k=1,km
+     vvel_o_(k)=vvel_o(k,1)
+     u_i_ad_(k)=u_i_ad(k,1)
+     v_i_ad_(k)=v_i_ad(k,1)
+     div_i_ad_(k)=div_i_ad(k,1)
+     vvel_o_ad_(k)=vvel_o_ad(k,1)
+  end do
+
+end subroutine omegas_ad_1_1_
+
+subroutine omegas_ad_im_ix_( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
      ps_i, rcl, del, sl, vvel_o, u_i_ad, v_i_ad, div_i_ad, vvel_o_ad, &
      adjoint)
 !$$$  subprogram documentation block
@@ -14,6 +124,10 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
 !   2004-06-15  treadon - reformat documenation
 !   2006-04-12  treadon - change del and sl from 1d to 2d arrays
 !   2006-08-10  treadon - change dphi_i,dlam_i from ln(ps) to ps
+!   2013-01-26  parrish - module added as a wrapper around subroutine omegas_ad
+!                            to eliminate type mismatch compile errors when
+!                            using the debug
+!                            compile option on WCOSS.
 !
 !   input argument list:
 !     im      - actual number of profiles to be processed
@@ -214,6 +328,6 @@ subroutine omegas_ad( im, ix, km, dphi_i, dlam_i, u_i, v_i, div_i, &
   end do
   
   return
-end subroutine omegas_ad
+end subroutine omegas_ad_im_ix_
 
-
+end module omegas_ad_mod

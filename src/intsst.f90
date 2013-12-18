@@ -11,6 +11,7 @@ module intsstmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intsst_tl
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
 !
 ! subroutines included:
 !   sub intsst
@@ -55,6 +56,7 @@ subroutine intsst(ssthead,rval,sval)
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
 !   2011-04-01  li       - modify to include Tr analysis
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     ssthead
@@ -78,6 +80,7 @@ subroutine intsst(ssthead,rval,sval)
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
@@ -141,7 +144,7 @@ subroutine intsst(ssthead,rval,sval)
            grad = sstptr%diags%obssen(jiter)
  
         else
-           val=val-sstptr%res
+           if( .not. ladtest_obs) val=val-sstptr%res
 
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. sstptr%pg > tiny_r_kind .and. &
@@ -153,8 +156,11 @@ subroutine intsst(ssthead,rval,sval)
               p0   = wgross/(wgross+exp(-half*sstptr%err2*val**2))
               val = val*(one-p0)
            endif
-
-           grad = val*sstptr%raterr2*sstptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*sstptr%raterr2*sstptr%err2
+           end if
         endif
 
 !      Adjoint

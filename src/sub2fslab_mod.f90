@@ -11,6 +11,7 @@ module sub2fslab_mod
 !   2008-01-23  sato
 !   2010-03-25  zhu   - change work_* from arrays to a data structure work;
 !                     - change interface of sub2grid 
+!   2012-06-09  parrish - change so can use general_sub2grid
 !
 ! subroutines included:
 !   sub setup_sub2fslab
@@ -35,7 +36,7 @@ module sub2fslab_mod
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind,r_single
-  use gridmod, only: nsig1o, nlon, nlat, & ! for slab mode
+  use gridmod, only: nlon, nlat, & ! for slab mode
                      nsig  , lat2, lon2, & ! for subdomain
                      regional, twodvar_regional
   use anberror, only: prm0 => pf2aP1, &
@@ -46,7 +47,10 @@ module sub2fslab_mod
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_gridcreate
-  use control_vectors, only: cvars2d,cvars3d
+  use gsi_bundlemod, only: gsi_bundlemerge
+  use control_vectors, only: cvars2d,cvars3d,cvarsmd,mvars
+  use general_sub2grid_mod, only: general_sub2grid
+  use general_commvars_mod, only: s2g_raf
 
   implicit none
 
@@ -66,9 +70,8 @@ module sub2fslab_mod
   character(len=*),parameter::myname='sub2fslab_mod'
 
   type(gsi_bundle),save :: work
-  real(r_kind),allocatable,dimension(:,:)  :: work_sst,work_slndt,work_sicet
 
-  real(r_kind)  ,allocatable,dimension(:,:,:)  :: hfine
+  real(r_kind)  ,allocatable,dimension(:,:,:,:)  :: hfine
   real(r_kind)  ,allocatable,dimension(:,:)    :: hfilter
   real(r_kind)  ,allocatable,dimension(:,:)    :: hflt0,hflt2,hflt3
 
@@ -99,22 +102,46 @@ subroutine setup_sub2fslab
 !$$$ end documentation block
   implicit none
   character(len=*),parameter::myname_=trim(myname)//'*setup_sub2fslab'
-  integer(i_kind) :: istatus
+  integer(i_kind) :: istatus,istatall
   type(gsi_grid):: grid
+  type(gsi_bundle):: cwork,mwork
 
 ! create an internal structure w/ the same vars as those in the control vector
   call gsi_gridcreate(grid,lat2,lon2,nsig)
-  call gsi_bundlecreate (work,grid,'sub2fslab work',istatus, &
+  if(mvars>0) then
+     istatall=0
+     call gsi_bundlecreate (cwork,grid,'cwork',istatus, &
                          names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-  if (istatus/=0) then
-     write(6,*) trim(myname_),': trouble creating work bundle'
-     call stop2(999)
-  endif
+     istatall=istatall+istatus
+     call gsi_bundlecreate (mwork,grid,'mwork',istatus, &
+                         names2d=cvarsmd,bundle_kind=r_kind)
+     istatall=istatall+istatus
+     call gsi_bundlemerge(work,cwork,mwork,'merge cwork and mwork',istatus)
+     istatall=istatall+istatus
+     if (istatall/=0) then
+        write(6,*) trim(myname_),': trouble creating merged work bundle'
+        call stop2(999)
+     endif
+     istatall=0
+     call gsi_bundledestroy (cwork,istatus)
+     istatall=istatall+istatus
+     call gsi_bundledestroy (mwork,istatus)
+     istatall=istatall+istatus
+     if (istatall/=0) then
+        write(6,*) trim(myname_),': trouble destroying cwork and mwork bundles'
+        call stop2(999)
+     endif
 
-! allocate space for other internal arrays
-  allocate(work_sst(lat2,lon2),work_slndt(lat2,lon2),work_sicet(lat2,lon2))
+  else
+     call gsi_bundlecreate (work,grid,'work',istatus, &
+                         names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+     if (istatus/=0) then
+        write(6,*) trim(myname_),': trouble creating work bundle--no motley variable version'
+        call stop2(999)
+     endif
+  end if
 
-  allocate(hfine(nlat,nlon,nsig1o))
+  allocate(hfine(s2g_raf%inner_vars,nlat,nlon,s2g_raf%nlevs_alloc))
 
   if( regional ) then
   !  for regional mode
@@ -166,7 +193,6 @@ subroutine destroy_sub2fslab
      deallocate(hflt3)
   end if
 
-  deallocate(work_sst,work_slndt,work_sicet)
   call gsi_bundledestroy (work,istatus)
    if (istatus/=0) then
       write(6,*) trim(myname_),': trouble destroying work bundle'
@@ -211,10 +237,10 @@ subroutine sub2fslab(fsub,fslab)
 
 ! Declare passed variables
   real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
-  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,s2g_raf%nlevs_alloc)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,n,n2d,n3d,istatus
+  integer(i_kind):: k,i,j,n,n2d,n3d,istatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:  )::ptr2d=>NULL()
 
@@ -238,15 +264,11 @@ subroutine sub2fslab(fsub,fslab)
         end do
      end do
   end do
-  work_sst  (:,:)=fsub(:,:,1)
-  work_slndt(:,:)=fsub(:,:,1)
-  work_sicet(:,:)=fsub(:,:,1)
 
-  iflg=1
-  call sub2grid(hfine,work,work_sst,work_slndt,work_sicet,iflg)
+  call general_sub2grid(s2g_raf,work%values,hfine)
 
-  do k=1,nsig1o
-     call agrid2fgrid(prm0,hfine(1,1,k),hfilter) !analysis to filter grid
+  do k=1,s2g_raf%nlevs_loc
+     call agrid2fgrid(prm0,hfine(1,1,1,k),hfilter) !analysis to filter grid
      fslab(:,:,k)=real(hfilter(:,:),r_single)
   end do
 
@@ -287,12 +309,12 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
 
 ! Declare passed variables
   real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
-  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf,nsig1o)
-  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf,nsig1o)
-  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf,s2g_raf%nlevs_alloc)
+  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf,s2g_raf%nlevs_alloc)
+  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,s2g_raf%nlevs_alloc)
 
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,n,n2d,n3d,istatus
+  integer(i_kind):: k,i,j,n,n2d,n3d,istatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:  )::ptr2d=>NULL()
 
@@ -316,15 +338,11 @@ subroutine sub2fslab_glb(fsub,fslb0,fslb2,fslb3)
         end do
      end do
   end do
-  work_sst  (:,:)=fsub(:,:,1)
-  work_slndt(:,:)=fsub(:,:,1)
-  work_sicet(:,:)=fsub(:,:,1)
 
-  iflg=1
-  call sub2grid(hfine,work,work_sst,work_slndt,work_sicet,iflg)
+  call general_sub2grid(s2g_raf,work%values,hfine)
 
-  do k=1,nsig1o
-     call grid2patch(hfine(1,1,k),hflt0,hflt2,hflt3) !analysis to filter grid
+  do k=1,s2g_raf%nlevs_loc
+     call grid2patch(hfine(1,1,1,k),hflt0,hflt2,hflt3) !analysis to filter grid
      fslb0(:,:,k)=real(hflt0(:,:),r_single)
      fslb2(:,:,k)=real(hflt2(:,:),r_single)
      fslb3(:,:,k)=real(hflt3(:,:),r_single)
@@ -362,7 +380,7 @@ subroutine sub2fslabdz(fsub,fslab)
 
 ! Declare passed variables
   real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
-  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslab(prm0%nlatf,prm0%nlonf,s2g_raf%nlevs_alloc)
 
 ! Declare local variables
   real(r_kind):: fsubdz(lat2,lon2,nsig),dzi
@@ -411,9 +429,9 @@ subroutine sub2fslabdz_glb(fsub,fslb0,fslb2,fslb3)
 
 ! Declare passed variables
   real(r_kind)  ,intent(in   ) :: fsub(lat2,lon2,nsig)
-  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf,nsig1o)
-  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf,nsig1o)
-  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,nsig1o)
+  real(r_single),intent(  out) :: fslb0(prm0%nlatf,prm0%nlonf,s2g_raf%nlevs_alloc)
+  real(r_single),intent(  out) :: fslb2(prm2%nlatf,prm2%nlonf,s2g_raf%nlevs_alloc)
+  real(r_single),intent(  out) :: fslb3(prm3%nlatf,prm3%nlonf,s2g_raf%nlevs_alloc)
 
 ! Declare local variables
   real(r_kind):: fsubdz(lat2,lon2,nsig),dzi
@@ -463,10 +481,10 @@ subroutine sub2slab2d(fsub,slab)
 
 ! Declare passed variables
   real(r_kind),intent(in   ) :: fsub(lat2,lon2)
-  real(r_kind),intent(  out) :: slab(nlat,nlon,nsig1o)
+  real(r_kind),intent(  out) :: slab(s2g_raf%inner_vars,nlat,nlon,s2g_raf%nlevs_alloc)
   
 ! Declare local variables
-  integer(i_kind):: k,iflg,i,j,n,n2d,n3d,istatus
+  integer(i_kind):: k,i,j,n,n2d,n3d,istatus
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:  )::ptr2d=>NULL()
 
@@ -490,12 +508,8 @@ subroutine sub2slab2d(fsub,slab)
         end do
      end do
   end do
-  work_sst  (:,:)=fsub(:,:)
-  work_slndt(:,:)=fsub(:,:)
-  work_sicet(:,:)=fsub(:,:)
 
-  iflg=1
-  call sub2grid(slab,work,work_sst,work_slndt,work_sicet,iflg)
+  call general_sub2grid(s2g_raf,work%values,slab)
 
   return
 end subroutine sub2slab2d

@@ -90,6 +90,11 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2011-01-18 cucurull - increase the size of mreal by one element to add gps_dtype information
 !  2011-08-16 cucurull - fix bug in statistics qc
 !  2011-08-17 cucurull - add METOP-B GRAS (plus Oceansat-2, SAC-D and M-T) assimilation capabilities
+!  2012-09-11 cucurull - fix bug in qc printout and setup super-refraction quality control
+!  2012-10-16 cucurull - increase mreal to 21 to add qrefges, remove qcfail_stats_1 and qcfail_stats_2, consolidate to qcfail
+!  2013-01-16 cucurull - remove GRAS data below 8 km
+!  2013-01-26 parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
+!                                   tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -133,7 +138,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use m_gpsrhs, only: rdiagbuf,cdiagbuf
   use m_gpsrhs, only: qcfail
   use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross
-  use m_gpsrhs, only: qcfail_stats_1,qcfail_stats_2
   use m_gpsrhs, only: data_ier,data_igps,data_ihgt
   use m_gpsrhs, only: gpsrhs_alloc
   use m_gpsrhs, only: gpsrhs_dealloc
@@ -150,10 +154,11 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   real(r_kind),parameter:: r240 = 240.0_r_kind
   real(r_kind),parameter:: r1em3 = 1.0e-3_r_kind
   real(r_kind),parameter:: six = 6.0_r_kind
+  real(r_kind),parameter:: eight = 8.0_r_kind
   real(r_kind),parameter:: nine = 9.0_r_kind
   real(r_kind),parameter:: eleven = 11.0_r_kind
   character(len=*),parameter :: myname='setupref'
-
+  real(r_kind),parameter:: crit_grad = 157.0_r_kind
 
 ! Declare passed variables
   integer(i_kind)                            ,intent(in   ) :: lunin,mype,nele,nobs
@@ -164,9 +169,9 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   logical                                    ,intent(in   ) :: last_pass	! the pass with all background bins processed
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
-  external:: tintrp3
-  external:: grdcrd
+  external:: tintrp2a1,tintrp2a11
+  external:: tintrp31
+  external:: grdcrd1
   external:: stop2
 
 ! Declare local variables
@@ -174,7 +179,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   real(r_kind) cutoff,cutoff1,cutoff2,cutoff3,cutoff12,cutoff23
   real(r_kind) rsig,dtime,dlat,dlon,tmean,mult_p
   real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final,repe_gps
-  real(r_kind) hgeso,trefges,pobl
+  real(r_kind) hgeso,trefges,pobl,grad_mod,grad_obs
   real(r_kind) sin2,termg,termr,termrg,hob,hobl,qrefges,zsges
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,nrefges,dpres,elev,k4,alt
   real(r_kind) ratio,residual,obserror,obserrlm,delz
@@ -202,6 +207,25 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   n_alloc(:)=0
   m_alloc(:)=0
 !*******************************************************************************
+! List of GPS RO satellites and corresponding BUFR id
+!740 => COSMIC FM1
+!741 => COSMIC FM2
+!742 => COSMIC FM3
+!743 => COSMIC FM4
+!744 => COSMIC FM5
+!745 => COSMIC FM6
+!4   => MetOpA
+!41  => Champ
+!722 => GRACE A
+!820 => SACC
+!42  => TerraSAR-X
+!43  => Tandem-X
+!786 => C/NOFS
+!421 => OCEANSAT-2
+!3   => MetOpB
+!440 => Megha-Tropiques
+!821 => SACD
+!44  => PAZ
 
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
@@ -229,7 +253,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   mm1=mype+1
 
 ! Allocate arrays for output to diagnostic file
-  mreal=20
+  mreal=21
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
 
@@ -254,8 +278,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
      qcfail=.false.
      qcfail_loc=zero
      qcfail_gross=zero
-     qcfail_stats_1=zero
-     qcfail_stats_2=zero
      qcfail_high=zero 
 
      muse(:)=.false.
@@ -291,16 +313,16 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         ikx=nint(data(ikxx,i))
  
 !       Interpolate log(pres), terrain, and geop heights to obs location
-        call tintrp2a(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
-             1,nsig+1,mype,nfldsig)
-        call tintrp2a(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
-             1,nsig+1,mype,nfldsig)
-        call tintrp2a(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
-             1,nsig,mype,nfldsig)
-        call tintrp2a(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-             1,1,mype,nfldsig)
+        call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
+             nsig+1,mype,nfldsig)
+        call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a1(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
+             nsig+1,mype,nfldsig)
+        call tintrp2a1(geop_hgtl,hgesl,dlat,dlon,dtime,hrdifsig,&
+             nsig,mype,nfldsig)
+        call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
 
 !       Convert geometric height at observation to geopotential height using
 !       equations (17, 20, 23) in MJ Mahoney's note "A discussion of various
@@ -323,15 +345,15 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !       Convert observation height (in dpres) from meters to grid relative units
         hob=hgeso
         hobl=hgeso
-        call grdcrd(hob,1,hges,nsig,1)   ! interface levels
-        call grdcrd(hobl,1,hgesl,nsig,1) ! midpoint layers
+        call grdcrd1(hob,hges,nsig,1)   ! interface levels
+        call grdcrd1(hobl,hgesl,nsig,1) ! midpoint layers
         dpres=hob
         dpresl(i)=hobl
         data(ihgt,i)=dpres
  
 !       Get temperature at observation location
-        call tintrp3(ges_tv,trefges,dlat,dlon,hobl,&
-             dtime,hrdifsig,1,mype,nfldsig)
+        call tintrp31(ges_tv,trefges,dlat,dlon,hobl,&
+             dtime,hrdifsig,mype,nfldsig)
  
 !       Set indices of model levels below (k1) and above (k2) observation.
         k=dpres
@@ -444,8 +466,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !          Compute guess local refractivity at obs location.
 !          Also compute terms needed in minimization
 
-           call tintrp3(ges_q,qrefges,dlat,dlon,hobl,dtime,&
-                 hrdifsig,1,mype,nfldsig)
+           call tintrp31(ges_q,qrefges,dlat,dlon,hobl,dtime,&
+                 hrdifsig,mype,nfldsig)
 
 !          Compute guess local refractivity
            fact=(one+fv*qrefges)
@@ -461,6 +483,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 
            rdiagbuf(17,i)  = data(igps,i)  ! refractivity observation (units of N)
            rdiagbuf(18,i)  = trefges       ! temperature at obs location in Kelvin
+           rdiagbuf(21,i)  = qrefges       ! specific humidity at obs location (kg/kg)
 
            data(igps,i)=data(igps,i)-nrefges  ! innovation vector
 
@@ -510,7 +533,6 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 
                  if(abs(rdiagbuf(5,i)) > cutoff) then
                     qcfail(i)=.true.
-                    qcfail_stats_1(i)=one
                     data(ier,i) = zero
                     ratio_errors(i) = zero
                     muse(i) = .false.
@@ -526,6 +548,14 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
               qcfail_high(i)=one 
               muse(i)=.false.
            endif
+
+!         Remove MetOP/GRAS data below 8 km
+          if ((alt <= eight) .and. ((data(isatid,i)==4) .or. (data(isatid,i)==3))) then
+             data(ier,i) = zero
+             ratio_errors(i) = zero
+             qcfail(i)=.true.
+             muse(i)=.false.
+          endif
 
 !          If obs is "acceptable", compute coefficients for adjoint
            if ((data(ier,i)*ratio_errors(i)) > tiny_r_kind) then
@@ -586,13 +616,29 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 ! Loop over observation profiles. Compute penalty
 ! terms, and accumulate statistics.
   if(last_pass) then
-     do i=1,nobs
+     do i=1,nobs-1
      
+        if(r1em3*rdiagbuf(7,i) <= 3.0_r_kind) then ! check for SR-likely conditions below 3 km
+            kprof = data(iprof,i)
+            jprof = data(iprof,i+1)
+            if( kprof == jprof .and. .not. qcfail(i) .and. qcfail_loc(i) == zero .and. qcfail_loc(i+1) == zero .and. qcfail_gross(i) == zero)then
+                grad_mod=1000.0_r_kind*&
+                               ((rdiagbuf(17,i+1)*(one-rdiagbuf(5,i+1)))-(rdiagbuf(17,i)*(one-rdiagbuf(5,i))))/(rdiagbuf(7,i+1)-rdiagbuf(7,i))
+                grad_obs=1000.0_r_kind*(rdiagbuf(17,i+1)-rdiagbuf(17,i))/(rdiagbuf(7,i+1)-rdiagbuf(7,i))
+                if ((abs(grad_mod)>= half*crit_grad) .or. (abs(grad_obs)>=half*crit_grad)) then
+                   qcfail(i)  = .true.
+                   if( qcfail_gross(i+1) == zero .and. .not. qcfail(i+1)) then
+                       qcfail(i+1)= .true.
+                   end if
+                end if
+            end if
+        end if
+
         if(qcfail(i)) then
            kprof = data(iprof,i)
            do j=1,nobs
               jprof = data(iprof,j)
-              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_loc(j) == zero)then
+              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_loc(j) == zero .and. qcfail_gross(j) == zero)then
 
 !             Remove data below
                  if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
@@ -600,12 +646,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
                        (rdiagbuf(1,i)==4).or.(rdiagbuf(1,i)==786).or.(rdiagbuf(1,i)==3)) then
                        if(r1em3*rdiagbuf(7,i)<= ten) then
                           qcfail(j) = .true.
-                          qcfail_stats_2(j)=one
                        endif
                     else
                        if(r1em3*rdiagbuf(7,i)< five) then
                           qcfail(j) = .true. 
-                          qcfail_stats_2(j)=one
                        endif
                     endif
                  endif
@@ -668,8 +712,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         ! zero = observation is good
 
         if(qcfail_gross(i) == one)   rdiagbuf(10,i) = three
-        if(qcfail_stats_1(i) == one) rdiagbuf(10,i) = four
-        if(qcfail_stats_2(i) == one) rdiagbuf(10,i) = five !modified in genstats due to toss_gps_sub
+        if(qcfail(i))                rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
         if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
         if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
 

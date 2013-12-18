@@ -1,4 +1,5 @@
 SHELL=/bin/sh
+
 SRCS = kinds.F90 read_diag.f90 horiz.f90 create_ctl_horiz.f90 \
 	update_ctl_horiz.f90
 
@@ -9,11 +10,13 @@ OBJS = kinds.o read_diag.o horiz.o create_ctl_horiz.o \
 # *****************************************************************
 #
 
-CF=xlf90
 
-LIBS    = -L/nwprod/lib -lw3_4
-FFLAGS= -qsuffix=f=f90 -qdbg -qfullpath -O2 -qmaxmem=-1 -WF,-D_REAL8_
-LDFLAGS=
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
+
 
 CMD = horiz.glb.x
 

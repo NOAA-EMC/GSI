@@ -13,6 +13,7 @@ export list=$listvar
 
 #------------------------------------------------------------------
 # Set environment variables.
+
 tmpdir=${PLOT_WORK_DIR}/plot_bcoef_${SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
@@ -56,7 +57,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE}; do
 
    $NCP $ctldir/${type}.ctl* ./
-   uncompress ${type}.ctl.Z
+   ${UNCOMPRESS} ${type}.ctl.${Z}
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
@@ -66,17 +67,17 @@ for type in ${SATYPE}; do
          test_file=${TANKDIR}/radmon.${day}/bcoef.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/bcoef/${type}.${cdate}.ieee_d* ./
       fi
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   uncompress *.ieee_d.Z
+   ${UNCOMPRESS} *.ieee_d.${Z}
 
    list="mean atmpath clw lapse2 lapse"
    for var in $list; do
@@ -85,7 +86,7 @@ cat << EOF > ${type}_${var}.gs
 'run ${GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
 'quit'
 EOF
-      timex $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 
@@ -94,7 +95,6 @@ EOF
    rm -f ${type}.ctl
 
 done
-
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.
@@ -108,7 +108,6 @@ cp -r *.png  ${IMGNDIR}/bcoef
 for var in $list; do
    rm -f ${type}.${var}*.png
 done
-
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.

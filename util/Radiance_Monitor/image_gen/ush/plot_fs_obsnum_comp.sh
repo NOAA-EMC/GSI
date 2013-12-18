@@ -32,59 +32,69 @@ fi
 suff3=${#SUFFIX3}
 
 
-workdir=${PLOT_WORK_DIR}/plot_fs_obsnum_${RAD_AREA}_${type}${anl}
+workdir=${PLOT_WORK_DIR}/plot_fs_obsnum_${SUFFIX1}_${type}${anl}
 mkdir -p ${workdir}
 cd ${workdir}
+
+
 
 #------------------------------------------------------------------
 #   Copy the data files over and rename according to SUFFIX 
 #------------------------------------------------------------------
 PDY=`echo $PDATE|cut -c1-8`
 
-if [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
-   $NCP ${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
+target1=${TANKDIR1}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d
+dest1=${workdir}/${SUFFIX1}.${PDATE}.ieee_d
+if [[ -s ${target1}.${Z} ]]; then 
+   $NCP ${target1}.${Z} ${dest1}.${Z}
 else
-   $NCP $TANKDIR1/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX1}.${PDATE}.ieee_d.Z
+   $NCP ${target1} ${dest1}
 fi
 
-if [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
-   $NCP ${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
+target2=${TANKDIR2}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d
+dest2=${workdir}/${SUFFIX2}.${PDATE}.ieee_d
+if [[ -s ${target2}.${Z} ]]; then 
+   $NCP ${target2}.${Z} ${dest2}.${Z}
 else
-   $NCP $TANKDIR2/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX2}.${PDATE}.ieee_d.Z
+   $NCP ${target2} ${dest2}
 fi
+
 
 if [[ $suff3 -gt 0 ]]; then
-   if [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ]]; then
-      $NCP ${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
+   target3=${TANKDIR3}/radmon.${PDY}/time.${type}.${PDATE}${anl}.ieee_d
+   dest3=${workdir}/${SUFFIX3}.${PDATE}.ieee_d
+   if [[ -s ${target3}.${Z} ]]; then 
+      $NCP ${target3}.${Z} ${dest3}.${Z}
    else
-      $NCP $TANKDIR3/time/${type}.${PDATE}${anl}.ieee_d.Z ${workdir}/${SUFFIX3}.${PDATE}.ieee_d.Z
+      $NCP ${target3} ${dest3}
    fi
 fi
-uncompress ${workdir}/*.Z
+
+${UNCOMPRESS} ${workdir}/*.${Z}
 
 #------------------------------------------------------------------
 #   Copy a control file over, update the time, rename according 
 #   to SUFFIX, and change the data file name according to SUFFIX. 
 #------------------------------------------------------------------
 ctldir=
-if [[ -s ${IMGNDIR1}/time/${type}${anl}.ctl.Z || -s ${IMGNDIR1}/time/${type}${anl}.ctl ]]; then
+if [[ -s ${IMGNDIR1}/time/${type}${anl}.ctl.${Z} || -s ${IMGNDIR1}/time/${type}${anl}.ctl ]]; then
    ctldir="${IMGNDIR1}/time" 
-elif [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}${anl}.ctl.Z || -s ${TANKDIR1}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
+elif [[ -s ${TANKDIR1}/radmon.${PDY}/time.${type}${anl}.ctl.${Z} || -s ${TANKDIR1}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
    ctldir=${TANKDIR1}/radmon.${PDY}
-elif [[ -s ${TANKDIR1}/time/${type}${anl}.ctl.Z || -s ${TANKDIR1}/time/${type}${anl}.ctl ]]; then
+elif [[ -s ${TANKDIR1}/time/${type}${anl}.ctl.${Z} || -s ${TANKDIR1}/time/${type}${anl}.ctl ]]; then
    ctldir=${TANKDIR1}/time 
-elif [[ -s ${IMGNDIR2}/time/${type}${anl}.ctl.Z || -s ${IMGNDIR2}/time/${type}${anl}.ctl ]]; then
+elif [[ -s ${IMGNDIR2}/time/${type}${anl}.ctl.${Z} || -s ${IMGNDIR2}/time/${type}${anl}.ctl ]]; then
    ctldir=${IMGNDIR2}/time 
-elif [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}${anl}.ctl.Z || -s ${TANKDIR2}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
+elif [[ -s ${TANKDIR2}/radmon.${PDY}/time.${type}${anl}.ctl.${Z} || -s ${TANKDIR2}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
    ctldir=${TANKDIR2}/radmon.${PDY}
-elif [[ -s ${TANKDIR2}/time/${type}${anl}.ctl.Z || -s ${TANKDIR2}/time/${type}${anl}.ctl ]]; then
+elif [[ -s ${TANKDIR2}/time/${type}${anl}.ctl.${Z} || -s ${TANKDIR2}/time/${type}${anl}.ctl ]]; then
    ctldir=${TANKDIR2}/time 
 elif [[ $suff3 -gt 0 ]]; then
-   if [[ -s ${IMGNDIR3}/time/${type}${anl}.ctl.Z || -s ${IMGNDIR3}/time/${type}${anl}.ctl ]]; then
+   if [[ -s ${IMGNDIR3}/time/${type}${anl}.ctl.${Z} || -s ${IMGNDIR3}/time/${type}${anl}.ctl ]]; then
       ctldir=${IMGNDIR3}/time 
-   elif [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}${anl}.ctl.Z || -s ${TANKDIR3}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
+   elif [[ -s ${TANKDIR3}/radmon.${PDY}/time.${type}${anl}.ctl.${Z} || -s ${TANKDIR3}/radmon.${PDY}/time.${type}${anl}.ctl ]]; then
       ctldir=${TANKDIR3}/radmon.${PDY}
-   elif [[ -s ${TANKDIR3}/time/${type}${anl}.ctl.Z || -s ${TANKDIR3}/time/${type}${anl}.ctl ]]; then
+   elif [[ -s ${TANKDIR3}/time/${type}${anl}.ctl.${Z} || -s ${TANKDIR3}/time/${type}${anl}.ctl ]]; then
       ctldir=${TANKDIR3}/time 
    fi
 else
@@ -93,19 +103,30 @@ fi
 
 nctldir=${#ctldir}
 if [[ ${nctldir} -gt 0 ]]; then 
-   if [[ -s ${ctldir}/time.${type}${anl}.ctl.Z ]]; then 
-      $NCP ${ctldir}/time.${type}${anl}.ctl.Z ${workdir}/${type}${anl}.ctl.Z
+   if [[ -s ${ctldir}/time.${type}${anl}.ctl.${Z} ]]; then 
+      $NCP ${ctldir}/time.${type}${anl}.ctl.${Z} ${workdir}/${type}${anl}.ctl.${Z}
    elif [[ -s ${ctldir}/time.${type}${anl}.ctl ]]; then
       $NCP ${ctldir}/time.${type}${anl}.ctl ${workdir}/${type}${anl}.ctl
    else
       $NCP ${ctldir}/${type}${anl}.ctl* ${workdir}/.
    fi
 
-   if [[ -s ${workdir}/${type}${anl}.ctl.Z ]]; then
-      uncompress ${workdir}/${type}${anl}.ctl.Z
+   if [[ -s ${workdir}/${type}${anl}.ctl.${Z} ]]; then
+      ${UNCOMPRESS} ${workdir}/${type}${anl}.ctl.${Z}
    fi
 
-   ${SCRIPTS}/update_ctl_tdef.sh ${type}${anl}.ctl ${PDATE}
+   #-------------------------------------------------------------------
+   #   Update the time definition (tdef) line in the angle control
+   #   files. Conditionally rm "cray_32bit_ieee" from the options line.
+  
+   ctl_file=${type}${anl}.ctl 
+
+   ${SCRIPTS}/update_ctl_tdef.sh ${ctl_file} ${PDATE}
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      sed -e 's/cray_32bit_ieee/ /' ${ctl_file} > tmp_${type}.ctl
+      mv -f tmp_${type}.ctl ${ctl_file}
+   fi
 
    $NCP ${type}${anl}.ctl ${SUFFIX1}${anl}.ctl
    ${SCRIPTS}/update_ctl_fname.sh ${SUFFIX1}${anl}.ctl ${SUFFIX1} 
@@ -121,6 +142,7 @@ if [[ ${nctldir} -gt 0 ]]; then
    $NCP ${GSCRIPTS}/setrange.gs ${workdir}/setrange.gs
 
    run_line="run ${GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2}"
+
 
    if [[ $suff3 -gt 0 ]]; then 
       plotscript=${type}_${SUFFIX1}_${SUFFIX2}_${SUFFIX3}${anl}.gs
@@ -141,22 +163,24 @@ cat << EOF > ${workdir}/${plotscript}
 EOF
    fi
 
-   timex $GRADS -bpc "run ${workdir}/${plotscript}"
+   $TIMEX $GRADS -bpc "run ${workdir}/${plotscript}"
 
    #------------------------------------------------------------------
-   #  copy to web server
+   #  copy to imgn mirror directory
    #------------------------------------------------------------------
-   export SUFFIX=${SUFFIX1}
-   ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${WEBDIR}/comp"
-   scp *.png ${WEB_USER}@${WEB_SVR}:${WEBDIR}/comp/.
+   imgndir=${IMGNDIR1}/pngs/comp
+   if [[ ! -d $imgndir ]]; then
+      mkdir -p $imgndir
+   fi
 
+   $NCP *.png ${imgndir}/.
 
    #------------------------------------------------------------------
    #  clean up files
    #------------------------------------------------------------------
-#   cd ${workdir}
-#   cd ../
-#   rm -rf $workdir
+   cd ${workdir}
+   cd ../
+   rm -rf $workdir
       
 fi
 

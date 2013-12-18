@@ -63,6 +63,7 @@ subroutine prewgt(mype)
 !   2010-07-07  kokron/todling - fix definition of hwllp to do sfc-only
 !   2011-07-03  todling - calculation of bl and bl2 must be done in double-prec
 !                         or GSI won'd work when running in single precision; go figure!
+!   2012-11-26  parrish - move subroutine blend to module blendmod.f90, and add "use blendmod, only: blend"
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,11 +76,11 @@ subroutine prewgt(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single,r_double
+  use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
   use berror, only: dssvs,wtaxs,&
        bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
-       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write
+       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
@@ -96,6 +97,7 @@ subroutine prewgt(mype)
   use guess_grids, only: isli2
   use smooth_polcarf, only: norsp,setup_smooth_polcas
   use mpeu_util, only: getindex
+  use blendmod, only: blend
 
   implicit none
 
@@ -114,7 +116,7 @@ subroutine prewgt(mype)
 
   real(r_kind) wlipi,wlipih,df
   real(r_kind) samp,s2u,df2,pi2
-  real(r_double) y,x,dxx
+  real(r_quad) y,x,dxx
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
   real(r_kind),dimension(lat2,lon2)::temp
@@ -197,19 +199,19 @@ subroutine prewgt(mype)
 !  nbuf=nolp/4
   nbuf=0
   nmix=nolp-nbuf*2
-  dxx=1._r_double/(nmix+1)
-  bl2=0._r_double
+  dxx=1._r_quad/real((nmix+1),r_quad)
+  bl2=0._r_kind
   k=0
   do i=1,nmix
      k=k+1
      x=i*dxx
-     y=0._r_double
-     y=real(iblend(mm),r_double)
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
      do j=mm-1,0,-1
-        y=x*y+real(iblend(j),r_double)
+        y=x*y+real(iblend(j),r_quad)
      enddo
      y=y*x**(mm+1)
-     bl2(k)=1._r_double-y
+     bl2(k)=1._r_quad-y
   enddo
   if(minval(bl2)<zero) then
      write(6,*) 'prewgt: trouble bl2 coeffs negative ', bl2
@@ -219,22 +221,26 @@ subroutine prewgt(mype)
     bl2(k)=sqrt(bl2(k))
   end do
   
+! Modify precision to be consistent with bl2 for higher res grids
+! ** NOTE ** bl and bl2 are actually defined to be r_kind
+! 
   nmix=(nx-nlon)
-  dxx=one/(nmix+1)
+  dxx=1._r_quad/real((nmix+1),r_quad)
   ndx=(nx-nlon)
-  bl=zero
+  bl=0._r_kind
   k=ndx-nmix
   do i=1,nmix
      k=k+1
-     x=i*dxx
-     y=zero
-     y=real(iblend(mm),r_kind)
+     x=real(i,r_quad)*dxx
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
      do j=mm-1,0,-1
-        y=x*y+real(iblend(j),r_kind)
+        y=x*y+real(iblend(j),r_quad)
      enddo
-     y=y*x**(mm+1)
-     bl(k)=one-y
+     y=y*x**real((mm+1),r_quad)
+     bl(k)=1._r_quad-y
   enddo
+
   if(minval(bl)<zero) then
      write(6,*) 'prewgt: trouble bl coeffs negative ', bl
      call stop2(99)
@@ -334,7 +340,7 @@ subroutine prewgt(mype)
         ii=ii+1
         as2d(i)=as2d(i)+as2d(i)*randfct(ii)
      end do
-     do i=1,3
+     do i=1,nhscrf
         hzscl(i)=hzscl(i)+hzscl(i)*randfct(nc2d+nc3d+i)
      end do
      vs=vs+vs*randfct(nc2d+nc3d+3+1)
@@ -349,7 +355,7 @@ subroutine prewgt(mype)
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
 ! the parameter values here.
-  do i=1,3
+  do i=1,nhscrf
      hzscl(i)=one/hzscl(i)
   end do
 ! apply scaling (deflate/inflate) to vertical length scales
@@ -683,75 +689,6 @@ subroutine prewgt(mype)
 
   return
 end subroutine prewgt
-
-subroutine blend(n,iblend)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    blend
-!   prgmmr: purser           org: w/nmc22     date:1998
-!
-! abstract: put coefficients for n+1,..,2n+1, into iblend(0),..
-!           iblend(n)
-!
-! program history log:
-!   2004-05-13  kleist  documentation
-!   2008-04-23  safford - rm unused uses
-!
-!   input argument list:
-!     n      - number of powers to blend
-!
-!   output argument list:
-!     iblend - blended coefficients
-!
-! remarks: put the coefficients for powers n+1,..,2n+1, into iblend(0),
-!          ..iblend(n),for the "blending polynomial" of continuity-
-!          degree n in the interval [0,1].  For example, with n=1, the 
-!          blending polynomial has up to 1st derivatives continuous 
-!          with y(0)=0, y(1)=1, y'(0)=y'(1)=0, when y(x)=3x^2-2x^3. 
-!          Hence iblend={3,-2}
-! 
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp
-!
-!$$$
-  use kinds, only: i_kind
-  implicit none
-
-! Declare passed variables
-  integer(i_kind)               ,intent(in   ) :: n
-  integer(i_kind),dimension(0:n),intent(  out) :: iblend
-
-! Declare local parameters
-  integer(i_kind),parameter:: nn=12
-
-! Declare local variables
-  integer(i_kind) np,i,j,ib
-  integer(i_kind),dimension(0:nn):: ipascal(0:nn)
-
-  if(n>nn)stop
-  np=n+1
-  do i=0,n
-    ipascal(i)=0
-  enddo
-
-  ipascal(0)=1
-  do i=0,n
-     do j=i,1,-1
-        ipascal(j)=ipascal(j)-ipascal(j-1)
-     enddo
-  enddo
-
-  ib=1
-  do i=1,n
-     ib=(ib*2*(2*i+1))/i
-  enddo
-  do j=0,n
-     iblend(j)=(ib*ipascal(j))/(np+j)
-  enddo
-
-  return
-end subroutine blend
 
 subroutine get_randoms(count,randnums)
 !$$$  subprogram documentation block

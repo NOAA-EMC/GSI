@@ -85,6 +85,7 @@ module obsmod
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
 !   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
 !   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
+!   2013-05-19  zhu      - add pred and idx in t_ob_type for aircraft temperature bias correction
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -242,8 +243,11 @@ module obsmod
 !                          .true. - uses iextra,jextra to append information to diag file
 !                          .false. - write out standard diag file (default)
 !   def ext_sonde    - logical for extended forward model on sonde data
-!   bmiss            - parameter to define missing value from bufr
+!   def bmiss            - parameter to define missing value from bufr
 !                      [10e10 on IBM CCS, 10e08 elsewhere]
+!   def lrun_subdirs - logical to toggle use of subdirectories at run time for pe specific
+!                      files
+!   def l_foreaft_thin -   separate TDR fore/aft scan for thinning
 !
 ! attributes:
 !   langauge: f90
@@ -314,7 +318,8 @@ module obsmod
   public :: tcp_ob_head,colvk_ob_head,odiags
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
-  public :: codiags,use_limit
+  public :: codiags,use_limit,lrun_subdirs
+  public :: l_foreaft_thin
 
 ! Set parameters
   integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
@@ -461,6 +466,9 @@ module obsmod
      logical         :: luse          !  flag indicating if ob is used in pen.
      logical         :: use_sfc_model !  logical flag for using boundary model
      logical         :: tv_ob         !  logical flag for virtual temperature or
+     integer(i_kind) :: idx           !  index of tail number
+     real(r_kind),dimension(:),pointer :: pred => NULL() 
+                                      !  predictor for aircraft temperature bias 
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: ij(8)         !  horizontal locations
@@ -1207,7 +1215,7 @@ module obsmod
   character(128) obs_input_common
   character(14),dimension(ndatmax):: obsfile_all
   character(10),dimension(ndatmax):: dtype,ditype,dplat
-  character(13),dimension(ndatmax):: dfile
+  character(15),dimension(ndatmax):: dfile
   character(20),dimension(ndatmax):: dsis
   character(len=20) :: cobstype(nobs_type)
 
@@ -1223,6 +1231,8 @@ module obsmod
   logical lwrite_predterms
   logical lwrite_peakwt
   logical ext_sonde
+  logical lrun_subdirs
+  logical l_foreaft_thin
 
   character(len=*),parameter:: myname='obsmod'
 contains
@@ -1402,6 +1412,8 @@ contains
     lread_obs_skip   = .false.
     lwrite_predterms = .false.
     lwrite_peakwt    = .false.
+    lrun_subdirs     = .false.
+    l_foreaft_thin   = .false.
 
     return
   end subroutine init_obsmod_dflts
@@ -1438,16 +1450,17 @@ contains
     character(len=144):: command
     character(len=8):: pe_name
 
-#ifdef ibm_sp
-    write(pe_name,'(i4.4)') mype
-    dirname = 'dir.'//trim(pe_name)//'/'
-    command = 'mkdir -m 755 ' // trim(dirname)
-    call system(command)
-#else
-    write(pe_name,100) mype
+    if (lrun_subdirs) then
+       write(pe_name,'(i4.4)') mype
+       dirname = 'dir.'//trim(pe_name)//'/'
+       command = 'mkdir -m 755 ' // trim(dirname)
+       call system(command)
+    else
+       write(pe_name,100) mype
 100 format('pe',i4.4,'.')
-    dirname= trim(pe_name)
-#endif
+       dirname= trim(pe_name)
+    end if
+
     return
   end subroutine init_directories
   
@@ -1705,6 +1718,8 @@ contains
        ttail(ii)%head => thead(ii)%head
        do while (associated(ttail(ii)%head))
           thead(ii)%head => ttail(ii)%head%llpoint
+          deallocate(ttail(ii)%head%pred,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t arrays, istatus=',istatus
           deallocate(ttail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
           ttail(ii)%head => thead(ii)%head

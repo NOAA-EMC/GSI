@@ -42,7 +42,12 @@ subroutine prewgt_reg(mype)
 !                          mpl_allreduce, and introduce r_quad arithmetic to remove dependency of
 !                          results on number of tasks.  This is the same strategy currently used
 !                          in dot_product (see control_vectors.f90).
+!   2013-01-22  parrish - initialize kb=0, in case regional_ozone is false.
+!                          (fixes WCOSS debug compile error)
 !
+!   2013-04-17  wu      - use nnnn1o to deside whether to define B related veriables
+!                         avoid undefined input when number of tasks is larger than
+!                         that of the total levels of control vectors
 !   input argument list:
 !     mype     - pe number
 !
@@ -65,7 +70,7 @@ subroutine prewgt_reg(mype)
   use balmod, only: rllat,rllat1,llmin,llmax
   use berror, only: dssvs,&
        bw,ny,nx,dssv,vs,be,ndeg,&
-       init_rftable,hzscl,slw
+       init_rftable,hzscl,slw,nhscrf
   use mpimod, only: nvar_id,levs_id,mpi_sum,mpi_comm_world,ierror,mpi_rtype
   use jfunc, only: qoption
   use control_vectors, only: cvars2d,cvars3d
@@ -154,6 +159,7 @@ subroutine prewgt_reg(mype)
   call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
 
 ! find ozmz for background error variance
+  kb=0
   if(regional_ozone) then
 
      kb_loop: do k=1,nsig
@@ -204,7 +210,6 @@ subroutine prewgt_reg(mype)
         enddo
      enddo
   endif ! regional_ozone
-
 ! Normalize vz with del sigmma and convert to vertical grid units!
   dlsig(1)=rlsig(1)-rlsig(2)
   do k=2,nsig-1
@@ -223,7 +228,7 @@ subroutine prewgt_reg(mype)
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
 ! the parameter values here.
-  do i=1,3
+  do i=1,nhscrf
      hzscl(i)=one/hzscl(i)
   end do
 
@@ -343,19 +348,20 @@ subroutine prewgt_reg(mype)
      endif
   end do
 
-  allocate(sli(ny,nx,2,nnnn1o))
+  if(nnnn1o > 0)then
+     allocate(sli(ny,nx,2,nnnn1o))
 
 ! sli in scale  unit (can add in sea-land mask)
-  samp2=samp*samp
-  do i=1,nx
-     do j=1,ny
-        fact=one/(one+(one-sl(j,i))*bw)
-        slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
-        sli(j,i,1,1)=region_dy(j,i)*fact
-        sli(j,i,2,1)=region_dx(j,i)*fact
+     samp2=samp*samp
+     do i=1,nx
+        do j=1,ny
+           fact=one/(one+(one-sl(j,i))*bw)
+           slw((i-1)*ny+j,1)=region_dx(j,i)*region_dy(j,i)*fact**2*samp2
+           sli(j,i,1,1)=region_dy(j,i)*fact
+           sli(j,i,2,1)=region_dx(j,i)*fact
+        enddo
      enddo
-  enddo
-
+  endif
 
 ! Set up scales
 
@@ -445,9 +451,10 @@ subroutine prewgt_reg(mype)
 
 
 ! Load tables used in recursive filters
-  call init_rftable(mype,rate,nnnn1o,sli)
-
-  deallocate( sli) 
+  if(nnnn1o>0) then
+     call init_rftable(mype,rate,nnnn1o,sli)
+     deallocate( sli) 
+  endif
 
   return
 end subroutine prewgt_reg

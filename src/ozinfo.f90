@@ -140,12 +140,13 @@ contains
     j=0
     nlines=0
     read1:  do 
-       read(lunin,100,iostat=istat) cflg,crecord
+       read(lunin,100,iostat=istat,end=123) cflg,crecord
        if (istat /= 0) exit
        nlines=nlines+1
        if (cflg == '!') cycle
        j=j+1
     end do read1
+123 continue
     if (istat>0) then
        write(6,*)'OZINFO_READ:  ***ERROR*** error reading ozinfo, istat=',istat
        close(lunin)

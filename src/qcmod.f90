@@ -32,6 +32,10 @@ module qcmod
 !   2011-05-05  mccarty - removed declaration and assignment of repe_dw
 !   2011-05-20  mccarty - add qc_atms routine
 !   2011-07-08  collard - reverse relaxation of AMSU-A Ch 5 QC introduced at revision 5986.
+!   2012-11-10  s.liu   - add logical variable newvad to identify new and old vad wind
+!   2013-05-07  tong    - add logical variable tdrerr_inflate for tdr obs err
+!                         inflation and tdrgross_fact to adjust tdr gross error
+!   2013-07-19  zhu     - tighten quality control for amsua surface sensitive channels when emiss_bc=.t.
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -53,6 +57,8 @@ module qcmod
 !   def dfact           - factor for duplicate obs at same location for conv. data
 !   def dfact1          - time factor for duplicate obs at same location for conv. data
 !   def erradar_inflate - radar error inflation factor
+!   def tdrerr_inflate  - logical variable to inflate obs error for tdr data
+!   def tdrgross_fact   - factor applies to tdr gross error
 !   def npres_print     - number of levels for print
 !   def ptop,pbot       - arrays containing top pressure and bottom pressure of print levels
 !   def ptopq,pbotq     - arrays containing top pressure and bottom pressure of print levels for q
@@ -101,19 +107,22 @@ module qcmod
   public :: qc_noirjaco3_pole
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
-  public :: pboto3,ptopo3,pbotq,ptopq
-  public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,ifail_gross_qc
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
+  public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
+  public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
+            ifail_gross_qc,ifail_cloud_qc
 
   logical nlnqc_iter
   logical noiqc
   logical use_poq7
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
+  logical newvad
+  logical tdrerr_inflate
 
   character(10):: vadfile
   integer(i_kind) npres_print
-  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
+  real(r_kind) dfact,dfact1,erradar_inflate,c_varqc,tdrgross_fact
   real(r_kind) varqc_iter
   real(r_kind),allocatable,dimension(:)::ptop,pbot,ptopq,pbotq,ptopo3,pboto3
 
@@ -280,6 +289,8 @@ contains
     varqc_iter=one
 
     erradar_inflate   = one
+    tdrerr_inflate    = .false.
+    tdrgross_fact     = one
 
     nlnqc_iter= .false.
     noiqc = .false.
@@ -328,8 +339,10 @@ contains
     elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
       tzchk = 0.85_r_kind
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
-              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
-              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. obstype == 'cris' .or. obstype == 'seviri' ) then
+              obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
+              obstype == 'sndrd3' .or. obstype == 'sndrd4' .or.  &
+              obstype == 'goes_img' .or. obstype == 'airs' .or. obstype == 'iasi' .or. &
+              obstype == 'cris' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
 
@@ -419,7 +432,7 @@ contains
 
 ! The check (l>=2) ensures that plevs(l-1) is defined
        if (l>=2) then
-          dwprof: do while (abs(plevs(l-one)-plevs(k)) < vmag .and. l >= 2) 
+          dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2) 
              l=l-1
              if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
                 pdiffd=abs(plevs(l)-plevs(k))
@@ -616,6 +629,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
 !      5) update the qc criteria of the ssmis data over non-ocean surfaces
 !      6) realx the qc criteria for the data at channels from 1 to 2
 !      7) add two references
+!     2013-02-13  eliu     - tighten up the qc criteria for ssmis
 !
 ! input argument list:
 !     nchanl  - number of channels per obs
@@ -839,7 +853,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
            vfact = fact*vfact
         end if
 
-     else 
+     else  ! for ssmis 
        !Use dtbc at 52.8 GHz to detect cloud-affected data
         if (abs(tbc(2)) >= 1.5_r_kind) then  ! the data at cloud-affected channels are not used
            do i =1,2
@@ -869,18 +883,22 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
               if(id_qc(i)== igood_qc) id_qc(i)=ifail_surface_qc
            end do
         end if
-
         if (sfchgt > r2000) then
-           varinv(9)=zero
-           if(id_qc(9)== igood_qc) id_qc(9)=ifail_topo_ssmi_qc
+           do i=1,24
+              varinv(i)=zero
+              if(id_qc(i)== igood_qc) id_qc(i)=ifail_topo_ssmi_qc
+           enddo
         end if
-        if (sfchgt > r4000) then
-           varinv(3)=zero
-           if(id_qc(3)== igood_qc) id_qc(3)=ifail_topo_ssmi_qc
-           varinv(10)=zero
-           if(id_qc(10)== igood_qc) id_qc(10)=ifail_topo_ssmi_qc
-        end if
-
+!        if (sfchgt > r2000) then
+!           varinv(9)=zero
+!           if(id_qc(9)== igood_qc) id_qc(9)=ifail_topo_ssmi_qc
+!        end if
+!        if (sfchgt > r4000) then
+!           varinv(3)=zero
+!           if(id_qc(3)== igood_qc) id_qc(3)=ifail_topo_ssmi_qc
+!           varinv(10)=zero
+!           if(id_qc(10)== igood_qc) id_qc(10)=ifail_topo_ssmi_qc
+!        end if
 
      end if
   end if
@@ -949,7 +967,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
   return
 end subroutine qc_ssmi
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
-     zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+     cris, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
 
@@ -977,6 +995,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     snow         - logical, snow flag
 !     luse         - logical use flag
 !     goessndr     - logical flag - if goessndr data - true
+!     cris         - logical flag - if cris data - true
 !     avhrr        - logical flag - if avhrr data - true
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
@@ -1024,7 +1043,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris
   logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
@@ -1230,6 +1249,22 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
         end do
      end if
   endif
+
+!
+! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
+!
+  if (cris .and. .not. sea) then
+     do i=1,nchanl
+        if (ts(i) > 0.2_r_kind) then
+           !             QC3 in statsrad
+           if(luse .and. varinv(i) > zero) &
+                aivals(10,is)   = aivals(10,is) + one
+           varinv(i) = zero
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+        end if
+     end do
+  end if
+
 
 !
 ! Apply Tz retrieval
@@ -1587,6 +1622,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                           applied to atms
 !     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
 !     2011-12-19  collard - ATMS 1-7 is always rejected over ice, snow or mixed surfaces.
+!     2013-07-19  zhu     - tighten qc when emiss_bc=.t.
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1637,6 +1673,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
+  use radinfo, only: emiss_bc
   implicit none
 
 ! Declare passed variables
@@ -1663,10 +1700,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   real(r_kind),parameter:: w2f4=1.0_r_kind/1.8_r_kind
 
   real(r_kind)    :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact
-  real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dsval,clwx
-  real(r_kind)    :: factch6,de1,de2,de3
+  real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dtde15,dsval,clwx
+  real(r_kind)    :: factch6,de1,de2,de3,de15
+  real(r_kind)    :: thrd1,thrd2,thrd3,thrd15
   integer(i_kind) :: i,n,icw4crtm,ier
   logical lcw4crtm
+  logical qc4emiss
 
   integer(i_kind) :: ich238, ich314, ich503, ich528, ich536 ! set chan indices
   integer(i_kind) :: ich544, ich549, ich890                 ! for amsua/atms
@@ -1713,8 +1752,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
 ! Determine whether or not CW fed into CRTM
   lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  !emily
-  if(icw4crtm >0) lcw4crtm = .true.                          !emily
+  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  
+  if(icw4crtm >0) lcw4crtm = .true.                         
    
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
@@ -1736,7 +1775,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
      dsval=max(zero,dsval)
   end if
 
-  if(sea .and. tsavg5 > t0c)then
+  if(sea)then
      clwx=cosza*clw*w1f4
   else
      clwx=0.6_r_kind
@@ -1868,46 +1907,79 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !       QC1 in statsrad
         if(luse) aivals(8,is) = aivals(8,is) + one
  
-     else if(sea)then
+     else
 !       QC based on ratio of obs-ges increment versus the sensitivity of
 !       the simulated brightness temperature to the surface emissivity
 !       Y2K hurricane season runs by QingFu Liu found the hurricane
 !       forecast tracks to be degraded without this QC.
 !       (Is this still true?)
 
-        dtde1 = emissivity_k(ich238)
-        de1   = zero
-        if (dtde1 /= zero) de1=abs(tbc(ich238))/dtde1
-        dtde2 = emissivity_k(ich314)
-        de2   = zero
-        if (dtde2 /= zero) de2=abs(tbc(ich314))/dtde2
-        dtde3 = emissivity_k(ich503)
-        de3   = zero
-        if (dtde3 /= zero) de3=abs(tbc(ich503))/dtde3
- 
-        if (de2 > r0_03 .or. de3 > r0_05 .or. de1 > r0_05) then
-!          QC2 in statsrad
-           if(luse)aivals(9,is) = aivals(9,is) + one
-           efactmc=zero
-           vfactmc=zero
-           do i=1,ich536
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
-              varinv(i) = zero
-              errf(i) = zero 
-           end do
-           if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_emiss_qc
-           errf(ich890) = zero
-           varinv(ich890) = zero
-           if (latms) then
-              do i=17,22   !  AMSU-B/MHS like channels 
+        if (sea .and. (.not.emiss_bc)) then
+           thrd1=r0_05
+           thrd2=r0_03
+           thrd3=r0_05
+        end if
+
+        if (emiss_bc) then
+           if (sea) then
+              thrd1=0.025_r_kind
+              thrd2=0.015_r_kind
+              thrd3=0.030_r_kind
+              thrd15=0.030_r_kind
+           else
+              thrd1=0.020_r_kind
+              thrd2=0.015_r_kind
+              thrd3=0.035_r_kind
+              thrd15=0.015_r_kind
+           end if
+        end if
+
+        if ((sea .and. (.not.emiss_bc)) .or. emiss_bc) then
+           dtde1 = emissivity_k(ich238)
+           de1   = zero
+           if (dtde1 /= zero) de1=abs(tbc(ich238))/dtde1
+           dtde2 = emissivity_k(ich314)
+           de2   = zero
+           if (dtde2 /= zero) de2=abs(tbc(ich314))/dtde2
+           dtde3 = emissivity_k(ich503)
+           de3   = zero
+           if (dtde3 /= zero) de3=abs(tbc(ich503))/dtde3
+
+           if (sea .and. (.not.emiss_bc)) then
+              qc4emiss = de2>thrd2 .or. de3>thrd3 .or. de1>thrd1
+           end if
+
+           if (emiss_bc) then
+              dtde15= emissivity_k(ich890)
+              de15  = zero
+              if (dtde15 /= zero) de15=abs(tbc(ich890))/dtde15
+
+              qc4emiss= de2>thrd2 .or. de3>thrd3 .or. de1>thrd1 .or. de15>thrd15
+           end if
+
+           if (qc4emiss) then 
+!             QC2 in statsrad
+              if(luse)aivals(9,is) = aivals(9,is) + one
+              efactmc=zero
+              vfactmc=zero
+              do i=1,ich536
                  if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
-                 errf(i) = zero
                  varinv(i) = zero
-              enddo
-           endif
+                 errf(i) = zero 
+              end do
+              if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_emiss_qc
+              errf(ich890) = zero
+              varinv(ich890) = zero
+              if (latms) then
+                 do i=17,22   !  AMSU-B/MHS like channels 
+                    if(id_qc(i) == igood_qc)id_qc(i)=ifail_emiss_qc
+                    errf(i) = zero
+                    varinv(i) = zero
+                 enddo
+              endif
+           end if
         end if
      end if
-
   endif ! <lcw4crtm>
 
 ! Reduce q.c. bounds over higher topography

@@ -81,7 +81,7 @@ LIBsp     = -L$(CORELIB) -lsp
 LIBbacio  = -L$(CORELIB) -lbacio
 LIBsfcio  = -L$(CORELIB) -lsfcio
 LIBsigio  = -L$(CORELIB) -lsigio
-LIBcrtm   = -L$(CORELIB) -lcrtm_2.0.5
+LIBcrtm   = -L$(CORELIB) -lcrtm_2.1.3
 LIBtransf = -L$(CORELIB) -ltransf
 LIBhermes = -L$(CORELIB) -lhermes
 LIBgfio   = -L$(CORELIB) -lgfio
@@ -174,7 +174,7 @@ install:
 clean:
 	@echo
 	@echo '==== CLEAN ==================================================='
-	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x
+	- $(RM) $(EXE_FILE) *.o *.mod *.MOD *.lst *.a *.x *__genmod*
 	- $(RM) loadmap.txt log.make.$(EXE_FILE)
 	- $(MAKE) -f ${MAKE_FILE} doclean
 
@@ -188,8 +188,12 @@ clean:
 # ------------
 
   SRCSF90C = \
+	gfs_stratosphere.f90 \
+	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
+        adjtest_obs.f90 \
 	aeroinfo.f90 \
+	aircraftinfo.f90 \
         aircraftobsqc.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
@@ -210,6 +214,7 @@ clean:
 	bkgvar.f90 \
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
+	blendmod.f90 \
 	cal_tztr.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
@@ -253,6 +258,7 @@ clean:
 	fill_mass_grid2.f90 \
 	fill_nmm_grid2.f90 \
 	fpvsx_ad.f90 \
+        general_commvars_mod.f90 \
 	general_read_gfsatm.f90 \
         general_read_nmmb.f90 \
 	general_specmod.f90 \
@@ -260,6 +266,7 @@ clean:
 	general_sub2grid_mod.f90 \
 	general_transform.f90 \
         general_tll2xy_mod.f90 \
+	general_write_gfsatm.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
@@ -279,7 +286,6 @@ clean:
 	glbsoi.f90 \
 	grtest.f90 \
 	grdcrd.f90 \
-	grid2sub.f90 \
 	gridmod.F90 \
 	gscond_ad.f90 \
 	gsd_terrain_match_surfTobs.f90 \
@@ -292,6 +298,7 @@ clean:
 	gsi_io.f90 \
 	gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
+	gsimain.f90 \
 	gsimod.F90 \
 	gsisub.F90 \
 	guess_grids.F90 \
@@ -300,7 +307,6 @@ clean:
 	hybrid_ensemble_isotropic.F90 \
 	hybrid_ensemble_parameters.f90 \
 	inc2guess.f90 \
-	init_commvars.f90 \
 	init_jcdfi.f90 \
 	insitu_info.f90 \
 	int3dvar.f90 \
@@ -344,14 +350,18 @@ clean:
 	m_berror_stats.f90 \
 	m_berror_stats_reg.f90 \
 	m_dgeevx.F90 \
+	m_distance.f90	\
 	m_dtime.F90	\
+	m_find.f90 \
 	m_gpsrhs.F90 \
 	m_gsiBiases.f90 \
 	m_rerank.f90 \
 	m_obdiag.F90	\
 	m_rhs.F90	\
+	m_sortind.f90 \
 	m_stats.f90 \
 	m_tick.F90 \
+	m_uniq.f90 \
 	mpeu_mpif.F90 \
 	mpeu_util.F90 \
 	mod_nmmb_to_a.f90 \
@@ -399,11 +409,9 @@ clean:
 	q_diag.f90 \
 	qcmod.f90 \
 	qnewton3.f90 \
-	radinfo.f90 \
 	raflib.f90 \
 	rapidrefresh_cldsurf_mod.f90 \
 	rdgrbsst.f90 \
-	read_diag.f90 \
 	read_files.f90 \
 	read_gfs_ozone_for_regional.f90 \
 	read_guess.F90 \
@@ -431,6 +439,7 @@ clean:
 	smoothwwrf.f90 \
 	smoothzrf.f90 \
 	sqrtmin.f90 \
+	ssmis_spatial_average_mod.f90 \
 	state2control.f90 \
 	state2ensctl.f90 \
 	state_vectors.f90 \
@@ -467,9 +476,7 @@ clean:
 	strong_bal_correction.f90 \
 	strong_baldiag_inc.f90 \
 	strong_fast_global_mod.f90 \
-	strong_slow_global_mod.f90 \
 	sub2fslab_mod.f90 \
-	sub2grid.f90 \
 	support_2dvar.f90 \
 	stub_set_crtm_aerosol.f90 \
 	stub_pertmod.F90 \
@@ -507,9 +514,11 @@ clean:
 
   SRCSF90C_NOSWAP = \
 	get_gefs_ensperts_dualres.f90 \
+	gsi_unformatted.F90 \
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \
+	radinfo.f90 \
 	read_Lightning.f90 \
 	read_NASA_LaRC.f90 \
 	read_RadarRef_mosaic.f90 \
@@ -523,6 +532,8 @@ clean:
 	read_bufrtovs.f90 \
 	read_co.f90 \
 	read_cris.f90 \
+	read_diag.f90 \
+        read_fl_hdob.f90 \
 	read_goesimg.f90 \
 	read_goesndr.f90 \
 	read_gps.f90 \
@@ -538,6 +549,7 @@ clean:
 	read_prepbufr.f90 \
 	read_radar.f90 \
 	read_satwnd.f90 \
+	read_sfcwnd.f90 \
 	read_seviri.f90 \
 	read_ssmi.f90 \
 	read_ssmis.f90 \
@@ -629,8 +641,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP) gsimain.o
-	$(LD) $(LDFLAGS) -o $@ gsimain.o $(OBJS) $(OBJS_NOSWAP) $(LIBS)
+$(EXE_FILE) :  $(OBJS) $(OBJS_NOSWAP)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(OBJS_NOSWAP) $(LIBS)
 
 
 # ------------------------
@@ -645,7 +657,7 @@ all :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -660,7 +672,7 @@ library :
 		"FFLAGS=$(FFLAGS_N)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_N)" \
 		"CFLAGS=$(CFLAGS_N)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== CREATING LIBRARY ========================================'
 	$(MAKE) lib
@@ -674,7 +686,7 @@ debug :
 		"FFLAGS=$(FFLAGS_D)" \
 		"FFLAGS_NOSWAP=$(FFLAGS_NOSWAP_D)" \
 		"CFLAGS=$(CFLAGS_D)" \
-		$(OBJS) $(OBJS_NOSWAP) gsimain.o
+		$(OBJS) $(OBJS_NOSWAP)
 	@echo
 	@echo '==== LINK ===================================================='
 	@$(MAKE) -f $(MAKE_FILE) \
@@ -702,7 +714,7 @@ LIB =   libgsi.a
 
 lib: $(LIB)
 
-gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) gsimain.o
+gsi.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB)
 	$(FC) $(LDFLAGS) -o gsi.x gsimain.o libgsi.a $(LIBcrtm) $(LIBsfcio) $(LIBsigio) $(LIBw3) $(LIBbacio) $(LIBbfr) $(LIBsp) $(LIBtransf) $(LIBhermes) $(LIBmpeu) $(LIBgfio) $(LIBhdf) $(LIBmpi) $(LIBsys)
 
 ut_gsibundle.x:  $(OBJS) $(OBJS_NOSWAP) $(LIB) ut_gsibundle.o
@@ -714,6 +726,15 @@ prepbykx.x: prepbykx.o
 $(LIB): $(OBJS) $(OBJS_NOSWAP)
 	$(RM) $(LIB)
 	$(AR) $@ $(OBJS) $(OBJS_NOSWAP)
+
+MAIN_OBJS = gsimain.o
+LIBS_OBJS = $(OBJS) $(OBJS_NOSWAP)
+
+list-main_objs:
+	@ for f in $(MAIN_OBJS); do echo $$f; done | env LC_ALL=C sort -u
+
+list-libs_objs:
+	@ for f in $(LIBS_OBJS); do echo $$f; done | grep -v `for p in $(MAIN_OBJS); do echo "-e $$p"; done` | env LC_ALL=C sort -u
 
 export: libgsi.a gsi.x prepbykx.x
 	$(MKDIR)               $(COREBIN)

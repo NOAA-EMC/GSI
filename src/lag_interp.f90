@@ -141,6 +141,7 @@ module lag_interp
 !
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !    lat,lon,p
@@ -160,11 +161,11 @@ module lag_interp
 
     ! Use the function already implemented
     i=lon
-    call grdcrd(i,1,rlons,nlon,1)
+    call grdcrd1(i,rlons,nlon,1)
     j=lat
-    call grdcrd(j,1,rlats,nlat,1)
+    call grdcrd1(j,rlats,nlat,1)
     k=log(p)
-    call grdcrd(k,1,lag_logcte_p,nsig,-1)
+    call grdcrd1(k,lag_logcte_p,nsig,-1)
   end subroutine lag_gridrel_ijk
 
   

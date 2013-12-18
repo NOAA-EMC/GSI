@@ -40,6 +40,8 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !
 ! program history log:
 !   2009-01-05  todling
+!   2013-05-14  guo     - changed the compiler #ifdef dependency on _size_
+!                         inquire to a more portable way.
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -55,10 +57,7 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
 !
 !$$$  end documentation block
 
-  use kinds, only: i_kind,i_llong,r_kind,r_double
-  use gsi_4dvar, only: iadatebgn,iadateend
-  use obsmod, only: offtime_data
-  use convinfo, only: nconvtype,ictype,ioctype,icuse
+  use kinds, only: i_kind,i_llong
 
   implicit none
 
@@ -67,29 +66,41 @@ subroutine gsi_inquire (lbytes,lexist,filename,mype)
   character(len=*),intent(in   ) :: filename
   integer(i_kind) ,intent(in   ) :: mype
 
-  logical :: lhere
-  integer(i_kind) :: lenb,iret
   character(len=256) command, fname
 
-#ifdef _INTEL_11_0_083_
-  lenb=0; lbytes = lenb
-  inquire(file=trim(filename),exist=lhere)
-  if(lhere)then
-    write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
-    write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
-    call system(command)
-    open(unit=999,file=trim(fname),form='formatted')
-    read(999,*) lenb
-    close(999)
-    lbytes=lenb
-  endif
-#else
-  inquire(file=trim(filename),exist=lhere,size=lbytes)
+#if defined(__INTEL_COMPILER) && (__INTEL_COMPILER < 1110)
+#define __X_OR_Y_OR_Z_FORTRAN_COMPILERS__
 #endif
-  lexist=.false.
-  if(lhere)then
-     lexist=lbytes>0_i_llong
-  end if
+
+#ifdef __X_OR_Y_OR_Z_FORTRAN_COMPILERS__
+#define _DO_NOT_SUPPORT_SIZE_INQUIRE_
+#endif
+
+  lbytes=-1  ! in case that _size_ specifier is not supported.
+#ifndef _DO_NOT_SUPPORT_SIZE_INQUIRE_
+  inquire(file=trim(filename),exist=lexist,size=lbytes)
+  ! Note that the value of _size_ is defined by Fortran in "file storage units",
+  ! which is not neccesary in byte units.  It is not clear if this code had
+  ! assumed the size value to be in byte units, or in whatever units.
+#else
+  inquire(file=trim(filename),exist=lexist)
+#endif
+  if(lexist) then
+     ! Even with a compiler supporting 'size=' specifier, the size value may
+     ! return -1, if a compiler considers that the size can not be determined.
+     ! In that case, the size may be obtained through a user supported
+     ! mechanism, such as reading the size from a system("wc -c") call result.
+     if(lbytes<0) then
+        write(fname,'(2a,i4.4)') 'fsize_',trim(filename),mype
+        write(command,'(4a)') 'wc -c ', trim(filename),' > ', trim(fname)
+        call system(command)
+        open(unit=999,file=trim(fname),form='formatted')
+        read(999,*) lbytes
+        close(999)
+        lexist = lbytes>0_i_llong ! skip this file if lbytes <=0
+     endif
+  endif
+
   return
 end subroutine gsi_inquire
 
@@ -106,9 +117,13 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
 !            WARNING: some of it looks inconsistent with long-window 4dvar
 !
 ! program history log:
-!   2009-??-??  derber   - originally placed inside inquire
+!   2009-xx-xx  derber   - originally placed inside inquire
 !   2009-01-05  todling  - move time/type-check out of inquire
 !   2010-09-13  pagowski - add anow bufr and one obs chem
+!   2013-01-26  parrish - WCOSS debug compile fails with satid not initialized.
+!                         Set satid=1 at start of subroutine to allow debug compile.
+!   2013-02-13  eliu     - add ssmis 
+!                           
 !
 !   input argument list:
 !    lexist    - file status
@@ -147,12 +162,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   character(len=256) command, fname
   character(8) subset
 
+  satid=1      ! debug executable wants default value ???
   idate=0
-  if(trim(dtype) == 'tcp')return
-! RTod: For some odd reason the block below does not work on the GMAO Linux Cluster
-#ifdef _INTEL_11_0_083_
-  return
-#else 
+  if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
 ! Use routine as usual
   if(lexist)then
       lnbufr = 15
@@ -180,9 +192,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
        else if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
-         kidsat=5
+         kidsat=3
        else if(jsatid == 'metop-c')then
-         kidsat=6
+         kidsat=5
        else if(jsatid == 'm08')then
          kidsat = 55 
        else if(jsatid == 'm09')then
@@ -226,9 +238,11 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
        else if(jsatid == 'f15')then
          kidsat=248
        else if(jsatid == 'f16')then
-         kidsat=249
+         kidsat=249    
        else if(jsatid == 'f17')then
-         kidsat=250
+         kidsat=285                  
+       else if(jsatid == 'f18')then  
+         kidsat=286                  
        else if(jsatid == 'g08' .or. jsatid == 'g08_prep')then
          kidsat=252
        else if(jsatid == 'g09' .or. jsatid == 'g09_prep')then
@@ -286,6 +300,35 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
            end do
           end do 
          end do fileloop
+       else if(trim(filename) == 'prepbufr_profl')then  
+         lexist = .false.
+         airploop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+          do while(ireadsb(lnbufr)>=0)
+           call ufbint(lnbufr,rtype,1,1,iret,'TYP')
+           kx=nint(rtype)
+           if (trim(dtype)=='uv') then
+              if (kx==330 .or. kx==430 .or. kx==530) kx=230
+              if (kx==331 .or. kx==431 .or. kx==531) kx=231
+              if (kx==332 .or. kx==432 .or. kx==532) kx=232
+              if (kx==333 .or. kx==433 .or. kx==533) kx=233
+              if (kx==334 .or. kx==434 .or. kx==534) kx=234
+              if (kx==335 .or. kx==435 .or. kx==535) kx=235
+           else
+              if (kx==330 .or. kx==430 .or. kx==530) kx=130
+              if (kx==331 .or. kx==431 .or. kx==531) kx=131
+              if (kx==332 .or. kx==432 .or. kx==532) kx=132
+              if (kx==333 .or. kx==433 .or. kx==533) kx=133
+              if (kx==334 .or. kx==434 .or. kx==534) kx=134
+              if (kx==335 .or. kx==435 .or. kx==535) kx=135
+           end if
+           do nc=1,nconvtype
+             if(trim(ioctype(nc)) == trim(dtype) .and. kx == ictype(nc) .and. icuse(nc) > minuse)then
+               lexist = .true.
+               exit airploop
+             end if
+           end do
+          end do
+         end do airploop
        else if(trim(filename) == 'satwnd')then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
@@ -298,6 +341,22 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
                exit loop
             endif
          end do loop
+       else if(trim(filename) == 'oscatbufr')then
+         lexist = .false.
+         oscatloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC012255') then                                         
+               lexist = .true.
+               exit oscatloop
+            endif
+         end do oscatloop
+       else if(trim(filename) == 'hdobbufr')then
+         lexist = .false.
+         loop_hdob: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+            if(trim(subset) == 'NC004015') then
+               lexist = .true.
+               exit loop_hdob
+            endif
+         end do loop_hdob
        else if(trim(dtype) == 'pm2_5')then
           if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
              lexist=.true.
@@ -348,7 +407,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   else
       write(6,*)'read_obs_check: bufr file ',dtype,jsatid,' not available ',trim(filename)
   end if
-#endif /* non _INTEL_11_0_083_ */
   return
 end subroutine read_obs_check
 
@@ -401,7 +459,7 @@ subroutine read_obs(ndata,mype)
 !   2008-04-18  safford - rm unused vars and uses
 !   2008-05-01    h.liu - add gome ozone
 !   2008-06-20   derber - move destroy_sfc to this routine 
-!   2008-09-08   lueken - merged ed's cahnges into q1fy09 code
+!   2008-09-08   lueken - merged ed''s cahnges into q1fy09 code
 !   2008-12-30  todling - handle inquire for diff versions of fortran
 !   2009-01-05  todling - need tendency alloc in observer mode
 !   2009-01-23  todling - echo surface state info 
@@ -422,6 +480,11 @@ subroutine read_obs(ndata,mype)
 !   2011-04-02  li       - add nst_gsi, getnst and destroy_nst
 !   2011-05-20  mccarty  - add cris/atms handling
 !   2011-05-26  todling  - add call to create_nst
+!   2013-01-26  parrish - WCOSS debug compile fails--extra arguments in call read_aerosol.
+!                         Commented out extra line of arguments not used.
+!   2013-02-13  eliu     - turn off parallel I/O for SSMIS (due to the need to
+!                          do spatial averaging for noise reduction) 
+!   2013-06-01  zhu     - add mype_airobst to handle aircraft temperature bias correction 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -436,7 +499,7 @@ subroutine read_obs(ndata,mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$  end documentation block
-    use kinds, only: r_kind,i_kind,i_llong
+    use kinds, only: r_kind,i_kind,i_llong,r_double
     use gridmod, only: nlon,nlat,nsig,iglobal,ijn,itotsub,lat1,lon1,&
          ltosi,ltosj,displs_g,strip,reorder
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
@@ -456,6 +519,7 @@ subroutine read_obs(ndata,mype)
     use pcpinfo, only: npcptype,nupcp,iusep,diag_pcp
     use convinfo, only: nconvtype,ioctype,icuse,diag_conv
     use chemmod, only : oneobtest_chem,oneob_type_chem,oneobschem
+    use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,mype_airobst
 
     implicit none
 
@@ -468,11 +532,13 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
+    logical :: acft_profl_file
     character(10):: obstype,platid
-    character(13):: string,infile
+    character(15):: string,infile
+    character(15):: infilen
     character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
@@ -490,6 +556,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),dimension(npe,ndat):: mype_work,mype_work_r1,mype_work_r2
     integer(i_kind),dimension(npe,ndat):: mype_sub,mype_sub_r1,mype_sub_r2
     integer(i_kind),allocatable,dimension(:):: nrnd
+    integer(i_kind):: nmls_type
 
     real(r_kind) gstime,val_dat,rmesh,twind,rseed
     real(r_kind),dimension(lat1*lon1):: prslsm,hgtlsm
@@ -540,6 +607,7 @@ subroutine read_obs(ndata,mype)
     ii=0
     ref_obs = .false.    !.false. = assimilate GPS bending angle
     ears_possible = .false.
+    nmls_type=0
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
        amsre= index(obstype,'amsre') /= 0
@@ -549,6 +617,14 @@ subroutine read_obs(ndata,mype)
        avhrr = index(obstype,'avhrr') /= 0
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
+       mls = index(obstype,'mls') /= 0
+       if(obstype == 'mls20' ) nmls_type=nmls_type+1
+       if(obstype == 'mls22' ) nmls_type=nmls_type+1
+       if(obstype == 'mls30' ) nmls_type=nmls_type+1
+       if(nmls_type>1) then
+          write(6,*) '******ERROR***********: there is more than one MLS data type, not allowed, please check'
+          call stop2(339)
+       end if
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
@@ -573,7 +649,7 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev' &
-           .or. obstype == 'mls' ) then
+           .or. mls ) then
           ditype(i) = 'ozone'
        else if (obstype == 'mopitt') then
           ditype(i) = 'co'
@@ -649,7 +725,7 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'atms')then
 !                 parallel_read(i)= .true.
              else if(ssmis)then
-                parallel_read(i)= .true.
+!               parallel_read(i)= .true.  
              else if(seviri)then
                 parallel_read(i)= .true.
              else if(obstype == 'cris' )then
@@ -672,7 +748,9 @@ subroutine read_obs(ndata,mype)
           ears_possible(i) = ditype(i) == 'rad'  .and.       & 
                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
                    obstype == 'mhs') .and. (dplat(i) == 'n17' .or. & 
-                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. dplat(i) == 'metop-a') 
+                   dplat(i) == 'n18' .or. dplat(i) == 'n19' .or. &
+                   dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
+                   dplat(i) == 'metop-c') 
 !   Inquire data set to deterimine if input data available and size of dataset
           ii=ii+1
           if (ii>npem1) ii=0
@@ -810,10 +888,16 @@ subroutine read_obs(ndata,mype)
        end if
 
     end do
+    mype_airobst = mype_root
     do ii=1,mmdat
        i=npe_order(ii)
        if(mype == 0 .and. npe_sub(i) > 0) write(6,'(1x,a,i4,1x,a,1x,2a,3i4)') &
         'READ_OBS:  read ',i,dtype(i),dsis(i),' using ntasks=',ntasks(i),mype_root_sub(i),npe_sub(i) 
+
+       acft_profl_file = index(dfile(i),'_profl')/=0
+       if ((aircraft_t_bc_pof .or. (aircraft_t_bc .and. acft_profl_file)) .and. dtype(i) == 't') &
+                   mype_airobst = mype_root_sub(i)
+
     end do
 
 
@@ -913,15 +997,20 @@ subroutine read_obs(ndata,mype)
 
 !         Process conventional (prepbufr) data
           if(ditype(i) == 'conv')then
-!             if (obstype == 't'  .or. obstype == 'uv' .or. &
-             if (obstype == 't'  .or. &
-                 obstype == 'q'  .or. obstype == 'ps' .or. &
+              if(obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
-                call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                     prsl_full)
-                string='READ_PREPBUFR'
+!               Process flight-letel high-density data not included in prepbufr
+                if ( index(infile,'hdobbufr') /=0 ) then
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                                    prsl_full)
+                  string='READ_FL_HDOB'
+                else
+                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
+                        prsl_full)
+                   string='READ_PREPBUFR'
+                endif
 !            Process winds in the prepbufr
              else if(obstype == 'uv') then
 !             Process satellite winds which seperate from prepbufr
@@ -929,11 +1018,21 @@ subroutine read_obs(ndata,mype)
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full)
                   string='READ_SATWND'
+!             Process oscat winds which seperate from prepbufr
+                elseif ( index(infile,'oscatbufr') /=0 ) then
+                  call read_sfcwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                     prsl_full)
+                  string='READ_SFCWND'
+                else if ( index(infile,'hdobbufr') /=0 ) then
+                  call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&                                                                     
+                     prsl_full)
+                  string='READ_FL_HDOB'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full)
                   string='READ_PREPBUFR'
                 endif
+
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'mods') then
@@ -1145,8 +1244,8 @@ subroutine read_obs(ndata,mype)
 !         Process aerosol data
           else if (ditype(i) == 'aero' )then
              call read_aerosol(nread,npuse,nouse,&
-                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh, &
-                  mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
+                  platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)   ! ?????, &
+             !    mype,mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))      !??? extra args???
              string='READ_AEROSOL'
              
           end if
@@ -1162,7 +1261,7 @@ subroutine read_obs(ndata,mype)
 
              write(6,8000) adjustl(string),infile,obstype,sis,nread,ithin,&
                   rmesh,isfcalc,nouse,npe_sub(i)
-8000         format(1x,a13,': file=',a10,&
+8000         format(1x,a15,': file=',a15,&
                   ' type=',a10,  ' sis=',a20,  ' nread=',i10,&
                   ' ithin=',i2, ' rmesh=',f10.6,' isfcalc=',i2,&
                   ' ndata=',i10,' ntask=',i3)
@@ -1173,6 +1272,15 @@ subroutine read_obs(ndata,mype)
     end do
     if(use_prsl_full_proc)deallocate(prsl_full)
     if(use_hgtl_full_proc)deallocate(hgtl_full)
+
+!   Broadcast aircraft new tail numbers for aircraft
+!   temperature bias correction
+!   if (aircraft_t_bc) then
+!      call mpi_barrier(mpi_comm_world,ierror)
+!      call mpi_bcast(ntail_update,1,mpi_itype,mype_airobst,mpi_comm_world,ierror)
+!      call mpi_bcast(idx_tail,max_tail,mpi_itype,mype_airobst,mpi_comm_world,ierror)
+!      call mpi_bcast(taillist,max_tail,MPI_CHARACTER,mype_airobst,mpi_comm_world,ierror)
+!   end if
 
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc

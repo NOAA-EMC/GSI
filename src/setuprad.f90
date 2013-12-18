@@ -125,6 +125,12 @@
 !   2011-06-09  sienkiewicz - call to qc_ssu needs tb_obs instead of tbc
 !   2011-07-10  zhu     - add jacobian assignments for regional cloudy radiance
 !   2011-09-28  collard - Fix error trapping for CRTM failures.         
+!   2012-11-02  collard - Use cloud detection channel flag for IR.
+!   2013-02-13  eliu    - Add options for SSMIS instruments
+!                       - Add two additional bias predictors for SSMIS radiances  
+!                       - Tighten up QC checks for SSMIS  
+!   2013-07-10  zhu     - add upd_pred as an update indicator for bias correction coeficitient
+!   2013-07-19  zhu     - add emissivity sensitivity predictor for radiance bias correction
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -152,8 +158,8 @@
   use kinds, only: r_kind,r_single,i_kind
   use crtm_spccoeff, only: sc
   use radinfo, only: nuchan,tlapmean,predx,cbias,ermax_rad,&
-      npred,jpch_rad,varch,varch_cld,iuse_rad,nusis,fbias,retrieval,b_rad,pg_rad,&
-      air_rad,ang_rad,adp_anglebc,angord,&
+      npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
+      air_rad,ang_rad,adp_anglebc,angord,emiss_bc,upd_pred, &
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,&
       nst_gsi,nstinfo,nst_tzr
   use read_diag, only: iversion_radiag,ireal_radiag,ipchan_radiag
@@ -168,7 +174,7 @@
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-      two,three,cg_term,wgtlim,r100,r10,r0_01
+      two,three,cg_term,wgtlim,r100,r10,r0_01,pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -180,7 +186,7 @@
       isst_hires,isst_navy,idata_type,iclr_sky,iclavr,itref,idtw,idtc,itz_tr
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
-  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3
+  use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
   use qcmod, only: setup_tzr_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
@@ -215,16 +221,19 @@
   integer(i_kind) iqs,iqg,iqh,iqr
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
+  real(r_kind) node 
   real(r_kind) term,tlap,tb_obsbc1
   real(r_kind) drad,dradnob,varrad,error,errinv,useflag
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
+  real(r_kind) wltm1,wltm2,wltm3  
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
   real(r_kind) dtsavg,r90,coscon,sincon
+  real(r_kind) dlat,wlat 
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
@@ -261,12 +270,12 @@
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
   real(r_kind) :: dtw,dtc,tz_tr
+  real(r_kind) :: predchan6_save   
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   integer(i_kind),dimension(nchanl):: kmax
-  logical sensor_passive
   logical channel_passive
 
   logical,dimension(nobs):: luse
@@ -574,7 +583,8 @@
         write(4) isis,dplat(is),obstype,jiter,nchanl_diag,npred,ianldate,ireal_radiag,ipchan_radiag,iextra,jextra,&
            idiag,angord,iversion_radiag,inewpc
         write(6,*)'SETUPRAD:  write header record for ',&
-           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,' to file ',trim(diag_rad_file),' ',ianldate
+           isis,npred,ireal_radiag,ipchan_radiag,iextra,jextra,idiag,angord,iversion_radiag,&
+                      ' to file ',trim(diag_rad_file),' ',ianldate
         do i=1,nchanl
            n=ich(i)
            if( n < 1  .or. (reduce_diag .and. iuse_rad(n) < 1))cycle
@@ -623,6 +633,10 @@
         zsges=data_s(izz,n)
         nadir = nint(data_s(iscan_pos,n))
         pangs  = data_s(iszen_ang,n)
+!       Extract warm load temperatures
+!       wltm1 = data_s(isty,n)
+!       wltm2 = data_s(istp,n)
+!       wltm3 = data_s(ism,n)
 
 !  If desired recompute 10meter wind factor 
         if(sfcmod_gfs .or. sfcmod_mm5) then
@@ -712,7 +726,7 @@
         if (adp_anglebc) then
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. seviri) then
+              if (goessndr .or. goes_img .or. seviri .or. ssmis) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -743,6 +757,10 @@
               call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua)
               call ret_amsua(tsim, nchanl, tsavg5, zasat, clw_guess_retrieval)
            end if
+           if (ierrret /= 0) then 
+             varinv(1:nchanl)=zero
+             id_qc(1:nchanl) = ifail_cloud_qc
+           endif
         endif
         predbias=zero
         do i=1,nchanl
@@ -805,19 +823,57 @@
            tlap = tlapchn(i)-tlapmean(mm)
            pred(4,i)=tlap*tlap
            pred(5,i)=tlap
-           do j=1,5
+!          additional bias predictor (as/ds node) for SSMIS         
+           pred(6,i)= zero                                      
+           pred(7,i)= zero                                     
+           node = data_s(ilazi_ang,n)                              
+           if (ssmis) then                                         
+              if (.not. newpc4pred) then                           
+                 pred(6,i)= r0_01*node*cos(cenlat*deg2rad)          
+                 pred(7,i)= r0_01*sin(cenlat*deg2rad)               
+              else                                               
+                 pred(6,i)= node*cos(cenlat*deg2rad)            
+                 pred(7,i)= sin(cenlat*deg2rad)                  
+              endif                                                
+           endif                                                   
+
+!          emissivity sensitivity bias predictor
+           if (adp_anglebc .and. emiss_bc) then 
+              pred(8,i)=zero
+              if (.not.sea .and. abs(emissivity_k(i))>0.001_r_kind) then
+                 pred(8,i)=emissivity_k(i)
+              end if
+           end if
+
+           do j=1, npred-angord                              
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
            if (adp_anglebc) then
-              do j=6,npred
+              do j=npred-angord+1, npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
            end if
- 
+!          Smooth the channel dependent asc/dsc coefficient to zero at the
+!          transition zone
+!          in order to remove sudden changes near 90N and 90S latitudes (for
+!          SSMIS only)
+!           if (ssmis) then
+!              wlat = one
+!              dlat = 90.0_r_kind-70.0_r_kind
+!              if (cenlat >=  70.0_r_kind) &
+!                 wlat = abs(tanh((90.0_r_kind-cenlat)*pi/dlat))
+!              if (cenlat <= -70.0_r_kind) &
+!                 wlat = abs(tanh((90.0_r_kind+cenlat)*pi/dlat))
+!              predchan6_save = predchan(6,i)    ! save the orginal (unscaled)
+!              coefficient for asc/dsc node
+!              predchan(6,i) = wlat*predchan(6,i)
+!           endif
            do j = 1,npred
               predbias(j,i) = predchan(j,i)*pred(j,i)
            end do
            predbias(npred+1,i) = cbias(nadir,mm)*ang_rad(mm)      !global_satangbias
+!          if (ssmis) predchan(6,i) = predchan6_save  ! recovered the original
+!          coefficient for asc/dsc node
  
 !          Apply SST dependent bias correction with cubic spline
            if (retrieval) then
@@ -831,7 +887,7 @@
            tbcnob(i)    = tb_obs(i) - tsim(i)  
            tbc(i)       = tbcnob(i)                     
  
-           do j=1,5
+           do j=1, npred-angord
               tbc(i)=tbc(i) - predbias(j,i) !obs-ges with bias correction
            end do
            tbc(i)=tbc(i) - predbias(npred+1,i)
@@ -882,26 +938,18 @@
            frac_sea=data_s(ifrac_sea,n)
 
 !  NOTE:  The qc in qc_irsnd uses the inverse squared obs error.
-!     If a particular channel is not being assimilated
-!     (iuse_rad==-1), we should not use this channel
-!     in the qc.  The loop below loads array varinv_use
-!     such that this condition is satisfied.  Array
+!     The loop below loads array varinv_use accounting for whether the 
+!     cloud detection flag is set.  Array
 !     varinv_use is then used in the qc calculations.
 !     For the case when all channels of a sensor are passive, all
 !     channels with iuse_rad=-1 or 0 are used in cloud detection.
-
-           sensor_passive=.true.
-           do i=1,nchanl
-              m=ich(i)
-              if (iuse_rad(m)>0) sensor_passive=.false.
-           end do
 
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((icld_det(m)>0)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
@@ -909,7 +957,7 @@
               end if
            end do
            call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
-              zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
+              cris,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,  &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
 
@@ -925,7 +973,11 @@
 !       QC AMSU-A data
         else if (amsua) then
 
-           tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           if (adp_anglebc) then
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
+           else
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           end if
            call qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),   &
               zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
               pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
@@ -953,7 +1005,11 @@
 
         else if (atms) then
 
-           tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           if (adp_anglebc) then
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
+           else
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+           end if
            call qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),    &
               zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
               pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
@@ -991,26 +1047,17 @@
            frac_sea=data_s(ifrac_sea,n)
 
 !  NOTE:  The qc in qc_avhrr uses the inverse squared obs error.
-!     If a particular channel is not being assimilated
-!     (iuse_rad==-1), we should not use this channel
-!     in the qc.  The loop below loads array varinv_use
-!     such that this condition is satisfied.  Array
+!     The loop below loads array varinv_use accounting for whether the 
+!     cloud detection flag is set.  Array
 !     varinv_use is then used in the qc calculations.
 !     For the case when all channels of a sensor are passive, all
 !     channels with iuse_rad=-1 or 0 are used in cloud detection.
-
-           sensor_passive=.true.
-           do i=1,nchanl
-              m=ich(i)
-              if (iuse_rad(m)>0) sensor_passive=.false.
-           end do
-
            do i=1,nchanl
               m=ich(i)
               if (varinv(i) < tiny_r_kind) then
                  varinv_use(i) = zero
               else
-                 if ((iuse_rad(m)>=0) .or. (passive_bc .and. sensor_passive .and. iuse_rad(m)==-1)) then
+                 if ((icld_det(m)>0)) then
                     varinv_use(i) = varinv(i)
                  else
                     varinv_use(i) = zero
@@ -1062,7 +1109,9 @@
 
               if(lcw4crtm .and. sea .and. abs(cenlat)<60.0_r_kind) then
                  errf(i) = three*errf(i)
-              else 
+              else if (ssmis) then
+                 errf(i) = min(1.5_r_kind*errf(i),ermax_rad(m))  ! tighten up gross check for SSMIS
+              else
                  errf(i) = min(three*errf(i),ermax_rad(m))
               endif
 
@@ -1249,7 +1298,7 @@
                     radtail(ibin)%head%icx(iii)= m                         ! channel index
 
                     do k=1,npred
-                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)
+                       radtail(ibin)%head%pred(k,iii)=pred(k,ii)*upd_pred(k)
                     end do
 
                     do k=1,nsigradjac
@@ -1446,7 +1495,7 @@
                     radtailm(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     radtailm(ibin)%head%icx(iii)=m                       ! channel index
                     do k=1,npred
-                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)
+                       radtailm(ibin)%head%pred(k,iii)=pred(k,ii)*upd_pred(k)
                     end do
 
 !                   compute hessian contribution,
@@ -1479,8 +1528,8 @@
            diagbuf(3)  = zsges                          ! model (guess) elevation at observation location
  
            diagbuf(4)  = dtime-time_offset              ! observation time (hours relative to analysis time)
- 
-           diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position
+
+           diagbuf(5)  = data_s(iscan_pos,n)            ! sensor scan position 
            diagbuf(6)  = zasat*rad2deg                  ! satellite zenith angle (degrees)
            diagbuf(7)  = data_s(ilazi_ang,n)            ! satellite azimuth angle (degrees)
            diagbuf(8)  = pangs                          ! solar zenith angle (degrees)

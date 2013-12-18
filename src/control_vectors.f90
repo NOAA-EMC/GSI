@@ -26,6 +26,7 @@ module control_vectors
 !   2010-05-22  todling  - add a wired-in set of variables composing a motley (not fully part of CVector)
 !   2010-05-28  todling  - remove all nrf2/3_VAR-specific "pointers"
 !   2011-07-04  todling  - fixes to run either single or double precision
+!   2013-05-20  zhu      - add aircraft temperature bias correction coefficients as control variables
 !
 ! subroutines included:
 !   sub init_anacv   
@@ -132,12 +133,13 @@ type control_vector
    type(GSI_Bundle), pointer :: aens(:,:)
    real(r_kind), pointer :: predr(:) => NULL()
    real(r_kind), pointer :: predp(:) => NULL()
+   real(r_kind), pointer :: predt(:) => NULL()
    logical :: lallocated = .false.
 end type control_vector
 
 character(len=*),parameter:: myname='control_vectors'
 
-integer(i_kind) :: nclen,nclen1,nsclen,npclen,nrclen,nsubwin,nval_len
+integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
 logical :: lsqrtb
 
@@ -183,7 +185,7 @@ END INTERFACE
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
-                                 ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
+                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_control_vectors
@@ -205,6 +207,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 !    katlon1n
 !    ksclen
 !    kpclen
+!    ktclen
 !    kclen
 !    ksubwin
 !    kval_len
@@ -221,7 +224,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 
   implicit none
   integer(i_kind)          , intent(in   ) :: ksig,klat,klon,katlon11,katlon1n, &
-                                 ksclen,kpclen,kclen,ksubwin,kval_len,k_ens
+                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,k_ens
   logical                  , intent(in   ) :: ldsqrtb
 
   integer(i_kind) n
@@ -233,7 +236,8 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   latlon1n=katlon1n
   nsclen=ksclen
   npclen=kpclen
-  nrclen=nsclen+npclen
+  ntclen=ktclen
+  nrclen=nsclen+npclen+ntclen
   nclen =kclen
   nclen1=nclen-nrclen
   nsubwin=ksubwin
@@ -518,6 +522,10 @@ subroutine allocate_cv(ycv)
   ii=ii+nsclen
   ycv%predp => ycv%values(ii+1:ii+npclen)
   ii=ii+npclen
+  if (ntclen>0) then
+     ycv%predt => ycv%values(ii+1:ii+ntclen)
+     ii=ii+ntclen
+  end if
 
   if (ii/=nclen) then
      write(6,*)'allocate_cv: error length',ii,nclen
@@ -609,6 +617,7 @@ subroutine deallocate_cv(ycv)
      end do
      NULLIFY(ycv%predr)
      NULLIFY(ycv%predp)
+     NULLIFY(ycv%predt)
 
      if(l_hyb_ens) DEALLOCATE(ycv%aens)
      if(mvars>0) DEALLOCATE(ycv%motley)
@@ -980,6 +989,9 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
      endif
      if (npclen>0) then
         prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predp(:),ycv%predp(:))
+     endif
+     if (ntclen>0) then
+        prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predt(:),ycv%predt(:))
      endif
   end if
 
@@ -1370,6 +1382,15 @@ if (npclen>0) then
    call random_number(zz)
    do ii=1,npclen
       ycv%predp(ii) = two*zz(ii)-one
+   enddo
+   deallocate(zz)
+endif
+
+if (ntclen>0) then
+   allocate(zz(ntclen))
+   call random_number(zz)
+   do ii=1,ntclen
+      ycv%predt(ii) = two*zz(ii)-one
    enddo
    deallocate(zz)
 endif

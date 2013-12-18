@@ -26,7 +26,7 @@ subroutine get_nmmb_ensperts
    use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen 
    use constants,only: zero,one,one_tenth,ten
    use mpimod, only: mpi_comm_world,ierror,mype
-   use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,uv_hyb_ens                              
+   use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,uv_hyb_ens
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundleset,gsi_grid,gsi_bundle, &
                             gsi_bundlegetpointer,gsi_bundledestroy,gsi_gridcreate
@@ -86,17 +86,17 @@ subroutine get_nmmb_ensperts
          end do
       end do
 
-      ice=.true.
-      iderivative=0
-      call genqsat(qs,tsen(1,1,1),prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
-      do k=1,grd_ens%nsig
-         do j=1,grd_ens%lon2
-            do i=1,grd_ens%lat2
-            rh(i,j,k) = q(i,j,k)/qs(i,j,k)
-            end do
-         end do
-      end do
-     
+       ice=.true.
+       iderivative=0
+       call genqsat(qs,tsen(1,1,1),prsl(1,1,1),grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+       do k=1,grd_ens%nsig
+          do j=1,grd_ens%lon2
+             do i=1,grd_ens%lat2
+                rh(i,j,k) = q(i,j,k)/qs(i,j,k)
+             end do
+          end do
+       end do
+
       do ic3=1,nc3d
 
          call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
@@ -146,15 +146,15 @@ subroutine get_nmmb_ensperts
                end do
 
             case('q','Q')
-                                       
-               do k=1,grd_ens%nsig
-                  do j=1,grd_ens%lon2
-                     do i=1,grd_ens%lat2
-                        w3(i,j,k) = rh(i,j,k)
-                        x3(i,j,k)=x3(i,j,k)+rh(i,j,k)                   
-                     end do
-                  end do
-               end do
+                do k=1,grd_ens%nsig
+                   do j=1,grd_ens%lon2
+                      do i=1,grd_ens%lat2
+                         w3(i,j,k) = rh(i,j,k)
+                         x3(i,j,k)=x3(i,j,k)+rh(i,j,k)                   
+                      end do
+                   end do
+                end do
+
 
             case('oz','OZ')
                       

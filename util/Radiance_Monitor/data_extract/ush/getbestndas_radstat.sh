@@ -16,7 +16,8 @@ rm -f datem00
 rm -f datem12
 
 echo $DATE > $tmpdir/datem00
-DATEM12=`/nwprod/util/exec/ndate +12 $DATE`
+#DATEM12=`/nwprod/util/exec/ndate +12 $DATE`
+DATEM12=`${NDATE} +12 $DATE`
 echo $DATEM12 > $tmpdir/datem12
 
 PDY00=`cut -c 1-8 $tmpdir/datem00`

@@ -46,8 +46,9 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
-!
 !   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+
 !   input argument list:
 !     mype     - mpi task id
 !     val_ssmi - weighting factor applied to super obs
@@ -314,8 +315,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            else
               dlat = dlat_earth  
               dlon = dlon_earth  
-              call grdcrd(dlat,1,rlats,nlat,1)
-              call grdcrd(dlon,1,rlons,nlon,1)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !  If available, set value of ssmi zenith angle

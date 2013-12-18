@@ -28,6 +28,7 @@ subroutine state2control(rval,bval,grad)
 !   2011-07-12  zhu      - add do_cw_to_hydro_ad and cw2hydro_ad
 !   2011-11-01  eliu     - generalize the use of do_cw_to_hydro_ad
 !   2012-02-08  kleist   - remove strong_bk_ad and ensemble_forward_model_ad and related parameters
+!   2013-0523   zhu      - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
 !     rval - State variable
@@ -43,7 +44,7 @@ use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig
-use jfunc, only: nsclen,npclen
+use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -67,7 +68,7 @@ type(control_vector), intent(inout) :: grad
 character(len=*),parameter::myname='state2control'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
+integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle) :: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -75,7 +76,7 @@ type(gsi_bundle) :: wbundle ! work bundle
 !       this routines knows how to handle.
 integer(i_kind), parameter :: ncvars = 6
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis
+integer(i_kind) :: icpblh,icgust,icvis,icoz
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  ','cw '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
@@ -143,6 +144,7 @@ else
    do_cw_to_hydro_ad=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
 endif
 
+call gsi_bundlegetpointer (grad%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (grad%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (grad%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (grad%step(1),'pblh',icpblh,istatus)
@@ -173,7 +175,8 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (rval(jj),'tv'  ,rv_tv,  istatus)
    call gsi_bundlegetpointer (rval(jj),'tsen',rv_tsen,istatus)
    call gsi_bundlegetpointer (rval(jj),'q'   ,rv_q ,  istatus)
-   call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)
+!  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
+   call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
    call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
    if (icgust>0) call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
    if (icvis >0) call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
@@ -185,7 +188,11 @@ do jj=1,nsubwin
    call gsi_bundleputvar ( wbundle, 't' ,  rv_tv,  istatus )
    call gsi_bundleputvar ( wbundle, 'q' ,  zero,   istatus )
    call gsi_bundleputvar ( wbundle, 'ps',  rv_ps,  istatus )
-   call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
+   if (icoz>0) then
+      call gsi_bundleputvar ( wbundle, 'oz',  rv_oz,  istatus )
+   else
+      if(istatus_oz==0) rv_oz=zero 
+   end if
    call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
    if (icgust>0) call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
@@ -262,6 +269,11 @@ enddo
 do ii=1,npclen
   grad%predp(ii)=bval%predp(ii)
 enddo
+if (ntclen>0) then 
+   do ii=1,ntclen
+     grad%predt(ii)=bval%predt(ii)
+   enddo
+end if
 
 ! Clean up
 if (ngases>0) then

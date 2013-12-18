@@ -341,7 +341,8 @@ _EXIT_(myname_)
        if(.not.lobserver) then
           my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 		if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                        (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
 		endif
        endif
     enddo
@@ -381,6 +382,7 @@ subroutine read_thead_ ()
     use obsmod, only: t_ob_type
     use m_obdiag, only: obdiag_locate
     use m_obdiag, only: ob_verify
+    use aircraftinfo, only: npredt,aircraft_t_bc,aircraft_t_bc_pof
     implicit none
 
     real(r_kind)    :: zres           !  residual
@@ -396,6 +398,8 @@ subroutine read_thead_ ()
     real(r_kind)    :: ztpertb        !  random number added to the obs
     integer(i_kind) :: zij(8)         !  horizontal locations
     logical         :: ztv_ob         !  logical flag for virtual temperature or
+    integer(i_kind) :: zidx
+    real(r_kind),dimension(:),allocatable :: zpred
     integer(i_kind) :: zk1            !  level of errtable 1-33
     integer(i_kind) :: zkx            !  ob type
     logical         :: zluse          !  flag indicating if ob is used in pen.
@@ -429,17 +433,27 @@ _EXIT_(myname_)
           if(ierr /= 0)write(6,*)' fail to alloc ttail%llpoint '
           ttail(ii)%head => ttail(ii)%head%llpoint
        end if
+       allocate(zpred(npredt))
+       allocate(ttail(ii)%head%pred(npredt))
 
        my_node => ttail(ii)%head
        read(iunit,iostat=iostat) my_node%idv,my_node%iob
 		if(iostat/=0) then
 		  call die(myname_,'read(idv,iob), (iostat,type,ibin,mobs,iobs) =',(/iostat,jj,ii,mobs,kk/))
 		endif
-       read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
-                                 ztime, zb,       zpg, &
-                                 zuse_sfc_model,  ztlm_tsfc, &
-                                 zluse, ztpertb,  ztv_ob, &
-                                 zk1,   zkx,      zwij, zij
+       if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+          read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
+                                    ztime, zb,       zpg, &
+                                    zuse_sfc_model,  ztlm_tsfc, &
+                                    zluse, ztpertb,  ztv_ob,  &
+                                    zk1,   zkx,      zwij, zij
+       else
+          read(iunit,iostat=iostat) zres,  zerr2,    zraterr2,&
+                                    ztime, zb,       zpg, &
+                                    zuse_sfc_model,  ztlm_tsfc, &
+                                    zluse, ztpertb,  ztv_ob, zidx, zpred, &
+                                    zk1,   zkx,      zwij, zij
+       end if
        if (iostat/=0) then
           write(6,*)'read_thead_: error reading record',iostat
           call stop2(185)
@@ -453,6 +467,11 @@ _EXIT_(myname_)
        ttail(ii)%head%tlm_tsfc = ztlm_tsfc
        ttail(ii)%head%tpertb   = ztpertb
        ttail(ii)%head%tv_ob    = ztv_ob
+       if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+          do j=1,npredt
+             ttail(ii)%head%pred(j)=zpred(j)
+          end do
+       end if
        ttail(ii)%head%k1       = zk1
        ttail(ii)%head%kx       = zkx
        ttail(ii)%head%luse     = zluse
@@ -463,9 +482,11 @@ _EXIT_(myname_)
        if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                       (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
 		end if
        endif
+       deallocate(zpred)
     enddo
     if(.not. lobserver) then
        passed = ob_verify(thead(ii),count=mobs,perr=.true.)
@@ -701,7 +722,8 @@ _EXIT_(myname_)
        if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                  (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
        		end if
        endif
     enddo
@@ -813,7 +835,8 @@ _EXIT_(myname_)
          if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                    (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
        endif
        endif      
     enddo
@@ -1903,7 +1926,8 @@ _EXIT_(myname_)
 	 if(.not. lobserver) then
 	   my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_)
 	   	if(.not.associated(my_node%diags)) then
-		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
+		  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                       (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/))
           end if
        endif
 
@@ -2243,7 +2267,8 @@ _EXIT_(myname_)
        if(.not.lobserver) then 
           my_node%diags => obdiag_locate(obsdiags(jj,ii),my_node%idv,my_node%iob,1,who=myname_) 
                 if(.not.associated(my_node%diags)) then 
-                  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',(/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/)) 
+                  call die(myname_,'obdiag_locate(), (type,ibin,mobs,iobs,idv,iob,ich) =',&
+                       (/jj,ii,mobs,kk,my_node%idv,my_node%iob,1/)) 
                 endif 
        endif 
     enddo 

@@ -91,6 +91,7 @@ module guess_grids
 !                         cloud water tendencies and derivatives 
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
+!   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -135,6 +136,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
   public :: ges_gust,ges_vis,ges_pblh,ges_qsat
   public :: use_compress,nsig_ext,gpstop
+  public :: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
   public :: ges_initialized
@@ -274,6 +276,12 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat      ! 4d qsat array
+! for GSD soil nudging
+  real(r_kind),allocatable,dimension(:,:,:):: ges_th2       ! 2-m temperature
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tsk       ! skin temperature
+  real(r_kind),allocatable,dimension(:,:,:):: ges_soilt1    ! TEMPERATURE INSIDE SNOW
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tslb    ! SOIL TEMPERATURE
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_smois   ! SOIL MOISTURE   
 
   real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
   real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
@@ -421,7 +429,7 @@ contains
 ! !USES:
 
     use constants,only: zero,one
-    use gridmod, only: lat2,lon2,nsig,regional
+    use gridmod, only: lat2,lon2,nsig,regional,nsig_soil
     use control_vectors, only: cvars3d
     use mpeu_util, only: die, tell, getindex
     implicit none
@@ -507,6 +515,13 @@ contains
           if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
        endif
+
+       allocate ( ges_th2(lat2,lon2,nfldsig), &
+         ges_soilt1(lat2,lon2,nfldsig),ges_tslb(lat2,lon2,nsig_soil,nfldsig),&
+         ges_smois(lat2,lon2,nsig_soil,nfldsig), ges_tsk(lat2,lon2,nfldsig),&
+         stat=istatus)
+       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_th2,..):  allocate error, istatus=',&
+            istatus,lat2,lon2,nsig,nfldsig
 
        ges_initialized = .true.
 
@@ -614,6 +629,25 @@ contains
                    efr_qg(i,j,k,n)=zero
                    efr_qh(i,j,k,n)=zero
                 end do
+             end do
+          end do
+       end do
+
+! for GSD  soil nudging
+       do n=1,nfldsig
+          do k=1,nsig_soil
+             do j=1,lon2
+                do i=1,lat2
+                   ges_tslb(i,j,k,n)=zero
+                   ges_smois(i,j,k,n)=zero
+                end do
+             end do
+          end do
+          do j=1,lon2
+             do i=1,lat2
+                ges_th2(i,j,n)=zero
+                ges_tsk(i,j,n)=zero
+                ges_soilt1(i,j,n)=zero
              end do
           end do
        end do
@@ -995,6 +1029,9 @@ contains
             istatus
     endif
     deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
+! GSD soil nudging
+    deallocate(ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,stat=istatus)
+!
     if (drv_initialized .and.switch_on_derivatives) then
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
 !      call gsi_metguess_get ( 'var::cw', ivar, istatus )
@@ -1336,6 +1373,7 @@ contains
                       end if
                    end if
                 endif
+                ges_prsi(i,j,k,jj)=max(ges_prsi(i,j,k,jj),zero)
                 ges_lnprsi(i,j,k,jj)=log(max(ges_prsi(i,j,k,jj),0.0001_r_kind))
              end do
           end do
@@ -1659,19 +1697,20 @@ contains
 ! !USES:
 
     use constants, only: one,rd_over_cp_mass,r1000,ten,zero,two
-    use gridmod, only: lat2, lon2, nsig, &
-         twodvar_regional
+    use gridmod, only: lat2, lon2, nsig,wrf_mass_regional, &
+         twodvar_regional,nems_nmmb_regional
 
     implicit none
 
 ! !INPUT PARAMETERS:
 
 
-! !DESCRIPTION: populate guess geopotential height
+! !DESCRIPTION: populate guess geopotential height in millibars
 !
 !
 ! !REVISION HISTORY:
 !   2011-06-06  Ming Hu
+!   2013-02-22  Jacob Carley - Added NMMB
 !
 ! !REMARKS:
 !   language: f90
@@ -1696,11 +1735,15 @@ contains
           do i=1,lat2
 
              do k=1,nsig
-                pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
-                thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
-             end do
-!  q_bk = water vapor mixing ratio
 
+                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
+		if (nems_nmmb_regional) then
+		   pbk(k) = aeta1_ll(k)*pdtop_ll + aeta2_ll(k)*(ten*ges_ps(i,j,jj) & 
+		            -pdtop_ll-pt_ll) + pt_ll   			    			    
+		end if
+				
+		thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
+             end do
 
              pbl_height(i,j,jj) = zero
              thsfc = thetav(1)
@@ -1740,20 +1783,20 @@ contains
 
 ! !USES:
 
-    use constants, only: half,ten
+    use constants, only: half,one_tenth
     use gridmod, only: nsig,msig,nlayers
     use crtm_module, only: toa_pressure
 
     implicit none
 
 ! !INPUT PARAMETERS:
-    integer(i_kind),dimension(msig)     ,intent(  out) :: klevel
+    integer(i_kind),dimension(msig)  ,intent(  out) :: klevel
 
     real(r_kind)   ,dimension(nsig+1),intent(in   ) :: prsitmp
-    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: prsltmp
+    real(r_kind)   ,dimension(nsig)  ,intent(in   ) :: prsltmp
 
     real(r_kind)   ,dimension(msig+1),intent(  out) :: prsitmp_ext
-    real(r_kind)   ,dimension(msig)     ,intent(  out) :: prsltmp_ext
+    real(r_kind)   ,dimension(msig)  ,intent(  out) :: prsltmp_ext
 
 
 ! !DESCRIPTION:  Add pressure layers for use in RTM
@@ -1774,14 +1817,16 @@ contains
 
 !   Declare local variables
     integer(i_kind) k,kk,l
-    real(r_kind) dprs
+    real(r_kind) dprs,toa_pressure01
+
+    toa_pressure01=toa_pressure*one_tenth
 
 !   Check if model top pressure above rtm top pressure, where prsitmp
 !   is in kPa and toa_pressure is in hPa.
-    if (ten*prsitmp(nsig) < toa_pressure)then
+    if (prsitmp(nsig) < toa_pressure01)then
        write(6,*)'ADD_RTM_LAYERS:  model top pressure(hPa)=', &
-            ten*prsitmp(nsig),&
-            ' above rtm top pressure(hPa)=',toa_pressure
+            prsitmp(nsig),&
+            ' above rtm top pressure(hPa)=',toa_pressure01
        call stop2(35)
     end if
 
@@ -1797,7 +1842,7 @@ contains
           if (k/=nsig) then
              dprs = (prsitmp(k+1)-prsitmp(k))/nlayers(k)
           else
-             dprs = (toa_pressure-prsitmp(k))/nlayers(k)
+             dprs = (toa_pressure01-prsitmp(k))/nlayers(k)
           end if
           prsitmp_ext(kk+1) = prsitmp(k)
           do l=1,nlayers(k)
@@ -1810,7 +1855,7 @@ contains
     end do
 
 !   Set top of atmosphere pressure
-    prsitmp_ext(msig+1) = toa_pressure
+    prsitmp_ext(msig+1) = toa_pressure01
 
   end subroutine add_rtm_layers
 

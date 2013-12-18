@@ -17,6 +17,15 @@ subroutine get_gefs_ensperts_dualres
 !   2010-04-14  kleist  - add ensemble mean ps array for use with vertical localizaion (lnp)
 !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
 !   2011-11-01  kleist  - 4d capability for ensemble/hybrid
+!   2013-01-16  parrish - strange error in make debug on wcoss related to
+!                          grd_ens%lat2, grd_ens%lon2, grd_ens%nsig
+!                        replaced with im, jm, km which are set equal to these
+!                        at beginning of program and this made error go away.
+!                         FOLLOWING is sample error message from make debug on tide:
+!
+!                         get_gefs_ensperts_dualres.f90(182): error #6460: This is not a field name that
+!                                 is defined in the encompassing structure.   [LAT2]
+!                         call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
 !
 !   input argument list:
 !
@@ -136,14 +145,14 @@ subroutine get_gefs_ensperts_dualres
              write(filename,106) 6, n
           endif
           if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
-          call general_read_gfsatm(grd_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+          call general_read_gfsatm(grd_ens,sp_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
        endif
 
 ! Check read return code.  Revert to static B if read error detected
        if (iret/=0) then
           beta1_inv=one
           if (mype==0) &
-               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',filename,' IRET=',IRET,' RESET beta1_inv=',beta1_inv
+               write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
           cycle
        endif
 
@@ -179,7 +188,7 @@ subroutine get_gefs_ensperts_dualres
 
        ice=.true.
        iderivative=0
-       call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+       call genqsat(qs,tsen,prsl,im,jm,km,ice,iderivative)
        deallocate(tsen,prsl)
 
        do ic3=1,nc3d
@@ -232,15 +241,15 @@ subroutine get_gefs_ensperts_dualres
 
              case('q','Q')
 !$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
-                do k=1,km
-                   do j=1,jm
-                      do i=1,im
-                         rh=q(i,j,k)/qs(i,j,k)
-                         w3(i,j,k) = rh
-                         x3(i,j,k)=x3(i,j,k)+rh
-                      end do
-                   end do
-                end do
+                 do k=1,km
+                    do j=1,jm
+                       do i=1,im
+                          rh=q(i,j,k)/qs(i,j,k)
+                          w3(i,j,k) = rh
+                          x3(i,j,k)=x3(i,j,k)+rh
+                       end do
+                    end do
+                 end do
 
              case('oz','OZ')
 !$omp parallel do schedule(dynamic,1) private(i,j,k)
@@ -326,8 +335,8 @@ subroutine get_gefs_ensperts_dualres
               call stop2(999)
            end if
 
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
+           do j=1,jm
+              do i=1,im
                  ps_bar(i,j,m)=x2(i,j)
               end do
            end do

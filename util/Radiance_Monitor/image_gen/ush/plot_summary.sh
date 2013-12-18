@@ -14,7 +14,6 @@ SATYPE2=$SATYPE
 
 #------------------------------------------------------------------
 # Set environment variables.
-#tmpdir=${STMP_USER}/plot_summary_${SUFFIX}_${SATYPE2}.$PDATE
 tmpdir=${STMP_USER}/plot_summary_${SUFFIX}.$PDATE
 rm -rf $tmpdir
 mkdir -p $tmpdir
@@ -25,6 +24,7 @@ cd $tmpdir
 #------------------------------------------------------------------
 #   Set dates
 bdate=`$NDATE -720 $PDATE`
+bdate=`$NDATE -1440 $PDATE`
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -48,7 +48,7 @@ echo ctldir = $ctldir
 for type in ${SATYPE2}; do
 
    $NCP $ctldir/${type}.ctl* ./
-   uncompress *.ctl.Z
+   ${UNCOMPRESS} *.ctl.${Z}
 
    cdate=$bdate
 
@@ -59,33 +59,30 @@ for type in ${SATYPE2}; do
          test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.Z ]]; then
-            $NCP ${test_file}.Z ./${type}.${cdate}.ieee_d.Z
+         elif [[ -s ${test_file}.${Z} ]]; then
+            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
          fi
       fi
-      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.Z ]]; then
+      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
          $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
       fi
-#      $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
-   uncompress *.ieee_d.Z
+   ${UNCOMPRESS} *.ieee_d.${Z}
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/plot_summary.gs ${type} x1100 y850'
+'run ${GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 
-   timex $GRADS -bpc "run ${tmpdir}/${type}.gs"
+   $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
-
-   rm -f ${type}.ctl 
-   rm -f ${type}*.ieee_d
+#   rm -f ${type}.ctl 
+#   rm -f ${type}*.ieee_d
 
 done
-
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.
@@ -96,15 +93,15 @@ if [[ ! -d ${IMGNDIR}/summary ]]; then
 fi
 $NCP -r *summary.png ${IMGNDIR}/summary/.
 
-rm -f *.summary.png
+#rm -f *.summary.png
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir. 
 #
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 exit
