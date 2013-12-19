@@ -20,6 +20,8 @@
      blacklst,init_obsmod_vars,lobsdiagsave,lobskeep,lobserver,hilbert_curve,&
      lread_obs_save,lread_obs_skip,create_passive_obsmod_vars,lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin
+  use aircraftinfo, only: init_aircraft,aircraft_t_bc_pof,aircraft_t_bc, &
+                          biaspredt,upd_aircraft,cleanup_tail
   use obs_sensitivity, only: lobsensfc,lobsensincr,lobsensjb,lsensrecompute, &
                              lobsensadj,lobsensmin,iobsconv,llancdone,init_obsens
   use gsi_4dvar, only: setup_4dvar,init_4dvar,nhr_assimilation,min_offset, &
@@ -249,6 +251,7 @@
 !                         different regional balance methods.
 !  07-10-2013 zhu       add upd_pred as bias update indicator for radiance bias correction
 !  07-19-2013 zhu       add emiss_bc for emissivity predictor in radiance bias correction scheme
+!  04-15-2013 zhu       add aircraft_t_bc_pof and aircraft_t_bc for aircraft temperature bias correction
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -601,10 +604,14 @@
 !     tcp_ermax  - parameter for tcps oberr inflation (maximum oberr, mb)
 !     qc_noirjaco3 - controls whether to use O3 Jac from IR instruments
 !     qc_noirjaco3_pole - controls wheter to use O3 Jac from IR instruments near poles
+!     aircraft_t_bc_pof  - logical for aircraft temperature bias correction, pof
+!                          is used for predictor
+!     aircraft_t_bc  - logical for aircraft temperature bias correction
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
-       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole
+       tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,aircraft_t_bc_pof,aircraft_t_bc,&
+       biaspredt,upd_aircraft,cleanup_tail
 
 ! OBS_INPUT (controls input data):
 !      dfile(ndat)      - input observation file name
@@ -825,6 +832,7 @@
   call init_rapidrefresh_cldsurf
   call init_chem
   call init_tcps_errvals
+  call init_aircraft
   call init_gfs_stratosphere
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional
