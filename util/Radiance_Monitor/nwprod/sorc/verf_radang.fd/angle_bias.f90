@@ -3,7 +3,7 @@ program angle
 
   implicit none
   integer ntype,mregion,mstep,surf_nregion,max_surf_region
-  parameter (ntype=21,mregion=25,mstep=100,max_surf_region=5)
+  parameter (ntype=35,mregion=25,mstep=100,max_surf_region=5)
   integer iglobal, iland, iwater, isnowice, imixed
   parameter (iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5)
  
@@ -31,6 +31,8 @@ program angle
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm,rread
   real,dimension(2):: cor_tot,nbc_omg,bc_omg
   real,dimension(2):: cor_fixang,cor_lapse,cor_lapse2,cor_const,cor_scangl,cor_clw
+  real,dimension(2):: cor_cos,cor_sin,cor_emiss
+  real,dimension(2):: cor_ordang4,cor_ordang3,cor_ordang2,cor_ordang1
   real,dimension(max_surf_region):: surf_rlatmin,surf_rlatmax,surf_rlonmin,surf_rlonmax
 
   real,allocatable,dimension(:):: wavenumbr,error,use,frequency
@@ -39,6 +41,8 @@ program angle
   real,allocatable,dimension(:,:,:,:):: tot_cor,omg_nbc,omg_bc
   real,allocatable,dimension(:,:,:,:):: fixang_cor,lapse_cor,lapse2_cor
   real,allocatable,dimension(:,:,:,:):: const_cor,scangl_cor,clw_cor 
+  real,allocatable,dimension(:,:,:,:):: cos_cor,sin_cor,emiss_cor
+  real,allocatable,dimension(:,:,:,:):: ordang4_cor,ordang3_cor,ordang2_cor,ordang1_cor
 
 ! Variables for reading satellite data
   type(diag_header_fix_list )             :: header_fix
@@ -70,9 +74,14 @@ program angle
        'omgnbc', 'total', 'omgbc', &
        'fixang', 'lapse', 'lapse2', &
        'const', 'scangl', 'clw', &
+       'cos','sin','emiss','ordang4',&
+       'ordang3','ordang2','ordang1',&
        'omgnbc_2', 'total_2', 'omgbc_2', &
        'fixang_2', 'lapse_2', 'lapse2_2', & 
-       'const_2', 'scangl_2', 'clw_2' /
+       'const_2', 'scangl_2', 'clw_2', &
+       'cos_2', 'sin_2', 'emiss_2', &
+       'ordang4_2','ordang3_2','ordang2_2', &
+       'ordang1_2' /
   data surf_region / 'global', 'land', 'water', 'ice/snow', 'mixed'/
   data surf_rlonmin / -180., -180., -180., -180., -180./
   data surf_rlonmax / 180., 180., 180., 180., 180./
@@ -201,9 +210,13 @@ program angle
        omg_bc(mstep,n_chan,surf_nregion,2), &
        count(mstep,n_chan,surf_nregion), &
        penalty(mstep,n_chan,surf_nregion),&
-      fixang_cor(mstep,n_chan,surf_nregion,2),lapse_cor(mstep,n_chan,surf_nregion,2),&
-      lapse2_cor(mstep,n_chan,surf_nregion,2),clw_cor(mstep,n_chan,surf_nregion,2),&
-       const_cor(mstep,n_chan,surf_nregion,2), scangl_cor(mstep,n_chan,surf_nregion,2))
+       fixang_cor(mstep,n_chan,surf_nregion,2),lapse_cor(mstep,n_chan,surf_nregion,2),&
+       lapse2_cor(mstep,n_chan,surf_nregion,2),clw_cor(mstep,n_chan,surf_nregion,2),&
+       const_cor(mstep,n_chan,surf_nregion,2), scangl_cor(mstep,n_chan,surf_nregion,2),&
+       cos_cor(mstep,n_chan,surf_nregion,2),   sin_cor(mstep,n_chan,surf_nregion,2),&
+       emiss_cor(mstep,n_chan,surf_nregion,2), ordang4_cor(mstep,n_chan,surf_nregion,2),&
+       ordang3_cor(mstep,n_chan,surf_nregion,2),   ordang2_cor(mstep,n_chan,surf_nregion,2),&
+       ordang1_cor(mstep,n_chan,surf_nregion,2))
 
 ! Zero accumulator arrays
   do ii=1,2
@@ -223,6 +236,13 @@ program angle
               clw_cor(i,j,k,ii)  = 0.0
               const_cor(i,j,k,ii)  = 0.0
               scangl_cor(i,j,k,ii)  = 0.0
+              cos_cor(i,j,k,ii)  = 0.0
+              sin_cor(i,j,k,ii)  = 0.0
+              emiss_cor(i,j,k,ii)  = 0.0
+              ordang4_cor(i,j,k,ii)  = 0.0
+              ordang3_cor(i,j,k,ii)  = 0.0
+              ordang2_cor(i,j,k,ii)  = 0.0
+              ordang1_cor(i,j,k,ii)  = 0.0
            end do
         end do
      end do
@@ -339,11 +359,24 @@ program angle
 
 !       If observation was assimilated, accumulate sums for appropriate 
 !        scan angle and regions
+        cor_cos       = 0.0
+        cor_sin       = 0.0
+        cor_emiss     = 0.0
+        cor_ordang4   = 0.0
+        cor_ordang3   = 0.0
+        cor_ordang2   = 0.0
+        cor_ordang1   = 0.0
+
         if (data_chan(j)%errinv > 1.e-6) then
            pen        =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
            cor_tot(1) =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)
            nbc_omg(1) = - (data_chan(j)%omgnbc)
            bc_omg(1)  = - (data_chan(j)%omgbc)
+
+
+           if ( trim(rad_area) == 'rgn' ) then
+              write(6,*) 'chan,pen,cor_tot(1),nbc_omg(1),bc_omb(1) = ', j,pen,cor_tot(1),nbc_omg(1),bc_omg(1)
+           endif
 
            cor_tot(2) =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)**2
            nbc_omg(2) =  (data_chan(j)%omgnbc)**2
@@ -355,6 +388,20 @@ program angle
            cor_const(1)  =  data_chan(j)%bicons
            cor_scangl(1) =  data_chan(j)%biang
            cor_clw(1)    =  data_chan(j)%biclw
+           cor_cos(1)    =  data_chan(j)%bicos
+           cor_sin(1)    =  data_chan(j)%bisin
+           cor_emiss(1)  =  data_chan(j)%biemis
+           if (angord >= 4 ) then
+              cor_ordang4(1)   =  data_chan(j)%bifix(1)
+              cor_ordang3(1)   =  data_chan(j)%bifix(2)
+              cor_ordang2(1)   =  data_chan(j)%bifix(3)
+              cor_ordang1(1)   =  data_chan(j)%bifix(4)
+           else
+              cor_ordang4(1)   =  0.0
+              cor_ordang3(1)   =  0.0
+              cor_ordang2(1)   =  0.0
+              cor_ordang1(1)   =  0.0
+           endif
 
            cor_fixang(2) =  (data_chan(j)%bifix(angord+1))**2
            cor_lapse(2)  =  (data_chan(j)%bilap)**2
@@ -362,9 +409,29 @@ program angle
            cor_const(2)  =  (data_chan(j)%bicons)**2
            cor_scangl(2) =  (data_chan(j)%biang)**2
            cor_clw(2)    =  (data_chan(j)%biclw)**2
+           cor_cos(2)    =  (data_chan(j)%bicos)**2
+           cor_sin(2)    =  (data_chan(j)%bisin)**2
+           cor_emiss(2)  =  (data_chan(j)%biemis)**2
+           if (angord >= 4 ) then
+              cor_ordang4(2)   =  (data_chan(j)%bifix(1))**2
+              cor_ordang3(2)   =  (data_chan(j)%bifix(2))**2
+              cor_ordang2(2)   =  (data_chan(j)%bifix(3))**2
+              cor_ordang1(2)   =  (data_chan(j)%bifix(4))**2
+           else
+              cor_ordang4(2)   =  0.0
+              cor_ordang3(2)   =  0.0
+              cor_ordang2(2)   =  0.0
+              cor_ordang1(2)   =  0.0
+           endif
 
            
+           if ( trim(rad_area) == 'rgn' ) then
+              nsub = 1 
+           endif
            do i=1,nsub
+              if ( trim(rad_area) == 'rgn' ) then
+                 write(6,*) 'INSIDE i 1 to nsub do loop'
+              endif
               k=jsub(i)
               count(ipos,j,k)  = count(ipos,j,k) + 1.0 
               penalty(ipos,j,k) = penalty(ipos,j,k) + pen
@@ -373,12 +440,20 @@ program angle
                  tot_cor(ipos,j,k,ii) = tot_cor(ipos,j,k,ii) + cor_tot(ii)
                  omg_nbc(ipos,j,k,ii) = omg_nbc(ipos,j,k,ii) + nbc_omg(ii)
                  omg_bc(ipos,j,k,ii)  = omg_bc(ipos,j,k,ii)  + bc_omg(ii)
-                 fixang_cor(ipos,j,k,ii) = fixang_cor(ipos,j,k,ii) + cor_fixang(ii)
-                 lapse_cor(ipos,j,k,ii)  = lapse_cor(ipos,j,k,ii)  + cor_lapse(ii)
-                 lapse2_cor(ipos,j,k,ii) = lapse2_cor(ipos,j,k,ii) + cor_lapse2(ii)
-                 const_cor(ipos,j,k,ii)  = const_cor(ipos,j,k,ii)  + cor_const(ii)
-                 scangl_cor(ipos,j,k,ii) = scangl_cor(ipos,j,k,ii) + cor_scangl(ii)
-                 clw_cor(ipos,j,k,ii)    = clw_cor(ipos,j,k,ii)    + cor_clw(ii)
+                 fixang_cor(ipos,j,k,ii)  = fixang_cor(ipos,j,k,ii)  + cor_fixang(ii)
+                 lapse_cor(ipos,j,k,ii)   = lapse_cor(ipos,j,k,ii)   + cor_lapse(ii)
+                 lapse2_cor(ipos,j,k,ii)  = lapse2_cor(ipos,j,k,ii)  + cor_lapse2(ii)
+                 const_cor(ipos,j,k,ii)   = const_cor(ipos,j,k,ii)   + cor_const(ii)
+                 scangl_cor(ipos,j,k,ii)  = scangl_cor(ipos,j,k,ii)  + cor_scangl(ii)
+                 clw_cor(ipos,j,k,ii)     = clw_cor(ipos,j,k,ii)     + cor_clw(ii)
+                 cos_cor(ipos,j,k,ii)     = cos_cor(ipos,j,k,ii)     + cor_cos(ii)
+                 sin_cor(ipos,j,k,ii)     = sin_cor(ipos,j,k,ii)     + cor_sin(ii)
+                 emiss_cor(ipos,j,k,ii)   = emiss_cor(ipos,j,k,ii)   + cor_emiss(ii)
+                 ordang4_cor(ipos,j,k,ii) = ordang4_cor(ipos,j,k,ii) + cor_ordang4(ii)
+                 ordang3_cor(ipos,j,k,ii) = ordang3_cor(ipos,j,k,ii) + cor_ordang3(ii)
+                 ordang2_cor(ipos,j,k,ii) = ordang2_cor(ipos,j,k,ii) + cor_ordang2(ii)
+                 ordang1_cor(ipos,j,k,ii) = ordang1_cor(ipos,j,k,ii) + cor_ordang1(ii)
+
               end do
            end do
 
@@ -460,6 +535,27 @@ program angle
         do k=1,surf_nregion
            write(lungrd)((clw_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
         end do
+        do k=1,surf_nregion
+           write(lungrd)((cos_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((sin_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((emiss_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang4_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang3_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang2_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang1_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
      end do
      write(6,*)'write output to lungrd=',lungrd,', file=',trim(data_file)
      close(lungrd)
@@ -527,6 +623,13 @@ program angle
               clw_cor(i,j,k,ii)  =  rmiss
               const_cor(i,j,k,ii)  =  rmiss
               scangl_cor(i,j,k,ii)  = rmiss
+              cos_cor(i,j,k,ii)     = rmiss
+              sin_cor(i,j,k,ii)     = rmiss
+              emiss_cor(i,j,k,ii)   = rmiss
+              ordang4_cor(i,j,k,ii) = rmiss
+              ordang3_cor(i,j,k,ii) = rmiss
+              ordang2_cor(i,j,k,ii) = rmiss
+              ordang1_cor(i,j,k,ii) = rmiss
            end do
         end do
      end do
@@ -569,13 +672,34 @@ program angle
         do k=1,surf_nregion
            write(lungrd)((clw_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
         end do
+        do k=1,surf_nregion
+           write(lungrd)((cos_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((sin_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((emiss_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang4_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang3_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang2_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
+        do k=1,surf_nregion
+           write(lungrd)((ordang1_cor(i,j,k,ii),i=1,nstep),j=1,n_chan)
+        end do
      end do
      write(6,*)'write output to lungrd=',lungrd,', file=',trim(data_file)
      close(lungrd)
   endif
   deallocate(timang,count,penalty,omg_nbc,omg_bc,tot_cor,&
              fixang_cor,lapse_cor,lapse2_cor,const_cor,scangl_cor,clw_cor)
-
+  deallocate(cos_cor,sin_cor,emiss_cor,ordang1_cor,ordang2_cor,ordang3_cor,ordang4_cor)
 
 ! End of program
 950 continue

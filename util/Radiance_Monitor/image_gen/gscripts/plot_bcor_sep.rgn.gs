@@ -50,6 +50,28 @@ endif
 if (field = clw)
  type="cloud liquid water correction (K)"
 endif
+if (field = cos)
+ type="cos for SSMIS"
+endif
+if (field = sin)
+ type="sin for SSMIS"
+endif
+if (field = emiss)
+ type="emissivity sensitivity"
+endif
+if (field = ordang4)
+ type="4th order angle term"
+endif
+if (field = ordang3)
+ type="3rd order angle term"
+endif
+if (field = ordang2)
+ type="2nd order angle term"
+endif
+if (field = ordang1)
+ type="1st order angle term"
+endif
+
 
 * Determine number of channels
 'q file'

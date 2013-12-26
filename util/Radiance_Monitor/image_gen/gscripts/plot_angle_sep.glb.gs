@@ -55,6 +55,27 @@ endif
 if (field = clw)
  type="cloud liquid water correction (K)"
 endif
+if (field = cos)
+ type="Cos for SSMIS"
+endif
+if (field = sin)
+ type="Sin for SSMIS"
+endif
+if (field = emiss)
+ type="Emissivity sensitivity term"
+endif
+if (field = ordang4)
+ type="4th order angle term"
+endif
+if (field = ordang3)
+ type="3rd order angle term"
+endif
+if (field = ordang2)
+ type="2nd order angle term"
+endif
+if (field = ordang1)
+ type="1st order angle term"
+endif
 
 
 *
@@ -560,8 +581,9 @@ while (chn<=nchan)
          'draw string 7.4 10.20 solid=avg, '
          'set string 2 r 6'
          'draw string 8.3 10.20 dash=sdv'
-      endif
-      if (field = "fixang" | field = "lapse" | field = "lapse2" | field = "const" | field = "scangl" | field = "clw")
+*      endif
+*      if (field = "fixang" | field = "lapse" | field = "lapse2" | field = "const" | field = "scangl" | field = "clw" | field = "cos" | field = "sin" | field = "emiss" | field = ""ordang4" | field = "ordang3" | field = "ordang2" | field = "ordang1")
+      else
          'set string 4 r 6'
          'draw string 7.5 10.4 blue, '
          'set string 2 r 6'

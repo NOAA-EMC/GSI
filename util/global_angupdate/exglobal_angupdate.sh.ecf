@@ -189,8 +189,8 @@ if [ $machine = IBMP6 ] ; then
 else
   export REDOUT=${REDOUT:-'1>'}
   export REDERR=${REDERR:-'2>'}
-  COMPRESS=gzip
-  UNCOMPRESS=gunzip
+  COMPRESS=${COMPRESS:-gzip}
+  UNCOMPRESS=${UNCOMPRESS:-gunzip}
 fi
 
 ################################################################################

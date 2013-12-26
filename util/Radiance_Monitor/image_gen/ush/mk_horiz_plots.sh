@@ -167,7 +167,7 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    ntasks=`cat $cmdfile|wc -l`
    jobname=plot_${SUFFIX}_hrz_${PID}
 
-   $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
+   $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
 
 else							# zeus/linux
    for sat in ${SATLIST}; do
@@ -204,7 +204,7 @@ for sat in ${bigSATLIST}; do
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
@@ -223,7 +223,7 @@ for sat in ${bigSATLIST}; do
    jobname=plot_${SUFFIX}_hrz_${PID}
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+      $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi

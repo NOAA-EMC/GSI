@@ -22,7 +22,8 @@ subroutine model2control(rval,bval,grad)
 !   2012-06-12  parrish  - modify bundle wbundle so motley variables are included if available.  The
 !                          subroutine ckgcov_ad now looks for motley variables as part of the input bundle.
 !   2012-06-12  parrish  - remove nnnn1o--no longer needed.
-
+!   2013-05-23  zhu      - add ntclen and predt for aircraft temperature bias correction
+!
 !   input argument list:
 !     rval - State variable
 !   output argument list:
@@ -39,7 +40,7 @@ use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: lat2,lon2,nsig
 use berror, only: varprd,fpsproj
 use balmod, only: tbalance
-use jfunc, only: nsclen,npclen,nrclen,nval_lenz
+use jfunc, only: nsclen,npclen,ntclen,nrclen,nval_lenz
 use cwhydromod, only: cw2hydro_ad
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_gridcreate
@@ -254,6 +255,11 @@ enddo
 do ii=1,npclen
    grad%predp(ii)=grad%predp(ii)+bval%predp(ii)*sqrt(varprd(nsclen+ii))
 enddo
+if (ntclen>0) then 
+   do ii=1,ntclen
+      grad%predt(ii)=grad%predt(ii)+bval%predt(ii)*sqrt(varprd(nsclen+npclen+ii))
+   enddo
+end if
 
 ! Clean up
 deallocate(cvars2dpm)

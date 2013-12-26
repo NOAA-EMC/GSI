@@ -522,6 +522,8 @@
 !          = 337 - inconsitent tlnmc namelist settings
 !          = 338 - error reading MLS vertical levels from MLS bufr 
 !          = 339 - error:more than one MLS  data type not allowed
+!          = 340 - error reading aircraft temperature bias file
+!          = 341 - aircraft tail number exceeds maximum
 !
 !
 ! remarks: resolution, unit numbers and several constants are

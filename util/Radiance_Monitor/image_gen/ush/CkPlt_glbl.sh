@@ -206,17 +206,23 @@ if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
       test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
       for test in ${test_list}; do
          this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f2`
-         echo $tmp
-         SATYPE_LIST="$SATYPE_LIST $tmp"
+         test_anl=`echo $this_file | grep "_anl"`
+         if [[ $test_anl = "" ]]; then
+            tmp=`echo "$this_file" | cut -d. -f2`
+            echo $tmp
+            SATYPE_LIST="$SATYPE_LIST $tmp"
+         fi
       done
    else
       test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
       for test in ${test_list}; do
          this_file=`basename $test`
-         tmp=`echo "$this_file" | cut -d. -f1`
-         echo $tmp
-         SATYPE_LIST="$SATYPE_LIST $tmp"
+         test_anl=`echo $this_file | grep "_anl"`
+         if [[ $test_anl = "" ]]; then
+            tmp=`echo "$this_file" | cut -d. -f1`
+            echo $tmp
+            SATYPE_LIST="$SATYPE_LIST $tmp"
+         fi
       done
    fi
    

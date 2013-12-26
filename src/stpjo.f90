@@ -134,7 +134,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2010-07-10  todling - somebody reordered calls to stpw, stpq, and stpoz - any reason?
 !   2010-10-15  pagowski - add stppm2_5 call 
 !   2011-02-24  zhu    - add gust,vis,pblh calls
-
+!   2013-05-23  zhu    - add bias correction contribution from aircraft T bias correction
 !
 !   input argument list:
 !     yobs
@@ -193,6 +193,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stpvismod, only: stpvis
   use stppblhmod, only: stppblh
   use bias_predictors, only: predictors
+  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
   use control_vectors, only: cvars2d
   use mpeu_util, only: getindex
@@ -220,7 +221,12 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 
 !$omp section
 !   penalty, b, and c for temperature
-    call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
+    if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+       call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep) 
+    else
+       call stpt(yobs%t,dval,xval,pbcjo(1,i_t_ob_type),sges,nstep, &
+                 dbias%predt,xbias%predt) 
+    end if
 
 !$omp section
 !   penalty, b, and c for winds

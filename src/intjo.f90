@@ -154,6 +154,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-06-13  todling  - add intco call
 !   2010-10-15  pagowski  - add intpm2_5 call
 !   2011-02-20  zhu      - add intgust,intvis,intpblh calls
+!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction 
 !
 !   input argument list:
 !     ibin
@@ -188,7 +189,7 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero_quad
 use obsmod, only: obs_handle
-use jfunc, only: nrclen,nsclen,npclen,l_foto,xhat_dt
+use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
 use bias_predictors, only: predictors
 use inttmod, only: intt
 use intwmod, only: intw
@@ -241,7 +242,11 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
   endif
 
 ! RHS for conventional temperatures
-  call intt(yobs%t,rval,sval)
+  if (ntclen>0) then
+     call intt(yobs%t,rval,sval,qpred(nsclen+npclen+1:nrclen),sbias%predt)
+  else
+     call intt(yobs%t,rval,sval)
+  end if
 
 ! RHS for precipitable water
   call intpw(yobs%pw,rval,sval)
@@ -314,6 +319,11 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
   do i=1,npclen
      rbias%predp(i)=rbias%predp(i)+qpred(nsclen+i)
   end do
+  if (ntclen>0) then 
+     do i=1,ntclen
+        rbias%predt(i)=rbias%predt(i)+qpred(nsclen+npclen+i)
+     end do
+  end if
 
 return
 end subroutine intjo_

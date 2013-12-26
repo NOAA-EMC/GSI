@@ -243,7 +243,7 @@ if [[ -e ${radstat} ]]; then
    #   Submit data processing jobs.
    #------------------------------------------------------------------
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:15 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:30 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod

@@ -6,7 +6,7 @@ program bcor
 
   implicit none
   integer ntype,mregion,surf_nregion,max_surf_region
-  parameter (ntype=16,mregion=25,max_surf_region=5)
+  parameter (ntype=30,mregion=25,max_surf_region=5)
   integer iglobal, iland, iwater, isnowice, imixed
   parameter( iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5 )
 
@@ -27,13 +27,16 @@ program bcor
   real pen,rread
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm
   real,dimension(2):: cor_total,cor_fixang,cor_lapse,cor_lapse2,&
-       cor_const,cor_scangl,cor_clw
+       cor_const,cor_scangl,cor_clw,cor_cos_ssmis,cor_sin_ssmis,&
+       cor_emiss,cor_ordang4,cor_ordang3,cor_ordang2,cor_ordang1
+
   real,dimension(max_surf_region):: rlatmin,rlatmax,rlonmin,rlonmax
 
   real,allocatable,dimension(:):: wavenumbr
   real,allocatable,dimension(:,:):: count,error,use,frequency,penalty
   real,allocatable,dimension(:,:,:):: total_cor,fixang_cor,lapse_cor,&
-       lapse2_cor,const_cor,scangl_cor,clw_cor
+       lapse2_cor,const_cor,scangl_cor,clw_cor,cos_ssmis_cor,sin_ssmis_cor,&
+       emiss_cor,ordang4_cor,ordang3_cor,ordang2_cor,ordang1_cor
 
   logical no_obs
 
@@ -65,8 +68,12 @@ program bcor
   data ftype / 'count', 'penalty', &
        'avgtotal', 'avgfixang', 'avglapse', 'avglapse2', &
        'avgconst', 'avgscangl', 'avgclw', &
+       'avgcos', 'avgsin', 'avgemiss', 'avgordang4', &
+       'avgordang3', 'avgordang2', 'avgordang1', &
        'sdvtotal', 'sdvfixang', 'sdvlapse', 'sdvlapse2', &
-       'sdvconst', 'sdvscangl', 'sdvclw' /
+       'sdvconst', 'sdvscangl', 'sdvclw', &
+       'sdvcos', 'sdvsin', 'sdvemiss', 'sdvordang4',&
+       'sdvordang3', 'sdvordang2', 'sdvordang1' /
   data region / 'global', 'land', 'water', 'ice/snow', 'mixed'/
   data rlonmin / -180., -180., -180., -180., -180./
   data rlonmax / 180., 180., 180., 180., 180./
@@ -147,7 +154,7 @@ program bcor
   n_chan = header_fix%nchan
   angord = header_fix%angord
 
-  write(6,*)'satype,dplat,n_chan=',satype,' ',dplat,n_chan
+  write(6,*)'satype,dplat,n_chan,angord=',satype,' ',dplat,n_chan,angord
 
   string = trim(satype)//'_'//trim(dplat)
   write(6,*)'string,satname=',string,' ',satname
@@ -165,8 +172,11 @@ program bcor
   allocate (total_cor(n_chan,mregion,2), fixang_cor(n_chan,mregion,2), &
        lapse_cor(n_chan,mregion,2), lapse2_cor(n_chan,mregion,2), &
        const_cor(n_chan,mregion,2), scangl_cor(n_chan,mregion,2), &
-       clw_cor(n_chan,mregion,2), count(n_chan,mregion), & 
-       penalty(n_chan,mregion), &
+       clw_cor(n_chan,mregion,2), cos_ssmis_cor(n_chan,mregion,2), &
+       sin_ssmis_cor(n_chan,mregion,2), emiss_cor(n_chan,mregion,2), &
+       ordang4_cor(n_chan,mregion,2), ordang3_cor(n_chan,mregion,2), &
+       ordang2_cor(n_chan,mregion,2), ordang1_cor(n_chan,mregion,2), &
+       count(n_chan,mregion), penalty(n_chan,mregion), &
        error(n_chan,mregion), use(n_chan,mregion), &
        frequency(n_chan,mregion))
 
@@ -178,13 +188,20 @@ program bcor
               count(j,k) = 0.0
               penalty(j,k) = 0.0
            endif
-           total_cor(j,k,ii)  = 0.0
-           fixang_cor(j,k,ii) = 0.0
-           lapse_cor(j,k,ii)  = 0.0
-           lapse2_cor(j,k,ii) = 0.0
-           const_cor(j,k,ii)  = 0.0
-           scangl_cor(j,k,ii) = 0.0
-           clw_cor(j,k,ii)    = 0.0
+           total_cor(j,k,ii)      = 0.0
+           fixang_cor(j,k,ii)     = 0.0
+           lapse_cor(j,k,ii)      = 0.0
+           lapse2_cor(j,k,ii)     = 0.0
+           const_cor(j,k,ii)      = 0.0
+           scangl_cor(j,k,ii)     = 0.0
+           clw_cor(j,k,ii)        = 0.0
+           cos_ssmis_cor(j,k,ii)  = 0.0
+           sin_ssmis_cor(j,k,ii)  = 0.0
+           emiss_cor(j,k,ii)      = 0.0
+           ordang4_cor(j,k,ii)    = 0.0
+           ordang3_cor(j,k,ii)    = 0.0
+           ordang2_cor(j,k,ii)    = 0.0
+           ordang1_cor(j,k,ii)    = 0.0
         end do
      end do
   end do
@@ -298,36 +315,77 @@ program bcor
 
 !          If observation was assimilated, accumulate sums in appropriate regions
            if (data_chan(j)%errinv > 1.e-6) then
-              pen           =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
-              cor_total(1)  =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)
-              cor_fixang(1) =  data_chan(j)%bifix(angord+1)
-              cor_lapse(1)  =  data_chan(j)%bilap
-              cor_lapse2(1) =  data_chan(j)%bilap2
-              cor_const(1)  =  data_chan(j)%bicons
-              cor_scangl(1) =  data_chan(j)%biang
-              cor_clw(1)    =  data_chan(j)%biclw
+              pen              =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
+              cor_total(1)     =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)
+              cor_fixang(1)    =  data_chan(j)%bifix(angord+1)
+              cor_lapse(1)     =  data_chan(j)%bilap
+              cor_lapse2(1)    =  data_chan(j)%bilap2
+              cor_const(1)     =  data_chan(j)%bicons
+              cor_scangl(1)    =  data_chan(j)%biang
+              cor_clw(1)       =  data_chan(j)%biclw
+              cor_cos_ssmis(1) =  data_chan(j)%bicos
+              cor_sin_ssmis(1) =  data_chan(j)%bisin
+              cor_emiss(1)     =  data_chan(j)%biemis
+              if (angord >= 4 ) then
+                 cor_ordang4(1)   =  data_chan(j)%bifix(1)
+                 cor_ordang3(1)   =  data_chan(j)%bifix(2)
+                 cor_ordang2(1)   =  data_chan(j)%bifix(3)
+                 cor_ordang1(1)   =  data_chan(j)%bifix(4)
+              else
+                 cor_ordang4(1)   =  0.0 
+                 cor_ordang3(1)   =  0.0 
+                 cor_ordang2(1)   =  0.0 
+                 cor_ordang1(1)   =  0.0 
+              endif
+!              do i=1,angord
+!                 cor_ordang4
+!           write(string,'(i2.2)') header_fix%angord-i+1
+!           data_name%chn(15+i)= 'bifix' // string
+!              end do
 
-              cor_total(2)  =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)**2
-              cor_fixang(2) =  (data_chan(j)%bifix(angord+1))**2
-              cor_lapse(2)  =  (data_chan(j)%bilap)**2
-              cor_lapse2(2) =  (data_chan(j)%bilap2)**2
-              cor_const(2)  =  (data_chan(j)%bicons)**2
-              cor_scangl(2) =  (data_chan(j)%biang)**2
-              cor_clw(2)    =  (data_chan(j)%biclw)**2
-           
+
+              cor_total(2)     =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)**2
+              cor_fixang(2)    =  (data_chan(j)%bifix(angord+1))**2
+              cor_lapse(2)     =  (data_chan(j)%bilap)**2
+              cor_lapse2(2)    =  (data_chan(j)%bilap2)**2
+              cor_const(2)     =  (data_chan(j)%bicons)**2
+              cor_scangl(2)    =  (data_chan(j)%biang)**2
+              cor_clw(2)       =  (data_chan(j)%biclw)**2
+              cor_cos_ssmis(2) =  data_chan(j)%bicos**2
+              cor_sin_ssmis(2) =  data_chan(j)%bisin**2
+              cor_emiss(2)     =  data_chan(j)%biemis**2
+              if (angord >= 4 ) then
+                 cor_ordang4(1)   =  data_chan(j)%bifix(1)**2
+                 cor_ordang3(1)   =  data_chan(j)%bifix(2)**2
+                 cor_ordang2(1)   =  data_chan(j)%bifix(3)**2
+                 cor_ordang1(1)   =  data_chan(j)%bifix(4)**2
+              else
+                 cor_ordang4(2)   =  0.0 
+                 cor_ordang3(2)   =  0.0 
+                 cor_ordang2(2)   =  0.0 
+                 cor_ordang1(2)   =  0.0 
+              end if
+ 
               do i=1,nsub
                  k=jsub(i)
                  count(j,k) = count(j,k) +1.0 
                  penalty(j,k) = penalty(j,k) + pen
 
                  do ii=1,2
-                    total_cor(j,k,ii)  = total_cor(j,k,ii)  + cor_total(ii)
-                    fixang_cor(j,k,ii) = fixang_cor(j,k,ii) + cor_fixang(ii)
-                    lapse_cor(j,k,ii)  = lapse_cor(j,k,ii)  + cor_lapse(ii)
-                    lapse2_cor(j,k,ii) = lapse2_cor(j,k,ii) + cor_lapse2(ii)
-                    const_cor(j,k,ii)  = const_cor(j,k,ii)  + cor_const(ii)
-                    scangl_cor(j,k,ii) = scangl_cor(j,k,ii) + cor_scangl(ii)
-                    clw_cor(j,k,ii)    = clw_cor(j,k,ii)    + cor_clw(ii)
+                    total_cor(j,k,ii)     = total_cor(j,k,ii)     + cor_total(ii)
+                    fixang_cor(j,k,ii)    = fixang_cor(j,k,ii)    + cor_fixang(ii)
+                    lapse_cor(j,k,ii)     = lapse_cor(j,k,ii)     + cor_lapse(ii)
+                    lapse2_cor(j,k,ii)    = lapse2_cor(j,k,ii)    + cor_lapse2(ii)
+                    const_cor(j,k,ii)     = const_cor(j,k,ii)     + cor_const(ii)
+                    scangl_cor(j,k,ii)    = scangl_cor(j,k,ii)    + cor_scangl(ii)
+                    clw_cor(j,k,ii)       = clw_cor(j,k,ii)       + cor_clw(ii)
+                    cos_ssmis_cor(j,k,ii) = cos_ssmis_cor(j,k,ii) + cor_cos_ssmis(ii)
+                    sin_ssmis_cor(j,k,ii) = sin_ssmis_cor(j,k,ii) + cor_sin_ssmis(ii)
+                    emiss_cor(j,k,ii)     = emiss_cor(j,k,ii)     + cor_emiss(ii)
+                    ordang4_cor(j,k,ii)   = ordang4_cor(j,k,ii)   + cor_ordang4(ii)
+                    ordang3_cor(j,k,ii)   = ordang3_cor(j,k,ii)   + cor_ordang3(ii)
+                    ordang2_cor(j,k,ii)   = ordang2_cor(j,k,ii)   + cor_ordang2(ii)
+                    ordang1_cor(j,k,ii)   = ordang1_cor(j,k,ii)   + cor_ordang1(ii)
                  end do
 
               end do
@@ -349,13 +407,21 @@ program bcor
 !    Compute average and standard deviation
      do k=1,surf_nregion
         do j=1,n_chan
-           call avgsdv(count(j,k),total_cor(j,k,1), total_cor(j,k,2), rmiss)
-           call avgsdv(count(j,k),fixang_cor(j,k,1),fixang_cor(j,k,2),rmiss)
-           call avgsdv(count(j,k),lapse_cor(j,k,1), lapse_cor(j,k,2), rmiss)
-           call avgsdv(count(j,k),lapse2_cor(j,k,1),lapse2_cor(j,k,2),rmiss)
-           call avgsdv(count(j,k),const_cor(j,k,1), const_cor(j,k,2), rmiss)
-           call avgsdv(count(j,k),scangl_cor(j,k,1),scangl_cor(j,k,2),rmiss)
-           call avgsdv(count(j,k),clw_cor(j,k,1),   clw_cor(j,k,2),   rmiss)
+           call avgsdv(count(j,k),total_cor(j,k,1),     total_cor(j,k,2),     rmiss)
+           call avgsdv(count(j,k),fixang_cor(j,k,1),    fixang_cor(j,k,2),    rmiss)
+           call avgsdv(count(j,k),lapse_cor(j,k,1),     lapse_cor(j,k,2),     rmiss)
+           call avgsdv(count(j,k),lapse2_cor(j,k,1),    lapse2_cor(j,k,2),    rmiss)
+           call avgsdv(count(j,k),const_cor(j,k,1),     const_cor(j,k,2),     rmiss)
+           call avgsdv(count(j,k),scangl_cor(j,k,1),    scangl_cor(j,k,2),    rmiss)
+           call avgsdv(count(j,k),clw_cor(j,k,1),       clw_cor(j,k,2),       rmiss)
+           call avgsdv(count(j,k),cos_ssmis_cor(j,k,1), cos_ssmis_cor(j,k,2), rmiss)
+           call avgsdv(count(j,k),sin_ssmis_cor(j,k,1), sin_ssmis_cor(j,k,2), rmiss)
+           call avgsdv(count(j,k),emiss_cor(j,k,1),     emiss_cor(j,k,2),     rmiss)
+           call avgsdv(count(j,k),ordang4_cor(j,k,1),   ordang4_cor(j,k,2),   rmiss)
+           call avgsdv(count(j,k),ordang3_cor(j,k,1),   ordang3_cor(j,k,2),   rmiss)
+           call avgsdv(count(j,k),ordang2_cor(j,k,1),   ordang2_cor(j,k,2),   rmiss)
+           call avgsdv(count(j,k),ordang1_cor(j,k,1),   ordang1_cor(j,k,2),   rmiss)
+
            if (count(j,k)>0) then
               penalty(j,k)=penalty(j,k)/count(j,k)
            else
@@ -371,13 +437,20 @@ program bcor
      write(lungrd) ((count(j,k),j=1,n_chan),k=1,surf_nregion)
      write(lungrd) ((penalty(j,k),j=1,n_chan),k=1,surf_nregion)
      do ii=1,2
-        write(lungrd) ((total_cor (j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((fixang_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((lapse_cor (j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((lapse2_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((const_cor (j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((scangl_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((clw_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((total_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((fixang_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((lapse_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((lapse2_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((const_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((scangl_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((clw_cor      (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((cos_ssmis_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((sin_ssmis_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((emiss_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang4_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang3_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang2_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang1_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
      end do
      write(6,*)'write output to lungrd=',lungrd,', file=',trim(data_file)
      close(lungrd)
@@ -386,7 +459,29 @@ program bcor
 ! Deallocate arrays
   write(6,*)' '
   write(6,*)'deallocate arrays'
-!   deallocate(io_chan,nu_chan,wavenumbr)
+  if(allocated(io_chan))       deallocate (io_chan)
+  if(allocated(nu_chan))       deallocate (nu_chan)
+  if(allocated(wavenumbr))     deallocate (wavenumbr)
+  if(allocated(total_cor))     deallocate (total_cor)
+  if(allocated(fixang_cor))    deallocate (fixang_cor)
+  if(allocated(lapse_cor))     deallocate (lapse_cor)
+  if(allocated(lapse2_cor))    deallocate (lapse2_cor)
+  if(allocated(const_cor))     deallocate (const_cor)
+  if(allocated(scangl_cor))    deallocate (scangl_cor)
+  if(allocated(clw_cor))       deallocate (clw_cor)
+  if(allocated(cos_ssmis_cor)) deallocate (cos_ssmis_cor)
+  if(allocated(sin_ssmis_cor)) deallocate (sin_ssmis_cor)
+  if(allocated(emiss_cor))     deallocate (emiss_cor)
+  if(allocated(ordang4_cor))   deallocate (ordang4_cor)
+  if(allocated(ordang3_cor))   deallocate (ordang3_cor)
+  if(allocated(ordang2_cor))   deallocate (ordang2_cor)
+  if(allocated(ordang1_cor))   deallocate (ordang1_cor)
+  if(allocated(count))         deallocate (count)
+  if(allocated(penalty))       deallocate (penalty)
+  if(allocated(error))         deallocate (error)
+  if(allocated(use))           deallocate (use)
+  if(allocated(frequency))     deallocate (frequency)
+  
 
 !  deallocate(io_chan,nu_chan,wavenumbr,total_cor,fixang_cor,lapse_cor,&
 !       lapse2_cor,const_cor,scangl_cor,clw_cor,count,penalty,error,use,&
@@ -438,13 +533,20 @@ program bcor
      write(lungrd) ((count(j,k),j=1,n_chan),k=1,surf_nregion)
      write(lungrd) ((penalty(j,k),j=1,n_chan),k=1,surf_nregion)
      do ii=1,2
-        write(lungrd) ((total_cor (j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((fixang_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((lapse_cor (j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((lapse2_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((const_cor (j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((scangl_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
-        write(lungrd) ((clw_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((total_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((fixang_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((lapse_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((lapse2_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((const_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((scangl_cor   (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((clw_cor      (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((cos_ssmis_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((sin_ssmis_cor(j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((emiss_cor    (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang4_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang3_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang2_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
+        write(lungrd) ((ordang1_cor  (j,k,ii),j=1,n_chan),k=1,surf_nregion)
      end do
      write(6,*)'write output to lungrd=',lungrd,', file=',trim(data_file)
      close(lungrd)

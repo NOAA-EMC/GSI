@@ -38,7 +38,8 @@ subroutine prt_guess(sgrep)
   use guess_grids, only: ntguessig,ntguessfc
   use radinfo, only: predx
   use pcpinfo, only: predxp
-  use jfunc, only: npclen,nsclen,cwgues
+  use aircraftinfo, only: predt
+  use jfunc, only: npclen,nsclen,ntclen,cwgues
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
@@ -54,10 +55,10 @@ subroutine prt_guess(sgrep)
   integer(i_kind) ntsig
   integer(i_kind) ntsfc
   integer(i_kind) nguess,ier
-  real(r_kind) :: zloc(3*nvars+2),zall(3*nvars+2,npe),zz
-  real(r_kind) :: zmin(nvars+2),zmax(nvars+2),zavg(nvars+2)
+  real(r_kind) :: zloc(3*nvars+3),zall(3*nvars+3,npe),zz
+  real(r_kind) :: zmin(nvars+3),zmax(nvars+3),zavg(nvars+3)
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it
-  character(len=4) :: cvar(nvars+2)
+  character(len=4) :: cvar(nvars+3)
 
 !*******************************************************************************
 
@@ -93,6 +94,7 @@ subroutine prt_guess(sgrep)
   cvar(12)='SST '
   cvar(13)='radb'
   cvar(14)='pcpb'
+  cvar(15)='aftb'
 
   zloc(1)          = sum   (ges_u   (2:lat1+1,2:lon1+1,1:nsig,ntsig))
   zloc(2)          = sum   (ges_v   (2:lat1+1,2:lon1+1,1:nsig,ntsig))
@@ -132,10 +134,11 @@ subroutine prt_guess(sgrep)
   zloc(2*nvars+12) = maxval(sfct    (2:lat1+1,2:lon1+1,       ntsfc))
   zloc(3*nvars+1)  = real(lat1*lon1*nsig*ntsig,r_kind)
   zloc(3*nvars+2)  = real(lat1*lon1*ntsig,r_kind)
+  zloc(3*nvars+3)  = real(lat1*lon1*nsig*ntsig,r_kind)
 
 ! Gather contributions
-  call mpi_allgather(zloc,3*nvars+2,mpi_rtype, &
-                   & zall,3*nvars+2,mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(zloc,3*nvars+3,mpi_rtype, &
+                   & zall,3*nvars+3,mpi_rtype, mpi_comm_world,ierror)
 
   if (mype==0) then
      zmin=zero
@@ -165,10 +168,15 @@ subroutine prt_guess(sgrep)
         zmax(nvars+2) = maxval(predxp(:,:))
         zavg(nvars+2) = sum(predxp(:,:))/npclen
      endif
+     if (ntclen>0) then
+        zmin(nvars+3)  = minval(predt(:,:))
+        zmax(nvars+3)  = maxval(predt(:,:))
+        zavg(nvars+3)  = sum(predt(:,:))/ntclen
+     endif
 
      write(6,'(80a)') ('=',ii=1,80)
      write(6,'(a,2x,a,10x,a,17x,a,20x,a)') 'Status ', 'Var', 'Mean', 'Min', 'Max'
-     do ii=1,nvars+2
+     do ii=1,nvars+3
         write(6,999)sgrep,cvar(ii),zavg(ii),zmin(ii),zmax(ii)
      enddo
      write(6,'(80a)') ('=',ii=1,80)

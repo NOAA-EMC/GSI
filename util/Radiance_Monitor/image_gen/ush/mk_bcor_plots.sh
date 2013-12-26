@@ -122,7 +122,7 @@ ${COMPRESS} ${imgndir}/*.ctl
 #   Submit plot jobs
 #
 
-  plot_list="count total fixang lapse lapse2 const scangl clw"
+  plot_list="count total fixang lapse lapse2 const scangl clw cos sin emiss ordang4 ordang3 ordang2 ordang1"
 
   export PLOT_WORK_DIR=${PLOT_WORK_DIR}/plotbcor_${SUFFIX}
   if [[ -d ${PLOT_WORK_DIR} ]]; then 
@@ -154,7 +154,7 @@ ${COMPRESS} ${imgndir}/*.ctl
      ntasks=`cat $cmdfile|wc -l `
 
      if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-        wall_tm="1:30"
+        wall_tm="2:30"
      else
         wall_tm="0:45"
      fi
@@ -174,7 +174,7 @@ ${COMPRESS} ${imgndir}/*.ctl
         echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
 
         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-           wall_tm="0:50:00"
+           wall_tm="1:30:00"
         else
            wall_tm="0:25:00"
         fi
@@ -210,7 +210,7 @@ ${COMPRESS} ${imgndir}/*.ctl
         ntasks=`cat $cmdfile|wc -l `
 
         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-           wall_tm="2:00"
+           wall_tm="2:30"
         else
            wall_tm="1:00"
         fi

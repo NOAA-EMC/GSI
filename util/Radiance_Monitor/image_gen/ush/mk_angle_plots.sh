@@ -118,7 +118,7 @@ cd $PLOT_WORK_DIR
   # Loop over satellite types.  Submit job to make plots.
   #
 
-list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
+list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos sin emiss ordang4 ordang3 ordang2 ordang1"
 
   if [[ ${MY_MACHINE} = "wcoss" ]]; then
      suffix=a
@@ -144,7 +144,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
         wall_tm="1:45"
      fi
 
-     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 200 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+     $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
      
   else				# Zeus/linux platform
      for sat in ${SATLIST}; do
@@ -179,7 +179,7 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw"
 
 echo starting $bigSATLIST
 
-set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw
+set -A list count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos sin emiss ordang4 ordang3 ordang2 ordang1
 
 for sat in ${bigSATLIST}; do
    echo processing $sat in $bigSATLIST
@@ -204,12 +204,12 @@ for sat in ${bigSATLIST}; do
          chmod 755 $cmdfile
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-            wall_tm="2:30"
+            wall_tm="3:00"
          else
             wall_tm="1:00"
          fi
 
-         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
+         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} -R affinity[core] -J ${jobname} $cmdfile
 
          (( batch=batch+1 ))
 

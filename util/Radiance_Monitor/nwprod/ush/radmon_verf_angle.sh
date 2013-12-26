@@ -125,7 +125,6 @@ else
 fi
 
 err=0
-angle_exec=radmon_angle.${RAD_AREA}
 angle_exec=radmon_angle
 scaninfo=scaninfo.txt
 
