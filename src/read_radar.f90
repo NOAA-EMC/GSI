@@ -1463,9 +1463,9 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   else if(hdr(1)== two)then
      cstaid='G-IV    '
   else if(hdr(1)== three)then
-     cstaid='AOC'
+     cstaid='AOC     '
   else
-     print *,'Unknown Antenna Number'
+     cstaid='UNKNOWN '
   endif
 
   kx=990+nint(hdr(1))
