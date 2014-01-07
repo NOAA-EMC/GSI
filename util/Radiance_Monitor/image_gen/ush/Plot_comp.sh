@@ -70,6 +70,18 @@ fi
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
 #--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+#--------------------------------------------------------------------
 # Source necessary configuration files
 #--------------------------------------------------------------------
 data="ges"
@@ -97,11 +109,11 @@ echo ${IMGNDIR}
 
 export TANKDIR1=${TANKDIR}/${SUFFIX1}
 export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
-prodate1=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR1}`
+prodate1=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR1}`
 
 export TANKDIR2=${TANKDIR}/${SUFFIX2}
 export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
-prodate2=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR2}`
+prodate2=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR2}`
 
 #-------------------------------------------------------------------
 #  SUFFIX3 may or may not exist (plots can include 2 or 3 different
@@ -111,7 +123,7 @@ suff3=`echo ${#SUFFIX3}`
 if [[ $suff3 -gt 0 ]]; then
    export TANKDIR3=${TANKDIR}/${SUFFIX3}
    export IMGNDIR3=${IMGNDIR}/${SUFFIX3}
-   prodate3=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR3}`
+   prodate3=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR3}`
 fi
 
 #--------------------------------------------------------------
@@ -189,12 +201,6 @@ echo $SATYPE
 
 
 #------------------------------------------------------------------
-# Export variables and submit plot script
-#------------------------------------------------------------------
-export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR1,TANKDIR2,TANKDIR3,IMGNDIR1,IMGNDIR2,IMGNDIR3,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SUFFIX1,SUFFIX2,SUFFIX3,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,COMPRESS,UNCOMPRESS,Z,listvar
-
-
-#------------------------------------------------------------------
 # submit plot script
 #------------------------------------------------------------------
 plotfile=${SCRIPTS}/plot_fs_obsnum_comp.sh
@@ -211,12 +217,10 @@ done
 ntasks=`cat $cmdfile|wc -l`
 ((nprocs=(ntasks+1)/2))
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   $SUB -a $ACCOUNT -e $listvar -j $jobname -u $USER -t 0:10:00 -o $logfile -p $ntasks/1/N -q dev -g $USER_CLASS  /usr/bin/poe -cmdfile $cmdfile -pgmmodel mpmd -ilevel 2 -labelio yes -stdoutmode ordered
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q dev -n 1,$ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
+if [[ $MY_MACHINE = "wcoss" ]]; then
+   $SUB -P $PROJECT -q $JOB_QUEUE -M 80 -R affinity[core] -n 1,$ntasks -o ${logfile} -W 0:20 -J ${jobname} <$cmdfile
 elif [[ $MY_MACHINE = "zeus" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -v $listvar -j oe -o $logfile $cmdfile
+   $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N $jobname -V -j oe -o $logfile $cmdfile
 fi
 
 

@@ -23,14 +23,14 @@ include $(MAKE_CONF)
 
 
 
-CMD = radmon_bcoef.glb
+CMD = radmon_bcoef
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb
+	rm -f radmon_bcoef 
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
