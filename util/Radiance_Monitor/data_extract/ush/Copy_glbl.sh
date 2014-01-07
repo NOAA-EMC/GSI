@@ -31,11 +31,10 @@ fi
 
 this_file=`basename $0`
 this_dir=`dirname $0`
+compress="/usrx/local/bin/pigz -f"
 
 export SUFFIX=$1
 export DATE=$2
-
-jobname=link_${SUFFIX}
 
 echo SUFFIX = $SUFFIX
 echo DATE   = $DATE
@@ -54,19 +53,36 @@ else
    exit 2
 fi
 
+if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+   . ${top_parm}/RadMon_user_settings
+else
+   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   exit 3
+fi
+
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 export USHgfs=${USHgfs:-$HOMEgfs/ush}
 . ${PARMverf_rad}/glbl_conf
 
-mkdir -p $TANKDIR
-mkdir -p $LOGSverf_rad
+
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
 
 #---------------------------------------------------------------
-# Create working directory and move to it
+# Create any missing directories.
 #---------------------------------------------------------------
-#workdir=$WORKverf_rad/Copy_${SUFFIX}_${DATE}
-#mkdir -p $workdir
-#cd $workdir
+mkdir -p $TANKDIR
+mkdir -p $LOGSverf_rad
 
 day=`echo $DATE|cut -c1-8`
 cycle=`echo $DATE|cut -c9-10`
@@ -98,6 +114,38 @@ if [[ ! -s gdas_radmon_satype.txt  ]]; then
       echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKDIR}/radmon.${prev_day}
    fi 
 fi
+
+
+#day=`echo $DATE|cut -c1-8`
+#cycle=`echo $DATE|cut -c9-10`
+#echo day  = $day
+
+#PDATE=${DATE}
+#echo PDATE = $PDATE
+
+#prev=`$NDATE -06 $PDATE`
+#prev_day=`echo $prev|cut -c1-8`
+#prev_cyc=`echo $prev|cut -c9-10`
+#echo prev_day, prev_cyc = $prev_day, $prev_cyc
+#echo next_day, next_cyc = $next_day, $next_cyc
+
+
+#DATDIR=${DATDIR:-/com/verf/prod/radmon.${day}}
+
+#test_dir=${TANKDIR}/radmon.${day}
+
+#if [[ ! -d ${test_dir} ]]; then
+#   mkdir -p ${test_dir}
+#fi
+#cd ${test_dir}
+
+#if [[ ! -s gdas_radmon_satype.txt  ]]; then
+#   if [[ -s ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
+#      $NCP ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt .
+#   else
+#      echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKDIR}/radmon.${prev_day}
+#   fi 
+#fi
 
 
 nfile_src=`ls -l ${DATDIR}/*${PDATE}*ieee_d* | egrep -c '^-'`
@@ -154,17 +202,19 @@ if [[ $exit_value == 0 ]]; then
       tar -rvf ${valid_tar} stdout.validate.*.${cycle}
    fi
 
-#--------------------------------------------------------------------
-#  Create a new penalty error report using the new bad_pen file
-#--------------------------------------------------------------------
-$NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
-
+   #--------------------------------------------------------------------
+   #  Remove extra spaces in new bad_pen file
+   #--------------------------------------------------------------------
+   bad_pen=bad_pen.${PDATE}
+   gawk '{$1=$1}1' $bad_pen > tmp.bad_pen
+   mv -f tmp.bad_pen $bad_pen
+    
    #--------------------------------------------------------------------
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------
-   #$NCP $USHverf_rad/radmon_err_rpt.sh      ${test_dir}/.
-   $NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
-   #$NCP $USHgfs/radmon_getchgrp.pl      ${test_dir}/.
+   $NCP $USHverf_rad/radmon_err_rpt.sh      ${test_dir}/.
+   #$NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
+   $NCP $USHgfs/radmon_getchgrp.pl           ${test_dir}/.
 
    prev_bad_pen=${TANKDIR}/radmon.${prev_day}/bad_pen.${prev}
    bad_pen=bad_pen.${PDATE}
@@ -264,10 +314,11 @@ $NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
       opr_log_start=1
 
 
-      #-----------------------------------------------------------------------------
-      #  If $outfile exists, replace existing penalty report with $outfile contents 
-      #  or remove the penalty report altogether if there is no $outfile
-      #-----------------------------------------------------------------------------
+      #------------------------------------------------------------------------
+      #  If $outfile exists, replace existing penalty report with $outfile 
+      #  contents or remove the penalty report altogether if there is no
+      #  $outfile
+      #------------------------------------------------------------------------
       if [[ -s $outfile ]]; then
          opr_log_end=`expr $opr_log_end + 1`
          gawk "NR>=$opr_log_start && NR<=$opr_log_end" ${opr_log} >> $new_log
@@ -277,8 +328,42 @@ $NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
          opr_log_end=`expr $opr_log_end - 15`
          gawk "NR>=$opr_log_start && NR<=$opr_log_end" ${opr_log} >> $new_log
       fi
+
    else
-      mv $opr_log $new_log
+      if [[ -s $outfile ]]; then
+         rm -f report.txt
+         cp $opr_log $new_log
+
+         echo "Begin Cycle Data Integrity Report" > report.txt  
+
+         echo " "        >> report.txt
+         echo "Cycle Data Integrity Report" >> report.txt
+         echo "${PDATE}" >> report.txt
+         echo " "        >> report.txt
+         echo "Region Definitions:" >> report.txt
+         echo " "        >> report.txt
+    
+         echo "  1  Global              (90S-90N, 0-360E)" >> report.txt
+         echo " "        >> report.txt
+         echo " "        >> report.txt
+         echo "Penalty values outside of the established normal range were found" >> report.txt
+         echo "for these sensor/channel/regions in the past two cycles: " >> report.txt
+         echo " "        >> report.txt
+         echo "Questionable Penalty Values " >> report.txt
+         echo "============ ======= ======      Cycle                 Penalty          Bound" >> report.txt
+         echo "                                 -----                 -------          ----- " >> report.txt
+         echo " "        >> report.txt
+         cat $outfile >> report.txt
+         echo " "        >> report.txt
+         echo " "        >> report.txt
+         echo " "        >> report.txt
+         echo "End Cycle Data Integrity Report" >> report.txt  
+
+         cat report.txt >> $new_log
+
+      else
+         mv $opr_log $new_log
+      fi
    fi
 
    if [[ ! -d ${LOGDIR} ]]; then
@@ -291,11 +376,11 @@ $NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
    rm -f $new_diag $tmp_diag
    rm -f $tmp_log
 
-   compress -f *.ctl
+   $compress *.ctl
 
 
    #--------------------------------------------------------------------
-   # Advance prodate and exit
+   # Remove processing scripts/executables and exit.
    #--------------------------------------------------------------------
    rm -f validate_time.x
    rm -f validate.sh 
@@ -311,13 +396,6 @@ $NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
 
 fi
 
-#if [[ $exit_value -eq 0 ]]; then
-#   `${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${PDATE}`
-#fi
-
-#---------------------------------------------------------------
-# Clean up working directory 
-#---------------------------------------------------------------
 
 echo end Copy_glbl.sh
 exit ${exit_value}

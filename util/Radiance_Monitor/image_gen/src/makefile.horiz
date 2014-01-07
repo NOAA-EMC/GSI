@@ -1,4 +1,5 @@
 SHELL=/bin/sh
+
 SRCS = kinds.F90 read_diag.f90 horiz.f90 create_ctl_horiz.f90 \
 	update_ctl_horiz.f90
 
@@ -17,18 +18,18 @@ MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 
-CMD = horiz.rgn.x
+CMD = horiz.x
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.rgn.x
+	rm -f *.x
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
-	cp ${CMD} ../../exec/.
+	cp ${CMD} ../exec/.
 
 read_diag.o : read_diag.f90
 	$(CF) $(FFLAGS) -c $(*).f90

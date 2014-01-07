@@ -121,7 +121,6 @@ export TANKverf_rad=${TANKverf}/radmon.${PDY}
 
 #  Filenames
 export biascr=${biascr:-$COMOUT/gdas1.t${cyc}z.abias}
-export satang=${satang:-$COMOUT/gdas1.t${cyc}z.satang}
 export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
 export satype_file=${satype_file:-gdas_radmon_satype.txt}
 export INISCRIPT=${INISCRIPT}
@@ -163,9 +162,6 @@ if [[ "$VERBOSE" = "YES" ]]; then
    if [[ -s ${radstat} ]]; then
       echo ${radstat} is available
    fi
-   if [[ -s ${satang} ]]; then
-      echo ${satang} is available
-   fi
    if [[ -s ${biascr} ]]; then
       echo ${biascr} is available
    fi
@@ -173,7 +169,7 @@ fi
 #####################################################################
 
 data_available=0
-if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
+if [[ -s ${radstat} && -s ${biascr} ]]; then
    data_available=1                                         
 
    #------------------------------------------------------------------
@@ -183,7 +179,6 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
 
    cd ${DATA}
    $NCP $biascr  ./biascr.$PDATE
-   $NCP $satang  ./satang.$PDATE
    $NCP $radstat ./radstat.$PDATE
 
    tar -xvf radstat.$PDATE
@@ -285,11 +280,6 @@ if [[ -s ${radstat} && -s ${satang} && -s ${biascr} ]]; then
          ${UNCOMPRESS} ./${type}_anl.${Z}
       fi
    done
-   # TMP HACK 
-   if [[ $MY_MACHINE = 'wcoss' && $SUFFIX = 'nrx' ]]; then 
-      export Z="gz"
-   fi
-   # /TMP HACK 
 
    #------------------------------------------------------------------
    #   Run the child sccripts.
