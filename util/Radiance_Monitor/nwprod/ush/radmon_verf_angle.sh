@@ -125,7 +125,7 @@ else
 fi
 
 err=0
-angle_exec=radmon_angle.${RAD_AREA}
+angle_exec=radmon_angle
 scaninfo=scaninfo.txt
 
 if [[ "$VERBOSE" = "YES" ]]; then
@@ -142,10 +142,9 @@ $LOGSCRIPT
 #   Copy extraction program and supporting files to working directory
 
 $NCP ${EXECgfs}/${angle_exec}  ./
-$NCP $FIXgfs/radmon_scaninfo.txt  ./${scaninfo}
-$NCP ${satang} ./satang.txt
+$NCP $FIXgfs/gdas_radmon_scaninfo.txt  ./${scaninfo}
 
-if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} || ! -s ./satang.txt ]]; then
+if [[ ! -s ./${angle_exec} || ! -s ./${scaninfo} ]]; then
    err=2
 else
 #--------------------------------------------------------------------
@@ -199,6 +198,7 @@ cat << EOF > input
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
+  rad_area='${RAD_AREA}',
  /
 EOF
          $TIMEX ./${angle_exec} < input >   ${stdout_file}

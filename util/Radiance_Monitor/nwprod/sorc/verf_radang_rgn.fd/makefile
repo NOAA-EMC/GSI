@@ -9,10 +9,10 @@
 
 SHELL=/bin/sh
 SRCS = kinds.F90 read_diag.f90 angle_bias.f90 \
-        create_ctl_angle.f90 read_satang.f90
+        create_ctl_angle.f90
 
 OBJS = kinds.o read_diag.o angle_bias.o \
-	create_ctl_angle.o read_satang.o
+	create_ctl_angle.o 
 
 #
 # *****************************************************************
@@ -44,9 +44,6 @@ angle_bias.o : angle_bias.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
 create_ctl_angle.o : create_ctl_angle.f90
-	$(CF) $(FFLAGS) -c $(*).f90
-
-read_satang.o : read_satang.f90
 	$(CF) $(FFLAGS) -c $(*).f90
 
 kinds.o : kinds.F90

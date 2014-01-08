@@ -34,6 +34,7 @@ satnam=subwrd(lin1,4)
 satnum=subwrd(lin1,5)
 nchan=subwrd(lin1,6)
 sndr=substr(satnam, 1, 5)
+say 'satnam = 'satnam
 
 if (field = obs)
  type="observation (K)"
@@ -66,6 +67,12 @@ if (satnam = goes)
       lat1=0
       lat2=60
    endif
+endif
+if (satnam = seviri)
+   lon1=-80
+   lon2=80
+   lat1=-60
+   lat2=60
 endif
 if (sndr = sndrd)
   lon1=100

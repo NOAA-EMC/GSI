@@ -38,6 +38,7 @@ fi
 
 . ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 
+
 #--------------------------------------------------------------------
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
@@ -52,14 +53,24 @@ else
   exit
 fi
 
+#--------------------------------------------------------------------
+#  Check for my monitoring use.  Abort if running on prod machine.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+#--------------------------------------------------------------------
+
 log_file=${LOGSverf_rad}/Transfer_${SUFFIX}.log
 err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
 
 if [[ ${TOP_IMGNDIR} != "/" ]]; then
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      /usrx/local/bin/rsync -ave ssh --exclude *.ctl*  ${TOP_IMGNDIR}/ \
-         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       /usr/bin/rsync -ave ssh --exclude *.ctl*  ${TOP_IMGNDIR}/ \
          ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi

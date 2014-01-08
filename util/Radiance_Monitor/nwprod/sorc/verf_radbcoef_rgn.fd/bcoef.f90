@@ -41,7 +41,8 @@ program bcoef
   integer               :: imkdata              = 1
   character(3)          :: gesanl               ='ges'
   integer               :: little_endian        = 1
-  namelist /input/ satname,npredr,nchanl,iyy,imm,idd,ihh,idhh,incr,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
+  namelist /input/ satname,npredr,nchanl,iyy,imm,idd,ihh,idhh,&
+       incr,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
 
   data luname,lungrd,lunctl / 5, 51, 52 /
   data lncoef,lndiag /  21, 22 /

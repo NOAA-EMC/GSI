@@ -59,13 +59,13 @@ if [[ ! $start = "" ]]; then
    echo " " >> $err_rpt
 fi
 
-start=`grep -n 'cat report.txt' $file`
+start=`grep -n 'Begin Cycle Data Integrity Report' $file`
 if [[ ! $start = "" ]]; then
    data_start=`echo $start | sed 's/:/ /' | gawk '{print $1}'`
    data_start=`expr $data_start + 1`
 
    end=`grep -n 'End Cycle Data Integrity Report' $file`
-   data_end=`echo $end | sed 's/:/ /2' | gawk '{print $9}'`
+   data_end=`echo $end | sed 's/:/ /' | gawk '{print $1}'`
    data_end=`expr $data_end - 1`
 
    if [[ ! data_start = "" && ! data_end = "" ]]; then
