@@ -17,8 +17,7 @@
 function usage {
   echo "Usage:  MkCtl_glbl.sh suffix"
   echo "            File name for MkCtl_glbl.sh may be full or relative path"
-  echo "            Suffix is the indentifier for this data source, and should"
-  echo "             correspond to an entry in the ../../parm/data_map file."
+  echo "            Suffix is the indentifier for this data source"
 }
 
 set -ax
@@ -74,7 +73,7 @@ elif [[ $area = rgn ]]; then
    export RAD_AREA=rgn
    . ${PARMverf_rad}/rgnl_conf
 else
-  echo "Suffix $SUFFIX not found in ../../data_map file"
+  echo "area = $area -- must be either glb or rgn"
   exit 3 
 fi
 
@@ -87,10 +86,10 @@ export RUN_ENVIR=dev
 
 #---------------------------------------------------------------
 # Get date of cycle to process.  Start with the last processed
-# date in the data_map file and work backwards until we find a
+# date in the $TANKDIR and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
 export DATDIR=$RADSTAT_LOCATION
    
 ctr=0
@@ -107,12 +106,12 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
    if [[ -s $testdir/gdas1.t${CYA}z.radstat ]]; then
 
       export biascr=${testdir}/gdas1.t${CYA}z.abias
-      export satang=${testdir}/gdas1.t${CYA}z.satang
+#      export satang=${testdir}/gdas1.t${CYA}z.satang
       export radstat=${testdir}/gdas1.t${CYA}z.radstat
       need_radstat=0
    elif [[ -s $testdir/radstat.gdas.${PDATE} ]]; then
       export biascr=$DATDIR/biascr.gdas.${PDATE}  
-      export satang=$DATDIR/satang.gdas.${PDATE}
+#      export satang=$DATDIR/satang.gdas.${PDATE}
       export radstat=$DATDIR/radstat.gdas.${PDATE}
       need_radstat=0
    else
@@ -149,15 +148,14 @@ if [[ -s ${radstat} ]]; then
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt
 
-   export listvar=MP_SHARED_MEMORY,MEMORY_AFFINITY,envir,RUN_ENVIR,PDY,cyc,job,SENDSMS,DATA_IN,DATA,jlogfile,HOMEgfs,TANKverf,MAIL_TO,MAIL_CC,VERBOSE,radstat,satang,biascr,USE_ANL,satype_file,base_file,MAKE_DATA,MAKE_CTL,listvar
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
    #------------------------------------------------------------------
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o $LOGDIR/make_ctl.${PDY}.${cyc}.log  $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/mk_ctl.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l walltime=0:05:00 -v $listvar -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -A $ACCOUNT -l walltime=0:05:00 -V -j oe -o $LOGDIR/make_ctl.${PDY}.${cyc}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
 
 

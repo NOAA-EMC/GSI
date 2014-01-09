@@ -7,6 +7,7 @@
 
 
 echo "--> start validate.sh"
+echo "       TEST:  COMPRESS = $COMPRESS"
 
    nargs=$#
    if [[ $nargs -ne 1 ]]; then
@@ -24,11 +25,14 @@ echo "--> start validate.sh"
    ihh=`echo $PDATE | cut -c9-10`
 
 #
-#  Get the radmon_base.tar file and open it
+#  Get the gdas_radmon_base.tar file and open it
 #
-   cp ~/nbns/stats/opr/info/radmon_base.tar .
-   tar -xvf radmon_base.tar
-   rm -f radmon_base.tar
+   cp ~/nbns/stats/wopr/info/gdas_radmon_base.tar* .
+   if [[ -s gdas_radmon_base.tar.gz ]]; then
+      gunzip gdas_radmon_base.tar.gz
+   fi
+   tar -xvf gdas_radmon_base.tar
+   rm -f gdas_radmon_base.tar
 
 #
 #  Get satype list, loop over satype
@@ -55,8 +59,8 @@ echo "--> start validate.sh"
    for sat in ${SATYPE_LIST}; do
       echo sat = $sat
 
-      uncompress time.${sat}.${PDATE}.ieee_d.Z 
-      uncompress time.${sat}.ctl.Z
+      gunzip time.${sat}.${PDATE}.ieee_d.gz
+      gunzip time.${sat}.ctl.gz
 
 
       nchan=`cat time.${sat}.ctl | gawk '/title/{print $NF}'`
@@ -91,10 +95,10 @@ cat << EOF > input
  /
 EOF
 
-      $TIMEX ./validate_time.x < input >   stdout.validate.$sat.$ihh
+      ./validate_time.x < input >   stdout.validate.$sat.$ihh
 
 
-      compress time.${sat}.${PDATE}.ieee_d
+      gzip time.${sat}.${PDATE}.ieee_d
 
    done              #  end loop over SATYPE_LIST
 

@@ -2,8 +2,8 @@ program angle
   use read_diag
 
   implicit none
-  integer ntype,mstep
-  parameter (ntype=21,mstep=100)
+  integer ntype,mstep,nregion
+  parameter (ntype=21,mstep=100,nregion=1)
 
   character(10),dimension(ntype):: ftype
   character(8) stid
@@ -12,6 +12,7 @@ program angle
   character(20) dum,satsis,satscan_sis
   character(40) string,diag_rad,data_file,ctl_file
   character(10) suffix
+  character(40) region
 
   integer luname,lungrd,lunctl,lndiag,lunang
   integer iyy,imm,idd,ihh,idhh,incr,iread,iflag,ipos
@@ -25,6 +26,7 @@ program angle
   character(1) cflg
   real rang,pen
   real weight,rlat,rlon,rmiss,obs,biascor,obsges,obsgesnbc,rterm,rread
+  real rlatmin,rlatmax,rlonmin,rlonmax
   real,dimension(2):: cor_tot,nbc_omg,bc_omg
   real,dimension(2):: cor_fixang,cor_lapse,cor_lapse2,cor_const,cor_scangl,cor_clw
 
@@ -34,7 +36,6 @@ program angle
   real,allocatable,dimension(:,:,:):: tot_cor,omg_nbc,omg_bc
   real,allocatable,dimension(:,:,:):: fixang_cor,lapse_cor,lapse2_cor
   real,allocatable,dimension(:,:,:):: const_cor,scangl_cor,clw_cor 
-
 
 ! Variables for reading satellite data
   type(diag_header_fix_list )             :: header_fix
@@ -65,6 +66,10 @@ program angle
        'omgnbc_2', 'total_2', 'omgbc_2', &
        'fixang_2', 'lapse_2', 'lapse2_2', & 
        'const_2', 'scangl_2', 'clw_2' /
+  data rlonmin / -180./
+  data rlonmax / 180./
+  data rlatmin / -90./
+  data rlatmax / 90./
 
 
 !************************************************************************
@@ -192,6 +197,11 @@ program angle
         end do
   end do
 
+  do j=1,n_chan
+     do i=1,mstep
+        timang(i,j) = rmiss
+     end do
+  end do
 
 ! Extract satinfo relative index
   do j=1,n_chan
@@ -292,10 +302,10 @@ program angle
   write(6,*)' '
 
 
-  open(lunang,file='satang.txt',form='formatted')
-  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-  close(lunang)
-  write(6,*)'read satang.txt'
+!  open(lunang,file='satang.txt',form='formatted')
+!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
+!  close(lunang)
+!  write(6,*)'read satang.txt'
 
 ! Create control file
   if ( imkctl == 1 ) then
@@ -308,7 +318,8 @@ program angle
      endif
 
      call create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
-          ctl_file,lunctl,rmiss,dfile,satype,dplat,1,nu_chan,&
+          ctl_file,lunctl,rmiss,dfile,satype,dplat,nregion,region,&
+          rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,&
           use,error,frequency,wavenumbr,nstep,start,step,little_endian)
   endif
 
@@ -361,13 +372,20 @@ program angle
        tot_cor(mstep,n_chan,2),&
        omg_bc(mstep,n_chan,2))
 
-  open(lunang,file='satang.txt',form='formatted')
-  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-  close(lunang)
-  write(6,*)'read satang.txt'
+!  open(lunang,file='satang.txt',form='formatted')
+!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
+!  close(lunang)
+!  write(6,*)'read satang.txt'
 
   write(6,*)'load missing value ',rmiss,' into output arrays.  ',&
        nstep,n_chan
+
+  do j=1,n_chan
+     do i=1,mstep
+        timang(i,j) = rmiss
+     end do
+  end do
+
   do ii=1,2
         do j=1,n_chan
            do i=1,mstep

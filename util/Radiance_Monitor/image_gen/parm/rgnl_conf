@@ -21,7 +21,8 @@ export WEBDIR=${WEBDIR}/regional/${SUFFIX}
 export TOP_IMGNDIR=${MY_TANKDIR}/imgn/regional/${SUFFIX}
 export IMGNDIR=${MY_TANKDIR}/imgn/regional/${SUFFIX}/pngs
 export TANKDIR=${MY_TANKDIR}/stats/regional/${SUFFIX}
-
+export TOP_ARCHIVE_DIR=${ARCHIVE_DIR}
+export ARCHIVE_DIR=${ARCHIVE_DIR}/regional/${SUFFIX}
 
 #
 #  GrADS script definitions

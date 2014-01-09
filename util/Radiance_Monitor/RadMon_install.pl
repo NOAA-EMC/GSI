@@ -202,18 +202,21 @@
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-GDAS-MTN}";
-   if( $machine eq "zeus" ) {
-      $account = "export ACCOUNT=\${ACCOUNT:-ada}";
-   }
-   elsif( $machine eq "wcoss" ) {
-      $account = "export ACCOUNT=\${ACCOUNT:-dev}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-ada}";
+   if( $machine ne "zeus" ) {
+      $account = "export ACCOUNT=";
    }
 
-   my $user_class = "export USER_CLASS:-dev";
-   if( $machine ne "ccs" ) {
-      $user_class="";
+   my $project = "export PROJECT=\${PROJECT:-GDAS-T20}";
+   if( $machine ne "wcoss" ) {
+      $project="export PROJECT=";
    } 
+
+   my $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev}";
+   if( $machine ne "wcoss" ) {
+      $job_queue="export JOB_QUEUE=";
+   } 
+
 
     my $uname = $ENV{ 'USER' };
     my $hpss_dir = "export HPSS_DIR=\${HPSS_DIR:-/NCEPDEV/hpssuser/g01/$uname/nbns/stats}";
@@ -229,8 +232,11 @@
        if ($line =~ m/export ACCOUNT/) {
           $line = $account;
        } 
-       elsif( $line =~ m/export USER_CLASS/ ){
-          $line = $user_class;
+       elsif( $line =~ m/export PROJECT/ ){
+          $line = $project;
+       }
+       elsif( $line =~ m/export JOB_QUEUE/ ){
+          $line = $job_queue;
        }
        elsif( $line =~ m/export HPSS_DIR/ ){
           $line = $hpss_dir;

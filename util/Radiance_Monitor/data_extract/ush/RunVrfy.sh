@@ -34,6 +34,18 @@ if [[ $nargs -lt 1 ]]; then
    exit 1
 fi
 
+#
+#  Check for my monitoring use.  Abort if running on prod machine.
+#
+   machine=`hostname | cut -c1`
+   prod=`cat /etc/prod | cut -c1`
+
+   if [[ $machine = $prod ]]; then
+      exit 10
+   fi
+#
+#  End check.
+
 this_file=`basename $0`
 this_dir=`dirname $0`
 
@@ -68,6 +80,19 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+
 log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log
 err_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.err
 
@@ -96,21 +121,16 @@ fi
 
 #--------------------------------------------------------------------
 # If we don't have a START_DATE the find the last processed cycle, 
-#   and add 6 hrs to it.
+#   and add 6 hrs to it. 
 #--------------------------------------------------------------------
 start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -gt 0 ]]; then
    pdate=`${NDATE} -06 $START_DATE`
-   ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
 else
-   pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+   pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
    pdate_len=`echo ${#pdate}`
-   if [[ ${pdate_len} -eq 10 ]]; then
-      ${USHverf_rad}/update_data_map.pl ${DATA_MAP} ${SUFFIX} prodate ${pdate}
-   fi 
    START_DATE=`${NDATE} +06 $pdate`
 fi
-
 
 
 #--------------------------------------------------------------------
@@ -125,9 +145,7 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      running=`llq -u ${LOGNAME} -f %jn | grep data_extract_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       running=`bjobs -l | grep data_extract_${SUFFIX} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
       running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`

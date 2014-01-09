@@ -79,7 +79,7 @@
 #     programs   : $NCP
 #                  $time_exec
 #
-#     fixed data : radmon_base_${SUFFIX}.tar.Z
+#     fixed data : gdas_radmon_base.tar
 #
 #     input data : $data_file
 #                  
@@ -123,7 +123,7 @@ LOGSCRIPT=${LOGSCRIPT:-}
 ERRSCRIPT=${ERRSCRIPT:-}
 ENDSCRIPT=${ENDSCRIPT:-}
 
-base_file=${base_file:-$FIXgfs/radmon_base.tar}
+base_file=${base_file:-$FIXgfs/gdas_radmon_base.tar}
 report=report.txt
 disclaimer=disclaimer.txt
 region=region.txt
@@ -149,7 +149,8 @@ MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
-time_exec=radmon_time.${RAD_AREA}
+#time_exec=radmon_time.${RAD_AREA}
+time_exec=radmon_time
 USE_ANL=${USE_ANL:-0}
 err=0 
 
@@ -242,6 +243,7 @@ cat << EOF > input
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
+  rad_area='${RAD_AREA}',
  /
 EOF
         $TIMEX ./${time_exec} < input >   ${stdout_file}

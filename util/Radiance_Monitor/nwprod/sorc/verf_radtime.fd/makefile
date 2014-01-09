@@ -23,14 +23,14 @@ MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 
-CMD = radmon_time.glb
+CMD = radmon_time
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb
+	rm -f radmon_time
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)
