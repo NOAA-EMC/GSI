@@ -77,7 +77,7 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
-     use_gfs_nemsio
+     use_gfs_nemsio,use_reflectivity
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,preserve_restart_date
@@ -94,7 +94,7 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,merge_two_grid_ensperts, &
-                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,&
+                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,coef_bw,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
@@ -251,7 +251,9 @@
 !                         different regional balance methods.
 !  07-10-2013 zhu       add upd_pred as bias update indicator for radiance bias correction
 !  07-19-2013 zhu       add emiss_bc for emissivity predictor in radiance bias correction scheme
+!  08-20-2013 s.liu     add option to use reflectivity
 !  04-15-2013 zhu       add aircraft_t_bc_pof and aircraft_t_bc for aircraft temperature bias correction
+!  12-03-2013 wu        add parameter coef_bw for option:betaflg
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -433,7 +435,7 @@
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr, &
-       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs
+       use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,use_reflectivity
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -709,6 +711,7 @@
 !                                 =4: ensembles are NEMS NMMB format.
 !     full_ensemble    - if true, first ensemble perturbation on first guess istead of on ens mean
 !     betaflg          - if true, use vertical weighting on beta1_inv and beta2_inv
+!     coef_bw          - fraction of weight given to the vertical boundaries when betaflg is true
 !     pwgtflg          - if true, use vertical integration function on ensemble contribution of Psfc
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
@@ -716,7 +719,7 @@
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,grid_ratio_ens, &
-                oz_univ_static,write_ens_sprd,enspreproc
+                oz_univ_static,write_ens_sprd,enspreproc,coef_bw
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):

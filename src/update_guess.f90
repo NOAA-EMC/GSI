@@ -93,7 +93,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone
+       regional,twodvar_regional,regional_ozone,use_reflectivity
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,ges_gust,ges_vis,ges_pblh,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
@@ -169,6 +169,7 @@ subroutine update_guess(sval,sbias)
 
 ! Inquire about guess fields
   call gsi_metguess_get('dim',nguess,istatus)
+  if(use_reflectivity) nguess=0
   if (nguess>0) then
      allocate(guess(nguess))
      call gsi_metguess_get('gsinames',guess,istatus)
