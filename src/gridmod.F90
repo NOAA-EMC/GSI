@@ -74,6 +74,7 @@ module gridmod
 !   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
 !   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
 !                         a redundant "use omp_lib".
+!   2012-12-04 s.liu    - added use_reflectivity flag
 !
 !
 ! !AUTHOR: 
@@ -134,6 +135,7 @@ module gridmod
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
+  public :: use_reflectivity
 
   logical regional          ! .t. for regional background/analysis
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
@@ -153,6 +155,7 @@ module gridmod
   logical update_regsfc     !
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
+  logical use_reflectivity  ! .t. for using reflectivity for NMMB
 
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid

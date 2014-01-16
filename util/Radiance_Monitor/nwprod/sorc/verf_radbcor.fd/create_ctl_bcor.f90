@@ -58,32 +58,38 @@ subroutine create_ctl_bcor(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 ! Open unit to GrADS control file
   open(lunctl,file=ctl_file,form='formatted')
 
-! Construct region string
-  do i=1,nregion
-     if (rlatmin(i)>0.) then
-        write(clatmin,10) int(rlatmin(i))
-     else
-        write(clatmin,20) abs(int(rlatmin(i)))
-     endif
-     if (rlatmax(i)>0.) then
-        write(clatmax,10) int(rlatmax(i))
-     else
-        write(clatmax,20) abs(int(rlatmax(i)))
-     endif
-     if (rlonmin(i)>0.) then
-        write(clonmin,30) int(rlonmin(i))
-     else
-        write(clonmin,40) abs(int(rlonmin(i)))
-     endif
-     if (rlonmax(i)>0.) then
-        write(clonmax,30) int(rlonmax(i))
-     else
-        write(clonmax,40) abs(int(rlonmax(i)))
-     endif
-     stringr(i) = trim(region(i)) // ' (' // &
-          trim(clonmin) // '-' // trim(clonmax) // ', ' // &
-          trim(clatmin) // '-' // trim(clatmax) // ')'
-  end do
+!*******************************************************************
+!  Construct the region strings if this is for a global source,
+!     which is defined as nregion > 1.
+!
+  if (nregion > 1) then
+
+     do i=1,nregion
+        if (rlatmin(i)>0.) then
+           write(clatmin,10) int(rlatmin(i))
+        else
+           write(clatmin,20) abs(int(rlatmin(i)))
+        endif
+        if (rlatmax(i)>0.) then
+           write(clatmax,10) int(rlatmax(i))
+        else
+           write(clatmax,20) abs(int(rlatmax(i)))
+        endif
+        if (rlonmin(i)>0.) then
+           write(clonmin,30) int(rlonmin(i))
+        else
+           write(clonmin,40) abs(int(rlonmin(i)))
+        endif
+        if (rlonmax(i)>0.) then
+           write(clonmax,30) int(rlonmax(i))
+        else
+           write(clonmax,40) abs(int(rlonmax(i)))
+        endif
+        stringr(i) = trim(region(i)) // ' (' // &
+             trim(clonmin) // '-' // trim(clonmax) // ', ' // &
+             trim(clatmin) // '-' // trim(clatmax) // ')'
+     end do
+  endif
 10 format(i2,'N')
 20 format(i2,'S')
 30 format(i3,'E')
@@ -106,11 +112,15 @@ subroutine create_ctl_bcor(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
      write(lunctl,134) i,nu_chan(i),iuse,error(i),wavelength,frequency(i)
   end do
   write(lunctl,136)
-  do i=1,nregion
-     write(cword,'(i2)') i
-     string = '*  region=' // cword // ' ' // trim(stringr(i))
-     write(lunctl,138) string
-  end do
+
+  if (nregion > 1) then
+     do i=1,nregion
+        write(cword,'(i2)') i
+        string = '*  region=' // cword // ' ' // trim(stringr(i))
+        write(lunctl,138) string
+     end do
+  endif
+
   write(lunctl,140) n_chan
   write(lunctl,150) nregion
   write(lunctl,160) 

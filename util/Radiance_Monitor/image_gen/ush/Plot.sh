@@ -95,6 +95,20 @@ else
    exit 7
 fi
 
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+
+#--------------------------------------------------------------------
 
 #--------------------------------------------------------------------
 #  Deterine the number of cycles between start_dt and end_dt.
@@ -115,7 +129,7 @@ fi
 #  have a cycle delta of 1 from $start_dt.  (Two cycles are necessary
 #  for grads to plot.)
 #--------------------------------------------------------------------
-proc_dt=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+proc_dt=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 echo proc_date = $proc_dt
 delta_proc_start=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
 if [[ $delta_proc_start -le 0 ]]; then
@@ -136,9 +150,7 @@ export PLOT_HORIZ=0
 # all verf jobs have been completed.
 #--------------------------------------------------------------------
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   running=`llq -u ${LOGNAME} -f %jn | grep ${plot} | grep $SUFFIX | wc -l`
-elif [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss" ]]; then
    running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
@@ -252,7 +264,6 @@ fi
 # Export variables
 #------------------------------------------------------------------
 export START_DATE=${start_dt}
-export listvar=RAD_AREA,PDATE,START_DATE,NUM_CYCLES,NDATE,TANKDIR,IMGNDIR,LOADLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,listvar
 
 
 #------------------------------------------------------------------
@@ -267,15 +278,13 @@ ${SCRIPTS}/mk_bcor_plots.sh
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=$RADSTAT_LOCATION
 
-   export listvar=PARM,RAD_AREA,PDATE,NDATE,TANKDIR,IMGNDIR,LOADLQ,LLQ,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,PTMP_USER,STMP_USER,USER_CLASS,SUB,SUFFIX,SATYPE,NCP,PLOT_WORK_DIR,ACCOUNT,RADMON_PARM,DATA_MAP,Z,COMPRESS,UNCOMPRESS,PTMP,STMP,TIMEX,LITTLE_ENDIAN,PLOT_ALL_REGIONS,SUB_AVG,datdir,MY_MACHINE,listvar
    jobname="plot_horiz_${SUFFIX}"
    logfile="${LOGDIR}/horiz.log"
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      $SUB -a $ACCOUNT -e $listvar -j ${jobname} -q dev -g ${USER_CLASS} -t 0:20:00 -o ${logfile} ${SCRIPTS}/mk_horiz_plots.sh
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q dev -o ${logfile} -W 0:45 -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+
+   if [[ $MY_MACHINE = "wcoss" ]]; then
+      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -J ${jobname}  -R affinity[core] ${SCRIPTS}/mk_horiz_plots.sh
    else
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -v $listvar -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
    fi
 fi
 

@@ -163,7 +163,7 @@ cat << EOF > ${workdir}/${plotscript}
 EOF
    fi
 
-   $TIMEX $GRADS -bpc "run ${workdir}/${plotscript}"
+   $GRADS -bpc "run ${workdir}/${plotscript}"
 
    #------------------------------------------------------------------
    #  copy to imgn mirror directory

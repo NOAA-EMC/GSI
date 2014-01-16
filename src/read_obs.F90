@@ -485,6 +485,7 @@ subroutine read_obs(ndata,mype)
 !   2013-02-13  eliu     - turn off parallel I/O for SSMIS (due to the need to
 !                          do spatial averaging for noise reduction) 
 !   2013-06-01  zhu     - add mype_airobst to handle aircraft temperature bias correction 
+!   2013-08-08  s.liu     - add read NASA_LaRC_cloud product
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -990,6 +991,8 @@ subroutine read_obs(ndata,mype)
           nouse=0
           npuse=0
 
+!         write(6,*)'sliu in read_obs.F90::',obstype
+
           if (mype_sub(mm1,i)==mype_root) then
              open(lunout,file=obsfile_all(i),form='unformatted')
              rewind(lunout)
@@ -1057,7 +1060,9 @@ subroutine read_obs(ndata,mype)
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
-                call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
+!               write(6,*)'sliu :: NASA cld', infile, 'READ_NASA_LaRC'
+!               call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
+                call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
                 string='READ_NASA_LaRC'
 
 !            Process radar winds

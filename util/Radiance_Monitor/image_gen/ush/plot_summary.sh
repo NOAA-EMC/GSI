@@ -23,8 +23,8 @@ cd $tmpdir
 
 #------------------------------------------------------------------
 #   Set dates
-bdate=`$NDATE -720 $PDATE`
-bdate=`$NDATE -1440 $PDATE`
+
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -77,7 +77,7 @@ cat << EOF > ${type}.gs
 'quit'
 EOF
 
-   $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
+   $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
 #   rm -f ${type}.ctl 
 #   rm -f ${type}*.ieee_d
