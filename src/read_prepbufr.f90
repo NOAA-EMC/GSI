@@ -110,6 +110,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                    - add aircraft_t_bc_pof and aircraft_t_bc
 !   2013-05-28  wu     - add subroutine sonde_ext and call to the subroutine for ext_sonde option
 !   2013-06-07  zhu  - read aircraft data from prepbufr_profl when aircraft_t_bc=.true.
+!   2013-09-08  s.liu  - increase nmsgmax to 100000 to read NESDIS cloud product
+!   2013-12-08  s.liu  - identify VAD wind based on sub type
 !
 !
 !   input argument list:
@@ -192,7 +194,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(80),parameter:: cspval= '88888888'
 
   integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=10000 ! max message count
+  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
+! integer(i_kind),parameter:: nmsgmax=10000 ! max message count
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob
@@ -269,7 +272,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd
-  real(r_double),dimension(8):: hdr
+  real(r_double),dimension(8):: hdr,hdrtsb
   real(r_double),dimension(3,255):: hdr3
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr
   real(r_double),dimension(11,255):: obsdat
@@ -505,6 +508,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         end if
         !* for new vad wind
         if(kx==224 .and. .not.newvad) then
+           call ufbint(lunin,hdrtsb,1,1,iret,'TSB')
+            if(hdrtsb(1)==2) then
+            newvad=.true.
+            go to 288
+           end if
            call ufbint(lunin,obsdat,11,255,levs,obstr)
            if(levs>1)then
            do k=1, levs-1
@@ -517,7 +525,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
 288     continue
         end if
-!       if(kx==224)write(6,*)'new vad wind',kx,newvad
         !* END new vad wind
 
         if(twodvar_regional)then
@@ -706,14 +713,33 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  
 !          Extract type, date, and location information
            call ufbint(lunin,hdr,8,1,iret,hdstr)
-           if (aircraft_t_bc .and. acft_profl_file) then
-              call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
-           else
+           kx=hdr(5)
+
+           if (.not.(aircraft_t_bc .and. acft_profl_file)) then
               if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
               if(hdr(2)== r360)hdr(2)=hdr(2)-r360
               if(hdr(2) < zero)hdr(2)=hdr(2)+r360
               dlon_earth=hdr(2)*deg2rad
               dlat_earth=hdr(3)*deg2rad
+
+!             check VAD subtype. 1--old, 2--new, other--old 
+              if(kx==224) then
+                call ufbint(lunin,hdrtsb,1,1,iret,'TSB')
+                if(.not.newvad .and. hdrtsb(1)==2) cycle loop_readsb
+                if(newvad .and. hdrtsb(1)/=2) cycle loop_readsb
+              end if
+              !* thin new VAD in time level
+              if(kx==224.and.newvad)then
+                icase=0
+                if(abs(hdr(4))>0.75_r_kind) icase=1
+!               if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
+!               if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
+!               if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
+!               if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
+!               if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
+!               if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                if(icase/=1) cycle
+              end if
 
               if(regional)then
                  call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
@@ -733,22 +759,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  call grdcrd1(dlat,rlats,nlat,1)
                  call grdcrd1(dlon,rlons,nlon,1)
               endif
-           endif
-
-           kx=hdr(5)
-           !* thin new VAD in time level
-           if(kx==224.and.newvad)then
-           icase=0
-           if(abs(hdr(4))>0.75) icase=1
-!          if(abs(hdr(4))>0.17.and.abs(hdr(4))<0.32) icase=1
-!          if(abs(hdr(4))>0.67.and.abs(hdr(4))<0.82) icase=1
-!          if(abs(hdr(4))>1.17.and.abs(hdr(4))<1.32) icase=1
-!          if(abs(hdr(4))>1.67.and.abs(hdr(4))<1.82) icase=1
-!          if(abs(hdr(4))>2.17.and.abs(hdr(4))<2.62) icase=1
-!          if(abs(hdr(4))>2.67.and.abs(hdr(4))<2.82) icase=1
-           if(icase/=1) cycle
-           end if
-           if (aircraft_t_bc .and. acft_profl_file) then
+           else
+              call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
               kx0=kx
               if (.not. uvob) then
                  if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
@@ -765,7 +777,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
                  if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
               end if
-           end if
+           endif
 
 !------------------------------------------------------------------------
 
@@ -1442,11 +1454,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          if(klev>levs) cycle loop_readsb
                          diffuu=obsdat(5,k)-fcstdat(1,k)
                          diffvv=obsdat(6,k)-fcstdat(2,k)
-                         if(sqrt(diffuu**2+diffvv**2)>10.0) cycle loop_k_levs
-                         if(abs(diffvv)>8.0) cycle loop_k_levs
+                         if(sqrt(diffuu**2+diffvv**2)>10.0_r_kind) cycle loop_k_levs
+                         if(abs(diffvv)>8.0_r_kind) cycle loop_k_levs
                         !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
-                         if(oelev>7000.0) cycle loop_k_levs
-                         if(abs(diffvv)>5.0.and.oelev<5000.0) cycle loop_k_levs
+                         if(oelev>7000.0_r_kind) cycle loop_k_levs
+                         if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
                         ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
                          uob=0.0
                          vob=0.0
@@ -1454,7 +1466,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          tkk=0
                          do ikkk=k,klev
                            diffhgt=obsdat(4,ikkk)-obsdat(4,k)
-                           if(diffhgt<301.0)then
+                           if(diffhgt<301.0_r_kind)then
                            uob=uob+obsdat(5,ikkk)
                            vob=vob+obsdat(6,ikkk)
                            oelev=oelev+obsdat(4,ikkk)
@@ -1465,8 +1477,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          vob=vob/tkk
                          oelev=oelev/tkk
 
-                         diffuu=5.0;diffvv=5.0
-                         diffhgt=0.0
+                         diffuu=5.0_r_kind;diffvv=5.0_r_kind
+                         diffhgt=0.0_r_kind
                          do ikkk=k,klev
                            diffuu=abs(obsdat(5,ikkk)-uob)
                            if(diffhgt<diffuu)diffhgt=diffuu
@@ -1474,10 +1486,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                            if(diffhgt<diffvv)diffhgt=diffvv
                          end do
 
-                     if(diffhgt>5.0)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
+                     if(diffhgt>5.0_r_kind)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
                      if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
                      !* unreasonable observation, will fix this in QC package
-                     if(sqrt(uob**2+vob**2)>60.0)cycle LOOP_readsb
+                     if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
                  end if
 
                  if(regional)then

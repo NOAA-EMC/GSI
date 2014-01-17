@@ -61,6 +61,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
 !   2010-10-21  r. yang - pass dd for read_gsf_chem
 !   2012-02-21  wu      - remove regional_ozone--causes conflict with using gfs ozone
+!   2012-12-21  s.liu   - add option to use reflectivity
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -82,7 +83,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use gsi_io, only: read_bias
   use gridmod, only: lat2,lon2
   use gridmod, only: nsig
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,cmaq_regional,use_reflectivity,&
        twodvar_regional,netcdf,regional,nems_nmmb_regional,use_gfs_ozone
   use gridmod, only: use_gfs_nemsio
   use gfs_stratosphere, only: use_gfs_stratosphere
@@ -130,6 +131,10 @@ subroutine read_guess(iyear,month,idd,mype)
            call read_2d_guess(mype)
         else if (nems_nmmb_regional) then
            call read_nems_nmmb_guess(mype)
+!          if(use_reflectivity) then
+!          if(mype==0)write(6,*)'sliu in read_guess to read reflectivity',use_reflectivity
+!          call read_nems_nmmb_guess_ref(mype)
+!          end if
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if
