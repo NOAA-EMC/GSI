@@ -93,6 +93,7 @@ module hybrid_ensemble_parameters
 !      eqspace_ensgrid: if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                               poles.  if .false., then gaussian grid assumed for ensemble (global only)
 !     betaflg: if true, use vertical weighting function for beta1_inv and beta2_inv
+!     coef_bw: fraction of weight given to the vertical boundaries when betaflg is true
 !     pwgtflg: if true, vertical integration function for ensemble contribution on Psfc
 !     full_ensemble: if true, first ensemble member perturbed on first guess
 !                    if false, first member perturbed on ensemble mean as the rest of the menbers
@@ -125,6 +126,7 @@ module hybrid_ensemble_parameters
 !   2012-02-07  tong    - remove logical parameter gefs_in_regional and reduce regional_ensemble_option
 !                         to 4 options.
 !   2013-01-20  parrish - move initialization of beta1wgt, beta2wgt, pwgt to after allocation.
+!   2013-12-03  wu      - add parameter coef_bw for option:betaflg
 !
 ! subroutines included:
 
@@ -178,6 +180,7 @@ module hybrid_ensemble_parameters
 !   def beta1wgt            - vertical weighting function for beta1_inv
 !   def beta2wgt            - vertical weighting function for beta2_inv
 !   def betaflg             - logical switch to use vertical weighting function for beta2_inv and beta1_inv
+!   def coef_bw             - fraction of weight given to the vertical boundaries when betaflg is true
 !   def pwgt                - vertical integration function for beta2_inv a_en on Psfc
 !   def pwgtflg             - logical switch to use vertical integration function for ensemble contribution on Psfc
 !   def grid_ratio_ens:     - ratio of ensemble grid resolution to analysis resolution (default value is 1)
@@ -206,7 +209,7 @@ module hybrid_ensemble_parameters
   public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_localization
   public :: eqspace_ensgrid,grid_ratio_ens
-  public :: beta1wgt,beta2wgt,pwgt,full_ensemble,pwgtflg,betaflg
+  public :: beta1wgt,beta2wgt,pwgt,full_ensemble,pwgtflg,betaflg,coef_bw
   public :: grd_ens
   public :: grd_e1
   public :: grd_loc
@@ -236,7 +239,7 @@ module hybrid_ensemble_parameters
   logical readin_localization
   logical eqspace_ensgrid
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
-  real(r_kind) beta1_inv,s_ens_h,s_ens_v,grid_ratio_ens
+  real(r_kind) beta1_inv,s_ens_h,s_ens_v,grid_ratio_ens,coef_bw
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a
@@ -294,6 +297,7 @@ subroutine init_hybrid_ensemble_parameters
   readin_localization=.false.
   eqspace_ensgrid=.false.
   enspreproc=.false.
+  coef_bw=0.9_r_kind
   n_ens=0
   nlat_ens=0
   jcap_ens=0
