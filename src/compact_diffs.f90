@@ -14,6 +14,8 @@ module compact_diffs
 !   2009-08-19  guo     - add inisphed_ to track the state of module variables.
 !   2009-09-14  guo     - add status checking interfaces, cdiff_created() and
 !			  cdiff_initialized().
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error in
+!                           compact_dlon, compact_dlat, tcompact_dlon, tcompact_dlat
 !
 ! subroutines included:
 !   sub init_compact_diffs  - initialize parameters used by compact diffs
@@ -1948,6 +1950,7 @@ end subroutine uv2vordiv
 ! program history log:
 !   2005-05-16  parrish
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing the scalar field
@@ -1962,7 +1965,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2037,10 +2040,10 @@ end subroutine uv2vordiv
         polsu=polsu+grid3(1 ,ix)*coslon(ix)
         polsv=polsv+grid3(1 ,ix)*sinlon(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid3n(ix)= polnu*coslon(ix)+polnv*sinlon(ix)
         grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
@@ -2077,6 +2080,7 @@ end subroutine uv2vordiv
 !   2005-05-16  parrish
 !   2005-07-01  kleist, bug fix
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing existing contents to be accumulated to
@@ -2092,7 +2096,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2142,10 +2146,10 @@ end subroutine uv2vordiv
         polsu=polsu+coslon(ix)*grid3s(ix)
         polsv=polsv+sinlon(ix)*grid3s(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid3(ny,ix)=grid3(ny,ix)+coslon(ix)*polnu+sinlon(ix)*polnv
         grid3(1 ,ix)=grid3(1 ,ix)+coslon(ix)*polsu+sinlon(ix)*polsv
@@ -2195,6 +2199,7 @@ end subroutine uv2vordiv
 !   2005-05-16  parrish
 !   2005-07-01  kleist, bug fix
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing the scalar field
@@ -2210,7 +2215,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2297,10 +2302,10 @@ end subroutine uv2vordiv
         polsu=polsu+grid4(1 ,ix)*sinlon(ix)
         polsv=polsv-grid4(1 ,ix)*coslon(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid4n(ix)=-polnu*sinlon(ix)+polnv*coslon(ix)
         grid4s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
@@ -2332,6 +2337,7 @@ end subroutine uv2vordiv
 !   2005-05-16  parrish
 !   2005-07-01  kleist, bug and sign fixes
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing existing contents to be accumulated to
@@ -2348,7 +2354,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2409,10 +2415,10 @@ end subroutine uv2vordiv
         polsu=polsu+sinlon(ix)*grid4s(ix)
         polsv=polsv-coslon(ix)*grid4s(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid4(ny,ix)=grid4(ny,ix)-sinlon(ix)*polnu+coslon(ix)*polnv
         grid4(1 ,ix)=grid4(1 ,ix)+sinlon(ix)*polsu-coslon(ix)*polsv
