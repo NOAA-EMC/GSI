@@ -106,7 +106,6 @@ env
 export RAD_AREA=${RAD_AREA:-glb}
 
 export biascr=${biascr:-$COMOUT/gdas1.t${cyc}z.abias}
-#export satang=${satang:-$COMOUT/gdas1.t${cyc}z.satang}
 export radstat=${radstat:-$COMOUT/gdas1.t${cyc}z.radstat}
 
 msg="JOB HAS STARTED"

@@ -2,7 +2,7 @@
 
 #--------------------------------------------------------------------
 #
-#  Plt_comp.sh
+#  PlotComp.sh
 #
 #  This script plots the requested comparision plots for the specified
 #  suffix (data sources).  Data may be plotted from either global or 
@@ -18,8 +18,8 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  Plt_comp.sh suffix"
-  echo "            File name for Plt_comp.sh may be full or relative path"
+  echo "Usage:  PlotComp.sh start_date end_date suffix1 suffix2"
+  echo "            File name for PlotComp.sh may be full or relative path"
   echo "            Start Date for plot range (format: yyyymmddhh)"
   echo "            End Date for plot range (format yyyymmddhh)"
   echo "            Suffix1 data source identifier that corresponds to data"
@@ -30,7 +30,7 @@ function usage {
 
 
 set -ax
-echo start Plt_comp.sh
+echo start PlotComp.sh
 
 nargs=$#
 if [[ $nargs -ne 4 ]]; then
@@ -154,6 +154,6 @@ echo $SATYPE
 
 . ${SCRIPTS}/mk_comp_plots.sh
 
-echo end Plt_comp.sh
+echo end PlotComp.sh
 
 exit
