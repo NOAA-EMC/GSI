@@ -60,6 +60,16 @@ date2=subwrd(result,5)
 *say 'date1='date1
 *say 'date2='date2
 
+if (field != "count" & field != "penalty")
+   'define avg=avg'field
+   'define sdv=sdv'field
+endif
+if (field = "count" | field = "penalty")
+   'define avg='field
+   'define sdv='field
+endif
+
+
 region=1
 while (region<=nregion)
 
@@ -77,7 +87,6 @@ endif
 result=close(area.txt)
 *say 'area = 'area
 
-
 'clear'
 'set grads off'
 'set y 'region
@@ -87,32 +96,18 @@ result=close(area.txt)
 'set xlopts 1 4 0.12'
 'set ylopts 1 4 0.13'
 
+
 fr=0
 i=1
 chn=1
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set x 'chn
-   if (field != "count" & field != "penalty")
-      'define avg=avg'field
-      'define sdv=sdv'field
-   endif
-   if (field = "count")
-      'define avg='field
+   if (field = "count" | field = "penalty")
       'set gxout stat'
       'd avg'
       rec14=sublin(result,14)
       avgsdv=subwrd(rec14,2)
-      'define sdv='field
-      'set gxout line'
-   endif
-   if (field = "penalty")
-      'define avg='field
-      'set gxout stat'
-      'd avg'
-      rec14=sublin(result,14)
-      avgsdv=subwrd(rec14,2)
-      'define sdv='field
       'set gxout line'
    endif
 

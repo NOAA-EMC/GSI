@@ -84,7 +84,7 @@ fi
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-EDATE=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+EDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
@@ -222,7 +222,7 @@ cat << EOF > input
  /
 EOF
 
-   $TIMEX make_base < input > stdout.${type}.base
+   ./make_base < input > stdout.${type}.base
 
    #-------------------------------------------------------------------
    #  Copy base file back to $tmpdir 
