@@ -13,7 +13,7 @@ export list=$listvars
 #------------------------------------------------------------------
 # Set environment variables.
 tmpdir=${PLOT_WORK_DIR}
-
+cd $tmpdir
 
 #------------------------------------------------------------------
 #   Set dates

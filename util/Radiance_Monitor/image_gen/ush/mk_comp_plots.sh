@@ -16,7 +16,8 @@ date
 cd $PLOT_WORK_DIR
 echo sdate = $SDATE, edate = $EDATE
 
-export NUM_CYCLES=`${SCRIPTS}/find_num_cycles.pl ${SDATE} ${EDATE}`
+#export NUM_CYCLES=`${SCRIPTS}/find_num_cycles.pl ${SDATE} ${EDATE}`
+export NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${SDATE} ${EDATE}`
 echo NUM_CYCLES = $NUM_CYCLES
 
 imgndir1=${IMGNDIR}/${SUFFIX1}/pngs/comp
@@ -98,14 +99,14 @@ fi
 
       ${SCRIPTS}/update_ctl_tdef.sh ${PLOT_WORK_DIR}/${type}.ctl ${SDATE} ${NUM_CYCLES}
  
-      if [[ $MY_MACHINE = "wcoss" ]]; then
+#      if [[ $MY_MACHINE = "wcoss" ]]; then
          sed -e 's/cray_32bit_ieee/ /' ${PLOT_WORK_DIR}/${type}.ctl > ${PLOT_WORK_DIR}/tmp_${type}.ctl
          sed -s 's/\^/\'"^${SUFFIX1}."'/1' ${PLOT_WORK_DIR}/tmp_${type}.ctl > ${PLOT_WORK_DIR}/${SUFFIX1}.${type}.ctl
          sed -s 's/\^/\'"^${SUFFIX2}."'/1' ${PLOT_WORK_DIR}/tmp_${type}.ctl > ${PLOT_WORK_DIR}/${SUFFIX2}.${type}.ctl
          
          rm ${type}.ctl 
          rm tmp_${type}.ctl
-      fi
+#      fi
    done
 
 #   for sat in ${SATYPE}; do
@@ -124,20 +125,20 @@ fi
 #
 #-------------------------------------------------------------------
 
-   cmdfile=${PLOT_WORK_DIR}/cmdfile_pcomp
+#   cmdfile=${PLOT_WORK_DIR}/cmdfile_pcomp
    jobname=plot_${SUFFIX1}_comp
    logfile=${LOGDIR}/plot_${SUFFIX1}_comp.log
 
-   rm -f $cmdfile
+#   rm -f $cmdfile
    rm ${logfile}
 
->$cmdfile
-   for type in ${SATYPE}; do
-      echo "$SCRIPTS/plot_comp.sh $type" >> $cmdfile
-   done
-
-   ntasks=`cat $cmdfile|wc -l `
-   ((nprocs=(ntasks+1)/2))
+#>$cmdfile
+#   for type in ${SATYPE}; do
+#      echo "$SCRIPTS/plot_comp.sh $type" >> $cmdfile
+#   done
+#
+#   ntasks=`cat $cmdfile|wc -l `
+#   ((nprocs=(ntasks+1)/2))
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:20 -J ${jobname} $SCRIPTS/plot_comp.sh
