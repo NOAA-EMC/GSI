@@ -16,7 +16,6 @@ date
 cd $PLOT_WORK_DIR
 echo sdate = $SDATE, edate = $EDATE
 
-#export NUM_CYCLES=`${SCRIPTS}/find_num_cycles.pl ${SDATE} ${EDATE}`
 export NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${SDATE} ${EDATE}`
 echo NUM_CYCLES = $NUM_CYCLES
 

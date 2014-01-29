@@ -132,11 +132,11 @@ echo prodate2 = $prodate2
 #  Build the SATYPE list using SUFFIX1 
 #-------------------------------------------------------------
   
-PDY=`echo $SDATE|cut -c1-8` 
+PDY=`echo $EDATE|cut -c1-8` 
 if [[ -d ${TANKDIR1}/radmon.${PDY} ]]; then
-   test_list=`ls ${TANKDIR1}/radmon.${PDY}/time.*${SDATE}.ieee_d*`
+   test_list=`ls ${TANKDIR1}/radmon.${PDY}/time.*${EDATE}.ieee_d*`
 else
-   test_list=`ls $TANKDIR1/time/*.${SDATE}.ieee_d*`
+   test_list=`ls $TANKDIR1/time/*.${EDATE}.ieee_d*`
 fi
 
 for test in ${test_list}; do
