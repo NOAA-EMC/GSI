@@ -176,7 +176,6 @@ subroutine read_wrf_mass_binary_guess(mype)
 
 !    Inquire about cloud guess fields
      call gsi_metguess_get('dim',nguess,istatus)
-     ier=0
      if (nguess>0) then
 !       Get pointer for each of the hydrometeors from guess at time index "it"
         it=ntguessig
@@ -229,7 +228,6 @@ subroutine read_wrf_mass_binary_guess(mype)
         write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy9=',dummy9
 
 ! for cloud analysis
-        n_position=0_i_llong
         if(l_cloud_analysis .or. nguess>0) then
 
 ! get pointer to relevant instance of cloud-related background

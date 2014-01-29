@@ -38,8 +38,8 @@
 #
 #-----------------------------------------------------------------------
 
-FTN = mpfort
-LDR = mpfort
+FTN = mpif90
+LDR = mpif90
 CC  = cc
 
 GNRL_LD = $(LDR)
@@ -61,7 +61,7 @@ INCLDIR =
 #
 #-----------------------------------------------------------------------
 
-FFLAGS = -O3 -fp-model strict -convert big_endian -assume byterecl -implicitnone -traceback #   -I../../../include 
+FFLAGS = -O3 -xW -g -traceback -check bounds -assume byterecl  #   -I../../../include 
 CFLAGS = 
 LDFLAGS =
 
@@ -154,5 +154,5 @@ $(LIBGNRLCLD).a: $(GNRLCLDOBJS)
 #-----------------------------------------------------------------------
 
 clean:
-	-$(RM) -f $(GNRLCLDOBJS) $(LIBGNRLCLD).a *.mod
+	-$(RM) -f $(GNRLCLDOBJS) $(LIBGNRLCLD).a
 

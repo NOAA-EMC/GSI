@@ -483,7 +483,12 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !         check for SR in obs, will be updated in genstats. 
           if ( data(igps,i) >= 0.03 .and. qc_layer_SR) then
              kprof = data(iprof,i)
-             toss_gps_sub(kprof) = max (toss_gps_sub(kprof),data(igps,i))
+             do j=1,nobs
+                jprof = data(iprof,j)
+                if ( kprof == jprof) then
+                   toss_gps_sub(kprof) = max(toss_gps_sub(kprof),data(igps,j))
+                   endif
+             enddo
           endif
        endif 
 

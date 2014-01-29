@@ -364,7 +364,6 @@ Lanczos_loop : DO
    preduc = preduc_norm/zgnorm
    if (mype==0) write (6,*)'Estimated gradient norm=',preduc_norm,' Estimated reduction = ',preduc
 
-   imaxevecs = 0
 
 !--- determine eigenvalues and eigenvectors of the tri-diagonal problem
    if((LDECOMP .or. (iter==kmaxit)) .and. lsavevecs) then 

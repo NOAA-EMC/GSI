@@ -193,7 +193,6 @@ clean:
 	adjtest.f90 \
         adjtest_obs.f90 \
 	aeroinfo.f90 \
-	aircraftinfo.f90 \
         aircraftobsqc.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
@@ -266,7 +265,6 @@ clean:
 	general_sub2grid_mod.f90 \
 	general_transform.f90 \
         general_tll2xy_mod.f90 \
-	general_write_gfsatm.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \

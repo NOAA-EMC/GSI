@@ -797,10 +797,10 @@ subroutine read_2d_guess(mype)
 
 !    Zero out fields not used
      ges_div=zero
-!    ges_tvlat=zero
-!    ges_tvlon=zero
-!    ges_qlat=zero
-!    ges_qlon=zero
+     ges_tvlat=zero
+     ges_tvlon=zero
+     ges_qlat=zero
+     ges_qlon=zero
 
 
 !    Transfer surface fields

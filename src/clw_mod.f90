@@ -104,9 +104,6 @@ contains
 ! Declare local variables
   real(r_kind) tbcx1,tbcx2
 
-  tbcx1=zero
-  tbcx2=zero
-
   if (amsua .or. atms) then
  
      ! We want to reject sea ice points that may be frozen.  The sea freezes

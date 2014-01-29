@@ -19,7 +19,6 @@ subroutine anbkerror(gradx,grady)
 !   2010-06-22  todling - update to better handle bundle pointers
 !   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
 !   2010-08-19  lueken - add only to module use
-!   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction 
 !
 !   input argument list:
 !     gradx    - input field  
@@ -34,7 +33,7 @@ subroutine anbkerror(gradx,grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use jfunc, only: nsclen,npclen,ntclen
+  use jfunc, only: nsclen,npclen
   use balmod, only: balance,tbalance
   use berror, only: varprd,fpsproj
   use constants, only: zero
@@ -109,11 +108,6 @@ do_balance=lc_sf.and.lc_vp.and.lc_ps .and.lc_t
   if(npclen>0)then
      do i=1,npclen
         grady%predp(i)=grady%predp(i)*varprd(nsclen+i)
-     end do
-  end if
-  if(ntclen>0)then
-     do i=1,ntclen
-        grady%predt(i)=grady%predt(i)*varprd(nsclen+npclen+i)
      end do
   end if
 
@@ -703,7 +697,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   use kinds, only: r_kind,i_kind,r_single
   use anberror, only: indices, filter_all,ngauss,halo_update_reg
   use mpimod, only: mype,npe
-  use constants, only: zero,zero_single
+  use constants, only: zero
   use gridmod, only: lat2,lon2,istart,jstart,nsig
   use raflib, only: raf4_ad_wrap,raf4_wrap
   use control_vectors, only: nrf,nrf_var,nrf_3d
@@ -735,7 +729,6 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
   kps=indices%kps; kpe=indices%kpe
 
   mm1=mype+1
-  workb=zero_single
 
 !  transfer variables to ngauss copies
   kk=0
