@@ -124,7 +124,7 @@ subroutine pcgsoi()
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        ltlint, iorthomax
-  use gridmod, only: twodvar_regional
+  use gridmod, only: twodvar_regional, use_reflectivity
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
@@ -762,17 +762,24 @@ subroutine pcgsoi()
 
 ! cloud analysis  after iteration
   if(jiter == miter) then
+    if(use_reflectivity) then
+     call gsdcloudanalysis4nmmb(mype)
+    else
      call gsdcloudanalysis(mype)
+    endif
   endif
 
 ! Write output analysis files
+  call prt_guess('analysis')
+  call prt_state_norms(sval(1),'wwww')
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
-      if(jiter == miter)call write_all(-1,mype)
+      if(jiter == miter) then
+         call clean_
+         call write_all(-1,mype)
+      endif
   endif
-  call prt_guess('analysis')
-  call prt_state_norms(sval(1),'wwww')
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -785,7 +792,7 @@ subroutine pcgsoi()
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  call clean_
+  if (jiter < miter) call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')

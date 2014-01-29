@@ -85,6 +85,7 @@ module obsmod
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
 !   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
 !   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
+!   2013-05-19  zhu      - add pred and idx in t_ob_type for aircraft temperature bias correction
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -465,6 +466,9 @@ module obsmod
      logical         :: luse          !  flag indicating if ob is used in pen.
      logical         :: use_sfc_model !  logical flag for using boundary model
      logical         :: tv_ob         !  logical flag for virtual temperature or
+     integer(i_kind) :: idx           !  index of tail number
+     real(r_kind),dimension(:),pointer :: pred => NULL() 
+                                      !  predictor for aircraft temperature bias 
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: ij(8)         !  horizontal locations
@@ -1211,7 +1215,7 @@ module obsmod
   character(128) obs_input_common
   character(14),dimension(ndatmax):: obsfile_all
   character(10),dimension(ndatmax):: dtype,ditype,dplat
-  character(13),dimension(ndatmax):: dfile
+  character(15),dimension(ndatmax):: dfile
   character(20),dimension(ndatmax):: dsis
   character(len=20) :: cobstype(nobs_type)
 
@@ -1714,6 +1718,8 @@ contains
        ttail(ii)%head => thead(ii)%head
        do while (associated(ttail(ii)%head))
           thead(ii)%head => ttail(ii)%head%llpoint
+          deallocate(ttail(ii)%head%pred,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t arrays, istatus=',istatus
           deallocate(ttail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
           ttail(ii)%head => thead(ii)%head

@@ -193,6 +193,7 @@ clean:
 	adjtest.f90 \
         adjtest_obs.f90 \
 	aeroinfo.f90 \
+	aircraftinfo.f90 \
         aircraftobsqc.f90 \
 	anberror.f90 \
 	anbkerror.f90 \
@@ -265,6 +266,7 @@ clean:
 	general_sub2grid_mod.f90 \
 	general_transform.f90 \
         general_tll2xy_mod.f90 \
+	general_write_gfsatm.f90 \
 	gengrid_vars.f90 \
 	genqsat.f90 \
 	genstats_gps.f90 \
@@ -288,6 +290,7 @@ clean:
 	gscond_ad.f90 \
 	gsd_terrain_match_surfTobs.f90 \
 	gsdcloudanalysis.F90 \
+	gsdcloudanalysis4NMMB.F90 \
         gsd_update_mod.f90 \
 	gsi_4dvar.f90 \
 	gsi_4dcouplermod.f90 \
@@ -576,7 +579,8 @@ clean:
 	setuptcp.f90 \
 	setupvis.f90 \
 	setupw.f90 \
-	sst_retrieval.f90
+	sst_retrieval.f90 \
+        read_NASA_LaRC_cloud.f90
 
   GSIGC_SRCS =
 

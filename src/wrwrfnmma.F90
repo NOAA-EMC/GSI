@@ -1048,6 +1048,8 @@ subroutine wrnemsnmma_binary(mype)
 !   2010-03-12  parrish - add write of ozone to 3d field labeled "o3mr"  (might be changed to "o3")
 !   2010-03-15  parrish - add flag regional_ozone to turn on ozone in regional analysis
 !   2011-07-18  zhu     - add write-out for updated cloud info
+!   2012-12-04  s.liu   - add gsd cloud analsyis variables
+!   2013-10-18  s.liu   - add use_reflectivity option for cloud analysis variables
 !
 !   input argument list:
 !     mype     - pe number
@@ -1065,7 +1067,7 @@ subroutine wrnemsnmma_binary(mype)
   use guess_grids, only: ges_ps,ges_pd,ges_u,ges_v,ges_q,&
         ntguessfc,ntguessig,ges_tsen,dsfct,isli,geop_hgtl,ges_prsl,ges_oz
   use gridmod, only: pt_ll,update_regsfc,pdtop_ll,nsig,lat2,lon2,eta2_ll,nmmb_verttype,&
-        use_gfs_ozone,regional_ozone
+        use_gfs_ozone,regional_ozone,use_reflectivity
   use constants, only: zero,half,one,two,rd_over_cp,r10,r100,qcmin
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read,gsi_nemsio_write
   use gsi_nemsio_mod, only: gsi_nemsio_update
@@ -1107,6 +1109,30 @@ subroutine wrnemsnmma_binary(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qs
   real(r_kind),pointer,dimension(:,:,:):: ges_qg
   real(r_kind),pointer,dimension(:,:,:):: ges_qh
+
+! GSD cloud analysis variables
+! REAL(r_kind), pointer :: ges_ql(:,:,:)  ! cloud water
+! REAL(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
+! REAL(r_kind), pointer :: ges_qr(:,:,:)  ! rain
+! REAL(r_kind), pointer :: ges_qs(:,:,:)  ! snow
+! REAL(r_kind), pointer :: ges_qg(:,:,:)  ! graupel
+  REAL(r_kind), pointer :: ges_ref(:,:,:)  ! ref
+  REAL(r_kind), pointer :: dfi_tten(:,:,:)  ! dfi_tten
+  integer(i_kind) :: ier, istatus,itsig
+
+  itsig=1
+  ier=0
+  if(use_reflectivity)then
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qi',ges_qi,istatus);ier=ier+istatus
+  if(ier/=0) write(6,*)'wrwrfnmma.F90 :: no guess, nothing to do'
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ql',ges_ql,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qr',ges_qr,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qs',ges_qs,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qg',ges_qg,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ref',ges_ref,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'tten',dfi_tten,istatus);ier=ier+istatus
+  if(ier/=0) return ! no guess, nothing to do
+  end if 
 
 !   if use_gfs_stratosphere is true, then convert ges fields from nmmb-gfs 
 !        extended vertical coordinate to nmmb vertical coordinate.
@@ -1156,7 +1182,7 @@ subroutine wrnemsnmma_binary(mype)
 
   call gsi_metguess_get('dim',nguess,iret)
   if(mype == 0) write(6,*)' in wrnemsnmma_binary after gsi_metguess_get, nguess,iret=',nguess,iret
-  if (nguess>0) then
+  if (nguess>0.and. .not.use_reflectivity) then
 
 !    Determine whether or not cloud-condensate is the control variable
      icw4crtm=getindex(cvars3d,'cw')
@@ -1237,6 +1263,58 @@ subroutine wrnemsnmma_binary(mype)
      end if
      call gsi_nemsio_write('spfh','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
 
+!* use GSD cloud analysis for NMMB
+     if(use_reflectivity) then
+!    write(6,*)'sliu in wrwrfnmma.F90:: enter dump dfi_tten'
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_qr(j,i,k)
+        end do
+     end do
+     add_saved=.false.
+     call gsi_nemsio_write('f_rain','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_qi(j,i,k)
+        end do
+     end do
+     call gsi_nemsio_write('f_ice','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+!    do i=1,lon2
+!       do j=1,lat2
+!          work_sub(j,i)=ges_ql(j,i,k)
+!       end do
+!    end do
+!    call gsi_nemsio_write('f_rimef','mid
+!    layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=ges_qg(j,i,k)
+        end do
+     end do
+     call gsi_nemsio_write('clwmr','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+!    do i=1,lon2
+!       do j=1,lat2
+!          if(ges_ref(j,i,k)>60)ges_ref(j,i,k)=60
+!          if(ges_ref(j,i,k)<-10)ges_ref(j,i,k)=-10
+!          work_sub(j,i)=ges_ref(j,i,k)
+!       end do
+!    end do
+!    call gsi_nemsio_write('obs_ref','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+
+     do i=1,lon2
+        do j=1,lat2
+           work_sub(j,i)=dfi_tten(j,i,k)
+        end do
+     end do
+     call gsi_nemsio_write('dfi_tten','mid layer','H',kr,work_sub(:,:),mype,mype_input,add_saved)
+     add_saved=.true.
+     end if
+!* use GSD cloud analysis for NMMB
+
                                    !   tsen
 
      call gsi_nemsio_read('tmp','mid layer','H',kr,work_sub(:,:),mype,mype_input)
@@ -1279,7 +1357,7 @@ subroutine wrnemsnmma_binary(mype)
      end if
 
                              ! cloud
-     if (nguess>0) then
+     if (nguess>0.and. .not.use_reflectivity) then
         do i=1,lon2
            do j=1,lat2
               if (ges_ql(j,i,k)<=qcmin) ges_ql(j,i,k)=zero

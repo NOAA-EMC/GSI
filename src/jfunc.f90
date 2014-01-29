@@ -38,6 +38,8 @@ module jfunc
 !   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
 !   2011-02-16  zhu     - add ggues,vgues,pgues
 !   2011-07-15  zhu     - add cwgues
+!   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
+!                         or aircraft_t_bc_pof=.true.
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -117,7 +119,7 @@ module jfunc
   public :: set_pointer
   public :: set_sqrt_2dsize
 ! set passed variables to public
-  public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
+  public :: nrclen,npclen,nsclen,ntclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,cwgues,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
@@ -131,7 +133,7 @@ module jfunc
   integer(i_kind) nval_len,nval_lenz,nval_levs
   integer(i_kind) nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
   integer(i_kind) nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
-  integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen
+  integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen,ntclen
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
@@ -653,6 +655,7 @@ contains
     use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
+    use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
     use state_vectors, only: ns3d,ns2d,edges
     use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
@@ -674,8 +677,13 @@ contains
     end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype
-    nclen=nsubwin*nval_len+nsclen+npclen
-    nrclen=nsclen+npclen
+    if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
+       ntclen=npredt*ntail
+    else
+       ntclen=0
+    end if
+    nclen=nsubwin*nval_len+nsclen+npclen+ntclen
+    nrclen=nsclen+npclen+ntclen
     nclen1=nclen-nrclen
     nclen2=nclen1+nsclen
   
@@ -687,7 +695,7 @@ contains
           call set_sqrt_2dsize(nval2d)
        end if
        nval_lenz=nval2d*nnnn1o
-       nclenz=nsubwin*nval_lenz+nsclen+npclen
+       nclenz=nsubwin*nval_lenz+nsclen+npclen+ntclen
        if(l_hyb_ens) then
           n_ensz=1 !n_ens
           nclenz=nclenz+nsubwin*nval_lenz_en*n_ensz
@@ -696,16 +704,15 @@ contains
        nval2d=latlon11
     end if
 
-
     if (lsqrtb) then
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ensz)
+                                & nsclen,npclen,ntclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ensz)
     else
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
+                                & nsclen,npclen,ntclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
     endif
+    CALL setup_predictors(nrclen,nsclen,npclen,ntclen)
     CALL setup_state_vectors(latlon11,latlon1n,nvals_len,lat2,lon2,nsig)
-    CALL setup_predictors(nrclen,nsclen,npclen)
 
   end subroutine set_pointer
 

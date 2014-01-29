@@ -71,6 +71,7 @@ subroutine update_guess(sval,sbias)
 !   2011-09-20  hclin   - enforce non-negative aerosol fields
 !   2011-11-01  eliu    - generalize met-guess updates for global/regional
 !   2011-10-01  Hu      - GSD limitation of Q over ocean
+!   2013-05-23  zhu     - add update for aircraft temperature bias correction coefficients
 !
 !   input argument list:
 !    sval
@@ -92,7 +93,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin
   use jfunc, only: iout_iter,biascor,tsensible
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone
+       regional,twodvar_regional,regional_ozone,use_reflectivity
   use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
        ges_tsen,ges_oz,ges_u,ges_v,ges_gust,ges_vis,ges_pblh,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
@@ -101,6 +102,7 @@ subroutine update_guess(sval,sbias)
   use gsi_4dvar, only: nobs_bins, hr_obsbin
   use radinfo, only: npred,jpch_rad,predx
   use pcpinfo, only: npredp,npcptype,predxp
+  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,npredt,predt,ntail
   use m_gsiBiases,only : bias_hour, update_bias
   use bias_predictors, only: predictors
   use gsi_bundlemod, only: gsi_bundle
@@ -167,6 +169,7 @@ subroutine update_guess(sval,sbias)
 
 ! Inquire about guess fields
   call gsi_metguess_get('dim',nguess,istatus)
+  if(use_reflectivity) nguess=0
   if (nguess>0) then
      allocate(guess(nguess))
      call gsi_metguess_get('gsinames',guess,istatus)
@@ -444,6 +447,17 @@ subroutine update_guess(sval,sbias)
            predxp(i,j)=predxp(i,j)+sbias%predp(ij)
         end do
      end do
+
+!    Aircraft temperature bias 
+     if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
+        ij=0
+        do j=1,ntail
+           do i=1,npredt
+              ij=ij+1
+              predt(i,j)=predt(i,j)+sbias%predt(ij)
+           end do
+        end do
+     end if
   endif
 
   return

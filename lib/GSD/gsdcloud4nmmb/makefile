@@ -1,6 +1,6 @@
 SHELL=/bin/sh
 
-LIB = ../../../lib/libgsdcloud.a
+LIB = ./libgsdcloud.a
 
 include make.filelist
 
@@ -8,7 +8,7 @@ include make.filelist
 
 .f90.o:
 ##	$(RM) $@ $*.mod
-	$(F90) $(FFLAGS) -c $<
+	ifort $(FFLAGS) -c $<
 
 
 all:	$(LIB)
@@ -17,7 +17,7 @@ $(LIB):	$(OBJ_FILES)
 	$(AR) -ruv $(LIB) $(OBJ_FILES)
 
 .f90.a:
-	$(F90) -c $(FFLAGS) $<
+	ifort -c $(FFLAGS) $<
 #	ar -ruv $(AFLAGS) $@ $*.o
 #	rm -f $*.o
 

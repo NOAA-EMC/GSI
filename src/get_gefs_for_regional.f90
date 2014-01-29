@@ -301,7 +301,7 @@ subroutine get_gefs_for_regional
      allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
      allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
      vor=zero ; div=zero ; u=zero ; v=zero ; tv=zero ; q=zero ; cwmr=zero ; oz=zero ; z=zero ; ps=zero
-     call general_read_gfsatm(grd_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
      deallocate(vor,div)
      allocate(work_sub(grd_gfs%inner_vars,grd_gfs%lat2,grd_gfs%lon2,num_fields))
      do k=1,grd_gfs%nsig
@@ -1662,7 +1662,7 @@ subroutine setup_ens_pwgt
 !
 !$$$ end documentation block
 
-  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a
+  use hybrid_ensemble_parameters, only: grd_ens,pwgtflg,betaflg,grd_a1,grd_e1,p_e2a,coef_bw
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,regional
   use general_sub2grid_mod, only: general_suba2sube
@@ -1747,11 +1747,11 @@ subroutine setup_ens_pwgt
 
 !!! hardwired numbers for beta profile; can be tuned differently  !!!!!!!!!!!!
      do k=1,k8-1
-        beta2wgt(k)=0.1_r_kind+0.9_r_kind*sin(pih*float(k-1))
+        beta2wgt(k)=(one-coef_bw)+coef_bw*sin(pih*float(k-1))
      enddo
      pih=one/(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,nsig,ntguessig)))
      do k=k1+1,nsig
-        beta2wgt(k)=one-0.9_r_kind*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
+        beta2wgt(k)=one-coef_bw*pih*(log(ges_prsl(i,j,k1,ntguessig))-log(ges_prsl(i,j,k,ntguessig)))
      enddo
 
      beta2_inv=one-beta1_inv
