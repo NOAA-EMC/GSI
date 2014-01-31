@@ -71,7 +71,7 @@ err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
 
 if [[ ${TOP_IMGNDIR} != "/" ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      /usr/bin/rsync -ave ssh --exclude *.ctl*  ${TOP_IMGNDIR}/ \
+      /usr/bin/rsync -ave ssh --exclude *.ctl.${Z}  ${TOP_IMGNDIR}/ \
          ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi
 fi
