@@ -192,11 +192,11 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
    #  new sources to the list before writing back out.
    #------------------------------------------------------------------
 
-   if [[ $MY_MACHINE = 'ccs' ]]; then
-      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $10 "_" $11 }'`
-   else
+#   if [[ $MY_MACHINE = 'ccs' ]]; then
+#      radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $10 "_" $11 }'`
+#   else
       radstat_satype=`ls -l d*ges* | sed -e 's/_/ /g;s/\./ /' | gawk '{ print $11 "_" $12 }'`
-   fi
+#   fi
    if [[ "$VERBOSE" = "YES" ]]; then
       echo $radstat_satype
    fi
