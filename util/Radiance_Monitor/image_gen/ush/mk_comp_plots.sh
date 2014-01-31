@@ -16,7 +16,9 @@ date
 cd $PLOT_WORK_DIR
 echo sdate = $SDATE, edate = $EDATE
 
-export NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${SDATE} ${EDATE}`
+CYCLES=`${SCRIPTS}/cycle_delta.pl ${SDATE} ${EDATE}`
+export NUM_CYCLES=`expr $CYCLES + 1`
+
 echo NUM_CYCLES = $NUM_CYCLES
 
 imgndir1=${IMGNDIR}/${SUFFIX1}/pngs/comp
