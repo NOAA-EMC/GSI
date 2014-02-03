@@ -76,7 +76,6 @@ fi
 export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
 export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
 export RADMON_PARM=${MY_RADMON}/parm
-export DATA_MAP=${RADMON_PARM}/data_map.xml
 export HOMEgfs=${MY_RADMON}/nwprod
 
 
