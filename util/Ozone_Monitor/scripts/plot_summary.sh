@@ -3,10 +3,6 @@
 set -ax
 export list=$listvars
 
-if [ $machine = WCOSS ]; then
-   source ~/.bashrc
-fi
-
 export SATYPE2=$1
 
 #------------------------------------------------------------------
@@ -54,7 +50,7 @@ done
 #    transfer plots from wcoss to rzdm
      rm -f  $LOGDIR/transfer_summary_${SATYPE2}.log
      export subdir=summary
-     export listvar1=PDATE,webpsw,webmch,webid,WEBDIR,LOGDIR,USER,SUB,SUFFIX,SATYPE2,string,PVAR,subdir,tmpdir,listvar1
+     export listvar1=PDATE,WEBDIR,LOGDIR,USER,SUB,SUFFIX,SATYPE2,string,PVAR,subdir,tmpdir,listvar1
      $SUB -P ${PROJECT} -q transfer -o $LOGDIR/transfer_summary_${SATYPE2}.log -M 30 -W 0:45 -R affinity[core] -J transfer_summary ${SCRIPTS}/transfer.sh
   fi
 

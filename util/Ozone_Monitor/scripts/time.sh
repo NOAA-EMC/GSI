@@ -4,10 +4,6 @@ set -ax
 date
 export list=$listvar
 
-if [ $machine = WCOSS ]; then
-   source ~/.bashrc
-fi
-
 if [[ $data_extract -eq 1 ]]; then
 
 
@@ -103,7 +99,7 @@ if [[ $PLOT -eq 1 ]]; then
 # Loop over satellite types.  Submit poe job to make plots.  Each task handles
 # a single satellite type
 
-export listvars=PDATE,NDATE,DATDIR,TANKDIR,webpsw,webmch,webid,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,string,ptmproot,stmproot,transfer_plot,machine,listvars
+export listvars=PDATE,NDATE,DATDIR,TANKDIR,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,string,ptmproot,stmproot,transfer_plot,machine,listvars
 list="count omg cpen"
 suffix=a
 cmdfile=${stmproot}/$LOGNAME/ozone_monitor/plotjobs_${SUFFIX}_${string}/cmdfile_ptime_${suffix}
@@ -129,7 +125,7 @@ fi
 if [[ $string == 'ges' ]] ; then
 # Variable SATYPE contains list of satellites/instruments to plot.  The summary plots are made for all cycles
 
-export listvars=PDATE,NDATE,DATDIR,TANKDIR,webpsw,webmch,webid,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,string,ptmproot,stmproot,transfer_plot,machine,listvars
+export listvars=PDATE,NDATE,DATDIR,TANKDIR,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,string,ptmproot,stmproot,transfer_plot,machine,listvars
 cmdfile=${stmproot}/$LOGNAME/ozone_monitor/plotjobs_${SUFFIX}_${string}/cmdfile_psummary
 rm -f $cmdfile
 count=`$bjobs | grep $LOGNAME | grep "${SUFFIX}_psummary_${string}" | wc -l`

@@ -1,13 +1,8 @@
 #! /bin/ksh
 
-#. ~/.bashrc
-
 set -ax
 export list=$listvar
 
-if [ $machine = WCOSS ]; then
-   source ~/.bashrc
-fi
 
 #------------------------------------------------------------------
 # Set environment variables.

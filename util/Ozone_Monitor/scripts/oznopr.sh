@@ -3,9 +3,6 @@
 set -ax
 export list=$list0
 
-if [ $machine = WCOSS ]; then
-   source ~/.bashrc
-fi
 
 #------------------------------------------------------------------
 # Set environment variables.
@@ -19,24 +16,21 @@ fi
 #   Set environment variables to export to subsequent scripts
 
 if [[ "$SUFFIX" = "opr" ]]; then
-   export WEBDIR=/home/www/emc/htdocs/gmb/wx20hl/ozone/monitor/pngs
+   export WEBDIR=${WEBDIR_OZN:-/home/www/emc/htdocs/gmb/wx20hl/ozone/monitor/pngs}
 else
-   export WEBDIR=/home/www/emc/htdocs/gmb/wx20hl/ozone/monitor/pngs.${SUFFIX}
+   export WEBDIR=${WEBDIR_OZN:-/home/www/emc/htdocs/gmb/wx20hl/ozone/monitor/pngs.${SUFFIX}}
 fi
-export webpsw=/u/$LOGNAME/.open02
-export webmch=emcrzdm.ncep.noaa.gov
-export webid=wx20hl
 
 if [ $machine = WCOSS ]; then
-   export STNMAP=/usrx/local/GrADS/2.0.2/bin/stnmap
-   export GRADS=/usrx/local/GrADS/2.0.2/bin/grads
+   export STNMAP=${GrADS_ROOT}/bin/stnmap
+   export GRADS=${GrADS_ROOT}/bin/grads
    export GROUP=g01
    export CUE2RUN=dev
 elif [ $machine = ZEUS ];then
-   export STNMAP=/apps/grads/2.0.1a/bin/stnmap
-   export GRADS=/apps/grads/2.0.1a/bin/grads
-   export CUE2RUN=batch      
+   export STNMAP=${GRADS_ROOT}/bin/stnmap
+   export GRADS=${GRADS_ROOT}/bin/grads
    export GROUP=g01
+   export CUE2RUN=batch
 fi
 
 # Copy data files to local data directory.  Untar oznstat file.  Change DATDIR definition
@@ -75,7 +69,7 @@ export DATDIR=$DATDIRL
 
 
 # Export variables
-export listvar=PDATE,NDATE,DATDIR,TANKDIR,webpsw,webmch,webid,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,PLOT,ACCOUNT,string,bjobs,data_extract,ptmproot,stmproot,transfer_plot,machine,CUE2RUN,GROUP,listvar
+export listvar=PDATE,NDATE,DATDIR,TANKDIR,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,PLOT,ACCOUNT,string,bjobs,data_extract,ptmproot,stmproot,transfer_plot,machine,CUE2RUN,GROUP,listvar
 
 
 #------------------------------------------------------------------
