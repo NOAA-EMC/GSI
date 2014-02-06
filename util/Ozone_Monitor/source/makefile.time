@@ -9,17 +9,11 @@ OBJS = kinds.o read_diag.o time.o create_ctl_time.o avgsdv.o \
 # *****************************************************************
 #
 
-CF=ifort
-
-CORELIB = /scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/lib
-LIBS    = -L$(CORELIB) -lw3lib-2.0_4
-FFLAGS  = -O3 -fp-model strict -convert big_endian -assume byterecl
-
-##FFLAGS = -qsuffix=f=f90 -qdbg -qfullpath -qinitauto=7FF7FFFF \
-##		-qflttrap=overflow:zero:invalid:enable \
-##		-qsigtrap=xl__trcedump -qcheck
-
-LDFLAGS=
+#------------
+# Include machine dependent compile & load options
+#------------
+MAKE_CONF = Makefile.conf
+include $(MAKE_CONF)
 
 CMD = time.x
 
