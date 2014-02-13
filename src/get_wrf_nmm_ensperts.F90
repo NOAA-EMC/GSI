@@ -2998,7 +2998,6 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
      mm=nord_blend
      call blend(mm,iblend)
      allocate(blendx(nmix))
-     blendx(0)=zero
      blendx(nmix)=one
      dxx=one/nmix
      blendx(1)=zero

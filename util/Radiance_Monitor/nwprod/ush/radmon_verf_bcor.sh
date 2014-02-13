@@ -115,7 +115,8 @@ SATYPE=${SATYPE:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
-bcor_exec=radmon_bcor.${RAD_AREA}
+#bcor_exec=radmon_bcor.${RAD_AREA}
+bcor_exec=radmon_bcor
 err=0
 
 if [[ "$VERBOSE" = "YES" ]]; then
@@ -196,6 +197,7 @@ cat << EOF > input
   imkdata=${MAKE_DATA},
   gesanl='${dtype}',
   little_endian=${LITTLE_ENDIAN},
+  rad_area='${RAD_AREA}',
  /
 EOF
       $TIMEX ./${bcor_exec} < input >   stdout.$type

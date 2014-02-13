@@ -1,13 +1,13 @@
 program bcoef
   use read_diag
+  use kinds, only: r_kind,i_kind,r_quad
 
   implicit none
   integer ntype,maxpred
-  parameter (ntype=6)
-  parameter (maxpred=10)
+  parameter (ntype=13)
+  parameter (maxpred=12)
 
   logical eof
-  logical no_obs
 
   character(10),dimension(ntype):: ftype
   character(20) dum,satname,stringd,satsis,isis,mod_satname
@@ -15,17 +15,18 @@ program bcoef
   character(40) string,diag_rad,data_file,ctl_file
   character(10) suffix
 
-  integer npredr
   integer luname,lungrd,lunctl,lncoef,lndiag,ich
-  integer iyy,imm,idd,ihh,idhh,incr,iread,iflag,nchan
+  integer iyy,imm,idd,ihh,idhh,incr,iread,iflag
   integer n_chan,j,i,k,idum,ichan
   integer,allocatable,dimension(:):: io_chan,nu_chan
   integer npred_radiag
+  integer(i_kind) angord,ntlapupdate 
 
   real pen,rmiss,weight,rread
   real,allocatable,dimension(:):: wavenumbr,count,error,&
        use,frequency,penalty,predr
   real,allocatable,dimension(:,:):: coefs
+  real(r_kind)  tlapm, tsum
 
 ! Variables for reading satellite data
   type(diag_header_fix_list )             :: header_fix
@@ -33,9 +34,10 @@ program bcoef
   type(diag_data_name_list  )             :: data_name
   type(diag_data_fix_list   )             :: data_fix
   type(diag_data_chan_list  ),allocatable :: data_chan(:)
-  type(diag_data_extra_list) ,allocatable :: data_extra(:,:)
+  type(diag_data_extra_list ),allocatable :: data_extra(:,:)
 
 ! Namelist with defaults
+  integer               :: npredr               = 12
   logical               :: retrieval            = .false.
   integer               :: nchanl               = 19
   integer               :: imkctl               = 1
@@ -49,8 +51,36 @@ program bcoef
   data lncoef,lndiag /  21, 22 /
   data rmiss /-999./
   data stringd / '.%y4%m2%d2%h2' /
-  data ftype / 'penalty', 'mean', 'atmpath', 'clw', 'lapse2', 'lapse' /
-
+!************************************************************************
+!  Explanation of the fype array
+!     These are values used within the generated GrADS control file
+!     (bcoef.ctl).  A fuller discription of the terms is thus:
+!
+!        mean       pred(1) = global offset (mean)
+!        atmpath    pred(2) = not used when adp_anglebc=.true. and newpc4pred=.true.
+!        clw        pred(3) = cloud liquid water term
+!        lapse2     pred(4) = (temperature lapse rate)**2
+!        lapse      pred(5) = temperature lapse rate
+!        cos_ssmis  pred(6) = cosine term for SSMIS
+!        sin_ssmis  pred(7) = sine term for SSMIS
+!        emiss      pred(8) = emissivity sensitivity term
+!        ordang4    pred(9) = 4th order angle term
+!        ordang3    pred(10) = 3rd order angle term
+!        ordang2    pred(11) = 2nd order angle term
+!        ordang1    pred(12) = 1st order angle term
+!
+!     Note that the npred namelist indicates how many of these terms
+!     will to be processed by this program.  The default value is 12, 
+!     meaning all will be processed.  Earlier versions processed only the
+!     first 5.  In all cases 12 values will be written to the resulting
+!     data file though if npred < 12 then the unprocessed values will
+!     all be set to rmiss.
+!************************************************************************
+  data ftype / 'penalty','mean','atmpath','clw','lapse2','lapse',&
+               'cos_ssmis','sin_ssmis','emiss','ordang4','ordang3',&
+               'ordang2','ordang1' /
+!************************************************************************
+!
 
 
 !************************************************************************
@@ -58,6 +88,7 @@ program bcoef
 ! Initialize variables
   iread=0
   npred_radiag = 5
+  angord = 0
 
 ! Read namelist input
   read(luname,input)
@@ -118,9 +149,14 @@ program bcoef
   satsis = header_fix%isis
   dplat  = header_fix%id
   n_chan = header_fix%nchan
-
-
+  angord = header_fix%angord 
+  
+  if (angord == 4 ) then
+    npredr = 12
+  endif
+ 
   write(6,*)'satype,n_chan=',satype,' ',dplat,n_chan
+  write(6,*)'angord = ', angord
 
   string = trim(satype)//'_'//trim(dplat)
   write(6,*)'string,satname=',string,' ',satname
@@ -137,13 +173,14 @@ program bcoef
   allocate (io_chan(n_chan), nu_chan(n_chan), wavenumbr(n_chan))
   allocate (count(n_chan), penalty(n_chan), use(n_chan), &
        frequency(n_chan))
-  allocate(coefs(n_chan,npredr))
-
+  allocate(coefs(n_chan,maxpred))
+  
 ! Zero accumulator arrays
   do j=1,n_chan
      count(j) = 0.0
      penalty(j) = 0.0
   end do
+  coefs = rmiss
 
 
 ! Extract satinfo relative index
@@ -175,14 +212,6 @@ program bcoef
            pen        =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
            count(j)   = count(j) + 1.0 
            penalty(j) = penalty(j) + pen
-           
-           !
-           ! update the no_obs flag if record is valid
-           !
-           if( no_obs .eqv. .TRUE. ) then
-              no_obs = .FALSE.
-           endif
- 
         endif
 
      enddo ! channel loop
@@ -207,10 +236,17 @@ program bcoef
 
 ! Open unit to input data file.  See if file exists
   open(lncoef,file='biascr.txt',form='formatted')
-  read(lncoef,120,end=920,err=920) idum
+  if (angord == 4 ) then
+     read(lncoef,122,end=920,err=920) idum
+  else
+     read(lncoef,120,end=920,err=920) idum
+  endif
   rewind(lncoef)
 120 format(I5,1x,A20,1x,I5,10f12.6)
-  
+122 format(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))
+
+!read(lunin,'(I5,1x,A20,1x,I5,2e15.6,1x,I5/2(4x,10f12.6/))',iostat=istat,end=1333)
+!ich,isis,& ichan,tlapm,tsum,ntlapupdate,(predr(ip),ip=1,npred), where npred=12
 
 ! Read coefficient file
   allocate(predr(npredr))
@@ -218,7 +254,11 @@ program bcoef
   k=1
   eof=.false.
   do  
-     read(lncoef,120,IOSTAT=iflag) ich,isis,ichan,(predr(j),j=1,npredr)
+     if (angord /= 4 ) then
+        read(lncoef,120,IOSTAT=iflag) ich,isis,ichan,(predr(j),j=1,npredr)
+     else
+        read(lncoef,122,IOSTAT=iflag) ich,isis,ichan, tlapm,tsum,ntlapupdate,(predr(j),j=1,npredr)
+     endif
      if(iflag /=0) exit
      if (trim(isis)==trim(satsis)) then
         io_chan(k)=ichan
@@ -231,8 +271,6 @@ program bcoef
   end do
   close(lncoef)
   deallocate(predr)
-
-  nchan=k
 
   ! Create Control file
   if ( imkctl == 1 ) then
@@ -257,7 +295,7 @@ program bcoef
      write(6,*)'write data to lungrd=',lungrd
      open(lungrd,file=data_file,form='unformatted')
      write(lungrd) (penalty(k),k=1,n_chan)
-     do j=1,npredr
+     do j=1,maxpred
         write(lungrd) (coefs(k,j),k=1,n_chan)
      end do
      close(lungrd)

@@ -50,6 +50,28 @@ endif
 if (field = clw)
  type="cloud liquid water correction (K)"
 endif
+if (field = cos)
+ type="cos for SSMIS"
+endif
+if (field = sin)
+ type="sin for SSMIS"
+endif
+if (field = emiss)
+ type="emissivity sensitivity"
+endif
+if (field = ordang4)
+ type="4th order angle term"
+endif
+if (field = ordang3)
+ type="3rd order angle term"
+endif
+if (field = ordang2)
+ type="2nd order angle term"
+endif
+if (field = ordang1)
+ type="1st order angle term"
+endif
+
 
 * Determine number of channels
 'q file'
@@ -80,14 +102,15 @@ date2=subwrd(result,5)
 'set xlopts 1 4 0.11'
 'set ylopts 1 2 0.09'
 
+'define avg=avg'field
+'define sdv=sdv'field
+
 fr=0
 i=1
 chn=1
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set x 'chn
-      'define avg=avg'field
-      'define sdv=sdv'field
    chi=chn
    if (i=1) 
       'clear'

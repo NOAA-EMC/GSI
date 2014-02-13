@@ -1,7 +1,7 @@
 subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
      ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
-     nu_chan,use,error,&
-     frequency,wavenumbr,nstep,start,step,little_endian)
+     region,rlonmin,rlonmax,rlatmin,rlatmax,nu_chan,use,error,&
+     frequency,wavenumbr,nstep,start,step, little_endian)
 
   implicit none
 
@@ -17,12 +17,14 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
   character(10) satype,dplat
   character(40) ctl_file,grad_file
   character(80) string
+  character(40),dimension(nregion):: region
+  character(80),dimension(nregion):: stringr
 
   integer nregion,iuse,klev,nstep
   integer lunctl,iyy,imm,idd,ihh,j,i,n_chan,idhh,incr
   integer iyy2,imm2,idd2,ihh2,ntime
-  integer,dimension(n_chan):: nu_chan
   integer, dimension(8):: ida,jda
+  integer,dimension(n_chan):: nu_chan
   integer little_endian
 
   real rmiss,wavelength,start,step
@@ -36,8 +38,8 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 
 !**************************************************************************
 
-! Open unit to GrADS control file
-  open(lunctl,file=ctl_file,form='formatted')
+  write(6,*)'start create_ctl_angle'
+  write(6,*)' n_chan = ', n_chan
 
 ! Create date for tdef based on given date and hour offset
 
@@ -62,14 +64,52 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
   endif
   ntime=ntime+1
 
+! Open unit to GrADS control file
+  open(lunctl,file=ctl_file,form='formatted')
+
+!*******************************************************************
+!  Construct the region strings if this is for a global source,  
+!     which is defined as nregion > 1.
+!
+  if (nregion > 1) then
+     do i=1,nregion
+        if (rlatmin(i)>0.) then
+           write(clatmin,10) int(rlatmin(i))
+        else
+           write(clatmin,20) abs(int(rlatmin(i)))
+        endif
+        if (rlatmax(i)>0.) then
+           write(clatmax,10) int(rlatmax(i))
+        else
+           write(clatmax,20) abs(int(rlatmax(i)))
+        endif
+        if (rlonmin(i)>0.) then
+           write(clonmin,30) int(rlonmin(i))
+        else
+           write(clonmin,40) abs(int(rlonmin(i)))
+        endif
+        if (rlonmax(i)>0.) then
+           write(clonmax,30) int(rlonmax(i))
+        else
+           write(clonmax,40) abs(int(rlonmax(i)))
+        endif
+        stringr(i) = trim(region(i)) // ' (' // &
+             trim(clonmin) // '-' // trim(clonmax) // ', ' // &
+             trim(clatmin) // '-' // trim(clatmax) // ')'
+     end do
+  endif
+10 format(i2,'N')
+20 format(i2,'S')
+30 format(i3,'E')
+40 format(i3,'W')
 
 ! Write header information
   grad_file = trim(satname) // stringd // '.ieee_d'
   write(lunctl,100) grad_file
-  if ( little_endian == 1 ) then
-     write(lunctl,112) 
-  else  
-     write(lunctl,110) 
+  if (little_endian == 1 ) then
+     write( lunctl,112 ) 
+  else
+     write( lunctl,110 ) 
   endif
   write(lunctl,120) rmiss
   write(lunctl,130) adjustl(satype),dplat,n_chan
@@ -80,6 +120,15 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
      wavelength = 10000./wavenumbr(i)
      write(lunctl,136) i,nu_chan(i),iuse,error(i),wavelength,frequency(i)
   end do
+  write(lunctl,138)
+
+  if (nregion > 1) then
+     do i=1,nregion
+        write(cword,'(i2)') i
+        string = '*  region=' // cword // ' ' // trim(stringr(i))
+        write(lunctl,140) string
+     end do
+  endif 
   write(lunctl,145) nstep,start,step
   write(lunctl,150) n_chan
   write(lunctl,160) nregion
@@ -95,6 +144,8 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 134 format('*YDEF is channel number')
 136 format('*  y= ',i4,', channel= ',i4,' , iuse= ',i2,' , error= ',f8.3,&
          ' , wlth= ',f9.2,' , freq= ',f9.2)
+138 format('*ZDEF is geographic region')
+140 format(a80)
 145 format('xdef ',i3,' linear ',f5.1,1x,f4.2)
 150 format('ydef ',i4,' linear 1.0 1.0')
 160 format('zdef ',i2,' linear 1.0 1.0')
@@ -117,6 +168,8 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 
 ! Close ctl file
   close(lunctl)
+
+  write(6,*)'finish create_ctl_angle'
 
 ! Return
   return
