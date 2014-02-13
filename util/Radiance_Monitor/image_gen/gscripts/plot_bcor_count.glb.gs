@@ -78,13 +78,14 @@ result=close(area.txt)
 'set xlopts 1 4 0.12'
 'set ylopts 1 4 0.13'
 
+'define avg='field
+
 fr=0
 i=1
 chn=1
 while (chn<=nchan)
 *   say 'top of channel loop with chn='chn
    'set x 'chn
-      'define avg='field
       'set gxout stat'
       'd avg'
       rec14=sublin(result,14)

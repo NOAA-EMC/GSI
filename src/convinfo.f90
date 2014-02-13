@@ -14,6 +14,7 @@ module convinfo
 !   2007-11-03       su  - add pmesh_conv 
 !   2009-01-22  todling - add convinfo_initialized
 !   2010-09-10  pagowski - add pm2_5
+!   2013-08-20  s.liu - add reflectivity
 !
 ! Subroutines Included:
 !   sub init_convinfo    - initialize conventional obs related variables
@@ -60,6 +61,7 @@ module convinfo
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one
   use obsmod, only: use_limit
+  use gridmod, only: use_reflectivity
   implicit none
 
 ! set default as private
@@ -154,6 +156,7 @@ contains
     conv_bias_pm2_5= zero
 
     use_prepb_satwnd=.false.  ! allow use of satwind stored in prepbufr file
+    use_reflectivity=.false.  ! option of using reflectivity
 
     call init_pm2_5
 		  

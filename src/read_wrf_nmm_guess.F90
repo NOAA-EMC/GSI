@@ -1573,6 +1573,8 @@ subroutine read_nems_nmmb_guess(mype)
 !   2010-03-15  parrish - add option regional_ozone to turn on ozone in regional analysis
 !   2011-06-16  zhu     - add option to read cloud info for cloudy radiance
 !   2012-02-16  parrish - include option to replace nmmb stratosphere with gfs stratosphere.
+!   2012-12-16  s.liu   - add gsd cloud analysis variables.
+!   2012-10-18  s.liu   - add use_reflectivity option for cloud analysis variables.
 !
 !   input argument list:
 !     mype     - pe number
@@ -1602,7 +1604,7 @@ subroutine read_nems_nmmb_guess(mype)
        isli,nfldsig,ges_tsen,ges_oz,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use guess_grids, only: ges_prsi,ges_prsl,ges_prslavg
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone,& 
-       aeta1_ll,aeta2_ll
+       aeta1_ll,aeta2_ll, use_reflectivity
   use constants, only: zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01,ten
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
@@ -1632,7 +1634,7 @@ subroutine read_nems_nmmb_guess(mype)
 
 ! variables for cloud info
   integer(i_kind) iqtotal,icw4crtm,ier,iret,nguess,istatus
-  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
+  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef,qhtmp
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr
   real(r_kind),pointer,dimension(:,:,:):: ges_ql
   real(r_kind),pointer,dimension(:,:,:):: ges_qi
@@ -1640,6 +1642,8 @@ subroutine read_nems_nmmb_guess(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qs
   real(r_kind),pointer,dimension(:,:,:):: ges_qg
   real(r_kind),pointer,dimension(:,:,:):: ges_qh
+  real(r_kind),pointer,dimension(:,:,:):: ges_ref
+  real(r_kind),pointer,dimension(:,:,:):: dfi_tten
 
 !  check to see if using GFS stratosphere:
   if(use_gfs_stratosphere) then
@@ -1734,8 +1738,7 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                          !  cloud liquid water,ice,snow,graupel,hail,rain for cloudy radiance
-     if (nguess>0) then
-
+     if (nguess>0 .and. .not.use_reflectivity) then
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
@@ -1743,6 +1746,7 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
+!       write(6,*) 'read_wrf_nmm_guess read nemsio2::', ier,nguess
         if ((icw4crtm>0 .or. iqtotal>0) .and. ier==0) then
            do kr=1,nsig
               k=nsig+1-kr
@@ -1767,9 +1771,44 @@ subroutine read_nems_nmmb_guess(mype)
            end do
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
+!       write(6,*) 'end read nemsio2::', iret
            if (iret==0) ges_cwmr=clwmr 
         end if  ! icw4crtm>10 .or. iqtotal>0
      end if    ! end of (nguess>0)
+
+     if (nguess>0 .and. use_reflectivity) then
+
+!       Get pointer to cloud water mixing ratio
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
+        call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'ref',ges_ref,istatus);ier=ier+istatus
+        call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'tten',dfi_tten,istatus);ier=ier+istatus
+           do kr=1,nsig
+              k=nsig+1-kr
+              call gsi_nemsio_read('clwmr', 'mid layer','H',kr,clwmr(:,:,k), mype,mype_input) !read total condensate
+              call gsi_nemsio_read('f_ice', 'mid layer','H',kr,fice(:,:,k),  mype,mype_input) !read ice fraction
+              call gsi_nemsio_read('f_rain','mid layer','H',kr,frain(:,:,k), mype,mype_input) !read rain fraction
+              call gsi_nemsio_read('f_rimef','mid layer','H',kr,frimef(:,:,k), mype,mype_input) !read rime factor
+
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+                   fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
+                   ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),qhtmp(:,:,k), &
+                   efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+           end do
+
+        end if 
+
 
                                    !   pint
      if(update_pint) then
@@ -1889,6 +1928,28 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
      call gsi_nemsio_close(wrfges,'READ_NEMS_NMMB_GUESS',mype,mype_input)
+
+
+!    read in radar reflectivity
+!    mype_input=0
+     if(use_reflectivity) then
+     if(mype==mype_input) then
+        wrfges = 'obsref.nemsio'
+!       write(6,*)'start to read obsref.nemsio'
+     end if
+     call gsi_nemsio_open(wrfges,'READ', &
+                          'READ_radar_reflecitivity_mosaic:  problem with obsref.nemsio',mype,mype_input)
+     do kr=1,nsig
+        k=nsig+1-kr
+        call gsi_nemsio_read('obs_ref' ,'mid layer','H',kr,ges_ref(:,:,k),mype,mype_input)
+!       write(6,*)'reading obsref.nemsio'
+     end do
+!       write(6,*)'before close obsref.nemsio'
+     call gsi_nemsio_close(wrfges,'READ_radar_reflectivity_mosaic',mype,mype_input)
+     end if
+!    end read in radar reflectivity
+
+
      call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
                      0,mpi_comm_world,ierror)
      if(mype == 0) write(6,*)' in read_nems_nmmb_binary_guess, num_doubtful_sfct_all = ', &
@@ -1904,6 +1965,7 @@ subroutine read_nems_nmmb_guess(mype)
 
   return 
 end subroutine read_nems_nmmb_guess
+
 #else /* Start no WRF-library block */
 subroutine read_wrf_nmm_binary_guess()
   write(6,*)'READ_WRF_NMM_BINARY_GUESS:  dummy routine, does nothing!'

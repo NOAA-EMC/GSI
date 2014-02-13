@@ -84,7 +84,7 @@ fi
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-EDATE=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+EDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
 echo $EDATE
 
 sdate=`echo $EDATE|cut -c1-8`
@@ -115,15 +115,15 @@ if [[ $SINGLE_SAT -eq 0 ]]; then
             this_file=`basename $test`
             tmp=`echo "$this_file" | cut -d. -f2`
             echo $tmp
-            SATYPE_LIST="$SATYPE_LIST $tmp"
-         done
-      else
-         test_list=`ls ${TANKDIR}/angle/*.${EDATE}.ieee_d*`
-         for test in ${test_list}; do
-            this_file=`basename $test`
-            tmp=`echo "$this_file" | cut -d. -f1`
-            echo $tmp
-            SATYPE_LIST="$SATYPE_LIST $tmp"
+            #----------------------------------------------------------   
+            #  remove sat/instrument_anl names so we don't end up
+            #  with both "airs_aqua" and "airs_aqua_anl" if analysis
+            #  files are being generated for this source.
+            #----------------------------------------------------------   
+            test_anl=`echo $tmp | grep "_anl"`
+            if [[ $test_anl = "" ]]; then
+               SATYPE_LIST="$SATYPE_LIST $tmp"
+            fi
          done
       fi
       SATYPE=$SATYPE_LIST
@@ -222,7 +222,7 @@ cat << EOF > input
  /
 EOF
 
-   $TIMEX make_base < input > stdout.${type}.base
+   ./make_base < input > stdout.${type}.base
 
    #-------------------------------------------------------------------
    #  Copy base file back to $tmpdir 

@@ -249,6 +249,7 @@ subroutine write_thead_ ()
 
     use obsmod, only: thead, tptr
     use m_obdiag, only: ob_verify
+    use aircraftinfo, only: npredt,aircraft_t_bc,aircraft_t_bc_pof
     implicit none
 
     integer(i_kind) mobs
@@ -286,11 +287,21 @@ _ENTRY_(myname_)
     tptr   => thead(ii)%head
     do while (associated(tptr))
        write(iunit) tptr%idv,tptr%iob
-       write(iunit) tptr%res,  tptr%err2,tptr%raterr2,&
-                    tptr%time, tptr%b,   tptr%pg, &
-                    tptr%use_sfc_model,  tptr%tlm_tsfc, &
-                    tptr%luse, tptr%tpertb, tptr%tv_ob, &
-                    tptr%k1,   tptr%kx,  tptr%wij,  tptr%ij 
+
+       if (.not. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+          write(iunit) tptr%res,  tptr%err2,tptr%raterr2,&
+                       tptr%time, tptr%b,   tptr%pg, &
+                       tptr%use_sfc_model,  tptr%tlm_tsfc, &
+                       tptr%luse, tptr%tpertb, tptr%tv_ob, &
+                       tptr%k1,   tptr%kx,  tptr%wij,  tptr%ij 
+       else
+          write(iunit) tptr%res,  tptr%err2,tptr%raterr2,&
+                       tptr%time, tptr%b,   tptr%pg, &
+                       tptr%use_sfc_model,  tptr%tlm_tsfc, &
+                       tptr%luse, tptr%tpertb, tptr%tv_ob, &
+                       tptr%idx, tptr%pred, &
+                       tptr%k1,   tptr%kx,  tptr%wij,  tptr%ij
+       end if
        tptr => tptr%llpoint
     enddo
 !   if (mobs>0) write(6,*)'Wrote t to obsdiag file, ii=', ii, ' mobs =', mobs

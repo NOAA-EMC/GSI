@@ -305,6 +305,35 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 ! First read in all vad winds so can use vad wind quality marks to decide 
 ! which radar data to keep
 ! Open, then read bufr data
+
+  open(lnbufr,file=vadfile,form='unformatted')
+  call openbf(lnbufr,'IN',lnbufr)
+  call datelen(10)
+
+11 call readsb(lnbufr,iret)
+  if(iret/=0) then
+     call readmg(lnbufr,subset,idate,iret)
+     if(iret/=0) go to 21
+     go to 11
+  end if
+  call ufbint(lnbufr,hdr,7,1,levs,'SID XOB YOB DHR TYP SAID TSB')
+  kx=nint(hdr(5))
+  if(kx /= 224) go to 11       !  for now just hardwire vad wind type
+  if(kx==224 .and. .not.newvad) then
+    if(hdr(7)==2) then
+        newvad=.true.
+        go to 21
+     end if
+  end if 
+! End of bufr read loop
+  go to 11
+
+! Normal exit
+21 continue
+  call closbf(lnbufr)
+
+!  enddo msg_report
+
   open(lnbufr,file=vadfile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -328,9 +357,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   nmrecs = nmrecs+1
 
 ! Read header.  Extract station infomration
-  call ufbint(lnbufr,hdr,6,1,levs,'SID XOB YOB DHR TYP SAID ')
+  call ufbint(lnbufr,hdr,7,1,levs,'SID XOB YOB DHR TYP SAID TSB')
   kx=nint(hdr(5))
   if(kx /= 224) go to 10       !  for now just hardwire vad wind type
+
+! write(6,*)'new vad::',newvad, hdr(7)
+  if(.not.newvad .and. hdr(7)==2) go to 10
+  if(newvad .and. hdr(7)/=2) go to 10
                                !  and don't worry about subtypes
 ! Is vadwnd in convinfo file
   ikx=0

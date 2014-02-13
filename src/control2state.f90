@@ -31,6 +31,7 @@ subroutine control2state(xhat,sval,bval)
 !   2012-02-08  kleist   - remove call to strong_bk, ensemble_forward_model, 
 !                             ensemble_forward_model_dual_res, and related parameters
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - updated for obs adjoint test and added ladtest_obs  
+!   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
 !     xhat - Control variable
@@ -48,7 +49,7 @@ use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb, ladtest_obs
 use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon
-use jfunc, only: nsclen,npclen,nrclen
+use jfunc, only: nsclen,npclen,ntclen,nrclen
 use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -278,6 +279,12 @@ enddo
 do ii=1,npclen
    bval%predp(ii)=xhat%predp(ii)
 enddo
+
+if (ntclen>0) then
+   do ii=1,ntclen
+      bval%predt(ii)=xhat%predt(ii)
+   enddo
+end if
 
 ! Clean up
 if (ngases>0) then

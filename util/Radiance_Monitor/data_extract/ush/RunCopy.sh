@@ -15,7 +15,7 @@
 #--------------------------------------------------------------------
 
 function usage {
-  echo "Usage:  RunVrfy.sh suffix start_date [end_date]"
+  echo "Usage:  RunCopy.sh suffix start_date [end_date]"
   echo "            File name for RunCopy.sh can be full or relative path"
   echo "            Suffix is the indentifier for this data source."
   echo "            Start_date is the optional starting cycle to process (YYYYMMDDHH format)."
@@ -28,20 +28,6 @@ function usage {
 
 set -ax
 echo start RunCopy.sh
-
-#
-#  Temporary change, abort if running on prod.  This is an attempt to
-#  eliminate prossible crons running on the prod machine for me only.
-#
-#   machine=`hostname | cut -c1`
-#   prod=`cat /etc/prod | cut -c1`
-#
-#   if [[ $machine = $prod ]]; then
-#      exit 10 
-#   fi
-#
-#  End temporary change
-#
 
 
 nargs=$#
@@ -85,6 +71,19 @@ fi
 
 . ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 
+#--------------------------------------------------------------------
+#  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
+#  not permitted to run there.
+#--------------------------------------------------------------------
+
+if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod = 1 ]]; then
+      exit 10
+   fi
+fi
+
+
 if [[ $RAD_AREA = glb ]]; then
    copy_script=Copy_glbl.sh
    . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
@@ -93,6 +92,17 @@ elif [[ $RAD_AREA = rgn ]]; then
    . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
    exit 3
+fi
+
+#--------------------------------------------------------------------
+#  Check for running on prod machine.
+#--------------------------------------------------------------------
+
+if [[ RUN_ON_PROD -eq 0 ]]; then
+   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   if [[ $is_prod -eq 1 ]]; then
+      exit 10
+   fi
 fi
 
 
@@ -110,11 +120,11 @@ fi
 
 #--------------------------------------------------------------------
 # If we have a START_DATE then use it, otherwise use the 
-#   find_last_cycle.pl script to determine the last copied cycle.
+#   find_cycle.pl script to determine the last copied cycle.
 #--------------------------------------------------------------------
 start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -le 0 ]]; then
-   pdate=`${USHverf_rad}/find_last_cycle.pl ${TANKDIR}`
+   pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
    pdate_len=`echo ${#pdate}`
    if [[ ${pdate_len} -ne 10 ]]; then
       exit 4
@@ -136,9 +146,7 @@ while [[ $done -eq 0 ]]; do
    #--------------------------------------------------------------------
    # Check for running jobs   
    #--------------------------------------------------------------------
-   if [[ $MY_MACHINE = "ccs" ]]; then
-      running=`llq -u ${LOGNAME} -f %jn | grep data_extract_${SUFFIX} | wc -l`
-   elif [[ $MY_MACHINE = "wcoss" ]]; then
+   if [[ $MY_MACHINE = "wcoss" ]]; then
       running=`bjobs -l | grep data_extract_${SUFFIX} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
       running=`qstat -u $LOGNAME | grep data_extract_${SUFFIX} | wc -l`

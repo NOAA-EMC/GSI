@@ -31,6 +31,8 @@ module berror
 !   2010-04-25  zhu - add handling of option newpc4pred for new pre-conditioning of predictors
 !   2010-06-01  todling - revist as,tsfc_sdv to allow alloc depending on size of CVec
 !   2011-04-07  todling - move newpc4pred to radinfo
+!   2013-05-27  zhu - add background error variances for aircraft temperature bias correction coefficients
+!   2013-10-02  zhu - add reset_predictors_var
 !
 ! subroutines included:
 !   sub init_berror         - initialize background error related variables
@@ -116,6 +118,7 @@ module berror
   public :: create_berror_vars
   public :: destroy_berror_vars
   public :: set_predictors_var
+  public :: reset_predictors_var
   public :: init_rftable
   public :: initable
   public :: create_berror_vars_reg
@@ -365,6 +368,7 @@ contains
 !   2010-04-30  zhu     - add handling of newpc4pred, set varprd based on diagonal
 !                         info of analysis error covariance
 !   2012-04-14  whitaker - variance can be specified in setup namelist.
+!   2013-05-27  zhu - add background error variances for aircraft temperature bias correction coefficients
 !
 !   input argument list:
 !
@@ -377,17 +381,26 @@ contains
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
     use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,rstats_t,varA_t
     use gridmod, only: twodvar_regional
-    use jfunc, only: nrclen
+    use jfunc, only: nrclen, ntclen
     implicit none
 
     integer(i_kind) i,j,ii
     real(r_kind) stndev
+    real(r_kind) obs_count
+    logical new_tail
     
     stndev = one/biaspredvar
     do i=1,max(1,nrclen)
        varprd(i)=stndev
     end do
+
+    if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then 
+       do i=nrclen-ntclen+1,max(1,nrclen)
+          varprd(i)=one/biaspredt
+       end do
+    end if
 
 !   set variances for bias predictor coeff. based on diagonal info
 !   of previous analysis error variance
@@ -406,13 +419,98 @@ contains
                    varprd(ii)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
                 end if
                 if (varprd(ii)>r10) varprd(ii)=r10
+                if (varA(j,i)>10000.0_r_kind) varA(j,i)=10000.0_r_kind
              end if
           end do
        end do
+
+       if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
+          ii=nrclen-ntclen
+          do i=1,ntail
+             do j=1,npredt
+                ii=ii+1
+
+                if (aircraft_t_bc_pof) then 
+                   obs_count = ostats_t(j,i)
+                   new_tail = varA_t(j,i)==zero
+                end if
+                if (aircraft_t_bc) then 
+                   obs_count = ostats_t(1,i)
+                   new_tail = .true.
+                   if (any(varA_t(:,i)/=zero)) new_tail = .false.
+                end if
+
+                if (new_tail) then
+                   varprd(ii)=r10
+                else
+                   if (obs_count<=10.0_r_kind) then
+                      varA_t(j,i)=1.1_r_kind*varA_t(j,i)+0.0001_r_kind
+                      varprd(ii)=varA_t(j,i)
+                   else
+                      varprd(ii)=varA_t(j,i)+0.0001_r_kind
+                   end if
+                   if (varprd(ii)>one_tenth)  varprd(ii)=one_tenth
+                   if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
+                end if
+             end do
+          end do
+       end if
     end if
 
     return
   end subroutine set_predictors_var
+
+
+  subroutine reset_predictors_var
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    reset_predictors_var sets variances for bias correction predictors
+!   prgmmr: yanqiu           org: np20                date: 2013-10-01
+!
+! abstract: resets variances for bias correction predictors
+!
+! program history log:
+!   output argument list:
+!   2013-10-01  zhu
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use constants, only:  one
+    use radinfo, only: newpc4pred
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t
+    use gridmod, only: twodvar_regional
+    use jfunc, only: nrclen, ntclen
+    implicit none
+
+    integer(i_kind) i,j,ii,obs_count
+    real(r_kind) stndev
+    
+    stndev = one/biaspredt
+
+!   reset variances for bias predictor coeff. based on current data count
+    if (.not. twodvar_regional .and. newpc4pred) then
+       if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
+          ii=nrclen-ntclen
+          do i=1,ntail
+             do j=1,npredt
+                ii=ii+1
+
+                if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
+                if (aircraft_t_bc) obs_count = ostats_t(1,i)
+
+                if (obs_count<=10.0_r_kind .and. varprd(ii)>stndev) then
+                   varprd(ii)=stndev
+                end if
+             end do
+          end do
+       end if
+    end if
+
+    return
+  end subroutine reset_predictors_var
 
   subroutine pcinfo
 !$$$  subprogram documentation block
@@ -433,12 +531,13 @@ contains
 !$$$
     use kinds, only: r_kind,i_kind
     use radinfo, only: ostats,rstats,varA,jpch_rad,npred,newpc4pred
-    use jfunc, only: nclen,nrclen,diag_precon,step_start
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
+    use jfunc, only: nclen,nrclen,diag_precon,step_start,ntclen
     use constants, only:  one,tiny_r_kind
     implicit none
 
 !   Declare local variables
-    integer(i_kind) i,j,ii
+    integer(i_kind) i,j,ii,jj,obs_count
     integer(i_kind) nclen1
     real(r_kind) lfact
 
@@ -452,8 +551,8 @@ contains
       vprecond=lfact
 
       if(newpc4pred)then
-        nclen1=nclen-nrclen
 !       for radiance bias predictor coeff.
+        nclen1=nclen-nrclen
         ii=0
         do i=1,jpch_rad
            do j=1,npred
@@ -461,9 +560,34 @@ contains
               if (ostats(i)>=1.0_r_kind) then
                  vprecond(nclen1+ii)=one/(one+rstats(j,i)*varprd(ii))
                  varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
+              else
+                 vprecond(nclen1+ii)=one
               end if
            end do
         end do
+
+!       for aircraft temperature bias predictor coeff.
+        if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
+          nclen1=nclen-ntclen
+          ii=0
+          jj=nrclen-ntclen
+          do i=1,ntail
+             do j=1,npredt
+                ii=ii+1
+                jj=jj+1
+
+                if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
+                if (aircraft_t_bc) obs_count = ostats_t(1,i)
+
+                if (obs_count>10.0_r_kind) then
+                   vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
+                   varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
+                else
+                   vprecond(nclen1+ii)=one
+                end if
+             end do
+          end do
+        end if
       end if
     end if
     return
