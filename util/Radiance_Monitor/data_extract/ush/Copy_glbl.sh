@@ -94,6 +94,10 @@ echo PDATE = $PDATE
 prev=`$NDATE -06 $PDATE`
 prev_day=`echo $prev|cut -c1-8`
 prev_cyc=`echo $prev|cut -c9-10`
+next=`$NDATE +06 $PDATE`
+next_day=`echo $next|cut -c1-8`
+next_cyc=`echo $next|cut -c9-10`
+
 echo prev_day, prev_cyc = $prev_day, $prev_cyc
 echo next_day, next_cyc = $next_day, $next_cyc
 
