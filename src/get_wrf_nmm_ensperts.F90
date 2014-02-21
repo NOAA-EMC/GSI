@@ -1726,7 +1726,13 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
           end do
        end do
     else
-       g_rh(j,i,k)=g_q(j,i,k)
+       do k=1,grd%nsig
+          do i=1,grd%lon2
+             do j=1,grd%lat2
+	        g_rh(j,i,k)=g_q(j,i,k)
+	     end do
+	  end do
+       end do
     end if   
 
 !    call grads3a(grd,g_u,g_v,g_tv,g_prsl,g_ps,grd%nsig,mype,wrfens)

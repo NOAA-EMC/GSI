@@ -976,7 +976,13 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
         end do
      end do
   else
-     rh(j,i,k)=q(j,i,k)
+     do k=1,grd%nsig
+        do i=1,grd%lon2
+           do j=1,grd%lat2
+              rh(j,i,k)=q(j,i,k)
+           end do
+        end do
+     end do
   end if
 
 ! test
