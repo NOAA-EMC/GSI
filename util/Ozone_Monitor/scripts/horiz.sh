@@ -88,7 +88,7 @@ fi
 if [[ $PLOT -eq 1 ]]; then
 
 # Loop over satellite types.  Submit plot job for each type.
-export listvars=PDATE,NDATE,DATDIR,TANKDIR,WEBDIR,EXEDIR,FIXDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,string,ptmproot,stmproot,transfer_plot,machine,listvars
+export listvars=PDATE,NDATE,DATDIR,TANKDIR,webpsw,webmch,webid,WEBDIR,EXEDIR,FIXDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,string,ptmproot,stmproot,transfer_plot,machine,listvars
 suffix=a
 
 if [ ! -d ${stmproot}/$LOGNAME/ozone_monitor/plotjobs_${SUFFIX}_${string} ] ; then

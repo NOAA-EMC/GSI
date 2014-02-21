@@ -124,7 +124,7 @@ fi
 #    transfer plots from wcoss to rzdm
      rm -f  $LOGDIR/transfer_time_${SATYPE2}.log
      export subdir=time
-     export listvar1=PDATE,WEBDIR,LOGDIR,USER,SUB,SUFFIX,SATYPE2,string,PVAR,subdir,tmpdir,listvar1
+     export listvar1=PDATE,webpsw,webmch,webid,WEBDIR,LOGDIR,USER,SUB,SUFFIX,SATYPE2,string,PVAR,subdir,tmpdir,listvar1
      $SUB -P ${PROJECT} -q transfer -o $LOGDIR/transfer_time_${SATYPE2}.log -M 30 -W 0:45 -R affinity[core] -J transfer_time ${SCRIPTS}/transfer.sh
   fi
 

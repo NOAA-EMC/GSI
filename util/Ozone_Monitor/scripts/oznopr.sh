@@ -21,15 +21,18 @@ else
    export WEBDIR=${WEBDIR_OZN:-/home/www/emc/htdocs/gmb/wx20hl/ozone/monitor/pngs.${SUFFIX}}
 fi
 
+export webpsw=${webpsw:-/u/$LOGNAME/.open02}
+export webmch=${webmch:-emcrzdm.ncep.noaa.gov}
+export webid=${webid:-wx20hl}
+
+export GROUP=${GROUP:-g01}
 if [ $machine = WCOSS ]; then
    export STNMAP=${GrADS_ROOT}/bin/stnmap
    export GRADS=${GrADS_ROOT}/bin/grads
-   export GROUP=g01
    export CUE2RUN=dev
 elif [ $machine = ZEUS ];then
    export STNMAP=${GRADS_ROOT}/bin/stnmap
    export GRADS=${GRADS_ROOT}/bin/grads
-   export GROUP=g01
    export CUE2RUN=batch
 fi
 
@@ -69,7 +72,7 @@ export DATDIR=$DATDIRL
 
 
 # Export variables
-export listvar=PDATE,NDATE,DATDIR,TANKDIR,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,PLOT,ACCOUNT,string,bjobs,data_extract,ptmproot,stmproot,transfer_plot,machine,CUE2RUN,GROUP,listvar
+export listvar=PDATE,NDATE,DATDIR,TANKDIR,webpsw,webmch,webid,WEBDIR,EXEDIR,LOGDIR,SCRIPTS,GSCRIPTS,STNMAP,GRADS,USER,SUB,SUFFIX,SATYPE,NCP,PLOT,ACCOUNT,string,bjobs,data_extract,ptmproot,stmproot,transfer_plot,machine,CUE2RUN,GROUP,listvar
 
 
 #------------------------------------------------------------------
