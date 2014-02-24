@@ -100,7 +100,7 @@ fi
 
       ${SCRIPTS}/update_ctl_tdef.sh ${PLOT_WORK_DIR}/${type}.ctl ${SDATE} ${NUM_CYCLES}
  
-#      if [[ $MY_MACHINE = "wcoss" ]]; then
+#      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
          sed -e 's/cray_32bit_ieee/ /' ${PLOT_WORK_DIR}/${type}.ctl > ${PLOT_WORK_DIR}/tmp_${type}.ctl
          sed -s 's/\^/\'"^${SUFFIX1}."'/1' ${PLOT_WORK_DIR}/tmp_${type}.ctl > ${PLOT_WORK_DIR}/${SUFFIX1}.${type}.ctl
          sed -s 's/\^/\'"^${SUFFIX2}."'/1' ${PLOT_WORK_DIR}/tmp_${type}.ctl > ${PLOT_WORK_DIR}/${SUFFIX2}.${type}.ctl
