@@ -1,0 +1,177 @@
+
+1. two C source codes change.
+
+src/AMSUB_1bs/fnl/snowfall_rate.c
+src/MHS/fnl/snowfall_rate.c
+
+
+1) if Linux using ifort ( need an uderscore when calling fortran subroutine onelyr)
+	onelyr_
+
+cp snowfall_rate.c.ifort snowfall_rate.c
+
+
+2) if AIX using xlf90/xlf95 ( remove underscore when calling fortran subroutine onelyr )
+	onelyr
+
+cp snowfall_rate.c.xlf90  snowfall_rate.c
+
+
+
+
+2. configuration
+
+include/Makefile_include
+
+All libs and compiler related changes.
+
+
+
+
+3. scripts
+cd scripts
+
+mspps_orbit_1b.bash   for  M2/NN/NP;
+mspps_orbit_1bs.bash  for  NK/NL/NM.
+
+Those 3 macros must be changed to reflect your own specifications.
+
+MSPPS_1B	# 1B/1B* raw data location
+MSPPS_ROOT	# MSPPS system root directory
+GFS_HIST	# GFS history data location
+
+
+Whether to call get_avn or get_avn2 really depends on the how history avn filename saved.
+You may need change if your history GFS/avn file names are different from provided versions.
+
+We provide STAR version of get_avn and OSDPD version of get_avn2 there.
+
+
+
+
+4. How to Compile
+
+cd src ; make > make_log 2>&1
+
+After compiling successfully, you should see 18 executables in bin directory:
+runamsua_m2  runamsua_nl  runamsua_nn  runamsub_fnl_nk  runamsub_fnl_nm  runamsub_pre_nl  runmhs_fnl_m2  runmhs_fnl_np  runmhs_pre_nn
+runamsua_nk  runamsua_nm  runamsua_np  runamsub_fnl_nl  runamsub_pre_nk  runamsub_pre_nm  runmhs_fnl_nn  runmhs_pre_m2  runmhs_pre_np
+
+
+
+
+5. Before running, make sure GFS data is already copied to data/GFS/current directory
+and endian is correct.
+
+1) cd data/GFS/current ; ls  avn_[t-v]*
+You should see 40 avn files:
+
+avn_tpw00.bin  avn_tpw15.bin  avn_ts06.bin  avn_ts21.bin    avn_ts2m12.bin  avn_u03.bin  avn_u18.bin  avn_v09.bin
+avn_tpw03.bin  avn_tpw18.bin  avn_ts09.bin  avn_ts2m00.bin  avn_ts2m15.bin  avn_u06.bin  avn_u21.bin  avn_v12.bin
+avn_tpw06.bin  avn_tpw21.bin  avn_ts12.bin  avn_ts2m03.bin  avn_ts2m18.bin  avn_u09.bin  avn_v00.bin  avn_v15.bin
+avn_tpw09.bin  avn_ts00.bin   avn_ts15.bin  avn_ts2m06.bin  avn_ts2m21.bin  avn_u12.bin  avn_v03.bin  avn_v18.bin
+avn_tpw12.bin  avn_ts03.bin   avn_ts18.bin  avn_ts2m09.bin  avn_u00.bin     avn_u15.bin  avn_v06.bin  avn_v21.bin
+
+Each file size is 260640.
+
+
+2) To test endian correct using IDL: scripts/test_endian_avn.pro
+IDL> file='avn_tpw00.bin'
+IDL> tmp=fltarr(181,360)
+IDL> openr, 1, file
+IDL> readu, 1, tmp
+IDL> close, 1
+IDL> print, tmp(80:89, 40:50)
+IDL> exit
+
+You should see normal ranges of those variables, if too large or too small or any weird values, then you need
+swap endian of avn data using 
+
+swap_endian_avn.bash  ( bash to do all 40 files together ), it calls idl program swap_endian_avn.pro to do
+endian swapping for all 40 avn files
+
+3) The scripts will detect endian of the machine to decide to do swap endian of 1b/1b* or not 
+using the two perl scripts: 
+	
+	swap_endian_1b.pl
+	swap_endian_1bs.pl
+
+
+
+
+6. How to Run
+
+mspps_orbit_1b.bash   file_1b_name
+mspps_orbit_1bs.bash  file_1bs_name
+
+
+Example:
+
+mspps_orbit_1b.bash  
+
+
+mspps_orbit_1bs.bash  N1S.AMAX.NK.D09263.S1031.E1225.B5903435.GC
+
+
+
+Output swath files(1b*) 
+../data/NOAA-K/output/swath/NPR.AAOP.NK.D09263.S1031.E1225.B5903435.NS
+../data/NOAA-K/output/swath/NPR.ABOP.NK.D09263.S1031.E1225.B5903435.NS
+
+Output swath files(1b) 
+../data/Metop/output/swath/NPR.AAOP.M2.D09263.S1208.E1348.B1515657.NS
+../data/Metop/output/swath/NPR.MHOP.M2.D09263.S1208.E1348.B1515657.NS
+
+
+
+
+7. How to Clean ( remove all object files and all executables )
+cd src; make clean
+
+
+
+
+8. Note: 
+1) Since GFS data in data/GFS/current has no date attached to file name, each time you run a 1b/1b* file, you
+need make sure that 1b/1b* and GFS data are using the same date, which means you need to update GFS data according
+to the 1b/1b* files you are processing. It's safe to force copying GFS data each time you process a 1b/1b* file,
+but it a waste of time if all 1b/1b* files are in the same day. So it really depends.
+
+2) When calling daily mode, make sure that MSPPS_1B in *orbit*.bash and DIR_1b/DIR_1bs point to the same location.
+
+daily mode call orbit mode to process files one by one.
+
+
+3) clean all logs:
+find ./logs -name log.* -exec rm {} \;
+
+4) clean all obj and exes:
+cd src; make clean
+
+5) clean all generated data:
+cd data; 
+find . -name "NPR*NS" -exec rm {} \;
+find . -name "NPR*BIN" -exec rm {} \;
+
+6) clean all misc
+cd data; ls */misc/* ;  rm */misc/*
+
+7) clean GFS current directory:
+rm -f data/GFS/current/*
+
+
+
+
+9. Sample Testing data:
+1) 1b 
+data/POES/1b
+
+2) 1b*
+data/POES/1bs
+
+3) Corresponding GFS(avn) 
+data/GFS/hist
+
+
+10. Comment/Problem, please contact Wanchun Chen <Wanchun.Chen@noaa.gov>.
+

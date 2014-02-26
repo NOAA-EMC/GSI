@@ -1,0 +1,35 @@
+SHELL=/bin/bash
+include ../../../include/Makefile_include
+
+OBJS =  BSWATH_nk.o read_swath_A_nk.o calprod_nk.o \
+	snowcover_nk.o snowfall_nk.o  icewp_nk.o   ramb_whdfeos_nk.o \
+        openfs.o  read_latbox_table.o read_mask_snow.o \
+        fov.o init.o  avn.o read_avn.o gnrt_prod.o \
+        mask_stype_snow.o read_swath_B.o read_parm.o\
+        spread.o rainrate.o swe_cal.o def_prod.o\
+        get_conv_index.o  cal_pred_ocean.o cal_pred_land.o \
+        set_sw.o sw_def.o sw_wrt.o bin_time.o \
+        wrt_bin.o  wrt_limit.o wrt_prod.o wrt_scal.o \
+        rainrate_correct.o read_lza_parameter.o \
+        read_iwp_s_table.o snowfall_rate.o
+
+OBJS2 = CLOUD_OPT_CAL.o GET_EMISS_1DALG_nk.o onelyr.o
+
+INCLUDE =  -I$(HDFEOS_INC) -I$(HDF_INC)
+LIBS	=  -L$(HDFEOS_LIB) -L$(HDF_LIB) -L${SZIP_LIB} -lhdfeos -lGctp -lmfhdf -ldf -ljpeg -lz -lm -lc -lsz $(LDFLAGS_FC)
+
+CMD = ${BIN_DIR}/runamsub_fnl_nk
+
+all: $(CMD)
+
+$(CMD): $(OBJS) $(OBJS2)
+	$(CC) $(INCLUDE) -o $(@) $(OBJS) $(OBJS2) $(LIBS)
+
+.c.o:
+	${CC} $(INCLUDE) -c $<
+
+.f90.o:
+	${FC} $(INCLUDE) $(FC_FLAGS) -c $<
+
+clean:
+	-rm -f $(OBJS) $(OBJS2) $(CMD)  *.mod  *.MOD

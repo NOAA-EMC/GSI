@@ -1,0 +1,16 @@
+				<option value="chisq">Chi Square</option>
+				<option value="clw">CLW</option>
+				<option value="gs">Snow Grain Size</option>
+				<option value="iwp">Ice Water Path</option>
+				<option value="lwp">Liquid Water Path</option>
+				<option value="psfc">Sfc Pressure</option>
+				<option value="rr">Rain Rate</option>
+				<option value="rwp">Rain Water Path</option>
+				<option value="sice">Sea Ice</option>
+				<option value="sicemy">Multiple Year SIC</option>
+				<option value="sicefy">First Year SIC</option>
+				<option value="swe">SWE</option>
+				<option value="temp">Temperature</option>
+				<option value="tpw">TPW</option>
+				<option value="tskin">Skin Temperature</option>
+				<option value="wv">Water Vapor</option>

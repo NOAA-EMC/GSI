@@ -1,0 +1,171 @@
+&TuningP
+	!-------------------------------------------------------------------
+	!   Sensor ID
+	!-------------------------------------------------------------------
+    	Sensor_ID    		= 1
+	!-------------------------------------------------------------------
+	!   Retrieval Tuning parameters
+	!-------------------------------------------------------------------
+    	rhMaxAllowed		= 100 !Maximum Relative Humidity Allowed in retrieval
+    	RetrErrCharac           = 0   !Flag to output retrieval error characteristics
+	!-------------------------------------------------------------------
+	!   What EDRs to retrieve
+	!   The labels must coincide with the contents of Cov/Bkg/Trnsf Matrx
+	!-------------------------------------------------------------------
+	EDR_Label_atm(1)        = 'TEMP'    
+	EDR_Label_atm(2)        = 'WVAP'        
+	EDR_Label_atm(3)        = 'OZON'        
+	EDR_Label_atm(4)        = 'CLW'        
+	EDR_Label_atm(5)        = 'RAIN'        
+	EDR_Label_atm(6)        = 'SNOW'        
+	EDR_Label_atm(7)        = 'ICE'        
+	EDR_Label_atm(8)        = 'GRPL' 
+	EDR_Label_atm(9)        = 'TSKIN' 
+	EDR_Label_atm(10)       = 'SFCP' 
+       
+	EDR_Label_sfc(1)        = 'EMIS'        
+	EDR_Label_sfc(2)        = 'REFL'        
+	EDR_Label_sfc(3)        = 'WINDSP'   
+	EDR_Label_sfc(4)        = 'TSKIN'   
+	EDR_Label_sfc(5)        = 'DELTAT'   
+     	EDR_Label_sfc(6)        = 'SFCP'   
+	!-------------------------------------------------------------------
+	!   Number EOFs used 4 retrieval for each EDR 
+	!   Note that 0 means that EDR not retrieved @ all (not part of Xg). 
+	!-------------------------------------------------------------------
+	EDR_nEOF_atm(1)         = 7
+	EDR_nEOF_atm(2)         = 5     
+	EDR_nEOF_atm(3)         = 0
+	EDR_nEOF_atm(4)         = 0
+	EDR_nEOF_atm(5)         = 3
+	EDR_nEOF_atm(6)         = 0
+	EDR_nEOF_atm(7)         = 0
+	EDR_nEOF_atm(8)         = 3
+	EDR_nEOF_atm(9)         = 1
+	EDR_nEOF_atm(10)        = 0
+
+	EDR_nEOF_sfc(1)         = 4      
+	EDR_nEOF_sfc(2)         = 0        
+	EDR_nEOF_sfc(3)         = 0
+	EDR_nEOF_sfc(4)         = 0
+	EDR_nEOF_sfc(5)         = 0
+	EDR_nEOF_sfc(6)         = 0
+	!-------------------------------------------------------------------
+	!   Control parameters that affect how potential external data are 
+	!   used. For those parameters to be retrieved (selected above),    
+	!   the following defines the use of the external data (if the flag    
+	!   ExternDataAvailab says they are available). 			    
+	!   0-> Do not use External data for this parameter		    
+	!   1-> Use Ext in combination w Bkg (weighed by errors) 		    
+	!   2-> Use extern data as 1st guess only. Keep climo for Bkg.	    
+	!   3-> Replace the Bkg & 1st guess with Extrnal data.	   	    
+	!-------------------------------------------------------------------
+    	EDR_ExtDataUse_atm(1)=2
+    	EDR_ExtDataUse_atm(2)=2
+    	EDR_ExtDataUse_atm(3)=0
+    	EDR_ExtDataUse_atm(4)=0
+    	EDR_ExtDataUse_atm(5)=0
+    	EDR_ExtDataUse_atm(6)=0
+    	EDR_ExtDataUse_atm(7)=0
+    	EDR_ExtDataUse_atm(8)=0
+    	EDR_ExtDataUse_atm(9)=2
+    	EDR_ExtDataUse_atm(10)=0
+
+    	EDR_ExtDataUse_sfc(1)=2
+    	EDR_ExtDataUse_sfc(2)=0
+    	EDR_ExtDataUse_sfc(3)=0
+    	EDR_ExtDataUse_sfc(4)=0
+    	EDR_ExtDataUse_sfc(5)=0
+    	EDR_ExtDataUse_sfc(6)=0
+
+	EDR_ExtDataUse_sTyp=0     !For Sfc Type, 0/1 are the only options
+	!-------------------------------------------------------------------------------
+	!   For those parameters to be retrieved (selected above), the 			  
+	!   following allow some tuning to the way the retrieval is			  
+	!   actually performed, following the code below:					  
+	!   0-> retrieve normally (based on X1st and Cov/Bkg)				  
+	!   1-> retrieve normally but reduce variance by half.				  
+	!   2-> stick to bkg (be it climo/ext depending on control param)			  
+	!   3-> stick to bkg & uncorrelate with other EDRs 				  
+	!   4-> uncorrelate with other EDRs but not stick to bkg				  
+	!   5-> uncorrelate with other EDRs/not stick to bkg & x 100 the diagonal matrx value
+	!   6-> uncorrelate with other EDRs/not stick to bkg & x 10 the diagonal matrx value 
+	!-------------------------------------------------------------------------------
+    	EDR_cntrlRetr_atm(1)=0
+    	EDR_cntrlRetr_atm(2)=0
+    	EDR_cntrlRetr_atm(3)=0
+    	EDR_cntrlRetr_atm(4)=0
+    	EDR_cntrlRetr_atm(5)=0
+    	EDR_cntrlRetr_atm(6)=0
+    	EDR_cntrlRetr_atm(7)=0
+    	EDR_cntrlRetr_atm(8)=0
+    	EDR_cntrlRetr_atm(9)=0
+    	EDR_cntrlRetr_atm(10)=0
+
+    	EDR_cntrlRetr_sfc(1)=0
+    	EDR_cntrlRetr_sfc(2)=0
+    	EDR_cntrlRetr_sfc(3)=0
+    	EDR_cntrlRetr_sfc(4)=0
+    	EDR_cntrlRetr_sfc(5)=0
+    	EDR_cntrlRetr_sfc(6)=0
+	!-------------------------------------------------------------------
+	!   How to turn ON/OFF channels (based on Vector or Freq range)
+	!-------------------------------------------------------------------
+        ChanSelectFlag      = 0 !=0->ChanSel, =1->Frq Mn/Mx
+	!---Channel selection vector (If ChanSelectFlag eq 0)
+        ChanSel(1)          = 1
+	ChanSel(2)          = 1
+	ChanSel(3)          = 1
+	ChanSel(4)          = 1
+	ChanSel(5)          = 1
+	ChanSel(6)          = 1
+	ChanSel(7)          = 1
+	ChanSel(8)          = 1
+	ChanSel(9)          = 1
+	ChanSel(10)         = 1
+	ChanSel(11)         = 1
+	ChanSel(12)         = 1
+	ChanSel(13)         = 1
+	ChanSel(14)         = 1
+	ChanSel(15)         = 1
+	ChanSel(16)         = 0
+	ChanSel(17)         = 1
+	ChanSel(18)         = 1
+	ChanSel(19)         = 1
+	ChanSel(20)         = 1
+ 	!-------Frequency range to be selected (If ChanSelectFlag eq 1)
+        FreqMin             = 10.
+        FreqMax             = 50.
+	!-------------------------------------------------------------------
+	!   Control bias correction (by surface type)
+	!-------------------------------------------------------------------
+    	iWhere2Apply			= -2
+    	iCorrMethod			= 0
+        applyBias_oc_byChan(1:20)  	= 1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+        applyBias_ic_byChan(1:20)  	= 0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,0
+        applyBias_ld_byChan(1:20)  	= 0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,0
+        applyBias_sn_byChan(1:20)  	= 0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,0
+	!-------------------------------------------------------------------
+	!   Scaling factors for the instrumental/modeling errors
+	!-------------------------------------------------------------------
+	scalFactEF_oc_byChan(1:20)  	= 2.0,2.0,2.0,1.5,1.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,2.0,2.0,2.0,1.5,2.0,2.0
+	scalFactEF_ic_byChan(1:20)  	= 2.0,2.0,2.0,1.5,1.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,2.0,2.0,2.0,1.5,2.0,2.0
+	scalFactEF_ld_byChan(1:20)  	= 2.0,2.0,2.0,1.5,1.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,2.0,2.0,2.0,1.5,2.0,2.0
+	scalFactEF_sn_byChan(1:20)  	= 2.0,2.0,2.0,1.5,1.5,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,2.0,2.0,2.0,1.5,2.0,2.0
+	!-------------------------------------------------------------------
+	!   Convergence-related controlling items
+	!-------------------------------------------------------------------
+	nIterations         = 7
+	ChiSqThresh         = 1.
+	ChiSqThresh4Attempt = 5.
+	!-------------------------------------------------------------------
+	!   Non-linearity shooting-control parameter
+	!-------------------------------------------------------------------
+	alpha               = 7
+	beta                = 0.
+	!-------------------------------------------------------------------
+	!   Minimum Top pressure [mb] to which sensor is sensitive
+	!-------------------------------------------------------------------
+        topSensPressT       = 0.
+        topSensPressWV      = 0.
+/

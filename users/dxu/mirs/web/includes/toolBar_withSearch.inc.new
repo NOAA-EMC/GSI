@@ -1,0 +1,41 @@
+<div class="toolBarContainer" style="height: 40px;">
+  <div class="toolBarInner">
+
+    <div class="left" style="margin-top: 8px;">
+      <form id="smallSearch" method="get" action="http://usasearch.gov/search">
+		<input type="hidden" name="affiliate" value="orbit.nesdis.noaa.gov_star">
+		<input type="hidden" name="v:project" value="firstgov">
+		<input title="Enter your search terms here." 
+	    type="text" name="query" style="width: 11em; color: #666;" 
+	    id="query-field"
+	    value="Enter search term(s)"
+	    > 
+		<input type="submit" value="Search">
+      </form>
+    </div>
+
+    <div class="right" style="line-height: 140%;">
+	<a href="index.php">Home</a>&nbsp;|&nbsp;<a 
+	href="instruments.php">Instruments</a>&nbsp;|&nbsp;<a 
+	href="algorithm.php">Algorithm</a>&nbsp;|&nbsp;<a 
+	href="testbed.php">Testbed</a>&nbsp;|&nbsp;<a 
+	href="products.php">Products</a>&nbsp;|&nbsp;<a 
+	href="climates.php">Climate</a>&nbsp;|&nbsp;<a 
+	href="sensorsquality.php">Sensors</a>&nbsp;|&nbsp;<a 
+	href="radiomonitoring.php">Radiometric</a><br><a 
+	href="simulatedmonitoring.php">Simulated</a>&nbsp;|&nbsp;<a 
+	href="geomonitoring.php">Geophysical</a>&nbsp;|&nbsp;<a 
+	href="intercomparison.php">Inter-Comparison</a>&nbsp;|&nbsp;<a 
+	href="validation.php">Validation</a>&nbsp;|&nbsp;<a 
+	href="publications.php">Publications</a>&nbsp;|&nbsp;<a 
+	href="download.php">Download</a>&nbsp;|&nbsp;<a 
+	href="intranet.php">Intranet</a>
+    </div>
+    
+    <div class="clearing"></div>
+
+  </div>
+</div>
+	  
+<table id="mainTable" cellpadding="0" cellspacing="0" border="0"
+	summary="this table is for page layout purposes only, not tabular data">

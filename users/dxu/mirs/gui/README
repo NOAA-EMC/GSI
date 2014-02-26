@@ -1,0 +1,32 @@
+1. Compile
+	make
+2. Run
+	make run
+3. Clean
+	make clean
+
+4.Daily run
+
+1) load config file
+File -> Load Config File
+
+Pick	config.bash
+
+2) pick a date
+Choose Date -> Browse
+
+3) select tasks from Task Panel
+
+4) generate script
+
+Click button "Generate Script"
+
+Give whatever name you want, better a bash file
+You can check whether this bash file is created or not.
+
+5) run the script
+Click "Run" button
+
+6)cancel the script
+
+ 

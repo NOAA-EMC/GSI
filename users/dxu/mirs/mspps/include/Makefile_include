@@ -1,0 +1,45 @@
+################################################################
+#	System lib paths
+################################################################
+
+HDF_INC=/home/pub/hdf4/include
+HDF_LIB=/home/pub/hdf4/lib
+
+HDFEOS_INC=/home/pub/hdfeos/include
+HDFEOS_LIB=/home/pub/hdfeos/lib/linux
+
+SZIP_LIB=/home/pub/szip/lib
+
+FORTRAN_LIB=/usr/local/intel/fc/11.1.038/lib/ia32
+
+
+BIN_DIR=/home/pub/wchen/mspps_operational/bin
+
+
+################################################################
+#	Suffix rules
+################################################################
+.SUFFIXES:
+.SUFFIXES: .c .f90 .o
+
+
+################################################################
+#	Linux ifort
+################################################################
+FC = ifort
+FC_FLAGS = -free -assume byterecl -convert big_endian
+LDFLAGS_FC = -L${FORTRAN_LIB} -lguide -lpthread -lifcore -lsvml -limf
+
+################################################################
+#	AIX xlf90
+################################################################
+#FC = xlf90
+#FC_FLAGS =
+#LDFLAGS_FC = -lxlf -lxlf90 -lxlopt -lxlomp_ser 
+
+
+
+################################################################
+#	C compiler
+################################################################
+CC = gcc -Wall

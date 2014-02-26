@@ -1,0 +1,29 @@
+SHELL=/bin/bash
+include ../../../include/Makefile_include
+
+OBJS =  MHS2HDF.o openfs.o read_parm.o read_systim.o \
+        init.o rmhs_whdfeos.o rmhs_hd.o rmhs_scn.o scn_data.o \
+        gnrt_at.o getcal.o cnt2rd.o rad2at.o \
+        gnrt_fname.o qc_at_np.o \
+        set_sw.o sw_def.o def_dim.o def_geo.o def_data.o \
+        gnrt_stime.o jd2md.o leapyear.o sw_wrt.o    \
+        wrt_limit.o wrt_scal.o wrt_navig.o wrt_geo.o wrt_data.o \
+        read_latbox_table.o read_mask.o mask_stype.o toolkit_td.o
+
+INCLUDE =  -I$(HDFEOS_INC) -I$(HDF_INC)
+LIBS    =  -L$(HDFEOS_LIB) -L$(HDF_LIB) -L$(SZIP_LIB) -lhdfeos -lGctp -lmfhdf -ldf -ljpeg -lz -lm -lsz
+
+CMD = ${BIN_DIR}/runmhs_pre_np
+
+all: ${CMD}
+
+$(CMD): $(OBJS)
+	$(CC) -o  $(@) $(OBJS) $(LIBS)
+ 
+ 
+.c.o:
+	${CC} $(INCLUDE) -c $<
+ 
+ 
+clean:
+	-rm -f $(OBJS) $(CMD)
