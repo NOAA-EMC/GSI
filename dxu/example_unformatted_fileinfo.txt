@@ -1,0 +1,23 @@
+# This is an example of file 'unformatted_fileinfo', a user defined database
+# file supporting module gsi_unformatted, for user's local GSI sequential
+# unformatted file format configurations.
+#
+# Note: convert="" and convert="native" may be different, when this code is
+#     compiled with a compiler "--convert <keyword>" flag.  "native" refers
+#     to the platform default, while "" refers to <keyword> of flag "--convert".
+#
+# Note: Just like a filename, class is case sensitive, at least for this
+#     implementation.
+#
+# Note: Reserved values in this implementation of module gsi_unformatted.
+#     class   == ".default."          -- for all files
+#     convert == "_NOT_SUPPORTED_"    -- flag compilers not supporting "convert"
+#     convert == "_NOT_FOUND_"        -- flag a failed lookup() attempt.
+#
+#     class/file      convert
+#--------------------------------------
+      .default.       ""              # a class name reserved for all files
+      .bufr.          little_endian   # for all BUFR files
+#     .berror.        native          # for files grouped under .berror.
+#     berror_stats    big_endian      # an exception from .berror.
+#     .diag.          big_endian      # for files grouped under .diag.

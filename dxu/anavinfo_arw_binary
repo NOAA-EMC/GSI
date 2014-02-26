@@ -1,0 +1,37 @@
+met_guess::
+!var     level    crtm_use    desc              orig_name
+  cw       50      10         cloud_condensate  cw
+#  ql       50      10         cloud_liquid      ql
+#  qi       50      10         cloud_ice         qi
+#  qr       50      10         rain              qr
+#  qs       50      10         snow              qs
+#  qg       50      10         graupel           qg
+::
+
+state_vector::  
+!var     level  itracer amedge  source     funcof
+ u        50      0      no     met_guess    u
+ v        50      0      no     met_guess    v
+ tv       50      0      no     met_guess    tv
+ tsen     50      0      no     met_guess    tv,q
+ q        50      1      no     met_guess    q
+ oz       50      1      no     met_guess    oz
+ cw       50      1      no     met_guess    cw
+ p3d      51      0      yes    met_guess    p3d
+ ps        1      0      no     met_guess    p3d
+ sst       1      0      no     met_guess    sst
+::
+
+control_vector::
+!var     level  itracer as/tsfc_sdv  an_amp0   source  funcof
+ sf       50      0       1.00        -1.0     state    u,v
+ vp       50      0       1.00        -1.0     state    u,v
+ ps        1      0       0.50        -1.0     state    p3d
+ t        50      0       0.70        -1.0     state    tv
+ q        50      1       0.70        -1.0     state    q
+ oz       50      1       0.50        -1.0     state    oz
+ sst       1      0       1.00        -1.0     state    sst
+ cw       50      1       1.00        -1.0     state    cw
+ stl       1      0       1.00        -1.0     motley   sst
+ sti       1      0       1.00        -1.0     motley   sst
+::

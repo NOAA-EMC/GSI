@@ -1,0 +1,66 @@
+met_guess::
+!var     level    crtm_use    desc              orig_name
+  cw       40      10         cloud_condensate  cw
+#  ql       30      10         cloud_liquid      ql
+#  qi       30      10         cloud_ice         qi
+#  qr       30      10         rain              qr
+#  qs       30      10         snow              qs
+#  qg       30      10         graupel           qg
+::
+
+state_vector::  
+!var     level  itracer amedge  source     funcof
+ sulf     40      1      no     chem_guess    sulf
+ bc1      40      1      no     chem_guess    BC1
+ bc2      40      1      no     chem_guess    BC2
+ oc1      40      1      no     chem_guess    OC1
+ oc2      40      1      no     chem_guess    OC2
+ dust1    40      1      no     chem_guess    DUST1
+ dust2    40      1      no     chem_guess    DUST2
+ dust3    40      1      no     chem_guess    DUST3
+ dust4    40      1      no     chem_guess    DUST4
+ dust5    40      1      no     chem_guess    DUST5
+ seas1    40      1      no     chem_guess    SEAS1
+ seas2    40      1      no     chem_guess    SEAS2
+ seas3    40      1      no     chem_guess    SEAS3
+ seas4    40      1      no     chem_guess    SEAS4
+ p25      40      1      no     chem_guess    p25
+::
+
+control_vector::
+!var     level  itracer as/tsfc_sdv  an_amp0   source  funcof
+ sulf     40      1       1.00        -1.0     state    sulf
+ bc1      40      1       1.00        -1.0     state    BC1
+ bc2      40      1       1.00        -1.0     state    BC2
+ oc1      40      1       1.00        -1.0     state    OC1
+ oc2      40      1       1.00        -1.0     state    OC2
+ dust1    40      1       1.00        -1.0     state    DUST1
+ dust2    40      1       1.00        -1.0     state    DUST2
+ dust3    40      1       1.00        -1.0     state    DUST3
+ dust4    40      1       1.00        -1.0     state    DUST4
+ dust5    40      1       1.00        -1.0     state    DUST5
+ seas1    40      1       1.00        -1.0     state    SEAS1
+ seas2    40      1       1.00        -1.0     state    SEAS2
+ seas3    40      1       1.00        -1.0     state    SEAS3
+ seas4    40      1       1.00        -1.0     state    SEAS4
+ p25      40      1       1.00        -1.0     state    p25
+::
+
+chem_guess::
+!var     level  itracer crtm_use   type    orig_name
+ sulf     40      1       12       sulf    sulf
+ bc1      40      1       12       BC1     BC1
+ bc2      40      1       12       BC2     BC2
+ oc1      40      1       12       OC1     OC1
+ oc2      40      1       12       OC2     OC2
+ dust1    40      1       12       DUST1   DUST_1
+ dust2    40      1       12       DUST2   DUST_2
+ dust3    40      1       12       DUST3   DUST_3
+ dust4    40      1       12       DUST4   DUST_4
+ dust5    40      1       12       DUST5   DUST_5
+ seas1    40      1       12       SEAS1   SEAS_1
+ seas2    40      1       12       SEAS2   SEAS_2
+ seas3    40      1       12       SEAS3   SEAS_3
+ seas4    40      1       12       SEAS4   SEAS_4
+ p25      40      1       10       p25     P25
+::

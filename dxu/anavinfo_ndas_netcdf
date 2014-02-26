@@ -1,0 +1,32 @@
+met_guess::
+!var     level    crtm_use    desc              orig_name
+  cw       45      10         cloud_condensate  cw
+::
+
+state_vector::  
+!var     level  itracer amedge  source     funcof
+ u        45      0      no     met_guess    u
+ v        45      0      no     met_guess    v
+ tv       45      0      no     met_guess    tv
+ tsen     45      0      no     met_guess    tv,q
+ q        45      1      no     met_guess    q
+ oz       45      1      no     met_guess    oz
+ cw       45      1      no     met_guess    cw
+ p3d      46      0      yes    met_guess    p3d
+ ps        1      0      no     met_guess    p3d
+ sst       1      0      no     met_guess    sst
+::
+
+control_vector::
+!var     level  itracer as/tsfc_sdv  an_amp0   source  funcof
+ sf       45      0       1.00        -1.0     state    u,v
+ vp       45      0       1.00        -1.0     state    u,v
+ ps        1      0       0.50        -1.0     state    p3d
+ t        45      0       0.70        -1.0     state    tv
+ q        45      1       0.70        -1.0     state    q
+ oz       45      1       0.50        -1.0     state    oz
+ sst       1      0       1.00        -1.0     state    sst
+ cw       45      1       1.00        -1.0     state    cw
+ stl       1      0       1.00        -1.0     motley   sst
+ sti       1      0       1.00        -1.0     motley   sst
+::

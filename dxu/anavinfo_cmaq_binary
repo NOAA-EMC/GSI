@@ -1,0 +1,25 @@
+state_vector::  
+!var     level  itracer amedge  source     funcof
+ pm2_5     72      1      no   chem_guess   pm2_5  
+::
+
+control_vector::
+!var     level  itracer as/tsfc_sdv  an_amp0   source  funcof
+ pm2_5    72      1       1.00        -1.0     state    pm2_5
+::
+
+chem_guess::
+!var     level  itracer crtm_use   type     orig_name
+ pm2_5     72      1         -1    pm2_5     pm2_5
+::
+
+
+met_guess::
+!var     level    crtm_use    desc              orig_name
+  cw       30      10         cloud_condensate  cw
+#  ql       30      10         cloud_liquid      ql
+#  qi       30      10         cloud_ice         qi
+#  qr       30      10         rain              qr
+#  qs       30      10         snow              qs
+#  qg       30      10         graupel           qg
+::
