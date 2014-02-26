@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 # This is the place you need change according to your own needs.
 #-------------------------------------------------------------------------------
-MIRS_ROOT   = /home/pub/kgarrett/mirs_trunk
+MIRS_ROOT   = /data/home001/dxu/mirs_trunk
 CRTM_path   = ${MIRS_ROOT}/src/crtm/REL-2.1.1
 lib_path    = ${MIRS_ROOT}/src/lib
 exec_path   = ${MIRS_ROOT}/bin
