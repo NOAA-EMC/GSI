@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radiance_Monitor
+export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,16 +24,16 @@ export MY_RADMON=/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_333/util/Radianc
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=/u/Edward.Safford/nbns
+export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
 
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
 #  on the web server (WEB_USER), and location of the top level directory
 #  for the html on the web server (WEBDIR).
 #
-export WEB_SVR=emcrzdm
-export WEB_USER=esafford
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford
+export WEB_SVR=${WEB_SVR:-emcrzdm}
+export WEB_USER=${WEB_USER:-esafford}
+export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 
 
 ###############################################################################
@@ -45,16 +45,16 @@ export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=wcoss
-export LITTLE_ENDIAN=0
+export MY_MACHINE=${MY_MACHINE:-wcoss}
+export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 echo endian = $LITTLE_ENDIAN
 
 
 #
 #  Log and work space definitions
 #
-export PTMP=/ptmp
-export STMP=/stmp
+export PTMP=${PTMP:-/ptmp}
+export STMP=${STMP:-/stmp}
   
 export LOGSverf_rad=$PTMP/$LOGNAME/logs    
 export WORKverf_rad=$STMP/$LOGNAME         
