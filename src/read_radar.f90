@@ -261,6 +261,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   ilat=3
   iaaamax=-huge(iaaamax)
   iaaamin=huge(iaaamin)
+  dlatmax=-huge(dlatmax)
+  dlonmax=-huge(dlonmax)
+  dlatmin=huge(dlatmin)
+  dlonmin=huge(dlonmin)
 
   allocate(cdata_all(maxdat,maxobs),isort(maxobs))
 
@@ -488,10 +492,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 ! data where it is available and no level 2.5 data was saved/available 
 ! (level2_5=0)
 
-  dlatmax=-huge(dlatmax)
-  dlonmax=-huge(dlonmax)
-  dlatmin=huge(dlatmin)
-  dlonmin=huge(dlonmin)
   vadfit2=zero
   vadfit2_5=zero
   vadfit3=zero
@@ -1495,10 +1495,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      cstaid='FRENCH  '
   else if(hdr(1)== two)then
      cstaid='G-IV    '
+  else if(hdr(1)== three)then
+     cstaid='AOC     '
   else
-     print *,'Antenna Number is not correct'
-     go to 900
+     cstaid='UNKNOWN '
   endif
+
+  kx=990+nint(hdr(1))
 
   if(nmrecs==1)print *,'Antenna ID:', hdr(1),cstaid
   
@@ -1516,7 +1519,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   idate5(5) = imn
   ikx=0
   do i=1,nconvtype
-     if(trim(ioctype(i)) == trim(obstype))ikx = i
+     if(trim(ioctype(i)) == trim(obstype) .and. kx == ictype(i))ikx = i
   end do
   if(ikx == 0) go to 70
   call w3fs21(idate5,minobs)
@@ -1690,6 +1693,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
         if(regional) then
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+           dlatmax=max(dlat,dlatmax)
+           dlonmax=max(dlon,dlonmax)
+           dlatmin=min(dlat,dlatmin)
+           dlonmin=min(dlon,dlonmin)
            if (outside) then
               noutside=noutside+1
               cycle
@@ -2014,6 +2021,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
         if(regional) then
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+           dlatmax=max(dlat,dlatmax)
+           dlonmax=max(dlon,dlonmax)
+           dlatmin=min(dlat,dlatmin)
+           dlonmin=min(dlon,dlonmin)
            if (outside) then
               noutside=noutside+1
               cycle
