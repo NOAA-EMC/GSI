@@ -15,9 +15,9 @@
   FC            = $(CF)
 
 #--- Normal mode options
-  FFLAGS_F90    = -D_REAL8_ -DWRF -convert big_endian
+  FFLAGS_F90    = -D_REAL8_ -DWRF
 
-  FFLAGS_COM_N  = -I -O3 -traceback -g -fp-model strict
+  FFLAGS_COM_N  = -I -O3 -traceback -g -fp-model strict -convert big_endian
 
   FFLAGS_N  = $(FFLAGS_F90) $(FFLAGS_COM_N)
   FFLAGS_f  = $(FFLAGS_COM_N) $(PROF)
@@ -25,7 +25,7 @@
 
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -O0 -xHOST -traceback -debug full -g
+  FFLAGS_COM_D  =  -O0 -xHOST -traceback -debug full -g -convert big_endian
   
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
   FFLAGS_NOSWAP_D = $(FFLAGS_F90) $(FFLAGS_COM_NOSWAP_D)
