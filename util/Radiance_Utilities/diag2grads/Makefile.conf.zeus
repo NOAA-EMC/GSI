@@ -15,7 +15,7 @@
   FC            = $(CF)
 
 #--- Normal mode options
-  FFLAGS_F90    = -D_REAL8_ -DWRF -convert
+  FFLAGS_F90    = -D_REAL8_ -DWRF -convert big_endian
 
   FFLAGS_COM_N  = -I -O3 -traceback -g -fp-model strict
 
