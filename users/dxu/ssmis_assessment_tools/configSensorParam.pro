@@ -27,6 +27,7 @@ PRO configSensorParam, sensorOption
    ; 2. Sensor specifc config params
    ;-----------------------------------
    CASE sensorOption OF
+       ; NOAA-18/AMSUA&MHS
        1: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -53,6 +54,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; NOAA-19/AMSUA&MHS
        2: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -79,6 +81,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; MetOp-A/AMSUA&MHS
        3: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -105,6 +108,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; MetOp-B/AMSUA/MHS 
        4: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -131,6 +135,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; F16/SSMIS
        5: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -157,6 +162,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; F17/SSMIS
        6: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -183,6 +189,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; F18/SSMIS
        7: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -209,6 +216,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; NPP/ATMS
        8: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -235,6 +243,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+       ; AQUA/AMSRE
        9: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -261,6 +270,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; GCOMW1/AMSR2
       10: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -287,6 +297,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; FY3/MWRI
       11: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -313,6 +324,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; FY3/MWHS/MWTS
       12: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -339,6 +351,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; TRMM/TMI
       13: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -365,6 +378,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; GPM/GMI
       14: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -391,6 +405,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; MT/MADRAS
       15: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -417,6 +432,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+      ; MT/SAPHIR
       16: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
@@ -443,6 +459,7 @@ PRO configSensorParam, sensorOption
             prefix1 = 'SSMIS_Obs_plotting_'
             prefix2 = 'SSMIS_Sim_plotting_'
 	  END
+    ; WindSat
     ELSE: BEGIN
 	    ; Radiance files (obs + sim)
 	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
