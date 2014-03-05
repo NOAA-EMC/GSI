@@ -24,7 +24,6 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !   2010-03-23  derber - simplify and optimize
 !   2010-03-24  derber - generalize so that can be used for any lat,lon,nsig and any tsen and prsl (for hybrid)
 !   2010-12-17  pagowski - add cmaq
-!   2013-10-30  jung - removed mint and lmint
 !
 !   input argument list:
 !     tsen      - input sensibile temperature field (lat2,lon2,nsig)
@@ -67,7 +66,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
   real(r_kind) pw,tdry,tr,es,es2
   real(r_kind) w,onep3,esmax
   real(r_kind) desidt,deswdt,dwdt,desdt,esi,esw
-  real(r_kind),dimension(lat2,lon2):: estmax
+  real(r_kind),dimension(lat2,lon2):: mint,estmax
+  integer(i_kind),dimension(lat2,lon2):: lmint
   logical:: idtupdate,idpupdate
 
 ! Declare local parameters
@@ -77,7 +77,25 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 
   do j=1,lon2
      do i=1,lat2
-        tdry = 340._r_kind
+        mint(i,j)=340._r_kind
+        lmint(i,j)=1
+     end do
+  end do
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           if((prsl(i,j,k) < 30._r_kind .and.  &
+               prsl(i,j,k) > 2._r_kind) .and.  &
+               tsen(i,j,k) < mint(i,j))then
+              lmint(i,j)=k
+              mint(i,j)=tsen(i,j,k)
+           end if
+        end do
+     end do
+  end do
+  do j=1,lon2
+     do i=1,lat2
+        tdry = mint(i,j)
         tr = ttp/tdry
         if (tdry >= ttp .or. .not. ice) then
            estmax(i,j) = psat * (tr**xa) * exp(xb*(one-tr))
@@ -135,7 +153,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 
            pw = onep3*prsl(i,j,k)
            esmax = es
-           if(k > 1)then
+           if(lmint(i,j) < k)then
               esmax=0.1_r_kind*pw
               esmax=min(esmax,estmax(i,j))
            end if
