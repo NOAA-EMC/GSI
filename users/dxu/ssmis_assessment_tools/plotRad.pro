@@ -1,3 +1,18 @@
+;---------------------------------------------------------------------------------
+; Name:  plotRad.pro
+;
+; Type:  IDL Program
+;
+; Description:
+;   A local procedure used by main-level assessment tool code
+;   to plot both observed radiance and simulated radiance.
+;
+; Author: Deyong Xu (RTI) @ JCSDA,
+;         Deyong.Xu@noaa.gov
+; Version: Mar 5, 2014, DXu, Initial coding
+;
+;
+;---------------------------------------------------------------------------------
 PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,       $
     ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
@@ -92,8 +107,8 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
       ; Select out profiles
       ;    radiance: ref_Tb2 > 0.
       ;    Orbit mode flag: ref_ModeFlag2 = 0
-      filter2 = WHERE(ref_Lat2 ge MIN_LAT       $
-		and ref_Lat2 le MAX_LAT         $
+      filter2 = WHERE(ref_Lat2 ge MIN_LAT          $
+		and ref_Lat2 le MAX_LAT            $
 		and ref_Tb2(*,chPlotArray(i)) gt 0 $
 		and ref_ModeFlag2 eq 0)
 
@@ -101,8 +116,8 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
 	       ref_Lat2,ref_Lon2,                  $
 	       filter2,   $
 	       title,     $
-	       minBT_Values(chPlotArray(i)),   $
-	       maxBT_Values(chPlotArray(i)),   $
+	       minBT_Values(chPlotArray(i)),      $
+	       maxBT_Values(chPlotArray(i)),      $
 	       ref_Tb2(*,chPlotArray(i)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
@@ -118,7 +133,4 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
 
    ENDFOR
 
-
-
-
-   END
+END

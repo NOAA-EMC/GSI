@@ -1,3 +1,17 @@
+;---------------------------------------------------------------------------------
+; Name:  readRadFile.pro
+;
+; Type:  IDL Program
+;
+; Description:
+;   To read radiance files using IDL code in MIRS trunk.
+;
+; Author: Deyong Xu (RTI) @ JCSDA,
+;         Deyong.Xu@noaa.gov
+; Version: Mar 5, 2014, DXu, Initial coding
+;
+;
+;---------------------------------------------------------------------------------
 PRO readRadFile, nList
    ;-------------------------------
    ; step 1:

@@ -1,3 +1,19 @@
+;---------------------------------------------------------------------------------
+; Name:  configSensorParam.pro
+;
+; Type:  IDL Program
+;
+; Description:
+;   To config parameters for various sensors. 
+;   It contains both shared config params and 
+;   individual config params that are specific to each sensor.
+;
+; Author: Deyong Xu (RTI) @ JCSDA,
+;         Deyong.Xu@noaa.gov
+; Version: Mar 5, 2014, DXu, Initial coding
+;
+;
+;---------------------------------------------------------------------------------
 PRO configSensorParam, sensorOption
    ;-----------------------------------
    ; 1. Shared config params

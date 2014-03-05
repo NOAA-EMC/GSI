@@ -1,10 +1,10 @@
 ;---------------------------------------------------------------------------------
-; Name:  plotSSMIS.pro
+; Name: plotTwoRads.pro 
 ;
 ; Type:  IDL Program
 ;
 ; Description: 
-;   To read SSMIS observed radiance data and simulated radiance data, 
+;   To read observed radiance data and simulated radiance data,
 ;   which is generated from GFS 6-h forecast, then do following steps:
 ;   to access SSMIS data quality. 
 ;     1. Plot observed radiance
@@ -17,11 +17,9 @@
 ;         
 ;
 ;---------------------------------------------------------------------------------
-
-;---------------------------------------------
 ; Specify IDL plotting and util code to use.
-;---------------------------------------------
 @paths_idl.pro
+; Specify locally-defined util code.
 @AT_Util.pro
 
 chooseSensor:

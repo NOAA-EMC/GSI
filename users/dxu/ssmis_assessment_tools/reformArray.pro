@@ -1,3 +1,18 @@
+;---------------------------------------------------------------------------------
+; Name:  reformArray.pro
+;
+; Type:  IDL Program
+;
+; Description:
+;   A locally-defined procedure used by the assessment tool main-level code
+;   to transform data in terms of dimension.
+;
+; Author: Deyong Xu (RTI) @ JCSDA,
+;         Deyong.Xu@noaa.gov
+; Version: Mar 5, 2014, DXu, Initial coding
+;
+;
+;---------------------------------------------------------------------------------
 PRO reformArray
    ;-----------------
    ; step 1:
