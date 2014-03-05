@@ -404,8 +404,8 @@ maxValues_SSMIS = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     300, 280, 280, 280 ]
 
 ; Specify the channels to plot
-;chs2Plot = INDGEN(24)
-chs2Plot = INDGEN(2)
+chs2Plot = INDGEN(24)
+;chs2Plot = INDGEN(2)
 ;chs2Plot = [22]
 
 nChs2Plot = n_elements(chs2Plot)
