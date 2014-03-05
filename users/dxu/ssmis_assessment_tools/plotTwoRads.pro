@@ -162,10 +162,10 @@ IF (readAgain eq 0) THEN GOTO, mark_plotting
 IF (readAgain eq 1) THEN GOTO, mark_readMeas
 
 mark_readMeas:
-;----------------------------------
+;------------------------------------
 ; step 1: 
-; Read two lists of radiance files
-;----------------------------------
+;   Read two lists of radiance files
+;------------------------------------
 ;  readlist,I, O, O 
 readlist, radListFile1, radFileList1, nfilesRad1
 readlist, radListFile2, radFileList2, nfilesRad2
@@ -185,8 +185,8 @@ nList=nRadFiles1
 
 ;-------------------------------------------
 ; step 2:
-; Read radiances (measurements) from List1
-; Read radiances (simulated) from List2
+;   Read radiances (measurements) from List1
+;   Read radiances (simulated) from List2
 ;-------------------------------------------
 ;-------------------------------
 ; sub-step 2.1:
@@ -309,7 +309,7 @@ ENDFOR
 
 ;-------------------------------------------
 ; step 3:
-; Reform data
+;   Reform data
 ;-------------------------------------------
 reform:
 ;-----------------
@@ -374,10 +374,10 @@ PRINT,"size of ref_Angle1    =  ", n_elements(ref_Angle1)
 PRINT,"size of ref_QC1       =  ", n_elements(ref_QC1)
 PRINT,"size of ref_Tb1       =  ", n_elements(ref_Tb1)
 
-;---------------------------------------
+;-----------------------------------------
 ; step 4: 
-; Plot radiances (observed + simulated)
-;---------------------------------------
+;   Plot radiances (observed + simulated)
+;-----------------------------------------
 mark_plotting:
 impr = 0
 
@@ -413,10 +413,10 @@ nChs2Plot = n_elements(chs2Plot)
 prefix1 = 'SSMIS_Obs_plotting_'
 prefix2 = 'SSMIS_Sim_plotting_'
 
-;----------------------------------
+;------------------------------------------------
 ; sub-step 4.1: 
-; Plot observed radiances for chosen channels.
-;----------------------------------
+;   Plot observed radiances for chosen channels.
+;------------------------------------------------
 ;
 ; Loop thru. channels to plot
 FOR i=0, nChs2Plot - 1 DO BEGIN
@@ -468,10 +468,10 @@ FOR i=0, nChs2Plot - 1 DO BEGIN
 
 ENDFOR
 
-;----------------------------------
+;-------------------------------------------------
 ; sub-step 4.2: 
-; Plot simulated radiances for chosen channels.
-;----------------------------------
+;   Plot simulated radiances for chosen channels.
+;-------------------------------------------------
 ;
 ; Loop thru. channels to plot
 FOR i=0, nChs2Plot - 1 DO BEGIN
