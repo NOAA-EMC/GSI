@@ -188,11 +188,10 @@ nList=nRadFiles1
 ; Read radiances (measurements) from List1
 ; Read radiances (simulated) from List2
 ;-------------------------------------------
-;----------------
+;-------------------------------
 ; sub-step 2.1:
-;----------------
-;
-; Declare variables for rad1
+;   Declare variables for rad1
+;-------------------------------
 ;
 ; 1-D array (1) : File
 nFOV_Rad1 = lonarr(nList)          ; total number of FOVs in a file
@@ -222,11 +221,10 @@ QC_Rad2       = fltarr(MAX_FOV,nList)  ; QC  per file
 ; 3-D array (1) : Fov X File X Channel 
 tbRad2    = fltarr(MAX_FOV,nList,MAX_CHAN) ; tb per file per channel
 
-;----------------
+;---------------------------------------
 ; sub-step 2.2:
-;----------------
-;
-; Read FMSRC file (observed radiance)
+;   Read FMSRC file (observed radiance)
+;---------------------------------------
 ;
 ; Loop thru. files/orbits
 FOR iFile=0L,nRadFiles1-1 DO BEGIN
@@ -268,7 +266,10 @@ FOR iFile=0L,nRadFiles1-1 DO BEGIN
 ENDFOR
 
 ;
-; Read FWD file   (simulated radiance)
+;---------------------------------------
+; sub-step 2.3:
+;   Read FWD file   (simulated radiance)
+;---------------------------------------
 ;
 ; Loop thru. files/orbits
 FOR iFile=0L,nRadFiles1-1 DO BEGIN
@@ -313,6 +314,7 @@ ENDFOR
 reform:
 ;-----------------
 ; sub-step 3.1:
+;   constants
 ;-----------------
 ; rad1 (observed)
 ;
@@ -320,6 +322,7 @@ nChan = rad1.nChan      ; number of channels
   
 ;-----------------
 ; sub-step 3.2:
+;   2-d arrays
 ;-----------------
 ; Convert 2-D (Fov X File) into 1-D array ( Fov * File )
 ; Result:
@@ -347,6 +350,7 @@ ref_Tb2       = fltarr(nList * MAX_FOV, rad2.nChan)
  
 ;-----------------
 ; sub-step 3.3:
+;   3-d arrays
 ;-----------------
 ; Convert 3-D (Fov X File X Channel ) 
 ; into 2-D array ( (Fov * File) X Channel )
@@ -370,10 +374,10 @@ PRINT,"size of ref_Angle1    =  ", n_elements(ref_Angle1)
 PRINT,"size of ref_QC1       =  ", n_elements(ref_QC1)
 PRINT,"size of ref_Tb1       =  ", n_elements(ref_Tb1)
 
-;----------------------------------
+;---------------------------------------
 ; step 4: 
 ; Plot radiances (observed + simulated)
-;----------------------------------
+;---------------------------------------
 mark_plotting:
 impr = 0
 
