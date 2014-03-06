@@ -13,7 +13,7 @@
 ;
 ;
 ;---------------------------------------------------------------------------------
-PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
+PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix1, prefix2, $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,       $
     ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
     ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
@@ -47,7 +47,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
 	      xsize=xz, ysize=yz, xoffset=2, yoffset=2,      $
 	      /portrait, font_size=7, /bold, /courier
 
-      channel = chanInfoArrray[chPlotArray(i)] + ' GHz'
+      channel = chanInfoArray[chPlotArray(i)] + ' GHz'
       title = 'SSMIS observed TB ' + channel + ' 2013-01-20'
 
       ; Select out profiles
@@ -100,7 +100,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
 	      xsize=xz, ysize=yz, xoffset=2, yoffset=2,      $
 	      /portrait, font_size=7, /bold, /courier
 
-      channel = chanInfoArrray[chPlotArray(i)] + ' GHz'
+      channel = chanInfoArray[chPlotArray(i)] + ' GHz'
       ;title = 'SSMIS TB ' + channel + ' 2012-04-15'
       title = 'SSMIS simulated TB ' + channel + ' 2013-01-20'
 

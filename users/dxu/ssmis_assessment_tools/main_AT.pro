@@ -65,10 +65,10 @@ ENDIF
 ;-------------------------------------------
 ; Read config params for the sensor chosen
 ;-------------------------------------------
-configSensorParam, sensorOption, radListFile1, radListFile2,  $
-     MAX_FOV, MAX_CHAN
-;configSensorParam, sensorOption, chanNumArray, chanInfoArrray, $
-;    minBT_Values, maxBT_Values
+configSensorParam, sensorOption, radListFile1, radListFile2,      $
+     MAX_FOV, MAX_CHAN, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,       $
+     minBT_Values, maxBT_Values, chanNumArray, chanInfoArray,     $
+     prefix1, prefix2
 
 PRINT, 'Read data again?'
 PRINT, '0 - NO, plot'
@@ -132,8 +132,6 @@ reformArray, MAX_FOV, nList, nChan,        $
    ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,  $
    ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2
 
-print, " after reforem   "    
-
 ;-----------------------------------------
 ; step 4: 
 ;   Plot radiances (observed + simulated)
@@ -144,7 +142,7 @@ mark_plotting:
 ;chPlotArray = INDGEN(24)
 chPlotArray = [1]
 
-plotRad, chPlotArray, chanNumArray, chanInfoArrray, prefix1, prefix2, $
+plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix1, prefix2, $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,   $
     ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
     ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
