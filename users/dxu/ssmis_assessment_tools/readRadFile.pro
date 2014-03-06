@@ -99,7 +99,7 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
    ;---------------------------------------
    ;
    ; Loop thru. files/orbits
-   FOR iFile=0L,nRadFiles1-1 DO BEGIN
+   FOR iFile=0L,nList-1 DO BEGIN
       PRINT,'------------------------------------------------'
       PRINT,'Orbit ',iFile, " is being processed : "
       PRINT,'   simulated orbit file :',radFileList2(iFile)
