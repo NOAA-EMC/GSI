@@ -103,7 +103,7 @@ nList=nRadFiles1
 ;   Read radiances (measurements) from List1
 ;   Read radiances (simulated) from List2
 ;-------------------------------------------
-readRadFile, nList
+readRadFile, nList, MAX_FOV, MAX_CHAN, radFileList1
 
 ;-------------------------------------------
 ; step 3:
