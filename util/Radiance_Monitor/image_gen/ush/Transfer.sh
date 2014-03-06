@@ -21,22 +21,36 @@ this_file=`basename $0`
 this_dir=`dirname $0`
 
 top_parm=${this_dir}/../../parm
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
+#if [[ -s ${top_parm}/RadMon_config ]]; then
+#   . ${top_parm}/RadMon_config
+#else
+#   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
+#   exit
+#fi
+if [[ -s ${RADMON_CONFIG} ]]; then
+   . ${RADMON_CONFIG}
 else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
+   echo "ERROR:  Unable to source ${RADMON_CONFIG}"
    exit
 fi
 
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
+#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
+#   . ${top_parm}/RadMon_user_settings
+#else
+#   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
+#   exit
+#fi
+if [[ -s ${RADMON_USER_SETTINGS} ]]; then
+   . ${RADMON_USER_SETTINGS}
 else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
+   echo "ERROR:  Unable to source ${RADMON_USER_SETTINGS}"
    exit
 fi
 
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
+#. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
+. ${IG_PARM}/plot_rad_conf
 
 
 #--------------------------------------------------------------------
@@ -58,7 +72,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${IG_SCRIPTS}/AmIOnProd.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -66,8 +80,8 @@ fi
 
 #--------------------------------------------------------------------
 
-log_file=${LOGSverf_rad}/Transfer_${SUFFIX}.log
-err_file=${LOGSverf_rad}/Transfer_${SUFFIX}.err
+log_file=${LOGdir}/Transfer_${SUFFIX}.log
+err_file=${LOGdir}/Transfer_${SUFFIX}.err
 
 if [[ ${TOP_IMGNDIR} != "/" ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then

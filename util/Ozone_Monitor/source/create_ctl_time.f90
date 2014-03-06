@@ -1,6 +1,6 @@
-subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
+subroutine create_ctl_oz(ntype,ftype,n_levs,iyy,imm,idd,ihh,idhh,&
      incr,ctl_file,lunctl,rmiss,satname,satype,dplat,nregion,&
-     nu_chan,use,error,frequency,wavenumbr,little_endian)
+     region,rlonmin,rlonmax,rlatmin,rlatmax,nu_nlev,use,error)
 
   implicit none
 
@@ -12,20 +12,23 @@ subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
   character(4):: clonmin,clonmax
   character(10),dimension(ntype):: ftype
   character(13) stringd
-  character(20) satname,satsis
+  character(20) satname
   character(10) satype,dplat
   character(40) ctl_file,grad_file
   character(80) string
+  character(40),dimension(nregion):: region
+  character(80),dimension(nregion):: stringr
 
-  integer idsat,nregion,iuse,little_endian
-  integer lunctl,iyy,imm,idd,ihh,j,i,n_chan,idhh,incr
+  integer idsat,nregion,iuse
+  integer lunctl,iyy,imm,idd,ihh,j,i,n_levs,idhh,incr
   integer iyy2,imm2,idd2,ihh2,ntime
   integer,dimension(8):: ida,jda
-  integer,dimension(n_chan):: nu_chan
+  real,dimension(n_levs):: nu_nlev
 
-  real rmiss,wavelength
+  real rmiss
   real,dimension(5):: fha
-  real,dimension(n_chan):: error,use,frequency,wavenumbr
+  real,dimension(n_levs):: error,use
+  real,dimension(nregion):: rlonmin,rlonmax,rlatmin,rlatmax
 
   data stringd / '.%y4%m2%d2%h2' /
   data mon / 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', &
@@ -54,38 +57,66 @@ subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 ! Open unit to GrADS control file
   open(lunctl,file=ctl_file,form='formatted')
 
+! Construct region string
+  do i=1,nregion
+     if (rlatmin(i)>0.) then
+        write(clatmin,10) int(rlatmin(i))
+     else
+        write(clatmin,20) abs(int(rlatmin(i)))
+     endif
+     if (rlatmax(i)>0.) then
+        write(clatmax,10) int(rlatmax(i))
+     else
+        write(clatmax,20) abs(int(rlatmax(i)))
+     endif
+     if (rlonmin(i)>0.) then
+        write(clonmin,30) int(rlonmin(i))
+     else
+        write(clonmin,40) abs(int(rlonmin(i)))
+     endif
+     if (rlonmax(i)>0.) then
+        write(clonmax,30) int(rlonmax(i))
+     else
+        write(clonmax,40) abs(int(rlonmax(i)))
+     endif
+     stringr(i) = trim(region(i)) // ' (' // &
+          trim(clonmin) // '-' // trim(clonmax) // ', ' // &
+          trim(clatmin) // '-' // trim(clatmax) // ')'
+  end do
+10 format(i2,'N')
+20 format(i2,'S')
+30 format(i3,'E')
+40 format(i3,'W')
 
 ! Write header information
   grad_file = trim(satname) // stringd // '.ieee_d'
   write(lunctl,100) grad_file
-  if ( little_endian == 1 ) then
-     write(lunctl,112) 
-  else
-     write(lunctl,110) 
-  endif
+  write(lunctl,110) 
   write(lunctl,120) rmiss
-  write(lunctl,130) adjustl(satype),dplat,n_chan
+  write(lunctl,130) adjustl(satype),dplat,n_levs
   write(lunctl,132)
-  do i=1,n_chan
+  do i=1,n_levs
      iuse = nint(use(i))
-     wavelength = 10000./wavenumbr(i)
-     write(lunctl,134) i,nu_chan(i),iuse,error(i),wavelength,frequency(i)
+     write(lunctl,134) i,nu_nlev(i),iuse,error(i)
   end do
   write(lunctl,136)
-  write(lunctl,140) n_chan
+  do i=1,nregion
+     write(cword,'(i2)') i
+     string = '*  region=' // cword // ' ' // trim(stringr(i))
+     write(lunctl,138) string
+  end do
+  write(lunctl,140) n_levs
   write(lunctl,150) nregion
   write(lunctl,160) 
   write(lunctl,170) ntime,ihh2,idd2,mon(imm2),iyy2
   write(lunctl,180) ntype
 
 100 format('dset ^',a40)
-110 format('options template big_endian cray_32bit_ieee sequential')
-112 format('options template little_endian sequential')
+110 format('options template big_endian sequential')
 120 format('undef ',f5.0)
 130 format('title ',a10,1x,a10,1x,i4)
-132 format('*XDEF is channel number')
-134 format('*  x= ',i4,', channel= ',i4,' , iuse= ',i2,' , error= ',f8.3,&
-         ' , wlth= ',f9.2,' , freq= ',f9.2)
+132 format('*XDEF is pressure level number')
+134 format('*  x= ',i4,', level= ',f10.3,' , iuse= ',i2,' , error= ',f8.3)
 136 format('*YDEF is geographic region')
 138 format(a80)
 140 format('xdef ',i4,' linear 1.0 1.0')
@@ -111,4 +142,4 @@ subroutine create_ctl_time(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 
 ! Return
   return
-end subroutine create_ctl_time
+end subroutine create_ctl_oz

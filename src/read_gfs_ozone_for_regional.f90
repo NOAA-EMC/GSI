@@ -19,6 +19,7 @@ subroutine read_gfs_ozone_for_regional
 !                         new interface to general_sub2grid (but equally suspicious)
 !   2013-02-20  wu      - add call to general_destroy_spec_vars to deallocate large arrays in sp_gfs.
 !                           Also deallocate other locally allocated arrays.
+!   2013-12-06  eliu    - add FGAT capability 
 !
 !   input argument list:
 !
@@ -41,6 +42,7 @@ subroutine read_gfs_ozone_for_regional
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
   use guess_grids, only: ges_prsl,ges_oz,ntguessig
+  use guess_grids, only: nfldsig,ifilesig 
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   implicit none
@@ -54,7 +56,9 @@ subroutine read_gfs_ozone_for_regional
 
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
   integer(i_kind) iret,i,j,k,k2,m,n,il,jl,mm1,ndim
+  integer(i_kind) it,it_beg,it_end   
   character(24) filename
+  character(255),allocatable, dimension(:)::infiles   
   logical ice
   logical uv_hyb_ens
   integer(sigio_intkind):: lunges = 11
@@ -83,8 +87,29 @@ subroutine read_gfs_ozone_for_regional
 
   regional=.true.
   uv_hyb_ens=.false.      !  can be true or false, since these fields are discarded anyway.
-  filename='gfs_sigf03'
+
+! Determine input GFS filenames
+  it_beg=1
+  it_end=nfldsig
+  allocate(infiles(nfldsig))
+  do it=it_beg,it_end
+     write(filename,'("gfs_sigf",i2.2)')ifilesig(it)
+     infiles(it)=filename
+     if(mype==0) then
+        write(6,*) 'read_gfs_ozone_for_regional: gfs file required: nfldsig     = ',nfldsig                           
+        write(6,*) 'read_gfs_ozone_for_regional: gfs file required: ifilesig(it)= ',ifilesig(it)          
+        write(6,*) 'read_gfs_ozone_for_regional: gfs file required: infiles(it) = ',trim(infiles(it))                             
+        write(6,*) 'read_gfs_ozone_for_regional: gfs file required: ntguessig   = ',ntguessig                       
+     endif
+  enddo
+
+! Loop through input GFS files
+  it_loop: do it = it_beg,it_end
+
+  filename=infiles(it)
+  if (mype==0) write(6,*)'read_gfs_ozone_for_regional: reading in gfs file:',trim(filename)                  
   open(lunges,file=trim(filename),form='unformatted')
+
   call sigio_srhead(lunges,sighead,iret)
   close(lunges)
   if(mype == 0) then
@@ -357,7 +382,8 @@ subroutine read_gfs_ozone_for_regional
                  
         end do
         do k=1,nsig
-           xsplo(k)=log(ges_prsl(i,j,k,ntguessig)*10._r_kind)
+!          xsplo(k)=log(ges_prsl(i,j,k,ntguessig)*10._r_kind)
+           xsplo(k)=log(ges_prsl(i,j,k,it)*10._r_kind)
         end do
         call intp_spl(xspli,yspli,xsplo,ysplo,grd_mix%nsig,nsig)
 !               following is to correct for bug in intp_spl
@@ -367,7 +393,7 @@ subroutine read_gfs_ozone_for_regional
         end do
         do k=1,nsig
            if(ysplo(k) < zero)ysplo(k)=1.e-10_r_kind
-           ges_oz(i,j,k,:)=ysplo(k)   !  for now, only read in ges at analysis time and copy to time levels
+           ges_oz(i,j,k,it)=ysplo(k)  
            reg_ozmax(k)=max(ysplo(k),reg_ozmax(k))
            reg_ozmin(k)=min(ysplo(k),reg_ozmin(k))
         end do
@@ -387,8 +413,11 @@ subroutine read_gfs_ozone_for_regional
      end do
   end if
   call general_destroy_spec_vars(sp_gfs)
-  deallocate(xspli,yspli,xsplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&
+  deallocate(xspli,yspli,xsplo,ysplo,glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax,&       
              glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0)
+
+  enddo it_loop
+  deallocate(infiles)
 
   return
 end subroutine read_gfs_ozone_for_regional

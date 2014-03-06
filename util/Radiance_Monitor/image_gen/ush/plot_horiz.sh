@@ -41,14 +41,14 @@ ln -s ${DATADIR}/${SAT}.* ${tmpdir}/.
 #
 #  Loop over satellite types.  Submit plot job for each type.
 
-$NCP ${GSCRIPTS}/cbarnew.gs ./
+$NCP ${IG_GSCRIPTS}/cbarnew.gs ./
 $STNMAP -i ${SAT}.ctl
 
 for var in ${PTYPE}; do
 
 cat << EOF > ${SAT}_${var}.gs
 'open ${SAT}.ctl'
-'run ${GSCRIPTS}/plot_horiz.gs ${SAT} ${var} x1100 y850'
+'run ${IG_GSCRIPTS}/plot_horiz.gs ${SAT} ${var} x1100 y850'
 'quit'
 EOF
 

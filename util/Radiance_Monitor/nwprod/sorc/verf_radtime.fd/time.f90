@@ -87,7 +87,7 @@ program time
 !
 ! Initialize variables
   iread=0
-  npred_radiag = 5
+  npred_radiag = 12 
 
 ! Read namelist input
   read(luname,input)

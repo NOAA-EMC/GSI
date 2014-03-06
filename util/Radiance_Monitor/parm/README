@@ -2,9 +2,13 @@ The RadMon package can be configured for your particular data source by
 modifying the RadMon_user_settings script in this directory, or by overriding
 specific entries in that script within your interactive shell.  
 
-If you have not don so, run the RadMon_install.sh script located in the 
-directory one level from here.  RadMon_install.sh will update the 
-RadMon_config and RadMon_user_settings files and set some defaults based 
+Similarly package configuration changes can be made by modifying individual 
+values in the RadMon_config script in this directory, or by overriding 
+specific entries in that script within your interactive shell.
+
+If you have not done so already, please run the RadMon_install.sh script 
+located in the directory one level from here.  RadMon_install.sh will update 
+the RadMon_config and RadMon_user_settings files and set some defaults based 
 on the system you're running on (ccs, wcoss or zeus). 
 
 Next, edit or override specific values in the RadMon_user_settings script as
@@ -18,6 +22,17 @@ the command is generally:
 
 > export RADSTAT_LOCATION=/my/directory/not/the/default
 
-
 Depending on which interactive shell you are using the command might be 
 slightly different.  The above example works on csh and bash.
+
+If you are working from a centrally installed RadMon package supporting 
+multiple users you will probably want to define $MY_TANKDIR to someplace in your 
+local filespace.
+
+If you want to swap in your own copy of either the RadMon_config or 
+RadMon_user_settings files you can similarly declare that within your 
+shell:
+
+> export RADMON_CONFIG=/my/directory/not/the/default/my_radmon_config
+> export RADMON_USER_SETTINGS=/my/directory/not/the/default/my_radmon_user_settings
+

@@ -4,13 +4,13 @@
 # ----------------------------------
 # Redefine variables for NOAA HPCS
 # ----------------------------------
-COREINC  = /home/mlueken/nwprod/incmod
-CORELIB  = /home/mlueken/nwprod/lib
+COREINC  = /misc/whome/Michael.Lueken/nceplibs/incmod
+CORELIB  = /misc/whome/Michael.Lueken/nceplibs/lib
 INCsfcio = $(COREINC)/sfcio_4
-INCsigio = /home/Mingjing.Tong/incmod/sigio_4
+INCsigio = $(COREINC)/sigio_4
 INCnemsio= $(COREINC)/nemsio
-INCcrtm  = $(COREINC)/libCRTM
-INCw3    = /home/Mingjing.Tong/incmod/w3lib-2.0_d
+INCw3    = $(COREINC)/w3emc_d
+INCcrtm=$(COREINC)/CRTM
 
 WRFPATH = /mnt/pan2/projects/hwrf-vd/Mingjing.Tong/hwrf-trunk/sorc/WRFV3
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
@@ -27,9 +27,6 @@ LIBhermes = #-L$(CORELIB) -lhermes
 LIBgfio   = #-L$(CORELIB) -lgfio
 INChdf    = #-I$(BASEDIR)/$(ARCH)/include/hdf
 LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
-LIBw3     = /home/Mingjing.Tong/lib/libw3lib-2.0_d.a
-LIBbufr   = /home/Mingjing.Tong/lib/libbufr_i4r8.a
-LIBsigio  = /home/Mingjing.Tong/lib/libsigio_4.a
 
 
 # ---------------------------
@@ -98,9 +95,8 @@ LIBsigio  = /home/Mingjing.Tong/lib/libsigio_4.a
 
 #--- Normal mode options
 
-  LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsfcio_4 \
-	        -lCRTM $(LIBsigio) $(LIBbufr) $(LIBw3) $(WRFLIB) \
-	        -L$(NETCDF)/lib -lnetcdf
+  LIBS_N        = -L$(CORELIB) -lsp_d -lnemsio -lbacio_4 -lsigio_4 \
+       -lsfcio_4 -lbufr_d_64 -lw3nco_d -lw3emc_d -lCRTM $(WRFLIB) -L$(NETCDF)/lib -lnetcdf
 
   LDFLAGS_N     = 
 

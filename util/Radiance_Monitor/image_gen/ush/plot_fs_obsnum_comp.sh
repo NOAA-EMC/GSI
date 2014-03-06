@@ -121,7 +121,7 @@ if [[ ${nctldir} -gt 0 ]]; then
   
    ctl_file=${type}${anl}.ctl 
 
-   ${SCRIPTS}/update_ctl_tdef.sh ${ctl_file} ${PDATE}
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${ctl_file} ${PDATE}
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${ctl_file} > tmp_${type}.ctl
@@ -129,19 +129,19 @@ if [[ ${nctldir} -gt 0 ]]; then
    fi
 
    $NCP ${type}${anl}.ctl ${SUFFIX1}${anl}.ctl
-   ${SCRIPTS}/update_ctl_fname.sh ${SUFFIX1}${anl}.ctl ${SUFFIX1} 
+   ${IG_SCRIPTS}/update_ctl_fname.sh ${SUFFIX1}${anl}.ctl ${SUFFIX1} 
 
    $NCP ${type}${anl}.ctl ${SUFFIX2}${anl}.ctl
-   ${SCRIPTS}/update_ctl_fname.sh ${SUFFIX2}${anl}.ctl ${SUFFIX2} 
+   ${IG_SCRIPTS}/update_ctl_fname.sh ${SUFFIX2}${anl}.ctl ${SUFFIX2} 
 
    if [[ $suff3 -gt 0 ]]; then
       $NCP ${type}${anl}.ctl ${SUFFIX3}${anl}.ctl
-      ${SCRIPTS}/update_ctl_fname.sh ${SUFFIX3}${anl}.ctl ${SUFFIX3} 
+      ${IG_SCRIPTS}/update_ctl_fname.sh ${SUFFIX3}${anl}.ctl ${SUFFIX3} 
    fi
 
-   $NCP ${GSCRIPTS}/setrange.gs ${workdir}/setrange.gs
+   $NCP ${IG_GSCRIPTS}/setrange.gs ${workdir}/setrange.gs
 
-   run_line="run ${GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2}"
+   run_line="run ${IG_GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2}"
 
 
    if [[ $suff3 -gt 0 ]]; then 
@@ -150,7 +150,7 @@ cat << EOF > ${workdir}/${plotscript}
 'open ${SUFFIX1}${anl}.ctl'
 'open ${SUFFIX2}${anl}.ctl'
 'open ${SUFFIX3}${anl}.ctl'
-'run ${GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2} ${SUFFIX3}'
+'run ${IG_GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2} ${SUFFIX3}'
 'quit'
 EOF
    else
@@ -158,7 +158,7 @@ EOF
 cat << EOF > ${workdir}/${plotscript}
 'open ${SUFFIX1}${anl}.ctl'
 'open ${SUFFIX2}${anl}.ctl'
-'run ${GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2}'
+'run ${IG_GSCRIPTS}/plot_fs_obsnum_comp.gs ${type} ${data} ${SUFFIX1} ${SUFFIX2}'
 'quit'
 EOF
    fi
