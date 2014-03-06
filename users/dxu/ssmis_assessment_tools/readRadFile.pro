@@ -13,7 +13,7 @@
 ;
 ;---------------------------------------------------------------------------------
 PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
-    radFileList1
+    radFileList1, radFileList2
    ;-------------------------------
    ; step 1:
    ;   Declare variables for rad1

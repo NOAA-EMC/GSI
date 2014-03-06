@@ -14,7 +14,8 @@
 ;
 ;
 ;---------------------------------------------------------------------------------
-PRO configSensorParam, sensorOption
+PRO configSensorParam, sensorOption, radListFile1, radListFile2, $
+     MAX_FOV, MAX_CHAN
    ;-----------------------------------
    ; 1. Shared config params
    ;-----------------------------------
@@ -30,8 +31,8 @@ PRO configSensorParam, sensorOption
        ; NOAA-18/AMSUA&MHS
        1: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -57,8 +58,8 @@ PRO configSensorParam, sensorOption
        ; NOAA-19/AMSUA&MHS
        2: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -84,8 +85,8 @@ PRO configSensorParam, sensorOption
        ; MetOp-A/AMSUA&MHS
        3: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -111,8 +112,8 @@ PRO configSensorParam, sensorOption
        ; MetOp-B/AMSUA/MHS 
        4: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -138,8 +139,8 @@ PRO configSensorParam, sensorOption
        ; F16/SSMIS
        5: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -165,8 +166,8 @@ PRO configSensorParam, sensorOption
        ; F17/SSMIS
        6: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -192,8 +193,8 @@ PRO configSensorParam, sensorOption
        ; F18/SSMIS
        7: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -219,8 +220,8 @@ PRO configSensorParam, sensorOption
        ; NPP/ATMS
        8: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -246,8 +247,8 @@ PRO configSensorParam, sensorOption
        ; AQUA/AMSRE
        9: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -273,8 +274,8 @@ PRO configSensorParam, sensorOption
       ; GCOMW1/AMSR2
       10: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -300,8 +301,8 @@ PRO configSensorParam, sensorOption
       ; FY3/MWRI
       11: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -327,8 +328,8 @@ PRO configSensorParam, sensorOption
       ; FY3/MWHS/MWTS
       12: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -354,8 +355,8 @@ PRO configSensorParam, sensorOption
       ; TRMM/TMI
       13: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -381,8 +382,8 @@ PRO configSensorParam, sensorOption
       ; GPM/GMI
       14: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -408,8 +409,8 @@ PRO configSensorParam, sensorOption
       ; MT/MADRAS
       15: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -435,8 +436,8 @@ PRO configSensorParam, sensorOption
       ; MT/SAPHIR
       16: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels
@@ -462,8 +463,8 @@ PRO configSensorParam, sensorOption
     ; WindSat
     ELSE: BEGIN
 	    ; Radiance files (obs + sim)
-	    radListFile1 = '/data/home001/dxu/graphic/meas.list'
-	    radListFile2 = '/data/home001/dxu/graphic/fwd_fix_em.list'
+	    radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
+	    radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
 	    ;  Allocation of memory for variables
 	    MAX_FOV = 30000L   ; max number of FOVs in a file (one orbit)
 	    MAX_CHAN = 24L     ; max number of channels

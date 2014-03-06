@@ -65,7 +65,8 @@ ENDIF
 ;-------------------------------------------
 ; Read config params for the sensor chosen
 ;-------------------------------------------
-configSensorParam, sensorOption
+configSensorParam, sensorOption, radListFile1, radListFile2,  $
+     MAX_FOV, MAX_CHAN
 ;configSensorParam, sensorOption, chanNumArray, chanInfoArrray, $
 ;    minBT_Values, maxBT_Values
 
@@ -103,7 +104,8 @@ nList=nRadFiles1
 ;   Read radiances (measurements) from List1
 ;   Read radiances (simulated) from List2
 ;-------------------------------------------
-readRadFile, nList, MAX_FOV, MAX_CHAN, radFileList1
+readRadFile, nList, MAX_FOV, MAX_CHAN,  $
+      radFileList1, radFileList2
 
 ;-------------------------------------------
 ; step 3:
