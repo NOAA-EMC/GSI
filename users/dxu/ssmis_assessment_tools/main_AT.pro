@@ -71,14 +71,14 @@ configSensorParam, sensorOption, radListFile1, radListFile2,      $
      prefix1, prefix2
 
 PRINT, 'Read data again?'
-PRINT, '0 - NO, plot'
 PRINT, '1 - YES'
-PRINT, '2 - NO, reform'
+PRINT, '2 - NO, to reform'
+PRINT, '3 - NO, to plot'
 
 READ, readAgain
-IF (readAgain eq 0) THEN GOTO, mark_plotting
-IF (readAgain eq 2) THEN GOTO, mark_reform
 IF (readAgain eq 1) THEN GOTO, mark_readMeas
+IF (readAgain eq 2) THEN GOTO, mark_reform
+IF (readAgain eq 3) THEN GOTO, mark_plotting
 
 mark_readMeas:
 ;------------------------------------
@@ -139,8 +139,8 @@ reformArray, MAX_FOV, nList, nChan,        $
 mark_plotting:
 
 ; Specify the channels to plot
-;chPlotArray = INDGEN(24)
-chPlotArray = [1]
+chPlotArray = INDGEN(24)
+;chPlotArray = [1]
 
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix1, prefix2, $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,   $
