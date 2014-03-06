@@ -13,7 +13,13 @@
 ;
 ;---------------------------------------------------------------------------------
 PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
-    radFileList1, radFileList2
+    radFileList1, radFileList2,            $
+    nFOV_Rad1, scanPosRad1, scanLineRad1,  $
+    latRad1, lonRad1, dirRad1, angleRad1,  $
+    QC_Rad1, tbRad1,                       $
+    nFOV_Rad2, scanPosRad2, scanLineRad2,  $
+    latRad2, lonRad2, dirRad2, angleRad2,  $
+    QC_Rad2, tbRad2, nChan
    ;-------------------------------
    ; step 1:
    ;   Declare variables for rad1
@@ -71,6 +77,8 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
       PRINT, "Number of scan positions per line : ", rad1.nPosScan
       PRINT, "Number of scan lines              : ", rad1.nScanLines
       PRINT,'------------------------------------------------'
+      ; Save number of channels 
+      nChan = rad1.nChan
 
       ; Save total number of FOVs in a file
       nFOV_Rad1(iFile) = rad1.nprof

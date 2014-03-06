@@ -71,11 +71,13 @@ configSensorParam, sensorOption, radListFile1, radListFile2,  $
 ;    minBT_Values, maxBT_Values
 
 PRINT, 'Read data again?'
-PRINT, '0 - NO'
+PRINT, '0 - NO, plot'
 PRINT, '1 - YES'
+PRINT, '2 - NO, reform'
 
 READ, readAgain
 IF (readAgain eq 0) THEN GOTO, mark_plotting
+IF (readAgain eq 2) THEN GOTO, mark_reform
 IF (readAgain eq 1) THEN GOTO, mark_readMeas
 
 mark_readMeas:
@@ -104,14 +106,33 @@ nList=nRadFiles1
 ;   Read radiances (measurements) from List1
 ;   Read radiances (simulated) from List2
 ;-------------------------------------------
-readRadFile, nList, MAX_FOV, MAX_CHAN,  $
-      radFileList1, radFileList2
+readRadFile, nList, MAX_FOV, MAX_CHAN,    $
+   radFileList1, radFileList2,            $
+   nFOV_Rad1, scanPosRad1, scanLineRad1,  $
+   latRad1, lonRad1, dirRad1, angleRad1,  $
+   QC_Rad1, tbRad1,                       $
+   nFOV_Rad2, scanPosRad2, scanLineRad2,  $
+   latRad2, lonRad2, dirRad2, angleRad2,  $
+   QC_Rad2, tbRad2, nChan
 
 ;-------------------------------------------
 ; step 3:
 ;   Reform data
 ;-------------------------------------------
-reformArray
+mark_reform:
+reformArray, MAX_FOV, nList, nChan,        $
+   scanPosRad1, scanLineRad1,              $
+   latRad1, lonRad1, dirRad1, angleRad1,   $
+   QC_Rad1, tbRad1,                        $
+   scanPosRad2, scanLineRad2,              $
+   latRad2, lonRad2, dirRad2, angleRad2,   $
+   QC_Rad2, tbRad2,                        $
+   ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,  $
+   ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,      $
+   ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,  $
+   ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2
+
+print, " after reforem   "    
 
 ;-----------------------------------------
 ; step 4: 
