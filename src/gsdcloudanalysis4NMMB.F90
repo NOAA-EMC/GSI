@@ -1,4 +1,3 @@
-#ifdef NMMB_CLOUDANALYSIS
 SUBROUTINE  gsdcloudanalysis4NMMB(mype)
 !
 !$$$  subprogram documentation block
@@ -861,10 +860,3 @@ Subroutine variable2fraction(t, qi, qr, qw, f_ice, f_rain)
    end if
 
 End subroutine variable2fraction
-#else /* Start no NNMB cloud analysis library block */
-SUBROUTINE  gsdcloudanalysis4NMMB(mype)
-use kinds, only: i_kind
-implicit none
-integer(i_kind),intent(in) :: mype
-END SUBROUTINE  gsdcloudanalysis4NMMB
-#endif /* End no NNMB cloud analysis library block */
