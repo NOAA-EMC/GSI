@@ -183,7 +183,8 @@ subroutine read_guess(iyear,month,idd,mype)
       do k=1,nsig
          do j=1,lon2
             do i=1,lat2
-               ges_tsen(i,j,k,it)= ges_tv(i,j,k,it)/(one+fv*max(qmin,ges_q(i,j,k,it)))
+!              ges_tsen(i,j,k,it)= ges_tv(i,j,k,it)/(one+fv*max(qmin,ges_q(i,j,k,it)))
+               ges_tsen(i,j,k,it)= ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
             end do
          end do
       end do
