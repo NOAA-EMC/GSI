@@ -14,13 +14,11 @@
 
 totalOrbit=`wc -l  meas.list_orig |cut -d" " -f1 `
 
-
-
-
 echo "Total number of orbits is ${totalOrbit}"
 echo "Enter the number of orbits you want to test: " 
 echo "  1. Number entered should be within range[1, ${totalOrbit}]"
 echo "  2. Enter 'all' to use all orbits."
+
 read nOrbits 
 
 if [ ${nOrbits} == 'all' ] 
