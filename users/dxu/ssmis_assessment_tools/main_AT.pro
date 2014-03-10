@@ -68,7 +68,7 @@ ENDIF
 configSensorParam, sensorOption, radListFile1, radListFile2,      $
      MAX_FOV, MAX_CHAN, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,       $
      minBT_Values, maxBT_Values, chanNumArray, chanInfoArray,     $
-     prefix1, prefix2
+     prefix
 
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
@@ -101,6 +101,7 @@ ENDIF
 ; Save number of rad files (orbits)
 nList=nRadFiles1
 
+print, "Begin readRadFile  =========="
 ;-------------------------------------------
 ; step 2:
 ;   Read radiances (measurements) from List1
@@ -114,6 +115,9 @@ readRadFile, nList, MAX_FOV, MAX_CHAN,    $
    nFOV_Rad2, scanPosRad2, scanLineRad2,  $
    latRad2, lonRad2, dirRad2, angleRad2,  $
    QC_Rad2, tbRad2, nChan
+
+
+print, "done with readRadFile  =========="
 
 ;-------------------------------------------
 ; step 3:
@@ -140,10 +144,11 @@ mark_plotting:
 
 ; Specify the channels to plot
 chPlotArray = INDGEN(24)
-;chPlotArray = [1]
+;chPlotArray = INDGEN(7)
+;chPlotArray = [1,2]
 
-plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix1, prefix2, $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,   $
+plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,         $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
     ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
     ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,      $

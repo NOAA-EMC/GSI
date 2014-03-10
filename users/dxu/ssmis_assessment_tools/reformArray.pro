@@ -5,7 +5,7 @@
 ;
 ; Description:
 ;   A locally-defined procedure used by the assessment tool main-level code
-;   to transform data in terms of dimension.
+;   to combine the data of all the orbits into one big array. 
 ;
 ; Author: Deyong Xu (RTI) @ JCSDA,
 ;         Deyong.Xu@noaa.gov
