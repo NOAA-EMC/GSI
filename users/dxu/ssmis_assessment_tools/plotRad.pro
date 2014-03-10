@@ -158,7 +158,7 @@ PRO radPloting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
    ; plot height
    plotHeight = 0.16
    ; color bar height
-   barHeight = 0.03
+   barHeight = 0.025
 
    innerSpace=0.01    ; space between plot and bar vertically.
    outerY_Space=0.03  ; space between bar and next plot vertically.

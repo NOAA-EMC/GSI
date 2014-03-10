@@ -26,6 +26,7 @@ then
 else 
    mkdir ${archiveDir}
    mv *.ps ${archiveDir}
+   mv *.jpg ${archiveDir}
 fi
 
 # 2. Run IDL code to generate radiance plots
