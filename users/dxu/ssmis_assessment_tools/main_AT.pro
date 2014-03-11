@@ -143,9 +143,9 @@ reformArray, MAX_FOV, nList, nChan,        $
 mark_plotting:
 
 ; Specify the channels to plot
-;chPlotArray = INDGEN(24)
+chPlotArray = INDGEN(24)
 ;chPlotArray = INDGEN(7)
-chPlotArray = [1,2]
+;chPlotArray = [1,2]
 
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,         $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
