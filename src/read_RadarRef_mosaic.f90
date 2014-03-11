@@ -12,6 +12,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
 ! PROGRAM HISTORY LOG:
 !    2008-12-20  Hu  make it read in BUFR form reflectivity  data
 !    2010-04-09  Hu  make changes based on current trunk style
+!    2013-03-27  Hu  add code to map obs from WRF mass H grid to analysis grid
 !
 !   input argument list:
 !     infile   - unit from which to read mosaic information file
@@ -44,6 +45,8 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
+  use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
+  use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
 
   implicit none
 !
@@ -78,13 +81,13 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind)  :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl,nlon,nlat
-    INTEGER(i_kind)  ::  numlvl,numref
+    INTEGER(i_kind)  ::  maxlvl
+    INTEGER(i_kind)  ::  numlvl,numref,numobsa
     INTEGER(i_kind)  ::  n,k,iret
     INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=200000
+    INTEGER(i_kind),PARAMETER  ::  maxobs=2000000
 
     REAL(r_kind),allocatable :: ref3d_column(:,:)   ! 3D reflectivity in column
 
@@ -193,9 +196,17 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
       ndata=numref
       nreal=maxlvl+2
       if(numref > 0 ) then
-        write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-        write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
-        deallocate(ref3d_column)
+         if(nlon==nlon_regional .and. nlat==nlat_regional) then
+            write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+            write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numref)
+         else
+            call wrfmass_obs_to_a8(ref3d_column,nreal,numref,ilat,ilon,numobsa)
+            nread=numobsa
+            ndata=numobsa
+            write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+            write(lunout) ((ref3d_column(k,i),k=1,maxlvl+2),i=1,numobsa)
+         endif
+         deallocate(ref3d_column)
       endif
     endif
  

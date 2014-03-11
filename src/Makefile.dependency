@@ -96,7 +96,7 @@ get_wrf_nmm_ensperts.o : get_wrf_nmm_ensperts.F90 blendmod.o gsi_4dvar.o gsi_bun
 gfs_stratosphere.o : gfs_stratosphere.f90 mpimod.o gridmod.o guess_grids.o blendmod.o constants.o kinds.o 
 glbsoi.o : glbsoi.f90 aircraftinfo.o gfs_stratosphere.o hybrid_ensemble_isotropic.o hybrid_ensemble_parameters.o timermod.o observer.o zrnmi_mod.o converr.o pcpinfo.o radinfo.o control_vectors.o pcgsoi.o gsi_4dvar.o jcmod.o smooth_polcarf.o obs_sensitivity.o turblmod.o obsmod.o guess_grids.o gridmod.o compact_diffs.o balmod.o berror.o anisofilter_glb.o anisofilter.o anberror.o jfunc.o adjtest_obs.o mpimod.o constants.o kinds.o 
 grdcrd.o : grdcrd.f90 constants.o kinds.o 
-gridmod.o : gridmod.F90 mpimod.o mod_nmmb_to_a.o mpeu_util.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o 
+gridmod.o : gridmod.F90 mpimod.o mod_nmmb_to_a.o mpeu_util.o constants.o general_sub2grid_mod.o general_specmod.o kinds.o mod_wrfmass_to_a.o
 grtest.o : grtest.f90 control_vectors.o mpimod.o constants.o kinds.o 
 gscond_ad.o : gscond_ad.f90 constants.o kinds.o 
 gsdcloudanalysis4NMMB.o : gsdcloudanalysis4NMMB.F90 gsi_bundlemod.o gsi_metguess_mod.o rapidrefresh_cldsurf_mod.o wrf_mass_guess_mod.o guess_grids.o obsmod.o gridmod.o kinds.o constants.o 
@@ -275,7 +275,7 @@ read_wrf_mass_files.o : read_wrf_mass_files.f90 obsmod.o constants.o gridmod.o g
 read_wrf_mass_guess.o : read_wrf_mass_guess.F90 gsi_chemguess_mod.o native_endianness.o gsi_metguess_mod.o gsi_bundlemod.o wrf_mass_guess_mod.o rapidrefresh_cldsurf_mod.o gsi_io.o constants.o gridmod.o guess_grids.o mpimod.o kinds.o 
 read_wrf_nmm_files.o : read_wrf_nmm_files.f90 obsmod.o constants.o gsi_4dvar.o guess_grids.o mpimod.o kinds.o 
 read_wrf_nmm_guess.o : read_wrf_nmm_guess.F90 gsi_nemsio_mod.o gfs_stratosphere.o native_endianness.o cloud_efr.o control_vectors.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o gsi_io.o regional_io.o constants.o gridmod.o guess_grids.o mpimod.o kinds.o 
-regional_io.o : regional_io.f90 native_endianness.o hybrid_ensemble_parameters.o kinds.o mpimod.o gridmod.o 
+regional_io.o : regional_io.f90 native_endianness.o hybrid_ensemble_parameters.o kinds.o mpimod.o gridmod.o rapidrefresh_cldsurf_mod.o
 reorg_metar_cloud.o : reorg_metar_cloud.f90 rapidrefresh_cldsurf_mod.o constants.o gridmod.o kinds.o 
 rfdpar.o : rfdpar.f90 constants.o kinds.o 
 rsearch.o : rsearch.F90 constants.o kinds.o 

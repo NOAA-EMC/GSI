@@ -41,12 +41,142 @@ module aircraftobsqc
 
   logical listexist_aircraft
 
+
+! Xue
+  integer(i_kind) nt_aircraft
+  character(8),allocatable,dimension(:)::t_aircraft_tail
+  character(8),allocatable,dimension(:)::t_aircraft_mdcrs
+  character(8),allocatable,dimension(:)::t_aircraft_bias_gt_300
+  character(8),allocatable,dimension(:)::t_aircraft_bias_le_300
+
+  public read_aircraft_t_bias
+  public correct_aircraft_t
+
   public init_aircraft_rjlists
   public get_aircraft_usagerj
   public destroy_aircraft_rjlists
 
 contains
 
+!!!!!!!!!!!!!==================================xue 
+subroutine read_aircraft_t_bias
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    read_aircraft_t_bias
+!   prgmmr:
+!
+! abstract: read in bias correction values
+!           for aircraft T obs
+!
+! program history log:
+!   2013-02-21  Xue
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  integer(i_kind) aircraft_unit1,m
+  character(80) cstring
+
+  integer(i_kind), parameter::nmax=5000_i_kind
+
+  data aircraft_unit1 / 201_i_kind /
+!**************************************************************************
+  nt_aircraft=0
+
+  allocate(t_aircraft_tail(nmax))
+  allocate(t_aircraft_mdcrs(nmax))
+  allocate(t_aircraft_bias_gt_300(nmax))
+  allocate(t_aircraft_bias_le_300(nmax))
+
+  inquire(file='current_T_bias.txt',exist=listexist_aircraft)
+  if(listexist_aircraft) then
+    open (aircraft_unit1,file='current_T_bias.txt',form='formatted')
+    do m=1,5
+       read(aircraft_unit1,*,end=1141)
+    enddo
+1140 continue
+    read(aircraft_unit1,'(a49)',end=1141) cstring
+
+    nt_aircraft=nt_aircraft+1
+    t_aircraft_tail(nt_aircraft)=cstring(2:9)
+    t_aircraft_mdcrs(nt_aircraft)=cstring(22:29)
+    t_aircraft_bias_gt_300(nt_aircraft)=cstring(32:39)
+    t_aircraft_bias_le_300(nt_aircraft)=cstring(42:49)
+    goto 1140
+1141 continue
+
+ endif
+ close(aircraft_unit1)
+
+end subroutine read_aircraft_t_bias
+
+subroutine correct_aircraft_t(c_station_id,p_mb,new_t)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    correct_aircraft_t
+!   prgmmr:
+!
+! abstract: do bias corretion for aircraft T obs 
+!
+! program history log:
+!   2013-02-21  Xue 
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  character(8)   ,intent(in   ) :: c_station_id
+  real(r_kind)   ,intent(in) :: p_mb
+  real(r_kind)   ,intent(inout) :: new_t
+
+! Declare local variables
+  integer(i_kind) m,nlen
+  character(8)  ch8,ch8MDCRS
+  real(r_kind)  t1,t2
+
+! Declare local parameters
+  real(r_kind),parameter:: r6    = 6.0_r_kind
+  real(r_kind),parameter:: r450  = 450._r_kind
+
+
+  if((nt_aircraft > 0) ) then
+     do m=1,nt_aircraft
+         ch8=t_aircraft_tail(m)
+         ch8MDCRS=t_aircraft_mdcrs(m)
+         nlen=len_trim(ch8)
+         if ((trim(c_station_id) == trim(ch8)).or.(trim(c_station_id) == trim(ch8MDCRS))) then
+            read(t_aircraft_bias_gt_300(m),*) t1
+            read(t_aircraft_bias_le_300(m),*) t2
+
+            if (p_mb >300) then
+               new_t = new_t - t1 
+            else
+               new_t = new_t - t2
+            endif
+            exit
+         endif
+      enddo
+   end if
+
+end subroutine correct_aircraft_t
+!===================================!!!!!!!!!!!!end xue
 subroutine init_aircraft_rjlists
 !$$$  subprogram documentation block
 !                .      .    .                                       .

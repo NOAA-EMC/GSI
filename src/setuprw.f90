@@ -369,10 +369,14 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      zob = dpres
      call grdcrd1(dpres,zges,nsig,1)
 
+     if(dpres < 1)then
+        write(6,*) 'SETUPRW: dpres is less than 1:',dpres, 'Rejecting ob.'
+        cycle
+     endif
 !    Set indices of model levels below (k1) and above (k2) observation.
      k=dpres
      k1=max(1,k)
-     k2=min(k+1,nsig)
+     k2=min(k1+1,nsig)
 
 !    Compute observation pressure (only used for diagnostics)
      if(k2>k1) then    !???????????? to fix problem where k1=k2, which should only happen if k1=k2=nsig

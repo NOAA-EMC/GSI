@@ -13,6 +13,7 @@ module gsd_update_mod
 !   sub gsd_update_soil_tq  - change surface and soil based on analysis increment
 !   sub gsd_limit_ocean_q   - limits to analysis increments over oceans 
 !   sub gsd_update_th2      - adjust 2-m t based on analysis increment
+!   sub gsd_update_q2       - adjust 2-m q based on analysis increment
 !
 ! Variable Definitions:
 
@@ -24,6 +25,7 @@ module gsd_update_mod
   public :: gsd_update_soil_tq
   public :: gsd_limit_ocean_q
   public :: gsd_update_th2
+  public :: gsd_update_q2
 ! set passed variables to public
 
 contains
@@ -91,6 +93,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   real(r_kind) :: dth2, ainc, tinct
   real(r_kind) :: work_prsl,work_prslk
   real(r_kind) :: coast_fac,temp,temp_fac,dts_min,tincf
+  real(r_kind) :: snowthreshold
 ! 
   REAL(r_kind), pointer :: ges_qc(:,:,:)  ! cloud water
   REAL(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
@@ -101,6 +104,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 !*******************************************************************************
 !
 
+  snowthreshold=1.0e-10_r_kind
   itsig=1
   ier=0
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ql',ges_qc,istatus);ier=ier+istatus
@@ -144,6 +148,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   iyear=regional_time(1)   
   imonth=regional_time(2)
   iday=regional_time(3)
+!  call getdays(nday,iyear,imonth,iday)
   call w3fs13(iyear,imonth,iday,nday)
   declin=deg2rad*23.45_r_kind*sin(2.0_r_kind*pi*(284+nday)/365.0_r_kind)
 !
@@ -191,9 +196,10 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 ! -- Allow soil temp cooling to be up to 2.5 * 0.6 = 1.5 X 2 C ( = 3K)
               dts_min = dts_min*temp_fac*0.6_r_kind
 
-              IF (isli(i,j,it) == 1) THEN
-                 tincf = ainc*temp_fac*coast_fac
-                 if(nsig_soil == 9) then
+              IF (isli(i,j,it) == 1 ) THEN
+                tincf = ainc*temp_fac*coast_fac
+                IF (sno(i,j,it) < snowthreshold) THEN
+                  if(nsig_soil == 9) then
 ! - top level soil temp
                     ges_tslb(i,j,1,it) = ges_tslb(i,j,1,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.6_r_kind)) 
@@ -209,7 +215,7 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 ! - 10-30 cm level -  soil temp
                     ges_tslb(i,j,5,it) = ges_tslb(i,j,5,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                 else
+                  else
 ! - top level soil temp
                     ges_tslb(i,j,1,it) = ges_tslb(i,j,1,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
@@ -219,18 +225,18 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 ! - 5-20 cm level -  soil temp
                     ges_tslb(i,j,3,it) = ges_tslb(i,j,3,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                 endif
-! - snow temp  
-! sno(j,i,it) : SNOW ???? 
-! at snow free point: ges_tslb(i,j,1,it) = ges_tsk(i,j,it)=ges_soilt1(i,j,it)
-                 if( sno(i,j,it) > 0.0001_r_kind) then
+                  endif
+                  ges_tsk(i,j,it) = ges_tsk(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                  ges_soilt1(i,j,it) = ges_soilt1(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                else  ! if snow cover, then only adjust TSK and SOILT1
                     ges_tsk(i,j,it) = ges_tsk(i,j,it) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
                     ges_soilt1(i,j,it) = ges_soilt1(i,j,it) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
-                 else  ! 
-                    ges_tsk(i,j,it) = ges_tsk(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                    ges_soilt1(i,j,it) = ges_soilt1(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                 endif
-              ENDIF
+                    if (sno(i,j,it) > 32.0_r_kind) then
+                       ges_tsk(i,j,it) = min(ges_tsk(i,j,it), 273.15_r_kind)
+                       ges_soilt1(i,j,it) = min(ges_soilt1(i,j,it), 273.15_r_kind)
+                    endif
+                endif ! sno(i,j,it) < snowthreshold
+              endif   ! isli(i,j,it) == 1
            end do
         end do
      end do
@@ -306,17 +312,23 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
                  enddo
                  sumqc=0  ! trun off cloud
                  if( sumqc < 1.0e-6_r_kind) then
+                 if( sno(i,j,it) < snowthreshold ) then  ! don't do the 
+                                                         ! moisture adjustment if there is snow     
 
                     if (tinct < -0.15_r_kind) then
 
 ! - top level soil moisture
+! -- mod - 3/15/13
+!      increase moistening from factor of 0.2 to 0.3
                        ges_smois(i,j,1,it) = min (max(ges_smois(i,j,1,it),ges_smois(i,j,2,it)), &
-                                   ges_smois(i,j,1,it) + min(0.02_r_kind,max(0._r_kind,(ainc*0.2_r_kind))))
+                                   ges_smois(i,j,1,it) + min(0.03_r_kind,max(0._r_kind,(ainc*0.2_r_kind))))
                        ges_smois(i,j,2,it) = min (max(ges_smois(i,j,2,it),ges_smois(i,j,3,it)), &
-                                   ges_smois(i,j,2,it) + min(0.02_r_kind,max(0._r_kind,(ainc*0.2_r_kind))))
+                                   ges_smois(i,j,2,it) + min(0.03_r_kind,max(0._r_kind,(ainc*0.2_r_kind))))
                        if(nsig_soil == 9) then
                           ges_smois(i,j,3,it) = min (max(ges_smois(i,j,3,it),ges_smois(i,j,4,it)), &
-                                   ges_smois(i,j,3,it) + min(0.02_r_kind,max(0._r_kind,(ainc*0.2_r_kind))))
+                                   ges_smois(i,j,3,it) + min(0.03_r_kind,max(0._r_kind,(ainc*0.2_r_kind))))
+                          ges_smois(i,j,4,it) = min (max(ges_smois(i,j,4,it),ges_smois(i,j,5,it)), &  
+                                   ges_smois(i,j,4,it) + min(0.03_r_kind,max(0._r_kind,(ainc*0.1_r_kind))))
                        endif
 ! -- above logic
 !     7/26/04 - 
@@ -326,6 +338,8 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 !       level 2, don't force level 1 SM back down to level 2.
 ! -- mod - 5/1/05
 !      Decrease moistening from factor of 0.2 to 0.1
+! -- mod - 3/15/13
+!      increase moistening from factor of 0.1 to 0.3
                     endif
 
                     if (tinct >  0.15_r_kind) then
@@ -334,15 +348,19 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 !     Now also dry soil if tinc is positive (warming)
 !      and the RH_inc is negative.
                         ges_smois(i,j,1,it) = max(0.0_r_kind,ges_smois(i,j,1,it) + & 
-                                                  max(-0.01_r_kind,min(0._r_kind,(ainc*0.2_r_kind))))
+                                                  max(-0.03_r_kind,min(0._r_kind,(ainc*0.2_r_kind))))
                         ges_smois(i,j,2,it) = max(0.0_r_kind,ges_smois(i,j,2,it) + & 
-                                                  max(-0.01_r_kind,min(0._r_kind,(ainc*0.2_r_kind))))
+                                                  max(-0.03_r_kind,min(0._r_kind,(ainc*0.2_r_kind))))
                         if(nsig_soil == 9) then
                            ges_smois(i,j,3,it) = max(0.0_r_kind,ges_smois(i,j,3,it) + & 
-                                                  max(-0.01_r_kind,min(0._r_kind,(ainc*0.2_r_kind))))
+                                                  max(-0.03_r_kind,min(0._r_kind,(ainc*0.2_r_kind))))
+                           ges_smois(i,j,4,it) = max(0.0_r_kind,ges_smois(i,j,4,it) + & 
+                                                  max(-0.03_r_kind,min(0._r_kind,(ainc*0.1_r_kind))))
+
                         endif
                     END IF
-                 endif
+                 endif  !  sno(i,j,it) < snowthreshold
+                 endif  !  sumqc < 1.0e-6_r_kind
               endif
            end do
         end do
@@ -507,5 +525,53 @@ subroutine gsd_update_th2(tinc)
 
   return
 end subroutine gsd_update_th2
+
+subroutine gsd_update_q2(tinc)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    gsd_update_q2    adjust 2-m q based on analysis increment
+!   prgmmr: Hu          org: GSD                date: 2011-10-04
+!
+! abstract:  This routine does the following things:
+!              1) add lowest level q increment to Q2 
+! 
+! 
+! program history log:
+!   2014-01-22  Hu - original code
+!
+!   input argument list:
+!    tinc : first level mositure analysis increment
+!
+!   output argument list:
+!
+!   comments:
+!
+! attributes:
+!$$$
+  use kinds, only: r_kind,i_kind
+  use mpimod, only: mype
+  use gridmod, only: lat2,lon2
+  use guess_grids, only: ges_q2, nfldsig
+
+  implicit none
+
+! Declare passed variables
+  real(r_kind),dimension(lat2,lon2), intent(in) :: tinc
+
+  integer(i_kind) i,j,it
+
+!*******************************************************************************
+!
+! 2-m temperature
+  do it=1,nfldsig
+     do j=1,lon2
+        do i=1,lat2
+           ges_q2(i,j,it) = ges_q2(i,j,it) + tinc(i,j)
+        end do
+     end do
+  end do
+
+  return
+end subroutine gsd_update_q2
 
 end module gsd_update_mod

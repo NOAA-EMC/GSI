@@ -368,6 +368,7 @@ clean:
 	mod_nmmb_to_a.f90 \
 	mod_strong.f90 \
 	mod_vtrans.f90 \
+        mod_wrfmass_to_a.f90 \
 	model_ad.F90 \
 	model_tl.F90 \
 	model2control.f90 \

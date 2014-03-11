@@ -346,6 +346,7 @@ subroutine setupps(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 !  No observed temperature 
         psges2=data(ipres,i)
+        psges2=log(psges2)
         call grdcrd1(psges2,prsltmp,nsig,-1)
         call tintrp31(ges_tv,tges2,dlat,dlon,psges2,dtime, &
              hrdifsig,mype,nfldsig)
