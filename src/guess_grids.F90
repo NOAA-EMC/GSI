@@ -92,6 +92,7 @@ module guess_grids
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
 !   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
+!   2014-03-12  Hu      - Add ges_q2 
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01

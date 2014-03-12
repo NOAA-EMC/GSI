@@ -75,6 +75,7 @@ module gridmod
 !   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
 !                         a redundant "use omp_lib".
 !   2012-12-04 s.liu    - added use_reflectivity flag
+!   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
 !
 !
 ! !AUTHOR: 
@@ -952,6 +953,7 @@ contains
 !   2006-04-06  middlecoff - changed inges from 21 to lendian_in so it can be set to little endian.
 !   2009-01-02  todling - remove unused vars
 !   2012-01-24  parrish  - correct bug in definition of region_dx, region_dy.
+!   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
 !
 ! !REMARKS:
 !   language: f90

@@ -10,6 +10,8 @@ subroutine unfill_mass_grid2t(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here input grid is larger than output grid.
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
@@ -71,6 +73,8 @@ subroutine unfill_mass_grid2u(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
+!                        Here input grid is larger than output grid.
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
@@ -134,6 +138,8 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
+!                        Here input grid is larger than output grid.
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
@@ -197,6 +203,8 @@ subroutine unfill_mass_grid2tmap(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
+!                        Here input grid is larger than output grid.
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
@@ -256,6 +264,8 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
+!                        Here input grid is larger than output grid.
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)

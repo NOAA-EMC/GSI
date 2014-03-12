@@ -13,11 +13,16 @@ module aircraftobsqc
 !
 ! program history log:
 !   2010-10-28  Hu
+!   2013-03-12  xue   add read_aircraft_t_bias and correct_aircraft_t
+!                     to do GSD bias correction for aircraft temperature
+!                     observation bias correction.
 !
 ! subroutines included:
 !   sub init_aircraft_rjlists
 !   sub get_aircraft_usagerj
 !   sub destroy_aircraft_rjlists
+!   sub read_aircraft_t_bias
+!   sub correct_aircraft_t
 !
 ! variable definitions:
 !

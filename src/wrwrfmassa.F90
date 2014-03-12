@@ -35,6 +35,9 @@ subroutine wrwrfmassa_binary(mype)
 !   2012-11-26  hu     - add code to write updated soil fields to "wrf_inout"
 !   2013-01-26  parrish - WCOSS debug compile type mismatch error -- 
 !                            change to_native_endianness_i4 to to_native_endianness_r4
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !     mype     - pe number
@@ -1609,6 +1612,9 @@ subroutine wrwrfmassa_netcdf(mype)
 !   2010-04-01  treadon - move strip_single to gridmod
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
 !   2012-04-13  whitaker - don't call GSI_BundleGetPointer if nguess = 0
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !     mype     - pe number

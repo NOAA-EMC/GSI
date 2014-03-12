@@ -258,6 +258,8 @@
 !  08-20-2013 s.liu     add option to use reflectivity
 !  04-15-2013 zhu       add aircraft_t_bc_pof and aircraft_t_bc for aircraft temperature bias correction
 !  12-03-2013 wu        add parameter coef_bw for option:betaflg
+!  12-03-2014 Hu        add parameter grid_ratio_wrfmass for analysis on larger
+!                              grid than mass background grid
 !
 !EOP
 !-------------------------------------------------------------------------

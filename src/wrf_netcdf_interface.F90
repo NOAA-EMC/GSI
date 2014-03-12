@@ -22,6 +22,9 @@ subroutine convert_netcdf_mass
 !                          write to temporary netcdf files (extend FGAT capability for
 !                          wrf mass netcdf format)
 !   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !
@@ -1775,6 +1778,9 @@ subroutine update_netcdf_mass
 !                              variable is Landmask there).
 !   2012-01-09  Hu  - add code to update START_TIME to analysis time
 !   2012-04-13  Whitaker - clip positive definite quantities to tiny_single
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !

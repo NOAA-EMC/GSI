@@ -11,6 +11,8 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here output grid is larger than input grid.
 !
 !   input argument list:
 !     gin      - input C grid field over entire horizontal domain
@@ -79,6 +81,8 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here output grid is larger than input grid.
 !
 !   input argument list:
 !     gin      - input C grid field over entire horizontal domain
@@ -170,6 +174,8 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here output grid is larger than input grid.
 !
 !   input argument list:
 !     gin      - input C grid field over entire horizontal domain

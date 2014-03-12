@@ -50,6 +50,10 @@ subroutine read_wrf_mass_binary_guess(mype)
 !   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at.
 !                           (to handle cases of big-endian file/little-endian machine and vice-versa)
 !   2012-11-26  hu     - add code to read in soil fields
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
+!   levels
 !
 !   input argument list:
 !     mype     - pe number
@@ -1148,6 +1152,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !                             and distributed them to all processors 
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
 !   2012-11-26  hu     - add code to read in soil fields
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !     mype     - pe number

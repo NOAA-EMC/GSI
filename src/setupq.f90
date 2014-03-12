@@ -67,6 +67,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
+!   2014-03-24  Hu      - Use 2/3 of 2m Q and 1/3 of 1st level Q as background
+!                           to calculate O-B for the surface moisture observations
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
