@@ -36,7 +36,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
    ENDELSE
    ; Create string array with an extra element, so we 
    ; can refer to it as 1-base string array.
-   fileNumArray = SINDGEN(nFiles+100)
+   fileNumArray = SINDGEN(nFiles+1)
    ; Graphics file number tracking: 1-base
    fileIndex = 1
    
