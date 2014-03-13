@@ -73,12 +73,14 @@ configSensorParam, sensorOption, radListFile1, radListFile2,      $
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
 PRINT, '2 - NO, to reform'
-PRINT, '3 - NO, to plot'
+PRINT, '3 - NO, to plot radiance'
+PRINT, '4 - NO, to plot bias radiance'
 
 READ, readAgain
 IF (readAgain eq 1) THEN GOTO, mark_readMeas
 IF (readAgain eq 2) THEN GOTO, mark_reform
 IF (readAgain eq 3) THEN GOTO, mark_plotting
+IF (readAgain eq 4) THEN GOTO, mark_plotting_bias
 
 mark_readMeas:
 ;------------------------------------
@@ -149,11 +151,17 @@ chPlotArray = INDGEN(24)
 
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,         $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+    ref_scanLine1, ref_Lat1, ref_Lon1, ref_ModeFlag1, ref_Tb1,     $
+    ref_scanLine2, ref_Lat2, ref_Lon2, ref_ModeFlag2, ref_Tb2
+
+mark_plotting_bias:
+chPlotArray = [1]
+plotBiasRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,  $
     ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
     ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
     ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,      $
     ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2
-
 
 PRINT,'End of processing...'
 END

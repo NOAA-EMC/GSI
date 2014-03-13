@@ -15,14 +15,10 @@
 ;---------------------------------------------------------------------------------
 PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,  $
-    ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
-    ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
-    ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,      $
-    ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2   
+    ref_scanLine1, ref_Lat1, ref_Lon1, ref_ModeFlag1, ref_Tb1,       $
+    ref_scanLine2, ref_Lat2, ref_Lon2, ref_ModeFlag2, ref_Tb2   
 
    ; Set XSIZE and YSIZE for PS.
-   ;xSizeVal=8
-   ;ySizeVal=7
    xSizeVal=18
    ySizeVal=30
 
