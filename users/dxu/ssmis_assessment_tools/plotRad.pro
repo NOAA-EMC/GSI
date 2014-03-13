@@ -42,6 +42,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
    
    ; Loop thru. channels to plot
    FOR i=0, numOfChans - 1 DO BEGIN
+      ; Start a new page every 4 channels.
       rowPostion = i MOD 4
       IF ( rowPostion eq 0 ) THEN BEGIN
          imageName = STRCOMPRESS(prefix + fileNumArray(fileIndex) + '.ps',/remove_all)
