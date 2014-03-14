@@ -25,17 +25,19 @@ PRO configSensorParam, sensorOption, paramStruct
 
    ; Create a struct to hold all the config parameters
    ; Values need to overriden for each specific sensor. 
+   MAX_FOV_NUM = 30000L  ; Max profile number
+   MAX_CHAN_NUM = 40L    ; Max channel number
    paramStruct={          $
       radListFile1 : '',   $
       radListFile2 : '',   $
-      MAX_FOV : 30000L,    $
-      MAX_CHAN : 40L,      $
+      MAX_FOV : MAX_FOV_NUM,    $
+      MAX_CHAN : MAX_CHAN_NUM , $ 
       sceneListFile: '',   $
-      chanNumArray  : MAKE_ARRAY(40,/INT, VALUE=0),     $
-      chanInfoArray : MAKE_ARRAY(40,/STRING, VALUE=''), $
-      minBT_Values  : MAKE_ARRAY(40,/INT, VALUE=0),  $
-      maxBT_Values  : MAKE_ARRAY(40,/INT, VALUE=0),  $
-      prefixArray: MAKE_ARRAY(40,/STRING, VALUE='') }
+      chanNumArray  : MAKE_ARRAY(MAX_CHAN_NUM,/INT, VALUE=0),     $
+      chanInfoArray : MAKE_ARRAY(MAX_CHAN_NUM,/STRING, VALUE=''), $
+      minBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT, VALUE=0.0),  $
+      maxBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT, VALUE=0.0),  $
+      prefixArray: MAKE_ARRAY(MAX_CHAN_NUM,/STRING, VALUE='') }
 
    ;-----------------------------------
    ; 2. Sensor specifc config params
