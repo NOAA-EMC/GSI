@@ -14,45 +14,31 @@
 ;---------------------------------------------------------------------------------
 PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
     radFileList1, radFileList2,            $
-    nFOV_Rad1, scanPosRad1, scanLineRad1,  $
-    latRad1, lonRad1, dirRad1, angleRad1,  $
-    QC_Rad1, tbRad1,                       $
-    nFOV_Rad2, scanPosRad2, scanLineRad2,  $
-    latRad2, lonRad2, dirRad2, angleRad2,  $
-    QC_Rad2, tbRad2, nChan
-   ;-------------------------------
-   ; step 1:
-   ;   Declare variables for rad1
-   ;-------------------------------
-   ;
-   ; 1-D array (1) : File
-   nFOV_Rad1 = lonarr(nList)          ; total number of FOVs in a file
-   ; 2-D array (6) : Fov x File
-   scanPosRad1  = intarr(MAX_FOV,nList)  ; pos per file
-   scanLineRad1 = intarr(MAX_FOV,nList)  ; line per file
-   latRad1      = fltarr(MAX_FOV,nList)  ; lat per file
-   lonRad1   = fltarr(MAX_FOV,nList)  ; lon per file
-   dirRad1   = fltarr(MAX_FOV,nList)  ; dir per file
-   angleRad1   = fltarr(MAX_FOV,nList)  ; ang per file
-   QC_Rad1   = fltarr(MAX_FOV,nList)  ; QC  per file
-   ; 3-D array (1) : Fov X File X Channel
-   tbRad1    = fltarr(MAX_FOV,nList,MAX_CHAN) ; tb per file per channel
-   ;
-   ; Declare variables for rad2
-   ;
-   ; 1-D array (1) : File
-   nFOV_Rad2 = lonarr(nList)          ; total number of FOVs in a file
-   ; 2-D array (6) : Fov x File
-   scanPosRad2  = intarr(MAX_FOV,nList)  ; pos per file
-   scanLineRad2 = intarr(MAX_FOV,nList)  ; line per file
-   latRad2      = fltarr(MAX_FOV,nList)  ; lat per file
-   lonRad2      = fltarr(MAX_FOV,nList)  ; lon per file
-   dirRad2      = fltarr(MAX_FOV,nList)  ; dir per file
-   angleRad2    = fltarr(MAX_FOV,nList)  ; ang per file
-   QC_Rad2       = fltarr(MAX_FOV,nList)  ; QC  per file
-   ; 3-D array (1) : Fov X File X Channel
-   tbRad2    = fltarr(MAX_FOV,nList,MAX_CHAN) ; tb per file per channel
+    radData
 
+   ;---------------------------------------
+   ; step 1:
+   ;   Define a struct to hold data
+   ;---------------------------------------
+   radData={ $
+   nFOV_Rad1    : lonarr(nList),$         ; total number of FOVs in a file
+   scanPosRad1  : intarr(MAX_FOV,nList),$  ; pos per file
+   scanLineRad1 : intarr(MAX_FOV,nList),$  ; line per file
+   latRad1      : fltarr(MAX_FOV,nList),$  ; lat per file
+   lonRad1   : fltarr(MAX_FOV,nList),$  ; lon per file
+   dirRad1   : fltarr(MAX_FOV,nList),$  ; dir per file
+   angleRad1 : fltarr(MAX_FOV,nList),$  ; ang per file
+   QC_Rad1   : fltarr(MAX_FOV,nList),$  ; QC  per file
+   tbRad1    : fltarr(MAX_FOV,nList,MAX_CHAN),$ ; tb per file per channel
+   nFOV_Rad2 : lonarr(nList),$          ; total number of FOVs in a file
+   scanPosRad2  : intarr(MAX_FOV,nList),$  ; pos per file
+   scanLineRad2 : intarr(MAX_FOV,nList),$  ; line per file
+   latRad2      : fltarr(MAX_FOV,nList),$  ; lat per file
+   lonRad2      : fltarr(MAX_FOV,nList),$  ; lon per file
+   dirRad2      : fltarr(MAX_FOV,nList),$  ; dir per file
+   angleRad2    : fltarr(MAX_FOV,nList),$  ; ang per file
+   QC_Rad2      : fltarr(MAX_FOV,nList),$  ; QC  per file
+   tbRad2       : fltarr(MAX_FOV,nList,MAX_CHAN)} ; tb per file per channel
 
    ;---------------------------------------
    ; step 2:
@@ -83,21 +69,21 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
       nChan = rad1.nChan
 
       ; Save total number of FOVs in a file
-      nFOV_Rad1(iFile) = rad1.nprof
+      radData.nFOV_Rad1(iFile) = rad1.nprof
 
       ; Loop thru. FOVs within orbit
       FOR iProf=0L,rad1.nprof-1 DO BEGIN
-	 scanPosRad1(iProf, iFile) = rad1.ScanPos(0, iProf)
-	 scanLineRad1(iProf, iFile) = rad1.ScanLine(0, iProf)
-	 latRad1(iProf, iFile)  = rad1.Lat(0, iProf)
-	 lonRad1(iProf, iFile)  = rad1.Lon(0, iProf)
-	 dirRad1(iProf, iFile)  = rad1.Direc(0, iProf)
+	 radData.scanPosRad1(iProf, iFile) = rad1.ScanPos(0, iProf)
+	 radData.scanLineRad1(iProf, iFile) = rad1.ScanLine(0, iProf)
+	 radData.latRad1(iProf, iFile)  = rad1.Lat(0, iProf)
+	 radData.lonRad1(iProf, iFile)  = rad1.Lon(0, iProf)
+	 radData.dirRad1(iProf, iFile)  = rad1.Direc(0, iProf)
 	 ; Average angles over all channels to compute mean angle
-	 angleRad1(iProf, iFile)  = mean(rad1.Angle(0, iProf, 0 : rad1.nChan - 1))
+	 radData.angleRad1(iProf, iFile)  = mean(rad1.Angle(0, iProf, 0 : rad1.nChan - 1))
 	 ; Get the 1st QC in the 1st orbit
-	 QC_Rad1(iProf, iFile)  = rad1.QC(0,iProf,0)
+	 radData.QC_Rad1(iProf, iFile)  = rad1.QC(0,iProf,0)
 	 ; Get tb for each channel
-	 tbRad1(iProf, iFile, 0 : rad1.nChan - 1)   $
+	 radData.tbRad1(iProf, iFile, 0 : rad1.nChan - 1)   $
 	     = rad1.tb(0, iProf, 0 : rad1.nChan - 1)
       ENDFOR
    ENDFOR
@@ -127,19 +113,22 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
       PRINT, "Number of scan lines              : ", rad2.nScanLines
       PRINT,'------------------------------------------------'
 
+      ; Save total number of FOVs in a file
+      radData.nFOV_Rad2(iFile) = rad2.nprof
+
       ; Loop thru. FOVs within orbit
       FOR iProf=0L,rad2.nprof-1 DO BEGIN
-	 scanPosRad2(iProf, iFile) = rad2.ScanPos(0, iProf)
-	 scanLineRad2(iProf, iFile) = rad2.ScanLine(0, iProf)
-	 latRad2(iProf, iFile)  = rad2.Lat(0, iProf)
-	 lonRad2(iProf, iFile)  = rad2.Lon(0, iProf)
-	 dirRad2(iProf, iFile)  = rad2.Direc(0, iProf)
+	 radData.scanPosRad2(iProf, iFile) = rad2.ScanPos(0, iProf)
+	 radData.scanLineRad2(iProf, iFile) = rad2.ScanLine(0, iProf)
+	 radData.latRad2(iProf, iFile)  = rad2.Lat(0, iProf)
+	 radData.lonRad2(iProf, iFile)  = rad2.Lon(0, iProf)
+	 radData.dirRad2(iProf, iFile)  = rad2.Direc(0, iProf)
 	 ; Average angles over all channels to compute mean angle
-	 angleRad2(iProf, iFile)  = mean(rad2.Angle(0, iProf, 0 : rad2.nChan - 1))
+	 radData.angleRad2(iProf, iFile)  = mean(rad2.Angle(0, iProf, 0 : rad2.nChan - 1))
 	 ; Get the 1st QC in the 1st orbit
-	 QC_Rad2(iProf, iFile)  = rad2.QC(0,iProf,0)
+	 radData.QC_Rad2(iProf, iFile)  = rad2.QC(0,iProf,0)
 	 ; Get tb for each channel
-	 tbRad2(iProf, iFile, 0 : rad2.nChan - 1)   $
+	 radData.tbRad2(iProf, iFile, 0 : rad2.nChan - 1)   $
 	     = rad2.tb(0, iProf, 0 : rad2.nChan - 1)
       ENDFOR
    ENDFOR

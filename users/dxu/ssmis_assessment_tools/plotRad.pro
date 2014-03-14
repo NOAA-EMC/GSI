@@ -15,9 +15,7 @@
 ;---------------------------------------------------------------------------------
 PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,  $
-    ref_scanLine1, ref_Lat1, ref_Lon1, ref_ModeFlag1, ref_Tb1,       $
-    ref_scanLine2, ref_Lat2, ref_Lon2, ref_ModeFlag2, ref_Tb2,       $
-    date
+    refRadData, date
 
    ; Set XSIZE and YSIZE for PS.
    xSizeVal=18
@@ -68,18 +66,18 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Select out profiles
       ;    radiance: ref_Tb1 > 0.
       ;    Orbit mode flag: ref_ModeFlag1 = 0
-      filter1 = WHERE(ref_Lat1 ge MIN_LAT       $
-		and ref_Lat1 le MAX_LAT         $
-		and ref_Tb1(*,chPlotArray(i)) gt 0 $
-		and ref_ModeFlag1 eq 0)
+      filter1 = WHERE(refRadData.ref_Lat1 ge MIN_LAT       $
+		and refRadData.ref_Lat1 le MAX_LAT         $
+		and refRadData.ref_Tb1(*,chPlotArray(i)) gt 0 $
+		and refRadData.ref_ModeFlag1 eq 0)
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
-	       ref_Lat1,ref_Lon1,                  $
+	       refRadData.ref_Lat1,refRadData.ref_Lon1,                  $
 	       filter1,   $
 	       title,     $
 	       minBT_Values(chPlotArray(i)),   $
 	       maxBT_Values(chPlotArray(i)),   $
-	       ref_Tb1(*,chPlotArray(i)),         $
+	       refRadData.ref_Tb1(*,chPlotArray(i)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb
@@ -98,18 +96,18 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Select out profiles
       ;    radiance: ref_Tb2 > 0.
       ;    Orbit mode flag: ref_ModeFlag2 = 0
-      filter2 = WHERE(ref_Lat2 ge MIN_LAT          $
-		and ref_Lat2 le MAX_LAT            $
-		and ref_Tb2(*,chPlotArray(i)) gt 0 $
-		and ref_ModeFlag2 eq 0)
+      filter2 = WHERE(refRadData.ref_Lat2 ge MIN_LAT          $
+		and refRadData.ref_Lat2 le MAX_LAT            $
+		and refRadData.ref_Tb2(*,chPlotArray(i)) gt 0 $
+		and refRadData.ref_ModeFlag2 eq 0)
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
-	       ref_Lat2,ref_Lon2,                  $
+	       refRadData.ref_Lat2,refRadData.ref_Lon2,                  $
 	       filter2,   $
 	       title,     $
 	       minBT_Values(chPlotArray(i)),      $
 	       maxBT_Values(chPlotArray(i)),      $
-	       ref_Tb2(*,chPlotArray(i)),         $
+	       refRadData.ref_Tb2(*,chPlotArray(i)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb

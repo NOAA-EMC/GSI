@@ -16,11 +16,7 @@
 ;---------------------------------------------------------------------------------
 PRO plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefix, $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
-    ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
-    ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
-    ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,      $
-    ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2,          $
-    ref_Bias, nChan, date
+    refRadData, nChan, date
 
    ; Set XSIZE and YSIZE for PS.
    xSizeVal=18
@@ -51,9 +47,9 @@ PRO plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefix, $
    ; 1. Plot radiance difference
    ;######################################################
    ; Loop thru. channels
-   FOR i=0, numOfChans - 1 DO BEGIN
+   FOR iChan = 0, numOfChans - 1 DO BEGIN
       ; Start a new page every PLOT_PER_PAGE(8) channels. 
-      filePosition = i MOD PLOT_PER_PAGE
+      filePosition = iChan MOD PLOT_PER_PAGE
       IF ( filePosition eq 0 ) THEN BEGIN
          imageName = STRCOMPRESS(prefix + fileNumArray(fileIndex) + '.ps',/remove_all)
          ; Get the file number for the next graphics file
@@ -70,45 +66,48 @@ PRO plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefix, $
       ; step 1:
       ;   Plot observed radiances for chosen channels.
       ;------------------------------------------------
-      channel = chanInfoArray[chPlotArray(i)] + ' GHz '
+      channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
       title = 'SSMIS TB Diff ' + channel + date
 
-      ; Select out profiles
+      ;-----------------
+      ; Define filter
+      ;-----------------
       ;    radiance: ref_Tb1 > 0.
       ;    radiance: ref_Tb2 > 0.
       ;    Orbit mode flag: ref_ModeFlag1 = 0
       ;    Orbit mode flag: ref_ModeFlag2 = 0
-      filter = WHERE(ref_Lat1 ge MIN_LAT          $
-		and ref_Lat1 le MAX_LAT            $
-		and ref_Tb1(*,chPlotArray(i)) gt 0 $
-		and ref_ModeFlag1 eq 0             $
-                and ref_Lat2 ge MIN_LAT            $
-		and ref_Lat2 le MAX_LAT            $
-		and ref_Tb2(*,chPlotArray(i)) gt 0 $
-		and ref_ModeFlag2 eq 0)
+      filter = WHERE(refRadData.ref_Lat1 ge MIN_LAT               $
+		and refRadData.ref_Lat1 le MAX_LAT                $
+		and refRadData.ref_Tb1(*,chPlotArray(iChan)) gt 0 $
+		and refRadData.ref_ModeFlag1 eq 0                 $
+		and refRadData.ref_Lat2 ge MIN_LAT                $
+		and refRadData.ref_Lat2 le MAX_LAT                $
+		and refRadData.ref_Tb2(*,chPlotArray(iChan)) gt 0 $
+		and refRadData.ref_ModeFlag2 eq 0)
 
-      ; Generate ref_Bias based on filter
-      ref_Bias(filter, chPlotArray(i))  = ref_Tb1(filter, chPlotArray(i) )   $
-                                 - ref_Tb2(filter, chPlotArray(i) )
+      ; Generate ref_TbDiff based on filter
+      refRadData.ref_TbDiff(filter, chPlotArray(iChan))  =    $
+            refRadData.ref_Tb1(filter, chPlotArray(iChan) )   $
+            - refRadData.ref_Tb2(filter, chPlotArray(iChan) )
       ; Generate plot position
       ; Row position
-      rowPosition = i / 2
-      ; 0-base index i:
+      rowPosition = iChan / 2
+      ; 0-base index iChan:
       ;   0, 2, 4, ... drawn on left
       ;   1, 3, 5, ... drawn on right
       ; Default column position is on right 
       colPosition = 1
-      IF ( (i MOD 2) eq 0 ) THEN BEGIN
+      IF ( (iChan MOD 2) eq 0 ) THEN BEGIN
          colPosition = 0
       ENDIF
 
       print, rowPosition ,  colPosition
 
       tbDiffPlotting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,$
-	       ref_Lat1,ref_Lon1,                  $
+	       refRadData.ref_Lat1,refRadData.ref_Lon1,                  $
 	       filter,                             $
 	       title,                              $
-	       ref_Bias(*,chPlotArray(i)),         $
+	       refRadData.ref_TbDiff(*,chPlotArray(iChan)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb
@@ -123,12 +122,12 @@ END
 
 PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
     ref_Lat1,ref_Lon1,filter,title,              $
-    ref_Bias,unit,scal,  $ 
+    ref_TbDiff,unit,scal,  $ 
     symb,thickVal,fmt, rowPosition, colPosition
 
    ; Get min and max of bias. 
-   minBias_Value = min(ref_Bias)
-   maxBias_Value = max(ref_Bias)
+   minBias_Value = min(ref_TbDiff)
+   maxBias_Value = max(ref_TbDiff)
    print, "minBias_Value ", minBias_Value
    print, "maxBias_Value ", maxBias_Value
 
@@ -208,7 +207,7 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
       ; index value
       index = filter(iprof)
       ; BT value
-      biasVal=ref_Bias[index]
+      biasVal=ref_TbDiff[index]
       colorVal=0L
       colorNum=(float(biasVal-minBias_Value)/float(maxBias_Value-minBias_Value))*nColor
       colorVal=long(colorNum)

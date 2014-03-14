@@ -65,10 +65,19 @@ ENDIF
 ;-------------------------------------------
 ; Read config params for the sensor chosen
 ;-------------------------------------------
-configSensorParam, sensorOption, radListFile1, radListFile2,      $
-     MAX_FOV, MAX_CHAN, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,       $
-     minBT_Values, maxBT_Values, chanNumArray, chanInfoArray,     $
-     prefixArr
+configSensorParam, sensorOption, paramStruct 
+
+; Save config parameters 
+radListFile1  = paramStruct.radListFile1
+radListFile2  = paramStruct.radListFile2
+MAX_FOV       = paramStruct.MAX_FOV
+MAX_CHAN      = paramStruct.MAX_CHAN
+sceneListFile = paramStruct.sceneListFile
+chanNumArray  = paramStruct.chanNumArray
+chanInfoArray = paramStruct.chanInfoArray
+minBT_Values  = paramStruct.minBT_Values
+maxBT_Values  = paramStruct.maxBT_Values
+prefixArray   = paramStruct.prefixArray
 
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
@@ -111,13 +120,7 @@ print, "Begin readRadFile  =========="
 ;-------------------------------------------
 readRadFile, nList, MAX_FOV, MAX_CHAN,    $
    radFileList1, radFileList2,            $
-   nFOV_Rad1, scanPosRad1, scanLineRad1,  $
-   latRad1, lonRad1, dirRad1, angleRad1,  $
-   QC_Rad1, tbRad1,                       $
-   nFOV_Rad2, scanPosRad2, scanLineRad2,  $
-   latRad2, lonRad2, dirRad2, angleRad2,  $
-   QC_Rad2, tbRad2, nChan
-
+   radData
 
 print, "done with readRadFile  =========="
 
@@ -126,19 +129,8 @@ print, "done with readRadFile  =========="
 ;   Reform data
 ;-------------------------------------------
 mark_reform:
-reformArray, MAX_FOV, nList, nChan,        $
-   scanPosRad1, scanLineRad1,              $
-   latRad1, lonRad1, dirRad1, angleRad1,   $
-   QC_Rad1, tbRad1,                        $
-   scanPosRad2, scanLineRad2,              $
-   latRad2, lonRad2, dirRad2, angleRad2,   $
-   QC_Rad2, tbRad2,                        $
-   ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,  $
-   ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,      $
-   ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,  $
-   ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2,      $
-   ref_TbDiff
-
+reformArray, MAX_FOV, nList, nChan,  $
+   radData, refRadData
 
 ;-----------------------------------------
 ; step 4: 
@@ -157,20 +149,14 @@ date = '2013-01-20'
 
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArr[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
-    ref_scanLine1, ref_Lat1, ref_Lon1, ref_ModeFlag1, ref_Tb1,     $
-    ref_scanLine2, ref_Lat2, ref_Lon2, ref_ModeFlag2, ref_Tb2,     $
-    date
+    refRadData, date
 
 mark_plotting_bias:
 ;chPlotArray = [1,2,3,4]
 
 plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArr[1], $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,                        $
-    ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
-    ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
-    ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,      $
-    ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2,          $
-    ref_TbDiff, nChan, date
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,      $
+    refRadData, nChan, date
 
 PRINT,'End of processing...'
 END
