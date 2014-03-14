@@ -205,9 +205,9 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
       ; index value
       index = filter(iprof)
       ; BT value
-      biasVal=ref_TbDiff[index]
+      tbDiffVal=ref_TbDiff[index]
       colorVal=0L
-      colorNum=(float(biasVal-minTB_DiffValue)/float(maxTB_DiffValue-minTB_DiffValue))*nColor
+      colorNum=(float(tbDiffVal-minTB_DiffValue)/float(maxTB_DiffValue-minTB_DiffValue))*nColor
       colorVal=long(colorNum)
 
       OPLOT,[ref_Lon1[index]],[ref_Lat1[index]],color=colorVal-1,psym=symb,$
