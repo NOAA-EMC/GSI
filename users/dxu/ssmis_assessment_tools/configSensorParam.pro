@@ -17,7 +17,7 @@
 PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
      MAX_FOV, MAX_CHAN, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,       $
      minBT_Values, maxBT_Values, chanNumArray, chanInfoArray,     $
-     prefix
+     prefixArr
    ;-----------------------------------
    ; 1. Shared config params
    ;-----------------------------------
@@ -54,7 +54,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; NOAA-19/AMSUA&MHS
        2: BEGIN
@@ -80,7 +80,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; MetOp-A/AMSUA&MHS
        3: BEGIN
@@ -106,7 +106,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; MetOp-B/AMSUA/MHS 
        4: BEGIN
@@ -132,7 +132,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; F16/SSMIS
        5: BEGIN
@@ -158,7 +158,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; F17/SSMIS
        6: BEGIN
@@ -184,7 +184,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; F18/SSMIS
        7: BEGIN
@@ -210,7 +210,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; NPP/ATMS
        8: BEGIN
@@ -236,7 +236,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
        ; AQUA/AMSRE
        9: BEGIN
@@ -262,7 +262,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; GCOMW1/AMSR2
       10: BEGIN
@@ -288,7 +288,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; FY3/MWRI
       11: BEGIN
@@ -314,7 +314,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; FY3/MWHS/MWTS
       12: BEGIN
@@ -340,7 +340,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; TRMM/TMI
       13: BEGIN
@@ -366,7 +366,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; GPM/GMI
       14: BEGIN
@@ -392,7 +392,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; MT/MADRAS
       15: BEGIN
@@ -418,7 +418,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
       ; MT/SAPHIR
       16: BEGIN
@@ -444,7 +444,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
     ; WindSat
     ELSE: BEGIN
@@ -470,7 +470,7 @@ PRO configSensorParam, sensorOption, radListFile1, radListFile2,  $
             maxBT_Values = [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
                     250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
                     300, 280, 280, 280 ]
-            prefix = 'SSMIS_Rad_plotting_'
+            prefixArr = [ 'SSMIS_Rad_plotting_', 'SSMIS_RadDiff_plotting_']
 	  END
    ENDCASE
 

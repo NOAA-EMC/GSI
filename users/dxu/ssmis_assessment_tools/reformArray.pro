@@ -23,7 +23,8 @@ PRO reformArray, MAX_FOV, nList, nChan,    $
    ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1, $
    ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,     $
    ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2, $
-   ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2
+   ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2,     $
+   ref_TbDiff
    ;-----------------
    ; step 1:
    ;   2-d arrays
@@ -42,6 +43,7 @@ PRO reformArray, MAX_FOV, nList, nChan,    $
    ref_Angle1    = reform(angleRad1(*, *), nList * MAX_FOV)
    ref_QC1       = reform(QC_Rad1(*, *), nList * MAX_FOV)
    ref_Tb1       = fltarr(nList * MAX_FOV, nChan)
+   ref_TbDiff    = fltarr(nList * MAX_FOV, nChan)
    ; for simulated data
    ref_scanPos2  = reform(scanPosRad2(*, *), nList * MAX_FOV)
    ref_scanLine2 = reform(scanLineRad2(*, *), nList * MAX_FOV)

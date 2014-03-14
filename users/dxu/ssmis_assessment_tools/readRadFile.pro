@@ -118,9 +118,7 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
       ; Read radiance from rad2
       ;
       ; LoadRadFile I, I , O , X
-      print, "start to read     ............."
       LoadRadFile,1,radFileList2(iFile),rad2,0
-      print, "end of reading  file to read *****************"
 
       PRINT, "Number of files                   : ", rad2.nFilesRad
       PRINT, "Number of profiles in file        : ", rad2.nProf

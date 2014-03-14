@@ -68,13 +68,13 @@ ENDIF
 configSensorParam, sensorOption, radListFile1, radListFile2,      $
      MAX_FOV, MAX_CHAN, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,       $
      minBT_Values, maxBT_Values, chanNumArray, chanInfoArray,     $
-     prefix
+     prefixArr
 
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
 PRINT, '2 - NO, to reform'
 PRINT, '3 - NO, to plot radiance'
-PRINT, '4 - NO, to plot bias radiance'
+PRINT, '4 - NO, to plot radiance diff'
 
 READ, readAgain
 IF (readAgain eq 1) THEN GOTO, mark_readMeas
@@ -136,7 +136,9 @@ reformArray, MAX_FOV, nList, nChan,        $
    ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,  $
    ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,      $
    ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,  $
-   ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2
+   ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2,      $
+   ref_TbDiff
+
 
 ;-----------------------------------------
 ; step 4: 
@@ -144,24 +146,31 @@ reformArray, MAX_FOV, nList, nChan,        $
 ;-----------------------------------------
 mark_plotting:
 
+;###########################################
+; Configuration to customize needs.
+;###########################################
 ; Specify the channels to plot
-chPlotArray = INDGEN(24)
+;chPlotArray = INDGEN(24)
 ;chPlotArray = INDGEN(7)
-;chPlotArray = [1,2]
+chPlotArray = [1]
+date = '2013-01-20'
 
-plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,         $
+plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArr[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     ref_scanLine1, ref_Lat1, ref_Lon1, ref_ModeFlag1, ref_Tb1,     $
-    ref_scanLine2, ref_Lat2, ref_Lon2, ref_ModeFlag2, ref_Tb2
+    ref_scanLine2, ref_Lat2, ref_Lon2, ref_ModeFlag2, ref_Tb2,     $
+    date
 
 mark_plotting_bias:
-chPlotArray = [1]
-plotBiasRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,  $
+;chPlotArray = [1,2,3,4]
+
+plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArr[1], $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,                        $
     ref_scanPos1, ref_scanLine1, ref_Lat1, ref_Lon1,      $
     ref_ModeFlag1, ref_Angle1, ref_QC1, ref_Tb1,          $
     ref_scanPos2, ref_scanLine2, ref_Lat2, ref_Lon2,      $
-    ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2
+    ref_ModeFlag2, ref_Angle2, ref_QC2, ref_Tb2,          $
+    ref_TbDiff, nChan, date
 
 PRINT,'End of processing...'
 END
