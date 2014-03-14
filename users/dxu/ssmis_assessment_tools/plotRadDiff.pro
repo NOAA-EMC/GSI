@@ -126,10 +126,8 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
     symb,thickVal,fmt, rowPosition, colPosition
 
    ; Get min and max of bias. 
-   minBias_Value = min(ref_TbDiff)
-   maxBias_Value = max(ref_TbDiff)
-   print, "minBias_Value ", minBias_Value
-   print, "maxBias_Value ", maxBias_Value
+   minTB_DiffValue = min(ref_TbDiff)
+   maxTB_DiffValue = max(ref_TbDiff)
 
    ; set the default charsz
    charSize=1.
@@ -209,7 +207,7 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
       ; BT value
       biasVal=ref_TbDiff[index]
       colorVal=0L
-      colorNum=(float(biasVal-minBias_Value)/float(maxBias_Value-minBias_Value))*nColor
+      colorNum=(float(biasVal-minTB_DiffValue)/float(maxTB_DiffValue-minTB_DiffValue))*nColor
       colorVal=long(colorNum)
 
       OPLOT,[ref_Lon1[index]],[ref_Lat1[index]],color=colorVal-1,psym=symb,$
@@ -217,7 +215,7 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 
    ENDFOR
 
-   IF ((maxBias_Value-minBias_Value) gt 0.) THEN BEGIN
+   IF ((maxTB_DiffValue-minTB_DiffValue) gt 0.) THEN BEGIN
       ; Define the position of color bar
       IF ( colPosition eq 0 ) THEN BEGIN 
 	 x0 = xOrgin
@@ -231,9 +229,9 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 	 y1 = barY_Pos ( rowPosition ) + barHeight
       END
 
-      COLORBAR,NCOLORS=nColor,/HORIZONTAL,RANGE=[minBias_Value,maxBias_Value],TITLE=unit,$
+      COLORBAR,NCOLORS=nColor,/HORIZONTAL,RANGE=[minTB_DiffValue,maxTB_DiffValue],TITLE=unit,$
 	  FORMAT=fmt,CHARSIZE=charSize*1.3,FONT=1,POSITION=[x0, y0, x1, y1]
    ENDIF ELSE BEGIN
-       PRINT, 'Warning: in radPloting: No color bar plotted: (maxBias_Value-minBias_Value) <= 0.'
+       PRINT, 'Warning: in radPloting: No color bar plotted: (maxTB_DiffValue-minTB_DiffValue) <= 0.'
    ENDELSE
 END
