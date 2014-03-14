@@ -152,7 +152,6 @@ plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArr[0],   $
     refRadData, date
 
 mark_plotting_bias:
-;chPlotArray = [1,2,3,4]
 
 plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArr[1], $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,      $
