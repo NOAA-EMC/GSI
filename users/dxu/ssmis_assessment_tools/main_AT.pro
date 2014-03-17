@@ -68,6 +68,10 @@ ENDIF
 configSensorParam, sensorOption, paramStruct 
 
 ; Save config parameters 
+MIN_LAT = paramStruct.MIN_LAT
+MAX_LAT = paramStruct.MAX_LAT
+MIN_LON = paramStruct.MIN_LON
+MAX_LON = paramStruct.MAX_LON
 radListFile1  = paramStruct.radListFile1
 radListFile2  = paramStruct.radListFile2
 MAX_FOV       = paramStruct.MAX_FOV
@@ -112,7 +116,7 @@ ENDIF
 ; Save number of rad files (orbits)
 nList=nRadFiles1
 
-print, "Begin readRadFile  =========="
+PRINT, "Begin readRadFile  =========="
 ;-------------------------------------------
 ; step 2:
 ;   Read radiances (measurements) from List1
@@ -122,14 +126,14 @@ readRadFile, nList, MAX_FOV, MAX_CHAN,    $
    radFileList1, radFileList2,            $
    radData
 
-print, "done with readRadFile  =========="
+PRINT, "done with readRadFile  =========="
 
 ;-------------------------------------------
 ; step 3:
 ;   Reform data
 ;-------------------------------------------
 mark_reform:
-reformArray, MAX_FOV, nList, nChan,  $
+reformArray, MAX_FOV, nList,  $
    radData, refRadData
 
 ;-----------------------------------------
@@ -142,20 +146,20 @@ mark_plotting:
 ; Configuration to customize needs.
 ;###########################################
 ; Specify the channels to plot
-;chPlotArray = INDGEN(24)
+chPlotArray = INDGEN(24)
 ;chPlotArray = INDGEN(7)
-chPlotArray = [1]
+;chPlotArray = [8]
 date = '2013-01-20'
 
-plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArr[0],   $
+plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadData, date
 
 mark_plotting_bias:
 
-plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArr[1], $
+plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1], $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,      $
-    refRadData, nChan, date
+    refRadData, radData.nChan, date
 
 PRINT,'End of processing...'
 END

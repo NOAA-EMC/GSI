@@ -91,7 +91,7 @@ PRO plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefix, $
             - refRadData.ref_Tb2(filter, chPlotArray(iChan) )
       ; Generate plot position
       ; Row position
-      rowPosition = iChan / 2
+      rowPosition = ( iChan MOD PLOT_PER_PAGE )/ 2
       ; 0-base index iChan:
       ;   0, 2, 4, ... drawn on left
       ;   1, 3, 5, ... drawn on right
@@ -100,8 +100,6 @@ PRO plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefix, $
       IF ( (iChan MOD 2) eq 0 ) THEN BEGIN
          colPosition = 0
       ENDIF
-
-      print, rowPosition ,  colPosition
 
       tbDiffPlotting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,$
 	       refRadData.ref_Lat1,refRadData.ref_Lon1,                  $

@@ -38,7 +38,8 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
    dirRad2      : fltarr(MAX_FOV,nList),$  ; dir per file
    angleRad2    : fltarr(MAX_FOV,nList),$  ; ang per file
    QC_Rad2      : fltarr(MAX_FOV,nList),$  ; QC  per file
-   tbRad2       : fltarr(MAX_FOV,nList,MAX_CHAN)} ; tb per file per channel
+   tbRad2       : fltarr(MAX_FOV,nList,MAX_CHAN), $ ; tb per file per channel
+   nChan        : 0L} 
 
    ;---------------------------------------
    ; step 2:
@@ -55,9 +56,9 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
       ; Read radiance from a pair of files to rad1 and rad2
       ;
       ; LoadRadFile I, I , O , X
-      print, "stat to open file to read ............" 
+      PRINT, "Start to open file to read ............" 
       LoadRadFile,1,radFileList1(iFile),rad1,0
-      print, "end of reading  file to read *****************"
+      PRINT, "End of reading  file to read *****************"
 
       PRINT, "Number of files                   : ", rad1.nFilesRad
       PRINT, "Number of profiles in file        : ", rad1.nProf
@@ -66,6 +67,9 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
       PRINT, "Number of scan lines              : ", rad1.nScanLines
       PRINT,'------------------------------------------------'
       ; Save number of channels 
+      IF (iFile eq 0L ) THEN BEGIN
+         radData.nChan = rad1.nChan
+      ENDIF
       nChan = rad1.nChan
 
       ; Save total number of FOVs in a file

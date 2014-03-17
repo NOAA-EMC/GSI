@@ -18,16 +18,20 @@ PRO configSensorParam, sensorOption, paramStruct
    ;-----------------------------------
    ; 1. Shared config params
    ;-----------------------------------
-   MIN_LAT = -90
-   MAX_LAT = 90
-   MIN_LON = -180
-   MAX_LON = 180
+   MIN_LAT_Val = -90
+   MAX_LAT_Val = 90
+   MIN_LON_Val = -180
+   MAX_LON_Val = 180
 
    ; Create a struct to hold all the config parameters
    ; Values need to overriden for each specific sensor. 
    MAX_FOV_NUM = 30000L  ; Max profile number
    MAX_CHAN_NUM = 40L    ; Max channel number
    paramStruct={          $
+      MIN_LAT : MIN_LAT_Val, $
+      MAX_LAT : MAX_LAT_Val, $
+      MIN_LON : MIN_LON_Val, $
+      MAX_LON : MAX_LON_Val, $
       radListFile1 : '',   $
       radListFile2 : '',   $
       MAX_FOV : MAX_FOV_NUM,    $

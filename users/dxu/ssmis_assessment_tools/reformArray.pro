@@ -13,8 +13,8 @@
 ;
 ;
 ;---------------------------------------------------------------------------------
-PRO reformArray, MAX_FOV, nList, nChan,    $
-   radData, refRadData 
+PRO reformArray, MAX_FOV, nList,  $
+   radData, refRadData
 
    ; Define struct to hold reformed data.
    ;-------------------------------------------------------
@@ -38,9 +38,9 @@ PRO reformArray, MAX_FOV, nList, nChan,    $
       ref_Angle2    : reform(radData.angleRad2(*, *), nList * MAX_FOV),$
       ref_QC1       : reform(radData.QC_Rad1(*, *), nList * MAX_FOV),  $
       ref_QC2       : reform(radData.QC_Rad2(*, *), nList * MAX_FOV),  $
-      ref_Tb1       : fltarr(nList * MAX_FOV, nChan),$
-      ref_Tb2       : fltarr(nList * MAX_FOV, nChan),$
-      ref_TbDiff    : fltarr(nList * MAX_FOV, nChan) }
+      ref_Tb1       : fltarr(nList * MAX_FOV, radData.nChan),$
+      ref_Tb2       : fltarr(nList * MAX_FOV, radData.nChan),$
+      ref_TbDiff    : fltarr(nList * MAX_FOV, radData.nChan) }
 
    ;--------------------------
    ; 3-d arrays conversion
@@ -53,7 +53,7 @@ PRO reformArray, MAX_FOV, nList, nChan,    $
    ;   ...
    ; [ Fov * File ][ Fov * File ] ... [ Fov * File ]  <= chan n
    ;
-   FOR iChan = 0L, nChan - 1 DO BEGIN
+   FOR iChan = 0L, radData.nChan - 1 DO BEGIN
       refRadData.ref_Tb1(*, iChan) = reform(radData.tbRad1(*, *, iChan), nList * MAX_FOV)
       refRadData.ref_Tb2(*, iChan) = reform(radData.tbRad2(*, *, iChan), nList * MAX_FOV)
    ENDFOR
