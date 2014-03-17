@@ -1354,7 +1354,7 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass, &
                          one_tenth,h300,rad2deg,ten,half
     use gridmod, only: half_grid,filled_grid,half_nmm_grid2a,fill_nmm_grid2a3
-    use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts
+    use hybrid_ensemble_parameters, only: n_ens,merge_two_grid_ensperts,q_hyb_ens
     use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
          mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
     use general_sub2grid_mod, only: sub2grid_info
@@ -1713,17 +1713,27 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
        end do
     end do
 
-    ice=.true.
-    iderivative=0
-    call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
+    if (.not.q_hyb_ens) then
+       ice=.true.
+       iderivative=0
+       call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
 
-    do k=1,grd%nsig
-       do i=1,grd%lon2
-          do j=1,grd%lat2
-             g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+       do k=1,grd%nsig
+          do i=1,grd%lon2
+             do j=1,grd%lat2
+                g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+             end do
           end do
        end do
-    end do
+    else
+       do k=1,grd%nsig
+          do i=1,grd%lon2
+             do j=1,grd%lat2
+	        g_rh(j,i,k)=g_q(j,i,k)
+	     end do
+	  end do
+       end do
+    end if   
 
 !    call grads3a(grd,g_u,g_v,g_tv,g_prsl,g_ps,grd%nsig,mype,wrfens)
 
@@ -2172,7 +2182,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
      use constants, only: zero,one,ten,one_tenth,half,grav,zero_single,fv,rad2deg
      use gsi_io, only: lendian_in
      use general_sub2grid_mod, only: sub2grid_info
-     use hybrid_ensemble_parameters, only: merge_two_grid_ensperts
+     use hybrid_ensemble_parameters, only: merge_two_grid_ensperts,q_hyb_ens
      implicit none
    
    ! Declare passed variables here
@@ -2374,17 +2384,21 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
         end do
      end do
 
-     ice=.true.
-     iderivative=0
-     call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
+     if (.not.q_hyb_ens) then
+        ice=.true.
+        iderivative=0
+        call genqsat(g_rh,g_tsen,g_prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
 
-     do k=1,grd%nsig
-        do i=1,grd%lon2
-           do j=1,grd%lat2
-              g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+        do k=1,grd%nsig
+           do i=1,grd%lon2
+              do j=1,grd%lat2
+                 g_rh(j,i,k)=g_q(j,i,k)/g_rh(j,i,k)
+              end do
            end do
         end do
-     end do
+     else
+        g_rh(j,i,k)=g_q(j,i,k)
+     end if
 
      do k=1,grd%nsig
         do i=1,grd%lon2

@@ -8,6 +8,7 @@ subroutine state2ensctl(eval,mval,grad)
 !
 ! program history log:
 !   2011-11-17  kleist - initial code
+!   2013-11-22  kleist - add option for q perturbations
 !
 !   input argument list:
 !     eval - Ensemble state variable variable
@@ -21,7 +22,7 @@ subroutine state2ensctl(eval,mval,grad)
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: l4dvar,l4densvar,nobs_bins,ibin_anl
-use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
+use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens,q_hyb_ens
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
 use balmod, only: strong_bk_ad
@@ -95,7 +96,7 @@ ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 lstrong_bk_vars     =lc_sf.and.lc_vp.and.lc_ps .and.lc_t
 do_getuv            =lc_sf.and.lc_vp.and.ls_u  .and.ls_v
 do_tv_to_tsen_ad    =lc_t .and.ls_q .and.ls_tsen
-do_normal_rh_to_q_ad=lc_t .and.lc_rh.and.ls_p3d.and.ls_q
+do_normal_rh_to_q_ad=(.not.q_hyb_ens).and. lc_t .and.lc_rh.and.ls_p3d.and.ls_q
 do_getprs_ad        =lc_t .and.lc_ps.and.ls_p3d
 
 ! Initialize
@@ -185,6 +186,8 @@ do jj=1,ntlevs_ens
 !  Adjoint of convert input normalized RH to q to add contribution of moisture
 !  to t, p , and normalized rh
    if(do_normal_rh_to_q_ad) call normal_rh_to_q_ad(cv_rh,cv_tv,rv_p3d,rv_q)
+!  Else q option
+   if(q_hyb_ens)    call gsi_bundleputvar ( wbundle_c, 'q' ,  rv_q,  istatus )
 
 !  Adjoint to convert ps to 3-d pressure
    if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_p3d)

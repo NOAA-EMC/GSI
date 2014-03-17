@@ -55,7 +55,7 @@
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
-     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start
+     bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,nrf_var
   use berror, only: norh,ndeg,vs,bw,init_berror,hzscl,hswgt,pert_berr,pert_berr_fct,&
@@ -94,7 +94,7 @@
   use hybrid_ensemble_parameters,only : l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,&
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,merge_two_grid_ensperts, &
-                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,coef_bw,&
+                         full_ensemble,pseudo_hybens,betaflg,pwgtflg,q_hyb_ens,coef_bw,&
                          beta1_inv,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,enspreproc
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
@@ -240,6 +240,7 @@
 !  06-12-2012 parrish   remove calls to subroutines init_mpi_vars, destroy_mpi_vars.
 !                       add calls to init_general_commvars, destroy_general_commvars.
 !  10-11-2012 eliu      add wrf_nmm_regional in determining logic for use_gfs_stratosphere                
+!  04-15-2013 zhu       add aircraft_t_bc_pof and aircraft_t_bc for aircraft temperature bias correction
 !  04-24-2013 parrish   move calls to subroutines init_constants and gps_constants before 
 !                       convert_regional_guess so that rearth is defined when used
 !  05-07-2013 tong      add tdrerr_inflate for tdr obs err inflation and
@@ -252,7 +253,7 @@
 !  07-10-2013 zhu       add upd_pred as bias update indicator for radiance bias correction
 !  07-19-2013 zhu       add emiss_bc for emissivity predictor in radiance bias correction scheme
 !  08-20-2013 s.liu     add option to use reflectivity
-!  04-15-2013 zhu       add aircraft_t_bc_pof and aircraft_t_bc for aircraft temperature bias correction
+!  10-30-2013 jung      added clip_supersaturation to setup namelist
 !  12-03-2013 wu        add parameter coef_bw for option:betaflg
 !
 !EOP
@@ -273,6 +274,7 @@
 !     gencode  - source generation code
 !     factqmin - weighting factor for negative moisture constraint
 !     factqmax - weighting factor for supersaturated moisture constraint
+!     clip_supersaturation - flag to remove supersaturation during each outer loop default=.false.
 !     deltim   - model timestep
 !     dtphys   - physics timestep
 !     biascor  - background error bias correction coefficient
@@ -411,7 +413,7 @@
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,factv,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        ndat,niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset, &
@@ -681,6 +683,8 @@
 !     l_hyb_ens     - if true, then turn on hybrid ensemble option
 !     uv_hyb_ens    - if true, then ensemble perturbation wind variables are u,v,
 !                       otherwise, ensemble perturbation wind variables are stream, pot. functions.
+!     q_hyb_ens     - if true, then use specific humidity ensemble perturbations,
+!                       otherwise, use relative humidity
 !     oz_univ_static- if true, decouple ozone from other variables and defaults to static B (ozone only)
 !     aniso_a_en - if true, then use anisotropic localization of hybrid ensemble control variable a_en.
 !     generate_ens - if true, then generate internal ensemble based on existing background error
@@ -716,7 +720,7 @@
 !     grid_ratio_ens   - for regional runs, ratio of ensemble grid resolution to analysis grid resolution
 !                            default value = 1  (dual resolution off)
 !     enspreproc - flag to read(.true.) pre-processed ensemble data already
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,full_ensemble,betaflg,pwgtflg,&
                 jcap_ens_test,beta1_inv,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,enspreproc,coef_bw

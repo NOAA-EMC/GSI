@@ -40,6 +40,7 @@ module jfunc
 !   2011-07-15  zhu     - add cwgues
 !   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
 !                         or aircraft_t_bc_pof=.true.
+!   2013-10-30  jung    - added logical clip_supersaturation
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -122,11 +123,12 @@ module jfunc
   public :: nrclen,npclen,nsclen,ntclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
   public :: switch_on_derivatives,qgues,qsatg,cwgues,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
-  public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
+  public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
   public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp,diag_precon,step_start
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical clip_supersaturation
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
@@ -191,6 +193,7 @@ contains
 
     factqmin=one
     factqmax=one
+    clip_supersaturation=.false.
     factg=one
     factv=one
     factp=one
