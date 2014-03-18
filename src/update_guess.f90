@@ -72,7 +72,8 @@ subroutine update_guess(sval,sbias)
 !   2011-11-01  eliu    - generalize met-guess updates for global/regional
 !   2011-10-01  Hu      - GSD limitation of Q over ocean
 !   2013-05-23  zhu     - add update for aircraft temperature bias correction coefficients
-!   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment 
+!   2013-10-30  jung    - remove supersaturation
+!   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
 !
 !   input argument list:
 !    sval
@@ -92,10 +93,10 @@ subroutine update_guess(sval,sbias)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin
-  use jfunc, only: iout_iter,biascor,tsensible
+  use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone,use_reflectivity
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
+  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,ges_qsat,ges_prsl,&
        ges_tsen,ges_oz,ges_u,ges_v,ges_gust,ges_vis,ges_pblh,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
@@ -246,7 +247,10 @@ subroutine update_guess(sval,sbias)
            do i=1,lat2
               if(is_u>0) ges_u(i,j,k,it) =     ges_u(i,j,k,it)    + p_u(i,j,k)
               if(is_v>0) ges_v(i,j,k,it) =     ges_v(i,j,k,it)    + p_v(i,j,k)
-              if(is_q>0) ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),qmin) 
+              if(is_q>0) then
+                 ges_q(i,j,k,it) = max(ges_q(i,j,k,it)    + p_q(i,j,k),qmin) 
+                 if(clip_supersaturation) ges_q(i,j,k,it) = min(ges_q(i,j,k,it),ges_qsat(i,j,k,it))
+              endif
               if(is_t > 0) then
                  if (.not.twodvar_regional .or. .not.tsensible) then
                     ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)   + p_tv(i,j,k)

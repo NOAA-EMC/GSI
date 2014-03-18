@@ -17,6 +17,7 @@ subroutine q_diag(mype)
 !   2011-05-01  todling - cwmr no longer in guess_grids; use metguess
 !   2011-08-01  zhu     - add cwgues for regional if cw is not in guess table
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
+!   2013-10-30  jung    - switch from using qsatg to ges_qsat
 !
 !   input argument list:
 !    mype       - mpi task id
@@ -29,8 +30,8 @@ subroutine q_diag(mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use guess_grids, only: ges_q,ntguessig,ges_ps,ges_prsi
-  use jfunc, only: qsatg,iout_iter,cwgues
+  use guess_grids, only: ges_q,ges_qsat,ntguessig,ges_ps,ges_prsi
+  use jfunc, only: iout_iter,cwgues
   use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,ierror
   use constants,only: zero,two,one,half
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,iglobal,&
@@ -84,11 +85,11 @@ subroutine q_diag(mype)
         do i=2,lat2-1
            if (ges_q(i,j,k,it) < zero) then
               qrms(1,1)=qrms(1,1) + ges_q(i,j,k,it)**two
-              qrms(1,2)=qrms(1,2) + (ges_q(i,j,k,it)/qsatg(i,j,k))**two
+              qrms(1,2)=qrms(1,2) + (ges_q(i,j,k,it)/ges_qsat(i,j,k,it))**two
               qrms(1,3)=qrms(1,3) + one
-           else if (ges_q(i,j,k,it) > qsatg(i,j,k)) then
-              qrms(2,1)=qrms(2,1) + (ges_q(i,j,k,it)-qsatg(i,j,k))**two
-              qrms(2,2)=qrms(2,2) + (ges_q(i,j,k,it)/qsatg(i,j,k)-one)**two
+           else if (ges_q(i,j,k,it) > ges_qsat(i,j,k,it)) then
+              qrms(2,1)=qrms(2,1) + (ges_q(i,j,k,it)-ges_qsat(i,j,k,it))**two
+              qrms(2,2)=qrms(2,2) + (ges_q(i,j,k,it)/ges_qsat(i,j,k,it)-one)**two
               qrms(2,3)=qrms(2,3) + one
            end if
            pw(i,j)=pw(i,j)+(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))* &

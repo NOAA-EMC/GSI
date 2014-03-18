@@ -43,7 +43,7 @@ subroutine get_gefs_ensperts_dualres
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv
+  use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_4dvar, only: l4densvar,ens4d_fhrlevs
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -240,16 +240,28 @@ subroutine get_gefs_ensperts_dualres
                 end do
 
              case('q','Q')
-!$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
-                 do k=1,km
-                    do j=1,jm
-                       do i=1,im
-                          rh=q(i,j,k)/qs(i,j,k)
-                          w3(i,j,k) = rh
-                          x3(i,j,k)=x3(i,j,k)+rh
-                       end do
-                    end do
-                 end do
+!!!!$omp parallel do schedule(dynamic,1) private(i,j,k,rh)
+                if (.not.q_hyb_ens) then !use RH
+                   do k=1,km
+                      do j=1,jm
+                         do i=1,im
+                            rh=q(i,j,k)/qs(i,j,k)
+                            w3(i,j,k) = rh
+                            x3(i,j,k)=x3(i,j,k)+rh
+                         end do
+                      end do
+                   end do
+                else ! use q instead
+                   do k=1,km
+                      do j=1,jm
+                         do i=1,im
+                            w3(i,j,k) = q(i,j,k)
+                            x3(i,j,k)=x3(i,j,k)+q(i,j,k)
+                         end do
+                      end do
+                   end do
+                end if
+
 
              case('oz','OZ')
 !$omp parallel do schedule(dynamic,1) private(i,j,k)
