@@ -327,6 +327,8 @@ subroutine wrwrfmassa_binary(mype)
         if(mype == 0.and.k==1) write(6,*)' tslb i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
      end do
   else
+     i_tslb=0
+     i_smois=0
      read(lendian_in)                                                 ! smois
      read(lendian_in)                                                 ! tslb
   endif
@@ -351,6 +353,9 @@ subroutine wrwrfmassa_binary(mype)
      read(lendian_in) n_position
      offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
      if(mype == 0) write(6,*)' th2, i,igtype,offset,kdim(i) = ',i,igtype(i),offset(i),kdim(i)
+  else
+     i_soilt1=0
+     i_th2=0
   endif
 
 ! for cloud/hydrometeor analysis fields
@@ -1722,6 +1727,10 @@ subroutine wrwrfmassa_netcdf(mype)
      i_skt=i_soilt1+1
   else
      i_skt=i_sst+1
+     i_th2=0
+     i_tslb=0
+     i_smois=0
+     i_soilt1=0
   endif
   i_q2=i_skt+1
 ! for hydrometeors
@@ -2283,12 +2292,10 @@ subroutine wrwrfmassa_netcdf(mype)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if(mype == 0) then
-!mhu           temp1=0.0_r_single
            call fill_mass_grid2t(temp1,im,jm,tempb,2)
            do i=1,iglobal
               tempa(i)=tempa(i)-tempb(i)
            end do
-!mhu           call unfill_mass_grid2tmap(tempa,im,jm,temp1)
            call unfill_mass_grid2t(tempa,im,jm,temp1)
            write(lendian_out)temp1
         end if

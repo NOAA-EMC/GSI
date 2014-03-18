@@ -148,7 +148,6 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   iyear=regional_time(1)   
   imonth=regional_time(2)
   iday=regional_time(3)
-!  call getdays(nday,iyear,imonth,iday)
   call w3fs13(iyear,imonth,iday,nday)
   declin=deg2rad*23.45_r_kind*sin(2.0_r_kind*pi*(284+nday)/365.0_r_kind)
 !
@@ -196,46 +195,46 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
 ! -- Allow soil temp cooling to be up to 2.5 * 0.6 = 1.5 X 2 C ( = 3K)
               dts_min = dts_min*temp_fac*0.6_r_kind
 
-              IF (isli(i,j,it) == 1 ) THEN
-                tincf = ainc*temp_fac*coast_fac
-                IF (sno(i,j,it) < snowthreshold) THEN
-                  if(nsig_soil == 9) then
+              IF (isli(i,j,it) == 1) THEN
+                 tincf = ainc*temp_fac*coast_fac
+                 if (sno(i,j,it) < snowthreshold) THEN
+                    if(nsig_soil == 9) then
 ! - top level soil temp
-                    ges_tslb(i,j,1,it) = ges_tslb(i,j,1,it) +   &
+                       ges_tslb(i,j,1,it) = ges_tslb(i,j,1,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.6_r_kind)) 
 ! - 0-1 cm level -  soil temp
-                    ges_tslb(i,j,2,it) = ges_tslb(i,j,2,it) +   &
+                       ges_tslb(i,j,2,it) = ges_tslb(i,j,2,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.55_r_kind))
 ! - 1-4 cm level -  soil temp
-                    ges_tslb(i,j,3,it) = ges_tslb(i,j,3,it) +   &
+                       ges_tslb(i,j,3,it) = ges_tslb(i,j,3,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
 ! - 4-10 cm level -  soil temp
-                    ges_tslb(i,j,4,it) = ges_tslb(i,j,4,it) +   &
+                       ges_tslb(i,j,4,it) = ges_tslb(i,j,4,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.3_r_kind))
 ! - 10-30 cm level -  soil temp
-                    ges_tslb(i,j,5,it) = ges_tslb(i,j,5,it) +   &
+                       ges_tslb(i,j,5,it) = ges_tslb(i,j,5,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                  else
+                    else
 ! - top level soil temp
-                    ges_tslb(i,j,1,it) = ges_tslb(i,j,1,it) +   &
+                       ges_tslb(i,j,1,it) = ges_tslb(i,j,1,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
 ! - 0-5 cm level -  soil temp
-                    ges_tslb(i,j,2,it) = ges_tslb(i,j,2,it) +   &
+                       ges_tslb(i,j,2,it) = ges_tslb(i,j,2,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.4_r_kind))
 ! - 5-20 cm level -  soil temp
-                    ges_tslb(i,j,3,it) = ges_tslb(i,j,3,it) +   &
+                       ges_tslb(i,j,3,it) = ges_tslb(i,j,3,it) +   &
                                        min(1._r_kind,max(dts_min,tincf*0.2_r_kind))
-                  endif
-                  ges_tsk(i,j,it) = ges_tsk(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                  ges_soilt1(i,j,it) = ges_soilt1(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
-                else  ! if snow cover, then only adjust TSK and SOILT1
+                    endif
+                    ges_tsk(i,j,it) = ges_tsk(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                    ges_soilt1(i,j,it) = ges_soilt1(i,j,it) + min(1._r_kind,max(dts_min,tincf*0.6_r_kind))
+                 else  ! if snow cover, then only adjust TSK and SOILT1
                     ges_tsk(i,j,it) = ges_tsk(i,j,it) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
                     ges_soilt1(i,j,it) = ges_soilt1(i,j,it) + min(1._r_kind,max(-2._r_kind,tincf*0.6_r_kind))
                     if (sno(i,j,it) > 32.0_r_kind) then
                        ges_tsk(i,j,it) = min(ges_tsk(i,j,it), 273.15_r_kind)
                        ges_soilt1(i,j,it) = min(ges_soilt1(i,j,it), 273.15_r_kind)
                     endif
-                endif ! sno(i,j,it) < snowthreshold
+                 endif ! sno(i,j,it) < snowthreshold
               endif   ! isli(i,j,it) == 1
            end do
         end do

@@ -53,7 +53,6 @@ subroutine read_wrf_mass_binary_guess(mype)
 !   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
 !                               Qnr(rain number concentration), 
 !                               and nsoil (number of soil levels)
-!   levels
 !
 !   input argument list:
 !     mype     - pe number

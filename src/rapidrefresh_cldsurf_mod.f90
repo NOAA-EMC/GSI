@@ -55,12 +55,6 @@ module rapidrefresh_cldsurf_mod
 !                                       (default = 1200 meters)
 !   def build_cloud_frac_p   - namelist real for GOES cloud building threshold
 !   def clear_cloud_frac_p   - namelist real for GOES cloud clearing threshold
-!   def i_gsdcldanal_type    - options for how GSD cloud analysis should be conducted 
-!                              =0. no cloud analysis (default)
-!                              =1.  cloud analysis after var analysis
-!                              =2.  cloud analysis before var analysis
-!                              =3.  cloud analysis only
-!                              =4.  no cloud analysis but do hybrometeors IO
 !   def nesdis_npts_rad      - NESDIS cloud product impact radiu (grid points) 
 !
 !   def iclean_hydro_withRef - if =1, then clean hydrometeors if the grid point
@@ -109,7 +103,6 @@ module rapidrefresh_cldsurf_mod
   public :: cld_bld_hgt
   public :: build_cloud_frac_p
   public :: clear_cloud_frac_p
-  public :: i_gsdcldanal_type
   public :: nesdis_npts_rad
   public :: iclean_hydro_withRef
   public :: iclean_hydro_withRef_allcol
@@ -140,7 +133,6 @@ module rapidrefresh_cldsurf_mod
   real(r_kind) cld_bld_hgt
   real(r_kind) build_cloud_frac_p 
   real(r_kind) clear_cloud_frac_p 
-  integer      i_gsdcldanal_type 
   integer      nesdis_npts_rad 
   integer      iclean_hydro_withRef
   integer      iclean_hydro_withRef_allcol
@@ -221,7 +213,6 @@ contains
     cld_bld_hgt        = 1200.0_r_kind                ! Height (meters) below which to build clouds
     build_cloud_frac_p = 0.95_r_kind                  ! threshold for building cloud from GOES
     clear_cloud_frac_p = 0.10_r_kind                  ! threshold for clearing cloud from GOES
-    i_gsdcldanal_type  = 0                            !  turn cloud analysis off
     nesdis_npts_rad  = 1                              !  NESDIS impact radius
     iclean_hydro_withRef = 1                          ! clean based on ref
     iclean_hydro_withRef_allcol = 0                   ! don't clean whole column

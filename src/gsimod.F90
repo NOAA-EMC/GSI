@@ -107,7 +107,7 @@
                             l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold, &
                             i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt, &
                             build_cloud_frac_p, clear_cloud_frac_p,       &
-                            i_gsdcldanal_type,l_cloud_analysis,nesdis_npts_rad, & 
+                            l_cloud_analysis,nesdis_npts_rad, & 
                             iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
                             l_use_2mQ4B
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
@@ -759,14 +759,6 @@
 !      cld_bld_hgt          - sets limit below which GOES cloud building occurs (default:1200m)
 !      build_cloud_frac_p   - sets the threshold for building clouds from satellite
 !      clear_cloud_frac_p   - sets the threshold for clearing clouds from satellite
-!      i_gsdcldanal_type    - options for how GSD cloud analysis should be conducted
-!                         =0. no cloud analysis (default)
-!                         =1.  cloud analysis after var analysis
-!                         =2.  cloud analysis before var analysis
-!                         =3.  cloud analysis only
-!                         =4.  no cloud analysis but do hybrometeors NETCDF/IO
-!                         =5.  no cloud analysis but do hybrometeors NETCDF/I
-!                         =6.  cloud analysis only but do hybrometeors NETCDF/O
 !      nesdis_npts_rad  - NESDIS cloud product impact radiu (grid points)
 !      iclean_hydro_withRef - if =1, then clean hydrometeors if the grid point
 !                               has no echo and maxref=0
@@ -786,7 +778,7 @@
                                 l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold,  &
                                 i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt, &
                                 build_cloud_frac_p, clear_cloud_frac_p,   &
-                                i_gsdcldanal_type,nesdis_npts_rad, &
+                                nesdis_npts_rad, &
                                 iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
                                 l_use_2mQ4B
 

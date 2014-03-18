@@ -372,11 +372,9 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           mype,nfldsig)
 
 ! Interpolate 2-m qs to obs locations/times
-     if(itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
-        if(l_use_2mQ4B) then
-           call tintrp2a11(qg2,qsges,dlat,dlon,dtime,hrdifsig,&
+     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
+        call tintrp2a11(qg2,qsges,dlat,dlon,dtime,hrdifsig,&
                  mype,nfldsig)
-        endif
      endif
 
 !    Load obs error and value into local variables
@@ -421,12 +419,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         hrdifsig,mype,nfldsig)
 
 ! Interpolate 2-m q to obs locations/times
-     if(itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
+     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
         call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
              mype,nfldsig)
-        if(l_use_2mQ4B) then
-           qges=0.33*qges+0.67*qges2m
-        endif
+        qges=0.33*qges+0.67*qges2m
      endif
 
 

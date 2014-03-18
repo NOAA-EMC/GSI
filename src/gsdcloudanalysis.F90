@@ -57,15 +57,15 @@ SUBROUTINE  gsdcloudanalysis(mype)
   use jfunc, only: tsensible
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,   &
-                     metar_impact_radius,                 &
-                     metar_impact_radius_lowCloud,        &
-                     l_cleanSnow_WarmTs,l_conserve_thetaV,&
-                     r_cleanSnow_WarmTs_threshold,        &
-                     i_conserve_thetaV_iternum,           &
-                     l_cld_bld, cld_bld_hgt,              &
-                     build_cloud_frac_p, clear_cloud_frac_p, &
-                     nesdis_npts_rad, &
-                     iclean_hydro_withRef, iclean_hydro_withRef_allcol
+                                      metar_impact_radius,                 &
+                                      metar_impact_radius_lowCloud,        &
+                                      l_cleanSnow_WarmTs,l_conserve_thetaV,&
+                                      r_cleanSnow_WarmTs_threshold,        &
+                                      i_conserve_thetaV_iternum,           &
+                                      l_cld_bld, cld_bld_hgt,              &
+                                      build_cloud_frac_p, clear_cloud_frac_p, &
+                                      nesdis_npts_rad, &
+                                      iclean_hydro_withRef, iclean_hydro_withRef_allcol
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -771,7 +771,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
            graupel_3d(i,j,k) = ges_qg(j,i,k)
            if(ref_mos_3d(i,j,k) > zero ) then
               snow_3d(i,j,k) = MIN(max(max(snowtemp,zero)*0.001_r_kind,ges_qs(j,i,k)),qrlimit)
-!mhu              rain_3d(i,j,k) = MIN(max(max(raintemp,zero)*0.001_r_kind,ges_qr(j,i,k)),qrlimit)  
+!              rain_3d(i,j,k) = MIN(max(max(raintemp,zero)*0.001_r_kind,ges_qr(j,i,k)),qrlimit)  
               raintemp = max(raintemp,zero)*0.001_r_kind  
               if(raintemp > ges_qr(j,i,k) ) then
                   if(raintemp <= qrlimit) then
@@ -829,7 +829,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
                     snow_3d(i,j,k) = snowtemp
                     raintemp=rain_3d(i,j,k) + graupel_3d(i,j,k)
                     if(raintemp > snowadd ) then
-                       if(raintemp > 1.0e-6) then
+                       if(raintemp > 1.0e-6_r_kind) then
                           ratio2=1.0_r_kind - snowadd/raintemp
                           rain_3d(i,j,k) = rain_3d(i,j,k) * ratio2
                           graupel_3d(i,j,k) = graupel_3d(i,j,k) * ratio2
@@ -849,7 +849,7 @@ SUBROUTINE  gsdcloudanalysis(mype)
                  endif
               ENDDO
               if( max_bk_qrqs > max_retrieved_qrqs) then ! tune background hyhro
-                 ratio_hyd_bk2obs=max(min(max_retrieved_qrqs/max_bk_qrqs,1.0),0.0)
+                 ratio_hyd_bk2obs=max(min(max_retrieved_qrqs/max_bk_qrqs,1.0_r_kind),0.0_r_kind)
                  do k=1,nsig
                     graupel_3d(i,j,k) = ges_qg(j,i,k)
                     rain_3d(i,j,k) = ges_qr(j,i,k)
