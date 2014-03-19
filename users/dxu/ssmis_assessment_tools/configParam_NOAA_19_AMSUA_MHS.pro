@@ -28,8 +28,7 @@ PRO configParam_NOAA_19_AMSUA_MHS, paramStruct
    ; Radiance files (obs + sim)
    paramStruct.radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
    paramStruct.radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
-   ;  Allocation of memory for variables
-   ; Scene files for surface type
+   ; Scene file
    paramStruct.sceneListFile =  $
 	'/net/orbit232l/home/pub/kgarrett/mirs_utilities/data/InputsData/edr.list'
    paramStruct.chanNumArray =   $
