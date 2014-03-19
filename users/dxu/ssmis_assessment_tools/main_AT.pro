@@ -77,11 +77,23 @@ radListFile2  = paramStruct.radListFile2
 MAX_FOV       = paramStruct.MAX_FOV
 MAX_CHAN      = paramStruct.MAX_CHAN
 sceneListFile = paramStruct.sceneListFile
-chanNumArray  = paramStruct.chanNumArray
-chanInfoArray = paramStruct.chanInfoArray
-minBT_Values  = paramStruct.minBT_Values
-maxBT_Values  = paramStruct.maxBT_Values
-prefixArray   = paramStruct.prefixArray
+INT_FILL_Val = paramStruct.INT_FILL
+FLOAT_FILL_Val = paramStruct.FLOAT_FILL
+STRING_FILL_Val = paramStruct.STRING_FILL
+; Filter out FILL values
+indices_1 = WHERE(paramStruct.chanNumArray ne INT_FILL_Val)
+chanNumArray  = paramStruct.chanNumArray(indices_1)
+indices_2 = WHERE(paramStruct.chanInfoArray ne STRING_FILL_Val)
+chanInfoArray = paramStruct.chanInfoArray(indices_2)
+indices_3 = WHERE(paramStruct.minBT_Values ne FLOAT_FILL_Val)
+minBT_Values  = paramStruct.minBT_Values(indices_3)
+indices_4 = WHERE(paramStruct.maxBT_Values ne FLOAT_FILL_Val)
+maxBT_Values  = paramStruct.maxBT_Values(indices_4)
+indices_5= WHERE(paramStruct.prefixArray ne STRING_FILL_Val)
+prefixArray   = paramStruct.prefixArray(indices_5)
+indices_6= WHERE(paramStruct.chPlotArray ne INT_FILL_Val)
+chPlotArray   = paramStruct.chPlotArray(indices_6)
+date          = paramStruct.date
 
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
@@ -142,21 +154,13 @@ reformArray, MAX_FOV, nList,  $
 ;-----------------------------------------
 mark_plotting:
 
-;###########################################
-; Configuration to customize needs.
-;###########################################
-; Specify the channels to plot
-chPlotArray = INDGEN(24)
-;chPlotArray = INDGEN(7)
-;chPlotArray = [8]
-date = '2013-01-20'
-
+; Plot radiances
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadData, date
 
 mark_plotting_bias:
-
+; Plot radiance difference
 plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1], $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,      $
     refRadData, radData.nChan, date

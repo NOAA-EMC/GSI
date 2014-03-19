@@ -21,27 +21,36 @@ PRO configSensorParam, sensorOption, paramStruct
    ; Create a struct to hold all the config parameters
    ; Values need to overriden for each specific sensor. 
    ;----------------------------------------------------
-   MIN_LAT_Val = -90
-   MAX_LAT_Val = 90
-   MIN_LON_Val = -180
-   MAX_LON_Val = 180
-   MAX_FOV_NUM = 30000L  ; Max profile number
-   MAX_CHAN_NUM = 40L    ; Max channel number
+   MAX_CHAN_NUM = 100L    ; Max channel number
+   INT_FILL_Val    = 999
+   FLOAT_FILL_Val  = -999.0
+   STRING_FILL_Val = ''
    paramStruct={          $
-      MIN_LAT : MIN_LAT_Val, $
-      MAX_LAT : MAX_LAT_Val, $
-      MIN_LON : MIN_LON_Val, $
-      MAX_LON : MAX_LON_Val, $
-      radListFile1 : '',   $
-      radListFile2 : '',   $
-      MAX_FOV : MAX_FOV_NUM,    $
+      INT_FILL    : INT_FILL_Val    ,$
+      FLOAT_FILL  : FLOAT_FILL_Val  ,$
+      STRING_FILL : STRING_FILL_Val ,$
+      MIN_LAT : -90,      $
+      MAX_LAT : 90,       $
+      MIN_LON : -180,     $
+      MAX_LON : 180,      $
+      radListFile1 : '',  $
+      radListFile2 : '',  $
+      MAX_FOV : 30000L,   $
       MAX_CHAN : MAX_CHAN_NUM , $ 
-      sceneListFile: '',   $
-      chanNumArray  : MAKE_ARRAY(MAX_CHAN_NUM,/INT, VALUE=0),     $
-      chanInfoArray : MAKE_ARRAY(MAX_CHAN_NUM,/STRING, VALUE=''), $
-      minBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT, VALUE=0.0),  $
-      maxBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT, VALUE=0.0),  $
-      prefixArray: MAKE_ARRAY(MAX_CHAN_NUM,/STRING, VALUE='') }
+      sceneListFile: '',        $
+      chanNumArray  : MAKE_ARRAY(MAX_CHAN_NUM,/INT,     $
+                                 VALUE=INT_FILL_Val),   $
+      chanInfoArray : MAKE_ARRAY(MAX_CHAN_NUM,/STRING,  $
+                                 VALUE=STRING_FILL_Val),$
+      minBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT,   $
+                                 VALUE=FLOAT_FILL_Val), $
+      maxBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT,   $
+                                 VALUE=FLOAT_FILL_Val), $
+      prefixArray   : MAKE_ARRAY(MAX_CHAN_NUM,/STRING,  $
+                                 VALUE=STRING_FILL_Val),$ 
+      chPlotArray   : MAKE_ARRAY(MAX_CHAN_NUM,/INT,     $
+                                 VALUE=INT_FILL_Val),   $
+      date : '2013-01-20'}
 
    ;-----------------------------------------------
    ; Call specific procedure to set config params
