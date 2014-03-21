@@ -142,7 +142,7 @@ IF ( (nRadFiles1 ne nRadFiles2) || nRadFiles1 eq 0 ) THEN BEGIN
 ENDIF
 
 ; Save number of rad files (orbits)
-nList=nRadFiles1
+nOrbits=nRadFiles1
 
 PRINT, "Begin readRadFile  =========="
 ;-------------------------------------------
@@ -150,7 +150,7 @@ PRINT, "Begin readRadFile  =========="
 ;   Read radiances (measurements) from List1
 ;   Read radiances (simulated) from List2
 ;-------------------------------------------
-readRadFile, nList, MAX_FOV, MAX_CHAN,    $
+readRadFile, nOrbits, MAX_FOV, MAX_CHAN,    $
    radFileList1, radFileList2,            $
    radData
 
@@ -161,7 +161,7 @@ PRINT, "done with readRadFile  =========="
 ;   Reform data
 ;-------------------------------------------
 mark_reform:
-reformArray, MAX_FOV, nList,  $
+reformArray, MAX_FOV, nOrbits,  $
    radData, refRadData
 
 ;-----------------------------------------

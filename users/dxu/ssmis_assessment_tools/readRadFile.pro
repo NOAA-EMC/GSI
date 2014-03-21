@@ -12,7 +12,7 @@
 ;
 ;
 ;---------------------------------------------------------------------------------
-PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
+PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN, $
     radFileList1, radFileList2,            $
     radData
 
@@ -21,24 +21,24 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
    ;   Define a struct to hold data
    ;---------------------------------------
    radData={ $
-   nFOV_Rad1    : lonarr(nList),$         ; total number of FOVs in a file
-   scanPosRad1  : intarr(MAX_FOV,nList),$  ; pos per file
-   scanLineRad1 : intarr(MAX_FOV,nList),$  ; line per file
-   latRad1      : fltarr(MAX_FOV,nList),$  ; lat per file
-   lonRad1   : fltarr(MAX_FOV,nList),$  ; lon per file
-   dirRad1   : fltarr(MAX_FOV,nList),$  ; dir per file
-   angleRad1 : fltarr(MAX_FOV,nList),$  ; ang per file
-   QC_Rad1   : fltarr(MAX_FOV,nList),$  ; QC  per file
-   tbRad1    : fltarr(MAX_FOV,nList,MAX_CHAN),$ ; tb per file per channel
-   nFOV_Rad2 : lonarr(nList),$          ; total number of FOVs in a file
-   scanPosRad2  : intarr(MAX_FOV,nList),$  ; pos per file
-   scanLineRad2 : intarr(MAX_FOV,nList),$  ; line per file
-   latRad2      : fltarr(MAX_FOV,nList),$  ; lat per file
-   lonRad2      : fltarr(MAX_FOV,nList),$  ; lon per file
-   dirRad2      : fltarr(MAX_FOV,nList),$  ; dir per file
-   angleRad2    : fltarr(MAX_FOV,nList),$  ; ang per file
-   QC_Rad2      : fltarr(MAX_FOV,nList),$  ; QC  per file
-   tbRad2       : fltarr(MAX_FOV,nList,MAX_CHAN), $ ; tb per file per channel
+   nFOV_Rad1    : lonarr(nOrbits),$         ; total number of FOVs in a file
+   scanPosRad1  : intarr(MAX_FOV,nOrbits),$  ; pos per file
+   scanLineRad1 : intarr(MAX_FOV,nOrbits),$  ; line per file
+   latRad1      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
+   lonRad1   : fltarr(MAX_FOV,nOrbits),$  ; lon per file
+   dirRad1   : fltarr(MAX_FOV,nOrbits),$  ; dir per file
+   angleRad1 : fltarr(MAX_FOV,nOrbits),$  ; ang per file
+   QC_Rad1   : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
+   tbRad1    : fltarr(MAX_FOV,nOrbits,MAX_CHAN),$ ; tb per file per channel
+   nFOV_Rad2 : lonarr(nOrbits),$          ; total number of FOVs in a file
+   scanPosRad2  : intarr(MAX_FOV,nOrbits),$  ; pos per file
+   scanLineRad2 : intarr(MAX_FOV,nOrbits),$  ; line per file
+   latRad2      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
+   lonRad2      : fltarr(MAX_FOV,nOrbits),$  ; lon per file
+   dirRad2      : fltarr(MAX_FOV,nOrbits),$  ; dir per file
+   angleRad2    : fltarr(MAX_FOV,nOrbits),$  ; ang per file
+   QC_Rad2      : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
+   tbRad2       : fltarr(MAX_FOV,nOrbits,MAX_CHAN), $ ; tb per file per channel
    nChan        : 0L} 
 
    ;---------------------------------------
@@ -47,7 +47,7 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
    ;---------------------------------------
    ;
    ; Loop thru. files/orbits
-   FOR iFile = 0L, nList - 1 DO BEGIN
+   FOR iFile = 0L, nOrbits - 1 DO BEGIN
       PRINT,'------------------------------------------------'
       PRINT,'Orbit ',iFile, " is being processed : "
       PRINT,'   observed radiance orbit file :',radFileList1(iFile)
@@ -99,7 +99,7 @@ PRO readRadFile, nList, MAX_FOV, MAX_CHAN, $
    ;---------------------------------------
    ;
    ; Loop thru. files/orbits
-   FOR iFile=0L,nList-1 DO BEGIN
+   FOR iFile=0L,nOrbits-1 DO BEGIN
       PRINT,'------------------------------------------------'
       PRINT,'Orbit ',iFile, " is being processed : "
       PRINT,'   simulated orbit file :',radFileList2(iFile)
