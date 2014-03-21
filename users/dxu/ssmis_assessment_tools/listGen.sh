@@ -25,9 +25,11 @@ if [ ${nOrbits} == 'all' ]
 then 
    cp  meas.list_orig  meas.list
    cp  fwd_fix_em.list_orig  fwd_fix_em.list
+   cp  scene.list_orig  scene.list
 else 
    head -${nOrbits} meas.list_orig  >  meas.list
    head -${nOrbits} fwd_fix_em.list_orig  >  fwd_fix_em.list
+   head -${nOrbits} scene.list_orig  >  scene.list
 fi 
 
 echo "List files containg ${nOrbits} orbits are created!!! "
