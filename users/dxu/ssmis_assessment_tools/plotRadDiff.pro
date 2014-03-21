@@ -148,7 +148,6 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
    ; Define where plots start
    yOrgin=0.07
    xOrgin=0.05
-   xGap=0.5
 
    ; plot width
    plotWidth = 0.42
@@ -157,9 +156,9 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
    ; color bar height
    barHeight = 0.025
 
-   innerSpace=0.01    ; space between plot and bar vertically.
-   outerY_Space=0.03  ; space between bar and next plot vertically.
-   outerX_Space=0.10  ; space between two plots horizontally.
+   xSpacer=0.03      ; space between two plots horizontally.
+   ySpacer=0.03      ; space between bar and next plot vertically.
+   innerSpacer=0.01  ; space between plot and bar vertically.
 
    plotY_Pos = findgen(4) ; array holding box position
    barY_Pos = findgen(4) ; array holding bar position
@@ -167,11 +166,11 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
    ; Define y positions of boxes and bars
    FOR i=0, 3 DO BEGIN
       ; box's y positions
-      plotY_Pos(i) = yOrgin + barHeight + innerSpace    $
-	      + ( 3 - i ) * (plotHeight + innerSpace + barHeight + outerY_Space )
+      plotY_Pos(i) = yOrgin + barHeight + innerSpacer    $
+	      + ( 3 - i ) * (plotHeight + innerSpacer + barHeight + ySpacer )
       ; bar's y positions
       barY_Pos(i) = yOrgin + ( 3 - i )     $
-              * (plotHeight + innerSpace + barHeight + outerY_Space )
+              * (plotHeight + innerSpacer + barHeight + ySpacer )
    ENDFOR
 
    ; Define box's position
@@ -181,9 +180,9 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
       x1 = xOrgin + plotWidth
       y1 = plotY_Pos ( rowPosition ) + plotHeight
    ENDIF ELSE BEGIN 
-      x0 = xOrgin + xGap
+      x0 = xOrgin + plotWidth + xSPacer
       y0 = plotY_Pos ( rowPosition )
-      x1 = xOrgin + plotWidth + xGap
+      x1 = xOrgin + 2 * ( plotWidth + xSPacer )
       y1 = plotY_Pos ( rowPosition ) + plotHeight
    ENDELSE 
 
@@ -221,9 +220,9 @@ PRO tbDiffPlotting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 	 x1 = xOrgin + plotWidth
 	 y1 = barY_Pos ( rowPosition ) + barHeight
       ENDIF ELSE BEGIN
-	 x0 = xOrgin + xGap
+	 x0 = xOrgin + plotWidth + xSPacer
 	 y0 = barY_Pos ( rowPosition )
-	 x1 = xOrgin + plotWidth + xGap
+	 x1 = xOrgin + 2 * ( plotWidth + xSPacer )
 	 y1 = barY_Pos ( rowPosition ) + barHeight
       END
 

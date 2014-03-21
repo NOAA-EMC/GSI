@@ -22,7 +22,7 @@
 ; Specify locally-defined util code.
 @AT_Util.pro
 
-chooseSensor:
+mark_chooseSensor:
 PRINT, 'Choose instrument: '
 PRINT,' 1 : NOAA-18/AMSUA&MHS'
 PRINT,' 2 : NOAA-19/AMSUA&MHS'
@@ -48,8 +48,8 @@ READ, sensorOption
 ; Set flag to fill value: 999
 optionFlag = 999
 ; Check to see if a right option is chosen.
-FOR i = 0, 16 DO BEGIN 
-   IF sensorOption eq (i + 1) THEN BEGIN
+FOR i = 1, 17 DO BEGIN 
+   IF sensorOption eq i THEN BEGIN
       optionFlag = sensorOption 
       BREAK
    ENDIF
@@ -59,7 +59,7 @@ ENDFOR
 IF ( optionFlag eq 999 ) THEN BEGIN
    PRINT, "Wrong option, choose again !!!" 
    PRINT, ""
-   GOTO, chooseSensor
+   GOTO, mark_chooseSensor
 ENDIF
                         
 ;-------------------------------------------
@@ -95,17 +95,33 @@ indices_6= WHERE(paramStruct.chPlotArray ne INT_FILL_Val)
 chPlotArray   = paramStruct.chPlotArray(indices_6)
 date          = paramStruct.date
 
+mark_readAgain:
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
 PRINT, '2 - NO, to reform'
 PRINT, '3 - NO, to plot radiance'
-PRINT, '4 - NO, to plot radiance diff'
+PRINT, '4 - NO, to plot clear sky '
+PRINT, '5 - NO, to plot cloudy sky'
+PRINT, '6 - NO, to plot precipitation'
 
 READ, readAgain
-IF (readAgain eq 1) THEN GOTO, mark_readMeas
-IF (readAgain eq 2) THEN GOTO, mark_reform
-IF (readAgain eq 3) THEN GOTO, mark_plotting
-IF (readAgain eq 4) THEN GOTO, mark_plotting_bias
+CASE readAgain OF
+   1: GOTO, mark_readMeas
+   2: GOTO, mark_reform
+   3: GOTO, mark_plotting 
+   4: GOTO, mark_plotting_ClearSky 
+   5: GOTO, mark_plotting_CloudySky 
+   6: GOTO, mark_plotting_Precip 
+   ELSE: BEGIN & print, 'Wrong option!!! Chose again...' & GOTO, mark_readAgain & END
+ENDCASE
+
+; None of options is chosen
+IF ( optionFlag eq 999 ) THEN BEGIN
+   PRINT, "Wrong option, choose again !!!" 
+   PRINT, ""
+   GOTO, mark_readAgain
+ENDIF
+
 
 mark_readMeas:
 ;------------------------------------
@@ -154,16 +170,14 @@ reformArray, MAX_FOV, nList,  $
 ;-----------------------------------------
 mark_plotting:
 
-; Plot radiances
+; Plot radiances and radiance difference
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadData, date
 
-mark_plotting_bias:
-; Plot radiance difference
-plotRadDiff, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1], $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,      $
-    refRadData, radData.nChan, date
+mark_plotting_ClearSky:
+mark_plotting_CloudySky:
+mark_plotting_Precip:
 
 PRINT,'End of processing...'
 END

@@ -18,7 +18,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
     refRadData, date
 
    ; Set XSIZE and YSIZE for PS.
-   xSizeVal=18
+   xSizeVal=30
    ySizeVal=30
 
    ; Save graphics in PS
@@ -27,27 +27,31 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
    ; Get num of channels to plot
    numOfChans = N_ELEMENTS(chPlotArray)
 
+   ; Number of channels per page
+   PLOT_PER_PAGE = 4
+
    ; Total number of graphics files
-   IF ((numOfChans MOD 4) eq 0 ) THEN BEGIN 
-      nFiles = numOfChans / 4
-   ENDIF ELSE BEGIN 
-      nFiles = numOfChans / 4 + 1
+   IF ((numOfChans MOD PLOT_PER_PAGE) eq 0 ) THEN BEGIN
+      nFiles = numOfChans / PLOT_PER_PAGE
+   ENDIF ELSE BEGIN
+      nFiles = numOfChans / PLOT_PER_PAGE + 1
    ENDELSE
-   ; Create string array with an extra element, so we 
+   ; Create string array with an extra element, so we
    ; can refer to it as 1-base string array.
    fileNumArray = SINDGEN(nFiles+1)
    ; Graphics file number tracking: 1-base
    fileIndex = 1
-   
+
    ; Loop thru. channels to plot
-   FOR i=0, numOfChans - 1 DO BEGIN
-      ; Start a new page every 4 channels.
-      rowPostion = i MOD 4
-      IF ( rowPostion eq 0 ) THEN BEGIN
+   FOR iChan=0, numOfChans - 1 DO BEGIN
+      ; Start a new page every PLOT_PER_PAGE(8) channels.
+      rowPosition = iChan MOD PLOT_PER_PAGE
+      IF ( rowPosition eq 0 ) THEN BEGIN
          imageName = STRCOMPRESS(prefix + fileNumArray(fileIndex) + '.ps',/remove_all)
          ; Get the file number for the next graphics file
-         fileIndex = fileIndex + 1 
-         ERASE
+         fileIndex = fileIndex + 1
+         ;DEVICE, /CLOSE
+         ;ERASE
          LOADCT, 39
          !P.FONT=-1
          DEVICE, FILENAME=imageName, /COLOR, BITS_PER_PIXEL=8,          $
@@ -59,71 +63,131 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; step 1:
       ;   Plot observed radiances for chosen channels.
       ;------------------------------------------------
-      channel = chanInfoArray[chPlotArray(i)] + ' GHz '
+      channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
       title = 'SSMIS observed TB ' + channel + date
-      radType = 'obs'
 
-      ; Select out profiles
+      ;-----------------
+      ; Define filter
+      ;-----------------
       ;    radiance: ref_Tb1 > 0.
       ;    Orbit mode flag: ref_ModeFlag1 = 0
       filter1 = WHERE(refRadData.ref_Lat1 ge MIN_LAT       $
 		and refRadData.ref_Lat1 le MAX_LAT         $
-		and refRadData.ref_Tb1(*,chPlotArray(i)) gt 0 $
+		and refRadData.ref_Tb1(*,chPlotArray(iChan)) gt 0 $
 		and refRadData.ref_ModeFlag1 eq 0)
+
+      ; Generate plot position
+      ; Column position
+      colPosition = 0
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 	       refRadData.ref_Lat1,refRadData.ref_Lon1,                  $
 	       filter1,   $
 	       title,     $
-	       minBT_Values(chPlotArray(i)),   $
-	       maxBT_Values(chPlotArray(i)),   $
-	       refRadData.ref_Tb1(*,chPlotArray(i)),         $
+	       minBT_Values(chPlotArray(iChan)),   $
+	       maxBT_Values(chPlotArray(iChan)),   $
+	       refRadData.ref_Tb1(*,chPlotArray(iChan)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb
 	       1,   $   ;thick
 	       '(f5.1)', $ ;fmt
-               rowPostion, radType
-
+               rowPosition, colPosition
+      
       ;-------------------------------------------------
       ; step 2:
       ;   Plot simulated radiances for chosen channels.
       ;-------------------------------------------------
-      channel = chanInfoArray[chPlotArray(i)] + ' GHz '
+      channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
       title = 'SSMIS simulated TB ' + channel + date
-      radType = 'sim'
 
-      ; Select out profiles
+      ;-----------------
+      ; Define filter
+      ;-----------------
       ;    radiance: ref_Tb2 > 0.
       ;    Orbit mode flag: ref_ModeFlag2 = 0
       filter2 = WHERE(refRadData.ref_Lat2 ge MIN_LAT          $
 		and refRadData.ref_Lat2 le MAX_LAT            $
-		and refRadData.ref_Tb2(*,chPlotArray(i)) gt 0 $
+		and refRadData.ref_Tb2(*,chPlotArray(iChan)) gt 0 $
 		and refRadData.ref_ModeFlag2 eq 0)
+
+      ; Column position
+      colPosition = 1
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
 	       refRadData.ref_Lat2,refRadData.ref_Lon2,                  $
 	       filter2,   $
 	       title,     $
-	       minBT_Values(chPlotArray(i)),      $
-	       maxBT_Values(chPlotArray(i)),      $
-	       refRadData.ref_Tb2(*,chPlotArray(i)),         $
+	       minBT_Values(chPlotArray(iChan)),      $
+	       maxBT_Values(chPlotArray(iChan)),      $
+	       refRadData.ref_Tb2(*,chPlotArray(iChan)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb
 	       1,   $   ;thick
 	       '(f5.1)', $ ;fmt
-               rowPostion, radType
+               rowPosition, colPosition
+
+      ;-------------------------------------------------
+      ; step 3:
+      ;   Plot radiance difference 
+      ;-------------------------------------------------
+      ;-----------------
+      ; Define filter
+      ;-----------------
+      ;    radiance: ref_Tb1 > 0.
+      ;    radiance: ref_Tb2 > 0.
+      ;    Orbit mode flag: ref_ModeFlag1 = 0
+      ;    Orbit mode flag: ref_ModeFlag2 = 0
+      filter3 = WHERE(refRadData.ref_Lat1 ge MIN_LAT               $
+                and refRadData.ref_Lat1 le MAX_LAT                $
+                and refRadData.ref_Tb1(*,chPlotArray(iChan)) gt 0 $
+                and refRadData.ref_ModeFlag1 eq 0                 $
+                and refRadData.ref_Lat2 ge MIN_LAT                $
+                and refRadData.ref_Lat2 le MAX_LAT                $
+                and refRadData.ref_Tb2(*,chPlotArray(iChan)) gt 0 $
+                and refRadData.ref_ModeFlag2 eq 0)
+
+      ; Generate ref_TbDiff based on filter
+      refRadData.ref_TbDiff(filter3, chPlotArray(iChan))  =    $
+            refRadData.ref_Tb1(filter3, chPlotArray(iChan) )   $
+            - refRadData.ref_Tb2(filter3, chPlotArray(iChan) )
+
+      ; Column position
+      colPosition = 2
+
+      ; Get min and max of radiance differences for each channel. 
+      minTB_DiffValue = min(refRadData.ref_TbDiff(filter3, chPlotArray(iChan)))
+      maxTB_DiffValue = max(refRadData.ref_TbDiff(filter3, chPlotArray(iChan)))
+
+      radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
+               refRadData.ref_Lat1,refRadData.ref_Lon1,    $
+               filter3,   $
+               title,     $
+               minTB_DiffValue,    $
+               maxTB_DiffValue,    $
+               refRadData.ref_TbDiff(*, chPlotArray(iChan)), $
+               'K', $   ;unit
+               0.8, $   ;scale
+               8,   $   ;symb
+               1,   $   ;thick
+               '(f5.1)', $ ;fmt
+               rowPosition, colPosition
+
+      ; Close 'PS' file every PLOT_PER_PAGE (4)
+      IF (rowPosition EQ PLOT_PER_PAGE - 1 ||   $
+          iChan eq numOfChans - 1 ) THEN DEVICE, /CLOSE
+
    ENDFOR
 
 END
 
 ;======================================================
 
-PRO radPloting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
-    ref_Lat1,ref_Lon1,filter,title,              $
-    minBT_Values,maxBT_Values,ref_Tb1,unit,scal,  $ 
-    symb,thickVal,fmt, rowPostion, radType
+PRO radPloting, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,   $
+    latVect, lonVect, filter, title,                  $
+    minValue, maxValue, data, unit, scal,             $ 
+    symb, thickVal, fmt, rowPosition, colPosition
 
    ; set the default charsz
    charSize=1.
@@ -144,20 +208,19 @@ PRO radPloting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
    londelVal=max([fix((MAX_LON-MIN_LON)/100),1])*20
 
    ; Define where plots start
-   yOrgin=0.07
-   xOrgin=0.05
-   xGap=0.5
+   xOrigin = 0.02
+   yOrigin = 0.07
 
    ; plot width
-   plotWidth = 0.42
+   plotWidth = 0.31
    ; plot height
    plotHeight = 0.16
    ; color bar height
    barHeight = 0.025
 
-   innerSpace=0.01    ; space between plot and bar vertically.
-   outerY_Space=0.03  ; space between bar and next plot vertically.
-   outerX_Space=0.10  ; space between two plots horizontally.
+   xSpacer = 0.02  ; space between two plots horizontally.
+   ySpacer = 0.03  ; space between bar and next plot vertically.
+   innerSpacer = 0.01    ; space between plot and bar vertically.
 
    plotY_Pos = findgen(4) ; array holding box position
    barY_Pos = findgen(4) ; array holding bar position
@@ -165,25 +228,30 @@ PRO radPloting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
    ; Define y positions of boxes and bars
    FOR i=0, 3 DO BEGIN
       ; box's y positions
-      plotY_Pos(i) = yOrgin + barHeight + innerSpace    $
-	      + ( 3 - i ) * (plotHeight + innerSpace + barHeight + outerY_Space )
+      plotY_Pos(i) = yOrigin + barHeight + innerSpacer    $
+	      + ( 3 - i ) * (plotHeight + innerSpacer + barHeight + ySpacer )
       ; bar's y positions
-      barY_Pos(i) = yOrgin + ( 3 - i )     $
-              * (plotHeight + innerSpace + barHeight + outerY_Space )
+      barY_Pos(i) = yOrigin + ( 3 - i )     $
+              * (plotHeight + innerSpacer + barHeight + ySpacer )
    ENDFOR
 
    ; Define box's position
-   IF ( radType eq 'obs' ) THEN BEGIN 
-      x0 = xOrgin
-      y0 = plotY_Pos ( rowPostion )
-      x1 = xOrgin + plotWidth
-      y1 = plotY_Pos ( rowPostion ) + plotHeight
-   ENDIF ELSE BEGIN 
-      x0 = xOrgin + xGap
-      y0 = plotY_Pos ( rowPostion )
-      x1 = xOrgin + plotWidth + xGap
-      y1 = plotY_Pos ( rowPostion ) + plotHeight
-   ENDELSE 
+   IF ( colPosition eq 0 ) THEN BEGIN             ; left
+      x0 = xOrigin
+      y0 = plotY_Pos ( rowPosition )
+      x1 = xOrigin + plotWidth
+      y1 = plotY_Pos ( rowPosition ) + plotHeight
+   ENDIF ELSE IF ( colPosition eq 1 ) THEN BEGIN  ; middle
+      x0 = xOrigin + ( plotWidth + xSpacer )
+      y0 = plotY_Pos ( rowPosition )
+      x1 = xOrigin + ( plotWidth + xSpacer ) + plotWidth
+      y1 = plotY_Pos ( rowPosition ) + plotHeight
+   ENDIF ELSE BEGIN                               ; right
+      x0 = xOrigin + 2 * ( plotWidth + xSpacer )
+      y0 = plotY_Pos ( rowPosition )
+      x1 = xOrigin + 2 * ( plotWidth + xSpacer ) + plotWidth
+      y1 = plotY_Pos ( rowPosition ) + plotHeight
+   ENDELSE
 
    MAP_SET,0,CENTER_LON,XMARGIN=[8,8],YMARGIN=[8,8], /NOERASE,  $
       LIMIT=[MIN_LAT,MIN_LON,MAX_LAT,MAX_LON],/HIRES,TITLE=title,$
@@ -197,39 +265,44 @@ PRO radPloting,MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
       LONLAB=MIN_LAT,LATLAB=MIN_LON,LONALIGN=0.,LATALIGN=0.,   $
       CHARSIZE=charSize*1.3
 
-   FOR iprof=0L,nRec-1 DO BEGIN
-      ; index value
-      index = filter(iprof)
-      ; BT value
-      btVal=ref_Tb1[index]
+   FOR iProf=0L,nRec-1 DO BEGIN
+      ; Get index value
+      index = filter(iProf)
+      ; Get data value
+      dataVal=data[index]
       colorVal=0L
-      colorNum=(float(btVal-minBT_Values)/float(maxBT_Values-minBT_Values))*nColor
+      colorNum=(float(dataVal-minValue)/float(maxValue-minValue))*nColor
       ;dxu colorVal=long(colorNum) > 1L < nColor
       ;colorVal=long(colorNum) > 1L < nColor
       colorVal=long(colorNum)
 
-      OPLOT,[ref_Lon1[index]],[ref_Lat1[index]],color=colorVal-1,psym=symb,$
+      OPLOT,[lonVect[index]],[latVect[index]],color=colorVal-1,psym=symb,$
          symsize=scal,thick=thickVal
 
    ENDFOR
 
-   IF ((maxBT_Values-minBT_Values) gt 0.) THEN BEGIN
+   IF ((maxValue-minValue) gt 0.) THEN BEGIN
       ; Define the position of color bar
-      IF ( radType eq 'obs' ) THEN BEGIN 
-	 x0 = xOrgin
-	 y0 = barY_Pos ( rowPostion )
-	 x1 = xOrgin + plotWidth
-	 y1 = barY_Pos ( rowPostion ) + barHeight
+      IF ( colPosition eq 0 ) THEN BEGIN 
+	 x0 = xOrigin
+	 y0 = barY_Pos ( rowPosition )
+	 x1 = xOrigin + plotWidth
+	 y1 = barY_Pos ( rowPosition ) + barHeight
+      ENDIF ELSE IF ( colPosition eq 1 ) THEN BEGIN
+	 x0 = xOrigin + ( plotWidth + xSpacer ) 
+	 y0 = barY_Pos ( rowPosition )
+	 x1 = xOrigin + ( plotWidth + xSpacer ) + plotWidth
+	 y1 = barY_Pos ( rowPosition ) + barHeight
       ENDIF ELSE BEGIN
-	 x0 = xOrgin + xGap
-	 y0 = barY_Pos ( rowPostion )
-	 x1 = xOrgin + plotWidth + xGap
-	 y1 = barY_Pos ( rowPostion ) + barHeight
-      END
+	 x0 = xOrigin + 2 * ( plotWidth + xSpacer )
+	 y0 = barY_Pos ( rowPosition )
+	 x1 = xOrigin + 2 * ( plotWidth + xSpacer ) + plotWidth
+	 y1 = barY_Pos ( rowPosition ) + barHeight
+      ENDELSE 
 
-      COLORBAR,NCOLORS=nColor,/HORIZONTAL,RANGE=[minBT_Values,maxBT_Values],TITLE=unit,$
+      COLORBAR,NCOLORS=nColor,/HORIZONTAL,RANGE=[minValue,maxValue],TITLE=unit,$
 	  FORMAT=fmt,CHARSIZE=charSize*1.3,FONT=1,POSITION=[x0, y0, x1, y1]
    ENDIF ELSE BEGIN
-       PRINT, 'Warning: in radPloting: No color bar plotted: (maxBT_Values-minBT_Values) <= 0.'
+       PRINT, 'Warning: in radPloting: No color bar plotted: (maxValue-minValue) <= 0.'
    ENDELSE
 END
