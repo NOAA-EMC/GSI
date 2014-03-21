@@ -885,6 +885,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               call to_native_endianness_i4(ibuf(1,k),num_swap)
            end if
               if(igtype(k)==1)     call expand_ibuf(ibuf(1,k),im     ,jm     ,im+1,jm+1)
+              if(igtype(k)==-1)     call expand_ibuf(ibuf(1,k),im     ,jm     ,im+1,jm+1)
               if(igtype(k)==2) call expand_ibuf(ibuf(1,k),im+1,jm     ,im+1,jm+1)
               if(igtype(k)==3) call expand_ibuf(ibuf(1,k),im     ,jm+1,im+1,jm+1)
            end if
