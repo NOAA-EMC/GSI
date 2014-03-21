@@ -214,16 +214,16 @@ PRO radPloting, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,   $
    ; plot width
    plotWidth = 0.31
    ; plot height
-   plotHeight = 0.16
+   plotHeight = 0.17
    ; color bar height
-   barHeight = 0.025
+   barHeight = 0.02
 
    xSpacer = 0.02  ; space between two plots horizontally.
    ySpacer = 0.03  ; space between bar and next plot vertically.
    innerSpacer = 0.01    ; space between plot and bar vertically.
 
    plotY_Pos = findgen(4) ; array holding box position
-   barY_Pos = findgen(4) ; array holding bar position
+   barY_Pos = findgen(4)  ; array holding bar position
 
    ; Define y positions of boxes and bars
    FOR i=0, 3 DO BEGIN
