@@ -23,6 +23,7 @@ cd ${wkDir}
 if [ -d ${archiveDir} ]
 then
    mv *.ps ${archiveDir}
+   mv *.jpg ${archiveDir}
 else 
    mkdir ${archiveDir}
    mv *.ps ${archiveDir}
