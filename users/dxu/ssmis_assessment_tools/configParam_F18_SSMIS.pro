@@ -48,8 +48,8 @@ PRO configParam_F18_SSMIS, paramStruct
        250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
        300, 280, 280, 280 ]
    paramStruct.prefixArray = [ 'SSMIS_Rad_plotting_', 'SSMIS_Scatter_plotting_']
-   ;paramStruct.chPlotArray = INDGEN(24)
-   paramStruct.chPlotArray = [1,2,3,4,5]
+   paramStruct.chPlotArray = INDGEN(24)
+   ;paramStruct.chPlotArray = [1,2,3,4,5]
    paramStruct.date = '2013-01-20'
 
 END

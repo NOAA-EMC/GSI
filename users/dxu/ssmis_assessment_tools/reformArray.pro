@@ -14,7 +14,8 @@
 ;
 ;---------------------------------------------------------------------------------
 PRO reformArray, MAX_FOV, nOrbits,  $
-   radData, refRadData
+   radData, refRadData,   $
+   sceneData, refSceneData
 
    ; Define struct to hold reformed data.
    ;-------------------------------------------------------
@@ -41,6 +42,13 @@ PRO reformArray, MAX_FOV, nOrbits,  $
       ref_Tb1       : fltarr(nOrbits * MAX_FOV, radData.nChan),$
       ref_Tb2       : fltarr(nOrbits * MAX_FOV, radData.nChan),$
       ref_TbDiff    : fltarr(nOrbits * MAX_FOV, radData.nChan) }
+
+   refSceneData={  $
+      ref_TPW_Vec: reform(sceneData.tpwVec(*, *), nOrbits * MAX_FOV), $
+      ref_CLW_Vec: reform(sceneData.clwVec(*, *), nOrbits * MAX_FOV), $
+      ref_RWP_Vec: reform(sceneData.rwpVec(*, *), nOrbits * MAX_FOV), $
+      ref_GWP_Vec: reform(sceneData.gwpVec(*, *), nOrbits * MAX_FOV), $
+      ref_tSkin_Vec: reform(sceneData.tSkinVec(*, *), nOrbits * MAX_FOV) }
 
    ;--------------------------
    ; 3-d arrays conversion

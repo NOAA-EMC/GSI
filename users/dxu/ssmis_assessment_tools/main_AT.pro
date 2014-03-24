@@ -74,9 +74,9 @@ MIN_LON = paramStruct.MIN_LON
 MAX_LON = paramStruct.MAX_LON
 radListFile1  = paramStruct.radListFile1
 radListFile2  = paramStruct.radListFile2
+sceneListFile = paramStruct.sceneListFile
 MAX_FOV       = paramStruct.MAX_FOV
 MAX_CHAN      = paramStruct.MAX_CHAN
-sceneListFile = paramStruct.sceneListFile
 INT_FILL_Val = paramStruct.INT_FILL
 FLOAT_FILL_Val = paramStruct.FLOAT_FILL
 STRING_FILL_Val = paramStruct.STRING_FILL
@@ -100,18 +100,20 @@ PRINT, 'Read data again?'
 PRINT, '1 - YES'
 PRINT, '2 - NO, to reform'
 PRINT, '3 - NO, to plot radiance'
-PRINT, '4 - NO, to plot clear sky '
-PRINT, '5 - NO, to plot cloudy sky'
-PRINT, '6 - NO, to plot precipitation'
+PRINT, '4 - NO, to plot scatter'
+PRINT, '5 - NO, to plot clear sky '
+PRINT, '6 - NO, to plot cloudy sky'
+PRINT, '7 - NO, to plot precipitation'
 
 READ, readAgain
 CASE readAgain OF
    1: GOTO, mark_readMeas
    2: GOTO, mark_reform
    3: GOTO, mark_plotting 
-   4: GOTO, mark_plotting_ClearSky 
-   5: GOTO, mark_plotting_CloudySky 
-   6: GOTO, mark_plotting_Precip 
+   4: GOTO, mark_plotting_scatter
+   5: GOTO, mark_plotting_ClearSky 
+   6: GOTO, mark_plotting_CloudySky 
+   7: GOTO, mark_plotting_Precip 
    ELSE: BEGIN & print, 'Wrong option!!! Chose again...' & GOTO, mark_readAgain & END
 ENDCASE
 
@@ -127,18 +129,24 @@ mark_readMeas:
 ;------------------------------------
 ; step 1: 
 ;   Read two lists of radiance files
+;   and one list of  scene files
 ;------------------------------------
-readlist, radListFile1, radFileList1, nfilesRad1
-readlist, radListFile2, radFileList2, nfilesRad2
+readlist, radListFile1, radFileList1, nFilesRad1
+readlist, radListFile2, radFileList2, nFilesRad2
+readlist, sceneListFile, sceneFileList, nFileScene
 
 ; Get number of radiance files in each list/array.
 nRadFiles1 = n_elements(radFileList1)
 nRadFiles2 = n_elements(radFileList2)
+nSceneFiles = n_elements(sceneFileList)
 
-; Make sure that number of radiance files are equal and not 0.
-IF ( (nRadFiles1 ne nRadFiles2) || nRadFiles1 eq 0 ) THEN BEGIN
+; Make sure that numbers of radiance files and 
+; scenef files are equal and not 0.
+IF ( ( nRadFiles1 NE nRadFiles2 )  || $ 
+     ( nRadFiles1 NE nSceneFiles ) || $ 
+     ( nRadFiles1 EQ 0 ) ) THEN BEGIN
    PRINT,'Error: Number of Rad files in two list files NOT match'
-   stop
+   STOP
 ENDIF
 
 ; Save number of rad files (orbits)
@@ -149,10 +157,12 @@ PRINT, "Begin readRadFile  =========="
 ; step 2:
 ;   Read radiances (measurements) from List1
 ;   Read radiances (simulated) from List2
+;   Read scene file (GFS 6-hr forecast)
 ;-------------------------------------------
-readRadFile, nOrbits, MAX_FOV, MAX_CHAN,    $
-   radFileList1, radFileList2,            $
-   radData
+print, "****************    ",  sceneFileList
+readRadFile, nOrbits, MAX_FOV, MAX_CHAN,      $
+   radFileList1, radFileList2, sceneFileList, $
+   radData, sceneData
 
 PRINT, "done with readRadFile  =========="
 
@@ -162,7 +172,8 @@ PRINT, "done with readRadFile  =========="
 ;-------------------------------------------
 mark_reform:
 reformArray, MAX_FOV, nOrbits,  $
-   radData, refRadData
+   radData, refRadData,         $
+   sceneData, refSceneData    
 
 ;-----------------------------------------
 ; step 4: 
@@ -174,6 +185,11 @@ mark_plotting:
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadData, date
+
+mark_plotting_scatter:
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
+    refRadData, refSceneData, date
 
 mark_plotting_ClearSky:
 mark_plotting_CloudySky:
