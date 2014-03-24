@@ -53,10 +53,10 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          ;DEVICE, /CLOSE
          ;ERASE
          LOADCT, 39
-         !P.FONT=-1
+         !P.FONT=0
          DEVICE, FILENAME=imageName, /COLOR, BITS_PER_PIXEL=8,          $
                  XSIZE=xSizeVal, YSIZE=ySizeVal, XOFFSET=2, YOFFSET=2,  $
-                 /PORTRAIT, FONT_SIZE=7, /BOLD, /COURIER
+                 /PORTRAIT, FONT_SIZE=9, /BOLD, /COURIER
       ENDIF
 
       ;------------------------------------------------
