@@ -48,7 +48,8 @@ PRO reformArray, MAX_FOV, nOrbits,  $
       ref_CLW_Vec: reform(sceneData.clwVec(*, *), nOrbits * MAX_FOV), $
       ref_RWP_Vec: reform(sceneData.rwpVec(*, *), nOrbits * MAX_FOV), $
       ref_GWP_Vec: reform(sceneData.gwpVec(*, *), nOrbits * MAX_FOV), $
-      ref_tSkin_Vec: reform(sceneData.tSkinVec(*, *), nOrbits * MAX_FOV) }
+      ref_tSkin_Vec: reform(sceneData.tSkinVec(*, *), nOrbits * MAX_FOV), $
+      ref_SfcType_Vec: reform(sceneData.sfcTypVec(*, *), nOrbits * MAX_FOV) }
 
    ;--------------------------
    ; 3-d arrays conversion

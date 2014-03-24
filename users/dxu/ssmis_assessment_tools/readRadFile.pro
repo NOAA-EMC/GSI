@@ -48,7 +48,8 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
        clwVec: fltarr(MAX_FOV, nOrbits),  $
        rwpVec: fltarr(MAX_FOV, nOrbits),  $
        gwpVec: fltarr(MAX_FOV, nOrbits),  $
-       tSkinVec: fltarr(MAX_FOV, nOrbits) }
+       tSkinVec: fltarr(MAX_FOV, nOrbits),$
+       sfcTypVec: fltarr(MAX_FOV, nOrbits) }
 
    ;---------------------------------------
    ; step 2:
@@ -179,6 +180,7 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
          sceneData.rwpVec(iProf, iFile) = scene.rwpVec(iProf) 
          sceneData.gwpVec(iProf, iFile) = scene.gwpVec(iProf) 
          sceneData.tSkinVec(iProf, iFile) = scene.tSkinVec(iProf) 
+         sceneData.sfcTypVec(iProf, iFile) = scene.sfcTypVec(iProf) 
       ENDFOR
    ENDFOR
 
