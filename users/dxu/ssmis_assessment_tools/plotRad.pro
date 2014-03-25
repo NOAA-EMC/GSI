@@ -56,7 +56,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          !P.FONT=0
          DEVICE, FILENAME=imageName, /COLOR, BITS_PER_PIXEL=8,          $
                  XSIZE=xSizeVal, YSIZE=ySizeVal, XOFFSET=2, YOFFSET=2,  $
-                 /PORTRAIT, FONT_SIZE=9, /BOLD, /COURIER
+                 /PORTRAIT, FONT_SIZE=7, /BOLD, /COURIER
       ENDIF
 
       ;------------------------------------------------
@@ -148,11 +148,6 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
                 and refRadData.ref_Tb2(*,chPlotArray(iChan)) gt 0 $
                 and refRadData.ref_ModeFlag2 eq 0)
 
-      ; Generate ref_TbDiff based on filter
-      refRadData.ref_TbDiff(filter3, chPlotArray(iChan))  =    $
-            refRadData.ref_Tb1(filter3, chPlotArray(iChan) )   $
-            - refRadData.ref_Tb2(filter3, chPlotArray(iChan) )
-
       ; Column position
       colPosition = 2
 
@@ -209,7 +204,7 @@ PRO radPloting, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,   $
 
    ; Define where plots start
    xOrigin = 0.02
-   yOrigin = 0.07
+   yOrigin = 0.03
 
    ; plot width
    plotWidth = 0.31
@@ -219,7 +214,7 @@ PRO radPloting, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,   $
    barHeight = 0.02
 
    xSpacer = 0.02  ; space between two plots horizontally.
-   ySpacer = 0.03  ; space between bar and next plot vertically.
+   ySpacer = 0.04  ; space between bar and next plot vertically.
    innerSpacer = 0.01    ; space between plot and bar vertically.
 
    plotY_Pos = findgen(4) ; array holding box position

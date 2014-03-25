@@ -65,6 +65,8 @@ PRO reformArray, MAX_FOV, nOrbits,  $
    FOR iChan = 0L, radData.nChan - 1 DO BEGIN
       refRadData.ref_Tb1(*, iChan) = reform(radData.tbRad1(*, *, iChan), nOrbits * MAX_FOV)
       refRadData.ref_Tb2(*, iChan) = reform(radData.tbRad2(*, *, iChan), nOrbits * MAX_FOV)
+      refRadData.ref_TbDiff(*, iChan) = refRadData.ref_Tb1(*, iChan) $ 
+                                        - refRadData.ref_Tb2(*, iChan)
    ENDFOR
 
 END
