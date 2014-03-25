@@ -29,37 +29,43 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       chanNo = STRING(chanNumArray(iChan))
 
       imageNameTPW = STRCOMPRESS(prefix + 'TPW_' + chanNo + '.ps',/remove_all)
-      titleTPW = STRCOMPRESS('SSMIS TB diff vs TPW: chan ' + chanNo + '  ' + date )
+      titleTPW = STRCOMPRESS('SSMIS TB diff vs TPW (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameTPW, titleTPW, $
          refSceneData.ref_TPW_Vec,  $
          refRadData.ref_TbDiff(*, iChan)
 
       imageNameCLW = STRCOMPRESS(prefix + 'CLW_' + chanNo + '.ps',/remove_all)
-      titleCLW = STRCOMPRESS('SSMIS TB diff vs CLW: chan ' + chanNo + '  ' + date )
+      titleCLW = STRCOMPRESS('SSMIS TB diff vs CLW (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameCLW, titleCLW, $
          refSceneData.ref_CLW_Vec,  $
          refRadData.ref_TbDiff(*, iChan)
 
       imageNameRWP = STRCOMPRESS(prefix + 'RWP_' + chanNo + '.ps',/remove_all)
-      titleRWP = STRCOMPRESS('SSMIS TB diff vs RWP: chan ' + chanNo + '  ' + date )
+      titleRWP = STRCOMPRESS('SSMIS TB diff vs RWP (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameRWP, titleRWP, $
          refSceneData.ref_RWP_Vec,  $
          refRadData.ref_TbDiff(*, iChan)
 
       imageNameGWP = STRCOMPRESS(prefix + 'GWP_' + chanNo + '.ps',/remove_all)
-      titleGWP = STRCOMPRESS('SSMIS TB diff vs GWP: chan ' + chanNo + '  ' + date )
+      titleGWP = STRCOMPRESS('SSMIS TB diff vs GWP (chan ' + chanNo + ': '  $
+                             + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameGWP, titleGWP, $
          refSceneData.ref_GWP_Vec,  $
          refRadData.ref_TbDiff(*, iChan)
 
       imageNameSkinT = STRCOMPRESS(prefix + 'SkinT_' + chanNo + '.ps',/remove_all)
-      titleSkinT = STRCOMPRESS('SSMIS TB diff vs SkinT: chan ' + chanNo + '  ' + date )
+      titleSkinT = STRCOMPRESS('SSMIS TB diff vs SkinT (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameSkinT, titleSkinT,   $
          refSceneData.ref_tSkin_Vec,      $
          refRadData.ref_TbDiff(*, iChan)
 
       imageNameSfcType = STRCOMPRESS(prefix + 'SfcType_' + chanNo + '.ps',/remove_all)
-      titleSfcType = STRCOMPRESS('SSMIS TB diff vs SfcType: chan ' + chanNo + '  ' + date )
+      titleSfcType = STRCOMPRESS('SSMIS TB diff vs SfcType (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameSfcType, titleSfcType,   $
          refSceneData.ref_SfcType_Vec,      $
          refRadData.ref_TbDiff(*, iChan)
