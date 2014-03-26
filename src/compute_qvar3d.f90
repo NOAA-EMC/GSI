@@ -14,6 +14,7 @@ subroutine compute_qvar3d
 ! 2011-08-17 zhu  - add handling of dssv(:,:,:,nrf3_cw) for regional when total condensate is control variable 
 ! 2011-11-01 eliu - add qmin 
 ! 2012-02-08 kleist  - add computation of ges_qsat over nfldsig bins
+! 2013-10-30 jung - check and clip supersaturation
 !
 !   input argument list:
 !
@@ -27,7 +28,7 @@ subroutine compute_qvar3d
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use berror, only: dssv
-  use jfunc, only: qsatg,qgues,varq,qoption
+  use jfunc, only: qsatg,qgues,varq,qoption,clip_supersaturation
   use control_vectors, only: cvars3d
   use gridmod, only: lat2,lon2,nsig,lat1,lon1,istart,ltosi,ltosj,iglobal, &
                      itotsub,ijn,displs_g,nlat,regional
@@ -62,12 +63,18 @@ subroutine compute_qvar3d
   nrf3_q=getindex(cvars3d,'q')
   nrf3_cw=getindex(cvars3d,'cw')
 
-! Limit q to be >= qmin
+  iderivative = 0
+  ice=.true.
   do it=1,nfldsig
+    call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+           nsig,ice,iderivative)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
+! Limit q to be >= qmin
               ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
+! Limit q to be <= ges_qsat
+              if(clip_supersaturation) ges_q(i,j,k,it)=min(ges_q(i,j,k,it),ges_qsat(i,j,k,it))
            end do
         end do
      end do
@@ -86,21 +93,13 @@ subroutine compute_qvar3d
 
 ! Compute saturation specific humidity.  Set up normalization factor
 ! for limq routines (1/qs*2)
-  iderivative = 0
   if(qoption == 1)then
       iderivative = 1
   else
       iderivative = 2
   end if
-
   ice=.true.
   call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2,nsig,ice,iderivative)
-
-  iderivative = 0
-  do it=1,nfldsig
-    call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
-           nsig,ice,iderivative)
-  end do
 
   allocate(rhgues(lat2,lon2,nsig))
   do k=1,nsig
