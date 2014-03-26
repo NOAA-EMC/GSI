@@ -108,9 +108,9 @@ cd $WORK
 rm -f config.nml
 cat > config.nml << !
   &SETUP
-  instr=8
-  satid='n19'
-  fov_num=30
+  instr=25
+  satid='f16'
+  fov_num=-999
   sat_az=45.0
   lat_cent_fov = 0.
   lon_cent_fov = -180.
@@ -137,6 +137,14 @@ fi
 # Create GRADS map and control file for visualizing edge of FOV.
 #---------------------------------------------------------------------------
 
+INSTR=$(grep instr config.nml)
+n=$(echo ${INSTR##*=})
+if (( n >= 25 && n <= 30 )); then
+  num_ch=24
+else
+  num_ch=1
+fi
+
 cat > ellipse.ctl << !
 dset ellipse.dat
 dtype station
@@ -144,7 +152,7 @@ stnmap ellipse.map
 options sequential
 undef -999.0
 title junk
-tdef 1 linear jan1980 1mo
+tdef ${num_ch} linear jan1980 1mo
 vars  1
  p  0 99 fov
 endvars
@@ -156,12 +164,12 @@ stnmap -i ellipse.ctl
 # Create GRADS map and control file for visualizing returned power.
 #---------------------------------------------------------------------------
 
-INSTR=$(grep instr config.nml)
-n=$(echo ${INSTR##*=})
 if (( n == 11 )); then
   num_ch=15
 elif (( n == 13 )); then
   num_ch=5
+elif (( n >= 25 && n <= 30 )); then
+  num_ch=24
 else
   num_ch=1
 fi

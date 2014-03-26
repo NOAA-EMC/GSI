@@ -75,7 +75,15 @@
 
  use constants
 
- use calc_fov_crosstrk
+ use calc_fov_crosstrk, only   : instrument_init_crosstrack => instrument_init, &
+                                 npoly, &
+                                 fov_check, &
+                                 fov_cleanup, &
+                                 fov_ellipse_crosstrk, &
+                                 inside_fov_crosstrk
+
+ use calc_fov_conical, only    : instrument_init_conical => instrument_init, &
+                                 fov_ellipse_conical
 
  implicit none
 
@@ -86,6 +94,7 @@
  integer(i_kind)              :: n
  integer(i_kind)              :: iret
 
+ logical                      :: conical, crosstrack
  logical                      :: valid
 
  real(r_kind)                 :: expansion
@@ -114,12 +123,25 @@
    stop 1
  endif
 
+ select case (instr)
+   case (1:18)
+     conical=.false.
+     crosstrack=.true.
+   case (25:30)
+     conical=.true.
+     crosstrack=.false.
+   case default
+     print*,'** ERROR. INVALID SATELLITE INSTRUMENT NUMBER: ', instr
+     print*,'** STOP.'
+     stop 11
+ end select
+
  print*,' '
  print*,'- WILL COMPUTE FOV FIELDS FOR:'
  write(6,65) '- INSTRUMENT NUMBER:    ', instr
  write(6,64) '- SATELLITE ID:         ', satid
  64 format(a25,5x,a8)
- write(6,65) '- FOV NUMBER:           ', fov_num
+ if (crosstrack) write(6,65) '- FOV NUMBER:           ', fov_num
  65 format(a25,1x,i6)
  write(6,66) '- AZIMUTH ANGLE:        ', sat_az
  66 format(a25,1x,f8.3)
@@ -137,26 +159,43 @@
  endif
 
 !----------------------------------------------------------------------
-! amsua and mhs have channel specific antenna power coefficients
+! amsua and mhs have channel specific antenna power 
+! coefficients.  ssmis have channel specific fov sizes and power
+! coefficients.
 !----------------------------------------------------------------------
 
- ichan_tot=1
- if (instr==11) ichan_tot=15
- if (instr==13) ichan_tot=5
+ select case (instr)
+   case (11)    ! amsua
+     ichan_tot=15
+   case (13)    ! mhs
+     ichan_tot=5
+   case (25:30) ! ssmis
+     ichan_tot=24
+   case default
+     ichan_tot=1
+ end select
 
 !----------------------------------------------------------------------
-! expansion sets the boundary of the fov.
-! use 1.0 or ir and almost 3 for microwave.
+! Expansion sets the boundary of the fov.
+! Use 1.0 or ir and almost 3 for microwave.
 !----------------------------------------------------------------------
 
- expansion = 1.0_r_kind
- if (instr>=10.and.instr<=16) expansion=2.9_r_kind
+ select case (instr)
+   case (1:9, 17:18)
+     expansion=1.0_r_kind
+   case (10:16,25:30)
+     expansion=2.9_r_kind
+ end select
 
 !----------------------------------------------------------------------
-! check for invalid instrument or satellite settings.
+! Check for invalid instrument or satellite settings.
 !----------------------------------------------------------------------
 
- call instrument_init(instr, satid, expansion, valid)
+ if (crosstrack) then
+   call instrument_init_crosstrack(instr, satid, expansion, valid)
+ elseif (conical) then
+   call instrument_init_conical(instr, satid, expansion, valid)
+ endif
 
  if (.not.valid) then
    print*,' '
@@ -164,39 +203,60 @@
    stop 2
  endif
 
- call fov_check(fov_num,instr,ichan_tot,valid)
- if (.not.valid) then
-   print*,'** PROBLEM IN ROUTINE FOV_CHECK. STOP.'
-   stop 3
+!----------------------------------------------------------------------
+! Check FOV number for crosstrack instruments.
+!----------------------------------------------------------------------
+
+ if (crosstrack) then
+   call fov_check(fov_num,instr,ichan_tot,valid)
+   if (.not.valid) then
+     print*,'** PROBLEM IN ROUTINE FOV_CHECK. STOP.'
+     stop 3
+   endif
  endif
 
 !----------------------------------------------------------------------
-! determine the lat/lons of the fov boundary.  this boundary is
+! Determine the lat/lons of the fov boundary.  This boundary is
 ! a polygon with npoly vertices.  npoly is set in the 
-! calc_fov_crosstrk module.  output to Grads station file.
+! calc_fov_crosstrk module.  Output to Grads station file.
 !----------------------------------------------------------------------
-
- print*,' '
- print*,'- COMPUTE LAT/LONS OF FOV EDGE'
- call fov_ellipse_crosstrk(fov_num, instr, sat_az, lat_cent_fov, lon_cent_fov, &
-                           lats_edge_fov, lons_edge_fov)
 
  open (65, file="./ellipse.dat", form="unformatted")
  stnid = "aaaaaaa"
  tim = 0.0_r_single
- nlev = 1
  nflag = 1
 
  print*,' '
- do n = 1, npoly
-  write(6,100) "- LAT/LON OF FOV EDGE: ", n, lats_edge_fov(n), lons_edge_fov(n)
-  write(65) stnid, real(lats_edge_fov(n),4), real(lons_edge_fov(n),4), tim, nlev, nflag
-  write(65) real(0.0,4)
+ print*,'- COMPUTE LAT/LONS OF FOV EDGE'
+
+ do ichan = 1, ichan_tot
+
+   if (crosstrack) then
+     call fov_ellipse_crosstrk(fov_num, instr, sat_az, lat_cent_fov, lon_cent_fov, &
+                               lats_edge_fov, lons_edge_fov)
+   elseif (conical) then
+     print*,'- PROCESS CHANNEL NUMBER: ',ichan
+     call fov_ellipse_conical(ichan, sat_az, lat_cent_fov, lon_cent_fov, &
+                              lats_edge_fov, lons_edge_fov)
+   endif
+
+   print*,' '
+   nlev=1
+   do n = 1, npoly
+     write(6,100) "- LAT/LON OF FOV EDGE: ", n, lats_edge_fov(n), lons_edge_fov(n)
+     write(65) stnid, real(lats_edge_fov(n),4), real(lons_edge_fov(n),4), tim, nlev, nflag
+     write(65) real(0.0,4)
+   enddo
+   nlev = 0
+   write(65) stnid, real(lats_edge_fov(1),4), real(lons_edge_fov(1),4), tim, nlev, nflag
+
  enddo
- 100 format(1x,a23,1x,i3,1x,f9.3,3x,f9.3)
- nlev = 0
- write(65) stnid, real(lats_edge_fov(1),4), real(lons_edge_fov(1),4), tim, nlev, nflag
+
  close (65)
+
+ stop
+
+ 100 format(1x,a23,1x,i3,1x,f9.3,3x,f9.3)
 
 !----------------------------------------------------------------------
 ! Compute antenna power for a grid of points within the FOV.

@@ -4,6 +4,7 @@ FFLAGS = -check all -traceback -fpe0 -ftrapuv -g
 EXE= crosstrk.exe
 
 OBJS = driver.o \
+       calc_fov_conical.o \
        calc_fov_crosstrk.o \
        kinds.o \
        constants.o 
@@ -11,8 +12,10 @@ OBJS = driver.o \
 $(EXE):	$(OBJS)
 	$(FCOMP) $(FFLAGS) -o $(EXE) $(OBJS) 
 
-driver.o: calc_fov_crosstrk.o kinds.o constants.o driver.f90
+driver.o: calc_fov_crosstrk.o calc_fov_conical.o kinds.o constants.o driver.f90
 	$(FCOMP) $(FFLAGS) -c driver.f90
+calc_fov_conical.o: kinds.o constants.o calc_fov_conical.f90 
+	$(FCOMP) $(FFLAGS) -c calc_fov_conical.f90
 calc_fov_crosstrk.o: kinds.o constants.o calc_fov_crosstrk.f90 
 	$(FCOMP) $(FFLAGS) -c calc_fov_crosstrk.f90
 kinds.o:   kinds.F90
