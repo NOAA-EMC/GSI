@@ -152,9 +152,44 @@ ENDIF
 ; Save number of rad files (orbits)
 nOrbits=nRadFiles1
 
-PRINT, "Begin readRadFile  =========="
 ;-------------------------------------------
 ; step 2:
+;   Define data structures 
+;-------------------------------------------
+; Radiance data structure
+radData={ RadDataType, $
+nFOV_Rad1    : lonarr(nOrbits),$         ; total number of FOVs in a file
+scanPosRad1  : intarr(MAX_FOV,nOrbits),$  ; pos per file
+scanLineRad1 : intarr(MAX_FOV,nOrbits),$  ; line per file
+latRad1      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
+lonRad1   : fltarr(MAX_FOV,nOrbits),$  ; lon per file
+dirRad1   : fltarr(MAX_FOV,nOrbits),$  ; dir per file
+angleRad1 : fltarr(MAX_FOV,nOrbits),$  ; ang per file
+QC_Rad1   : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
+tbRad1    : fltarr(MAX_FOV,nOrbits,MAX_CHAN),$ ; tb per file per channel
+nFOV_Rad2 : lonarr(nOrbits),$          ; total number of FOVs in a file
+scanPosRad2  : intarr(MAX_FOV,nOrbits),$  ; pos per file
+scanLineRad2 : intarr(MAX_FOV,nOrbits),$  ; line per file
+latRad2      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
+lonRad2      : fltarr(MAX_FOV,nOrbits),$  ; lon per file
+dirRad2      : fltarr(MAX_FOV,nOrbits),$  ; dir per file
+angleRad2    : fltarr(MAX_FOV,nOrbits),$  ; ang per file
+QC_Rad2      : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
+tbRad2       : fltarr(MAX_FOV,nOrbits,MAX_CHAN), $ ; tb per file per channel
+nChan        : 0L}
+
+; Scene data structure
+sceneData={ SceneDataType, $
+   tpwVec    : fltarr(MAX_FOV, nOrbits),  $
+   clwVec    : fltarr(MAX_FOV, nOrbits),  $
+   rwpVec    : fltarr(MAX_FOV, nOrbits),  $
+   gwpVec    : fltarr(MAX_FOV, nOrbits),  $
+   tSkinVec  : fltarr(MAX_FOV, nOrbits),$
+   sfcTypVec : fltarr(MAX_FOV, nOrbits) }
+
+PRINT, "Begin readRadFile  =========="
+;-------------------------------------------
+; step 3:
 ;   Read radiances (measurements) from List1
 ;   Read radiances (simulated) from List2
 ;   Read scene file (GFS 6-hr forecast)
@@ -167,7 +202,7 @@ readRadFile, nOrbits, MAX_FOV, MAX_CHAN,      $
 PRINT, "done with readRadFile  =========="
 
 ;-------------------------------------------
-; step 3:
+; step 4:
 ;   Reform data
 ;-------------------------------------------
 mark_reform:
@@ -176,7 +211,7 @@ reformArray, MAX_FOV, nOrbits,  $
    sceneData, refSceneData    
 
 ;-----------------------------------------
-; step 4: 
+; step 5: 
 ;   Plot radiances (observed + simulated)
 ;-----------------------------------------
 mark_plotting:
