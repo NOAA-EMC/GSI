@@ -21,6 +21,7 @@ module crtm_interface
 !                            is derived from dust1 and dust2
 !                        (2) skip loading geometry and surface structures for modis_aod
 !                        (3) separate jacobian calculation for modis_aod
+!   2014-01-01  li     - change the protection of data_s(itz_tr)
 !
 ! subroutines included:
 !   sub init_crtm
@@ -1553,8 +1554,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      surface(1)%soil_temperature      = data_s(istp)
      surface(1)%snow_depth            = data_s(isn)
 
-  sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
-  icmask = sea .and. abs(data_s(ilate))<60.0_r_kind
+     sea = min(max(zero,data_s(ifrac_sea)),one)  >= 0.99_r_kind 
+     icmask = sea .and. abs(data_s(ilate))<60.0_r_kind
 
 ! assign tzbgr for Tz retrieval when necessary
      tzbgr = surface(1)%water_temperature
@@ -1729,7 +1730,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        emissivity_k(i) = rtsolution_k(i,1)%surface_emissivity
 
 !  Surface temperature sensitivity
-       if(nst_gsi>1) then
+       if(nst_gsi>1 .and. (data_s(itz_tr) > zero .and. data_s(itz_tr) <= one) ) then
           ts(i)   = surface_k(i,1)%water_temperature*data_s(itz_tr) + &
                     surface_k(i,1)%land_temperature + &
                     surface_k(i,1)%ice_temperature + &

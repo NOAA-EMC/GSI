@@ -29,9 +29,10 @@ module deter_sfc_mod
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use satthin, only: sno_full,isli_full,sst_full,soil_moi_full, &
+  use guess_grids, only: sno_full,isli_full,sst_full,soil_moi_full, &
       soil_temp_full,soil_type_full,veg_frac_full,veg_type_full, &
-      fact10_full,zs_full,sfc_rough_full,zs_full_gfs
+      fact10_full,sfc_rough_full
+  use satthin, only: zs_full,zs_full_gfs
   use constants, only: zero,one,two,one_tenth,deg2rad,rad2deg
   use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc, &
       rlats,rlons,dx_gfs,txy2ll,lpl_gfs

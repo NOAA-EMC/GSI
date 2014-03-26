@@ -485,6 +485,8 @@ subroutine read_obs(ndata,mype)
 !   2013-02-13  eliu     - turn off parallel I/O for SSMIS (due to the need to
 !                          do spatial averaging for noise reduction) 
 !   2013-06-01  zhu     - add mype_airobst to handle aircraft temperature bias correction 
+!   2014-01-01  xli     - add option to read NSST marine BUFR data file nsstbufr (on the
+!                         top of prepbufr and modsbufr)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -1035,11 +1037,15 @@ subroutine read_obs(ndata,mype)
 
 !            Process conventional SST (modsbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
-                if ( platid == 'mods') then
+                if ( platid == 'nsst') then
+                   call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
+                        lunout,twind,sis)
+                   string='READ_NSSTBUFR'
+                elseif ( platid == 'mods') then
                    call read_modsbufr(nread,npuse,nouse,gstime,infile,obstype, &
                         lunout,twind,sis)
                    string='READ_MODSBUFR'
-                else
+                elseif (platid == 'prep') then
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full)
                    string='READ_PREPBUFR'

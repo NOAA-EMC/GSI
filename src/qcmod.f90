@@ -128,7 +128,8 @@ module qcmod
 
 ! Declare variables for QC with Tz retrieval
   real(r_kind), private :: e_ts,e_ta,e_qa
-  real(r_kind), private :: tzchk
+  real(r_kind), private :: tzchk      ! threshold of Tz retrieval increment for qc_tzr
+  real(r_kind), private :: tschk      ! threshold of d(Tb)/d(Ts) for channels selection in SST/Tz retrieval
 
 !  Definition of id_qc flags
 !  Good Observations (0)
@@ -326,7 +327,7 @@ contains
 ! Define parameters
 
     character(10), intent(in) :: obstype
-
+!
 !   Assign error parameters for background (Ts, Ta, Qa)
 !
     e_ts = half; e_ta = one; e_qa = 0.85_r_kind
@@ -345,6 +346,8 @@ contains
               obstype == 'cris' .or. obstype == 'seviri' ) then
       tzchk = 0.85_r_kind
     endif
+
+    tschk = 0.20_r_kind 
 
   end subroutine setup_tzr_qc
 
@@ -453,7 +456,7 @@ contains
     return
 end subroutine errormod
 
-subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,tschk,iud,iall,dtz,ts_ave) 
+subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,iud,iall,dtz,ts_ave) 
 
 !subprogram:    tz_retrieval  compute tz retrieval with radiances
 !   prgmmr: Xu Li          org: w/nmc2     date: 06-01-2010
@@ -475,7 +478,6 @@ subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzb
 !     ts           - d(brightness temperature)/d(tz)
 !     tbc          - bias corrected (observed - simulated brightness temperatures)
 !     tzbgr        - tz used in Radiative transfer and first guess for Tz retrieval
-!     tschk        - threshold of d(Tb)/d(Ts) for channels selection in SST/Tz retrieval
 !     iud          - data usage indicator
 !     iall         - Tz retrieval done for all pixels or not: 0 = no; 1 = yes
 !
@@ -498,7 +500,7 @@ subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzb
     integer(i_kind), dimension(nchanl), intent(in) :: ich,irday
     real(r_kind),dimension(nsig,nchanl), intent(in) :: wmix,temp
     real(r_kind),dimension(nchanl), intent(in) :: tnoise,varinv,ts,tbc
-    real(r_kind),intent(in) :: tzbgr,tschk
+    real(r_kind),intent(in) :: tzbgr
     integer(i_kind), intent(in) :: iud,iall
     real(r_kind), intent(out) :: dtz,ts_ave
 
@@ -926,14 +928,14 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
 !
      dtz = rmiss_single
      if ( nst_tzr > 0 .and. luse .and. sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
 !    Apply QC with Tz retrieval
 !
      if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
        do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
            xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
            tzchks = tzchk*(half)**xindx
 
@@ -1271,14 +1273,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !
   dtz = rmiss_single
   if ( nst_tzr > 0 .and. luse .and. sea ) then
-     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
   endif
 !
 ! Apply QC with Tz retrieval
 !
   if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
     do i = 1, nchanl
-      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
         xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
         tzchks = tzchk*(half)**xindx
 
@@ -1562,14 +1564,14 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
   dtz = rmiss_single
   if ( nst_tzr > 0 .and. luse .and. sea ) then
-     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+     call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
   endif
 !
 ! Apply QC with Tz retrieval
 !
   if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
     do i = 1, nchanl
-      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+      if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk) then
         xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
         tzchks = tzchk*(half)**xindx
 
@@ -2673,14 +2675,14 @@ subroutine qc_seviri(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
      dtz = rmiss_single
      if ( nst_tzr > 0 .and. luse .and. sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
 !    Apply QC with Tz retrieval
 !
      if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
        do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
            xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
            tzchks = tzchk*(half)**xindx
 
@@ -2908,14 +2910,14 @@ subroutine qc_goesimg(nchanl,is,ndat,nsig,ich,dplat,sea,land,ice,snow,luse,   &
 !
      dtz = rmiss_single
      if ( nst_tzr > 0 .and. luse .and. sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,0.20_r_kind,1,0,dtz,ts_ave) 
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
      endif
 !
 !    Apply QC with Tz retrieval
 !
      if ( nst_tzr > 0 .and. dtz /= rmiss_single ) then
        do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > 0.01_r_kind ) then
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
            xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
            tzchks = tzchk*(half)**xindx
 

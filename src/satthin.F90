@@ -69,15 +69,11 @@ module satthin
 !   def istart_val     - starting location on thinning grid for superobs
 !   def icount         - observation flag  true - no obs in this thinning box previously
 !                                          false - previous ob in box
-!   def isli_full      - snow/land/ice mask
 !   def glat           - latitudes on thinning grid
 !   def super_val      - super obs factor across data types
 !   def super_val1     - super obs factors summed over all mpi tasks (data types)
 !   def glon           - longitudes on thinning grid
 !   def hll            - (i,j) index of point on thinning grid
-!   def sli_full       - 0=sea/1=land/2=ice mask
-!   def sst_full       - skin temperature
-!   def sno_full       - snow-ice mask
 !   def zs_full        - model terrain elevation
 !   def score_crit     - "best" quality obs score in thinning grid box
 !   def use_all        - parameter for turning satellite thinning algorithm off
@@ -98,6 +94,10 @@ module satthin
 !
 !$$$ end documentation block
 
+  use guess_grids, only: isli_full,sst_full,fact10_full,sno_full,veg_type_full, &
+                         veg_frac_full,sfc_rough_full,soil_type_full,soil_temp_full, &
+                         soil_moi_full
+
   use kinds, only: r_kind,i_kind,r_quad
   use mpeu_util, only: die, perr
   implicit none
@@ -117,8 +117,6 @@ module satthin
   public :: indexx
 ! set passed variables to public
   public :: rlat_min,rlon_min,dlat_grid,dlon_grid,superp,super_val1,super_val
-  public :: veg_type_full,soil_type_full,sfc_rough_full,sno_full,sst_full
-  public :: fact10_full,isli_full,soil_moi_full,veg_frac_full,soil_temp_full
   public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
   public :: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
   public :: c_0_full,c_d_full,w_0_full,w_d_full
@@ -128,17 +126,12 @@ module satthin
   integer(i_kind),dimension(0:51):: istart_val
   
   integer(i_kind),allocatable,dimension(:):: mlon
-  integer(i_kind),allocatable,dimension(:,:):: isli_full
   logical,allocatable,dimension(:)::icount
 
   real(r_kind) rlat_min,rlat_max,rlon_min,rlon_max,dlat_grid,dlon_grid
   real(r_kind),allocatable,dimension(:):: glat,score_crit
   real(r_kind),allocatable,dimension(:):: super_val,super_val1
   real(r_kind),allocatable,dimension(:,:):: glon,hll,zs_full,zs_full_gfs
-  real(r_kind),allocatable,dimension(:,:):: veg_type_full,soil_type_full
-  real(r_kind),allocatable,dimension(:,:,:):: veg_frac_full,soil_temp_full
-  real(r_kind),allocatable,dimension(:,:,:):: soil_moi_full,sfc_rough_full
-  real(r_kind),allocatable,dimension(:,:,:):: sst_full,sno_full,fact10_full
   real(r_kind),allocatable,dimension(:,:,:):: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full
   real(r_kind),allocatable,dimension(:,:,:):: c_0_full,c_d_full,w_0_full,w_d_full
 
@@ -1142,7 +1135,7 @@ contains
     if(allocated(sst_full))deallocate(sst_full)
     if(allocated(sno_full))deallocate(sno_full)
     if(allocated(fact10_full))deallocate(fact10_full)
-    if(allocated(isli_full))deallocate(isli_full)
+!   if(allocated(isli_full))deallocate(isli_full)
     if(allocated(veg_type_full))deallocate(veg_type_full)
     if(allocated(soil_type_full))deallocate(soil_type_full)
     if(allocated(veg_frac_full))deallocate(veg_frac_full)

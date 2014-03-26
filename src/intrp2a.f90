@@ -229,7 +229,8 @@ subroutine intrp2a11(f,g,dx,dy,mype)
      ixp=ix
     end if
   delxp=one-delx; delyp=one-dely
- 
+
+! write(*,'(a,7I7)') ' intrp2a 11 : ', ix,iy,ixp,iyp,mm1,istart(mm1),jstart(mm1)
        g=f(ix,iy)*delxp*delyp+f(ixp,iy)*delx*delyp&
            +f(ix,iyp)*delxp*dely+f(ixp,iyp)*delx*dely
 

@@ -464,6 +464,8 @@ subroutine read_files(mype)
     deallocate(time_nst)
   endif
 
+  write(*,'(a,3I5)') ' read_files, ntguessig,ntguessfc,ntguesnst : ',ntguessig,ntguessfc,ntguesnst
+
 ! End of routine
   return
 end subroutine read_files
