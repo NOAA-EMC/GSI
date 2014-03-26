@@ -58,7 +58,7 @@ contains
        write(lunctl,'("stnmap ^",a)') trim(dsetname)
     endif
     
-    write(lunctl,'("options sequential template")')
+    write(lunctl,'("options sequential big_endian template")')
     imissing = grads_missing
     write(lunctl,'("undef ",i6)') imissing
     write(lunctl,'("title ",a)') trim(comment)

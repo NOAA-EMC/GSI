@@ -56,12 +56,6 @@ echo END_DATE   = $END_DATE
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2 
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -69,12 +63,6 @@ else
    exit 2 
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-##   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_user_settings file in ${top_parm}"
-#   exit 6 
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -82,8 +70,6 @@ else
    exit 6 
 fi
 
-
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/data_extract_config
 
 #--------------------------------------------------------------------
@@ -92,8 +78,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-#   is_prod=`${USHverf_rad}/AmIOnProd.sh`
-   is_prod=`${DE_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -102,10 +87,8 @@ fi
 
 if [[ $RAD_AREA = glb ]]; then
    copy_script=Copy_glbl.sh
-#   . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
 elif [[ $RAD_AREA = rgn ]]; then
    copy_script=Copy_rgnl.sh
-#   . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
    exit 3
 fi
@@ -115,8 +98,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ON_PROD -eq 0 ]]; then
-#   is_prod=`${USHverf_rad}/AmIOnProd.sh`
-   is_prod=`${DE_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod -eq 1 ]]; then
       exit 10
    fi
@@ -141,8 +123,6 @@ fi
 #--------------------------------------------------------------------
 start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -le 0 ]]; then
-#   pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
-#   pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
    pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
    pdate_len=`echo ${#pdate}`
    if [[ ${pdate_len} -ne 10 ]]; then
@@ -187,13 +167,10 @@ while [[ $done -eq 0 ]]; do
       #-----------------------------------------------------------------
       # Run the copy script
       #-----------------------------------------------------------------
-#      log_file=${LOGSverf_rad}/CopyRad_${SUFFIX}_${cdate}.log
       log_file=${LOGdir}/CopyRad_${SUFFIX}_${cdate}.log
-#      err_file=${LOGSverf_rad}/CopyRad_${SUFFIX}_${cdate}.err
       err_file=${LOGdir}/CopyRad_${SUFFIX}_${cdate}.err
 
       echo Processing ${cdate}
-#      ${USHverf_rad}/${copy_script} ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
       ${DE_SCRIPTS}/${copy_script} ${SUFFIX} ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------

@@ -71,12 +71,6 @@ echo END_DATE   = $END_DATE
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2 
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -84,12 +78,6 @@ else
    exit 2 
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_user_settings file in ${top_parm}"
-#   exit 2 
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -97,7 +85,6 @@ else
    exit 2 
 fi
 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/data_extract_config
 
 #--------------------------------------------------------------------
@@ -106,25 +93,20 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-#   is_prod=`${USHverf_rad}/AmIOnProd.sh`
-   is_prod=`${DE_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
 fi
 
 
-#log_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.log
 log_file=${LOGdir}/VrfyRad_${SUFFIX}.log
-#err_file=${LOGSverf_rad}/VrfyRad_${SUFFIX}.err
 err_file=${LOGdir}/VrfyRad_${SUFFIX}.err
 
 if [[ $RAD_AREA = glb ]]; then
    vrfy_script=VrfyRad_glbl.sh
-#   . ${RADMON_DATA_EXTRACT}/parm/glbl_conf
 elif [[ $RAD_AREA = rgn ]]; then
    vrfy_script=VrfyRad_rgnl.sh
-#   . ${RADMON_DATA_EXTRACT}/parm/rgnl_conf
 else
    exit 3
 fi
@@ -150,8 +132,6 @@ start_len=`echo ${#START_DATE}`
 if [[ ${start_len} -gt 0 ]]; then
    pdate=`${NDATE} -06 $START_DATE`
 else
-#   pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
-#   pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
    pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
    pdate_len=`echo ${#pdate}`
    START_DATE=`${NDATE} +06 $pdate`
@@ -193,7 +173,6 @@ while [[ $done -eq 0 ]]; do
       # Run the verification/extraction script
       #-----------------------------------------------------------------
       echo Processing ${cdate}
-#      ${USHverf_rad}/${vrfy_script} ${SUFFIX} ${RUN_ENVIR} ${cdate} 1>${log_file} 2>${err_file}
       ${DE_SCRIPTS}/${vrfy_script} ${SUFFIX} ${RUN_ENVIR} ${cdate} 1>${log_file} 2>${err_file}
 
       #-----------------------------------------------------------------

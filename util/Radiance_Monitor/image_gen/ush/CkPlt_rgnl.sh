@@ -58,12 +58,6 @@ export PLOT_ALL_REGIONS=
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source ${top_parm}/RadMon_config"
-#   exit
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -71,12 +65,6 @@ else
    exit
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source ${top_parm}/RadMon_user_settings"
-#   exit
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -84,9 +72,7 @@ else
    exit
 fi
 
-#. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${IG_PARM}/plot_rad_conf
-#. ${RADMON_IMAGE_GEN}/parm/rgnl_conf
 . ${IG_PARM}/rgnl_conf
 
 
@@ -96,7 +82,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${IG_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${IG_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi

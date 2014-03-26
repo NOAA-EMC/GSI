@@ -45,12 +45,6 @@ echo RUN_ENVIR = $RUN_ENVIR
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -58,12 +52,6 @@ else
    exit 2
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_user_settings file in ${top_parm}"
-#   exit 2
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -71,7 +59,6 @@ else
    exit 2
 fi
 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/parm/data_extract_config
 
 #--------------------------------------------------------------------
@@ -82,18 +69,13 @@ echo $area
 
 if [[ $area = glb ]]; then
    export RAD_AREA=glb
-#   . ${PARMverf_rad}/glbl_conf
-#   . ${DE_PARM}/glbl_conf
 elif [[ $area = rgn ]]; then
    export RAD_AREA=rgn
-#   . ${PARMverf_rad}/rgnl_conf
-#   . ${DE_PARM}/rgnl_conf
 else
   echo "area = $area -- must be either glb or rgn"
   exit 3 
 fi
 
-#mkdir -p $TANKDIR
 mkdir -p $TANKverf
 mkdir -p $LOGdir
 
@@ -106,8 +88,6 @@ export RUN_ENVIR=dev
 # date in the $TANKverf and work backwards until we find a
 # valid radstat file or hit the limit on $ctr. 
 #---------------------------------------------------------------
-#PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
-#PDATE=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 PDATE=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
 export DATDIR=$RADSTAT_LOCATION
    
@@ -159,8 +139,6 @@ if [[ -s ${radstat} ]]; then
    export DATA_IN=${STMP_USER}
    export DATA=${STMP_USER}/radmon
    export jlogfile=${STMP_USER}/jlogfile
-#   export TANKverf=${TANKDIR}
-#   export LOGDIR=${PTMP_USER}/logs/radopr
 
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt

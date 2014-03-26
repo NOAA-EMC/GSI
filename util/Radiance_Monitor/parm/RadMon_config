@@ -57,7 +57,6 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 
 export MY_MACHINE=${MY_MACHINE:-wcoss}
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
-echo endian = $LITTLE_ENDIAN
 
 
 #

@@ -17,7 +17,7 @@ set -ax
 date
 
 function usage {
-  echo "Usage:  MkBase.sh suffix 1>log 2>err"
+  echo "Usage:  MkBase.sh suffix [sat] 1>log 2>err"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKverf/stats directory."
   echo "            Redirection of log and err files is recommended for "
@@ -47,12 +47,6 @@ this_dir=`dirname $0`
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -60,12 +54,6 @@ else
    exit 2
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_user_settings file in ${top_parm}"
-#   exit 2
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -73,7 +61,6 @@ else
    exit 2
 fi
 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/data_extract_config
 
 
@@ -84,22 +71,11 @@ fi
 area=$RAD_AREA
 echo $area
 
-#if [[ $area = glb ]]; then
-#   . ${PARMverf_rad}/glbl_conf
-#   . ${DE_PARM}/glbl_conf
-#else
-#   . ${PARMverf_rad}/rgnl_conf
-#   . ${DE_PARM}/rgnl_conf
-#fi
-
-
 #-------------------------------------------------------------------
 #  Set dates
 #    BDATE is beginning date for the 30/60 day range
 #    EDATE is ending date for 30/60 day range (always use 00 cycle) 
 #-------------------------------------------------------------------
-#EDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
-#EDATE=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 EDATE=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
 echo $EDATE
 
@@ -120,16 +96,12 @@ cd $tmpdir
 #  find or build $SATYPE list for this data source.
 #-------------------------------------------------------------------
 if [[ $SINGLE_SAT -eq 0 ]]; then
-#   if [[ -e ${TANKDIR}/info/SATYPE.txt ]]; then
    if [[ -e ${TANKverf}/info/SATYPE.txt ]]; then
-#      SATYPE=`cat ${TANKDIR}/info/SATYPE.txt`
       SATYPE=`cat ${TANKverf}/info/SATYPE.txt`
    else
       PDY=`echo $EDATE|cut -c1-8`
 
-#      if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
       if [[ -d ${TANKverf}/radmon.${PDY} ]]; then
-#         test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${EDATE}.ieee_d*`
          test_list=`ls ${TANKverf}/radmon.${PDY}/angle.*${EDATE}.ieee_d*`
          for test in ${test_list}; do
             this_file=`basename $test`
@@ -182,9 +154,7 @@ for type in ${SATYPE}; do
    while [[ $cdate -le $EDATE ]]; do
       day=`echo $cdate | cut -c1-8 `
 
-#      if [[ -d ${TANKDIR}/radmon.${day} ]]; then
       if [[ -d ${TANKverf}/radmon.${day} ]]; then
-#         test_file=${TANKDIR}/radmon.${day}/time.${type}.${cdate}.ieee_d
          test_file=${TANKverf}/radmon.${day}/time.${type}.${cdate}.ieee_d
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
@@ -193,7 +163,6 @@ for type in ${SATYPE}; do
          fi
       fi
       if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-#         $NCP $TANKDIR/time/${type}.${cdate}.ieee_d* ./
          $NCP $TANKverf/time/${type}.${cdate}.ieee_d* ./
       fi
 
@@ -203,17 +172,13 @@ for type in ${SATYPE}; do
 
 
    day=`echo $EDATE | cut -c1-8 `
-#   test_file=${TANKDIR}/radmon.${day}/time.${type}.ctl
    test_file=${TANKverf}/radmon.${day}/time.${type}.ctl
  
    if [[ -s ${test_file} ]]; then
-#      $NCP $TANKDIR/radmon.${day}/time.${type}.ctl ${type}.ctl
       $NCP $TANKverf/radmon.${day}/time.${type}.ctl ${type}.ctl
    elif [[ -s ${test_file}.${Z} ]]; then
-#      $NCP $TANKDIR/radmon.${day}/time.${type}.ctl.${Z} ${type}.ctl.${Z}
       $NCP $TANKverf/radmon.${day}/time.${type}.ctl.${Z} ${type}.ctl.${Z}
    else
-#      $NCP $TANKDIR/time/${type}.ctl* ./
       $NCP $TANKverf/time/${type}.ctl* ./
    fi
 
@@ -271,9 +236,7 @@ done
 #  existing $basefile and add/replace the requested sat, leaving
 #  all others in the $basefile unchanged.
 #-------------------------------------------------------------------
-#if [[ ! -d ${TANKDIR}/info ]]; then
 if [[ ! -d ${TANKverf}/info ]]; then
-#   mkdir -p ${TANKDIR}/info
    mkdir -p ${TANKverf}/info
 fi
 
@@ -288,9 +251,7 @@ else
    cd $newbase
 
    #  copy over existing $basefile
-#   if [[ -e ${TANKDIR}/info/${basefile} || -e ${TANKDIR}/info/${basefile}.${Z} ]]; then
    if [[ -e ${TANKverf}/info/${basefile} || -e ${TANKverf}/info/${basefile}.${Z} ]]; then
-#      $NCP ${TANKDIR}/info/${basefile}* .
       $NCP ${TANKverf}/info/${basefile}* .
       if [[ -e ${basefile}.${Z} ]]; then
          $UNCOMPRESS ${basefile}.${Z}
@@ -310,14 +271,11 @@ else
 fi
 
 #  Remove the old version of the $basefile
-#if [[ -e ${TANKDIR}/info/${basefile} || -e ${TANKDIR}/info/${basefile}.${Z} ]]; then
 if [[ -e ${TANKverf}/info/${basefile} || -e ${TANKverf}/info/${basefile}.${Z} ]]; then
-#   rm -f ${TANKDIR}/info/${basefile}*
    rm -f ${TANKverf}/info/${basefile}*
 fi
 
 ${COMPRESS} ${basefile}
-#$NCP ${basefile}.${Z} ${TANKDIR}/info/.
 $NCP ${basefile}.${Z} ${TANKverf}/info/.
 
 #-------------------------------------------------------------------

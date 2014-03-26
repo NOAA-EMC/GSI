@@ -80,13 +80,6 @@ fi
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2 
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -100,9 +93,7 @@ else
    exit 3 
 fi
 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/data_extract_config
-#. ${DE_PARM}/rgnl_conf
 
 
 #--------------------------------------------------------------------
@@ -111,7 +102,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${DE_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -263,7 +254,6 @@ if [ -s $radstat -a -s $biascr ]; then
    export DATA_IN=${WORKverf_rad}
    export DATA=${DATA:-${STMP_USER}/radmon_regional}
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
-#   export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
   
@@ -282,7 +272,6 @@ if [ -s $radstat -a -s $biascr ]; then
       export base_file=${TANKverf}/info/radmon_base.tar
    fi
 
-#   export JOBNAME=${JOBNAME:-$jobname}
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.

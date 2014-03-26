@@ -72,12 +72,6 @@ fi
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source ${top_parm}/RadMon_config"
-#   exit 4
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -85,12 +79,6 @@ else
    exit 4
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source ${top_parm}/RadMon_user_settings"
-#   exit 6
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -98,14 +86,11 @@ else
    exit 6
 fi
 
-#. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${IG_PARM}/plot_rad_conf
 
 if [[ $RAD_AREA = "glb" ]]; then
-#   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
    . ${IG_PARM}/glbl_conf
 elif [[ $RAD_AREA = "rgn" ]]; then
-#   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
    . ${IG_PARM}/rgnl_conf
 else
    echo "ERROR:  unable to determine RAD_AREA for $SUFFIX"
@@ -118,14 +103,11 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${IG_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${IG_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
 fi
-
-
-#--------------------------------------------------------------------
 
 #--------------------------------------------------------------------
 #  Deterine the number of cycles between start_dt and end_dt.
@@ -208,7 +190,6 @@ if [[ "$CYA" = "00" ]];then
    export PLOT_HORIZ=1
 fi
 
-#echo plot = $PLOT, plot_horiz = $PLOT_HORIZ
 
 if [[ -d $PLOT_WORK_DIR ]]; then
    rm -rf $PLOT_WORK_DIR

@@ -13,7 +13,7 @@
 
 function usage {
   echo "Usage:  Copy_glbl.sh suffix date"
-  echo "            File name for MkCtl_glbl.sh may be full or relative path"
+  echo "            File name for Copy_glbl.sh may be full or relative path"
   echo "            Suffix is the indentifier for this data source, and should"
   echo "             correspond to an entry in the ../../parm/data_map file."
   echo "            DATE is 10 digit yyyymmddhh string."
@@ -49,12 +49,6 @@ echo DATE   = $DATE
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -62,12 +56,6 @@ else
    exit 2
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_user_settings file in ${top_parm}"
-#   exit 3
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then
    . ${RADMON_USER_SETTINGS}
 else
@@ -75,11 +63,8 @@ else
    exit 3
 fi
 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/data_extract_config
 export USHgfs=${USHgfs:-$HOMEgfs/ush}
-#. ${PARMverf_rad}/glbl_conf
-#. ${DE_PARM}/glbl_conf
 
 
 #--------------------------------------------------------------------
@@ -88,8 +73,7 @@ export USHgfs=${USHgfs:-$HOMEgfs/ush}
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-#   is_prod=`${USHverf_rad}/AmIOnProd.sh`
-   is_prod=`${DE_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -99,9 +83,7 @@ fi
 #---------------------------------------------------------------
 # Create any missing directories.
 #---------------------------------------------------------------
-#mkdir -p $TANKDIR
 mkdir -p $TANKverf
-#mkdir -p $LOGSverf_rad
 mkdir -p $LOGdir
 
 day=`echo $DATE|cut -c1-8`
@@ -124,7 +106,6 @@ echo next_day, next_cyc = $next_day, $next_cyc
 
 DATDIR=${DATDIR:-/com/verf/prod/radmon.${day}}
 
-#test_dir=${TANKDIR}/radmon.${day}
 test_dir=${TANKverf}/radmon.${day}
 
 if [[ ! -d ${test_dir} ]]; then
@@ -133,12 +114,9 @@ fi
 cd ${test_dir}
 
 if [[ ! -s gdas_radmon_satype.txt  ]]; then
-#   if [[ -s ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
    if [[ -s ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt ]]; then
-#      $NCP ${TANKDIR}/radmon.${prev_day}/gdas_radmon_satype.txt .
       $NCP ${TANKverf}/radmon.${prev_day}/gdas_radmon_satype.txt .
    else
-#      echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKDIR}/radmon.${prev_day}
       echo WARNING:  unable to locate gdas_radmon_satype.txt in ${TANKverf}/radmon.${prev_day}
    fi 
 fi
@@ -176,14 +154,11 @@ if [[ $nfile_src -gt 0 ]]; then
 #           rm stdout files?
 #           make sure *.base and *.tar are removed
 
-#   $NCP $EXECverf_rad/validate_time.x ${test_dir}/.
    $NCP ${DE_EXEC}/validate_time.x ${test_dir}/.
-#   $NCP $USHverf_rad/validate.sh      ${test_dir}/.
    $NCP $DE_SCRIPTS/validate.sh      ${test_dir}/.
    ./validate.sh ${PDATE}
 
 else
-#  no new data available because $DATDIR doesn't yet exist
    exit_value=5
 fi
 
@@ -210,12 +185,9 @@ if [[ $exit_value == 0 ]]; then
    #--------------------------------------------------------------------
    #  Create a new penalty error report using the new bad_pen file
    #--------------------------------------------------------------------
-#   $NCP $USHverf_rad/radmon_err_rpt.sh      ${test_dir}/.
    $NCP $DE_SCRIPTS/radmon_err_rpt.sh      ${test_dir}/.
-   #$NCP $USHgfs/radmon_err_rpt.sh            ${test_dir}/.
    $NCP $USHgfs/radmon_getchgrp.pl           ${test_dir}/.
 
-#   prev_bad_pen=${TANKDIR}/radmon.${prev_day}/bad_pen.${prev}
    prev_bad_pen=${TANKverf}/radmon.${prev_day}/bad_pen.${prev}
    bad_pen=bad_pen.${PDATE}
    diag_rpt="diag.txt"
@@ -366,9 +338,6 @@ if [[ $exit_value == 0 ]]; then
       fi
    fi
 
-#   if [[ ! -d ${LOGDIR} ]]; then
-#      mkdir -p ${LOGDIR}
-#   fi
    $NCP ./$new_log ${LOGdir}/data_extract.${day}.${cycle}.log
 
    rm -f $new_log

@@ -60,12 +60,6 @@ RAD_AREA=glb
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "Unable to source ${top_parm}/RadMon_config"
-#   exit
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -73,12 +67,6 @@ else
    exit
 fi
 
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then 
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source ${top_parm}/RadMon_user_settings"
-#   exit
-#fi
 if [[ -s ${RADMON_USER_SETTINGS} ]]; then 
    . ${RADMON_USER_SETTINGS}
 else
@@ -86,9 +74,7 @@ else
    exit
 fi
 
-#. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
 . ${IG_PARM}/plot_rad_conf
-#. ${RADMON_IMAGE_GEN}/parm/glbl_conf
 . ${IG_PARM}/glbl_conf
 
 
@@ -97,8 +83,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-#   is_prod=`${SCRIPTS}/AmIOnProd.sh`
-   is_prod=`${IG_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${IG_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -152,7 +137,6 @@ mkdir -p $LOGdir
 # set PDATE to it.  Otherwise, determie the last cycle processed 
 # (into *.ieee_d files) and use that as the PDATE.
 #--------------------------------------------------------------------
-#export PRODATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 export PRODATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 
 if [[ $plot_time != "" ]]; then
@@ -176,7 +160,6 @@ export PDY=`echo $PDATE|cut -c1-8`
 #--------------------------------------------------------------------
 proceed="NO"
 if [[ "$PRODATE" == "auto" ]]; then
-#   proceed=`${SCRIPTS}/confirm_data.sh ${SUFFIX} ${PDATE}`
    proceed=`${IG_SCRIPTS}/confirm_data.sh ${SUFFIX} ${PDATE}`
 elif [[ $PDATE -le $PRODATE ]]; then
    nfile_src=`ls -l ${TANKDIR}/radmon.${PDY}/*${PDATE}*ieee_d* | egrep -c '^-'` 
@@ -272,13 +255,10 @@ fi
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
-#${SCRIPTS}/mk_angle_plots.sh
 ${IG_SCRIPTS}/mk_angle_plots.sh
 
-#${SCRIPTS}/mk_bcoef_plots.sh
 ${IG_SCRIPTS}/mk_bcoef_plots.sh
 
-#${SCRIPTS}/mk_bcor_plots.sh
 ${IG_SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
@@ -288,22 +268,18 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    logfile="${LOGdir}/horiz.log"
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-#      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
       $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} ${IG_SCRIPTS}/mk_horiz_plots.sh
    else
-#      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
       $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
    fi
 fi
 
-#${SCRIPTS}/mk_time_plots.sh
 ${IG_SCRIPTS}/mk_time_plots.sh
 
 #------------------------------------------------------------------
 #  Run the make_archive.sh script if $DO_ARCHIVE is switched on.
 #------------------------------------------------------------------
 if [[ $DO_ARCHIVE = 1 ]]; then
-#   ${SCRIPTS}/make_archive.sh
    ${IG_SCRIPTS}/make_archive.sh
 fi
 
@@ -312,11 +288,9 @@ fi
 #--------------------------------------------------------------------
 if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
 
-#   logfile=${LOGSverf_rad}/rad${SUFFIX}/data_extract.${sdate}.${CYA}.log
    logfile=${LOGdir}/data_extract.${sdate}.${CYA}.log
   
    if [[ -s $logfile ]]; then
-#      ${SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
       ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
    fi
 fi

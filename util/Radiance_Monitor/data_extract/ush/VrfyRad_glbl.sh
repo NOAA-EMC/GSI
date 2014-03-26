@@ -82,13 +82,6 @@ fi
 top_parm=${this_dir}/../../parm
 export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "Unable to source RadMon_config file in ${top_parm}"
-#   exit 2
-#fi
 if [[ -s ${RADMON_CONFIG} ]]; then
    . ${RADMON_CONFIG}
 else
@@ -102,10 +95,7 @@ else
    exit 3
 fi
 
-#. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
 . ${DE_PARM}/data_extract_config
-#. ${PARMverf_rad}/glbl_conf
-#. ${DE_PARM}/glbl_conf
 
 
 #--------------------------------------------------------------------
@@ -114,7 +104,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${DE_SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -158,8 +148,6 @@ if [[ $RUN_ENVIR = dev ]]; then
    # Get date of cycle to process.
    #---------------------------------------------------------------
    if [[ $PDATE = "" ]]; then
-#      pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
-#      pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
       pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
@@ -229,7 +217,6 @@ if [[ -e ${radstat} ]]; then
    export DATA_IN=${WORKverf_rad}
    export DATA=${DATA:-${STMP_USER}/radmon}
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
-#   export TANKverf=${MY_TANKDIR}/stats/${SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
   
@@ -249,8 +236,6 @@ if [[ -e ${radstat} ]]; then
       export base_file=${TANKverf}/info/radmon_base.tar 
    fi
 
-#   export JOBNAME=${JOBNAME:-${jobname}}
-
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
@@ -259,7 +244,6 @@ if [[ -e ${radstat} ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/data_extract.${PDY}.${cyc}.log -M 100 -R affinity[core] -W 0:20 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
 
    elif [[ $MY_MACHINE = "zeus" ]]; then
-#      $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGdir/data_extract.${PDY}.${CYC}.log -e $LOGdir/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
   
