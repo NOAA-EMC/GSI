@@ -18,41 +18,6 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
 
    ;---------------------------------------
    ; step 1:
-   ;   Define a struct to hold data
-   ;---------------------------------------
-   ; Radiance data structure 
-   radData={ $
-   nFOV_Rad1    : lonarr(nOrbits),$         ; total number of FOVs in a file
-   scanPosRad1  : intarr(MAX_FOV,nOrbits),$  ; pos per file
-   scanLineRad1 : intarr(MAX_FOV,nOrbits),$  ; line per file
-   latRad1      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
-   lonRad1   : fltarr(MAX_FOV,nOrbits),$  ; lon per file
-   dirRad1   : fltarr(MAX_FOV,nOrbits),$  ; dir per file
-   angleRad1 : fltarr(MAX_FOV,nOrbits),$  ; ang per file
-   QC_Rad1   : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
-   tbRad1    : fltarr(MAX_FOV,nOrbits,MAX_CHAN),$ ; tb per file per channel
-   nFOV_Rad2 : lonarr(nOrbits),$          ; total number of FOVs in a file
-   scanPosRad2  : intarr(MAX_FOV,nOrbits),$  ; pos per file
-   scanLineRad2 : intarr(MAX_FOV,nOrbits),$  ; line per file
-   latRad2      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
-   lonRad2      : fltarr(MAX_FOV,nOrbits),$  ; lon per file
-   dirRad2      : fltarr(MAX_FOV,nOrbits),$  ; dir per file
-   angleRad2    : fltarr(MAX_FOV,nOrbits),$  ; ang per file
-   QC_Rad2      : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
-   tbRad2       : fltarr(MAX_FOV,nOrbits,MAX_CHAN), $ ; tb per file per channel
-   nChan        : 0L} 
-
-   ; Scene data structure 
-   sceneData={ $
-       tpwVec: fltarr(MAX_FOV, nOrbits),  $
-       clwVec: fltarr(MAX_FOV, nOrbits),  $
-       rwpVec: fltarr(MAX_FOV, nOrbits),  $
-       gwpVec: fltarr(MAX_FOV, nOrbits),  $
-       tSkinVec: fltarr(MAX_FOV, nOrbits),$
-       sfcTypVec: fltarr(MAX_FOV, nOrbits) }
-
-   ;---------------------------------------
-   ; step 2:
    ;   Read FMSRC file (observed radiance)
    ;---------------------------------------
    ;
@@ -105,7 +70,7 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
    ENDFOR
 
    ;---------------------------------------
-   ; step 3:
+   ; step 2:
    ;   Read FWD file   (simulated radiance)
    ;---------------------------------------
    ;
@@ -149,7 +114,7 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
    ENDFOR
 
    ;---------------------------------------
-   ; step 4:
+   ; step 3:
    ;   Read scene data (GFS 6-hr forecast)
    ;---------------------------------------
    ;
