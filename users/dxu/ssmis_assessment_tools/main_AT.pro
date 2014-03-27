@@ -188,45 +188,10 @@ reformArray, MAX_FOV, nOrbits,  $
 ;   Plot radiances (observed + simulated)
 ;-----------------------------------------
 mark_plotting:
-
 ; Plot radiances and radiance difference
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadObs, refRadSim, date
-
-index=where(24) 
-refRadObs_clear = refRadObs(index)
-
-plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
-    refRadObs_clear, refRadSim, date
-
-plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
-    refRadObs, refRadSim, date
-
-mark_plotting_scatter:
-plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
-    refRadObs, refRadSim, refSceneData, date
-
-mark_plotting_ClearSky:
-mark_plotting_CloudySky:
-mark_plotting_Precip:
-
-PRINT,'End of processing...'
-END
-mark_plotting_scatter:
-plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
-    refRadObs, refRadSim, refSceneData, date
-
-mark_plotting_ClearSky:
-mark_plotting_CloudySky:
-mark_plotting_Precip:
-
-PRINT,'End of processing...'
-END
 
 mark_plotting_scatter:
 plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
