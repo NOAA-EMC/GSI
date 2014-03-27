@@ -14,7 +14,7 @@
 ;
 ;---------------------------------------------------------------------------------
 PRO reformArray, MAX_FOV, nOrbits,  $
-   radData, refRadData,   $
+   radObs, radSim, refRadObs, refRadSim, $
    sceneData, refSceneData
 
    ; Define struct to hold reformed data.
@@ -24,32 +24,28 @@ PRO reformArray, MAX_FOV, nOrbits,  $
    ;     file 1        file 2             file n
    ;   [ Fov * File ][ Fov * File ] ... [ Fov * File ]
    ;-------------------------------------------------------
-   refRadData={  $
-      ref_scanPos1  : reform(radData.scanPosRad1(*, *), nOrbits * MAX_FOV), $
-      ref_scanPos2  : reform(radData.scanPosRad2(*, *), nOrbits * MAX_FOV), $
-      ref_scanLine1 : reform(radData.scanLineRad1(*, *), nOrbits * MAX_FOV),$
-      ref_scanLine2 : reform(radData.scanLineRad2(*, *), nOrbits * MAX_FOV),$
-      ref_Lat1      : reform(radData.latRad1(*, *), nOrbits * MAX_FOV),$
-      ref_Lat2      : reform(radData.latRad2(*, *), nOrbits * MAX_FOV),$
-      ref_Lon1      : reform(radData.lonRad1(*, *), nOrbits * MAX_FOV),$
-      ref_Lon2      : reform(radData.lonRad2(*, *), nOrbits * MAX_FOV),$
-      ref_ModeFlag1 : reform(radData.dirRad1(*, *), nOrbits * MAX_FOV),$
-      ref_ModeFlag2 : reform(radData.dirRad2(*, *), nOrbits * MAX_FOV),$
-      ref_Angle1    : reform(radData.angleRad1(*, *), nOrbits * MAX_FOV),$
-      ref_Angle2    : reform(radData.angleRad2(*, *), nOrbits * MAX_FOV),$
-      ref_QC1       : reform(radData.QC_Rad1(*, *), nOrbits * MAX_FOV),  $
-      ref_QC2       : reform(radData.QC_Rad2(*, *), nOrbits * MAX_FOV),  $
-      ref_Tb1       : fltarr(nOrbits * MAX_FOV, radData.nChan),$
-      ref_Tb2       : fltarr(nOrbits * MAX_FOV, radData.nChan),$
-      ref_TbDiff    : fltarr(nOrbits * MAX_FOV, radData.nChan) }
+   refRadObs.scanPos  = reform(radObs.scanPos(*, *), nOrbits * MAX_FOV)
+   refRadObs.scanLine = reform(radObs.scanLine(*, *), nOrbits * MAX_FOV)
+   refRadObs.lat      = reform(radObs.lat(*, *), nOrbits * MAX_FOV)
+   refRadObs.lon      = reform(radObs.lon(*, *), nOrbits * MAX_FOV)
+   refRadObs.modeFlag = reform(radObs.dir(*, *), nOrbits * MAX_FOV)
+   refRadObs.angle    = reform(radObs.angle(*, *), nOrbits * MAX_FOV)
+   refRadObs.QC       = reform(radObs.QC(*, *), nOrbits * MAX_FOV)
 
-   refSceneData={  $
-      ref_TPW_Vec: reform(sceneData.tpwVec(*, *), nOrbits * MAX_FOV), $
-      ref_CLW_Vec: reform(sceneData.clwVec(*, *), nOrbits * MAX_FOV), $
-      ref_RWP_Vec: reform(sceneData.rwpVec(*, *), nOrbits * MAX_FOV), $
-      ref_GWP_Vec: reform(sceneData.gwpVec(*, *), nOrbits * MAX_FOV), $
-      ref_tSkin_Vec: reform(sceneData.tSkinVec(*, *), nOrbits * MAX_FOV), $
-      ref_SfcType_Vec: reform(sceneData.sfcTypVec(*, *), nOrbits * MAX_FOV) }
+   refRadSim.scanPos  = reform(radSim.scanPos(*, *), nOrbits * MAX_FOV)
+   refRadSim.scanLine = reform(radSim.scanLine(*, *), nOrbits * MAX_FOV)
+   refRadSim.lat      = reform(radSim.lat(*, *), nOrbits * MAX_FOV)
+   refRadSim.lon      = reform(radSim.lon(*, *), nOrbits * MAX_FOV)
+   refRadSim.modeFlag = reform(radSim.dir(*, *), nOrbits * MAX_FOV)
+   refRadSim.angle    = reform(radSim.angle(*, *), nOrbits * MAX_FOV)
+   refRadSim.QC       = reform(radSim.QC(*, *), nOrbits * MAX_FOV)
+
+   refSceneData.tpwVec = reform(sceneData.tpwVec(*, *), nOrbits * MAX_FOV)
+   refSceneData.clwVec = reform(sceneData.clwVec(*, *), nOrbits * MAX_FOV)
+   refSceneData.rwpVec = reform(sceneData.rwpVec(*, *), nOrbits * MAX_FOV)
+   refSceneData.gwpVec = reform(sceneData.gwpVec(*, *), nOrbits * MAX_FOV)
+   refSceneData.tSkinVec = reform(sceneData.tSkinVec(*, *), nOrbits * MAX_FOV)
+   refSceneData.sfcTypeVec = reform(sceneData.sfcTypVec(*, *), nOrbits * MAX_FOV)
 
    ;--------------------------
    ; 3-d arrays conversion
@@ -62,11 +58,12 @@ PRO reformArray, MAX_FOV, nOrbits,  $
    ;   ...
    ; [ Fov * File ][ Fov * File ] ... [ Fov * File ]  <= chan n
    ;
-   FOR iChan = 0L, radData.nChan - 1 DO BEGIN
-      refRadData.ref_Tb1(*, iChan) = reform(radData.tbRad1(*, *, iChan), nOrbits * MAX_FOV)
-      refRadData.ref_Tb2(*, iChan) = reform(radData.tbRad2(*, *, iChan), nOrbits * MAX_FOV)
-      refRadData.ref_TbDiff(*, iChan) = refRadData.ref_Tb1(*, iChan) $ 
-                                        - refRadData.ref_Tb2(*, iChan)
+   FOR iChan = 0L, radObs.nChan - 1 DO BEGIN
+      refRadObs.tb(*, iChan) = reform(radObs.tb(*, *, iChan), nOrbits * MAX_FOV)
+      refRadSim.tb(*, iChan) = reform(radSim.tb(*, *, iChan), nOrbits * MAX_FOV)
+      ; O - B, and save the same tbDiff into refRadObs and refRadSim
+      refRadObs.tbDiff(*, iChan) = refRadObs.tb(*, iChan) - refRadSim.tb(*, iChan)
+      refRadSim.tbDiff(*, iChan) = refRadObs.tbDiff(*, iChan)
    ENDFOR
 
 END
