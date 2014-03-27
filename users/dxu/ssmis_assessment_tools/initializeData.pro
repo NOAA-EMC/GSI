@@ -12,31 +12,23 @@
 ;
 ;
 ;---------------------------------------------------------------------------------
+@defineDataStructure.pro
+
 PRO initializeRadDataType, MAX_FOV, nOrbits, MAX_CHAN, radData
    INT_FILL_VALUE = -999
    LONG_FILL_VALUE = -999L
    FLOAT_FILL_VALUE = -999.99
 
-   radData.nFOV_Rad1 = MAKE_ARRAY(nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   radData.scanPosRad1 = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   radData.scanLineRad1 = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   radData.latRad1      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.lonRad1   = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.dirRad1   = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.angleRad1 = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.QC_Rad1   = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   radData.tbRad1    = MAKE_ARRAY(MAX_FOV, nOrbits, MAX_CHAN, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.nFOV_Rad2 = MAKE_ARRAY(nOrbits, /LONG , VALUE = LONG_FILL_VALUE)
-   radData.scanPosRad2  = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   radData.scanLineRad2 = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   radData.latRad2      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.lonRad2      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.dirRad2      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.angleRad2    = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.QC_Rad2      = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   radData.tbRad2       = MAKE_ARRAY(MAX_FOV, nOrbits, MAX_CHAN, $
-                             /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   radData.nChan        = LONG_FILL_VALUE
+   radData.nFOV = LONG_FILL_VALUE
+   radData.scanPos  = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
+   radData.scanLine = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
+   radData.lat   = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   radData.lon   = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   radData.dir   = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   radData.angle = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   radData.QC    = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
+   radData.tb    = MAKE_ARRAY(MAX_FOV, nOrbits, MAX_CHAN, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   radData.nChan = LONG_FILL_VALUE
 END
 
 PRO initializeSceneDataType, MAX_FOV, nOrbits,  sceneData
@@ -56,39 +48,52 @@ PRO initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadData
    LONG_FILL_VALUE = -999L
    FLOAT_FILL_VALUE = -999.99
 
-   refRadData.ref_scanPos1  = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   refRadData.ref_scanPos2  = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   refRadData.ref_scanLine1 = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   refRadData.ref_scanLine2 = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
-   refRadData.ref_Lat1      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_Lat2      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_Lon1      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_Lon2      = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_ModeFlag1 = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   refRadData.ref_ModeFlag2 = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   refRadData.ref_Angle1    = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_Angle2    = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_QC1       = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   refRadData.ref_QC2       = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
-   refRadData.ref_Tb1       = MAKE_ARRAY(MAX_FOV, nOrbits, MAX_CHAN, $
+   refRadData.scanPos  = MAKE_ARRAY(MAX_FOV * nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
+   refRadData.scanLine = MAKE_ARRAY(MAX_FOV * nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
+   refRadData.lat      = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refRadData.lon      = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refRadData.modeFlag = MAKE_ARRAY(MAX_FOV * nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
+   refRadData.angle    = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refRadData.QC       = MAKE_ARRAY(MAX_FOV * nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
+   refRadData.tb       = MAKE_ARRAY(MAX_FOV * nOrbits, MAX_CHAN, $
                              /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_Tb2       = MAKE_ARRAY(MAX_FOV, nOrbits, MAX_CHAN, $
-                             /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refRadData.ref_TbDiff    = MAKE_ARRAY(MAX_FOV, nOrbits, MAX_CHAN, $
+   refRadData.tbDiff    = MAKE_ARRAY(MAX_FOV * nOrbits, MAX_CHAN, $
                              /FLOAT, VALUE = FLOAT_FILL_VALUE)
 
 END
-
 
 PRO initializeRefSceneDataType, MAX_FOV, nOrbits,  refSceneData
    LONG_FILL_VALUE = -999L
    FLOAT_FILL_VALUE = -999.99
 
-   refSceneData.ref_TPW_Vec = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refSceneData.ref_CLW_Vec = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE) 
-   refSceneData.ref_RWP_Vec = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refSceneData.ref_GWP_Vec = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refSceneData.ref_tSkin_Vec = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
-   refSceneData.ref_SfcType_Vec = MAKE_ARRAY(MAX_FOV, nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
+   refSceneData.tpwVec = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refSceneData.clwVec = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE) 
+   refSceneData.rwpVec = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refSceneData.gwpVec = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refSceneData.tSkinVec = MAKE_ARRAY(MAX_FOV * nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)
+   refSceneData.sfcTypeVec = MAKE_ARRAY(MAX_FOV * nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
 END
 
+PRO initializeAll, MAX_FOV, nOrbits, MAX_CHAN, $ 
+    radObs, radSim, sceneData, $
+    refRadObs, refRadSim, refSceneData 
+
+   ; Define types and initialize to default value of each type.
+   defineRadDataType, MAX_FOV, nOrbits, MAX_CHAN, radObs
+   defineSceneDataType, MAX_FOV, nOrbits,  sceneData
+   defineRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadObs
+   defineRefSceneDataType, MAX_FOV, nOrbits,  refSceneData
+
+   ; Create objects of types
+   radSim = CREATE_STRUCT(NAME = 'RadDataType')
+   refRadSim = CREATE_STRUCT(NAME = 'RefRadDataType')
+
+   ; Initialize data to FILL values
+   initializeRadDataType, MAX_FOV, nOrbits, MAX_CHAN, radObs
+   initializeRadDataType, MAX_FOV, nOrbits, MAX_CHAN, radSim
+   initializeSceneDataType, MAX_FOV, nOrbits,  sceneData
+   initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadObs
+   initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadSim
+   initializeRefSceneDataType, MAX_FOV, nOrbits,  refSceneData
+
+END
