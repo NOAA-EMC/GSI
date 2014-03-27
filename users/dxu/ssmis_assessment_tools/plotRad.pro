@@ -63,34 +63,16 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;----------------------------
       ;  Filter for all orbits
       ;----------------------------
-      filter_tbObs_All = WHERE(refRadObs.lat ge MIN_LAT   $
-		and refRadObs.lat le MAX_LAT         $
-		;and refRadObs.modeFlag eq 0         $
-		and refRadObs.tb(*,chPlotArray(iChan)) gt 0 )
-      filter_tbSim_All = WHERE(refRadSim.lat ge MIN_LAT $
-		and refRadSim.lat le MAX_LAT            $
-		; and refRadSim.modeFlag eq 0           $
-		and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
-      filter_tbDiff_All = WHERE(refRadObs.lat ge MIN_LAT    $
+      filter_All = WHERE(refRadObs.lat ge MIN_LAT           $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
-                ;and refRadObs.modeFlag eq 0                $
                 and refRadSim.lat ge MIN_LAT                $
                 and refRadSim.lat le MAX_LAT                $
-                ;and refRadSim.modeFlag eq 0 $
                 and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
       ;----------------------------
       ;  Filter for ascending orbits
       ;----------------------------
-      filter_tbObs_asc = WHERE(refRadObs.lat ge MIN_LAT   $
-		and refRadObs.lat le MAX_LAT         $
-		and refRadObs.modeFlag eq 0          $
-		and refRadObs.tb(*,chPlotArray(iChan)) gt 0 )
-      filter_tbSim_asc = WHERE(refRadSim.lat ge MIN_LAT $
-		and refRadSim.lat le MAX_LAT            $
-		 and refRadSim.modeFlag eq 0            $
-		and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
-      filter_tbDiff_asc = WHERE(refRadObs.lat ge MIN_LAT    $
+      filter_Asc = WHERE(refRadObs.lat ge MIN_LAT           $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
                 and refRadObs.modeFlag eq 0                 $
@@ -101,15 +83,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;----------------------------
       ;  Filter for descending orbits
       ;----------------------------
-      filter_tbObs_desc = WHERE(refRadObs.lat ge MIN_LAT   $
-		and refRadObs.lat le MAX_LAT         $
-		and refRadObs.modeFlag eq 1          $
-		and refRadObs.tb(*,chPlotArray(iChan)) gt 0 )
-      filter_tbSim_desc = WHERE(refRadSim.lat ge MIN_LAT $
-		and refRadSim.lat le MAX_LAT            $
-		 and refRadSim.modeFlag eq 1            $
-		and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
-      filter_tbDiff_desc = WHERE(refRadObs.lat ge MIN_LAT    $
+      filter_Desc = WHERE(refRadObs.lat ge MIN_LAT          $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
                 and refRadObs.modeFlag eq 1                 $
@@ -132,8 +106,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 	       refRadObs.lat,refRadObs.lon,                  $
-	       ;filter_tbObs_All,   $
-	       filter_tbDiff_All,   $
+	       filter_All,   $
 	       title,     $
 	       minBT_Values(chPlotArray(iChan)),   $
 	       maxBT_Values(chPlotArray(iChan)),   $
@@ -157,8 +130,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
 	       refRadSim.lat,refRadSim.lon,                  $
-	       filter_tbDiff_All,   $
-	       ;filter_tbSim_All,   $
+	       filter_All,   $
 	       title,     $
 	       minBT_Values(chPlotArray(iChan)),      $
 	       maxBT_Values(chPlotArray(iChan)),      $
@@ -178,12 +150,12 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       colPosition = 2
 
       ; Get min and max of radiance differences for each channel. 
-      minTB_DiffValue = min(refRadObs.tbDiff(filter_tbDiff_All, chPlotArray(iChan)))
-      maxTB_DiffValue = max(refRadObs.tbDiff(filter_tbDiff_All, chPlotArray(iChan)))
+      minTB_DiffValue = min(refRadObs.tbDiff(filter_All, chPlotArray(iChan)))
+      maxTB_DiffValue = max(refRadObs.tbDiff(filter_All, chPlotArray(iChan)))
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
                refRadObs.lat,refRadObs.lon,    $
-               filter_tbDiff_All,   $
+               filter_All,   $
                title,     $
                minTB_DiffValue,    $
                maxTB_DiffValue,    $
