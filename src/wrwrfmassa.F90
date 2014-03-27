@@ -649,6 +649,7 @@ subroutine wrwrfmassa_binary(mype)
      ip1=i+1
      do j=1,lat1
 !  Convert 2m specific humidity to mixing ratio
+        jp1=j+1
         all_loc(j,i,i_q2)=ges_q2(jp1,ip1,it)/(one-ges_q2(jp1,ip1,it))
      end do
   end do
