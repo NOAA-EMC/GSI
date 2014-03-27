@@ -152,40 +152,13 @@ ENDIF
 ; Save number of rad files (orbits)
 nOrbits=nRadFiles1
 
-;-------------------------------------------
+;---------------------------------------------
 ; step 2:
-;   Define data structures 
-;-------------------------------------------
-; Radiance data structure
-radData={ RadDataType, $
-nFOV_Rad1    : lonarr(nOrbits),$         ; total number of FOVs in a file
-scanPosRad1  : intarr(MAX_FOV,nOrbits),$  ; pos per file
-scanLineRad1 : intarr(MAX_FOV,nOrbits),$  ; line per file
-latRad1      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
-lonRad1   : fltarr(MAX_FOV,nOrbits),$  ; lon per file
-dirRad1   : fltarr(MAX_FOV,nOrbits),$  ; dir per file
-angleRad1 : fltarr(MAX_FOV,nOrbits),$  ; ang per file
-QC_Rad1   : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
-tbRad1    : fltarr(MAX_FOV,nOrbits,MAX_CHAN),$ ; tb per file per channel
-nFOV_Rad2 : lonarr(nOrbits),$          ; total number of FOVs in a file
-scanPosRad2  : intarr(MAX_FOV,nOrbits),$  ; pos per file
-scanLineRad2 : intarr(MAX_FOV,nOrbits),$  ; line per file
-latRad2      : fltarr(MAX_FOV,nOrbits),$  ; lat per file
-lonRad2      : fltarr(MAX_FOV,nOrbits),$  ; lon per file
-dirRad2      : fltarr(MAX_FOV,nOrbits),$  ; dir per file
-angleRad2    : fltarr(MAX_FOV,nOrbits),$  ; ang per file
-QC_Rad2      : fltarr(MAX_FOV,nOrbits),$  ; QC  per file
-tbRad2       : fltarr(MAX_FOV,nOrbits,MAX_CHAN), $ ; tb per file per channel
-nChan        : 0L}
-
-; Scene data structure
-sceneData={ SceneDataType, $
-   tpwVec    : fltarr(MAX_FOV, nOrbits),  $
-   clwVec    : fltarr(MAX_FOV, nOrbits),  $
-   rwpVec    : fltarr(MAX_FOV, nOrbits),  $
-   gwpVec    : fltarr(MAX_FOV, nOrbits),  $
-   tSkinVec  : fltarr(MAX_FOV, nOrbits),$
-   sfcTypVec : fltarr(MAX_FOV, nOrbits) }
+;   Define data structures and initalize data 
+;---------------------------------------------
+initializeAll, MAX_FOV, nOrbits, MAX_CHAN, $
+   radObs, radSim, sceneData, $
+   refRadObs, refRadSim, refSceneData
 
 PRINT, "Begin readRadFile  =========="
 ;-------------------------------------------
@@ -197,7 +170,7 @@ PRINT, "Begin readRadFile  =========="
 print, "****************    ",  sceneFileList
 readRadFile, nOrbits, MAX_FOV, MAX_CHAN,      $
    radFileList1, radFileList2, sceneFileList, $
-   radData, sceneData
+   radObs, radSim, sceneData
 
 PRINT, "done with readRadFile  =========="
 
@@ -207,7 +180,7 @@ PRINT, "done with readRadFile  =========="
 ;-------------------------------------------
 mark_reform:
 reformArray, MAX_FOV, nOrbits,  $
-   radData, refRadData,         $
+   radObs, radSim, refRadObs, refRadSim, $
    sceneData, refSceneData    
 
 ;-----------------------------------------
@@ -219,12 +192,46 @@ mark_plotting:
 ; Plot radiances and radiance difference
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
-    refRadData, date
+    refRadObs, refRadSim, date
+
+index=where(24) 
+refRadObs_clear = refRadObs(index)
+
+plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+    refRadObs_clear, refRadSim, date
+
+plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+    refRadObs, refRadSim, date
 
 mark_plotting_scatter:
 plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
-    refRadData, refSceneData, date
+    refRadObs, refRadSim, refSceneData, date
+
+mark_plotting_ClearSky:
+mark_plotting_CloudySky:
+mark_plotting_Precip:
+
+PRINT,'End of processing...'
+END
+mark_plotting_scatter:
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
+    refRadObs, refRadSim, refSceneData, date
+
+mark_plotting_ClearSky:
+mark_plotting_CloudySky:
+mark_plotting_Precip:
+
+PRINT,'End of processing...'
+END
+
+mark_plotting_scatter:
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
+    refRadObs, refRadSim, refSceneData, date
 
 mark_plotting_ClearSky:
 mark_plotting_CloudySky:

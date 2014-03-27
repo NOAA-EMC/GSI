@@ -14,7 +14,7 @@
 ;---------------------------------------------------------------------------------
 PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
     radFileList1, radFileList2, sceneFileList, $ 
-    radData, sceneData
+    radObs, radSim, sceneData
 
    ;---------------------------------------
    ; step 1:
@@ -43,28 +43,25 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
       PRINT,'------------------------------------------------'
       ; Save number of channels 
       IF (iFile eq 0L ) THEN BEGIN
-         radData.nChan = rad1.nChan
+         radObs.nChan = rad1.nChan
       ENDIF
 
-      ; Save the number of channels
-      nChan = rad1.nChan
-
       ; Save total number of FOVs in a file
-      radData.nFOV_Rad1(iFile) = rad1.nprof
+      radObs.nFOV(iFile) = rad1.nprof
 
       ; Loop thru. FOVs within orbit
       FOR iProf = 0L, rad1.nprof - 1 DO BEGIN
-	 radData.scanPosRad1(iProf, iFile) = rad1.ScanPos(0, iProf)
-	 radData.scanLineRad1(iProf, iFile) = rad1.ScanLine(0, iProf)
-	 radData.latRad1(iProf, iFile)  = rad1.Lat(0, iProf)
-	 radData.lonRad1(iProf, iFile)  = rad1.Lon(0, iProf)
-	 radData.dirRad1(iProf, iFile)  = rad1.Direc(0, iProf)
+	 radObs.scanPos(iProf, iFile) = rad1.scanPos(0, iProf)
+	 radObs.scanLine(iProf, iFile) = rad1.scanLine(0, iProf)
+	 radObs.lat(iProf, iFile)  = rad1.lat(0, iProf)
+	 radObs.lon(iProf, iFile)  = rad1.lon(0, iProf)
+	 radObs.dir(iProf, iFile)  = rad1.direc(0, iProf)
 	 ; Average angles over all channels to compute mean angle
-	 radData.angleRad1(iProf, iFile)  = mean(rad1.Angle(0, iProf, 0 : rad1.nChan - 1))
+	 radObs.angle(iProf, iFile)  = mean(rad1.angle(0, iProf, 0 : rad1.nChan - 1))
 	 ; Get the 1st QC in the 1st orbit
-	 radData.QC_Rad1(iProf, iFile)  = rad1.QC(0,iProf,0)
+	 radObs.QC(iProf, iFile)  = rad1.QC(0,iProf,0)
 	 ; Get tb for each channel
-	 radData.tbRad1(iProf, iFile, 0 : rad1.nChan - 1)   $
+	 radObs.tb(iProf, iFile, 0 : rad1.nChan - 1)   $
 	     = rad1.tb(0, iProf, 0 : rad1.nChan - 1)
       ENDFOR
    ENDFOR
@@ -92,23 +89,27 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
       PRINT, "Number of scan positions per line : ", rad2.nPosScan
       PRINT, "Number of scan lines              : ", rad2.nScanLines
       PRINT,'------------------------------------------------'
+      ; Save number of channels 
+      IF (iFile eq 0L ) THEN BEGIN
+         radSim.nChan = rad2.nChan
+      ENDIF
 
       ; Save total number of FOVs in a file
-      radData.nFOV_Rad2(iFile) = rad2.nprof
+      radSim.nFOV(iFile) = rad2.nprof
 
       ; Loop thru. FOVs within orbit
       FOR iProf = 0L, rad2.nprof - 1 DO BEGIN
-	 radData.scanPosRad2(iProf, iFile) = rad2.ScanPos(0, iProf)
-	 radData.scanLineRad2(iProf, iFile) = rad2.ScanLine(0, iProf)
-	 radData.latRad2(iProf, iFile)  = rad2.Lat(0, iProf)
-	 radData.lonRad2(iProf, iFile)  = rad2.Lon(0, iProf)
-	 radData.dirRad2(iProf, iFile)  = rad2.Direc(0, iProf)
+	 radSim.scanPos(iProf, iFile) = rad2.scanPos(0, iProf)
+	 radSim.scanLine(iProf, iFile) = rad2.scanLine(0, iProf)
+	 radSim.lat(iProf, iFile)  = rad2.lat(0, iProf)
+	 radSim.lon(iProf, iFile)  = rad2.lon(0, iProf)
+	 radSim.dir(iProf, iFile)  = rad2.direc(0, iProf)
 	 ; Average angles over all channels to compute mean angle
-	 radData.angleRad2(iProf, iFile)  = mean(rad2.Angle(0, iProf, 0 : rad2.nChan - 1))
+	 radSim.angle(iProf, iFile)  = mean(rad2.angle(0, iProf, 0 : rad2.nChan - 1))
 	 ; Get the 1st QC in the 1st orbit
-	 radData.QC_Rad2(iProf, iFile)  = rad2.QC(0,iProf,0)
+	 radSim.QC(iProf, iFile)  = rad2.QC(0,iProf,0)
 	 ; Get tb for each channel
-	 radData.tbRad2(iProf, iFile, 0 : rad2.nChan - 1)   $
+	 radSim.tb(iProf, iFile, 0 : rad2.nChan - 1)   $
 	     = rad2.tb(0, iProf, 0 : rad2.nChan - 1)
       ENDFOR
    ENDFOR

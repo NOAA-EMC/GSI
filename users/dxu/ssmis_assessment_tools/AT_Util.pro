@@ -13,8 +13,10 @@
 ;
 ;
 ;---------------------------------------------------------------------------------
-@configSensorParam.pro  ; util 1
-@readRadFile.pro        ; util 2
-@reformArray.pro        ; util 3
-@plotRad.pro            ; util 4
-@plotScattering.pro     ; util 5
+@configSensorParam.pro   ; util 1
+@readRadFile.pro         ; util 2
+@reformArray.pro         ; util 3
+@plotRad.pro             ; util 4
+@plotScattering.pro      ; util 5
+@defineDataStructure.pro ; util 6
+@initializeData.pro      ; util 7
