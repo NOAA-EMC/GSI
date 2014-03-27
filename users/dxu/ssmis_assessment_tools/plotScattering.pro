@@ -61,7 +61,8 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
 
       ; chan_str
       chanNo = STRING(chanNumArray(iChan))
-
+     
+      ; tbDiff vs TPW
       imageNameTPW = STRCOMPRESS(prefix + 'TPW_' + chanNo + '.ps',/remove_all)
       titleTPW = STRCOMPRESS('SSMIS TB diff vs TPW (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
@@ -70,6 +71,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          refSceneData.tpwVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
 
+      ; tbDiff vs CLW
       imageNameCLW = STRCOMPRESS(prefix + 'CLW_' + chanNo + '.ps',/remove_all)
       titleCLW = STRCOMPRESS('SSMIS TB diff vs CLW (chan ' + chanNo + ': ' $
                               + chanInfoArray(iChan) + ") " + date )
@@ -78,6 +80,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          refSceneData.clwVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
+      ; tbDiff vs RWP
       imageNameRWP = STRCOMPRESS(prefix + 'RWP_' + chanNo + '.ps',/remove_all)
       titleRWP = STRCOMPRESS('SSMIS TB diff vs RWP (chan ' + chanNo + ': ' $
                               + chanInfoArray(iChan) + ") " + date )
@@ -86,6 +89,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          refSceneData.rwpVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
+      ; tbDiff vs GWP
       imageNameGWP = STRCOMPRESS(prefix + 'GWP_' + chanNo + '.ps',/remove_all)
       titleGWP = STRCOMPRESS('SSMIS TB diff vs GWP (chan ' + chanNo + ': '  $
                               + chanInfoArray(iChan) + ") " + date )
@@ -94,6 +98,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          refSceneData.gwpVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
+      ; tbDiff vs SkinT
       imageNameSkinT = STRCOMPRESS(prefix + 'SkinT_' + chanNo + '.ps',/remove_all)
       titleSkinT = STRCOMPRESS('SSMIS TB diff vs SkinT (chan ' + chanNo + ': ' $
                               + chanInfoArray(iChan) + ") " + date )
@@ -102,13 +107,50 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
          refSceneData.tSkinVec,      $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
+      ; tbDiff vs SfcType
       imageNameSfcType = STRCOMPRESS(prefix + 'SfcType_' + chanNo + '.ps',/remove_all)
       titleSfcType = STRCOMPRESS('SSMIS TB diff vs SfcType (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameSfcType, titleSfcType,  $
          'SfcType (mm)', 'TB Diff (K)', $
          refSceneData.sfcTypeVec,      $
-         refRadObs.tbDiff, f1, f2, f3, f4, iChan, unitX, unitY
+         refRadObs.tbDiff, f1, f2, f3, f4, iChan
+      
+      ; tbDiff vs scanPos
+      imageNameScanPos = STRCOMPRESS(prefix + 'ScanPos_' + chanNo + '.ps',/remove_all)
+      titleScanPos = STRCOMPRESS('SSMIS TB diff vs scanPos (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
+      doScatterPlotting, imageNameScanPos, titleScanPos,  $
+         'scanPos ', 'TB Diff (K)', $
+         refRadObs.scanPos,   $
+         refRadObs.tbDiff, f1, f2, f3, f4, iChan
+      
+      ; tbDiff vs angle
+      imageNameAngle = STRCOMPRESS(prefix + 'Angle_' + chanNo + '.ps',/remove_all)
+      titleScanPos = STRCOMPRESS('SSMIS TB diff vs angle (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
+      doScatterPlotting, imageNameAngle, titleAngle,  $
+         'angle (deg) ', 'TB Diff (K)', $
+         refRadObs.angle,   $
+         refRadObs.tbDiff, f1, f2, f3, f4, iChan
+      
+      ; tbDiff vs lat
+      imageNameLat = STRCOMPRESS(prefix + 'Lat_' + chanNo + '.ps',/remove_all)
+      titleLat = STRCOMPRESS('SSMIS TB diff vs Lat (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
+      doScatterPlotting, imageNameLat, titleLat,  $
+         'Lat (deg)', 'TB Diff (K)', $
+         refRadObs.lat,   $
+         refRadObs.tbDiff, f1, f2, f3, f4, iChan
+      
+      ; radObs vs radSim
+      imageNameRad = STRCOMPRESS(prefix + 'Rad_' + chanNo + '.ps',/remove_all)
+      titleRad = STRCOMPRESS('SSMIS radObs vs radSim (chan ' + chanNo + ': ' $
+                             + chanInfoArray(iChan) + ") " + date )
+      doScatterPlotting, imageNameRad, titleRad,  $
+         'TB Sim (K)', 'TB Obs (K)', $
+         refRadSim.tb,   $
+         refRadObs.tb, f1, f2, f3, f4, iChan
       
 
    ENDFOR
@@ -116,8 +158,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
 END
 
 PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
-   dataX, dataY, f1, f2, f3, f4, iChan,   $
-   unitX, unitY
+   dataX, dataY, f1, f2, f3, f4, iChan
 
    LOADCT, 39
    ERASE
@@ -126,8 +167,8 @@ PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
    aspect_ratio = 0.8 ;rectangle
    xSizeVal = 35
    ySizeVal = xSizeVal * aspect_ratio
-   xPosRatio = 0.2  ; 20% 
-   yPosRatio = 0.1  ; 10% 
+   xPosRatio = 0.8  ; 20% 
+   yPosRatio = 0.05  ; 10% 
    DEVICE, FILENAME=imageName, /COLOR, BITS_PER_PIXEL=8,          $
 	   XSIZE=xSizeVal, YSIZE=ySizeVal, XOFFSET=2, YOFFSET=2,  $
 	   /PORTRAIT, FONT_SIZE=11, /BOLD, /COURIER
@@ -136,44 +177,44 @@ PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
    maxX = MAX(dataX(f1))
    minY = MIN(dataY(f1,iChan))
    maxY = MAX(dataY(f1,iChan))
-   posX = minX + xPosRatio * ( maxX - minX )
+   posX = maxX - xPosRatio * ( maxX - minX )
    posY = maxY - yPosRatio * ( maxY - minY )
    PLOT, dataX(f1), dataY(f1,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
-      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX]
+      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
    XYOUTS, posX, posY, ' Sfc Type 0'
 
    minX = min(dataX(f2))
    maxX = MAX(dataX(f2))
    minY = MIN(dataY(f2,iChan))
    maxY = MAX(dataY(f2,iChan))
-   posX = minX + xPosRatio * ( maxX - minX )
+   posX = maxX - xPosRatio * ( maxX - minX )
    posY = maxY - yPosRatio * ( maxY - minY )
    PLOT, dataX(f2), dataY(f2,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
-      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX]
+      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
    XYOUTS, posX, posY, ' Sfc Type 1'
 
    minX = min(dataX(f3))
    maxX = MAX(dataX(f3))
    minY = MIN(dataY(f3,iChan))
    maxY = MAX(dataY(f3,iChan))
-   posX = minX + xPosRatio * ( maxX - minX )
+   posX = maxX - xPosRatio * ( maxX - minX )
    posY = maxY - yPosRatio * ( maxY - minY )
    PLOT, dataX(f3), dataY(f3,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
-      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX]
+      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
    XYOUTS, posX, posY, ' Sfc Type 2'
 
    minX = min(dataX(f4))
    maxX = MAX(dataX(f4))
    minY = MIN(dataY(f4,iChan))
    maxY = MAX(dataY(f4,iChan))
-   posX = minX + xPosRatio * ( maxX - minX )
+   posX = maxX - xPosRatio * ( maxX - minX )
    posY = maxY - yPosRatio * ( maxY - minY )
    PLOT, dataX(f4), dataY(f4,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
-      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX]
+      MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
    XYOUTS, posX, posY, ' Sfc Type 3'
 
    DEVICE, /CLOSE
