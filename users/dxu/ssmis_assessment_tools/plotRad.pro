@@ -103,14 +103,17 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Generate plot position
       ; Column position
       colPosition = 0
+      
+      ; Get min and max of observed radiance for each channel. 
+      minBT = min(refRadObs.tb(filter_All,chPlotArray(iChan)) )
+      maxBT = max(refRadObs.tb(filter_All,chPlotArray(iChan)) )
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 	       refRadObs.lat,refRadObs.lon,                  $
 	       filter_All,   $
 	       title,     $
-	       minBT_Values(chPlotArray(iChan)),   $
-	       maxBT_Values(chPlotArray(iChan)),   $
-	       refRadObs.tb(*,chPlotArray(iChan)),         $
+	       minBT, maxBT, $
+	       refRadObs.tb(*, chPlotArray(iChan)), $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb
@@ -128,13 +131,16 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Column position
       colPosition = 1
 
+      ; Get min and max of simulated radiance for each channel. 
+      minBT = min(refRadSim.tb(filter_All,chPlotArray(iChan)) )
+      maxBT = max(refRadSim.tb(filter_All,chPlotArray(iChan)) )
+
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
 	       refRadSim.lat,refRadSim.lon,                  $
 	       filter_All,   $
 	       title,     $
-	       minBT_Values(chPlotArray(iChan)),      $
-	       maxBT_Values(chPlotArray(iChan)),      $
-	       refRadSim.tb(*,chPlotArray(iChan)),         $
+	       minBT, maxBT, $
+	       refRadSim.tb(*, chPlotArray(iChan)),         $
 	       'K', $   ;unit
 	       0.8, $   ;scale
 	       8,   $   ;symb
@@ -152,6 +158,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Get min and max of radiance differences for each channel. 
       minTB_DiffValue = min(refRadObs.tbDiff(filter_All, chPlotArray(iChan)))
       maxTB_DiffValue = max(refRadObs.tbDiff(filter_All, chPlotArray(iChan)))
+      print, minTB_DiffValue, maxTB_DiffValue
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
                refRadObs.lat,refRadObs.lon,    $
@@ -252,7 +259,7 @@ PRO radPloting, MIN_LAT, MAX_LAT, MIN_LON, MAX_LON,   $
 
    charsize=charSize*1.3
 
-   ;MAP_CONTINENTS,/CONTINENTS,/NOBORDER,/HIRES,/USA,FILL_CONTINENTS=0,COLOR=18
+   MAP_CONTINENTS,/CONTINENTS,/NOBORDER,/HIRES,/USA,FILL_CONTINENTS=2,COLOR=18
 
    MAP_GRID,LATDEL=latdelVal,LONDEL=londelVal,/LABEL,          $
       LONLAB=MIN_LAT,LATLAB=MIN_LON,LONALIGN=0.,LATALIGN=0.,   $
