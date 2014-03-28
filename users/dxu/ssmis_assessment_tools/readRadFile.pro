@@ -75,7 +75,7 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
    FOR iFile = 0L, nOrbits - 1 DO BEGIN
       PRINT,'------------------------------------------------'
       PRINT,'Orbit ',iFile, " is being processed : "
-      PRINT,'   simulated orbit file :',radFileList2(iFile)
+      PRINT,'   simulated radiance orbit file :',radFileList2(iFile)
 
       ;
       ; Read radiance from rad2
