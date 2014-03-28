@@ -50,6 +50,10 @@ PRO configSensorParam, sensorOption, paramStruct
                                  VALUE=STRING_FILL_Val),$ 
       chPlotArray   : MAKE_ARRAY(MAX_CHAN_NUM,/INT,     $
                                  VALUE=INT_FILL_Val),   $
+      CLW_THRESHOLD_MIN : 0.05,  $
+      CLW_THRESHOLD_MAX : 0.3,   $
+      RWP_THRESHOLD     : 0.01,  $
+      GWP_THRESHOLD     : 0.01,  $
       date : '2013-01-20'}
 
    ;-----------------------------------------------
