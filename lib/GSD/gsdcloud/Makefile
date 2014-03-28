@@ -38,8 +38,8 @@
 #
 #-----------------------------------------------------------------------
 
-FTN = mpfort
-LDR = mpfort
+FTN = ifort
+LDR = ifort
 CC  = cc
 
 GNRL_LD = $(LDR)
@@ -116,7 +116,8 @@ GNRLCLDOBJS = kinds.o                    constants.o \
               adaslib.o                  convert_lghtn2ref.o    read_nasalarc_cld.o  \
               build_missing_REFcone.o    get_sfm_1d_gnl.o       read_radar_ref.o     \
               cloudCover_NESDIS.o        smooth.o      \
-              cloudCover_Surface.o       map_ctp.o              vinterp_radar_ref.o  
+              cloudCover_Surface.o       map_ctp.o              vinterp_radar_ref.o  \
+              hydro_mxr_thompson.o
 
 ##BackgroundCld.o read_Surface.o read_NESDIS.o \
               interp_NSSL_ref.o cloudCover_Surface.o     \

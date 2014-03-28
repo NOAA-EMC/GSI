@@ -11,6 +11,8 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here output grid is larger than input grid.
 !
 !   input argument list:
 !     gin      - input C grid field over entire horizontal domain
@@ -27,6 +29,8 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
   use kinds, only: r_single,i_kind
   use constants, only: zero
   use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
+  use mod_wrfmass_to_a, only: wrfmass_h_to_a4
+  use gridmod, only: nlon, nlat
 
   implicit none
 
@@ -34,15 +38,19 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
   real(r_single) ,intent(in   ) :: gin(nx,ny)
   real(r_single) ,intent(  out) :: gout(itotsub)
   
-  real(r_single) b(nx,ny)
+  real(r_single) b(nlon,nlat)
   integer(i_kind) i,j
 
 !---------------------------mass grids--just copy
-  do j=1,ny
-     do i=1,nx
-        b(i,j)=gin(i,j)
+  if(nlon == nx .and. nlat == ny) then
+     do j=1,ny
+        do i=1,nx
+           b(i,j)=gin(i,j)
+        end do
      end do
-  end do
+  else
+     call wrfmass_h_to_a4(gin,b)
+  endif
   
 ! Reorganize for eventual distribution to local domains
   do i=1,itotsub
@@ -73,6 +81,8 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here output grid is larger than input grid.
 !
 !   input argument list:
 !     gin      - input C grid field over entire horizontal domain
@@ -109,6 +119,8 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
   use kinds, only: r_single,i_kind
   use constants, only: half,zero
   use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
+  use mod_wrfmass_to_a, only: wrfmass_h_to_a4
+  use gridmod, only: nlon, nlat
 
   implicit none
 
@@ -116,15 +128,21 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
   real(r_single) ,intent(in   ) :: gin(nx+1,ny)
   real(r_single) ,intent(  out) :: gout(itotsub)
   
-  real(r_single) b(nx,ny)
+  real(r_single) bh(nx,ny)
+  real(r_single) b(nlon,nlat)
   integer(i_kind) i,ip,j
 
   do j=1,ny
      do i=1,nx
         ip=i+1
-        b(i,j)=half*(gin(i,j)+gin(ip,j))
+        bh(i,j)=half*(gin(i,j)+gin(ip,j))
      end do
   end do
+  if(nlon == nx .and. nlat == ny) then
+     b=bh
+  else
+     call wrfmass_h_to_a4(bh,b)
+  endif
 
 ! Reorganize for eventual distribution to local domains
   do i=1,itotsub
@@ -156,6 +174,8 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
+!                        Here output grid is larger than input grid.
 !
 !   input argument list:
 !     gin      - input C grid field over entire horizontal domain
@@ -193,6 +213,8 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
   use kinds, only: r_single,i_kind
   use constants, only: half, zero
   use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
+  use mod_wrfmass_to_a, only: wrfmass_h_to_a4
+  use gridmod, only: nlon, nlat
 
   implicit none
 
@@ -200,15 +222,21 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
   real(r_single) ,intent(in   ) :: gin(nx,ny+1)
   real(r_single) ,intent(  out) :: gout(itotsub)
   
-  real(r_single) b(nx,ny)
+  real(r_single) bh(nx,ny)
+  real(r_single) b(nlon,nlat)
   integer(i_kind) i,j,jp
 
   do j=1,ny
      jp=j+1
      do i=1,nx
-        b(i,j)=half*(gin(i,j)+gin(i,jp))
+        bh(i,j)=half*(gin(i,j)+gin(i,jp))
      end do
   end do
+  if(nlon == nx .and. nlat == ny) then
+     b=bh
+  else
+     call wrfmass_h_to_a4(bh,b)
+  endif
 
 ! Reorganize for eventual distribution to local domains
   do i=1,itotsub

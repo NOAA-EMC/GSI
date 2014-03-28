@@ -1342,6 +1342,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
               endif
+              if(plevs(k) < 0.0001_r_kind) then
+                 write(*,*) 'warning: obs pressure is too small:',kx,k,plevs(k)
+                 cycle
+              endif
 
               if(ncnumgrp(nc) > 0 .and. .not.lhilbert )then                 ! default cross validation on
                  if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
@@ -1895,7 +1899,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! define a closest METAR cloud observation for each grid point
   if(metarcldobs .and. ndata > 0) then
-     maxobs=200000
+     maxobs=2000000
      allocate(cdata_all(nreal,maxobs))
      call reorg_metar_cloud(cdata_out,nreal,ndata,cdata_all,maxobs,iout)
      ndata=iout
@@ -2013,10 +2017,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 
   if(kx==120)then
-     pqm(1)=nint(qcmark(1,1))
-     qqm(1)=nint(qcmark(2,1))
-     tqm(1)=nint(qcmark(3,1))
-     zqm(1)=nint(qcmark(4,1))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     qqm(1)=nint(min(qcmark(2,1),10000.0))
+     tqm(1)=nint(min(qcmark(3,1),10000.0))
+     zqm(1)=nint(min(qcmark(4,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -2028,10 +2032,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
         do i=2,levs
            im=i-1
-           pqm(i)=nint(qcmark(1,i))
-           qqm(i)=nint(qcmark(2,i))
-           tqm(i)=nint(qcmark(3,i))
-           zqm(i)=nint(qcmark(4,i))
+           pqm(i)=nint(min(qcmark(1,i),10000.0))
+           qqm(i)=nint(min(qcmark(2,i),10000.0))
+           tqm(i)=nint(min(qcmark(3,i),10000.0))
+           zqm(i)=nint(min(qcmark(4,i),10000.0))
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1
@@ -2087,14 +2091,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
   elseif(kx==220)then
-     pqm(1)=nint(qcmark(1,1))
-     wqm(1)=nint(qcmark(5,1))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     wqm(1)=nint(min(qcmark(5,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
      do i=2,levs
         im=i-1
-        wqm(i)=nint(qcmark(5,i))
-        zqm(i)=nint(qcmark(4,i))
-        pqm(i)=nint(qcmark(1,i))
+        wqm(i)=nint(min(qcmark(5,i),10000.0))
+        zqm(i)=nint(min(qcmark(4,i),10000.0))
+        pqm(i)=nint(min(qcmark(1,i),10000.0))
         if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
            ku=dpres(i)-1

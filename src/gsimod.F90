@@ -72,7 +72,7 @@
   use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,&
-     nmmb_reference_grid,grid_ratio_nmmb,&
+     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
@@ -105,7 +105,11 @@
                             pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
                             l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
                             l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold, &
-                            i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt
+                            i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt, &
+                            build_cloud_frac_p, clear_cloud_frac_p,       &
+                            l_cloud_analysis,nesdis_npts_rad, & 
+                            iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
+                            l_use_2mQ4B
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -255,6 +259,8 @@
 !  08-20-2013 s.liu     add option to use reflectivity
 !  10-30-2013 jung      added clip_supersaturation to setup namelist
 !  12-03-2013 wu        add parameter coef_bw for option:betaflg
+!  12-03-2014 Hu        add parameter grid_ratio_wrfmass for analysis on larger
+!                              grid than mass background grid
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -459,6 +465,7 @@
 !     nmmb_reference_grid= 'H', then analysis grid covers H grid domain
 !                                = 'V', then analysis grid covers V grid domain
 !     grid_ratio_nmmb   - ratio of analysis grid to nmmb model grid in nmmb model grid units.
+!     grid_ratio_wrfmass - ratio of analysis grid to wrf mass grid in wrf grid units.
 !     twodvar_regional  - logical for regional 2d-var analysis
 !     filled_grid       - logical to fill in puts on WRF-NMM E-grid
 !     half_grid         - logical to use every other row of WRF-NMM E-Grid
@@ -470,7 +477,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb
+       nmmb_reference_grid,grid_ratio_nmmb, grid_ratio_wrfmass
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -750,6 +757,16 @@
 !      l_gsd_soilTQ_nudge   - if .true. do GSD soil T and Q nudging based on the lowest t analysis inc
 !      l_cld_bld            - if .true. do GSD GOES cloud building
 !      cld_bld_hgt          - sets limit below which GOES cloud building occurs (default:1200m)
+!      build_cloud_frac_p   - sets the threshold for building clouds from satellite
+!      clear_cloud_frac_p   - sets the threshold for clearing clouds from satellite
+!      nesdis_npts_rad  - NESDIS cloud product impact radiu (grid points)
+!      iclean_hydro_withRef - if =1, then clean hydrometeors if the grid point
+!                               has no echo and maxref=0
+!      iclean_hydro_withRef_allcol - if =1, then clean whole column hydrometeors
+!                      if the observed max ref =0 and satellite cloud shows
+!                      clean
+!      l_use_2mQ4B    - if .true.  use 2m Q as part of background to calculate
+!                       surface Q observation innovation
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowCloud, &
@@ -759,7 +776,11 @@
                                 pblH_ration,pps_press_incr,l_gsd_limit_ocean_q, &
                                 l_pw_hgt_adjust, l_limit_pw_innov, max_innov_pct, &
                                 l_cleanSnow_WarmTs,l_conserve_thetaV,r_cleanSnow_WarmTs_threshold,  &
-                                i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt
+                                i_conserve_thetaV_iternum,l_gsd_soilTQ_nudge,l_cld_bld, cld_bld_hgt, &
+                                build_cloud_frac_p, clear_cloud_frac_p,   &
+                                nesdis_npts_rad, &
+                                iclean_hydro_withRef,iclean_hydro_withRef_allcol,&
+                                l_use_2mQ4B
 
   namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
