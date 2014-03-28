@@ -67,7 +67,7 @@ ENDIF
 ;-------------------------------------------
 configSensorParam, sensorOption, paramStruct 
 
-; Save config parameters 
+; Save config parameters to shorten name
 MIN_LAT = paramStruct.MIN_LAT
 MAX_LAT = paramStruct.MAX_LAT
 MIN_LON = paramStruct.MIN_LON
@@ -93,6 +93,10 @@ indices_5= WHERE(paramStruct.prefixArray ne STRING_FILL_Val)
 prefixArray   = paramStruct.prefixArray(indices_5)
 indices_6= WHERE(paramStruct.chPlotArray ne INT_FILL_Val)
 chPlotArray   = paramStruct.chPlotArray(indices_6)
+CLW_THRESHOLD_MIN = paramStruct.CLW_THRESHOLD_MIN
+CLW_THRESHOLD_MAX = paramStruct.CLW_THRESHOLD_MAX
+RWP_THRESHOLD = paramStruct.RWP_THRESHOLD
+GWP_THRESHOLD = paramStruct.GWP_THRESHOLD
 date          = paramStruct.date
 
 mark_readAgain:
@@ -189,6 +193,7 @@ reformArray, MAX_FOV, nOrbits,  $
 ;-----------------------------------------
 mark_plotting:
 ; Plot radiances and radiance difference
+
 plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadObs, refRadSim, date
@@ -199,6 +204,72 @@ plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
     refRadObs, refRadSim, refSceneData, date
 
 mark_plotting_ClearSky:
+; Declare variables for Clear Sky
+refRadObs_ClearSky = CREATE_STRUCT(NAME = 'RefRadDataType')
+refRadSim_ClearSky = CREATE_STRUCT(NAME = 'RefRadDataType')
+refSceneData_ClearSky = CREATE_STRUCT(NAME = 'RefSceneDataType')
+print ,  " nOrbits  , ",  nOrbits
+print ,  " MAX_CHAN, ",  MAX_CHAN
+print , n_elements(refRadObs_ClearSky.lat)
+print , n_elements(refRadObs_ClearSky.tb)
+print , n_elements(refRadSim_ClearSky.tb)
+print , n_elements(refSceneData_ClearSky.tpwVec)
+
+; Define filter to get clear sky points via scene data 
+filt_clearsky = WHERE(refSceneData.clwVec LT CLW_THRESHOLD_MIN $
+                  OR refSceneData.rwpVec LT RWP_THRESHOLD      $
+                  OR refSceneData.rwpVec LT RWP_THRESHOLD )
+
+
+print, n_elements(refSceneData.clwVec),  radObs.nFOV
+print, n_elements(refRadObs.QC),  radObs.nFOV
+print, n_elements(refRadObs_ClearSky.QC),  radObs.nFOV
+print, n_elements(filt_clearsky),  radObs.nFOV
+print, n_elements(refRadObs_ClearSky.QC),  radObs.nFOV
+help, filt_clearsky
+print, filt_clearsky(0:20)
+print , n_elements(filt_clearsky)
+print , n_elements(refRadObs.tb)
+print , n_elements(refRadObs_ClearSky.tb)
+print , n_elements(refRadObs.lat(filt_clearsky, *))
+print , n_elements(refRadObs.tb(filt_clearsky, *))
+print , n_elements(refRadObs_ClearSky.tb(filt_clearsky,*))
+print , n_elements(refRadObs_ClearSky.tb(filt_clearsky,0))
+print , n_elements(refRadObs_ClearSky.tb(filt_clearsky,1))
+
+refRadObs_ClearSky.scanPos  = refRadObs.scanPos(filt_clearsky)
+refRadObs_ClearSky.scanLine = refRadObs.scanLine(filt_clearsky)
+refRadObs_ClearSky.lat      = refRadObs.lat(filt_clearsky)
+refRadObs_ClearSky.lon      = refRadObs.lon(filt_clearsky)
+refRadObs_ClearSky.modeFlag = refRadObs.modeFlag(filt_clearsky)
+refRadObs_ClearSky.angle    = refRadObs.angle(filt_clearsky)
+refRadObs_ClearSky.QC       = refRadObs.QC(filt_clearsky)
+refRadObs_ClearSky.tb       = refRadObs.tb(filt_clearsky, *)
+refRadObs_ClearSky.tbDiff   = refRadObs.tbDiff(filt_clearsky, *)
+
+
+refRadSim_ClearSky.scanPos  = refRadSim.scanPos(filt_clearsky)
+refRadSim_ClearSky.scanLine = refRadSim.scanLine(filt_clearsky)
+refRadSim_ClearSky.lat      = refRadSim.lat(filt_clearsky)
+refRadSim_ClearSky.lon      = refRadSim.lon(filt_clearsky)
+refRadSim_ClearSky.modeFlag = refRadSim.modeFlag(filt_clearsky)
+refRadSim_ClearSky.angle    = refRadSim.angle(filt_clearsky)
+refRadSim_ClearSky.QC       = refRadSim.QC(filt_clearsky)
+refRadSim_ClearSky.tb       = refRadSim.tb(filt_clearsky, *)
+refRadSim_ClearSky.tbDiff   = refRadSim.tbDiff(filt_clearsky, *)
+
+refSceneData_ClearSky.tpwVec     = refSceneData.tpwVec(filt_clearsky)
+refSceneData_ClearSky.clwVec     = refSceneData.clwVec(filt_clearsky)
+refSceneData_ClearSky.rwpVec     = refSceneData.rwpVec(filt_clearsky)
+refSceneData_ClearSky.gwpVec     = refSceneData.gwpVec(filt_clearsky)
+refSceneData_ClearSky.tSkinVec   = refSceneData.tSkinVec(filt_clearsky)
+refSceneData_ClearSky.sfcTypeVec = refSceneData.sfcTypeVec(filt_clearsky)
+
+plotRad, chPlotArray, chanNumArray, chanInfoArray, 'clearSky_',   $
+    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+    refRadObs_ClearSky, refRadSim_ClearSky, date
+
+
 mark_plotting_CloudySky:
 mark_plotting_Precip:
 
