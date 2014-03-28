@@ -127,7 +127,14 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
+      total=0
+      line=`qstat -u ${LOGNAME} | grep ${jobname}`
+      test=`echo $line | gawk '{print $10}'`
+
+      total=`echo $line | grep ${jobname} | wc -l`
+      if [[ $test = "C" && $total -eq "1" ]]; then
+         total=0
+      fi
    fi
 
    if [[ $total -gt 0 ]]; then

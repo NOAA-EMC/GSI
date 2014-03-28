@@ -145,6 +145,8 @@ fi
 cdate=$START_DATE
 done=0
 ctr=0
+jobname=$DATA_EXTRACT_JOBNAME
+
 while [[ $done -eq 0 ]]; do
 
    #--------------------------------------------------------------------
@@ -153,7 +155,15 @@ while [[ $done -eq 0 ]]; do
    if [[ $MY_MACHINE = "wcoss" ]]; then
       running=`bjobs -l | grep de_${SUFFIX} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      running=`qstat -u $LOGNAME | grep de_${SUFFIX} | wc -l`
+      running=1 
+      line=`qstat -u ${LOGNAME} | grep ${jobname}`
+      test=`echo $line | gawk '{print $10}'`
+
+      total=`echo $line | grep ${jobname} | wc -l`
+      if [[ $test = "C" || $total -le 0 ]]; then
+         running=0
+      fi
+
    fi
 
    if [[ $running -ne 0 ]]; then
