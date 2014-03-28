@@ -63,7 +63,7 @@ PRO defineRefSceneDataType, MAX_FOV, nOrbits,  refSceneData
       rwpVec: fltarr(MAX_FOV * nOrbits),   $
       gwpVec: fltarr(MAX_FOV * nOrbits),   $
       tSkinVec: fltarr(MAX_FOV * nOrbits), $
-      SfcTypeVec: lonarr(MAX_FOV * nOrbits)}
+      sfcTypeVec: lonarr(MAX_FOV * nOrbits)}
 
 END
 
