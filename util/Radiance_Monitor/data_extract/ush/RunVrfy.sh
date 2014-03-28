@@ -196,10 +196,14 @@ while [[ $done -eq 0 ]]; do
          done=1
       else
          #--------------------------------------------------------------
-         # If not done advance the cdate to the next cycle
+         # If not done advance the cdate to the next cycle.
+         # sleep is for zeus's job queue to catch up.
          #--------------------------------------------------------------
          cdate=`${NDATE} +06 $cdate`
          ctr=0
+         if [[ $MY_MACHINE = "zeus" ]]; then
+            sleep 30 
+         fi
       fi
    fi
 
