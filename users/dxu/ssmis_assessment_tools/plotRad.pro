@@ -64,33 +64,33 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;  Filter for all orbits
       ;----------------------------
       filter_All = WHERE(refRadObs.lat ge MIN_LAT           $
-                and refRadObs.lat le MAX_LAT                $
-                and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
-                and refRadSim.lat ge MIN_LAT                $
-                and refRadSim.lat le MAX_LAT                $
-                and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
+                AND refRadObs.lat le MAX_LAT                $
+                AND refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
+                AND refRadSim.lat ge MIN_LAT                $
+                AND refRadSim.lat le MAX_LAT                $
+                AND refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
       ;----------------------------
       ;  Filter for ascending orbits
       ;----------------------------
       filter_Asc = WHERE(refRadObs.lat ge MIN_LAT           $
-                and refRadObs.lat le MAX_LAT                $
-                and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
-                and refRadObs.modeFlag eq 0                 $
-                and refRadSim.lat ge MIN_LAT                $
-                and refRadSim.lat le MAX_LAT                $
-                and refRadSim.modeFlag eq 0 $
-                and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
+                AND refRadObs.lat le MAX_LAT                $
+                AND refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
+                AND refRadObs.modeFlag eq 0                 $
+                AND refRadSim.lat ge MIN_LAT                $
+                AND refRadSim.lat le MAX_LAT                $
+                AND refRadSim.modeFlag eq 0 $
+                AND refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
       ;----------------------------
       ;  Filter for descending orbits
       ;----------------------------
       filter_Desc = WHERE(refRadObs.lat ge MIN_LAT          $
-                and refRadObs.lat le MAX_LAT                $
-                and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
-                and refRadObs.modeFlag eq 1                 $
-                and refRadSim.lat ge MIN_LAT                $
-                and refRadSim.lat le MAX_LAT                $
-                and refRadSim.modeFlag eq 1 $
-                and refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
+                AND refRadObs.lat le MAX_LAT                $
+                AND refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
+                AND refRadObs.modeFlag eq 1                 $
+                AND refRadSim.lat ge MIN_LAT                $
+                AND refRadSim.lat le MAX_LAT                $
+                AND refRadSim.modeFlag eq 1 $
+                AND refRadSim.tb(*,chPlotArray(iChan)) gt 0 )
 
       ;------------------------------------------------
       ; step 1:
