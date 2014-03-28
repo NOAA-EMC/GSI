@@ -67,7 +67,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleTPW = STRCOMPRESS('SSMIS TB diff vs TPW (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameTPW, titleTPW, $
-         'TPW (mm)', 'TB Diff (K)', $
+         'TPW (mm)', 'TB Diff (O-B) (k)', $
          refSceneData.tpwVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
 
@@ -76,7 +76,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleCLW = STRCOMPRESS('SSMIS TB diff vs CLW (chan ' + chanNo + ': ' $
                               + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameCLW, titleCLW, $
-         'CLW (mm)', 'TB Diff (K)', $
+         'CLW (mm)', 'TB Diff (O-B) (k)', $
          refSceneData.clwVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
@@ -85,7 +85,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleRWP = STRCOMPRESS('SSMIS TB diff vs RWP (chan ' + chanNo + ': ' $
                               + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameRWP, titleRWP, $
-         'RWP (mm)', 'TB Diff (K)', $
+         'RWP (mm)', 'TB Diff (O-B) (k)', $
          refSceneData.rwpVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
@@ -94,7 +94,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleGWP = STRCOMPRESS('SSMIS TB diff vs GWP (chan ' + chanNo + ': '  $
                               + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameGWP, titleGWP, $
-         'GWP (mm)', 'TB Diff (K)', $
+         'GWP (mm)', 'TB Diff (O-B) (k)', $
          refSceneData.gwpVec,  $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
@@ -103,7 +103,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleSkinT = STRCOMPRESS('SSMIS TB diff vs SkinT (chan ' + chanNo + ': ' $
                               + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameSkinT, titleSkinT,   $
-         'SkinT (mm)', 'TB Diff (K)', $
+         'SkinT (mm)', 'TB Diff (O-B) (k)', $
          refSceneData.tSkinVec,      $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
  
@@ -112,7 +112,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleSfcType = STRCOMPRESS('SSMIS TB diff vs SfcType (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameSfcType, titleSfcType,  $
-         'SfcType (mm)', 'TB Diff (K)', $
+         'SfcType (mm)', 'TB Diff (O-B) (k)', $
          refSceneData.sfcTypeVec,      $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
       
@@ -121,7 +121,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleScanPos = STRCOMPRESS('SSMIS TB diff vs scanPos (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameScanPos, titleScanPos,  $
-         'scanPos ', 'TB Diff (K)', $
+         'scanPos ', 'TB Diff (O-B) (k)', $
          refRadObs.scanPos,   $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
       
@@ -130,7 +130,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleScanPos = STRCOMPRESS('SSMIS TB diff vs angle (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameAngle, titleAngle,  $
-         'angle (deg) ', 'TB Diff (K)', $
+         'angle (deg) ', 'TB Diff (O-B) (k)', $
          refRadObs.angle,   $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
       
@@ -139,7 +139,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       titleLat = STRCOMPRESS('SSMIS TB diff vs Lat (chan ' + chanNo + ': ' $
                              + chanInfoArray(iChan) + ") " + date )
       doScatterPlotting, imageNameLat, titleLat,  $
-         'Lat (deg)', 'TB Diff (K)', $
+         'Lat (deg)', 'TB Diff (O-B) (k)', $
          refRadObs.lat,   $
          refRadObs.tbDiff, f1, f2, f3, f4, iChan
       
@@ -182,7 +182,7 @@ PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
    PLOT, dataX(f1), dataY(f1,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
       MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
-   XYOUTS, posX, posY, ' Sfc Type 0'
+   XYOUTS, posX, posY, 'Ocean'
 
    minX = min(dataX(f2))
    maxX = MAX(dataX(f2))
@@ -193,7 +193,7 @@ PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
    PLOT, dataX(f2), dataY(f2,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
       MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
-   XYOUTS, posX, posY, ' Sfc Type 1'
+   XYOUTS, posX, posY, 'Sea-ice'
 
    minX = min(dataX(f3))
    maxX = MAX(dataX(f3))
@@ -204,7 +204,7 @@ PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
    PLOT, dataX(f3), dataY(f3,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
       MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
-   XYOUTS, posX, posY, ' Sfc Type 2'
+   XYOUTS, posX, posY, 'Land'
 
    minX = min(dataX(f4))
    maxX = MAX(dataX(f4))
@@ -215,7 +215,7 @@ PRO doScatterPlotting, imageName, titleName, titleX, titleY, $
    PLOT, dataX(f4), dataY(f4,iChan), PSYM=1, TITLE=titleName, $
       XTITLE = titleX,  YTITLE = titleY, $ 
       MIN_VALUE = minY, MAX_VALUE = maxY, XRANGE=[minX, maxX], YRANGE=[minY, maxY]
-   XYOUTS, posX, posY, ' Sfc Type 3'
+   XYOUTS, posX, posY, 'Snow-covered Land(Snow)'
 
    DEVICE, /CLOSE
 END
