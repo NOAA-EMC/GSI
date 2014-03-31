@@ -161,7 +161,6 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Get min and max of radiance differences for each channel. 
       minTB_DiffValue = min(refRadObs.tbDiff(filter_All, chPlotArray(iChan)))
       maxTB_DiffValue = max(refRadObs.tbDiff(filter_All, chPlotArray(iChan)))
-      print, minTB_DiffValue, maxTB_DiffValue
 
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
                refRadObs.lat,refRadObs.lon,    $
