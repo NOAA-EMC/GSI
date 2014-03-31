@@ -314,7 +314,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
                        ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-        if(sfcpct(0) < zero)  cycle read_loop
+        if(sfcpct(0) == zero)  cycle read_loop
 
 !
 !       Get scan position (1 - 90) based on (409 - 2*cut_spot - 1) = 386 here,  GAC pixels
