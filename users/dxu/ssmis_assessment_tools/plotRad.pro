@@ -17,6 +17,9 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,  $
     refRadObs, refRadSim, date
 
+   ; Get sensor name 
+   sensorName = (STRSPLIT(prefix, '_', /EXTRACT))[0]
+
    ; Set XSIZE and YSIZE for PS.
    xSizeVal=30
    ySizeVal=30
@@ -97,7 +100,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;   Plot observed radiances for chosen channels.
       ;------------------------------------------------
       channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
-      title = 'SSMIS observed TB ' + channel + date
+      title = sensorName + ' observed TB ' + channel + date
 
 
       ; Generate plot position
@@ -126,7 +129,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;   Plot simulated radiances for chosen channels.
       ;-------------------------------------------------
       channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
-      title = 'SSMIS simulated TB ' + channel + date
+      title = sensorName + ' simulated TB ' + channel + date
 
       ; Column position
       colPosition = 1
