@@ -225,8 +225,9 @@ initializeRefSceneDataType, MAX_FOV, nOrbits, refSceneData_ClearSky
 
 ; Define filter to get clear sky points via scene data 
 filterClearSky = WHERE(refSceneData.clwVec LT CLW_THRESHOLD_MIN $
-                  OR refSceneData.rwpVec LT RWP_THRESHOLD      $
-                  OR refSceneData.rwpVec LT RWP_THRESHOLD )
+                  AND refSceneData.rwpVec LT RWP_THRESHOLD      $
+                  AND refSceneData.gwpVec LT GWP_THRESHOLD )
+help, filterClearSky
 
 ; Generated filtered data
 generateConditionalData, filterClearSky, refRadObs, refRadSim, refSceneData, $
@@ -259,7 +260,9 @@ initializeRefSceneDataType, MAX_FOV, nOrbits, refSceneData_CloudySky
 filterCloudySky = WHERE(refSceneData.clwVec GT CLW_THRESHOLD_MIN $
                   AND refSceneData.clwVec LT CLW_THRESHOLD_MAX $
                   AND refSceneData.rwpVec LT RWP_THRESHOLD      $
-                  AND refSceneData.rwpVec LT RWP_THRESHOLD )
+                  AND refSceneData.gwpVec LT GWP_THRESHOLD )
+
+help, filterCloudySky
 
 ; Generated filtered data
 generateConditionalData, filterCloudySky, refRadObs, refRadSim, refSceneData, $
@@ -288,10 +291,12 @@ initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadObs_Precipitation
 initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadSim_Precipitation
 initializeRefSceneDataType, MAX_FOV, nOrbits, refSceneData_Precipitation
 
-; Define filter to get clear sky points via scene data 
+; Define filter to get precipitation points via scene data 
 filterPrecipitation = WHERE(refSceneData.clwVec GT CLW_THRESHOLD_MAX $
-                  OR ( refSceneData.rwpVec GT RWP_THRESHOLD      $
-                  OR refSceneData.rwpVec GT RWP_THRESHOLD ) )
+                  OR refSceneData.rwpVec GT RWP_THRESHOLD      $
+                  OR refSceneData.gwpVec GT GWP_THRESHOLD )
+
+help, filterPrecipitation
 
 ; Generated filtered data
 generateConditionalData, filterPrecipitation, refRadObs, refRadSim, refSceneData, $
