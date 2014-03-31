@@ -25,7 +25,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
    
    ; Loop thru. channels to plot
    FOR iChan=0, numOfChans - 1 DO BEGIN
-      ; Sfc type 0
+      ; Sfc type 0 : Ocean
       f1= WHERE(refRadObs.lat ge MIN_LAT               $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
@@ -33,7 +33,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
                 and refRadSim.lat le MAX_LAT                $
                 and refRadSim.tb(*,chPlotArray(iChan)) gt 0 $
                 and refSceneData.SfcTypeVec eq 0 )
-      ; Sfc type 1
+      ; Sfc type 1 : Sea-Ice
       f2= WHERE(refRadObs.lat ge MIN_LAT               $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
@@ -41,7 +41,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
                 and refRadSim.lat le MAX_LAT                $
                 and refRadSim.tb(*,chPlotArray(iChan)) gt 0 $
                 and refSceneData.SfcTypeVec eq 1 )
-      ; Sfc type 2
+      ; Sfc type 2 : Land
       f3= WHERE(refRadObs.lat ge MIN_LAT               $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
@@ -49,7 +49,7 @@ PRO plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
                 and refRadSim.lat le MAX_LAT                $
                 and refRadSim.tb(*,chPlotArray(iChan)) gt 0 $
                 and refSceneData.SfcTypeVec eq 2 )
-      ; Sfc type 3
+      ; Sfc type 3 : Snow-covered Land (Snow)
       f4= WHERE(refRadObs.lat ge MIN_LAT               $
                 and refRadObs.lat le MAX_LAT                $
                 and refRadObs.tb(*,chPlotArray(iChan)) gt 0 $
