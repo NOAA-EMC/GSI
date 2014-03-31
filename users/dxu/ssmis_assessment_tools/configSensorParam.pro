@@ -37,6 +37,7 @@ PRO configSensorParam, sensorOption, paramStruct
       radListFile2 : '',  $
       MAX_FOV : 30000L,   $
       MAX_CHAN : MAX_CHAN_NUM , $ 
+      sensorName: STRING_FILL_Val, $ 
       sceneListFile: '',        $
       chanNumArray  : MAKE_ARRAY(MAX_CHAN_NUM,/INT,     $
                                  VALUE=INT_FILL_Val),   $
@@ -46,8 +47,6 @@ PRO configSensorParam, sensorOption, paramStruct
                                  VALUE=FLOAT_FILL_Val), $
       maxBT_Values  : MAKE_ARRAY(MAX_CHAN_NUM,/FLOAT,   $
                                  VALUE=FLOAT_FILL_Val), $
-      prefixArray   : MAKE_ARRAY(MAX_CHAN_NUM,/STRING,  $
-                                 VALUE=STRING_FILL_Val),$ 
       chPlotArray   : MAKE_ARRAY(MAX_CHAN_NUM,/INT,     $
                                  VALUE=INT_FILL_Val),   $
       CLW_THRESHOLD_MIN : 0.05,  $
