@@ -77,6 +77,7 @@ radListFile2  = paramStruct.radListFile2
 sceneListFile = paramStruct.sceneListFile
 MAX_FOV       = paramStruct.MAX_FOV
 MAX_CHAN      = paramStruct.MAX_CHAN
+sensorName    = paramStruct.sensorName
 INT_FILL_Val = paramStruct.INT_FILL
 FLOAT_FILL_Val = paramStruct.FLOAT_FILL
 STRING_FILL_Val = paramStruct.STRING_FILL
@@ -89,10 +90,8 @@ indices_3 = WHERE(paramStruct.minBT_Values ne FLOAT_FILL_Val)
 minBT_Values  = paramStruct.minBT_Values(indices_3)
 indices_4 = WHERE(paramStruct.maxBT_Values ne FLOAT_FILL_Val)
 maxBT_Values  = paramStruct.maxBT_Values(indices_4)
-indices_5= WHERE(paramStruct.prefixArray ne STRING_FILL_Val)
-prefixArray   = paramStruct.prefixArray(indices_5)
-indices_6= WHERE(paramStruct.chPlotArray ne INT_FILL_Val)
-chPlotArray   = paramStruct.chPlotArray(indices_6)
+indices_5= WHERE(paramStruct.chPlotArray ne INT_FILL_Val)
+chPlotArray   = paramStruct.chPlotArray(indices_5)
 CLW_THRESHOLD_MIN = paramStruct.CLW_THRESHOLD_MIN
 CLW_THRESHOLD_MAX = paramStruct.CLW_THRESHOLD_MAX
 RWP_THRESHOLD = paramStruct.RWP_THRESHOLD
@@ -118,7 +117,7 @@ CASE readAgain OF
    5: GOTO, mark_plotting_ClearSky 
    6: GOTO, mark_plotting_CloudySky 
    7: GOTO, mark_plotting_Precip 
-   ELSE: BEGIN & print, 'Wrong option!!! Chose again...' & GOTO, mark_readAgain & END
+   ELSE: BEGIN & PRINT, 'Wrong option!!! Chose again...' & GOTO, mark_readAgain & END
 ENDCASE
 
 ; None of options is chosen
@@ -194,84 +193,119 @@ reformArray, MAX_FOV, nOrbits,  $
 mark_plotting:
 ; Plot radiances and radiance difference
 
-plotRad, chPlotArray, chanNumArray, chanInfoArray, prefixArray[0],   $
+fileNamePrefix = sensorName + '_Rad_plotting_' 
+plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadObs, refRadSim, date
 
 mark_plotting_scatter:
-plotScattering, chPlotArray, chanNumArray, chanInfoArray, prefixArray[1],  $
+fileNamePrefix = sensorName + '_Scatter_plotting_' 
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
     refRadObs, refRadSim, refSceneData, date
 
+help,  refSceneData.clwVec
+
+;-------------------------------
 mark_plotting_ClearSky:
+;-------------------------------
 ; Declare variables for Clear Sky
 refRadObs_ClearSky = CREATE_STRUCT(NAME = 'RefRadDataType')
 refRadSim_ClearSky = CREATE_STRUCT(NAME = 'RefRadDataType')
 refSceneData_ClearSky = CREATE_STRUCT(NAME = 'RefSceneDataType')
-print ,  " nOrbits  , ",  nOrbits
-print ,  " MAX_CHAN, ",  MAX_CHAN
-print , n_elements(refRadObs_ClearSky.lat)
-print , n_elements(refRadObs_ClearSky.tb)
-print , n_elements(refRadSim_ClearSky.tb)
-print , n_elements(refSceneData_ClearSky.tpwVec)
+
+initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadObs_ClearSky
+initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadSim_ClearSky
+initializeRefSceneDataType, MAX_FOV, nOrbits, refSceneData_ClearSky 
 
 ; Define filter to get clear sky points via scene data 
-filt_clearsky = WHERE(refSceneData.clwVec LT CLW_THRESHOLD_MIN $
+filterClearSky = WHERE(refSceneData.clwVec LT CLW_THRESHOLD_MIN $
                   OR refSceneData.rwpVec LT RWP_THRESHOLD      $
                   OR refSceneData.rwpVec LT RWP_THRESHOLD )
 
+help, filterClearSky
 
-print, n_elements(refSceneData.clwVec),  radObs.nFOV
-print, n_elements(refRadObs.QC),  radObs.nFOV
-print, n_elements(refRadObs_ClearSky.QC),  radObs.nFOV
-print, n_elements(filt_clearsky),  radObs.nFOV
-print, n_elements(refRadObs_ClearSky.QC),  radObs.nFOV
-help, filt_clearsky
-print, filt_clearsky(0:20)
-print , n_elements(filt_clearsky)
-print , n_elements(refRadObs.tb)
-print , n_elements(refRadObs_ClearSky.tb)
-print , n_elements(refRadObs.lat(filt_clearsky, *))
-print , n_elements(refRadObs.tb(filt_clearsky, *))
-print , n_elements(refRadObs_ClearSky.tb(filt_clearsky,*))
-print , n_elements(refRadObs_ClearSky.tb(filt_clearsky,0))
-print , n_elements(refRadObs_ClearSky.tb(filt_clearsky,1))
+; Generated filtered data
+generateConditionalData, filterClearSky, refRadObs, refRadSim, refSceneData, $
+   refRadObs_ClearSky, refRadSim_ClearSky, refSceneData_ClearSky
 
-refRadObs_ClearSky.scanPos  = refRadObs.scanPos(filt_clearsky)
-refRadObs_ClearSky.scanLine = refRadObs.scanLine(filt_clearsky)
-refRadObs_ClearSky.lat      = refRadObs.lat(filt_clearsky)
-refRadObs_ClearSky.lon      = refRadObs.lon(filt_clearsky)
-refRadObs_ClearSky.modeFlag = refRadObs.modeFlag(filt_clearsky)
-refRadObs_ClearSky.angle    = refRadObs.angle(filt_clearsky)
-refRadObs_ClearSky.QC       = refRadObs.QC(filt_clearsky)
-refRadObs_ClearSky.tb       = refRadObs.tb(filt_clearsky, *)
-refRadObs_ClearSky.tbDiff   = refRadObs.tbDiff(filt_clearsky, *)
+fileNamePrefix = sensorName + '_Rad_plotting_ClearSky_' 
+plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
+   MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+   refRadObs_ClearSky, refRadSim_ClearSky, date
 
+fileNamePrefix = sensorName + '_Scatter_plotting_ClearSky_' 
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
+   MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
+   refRadObs_ClearSky, refRadSim_ClearSky, refSceneData_ClearSky, date
 
-refRadSim_ClearSky.scanPos  = refRadSim.scanPos(filt_clearsky)
-refRadSim_ClearSky.scanLine = refRadSim.scanLine(filt_clearsky)
-refRadSim_ClearSky.lat      = refRadSim.lat(filt_clearsky)
-refRadSim_ClearSky.lon      = refRadSim.lon(filt_clearsky)
-refRadSim_ClearSky.modeFlag = refRadSim.modeFlag(filt_clearsky)
-refRadSim_ClearSky.angle    = refRadSim.angle(filt_clearsky)
-refRadSim_ClearSky.QC       = refRadSim.QC(filt_clearsky)
-refRadSim_ClearSky.tb       = refRadSim.tb(filt_clearsky, *)
-refRadSim_ClearSky.tbDiff   = refRadSim.tbDiff(filt_clearsky, *)
-
-refSceneData_ClearSky.tpwVec     = refSceneData.tpwVec(filt_clearsky)
-refSceneData_ClearSky.clwVec     = refSceneData.clwVec(filt_clearsky)
-refSceneData_ClearSky.rwpVec     = refSceneData.rwpVec(filt_clearsky)
-refSceneData_ClearSky.gwpVec     = refSceneData.gwpVec(filt_clearsky)
-refSceneData_ClearSky.tSkinVec   = refSceneData.tSkinVec(filt_clearsky)
-refSceneData_ClearSky.sfcTypeVec = refSceneData.sfcTypeVec(filt_clearsky)
-
-plotRad, chPlotArray, chanNumArray, chanInfoArray, 'clearSky_',   $
-    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
-    refRadObs_ClearSky, refRadSim_ClearSky, date
-
-
+;-------------------------------
 mark_plotting_CloudySky:
+;-------------------------------
+; Declare variables for Cloudy Sky
+refRadObs_CloudySky = CREATE_STRUCT(NAME = 'RefRadDataType')
+refRadSim_CloudySky = CREATE_STRUCT(NAME = 'RefRadDataType')
+refSceneData_CloudySky = CREATE_STRUCT(NAME = 'RefSceneDataType')
+
+initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadObs_CloudySky
+initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadSim_CloudySky
+initializeRefSceneDataType, MAX_FOV, nOrbits, refSceneData_CloudySky
+
+; Define filter to get clear sky points via scene data 
+filterCloudySky = WHERE(refSceneData.clwVec GT CLW_THRESHOLD_MIN $
+                  AND refSceneData.clwVec LT CLW_THRESHOLD_MAX $
+                  AND refSceneData.rwpVec LT RWP_THRESHOLD      $
+                  AND refSceneData.rwpVec LT RWP_THRESHOLD )
+
+help, filterCloudySky
+
+; Generated filtered data
+generateConditionalData, filterCloudySky, refRadObs, refRadSim, refSceneData, $
+   refRadObs_CloudySky, refRadSim_CloudySky, refSceneData_CloudySky
+
+fileNamePrefix = sensorName + '_Rad_plotting_CloudySky_' 
+plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
+   MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+   refRadObs_CloudySky, refRadSim_CloudySky, date
+
+fileNamePrefix = sensorName + '_Scatter_plotting_CloudySky_' 
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix, $
+   MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
+   refRadObs_CloudySky, refRadSim_CloudySky, refSceneData_CloudySky, date
+
+;-------------------------------
 mark_plotting_Precip:
+;-------------------------------
+; Declare variables for Precipitation
+refRadObs_Precipitation = CREATE_STRUCT(NAME = 'RefRadDataType')
+refRadSim_Precipitation = CREATE_STRUCT(NAME = 'RefRadDataType')
+refSceneData_Precipitation = CREATE_STRUCT(NAME = 'RefSceneDataType')
+
+initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadObs_Precipitation
+initializeRefRadDataType, MAX_FOV, nOrbits, MAX_CHAN, refRadSim_Precipitation
+initializeRefSceneDataType, MAX_FOV, nOrbits, refSceneData_Precipitation
+
+; Define filter to get clear sky points via scene data 
+filterPrecipitation = WHERE(refSceneData.clwVec GT CLW_THRESHOLD_MAX $
+                  OR ( refSceneData.rwpVec GT RWP_THRESHOLD      $
+                  OR refSceneData.rwpVec GT RWP_THRESHOLD ) )
+
+help, filterPrecipitation
+
+; Generated filtered data
+generateConditionalData, filterPrecipitation, refRadObs, refRadSim, refSceneData, $
+   refRadObs_Precipitation, refRadSim_Precipitation, refSceneData_Precipitation
+
+fileNamePrefix = sensorName + '_Rad_plotting_Precipitation_' 
+plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
+   MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
+   refRadObs_Precipitation, refRadSim_Precipitation, date
+
+fileNamePrefix = sensorName + '_Scatter_plotting_Preciptation_' 
+plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
+   MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
+   refRadObs_Precipitation, refRadSim_Precipitation, refSceneData_Precipitation, date
+
 
 PRINT,'End of processing...'
 END
