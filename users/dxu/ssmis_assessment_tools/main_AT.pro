@@ -22,7 +22,9 @@
 ; Specify locally-defined util code.
 @AT_Util.pro
 
-mark_chooseSensor:
+;###########################
+ mark_chooseSensor:
+;###########################
 PRINT, 'Choose instrument: '
 PRINT,' 1 : NOAA-18/AMSUA&MHS'
 PRINT,' 2 : NOAA-19/AMSUA&MHS'
@@ -98,25 +100,25 @@ RWP_THRESHOLD = paramStruct.RWP_THRESHOLD
 GWP_THRESHOLD = paramStruct.GWP_THRESHOLD
 date          = paramStruct.date
 
-mark_readAgain:
+;###########################
+ mark_readAgain:
+;###########################
 PRINT, 'Read data again?'
 PRINT, '1 - YES'
-PRINT, '2 - NO, to reform'
-PRINT, '3 - NO, to plot radiance'
-PRINT, '4 - NO, to plot scatter'
-PRINT, '5 - NO, to plot clear sky '
-PRINT, '6 - NO, to plot cloudy sky'
-PRINT, '7 - NO, to plot precipitation'
+PRINT, '2 - NO, to reform data'
+PRINT, '3 - NO, to plot unfiltered data'
+PRINT, '4 - NO, to plot clear sky '
+PRINT, '5 - NO, to plot cloudy sky'
+PRINT, '6 - NO, to plot precipitation'
 
 READ, readAgain
 CASE readAgain OF
-   1: GOTO, mark_readMeas
-   2: GOTO, mark_reform
-   3: GOTO, mark_plotting 
-   4: GOTO, mark_plotting_scatter
-   5: GOTO, mark_plotting_ClearSky 
-   6: GOTO, mark_plotting_CloudySky 
-   7: GOTO, mark_plotting_Precip 
+   1: GOTO, mark_read_data
+   2: GOTO, mark_reform_data
+   3: GOTO, mark_plotting_Unfiltered
+   4: GOTO, mark_plotting_ClearSky 
+   5: GOTO, mark_plotting_CloudySky 
+   6: GOTO, mark_plotting_Precip 
    ELSE: BEGIN & PRINT, 'Wrong option!!! Chose again...' & GOTO, mark_readAgain & END
 ENDCASE
 
@@ -128,7 +130,9 @@ IF ( optionFlag eq 999 ) THEN BEGIN
 ENDIF
 
 
-mark_readMeas:
+;###########################
+ mark_read_data:
+;###########################
 ;------------------------------------
 ; step 1: 
 ;   Read two lists of radiance files
@@ -181,7 +185,9 @@ PRINT, "done with readRadFile  =========="
 ; step 4:
 ;   Reform data
 ;-------------------------------------------
-mark_reform:
+;###########################
+ mark_reform_data:
+;###########################
 reformArray, MAX_FOV, nOrbits,  $
    radObs, radSim, refRadObs, refRadSim, $
    sceneData, refSceneData    
@@ -190,25 +196,24 @@ reformArray, MAX_FOV, nOrbits,  $
 ; step 5: 
 ;   Plot radiances (observed + simulated)
 ;-----------------------------------------
-mark_plotting:
+;###########################
+ mark_plotting_Unfiltered:
+;###########################
 ; Plot radiances and radiance difference
-
 fileNamePrefix = sensorName + '_Rad_plotting_' 
 plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
     refRadObs, refRadSim, date
 
-mark_plotting_scatter:
+; Plot various scattering plots
 fileNamePrefix = sensorName + '_Scatter_plotting_' 
 plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
     MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
     refRadObs, refRadSim, refSceneData, date
 
-help,  refSceneData.clwVec
-
-;-------------------------------
-mark_plotting_ClearSky:
-;-------------------------------
+;###########################
+ mark_plotting_ClearSky:
+;###########################
 ; Declare variables for Clear Sky
 refRadObs_ClearSky = CREATE_STRUCT(NAME = 'RefRadDataType')
 refRadSim_ClearSky = CREATE_STRUCT(NAME = 'RefRadDataType')
@@ -223,8 +228,6 @@ filterClearSky = WHERE(refSceneData.clwVec LT CLW_THRESHOLD_MIN $
                   OR refSceneData.rwpVec LT RWP_THRESHOLD      $
                   OR refSceneData.rwpVec LT RWP_THRESHOLD )
 
-help, filterClearSky
-
 ; Generated filtered data
 generateConditionalData, filterClearSky, refRadObs, refRadSim, refSceneData, $
    refRadObs_ClearSky, refRadSim_ClearSky, refSceneData_ClearSky
@@ -234,14 +237,15 @@ plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
    refRadObs_ClearSky, refRadSim_ClearSky, date
 
+; Plot various scattering plots
 fileNamePrefix = sensorName + '_Scatter_plotting_ClearSky_' 
 plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
    refRadObs_ClearSky, refRadSim_ClearSky, refSceneData_ClearSky, date
 
-;-------------------------------
-mark_plotting_CloudySky:
-;-------------------------------
+;###########################
+ mark_plotting_CloudySky:
+;###########################
 ; Declare variables for Cloudy Sky
 refRadObs_CloudySky = CREATE_STRUCT(NAME = 'RefRadDataType')
 refRadSim_CloudySky = CREATE_STRUCT(NAME = 'RefRadDataType')
@@ -257,8 +261,6 @@ filterCloudySky = WHERE(refSceneData.clwVec GT CLW_THRESHOLD_MIN $
                   AND refSceneData.rwpVec LT RWP_THRESHOLD      $
                   AND refSceneData.rwpVec LT RWP_THRESHOLD )
 
-help, filterCloudySky
-
 ; Generated filtered data
 generateConditionalData, filterCloudySky, refRadObs, refRadSim, refSceneData, $
    refRadObs_CloudySky, refRadSim_CloudySky, refSceneData_CloudySky
@@ -268,14 +270,15 @@ plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
    refRadObs_CloudySky, refRadSim_CloudySky, date
 
+; Plot various scattering plots
 fileNamePrefix = sensorName + '_Scatter_plotting_CloudySky_' 
 plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix, $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
    refRadObs_CloudySky, refRadSim_CloudySky, refSceneData_CloudySky, date
 
-;-------------------------------
-mark_plotting_Precip:
-;-------------------------------
+;###########################
+ mark_plotting_Precip:
+;###########################
 ; Declare variables for Precipitation
 refRadObs_Precipitation = CREATE_STRUCT(NAME = 'RefRadDataType')
 refRadSim_Precipitation = CREATE_STRUCT(NAME = 'RefRadDataType')
@@ -290,8 +293,6 @@ filterPrecipitation = WHERE(refSceneData.clwVec GT CLW_THRESHOLD_MAX $
                   OR ( refSceneData.rwpVec GT RWP_THRESHOLD      $
                   OR refSceneData.rwpVec GT RWP_THRESHOLD ) )
 
-help, filterPrecipitation
-
 ; Generated filtered data
 generateConditionalData, filterPrecipitation, refRadObs, refRadSim, refSceneData, $
    refRadObs_Precipitation, refRadSim_Precipitation, refSceneData_Precipitation
@@ -301,6 +302,7 @@ plotRad, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,   $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, minBT_Values, maxBT_Values,$
    refRadObs_Precipitation, refRadSim_Precipitation, date
 
+; Plot various scattering plots
 fileNamePrefix = sensorName + '_Scatter_plotting_Preciptation_' 
 plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
