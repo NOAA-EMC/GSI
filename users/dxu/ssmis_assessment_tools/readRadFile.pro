@@ -47,10 +47,10 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
       ENDIF
 
       ; Save total number of FOVs in a file
-      radObs.nFOV(iFile) = rad1.nprof
+      radObs.nFOV(iFile) = rad1.nProf
 
       ; Loop thru. FOVs within orbit
-      FOR iProf = 0L, rad1.nprof - 1 DO BEGIN
+      FOR iProf = 0L, rad1.nProf - 1 DO BEGIN
 	 radObs.scanPos(iProf, iFile) = rad1.scanPos(0, iProf)
 	 radObs.scanLine(iProf, iFile) = rad1.scanLine(0, iProf)
 	 radObs.lat(iProf, iFile)  = rad1.lat(0, iProf)
@@ -95,10 +95,10 @@ PRO readRadFile, nOrbits, MAX_FOV, MAX_CHAN,   $
       ENDIF
 
       ; Save total number of FOVs in a file
-      radSim.nFOV(iFile) = rad2.nprof
+      radSim.nFOV(iFile) = rad2.nProf
 
       ; Loop thru. FOVs within orbit
-      FOR iProf = 0L, rad2.nprof - 1 DO BEGIN
+      FOR iProf = 0L, rad2.nProf - 1 DO BEGIN
 	 radSim.scanPos(iProf, iFile) = rad2.scanPos(0, iProf)
 	 radSim.scanLine(iProf, iFile) = rad2.scanLine(0, iProf)
 	 radSim.lat(iProf, iFile)  = rad2.lat(0, iProf)

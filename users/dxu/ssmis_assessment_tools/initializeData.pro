@@ -19,7 +19,7 @@ PRO initializeRadDataType, MAX_FOV, nOrbits, MAX_CHAN, radData
    LONG_FILL_VALUE = -999L
    FLOAT_FILL_VALUE = -999.99
 
-   radData.nFOV = LONG_FILL_VALUE
+   radData.nFOV = MAKE_ARRAY(nOrbits, /LONG, VALUE = LONG_FILL_VALUE)
    radData.scanPos  = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
    radData.scanLine = MAKE_ARRAY(MAX_FOV, nOrbits, /INTEGER, VALUE = INT_FILL_VALUE)
    radData.lat   = MAKE_ARRAY(MAX_FOV, nOrbits, /FLOAT, VALUE = FLOAT_FILL_VALUE)

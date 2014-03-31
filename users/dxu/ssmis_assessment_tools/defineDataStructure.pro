@@ -15,7 +15,7 @@
 PRO defineRadDataType, MAX_FOV, nOrbits, MAX_CHAN, radData
 
    radData={ RadDataType, $
-      nFOV : 0L, $  
+      nFOV : lonarr(nOrbits),$ ; number of profiles per file
       scanPos  : intarr(MAX_FOV,nOrbits), $  ; pos per file
       scanLine : intarr(MAX_FOV,nOrbits), $  ; line per file
       lat   : fltarr(MAX_FOV,nOrbits),$  ; lat per file
