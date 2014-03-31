@@ -23,7 +23,7 @@ PRO configSensorParam, sensorOption, paramStruct
    ;----------------------------------------------------
    MAX_CHAN_NUM = 100L    ; Max channel number
    INT_FILL_Val    = 999
-   FLOAT_FILL_Val  = -999.0
+   FLOAT_FILL_Val  = -999.99
    STRING_FILL_Val = ''
    paramStruct={          $
       INT_FILL    : INT_FILL_Val    ,$
