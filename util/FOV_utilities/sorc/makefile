@@ -1,7 +1,7 @@
 SHELL=	/bin/sh
 FCOMP  = ifort
 FFLAGS = -check all -traceback -fpe0 -ftrapuv -g
-EXE= crosstrk.exe
+EXE= fov_util.exe
 
 OBJS = driver.o \
        calc_fov_conical.o \
