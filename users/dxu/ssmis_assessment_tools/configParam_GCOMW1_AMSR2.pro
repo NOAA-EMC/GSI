@@ -22,34 +22,27 @@ PRO configParam_GCOMW1_AMSR2, paramStruct
    paramStruct.MAX_LON = 180
 
    ; Set Max profile number and channel number
-   paramStruct.MAX_FOV = 30000L
-   paramStruct.MAX_CHAN = 40L 
+   paramStruct.MAX_FOV = 70000L
+   paramStruct.MAX_CHAN = 14L 
 
    ; Radiance files (obs + sim)
-   paramStruct.radListFile1 = '/data/home001/dxu/ssmis_assessment_tools/meas.list'
-   paramStruct.radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
+   paramStruct.radListFile1 = '/data/ejones/tools/obs_assessment/obs_assessment/meas.list'
+   paramStruct.radListFile2 = '/data/ejones/tools/obs_assessment/obs_assessment/fwd_fix_em.list'
    ; Scene file
    paramStruct.sceneListFile =  $
-	'/net/orbit232l/home/pub/kgarrett/mirs_utilities/data/InputsData/edr.list'
+	'/data/ejones/tools/obs_assessment/obs_assessment/scene.list'
    paramStruct.chanNumArray =   $
        ['1','2','3','4','5','6','7','8','9','10',   $
-       '11','12','13','14','15','16','17','18','19','20',      $
-       '21','22', '23', '24']
+       '11','12','13','14']
    paramStruct.chanInfoArray  =  $
-       ['50.300', '52.800', '53.596', '54.400', '55.500', '57.290',$
-       '59.400', '150.000', '183.310', '183.310', '183.310', '19.350', $
-       '19.350', '22.235', '37.000', '37.000', '91.655', '91.655',     $
-       '63.283', '60.793', '60.793', '60.793', '60.793', '60.793' ]
+       ['6.925','6.925','7.30','7.30','10.65','10.65','18.7','18.7','23.8','23.8','36.5','36.5','89.0','89.0']
    paramStruct.minBT_Values =  $
-       [ 160, 140, 170, 170, 200, 200, 200, 210, 200, 190,  $
-       190, 200, 200, 230, 240, 150, 150, 170, 200, 170,           $
-       170, 170, 170, 170 ]
+       [ 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40 ]
    paramStruct.maxBT_Values =  $
-       [ 280, 300, 290, 290, 290, 280, 250, 230, 230, 220,  $
-       250, 240, 250, 260, 280, 300, 320, 310, 300, 300,           $
-       300, 280, 280, 280 ]
+       [ 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350 ]
    paramStruct.sensorName = 'GCOMW1_AMSR2'
-   paramStruct.chPlotArray = INDGEN(24)
-   paramStruct.date = '2013-01-20'
+   paramStruct.chPlotArray = INDGEN(14)
+   ; paramStruct.chPlotArray = [1,2]
+   paramStruct.date = '2012-10-27'
 
 END
