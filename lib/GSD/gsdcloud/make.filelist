@@ -28,6 +28,7 @@ SRC_FILES = ARPS_cldLib.f90 \
             smooth.f90 \
             constants.f90 \
             kinds.f90 \
-            pbl_height.f90 
+            pbl_height.f90 \
+            hydro_mxr_thompson.f90
 
 OBJ_FILES =${SRC_FILES:.f90=.o}

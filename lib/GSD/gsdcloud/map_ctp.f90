@@ -1,4 +1,4 @@
-subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac)
+subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts_rad)
 
 !
 !$$$  subprogram documentation block
@@ -22,6 +22,7 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac)
 !     nn_obs   - 1st dimension of observation arry data_s
 !     numsao   - number of observation
 !     data_s   -  observation array for GOES cloud products
+!     npts_rad -  impact radius 
 !
 !   output argument list:
 !     sat_ctp   - GOES cloud top pressure in analysis grid
@@ -90,6 +91,7 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac)
       INTEGER(i_kind),intent(in) :: Nx, Ny
       INTEGER(i_kind),intent(in) :: ib, jb
       INTEGER(i_kind),intent(in) :: numsao, nn_obs
+      INTEGER(i_kind),intent(in) :: npts_rad
       real(r_kind),dimension(nn_obs,numsao):: data_s
 ! Output
       real(r_single), intent(out) ::  sat_ctp(Nx,Ny)
@@ -116,10 +118,6 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac)
       real(r_single)  :: w_eca(Nx,Ny)
       integer(i_kind) :: nlev_cld(Nx,Ny)
       integer(i_kind) :: ios
-
-      integer(i_kind) :: npts_rad
-
-      npts_rad = 1
 
 !
 ! * Initialize outputs since GOES sounder do not scan all MAPS domain
@@ -184,11 +182,11 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac)
 !
       do jj = 1,Ny
         do ii = 1,Nx
-          if (index(ii,jj) < 3 ) then
-!            sat_ctp(ii,jj) = Pxx(ii,jj,1)
-!            sat_tem(ii,jj) = Txx(ii,jj,1)
-!            w_frac(ii,jj) = float(Nxx(ii,jj,1))/100.
-!            w_eca(ii,jj) =  float(Nxx(ii,jj,1))/100.
+          if ((index(ii,jj) >= 1 .and. index(ii,jj) < 3) .and. npts_rad > 1) then
+             sat_ctp(ii,jj) = Pxx(ii,jj,1)
+             sat_tem(ii,jj) = Txx(ii,jj,1)
+             w_frac(ii,jj) = float(Nxx(ii,jj,1))/100.
+             w_eca(ii,jj) =  float(Nxx(ii,jj,1))/100.
 
           elseif(index(ii,jj) >= 3) then
 

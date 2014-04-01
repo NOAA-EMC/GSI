@@ -240,10 +240,17 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !              sum_dzbase_abs = sum_dzbase_abs + abs(dzbase)
 !            end if
 
-              if (watericemax(ista) > 0._r_single .and. kwatericemax(i1,j1)==-1) then
-                  npts_near_clr = npts_near_clr + 1
-                  cycle   ! skip cloud build at point (i,j) because background is clear
-              end if
+! mhu, Aug. 28, 2013: comment out patial cloudiness. It causes the degradation
+! in 3000' ceiling 1-h forecast.
+!              if(watericemax(ista) > 0._r_single .and. kwatericemax(i1,j1)==-1) then
+!                 !PH 2/28/2013: ensure cloud building at 4 neighboring
+!                 !gridpoints (Odist < 1), regardless of background 
+!                 if(Odist(ista) >= 1.0_r_kind) then
+!                    npts_near_clr = npts_near_clr + 1
+!                    cycle   ! skip cloud build at point (i,j) because
+!                            ! background is clear
+!                 endif
+!              endif
 
               if(ocld(ic,ista) == 4) then
                  if(wthr_type(i1,j1) > 10 .and. wthr_type(i1,j1) < 20) cloud_dz = 1000._r_kind  

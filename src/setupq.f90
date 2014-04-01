@@ -67,6 +67,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
+!   2014-03-24  Hu      - Use 2/3 of 2m Q and 1/3 of 1st level Q as background
+!                           to calculate O-B for the surface moisture observations
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -95,6 +97,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl,pbl_height
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
+  use guess_grids, only: ges_q2
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
@@ -105,7 +108,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use converr, only: ptabl 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
-  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr
+  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr, &
+                                      l_use_2mQ4B
   implicit none
 
 ! Declare passed variables
@@ -134,7 +138,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local variables  
   
   real(r_double) rstation_id
-  real(r_kind) qob,qges,qsges
+  real(r_kind) qob,qges,qsges,qges2m
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
   real(r_kind) psges,sfcchk,ddiff,errorx
@@ -147,6 +151,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
+  real(r_kind),dimension(lat2,lon2,nfldsig):: qg2
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
@@ -253,6 +258,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iderivative=0
   do jj=1,nfldsig
      call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
+     call genqsat(qg2(1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,1,ice,iderivative)
   end do
 
 
@@ -365,6 +371,12 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
 
+! Interpolate 2-m qs to obs locations/times
+     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
+        call tintrp2a11(qg2,qsges,dlat,dlon,dtime,hrdifsig,&
+                 mype,nfldsig)
+     endif
+
 !    Load obs error and value into local variables
      obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
      qob = data(iqob,i) 
@@ -405,6 +417,14 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Interpolate guess moisture to observation location and time
      call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
         hrdifsig,mype,nfldsig)
+
+! Interpolate 2-m q to obs locations/times
+     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
+        call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
+             mype,nfldsig)
+        qges=0.33*qges+0.67*qges2m
+     endif
+
 
 ! Compute innovations
 
