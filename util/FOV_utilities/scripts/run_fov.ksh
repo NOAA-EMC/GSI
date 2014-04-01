@@ -57,7 +57,6 @@
 #         - 'n05', 'n06', 'n07', 'n08', 'n09',
 #           'n10', 'n11', 'n12', 'n14', 'n15',
 #           'n16', 'n17', 'n18', 'n19'
-#         - 'f16', 'f17', 'f18', 'f19', 'f20'
 #
 # fov_num - field of view number. valid ranges are:
 #           All AVHRR: 1 thru 2048
@@ -119,6 +118,11 @@
 
 EXE_PATH="../sorc"
 EXE="fov_util.exe"
+
+if [ ! -f $EXE_PATH/$EXE ]; then
+  echo ERROR: PROGRAM EXECUTABLE NOT FOUND
+  exit 88
+fi
 
 #---------------------------------------------------------------------------
 # Working directory.

@@ -58,7 +58,6 @@
 !        'n05', 'n06', 'n07', 'n08', 'n09'
 !        'n10', 'n11', 'n12', 'n14', 'n15'
 !        'n16', 'n17', 'n18', 'n19'
-!        'f16', 'f17', 'f18', 'f19', 'f20'
 !   fov_num - Field of view number (integer). Crosstrack sensors only.
 !      Valid ranges are:
 !        All AVHRR: 1 thru 2048
