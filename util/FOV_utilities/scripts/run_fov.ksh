@@ -70,7 +70,7 @@
 #           AIRS:      1 thru 90
 #           All ATMS:  1 thru 96
 #           IASI:      1 thru 120
-#           OTHERS:    NOT USED.  SET TO -999
+#           OTHERS:    NOT USED FOR CONICAL SENSORS  SET TO -999
 #
 # sat_az  - satellite azimuth angle (degrees)
 #
@@ -158,7 +158,8 @@ $EXE > log
 status=$?
 if (( status != 0 ));then
   echo ERROR IN PROGRAM
-  exit 1
+  echo EXIT WITH STATUS CODE $status
+  exit $status
 fi
 
 #---------------------------------------------------------------------------
