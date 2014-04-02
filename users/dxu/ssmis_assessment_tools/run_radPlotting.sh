@@ -41,6 +41,7 @@ EOF
 psFiles=`ls *.ps `
 for file in ${psFiles}
 do 
+   # get filename without path and suffix
    fn=${file%.*}
    convert ${file}  ${fn}.jpg 
 done
