@@ -35,10 +35,12 @@ PRO configSensorParam, sensorOption, paramStruct
       MAX_LON : 180,      $
       radListFile1 : '',  $
       radListFile2 : '',  $
+      sceneListFile: '',  $
+      biasListFile : '',  $
+      stddevListFile : '',$
       MAX_FOV : 30000L,   $
       MAX_CHAN : MAX_CHAN_NUM , $ 
       sensorName: STRING_FILL_Val, $ 
-      sceneListFile: '',        $
       chanNumArray  : MAKE_ARRAY(MAX_CHAN_NUM,/INT,     $
                                  VALUE=INT_FILL_Val),   $
       chanInfoArray : MAKE_ARRAY(MAX_CHAN_NUM,/STRING,  $
