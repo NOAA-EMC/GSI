@@ -87,6 +87,8 @@ module hybrid_ensemble_parameters
 !                  if .false., ensemble perturbation wind stored as psi,chi.
 !                   (this is useful for regional application, where there is ambiguity in how to
 !                      define psi,chi from u,v)
+!      q_hyb_ens:  if .true., then use specific humidity ensemble perturbations
+!                  if .false. (default), use relative humidity
 !      readin_localization:  if .true., then read in localization information from external file
 !      oz_univ_static:  if .true., ozone perturbations are zeroed out to make the ozone analysis
 !                       univariate, and defaults back to static B (no ensemble component)
@@ -134,6 +136,7 @@ module hybrid_ensemble_parameters
 !   def l_hyb_ens          - logical switch to turn on hybrid ensemble 3dvar
 !   def uv_hyb_ens         - if true, then ensemble perturbation wind represented by u,v
 !                               otherwise, ensemble perturbation wind represented by stream, pot. functions
+!   def q_hyb_ens          - if true, use specific humidity
 !   def aniso_a_en    - if true, then use anisotropic rf for localization
 !   def generate_ens   - if true, then create ensemble members internally
 !                              using sqrt of static background error acting on N(0,1) random vectors
@@ -206,7 +209,7 @@ module hybrid_ensemble_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
        s_ens_h,oz_univ_static
-  public :: uv_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
+  public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_localization
   public :: eqspace_ensgrid,grid_ratio_ens
   public :: beta1wgt,beta2wgt,pwgt,full_ensemble,pwgtflg,betaflg,coef_bw
@@ -227,7 +230,7 @@ module hybrid_ensemble_parameters
   public :: ntlevs_ens
   public :: enspreproc
 
-  logical l_hyb_ens,uv_hyb_ens,oz_univ_static
+  logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static
   logical enspreproc
   logical aniso_a_en
   logical full_ensemble,pwgtflg,betaflg
@@ -287,6 +290,7 @@ subroutine init_hybrid_ensemble_parameters
   pwgtflg=.false.
   betaflg=.false.
   uv_hyb_ens=.false.
+  q_hyb_ens=.false.
   oz_univ_static=.false.
   aniso_a_en=.false.
   generate_ens=.true.

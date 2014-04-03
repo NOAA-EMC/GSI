@@ -12,6 +12,7 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
 ! PROGRAM HISTORY LOG:
 !    2008-12-20  Hu  make it read in BUFR form lightning data
 !    2010-04-09  Hu  make changes based on current trunk style
+!    2013-03-27  Hu  add code to map obs from WRF mass H grid to analysis grid
 !
 !
 !   input argument list:
@@ -45,6 +46,8 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
+  use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
+  use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
 
   implicit none
 !
@@ -77,8 +80,8 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind) :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl,nlon,nlat
-    INTEGER(i_kind)  ::  numlvl,numlight
+    INTEGER(i_kind)  ::  maxlvl
+    INTEGER(i_kind)  ::  numlvl,numlight,numobsa
     INTEGER(i_kind)  ::  n,k,iret
     INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
@@ -179,9 +182,17 @@ subroutine read_lightning(nread,ndata,infile,obstype,lunout,twind,sis)
       ndata=numlight
       nreal=maxlvl+2
       if(numlight > 0 ) then
-           write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-           write(lunout) ((lightning_in(k,i),k=1,maxlvl+2),i=1,numlight)
-           deallocate(lightning_in)
+          if(nlon==nlon_regional .and. nlat==nlat_regional) then
+             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+             write(lunout) ((lightning_in(k,i),k=1,maxlvl+2),i=1,numlight)
+          else
+             call wrfmass_obs_to_a8(lightning_in,nreal,numlight,ilat,ilon,numobsa)
+             nread=numobsa
+             ndata=numobsa
+             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+             write(lunout) ((lightning_in(k,i),k=1,maxlvl+2),i=1,numobsa)
+          endif
+          deallocate(lightning_in)
       endif
    endif
  

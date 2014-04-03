@@ -1273,7 +1273,7 @@ contains
    integer(i_kind),dimension(maxchn):: io_chan
    integer(i_kind),dimension(maxdat):: ipoint
  
-   real(r_kind):: bias,scan,errinv,rnad
+   real(r_kind):: bias,scan,errinv,rnad,tiny
    real(r_kind):: tlaptmp,tsumtmp,ratio,wgtlap
    real(r_kind),allocatable,dimension(:):: tsum0,tsum,tlap0,tlap1,tlap2,tcnt
    real(r_kind),allocatable,dimension(:,:):: AA
@@ -1575,11 +1575,14 @@ contains
          endif
 
 !        Solve linear system
+         tiny=1.0e-10_r_kind
          allocate(AA(np,np),be(np))
          do i=1,new_chan
             if (iobs(i)<nthreshold) cycle
             AA(:,:)=A(:,:,i)
             be(:)  =b(:,i)
+            if (all(AA<tiny)) cycle
+            if (all(be<tiny)) cycle
             call linmm(AA,be,np,1,np,np)
 
             predx(1,ich(i))=be(1)

@@ -1,5 +1,5 @@
 SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat,  &
-                       sat_ctp,sat_tem,w_frac)
+                       sat_ctp,sat_tem,w_frac,npts_rad)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -57,6 +57,7 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
   integer(i_kind),intent(in) :: regional_time(6)
   integer(i_kind),intent(in) :: istart
   integer(i_kind),intent(in) :: jstart
+  INTEGER(i_kind),intent(in) :: npts_rad
   
   real(r_single), intent(out):: sat_ctp(nlon,nlat)         ! cloud top pressure
   real(r_single), intent(out):: sat_tem(nlon,nlat)         ! cloud top temperature
@@ -89,7 +90,7 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
 !
   ib=jstart   ! begin i point of this domain
   jb=istart   ! begin j point of this domain
-  call map_ctp (ib,jb,nlon,nlat,nn_obs,numobs,data_s,sat_ctp,sat_tem,w_frac)
+  call map_ctp (ib,jb,nlon,nlat,nn_obs,numobs,data_s,sat_ctp,sat_tem,w_frac,npts_rad)
 !!
 !  filling boundarys
 !
