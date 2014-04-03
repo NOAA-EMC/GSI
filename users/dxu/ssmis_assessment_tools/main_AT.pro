@@ -77,6 +77,8 @@ MAX_LON = paramStruct.MAX_LON
 radListFile1  = paramStruct.radListFile1
 radListFile2  = paramStruct.radListFile2
 sceneListFile = paramStruct.sceneListFile
+biasListFile = paramStruct.biasListFile
+stddevListFile = paramStruct.stddevListFile
 MAX_FOV       = paramStruct.MAX_FOV
 MAX_CHAN      = paramStruct.MAX_CHAN
 sensorName    = paramStruct.sensorName
@@ -110,6 +112,7 @@ PRINT, '3 - NO, to plot unfiltered data'
 PRINT, '4 - NO, to plot clear sky '
 PRINT, '5 - NO, to plot cloudy sky'
 PRINT, '6 - NO, to plot precipitation'
+PRINT, '7 - NO, to plot bias and stddev'
 
 READ, readAgain
 CASE readAgain OF
@@ -119,6 +122,7 @@ CASE readAgain OF
    4: GOTO, mark_plotting_ClearSky 
    5: GOTO, mark_plotting_CloudySky 
    6: GOTO, mark_plotting_Precip 
+   7: GOTO, mark_plotting_Bias_Stddev
    ELSE: BEGIN & PRINT, 'Wrong option!!! Chose again...' & GOTO, mark_readAgain & END
 ENDCASE
 
@@ -313,6 +317,22 @@ plotScattering, chPlotArray, chanNumArray, chanInfoArray, fileNamePrefix,  $
    MIN_LAT, MAX_LAT, MIN_LON, MAX_LON, $
    refRadObs_Precipitation, refRadSim_Precipitation, refSceneData_Precipitation, date
 
+;###########################
+ mark_plotting_Bias_Stddev:
+;###########################
+;---Read bias filenames and read the biases
+readlist, biasListFile, biasFileList, nFileBias
+readlist, stddevListFile, stddevFileList, nFileStddev
+
+nBiasFiles = N_ELEMENTS(biasFileList)
+nStddevFiles = N_ELEMENTS(stddevFileList)
+
+IF ( nBiasFiles NE nStddevFiles ) THEN BEGIN 
+   PRINT,'Error: Number of Bias files and Stddev files NOT match'
+   STOP
+ENDIF
+
+plotBiasAndAvg, sensorName, biasFileList, stddevFileList
 
 PRINT,'End of processing...'
 END
