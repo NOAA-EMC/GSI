@@ -21,3 +21,4 @@
 @defineDataStructure.pro     ; util 6
 @initializeData.pro          ; util 7
 @generateConditionalData.pro ; util 8
+@plotBiasAndAvg.pro          ; util 9
