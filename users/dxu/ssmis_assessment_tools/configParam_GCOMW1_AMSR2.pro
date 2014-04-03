@@ -29,8 +29,10 @@ PRO configParam_GCOMW1_AMSR2, paramStruct
    paramStruct.radListFile1 = '/data/ejones/tools/obs_assessment/obs_assessment/meas.list'
    paramStruct.radListFile2 = '/data/ejones/tools/obs_assessment/obs_assessment/fwd_fix_em.list'
    ; Scene file
-   paramStruct.sceneListFile =  $
-	'/data/ejones/tools/obs_assessment/obs_assessment/scene.list'
+   paramStruct.sceneListFile = '/data/ejones/tools/obs_assessment/obs_assessment/scene.list'
+   ; Bias and standard deviation files
+   paramStruct.biasListFile = '/data/ejones/tools/obs_assessment/obs_assessment/bias.list'
+   paramStruct.stddevListFile = '/data/ejones/tools/obs_assessment/obs_assessment/stddev.list'
    paramStruct.chanNumArray =   $
        ['1','2','3','4','5','6','7','8','9','10',   $
        '11','12','13','14']

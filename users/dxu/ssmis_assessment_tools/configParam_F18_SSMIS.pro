@@ -30,6 +30,9 @@ PRO configParam_F18_SSMIS, paramStruct
    paramStruct.radListFile2 = '/data/home001/dxu/ssmis_assessment_tools/fwd_fix_em.list'
    ; Scene file
    paramStruct.sceneListFile = '/data/home001/dxu/ssmis_assessment_tools/scene.list'
+   ; Bias and standard deviation files
+   paramStruct.biasListFile = '/data/home001/dxu/ssmis_assessment_tools/bias.list'
+   paramStruct.stddevListFile = '/data/home001/dxu/ssmis_assessment_tools/stddev.list'
    paramStruct.chanNumArray =   $
        ['1','2','3','4','5','6','7','8','9','10',   $
        '11','12','13','14','15','16','17','18','19','20',      $
