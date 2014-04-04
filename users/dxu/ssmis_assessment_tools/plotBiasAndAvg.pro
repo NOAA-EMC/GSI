@@ -73,6 +73,7 @@ PRO plotBiasAndAvg, sensorName, biasFileList, stddevFileList
    ; Save graphics in PS
    SET_PLOT, 'PS'
    LOADCT, 39
+   !P.MULTI = [0,1,1]
    !P.FONT = 2
 
    ;-----------------------------------------------
