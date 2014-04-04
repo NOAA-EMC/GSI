@@ -53,8 +53,8 @@ PRO configSensorParam, sensorOption, paramStruct
                                  VALUE=INT_FILL_Val),   $
       CLW_THRESHOLD_MIN : 0.05,  $
       CLW_THRESHOLD_MAX : 0.3,   $
-      RWP_THRESHOLD     : 0.01,  $
-      GWP_THRESHOLD     : 0.01,  $
+      RWP_THRESHOLD     : 0.05,  $
+      GWP_THRESHOLD     : 0.05,  $
       date : '2013-01-20'}
 
    ;-----------------------------------------------
