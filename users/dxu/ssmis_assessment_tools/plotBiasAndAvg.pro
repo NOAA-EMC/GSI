@@ -86,7 +86,7 @@ PRO plotBiasAndAvg, sensorName, biasFileList, stddevFileList
       DEVICE, FILENAME = imageName, /COLOR, BITS_PER_PIXEL=8,          $
 	  XSIZE = xSizeVal, YSIZE = ySizeVal, XOFFSET = 2, YOFFSET = 2,  $
 	  /PORTRAIT, FONT_SIZE = 11, /BOLD, /COURIER
-      titleName = STRCOMPRESS(sensorName + 'Mean Bias : Ch ' + STRING(iChan + 1) + ' (' $
+      titleName = STRCOMPRESS(sensorName + ' Mean Bias : Ch ' + STRING(iChan + 1) + ' (' $
 		  + STRING(cFreq(iChan)) + ' GHz)')
       PLOT, indgen(nPos) + 1, bias(*, iChan, nFiles), PSYM = -1, $
 	 TITLE = titleName, $
