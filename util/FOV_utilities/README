@@ -10,7 +10,8 @@ go to ./sorc and type 'make'.  The intel Fortran compiler is assumed.
 The executable name is "fov_util.exe"
 
 2) Setup the run script:  The program is run by the "run_fov.ksh"
-script located in ./scripts.  Modify the following before running:
+script located in ./scripts.  Perform the following changes inside
+the run_fov.ksh script:
 
   a) Set $EXE_PATH and $EXE to the path and name of the program.
   b) Set $WORK to the working directory.
