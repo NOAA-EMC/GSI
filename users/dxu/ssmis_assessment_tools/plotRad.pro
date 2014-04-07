@@ -100,7 +100,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;   Plot observed radiances for chosen channels.
       ;------------------------------------------------
       channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
-      title = sensorName + ' observed TB ' + channel + date
+      title = sensorName + ' obs TB ' + channel + date
 
 
       ; Generate plot position
@@ -129,7 +129,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ;   Plot simulated radiances for chosen channels.
       ;-------------------------------------------------
       channel = chanInfoArray[chPlotArray(iChan)] + ' GHz '
-      title = sensorName + ' simulated TB ' + channel + date
+      title = sensorName + ' sim TB ' + channel + date
 
       ; Column position
       colPosition = 1
