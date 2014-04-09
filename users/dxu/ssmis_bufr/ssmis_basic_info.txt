@@ -72,6 +72,14 @@ $ vi Makefile_new
 LIB = -L$(dir_lib) -lnetcdf -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran 
       -lhdf5 -lz -lmfhdf -ldf -lsz -ljpeg -lbufr_ncep_4_64 -L$(FC_LIB) -lifcore -limf -lm
 
+##################################
+  SSMIS BUFR table location @ S4 
+##################################
+/data/ejones/cmft_dap/data/bufrtab
+
+bufrtab.021 is for SSMIS,
+bufrtab.012 is for SSMISDR (derived products, ejones thinks)
+
 
 ##################################
   SSMIS BUFR data location @ S4 
