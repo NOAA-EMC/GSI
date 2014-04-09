@@ -489,7 +489,6 @@ contains
        allocate(dum(nlat_sfc,nlon_sfc))
     end if
 
-
 !  Global read
 #ifndef HAVE_ESMF
     if (.not. regional) then
@@ -748,6 +747,7 @@ contains
              veg_type_full(i,j)=work1(k)
           end do
        end if
+
 
 #ifndef HAVE_ESMF
     end if

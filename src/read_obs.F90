@@ -865,7 +865,6 @@ subroutine read_obs(ndata,mype)
        npe_sub3(ilarge)=0
     end do loopx
 
-        
 !   Define sub-communicators for each data file
     mm1=mype+1
     belong=.false.
@@ -958,6 +957,7 @@ subroutine read_obs(ndata,mype)
        end do
     end if
 !   Create full horizontal surface fields from local fields in guess_grids
+    write(*,*) 'read_obs_getsfc : ',mype,use_sfc
     call getsfc(mype,use_sfc)
     if(use_sfc) call prt_guessfc2('sfcges2')
 
@@ -993,8 +993,6 @@ subroutine read_obs(ndata,mype)
           nouse=0
           npuse=0
 
-!         write(6,*)'sliu in read_obs.F90::',obstype
-
           if (mype_sub(mm1,i)==mype_root) then
              open(lunout,file=obsfile_all(i),form='unformatted')
              rewind(lunout)
@@ -1002,10 +1000,10 @@ subroutine read_obs(ndata,mype)
 
 !         Process conventional (prepbufr) data
           if(ditype(i) == 'conv')then
-              if(obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
-                 obstype == 'pw' .or. obstype == 'spd'.or. & 
-                 obstype == 'gust' .or. obstype == 'vis'.or. &
-                 obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
+             if(obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
+                obstype == 'pw' .or. obstype == 'spd'.or. & 
+                obstype == 'gust' .or. obstype == 'vis'.or. &
+                obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
@@ -1038,7 +1036,7 @@ subroutine read_obs(ndata,mype)
                   string='READ_PREPBUFR'
                 endif
 
-!            Process conventional SST (modsbufr, at this moment) data
+!            Process conventional SST (nsstbufr, at this moment) data
              elseif ( obstype == 'sst' ) then
                 if ( platid == 'nsst') then
                    call read_nsstbufr(nread,npuse,nouse,gstime,infile,obstype, &
@@ -1066,7 +1064,6 @@ subroutine read_obs(ndata,mype)
 
 !            Process  NASA LaRC 
              else if (obstype == 'larccld' ) then
-!               write(6,*)'sliu :: NASA cld', infile, 'READ_NASA_LaRC'
 !               call read_NASA_LaRC(nread,npuse,infile,obstype,lunout,twind,sis)
                 call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,twind,sis)
                 string='READ_NASA_LaRC'

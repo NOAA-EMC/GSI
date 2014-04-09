@@ -113,6 +113,7 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      integer(i_kind) istyp00,istyp01,istyp10,istyp11
      integer(i_kind):: itsfc,itsfcp
      integer(i_kind):: ix,iy,ixp,iyp,j
+     integer(i_kind):: i
      real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtsfc,dtsfcp,wgtmin
      real(r_kind):: sno00,sno01,sno10,sno11,dlat,dlon
      real(r_kind):: sst00,sst01,sst10,sst11
@@ -233,6 +234,7 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      idomsfc=isli_full(ix ,iy )
      wgtmin = w00
      if(istyp00 == 1)then
+
         vty  = veg_type_full(ix ,iy)
         sty  = soil_type_full(ix ,iy)
         wgtavg(1) = wgtavg(1) + w00
@@ -243,6 +245,7 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
                          soil_temp_full(ix ,iy ,itsfcp)*dtsfcp)
         sm   =sm   +w00*(soil_moi_full(ix ,iy ,itsfc ) *dtsfc+   &
                          soil_moi_full(ix ,iy ,itsfcp) *dtsfcp)
+
      else if(istyp00 == 2)then
         wgtavg(2) = wgtavg(2) + w00
         ts(2)=ts(2)+w00*sst00
@@ -250,7 +253,6 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
         wgtavg(3) = wgtavg(3) + w00
         ts(3)=ts(3)+w00*sst00
         sn = sn + w00*sno00
-     else
         wgtavg(0) = wgtavg(0) + w00
         ts(0)=ts(0)+w00*sst00
      end if

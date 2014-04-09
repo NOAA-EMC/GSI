@@ -75,6 +75,7 @@ module gridmod
 !   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
 !                         a redundant "use omp_lib".
 !   2012-12-04 s.liu    - added use_reflectivity flag
+!   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
 !
 !
 ! !AUTHOR: 
@@ -130,7 +131,7 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: nsig3,nsig4
+  public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
   public :: jtstart,jtstop,nthreads
@@ -160,6 +161,7 @@ module gridmod
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
   real(r_kind) grid_ratio_nmmb ! ratio of analysis grid to nmmb model grid in nmmb model grid units.
+  real(r_kind) grid_ratio_wrfmass ! ratio of analysis grid to wrf model grid in wrf mass grid units.
   character(3) nmmb_verttype   !   'OLD' for old vertical coordinate definition
                                !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
                                !   'NEW' for new vertical coordinate definition
@@ -407,6 +409,7 @@ contains
     filled_grid = .false.
     half_grid = .false.
     grid_ratio_nmmb = sqrt(two)
+    grid_ratio_wrfmass = 1.0_r_kind
     nmmb_reference_grid = 'H'
     nmmb_verttype = 'OLD'
     lat1 = nlat
@@ -905,6 +908,8 @@ contains
 
     use constants, only: zero, one, three, deg2rad,pi,half, two,r0_01
     use mod_nmmb_to_a, only: init_nmmb_to_a,nxa,nya,nmmb_h_to_a8,ratio_x,ratio_y
+    use mod_wrfmass_to_a, only: init_wrfmass_to_a,nxa_wrfmass,nya_wrfmass
+    use mod_wrfmass_to_a, only: wrfmass_h_to_a,ratio_x_wrfmass,ratio_y_wrfmass
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -948,6 +953,7 @@ contains
 !   2006-04-06  middlecoff - changed inges from 21 to lendian_in so it can be set to little endian.
 !   2009-01-02  todling - remove unused vars
 !   2012-01-24  parrish  - correct bug in definition of region_dx, region_dy.
+!   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
 !
 ! !REMARKS:
 !   language: f90
@@ -965,9 +971,11 @@ contains
     real(r_single),allocatable:: deta1(:),aeta1(:),eta1(:),deta2(:),aeta2(:),eta2(:)
     real(r_single) dlmd,dphd
     real(r_single),allocatable:: glat(:,:),glon(:,:)
+    real(r_kind),allocatable:: glata(:,:),glona(:,:)
     real(r_kind),allocatable:: glat8(:,:),glon8(:,:)
     real(r_single),allocatable:: dx_nmm(:,:),dy_nmm(:,:)
     real(r_single),allocatable:: dx_mc(:,:),dy_mc(:,:)
+    real(r_kind),allocatable:: dx_mca(:,:),dy_mca(:,:)
 
     real(r_kind),parameter:: r1_5=1.5_r_kind
     real(r_kind),parameter:: six=6.0_r_kind
@@ -1211,6 +1219,9 @@ contains
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig=",i6)') nsig 
        if(diagnostic_reg.and.mype==0) write(6,'(" in init_reg_glob_ll, nsig_soil=",i6)') nsig_soil 
  
+       call init_wrfmass_to_a(grid_ratio_wrfmass,nlon_regional,nlat_regional)
+       nlon=nxa_wrfmass ; nlat=nya_wrfmass
+
 ! Get vertical info for wrf mass core
        allocate(aeta1_ll(nsig),eta1_ll(nsig+1))
        allocate(aeta1(nsig),eta1(nsig+1))
@@ -1242,14 +1253,14 @@ contains
  
        rlon_min_ll=one
        rlat_min_ll=one
-       nlon=nlon_regional
-       nlat=nlat_regional
+!       nlon=nlon_regional
+!       nlat=nlat_regional
        rlon_max_ll=nlon
        rlat_max_ll=nlat
-       rlat_min_dd=rlat_min_ll+r1_5
-       rlat_max_dd=rlat_max_ll-r1_5
-       rlon_min_dd=rlon_min_ll+r1_5
-       rlon_max_dd=rlon_max_ll-r1_5
+       rlat_min_dd=rlat_min_ll+r1_5/grid_ratio_wrfmass
+       rlat_max_dd=rlat_max_ll-r1_5/grid_ratio_wrfmass
+       rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_wrfmass
+       rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_wrfmass
  
        if(diagnostic_reg.and.mype==0) then
           write(6,*)' in init_reg_glob_ll, rlat_min_dd=',rlat_min_dd
@@ -1263,6 +1274,16 @@ contains
           write(6,*)' in init_reg_glob_ll, nlon,nlat=',nlon,nlat
        end if
 
+       allocate(glata(nlat,nlon),glona(nlat,nlon))
+       allocate(dx_mca(nlat,nlon),dy_mca(nlat,nlon))
+       call wrfmass_h_to_a(glat,glata)
+       call wrfmass_h_to_a(glon,glona)
+
+       call wrfmass_h_to_a(dx_mc,dx_mca)
+       call wrfmass_h_to_a(dy_mc,dy_mca)
+       dx_mca=grid_ratio_wrfmass*dx_mca
+       dy_mca=grid_ratio_wrfmass*dy_mca
+
        allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
        allocate(region_dy(nlat,nlon),region_dx(nlat,nlon))
        allocate(region_dyi(nlat,nlon),region_dxi(nlat,nlon))
@@ -1273,16 +1294,16 @@ contains
        allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
        do k=1,nlon
           do i=1,nlat
-             glat_an(k,i)=glat(k,i)
-             glon_an(k,i)=glon(k,i)
-             region_lat(i,k)=glat(k,i)
-             region_lon(i,k)=glon(k,i)
-             region_dx(i,k)=dx_mc(k,i)
-             region_dy(i,k)=dy_mc(k,i)
-             region_dxi(i,k)=one/dx_mc(k,i)
-             region_dyi(i,k)=one/dy_mc(k,i)
-             coeffx(i,k)=half/dx_mc(k,i)
-             coeffy(i,k)=half/dy_mc(k,i)
+             glat_an(k,i)=glata(i,k)
+             glon_an(k,i)=glona(i,k)
+             region_lat(i,k)=glata(i,k)
+             region_lon(i,k)=glona(i,k)
+             region_dx(i,k)=dx_mca(i,k)
+             region_dy(i,k)=dy_mca(i,k)
+             region_dxi(i,k)=one/dx_mca(i,k)
+             region_dyi(i,k)=one/dy_mca(i,k)
+             coeffx(i,k)=half/dx_mca(i,k)
+             coeffy(i,k)=half/dy_mca(i,k)
           end do
        end do
 
@@ -1291,6 +1312,7 @@ contains
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
+       deallocate(glata,glona,dx_mca,dy_mca)
  
     end if   ! end if wrf mass core section
 

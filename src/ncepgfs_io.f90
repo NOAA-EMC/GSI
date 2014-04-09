@@ -1042,9 +1042,9 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
       if ( nst_gsi > 0 ) then
         call write_gfs_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
 
-        if ( l_hyb_ens ) then
-          call write_ens_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
-        endif
+!       if ( l_hyb_ens ) then
+!         call write_ens_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
+!       endif
 
       else
         filename='sfcanl.gsi'
@@ -1315,20 +1315,33 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !     the new files (nstf06, nstges and nstanl) needs to be processed
 !     
 !  2. This routine generates the sfc & nst analysis files (sfcanl and nstanl) by 
-!     (1) reading sfcanl.tmp (sfcf06 applied with global_cycle) and nstf06
+!     (1) reading sfcgcy (sfcf06 applied with global_cycle) and nstf06
 !     (2) writing/updating the SST (tsea) and Tr (tref) respectively to get sfcanl and nstanl
+!
+!  3. The interpolation of global dsfct at one grids (lower resolaution, e.g., 1152 x 576)
+!     to another grids (higher resolution, e.g., 1760 x 880) with surface mask info accounted
+!     The main ideas of the surface mask dependent interpolation:
+!     (1) By-linear interpolation is applied.
+!     (2) For a target point, the candidates from the source must have the idetical surface type
+!     (3) A preparation step is adopted to get more specified surface points in
+!         the source. This can be done more than one time (here, nprep = 1) 
+!     (4) If none of the 4 nearby grids has the same surface type as the target
+!         point, the search area is expanded to one grid futher in each direction.
+!         This means 16 more grids will be searched
+!     (5) The surface mask dependent interpolation can be done for any number of surface type (istyp1 to istyp2)
+!         At present, the interpolation is only performed for open water grids (istyp1=istyp2=0)
 !               
-!  3. Notes
+!  4. Notes
 !     (1) Tr (foundation temperature), instead of skin temperature, is the analysis variable.
 !     (2) The generation of sfanl is nst_gsi dependent.
 !         nst_gsi = 0 (default): No NST info at all;
 !         nst_gsi = 1          : Input NST info but not used in GSI
 !         nst_gsi = 2          : Input NST info, used in CRTM simulation but no Tr analysis
 !         nst_gsi = 3          : Input NST info, used in both CRTM simulation and Tr analysis 
-!     (3) The interpolation of global dsfct at analysis grids (lower resolaution, e.g., 1152 x 576)
-!         to surface grids (high resolution, e.g., 1760 x 880) with surface mask info accounted
-!         At present, the interpolation is only performed for open water grids
-!     (4) The surface file (sfcanl.tmp) read in has been updated with global_cycle
+!     (3) The surface file (sfcgcy) read in has been updated with global_cycle
+!     (4) Generally, here, the interpolation of the discontinuous field is
+!         handled. It is required in more applications, for example, the
+!         cloud and ice concentration dependent interpolation.  
 !
 !  USES:
 !
@@ -1369,12 +1382,14 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(sfcio_intkind),parameter:: ioanl_sfc = 52
     integer(sfcio_intkind),parameter:: ioanl_nst = 53
 
+    integer(i_kind),parameter:: istyp1=0,istyp2=0,nprep=1
+
     real(r_kind),parameter :: houra = zero_single
 
 !   Declare local variables
     character(len=6):: fname_ges_sfc,fname_ges_nst,fname_anl_sfc,fname_anl_nst
     character(len=10):: canldate
-    integer(i_kind):: iret
+    integer(i_kind):: iret,istyp
     integer(i_kind):: latb,lonb,nlatm2
     integer(i_kind):: i,j,k,ip1,jp1,ilat,ilon,jj,mm1
 
@@ -1387,8 +1402,11 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),    dimension(nlat,nlon):: dsfct_glb
     integer(i_kind), dimension(nlat,nlon):: isli_glb
 
-    real(r_kind),    dimension(nlat_sfc,nlon_sfc)  :: dsfct_tmp,work
-    integer(i_kind), dimension(nlat_sfc,nlon_sfc)  :: isli_tmp
+    real(r_kind),    dimension(nlat,nlon,istyp1:istyp2):: dsfct_tmp
+    integer(i_kind), dimension(nlat,nlon,istyp1:istyp2):: isli_tmp
+
+    real(r_kind),    dimension(nlat_sfc,nlon_sfc)  :: dsfct_gsi,work
+    integer(i_kind), dimension(nlat_sfc,nlon_sfc)  :: isli_gsi
 
     real(r_kind),    dimension(nlon_sfc,nlat_sfc-2):: dsfct_anl
 
@@ -1484,25 +1502,32 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
               ', nlon,nlat-2=',nlon,nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
          write(6,*) ' WRITE_NST_SFC, nlon_sfc,nlat_sfc : ',  nlon_sfc,nlat_sfc
 !
-!        Get updated/analysis surface mask info from sfcanl.tmp file
+!        Get the expanded values for a surface type and the new mask
+!
+         do istyp = istyp1, istyp2
+           call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp(:,:,istyp),isli_tmp(:,:,istyp),nlat,nlon,istyp,nprep)
+         enddo
+
+!
+!        Get updated/analysis surface mask info from sfcgcy file
 !
          call tran_gfssfc(data_sfc%slmsk,work,lonb,latb)
          do j=1,lonb
            do i=1,latb+2
-              isli_tmp(i,j) = nint(work(i,j))
+              isli_gsi(i,j) = nint(work(i,j))
            end do
          end do
 !
-!        Interpolate dsfct_glb(nlat,nlon) to dsfct_tmp(nlat_sfc,nlon_sfc) with surface mask accounted
+!        Interpolate dsfct_tmp(nlat,nlon) to dsfct_gsi(nlat_sfc,nlon_sfc) with surface mask accounted
 !
-         call int22_msk_glb(dsfct_glb,isli_glb,rlats,rlons,nlat,nlon, &
-                            dsfct_tmp,isli_tmp,rlats_sfc,rlons_sfc,nlat_sfc,nlon_sfc,0,0)
+         call int22_msk_glb(dsfct_tmp,isli_tmp,rlats,rlons,nlat,nlon, &
+                            dsfct_gsi,isli_gsi,rlats_sfc,rlons_sfc,nlat_sfc,nlon_sfc,istyp1,istyp2)
 !
-!        transform the dsfct_tmp(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
+!        transform the dsfct_gsi(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
 !
          do j = 1, latb
            do i = 1, lonb
-             dsfct_anl(i,j) = dsfct_tmp(latb+2-j,i)
+             dsfct_anl(i,j) = dsfct_gsi(latb+2-j,i)
            end do 
          end do
 
@@ -1524,8 +1549,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
        if ( nst_gsi > 2 ) then
 !
 !        set tref = 271.2 for the new open water (sea ice just melted) grids
-!        note: data_nst%slmsk is the mask of the guess
-!              data_sfc%slmsk is the mask of the analysis
+!        Notes: data_nst%slmsk is the mask of the guess
+!               data_sfc%slmsk is the mask of the analysis since global_cycle has been applied
 !
          do j = 1, latb
            do i = 1, lonb
@@ -1656,18 +1681,17 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !      (1) reading sfcgcy_ens_mem001 and nstf06_mem001 (1-80) 
 !      (2) writing/updating the SST (tsea) or Tr (tref) in the above read in files to get sfcanl_ens_mem001, nstanl_ens_mem001,
 !          they will be renamed to be sfcanl_yyyymmddhh_mem001 and nstanl_yyyymmddhh_mm001
+!  3. Surface mask dependent Interpolation
+!     See write_gfs_sfc_nst
 !               
-!  3. Notes
+!  4. Notes
 !     (1) Tr (foundation temperature), instead of skin temperature, is the analysis variable.
 !     (2) The generation of sfcanl and sfcanl_yyyymmddhh_mm??? is nst_gsi dependent.
 !         nst_gsi = 0 (default): No NST info at all;
 !         nst_gsi = 1          : Input NST info but not used in GSI
 !         nst_gsi = 2          : Input NST info, used in CRTM simulation but no Tr analysis
 !         nst_gsi = 3          : Input NST info, used in both CRTM simulation and Tr analysis 
-!     (3) For sfcanl_yyyymmddhh_mm???, the interpolation of global dsfct at analysis grids (higher resolaution, e.g., 1152 x 576)
-!         to ensemble surface grids (lower resolution, e.g., 768 x 384) with surface mask info accounted
-!         At present, the interpolation is only performed for open water grids
-!     (4) The mask info is regarded as available for different resolutions
+!     (3) The mask info is regarded as available for different resolutions
 !
 !  USES:
 !
@@ -1710,16 +1734,17 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(sfcio_intkind),parameter:: ioanl_sfc = 52
     integer(sfcio_intkind),parameter:: ioanl_nst = 53
 
+    integer(i_kind),parameter:: istyp1=0,istyp2=0,nprep=1
+
     real(r_kind),parameter :: houra = zero_single
 
 !   Declare local variables
-!   integer(i_kind), parameter :: nlon_ens_sfc = 384, nlat_ens_sfc = 192
     character(len=17):: fname_ges_sfc,fname_ges_nst,fname_anl_sfc,fname_anl_nst
 !   character(len=24):: fname_ges_sfc,fname_anl_sfc,fname_anl_nst
 !   character(len=27):: fname_ges_nst
     character(len=10) :: canldate
     character(len=3 ) :: cmember
-    integer(i_kind):: iret
+    integer(i_kind):: iret,istyp
     integer(i_kind):: latb,lonb,nlatm2,nlat_ens_sfc,nlon_ens_sfc
     integer(i_kind):: i,j,k,ip1,jp1,ilat,ilon,jj,mm1,jmax
 
@@ -1732,8 +1757,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),    dimension(nlat,nlon):: dsfct_glb
     integer(i_kind), dimension(nlat,nlon):: isli_glb
 
-    real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
-    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp,work,isli_tmp,dsfct_anl
+    real(r_kind), allocatable, dimension(:)     :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
+    real(r_kind), allocatable, dimension(:,:)   :: dsfct_gsi,work,isli_gsi,dsfct_anl
+    real(r_kind), allocatable, dimension(:,:,:) :: dsfct_tmp,isli_tmp
+
     real(r_kind) :: dlat,dlon
 
     type(sfcio_head):: head_sfc
@@ -1834,50 +1861,58 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !
        if ( k == 1 ) then
 
-         allocate(dsfct_tmp(nlat_ens_sfc,nlon_ens_sfc),      work(nlat_ens_sfc,nlon_ens_sfc), &
-                   isli_tmp(nlat_ens_sfc,nlon_ens_sfc), dsfct_anl(nlon_ens_sfc,nlat_ens_sfc-2))
+         allocate(dsfct_gsi(nlat_ens_sfc,nlon_ens_sfc),      work(nlat_ens_sfc,nlon_ens_sfc), &
+                   isli_gsi(nlat_ens_sfc,nlon_ens_sfc), dsfct_anl(nlon_ens_sfc,nlat_ens_sfc-2))
+
+         allocate(dsfct_tmp(nlat_ens_sfc,nlon_ens_sfc,istyp1:istyp2),isli_tmp(nlat_ens_sfc,nlon_ens_sfc,istyp1:istyp2))
 
          if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
            write(6,*)'WRITE_ENS_NST_SFC:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
                 ', nlon,nlat_-2=',nlon,nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
 !
-!         get lats and lons for ensemble grids
+!          get lats and lons for ensemble grids
 !
-          jmax=nlat_ens_sfc-2
-          allocate(slatx(jmax),wlatx(jmax))
-          allocate(rlats_ens_sfc(nlat_ens_sfc),rlons_ens_sfc(nlon_ens_sfc))
-          call splat(4,jmax,slatx,wlatx)
-          dlon=two*pi/float(nlon_ens_sfc)
-          do i=1,nlon_ens_sfc
+           jmax=nlat_ens_sfc-2
+           allocate(slatx(jmax),wlatx(jmax))
+           allocate(rlats_ens_sfc(nlat_ens_sfc),rlons_ens_sfc(nlon_ens_sfc))
+           call splat(4,jmax,slatx,wlatx)
+           dlon=two*pi/float(nlon_ens_sfc)
+           do i=1,nlon_ens_sfc
              rlons_ens_sfc(i)=float(i-1)*dlon
-          end do
-          do i=1,(nlat_ens_sfc-1)/2
+           end do
+           do i=1,(nlat_ens_sfc-1)/2
              rlats_ens_sfc(i+1)=-asin(slatx(i))
              rlats_ens_sfc(nlat_ens_sfc-i)=asin(slatx(i))
-          end do
-          rlats_ens_sfc(1)=-half*pi
-          rlats_ens_sfc(nlat_ens_sfc)=half*pi
-          deallocate(slatx,wlatx)
+           end do
+           rlats_ens_sfc(1)=-half*pi
+           rlats_ens_sfc(nlat_ens_sfc)=half*pi
+           deallocate(slatx,wlatx)
 !
 !          Get updated/analysis surface mask info from sfcgcy_ens_mem001 (001-080) file
 !
            call tran_gfssfc(data_sfc%slmsk,work,lonb,latb)
            do j=1,nlon_ens_sfc
              do i=1,nlat_ens_sfc
-               isli_tmp(i,j) = nint(work(i,j))
+               isli_gsi(i,j) = nint(work(i,j))
              end do
            end do
 !
+!          Get the expanded values for a surface type and the new mask
+!
+           do istyp = istyp1, istyp2
+             call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp(:,:,istyp),isli_tmp(:,:,istyp),nlat,nlon,istyp,nprep)
+           enddo
+!
 !          Interpolate dsfct_glb(nlat,nlon) to dsfct_tmp(nlat_sfc,nlon_sfc) with surface mask accounted
 !
-           call int22_msk_glb(dsfct_glb,isli_glb,rlats,rlons,nlat,nlon, &
-                              dsfct_tmp,isli_tmp,rlats_ens_sfc,rlons_ens_sfc,nlat_ens_sfc,nlon_ens_sfc,0,0)
+           call int22_msk_glb(dsfct_tmp,isli_tmp,rlats,rlons,nlat,nlon, &
+                              dsfct_gsi,isli_gsi,rlats_ens_sfc,rlons_ens_sfc,nlat_ens_sfc,nlon_ens_sfc,istyp1,istyp2)
 !
 !          transform the dsfct_tmp(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
 !
            do j = 1, latb
              do i = 1, lonb
-               dsfct_anl(i,j) = dsfct_tmp(latb+2-j,i)
+               dsfct_anl(i,j) = dsfct_gsi(latb+2-j,i)
              end do 
            end do
 
