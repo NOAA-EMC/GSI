@@ -1,8 +1,0 @@
-&BiasDetermin
-    FWDsimulAnalysList='/net/orbit050l/disk5/pub/sidb/testbed/src/7_bias/ssmis/FWDanalys.list'
-    RadList='/net/orbit050l/disk5/pub/sidb/testbed/src/7_bias/ssmis/ListRadFiles_ssmis.dat'
-    BiasFile='/net/orbit050l/disk5/pub/sidb/data/TestbedData/BIAScorrec/ssmis/05291/biasCorrec_ssmis.dat'
-    Topogr='/net/orbit050l/disk5/pub/sidb/data/Topography/topography.bin_linux'
-    DetailOut=1
-    DetailOutFile='/net/orbit050l/disk5/pub/sidb/data/TestbedData/BIAScorrec/ssmis/05291/biasDetailedComparis.dat'
-/
