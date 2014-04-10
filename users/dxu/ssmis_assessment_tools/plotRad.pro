@@ -113,6 +113,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       maxBT = max( [refRadObs.tb(filter_All,chPlotArray(iChan)),   $
                     refRadSim.tb(filter_All,chPlotArray(iChan))] )
 
+      ; Plot observed TB
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,   $
 	       refRadObs.lat,refRadObs.lon,                  $
 	       filter_All,   $
@@ -136,7 +137,7 @@ PRO plotRad, chPlotArray, chanNumArray, chanInfoArray, prefix,       $
       ; Column position
       colPosition = 1
 
-
+      ; Plot simulated TB
       radPloting, MIN_LAT,MAX_LAT,MIN_LON,MAX_LON,    $
 	       refRadSim.lat,refRadSim.lon,                  $
 	       filter_All,   $
