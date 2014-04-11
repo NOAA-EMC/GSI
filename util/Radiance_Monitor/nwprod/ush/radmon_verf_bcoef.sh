@@ -115,7 +115,8 @@ VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
 err=0
-bcoef_exec=radmon_bcoef.${RAD_AREA}
+#bcoef_exec=radmon_bcoef.${RAD_AREA}
+bcoef_exec=radmon_bcoef
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax

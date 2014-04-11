@@ -44,7 +44,6 @@ cd $tmpdir
 #------------------------------------------------------------------
 #   Set dates
 
-#bdate=`$NDATE -720 $PDATE`
 bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
@@ -127,7 +126,7 @@ cat << EOF > ${type}_${var}.gs
 EOF
       fi
 
-      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 #   rm -f ${type}*.ieee_d
@@ -142,12 +141,8 @@ done
 if [[ ! -d ${IMGNDIR}/angle ]]; then
    mkdir -p ${IMGNDIR}/angle
 fi
-#$NCP *.png  ${IMGNDIR}/angle/.
 find . -name '*.png' -exec cp -pf {} ${IMGNDIR}/angle/ \;
 
-#for var in ${PTYPE}; do
-#   rm -f ${type}.${var}*.png
-#done
 
 
 

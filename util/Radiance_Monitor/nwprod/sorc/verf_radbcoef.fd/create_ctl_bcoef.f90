@@ -71,6 +71,24 @@ subroutine create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
      wavelength = 10000./wavenumbr(i)
      write(lunctl,134) i,nu_chan(i),iuse,ratio(i),wavelength,frequency(i)
   end do
+
+  write(lunctl,210)
+  write(lunctl,211)
+  write(lunctl,212)
+  write(lunctl,213)
+  write(lunctl,214)
+  write(lunctl,215)
+  write(lunctl,216)
+  write(lunctl,217)
+  write(lunctl,218)
+  write(lunctl,219)
+  write(lunctl,220)
+  write(lunctl,221)
+  write(lunctl,222)
+  write(lunctl,223)
+  write(lunctl,224)
+  write(lunctl,210)
+
   write(lunctl,140) n_chan
   write(lunctl,150) 
   write(lunctl,160) 
@@ -85,11 +103,29 @@ subroutine create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
 132 format('*XDEF is channel number')
 134 format('*  x= ',i4,', channel= ',i4,' , iuse= ',i2,' , ratio= ',f8.3,&
          ' , wlth= ',f9.2,' , freq= ',f9.2)
+136 format('* ',a70)
 140 format('xdef ',i4,' linear 1.0 1.0')
 150 format('ydef 1 linear 1.0 1.0')
 160 format('zdef 1 linear 1.0 1.0')
 170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' 06hr')
 180 format('vars ',i7)
+
+210 format('*')
+211 format('* Explanation of data terms:')
+212 format('*   penalty    penalty value')
+213 format('*   mean       global offset (mean)')
+214 format('*   atmpath    not used when adp_anglebc=.true. and newpc4pred=.true.')
+215 format('*   clw        cloud liquid water term')
+216 format('*   lapse2     temperature lapse rate**2')
+217 format('*   lapse      temperature lapse rate')
+218 format('*   cos_ssmis  cosine term for SSMIS')
+219 format('*   sin_ssmis  sine term for SSMIS')
+220 format('*   emiss      emissivity sensitivity term')
+221 format('*   4ordang    4th order angle term')
+222 format('*   3ordang    3rd order angle term')
+223 format('*   2ordang    2nd order angle term')
+224 format('*   1ordang    1st order angle term')
+
 
 ! Write data portion of GraDS control file  
   do i=1,ntype
