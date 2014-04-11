@@ -124,7 +124,7 @@ subroutine pcgsoi()
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        ltlint, iorthomax
-  use gridmod, only: twodvar_regional
+  use gridmod, only: twodvar_regional, use_reflectivity
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
@@ -762,7 +762,11 @@ subroutine pcgsoi()
 
 ! cloud analysis  after iteration
   if(jiter == miter) then
+    if(use_reflectivity) then
+     call gsdcloudanalysis4nmmb(mype)
+    else
      call gsdcloudanalysis(mype)
+    endif
   endif
 
 ! Write output analysis files

@@ -40,6 +40,7 @@ module jfunc
 !   2011-07-15  zhu     - add cwgues
 !   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
 !                         or aircraft_t_bc_pof=.true.
+!   2013-10-30  jung    - added logical clip_supersaturation
 !   2013-12-10  eliu    - add variables realted to total water  
 !   2013-12-10  zhu     - add variables varcw and cwoption
 !   2013-12-10  kim     - add cwgues_orignal
@@ -127,13 +128,14 @@ module jfunc
   public :: rhtgues,qtgues,dqsdt,dqsdp,qtdist_gues,cfgues,sl,del_si
   public :: tgs,qgs,cwgs,tlrg,qlrg,cwlrg,rnlrg  
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
-  public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
+  public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
   public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp,diag_precon,step_start
   public :: use_rhtot,do_gfsphys 
   public :: cwgues0  
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical clip_supersaturation
   logical use_rhtot,do_gfsphys
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
@@ -207,6 +209,7 @@ contains
 
     factqmin=one
     factqmax=one
+    clip_supersaturation=.false.
     factg=one
     factv=one
     factp=one

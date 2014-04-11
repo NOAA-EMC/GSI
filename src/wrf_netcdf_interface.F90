@@ -22,6 +22,9 @@ subroutine convert_netcdf_mass
 !                          write to temporary netcdf files (extend FGAT capability for
 !                          wrf mass netcdf format)
 !   2012-11-26  Hu  - add code to read surface variables for GSD soil nudging
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !
@@ -467,7 +470,8 @@ subroutine convert_netcdf_mass
         write(iunit)((field3v(i,j,k),i=1,nlon_regional),j=1,nlat_regional+1)   ! V
      end do
      
-     rmse_var='LANDMASK'
+!     rmse_var='LANDMASK'
+     rmse_var='XLAND'
      call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
           start_index,end_index, WrfType, ierr    )
      write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
@@ -485,6 +489,11 @@ subroutine convert_netcdf_mass
      write(6,*)' landmask(1,1),landmask(nlon,1)=',field2(1,1),field2(nlon_regional,1)
      write(6,*)' landmask(1,nlat),landmask(nlon,nlat)=', &
           field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+     DO j=1,nlat_regional
+     DO i=1,nlon_regional
+        if(abs(field2(i,j)-2.0)<0.01) field2(i,j)=0.0  !for XLAND 2=water 1=land
+     ENDDO
+     ENDDO
      write(iunit)field2   !LANDMASK   (1=land, 0=water)
      
      rmse_var='SEAICE'
@@ -693,6 +702,24 @@ subroutine convert_netcdf_mass
           ierr                                 )
      write(6,*)' max,min TSK=',maxval(field2),minval(field2)
      write(iunit)field2   !TSK
+
+     rmse_var='Q2'
+     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+          start_index,end_index, WrfType, ierr    )
+     write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+     write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr
+     write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+     write(6,*)' start_index = ',start_index,' end_index = ',end_index
+     call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+          field2,WRF_REAL,0,0,0,ordering,           &
+          staggering, dimnames ,               &
+          start_index,end_index,               & !dom
+          start_index,end_index,               & !mem
+          start_index,end_index,               & !pat
+          ierr                                 )
+     write(6,*)' max,min Q2=',maxval(field2),minval(field2)
+     write(iunit)field2   !Q2
+
    
      if(l_gsd_soilTQ_nudge) then
         rmse_var='SOILT1'
@@ -837,6 +864,26 @@ subroutine convert_netcdf_mass
           write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qg
        end do
    
+       rmse_var='QNRAIN'
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering,    & 
+            start_index,end_index, WrfType, ierr    )
+       write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+       write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr
+       write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+       write(6,*)' start_index = ',start_index,' end_index = ',end_index
+       call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field3,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index,               & !dom
+            start_index,end_index,               & !mem
+            start_index,end_index,               & !pat
+            ierr                                 )
+       do k=1,nsig_regional
+          write(6,*)' k,max,min,mid Qnr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &
+                   field3(nlon_regional/2,nlat_regional/2,k)
+          write(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   ! Qnr    
+       end do
+
        rmse_var='RAD_TTEN_DFI'
        call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
             start_index,end_index, WrfType, ierr    )
@@ -1731,6 +1778,9 @@ subroutine update_netcdf_mass
 !                              variable is Landmask there).
 !   2012-01-09  Hu  - add code to update START_TIME to analysis time
 !   2012-04-13  Whitaker - clip positive definite quantities to tiny_single
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !
@@ -2148,6 +2198,26 @@ subroutine update_netcdf_mass
        start_index,end_index1,               & !pat
        ierr                                 )
 
+  read(iunit)   field2   !Q2
+  write(6,*)' max,min Q2=',maxval(field2),minval(field2)
+  rmse_var='Q2'
+  call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+       start_index,end_index1, WrfType, ierr    )
+  write(6,*)' rmse_var=',trim(rmse_var)
+  write(6,*)' ordering=',ordering
+  write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+  write(6,*)' ndim1=',ndim1
+  write(6,*)' staggering=',staggering
+  write(6,*)' start_index=',start_index
+  write(6,*)' end_index1=',end_index1
+  call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+       field2,WRF_REAL,0,0,0,ordering,           &
+       staggering, dimnames ,               &
+       start_index,end_index1,               & !dom
+       start_index,end_index1,               & !mem
+       start_index,end_index1,               & !pat
+       ierr                                 )
+
   if(l_gsd_soilTQ_nudge) then
      read(iunit)   field2   !SOILT1
      write(6,*)' max,min SOILT1 d=',maxval(field2),minval(field2)
@@ -2293,6 +2363,30 @@ subroutine update_netcdf_mass
             field3(nlon_regional/2,nlat_regional/2,k)
     end do
     rmse_var='QGRAUP'
+    call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+         start_index,end_index1, WrfType, ierr    )
+    write(6,*)' rmse_var=',trim(rmse_var)
+    write(6,*)' ordering=',ordering
+    write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+    write(6,*)' ndim1=',ndim1
+    write(6,*)' staggering=',staggering
+    write(6,*)' start_index=',start_index
+    write(6,*)' end_index1=',end_index1
+    where (field3 < tiny_single) field3 = tiny_single
+    call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+         field3,WRF_REAL,0,0,0,ordering,           &
+         staggering, dimnames ,               &
+         start_index,end_index1,               & !dom
+         start_index,end_index1,               & !mem
+         start_index,end_index1,               & !pat
+         ierr                                 )
+
+    do k=1,nsig_regional
+       read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   !  Qnr
+       write(6,*)' k,max,min,mid Qnr=',k,maxval(field3(:,:,k)),minval(field3(:,:,k)), &                                                      
+            field3(nlon_regional/2,nlat_regional/2,k)
+    end do
+    rmse_var='QNRAIN'
     call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
          start_index,end_index1, WrfType, ierr    )
     write(6,*)' rmse_var=',trim(rmse_var)

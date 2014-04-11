@@ -53,6 +53,17 @@ module rapidrefresh_cldsurf_mod
 !   def l_cld_bld            - namelist logical for GOES cloud building
 !   def cld_bld_hgt          - namelist real for height limit, below which you build clouds
 !                                       (default = 1200 meters)
+!   def build_cloud_frac_p   - namelist real for GOES cloud building threshold
+!   def clear_cloud_frac_p   - namelist real for GOES cloud clearing threshold
+!   def nesdis_npts_rad      - NESDIS cloud product impact radiu (grid points) 
+!
+!   def iclean_hydro_withRef - if =1, then clean hydrometeors if the grid point
+!                                     has no echo and maxref=0
+!   def iclean_hydro_withRef_allcol - if =1, then clean whole column
+!                                 hydrometeors if the observed max ref =0 and
+!                                 satellite obs shows clean
+!   def l_use_2mQ4B        - namelist logical for using 2m Q as part of B to 
+!                              calculate B for surface Q obs
 !
 ! attributes:
 !   language: f90
@@ -90,6 +101,12 @@ module rapidrefresh_cldsurf_mod
   public :: l_gsd_soilTQ_nudge
   public :: l_cld_bld
   public :: cld_bld_hgt
+  public :: build_cloud_frac_p
+  public :: clear_cloud_frac_p
+  public :: nesdis_npts_rad
+  public :: iclean_hydro_withRef
+  public :: iclean_hydro_withRef_allcol
+  public :: l_use_2mQ4B
 
   logical l_cloud_analysis
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -114,6 +131,12 @@ module rapidrefresh_cldsurf_mod
   logical l_gsd_soilTQ_nudge
   logical l_cld_bld
   real(r_kind) cld_bld_hgt
+  real(r_kind) build_cloud_frac_p 
+  real(r_kind) clear_cloud_frac_p 
+  integer      nesdis_npts_rad 
+  integer      iclean_hydro_withRef
+  integer      iclean_hydro_withRef_allcol
+  logical l_use_2mQ4B
 
 contains
 
@@ -188,6 +211,12 @@ contains
     l_gsd_soilTQ_nudge = .false.                      ! .true. = turn on soil T and Q nudge
     l_cld_bld          = .false.                      ! .true. = turn on GOES cloud building
     cld_bld_hgt        = 1200.0_r_kind                ! Height (meters) below which to build clouds
+    build_cloud_frac_p = 0.95_r_kind                  ! threshold for building cloud from GOES
+    clear_cloud_frac_p = 0.10_r_kind                  ! threshold for clearing cloud from GOES
+    nesdis_npts_rad  = 1                              !  NESDIS impact radius
+    iclean_hydro_withRef = 1                          ! clean based on ref
+    iclean_hydro_withRef_allcol = 0                   ! don't clean whole column
+    l_use_2mQ4B = .false.                             ! .true. = Use 2m Q as part of B
 
     return
   end subroutine init_rapidrefresh_cldsurf

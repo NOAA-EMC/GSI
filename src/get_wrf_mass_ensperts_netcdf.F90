@@ -31,7 +31,7 @@ subroutine get_wrf_mass_ensperts_netcdf
     use hybrid_ensemble_isotropic, only: en_perts,nelen,ps_bar
     use constants, only: zero,one,half,grav,fv,zero_single,rd_over_cp_mass,rd_over_cp,one_tenth
     use mpimod, only: mpi_comm_world,ierror,mype
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,nlat_ens,nlon_ens,sp_ens,q_hyb_ens
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use gsi_bundlemod, only: gsi_bundlecreate
     use gsi_bundlemod, only: gsi_grid
@@ -297,7 +297,7 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     use kinds, only: r_kind,r_single,i_kind
     use gridmod, only: nlat_regional,nlon_regional,nsig,eta1_ll,pt_ll,aeta1_ll
     use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,q_hyb_ens
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
 
     implicit none
@@ -611,22 +611,27 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     print *,'min/max tv',minval(gg_tv),maxval(gg_tv)
 
 !
-! CALCULATE PSEUDO RELATIVE HUMIDITY
-    allocate(qst(ny,nx,nz))
-    ice=.true. 
-    iderivative=0
-    call genqsat(qst,tsn,prsl,ny,nx,nsig,ice,iderivative)
-    do k=1,nz
-       do i=1,nx
-          do j=1,ny
-             gg_rh(j,i,k)=gg_rh(j,i,k)/qst(j,i,k)
+! CALCULATE PSEUDO RELATIVE HUMIDITY IF USING RH VARIABLE
+    if (.not.q_hyb_ens) then
+       allocate(qst(ny,nx,nz))
+       ice=.true. 
+       iderivative=0
+       call genqsat(qst,tsn,prsl,ny,nx,nsig,ice,iderivative)
+       do k=1,nz
+          do i=1,nx
+             do j=1,ny
+                gg_rh(j,i,k)=gg_rh(j,i,k)/qst(j,i,k)
+             enddo
           enddo
        enddo
-    enddo
-    print *,'min/max rh',minval(gg_rh),maxval(gg_rh)
-!
+       print *,'min/max rh',minval(gg_rh),maxval(gg_rh)
+       deallocate(qst)
+    else
+       print *,'min/max q',minval(gg_rh),maxval(gg_rh)
+    end if
+
 ! DEALLOCATE REMAINING TEMPORARY STORAGE
-    deallocate(tsn,qst,prsl,q_integral,p_top)
+    deallocate(tsn,prsl,q_integral,p_top)
   endif ! done netcdf read on root
 
 ! transfer data from root to subdomains on each task

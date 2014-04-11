@@ -59,6 +59,7 @@ subroutine compute_derived(mype,init_pass)
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
 !   2012-02-08  kleist  - add ges_qsat, add uvflag arg in call to strong_bal_correction,
 !                         compute ges_qsat over nfldsig bins for limq (when nobs_bins /=0)
+!   2013-10-30  jung    - add test and removal of supersaturation
 !   2012-12-03  eliu    - add variables and computations related to total water
 !   2013-02-26  m.kim   - applying qcmin to  ges_cwmr_it
 !   2013-03-04  m.kim   - saving starting ges_cwmr_it(with negative values) as cwgues_original                          
@@ -78,7 +79,7 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: qsatg,qgues,ggues,vgues,pgues,jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq,dvisdlog,cwgues,cwgues0 
+       tendsflag,varq,dvisdlog,cwgues,cwgues0,clip_supersaturation
   use jfunc, only: rhtgues,qtgues,qtdist_gues,cfgues,&  
                    sl,del_si
   use control_vectors, only: cvars3d,cvars2d
@@ -167,12 +168,19 @@ subroutine compute_derived(mype,init_pass)
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')
 
-! Limit q to be >= qmin
+  iderivative = 0
+  ice = .true.
   do it=1,nfldsig
+     call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+            nsig,ice,iderivative)
+     if(it == ntguessig) call q_diag(mype)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
+! Limit q to be >= qmin
               ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
+! limit q to be <= ges_qsat
+              if(clip_supersaturation) ges_q(i,j,k,it) = min(ges_q(i,j,k,it),ges_qsat(i,j,k,it))
            end do
         end do
      end do
@@ -580,8 +588,6 @@ subroutine compute_derived(mype,init_pass)
 ! End of qoption block
   endif
 
-  call q_diag(mype)
-  
 ! End of routine
   return
 end subroutine compute_derived

@@ -92,7 +92,8 @@ module guess_grids
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
 !   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
-!   2013-12-10  eliu    - add sensible temperature tendency (ges_tsen_gen) 
+!   2014-03-12  Hu      - Add ges_q2 
+!   2014-04-11  eliu    - add sensible temperature tendency (ges_tsen_gen) 
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -137,7 +138,7 @@ module guess_grids
   public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
   public :: ges_gust,ges_vis,ges_pblh,ges_qsat
   public :: use_compress,nsig_ext,gpstop
-  public :: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
+  public :: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,ges_q2
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
   public :: ges_initialized
@@ -279,7 +280,8 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat      ! 4d qsat array
 ! for GSD soil nudging
-  real(r_kind),allocatable,dimension(:,:,:):: ges_th2       ! 2-m temperature
+  real(r_kind),allocatable,dimension(:,:,:):: ges_th2       ! 2-m potential temperature
+  real(r_kind),allocatable,dimension(:,:,:):: ges_q2        ! 2-m moisture
   real(r_kind),allocatable,dimension(:,:,:):: ges_tsk       ! skin temperature
   real(r_kind),allocatable,dimension(:,:,:):: ges_soilt1    ! TEMPERATURE INSIDE SNOW
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tslb    ! SOIL TEMPERATURE
@@ -518,7 +520,7 @@ contains
             istatus,lat2,lon2,nsig,nfldsig
        endif
 
-       allocate ( ges_th2(lat2,lon2,nfldsig), &
+       allocate ( ges_th2(lat2,lon2,nfldsig), ges_q2(lat2,lon2,nfldsig),&
          ges_soilt1(lat2,lon2,nfldsig),ges_tslb(lat2,lon2,nsig_soil,nfldsig),&
          ges_smois(lat2,lon2,nsig_soil,nfldsig), ges_tsk(lat2,lon2,nfldsig),&
          stat=istatus)
@@ -648,6 +650,7 @@ contains
           do j=1,lon2
              do i=1,lat2
                 ges_th2(i,j,n)=zero
+                ges_q2(i,j,n)=zero
                 ges_tsk(i,j,n)=zero
                 ges_soilt1(i,j,n)=zero
              end do
@@ -1034,7 +1037,7 @@ contains
     endif
     deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
 ! GSD soil nudging
-    deallocate(ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,stat=istatus)
+    deallocate(ges_th2,ges_q2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,stat=istatus)
 !
     if (drv_initialized .and.switch_on_derivatives) then
 !      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
