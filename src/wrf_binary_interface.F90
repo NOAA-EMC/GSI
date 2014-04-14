@@ -379,7 +379,7 @@ subroutine convert_binary_mass
      call retrieve_index(index,'PHB',varname_all,nrecs)
      if(index<0) stop
      n_position=file_offset(index+1)
-     write(6,*)'  byte offset, memoryorder for PHB(',k,') = ',n_position,memoryorder_all(index)
+     write(6,*)'  byte offset, memoryorder for PHB(',k+1,') = ',n_position,memoryorder_all(index)
      write(lendian_out)n_position,memoryorder_all(index)    ! offset for PHB 
                                                          !     (zsfc*g is 1st level of this 3d field)
                                !  but more efficient to read in whole 3-d field because of ikj order
@@ -531,6 +531,13 @@ subroutine convert_binary_mass
 
      write(lendian_out)n_position     !  TSK
 
+!                   Q2                
+     call retrieve_index(index,'Q2',varname_all,nrecs)
+     if(index<0) stop
+     n_position=file_offset(index+1)
+     write(6,*)'  byte offset for Q2 = ',n_position
+     write(lendian_out)n_position     !  Q2
+
      if(l_gsd_soilTQ_nudge) then
 !                      SOIL1              
         call retrieve_index(index,'SOILT1',varname_all,nrecs)
@@ -581,6 +588,13 @@ subroutine convert_binary_mass
         n_position=file_offset(index+1)
         write(6,*)'  byte offset, memoryorder for QGRAUP(',k,' = ',n_position,memoryorder_all(index)
         write(lendian_out)n_position,memoryorder_all(index)    ! offset for QGRAUP(k)
+
+!      QNRAIN
+        call retrieve_index(index,'QNRAIN',varname_all,nrecs)
+        if(index<0) stop
+        n_position=file_offset(index+1)
+        write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)                                                    
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)              
 
 !      RAD_TTEN_DFI
         call retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)

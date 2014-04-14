@@ -68,6 +68,7 @@ fi
 # Get the area (glb/rgn) for this suffix
 #--------------------------------------------------------------------
 
+RAD_AREA=${RAD_AREA:-glb}
 area=$RAD_AREA
 echo $area
 

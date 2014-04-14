@@ -322,7 +322,7 @@ SUBROUTINE pcp_mxr_ferrier (nx,ny,nz,t_3d,p_3d ,ref_3d                  &
 !  INPUT:
   INTEGER(i_kind),intent(in) :: nx,ny,nz        ! Model grid size
 !
-  REAL(r_kind),   intent(in) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
+  REAL(r_kind),   intent(inout) :: ref_3d(nx,ny,nz)! radar reflectivity (dBZ)
   REAL(r_single), intent(in) :: t_3d(nx,ny,nz)  ! Temperature (deg. Kelvin)
   REAL(r_single), intent(in) :: p_3d(nx,ny,nz)  ! Pressure (Pascal)
 

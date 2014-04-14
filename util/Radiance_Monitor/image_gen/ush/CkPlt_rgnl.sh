@@ -143,6 +143,9 @@ fi
 export START_DATE=`$NDATE -720 $PDATE`
 echo $PRODATE  $PDATE
 
+sdate=`echo $PDATE|cut -c1-8`
+export CYA=`echo $PDATE|cut -c9-10`
+export PDY=`echo $PDATE|cut -c1-8`
 
 #--------------------------------------------------------------------
 #  exit if no new data is available
@@ -159,7 +162,6 @@ fi
 #  Plot all but horizontal data with each cycle.  Plot horizontal
 #  data on 00z cycle. 
 
-export CYA=`echo $PDATE|cut -c9-10`
 export PLOT=1
 
 if [[ "$CYA" = "00" ]];then
@@ -174,7 +176,6 @@ fi
 if [[ $PLOT -eq 1 ]]; then
 
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
-      PDY=`echo $PDATE|cut -c1-8`
 
       if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
          test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
@@ -264,6 +265,18 @@ if [[ $PLOT -eq 1 ]]; then
      ${IG_SCRIPTS}/make_archive.sh
   fi
 
+fi
+
+#--------------------------------------------------------------------
+#  Check for log file and extract data for error report there
+#--------------------------------------------------------------------
+if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
+
+   logfile=${LOGdir}/data_extract.${SUFFIX}.${sdate}.${CYA}.log
+
+   if [[ -s $logfile ]]; then
+      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+   fi
 fi
 
 #--------------------------------------------------------------------

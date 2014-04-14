@@ -50,6 +50,9 @@ subroutine read_wrf_mass_binary_guess(mype)
 !   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at.
 !                           (to handle cases of big-endian file/little-endian machine and vice-versa)
 !   2012-11-26  hu     - add code to read in soil fields
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !     mype     - pe number
@@ -78,7 +81,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
-  use guess_grids, only: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
+  use guess_grids, only: ges_th2,ges_q2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,nsig_soil,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,h300,r10,r100
@@ -139,8 +142,9 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_long) dummy9(9)
   real(r_single) pt_regional_single
   real(r_kind):: work_prsl,work_prslk
-  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
-  integer(i_kind) i_th2,i_soilt1,ksmois,ktslb
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
+  integer(i_kind) kqc, kqi, kqr, kqs, kqg, kqnr, i_xlon,i_xlat,i_tt,ktt
+  integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
   integer(i_kind) ier, istatus
   integer(i_kind) nguess
 
@@ -149,6 +153,7 @@ subroutine read_wrf_mass_binary_guess(mype)
   real(r_kind), pointer :: ges_qr(:,:,:)
   real(r_kind), pointer :: ges_qs(:,:,:)
   real(r_kind), pointer :: ges_qg(:,:,:)
+  real(r_kind), pointer :: ges_qnr(:,:,:)
 
   integer(i_kind) iadd
   character(132) memoryorder
@@ -184,16 +189,17 @@ subroutine read_wrf_mass_binary_guess(mype)
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
         if (ier/=0) nguess=0
      end if
 
 !    Following is for convenient WRF MASS input
-     num_mass_fields=21+5*lm+2+2
-     if(l_cloud_analysis .or. nguess>0) num_mass_fields=21+5*lm+2+2+6*lm+2
-     if(l_gsd_soilTQ_nudge) num_mass_fields=21+5*lm+2+2+2
-     if(l_cloud_analysis .and. l_gsd_soilTQ_nudge) num_mass_fields=21+5*lm+2+2+6*lm+2+2
+     num_mass_fields=14+5*lm+2*nsig_soil
+     if(l_cloud_analysis .or. nguess>0) num_mass_fields=num_mass_fields+7*lm+2
+     if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2
      num_loc_groups=num_mass_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
+     if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nsig_soil     =",i6)')nsig_soil
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, num_mass_fields=",i6)')num_mass_fields
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, nfldsig       =",i6)')nfldsig
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, npe           =",i6)')npe
@@ -237,6 +243,7 @@ subroutine read_wrf_mass_binary_guess(mype)
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
            if (ier/=0 .and. mype == 0) then
                write(6,*)'READ_WRF_MASS_BINARY_GUESS: getpointer failed, cannot do cloud analysis'
            l_cloud_analysis=.false.
@@ -265,7 +272,7 @@ subroutine read_wrf_mass_binary_guess(mype)
         endif
         read(lendian_in) wrfges
         read(lendian_in) ! n_position          !  offset for START_DATE record
-        write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges,n_position= ',wrfges,' ',n_position
+        if(mype == 0) write(6,*)'READ_WRF_MASS_BINARY_GUESS:  read wrfges,n_position= ',wrfges,' ',n_position
         
         i=i+1 ; i_mub=i                                                ! mub
         read(lendian_in) n_position
@@ -457,6 +464,11 @@ subroutine read_wrf_mass_binary_guess(mype)
         offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
         if(mype == 0) write(6,*)' tsk i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
+        i=i+1 ; i_q2=i                                               ! q2 
+        read(lendian_in) n_position
+        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' q2 i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+
         if(l_gsd_soilTQ_nudge) then
            i=i+1 ; i_soilt1=i                                               ! soilt1
            read(lendian_in) n_position
@@ -552,6 +564,22 @@ subroutine read_wrf_mass_binary_guess(mype)
                                                               i,igtype(i),offset(i),kord(i)
            end do
   
+           i_qnr=i+1
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+1                                                       ! qnr(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=0
+                 kord(i)=lm
+              else
+                 iadd=(k-1)*im*jm*4
+                 kord(i)=1
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+              if(mype == 0.and.k==1) write(6,*)' qr i,igtype(i),offset(i),kord(i) = ', &
+                                                              i,igtype(i),offset(i),kord(i)
+           end do
+  
            i_tt=i+1
            read(lendian_in) n_position,memoryorder
            do k=1,lm
@@ -629,7 +657,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
            end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im+1,jm+1,i_fis,i_fis)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im+1,jm+1,i_fis,i_fis+lm)
            deallocate(jbuf)
         end if
         
@@ -814,6 +842,22 @@ subroutine read_wrf_mass_binary_guess(mype)
               deallocate(jbuf)
            end if
 
+!                                    read qnr
+           if(kord(i_qnr)/=1) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_qnr)+(jbegin(mype)-1)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length, &
+                                  mpi_integer,status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                 jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im+1,jm+1,i_qnr,i_qnr+lm-1)
+              deallocate(jbuf)
+           end if
+
 !                                    read tt  radar temperature tendency
            if(kord(i_tt)/=1) then
               allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -841,6 +885,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               call to_native_endianness_i4(ibuf(1,k),num_swap)
            end if
               if(igtype(k)==1)     call expand_ibuf(ibuf(1,k),im     ,jm     ,im+1,jm+1)
+              if(igtype(k)==-1)     call expand_ibuf(ibuf(1,k),im     ,jm     ,im+1,jm+1)
               if(igtype(k)==2) call expand_ibuf(ibuf(1,k),im+1,jm     ,im+1,jm+1)
               if(igtype(k)==3) call expand_ibuf(ibuf(1,k),im     ,jm+1,im+1,jm+1)
            end if
@@ -887,6 +932,7 @@ subroutine read_wrf_mass_binary_guess(mype)
            kqs=i_qs-1
            kqi=i_qi-1
            kqg=i_qg-1
+           kqnr=i_qnr-1
            ktt=i_tt-1
         endif
 !             wrf pressure variable is dry air partial pressure--need to add water vapor contribution
@@ -906,6 +952,7 @@ subroutine read_wrf_mass_binary_guess(mype)
               kqs=kqs+1
               kqi=kqi+1
               kqg=kqg+1
+              kqnr=kqnr+1
               ktt=ktt+1
            endif
            do i=1,lon2
@@ -927,6 +974,7 @@ subroutine read_wrf_mass_binary_guess(mype)
                     ges_qr(j,i,k) = all_loc(j,i,kqr)
                     ges_qs(j,i,k) = all_loc(j,i,kqs)
                     ges_qg(j,i,k) = all_loc(j,i,kqg)
+                    ges_qnr(j,i,k)= all_loc(j,i,kqnr)
 !                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
                     ges_tten(j,i,k,it) = -20.0_r_single
                     if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
@@ -989,6 +1037,9 @@ subroutine read_wrf_mass_binary_guess(mype)
                  ges_tsk(j,i,it)=all_loc(j,i,i_tsk)
                  ges_soilt1(j,i,it)=all_loc(j,i,i_soilt1)
               endif
+              ges_q2(j,i,it)=all_loc(j,i,i_q2)
+! Convert 2m guess mixing ratio to specific humidity
+              ges_q2(j,i,it) = ges_q2(j,i,it)/(one+ges_q2(j,i,it))
            end do
         end do
 
@@ -1101,6 +1152,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
 !                             and distributed them to all processors 
 !   2011-04-29  todling - introduce MetGuess and wrf_mass_guess_mod
 !   2012-11-26  hu     - add code to read in soil fields
+!   2014-03-12  hu     - add code to read ges_q2 (2m Q), 
+!                               Qnr(rain number concentration), 
+!                               and nsoil (number of soil levels)
 !
 !   input argument list:
 !     mype     - pe number
@@ -1128,7 +1182,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_u,ges_v,&
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen,sfc_rough,ntguessig
-  use guess_grids, only: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
+  use guess_grids, only: ges_th2,ges_q2,ges_soilt1,ges_tslb,ges_smois,ges_tsk
   use gridmod, only: lat2,lon2,nlat_regional,nlon_regional,&
        nsig,nsig_soil,ijn_s,displs_s,eta1_ll,pt_ll,itotsub,aeta1_ll
   use constants, only: zero,one,grav,fv,zero_single,rd_over_cp_mass,one_tenth,r10,r100
@@ -1173,8 +1227,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   real(r_kind) deltasigma
   real(r_kind):: work_prsl,work_prslk
-  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,kqc,kqi,kqr,kqs,kqg,i_xlon,i_xlat,i_tt,ktt
-  integer(i_kind) i_th2,i_soilt1,ksmois,ktslb
+  integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
+  integer(i_kind) kqc, kqi, kqr, kqs, kqg, kqnr,i_xlon,i_xlat,i_tt,ktt
+  integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
   integer(i_kind) ier, istatus
   integer(i_kind) nguess
 
@@ -1183,6 +1238,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   real(r_kind), pointer :: ges_qr(:,:,:)
   real(r_kind), pointer :: ges_qs(:,:,:)
   real(r_kind), pointer :: ges_qg(:,:,:)
+  real(r_kind), pointer :: ges_qnr(:,:,:)
 
 
 !  WRF MASS input grid dimensions in module gridmod
@@ -1211,6 +1267,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
         if (ier/=0) nguess=0
      end if
 
@@ -1219,11 +1276,11 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      lm=nsig
 
 !    Following is for convenient WRF MASS input
-     num_mass_fields=14+4*lm
-     if(l_cloud_analysis .or. nguess>0) num_mass_fields=14+4*lm+6*lm+2
-     if(l_gsd_soilTQ_nudge) num_mass_fields=14+4*lm+2*nsig_soil
+     num_mass_fields=15+4*lm
+     if(l_cloud_analysis .or. nguess>0) num_mass_fields=15+4*lm+7*lm+2
+     if(l_gsd_soilTQ_nudge) num_mass_fields=15+4*lm+2*nsig_soil
      if(l_gsd_soilTQ_nudge .and. l_cloud_analysis) &
-                          num_mass_fields=14+4*lm+6*lm+2+2*nsig_soil
+                          num_mass_fields=15+4*lm+7*lm+2+2*nsig_soil
      num_all_fields=num_mass_fields*nfldsig
      num_loc_groups=num_all_fields/npe
      if(mype==0) write(6,'(" at 1 in read_wrf_mass_guess, lm            =",i6)')lm
@@ -1353,6 +1410,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
      i=i+1 ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_q2=i                                                ! q2
+     write(identity(i),'("record ",i3,"--q2")')i
+     jsig_skip(i)=0 ; igtype(i)=1
      if(l_gsd_soilTQ_nudge) then
         i=i+1 ; i_soilt1=i                                         ! soilt1
         write(identity(i),'("record ",i3,"--soilt1(",i2,")")')i,k
@@ -1391,6 +1451,12 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         do k=1,lm
            i=i+1                                                    ! qg(k)
            write(identity(i),'("record ",i3,"--qg(",i2,")")')i,k
+           jsig_skip(i)=0 ; igtype(i)=1
+        end do
+        i_qnr=i+1
+        do k=1,lm
+           i=i+1                                                    ! qnr(k)
+           write(identity(i),'("record ",i3,"--qr(",i2,")")')i,k
            jsig_skip(i)=0 ; igtype(i)=1
         end do
         i_tt=i+1
@@ -1495,11 +1561,13 @@ subroutine read_wrf_mass_netcdf_guess(mype)
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr', ges_qr, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
            kqc=i_0+i_qc-1
            kqr=i_0+i_qr-1
            kqs=i_0+i_qs-1
            kqi=i_0+i_qi-1
            kqg=i_0+i_qg-1
+           kqnr=i_0+i_qnr-1
            ktt=i_0+i_tt-1
         endif
 
@@ -1520,6 +1588,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
               kqs=kqs+1
               kqi=kqi+1
               kqg=kqg+1
+              kqnr=kqnr+1
               ktt=ktt+1
            endif
            do i=1,lon2
@@ -1539,6 +1608,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                     ges_qr(j,i,k) = all_loc(j,i,kqr)
                     ges_qs(j,i,k) = all_loc(j,i,kqs)
                     ges_qg(j,i,k) = all_loc(j,i,kqg)
+                    ges_qnr(j,i,k)= all_loc(j,i,kqnr)
 !                    ges_tten(j,i,k,it) = all_loc(j,i,ktt)
                     ges_tten(j,i,k,it) = -20.0_r_single
                     if(k==nsig) ges_tten(j,i,k,it) = -10.0_r_single
@@ -1594,6 +1664,9 @@ subroutine read_wrf_mass_netcdf_guess(mype)
                  ges_tsk(j,i,it)=all_loc(j,i,i_0+i_tsk)
                  ges_soilt1(j,i,it)=all_loc(j,i,i_0+i_soilt1)
               endif
+! Convert 2m guess mixing ratio to specific humidity
+              ges_q2(j,i,it)=all_loc(j,i,i_0+i_q2)
+              ges_q2(j,i,it)=ges_q2(j,i,it)/(one+ges_q2(j,i,it))
 ! for cloud analysis
               if(l_cloud_analysis .or. nguess>0) then
                  soil_temp_cld(j,i,it)=soil_temp(j,i,it)
@@ -1622,7 +1695,6 @@ subroutine read_wrf_mass_netcdf_guess(mype)
         end do
      end do
 
-     
 !    Transfer surface fields
      do it=1,nfldsig
         i_0=(it-1)*num_mass_fields

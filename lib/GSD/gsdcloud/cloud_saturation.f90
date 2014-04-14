@@ -140,7 +140,7 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
 !     2) at least 100 mb above sfc
 !     3) no precip from sfc obs
 !make sure that clear volumes are no more than rh_clear_p RH.
-            if( (sumqci(i,j,k))>0.0_r_kind .and.  &
+            if( (sumqci(i,j,k))>1.0e-12_r_kind .and.  &
                 (p_bk(i,j,1) - p_bk(i,j,k))>100._r_kind  .and.  &
                  wthr_type(i,j) <=0 ) then 
                  if( q_bk(i,j,k) > cloudqvis * rh_clear_p) then
@@ -189,13 +189,13 @@ SUBROUTINE cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum, &
                  q_bk(i,j,k) = qtemp
              endif
           else   ! set qv at 102%RH
-             if( q_bk(i,j,k) < cloudqvis * 1.02_r_single ) then
-                qtemp = cloudqvis * 1.02_r_single
+             if( q_bk(i,j,k) < cloudqvis * 1.00_r_single ) then
+                qtemp = cloudqvis * 1.00_r_single
                 if(l_conserve_thetaV) then
                    do nnn=1,miter
-                      Temp=constantTv/(one + one*qtemp)     
+                      Temp=constantTv/(one + fv*qtemp)     
                       cloudqvis= ruc_saturation(Temp,p_bk(i,j,k)) 
-                      qtemp = cloudqvis * 1.02_r_single
+                      qtemp = cloudqvis * 1.00_r_single
                    enddo
                    t_bk(i,j,k) = Temp*(h1000/p_bk(i,j,k))**rd_over_cp
                 endif
