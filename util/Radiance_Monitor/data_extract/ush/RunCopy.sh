@@ -133,7 +133,7 @@ fi
 
 cdate=$START_DATE
 
-
+mkdir -p $LOGdir
 #--------------------------------------------------------------------
 # Run in a loop until END_DATE is processed, or an error occurs, or 
 #   we run out of data.

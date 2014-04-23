@@ -73,6 +73,7 @@ subroutine update_guess(sval,sbias)
 !   2011-10-01  Hu      - GSD limitation of Q over ocean
 !   2013-05-23  zhu     - add update for aircraft temperature bias correction coefficients
 !   2013-10-30  jung    - remove supersaturation
+!   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
 !
 !   input argument list:
 !    sval

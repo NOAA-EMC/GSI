@@ -178,7 +178,7 @@ if [[ $PLOT -eq 1 ]]; then
    if [[ $USE_STATIC_SATYPE -eq 0 ]]; then
 
       if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-         test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d*`
+         test_list=`ls ${TANKDIR}/radmon.${PDY}/angle.*${PDATE}.ieee_d.*`
       else
          test_list=`ls ${TANKDIR}/angle/*.${PDATE}.ieee_d*`
       fi
