@@ -35,6 +35,7 @@ module radinfo
 !                         add number of scan positions to satang file
 !   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
+!   2014-04-24  li      - apply abs (absolute) to AA and be for safeguarding
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -1581,8 +1582,8 @@ contains
             if (iobs(i)<nthreshold) cycle
             AA(:,:)=A(:,:,i)
             be(:)  =b(:,i)
-            if (all(AA<tiny)) cycle
-            if (all(be<tiny)) cycle
+            if (all(abs(AA)<tiny)) cycle
+            if (all(abs(be)<tiny)) cycle
             call linmm(AA,be,np,1,np,np)
 
             predx(1,ich(i))=be(1)
