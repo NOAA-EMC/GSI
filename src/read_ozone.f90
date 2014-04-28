@@ -891,8 +891,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         else if(index(sis,'mls20')/=0 ) then  !mls v2 nrt data
            mlsv=20
         end if
-     else if(nloz==55) then                  !mls v3 nrt data
-        mlsv=30
+     else if (nloz==55) then                !mls v3 nrt data
+        if (index(sis,'mls30')/=0 ) then
+           mlsv=30
+        endif
      else
         write(6,*) 'invalid vertical level number: ', nloz
         write(6,*) '******STOP*******: error reading MLS vertical levels in read_ozone.f90'
