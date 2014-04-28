@@ -12,7 +12,7 @@ INCnemsio= $(COREINC)/nemsio
 INCw3    = $(COREINC)/w3emc_d
 INCcrtm=$(COREINC)/crtm_v2.1.3
 
-WRFPATH = /scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist/nwprod/sorc/nam_nmm_real_fcst.fd
+WRFPATH = /contrib/nceplibs_ext/WRF/WRFV3
 LIBwrfio_int    = $(WRFPATH)/external/io_int/libwrfio_int.a
 LIBwrfio_netcdf = $(WRFPATH)/external/io_netcdf/libwrfio_nf.a
 OBJwrf_frame_pk = $(WRFPATH)/frame/pack_utils.o
