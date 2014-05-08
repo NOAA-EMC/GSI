@@ -499,6 +499,8 @@ contains
     endif
     jpch_rad = j
 
+write(6,*)'radinfo.f90 jpch_rad='
+write(6,*) jpch_rad
 
 !   Allocate arrays to hold radiance information
 !     nuchan    - channel number
@@ -1255,6 +1257,7 @@ contains
    logical update
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
+   logical amsr2,amsr2_low,amsr2_mid,amsr2_higA, amsr2_higB
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
    logical avhrr,avhrr_navy,goessndr,goes_img,seviri
 
@@ -1398,6 +1401,12 @@ contains
       amsre_mid  = obstype == 'amsre_mid'
       amsre_hig  = obstype == 'amsre_hig'
       amsre      = amsre_low .or. amsre_mid .or. amsre_hig
+      amsr2_low  = obstype == 'amsr2_low'
+      amsr2_mid  = obstype == 'amsr2_mid'
+      amsr2_higA  = obstype == 'amsr2_higA'
+      amsr2_higB  = obstype == 'amsr2_higB'
+      amsr2      = amsr2_low .or. amsr2_mid .or. amsr2_higA .or. amsr2_higB
+
       ssmis      = obstype == 'ssmis'
       ssmis_las  = obstype == 'ssmis_las'
       ssmis_uas  = obstype == 'ssmis_uas'
@@ -1406,7 +1415,7 @@ contains
       ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
       seviri     = obstype == 'seviri'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy .or. seviri
+                .or. avhrr .or. avhrr_navy .or. seviri .or. amsr2
 
 !     Allocate arrays and initialize
       if (mean_only) then 

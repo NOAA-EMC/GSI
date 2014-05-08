@@ -341,7 +341,6 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 
 !    Retrieve bufr 1/4 :get aquaspot (said,orbn,soza)
         call ufbint(lnbufr,aquaspot_d,3,1,iret,'SAID ORBN SOZA')
-
         said = nint(aquaspot_d(1))
         if(said /= AQUA_SAID)  cycle read_loop
 

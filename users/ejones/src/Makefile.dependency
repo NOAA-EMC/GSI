@@ -233,6 +233,7 @@ rdgrbsst.o : rdgrbsst.f90 constants.o kinds.o
 read_aerosol.o : read_aerosol.f90 gsi_4dvar.o obsmod.o constants.o gridmod.o kinds.o 
 read_airs.o : read_airs.f90 deter_sfc_mod.o calc_fov_crosstrk.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_amsre.o : read_amsre.f90 deter_sfc_mod.o calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
+read_amsr2.o : read_amsr2.f90 deter_sfc_mod.o calc_fov_conical.o gsi_4dvar.o constants.o gridmod.o radinfo.o satthin.o kinds.o
 read_anowbufr.o : read_anowbufr.f90 chemmod.o gsi_4dvar.o convinfo.o gridmod.o constants.o kinds.o 
 read_atms.o : read_atms.f90 atms_spatial_average_mod.o deter_sfc_mod.o gsi_metguess_mod.o gsi_4dvar.o calc_fov_crosstrk.o constants.o gridmod.o radinfo.o satthin.o kinds.o 
 read_avhrr.o : read_avhrr.f90 obsmod.o deter_sfc_mod.o gsi_4dvar.o radinfo.o constants.o gridmod.o satthin.o kinds.o 

@@ -237,7 +237,7 @@
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
-  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
+  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,amsr2_low,amsr2_mid,amsr2_higA, amsr2_higB
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
   logical microwave, microwave_low
@@ -333,6 +333,11 @@
   amsre_mid  = obstype == 'amsre_mid'
   amsre_hig  = obstype == 'amsre_hig'
   amsre      = amsre_low .or. amsre_mid .or. amsre_hig
+  amsr2_low  = obstype == 'amsr2_low'
+  amsr2_mid  = obstype == 'amsr2_mid'
+  amsr2_higA  = obstype == 'amsr2_higA'
+  amsr2_higB  = obstype == 'amsr2_higB'
+  amsr2      = amsr2_low .or. amsr2_mid .or. amsr2_higA .or. amsr2_higB
   ssmis      = obstype == 'ssmis'
   ssmis_las  = obstype == 'ssmis_las'
   ssmis_uas  = obstype == 'ssmis_uas'
@@ -346,9 +351,9 @@
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
-            ssmi  .or. ssmis  .or. amsre .or. atms
+            ssmi  .or. ssmis  .or. amsre .or. atms .or. amsr2
 
-  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
+  microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre .or. amsr2
 
 ! Determine whether or not cloud-condensate is present in MetGuess
   lcw4crtm=.false.
@@ -751,6 +756,7 @@
         tpwc=zero
         kraintype=0
         if(microwave .and. sea) then 
+           ! add amsr2 to calc_clw call later?
            call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
                 tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
            if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then
@@ -770,6 +776,7 @@
 !*****
 
 !       Construct predictors for 1B radiance bias correction.
+           ! add amsr2 to this later?
            if (.not. newpc4pred) then
               pred(1,i) = r0_01
               pred(2,i) = one_tenth*(one/cosza-one)**2-.015_r_kind
@@ -1073,6 +1080,8 @@
 
 !  ---------- SSM/I , SSMIS, AMSRE  -------------------
 !       SSM/I, SSMIS, & AMSRE Q C
+
+        ! add amsr2 to QC later
 
         else if( ssmi .or. amsre .or. ssmis )then   
 
