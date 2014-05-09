@@ -1356,7 +1356,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     use obsmod,  only: iadate,ianldate
     use constants, only: zero_single,two,tfrozen
-    use guess_grids, only: isli2,isli_full
+    use guess_grids, only: isli2
     use radinfo, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
          sfcio_srohdc,sfcio_swohdc,sfcio_axdata
