@@ -36,6 +36,7 @@ subroutine convert_binary_2d
   use kinds, only: r_single,i_kind
   use gsi_4dvar, only: nhr_assimilation
   use gsi_io, only: lendian_out
+  use mpeu_util, only: die
   implicit none
 
 ! Declare local parameters
@@ -485,6 +486,8 @@ subroutine read_2d_guess(mype)
 !                         to (landmask value)>=0.5
 !   2011-02-09  zhu     - add gust,vis and pblh
 !   2011-05-01  todling - introduce met-guess (cwmr no longer in guess-grids)
+!   2013-10-19  todling - metguess now holds background
+!                         remove reference to tv and q derivatives
 !
 !   input argument list:
 !     mype     - pe number
@@ -498,16 +501,14 @@ subroutine read_2d_guess(mype)
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use mpimod, only: mpi_sum,mpi_integer,mpi_real4,mpi_comm_world,npe,ierror
-  use guess_grids, only: ges_z,ges_ps,ges_tv,ges_q,ges_vor,&
-       ges_div,ges_u,ges_v,ges_tvlat,ges_tvlon,ges_qlat,ges_qlon,&
-       ges_gust,ges_vis,ges_pblh,&
-       fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
+  use guess_grids, only: fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
        isli,nfldsig,ifilesig,ges_tsen
   use gridmod, only: lon1,lat1,nlat_regional,nlon_regional,&
        nsig,ijn_s,displs_s,itotsub
   use constants, only: zero,one,grav,fv,zero_single,one_tenth
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -523,6 +524,7 @@ subroutine read_2d_guess(mype)
   integer(i_kind) nfcst
 
 ! other internal variables
+  character(len=*),parameter::myname='read_2d_guess'
   real(r_single) tempa(itotsub)
   real(r_single),allocatable::temp1(:,:),temp1u(:,:),temp1v(:,:)
   real(r_single),allocatable::all_loc(:,:,:)
@@ -538,8 +540,21 @@ subroutine read_2d_guess(mype)
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
-  real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it
-  integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all,icwmr
+  integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all,icwmr,ier,istatus
+  logical ihave_gust,ihave_pblh,ihave_vis
+
+  real(r_kind),pointer,dimension(:,:  )::ges_gust  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_vis   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_pblh  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_ps_it  =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_z_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_u_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_v_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_div_it =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_vor_it =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_tv_it  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_q_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it=>NULL()
 
 
 !  RESTART FILE input grid dimensions in module gridmod
@@ -743,6 +758,25 @@ subroutine read_2d_guess(mype)
 ! reorganize into WeiYu's format--
 
   do it=1,nfldsig
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q', ges_q_it,   istatus)
+     ier=ier+istatus
+     if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
      i_0=(it-1)*num_2d_fields
      kt=i_0+i_t-1
      kq=i_0+i_q-1
@@ -756,22 +790,22 @@ subroutine read_2d_guess(mype)
         kv=kv+1
         do i=1,lon1+2
            do j=1,lat1+2
-              ges_u(j,i,k,it) = all_loc(j,i,ku)
-              ges_v(j,i,k,it) = all_loc(j,i,kv)
-              ges_vor(j,i,k,it) = zero
-              ges_q(j,i,k,it)   = all_loc(j,i,kq)
+              ges_u_it(j,i,k) = all_loc(j,i,ku)
+              ges_v_it(j,i,k) = all_loc(j,i,kv)
+              ges_vor_it(j,i,k) = zero
+              ges_q_it(j,i,k)   = all_loc(j,i,kq)
               ges_tsen(j,i,k,it)  = all_loc(j,i,kt)
            end do
         end do
      end do
      do i=1,lon1+2
         do j=1,lat1+2
-           ges_z(j,i,it)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
+           ges_z_it(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
 
 !          convert input psfc to psfc in mb, and then to log(psfc) in cb
 
            psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
-           ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
+           ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
            sno(j,i,it)=all_loc(j,i,i_0+i_sno)
            soil_moi(j,i,it)=all_loc(j,i,i_0+i_smois)
            soil_temp(j,i,it)=all_loc(j,i,i_0+i_tslb)
@@ -786,21 +820,15 @@ subroutine read_2d_guess(mype)
 
 !    Convert sensible temp to virtual temp
      do k=1,nsig
-           do i=1,lon1+2
-              do j=1,lat1+2
-                 ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
-              end do
+        do i=1,lon1+2
+           do j=1,lat1+2
+              ges_tv_it(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q_it(j,i,k))
            end do
         end do
      end do
 
-
-!    Zero out fields not used
-     ges_div=zero
-     ges_tvlat=zero
-     ges_tvlon=zero
-     ges_qlat=zero
-     ges_qlon=zero
+     ges_div_it=zero
+  end do ! <it>
 
 
 !    Transfer surface fields
@@ -808,6 +836,12 @@ subroutine read_2d_guess(mype)
 
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,icwmr)
         if(icwmr==0) ges_cwmr_it=zero
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',ges_gust,ier)
+        ihave_gust=ier==0
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',ges_vis,ier)
+        ihave_vis =ier==0
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ges_pblh,ier)
+        ihave_pblh=ier==0
 
         i_0=(it-1)*num_2d_fields
         do i=1,lon1+2
@@ -837,13 +871,17 @@ subroutine read_2d_guess(mype)
                  num_doubtful_sfct=num_doubtful_sfct+1
               end if
 
-              ges_gust(j,i,it)=all_loc(j,i,i_0+i_gust)
+              if(ihave_gust) &
+              ges_gust(j,i)=all_loc(j,i,i_0+i_gust)
 
-              ges_vis(j,i,it)=all_loc(j,i,i_0+i_vis)
-              if (ges_vis(j,i,it)<=zero) ges_vis(j,i,it)=0.1_r_kind
-              if (ges_vis(j,i,it)>20000.0_r_kind) ges_vis(j,i,it)=20000.0_r_kind
+              if (ihave_vis) then
+                 ges_vis(j,i)=all_loc(j,i,i_0+i_vis)
+                 if (ges_vis(j,i)<=zero) ges_vis(j,i)=0.1_r_kind
+                 if (ges_vis(j,i)>20000.0_r_kind) ges_vis(j,i)=20000.0_r_kind
+              endif
 
-              ges_pblh(j,i,it)=all_loc(j,i,i_0+i_pblh)
+              if(ihave_pblh) &
+              ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
 
            end do
         end do
@@ -893,6 +931,9 @@ subroutine wr2d_binary(mype)
 !   2008-04-03  safford - rm unused vars and uses
 !   2010-04-01  treadon - move strip_single to gridmod
 !   2011-02-09  zhu     - add gust,vis,pblh
+!   2013-10-19  todling - metguess now holds background
+!                         correct reference to svars rather than cvars
+!   2013-10-24  todling - general interface to strip
 !
 !   input argument list:
 !     mype     - pe number
@@ -906,15 +947,19 @@ subroutine wr2d_binary(mype)
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use guess_grids, only: ntguessfc,ntguessig,ifilesig,sfct,ges_ps,&
-       ges_q,ges_u,ges_v,ges_tsen,ges_gust,ges_vis,ges_pblh
+  use guess_grids, only: ntguessfc,ntguessig,ifilesig,sfct,&
+       ges_tsen
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
-  use gridmod, only: lat2,iglobal,itotsub,update_regsfc,strip_single,&
+  use gridmod, only: lat2,iglobal,itotsub,update_regsfc,strip,&
        lon2,nsig,lon1,lat1,nlon_regional,nlat_regional,ijn,displs_g
   use mpeu_util, only: getindex
-  use control_vectors, only: cvars2d
+  use state_vectors, only: svars2d
   use constants, only: zero_single,r10,r100
-  use jfunc, only: qsatg,jiter,miter
+  use derivsmod, only: qsatg
+  use jfunc, only: jiter,miter
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -925,6 +970,7 @@ subroutine wr2d_binary(mype)
 
 ! Declare local variables
 
+  character(len=*),parameter::myname='wr2d_binary'
   integer(i_kind) im,jm,lm
   real(r_single),allocatable::temp1(:),temp1u(:),temp1v(:),tempa(:),tempb(:)
   real(r_single),allocatable::all_loc(:,:,:)
@@ -932,7 +978,7 @@ subroutine wr2d_binary(mype)
   character(6) filename
   character(2) ch2
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh
+  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
@@ -940,6 +986,12 @@ subroutine wr2d_binary(mype)
   real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
   real(r_single),allocatable::all_loc_ps(:,:),temp1_ps(:)
   real(r_single),allocatable::all_loc_qsatg(:,:,:),all_loc_prh(:,:,:),temp1_prh(:)
+
+  real(r_kind),dimension(:,:  ),pointer:: ptr2d    =>NULL()
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q_it =>NULL()
 
   im=nlon_regional
   jm=nlat_regional
@@ -984,6 +1036,17 @@ subroutine wr2d_binary(mype)
 ! Convert analysis variables to 2D variables
   it=ntguessig
 
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,  istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q', ges_q_it,   istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
 ! Create all_loc from ges_*
 ! if(mype == 0) write(6,*)' at 3 in wr2d_binary'
   all_loc=zero_single
@@ -998,20 +1061,20 @@ subroutine wr2d_binary(mype)
      kv=kv+1
      do i=1,lon2
         do j=1,lat2
-           all_loc(j,i,ku)=ges_u(j,i,k,it)
-           all_loc(j,i,kv)=ges_v(j,i,k,it)
-           all_loc(j,i,kq)=ges_q(j,i,k,it)
+           all_loc(j,i,ku)=ges_u_it(j,i,k)
+           all_loc(j,i,kv)=ges_v_it(j,i,k)
+           all_loc(j,i,kq)=ges_q_it(j,i,k)
            all_loc(j,i,kt)=ges_tsen(j,i,k,it)   ! sensible temperature
            all_loc_qsatg(j,i,k)=qsatg(j,i,k)
-           all_loc_prh(j,i,k)=ges_q(j,i,k,it)/qsatg(j,i,k)
+           all_loc_prh(j,i,k)=ges_q_it(j,i,k)/qsatg(j,i,k)
         end do
      end do
   end do
   do i=1,lon2
      do j=1,lat2
-        psfc_this=r10*ges_ps(j,i,it)   ! convert from cb to mb
+        psfc_this=r10*ges_ps_it(j,i)   ! convert from cb to mb
         all_loc(j,i,i_psfc)=r100*psfc_this
-        all_loc_ps(j,i)=ges_ps(j,i,it)
+        all_loc_ps(j,i)=ges_ps_it(j,i)
      end do
   end do
 
@@ -1032,7 +1095,7 @@ subroutine wr2d_binary(mype)
      read(iog)temp1
      temp1_ps=log(temp1/r100/r10)
   endif
-  call strip_single(all_loc(1,1,i_psfc),strp,1)
+  call strip(all_loc(:,:,i_psfc),strp)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
@@ -1044,7 +1107,7 @@ subroutine wr2d_binary(mype)
      write(ioan)temp1
   end if
 
-  call strip_single(all_loc_ps,strp,1)
+  call strip(all_loc_ps,strp)
   call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
        tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
   if(mype == 0) then
@@ -1067,7 +1130,7 @@ subroutine wr2d_binary(mype)
   do k=1,nsig
      kt=kt+1
      if(mype == 0) read(iog)temp1
-     call strip_single(all_loc(1,1,kt),strp,1)
+     call strip(all_loc(:,:,kt),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1088,7 +1151,7 @@ subroutine wr2d_binary(mype)
         read(iog)temp1
         temp1_prh=temp1
      endif
-     call strip_single(all_loc(1,1,kq),strp,1)
+     call strip(all_loc(:,:,kq),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1100,7 +1163,7 @@ subroutine wr2d_binary(mype)
         write(ioan)temp1
      end if
 
-     call strip_single(all_loc_qsatg(1,1,k),strp,1)
+     call strip(all_loc_qsatg(:,:,k),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1109,7 +1172,7 @@ subroutine wr2d_binary(mype)
            tempb(i)=tempb(i)/tempa(i)
          end do
      end if
-     call strip_single(all_loc_prh(1,1,k),strp,1)
+     call strip(all_loc_prh(:,:,k),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1126,7 +1189,7 @@ subroutine wr2d_binary(mype)
   do k=1,nsig
      ku=ku+1
      if(mype == 0) read(iog)temp1
-     call strip_single(all_loc(1,1,ku),strp,1)
+     call strip(all_loc(:,:,ku),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1144,7 +1207,7 @@ subroutine wr2d_binary(mype)
   do k=1,nsig
      kv=kv+1
      if(mype == 0) read(iog)temp1
-     call strip_single(all_loc(1,1,kv),strp,1)
+     call strip(all_loc(:,:,kv),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1185,7 +1248,7 @@ subroutine wr2d_binary(mype)
   if(update_regsfc) then
      if (mype==0) read(iog)temp1
 !    if (mype==0) write(6,*)' at 9.1 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_sst),strp,1)
+     call strip(all_loc(:,:,i_sst),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1222,7 +1285,7 @@ subroutine wr2d_binary(mype)
   if(update_regsfc) then
      if (mype==0) read(iog)temp1
 !    if (mype==0) write(6,*)' at 10.0 in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-     call strip_single(all_loc(1,1,i_skt),strp,1)
+     call strip(all_loc(:,:,i_skt),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1244,14 +1307,15 @@ subroutine wr2d_binary(mype)
      end if
   end if
 
-  if (getindex(cvars2d,'gust')>0) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust', ptr2d, ier)
+  if (ier==0) then
      do i=1,lon2
         do j=1,lat2
-           all_loc(j,i,i_gust)=ges_gust(j,i,it)
+           all_loc(j,i,i_gust)=ptr2d(j,i)
         end do
      end do
      if(mype==0) read(iog)temp1
-     call strip_single(all_loc(1,1,i_gust),strp,1)
+     call strip(all_loc(:,:,i_gust),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1269,14 +1333,15 @@ subroutine wr2d_binary(mype)
      end if
   endif
 
-  if (getindex(cvars2d,'vis')>0) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis', ptr2d, ier)
+  if (ier==0) then
      do i=1,lon2
         do j=1,lat2
-           all_loc(j,i,i_vis)=ges_vis(j,i,it)
+           all_loc(j,i,i_vis)=ptr2d(j,i)
         end do
      end do
      if(mype == 0) read(iog)temp1
-     call strip_single(all_loc(1,1,i_vis),strp,1)
+     call strip(all_loc(:,:,i_vis),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1294,14 +1359,15 @@ subroutine wr2d_binary(mype)
      end if
   endif
 
-  if (getindex(cvars2d,'pblh')>0) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh', ptr2d, ier)
+  if (ier==0) then
      do i=1,lon2
         do j=1,lat2
-           all_loc(j,i,i_pblh)=ges_pblh(j,i,it)
+           all_loc(j,i,i_pblh)=ptr2d(j,i)
         end do
      end do
      if(mype==0) read(iog)temp1
-     call strip_single(all_loc(1,1,i_pblh),strp,1)
+     call strip(all_loc(:,:,i_pblh),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then
@@ -1326,7 +1392,7 @@ subroutine wr2d_binary(mype)
 
 ! Write out qsatg for gsi-2dvar post-processing purposes
   do k=1,nsig
-     call strip_single(all_loc_qsatg(1,1,k),strp,1)
+     call strip(all_loc_qsatg(:,:,k),strp)
      call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
           tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
      if(mype == 0) then

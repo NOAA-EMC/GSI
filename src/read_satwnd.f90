@@ -44,9 +44,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2012-07-18 Sienkiewicz - fix for infrad IR winds monitoring north of 20N
 !   2012-10-13 Su      -modify the code to assimilate GOES hourly wind, changed the error and quality control
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
+!   2013-08-26 McCarty -modified to remove automatic rejection of AVHRR winds
 !   2013-09-20  Su      - set satellite ID as satellite wind subtype
 
 !
@@ -696,9 +698,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  c_prvstg='AVHRR'
                  if(hdrdat(9) == one)  then                            ! IR winds
                     itype=244
-                    qm=15
-                    c_station_id='IR'//stationid
-                    c_sprvstg='IR'
+!                   The following two lines have been commented out because they 
+!                   automatically disallow the AVHRR observations and we don't 
+!                   want that - should be controlled at satinfo level.
+!                   qm=15
+!                   pqm=15
                  else
                     write(6,*) 'READ_SATWND: wrong derived method value'
                  endif
@@ -856,6 +860,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !           if(itype==240) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
 !           if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
 !           if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
+!           if(itype==244) then;  c_prvstg='AVHRR'    ;  c_sprvstg='IR'       ; endif
 !           if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
 !           if(itype==246) then;  c_prvstg='NESDIS'   ;  c_sprvstg='WV'       ; endif
 !           if(itype==250) then;  c_prvstg='JMA'      ;  c_sprvstg='WV'       ; endif

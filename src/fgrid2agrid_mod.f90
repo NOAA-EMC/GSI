@@ -20,9 +20,11 @@ module fgrid2agrid_mod
 !   2005-06-06  parrish
 !   2008-11-03  sato - eliminate global variables except for nord_f2a
 !                      for multi-filter-space in global mode
+!   2013-10-25  todling - nullify relevant pointers 
 !
 ! subroutines included:
 !   sub init_fgrid2agrid         - initialize interpolation variables and constants to defaults
+!   sub final_fgrid2agrid        - finalize interpolation variables and constants to defaults
 !   sub create_fgrid2agrid       - compute all necessary interpolation info for desired grid ratio
 !   sub get_3ops                 - called by create_fgrid2agrid--compute interpolation operators
 !   sub destroy_fgrid2agrid      - free space used by interpolation constants
@@ -59,6 +61,8 @@ module fgrid2agrid_mod
   private
 ! set subroutines to public
   public :: init_fgrid2agrid
+  public :: set_fgrid2agrid
+  public :: final_fgrid2agrid
   public :: create_fgrid2agrid
   public :: get_3ops
   public :: destroy_fgrid2agrid
@@ -80,15 +84,15 @@ module fgrid2agrid_mod
      integer(i_kind) mfgrid
      integer(i_kind) magrid
      real(r_kind) grid_ratio
-     integer(i_kind),pointer::iwin(:,:)
-     integer(i_kind),pointer::nwin(:)
-     integer(i_kind),pointer::itwin(:,:)
-     integer(i_kind),pointer::ntwin(:)
-     integer(i_kind),pointer::iswin(:,:)
-     integer(i_kind),pointer::nswin(:)
-     real(r_kind),pointer::win(:,:)
-     real(r_kind),pointer::twin(:,:)
-     real(r_kind),pointer::swin(:,:)
+     integer(i_kind),pointer::iwin(:,:)=>NULL()
+     integer(i_kind),pointer::nwin(:)=>NULL()
+     integer(i_kind),pointer::itwin(:,:)=>NULL()
+     integer(i_kind),pointer::ntwin(:)=>NULL()
+     integer(i_kind),pointer::iswin(:,:)=>NULL()
+     integer(i_kind),pointer::nswin(:)=>NULL()
+     real(r_kind),pointer::win(:,:)=>NULL()
+     real(r_kind),pointer::twin(:,:)=>NULL()
+     real(r_kind),pointer::swin(:,:)=>NULL()
 
   end type fgrid2agrid_cons
 
@@ -114,8 +118,6 @@ module fgrid2agrid_mod
 !
 ! program history log:
 !   2005-06-06  parrish
-!   2008-11-03  sato - eliminate global varibables except for nord_f2a
-!                      for multi-filter-space in global mode
 !
 !   input argument list:
 !
@@ -168,13 +170,106 @@ module fgrid2agrid_mod
     allocate(p%f2a_lat%twin(2,2))
     allocate(p%f2a_lat%swin(2,2))
 
+  end subroutine init_fgrid2agrid
+
+  subroutine set_fgrid2agrid
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    set_fgrid2agrid  set parameters for this module
+!   prgmmr: todling          org: np22                date: 2014-02-12
+!
+! abstract: sets parameters for this module - needed as separated sub
+!           since inital alloc of arrays got move down after the namelist
+!           reading in gsimod.
+!
+! program history log:
+!   2008-11-03  sato - eliminate global varibables except for nord_f2a
+!                      for multi-filter-space in global mode
+!   2014-02-12  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+
 ! NOTE:
 ! Global variable nord_f2a should be initialized. So I added this line.
 ! Since nord_f2a was a namelist parameter in gsi_main,
 ! Please don't call this routine (init_fgrid2agrid()) after that.
     nord_f2a=4
 
-  end subroutine init_fgrid2agrid
+  end subroutine set_fgrid2agrid
+
+  subroutine final_fgrid2agrid(p)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    final_fgrid2agrid  finalized interpolation variables and
+!                                   constants to defaults
+!   prgmmr: parrish          org: np22                date: 2005-06-06
+!
+! abstract: finalize structure variable designed to contain interpolation
+!           details, and also various other constants to defaults.
+!
+! program history log:
+!   2013-10-26  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!     p --- parameters for fgrid2agrid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use constants, only: one
+    implicit none
+
+    type(fgrid2agrid_parm),intent(inout) :: p
+
+!    initialize fgrid2agrid interpolation structure variables and other constants to defaults
+
+    p%nlatf=1
+    p%nlonf=1
+    p%grid_ratio_lon=one
+    p%grid_ratio_lat=one
+    p%identity=.false.
+    p%f2a_lon%nfgrid=1
+    p%f2a_lon%nagrid=1
+    p%f2a_lon%mfgrid=1
+    p%f2a_lon%magrid=1
+    p%f2a_lon%grid_ratio=one
+    deallocate(p%f2a_lon%iwin)
+    deallocate(p%f2a_lon%nwin)
+    deallocate(p%f2a_lon%itwin)
+    deallocate(p%f2a_lon%ntwin)
+    deallocate(p%f2a_lon%iswin)
+    deallocate(p%f2a_lon%nswin)
+    deallocate(p%f2a_lon%win)
+    deallocate(p%f2a_lon%twin)
+    deallocate(p%f2a_lon%swin)
+    p%f2a_lat%nfgrid=1
+    p%f2a_lat%nagrid=1
+    p%f2a_lat%mfgrid=1
+    p%f2a_lat%magrid=1
+    p%f2a_lat%grid_ratio=one
+    deallocate(p%f2a_lat%iwin)
+    deallocate(p%f2a_lat%nwin)
+    deallocate(p%f2a_lat%itwin)
+    deallocate(p%f2a_lat%ntwin)
+    deallocate(p%f2a_lat%iswin)
+    deallocate(p%f2a_lat%nswin)
+    deallocate(p%f2a_lat%win)
+    deallocate(p%f2a_lat%twin)
+    deallocate(p%f2a_lat%swin)
+
+  end subroutine final_fgrid2agrid
 
   subroutine create_fgrid2agrid(p)
 !$$$  subprogram documentation block

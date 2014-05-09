@@ -50,6 +50,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - question about bmiss and hdr(15).  debug compile execution on WCOSS failed.  
 !                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
@@ -85,13 +86,14 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use obsmod, only: bmiss
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
-      newpc4pred,nst_gsi,nstinfo,fac_dtl,fac_tsl
+      newpc4pred,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
-  use obsmod, only: bmiss
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
@@ -172,7 +174,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   rlndsea(0) = zero
@@ -436,7 +438,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
           dtc   = zero
           tz_tr = one
           if ( sfcpct(0) > zero ) then
-             call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+             call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
           endif
         endif
 

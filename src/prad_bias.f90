@@ -8,6 +8,7 @@
 !
 ! program history log:
 !   2010-05-15  zhu
+!   2013-10-27  todling - move destroy to module where init reside (gsimod)
 !
 ! attributes:
 !   language: f90
@@ -166,7 +167,6 @@
      deallocate(AA,be)
   end do  ! end of jpassive loop
 
-  call destroyobs_passive
   deallocate(A,b,iobs)
 
 ! Finalize timer

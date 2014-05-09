@@ -15,6 +15,7 @@ subroutine pcgsqrt(xhat,costf,gradx,itermax,nprt)
 !   2010-08-19  lueken   - add only to module use
 !   2010-10-01  el akkraoui - add orthogonalization using first few iterates
 !   2011-03-02  todling   - revisit memory release: first-in, last-out
+!   2012-02-08  el akkraoui - fix estimate (remove xhat) per Selime Gurol
 !
 !   input argument lits:
 !    xhat,gradx
@@ -100,7 +101,7 @@ inner_iteration: do iter=1,itermax
 
 !  Estimate
    do ii=1,xtry%lencv
-      xtry%values(ii)=xhat%values(ii)+dirx%values(ii)
+      xtry%values(ii)=dirx%values(ii)
    end do
 
 !  Evaluate cost and gradient

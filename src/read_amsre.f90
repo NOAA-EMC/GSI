@@ -60,6 +60,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
 !                         (isfcalc=1)
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-13  eliu    - bug fix for solar zenith calculation 
+!   2012-03-05  akella  - nst now controlled via coupler
 !
 ! input argument list:
 !     mype     - mpi task id
@@ -93,13 +94,14 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: iuse_rad,nusis,jpch_rad,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
   use constants, only: deg2rad,rad2deg,zero,one,three,r60inv
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_conical, only: instrument_init
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc,deter_sfc_amsre_low
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
@@ -227,7 +229,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   ilat = 4
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   m = 0
@@ -566,7 +568,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 

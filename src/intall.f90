@@ -144,6 +144,7 @@ subroutine intall(sval,sbias,rval,rbias)
 !   2007-03-19  tremolet - binning of observations
 !   2007-04-13  tremolet - split Jo and 3dvar components into intjo and int3dvar
 !   2007-10-01  todling  - add timers
+!   2011-10-20  todling  - observation operators refer to state- not control-vec (cvars->svars)
 !
 !   input argument list:
 !     sval     - solution on grid
@@ -178,7 +179,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
-  use control_vectors, only: cvars2d
+  use state_vectors, only: svars2d
   use mpeu_util, only: getindex
   use guess_grids, only: ntguessig,nfldsig
   implicit none
@@ -230,13 +231,13 @@ subroutine intall(sval,sbias,rval,rbias)
      end if
 
 ! RHS for gust constraint
-     if (getindex(cvars2d,'gust')>0)call intlimg(rval(1),sval(1))
+     if (getindex(svars2d,'gust')>0)call intlimg(rval(1),sval(1))
 
 ! RHS for vis constraint
-     if (getindex(cvars2d,'vis')>0) call intlimv(rval(1),sval(1))
+     if (getindex(svars2d,'vis')>0) call intlimv(rval(1),sval(1))
 
 ! RHS for pblh constraint
-     if (getindex(cvars2d,'pblh')>0) call intlimp(rval(1),sval(1))
+     if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
   end if
 
 ! RHS for dry ps constraint

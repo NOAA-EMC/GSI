@@ -323,6 +323,7 @@ contains
 !   2009-08-04  lueken - added subprogram doc block
 !   2010-01-22  parrish - added optional variable good_var to detect read errors in calling program
 !                            and have option to avoid program stop.
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !    varname,vartype,gridtype - descriptors for variable to be retrieved from nmmb file
@@ -344,7 +345,8 @@ contains
 
     use mpimod, only:        mpi_rtype,mpi_comm_world,ierror,mpi_integer4
     use gridmod, only:       lat2,lon2,nlon,nlat
-    use gridmod, only:       ijn_s,displs_s,itotsub,ltosi_s,ltosj_s
+    use gridmod, only:       ijn_s,displs_s,itotsub
+    use general_commvars_mod, only: ltosi_s,ltosj_s
     use nemsio_module, only: nemsio_readrecv
     use mod_nmmb_to_a, only: nmmb_h_to_a,nmmb_v_to_a
     implicit none
@@ -413,6 +415,7 @@ contains
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !    varname,vartype,gridtype
@@ -432,7 +435,8 @@ contains
 
     use mpimod, only:        mpi_rtype,mpi_comm_world,ierror
     use gridmod, only:       lat2,lon2,nlon,nlat,lat1,lon1
-    use gridmod, only:       ijn,displs_g,itotsub,iglobal,ltosi,ltosj
+    use gridmod, only:       ijn,displs_g,itotsub,iglobal
+    use general_commvars_mod, only: ltosi,ltosj
     use nemsio_module, only: nemsio_writerecv
     use mod_nmmb_to_a, only: nmmb_a_to_h,nmmb_a_to_v
     implicit none
