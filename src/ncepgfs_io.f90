@@ -1042,9 +1042,9 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
       if ( nst_gsi > 0 ) then
         call write_gfs_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
 
-!       if ( l_hyb_ens ) then
-!         call write_ens_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
-!       endif
+        if ( l_hyb_ens ) then
+          call write_ens_sfc_nst(mype,mype_sfc,dsfct(1,1,ntguessfc))
+        endif
 
       else
         filename='sfcanl.gsi'
@@ -1314,7 +1314,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !     This enable to update SST (Tr as well) 6-hourly as the atmospheric variables
 !     the new files (nstf06, nstges and nstanl) needs to be processed
 !     
-!  2. This routine generates the sfc & nst analysis files (sfcanl and nstanl) by 
+!  2. When nst_gsi > 0, This routine generates the sfc & nst analysis files (sfcanl and nstanl) by 
 !     (1) reading sfcgcy (sfcf06 applied with global_cycle) and nstf06
 !     (2) writing/updating the SST (tsea) and Tr (tref) respectively to get sfcanl and nstanl
 !
@@ -1322,14 +1322,14 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !     to another grids (higher resolution, e.g., 1760 x 880) with surface mask info accounted
 !     The main ideas of the surface mask dependent interpolation:
 !     (1) By-linear interpolation is applied.
-!     (2) For a target point, the candidates from the source must have the idetical surface type
-!     (3) A preparation step is adopted to get more specified surface points in
+!     (2) A preparation step is adopted to get more specified surface type points in
 !         the source. This can be done more than one time (here, nprep = 1) 
+!     (3) For a target point, the candidates from the source must have the idetical surface type
 !     (4) If none of the 4 nearby grids has the same surface type as the target
 !         point, the search area is expanded to one grid futher in each direction.
 !         This means 16 more grids will be searched
-!     (5) The surface mask dependent interpolation can be done for any number of surface type (istyp1 to istyp2)
-!         At present, the interpolation is only performed for open water grids (istyp1=istyp2=0)
+!     (5) The surface mask dependent interpolation can be done for  more surface type (0, 1, 2, 3  or more)
+!         At present, the interpolation is only performed for open water grids (0)
 !               
 !  4. Notes
 !     (1) Tr (foundation temperature), instead of skin temperature, is the analysis variable.
@@ -1355,7 +1355,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gridmod, only: iglobal,ijn,ltosi,ltosj,displs_g,itotsub
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
     use obsmod,  only: iadate,ianldate
-    use constants, only: zero_single,two
+    use constants, only: zero_single,two,tfrozen
     use guess_grids, only: isli2,isli_full
     use radinfo, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
@@ -1382,14 +1382,14 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(sfcio_intkind),parameter:: ioanl_sfc = 52
     integer(sfcio_intkind),parameter:: ioanl_nst = 53
 
-    integer(i_kind),parameter:: istyp1=0,istyp2=0,nprep=1
+    integer(i_kind),parameter:: nprep=1
 
     real(r_kind),parameter :: houra = zero_single
 
 !   Declare local variables
     character(len=6):: fname_ges_sfc,fname_ges_nst,fname_anl_sfc,fname_anl_nst
     character(len=10):: canldate
-    integer(i_kind):: iret,istyp
+    integer(i_kind):: iret,n_new_water
     integer(i_kind):: latb,lonb,nlatm2
     integer(i_kind):: i,j,k,ip1,jp1,ilat,ilon,jj,mm1
 
@@ -1399,11 +1399,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     real(r_kind),    dimension(max(iglobal,itotsub)):: dsfct_all
     integer(i_kind), dimension(max(iglobal,itotsub)):: isli_all
 
-    real(r_kind),    dimension(nlat,nlon):: dsfct_glb
-    integer(i_kind), dimension(nlat,nlon):: isli_glb
-
-    real(r_kind),    dimension(nlat,nlon,istyp1:istyp2):: dsfct_tmp
-    integer(i_kind), dimension(nlat,nlon,istyp1:istyp2):: isli_tmp
+    real(r_kind),    dimension(nlat,nlon):: dsfct_glb,dsfct_tmp
+    integer(i_kind), dimension(nlat,nlon):: isli_glb,isli_tmp
 
     real(r_kind),    dimension(nlat_sfc,nlon_sfc)  :: dsfct_gsi,work
     integer(i_kind), dimension(nlat_sfc,nlon_sfc)  :: isli_gsi
@@ -1502,12 +1499,9 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
               ', nlon,nlat-2=',nlon,nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
          write(6,*) ' WRITE_NST_SFC, nlon_sfc,nlat_sfc : ',  nlon_sfc,nlat_sfc
 !
-!        Get the expanded values for a surface type and the new mask
+!        Get the expanded values for a surface type (0 = water now) and the new mask
 !
-         do istyp = istyp1, istyp2
-           call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp(:,:,istyp),isli_tmp(:,:,istyp),nlat,nlon,istyp,nprep)
-         enddo
-
+         call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp,isli_tmp,nlat,nlon,0,nprep)
 !
 !        Get updated/analysis surface mask info from sfcgcy file
 !
@@ -1521,7 +1515,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !        Interpolate dsfct_tmp(nlat,nlon) to dsfct_gsi(nlat_sfc,nlon_sfc) with surface mask accounted
 !
          call int22_msk_glb(dsfct_tmp,isli_tmp,rlats,rlons,nlat,nlon, &
-                            dsfct_gsi,isli_gsi,rlats_sfc,rlons_sfc,nlat_sfc,nlon_sfc,istyp1,istyp2)
+                            dsfct_gsi,isli_gsi,rlats_sfc,rlons_sfc,nlat_sfc,nlon_sfc,0)
 !
 !        transform the dsfct_gsi(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
 !
@@ -1545,27 +1539,33 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !
 !      update tref (in nst file) & tsea (in the surface file) when Tr analysis is on
+!      reset NSSTM variables for new open water grids
 !
        if ( nst_gsi > 2 ) then
 !
-!        set tref = 271.2 for the new open water (sea ice just melted) grids
-!        Notes: data_nst%slmsk is the mask of the guess
+!        For the new open water (sea ice just melted) grids, reset the NSSTM variables
+!
+!        Notes: data_nst%slmsk is the mask of the background
 !               data_sfc%slmsk is the mask of the analysis since global_cycle has been applied
 !
+         n_new_water = 0
          do j = 1, latb
            do i = 1, lonb
              if ( nint(data_sfc%slmsk(i,j)) == 0 .and. nint(data_nst%slmsk(i,j)) == 2 ) then
-               data_nst%tref(i,j) = 271.2_r_kind
+               n_new_water = n_new_water + 1
+               call reset_nst(data_nst,lonb,latb,i,j)
              endif
            end do
          end do
+
+         write(*,*) ' write_gfs_sfc_nst, nst_gsi, number of the new water grids :',nst_gsi,n_new_water
 !
 !        update analysis variable: Tref (foundation temperature) for nst file
 !
          do j = 1, latb
            do i = 1, lonb
              if ( nint(data_sfc%slmsk(i,j)) == 0) then
-               data_nst%tref(i,j) = max(data_nst%tref(i,j) + dsfct_anl(i,j),271.0_r_kind)
+               data_nst%tref(i,j) = max(data_nst%tref(i,j) + dsfct_anl(i,j),tfrozen)
              else
                data_nst%tref(i,j) = data_sfc%tsea(i,j)
              endif
@@ -1578,19 +1578,29 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
            do i = 1, lonb
              if ( nint(data_sfc%slmsk(i,j)) == 0) then
                data_sfc%tsea(i,j) = max(data_nst%tref(i,j) + two*data_nst%xt(i,j)/data_nst%xz(i,j) & 
-                                     - data_nst%dt_cool(i,j),271.0_r_kind)
+                                     - data_nst%dt_cool(i,j),tfrozen)
              endif
            end do
          end do
 
        else          ! when (nst_gsi <= 2) 
 
+         n_new_water = 0
          do j=1,latb
             do i=1,lonb
               data_nst%tref(i,j) = data_sfc%tsea(i,j)                                    ! keep tref as tsea before analysis
-              data_sfc%tsea(i,j) = max(data_sfc%tsea(i,j) + dsfct_anl(i,j),271.0_r_kind) ! update tsea
+!
+!             For the new open water (sea ice just melted) grids, reset the NSSTM variables
+!
+              if ( nint(data_sfc%slmsk(i,j)) == 0 .and. nint(data_nst%slmsk(i,j)) == 2 ) then
+                n_new_water = n_new_water + 1
+                call reset_nst(data_nst,lonb,latb,i,j)
+              endif
+
+              data_sfc%tsea(i,j) = max(data_sfc%tsea(i,j) + dsfct_anl(i,j),tfrozen) ! update tsea
             end do
          end do
+         write(*,*) ' write_gfs_sfc_nst, nst_gsi, number of the new water grids :',nst_gsi,n_new_water
        endif                   ! if ( nst_gsi > 2 ) then
 
 !      Update guess date/time to analysis date/time for surface file
@@ -1706,7 +1716,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gridmod, only: rlats,rlons
     use hybrid_ensemble_parameters, only: n_ens
     use obsmod,  only: iadate,ianldate
-    use constants, only: zero_single,zero,half,two,pi
+    use constants, only: zero_single,zero,half,two,pi,tfrozen
     use guess_grids, only: isli2
     use radinfo, only: nst_gsi
     use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
@@ -1734,7 +1744,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(sfcio_intkind),parameter:: ioanl_sfc = 52
     integer(sfcio_intkind),parameter:: ioanl_nst = 53
 
-    integer(i_kind),parameter:: istyp1=0,istyp2=0,nprep=1
+    integer(i_kind),parameter:: nprep=1
 
     real(r_kind),parameter :: houra = zero_single
 
@@ -1744,7 +1754,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   character(len=27):: fname_ges_nst
     character(len=10) :: canldate
     character(len=3 ) :: cmember
-    integer(i_kind):: iret,istyp
+    integer(i_kind):: iret,n_new_water
     integer(i_kind):: latb,lonb,nlatm2,nlat_ens_sfc,nlon_ens_sfc
     integer(i_kind):: i,j,k,ip1,jp1,ilat,ilon,jj,mm1,jmax
 
@@ -1759,7 +1769,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     real(r_kind), allocatable, dimension(:)     :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
     real(r_kind), allocatable, dimension(:,:)   :: dsfct_gsi,work,isli_gsi,dsfct_anl
-    real(r_kind), allocatable, dimension(:,:,:) :: dsfct_tmp,isli_tmp
+    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp,isli_tmp
 
     real(r_kind) :: dlat,dlon
 
@@ -1845,10 +1855,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
           call stop2(80)
        endif
 
-       if ( nlat_ens_sfc /= head_sfc%latb+2 .or. nlon_ens_sfc /= head_nst%lonb ) then
-          write(6,*) 'Inconsistent dimension for used and read. nlat_ens_sfc,nlon_ens_sfc : ',nlat_ens_sfc,nlon_ens_sfc, &
-                     'head_sfc%latb+2,head_sfc%lonb : ',head_sfc%latb+2,head_sfc%lonb
-       endif
+!      if ( nlat_ens_sfc /= head_sfc%latb+2 .or. nlon_ens_sfc /= head_nst%lonb ) then
+!         write(6,*) 'Inconsistent dimension for used and read. nlat_ens_sfc,nlon_ens_sfc : ',nlat_ens_sfc,nlon_ens_sfc, &
+!                    'head_sfc%latb+2,head_sfc%lonb : ',head_sfc%latb+2,head_sfc%lonb
+!      endif
 
        latb=head_sfc%latb
        lonb=head_sfc%lonb
@@ -1864,7 +1874,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
          allocate(dsfct_gsi(nlat_ens_sfc,nlon_ens_sfc),      work(nlat_ens_sfc,nlon_ens_sfc), &
                    isli_gsi(nlat_ens_sfc,nlon_ens_sfc), dsfct_anl(nlon_ens_sfc,nlat_ens_sfc-2))
 
-         allocate(dsfct_tmp(nlat_ens_sfc,nlon_ens_sfc,istyp1:istyp2),isli_tmp(nlat_ens_sfc,nlon_ens_sfc,istyp1:istyp2))
+         allocate(dsfct_tmp(nlat,nlon),isli_tmp(nlat,nlon))
 
          if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
            write(6,*)'WRITE_ENS_NST_SFC:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
@@ -1888,6 +1898,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
            rlats_ens_sfc(nlat_ens_sfc)=half*pi
            deallocate(slatx,wlatx)
 !
+!          Get the expanded values for a surface type (0 = water now) and the new mask
+!
+           call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp,isli_tmp,nlat,nlon,0,nprep)
+!
 !          Get updated/analysis surface mask info from sfcgcy_ens_mem001 (001-080) file
 !
            call tran_gfssfc(data_sfc%slmsk,work,lonb,latb)
@@ -1897,18 +1911,12 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
              end do
            end do
 !
-!          Get the expanded values for a surface type and the new mask
-!
-           do istyp = istyp1, istyp2
-             call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp(:,:,istyp),isli_tmp(:,:,istyp),nlat,nlon,istyp,nprep)
-           enddo
-!
-!          Interpolate dsfct_glb(nlat,nlon) to dsfct_tmp(nlat_sfc,nlon_sfc) with surface mask accounted
+!          Interpolate dsfct_glb(nlat,nlon) to dsfct_tmp(nlat_ens_sfc,nlon_ens_sfc) with surface mask accounted
 !
            call int22_msk_glb(dsfct_tmp,isli_tmp,rlats,rlons,nlat,nlon, &
-                              dsfct_gsi,isli_gsi,rlats_ens_sfc,rlons_ens_sfc,nlat_ens_sfc,nlon_ens_sfc,istyp1,istyp2)
+                              dsfct_gsi,isli_gsi,rlats_ens_sfc,rlons_ens_sfc,nlat_ens_sfc,nlon_ens_sfc,0)
 !
-!          transform the dsfct_tmp(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
+!          transform the dsfct_gsi(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
 !
            do j = 1, latb
              do i = 1, lonb
@@ -1934,24 +1942,28 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !
        if ( nst_gsi > 2 ) then
 !
-!        set tref = 271.2 for the new open water (sea ice just melted) grids
+!        For the new open water (sea ice just melted) grids, reset the NSSTM variables
+!
+!        set tref = tfrozen = 271.2_r_kind
 !        note: data_nst%slmsk is the mask of the guess
 !              data_sfc%slmsk is the mask of the analysis
 !
+         n_new_water = 0
          do j = 1, latb
            do i = 1, lonb
              if ( nint(data_sfc%slmsk(i,j)) == 0 .and. nint(data_nst%slmsk(i,j)) == 2 ) then
-               data_nst%tref(i,j) = 271.2_r_kind
+               call reset_nst(data_nst,lonb,latb,i,j)
              endif
            end do
          end do
+         write(*,*) ' write_ens_sfc_nst, nst_gsi, number of the new water grids :',nst_gsi,n_new_water
 !
 !        update analysis variable: Tref (foundation temperature) for nst file
 !
          do j = 1, latb
            do i = 1, lonb
              if ( nint(data_sfc%slmsk(i,j)) == 0) then
-              data_nst%tref(i,j) = max(data_nst%tref(i,j) + dsfct_anl(i,j),271.0_r_kind)
+              data_nst%tref(i,j) = max(data_nst%tref(i,j) + dsfct_anl(i,j),tfrozen)
             else
               data_nst%tref(i,j) = data_sfc%tsea(i,j)
             endif
@@ -1964,19 +1976,28 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
           do i = 1, lonb
             if ( nint(data_sfc%slmsk(i,j)) == 0) then
               data_sfc%tsea(i,j) = max(data_nst%tref(i,j) + two*data_nst%xt(i,j)/data_nst%xz(i,j) & 
-                                    - data_nst%dt_cool(i,j),271.0_r_kind)
+                                    - data_nst%dt_cool(i,j),tfrozen)
             endif
           end do
         end do
 
        else          ! when (nst_gsi <= 2) 
 
+         n_new_water = 0
          do j=1,latb
            do i=1,lonb
              data_nst%tref(i,j) = data_sfc%tsea(i,j)                                     ! keep tref as tsea before analysis
+!
+!            For the new open water (sea ice just melted) grids, reset the NSSTM variables
+!
+             if ( nint(data_sfc%slmsk(i,j)) == 0 .and. nint(data_nst%slmsk(i,j)) == 2 ) then
+               call reset_nst(data_nst,lonb,latb,i,j)
+             endif
+
              data_sfc%tsea(i,j) = max(data_sfc%tsea(i,j) + dsfct_anl(i,j),271.0_r_kind)  ! update tsea
            end do
          end do
+         write(*,*) ' write_ens_sfc_nst, nst_gsi, number of the new water grids :',nst_gsi,n_new_water
        endif                   ! if ( nst_gsi > 2 ) then
 
 !      Update guess date/time to analysis date/time for nst file
@@ -2021,6 +2042,307 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !  End of routine
   end subroutine write_ens_sfc_nst
+
+  subroutine write_ens_dsfct(mype,mype_so,dsfct)
+!
+! abstract: write out dsfct (nst_gsi dependent) for ensemble (lower resolution)
+!
+!  REMARKS:
+!
+!   language: f90
+!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
+!
+!  AUTHOR:
+!
+!   2014-04-28  xu li -  initial version; org: np22
+!
+!EOP
+!
+!  DESCRIPTION: 
+!  1. Background
+!     In the current operational GFS, although the atmospheric variables are analyzed/updated 6-hourly, 
+!     the surface variables are handled differently. The SST and sea ice are
+!     updated 24-hourly with the independent analysis. The land variables are
+!     not analyzed yet and the 6-hour forecast is simply used as their analysis.
+!     Practically, the analysis file is generated by updating SST and sea
+!     ice in the 6-hour forecasting surface file/files with globale_cycle evry 24 hours.
+!
+!     With th the development of NSST, where the NSST model to provide the diurnal warming (dTw) and sub-layer cooling
+!     (dTc) at atmospheric model time step, and Tr analysis to provide the
+!     foundation temperature (Tf) analysis every 6 hour, SST = Tf + dTw - dTc  
+!     This enable to update SST (Tr as well) 6-hourly as the atmospheric variables and 
+!     the new files (nstf06, nstges and nstanl) needs to be processed
+!
+!     With the implementation of Hybrid EnKF since May, 2012, there are two
+!     types of surface files
+!
+!     (1) Static analysis with higher resolution
+!         handled in write_gfs_sfc_nst
+!
+!     (2) Ensemble analysis with lower resolution (with member 001 as example: 001 to 080)
+!         sfcges_ens_mem001 : 6-hour SFC forecast for each member (copied from bfg_yyyymmddhh_fhr06_mem001)
+!         sfcgcy_ens_mem001 : from sfcges_ens_mem001 but SST and sea ice updated with global_cycle 24-hourly
+!         sfcanl_ens_mem001 : from sfcgcy_ens_mem001, SST is updated with NSST for open water grids in GSI
+!                                       
+!         nstf06_ens_mem001  : 6-hour NSST forecast for each member
+!         nstanl_ens_mem001  : NSST analysis (only tref updated at present)
+!
+!     
+!  2. This routine generates the surface temperature analysis increment for ensemble members (the same for all 80 members)
+!      (1) read sfcgcy_ens_mem001 and nstf06_mem001 to get the masks (GES and ANL)for ensemble members
+!      (2) get dsfct at ensemble grids (interpolation if needed)
+!      (3) write dsfct in a file for later nst (tref) and sfc (tsea) update at recenter step
+!     
+!  3. Surface mask dependent Interpolation
+!     See write_gfs_sfc_nst
+!               
+!  4. Notes
+!     (1) Tr (foundation temperature), instead of skin temperature, is the analysis variable., but not analyzed yet with the current scheme
+!     (2) The mask info is regarded as available for different resolutions
+!
+!  USES:
+!
+    use kinds, only: r_kind,r_single,i_kind
+
+    use mpimod, only: mpi_rtype,mpi_itype
+    use mpimod, only: mpi_comm_world
+    use mpimod, only: ierror
+
+    use gridmod, only: nlat,nlon,lat1,lon1,lat2,lon2
+    use gridmod, only: iglobal,ijn,ltosi,ltosj,displs_g,itotsub
+    use gridmod, only: rlats,rlons
+    use hybrid_ensemble_parameters, only: n_ens
+    use obsmod,  only: iadate,ianldate
+    use constants, only: zero_single,zero,half,two,pi,tfrozen
+    use guess_grids, only: isli2
+    use radinfo, only: nst_gsi
+    use sfcio_module, only: sfcio_intkind,sfcio_head,sfcio_data,&
+         sfcio_srohdc,sfcio_swohdc,sfcio_axdata
+
+    use nstio_module, only: nstio_intkind,nstio_head,nstio_data,&
+         nstio_srohdc,nstio_swohdc,nstio_axdata
+
+    implicit none
+!
+!  INPUT PARAMETERS:
+!
+    integer(i_kind),                   intent(in) :: mype                  ! mpi task number
+    integer(i_kind),                   intent(in) :: mype_so               ! mpi task to write output file
+    real(r_kind),dimension(lat2,lon2), intent(in) :: dsfct                 ! tr analysis increment in subdomain
+!
+!  OUTPUT PARAMETERS:
+!
+!-------------------------------------------------------------------------
+
+!   Declare local parameters
+
+    integer(sfcio_intkind),parameter:: ioges_sfc = 12
+    integer(sfcio_intkind),parameter:: ioges_nst = 13
+    integer(sfcio_intkind),parameter:: ioanl_sfc = 52
+    integer(sfcio_intkind),parameter:: ioanl_nst = 53
+    integer(sfcio_intkind),parameter:: ioinc_dts = 54
+
+    integer(i_kind),parameter:: nprep=1
+
+    real(r_kind),parameter :: houra = zero_single
+
+!   Declare local variables
+    character(len=17):: fname_ges_sfc,fname_ges_nst,fname_anl_sfc,fname_anl_nst,fname_inc_dts
+
+!   character(len=24):: fname_ges_sfc,fname_anl_sfc,fname_anl_nst
+!   character(len=27):: fname_ges_nst
+    character(len=10) :: canldate
+    character(len=3 ) :: cmember
+    integer(i_kind):: iret,n_new_water
+    integer(i_kind):: latb,lonb,nlatm2,nlat_ens_sfc,nlon_ens_sfc
+    integer(i_kind):: i,j,k,ip1,jp1,ilat,ilon,jj,mm1,jmax
+
+    real(r_kind),    dimension(lat2,lon2):: dsfct_sub
+    integer(i_kind), dimension(lat2,lon2):: isli_sub
+
+    real(r_kind),    dimension(max(iglobal,itotsub)):: dsfct_all
+    integer(i_kind), dimension(max(iglobal,itotsub)):: isli_all
+
+    real(r_kind),    dimension(nlat,nlon):: dsfct_glb
+    integer(i_kind), dimension(nlat,nlon):: isli_glb
+
+    real(r_kind), allocatable, dimension(:)   :: wlatx,slatx,rlats_ens_sfc,rlons_ens_sfc
+    real(r_kind), allocatable, dimension(:,:) :: dsfct_gsi,work,isli_gsi,dsfct_anl
+    real(r_kind), allocatable, dimension(:,:) :: dsfct_tmp,isli_tmp
+
+    real(r_kind) :: dlat,dlon
+
+    type(sfcio_head):: head_sfc
+    type(sfcio_data):: data_sfc
+
+    type(nstio_head):: head_nst
+    type(nstio_data):: data_nst
+!*****************************************************************************
+!   Initialize local variables
+    mm1 = mype + 1
+    nlatm2  = nlat - 2
+!   get analysis date (yyyymmddhh) in character
+    write(canldate,'(I10)') ianldate
+!
+!   Extract the analysis increment and surface mask in subdomain without the buffer
+!
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ip1 = i+1
+          dsfct_sub(i,j) = dsfct(ip1,jp1)
+          isli_sub (i,j) = isli2(ip1,jp1)
+       end do
+    end do
+
+!
+!   Gather analysis increment and surface mask info from subdomains
+!
+    call mpi_gatherv(dsfct_sub,ijn(mm1),mpi_rtype,&
+         dsfct_all,ijn,displs_g,mpi_rtype,mype_so ,&
+         mpi_comm_world,ierror)
+
+    call mpi_gatherv(isli_sub,ijn(mm1),mpi_itype,&
+         isli_all,ijn,displs_g,mpi_itype,mype_so ,&
+         mpi_comm_world,ierror)
+!      
+!   Only MPI task mype_so, processes and writes the surface & nst file.
+!
+    if (mype==mype_so) then
+!
+!     get Tr analysis increment and surface mask at analysis grids
+!    
+      do i=1,iglobal
+        ilon=ltosj(i)
+        ilat=ltosi(i)
+        dsfct_glb(ilat,ilon) = dsfct_all(i)
+        isli_glb (ilat,ilon) = isli_all (i)
+      end do
+
+!
+!     get surface temperature analysis increment at ensemble resolution
+!
+      fname_ges_nst = 'nstf06_ens_mem001'
+      fname_ges_sfc = 'sfcgcy_ens_mem001'
+      fname_anl_nst = 'nstanl_ens_mem001'
+      fname_anl_sfc = 'sfcanl_ens_mem001'
+      fname_inc_dts = 'dtsinc_ens_mem001'
+
+!     Read nst guess file of the ensemble member
+      call nstio_srohdc(ioges_nst,fname_ges_nst,head_nst,data_nst,iret)
+      if (iret /= 0) then
+         write(6,*)'WRITE_ENS_NST_SFC:  ***ERROR*** problem reading ',fname_ges_nst,', iret=',iret
+         call nstio_axdata(data_nst,iret)
+         call stop2(80)
+      endif
+
+!     Read surface guess file (global_cycle applied already) of the ensemble member
+      call sfcio_srohdc(ioges_sfc,fname_ges_sfc,head_sfc,data_sfc,iret)
+      if (iret /= 0) then
+         write(6,*)'WRITE_ENS_NST_SFC:  ***ERROR*** problem reading ',fname_ges_sfc,', iret=',iret
+         call sfcio_axdata(data_sfc,iret)
+         call stop2(80)
+      endif
+
+      if ( head_nst%latb /= head_sfc%latb .or. head_nst%lonb /= head_sfc%lonb ) then
+         write(6,*) 'Inconsistent dimension for sfc & nst files. head_nst%latb,head_nst%lonb : ',head_nst%latb,head_nst%lonb, &
+                    'head_sfc%latb,head_sfc%lonb : ',head_sfc%latb, head_sfc%lonb
+         call stop2(80)
+      endif
+
+      latb=head_sfc%latb
+      lonb=head_sfc%lonb
+
+      nlat_ens_sfc = latb + 2
+      nlon_ens_sfc = lonb
+
+      allocate(dsfct_gsi(nlat_ens_sfc,nlon_ens_sfc),      work(nlat_ens_sfc,nlon_ens_sfc), &
+                isli_gsi(nlat_ens_sfc,nlon_ens_sfc), dsfct_anl(nlon_ens_sfc,nlat_ens_sfc-2))
+
+      allocate(dsfct_tmp(nlat,nlon),isli_tmp(nlat,nlon))
+
+      if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
+
+        write(6,*)'WRITE_ENS_NST_SFC:  different grid dimensions analysis vs sfc. interpolating sfc temperature  ',&
+             ', nlon,nlat_-2=',nlon,nlatm2,' -vs- sfc file lonb,latb=',lonb,latb
+!
+!       get lats and lons for ensemble grids
+!
+        jmax=nlat_ens_sfc-2
+        allocate(slatx(jmax),wlatx(jmax))
+        allocate(rlats_ens_sfc(nlat_ens_sfc),rlons_ens_sfc(nlon_ens_sfc))
+        call splat(4,jmax,slatx,wlatx)
+        dlon=two*pi/float(nlon_ens_sfc)
+        do i=1,nlon_ens_sfc
+          rlons_ens_sfc(i)=float(i-1)*dlon
+        end do
+        do i=1,(nlat_ens_sfc-1)/2
+          rlats_ens_sfc(i+1)=-asin(slatx(i))
+          rlats_ens_sfc(nlat_ens_sfc-i)=asin(slatx(i))
+        end do
+        rlats_ens_sfc(1)=-half*pi
+        rlats_ens_sfc(nlat_ens_sfc)=half*pi
+        deallocate(slatx,wlatx)
+
+!       Get the expanded values for a surface type (0 = water now) and the new mask
+
+        call int2_msk_glb_prep(dsfct_glb,isli_glb,dsfct_tmp,isli_tmp,nlat,nlon,0,nprep)
+!
+!       Get updated/analysis surface mask info from sfcgcy_ens_mem001 (001-080) file
+!
+        call tran_gfssfc(data_sfc%slmsk,work,lonb,latb)
+        do j=1,nlon_ens_sfc
+          do i=1,nlat_ens_sfc
+            isli_gsi(i,j) = nint(work(i,j))
+          end do
+        end do
+!
+!       Interpolate dsfct_glb(nlat,nlon) to dsfct_tmp(nlat_ens_sfc,nlon_ens_sfc) with surface mask accounted
+!
+        call int22_msk_glb(dsfct_tmp,isli_tmp,rlats,rlons,nlat,nlon, &
+                           dsfct_gsi,isli_gsi,rlats_ens_sfc,rlons_ens_sfc,nlat_ens_sfc,nlon_ens_sfc,0)
+!
+!       transform the dsfct_gsi(latb+2,lonb) to dsfct_anl(lonb,latb) for sfc file format
+!
+        do j = 1, latb
+          do i = 1, lonb
+            dsfct_anl(i,j) = dsfct_gsi(latb+2-j,i)
+          end do 
+        end do
+
+      else       ! when the GSI analysis grid is identical to ensemble one
+!
+!       transform the dsfct_glb(nlat,nlon) to dsfct_anl(lonb,latb) for sfc file
+!       format when nlat == latb-2 & nlon = lonb
+!
+        do j=1,latb
+          do i=1,lonb
+            dsfct_anl(i,j)=dsfct_glb(latb+1-j,i)
+          end do
+        end do
+      endif                 ! if ( (latb /= nlatm2) .or. (lonb /= nlon) ) then
+
+!
+!     write dsfct_anl to a data file for later use (at rcen step at present)  
+!
+      open(ioinc_dts,file=fname_inc_dts,form='unformatted')
+      write(ioinc_dts) dsfct_anl
+      write(ioinc_dts) data_sfc%slmsk
+
+      close (ioges_nst)
+      close (ioges_sfc)
+      close (ioanl_nst)
+      close (ioanl_sfc)
+      close (ioinc_dts)
+
+!     Deallocate local work arrays
+      call sfcio_axdata(data_sfc,iret)
+      call nstio_axdata(data_nst,iret)
+
+    endif                               ! if (mype == mype_so ) then
+
+!  End of routine
+  end subroutine write_ens_dsfct
 
   subroutine reorder_gfsgrib(nx,ny,grid_1d,grid_2d)
 !$$$  subprogram documentation block

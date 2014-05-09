@@ -35,6 +35,8 @@ module radinfo
 !                         add number of scan positions to satang file
 !   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
+!   2014-04-23   li     - change scan bias correction mode for avhrr and avhrr_navy
+!   2014-04-24   li     - apply abs (absolute) to AA and be for safeguarding
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -1406,7 +1408,7 @@ contains
       ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis
       seviri     = obstype == 'seviri'
       mean_only=ssmi .or. ssmis .or. amsre .or. goessndr .or. goes_img & 
-                .or. avhrr .or. avhrr_navy .or. seviri
+                .or. seviri
 
 !     Allocate arrays and initialize
       if (mean_only) then 
@@ -1567,7 +1569,6 @@ contains
          close(lntemp)
       end if
 
-
       if (new_chan/=0) then
          if (all(iobs<nthreshold)) then
             deallocate(A,b,iobs,pred)
@@ -1581,8 +1582,8 @@ contains
             if (iobs(i)<nthreshold) cycle
             AA(:,:)=A(:,:,i)
             be(:)  =b(:,i)
-            if (all(AA<tiny)) cycle
-            if (all(be<tiny)) cycle
+            if (all(abs(AA)<tiny)) cycle
+            if (all(abs(be)<tiny)) cycle
             call linmm(AA,be,np,1,np,np)
 
             predx(1,ich(i))=be(1)

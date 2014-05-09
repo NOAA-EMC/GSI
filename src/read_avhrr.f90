@@ -92,6 +92,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind),parameter:: mlat_sst = 3000
   integer(i_kind),parameter:: mlon_sst = 5000
   real(r_kind),parameter:: r6=6.0_r_kind
+  real(r_kind),parameter:: scan_start=-52.612_r_kind, scan_inc=1.182_r_kind
   real(r_double),parameter:: r360=360.0_r_double
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -130,7 +131,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: scan_pos,dfov,ch_win,ch_win_flg,r01
+  real(r_kind) :: scan_pos,scan_angle,dfov,ch_win,ch_win_flg,r01
 
   real(r_double), dimension(13) :: hdr
   real(r_double), dimension(3,5) :: bufrf
@@ -328,6 +329,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         if ( scan_pos > nfov ) scan_pos = nfov
 
         ifov = nint(scan_pos)
+        scan_angle = (scan_start+real(ifov-1)*scan_inc)*deg2rad
 
 !       Set common predictor parameters
         crit1=crit1+rlndsea(isflg)
@@ -394,7 +396,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         data_all(4, itx) = dlat                   ! grid relative latitude
         data_all(5, itx) = hdr(11)*deg2rad        ! satellite zenith angle (radians)
         data_all(6, itx) = bmiss                  ! satellite azimuth angle
-        data_all(7, itx) = zero                   ! look angle
+        data_all(7, itx) = scan_angle             ! scan angle
         data_all(8, itx) = scan_pos               ! scan position
         data_all(9, itx) = hdr(12)                ! solar zenith angle (radians)
         data_all(10,itx) = bmiss                  ! solar azimuth angle (radians)

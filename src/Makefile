@@ -385,6 +385,7 @@ clean:
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	nstio_module.f90 \
+	Nst_Var_ESMFMod.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.f90 \
 	obsmod.F90 \

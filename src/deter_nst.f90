@@ -237,4 +237,3 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 
      end if
 end subroutine deter_nst
-

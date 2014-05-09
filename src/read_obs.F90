@@ -957,7 +957,6 @@ subroutine read_obs(ndata,mype)
        end do
     end if
 !   Create full horizontal surface fields from local fields in guess_grids
-    write(*,*) 'read_obs_getsfc : ',mype,use_sfc
     call getsfc(mype,use_sfc)
     if(use_sfc) call prt_guessfc2('sfcges2')
 
