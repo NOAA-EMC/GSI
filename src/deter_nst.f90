@@ -28,9 +28,9 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !$$$
      use kinds, only: r_kind,i_kind
      use constants, only: zero,one,z_w_max
-     use satthin, only: tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full
+     use satthin, only: isli_full,tref_full,dt_cool_full,z_c_full,dt_warm_full,z_w_full,c_0_full,c_d_full,w_0_full,w_d_full
      use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-     use guess_grids, only: nfldnst,hrdifnst,isli_full
+     use guess_grids, only: nfldnst,hrdifnst
      use radinfo, only: fac_dtl,fac_tsl
      implicit none
 
@@ -237,3 +237,4 @@ subroutine deter_nst(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 
      end if
 end subroutine deter_nst
+

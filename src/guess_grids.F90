@@ -92,8 +92,6 @@ module guess_grids
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
 !   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
-!   2014-02-02  li      - move the declaration of surface variables at sfc grids from satthin to
-!                         guess_grids (isli_full ...)
 !   2014-03-12  Hu      - Add ges_q2 
 !
 ! !AUTHOR: 
@@ -141,8 +139,7 @@ module guess_grids
   public :: use_compress,nsig_ext,gpstop
   public :: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,ges_q2
   public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
-  public :: isli_full,sst_full,fact10_full,sno_full,veg_type_full, &
-            veg_frac_full,sfc_rough_full,soil_type_full,soil_temp_full,soil_moi_full
+
   public :: ges_initialized
   public :: tnd_initialized
   public :: drv_initialized
@@ -229,21 +226,7 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:):: soil_type ! soil type
   real(r_kind),allocatable,dimension(:,:,:):: soil_temp ! soil temperature of first layer
   real(r_kind),allocatable,dimension(:,:,:):: soil_moi  ! soil moisture of first layer
-!
-! Arrays at surface grids
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  integer(i_kind),allocatable,dimension(:,:):: isli_full   ! snow/land/ice mask 
-  real(r_kind),allocatable,dimension(:,:)   :: soil_type_full ! soil type
-  real(r_kind),allocatable,dimension(:,:)   :: veg_type_full  ! vegetation type
-  real(r_kind),allocatable,dimension(:,:,:) :: sst_full       ! SST
-  real(r_kind),allocatable,dimension(:,:,:) :: fact10_full    ! 10 meter wind factor
-  real(r_kind),allocatable,dimension(:,:,:) :: sno_full       ! snow-ice mask
-  real(r_kind),allocatable,dimension(:,:,:) :: veg_frac_full  ! vegetation fraction(0-1.0)
-  real(r_kind),allocatable,dimension(:,:,:) :: sfc_rough_full ! sfc roughness length
-  real(r_kind),allocatable,dimension(:,:,:) :: soil_temp_full ! soil temperature of first layer
-  real(r_kind),allocatable,dimension(:,:,:) :: soil_moi_full  ! soil moisture of first layer
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
 
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgtl ! guess geopotential height at mid-layers
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgti ! guess geopotential height at level interfaces

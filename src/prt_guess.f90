@@ -13,7 +13,6 @@ subroutine prt_guess(sgrep)
 !   2011-05-01  todling  - cwmr no longer in guess_grids
 !   2011-08-01  zhu    - use cwgues for regional if cw is not in guess table
 !   2011-12-02  zhu    - add safe-guard for the case when there is no entry in the metguess table
-!   2014-02-02  li     - change module use (satthin to guess_grids)
 !
 !   input argument list:
 !    sgrep  - prefix for write statement
@@ -317,7 +316,7 @@ subroutine prt_guessfc2(sgrep)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use guess_grids, only: isli_full,fact10_full,soil_moi_full,soil_temp_full,veg_frac_full, &
+  use satthin, only: isli_full,fact10_full,soil_moi_full,soil_temp_full,veg_frac_full,&
        soil_type_full,veg_type_full,sfc_rough_full,sst_full,sno_full
   use guess_grids, only: ntguessfc
 
