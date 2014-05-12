@@ -29,7 +29,8 @@ subroutine normal_rh_to_q(rhnorm,t,p,q)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use jfunc, only: dqdrh,dqdp,dqdt,qoption
+  use derivsmod, only: dqdrh,dqdp,dqdt
+  use jfunc, only: qoption
   use gridmod, only: lat2,lon2,nsig
 
   implicit none
@@ -99,7 +100,8 @@ subroutine normal_rh_to_q_ad(rhnorm,t,p,q)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: dqdrh,dqdp,dqdt,qoption
+  use derivsmod, only: dqdrh,dqdp,dqdt
+  use jfunc, only: qoption
   use gridmod, only: lat2,lon2,nsig
   use constants, only: zero
   implicit none

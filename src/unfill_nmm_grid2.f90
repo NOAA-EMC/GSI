@@ -18,6 +18,7 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 ! program history log:
 !   2004-06-22  parrish, document
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     gout     - input filled grid  (reorganized for distibution to local 
@@ -39,7 +40,8 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use gridmod, only: itotsub,ltosi,ltosj,ltosi_s,ltosj_s,iglobal
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj,ltosi_s,ltosj_s
   implicit none
   
   integer(i_kind), intent(in   ) :: nx,ny,igtype,iorder

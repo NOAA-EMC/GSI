@@ -19,6 +19,7 @@ subroutine anbkerror(gradx,grady)
 !   2010-06-22  todling - update to better handle bundle pointers
 !   2010-06-29  lueken - replaced tv with t in call to gsi_bundlegetpointer
 !   2010-08-19  lueken - add only to module use
+!   2012-10-09  Gu - add fut2ps as arg to (t)balance routine(s)
 !   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction 
 !
 !   input argument list:
@@ -36,7 +37,7 @@ subroutine anbkerror(gradx,grady)
   use gridmod, only: lat2,lon2
   use jfunc, only: nsclen,npclen,ntclen
   use balmod, only: balance,tbalance
-  use berror, only: varprd,fpsproj
+  use berror, only: varprd,fpsproj,fut2ps
   use constants, only: zero
   use control_vectors, only: control_vector,assignment(=)
   use gsi_4dvar, only: nsubwin
@@ -90,13 +91,13 @@ do_balance=lc_sf.and.lc_vp.and.lc_ps .and.lc_t
      call gsi_bundlegetpointer (grady%step(ii),'t ',p_t,   istatus)
 
 !    Transpose of balance equation
-     if(do_balance) call tbalance(p_t,p_ps,p_st,p_vp,fpsproj)
+     if(do_balance) call tbalance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
 
 !    Apply variances, as well as vertical & horizontal parts of background error
      call anbkgcov(grady%step(ii),sst,slndt,sicet)
 
 !    Balance equation
-     if(do_balance) call balance(p_t,p_ps,p_st,p_vp,fpsproj)
+     if(do_balance) call balance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
 
   end do
 

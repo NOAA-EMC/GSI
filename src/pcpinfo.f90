@@ -132,7 +132,7 @@ contains
 !   2004-05-13  treadon, documentation
 !   2004-08-04  treadon - add only on use declarations; add intent in/out
 !   2005-10-11  treadon - change pcpinfo read to free format
-!   2008-04-29  safford - rm redundent uses
+!   2008-04-29  safford - rm redundant uses
 !   2008-10-10  derber  - flip indices for predxp
 !   2010-05-29  todling - interface consistent w/ similar routines
 !
@@ -303,6 +303,7 @@ contains
 !                         standard mpi_scatterv
 !   2005-12-12  treadon - remove IBM specific call to random_seed(generator)
 !   2006-01-10  treadon - move myper inside routine
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !      iadate - analysis date (year, month, day, hour, minute)
@@ -315,8 +316,9 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use gridmod, only: ijn_s,ltosj_s,ltosi_s,displs_s,itotsub,&
+    use gridmod, only: ijn_s,displs_s,itotsub,&
        lat2,lon2,nlat,nlon
+    use general_commvars_mod, only: ltosj_s,ltosi_s
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
     use mersenne_twister, only: random_setseed, random_number
     implicit none
@@ -334,7 +336,8 @@ contains
 
 ! Compute random number for precipitation forward model.  
     mm1=mype+1
-    allocate(rwork(itotsub),xkt2d(lat2,lon2))
+    allocate(xkt2d(lat2,lon2))
+    allocate(rwork(itotsub))
     myper=npe-1
     if (mype==myper) then
        rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) + 1e2_r_kind*iadate(3) + iadate(4)
@@ -374,6 +377,7 @@ contains
 ! program history log:
 !   2003-09-25  treadon
 !   2004-05-13  treadon, documentation
+!   2013-10-24  todling, dealloc a number of arrays
 !
 !   input argument list:
 !
@@ -386,6 +390,13 @@ contains
 !$$$
      implicit none
 
+     if(allocated(nupcp))     deallocate(nupcp)
+     if(allocated(iusep))     deallocate(iusep)
+     if(allocated(ibias))     deallocate(ibias)
+     if(allocated(varchp))    deallocate(varchp)
+     if(allocated(gross_pcp)) deallocate(gross_pcp)
+     if(allocated(b_pcp))     deallocate(b_pcp)
+     if(allocated(pg_pcp))    deallocate(pg_pcp)
      deallocate(xkt2d)
      return
   end subroutine destroy_pcp_random

@@ -164,7 +164,7 @@ program time
   n_chan = header_fix%nchan
 
   write(6,*)'satype,dplat,n_chan=',satype,' ',dplat,n_chan
-  write(6,*)'header_fix%iversion, iversion_radiag = ', header_fix%iversion, iversion_radiag
+  write(6,*)'header_fix%iversion = ', header_fix%iversion
 
   string = trim(satype)//'_'//trim(dplat)
   write(6,*)'string,satname=',string,' ',satname

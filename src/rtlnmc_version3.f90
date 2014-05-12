@@ -3765,7 +3765,8 @@ subroutine special_for_llfmg_sub2grid3(a1,a2,a3,b1,b2,b3,f1,f2,f3,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -3831,7 +3832,8 @@ subroutine special_for_llfmg_sub2grid2(a1,a2,b1,b2,f1,f2,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -3891,7 +3893,8 @@ subroutine special_for_llfmg_grid2sub2(f1,f2,a1,a2,b1,b2,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,ltosi_s,ltosj_s
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub
+  use general_commvars_mod, only: ltosi_s,ltosj_s
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -3950,7 +3953,8 @@ subroutine special_for_llfmg_grid2sub3(f1,f2,f3,a1,a2,a3,b1,b2,b3,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,ltosi_s,ltosj_s
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub
+  use general_commvars_mod, only: ltosi_s,ltosj_s
   use mod_vtrans, only: nvmodes_keep
   implicit none
 

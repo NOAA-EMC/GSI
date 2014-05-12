@@ -204,8 +204,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      
 !    Write co record to output file
      ndata=min(ndata+1,maxobs)
-     ndata=1 
-     nodata=nlco
+     nodata=nodata+nlco
      
      coout(1,ndata)=rsat
      coout(2,ndata)=t4dv
@@ -239,13 +238,17 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! Write header record and data to output file for further processing
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((coout(k,i),k=1,ncodat+nchanl),i=1,ndata)
-  nread=10 
+  nread=ndata ! nmrecs
 
 
 ! Deallocate local arrays
 160 continue
-  deallocate(coout)
-  if (obstype == 'mopitt') deallocate(pco)
+  if (obstype == 'mopitt') then
+     deallocate(aker)
+     deallocate(apco)
+     deallocate(pco)
+     deallocate(coout)
+  endif
   close(lunin)
 
   return

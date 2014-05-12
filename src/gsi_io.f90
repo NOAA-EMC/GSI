@@ -440,6 +440,7 @@ contains
 !
 !   2006-12-04  todling - add nbc and loop over nbc
 !   2010-04-01  treadon - move strip to gridmod
+!   2013-10-24  todling - revisit strip interface
 !
 ! !REMARKS:
 !
@@ -486,17 +487,17 @@ contains
     do n=1,nbc
 
 !   Strip off boundary points from subdomains
-       call strip(sub_z    (1,1,n)  ,zsm    ,1)
-       call strip(sub_ps   (1,1,n)  ,psm    ,1)
-       call strip(sub_tskin(1,1,n)  ,tskinsm,1)
-       call strip(sub_vor  (1,1,1,n),vorsm  ,nsig)
-       call strip(sub_div  (1,1,1,n),divsm  ,nsig)
-       call strip(sub_u    (1,1,1,n),usm    ,nsig)
-       call strip(sub_v    (1,1,1,n),vsm    ,nsig)
-       call strip(sub_tv   (1,1,1,n),tvsm   ,nsig)
-       call strip(sub_q    (1,1,1,n),qsm    ,nsig)
-       call strip(sub_oz   (1,1,1,n),ozsm   ,nsig)
-       call strip(sub_cwmr (1,1,1,n),cwmrsm ,nsig)
+       call strip(sub_z    (:,:,n)  ,zsm)
+       call strip(sub_ps   (:,:,n)  ,psm)
+       call strip(sub_tskin(:,:,n)  ,tskinsm)
+       call strip(sub_vor  (:,:,:,n),vorsm  ,nsig)
+       call strip(sub_div  (:,:,:,n),divsm  ,nsig)
+       call strip(sub_u    (:,:,:,n),usm    ,nsig)
+       call strip(sub_v    (:,:,:,n),vsm    ,nsig)
+       call strip(sub_tv   (:,:,:,n),tvsm   ,nsig)
+       call strip(sub_q    (:,:,:,n),qsm    ,nsig)
+       call strip(sub_oz   (:,:,:,n),ozsm   ,nsig)
+       call strip(sub_cwmr (:,:,:,n),cwmrsm ,nsig)
   
 
 !   For each output grid, the following steps are repeated
@@ -657,7 +658,8 @@ contains
 ! !USES:
 
    use kinds, only: r_kind,r_single
-   use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
+   use gridmod, only: itotsub,nlat,nlon
+   use general_commvars_mod, only: ltosi_s,ltosj_s
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -672,6 +674,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90
@@ -709,7 +712,8 @@ contains
 ! !USES:
 
    use kinds, only: r_kind,r_double
-   use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
+   use gridmod, only: itotsub,nlat,nlon
+   use general_commvars_mod, only: ltosi_s,ltosj_s
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -726,6 +730,7 @@ contains
 !   2004-08-27  treadon
 !   2007-05-27  todling - add double precision version
 !   2011-07-03  todling - true double prec interface
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90
@@ -763,7 +768,8 @@ contains
 ! !USES:
 
    use kinds, only: r_kind,r_single
-   use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
+   use gridmod, only: itotsub,iglobal,nlat,nlon
+   use general_commvars_mod, only: ltosi,ltosj
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -778,6 +784,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90
@@ -814,7 +821,8 @@ contains
 ! !USES:
 
    use kinds, only: r_kind,r_double
-   use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
+   use gridmod, only: itotsub,iglobal,nlat,nlon
+   use general_commvars_mod, only: ltosi,ltosj
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -831,6 +839,7 @@ contains
 !   2004-08-27  treadon
 !   2007-05-27  todling - add double precision version
 !   2011-07-03  todling - true double prec interface
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90

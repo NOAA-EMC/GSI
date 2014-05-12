@@ -10,6 +10,7 @@ subroutine unfill_mass_grid2t(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
 !                        Here input grid is larger than output grid.
 !
@@ -27,7 +28,8 @@ subroutine unfill_mass_grid2t(gout,nx,ny,gin)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use gridmod, only: itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_a_to_h4
   use gridmod, only: nlon, nlat
 
@@ -73,6 +75,7 @@ subroutine unfill_mass_grid2u(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
 !                        Here input grid is larger than output grid.
 !
@@ -91,7 +94,8 @@ subroutine unfill_mass_grid2u(gout,nx,ny,gin)
 !$$$
   use kinds, only: r_single,i_kind
   use constants, only: half
-  use gridmod, only: itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_a_to_h4
   use gridmod, only: nlon, nlat
 
@@ -138,6 +142,7 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 !
 ! program history log:
 !   2004-07-16  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
 !                        Here input grid is larger than output grid.
 !
@@ -156,7 +161,8 @@ subroutine unfill_mass_grid2v(gout,nx,ny,gin)
 !$$$
   use kinds, only: r_single,i_kind
   use constants, only: half
-  use gridmod, only: itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_a_to_h4
   use gridmod, only: nlon, nlat
 
@@ -205,6 +211,7 @@ subroutine unfill_mass_grid2tmap(gout,nx,ny,gin)
 !   2004-07-16  parrish
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
 !                        Here input grid is larger than output grid.
+!   2014-04-04  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
@@ -220,7 +227,8 @@ subroutine unfill_mass_grid2tmap(gout,nx,ny,gin)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use gridmod, only: itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_map_a_to_h4
   use gridmod, only: nlon, nlat
 
@@ -266,6 +274,7 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
 !   2004-07-16  parrish
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid:
 !                        Here input grid is larger than output grid.
+!   2014-04-04  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     gout     - input A-grid (reorganized for distibution to local domains)
@@ -281,7 +290,8 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use gridmod, only: itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_wrfmass_to_a, only: wrfmass_a_to_h4
   use gridmod, only: nlon, nlat
 

@@ -12,6 +12,7 @@ module intgpsmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-28  Todling - add interface back
 !   2009-08-13  lueken - update documentation
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub intgps_
@@ -115,8 +116,8 @@ subroutine intgps_(gpshead,rval,sval)
   real(r_kind),pointer,dimension(:) :: rt,rq
   real(r_kind),pointer,dimension(:) :: sp
   real(r_kind),pointer,dimension(:) :: rp
-  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_p3d
-  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_prse
   type(gps_ob_type), pointer :: gpsptr
 
 !  If no gps obs return
@@ -124,19 +125,19 @@ subroutine intgps_(gpshead,rval,sval)
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0
-  call gsi_bundlegetpointer(sval,'tv', st,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval,'q',  sq,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval,'p3d',sp,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'tv', rt,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'q',  rq,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'p3d',rp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'tv'  ,st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'q'   ,sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'tv'  ,rt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'q'   ,rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
   if (l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'tv',   xhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'q',    xhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'p3d',xhat_dt_p3d,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'tv',   dhat_dt_t,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'q',    dhat_dt_q,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tv',  xhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',   xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tv',  dhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',   dhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
   endif
   if(ier/=0)return
 
@@ -173,8 +174,8 @@ subroutine intgps_(gpshead,rval,sval)
               (w1*xhat_dt_q(i1(j))+w2*xhat_dt_q(i2(j))+ &
                w3*xhat_dt_q(i3(j))+w4*xhat_dt_q(i4(j)))*time_gps
            p_TL=p_TL+&
-              (w1*xhat_dt_p3d(i1(j))+w2*xhat_dt_p3d(i2(j))+ &
-               w3*xhat_dt_p3d(i3(j))+w4*xhat_dt_p3d(i4(j)))*time_gps
+              (w1*xhat_dt_prse(i1(j))+w2*xhat_dt_prse(i2(j))+ &
+               w3*xhat_dt_prse(i3(j))+w4*xhat_dt_prse(i4(j)))*time_gps
         endif
         val = val + p_TL*gpsptr%jac_p(j) + t_TL*gpsptr%jac_t(j)+q_TL*gpsptr%jac_q(j)
      end do
@@ -247,10 +248,10 @@ subroutine intgps_(gpshead,rval,sval)
               dhat_dt_q(i3(j))=dhat_dt_q(i3(j))+w3*q_AD
               dhat_dt_q(i4(j))=dhat_dt_q(i4(j))+w4*q_AD
               p_AD = grad*gpsptr%jac_p(j)
-              dhat_dt_p3d(i1(j))=dhat_dt_p3d(i1(j))+w1*p_AD
-              dhat_dt_p3d(i2(j))=dhat_dt_p3d(i2(j))+w2*p_AD
-              dhat_dt_p3d(i3(j))=dhat_dt_p3d(i3(j))+w3*p_AD
-              dhat_dt_p3d(i4(j))=dhat_dt_p3d(i4(j))+w4*p_AD
+              dhat_dt_prse(i1(j))=dhat_dt_prse(i1(j))+w1*p_AD
+              dhat_dt_prse(i2(j))=dhat_dt_prse(i2(j))+w2*p_AD
+              dhat_dt_prse(i3(j))=dhat_dt_prse(i3(j))+w3*p_AD
+              dhat_dt_prse(i4(j))=dhat_dt_prse(i4(j))+w4*p_AD
            enddo
         endif
 

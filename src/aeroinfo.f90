@@ -133,10 +133,10 @@ contains
 
 !   inquire number of aerosols to participate in CRTM calculations
     ip25 = -1
-    call gsi_chemguess_get ( 'aerosols_4crtm::3d', n_aerosols_crtm, ier )
+    call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', n_aerosols_crtm, ier )
     if (n_aerosols_crtm>0) then
        allocate(aerosols_names(n_aerosols_crtm))
-       call gsi_chemguess_get ( 'aerosols_4crtm::3d', aerosols_names, ier )
+       call gsi_chemguess_get ( 'aerosols_4crtm_jac::3d', aerosols_names, ier )
        call gsi_chemguess_get ( 'var::p25', ip25, ier)
        if ( ip25 > 0 ) then
           nvarjac=n_aerosols_crtm+1  !plus p25 whose jacobian is derived from dust1 and dust2
@@ -155,6 +155,7 @@ contains
           aerojacindxs(nvarjac) = nsig
        endif
 !      Determine initial pointer location for each var in the Jacobian
+       nsigaerojac = 0
        if(size(aerojacnames)>0) then
           nsigaerojac = sum(aerojacindxs)
           isum=0
