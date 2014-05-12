@@ -79,6 +79,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !                         different meaning for toss_gps_sub, add Tandem-X assimilation capability
 !   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -103,8 +104,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use obsmod, only: obs_diag
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
-      ges_z,ges_tv,ges_q
+  use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig
   use guess_grids, only: nsig_ext,gpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
@@ -131,6 +131,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   use m_gpsrhs, only: gpsrhs_dealloc
   use m_gpsrhs, only: gpsrhs_aliases
   use m_gpsrhs, only: gpsrhs_unaliases
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+
   implicit none
 
 ! Declare passed variables
@@ -198,12 +202,17 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),dimension(nobs):: tpdpres
 
   logical,dimension(nobs):: luse
+  logical proceed
 
   logical:: in_curbin, in_anybin, skipiobs,obs_check,qc_layer_SR
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(gps_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
 !*******************************************************************************
 ! List of GPS RO satellites and corresponding BUFR id
@@ -225,6 +234,13 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !440 => Megha-Tropiques
 !821 => SACD
 !44  => PAZ
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse
@@ -255,6 +271,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   nobs_out=0
   hob_s_top=one
   mm1=mype+1
+
 
 ! Allocate arrays for output to diagnostic file
   mreal=21
@@ -834,9 +851,10 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
         obsdiags(i_gps_ob_type,ibin)%tail%obssen(:)=zero
 
         n_alloc(ibin) = n_alloc(ibin) +1
-        obsdiags(i_gps_ob_type,ibin)%tail%idv = is
-        obsdiags(i_gps_ob_type,ibin)%tail%iob = i
-        obsdiags(i_gps_ob_type,ibin)%tail%ich = 1
+        my_diag => obsdiags(i_gps_ob_type,ibin)%tail
+        my_diag%idv = is
+        my_diag%iob = i
+        my_diag%ich = 1
 
      else
         if (.not.associated(obsdiags(i_gps_ob_type,ibin)%tail)) then
@@ -930,9 +948,11 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
               if(istat /= 0)write(6,*)' failure to write gpstail%llpoint '
               gpstail(ibin)%head => gpstail(ibin)%head%llpoint
            end if
+
            m_alloc(ibin) = m_alloc(ibin)+1
-           gpstail(ibin)%head%idv=is
-           gpstail(ibin)%head%iob=i
+           my_head => gpstail(ibin)%head
+           my_head%idv = is
+           my_head%iob = i
 
            allocate(gpstail(ibin)%head%jac_t(nsig),gpstail(ibin)%head%jac_q(nsig), &
                     gpstail(ibin)%head%jac_p(nsig+1),gpstail(ibin)%head%ij(4,nsig),stat=istatus)
@@ -946,7 +966,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
            dndt=zero; dndq=zero; dndp=zero
 
 !          Set (i,j) indices of guess gridpoint that bound obs location
-           call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij(1))
+           call get_ij(mm1,data(ilat,i),data(ilon,i),gps_ij,gpstail(ibin)%head%wij)
  
            do k=1,nsig
  
@@ -1082,6 +1102,9 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
      endif ! (last_pass)
   end do ! i=1,nobs
 
+  ! Release memory of local guess arrays
+  call final_vars_
+
   ! Save these arrays for later passes
   data_ier (:)=data(ier ,:)
   data_ihgt(:)=data(ihgt,:)
@@ -1090,5 +1113,96 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   call dtime_show(myname,'diagsave:bend',i_gps_ob_type)
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar,istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::q', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld,istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_q )) deallocate(ges_q )
+    if(allocated(ges_tv)) deallocate(ges_tv)
+    if(allocated(ges_z )) deallocate(ges_z )
+  end subroutine final_vars_
 
 end subroutine setupbend

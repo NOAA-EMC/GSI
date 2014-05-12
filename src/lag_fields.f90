@@ -11,6 +11,7 @@ module lag_fields
 !   2010-07-14  todling - use die to abort
 !   2010-08-19  lueken - add only to module use;no machine code, so use .f90
 !   2011-04-20  todling - de-active read and write until further notice
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 ! subroutines included:
 !   sub lag_modini
@@ -38,8 +39,9 @@ module lag_fields
   use gridmod, only: nsig,ak5,bk5
   use gridmod, only: lat1,lon1,latlon1n
   use gridmod, only: ijn_s,ijn,displs_g,ird_s
-  use gridmod, only: iglobal,itotsub,ltosi,ltosj,ltosi_s,ltosj_s
-  use guess_grids, only: ges_u,ges_v,nfldsig,hrdifsig
+  use gridmod, only: iglobal,itotsub
+  use general_commvars_mod, only: ltosi,ltosj,ltosi_s,ltosj_s
+  use guess_grids, only: nfldsig,hrdifsig
   use constants, only: zero,two,pi,deg2rad
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
 
@@ -568,6 +570,7 @@ module lag_fields
 ! program history log:
 !   2009-08-05  lueken - added subprogram doc block
 !   2010-04-01  treadon - move strip and reorder to gridmod
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !    itt
@@ -582,18 +585,29 @@ module lag_fields
  
     use mpimod, only: mype,mpi_comm_world,mpi_rtype
     use gridmod, only: strip,reorder
+    use gsi_bundlemod, only : gsi_bundlegetpointer
+    use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
     
     implicit none
 
     integer(i_kind),intent(in   ) :: itt
 
     integer(i_kind):: k,i
-    integer(i_kind):: ierror
+    integer(i_kind):: ierror,istatus
     real(r_kind),dimension(lat1*lon1,nsig):: ustrip,vstrip
     real(r_kind),dimension(:),allocatable::  worku,workv
+    real(r_kind),dimension(:,:,:),pointer::  ges_u_itt=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::  ges_v_itt=>NULL()
 
     ! Security
     if (ntotal_orig_lag==0) return
+
+    ierror=0
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'u',ges_u_itt,istatus)
+    ierror=ierror+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'v',ges_v_itt,istatus)
+    ierror=ierror+istatus
+    if(ierror/=0) return
 
     ! allocations
     call lag_alloc_uv()
@@ -601,8 +615,8 @@ module lag_fields
     allocate(workv(max(iglobal,itotsub)))
 
     ! strip buffer parts of ges_u and ges_v
-    call strip(ges_u(1,1,1,itt),ustrip,nsig)
-    call strip(ges_v(1,1,1,itt),vstrip,nsig)
+    call strip(ges_u_itt,ustrip,nsig)
+    call strip(ges_v_itt,vstrip,nsig)
 
     ! gather the fields only for the predefined level range
     do k=lag_kfirst,lag_klast
@@ -654,7 +668,7 @@ module lag_fields
 !$$$ end documentation block
 
     use mpimod, only: mype,mpi_comm_world,mpi_rtype
-    use gridmod, only: strip,reorder
+    use gridmod, only: strip,reorder,lat2,lon2
     implicit none
 
     real(r_kind),dimension(latlon1n),intent(in   ) :: svalu,svalv
@@ -674,8 +688,8 @@ module lag_fields
     allocate(workv(max(iglobal,itotsub)))
 
     ! strip buffer parts of ges_u and ges_v
-    call strip(svalu,ustrip,nsig)
-    call strip(svalv,vstrip,nsig)
+    call strip(reshape(svalu,(/lat2,lon2,nsig/)),ustrip,nsig)
+    call strip(reshape(svalv,(/lat2,lon2,nsig/)),vstrip,nsig)
 
     ! gather the fields only for the predefined level range
     do k=lag_kfirst,lag_klast

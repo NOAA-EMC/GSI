@@ -15,6 +15,7 @@ subroutine fill_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
 !
 ! program history log:
 !   2004-06-22  parrish, document
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     gin      - input staggered E grid field over entire horizontal domain
@@ -62,7 +63,8 @@ subroutine fill_nmm_grid2(gin,nx,ny,gout,igtype,iorder)
 !$$$
   use kinds, only: r_single,r_kind,i_kind
   use constants, only: quarter,half,zero
-  use gridmod, only: iglobal,itotsub,ltosj,ltosi,ltosj_s,ltosi_s
+  use gridmod, only: iglobal,itotsub
+  use general_commvars_mod, only: ltosj,ltosi,ltosj_s,ltosi_s
   
   implicit none
   
