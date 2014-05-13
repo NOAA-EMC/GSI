@@ -126,7 +126,7 @@ subroutine rsearch(im,km1,ixz1,kxz1,z1,km2,ixz2,kxz2,z2,ixl2,kxl2,l2)
 !   for intervals that surround another given search set of real numbers.
 !   The sequences may be monotonic in either direction; the real numbers
 !   may be single or double precision; the input sequences and sets
-!   and the output locations may be arbitrarily dimenshoned.
+!   and the output locations may be arbitrarily dimensioned.
 !
 ! program history log:
 !   1999-01-05  mark iredell

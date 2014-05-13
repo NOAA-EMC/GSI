@@ -59,6 +59,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !   2012-10-12  h.liu  - read in MLS v2 Near Real Time (NRT) and v2.2 standard bufr data
 !   2013-01-17  h.liu  - read in MLS v3 Near Real Time (NRT) 
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-02-05  guo     - STOP in dec2bin() was replaced with die() to signal an _abort_.
+!   2014-02-03  guo	- removed unused "o3lev" handling, which can (and should) be
+!                         implemented again in module m_extOzone, if ever needed.
 !
 !   input argument list:
 !     obstype  - observation type to process
@@ -709,149 +712,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! End of OMI block
 
-  else if (obstype == 'o3lev') then
-
-!    o3lev data has 37 levels
-!    this only works for version2 data
-     allocate(ipos(37))
-
-     nreal = 11
-     nchanl = 1
-     nozdat = nreal+nchanl
-     allocate (ozout(nozdat,maxobs))
-
-     select case (sis)
-        case('mls_aura_ozpc')
-           itype = 303
-        case('mls_aura_ozlv')
-           itype = 304
-        case('saber_timed_ozlv')
-           itype = 305
-        case('lims_nb7_ozlv')
-           itype = 306
-        case default
-           write(6,*) 'READ_OZONE: unknown SIS ',trim(sis),          &
-              ', using type=302'
-           itype = 302
-     end select
-
-     ikx = 0
-     do i=1,jpch_oz
-        if(index(nusis_oz(i),'o3lev_')/=0) then  ! mls_aura ASCII data
-           ikx=ikx+1
-           ipos(ikx)=i
-        end if
-     end do
-
-     nmrecs=0
-     open(lunin,file=infile,form='formatted')
-        
-2    format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
-!
-! iy - year  im - month  idd - day  imin - minute  rsec - decimal second
-! isnd - sounding index  ilev - leve  index
-! slats - latitude in degrees  slons - longitude in degrees
-! ppmv - (volume mixing ratio *1e6 )  prec - precision
-! pres - pressure level hPa
-
-     do while ( ndata < maxobs )
-        read(lunin,2,end=150,err=160) iy,im,idd,ihh,imin,rsec,isnd,&
-           ilev,slats,slons,ppmv,iflg,mflg,prec,pres,obserr
-
-        if (iuse_oz(ipos(ilev)) < 0) then
-           usage = 100._r_kind
-        else
-           usage = zero
-        endif
-
-!       convert observation location to radians
-        slons0=slons
-        slats0=slats
-        if(abs(slats0)>90._r_kind .or. abs(slons0)>r360) cycle
-        if(slons0< zero) slons0=slons0+r360
-        if(slons0==r360) slons0=zero
-        dlat_earth = slats0 * deg2rad
-        dlon_earth = slons0 * deg2rad
-     
-        if(regional)then
-           call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-           if(outside) cycle    
-        else
-           dlat = dlat_earth
-           dlon = dlon_earth
-           call grdcrd1(dlat,rlats,nlat,1)
-           call grdcrd1(dlon,rlons,nlon,1)
-        endif
-        nmrecs=nmrecs+1
-        idate5(1) = iy !year
-        idate5(2) = im !month
-        idate5(3) = idd !day
-        idate5(4) = ihh !hour
-        idate5(5) = imin !minute
-        call w3fs21(idate5,nmind)
-        t4dv=real((nmind-iwinbgn),r_kind)*r60inv
-        if (l4dvar) then
-           if (t4dv<zero .OR. t4dv>winlen) then
-              write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', t4dv=',&
-                 t4dv,' is outside time window, sstime=',sstime*r60inv
-              cycle
-           end if
-        else
-           sstime=real(nmind,r_kind)
-           tdiff=(sstime-gstime)*r60inv
-           if(abs(tdiff) > twind)then
-              write(6,*)'READ_OZONE: mls obs time idate5=',idate5,', tdiff=',&
-                 tdiff,' is outside time window=',twind
-              cycle
-           end if
-        end if
-
-!       screen the data 
-!       if status flag is odd number, toss this data
-        if(mod(iflg,2)/=0) cycle
-
-        if(pres>216._r_kind .or. pres<0.02_r_kind) cycle                 
-        if(prec<=0._r_kind) cycle                 
-
-        if (abs(slats0)<30._r_kind) then
-           if(pres>100._r_kind .and. pres<216._r_kind) then
-              if(mflg <= 1.2_r_kind) cycle                 
-           else
-              if(mflg <= 0.4_r_kind) cycle                 
-           endif
-        else
-           if(mflg <= 0.4_r_kind) then
-              cycle                 
-           end if
-        end if
-
-        pob = log(pres * one_tenth)
-     
-! use 'precision' as obs error if sis is 'mls_aura_ozpc'
-! (needed a way to switch for testing)
-        if (sis == 'mls_aura_ozpc') obserr = prec
-           
-        ndata=ndata+1
-        nodata = nodata + 1      
-        ozout(1,ndata)=rsat
-        ozout(2,ndata)=t4dv
-        ozout(3,ndata)=dlon                 ! grid relative longitude
-        ozout(4,ndata)=dlat                 ! grid relative latitude
-        ozout(5,ndata)=dlon_earth*rad2deg   ! earth relative longitude (degrees)
-        ozout(6,ndata)=dlat_earth*rad2deg   ! earth relative latitude (degrees)
-
-        ozout(7,ndata)=rmiss                ! solar zenith angle
-        ozout(8,ndata)=usage
-        ozout(9,ndata)=pob          ! pressure 
-        ozout(10,ndata)=obserr   ! ozone mixing ratio precision in ppmv
-        ozout(11,ndata)=float(ipos(ilev))       ! pointer of obs level index in ozinfo.txt
-        ozout(12,ndata)=ppmv       ! ozone mixing ratio in ppmv
-
-     enddo
-     write(6,*) ' READ_OZONE:   Number of MLS obs reached maxobs = ', &
-        maxobs
-     deallocate(ipos)
-
 ! Process MLS bufr data
   else if ( index(obstype,'mls')/=0 ) then
 
@@ -1171,7 +1031,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Close unit to input data file
 170 continue
-  if (obstype .ne. 'o3lev') call closbf(lunin)
+  call closbf(lunin)
   close(lunin)
 
 ! Deallocate satthin arrays
@@ -1212,6 +1072,7 @@ SUBROUTINE dec2bin(dec,bin,ndim)
 !
 
     use kinds, only: i_kind
+    use mpeu_util, only: die, perr
 
     implicit none
  
@@ -1227,7 +1088,7 @@ SUBROUTINE dec2bin(dec,bin,ndim)
     i = ndim
     IF ((dec - 2**i) >= 0) THEN
        write(6,*) 'Decimal Number too Large. Must be < 2^(',ndim-1,')'
-       STOP 
+       call die('dec2bin')
     END IF
 
 !   Determine the scalar for each of the decimal positions

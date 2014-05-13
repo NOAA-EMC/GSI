@@ -128,6 +128,7 @@ contains
 !   2010-02-18  parrish - substantial changes to simplify and introduce input/output variable
 !                            type(spec_vars) sp
 !   2010-04-01  treadon - remove mpimod and rad2deg constants (not used)
+!   2013-10-23  el akkraoui - initialize lats to zero (otherwise point is undefined)
 !
 !   input argument list:
 !     sp     - type(spec_vars) variable 
@@ -233,6 +234,9 @@ contains
     allocate(sp%rlats(nlat_a),sp%rlons(nlon_a))
     allocate(sp%clats(nlat_a),sp%clons(nlon_a))
     allocate(sp%slats(nlat_a),sp%slons(nlon_a))
+    sp%rlats=zero
+    sp%clats=zero
+    sp%slats=zero
     sp%rlats(1)=-half_pi
     sp%clats(1)=zero
     sp%slats(1)=-one

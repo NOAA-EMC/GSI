@@ -3344,6 +3344,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
 
 !     straightforward, but inefficient code to convert a single variable on subdomains to complete
 !      slab on one processor.
+!  2013-10-24 todling - revisit strip interface
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
@@ -3365,7 +3366,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
   do j=1,grd%lon1*grd%lat1
     zsm(j)=zero
   end do
-  call strip_grd(grd,sub,zsm,1)
+  call strip_grd(grd,sub,zsm)
   call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
                  work1,grd%ijn,grd%displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)

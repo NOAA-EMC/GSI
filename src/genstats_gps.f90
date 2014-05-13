@@ -41,6 +41,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !   2012-10-16 cucurull - increase the size of nreal and mreal by one element to
 !                         add qrefges information, replace qcfail=5 by 4, add regional QC for MetOpB
 !                         add dtype, dobs to distinguish use of toss_gps between ref/bending, add SR QC for obs
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !
 !   input argument list:
 !     toss_gps_sub  - array of qc'd profile heights
@@ -83,7 +84,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 
 ! Declare local variables
   logical:: luse,muse,toss
-  integer(i_kind):: k,jsig,icnt,khgt,kprof,ikx,nn,j,nchar,nreal,mreal,ii
+  integer(i_kind):: k,jsig,icnt,khgt,kprof,ikx,nn,j,nchar,nreal,mreal,ii,ioff
   real(r_kind):: pressure,arg,wgross,wgt,term,cg_gps,valqc,ressw2,elev,satid,dtype,dobs
   real(r_kind):: ress,val,ratio_errors,val2
   real(r_kind):: exp_arg,data_ikx,data_rinc,cg_term,rat_err2,elat
@@ -211,6 +212,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   
 
 ! If generating diagnostic output, need to determine dimension of output arrays.
+  nreal=0
+  ioff =nreal
   if (conv_diagsave) then
      icnt = zero
      DO ii=1,nobs_bins
@@ -223,6 +226,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
      END DO
      if(icnt > 0)then
         nreal =21
+        ioff  =nreal
         if (lobsdiagsave) nreal=nreal+4*miter+1
         allocate(cdiag(icnt),sdiag(nreal,icnt))
      end if
@@ -475,7 +479,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 ! If requested, write information to diagnostic file
   if(conv_diagsave .and. icnt > 0)then
      nchar = 1
-     write(7)'gps',nchar,nreal,icnt,mype
+     write(7)'gps',nchar,nreal,icnt,mype,ioff
      write(7)cdiag,sdiag
      deallocate(cdiag,sdiag)
   endif

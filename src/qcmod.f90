@@ -36,9 +36,13 @@ module qcmod
 !   2013-05-07  tong    - add logical variable tdrerr_inflate for tdr obs err
 !                         inflation and tdrgross_fact to adjust tdr gross error
 !   2013-07-19  zhu     - tighten quality control for amsua surface sensitive channels when emiss_bc=.t.
+!   2013-10-27  todling - add create/destroy
+!   2014-01-09  mccarty - do not apply qc to wv channels for amsub (lower quality than mhs)
 !
 ! subroutines included:
 !   sub init_qcvars
+!   sub create_qcvars
+!   sub destroy_qcvars
 !   sub errormod
 !   sub setup_tzr_qc    - set up QC with Tz retrieval
 !   sub tz_retrieval    - Apply Tz retrieval
@@ -91,6 +95,8 @@ module qcmod
   private
 ! set subroutines to public
   public :: init_qcvars
+  public :: create_qcvars
+  public :: destroy_qcvars
   public :: errormod
   public :: setup_tzr_qc
   public :: qc_ssmi
@@ -105,6 +111,7 @@ module qcmod
   public :: qc_atms
   public :: qc_noirjaco3
   public :: qc_noirjaco3_pole
+  public :: qc_satwnds
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
@@ -119,6 +126,7 @@ module qcmod
   logical qc_noirjaco3_pole
   logical newvad
   logical tdrerr_inflate
+  logical qc_satwnds
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -153,8 +161,6 @@ module qcmod
   integer(i_kind),parameter:: ifail_emiss_qc=8
 !  Reject due to observations being out of range in qc routine
   integer(i_kind),parameter:: ifail_range_qc=9
-!  Reject because of too large surface temperature physical retrieval in qc routine
-  integer(i_kind),parameter:: ifail_tzr_qc=10
 
 !  Failures specific to qc routine start at 50 and the numbers overlap
 !  QC_SSMI failures 
@@ -202,6 +208,13 @@ module qcmod
 ! QC_seviri          
 
 ! QC_avhrr          
+!  Reject because of too large surface temperature physical retrieval in qc routine: tz_retrieval (see nst_tzr)
+  integer(i_kind),parameter:: ifail_tzr_qc=10
+! Also used (shared w/ other qc-codes):
+!  ifail_2400_qc=50
+!  ifail_2000_qc=51
+!  ifail_cloud_qc=7
+!  ifail_sfcir_qc=53
 
 ! QC_goesimg          
 !  Reject because of standard deviation in subroutine qc_goesimg
@@ -228,6 +241,8 @@ contains
 !   2007-01-09  sienkiewicz - new levels for ozone stat printout
 !   2008-04-23  safford  - rm unused parameter
 !   2008-09-05  lueken   - merged ed's changes into q1fy09 code
+!   2012-07-19  todling - add qc_satwnds to allow bypass of satwind qc
+!   2013-10-27  todling - move alloc space to create_qcvars
 !
 !   input argument list:
 !
@@ -241,6 +256,53 @@ contains
     implicit none
 
     npres_print = 12
+    
+    dfact    = zero
+    dfact1   = three
+    varqc_iter=one
+
+    erradar_inflate   = one
+    tdrerr_inflate    = .false.
+    tdrgross_fact     = one
+
+    nlnqc_iter= .false.
+    noiqc = .false.
+    c_varqc=one
+
+    vadfile='none'
+
+    use_poq7 = .false.
+
+    qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
+    qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
+
+    qc_satwnds=.true. ! default: remove lots of SatWind at mid-tropospheric levels
+
+    return
+  end subroutine init_qcvars
+
+  subroutine create_qcvars
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    create_qcvars
+!   prgmmr: todling          org: np20                date: 2013-10-27
+!
+! abstract: allocate memory used in data quality control
+!
+! program history log:
+!   2013-10-27  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    implicit none
+
     allocate(ptop(npres_print),pbot(npres_print),ptopq(npres_print), &
              pbotq(npres_print),ptopo3(npres_print),pboto3(npres_print))
     
@@ -284,27 +346,36 @@ contains
     ptopo3(11) =  0.4_r_kind;  pboto3(11)= ptopo3(10)
     ptopo3(12) = zero       ;  pboto3(12)= 2000.0_r_kind
 
-    dfact    = zero
-    dfact1   = three
-    varqc_iter=one
-
-    erradar_inflate   = one
-    tdrerr_inflate    = .false.
-    tdrgross_fact     = one
-
-    nlnqc_iter= .false.
-    noiqc = .false.
-    c_varqc=one
-
-    vadfile='none'
-
-    use_poq7 = .false.
-
-    qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
-    qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
-
     return
-  end subroutine init_qcvars
+  end subroutine create_qcvars
+
+  subroutine destroy_qcvars
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_qcvars
+!   prgmmr: todling          org: np20                date: 2013-10-27
+!
+! abstract: destroy memory used in data quality control
+!
+! program history log:
+!   2013-10-27  todling
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    implicit none
+
+    deallocate(ptop,pbot,ptopq, &
+               pbotq,ptopo3,pboto3)
+    
+    return
+  end subroutine destroy_qcvars
 
   subroutine setup_tzr_qc(obstype)
 !$$$  subprogram documentation block
@@ -1622,7 +1693,9 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !                           applied to atms
 !     2011-07-20  collard - routine can now process the AMSU-B/MHS-like channels of ATMS.
 !     2011-12-19  collard - ATMS 1-7 is always rejected over ice, snow or mixed surfaces.
+!     2012-05-12  todling - revisit opts in gsi_metguess_get (4crtm)
 !     2013-07-19  zhu     - tighten qc when emiss_bc=.t.
+!     2014-01-31  mkim    - revisit qc for all-sky MW radiance data assimilationo
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -1752,8 +1825,8 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
 ! Determine whether or not CW fed into CRTM
   lcw4crtm=.false.
-  call gsi_metguess_get ('clouds_4crtm::3d', icw4crtm, ier)  
-  if(icw4crtm >0) lcw4crtm = .true.                         
+  call gsi_metguess_get ('clouds_4crtm_jac::3d', icw4crtm, ier)
+  if(icw4crtm >0) lcw4crtm = .true.
    
 ! Reduce qc bounds in tropics
   cenlatx=abs(cenlat)*r0_04     
@@ -1796,75 +1869,51 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   latms_surfaceqc = (latms .AND. .NOT.(sea .OR. land))
 
   if (lcw4crtm) then
-
-! Kim-------------------------------------------
-     if(factch6 >= one .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind)) &
-        .or. latms_surfaceqc) then   !Kim 
-        efactmc=zero
-        vfactmc=zero
-        errf(1:ich544)=zero
-        varinv(1:ich544)=zero
-        do i=1,ich544
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
-        errf(ich890) = zero
-        varinv(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
-        endif
+     if(.not. sea) then  
+       if(factch6 >= one .or. latms_surfaceqc) then   
+          efactmc=zero
+          vfactmc=zero
+          errf(1:ich544)=zero
+          varinv(1:ich544)=zero
+          do i=1,ich544
+             if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+          end do
+          if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch6_qc
+          errf(ich890) = zero
+          varinv(ich890) = zero
+          if (latms) then
+             do i=17,22   !  AMSU-B/MHS like channels 
+               if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch6_qc
+               errf(i) = zero
+               varinv(i) = zero
+             enddo
+          endif
 !       QC3 in statsrad
-        if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
+          if(.not. mixed.and. luse)aivals(10,is) = aivals(10,is) + one
 
-     else if(factch4 > half .and. ((.not.sea) .or. (sea .and. abs(cenlat)>=60.0_r_kind))) then   !Kim
-        efactmc=zero
-        vfactmc=zero
-        do i=1,ich536
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-           varinv(i) = zero 
-           errf(i) = zero
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
-        errf(ich890) = zero
-        varinv(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
-        endif
-!       QC1 in statsrad
-        if(luse) aivals(8,is) = aivals(8,is) + one
-     end if
-
-     if(sea .and. abs(cenlat)<60.0_r_kind .and. (clwp_amsua > half .or. clw_guess_retrieval > half))  then
-        efactmc = zero
-        vfactmc=zero
-        do i=1,ich536
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-           errf(i) = zero
-           varinv(i) = zero
-        end do
-        if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
-        varinv(ich890) = zero
-        errf(ich890) = zero
-        if (latms) then
-           do i=17,22   !  AMSU-B/MHS like channels 
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
-              errf(i) = zero
-              varinv(i) = zero
-           enddo
-        endif
-     endif
-! Kim-------------------------------------------
-
+       else if(factch4 > half) then   !Kim
+          efactmc=zero
+          vfactmc=zero
+          do i=1,ich536
+             if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+             varinv(i) = zero 
+             errf(i) = zero
+          end do
+          if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch4_qc
+          errf(ich890) = zero
+          varinv(ich890) = zero
+          if (latms) then
+             do i=17,22   !  AMSU-B/MHS like channels 
+                if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch4_qc
+                errf(i) = zero
+                varinv(i) = zero
+             enddo
+          endif
+!         QC1 in statsrad
+          if(luse) aivals(8,is) = aivals(8,is) + one
+       end if
+     endif  ! if sea
   else  ! <lcw4crtm>
-
      if(factch6 >= one .or. latms_surfaceqc)then
         efactmc=zero
         vfactmc=zero
@@ -2153,7 +2202,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
         if(id_qc(i) == igood_qc)id_qc(i)=ifail_fact1_qc
      end do
   else
-     if (amsub .or. mhs) then  ! wv sounding channels
+     if (mhs) then  ! wv sounding channels
         do i=3,nchanl
            if (abs(tbc(i)) >= two) then
               varinv(i) = zero

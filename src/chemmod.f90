@@ -40,6 +40,18 @@ module chemmod
   public :: in_fname,out_fname,incr_fname,maxstr
   public :: code_pm25_bufr,code_pm25_prepbufr
 
+  public :: l_aoderr_table
+  public :: laeroana_gocart
+  public :: ppmv_conv
+  public :: aod_qa_limit
+  public :: luse_deepblue
+
+  logical :: l_aoderr_table
+  logical :: laeroana_gocart
+  logical :: luse_deepblue
+  integer(i_kind) :: aod_qa_limit  ! qa >=  aod_qa_limit will be retained
+  real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
+
   logical :: oneobtest_chem,diag_incr,berror_chem
   character(len=max_varname_length) :: oneob_type_chem
   integer(i_kind), parameter :: maxstr=256
@@ -163,6 +175,11 @@ contains
     in_fname='cmaq_input.bin'
     out_fname='cmaq_output.bin'
     incr_fname='chem_increment.bin'
+
+    laeroana_gocart = .false.
+    l_aoderr_table = .false.
+    aod_qa_limit = 3
+    luse_deepblue = .false.
 
   end subroutine init_chem
 

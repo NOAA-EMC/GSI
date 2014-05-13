@@ -1,4 +1,4 @@
-!#define _DEBUG_
+#define LATER
 module hybrid_ensemble_isotropic
 !$$$   module documentation block
 !                .      .    .                                       .
@@ -100,12 +100,15 @@ module hybrid_ensemble_isotropic
   public :: normal_new_factorization_rf_y
   public :: create_ensemble
   public :: load_ensemble
+  public :: destroy_ensemble
   public :: rescale_ensemble_rh_perturbations
   public :: ensemble_forward_model
   public :: ensemble_forward_model_dual_res
   public :: ensemble_forward_model_ad
   public :: ensemble_forward_model_ad_dual_res
   public :: beta12mult
+  public :: sqrt_beta1mult
+  public :: sqrt_beta2mult
   public :: init_sf_xy
   public :: sf_xy
   public :: sqrt_sf_xy
@@ -943,9 +946,11 @@ end subroutine normal_new_factorization_rf_y
 !   2010-03-28  todling  update to use gsi_bundle
 !   2010-06-03  parrish  multiple fixes for dual resolution
 !   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
+!   2011-12-01  todling/el akkraoui - add ability to write out internally generated ens perturbations
 !   2011-07-05  carley  - add call to get_nmmb_ensperts
 !   2011-12-07  tong    - add the option to read wrf_nmm ensemble
 !   2012-01-30  parrish - remove wrf_nmm_regional,wrf_mass_regional,netcdf,nems_nmmb_regional
+!   2013-10-25  todling - nullify work pointer
 !
 !   input argument list:
 !
@@ -960,6 +965,7 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
                                           pseudo_hybens,regional_ensemble_option
+    use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype,ierror
     implicit none
 
@@ -969,7 +975,7 @@ end subroutine normal_new_factorization_rf_y
     integer(i_kind) i,j,k,n,ii,ic2,m
     integer(i_kind) istatus,ier
     real(r_kind),allocatable:: seed(:,:)
-    real(r_kind),pointer,dimension(:,:)   :: cv_ps
+    real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
     real(r_kind) sig_norm,bar_norm
     character(len=*),parameter::myname_=trim(myname)//'*load_ensemble'
     character(50) title
@@ -1057,6 +1063,11 @@ end subroutine normal_new_factorization_rf_y
              do ii=1,nelen
                 en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
              end do
+             call gsi_enscoupler_put_gsi_ens(n,m,grd_ens,en_perts(n,m),istatus)
+             if(istatus/=0) then
+                 write(6,*)trim(myname_),': trouble writing perts'
+                 call stop2(999)
+             endif
           end do
 
           call gsi_bundledestroy(en_bar(m),istatus)
@@ -1067,6 +1078,7 @@ end subroutine normal_new_factorization_rf_y
        end do
 
        deallocate(en_bar)
+       deallocate(seed)
 
     else
 
@@ -1155,6 +1167,7 @@ end subroutine normal_new_factorization_rf_y
 !   2010-05-18  parrish  reactivate dual resolution
 !   2010-06-04  parrish  multiple fixes for dual resolution
 !   2011-02-28  parrish - introduce more complete use of gsi_bundlemod to eliminate hard-wired variables
+!   2011-12-01  todling - bug fix: lapack routine(s) s/dlarnv had incorrect interface
 !   2011-09-27  parrish - ckgcov is called here, which uses sqrt_smootrf.  The variable nval_lenz is passed
 !                         to sqrt_smoothrf through module jfunc, but if lsqrtb=F, then nval_lenz=0.
 !                         To fix this, nval_lenz is passed in to this subroutine through module jfunc,
@@ -1163,6 +1176,7 @@ end subroutine normal_new_factorization_rf_y
 !                         now an argument in ckgcov, which was missing in this call to ckgcov.
 !   2012-06-12  parrish - remove variable nvar_pe (not used)
 !   2013-01-12  parrish - remove extra argument nnnn1o from call ckgcov--no longer used
+!   2013-10-25  todling - nullify work pointers
 !
 !   input argument list:
 !     seed     - old random number seeds (used for bit reproducibility of
@@ -1202,16 +1216,19 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind),dimension(nval2f,nnnn1o,nscl):: z
     real(r_kind) vert1(vlevs)
     integer(i_llong) iseed
+    integer(4) iiseed(4) ! must be integer*4 given lapack interface
     integer(i_kind) nvert,i,j,ii,is,naux,k,ic3
     integer(i_kind) istat_st,istat_vp
     integer(i_kind) nval_lenz_save
     real(r_kind) aux
     real(r_kind),dimension(nh_0:nh_1,vlevs,nscl):: zsub
     real(r_kind),dimension(:,:,:),allocatable:: ua,va
-    real(r_kind),pointer,dimension(:,:,:):: st,vp
+    real(r_kind),pointer,dimension(:,:,:):: st=>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: vp=>NULL()
 
     naux=0
     nvert=vlevs
+    zsub=zero
     if(maxval(seed) <  zero) then
 
 !       create initial seed for random numbers for each horizontal location.
@@ -1232,11 +1249,22 @@ end subroutine normal_new_factorization_rf_y
     do is=1,nscl
        do i=nh_0,nh_1
 #ifdef ibm_sp
-          call dnrand(seed(i,is),nvert,vert1,aux,naux)
+#ifdef _REAL4_
+          call snrand(seed(i,is),nvert,vert1,aux,naux)
 #else
-! Generate a Vector of Normally Distributed Random Numbers (function from Lapack lib)
-          call dlarnv(3,seed(i,is),nvert,vert1)
+          call dnrand(seed(i,is),nvert,vert1,aux,naux)
 #endif
+#else /* ibm_sp */
+! Generate a Vector of Normally Distributed Random Numbers (function from Lapack lib)
+          iiseed=seed(i,is)
+          iiseed(4)=mod(iiseed(4),2)+1 ! must be odd
+#ifdef _REAL4_
+          call slarnv(3,iiseed,nvert,vert1)
+#else
+          call dlarnv(3,iiseed,nvert,vert1)
+#endif
+          seed(i,is)=iiseed(1) ! update seed; is this good enough?
+#endif /* ibm_sp */
           do k=1,nvert
              zsub(i,k,is)=vert1(k)
           end do
@@ -1362,6 +1390,7 @@ end subroutine normal_new_factorization_rf_y
 !   2010-02-20  parrish  modifications for dual resolution
 !   2011-02-28  parrish  bundle changes
 !   2011-07-08  todling  adapt to fit upd interface to general_sub2grid
+!   2013-10-25  todling  nullify work pointer
 !
 !   input argument list:
 !
@@ -1381,7 +1410,7 @@ end subroutine normal_new_factorization_rf_y
 
     integer(i_kind) i,ii,j,k,n,istatus,m
     real(r_kind) qvar3d_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1)
-    real(r_single),pointer,dimension(:,:,:):: w3
+    real(r_single),pointer,dimension(:,:,:):: w3=>NULL()
 
     call gsi_bundlegetpointer(en_perts(1,1),'q',w3,istatus)
     if(istatus/=0) then
@@ -1477,6 +1506,7 @@ end subroutine normal_new_factorization_rf_y
 !   2011-02-28  parrish - bundle changes
 !   2011-10-03  wu - add option to weight ensemble contribution to surface pressure with vertical profile
 !   2011-10-26  kleist - 4d capability for ensemble/hybrid
+!   2011-12-01  todling - explicit dim for a_en()
 !
 !   input argument list:
 !     cvec      - 
@@ -1499,7 +1529,7 @@ end subroutine normal_new_factorization_rf_y
 
     implicit none
     type(gsi_bundle),intent(inout) :: cvec
-    type(gsi_bundle),intent(in)    :: a_en(:)
+    type(gsi_bundle),intent(in)    :: a_en(n_ens)
     integer,intent(in)		   :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model'
@@ -1608,6 +1638,7 @@ end subroutine normal_new_factorization_rf_y
 !   2011-02-28  parrish - bundle changes
 !   2011-10-03  wu - add option to weight ensemble contribution to surface pressure with vertical profile
 !   2011-10-26  kleist  - 4d capability for ensemble/hybrid
+!   2011-12-01  todling - explicit dim for a_en()
 !
 !   input argument list:
 !     cvec      -
@@ -1633,7 +1664,7 @@ end subroutine normal_new_factorization_rf_y
     implicit none
 
     type(gsi_bundle),intent(inout) :: cvec
-    type(gsi_bundle),intent(in)    :: a_en(:)
+    type(gsi_bundle),intent(in)    :: a_en(n_ens)
     integer,intent(in)             :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_dual_res'
@@ -1763,6 +1794,7 @@ end subroutine normal_new_factorization_rf_y
 !   2010-04-28  todling - update to use gsi_bundle
 !   2011-10-03  wu - add option to weight ensemble contribution to surface pressure with vertical profile
 !   2011-11-01  kleist  - 4d capability for ensemble/hybrid
+!   2011-12-01  todling - explicit dim for a_en()
 !
 !   input argument list:
 !     cvec      -
@@ -1787,7 +1819,7 @@ end subroutine normal_new_factorization_rf_y
     implicit none
 
     type(gsi_bundle),intent(inout) :: cvec
-    type(gsi_bundle),intent(inout) :: a_en(:)
+    type(gsi_bundle),intent(inout) :: a_en(n_ens)
     integer,intent(in)             :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad'
@@ -1893,6 +1925,7 @@ end subroutine normal_new_factorization_rf_y
 !   2011-02-28  parrish - bundle changes
 !   2011-10-03  wu - add option to weight ensemble contribution to surface pressure with vertical profile
 !   2011-11-01  kleist  - 4d capability for ensemble/hybrid
+!   2011-12-01  todling - explicit dim for a_en()
 !
 !   input argument list:
 !     cvec      -
@@ -1919,7 +1952,7 @@ end subroutine normal_new_factorization_rf_y
     implicit none
 
     type(gsi_bundle),intent(inout) :: cvec
-    type(gsi_bundle),intent(inout) :: a_en(:)
+    type(gsi_bundle),intent(inout) :: a_en(n_ens)
     integer,intent(in)             :: ibin
 
     character(len=*),parameter::myname_=trim(myname)//'*ensemble_forward_model_ad_dual_res'
@@ -2235,7 +2268,7 @@ end subroutine special_sd2h
 subroutine beta12mult(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    beta12mult  multiply grady by beta1inv and beta2inv        
+! subprogram:    beta12mult  multiply grady by betas_inv and betae_inv        
 !   prgmmr: parrish          org: np22                date: 2009-09-17
 !
 ! abstract: when the hybrid ensemble option is turned on (l_hyb_ens=.true.)
@@ -2243,8 +2276,11 @@ subroutine beta12mult(grady)
 !            the gradient with respect to the control variable associated
 !            with the static background error covariance; the second is the
 !            gradient with respect to the new ensemble control vector a_en.
-!            the first is multiplied by beta1_inv, and the second by beta2_inv
-!            where beta1_inv+beta2_inv=1.
+!            the first is multiplied by betas_inv, and the second by betae_inv. 
+!            betas_inv and betae_inv are allowed to vary vertically and can be
+!            read from a file. Default values are such that : 
+!                   betas_inv(:) = beta1_inv ; 
+!                   betae_inv(:) = 1 - beta1_inv.
 !            adjusting beta1_inv between 0 and 1 allows tuning for optimal
 !            blend between information provided by static background B and
 !            ensemble based background.  beta1_inv=1 gives full weight to B
@@ -2255,12 +2291,13 @@ subroutine beta12mult(grady)
 !   2010-03-29  kleist   comment out beta1_inv for SST
 !   2010-04-28  todling  update to use gsi_bundle
 !   2011-06-13  wu       used height dependent beta for regional
+!   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
 !
 !   input argument list:
 !     grady    - input field  grady_x1 : grady_a_en
 !
 !   output
-!     grady    - beta1_inv*grady_x1 : beta2_inv*grady_a_en
+!     grady    - betas_inv*grady_x1 : betae_inv*grady_a_en
 !
 ! attributes:
 !   language: f90
@@ -2269,7 +2306,7 @@ subroutine beta12mult(grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use gsi_4dvar, only: nsubwin
-  use hybrid_ensemble_parameters, only: beta1_inv,n_ens,oz_univ_static
+  use hybrid_ensemble_parameters, only: beta1_inv,betas_inv,betae_inv,n_ens,oz_univ_static
   use hybrid_ensemble_parameters, only: beta1wgt,beta2wgt,betaflg,grd_ens
   use constants, only:  one
   use control_vectors
@@ -2342,7 +2379,6 @@ if(regional .and. betaflg) then
 
   end do
 else
-  beta2_inv=one-beta1_inv
 
 ! Request CV pointers to vars pertinent to ensemble
   call gsi_bundlegetpointer ( grady%step(1), cvars3d, ipc3d, istatus )
@@ -2357,22 +2393,26 @@ else
   endif
   do ii=1,nsubwin
 
-!    multiply by beta1_inv first:
+!    multiply by betas_inv first:
      do ic3=1,nc3d
 !  check for ozone and skip if oz_univ_static = true
         if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
-        grady%step(ii)%r3(ipc3d(ic3))%q =beta1_inv*grady%step(ii)%r3(ipc3d(ic3))%q
+        do k=1,nsig
+           grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k) =betas_inv(k)*grady%step(ii)%r3(ipc3d(ic3))%q(:,:,k)
+        enddo
      enddo
      do ic2=1,nc2d
 ! Default to static B estimate for SST
         if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
-        grady%step(ii)%r2(ipc2d(ic2))%q =beta1_inv*grady%step(ii)%r2(ipc2d(ic2))%q
+        grady%step(ii)%r2(ipc2d(ic2))%q =betas_inv(1)*grady%step(ii)%r2(ipc2d(ic2))%q
      enddo
 
-!    next multiply by beta2inv:
+!    next multiply by betae_inv:
 !$omp parallel do schedule(dynamic,1) private(nn)
      do nn=1,n_ens
-        grady%aens(ii,nn)%r3(1)%q =beta2_inv*grady%aens(ii,nn)%r3(1)%q
+        do k=1,nsig
+           grady%aens(ii,nn)%r3(1)%q(:,:,k) =betae_inv(k)*grady%aens(ii,nn)%r3(1)%q(:,:,k)
+        enddo
      enddo
      
  
@@ -2382,6 +2422,141 @@ endif ! regional
 
   return
 end subroutine beta12mult
+
+subroutine sqrt_beta1mult(grady)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    sqrt_beta1mult  multiply grady by sqrt(beta1inv)
+!   prgmmr: parrish          org: np22                date: 2011-09-08
+!
+! abstract: This is applicable to the hybrid option, and specifically
+!           more pertinent to the sqrt-B scaling (preconditioning) case.
+!           This routine multiplies only the static part of the control
+!           vector by the sqrt(beta1inv). This is based on Dave's original
+!           beta12mult routine (see above).
+!
+! program history log:
+!   2011-09-08  todling  create from stripped off verion of Dave's routine
+!                        (kept Daryl's change of 2010-03-29)
+!
+!   input argument list:
+!     grady    - input field  grady_x1
+!
+!   output
+!     grady    - sqrt(beta1_inv)*grady_x1
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: beta1_inv,oz_univ_static
+  use constants, only:  one
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+
+! Declare passed variables
+  type(gsi_bundle),intent(inout) :: grady
+
+! Declare local variables
+  character(len=*),parameter::myname_=myname//'*sqrt_beta1mult'
+  integer(i_kind) ic2,ic3
+  real(r_kind) sqrt_beta1_inv
+  integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
+
+! Initialize timer
+  call timer_ini('sqrt_beta1mult')
+
+! Request CV pointers to vars pertinent to ensemble
+  call gsi_bundlegetpointer ( grady, cvars3d, ipc3d, istatus )
+  if(istatus/=0) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 3d fields'
+     call stop2(999)
+  endif
+  call gsi_bundlegetpointer ( grady, cvars2d, ipc2d, istatus )
+  if(istatus/=0) then
+     write(6,*) myname_,': cannot proceed, CV does not contain ens-required 2d fields'
+     call stop2(999)
+  endif
+
+  sqrt_beta1_inv=sqrt(beta1_inv)
+
+! multiply by beta1_inv first:
+  do ic3=1,nc3d
+!    check for ozone and skip if oz_univ_static = true
+if((trim(cvars3d(ic3))=='oz'.or.trim(cvars3d(ic3))=='OZ').and.oz_univ_static) cycle
+     grady%r3(ipc3d(ic3))%q =sqrt_beta1_inv*grady%r3(ipc3d(ic3))%q
+  enddo
+  do ic2=1,nc2d
+! Default to static B estimate for SST
+     if(trim(cvars2d(ic2))=='sst'.or.trim(cvars2d(ic2))=='SST') cycle 
+     grady%r2(ipc2d(ic2))%q =sqrt_beta1_inv*grady%r2(ipc2d(ic2))%q
+  enddo
+
+  call timer_fnl('sqrt_beta1mult')
+
+  return
+end subroutine sqrt_beta1mult
+
+subroutine sqrt_beta2mult(aens)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    beta12mult  multiply ens-part of gradient by beta2inv
+!   prgmmr: parrish          org: np22                date: 2011-09-08
+!
+! abstract: This is applicable to the hybrid option, and specifically
+!           more pertinent to the sqrt-B scaling (preconditioning) case.
+!           This routine multiplies only the ensemble part of the control
+!           vector by the sqrt(beta2inv). This is based on Dave's original
+!           beta12mult routine (see above).
+!
+! program history log:
+!   2011-07-08  todling  adapt Dave's original for sqrt-B case
+!
+!   input argument list:
+!     aens    - input field ensemble fields
+!
+!   output
+!     aens    - sqrt(beta2_inv)*aens
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use hybrid_ensemble_parameters, only: beta1_inv,n_ens,oz_univ_static
+  use constants, only:  one
+  use gsi_bundlemod, only: gsi_bundle
+  use timermod, only: timer_ini,timer_fnl
+  implicit none
+
+! Declare passed variables
+  type(gsi_bundle),intent(inout) :: aens(n_ens)
+
+! Declare local variables
+  character(len=*),parameter::myname_=myname//'*sqrt_beta2mult'
+  integer(i_kind) nn
+  real(r_kind) sqrt_beta2_inv
+
+! Initialize timer
+  call timer_ini('sqrt_beta2mult')
+
+  sqrt_beta2_inv=sqrt(one-beta1_inv)
+
+! multiply by beta2inv:
+!$omp parallel do schedule(dynamic,1) private(nn)
+  do nn=1,n_ens
+     aens(nn)%values(:)=sqrt_beta2_inv*aens(nn)%values(:)
+  enddo
+
+  call timer_fnl('sqrt_beta2mult')
+
+  return
+end subroutine sqrt_beta2mult
 
 subroutine init_sf_xy(jcap_in)
 !$$$  subprogram documentation block
@@ -2409,11 +2584,18 @@ subroutine init_sf_xy(jcap_in)
 !$$$
 
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters,only: s_ens_hv,sp_loc,grd_ens,grd_loc
-  use hybrid_ensemble_parameters,only: generate_ens,eqspace_ensgrid
+  use hybrid_ensemble_parameters,only: s_ens_hv,sp_loc,grd_ens,grd_loc,sp_ens,n_ens,p_sploc2ens,grd_sploc
+  use hybrid_ensemble_parameters,only: generate_ens
+  use hybrid_ensemble_parameters,only: use_localization_grid
+  use gridmod,only: use_sp_eqspace
   use general_specmod, only: general_init_spec_vars
   use constants, only: zero,half,one,two,three,rearth,pi
+  use constants, only: rad2deg
   use mpimod, only: mype
+  use general_sub2grid_mod, only: general_sub2grid_create_info
+  use egrid2agrid_mod,only: g_create_egrid2agrid
+  use general_sub2grid_mod, only: sub2grid_info
+  use gsi_enscouplermod, only: gsi_enscoupler_localization_grid
   implicit none
 
   integer(i_kind),intent(in   ) :: jcap_in
@@ -2421,16 +2603,22 @@ subroutine init_sf_xy(jcap_in)
   integer(i_kind) i,ii,j,k,l,n,jcap
   real(r_kind),allocatable::g(:),gsave(:),errmax(:)
   real(r_kind) factor
-  real(r_kind) rkm(grd_ens%nlat),f(grd_ens%nlat,grd_ens%nlon),f0(grd_ens%nlat,grd_ens%nlon)
+  real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
+  real(r_kind) ftest(grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_single) out1(grd_ens%nlon,grd_ens%nlat)
   real(r_single),allocatable::pn0_npole(:)
   real(r_kind) s_ens_h_min
   real(r_single) s_ens_hv4(grd_ens%nsig)
   real(r_kind) hmin,hmax
+  real(r_kind) rlats_ens_local(grd_ens%nlat)
+  real(r_kind) rlons_ens_local(grd_ens%nlon)
   character(5) mapname
   logical make_test_maps
+  integer(i_kind) nord_sploc2ens
+  integer(i_kind) nlon_sploc0,nlon_sploc,nlat_sploc,num_fields
 
   make_test_maps=.false.
+  nord_sploc2ens=4
 
 !    make sure s_ens_hv is within allowable range  ( pi*rearth*.001/jcap_in <= s_ens_hv <= 5500 )
 
@@ -2452,9 +2640,54 @@ subroutine init_sf_xy(jcap_in)
   jcap=nint(1.2_r_kind*pi*rearth*.001_r_kind/minval(s_ens_hv))
   jcap=min(jcap,jcap_in)
 
+!  if it is desired to have a different localization grid to apply the spectral
+!  localization, do that here, with resolution based on the value of jcap:
+  call gsi_enscoupler_localization_grid (rlats_ens_local,rlons_ens_local)
+  if(use_localization_grid) then
+     nlat_sploc=min(grd_ens%nlat-4,max(int(half*grd_ens%nlat),2*jcap+4))
+     if(mod(nlat_sploc,2)/=0) nlat_sploc=nlat_sploc+1   ! make number of gaussian lats even
+     nlon_sploc0=2*nlat_sploc
+     call acceptable_for_essl_fft(nlon_sploc0,nlon_sploc)
+  else
+     nlat_sploc=grd_ens%nlat
+     nlon_sploc=grd_ens%nlon
+     nlon_sploc0=nlon_sploc
+  end if
+        if(mype == 0) write(6,*)' nlat_sploc,nlon_sploc0,nlon_sploc=',nlat_sploc,nlon_sploc0,nlon_sploc
+        if(mype == 0) write(6,*)' nlat_ens  ,nlon_ens              =',grd_ens%nlat,grd_ens%nlon
+  num_fields=grd_ens%nsig*n_ens
+  call general_sub2grid_create_info(grd_sploc,1,nlat_sploc,nlon_sploc,grd_ens%nsig,num_fields,.false.)
+
 !  set up spectral variables for jcap
 
-  call general_init_spec_vars(sp_loc,jcap,jcap,grd_ens%nlat,grd_ens%nlon,eqspace_ensgrid)
+  call general_init_spec_vars(sp_loc,jcap,jcap,nlat_sploc,nlon_sploc,eqspace=use_sp_eqspace)
+             if(mype==0) then
+                do j=1,grd_ens%nlon
+                   if(j.le.nlon_sploc) then
+                      write(6,'(" j,rlon_sploc(j),rlon_ens(j)=",i4,2f12.3)') &
+                          j,rad2deg*sp_loc%rlons(j),rad2deg*sp_ens%rlons(j)
+                   else
+                      write(6,'(" j,              rlon_ens(j)=",i4,12x,f12.3)') &
+                          j,rad2deg*sp_ens%rlons(j)
+                   end if
+                end do
+                do i=1,grd_ens%nlat
+                   if(i.le.nlat_sploc) then
+                      write(6,'(" i,rlat_sploc(i),rlat_ens(i)=",i4,2f12.3)') &
+                          i,rad2deg*sp_loc%rlats(i),rad2deg*sp_ens%rlats(i)
+                   else
+                      write(6,'(" i,              rlat_ens(i)=",i4,12x,f12.3)') &
+                          i,rad2deg*sp_ens%rlats(i)
+                   end if
+                end do
+             end if
+
+!   regardless of whether or not nlat_sploc=grd_ens%nlat and nlon_sploc=grd_ens%nlon, compute
+!    interpolation structure variable that will be used for interpolation from sp_loc grid to grd_ens.
+!   if they are identical, then the interpolation is just an identity op.
+  call g_create_egrid2agrid(grd_ens%nlat,rlats_ens_local,grd_ens%nlon,rlons_ens_local,&
+                            nlat_sploc,sp_loc%rlats,nlon_sploc,sp_loc%rlons, &
+                            nord_sploc2ens,p_sploc2ens,eqspace=use_sp_eqspace)
 
 !    the following code is used to compute the desired spectrum to get a
 !     gaussian localization of desired length-scale.
@@ -2507,39 +2740,41 @@ subroutine init_sf_xy(jcap_in)
 !                 create reference gaussian centered on north pole with desired length-scale.
 
 !     compute latitudes in km from north pole
-  rkm(grd_ens%nlat)=zero
+
+  allocate(rkm(grd_sploc%nlat),f(grd_sploc%nlat,grd_sploc%nlon),f0(grd_sploc%nlat,grd_sploc%nlon))
+  rkm(grd_sploc%nlat)=zero
   rkm(1)=two*asin(one)*rearth*.001_r_kind
-  do i=1,(grd_ens%nlat-2)/2
-     rkm(grd_ens%nlat-i)=(asin(one)-asin(sp_loc%slat(i)))*rearth*.001_r_kind
+  do i=1,(grd_sploc%nlat-2)/2
+     rkm(grd_sploc%nlat-i)=(asin(one)-asin(sp_loc%slat(i)))*rearth*.001_r_kind
      rkm(1+i)=(asin(one)+asin(sp_loc%slat(i)))*rearth*.001_r_kind
   end do
   if(mype == 0) write(6,*)' in init_sf_xy, lat,max(dlat)=', &
-           rkm(1+(grd_ens%nlat-2)/2), &
-          -rkm(grd_ens%nlat-(grd_ens%nlat-2)/2)+rkm(1+(grd_ens%nlat-2)/2),' km'
+           rkm(1+(grd_sploc%nlat-2)/2), &
+          -rkm(grd_sploc%nlat-(grd_sploc%nlat-2)/2)+rkm(1+(grd_sploc%nlat-2)/2),' km'
 
-  allocate(spectral_filter(sp_loc%nc,grd_ens%nsig))
-  allocate(sqrt_spectral_filter(sp_loc%nc,grd_ens%nsig))
+  allocate(spectral_filter(sp_loc%nc,grd_sploc%nsig))
+  allocate(sqrt_spectral_filter(sp_loc%nc,grd_sploc%nsig))
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
-  do k=1,grd_ens%nsig
-     do i=1,grd_ens%nlat
+  do k=1,grd_sploc%nsig
+     do i=1,grd_sploc%nlat
         f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k))**2)
      end do
 
-     do j=2,grd_ens%nlon
-        do i=1,grd_ens%nlat
+     do j=2,grd_sploc%nlon
+        do i=1,grd_sploc%nlat
            f0(i,j)=f0(i,1)
         end do
      end do
 
-     call general_g2s0(grd_ens,sp_loc,g,f0)
+     call general_g2s0(grd_sploc,sp_loc,g,f0)
 
-     call general_s2g0(grd_ens,sp_loc,g,f)
+     call general_s2g0(grd_sploc,sp_loc,g,f)
 
 !    adjust so value at np = 1
-     f=f/f(grd_ens%nlat,1)
-     call general_g2s0(grd_ens,sp_loc,g,f)
-     call general_s2g0(grd_ens,sp_loc,g,f)
+     f=f/f(grd_sploc%nlat,1)
+     call general_g2s0(grd_sploc,sp_loc,g,f)
+     call general_s2g0(grd_sploc,sp_loc,g,f)
      if(mype == 0) write(6,*)' in init_sf_xy, jcap,s_ens_hv(',k,'), max diff(f0-f)=', &
                                         sp_loc%jcap,s_ens_hv(k),maxval(abs(f0-f))
 
@@ -2550,8 +2785,8 @@ subroutine init_sf_xy(jcap_in)
      do n=0,sp_loc%jcap
         g=zero
         g(2*n+1)=one
-        call general_s2g0(grd_ens,sp_loc,g,f)
-        pn0_npole(n)=f(grd_ens%nlat,1)
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+        pn0_npole(n)=f(grd_sploc%nlat,1)
      end do
 
      g=zero
@@ -2590,21 +2825,22 @@ subroutine init_sf_xy(jcap_in)
   end do
 
   if(make_test_maps) then
-   do k=1,grd_ens%nsig
-      if(k>=grd_loc%kbegin_loc.and.k<=grd_loc%kend_loc) then
-         f=zero
-         f(grd_ens%nlat/2,grd_ens%nlon/2)=one
-         call sf_xy(f,k,k)
+   ftest=zero
+   do k=grd_loc%kbegin_loc,grd_loc%kend_loc
+      ftest(grd_ens%nlat/2,grd_ens%nlon/2,k)=one
+   end do
+   call sf_xy(ftest,grd_loc%kbegin_loc,grd_loc%kend_loc)
+      if(mype==0) then
          do j=1,grd_ens%nlon
             do i=1,grd_ens%nlat
-               out1(j,i)=f(i,j)
+               out1(j,i)=ftest(i,j,grd_loc%kbegin_loc)
             end do
          end do
-         write(mapname,'("out",i2.2)')1+mod(k-1,grd_ens%nsig)
+         write(mapname,'("out_",i2.2)')1+mod(grd_loc%kbegin_loc-1,grd_ens%nsig)
          call outgrads1(out1,grd_ens%nlon,grd_ens%nlat,mapname)
       end if
-   end do
   end if
+  deallocate(rkm,f,f0)
 
 end subroutine init_sf_xy
 
@@ -2639,24 +2875,47 @@ subroutine sf_xy(f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc,p_sploc2ens,grd_sploc
+  use hybrid_ensemble_parameters,only: use_localization_grid
+  use egrid2agrid_mod,only: g_egrid2agrid,g_egrid2agrid_ad  
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end
-  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat*grd_ens%nlon,k_start:max(k_start,k_end))
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat,grd_ens%nlon,k_start:max(k_start,k_end))
 
   real(r_kind) g(sp_loc%nc)
+  real(r_kind) work(grd_sploc%nlat,grd_sploc%nlon,1)
   integer(i_kind) k
+  logical vector(k_start:max(k_start,k_end))
+
+  if(.not.use_localization_grid) then
 
 !  Cannot get this loop to thread properly on Zeus - remove threading for now.
 !!$omp parallel do schedule(dynamic,1) private(k,g)
-  do k=k_start,k_end
-     call general_s2g0_ad(grd_ens,sp_loc,g,f(:,k))
-     g(:)=g(:)*spectral_filter(:,k_index(k))
-!    g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
-!    g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
-     call general_s2g0(grd_ens,sp_loc,g,f(:,k))
-  end do
+    do k=k_start,k_end
+       call general_s2g0_ad(grd_ens,sp_loc,g,f(:,:,k))
+       g(:)=g(:)*spectral_filter(:,k_index(k))
+!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
+!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
+       call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
+    end do
+
+  else
+
+    vector=.false.
+!  Cannot get this loop to thread properly on Zeus - remove threading for now.
+!!$omp parallel do schedule(dynamic,1) private(k,g,work)
+    do k=k_start,k_end
+       call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
+       call general_s2g0_ad(grd_sploc,sp_loc,g,work)
+       g(:)=g(:)*spectral_filter(:,k_index(k))
+!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
+!      g(:)=g(:)*sqrt_spectral_filter(:,k_index(k))
+       call general_s2g0(grd_sploc,sp_loc,g,work)
+       call g_egrid2agrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
+    end do
+
+  endif
 
 end subroutine sf_xy
 
@@ -2689,20 +2948,37 @@ subroutine sqrt_sf_xy(z,f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc,p_sploc2ens,grd_sploc
+  use hybrid_ensemble_parameters,only: use_localization_grid
+  use egrid2agrid_mod,only: g_egrid2agrid
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end
   real(r_kind)   ,intent(in   ) :: z(sp_loc%nc,k_start:max(k_start,k_end))
-  real(r_kind)   ,intent(  out) :: f(grd_ens%nlat*grd_ens%nlon,k_start:max(k_start,k_end))
+  real(r_kind)   ,intent(  out) :: f(grd_ens%nlat,grd_ens%nlon,k_start:max(k_start,k_end))
 
   real(r_kind) g(sp_loc%nc)
+  real(r_kind) work(grd_sploc%nlat,grd_sploc%nlon,1)
   integer(i_kind) k
+  logical vector(k_start:max(k_start,k_end))
 
-  do k=k_start,k_end
-     g(:)=z(:,k)*sqrt_spectral_filter(:,k_index(k))
-     call general_s2g0(grd_ens,sp_loc,g,f(:,k))
-  end do
+  if(.not.use_localization_grid) then
+
+    do k=k_start,k_end
+       g(:)=z(:,k)*sqrt_spectral_filter(:,k_index(k))
+       call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
+    end do
+
+  else
+
+     vector=.false.
+     do k=k_start,k_end
+        g(:)=z(:,k)*sqrt_spectral_filter(:,k_index(k))
+        call general_s2g0(grd_sploc,sp_loc,g,work)
+        call g_egrid2agrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
+     end do
+
+  end if
 
 end subroutine sqrt_sf_xy
 
@@ -2735,20 +3011,38 @@ subroutine sqrt_sf_xy_ad(z,f,k_start,k_end)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
-  use hybrid_ensemble_parameters, only: grd_ens,sp_loc
+  use hybrid_ensemble_parameters, only: grd_ens,sp_loc,grd_loc,p_sploc2ens,grd_sploc
+
+  use hybrid_ensemble_parameters,only: use_localization_grid
+  use egrid2agrid_mod,only: g_egrid2agrid_ad
   implicit none
 
   integer(i_kind),intent(in   ) :: k_start,k_end
   real(r_kind)   ,intent(inout) :: z(sp_loc%nc,k_start:max(k_start,k_end))
-  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat*grd_ens%nlon,k_start:max(k_start,k_end))
+  real(r_kind)   ,intent(inout) :: f(grd_ens%nlat,grd_ens%nlon,k_start:max(k_start,k_end))
 
   real(r_kind) g(sp_loc%nc)
+  real(r_kind) work(grd_sploc%nlat,grd_sploc%nlon,1)
   integer(i_kind) k
+  logical vector(k_start:max(k_start,k_end))
 
-  do k=k_start,k_end
-     call general_s2g0_ad(grd_ens,sp_loc,g,f(:,k))
-     z(:,k)=g(:)*sqrt_spectral_filter(:,k_index(k))
-  end do
+  if(.not.use_localization_grid) then
+
+    do k=k_start,k_end
+       call general_s2g0_ad(grd_ens,sp_loc,g,f(:,:,k))
+       z(:,k)=g(:)*sqrt_spectral_filter(:,k_index(k))
+    end do
+
+  else
+
+     vector=.false.
+     do k=k_start,k_end
+        call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
+        call general_s2g0_ad(grd_sploc,sp_loc,g,work)
+        z(:,k)=g(:)*sqrt_spectral_filter(:,k_index(k))
+     end do
+
+  end if
 
 end subroutine sqrt_sf_xy_ad
 
@@ -3055,7 +3349,7 @@ subroutine ckgcov_a_en_new_factorization(z,a_en)
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
   if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
+     write(6,*)'ckgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
      call stop2(999)
   endif
 
@@ -3084,7 +3378,7 @@ subroutine ckgcov_a_en_new_factorization(z,a_en)
 ! Put back onto subdomains
   allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
   if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
+     write(6,*)'ckgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
      call stop2(999)
   endif
   call general_grid2sub(grd_loc,hwork,a_en_work)
@@ -3167,7 +3461,7 @@ subroutine ckgcov_a_en_new_factorization_ad(z,a_en)
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
   if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
+     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble getting pointer to ensemble CV'
      call stop2(999)
   endif
 
@@ -3183,7 +3477,7 @@ subroutine ckgcov_a_en_new_factorization_ad(z,a_en)
 ! get copy for ensemble components to work array
   allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
   if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
+     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble in alloc(a_en_work)'
      call stop2(999)
   endif
   ii=0
@@ -3247,8 +3541,8 @@ subroutine hybens_grid_setup
   use hybrid_ensemble_parameters, only: aniso_a_en,generate_ens,n_ens,&
                       s_ens_h,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,&
                       grd_ens,grd_loc,grd_a1,grd_e1,grd_anl,sp_ens,p_e2a,&
-                      dual_res,uv_hyb_ens,eqspace_ensgrid,grid_ratio_ens
-  use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons
+                      dual_res,uv_hyb_ens,grid_ratio_ens
+  use gridmod,only: regional,nsig,nlon,nlat,rlats,rlons,use_sp_eqspace
   use general_sub2grid_mod, only: general_sub2grid_create_info
   use general_specmod, only: general_init_spec_vars
   use egrid2agrid_mod,only: g_create_egrid2agrid,create_egrid2agrid
@@ -3346,9 +3640,9 @@ subroutine hybens_grid_setup
 !    setup dual-resolution feature, if needed
 
   if(.not.regional) then
-     call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon,eqspace_ensgrid)
+     call general_init_spec_vars(sp_ens,jcap_ens,jcap_ens_test,grd_ens%nlat,grd_ens%nlon,eqspace=use_sp_eqspace)
      call g_create_egrid2agrid(nlat,rlats,nlon,rlons,grd_ens%nlat,sp_ens%rlats,grd_ens%nlon,sp_ens%rlons, &
-                               nord_e2a,p_e2a)
+                               nord_e2a,p_e2a,eqspace=use_sp_eqspace)
   else
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
@@ -3373,6 +3667,7 @@ subroutine hybens_localization_setup
 !   2010-07-30  kleist
 !   2011-10-03  wu - add call to setup_ens_pwgt, which computes vertical weighting for ensemble contribution
 !                     to psfc.
+!   12-05-2012  el akkraoui  hybrid beta parameters now vertically varying
 !   2012-10-16  wu - only call setup_ens_pwgt if necessary
 !
 !   input argument list:
@@ -3387,7 +3682,7 @@ subroutine hybens_localization_setup
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_parameters, only: grd_ens,s_ens_v,jcap_ens,s_ens_vv,&
 	 s_ens_h,s_ens_hv,create_hybens_localization_parameters,grd_loc,sp_loc,&
-         readin_localization,nval_lenz_en,pwgtflg,betaflg
+         readin_localization,nval_lenz_en,readin_beta,betas_inv,betae_inv,beta1_inv
   use gridmod,only: regional
   use hybrid_ensemble_isotropic, only: init_rf_x,init_rf_y,init_rf_z,&
          normal_new_factorization_rf_z,normal_new_factorization_rf_x,&
@@ -3397,14 +3692,43 @@ subroutine hybens_localization_setup
   implicit none
 
   character(len=40)  :: fname = 'hybens_locinfo'
+  character(len=40)  :: fname2= 'hybens_betainfo'
   integer(i_kind) k,msig,istat
-  integer(i_kind)    :: lunin = 47
+  integer(i_kind)    :: lunin = 47 , lunin2 = 48
   logical            :: lexist
   real(r_kind) s_ens_h_gu_x,s_ens_h_gu_y
 
 ! Allocate
   call create_hybens_localization_parameters
 
+! if readin_beta is true, read in k-vertical levels of the betas_inv and betae_inv parameters
+  if (readin_beta) then
+     inquire(file=trim(fname2),exist=lexist)
+     if ( lexist ) then 
+        open(lunin2,file=trim(fname2),form='formatted')
+        rewind(lunin2)
+        read(lunin2,*)
+        read(lunin2,100,iostat=istat) msig
+        if ( msig /= grd_ens%nsig ) then 
+           write(6,*) 'HYBENS_LOCALIZATION_SETUP(beta):  ***ERROR*** error in ',trim(fname2)
+           write(6,*) 'HYBENS_LOCALIZATION_SETUP(beta):  levels do not match,msig[read in],nsig[defined] = ',msig,grd_ens%nsig
+           close(lunin2)
+          call stop2(123)
+        endif
+        do k=1,grd_ens%nsig
+           read(lunin2,101) betas_inv(k), betae_inv(k)
+        enddo
+      else 
+        write(6,*) 'HYBENS_LOCALIZATION_SETUP(beta):  ***ERROR*** INPUT FILE MISSING -- ',trim(fname2)
+        call stop2(999)
+     endif 
+102 format(F6.2,3x,F6.2) 
+  else 
+     do k=1,grd_ens%nsig
+        betas_inv(k) = beta1_inv
+        betae_inv(k) = one - beta1_inv
+     enddo
+  endif 
 ! Set up localization parameters as function of level
 
 ! if horizontal parameter is set <= 0, read in k-levels of localization parameters
@@ -3428,6 +3752,7 @@ subroutine hybens_localization_setup
        close(lunin)
     else 
       write(6,*) 'HYBENS_LOCALIZATION_SETUP:  ***ERROR*** INPUT FILE MISSING -- ',trim(fname)
+      call stop2(999)
     end if 
  100 format(I4)
  101 format(F8.1,3x,F5.1)
@@ -3455,7 +3780,7 @@ subroutine hybens_localization_setup
      call init_sf_xy(jcap_ens)
   end if
 
-  if (pwgtflg .or. betaflg) call setup_ens_pwgt
+  call setup_ens_pwgt
 
 !  set value of nval_lenz_en here for now, but will need to rearrange so this can be set in control_vectors
 !     and triggered by lsqrtb.
@@ -3630,6 +3955,8 @@ subroutine sub2grid_1(sub,grid,gridpe,mype)
 ! program history log:
 !   2009-09-17  parrish
 !   2010-04-01  treadon - move strip to gridmod
+!   2013-10-24  todling - revisit stip interface
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     sub   - field on subdomains
@@ -3649,7 +3976,8 @@ subroutine sub2grid_1(sub,grid,gridpe,mype)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
-         ltosi,ltosj,iglobal,ijn,displs_g,itotsub,strip
+         iglobal,ijn,displs_g,itotsub,strip
+  use general_commvars_mod, only: ltosi,ltosj
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
@@ -3666,7 +3994,7 @@ subroutine sub2grid_1(sub,grid,gridpe,mype)
   do j=1,lon1*lat1
      zsm(j)=zero
   end do
-  call strip(sub,zsm,1)
+  call strip(sub,zsm)
   call mpi_gatherv(zsm,ijn(mm1),mpi_rtype, &
                  work1,ijn,displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
@@ -4267,3 +4595,80 @@ subroutine get_regional_dual_res_grid(eps,r_e,n_a,n_e,x_a,x_e)
   end do
 
 end subroutine get_regional_dual_res_grid
+
+subroutine acceptable_for_essl_fft(nin,nout)
+
+  use kinds, only: i_kind,i_llong
+  use mpimod, only: mype
+  implicit none
+
+  integer(i_kind),intent(in)::  nin
+  integer(i_kind),intent(out):: nout
+
+  integer(i_kind) i_eleven,i_seven,i_five,i_three,i_two,n_acceptable_total,i,j,k
+  integer(i_llong) n_eleven,n_seven,n_five,n_three,n_two,n_this_try
+  integer(i_kind),allocatable::n_acceptable_table(:)
+
+!   given desired number of points nin, find closest value nout >= nin which
+!   is allowed by ibm ffts.
+
+!     compute table of acceptable length for essl fft
+    n_acceptable_total=0
+    do i_eleven=0,1
+      n_eleven=11**i_eleven
+      do i_seven=0,1
+        n_seven=7**i_seven
+        do i_five=0,1
+          n_five=5**i_five
+          do i_three=0,2
+            n_three=3**i_three
+            do i_two=1,25
+              n_two=2**i_two
+              n_this_try=n_two*n_three*n_five*n_seven*n_eleven
+              if(n_this_try.le.37748736_i_llong) n_acceptable_total=n_acceptable_total+1
+            end do
+          end do
+        end do
+      end do
+    end do
+    allocate(n_acceptable_table(n_acceptable_total))
+    i=0
+    do i_eleven=0,1
+      n_eleven=11**i_eleven
+      do i_seven=0,1
+        n_seven=7**i_seven
+        do i_five=0,1
+          n_five=5**i_five
+          do i_three=0,2
+            n_three=3**i_three
+            do i_two=1,25
+              n_two=2**i_two
+              n_this_try=n_two*n_three*n_five*n_seven*n_eleven
+              if(n_this_try.le.37748736_i_llong) then
+                i=i+1
+                n_acceptable_table(i)=n_this_try
+              end if
+            end do
+          end do
+        end do
+      end do
+    end do
+    do i=1,n_acceptable_total-1
+      do j=i+1,n_acceptable_total
+        if(n_acceptable_table(j).lt.n_acceptable_table(i)) then
+           k=n_acceptable_table(j)
+           n_acceptable_table(j)=n_acceptable_table(i)
+           n_acceptable_table(i)=k
+        end if
+      end do
+    end do
+    do i=1,n_acceptable_total
+      if(mype==0) write(6,*)' i,n_acceptable_table(i)=',i,n_acceptable_table(i)
+    end do
+    nout=0
+    do i=1,n_acceptable_total
+      nout=n_acceptable_table(i)
+      if(nout.ge.nin) exit
+    end do
+
+end subroutine acceptable_for_essl_fft
