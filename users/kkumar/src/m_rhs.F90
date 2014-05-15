@@ -95,7 +95,7 @@ subroutine rhs_alloc(aworkdim2)
   implicit none
   integer(i_kind),optional,intent(in):: aworkdim2
   character(len=*),parameter:: myname_=myname//'.alloc'
-  integer:: aworkdim2_
+  integer(i_kind):: aworkdim2_
 _ENTRY_(myname_)
   if(rhs_allocated) call die(myname_,'already allocated')
   aworkdim2_=13

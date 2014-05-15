@@ -54,6 +54,8 @@ contains
 !   2010-08-19  derber
 !   2011-05-20  mccarty - added placeholder for ATMS
 !   2013-01-22  zhu - add adp_anglebc option
+!   2013-07-19  zhu - include negative clw values for amsua or atms when adp_anglebc=.true.
+!   2013-11-25  kim - revisit logic of frozen points
 !
 !  input argument list:
 !     nadir     - scan position
@@ -84,7 +86,7 @@ contains
 !$$$
   use kinds, only: r_kind,i_kind
   use radinfo, only: ang_rad,cbias,air_rad,predx,adp_anglebc
-  use constants, only: zero,amsua_clw_d1,amsua_clw_d2,t0c
+  use constants, only: zero,one,amsua_clw_d1,amsua_clw_d2,t0c,r1000
 
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
@@ -104,8 +106,10 @@ contains
 
 
   if (amsua .or. atms) then
- 
-     if(tsavg5>t0c)then
+
+    ! We want to reject sea ice points that may be frozen.  The sea freezes
+    ! around -1.9C but we set the threshold at 1C to be safe.
+     if(tsavg5>t0c-one .and. tb_obs(1) > zero .and. tb_obs(2) > zero) then 
         if (adp_anglebc) then
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))+predx(1,ich(1))*air_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))+predx(1,ich(2))*air_rad(ich(2))
@@ -114,27 +118,38 @@ contains
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
         end if
         if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
-            .and. tb_obs(2) > zero) &
-           clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
-               amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+            .and. tb_obs(2) > zero) then 
+             clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+                 amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+             ierrret = 0
+        else
+             ierrret = 1
+        endif
+     else
+        clw = r1000
+        ierrret = 1
      end if
      
+     if (.not. adp_anglebc) clw = max(zero,clw)
+
   else if(ssmi) then
 
      call retrieval_mi(tb_obs(1),nchanl,no85GHz, &
           tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
 
   else if (ssmis) then
 
      call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
+     clw = max(zero,clw)
 
   else if (amsre) then
 
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
 
   endif
-  clw = max(zero,clw)
 
   return
  end subroutine calc_clw
@@ -1294,7 +1309,7 @@ subroutine epspp (t1,s,f,ep)
 
 end subroutine epspp
 
-subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
+subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  ret_amsua 
@@ -1310,6 +1325,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
 !      2010-10-23  kim : Cloud liquid water path retrieval to compare with first guess
 !                        in all sky condition  (using observed tbs instead of o-g tbs)  
 !      2011-05-03  todling - add r_kind to constants
+!      2014-01-31  mkim - add ierrret return flag for cloud qc near seaice edge 
 !
 !  input argument list:
 !     tb_obs    - observed brightness temperatures
@@ -1340,6 +1356,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind
+  integer(i_kind)                   ,intent(  out) :: ierrret
 
 ! Declare local variables 
   real(r_kind) :: d0, d1, d2, c0, c1, c2
@@ -1353,18 +1370,23 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   d2 = -2.265_r_kind
    
 
-  if (tsavg5 <= t0c .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
-     clwp_amsua = zero
-     tpwc_amsua = zero
+  if (tsavg5 <=  t0c-one .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then 
+     ! We want to reject sea ice points that may be frozen.  The sea freezes 
+     ! around -1.9C but we set the threshold at 1C to be safe. 
+     clwp_amsua = r1000 
+     tpwc_amsua = r1000 
+     ierrret=1
   else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then
      ! The expectation is that observations with these values will be rejected
      clwp_amsua = r1000
      tpwc_amsua = r1000
+     ierrret=1
   else
      clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
      tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      if(clwp_amsua < zero) clwp_amsua = zero
      if(tpwc_amsua < zero) tpwc_amsua = zero
+     ierrret=0
   end if
    
 end subroutine ret_amsua

@@ -165,23 +165,25 @@ interface GSI_4dCoupler_grtests
 end interface
 
 interface GSI_4dCoupler_getpert
-   subroutine get_1pert_ (xx,what)
+   subroutine get_1pert_ (xx,what,filename)
    ! get perturbation from user's model and convert it to relevant gsi bundle
    use constants, only: zero
    use gsi_bundlemod, only: gsi_bundle
    implicit none
    type(gsi_bundle),intent(inout) :: xx
-   character(len=*),intent(in) :: what   ! indicates whether tl or ad type perturbation
+   character(len=*),intent(in) :: what       ! indicates whether tl or ad type perturbation
+   character(len=*),intent(in) :: filename   ! filename containing pert - set to NULL when not applicable
    end subroutine get_1pert_
    !-------------------------!
-   subroutine get_Npert_ (xx,n,what)
+   subroutine get_Npert_ (xx,n,what,filename)
    ! get perturbation from user's model and convert it to relevant gsi bundle
    use kinds,only: i_kind
    use gsi_bundlemod, only: gsi_bundle
    implicit none
    type(gsi_bundle),intent(inout) :: xx(n)
    integer(i_kind) ,intent(in) :: n
-   character(len=*),intent(in) :: what   ! indicates whether tl or ad type perturbation
+   character(len=*),intent(in) :: what        ! indicates whether tl or ad type perturbation
+   character(len=*),intent(in) :: filename(n) ! n-pert filenames
    end subroutine get_Npert_
 end interface
 

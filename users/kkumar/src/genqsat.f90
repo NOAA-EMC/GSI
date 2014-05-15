@@ -24,6 +24,7 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
 !   2010-03-23  derber - simplify and optimize
 !   2010-03-24  derber - generalize so that can be used for any lat,lon,nsig and any tsen and prsl (for hybrid)
 !   2010-12-17  pagowski - add cmaq
+!   2011-08-15  gu/todling - add pseudo-q2 options
 !
 !   input argument list:
 !     tsen      - input sensibile temperature field (lat2,lon2,nsig)
@@ -51,7 +52,8 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
   use kinds, only: r_kind,i_kind
   use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
        xa,psat,ttp,half,one_tenth
-  use jfunc, only:  qgues,dqdt,dqdrh,dqdp
+  use derivsmod, only:  qgues,dqdt,dqdrh,dqdp
+  use jfunc, only:  pseudo_q2
   use gridmod, only:  wrf_nmm_regional,wrf_mass_regional,nems_nmmb_regional,aeta2_ll,regional,cmaq_regional
   use guess_grids, only: tropprs,ges_prslavg,ges_psfcavg
   implicit none
@@ -203,13 +205,20 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
                    desidt = esi * (-xai/tdry + xbi*ttp/(tdry*tdry))
                    desdt = dwdt*esw + w*deswdt - dwdt*esi + (one-w)*desidt
                 endif
-
-                dqdt(i,j,k)=(desdt/es)*qgues(i,j,k)
+                if(pseudo_q2)then
+                  dqdt(i,j,k)=zero
+                else
+                  dqdt(i,j,k)=(desdt/es)*qgues(i,j,k)
+                endif
               else
                 dqdt(i,j,k)=zero
               end if
               if(idpupdate)then
-                dqdp(i,j,k)=half*qgues(i,j,k)/prsl(i,j,k)
+                if(pseudo_q2)then
+                  dqdp(i,j,k)=zero
+                else
+                  dqdp(i,j,k)=half*qgues(i,j,k)/prsl(i,j,k)
+                endif
               else
                 dqdp(i,j,k)=zero
               end if

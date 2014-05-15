@@ -124,7 +124,7 @@ subroutine pcgsoi()
        niter_no_qc,l_foto,xhat_dt,print_diag_pcg,lgschmidt
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        ltlint, iorthomax
-  use gridmod, only: twodvar_regional
+  use gridmod, only: twodvar_regional, use_reflectivity
   use constants, only: zero,one,five,tiny_r_kind
   use anberror, only: anisotropic
   use mpimod, only: mype
@@ -137,6 +137,7 @@ subroutine pcgsoi()
   use state_vectors, only : allocate_state,deallocate_state,&
        prt_state_norms,inquire_state
   use bias_predictors, only: allocate_preds,deallocate_preds,predictors,assignment(=)
+  use bias_predictors, only: update_bias_preds
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
   use projmethod_support, only: init_mgram_schmidt, &
@@ -175,7 +176,7 @@ subroutine pcgsoi()
   
   type(control_vector), allocatable, dimension(:) :: cglwork
   type(control_vector), allocatable, dimension(:) :: cglworkhat
-  integer      :: iortho
+  integer(i_kind) :: iortho
   real(r_quad) :: zdla
 !    note that xhatt,dirxt,xhatp,dirxp are added to carry corrected grid fields
 !      of t and p from implicit normal mode initialization (strong constraint option)
@@ -373,8 +374,8 @@ subroutine pcgsoi()
            call bkerror_a_en(gradx,grady)
         end if
 
-!       multiply static (Jb) part of grady by beta1_inv, and
-!       multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!       multiply static (Jb) part of grady by betas_inv(:), and
+!       multiply ensemble (Je) part of grady by betae_inv(:) [default : betae_inv(:) = 1 - betas_inv(:)] 
 !         (this determines relative contributions from static background Jb and ensemble background Je)
 
         call beta12mult(grady)
@@ -392,11 +393,13 @@ subroutine pcgsoi()
            end do
         end if
 !       save gradients
-        zdla = sqrt(dot_product(gradx,grady,r_quad))
-        do i=1,nclen
-           cglwork(iter+1)%values(i)=gradx%values(i)/zdla
-           cglworkhat(iter+1)%values(i)=grady%values(i)/zdla
-        end do
+        if (iter <= iortho) then
+           zdla = sqrt(dot_product(gradx,grady,r_quad))
+           do i=1,nclen
+              cglwork(iter+1)%values(i)=gradx%values(i)/zdla
+              cglworkhat(iter+1)%values(i)=grady%values(i)/zdla
+           end do
+        end if
      end if
 
 !    Add potential additional preconditioner 
@@ -435,6 +438,7 @@ subroutine pcgsoi()
         endif
         b=zero
      endif
+     if (mype==0) write(6,888)'pcgsoi: gnorm(1:2),b=',gnorm,b
 
 !    Calculate new search direction
      if (.not. restart) then
@@ -687,8 +691,8 @@ subroutine pcgsoi()
           call bkerror_a_en(gradx,grady)
        end if
 
-!      multiply static (Jb) part of grady by beta1_inv, and
-!      multiply ensemble (Je) part of grady by beta2_inv = ( 1 - beta1_inv )
+!    multiply static (Jb) part of grady by betas_inv(:), and
+!    multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) =  1 - betas_inv(:) ]
 !      (this determines relative contributions from static background Jb and ensemble background Je)
 
        call beta12mult(grady)
@@ -745,7 +749,7 @@ subroutine pcgsoi()
 !    Print final diagnostics
         write(6,888)'Final   cost function=',zfend
         write(6,888)'Final   gradient norm=',sqrt(zgend)
-        write(6,888)'Final/Initial cost function=',zfend/zfini
+        if(zfini>tiny_r_kind) write(6,888)'Final/Initial cost function=',zfend/zfini
         if(zgini>tiny_r_kind) write(6,888)'Final/Initial gradient norm=',sqrt(zgend/zgini)
      endif
 888  format(A,5(1X,ES25.18))
@@ -757,35 +761,47 @@ subroutine pcgsoi()
 
 ! Update guess (model background, bias correction) fields
 ! if (mype==0) write(6,*)'pcgsoi: Updating guess'
-  call update_guess(sval,sbias)
+  if(iwrtinc<=0) call update_guess(sval,sbias)
   if(l_foto) call update_geswtend(xhat_dt)
 
 ! cloud analysis  after iteration
   if(jiter == miter) then
+    if(use_reflectivity) then
+     call gsdcloudanalysis4nmmb(mype)
+    else
      call gsdcloudanalysis(mype)
+    endif
   endif
 
 ! Write output analysis files
+  if(.not.l4dvar) call prt_guess('analysis')
+  call prt_state_norms(sval(1),'increment')
   if (twodvar_regional) then
       call write_all(-1,mype)
     else
-      if(jiter == miter)call write_all(-1,mype)
+      if(jiter == miter) then
+         call clean_
+         call write_all(-1,mype)
+      endif
   endif
-  call prt_guess('analysis')
-  call prt_state_norms(sval(1),'wwww')
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
      call inc2guess(sval)
      call write_all(iwrtinc,mype)
      call prt_guess('increment')
+     ! NOTE: presently in 4dvar, we handle the biases in a slightly inconsistent way
+     ! as when in 3dvar - that is, the state is not updated, but the biases are.
+     ! This assumes GSI handles a single iteration of the outer loop at a time
+     ! when doing 4dvar (that is, multiple iterations require stop-and-go).
+     call update_bias_preds(twodvar_regional,sbias)
   endif
 
 ! Clean up increments of vorticity/divergence
   call xhat_vordiv_clean
 
 ! Clean up major fields
-  call clean_
+  if (jiter < miter) call clean_
 
 ! Finalize timer
   call timer_fnl('pcgsoi')

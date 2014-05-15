@@ -1,4 +1,4 @@
-module cloud_efr
+module cloud_efr_mod
 !$$$   module documentation block
 !                .      .    .                                       .
 ! module:    cloud_efr
@@ -9,6 +9,8 @@ module cloud_efr
 ! program history log:
 !   2011-06-20 Yanqiu Zhu
 !   2011-11-01 Emily Liu 
+!   2013-10-19 Todling    - add initialize/finalize routines; move efr_q vars
+!                           from guess to this package
 !
 ! subroutines included:
 !   sub cloud_calc            - cloud composition
@@ -26,14 +28,83 @@ module cloud_efr
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero,one,three,five,pi,t0c,r0_05,fv,qcmin
+  use gridmod, only: lat2,lon2,nsig,regional
+  use guess_grids, only: nfldsig
   implicit none
+  save
 
 ! set subroutines to public
+  public :: cloud_init
   public :: cloud_calc
   public :: cloud_calc_gfs
+  public :: cloud_final
   public :: set_cloud_lower_bound
+  public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qr     ! effective radius for rain
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qs     ! effective radius for snow
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qg     ! effective radius for graupel
+  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qh     ! effective radius for hail
+
+! local variables to this module (not public)
+  logical,save:: cloud_initialized_=.false.
 contains
+
+subroutine cloud_init
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cloud_init       initialize cloud mixing ratio and effective radius
+!   prgmmr: todling      org: np22                date: 2013-09-30
+!
+! abstract: allocate variables related to effective cloud radii
+!
+! program history log:
+!   2013-09-30 Todling
+
+integer(i_kind) i,j,k,n
+
+ if(.not.regional) return
+ if(cloud_initialized_) return
+
+ allocate (efr_ql(lat2,lon2,nsig,nfldsig),efr_qi(lat2,lon2,nsig,nfldsig), &
+           efr_qr(lat2,lon2,nsig,nfldsig),efr_qs(lat2,lon2,nsig,nfldsig), &
+           efr_qg(lat2,lon2,nsig,nfldsig),efr_qh(lat2,lon2,nsig,nfldsig))
+ do n=1,nfldsig
+    do k=1,nsig
+       do j=1,lon2
+          do i=1,lat2
+             efr_ql(i,j,k,n)=zero
+             efr_qi(i,j,k,n)=zero
+             efr_qr(i,j,k,n)=zero
+             efr_qs(i,j,k,n)=zero
+             efr_qg(i,j,k,n)=zero
+             efr_qh(i,j,k,n)=zero
+          end do
+       end do
+    end do
+ end do
+ cloud_initialized_=.true.
+
+end subroutine cloud_init
+
+subroutine cloud_final
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    cloud_final      finalize cloud mixing ratio and effective radius
+!   prgmmr: todling      org: np22                date: 2013-09-30
+!
+! abstract: deallocate variables related to effective cloud radii
+!
+! program history log:
+!   2013-09-30 Todling
+
+  if(.not.cloud_initialized_) return
+  deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
+  cloud_initialized_=.false.
+
+end subroutine cloud_final
 
 subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,& 
                       ges_ql,ges_qi,ges_qr,ges_qs,ges_qg,ges_qh,&
@@ -495,4 +566,4 @@ end subroutine set_cloud_lower_bound
       return
       end function fpvsx
 
-end module cloud_efr
+end module cloud_efr_mod

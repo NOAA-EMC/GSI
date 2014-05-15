@@ -1,6 +1,4 @@
-subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
-   q_x,q_y,oz_x,oz_y,cw_x,cw_y,mype,u_t,v_t,t_t,p_t,q_t,oz_t,&
-   cw_t,pri)
+subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends       calculate u,v,t,p tendencies
@@ -29,37 +27,19 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !                          work for any general orthogonal coordinate.
 !   2010-11-03  derber - added threading
 !   2012-03-11  tong - added condition to calculate cw tendency
+!   2013-10-19  todling - revamp interface with fields now in bundles; still
+!                         needs generalization
+!   2013-10-28  todling - rename p3d to prse
 !
 ! usage:
 !   input argument list:
-!     u        - zonal wind on subdomain
-!     v        - meridional wind on subdomain
-!     t        - virtual temperature on subdomain
 !     z        - sfc terrain height
-!     u_x      - zonal derivative of u
-!     u_y      - meridional derivative of u
-!     v_x      - zonal derivative of v
-!     v_y      - meridional derivative of v
-!     t_x      - zonal derivative of t
-!     t_y      - meridional derivative of t
 !     ps_x     - zonal derivative of ps
 !     ps_y     - meridional derivative of ps
-!     q_x      - zonal derivative of q
-!     q_y      - meridional derivative of q
-!     oz_x     - zonal derivative of ozone
-!     oz_y     - meridional derivative of ozone
-!     cw_x     - zonal derivative of cloud water
-!     cw_y     - meridional derivative of cloud water
 !     mype     - task id
 !
 !   output argument list:
-!     u_t      - time tendency of u
-!     v_t      - time tendency of v
-!     t_t      - time tendency of t
 !     p_t      - time tendency of 3d prs
-!     q_t      - time tendency of q
-!     oz_t     - time tendency of ozone
-!     cw_t     - time tendency of cloud water
 !
 ! attributes:
 !   language: f90
@@ -76,19 +56,23 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   use control_vectors, only: cvars3d
   use mpeu_util, only: getindex
 
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: u,v,t,u_x,u_y,v_x,v_y,&
-     t_x,t_y,q,oz,cw,q_x,q_y,oz_x,oz_y,cw_x,cw_y
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y,z
-  integer(i_kind)                            ,intent(in   ) :: mype
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: teta
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(  out) :: u_t,v_t,t_t,q_t,oz_t,cw_t
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: p_t
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: pri
+  integer(i_kind)                         ,intent(in   ) :: mype
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: teta
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: pri
+  type(gsi_bundle) :: guess
+  type(gsi_bundle) :: xderivative
+  type(gsi_bundle) :: yderivative
+  type(gsi_bundle) :: tendency
 
 ! Declare local variables
+  character(len=*),parameter::myname='calctends'
   real(r_kind),dimension(lat2,lon2):: z_x,z_y
   real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
@@ -96,6 +80,50 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
   integer(i_kind) i,j,k,ix,ixm,ixp,jx,jxm,jxp,kk,icw
   real(r_kind) sumk,sumvk,sum2k,sum2vk,uuvv
 
+  real(r_kind),dimension(:,:  ),pointer :: z   =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: u   =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: v   =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: t   =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: q   =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: oz  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: cw  =>NULL()
+
+  real(r_kind),dimension(:,:  ),pointer :: ps_x=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: u_x =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: v_x =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: t_x =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: q_x =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: oz_x=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: cw_x=>NULL()
+  real(r_kind),dimension(:,:  ),pointer :: ps_y=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: u_y =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: v_y =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: t_y =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: q_y =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: oz_y=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: cw_y=>NULL()
+
+  real(r_kind),dimension(:,:,:),pointer :: p_t =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: u_t =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: v_t =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: t_t =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: q_t =>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: oz_t=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: cw_t=>NULL()
+
+! Get all pointers:
+
+! from guess ...
+  call init_vars_('guess',guess)
+
+! from longitudinal derivative ...
+  call init_vars_('xderivative',xderivative)
+
+! from latitudinal derivative ...
+  call init_vars_('yderivative',yderivative)
+
+! from tendency ...
+  call init_vars_('tendency',tendency)
 
 ! NOTES:
 !  - equations taken from NCEP Office Note 445 (Juang 2005)
@@ -349,4 +377,93 @@ subroutine calctends(u,v,t,q,oz,cw,teta,z,u_x,u_y,v_x,v_y,t_x,t_y,ps_x,ps_y,&
 !  End of threading loop
 
   return
+
+  contains
+  subroutine init_vars_ (thiscase,bundle)
+
+  type(gsi_bundle) :: bundle
+  character(len=*),intent(in) :: thiscase
+
+  character(len=*),parameter::myname_=myname//'*init_vars_'
+  integer(i_kind) ier,istatus
+
+!NOTE: this is not general - and in many ways it's wired just as the original
+!      code. However, this can be easily generalized by a little re-write
+!      of the main code in the subroutine above - TO BE DONE.
+
+! If require guess vars available, extract from bundle ...
+  if (trim(thiscase)=='guess') then
+     ier=0
+     call gsi_bundlegetpointer(bundle,'z' ,z   ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'u' ,u   ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'v' ,v   ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'tv',t   ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'q' ,q   ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'oz',oz  ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'cw',cw  ,istatus)
+     ier=ier+istatus
+  endif
+  if (trim(thiscase)=='xderivative') then
+     ier=0
+     call gsi_bundlegetpointer(bundle,'ps',ps_x,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'u' ,u_x ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'v' ,v_x ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'tv',t_x ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'q' ,q_x ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'oz',oz_x,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'cw',cw_x,istatus)
+     ier=ier+istatus
+  endif
+  if (trim(thiscase)=='yderivative') then
+     ier=0
+     call gsi_bundlegetpointer(bundle,'ps',ps_y,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'u' ,u_y ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'v' ,v_y ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'tv',t_y ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'q' ,q_y ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'oz',oz_y,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'cw',cw_y,istatus)
+     ier=ier+istatus
+  endif
+  if(trim(thiscase)=='tendency') then
+     ier=0
+     call gsi_bundlegetpointer(bundle,'u' ,u_t ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'v' ,v_t ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'tv',t_t ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'q' ,q_t ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'oz',oz_t,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'cw',cw_t,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer(bundle,'prse',p_t,istatus)
+     ier=ier+istatus
+  endif
+  if (ier/=0) then
+      call die(myname_,': missing fields in '//trim(thiscase)//' ier=',ier)
+  endif
+
+  end subroutine init_vars_
+
 end subroutine calctends

@@ -12,6 +12,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 ! PROGRAM HISTORY LOG:
 !    2009-09-21  Hu  initial
 !    2010-04-09  Hu  make changes based on current trunk style
+!    2013-03-27  Hu  add code to map obs from WRF mass H grid to analysis grid
 !
 !
 !   input argument list:
@@ -45,6 +46,8 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
+  use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
+  use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
 
   implicit none
 !
@@ -77,13 +80,13 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
     integer(i_kind) :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
-    INTEGER(i_kind)  ::  maxlvl,nlon,nlat
-    INTEGER(i_kind)  ::  numlvl,numLaRC
+    INTEGER(i_kind)  ::  maxlvl
+    INTEGER(i_kind)  ::  numlvl,numLaRC,numobsa
     INTEGER(i_kind)  ::  n,k,iret
     INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=450000 
+    INTEGER(i_kind),PARAMETER  ::  maxobs=4500000 
 
     REAL(r_kind),allocatable :: LaRCcld_in(:,:)   ! 3D reflectivity in column
 
@@ -179,8 +182,16 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
       ndata=numLaRC
       nreal=maxlvl+2
       if(numLaRC > 0 ) then
-          write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-          write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numLaRC)
+          if(nlon==nlon_regional .and. nlat==nlat_regional) then
+             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+             write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numLaRC)
+          else
+             call wrfmass_obs_to_a8(LaRCcld_in,nreal,numLaRC,ilat,ilon,numobsa)
+             nread=numobsa
+             ndata=numobsa
+             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+             write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numobsa)
+          endif
           deallocate(LaRCcld_in)
       endif
     endif
