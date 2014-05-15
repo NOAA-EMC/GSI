@@ -1,4 +1,4 @@
-subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts_rad)
+subroutine map_ctp_lar(ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,w_lwp,nlev_cld)
 
 !
 !$$$  subprogram documentation block
@@ -22,7 +22,6 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 !     nn_obs   - 1st dimension of observation arry data_s
 !     numsao   - number of observation
 !     data_s   -  observation array for GOES cloud products
-!     npts_rad -  impact radius 
 !
 !   output argument list:
 !     sat_ctp   - GOES cloud top pressure in analysis grid
@@ -91,20 +90,21 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
       INTEGER(i_kind),intent(in) :: Nx, Ny
       INTEGER(i_kind),intent(in) :: ib, jb
       INTEGER(i_kind),intent(in) :: numsao, nn_obs
-      INTEGER(i_kind),intent(in) :: npts_rad
       real(r_kind),dimension(nn_obs,numsao):: data_s
 ! Output
       real(r_single), intent(out) ::  sat_ctp(Nx,Ny)
       real(r_single), intent(out) ::  sat_tem(Nx,Ny)
+      real(r_single), intent(out) ::  w_lwp(Nx,Ny)
       real(r_single), intent(out) ::  w_frac(Nx,Ny)
 !
 !  misc
       integer(i_kind) ::   nfov
-      parameter (nfov=60)
+      parameter (nfov=650)
 
       character header*80
 ! Working
       real(r_kind)    ::  Pxx(Nx,Ny,nfov),Txx(Nx,Ny,nfov)  
+      real(r_kind)    ::  PHxx(Nx,Ny,nfov),WPxx(Nx,Ny,nfov)  
       real(r_kind)    ::  xdist(Nx,Ny,nfov), xxxdist(nfov)
       real(r_kind)    ::  fr,sqrt, qc, type
       integer(i_kind) ::  Nxx(Nx,Ny,nfov),index(Nx,Ny), jndex(nfov)
@@ -117,14 +117,18 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 
       real(r_single)  :: w_eca(Nx,Ny)
       integer(i_kind) :: nlev_cld(Nx,Ny)
-      integer(i_kind) :: ios
+      integer(i_kind) :: ios,cfov
 
 !
 ! * Initialize outputs since GOES sounder do not scan all MAPS domain
 !
       do jj=1,Ny
         do ii=1,Nx
-           w_eca (ii,jj) =-99999._r_kind
+           sat_ctp (ii,jj) =-99999._r_kind
+           sat_tem (ii,jj) =-99999._r_kind
+           w_lwp (ii,jj) =-99999._r_kind
+           w_frac (ii,jj) =-99999._r_kind
+           nlev_cld (ii,jj) =-99999
            index(ii,jj) = 0
         enddo
       enddo
@@ -141,7 +145,8 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
  
           xc=data_s(2,ipt) - ib + 1.0_r_kind
           yc=data_s(3,ipt) - jb + 1.0_r_kind
-          if(data_s(8,ipt) > 50 ) cycle
+!         write(6,*)'sat_tem::',data_s(2,ipt),data_s(3,ipt),ib,jb
+          if(data_s(8,ipt) > 650 ) cycle
  
 ! * XC,YC should be within subdomain boundary, i.e., XC,YC >0
  
@@ -150,9 +155,9 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
              ii1 = int(xc+0.5_r_kind)
              jj1 = int(yc+0.5_r_kind)
 
-             do jj = max(1,jj1-npts_rad), min(ny,jj1+npts_rad)
+             do jj = max(1,jj1-2), min(ny,jj1+2)
                if (jj1-1 >= 1 .and. jj1+1 <= ny) then
-                 do ii = max(1,ii1-npts_rad), min(nx,ii1+npts_rad)
+                 do ii = max(1,ii1-2), min(nx,ii1+2)
                    if (ii1-1 >= 1 .and. ii1+1 <= nx) then
              
 ! * We check multiple data within gridbox
@@ -161,11 +166,14 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
                        index(ii,jj) = index(ii,jj) + 1
  
                        Pxx(ii,jj,index(ii,jj)) = data_s(4,ipt)
-                       Txx(ii,jj,index(ii,jj)) = data_s(6,ipt)
+                       Txx(ii,jj,index(ii,jj)) = data_s(5,ipt)
+                       PHxx(ii,jj,index(ii,jj)) = data_s(6,ipt)
+                       WPxx(ii,jj,index(ii,jj)) = data_s(7,ipt)
 !mhu                   Nxx(ii,jj,index(ii,jj)) = int(data_s(5,ipt))
 !mhu  no cloud amount available, assign to 100
-                       Nxx(ii,jj,index(ii,jj)) = 100
+!                      Nxx(ii,jj,index(ii,jj)) = 100
                        nlev_cld(ii,jj) = 1
+!                      write(6,*)'sat_tem1::',index(ii,jj),data_s(4,ipt),data_s(5,ipt),data_s(6,ipt),data_s(7,ipt)
                        xdist(ii,jj,index(ii,jj)) = sqrt(      &
                              (XC+1-ii)**2 + (YC+1-jj)**2)
                      end if
@@ -182,11 +190,11 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
 !
       do jj = 1,Ny
         do ii = 1,Nx
-          if ((index(ii,jj) >= 1 .and. index(ii,jj) < 3) .and. npts_rad > 1) then
-             sat_ctp(ii,jj) = Pxx(ii,jj,1)
-             sat_tem(ii,jj) = Txx(ii,jj,1)
-             w_frac(ii,jj) = float(Nxx(ii,jj,1))/100.
-             w_eca(ii,jj) =  float(Nxx(ii,jj,1))/100.
+          if (index(ii,jj) < 3 ) then
+!            sat_ctp(ii,jj) = Pxx(ii,jj,1)
+!            sat_tem(ii,jj) = Txx(ii,jj,1)
+!            w_frac(ii,jj) = float(Nxx(ii,jj,1))/100.
+!            w_eca(ii,jj) =  float(Nxx(ii,jj,1))/100.
 
           elseif(index(ii,jj) >= 3) then
 
@@ -198,18 +206,18 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
                xxxdist(i) = xdist(ii,jj,i)
              enddo
              call sorting(xxxdist,index(ii,jj),jndex)
-             w_eca(ii,jj) = float(Nxx(ii,jj,jndex(1)))/100._r_kind
+!            w_eca(ii,jj) = float(Nxx(ii,jj,jndex(1)))/100._r_kind
 ! * Sort to find closest distance if more than one sample
-             if(ioption == 1) then    !nearest neighborhood
-                do i=1,index(ii,jj)
-                  jndex(i) = i
-                  xxxdist(i) = xdist(ii,jj,i)
-                enddo
-                call sorting(xxxdist,index(ii,jj),jndex)
-                sat_ctp(ii,jj) = Pxx(ii,jj,jndex(1))
-                sat_tem(ii,jj) = Txx(ii,jj,jndex(1))
-                w_frac(ii,jj) = float(Nxx(ii,jj,jndex(1)))/100._r_kind
-             endif
+!            if(ioption == 1) then    !nearest neighborhood
+!               do i=1,index(ii,jj)
+!                 jndex(i) = i
+!                 xxxdist(i) = xdist(ii,jj,i)
+!               enddo
+!               call sorting(xxxdist,index(ii,jj),jndex)
+!               sat_ctp(ii,jj) = Pxx(ii,jj,jndex(1))
+!               sat_tem(ii,jj) = Txx(ii,jj,jndex(1))
+!               w_frac(ii,jj) = float(Nxx(ii,jj,jndex(1)))/100._r_kind
+!            endif
 ! * Sort to find median value 
              if(ioption == 2) then    !pick median 
                 do i=1,index(ii,jj)
@@ -220,74 +228,29 @@ subroutine map_ctp (ib,jb,nx,ny,nn_obs,numsao,data_s,sat_ctp,sat_tem,w_frac,npts
                 med_pt = index(ii,jj)/2  + 1
                 sat_ctp(ii,jj) = Pxx(ii,jj,jndex(med_pt))
                 sat_tem(ii,jj) = Txx(ii,jj,jndex(med_pt))
-                w_frac(ii,jj) = fr
+                w_lwp(ii,jj) = WPxx(ii,jj,jndex(med_pt))
+                if (sat_ctp(ii,jj).eq.-20) then
+                  sat_ctp(ii,jj) = 1013. ! hPa - no cloud
+                  w_frac(ii,jj)=0.0
+                  nlev_cld(ii,jj) = 0
+                end if
+
+!
+! cloud fraction based on phase (0 are clear), what about -9 ????
+               if( sat_ctp(ii,jj) < 1012.99) then
+                 cfov = 0
+               do i=1,index(ii,jj)
+                 if(PHxx(ii,jj,i) .gt. 0.1) cfov = cfov + 1
+               enddo
+               w_frac(ii,jj) = float(cfov)/(max(1,index(ii,jj)))     !  fraction
+               if( w_frac(ii,jj) > 0.01 ) nlev_cld(ii,jj) = 1
+               endif
+
+!         write(6,*)'sat_tem2::',index(ii,jj),sat_ctp(ii,jj),sat_tem(ii,jj)
              endif
           endif
         enddo  !ii
       enddo  !jj
  
       return
-end subroutine map_ctp
- 
-subroutine sorting(d,n,is) 
-      use kinds, only: r_kind,i_kind
-      implicit none
-
-      integer(i_kind), intent(in) :: n
-      real(r_kind)   , intent(inout) :: d(n)
-      integer(i_kind), intent(inout) :: is(n)
-!
-      integer(i_kind) :: nm1,ip1,iold,i,j
-      real(r_kind)    :: temp
-!
-!
-      nm1 = n-1 
-      do 10 i=1,nm1 
-      ip1 = i+1 
-        do 10 j=ip1,n 
-        if(d(i) <= d(j)) goto 10 
-          temp = d(i) 
-          d(i) = d(j) 
-          d(j) = temp 
-          iold  = is(i) 
-          is(i) = is(j) 
-          is(j) = iold 
-   10 continue 
-      return 
-end subroutine  sorting
-
-subroutine sortmed(p,n,is,f) 
-      use kinds, only: r_kind,i_kind
-      implicit none
-      real(r_kind),    intent(inout) :: p(n)
-      integer(i_kind), intent(in)    :: n
-      integer(i_kind), intent(inout) :: is(n)
-! * count cloudy fov
-      real(r_kind),    intent(out)   ::  f
-      integer(i_kind) ::  cfov
-! 
-      integer(i_kind) :: i,j,nm1,ip1,iold
-      real(r_kind)    :: temp
-!
-!
-!
-      cfov = 0
-      do i=1,n
-         if(p(i) < 999._r_kind) cfov = cfov + 1
-      enddo
-      f = float(cfov)/(max(1,n))
-! cloud-top pressure is sorted high cld to clear
-      nm1 = n-1 
-      do 10 i=1,nm1 
-      ip1 = i+1 
-        do 10 j=ip1,n 
-        if(p(i)<=p(j)) goto 10 
-          temp = p(i) 
-          p(i) = p(j) 
-          p(j) = temp 
-          iold  = is(i) 
-          is(i) = is(j) 
-          is(j) = iold 
-   10 continue 
-      return 
-end subroutine sortmed
+end subroutine map_ctp_lar

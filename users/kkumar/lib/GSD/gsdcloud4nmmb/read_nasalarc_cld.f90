@@ -1,5 +1,5 @@
-SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat,  &
-                       sat_ctp,sat_tem,w_frac,npts_rad)
+SUBROUTINE read_nasalarc(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat,  &
+                       nasalarc)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -57,11 +57,13 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
   integer(i_kind),intent(in) :: regional_time(6)
   integer(i_kind),intent(in) :: istart
   integer(i_kind),intent(in) :: jstart
-  INTEGER(i_kind),intent(in) :: npts_rad
   
-  real(r_single), intent(out):: sat_ctp(nlon,nlat)         ! cloud top pressure
-  real(r_single), intent(out):: sat_tem(nlon,nlat)         ! cloud top temperature
-  real(r_single), intent(out):: w_frac(nlon,nlat)          ! cloud fraction
+  real(r_single):: sat_ctp(nlon,nlat)         ! cloud top pressure
+  real(r_single):: sat_tem(nlon,nlat)         ! cloud top temperature
+  real(r_single):: w_frac(nlon,nlat)          ! cloud fraction
+  real(r_single):: w_lwp(nlon,nlat)          ! cloud fraction
+  integer(i_kind):: nlev_cld(nlon,nlat)          ! cloud fraction
+  real(r_single):: nasalarc(nlon,nlat,5)
 !
   INTEGER(i_kind) :: nn_obs
   real(r_kind),allocatable,dimension(:,:):: data_s
@@ -87,10 +89,17 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
   nn_obs = nreal + nchanl
   allocate(luse(numobs),data_s(nn_obs,numobs))
   read(lunin) data_s, luse 
-!
+
+! do i=1,numobs
+! write(6,*)'sliu larcclddata::',data_s(1,i),data_s(2,i),data_s(3,i)
+! end do
+
+! write(6,*)'read_NESDIS::',mype, maxval(data_s(7,:)),numobs
+
+
   ib=jstart   ! begin i point of this domain
   jb=istart   ! begin j point of this domain
-  call map_ctp (ib,jb,nlon,nlat,nn_obs,numobs,data_s,sat_ctp,sat_tem,w_frac,npts_rad)
+  call map_ctp_lar(ib,jb,nlon,nlat,nn_obs,numobs,data_s,sat_ctp,sat_tem,w_frac,w_lwp,nlev_cld)
 !!
 !  filling boundarys
 !
@@ -98,29 +107,60 @@ SUBROUTINE read_NESDIS(mype,lunin,numobs,regional_time,istart,jstart,nlon,nlat, 
     sat_ctp(i,1)   =sat_ctp(i,2)
     sat_tem(i,1)   =sat_tem(i,2)
     w_frac(i,1)    =w_frac(i,2)
+    w_lwp(i,1)    =w_lwp(i,2)
+    nlev_cld(i,1)    =nlev_cld(i,2)
     sat_ctp(i,nlat)=sat_ctp(i,nlat-1)
     sat_tem(i,nlat)=sat_tem(i,nlat-1)
     w_frac(i,nlat) =w_frac(i,nlat-1)
+    w_lwp(i,nlat) =w_lwp(i,nlat-1)
+    nlev_cld(i,nlat) =nlev_cld(i,nlat-1)
   enddo
   DO j=2,nlat-1
     sat_ctp(1,j)   =sat_ctp(2,j)
     sat_tem(1,j)   =sat_tem(2,j)
-    w_frac(1,j)    =w_frac(2,j)
+    w_frac(1,j)    =w_lwp(2,j)
+    w_lwp(1,j)    =w_lwp(2,j)
+    nlev_cld(1,j)    =nlev_cld(2,j)
     sat_ctp(nlon,j)=sat_ctp(nlon-1,j)
     sat_tem(nlon,j)=sat_tem(nlon-1,j)
     w_frac(nlon,j) =w_frac(nlon-1,j)
+    w_lwp(nlon,j) =w_lwp(nlon-1,j)
+    nlev_cld(nlon,j) =nlev_cld(nlon-1,j)
   enddo
   sat_ctp(1,1)      =sat_ctp(2,2)
   sat_tem(1,1)      =sat_tem(2,2)
   w_frac(1,1)       =w_frac(2,2)
+  w_lwp(1,1)       =w_lwp(2,2)
+  nlev_cld(1,1)       =nlev_cld(2,2)
+
   sat_ctp(1,nlat)   =sat_ctp(2,nlat-1)
   sat_tem(1,nlat)   =sat_tem(2,nlat-1)
   w_frac(1,nlat)    =w_frac(2,nlat-1)
+  w_lwp(1,nlat)    =w_lwp(2,nlat-1)
+  nlev_cld(1,nlat)    =nlev_cld(2,nlat-1)
+
   sat_ctp(nlon,1)   =sat_ctp(nlon-1,2)
   sat_tem(nlon,1)   =sat_tem(nlon-1,2)
   w_frac(nlon,1)    =w_frac(nlon-1,2)
+  w_lwp(nlon,1)    =w_lwp(nlon-1,2)
+  nlev_cld(nlon,1)    =nlev_cld(nlon-1,2)
+
   sat_ctp(nlon,nlat)=sat_ctp(nlon-1,nlat-1)
   sat_tem(nlon,nlat)=sat_tem(nlon-1,nlat-1)
   w_frac(nlon,nlat) =w_frac(nlon-1,nlat-1)
 
-END SUBROUTINE read_NESDIS
+  do i=1,nlon
+  do j=1,nlat
+    nasalarc(i,j,1)=sat_ctp(i,j)
+    nasalarc(i,j,2)=sat_tem(i,j)
+    nasalarc(i,j,3)=w_frac(i,j) !/100.0
+    nasalarc(i,j,4)=w_lwp(i,j)  !/100.0
+    nasalarc(i,j,5)=nlev_cld(i,j)
+!   if(abs(sat_tem(i,j))>0.and.abs(sat_tem(i,j))<400) then
+!    write(6,*)'sat_tem2 in read_cloud::',sat_ctp(i,j),sat_tem(i,j),nasalarc(i,j,1)
+!   end if
+  end do
+  end do
+  
+
+END SUBROUTINE read_nasalarc

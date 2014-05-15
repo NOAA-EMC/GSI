@@ -1,8 +1,7 @@
 SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
                         t_bk,p_bk,q,h_bk,zh,  &
                         mxst_p,NVARCLD_P,numsao,OI,OJ,OCLD,OWX,Oelvtn,Odist,&
-                        cld_cover_3d,cld_type_3d,wthr_type,pcp_type_3d,     &
-                        watericemax, kwatericemax)
+                        cld_cover_3d,cld_type_3d,wthr_type,pcp_type_3d)
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -98,8 +97,6 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
   real(r_single),intent(in) :: q(nlon,nlat,nsig)     ! moisture, water vapor mixing ratio (kg/kg)
   real(r_single),intent(in) :: h_bk(nlon,nlat,nsig)  ! height
 !
-  REAL(r_single),intent(in)   :: watericemax(mxst_p)  ! max of background total liquid water in station
-  INTEGER(i_kind),intent(in):: kwatericemax(nlon,nlat)  ! lowest level of background total liquid water in grid
 !
 !  Variables for cloud analysis
 !
@@ -138,9 +135,9 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
   LOGICAL :: l_cf,l_inversion
   LOGICAL :: if_cloud_exist
 
+
   integer(i_kind) :: firstcloud,cl_base_broken_k
   real(r_single)  ::    underlim
-  integer(i_kind) :: npts_near_clr
 
 
 !====================================================================
@@ -153,9 +150,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
    nztn_p=nsig
 
    vis2qc=-9999.0_r_kind
-   npts_near_clr=0
-!
-!
+
 !*****************************************************************
 !  analysis of surface/METAR cloud observations
 ! *****************************************************************
@@ -200,14 +195,11 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !
 !            zlev_clr = Oelvtn(ista)+3650.
 ! Upcoming mods commented out below for this commit - 4/3/2010
-! PH: added in column cleaning up to ceilometer height if ob is CLR
-        zlev_clr = 3650.
+!            zlev_clr = 3650.
 
         do k=1,nztn_p
-           if (h_bk(i1,j1,k) < zlev_clr) then
-              cld_cover_3d(i1,j1,k)=0.0_r_kind
-              pcp_type_3d(i1,j1,k)=0
-           endif
+           cld_cover_3d(i1,j1,k)=0.0_r_kind
+           pcp_type_3d(i1,j1,k)=0
         end do
 
         wthr_type(i1,j1)=0
@@ -225,32 +217,6 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
            if (ocld(ic,ista)>0 .and. ocld(ic,ista)<50) then
 !             if  ( csza(i,j)>=0.10 .and. sat_ctp(i1,j1)>1010.0 &
 !                 .and. sat_ctp(i1,j1)<1050.)  go to 1850
-!
-! New tweak - 11/07/2009
-!   If there was cloud in background over station but if there
-!     was partial cloudiness within volume and this is one of the
-!     clear columns within the polygonal area for this METAR,
-!     then leave it that way and skip.
-!            if (watericemax(iob,job).gt.0. .and.
-!     1          kwatericemax(iob,job).gt.0 .and.
-!     1          kwatericemax(iob,job).le.12) then
-!              npts_cld_match = npts_cld_match + 1
-!              dzbase = cl_base_ista - g3(iob,job,kwatericemax(iob,job),h_p)
-!              sum_dzbase = sum_dzbase + dzbase
-!              sum_dzbase_abs = sum_dzbase_abs + abs(dzbase)
-!            end if
-
-! mhu, Aug. 28, 2013: comment out patial cloudiness. It causes the degradation
-! in 3000' ceiling 1-h forecast.
-!              if(watericemax(ista) > 0._r_single .and. kwatericemax(i1,j1)==-1) then
-!                 !PH 2/28/2013: ensure cloud building at 4 neighboring
-!                 !gridpoints (Odist < 1), regardless of background 
-!                 if(Odist(ista) >= 1.0_r_kind) then
-!                    npts_near_clr = npts_near_clr + 1
-!                    cycle   ! skip cloud build at point (i,j) because
-!                            ! background is clear
-!                 endif
-!              endif
 
               if(ocld(ic,ista) == 4) then
                  if(wthr_type(i1,j1) > 10 .and. wthr_type(i1,j1) < 20) cloud_dz = 1000._r_kind  
@@ -264,12 +230,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !                   cl_base_ista = (float(ocld(6+ic,ista))+zh(iob,job))
 !                   cl_base_ista = (float(ocld(6+ic,ista))+Oelvtn(ista))
 ! the h_bk is AGL. So observation cloud base should be AGL too, delete Oelvtn(ista)
-! cover cloud base observation from AGL to ASL
-              cl_base_ista = float(ocld(6+ic,ista)) + Oelvtn(ista) - zh(i1,j1)
-              if(zh(i1,j1) < 1.0_r_kind .and. Oelvtn(ista) > 20.0_r_kind &
-                 .and. float(ocld(6+ic,ista)) < 250.0_r_kind) then
-                 cycle   ! limit the use of METAR station over oceas for low cloud base
-              endif
+              cl_base_ista = float(ocld(6+ic,ista))
               
               firstcloud = 0
               underlim = 10._r_kind   !
@@ -288,8 +249,7 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
                  if(k==8)  underlim=95.0_r_kind    ! 3000 feet
                  if(k>=9 .and. k<nztn_p-1) underlim=(h_bk(i1,j1,k+1)-h_bk(i1,j1,k))*0.8_r_kind
                  if (zdiff<underlim) then
-                    if((cl_base_ista >= 1.0 .and. (firstcloud==0 .or. abs(zdiff)<cloud_dz)) .or. &
-                       (cl_base_ista < 1.0 .and. (abs(zdiff)<cloud_dz)) ) then
+                    if(firstcloud==0 .or. abs(zdiff)<cloud_dz) then
                        if(ocld(ic,ista) == 1 ) then
                           cld_cover_3d(i1,j1,k)=max(cld_cover_3d(i1,j1,k),0.1_r_single)
                           pcp_type_3d(i1,j1,k)=0
