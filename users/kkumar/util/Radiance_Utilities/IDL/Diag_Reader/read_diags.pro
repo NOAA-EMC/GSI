@@ -1,5 +1,6 @@
 pro read_diags,file,obsdata,metadata,nobs,nchan,verbose=verbose,$
-    Old_Version=Old_Version,ChanInfo=ChanInfo,Swap_Endian=Swap_Endian
+    Old_Version=Old_Version,ChanInfo=ChanInfo,Swap_Endian=Swap_Endian,$
+    diagbufex=diagbufex
 ;
 ; Reads in diagnostic files for ** satellite radiance data only ****
 ;
@@ -82,6 +83,8 @@ openr,1,file,/f77_unformatted,swap_endian=swap_endian
 ON_IOERROR,Old_Version
 readu,1,isis,plat,obstype,iter,nchan,npred,analdate,num_real,$
     pchan,iextra,jextra,idiag,angord,iversion
+if (verbose eq 1) then print,'Version number, angord = ',iversion,angord
+
 Old_Version=0
 Old_Version: If (Old_Version ne 0) then begin
   close,1
@@ -91,10 +94,11 @@ Old_Version: If (Old_Version ne 0) then begin
     nchan,npred,analdate,num_real,pchan,iextra,jextra
 endif
 
-if (iextra gt 0) then begin
-  print,'Cannot deal with iextra gt 0 for now'
-  stop
-endif
+if (iextra gt 0 and jextra gt 0) then begin
+  diagbufex=fltarr(iextra,jextra)
+endif else begin
+  diagbufex=0.0
+endelse
 
 for i=0,nchan-1 do begin
   readu,1,freq,pol,wave,varch,tlap,iuse_rad,nuchan,ich
@@ -102,7 +106,6 @@ for i=0,nchan-1 do begin
 endfor
 
 diagbuf=fltarr(num_real)
-
 
 case Old_Version of
 0:
@@ -123,9 +126,12 @@ diagbufchan=fltarr(idiag,nchan)
 
 nobs=0L
 while (nobs lt 1000000L and ~ EOF(1)) do begin
-  readu,1,diagbuf,diagbufchan
+  if (iextra gt 0 and jextra gt 0) then begin
+    readu,1,diagbuf,diagbufchan,diagbufex
+  endif else begin
+    readu,1,diagbuf,diagbufchan
+  endelse
   nobs=nobs+1L
-  if (verbose eq  1) then print,nobs,EOF(1),diagbuf(0)
 endwhile
 if (verbose eq 1) then print,nobs,' observations to be read in'
 
@@ -137,8 +143,6 @@ if (verbose eq 1) then print,'Opening file for second pass'
 
 openr,1,file,/f77_unformatted,swap_endian=swap_endian
 
-if (verbose eq 1) then print,'Opening file for second pass'
-
 if (old_version gt 0) then begin
   readu,1,isis,plat,obstype,iter,nchan,npred,analdate,num_real,$
       pchan,iextra,jextra
@@ -146,13 +150,6 @@ endif else begin
   readu,1,isis,plat,obstype,iter,nchan,npred,analdate,num_real,$
       pchan,iextra,jextra,idiag,angord,iversion
 endelse
-
-if (verbose eq 1) then print,'Opening file for second pass'
-
-if (iextra gt 0) then begin
-  print,'Cannot deal with iextra gt 0 for now'
-  stop
-endif
 
 if (verbose eq 1) then print,'Setting up structures'
 
@@ -255,8 +252,10 @@ case old_version of
 endcase 
 
 if (old_version eq 0) then begin
+
    if (iversion lt 13784) then begin
-      b={ obs:fltarr(nchan), $        ; Observed BT
+   
+     b={ obs:fltarr(nchan), $        ; Observed BT
           Depar_BC:fltarr(nchan), $   ; Observed - Calculated with Bias Correction
           Depar_NBC:fltarr(nchan), $  ; Observed - Calculated without Bias Correction
           errinv:fltarr(nchan), $     ; Inverse of observation error
@@ -268,9 +267,68 @@ if (old_version eq 0) then begin
                                                         ; (obsolete with new scan angle corrections)
           bias_clw_term:fltarr(nchan), $                ; Cloud liquid water bias corrections term
           bias_lap2_term:fltarr(nchan), $               ; Square of lapse rate bias corrections term
-          bias_lap_term:fltarr(nchan), $                ; Lapse rate bias corrections terms
+          bias_lap_term:fltarr(nchan), $                ; Lapse rate bias corrections term
           bias_scanangle_terms:fltarr(nchan,angord+1),$ ; Scan angle bias corrections terms
           bias_sst_term:fltarr(nchan) }                 ; Sea surface temperature corrections terms
+   endif else if (iversion lt 19180) then begin
+        b={ obs:fltarr(nchan), $        ; Observed BT
+            Depar_BC:fltarr(nchan), $   ; Observed - Calculated with Bias Correction
+            Depar_NBC:fltarr(nchan), $  ; Observed - Calculated without Bias Correction
+            errinv:fltarr(nchan), $     ; Inverse of observation error
+            qc_flag:fltarr(nchan), $    ; QC Flag
+            surf_emiss:fltarr(nchan), $ ; Surface Emissivity
+            tlapchan:fltarr(nchan), $   ; Stability Index
+            tb_tz:fltarr(nchan), $      ; SST temperature gradient
+            bias_constant_term:fltarr(nchan), $           ; Constant bias corrections term
+            bias_cosscanangle_term:fltarr(nchan), $       ; Cos scan-angle bias corrections term
+                                                          ; (obsolete with new scan angle corrections)
+            bias_clw_term:fltarr(nchan), $                ; Cloud liquid water bias corrections term
+            bias_lap2_term:fltarr(nchan), $               ; Square of lapse rate bias corrections term
+            bias_lap_term:fltarr(nchan), $                ; Lapse rate bias corrections terms
+            bias_scanangle_terms:fltarr(nchan,angord+1),$ ; Scan angle bias corrections terms (last term is total scan correction)
+            bias_sst_term:fltarr(nchan) }                 ; Sea surface temperature corrections terms
+   endif else if (iversion lt 30303) then begin
+       b={ obs:fltarr(nchan), $        ; Observed BT
+          Depar_BC:fltarr(nchan), $   ; Observed - Calculated with Bias Correction
+          Depar_NBC:fltarr(nchan), $  ; Observed - Calculated without Bias Correction
+          errinv:fltarr(nchan), $     ; Inverse of observation error
+          qc_flag:fltarr(nchan), $    ; QC Flag
+          surf_emiss:fltarr(nchan), $ ; Surface Emissivity
+          tlapchan:fltarr(nchan), $   ; Stability Index
+          tb_tz:fltarr(nchan), $      ; SST temperature gradient
+          bias_constant_term:fltarr(nchan), $           ; Constant bias corrections term
+          bias_cosscanangle_term:fltarr(nchan), $       ; Cos scan-angle bias corrections term
+                                                        ; (obsolete with new scan angle corrections)
+          bias_clw_term:fltarr(nchan), $                ; Cloud liquid water bias corrections term
+          bias_lap2_term:fltarr(nchan), $               ; Square of lapse rate bias corrections term
+          bias_lap_term:fltarr(nchan), $                ; Lapse rate bias corrections term
+          bias_cos_term:fltarr(nchan), $                ; Cosine of solar zenith angle term
+          bias_sin_term:fltarr(nchan), $                ; Sine of solar zenith angle term
+          bias_scanangle_terms:fltarr(nchan,angord+1),$ ; Scan angle bias corrections terms
+          bias_sst_term:fltarr(nchan) }                 ; Sea surface temperature corrections terms
+   endif else begin          
+       b={ obs:fltarr(nchan), $        ; Observed BT
+          Depar_BC:fltarr(nchan), $   ; Observed - Calculated with Bias Correction
+          Depar_NBC:fltarr(nchan), $  ; Observed - Calculated without Bias Correction
+          errinv:fltarr(nchan), $     ; Inverse of observation error
+          qc_flag:fltarr(nchan), $    ; QC Flag
+          surf_emiss:fltarr(nchan), $ ; Surface Emissivity
+          tlapchan:fltarr(nchan), $   ; Stability Index
+          tb_tz:fltarr(nchan), $      ; SST temperature gradient
+          bias_constant_term:fltarr(nchan), $           ; Constant bias corrections term
+          bias_cosscanangle_term:fltarr(nchan), $       ; Cos scan-angle bias corrections term
+                                                        ; (obsolete with new scan angle corrections)
+          bias_clw_term:fltarr(nchan), $                ; Cloud liquid water bias corrections term
+          bias_lap2_term:fltarr(nchan), $               ; Square of lapse rate bias corrections term
+          bias_lap_term:fltarr(nchan), $                ; Lapse rate bias corrections term
+          bias_cos_term:fltarr(nchan), $                ; Cosine of solar zenith angle term
+          bias_sin_term:fltarr(nchan), $                ; Sine of solar zenith angle term
+          bias_emiss_term:fltarr(nchan), $              ; Surface emissivity term
+          bias_scanangle_terms:fltarr(nchan,angord+1),$ ; Scan angle bias corrections terms
+          bias_sst_term:fltarr(nchan) }                 ; Sea surface temperature corrections terms
+   endelse
+
+   if (iversion lt 13784) then begin
 
       a={ cenlat:0.,$                 ; observation latitude (degrees)
           cenlon:0.,$                 ; observation longitude (degrees)
@@ -299,24 +357,7 @@ if (old_version eq 0) then begin
           cldfrac_clw:0.,$            ; cloud fraction (%)
           cldp_tpwc:0.}               ; cloud top pressure (hPa)
 
-    endif else begin
-
-      b={ obs:fltarr(nchan), $        ; Observed BT
-          Depar_BC:fltarr(nchan), $   ; Observed - Calculated with Bias Correction
-          Depar_NBC:fltarr(nchan), $  ; Observed - Calculated without Bias Correction
-          errinv:fltarr(nchan), $     ; Inverse of observation error
-          qc_flag:fltarr(nchan), $    ; QC Flag
-          surf_emiss:fltarr(nchan), $ ; Surface Emissivity
-          tlapchan:fltarr(nchan), $   ; Stability Index
-          tb_tz:fltarr(nchan), $      ; SST temperature gradient
-          bias_constant_term:fltarr(nchan), $           ; Constant bias corrections term
-          bias_cosscanangle_term:fltarr(nchan), $       ; Cos scan-angle bias corrections term
-                                                        ; (obsolete with new scan angle corrections)
-          bias_clw_term:fltarr(nchan), $                ; Cloud liquid water bias corrections term
-          bias_lap2_term:fltarr(nchan), $               ; Square of lapse rate bias corrections term
-          bias_lap_term:fltarr(nchan), $                ; Lapse rate bias corrections terms
-          bias_scanangle_terms:fltarr(nchan,angord+1),$ ; Scan angle bias corrections terms
-          bias_sst_term:fltarr(nchan) }                 ; Sea surface temperature corrections terms
+   endif else begin
 
       a={ cenlat:0.,$                 ; observation latitude (degrees)
           cenlon:0.,$                 ; observation longitude (degrees)
@@ -349,7 +390,7 @@ if (old_version eq 0) then begin
           dtc:  0., $                 ; For NSST
           tz_tr: 0. }                 ; For NSST
 
-  endelse
+   endelse
 endif
  
 if (n_tags(a) ne num_real) then begin
@@ -368,7 +409,11 @@ if (verbose eq 1) then print,'Populating structures'
 ON_IOERROR,NULL
 
 for iobs=0L,nobs-1 do begin
-  readu,1,diagbuf,diagbufchan
+  if (iextra gt 0 and jextra gt 0) then begin
+    readu,1,diagbuf,diagbufchan,diagbufex
+  endif else begin
+    readu,1,diagbuf,diagbufchan
+  endelse
   for i=0,num_real-1 do begin
     metadata(iobs).(i)=diagbuf(i)
   endfor
@@ -390,12 +435,30 @@ for iobs=0L,nobs-1 do begin
     obsdata(iobs).bias_clw_term                    = diagbufchan(9,*)
     obsdata(iobs).bias_lap2_term                   = diagbufchan(10,*)
     obsdata(iobs).bias_lap_term                    = diagbufchan(11,*)
-    obsdata(iobs).bias_scanangle_terms(*,0)        = diagbufchan(12,*)
-    obsdata(iobs).bias_scanangle_terms(*,1)        = diagbufchan(13,*)
-    obsdata(iobs).bias_scanangle_terms(*,2)        = diagbufchan(14,*)
-    obsdata(iobs).bias_scanangle_terms(*,3)        = diagbufchan(15,*)
-    obsdata(iobs).bias_scanangle_terms(*,4)        = diagbufchan(16,*)
-    obsdata(iobs).bias_sst_term                    = diagbufchan(17,*)
+        for iang=0,angord do begin
+      obsdata(iobs).bias_scanangle_terms(*,iang)   = diagbufchan(12+iang,*)
+    endfor
+    obsdata(iobs).bias_sst_term                    = diagbufchan(13,*)
+  endif else if (iversion lt 19180) then begin
+    obsdata(iobs).obs                              = diagbufchan(0,*)
+    obsdata(iobs).Depar_BC                         = diagbufchan(1,*)
+    obsdata(iobs).Depar_NBC                        = diagbufchan(2,*)
+    obsdata(iobs).errinv                           = diagbufchan(3,*)
+    obsdata(iobs).qc_flag                          = diagbufchan(4,*)
+    obsdata(iobs).surf_emiss                       = diagbufchan(5,*)
+    obsdata(iobs).tlapchan                         = diagbufchan(6,*)
+    obsdata(iobs).tb_tz                            = diagbufchan(7,*)
+    obsdata(iobs).bias_constant_term               = diagbufchan(8,*)
+    obsdata(iobs).bias_cosscanangle_term           = diagbufchan(9,*)
+    obsdata(iobs).bias_clw_term                    = diagbufchan(10,*)
+    obsdata(iobs).bias_lap2_term                   = diagbufchan(11,*)
+    obsdata(iobs).bias_lap_term                    = diagbufchan(12,*)
+    obsdata(iobs).bias_cos_term                    = diagbufchan(13,*)
+    obsdata(iobs).bias_sin_term                    = diagbufchan(14,*)
+    for iang=0,angord do begin
+      obsdata(iobs).bias_scanangle_terms(*,iang)   = diagbufchan(15+iang,*)
+    endfor
+    obsdata(iobs).bias_sst_term                    = diagbufchan(16+angord,*)
   endif else begin
     obsdata(iobs).obs                              = diagbufchan(0,*)
     obsdata(iobs).Depar_BC                         = diagbufchan(1,*)
@@ -410,13 +473,14 @@ for iobs=0L,nobs-1 do begin
     obsdata(iobs).bias_clw_term                    = diagbufchan(10,*)
     obsdata(iobs).bias_lap2_term                   = diagbufchan(11,*)
     obsdata(iobs).bias_lap_term                    = diagbufchan(12,*)
-    obsdata(iobs).bias_scanangle_terms(*,0)        = diagbufchan(13,*)
-    obsdata(iobs).bias_scanangle_terms(*,1)        = diagbufchan(14,*)
-    obsdata(iobs).bias_scanangle_terms(*,2)        = diagbufchan(15,*)
-    obsdata(iobs).bias_scanangle_terms(*,3)        = diagbufchan(16,*)
-    obsdata(iobs).bias_scanangle_terms(*,4)        = diagbufchan(17,*)
-    obsdata(iobs).bias_sst_term                    = diagbufchan(18,*)
-   endelse
+    obsdata(iobs).bias_cos_term                    = diagbufchan(13,*)
+    obsdata(iobs).bias_sin_term                    = diagbufchan(14,*)
+    obsdata(iobs).bias_emiss_term                  = diagbufchan(15,*)
+    for iang=0,angord do begin
+      obsdata(iobs).bias_scanangle_terms(*,iang)   = diagbufchan(16+iang,*)
+    endfor
+    obsdata(iobs).bias_sst_term                    = diagbufchan(17,*)
+  endelse
 
 endfor
 

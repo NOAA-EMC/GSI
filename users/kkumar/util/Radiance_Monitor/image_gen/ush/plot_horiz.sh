@@ -59,7 +59,7 @@ cat << EOF > ${cmdfile}
 ${GRADS} -blc run ${SAT}_${var}.gs
 EOF
 
-   $TIMEX $GRADS -blc "run ${SAT}_${var}.gs"
+   $GRADS -blc "run ${SAT}_${var}.gs"
 #   $GRADS -blc "run ${SAT}_${var}.gs"
 done
 

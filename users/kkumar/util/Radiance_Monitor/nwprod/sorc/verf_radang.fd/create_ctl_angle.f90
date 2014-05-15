@@ -39,6 +39,7 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 !**************************************************************************
 
   write(6,*)'start create_ctl_angle'
+  write(6,*)' n_chan = ', n_chan
 
 ! Create date for tdef based on given date and hour offset
 
@@ -66,32 +67,37 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
 ! Open unit to GrADS control file
   open(lunctl,file=ctl_file,form='formatted')
 
-! Construct region string
-  do i=1,nregion
-     if (rlatmin(i)>0.) then
-        write(clatmin,10) int(rlatmin(i))
-     else
-        write(clatmin,20) abs(int(rlatmin(i)))
-     endif
-     if (rlatmax(i)>0.) then
-        write(clatmax,10) int(rlatmax(i))
-     else
-        write(clatmax,20) abs(int(rlatmax(i)))
-     endif
-     if (rlonmin(i)>0.) then
-        write(clonmin,30) int(rlonmin(i))
-     else
-        write(clonmin,40) abs(int(rlonmin(i)))
-     endif
-     if (rlonmax(i)>0.) then
-        write(clonmax,30) int(rlonmax(i))
-     else
-        write(clonmax,40) abs(int(rlonmax(i)))
-     endif
-     stringr(i) = trim(region(i)) // ' (' // &
-          trim(clonmin) // '-' // trim(clonmax) // ', ' // &
-          trim(clatmin) // '-' // trim(clatmax) // ')'
-  end do
+!*******************************************************************
+!  Construct the region strings if this is for a global source,  
+!     which is defined as nregion > 1.
+!
+  if (nregion > 1) then
+     do i=1,nregion
+        if (rlatmin(i)>0.) then
+           write(clatmin,10) int(rlatmin(i))
+        else
+           write(clatmin,20) abs(int(rlatmin(i)))
+        endif
+        if (rlatmax(i)>0.) then
+           write(clatmax,10) int(rlatmax(i))
+        else
+           write(clatmax,20) abs(int(rlatmax(i)))
+        endif
+        if (rlonmin(i)>0.) then
+           write(clonmin,30) int(rlonmin(i))
+        else
+           write(clonmin,40) abs(int(rlonmin(i)))
+        endif
+        if (rlonmax(i)>0.) then
+           write(clonmax,30) int(rlonmax(i))
+        else
+           write(clonmax,40) abs(int(rlonmax(i)))
+        endif
+        stringr(i) = trim(region(i)) // ' (' // &
+             trim(clonmin) // '-' // trim(clonmax) // ', ' // &
+             trim(clatmin) // '-' // trim(clatmax) // ')'
+     end do
+  endif
 10 format(i2,'N')
 20 format(i2,'S')
 30 format(i3,'E')
@@ -115,11 +121,14 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
      write(lunctl,136) i,nu_chan(i),iuse,error(i),wavelength,frequency(i)
   end do
   write(lunctl,138)
-  do i=1,nregion
-     write(cword,'(i2)') i
-     string = '*  region=' // cword // ' ' // trim(stringr(i))
-     write(lunctl,140) string
-  end do
+
+  if (nregion > 1) then
+     do i=1,nregion
+        write(cword,'(i2)') i
+        string = '*  region=' // cword // ' ' // trim(stringr(i))
+        write(lunctl,140) string
+     end do
+  endif 
   write(lunctl,145) nstep,start,step
   write(lunctl,150) n_chan
   write(lunctl,160) nregion
@@ -137,7 +146,7 @@ subroutine create_ctl_angle(ntype,ftype,n_chan,iyy,imm,idd,ihh,&
          ' , wlth= ',f9.2,' , freq= ',f9.2)
 138 format('*ZDEF is geographic region')
 140 format(a80)
-145 format('xdef ',i3,' linear ',f5.1,1x,f4.2)
+145 format('xdef ',i3,' linear ',f5.1,1x,f5.1)
 150 format('ydef ',i4,' linear 1.0 1.0')
 160 format('zdef ',i2,' linear 1.0 1.0')
 170 format('tdef ',i4,' linear ',i2.2,'Z',i2.2,a3,i4.4,' 06hr')

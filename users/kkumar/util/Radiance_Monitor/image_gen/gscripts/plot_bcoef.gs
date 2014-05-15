@@ -2,7 +2,9 @@
 * 
 * Two arguments are expected
 *    plotfile = satellite id (name and number ... e.g., msu.014 = noaa-14 msu)
-*    field  = field to plot  (valid strings are:  count total fixang lapse lapse2 const scangl clw
+*    field  = field to plot  (valid strings are:  penalty mean atmpath clw lapse2 lapse 
+*                                                 cos_ssmis sin_ssmis emiss ordang4
+*                                                 ordang3 ordan2 ordan1
 
 *'reinit'
 
@@ -39,6 +41,27 @@ if (field = lapse)
 endif
 if (field = lapse2)
  type="integrated (lapse rate)**2 term"
+endif
+if (field = cos_ssmis)
+ type="cos for SSMIS term"
+endif
+if (field = sin_ssmis)
+ type="sin for SSMIS term"
+endif
+if (field = emiss)
+ type="emissivity sensitivity term"
+endif
+if (field = ordang4)
+ type="4th order angle term"
+endif
+if (field = ordang3)
+ type="3rd order angle term"
+endif
+if (field = ordang2)
+ type="2nd order angle term"
+endif
+if (field = ordang1)
+ type="1st order angle term"
 endif
 
 

@@ -25,7 +25,7 @@ plot_bcoef=plot_bcoef.gs
 
 #------------------------------------------------------------------
 #   Set dates
-bdate=`$NDATE -720 $PDATE`
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -79,20 +79,20 @@ for type in ${SATYPE}; do
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
 
-   list="mean atmpath clw lapse2 lapse"
+   list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
    for var in $list; do
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
 'run ${GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
 'quit'
 EOF
-      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
 
 
-   rm -f ${type}.ieee_d
-   rm -f ${type}.ctl
+#   rm -f ${type}.ieee_d
+#   rm -f ${type}.ctl
 
 done
 
@@ -112,9 +112,9 @@ done
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
 
-cd $tmpdir
-cd ../
-rm -rf $tmpdir
+#cd $tmpdir
+#cd ../
+#rm -rf $tmpdir
 
 
 exit

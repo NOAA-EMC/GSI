@@ -101,7 +101,7 @@ if [[ $use_static_satype -eq 0 ]]; then
    #  Find the first date with data.  Start at today and work
    #  backwards.  Stop after 90 days and exit.
    #
-   PDATE=`${SCRIPTS}/find_last_cycle.pl ${TANKDIR}`
+   PDATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 
    echo PDATE= $PDATE
 
@@ -163,8 +163,16 @@ if [[ $use_static_satype -eq 0 ]]; then
       if [[ $tmp == "angle" ]]; then
          tmp=`echo "$this_file" | cut -d. -f2`
       fi 
-      echo $tmp
-      SATYPE_LIST="$SATYPE_LIST $tmp"
+   
+      #----------------------------------------------------------   
+      #  remove sat/instrument_anl names so we don't end up
+      #  with both "airs_aqua" and "airs_aqua_anl" if analysis
+      #  files are being generated for this source.
+      #----------------------------------------------------------   
+      test_anl=`echo $tmp | grep "_anl"`
+      if [[ $test_anl = "" ]]; then
+         SATYPE_LIST="$SATYPE_LIST $tmp"
+      fi
    done
 
    export SATYPE=$SATYPE_LIST
