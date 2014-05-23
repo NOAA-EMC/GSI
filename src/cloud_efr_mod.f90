@@ -405,7 +405,8 @@ end subroutine set_cloud_lower_bound
       RRHO=one/RHO
 
      
-      inquire(file='eta_micro_lookup.dat',exist=pcexist)
+!      inquire(file='eta_micro_lookup.dat',exist=pcexist)
+       pcexist=.false.
       if (pcexist) then
 
 !        READ IN MASSI FROM LOOKUP TABLES
