@@ -37,6 +37,7 @@ module radinfo
 !   2013-02-19  sienkiewicz   - add adjustable SSMIS bias term weight
 !   2013-07-10  zhu     - add option upd_pred for radiance bias update indicator
 !   2013-07-19  zhu     - add option emiss_bc for emissivity sensitivity radiance bias predictor
+!   2014-04-24  li      - apply abs (absolute) to AA and be for safeguarding
 !
 ! subroutines included:
 !   sub init_rad            - set satellite related variables to defaults
@@ -1655,8 +1656,8 @@ contains
             if (iobs(i)<nthreshold) cycle
             AA(:,:)=A(:,:,i)
             be(:)  =b(:,i)
-            if (all(AA<atiny)) cycle
-            if (all(be<atiny)) cycle
+            if (all(abs(AA)<atiny)) cycle
+            if (all(abs(be)<atiny)) cycle
             call linmm(AA,be,np,1,np,np)
 
             predx(1,ich(i))=be(1)
