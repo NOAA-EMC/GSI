@@ -3900,7 +3900,7 @@ subroutine hybens_localization_setup
 
   if(regional) then
 !     convert s_ens_h from km to grid units.
-        call convert_km_to_grid_units(s_ens_hv,s_ens_h_gu_x,s_ens_h_gu_y,nz)
+        call convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
      if(vvlocal)then
         call init_rf_x(s_ens_h_gu_x(grd_loc%kbegin_loc:grd_loc%kend_alloc),kl)
         call init_rf_y(s_ens_h_gu_y(grd_loc%kbegin_loc:grd_loc%kend_alloc),kl)
@@ -3926,7 +3926,7 @@ subroutine hybens_localization_setup
 
 end subroutine hybens_localization_setup
 
-subroutine convert_km_to_grid_units(s_ens_hv,s_ens_h_gu_x,s_ens_h_gu_y,nz)
+subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    convert_km_to_grid_units
@@ -3939,7 +3939,6 @@ subroutine convert_km_to_grid_units(s_ens_hv,s_ens_h_gu_x,s_ens_h_gu_y,nz)
 !   2014-05-22  wu  modification to allow vertically varying localization scales in regional
 !
 !   input argument list:
-!     s_ens_hv  - input localization length scale in km
 !     nz    -- z dimemsion of s_ens_hv; could be one
 !
 !   output argument list:
@@ -3954,10 +3953,9 @@ subroutine convert_km_to_grid_units(s_ens_hv,s_ens_h_gu_x,s_ens_h_gu_y,nz)
 
   use kinds, only: r_kind,i_kind
   use hybrid_ensemble_isotropic,only: region_dx_ens,region_dy_ens
-  use hybrid_ensemble_parameters, only: grd_loc,n_ens
+  use hybrid_ensemble_parameters, only: grd_loc,n_ens,s_ens_hv
   implicit none
 
-  real(r_kind),intent(in   ) ::s_ens_hv(nz)
   integer(i_kind) ,intent(in   ) ::nz
   real(r_kind),intent(  out) ::s_ens_h_gu_x(nz),s_ens_h_gu_y(nz)
   logical,parameter:: debug=.false.
