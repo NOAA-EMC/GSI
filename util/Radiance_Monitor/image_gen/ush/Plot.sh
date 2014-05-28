@@ -70,26 +70,28 @@ fi
 #--------------------------------------------------------------------
 
 top_parm=${this_dir}/../../parm
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
+if [[ -s ${RADMON_CONFIG} ]]; then
+   . ${RADMON_CONFIG}
 else
-   echo "Unable to source ${top_parm}/RadMon_config"
+   echo "Unable to source ${RADMON_CONFIG}"
    exit 4
 fi
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
+
+if [[ -s ${RADMON_USER_SETTINGS} ]]; then
+   . ${RADMON_USER_SETTINGS}
 else
-   echo "Unable to source ${top_parm}/RadMon_user_settings"
+   echo "Unable to source ${RADMON_USER_SETTINGS}"
    exit 6
 fi
 
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
+. ${IG_PARM}/plot_rad_conf
 
 if [[ $RAD_AREA = "glb" ]]; then
-   . ${RADMON_IMAGE_GEN}/parm/glbl_conf
+   . ${IG_PARM}/glbl_conf
 elif [[ $RAD_AREA = "rgn" ]]; then
-   . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
+   . ${IG_PARM}/rgnl_conf
 else
    echo "ERROR:  unable to determine RAD_AREA for $SUFFIX"
    exit 7
@@ -101,19 +103,16 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${IG_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
 fi
 
-
-#--------------------------------------------------------------------
-
 #--------------------------------------------------------------------
 #  Deterine the number of cycles between start_dt and end_dt.
 #--------------------------------------------------------------------
-export NUM_CYCLES=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${end_dt}`
+export NUM_CYCLES=`${IG_SCRIPTS}/cycle_delta.pl ${start_dt} ${end_dt}`
 echo NUM_CYCLES = $NUM_CYCLES
 
 if [[ $NUM_CYCLES -le 0 ]]; then
@@ -129,9 +128,9 @@ fi
 #  have a cycle delta of 1 from $start_dt.  (Two cycles are necessary
 #  for grads to plot.)
 #--------------------------------------------------------------------
-proc_dt=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+proc_dt=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
 echo proc_date = $proc_dt
-delta_proc_start=`${SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
+delta_proc_start=`${IG_SCRIPTS}/cycle_delta.pl ${start_dt} ${proc_dt}`
 if [[ $delta_proc_start -le 0 ]]; then
    echo "ERROR:  no data available -- last processed date is ${proc_dt}"
    echo "        requested plot start date is ${start_dt}"
@@ -163,7 +162,7 @@ fi
 
 
 #--------------------------------------------------------------------
-#  Create tmpdir and LOGDIR
+#  Create tmpdir and LOGdir
 #--------------------------------------------------------------------
 
 tmpdir=${STMP_USER}/plot_rad${SUFFIX}
@@ -171,7 +170,7 @@ rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
 
-mkdir -p $LOGDIR
+mkdir -p $LOGdir
 
 
 #--------------------------------------------------------------------
@@ -191,7 +190,6 @@ if [[ "$CYA" = "00" ]];then
    export PLOT_HORIZ=1
 fi
 
-#echo plot = $PLOT, plot_horiz = $PLOT_HORIZ
 
 if [[ -d $PLOT_WORK_DIR ]]; then
    rm -rf $PLOT_WORK_DIR
@@ -272,26 +270,26 @@ export START_DATE=${start_dt}
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
-${SCRIPTS}/mk_angle_plots.sh
+${IG_SCRIPTS}/mk_angle_plots.sh
 
-${SCRIPTS}/mk_bcoef_plots.sh
+${IG_SCRIPTS}/mk_bcoef_plots.sh
 
-${SCRIPTS}/mk_bcor_plots.sh
+${IG_SCRIPTS}/mk_bcor_plots.sh
 
 if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
    export datdir=$RADSTAT_LOCATION
 
    jobname="plot_horiz_${SUFFIX}"
-   logfile="${LOGDIR}/horiz.log"
+   logfile="${LOGdir}/horiz.log"
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -J ${jobname}  -R affinity[core] ${SCRIPTS}/mk_horiz_plots.sh
+      $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -J ${jobname}  -R affinity[core] ${IG_SCRIPTS}/mk_horiz_plots.sh
    else
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/mk_horiz_plots.sh
    fi
 fi
 
-${SCRIPTS}/mk_time_plots.sh
+${IG_SCRIPTS}/mk_time_plots.sh
 
 
 #--------------------------------------------------------------------
@@ -302,14 +300,14 @@ do_data_rpt=$DO_DATA_RPT
 
 if [[ $do_data_rpt -eq 1 || $do_diag_rpt -eq 1 ]]; then
 
-   logfile_dir=${LOGSverf_rad}/rad${SUFFIX}
+   logfile_dir=${LOGdir}/rad${SUFFIX}
    logfile=`ls ${logfile_dir}/${PDY}/gdas_verfrad_${CYA}.*`
    if [[ ! -s $logfile ]]; then
-      logfile=${LOGDIR}/data_extract.${sdate}.${CYA}.log
+      logfile=${LOGdir}/data_extract.${sdate}.${CYA}.log
    fi
   
    if [[ -s $logfile ]]; then
-      ${SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
+      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
    fi
 fi
 

@@ -26,15 +26,12 @@
    #
    #  zeus is the only little endian machine
    # 
-   my $little_endian = "export LITTLE_ENDIAN=0";
+   my $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";
    if( $machine eq "zeus" ) {
-      $little_endian = "export LITTLE_ENDIAN=1";   
+      $little_endian = "export LITTLE_ENDIAN=\${LITTLE_ENDIAN:-0}";   
    }
 
    my $my_os = "linux";
-   if( $machine eq "ccs" ) {
-      my $my_os = "aix";
-   }
 
    #
    #  Idenfity basedir location of package
@@ -49,7 +46,7 @@
       $radmon = `pwd`;
       $radmon =~ s/^\s+|\s+$//g;
    }
-   my $my_radmon = "export MY_RADMON=$radmon";
+   my $my_radmon = "export MY_RADMON=\${MY_RADMON:-$radmon}";
    print "my_radmon = $my_radmon \n";
    print"\n\n";
 
@@ -77,7 +74,7 @@
    if( length($new_tankdir ) > 0 ) {
       $tankdir = $new_tankdir;
    }
-   my $my_tankdir="export MY_TANKDIR=$tankdir";
+   my $my_tankdir="export MY_TANKDIR=\${MY_TANKDIR:-$tankdir}";
    print "my_tankdir = $my_tankdir\n";
    print "\n\n";
    sleep( 1 );
@@ -97,7 +94,7 @@
    if( length($new_server ) > 0 ) {
       $server = $new_server;
    }
-   my $my_server="export WEB_SVR=$server";
+   my $my_server="export WEB_SVR=\${WEB_SVR:-$server}";
    print "my_server = $my_server\n";
    print "\n\n";
    sleep( 1 );
@@ -117,7 +114,7 @@
    if( length($new_webuser ) > 0 ) {
       $webuser = $new_webuser;
    }
-   my $my_webuser="export WEB_USER=$webuser";
+   my $my_webuser="export WEB_USER=\${WEB_USER:-$webuser}";
    print "my_webuser = $my_webuser\n";
    print "\n\n";
    sleep( 1 );
@@ -137,7 +134,7 @@
    if( length($new_webdir ) > 0 ) {
       $webdir = $new_webdir;
    }
-   my $my_webdir="export WEBDIR=$webdir";
+   my $my_webdir="export WEBDIR=\${WEBDIR:-$webdir}";
    print "my_webdir = $my_webdir\n";
    print "\n\n";
    sleep( 1 );
@@ -145,11 +142,11 @@
    #
    #  Set up ptmp and stmp locations according to $arch.
    #
-   my $my_ptmp="export PTMP=/ptmp";
-   my $my_stmp="export STMP=/stmp";
+   my $my_ptmp="export PTMP=\${PTMP:-/ptmpp1}";
+   my $my_stmp="export STMP=\${STMP:-/stmpp1}";
    if( $machine eq "zeus" ) {
-      $my_ptmp="export PTMP=/scratch2/portfolios/NCEPDEV/ptmp";
-      $my_stmp="export STMP=/scratch2/portfolios/NCEPDEV/stmp";
+      $my_ptmp="export PTMP=\${PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}";
+      $my_stmp="export STMP=\${STMP:-/scratch2/portfolios/NCEPDEV/stmp}";
    } 
 
    print "my_ptmp = $my_ptmp\n";
@@ -204,7 +201,7 @@
 
    my $account = "export ACCOUNT=\${ACCOUNT:-ada}";
    if( $machine ne "zeus" ) {
-      $account = "export ACCOUNT=";
+      $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
 
    my $project = "export PROJECT=\${PROJECT:-GDAS-T20}";

@@ -13,22 +13,19 @@
 # Internal reference definitions.  These should not
 # be edited. 
 #
-export PTMP_USER=${PTMP}/${USER}
-export STMP_USER=${STMP}/${USER}
+#export PTMP_USER=${PTMP}/${USER}
+#export STMP_USER=${STMP}/${USER}
 
-export SCRIPTS=${RADMON_IMAGE_GEN}/ush
-export PARM=${RADMON_IMAGE_GEN}/parm
-export GSCRIPTS=${RADMON_IMAGE_GEN}/gscripts
-export EXEDIR=${RADMON_IMAGE_GEN}/exec
+#export SCRIPTS=${RADMON_IMAGE_GEN}/ush
+#export PARM=${RADMON_IMAGE_GEN}/parm
+#export GSCRIPTS=${RADMON_IMAGE_GEN}/gscripts
+#export EXEDIR=${RADMON_IMAGE_GEN}/exec
 
-export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
-export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
-export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
+#export PLOT_COMP_DIR=${STMP_USER}/plot_comp_jobs
+#export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+#export PLOT_WORK_DIR=${STMP_USER}/plotjobs_${SUFFIX}
 
-if [[ $MY_MACHINE = "ccs" ]]; then
-   export GRADS=/usrx/local/grads/bin/grads
-   export STNMAP=/usrx/local/grads/bin/stnmap
-elif [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss" ]]; then
    export GRADS=/usrx/local/GrADS/2.0.1/bin/grads
    export STNMAP=/usrx/local/GrADS/2.0.1/bin/stnmap
    export GADDIR=/usrx/local/GrADS/2.0.1/lib
@@ -38,6 +35,5 @@ elif [[ $MY_MACHINE = "zeus" ]]; then
    shell=sh
    . $MODULESHOME/init/$shell
    module load grads/2.0.1a
-
 fi
 
