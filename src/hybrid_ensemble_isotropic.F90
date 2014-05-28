@@ -908,7 +908,6 @@ subroutine normal_new_factorization_rf_y
 !  real(r_kind) f(grd_loc%nlat,grd_loc%nlon*(grd_loc%kend_alloc+1-grd_loc%kbegin_loc)),diag(grd_loc%nlat)
   real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
   real(r_kind),allocatable:: diag(:,:)
-  real(4) plot(grd_loc%nlat,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
 
 !                       possible to have kend_loc - kbegin_loc-1 for processors not involved
 !                          which results in infinite loops
