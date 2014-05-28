@@ -34,7 +34,7 @@ cd $DATADIR
 #--------------------------------------------------------------------
 #   Copy extraction program to working directory
 
-$NCP $EXEDIR/horiz.x  ./horiz.x
+$NCP ${IG_EXEC}/horiz.x  ./horiz.x
 
 
 #--------------------------------------------------------------------
@@ -155,12 +155,12 @@ done
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    cmdfile="./cmdfile_horiz_${SUFFIX}_${PID}"
-   logfile=${LOGDIR}/horiz_${PID}.log
+   logfile=${LOGdir}/horiz_${PID}.log
    rm -f $cmdfile
 
 >$cmdfile
    for sat in ${SATLIST}; do
-     echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+     echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    done
 
    chmod 755 $cmdfile
@@ -173,12 +173,12 @@ else							# zeus/linux
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
       cmdfile="./cmdfile_horiz_${SUFFIX}_${sat}"
-      logfile=${LOGDIR}/horiz_${sat}.log
+      logfile=${LOGdir}/horiz_${sat}.log
 
       rm -f ${cmdfile}
       rm -f ${logfile}
 
-      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+      echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
 
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} -V -j oe -o ${logfile} $cmdfile
    done
@@ -197,7 +197,7 @@ for sat in ${bigSATLIST}; do
 
    rm -f $cmdfile
 >$cmdfile
-   echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+   echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
@@ -206,7 +206,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile
    fi
 
 #  --------
@@ -216,7 +216,7 @@ for sat in ${bigSATLIST}; do
 
    rm -f $cmdfile
 >$cmdfile
-   echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+   echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
    chmod 755 $cmdfile
 
    ntasks=`cat $cmdfile|wc -l`
@@ -225,7 +225,7 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
    else
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
+      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile
    fi
 
 done 

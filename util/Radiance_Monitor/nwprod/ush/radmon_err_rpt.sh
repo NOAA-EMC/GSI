@@ -166,10 +166,21 @@ fi
          if [[ $type == "chan" ]]; then
             match=`gawk "/$satname/ && /channel=  $channel/" $file2`
          else
-            match=`gawk "/$satname/ && /channel=  $channel / && /region=  $region /" $file2`
+            match=`gawk "/$satname/ && /channel= $channel / && /region= $region /" $file2`
+            echo match = $match
+
+            match_len=`echo ${#match}`
+            if [[ $match_len > 0 ]]; then
+               channel2=`echo $match | gawk '{print $3}'`
+               echo channel2 = $channel2
+               if [[ $channel2 != $channel ]]; then
+                  match=""
+               fi
+            fi            
+            echo match = $match
          fi
          match_len=`echo ${#match}`
-
+         
          if [[ $match_len > 0 ]]; then
             echo $match_len
             value2=`echo $match | gawk '{print $7}'`
@@ -210,8 +221,8 @@ fi
             #  grouping number in order to produce an accurate hyperlink.
             #
             ctlfile="time.${satname}.ctl"
-            if [[ -s ${ctlfile}.Z ]]; then
-               uncompress ${ctlfile}.Z
+            if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
+               uncompress ${ctlfile}.*
             fi
             changrp=`${USHgfs}/radmon_getchgrp.pl ${ctlfile} ${channel}`
             echo changrp = $changrp

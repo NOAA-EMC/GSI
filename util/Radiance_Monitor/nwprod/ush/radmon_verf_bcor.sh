@@ -200,7 +200,7 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-      $TIMEX ./${bcor_exec} < input >   stdout.$type
+      ./${bcor_exec} < input >   stdout.$type
       ./${bcor_exec} < input >   stdout.$type
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`

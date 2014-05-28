@@ -97,7 +97,7 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
-   ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
    if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
@@ -140,14 +140,14 @@ ${COMPRESS} ${imgndir}/*.ctl
      suffix=a
      cmdfile=cmdfile_pbcor_${suffix}
      jobname=plot_${SUFFIX}_bcor_${suffix}
-     logfile=${LOGDIR}/plot_bcor_${suffix}.log
+     logfile=${LOGdir}/plot_bcor_${suffix}.log
 
      rm -f ${cmdfile}
      rm -f ${logfile}
 
 >$cmdfile
      for sat in ${SATLIST}; do
-        echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
+        echo "$IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
      done
      chmod 755 $cmdfile
 
@@ -166,12 +166,12 @@ ${COMPRESS} ${imgndir}/*.ctl
         suffix=${sat}
         cmdfile=cmdfile_pbcor_${sat}
         jobname=plot_${SUFFIX}_bcor_${sat}
-        logfile=${LOGDIR}/plot_bcor_${sat}.log
+        logfile=${LOGdir}/plot_bcor_${sat}.log
 
         rm -f $cmdfile
         rm -f $logfile
 
-        echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
+        echo "$IG_SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
 
         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
            wall_tm="1:30:00"
@@ -197,14 +197,14 @@ ${COMPRESS} ${imgndir}/*.ctl
 
         cmdfile=cmdfile_pbcor_${suffix}
         jobname=plot_${SUFFIX}_bcor_${suffix}
-        logfile=${LOGDIR}/plot_bcor_${suffix}.log
+        logfile=${LOGdir}/plot_bcor_${suffix}.log
 
         rm -f $cmdfile
         rm ${logfile}
 
 >$cmdfile
         for var in $plot_list; do
-           echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+           echo "$IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
         done
         chmod 755 $cmdfile
         ntasks=`cat $cmdfile|wc -l `
@@ -221,12 +221,12 @@ ${COMPRESS} ${imgndir}/*.ctl
         for var in $plot_list; do
            cmdfile=cmdfile_pbcor_${suffix}_${var}
            jobname=plot_${SUFFIX}_bcor_${suffix}_${var}
-           logfile=${LOGDIR}/plot_bcor_${suffix}_${var}.log
+           logfile=${LOGdir}/plot_bcor_${suffix}_${var}.log
 
            rm -f ${cmdfile}
            rm -f ${logfile}
 
-           echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+           echo "$IG_SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
 
            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
               wall_tm="4:00:00"

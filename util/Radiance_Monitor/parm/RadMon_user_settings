@@ -60,12 +60,12 @@ export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 #    used for the operational data sets (GDAS, NDAS) and isn't normally necessary
 #    for parallels.  0 = off, 1 = on
 export DO_ARCHIVE=${DO_ARCHIVE:-0}
-export ARCHIVE_DIR=${ARCHIVE_DIR:-/sss/emc/da/save/Edward.Safford/nbns/stats}
+export ARCHIVE_DIR=${ARCHIVE_DIR:-}
 
 #
 #  HPSS_DIR is the location for archived data on the hpss.  It will only
 #    be used if DO_ARCHIVE is set to on (1).
-export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/wx20es/nbns/stats}
+export HPSS_DIR=${HPSS_DIR:-}
 
 #
 #  STATIC_SATYPE switches on/off use of static satype list.  This is primarily
@@ -86,8 +86,8 @@ export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
 #    reporting of drifting channel(s) on specific sat/instrument sources is 
 #    desirable.  It is not normally necesary to apply this to parallels.  0 = off, 1 = on
 export DO_DATA_RPT=${DO_DATA_RPT:-0}
-export MAIL_TO=${MAIL_TO:-''}
-export MAIL_CC=${MAIL_CC:-''}
+export MAIL_TO=${MAIL_TO:-}
+export MAIL_CC=${MAIL_CC:-}
 
 #
 #  RUN_ONLY_ON_DEV switches on/off the constraint to run only on the development machine.

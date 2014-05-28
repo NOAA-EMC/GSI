@@ -71,8 +71,7 @@
 #     programs   : $NCP
 #                  $angle_exec
 #
-#     fixed data : $satang
-#                  $scaninfo
+#     fixed data : $scaninfo
 #
 #     input data : $data_file
 #
@@ -201,7 +200,7 @@ cat << EOF > input
   rad_area='${RAD_AREA}',
  /
 EOF
-         $TIMEX ./${angle_exec} < input >   ${stdout_file}
+         ./${angle_exec} < input >   ${stdout_file}
          if [[ $? -ne 0 ]]; then
              fail=`expr $fail + 1`
          fi

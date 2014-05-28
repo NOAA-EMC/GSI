@@ -80,7 +80,7 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
-   ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
    if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
@@ -124,15 +124,15 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
      suffix=a
      cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
      jobname=plot_${SUFFIX}_ang_${suffix}
-     logfile=$LOGDIR/plot_angle_${suffix}.log
+     logfile=$LOGdir/plot_angle_${suffix}.log
 
      rm -f $cmdfile
      rm -f $logfile
 
-     rm $LOGDIR/plot_angle_${suffix}.log
+     rm $LOGdir/plot_angle_${suffix}.log
 #>$cmdfile
      for type in ${SATLIST}; do
-       echo "$SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
+       echo "$IG_SCRIPTS/plot_angle.sh $type $suffix '$list'" >> $cmdfile
      done
      chmod 755 $cmdfile
 
@@ -151,12 +151,12 @@ list="count penalty omgnbc total omgbc fixang lapse lapse2 const scangl clw cos 
         suffix=${sat} 
         cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
         jobname=plot_${SUFFIX}_ang_${suffix}
-        logfile=${LOGDIR}/plot_angle_${suffix}.log
+        logfile=${LOGdir}/plot_angle_${suffix}.log
 
         rm -f $cmdfile
         rm -f $logfile
 
-        echo "$SCRIPTS/plot_angle.sh $sat $suffix '$list'" >> $cmdfile
+        echo "$IG_SCRIPTS/plot_angle.sh $sat $suffix '$list'" >> $cmdfile
 
         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
            wall_tm="5:00:00"
@@ -195,11 +195,11 @@ for sat in ${bigSATLIST}; do
       cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
       rm -f $cmdfile
       jobname=plot_${SUFFIX}_ang_${suffix}
-      logfile=${LOGDIR}/plot_angle_${suffix}.log
+      logfile=${LOGdir}/plot_angle_${suffix}.log
 
       while [[ $ii -le ${#list[@]}-1 ]]; do
 
-         echo "$SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+         echo "$IG_SCRIPTS/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
          ntasks=`cat $cmdfile|wc -l `
          chmod 755 $cmdfile
 
@@ -217,7 +217,7 @@ for sat in ${bigSATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}
          rm -f $cmdfile
          jobname=plot_${SUFFIX}_ang_${suffix}
-         logfile=${LOGDIR}/plot_angle_${suffix}.log
+         logfile=${LOGdir}/plot_angle_${suffix}.log
 
          (( ii=ii+1 ))
       done
@@ -230,10 +230,10 @@ for sat in ${bigSATLIST}; do
       while [[ $ii -le ${#list[@]}-1 ]]; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${suffix}_${list[$ii]}
          rm -f $cmdfile
-         logfile=${LOGDIR}/plot_angle_${suffix}_${list[$ii]}.log
+         logfile=${LOGdir}/plot_angle_${suffix}_${list[$ii]}.log
          jobname=plot_${SUFFIX}_ang_${suffix}_${list[$ii]}
 
-         echo "${SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
+         echo "${IG_SCRIPTS}/plot_angle.sh $sat $suffix ${list[$ii]}" >> $cmdfile
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
             wall_tm="5:00:00"
