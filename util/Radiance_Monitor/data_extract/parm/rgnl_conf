@@ -7,9 +7,11 @@
 #
 #-------------------------------------------------------
 
-export DIR_SUFFIX=regional
+echo start rgnl_conf
+#export DIR_SUFFIX=regional
 
-export TANKDIR=${TANKverf_rad}/${DIR_SUFFIX}/${SUFFIX}
+#export TANKDIR=${TANKverf_rad}/${DIR_SUFFIX}/${SUFFIX}
 
+echo end rgnl_conf
 
 

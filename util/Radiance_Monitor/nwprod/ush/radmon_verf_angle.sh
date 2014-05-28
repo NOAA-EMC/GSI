@@ -71,8 +71,7 @@
 #     programs   : $NCP
 #                  $angle_exec
 #
-#     fixed data : $satang
-#                  $scaninfo
+#     fixed data : $scaninfo
 #
 #     input data : $data_file
 #

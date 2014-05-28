@@ -96,7 +96,7 @@ subroutine create_ctl_bcoef(ntype,ftype,n_chan,iyy,imm,idd,ihh,idhh,&
   write(lunctl,180) ntype
 
 100 format('dset ^',a40)
-110 format('options template big_endian cray_32bit_ieee sequential')
+110 format('options template big_endian sequential')
 112 format('options template little_endian sequential')
 120 format('undef ',f5.0)
 130 format('title ',a10,1x,a10,1x,i4)

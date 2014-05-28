@@ -8,13 +8,15 @@
 #          1 = prod 
 #          0 = dev 
 #
-   machine=`hostname | cut -c1`
-   prod=`cat /etc/prod | cut -c1`
    iamprod=0
+   machine=`hostname | cut -c1`
+   if [[ -e /etc/prod ]]; then
+      prod=`cat /etc/prod | cut -c1`
    
-   if [[ $machine = $prod ]]; then
-      iamprod=1
-   fi
+      if [[ $machine = $prod ]]; then
+         iamprod=1
+      fi
+   fi 
 
    echo $iamprod
    exit

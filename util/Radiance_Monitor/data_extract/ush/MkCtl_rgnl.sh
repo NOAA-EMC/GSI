@@ -5,7 +5,7 @@
 #
 #    This script generates the control files for a given suffix
 #    (source), using the JGDAS_VRFYRAD.sms.prod job.  The resulting
-#    control files are stored in $TANKDIR.
+#    control files are stored in $TANKverf.
 #
 #    This script is designed to be run manually, and should only be
 #    necessary if the user had previously overriden the default
@@ -51,26 +51,26 @@ export MAKE_CTL=1
 export MAKE_DATA=0
 
 top_parm=${this_dir}/../../parm
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
+if [[ -s ${RADMON_CONFIG} ]]; then
+   . ${RADMON_CONFIG}
 else
-   echo "Unable to source RadMon_config file in ${top_parm}"
+   echo "Unable to source ${RADMON_CONFIG} file"
    exit 2 
 fi
 
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
+if [[ -s ${RADMON_USER_SETTINGS} ]]; then
+   . ${RADMON_USER_SETTINGS}
 else
-   echo "Unable to source RadMon_user_settings file in ${top_parm}"
+   echo "Unable to source ${RADMON_USER_SETTINGS} file"
    exit 2 
 fi
 
-. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
-. ${PARMverf_rad}/rgnl_conf
+. ${DE_PARM}/data_extract_config
 
-mkdir -p $TANKDIR
-mkdir -p $LOGDIR
+mkdir -p $TANKverf
+mkdir -p $LOGdir
 
 
 tmpdir=${WORKverf_rad}/check_rad${SUFFIX}
@@ -80,19 +80,18 @@ cd $tmpdir
 
 #--------------------------------------------------------------------
 # Get date of cycle to process.  Start with the last time in the 
-# $TANKDIR and work backwards until we find a diag file to use
+# $TANKverf and work backwards until we find a diag file to use
 # or run out of the $ctr.
 #--------------------------------------------------------------------
-export PDATE=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}` 
+export PDATE=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}` 
 
 #---------------------------------------------------------------
-# Locate required files.
+# Locate radstat and biascr files.
 #---------------------------------------------------------------
 export DATDIR=${PTMP_USER}/regional
 export com=$RADSTAT_LOCATION
 
 biascr=$DATDIR/satbias.${PDATE}
-#satang=$DATDIR/satang.${PDATE}
 radstat=$DATDIR/radstat.${PDATE}
 
 ctr=0
@@ -101,7 +100,7 @@ while [[ $need_radstat -eq 1 && $ctr -lt 10 ]]; do
 
    sdate=`echo $PDATE|cut -c1-8`
    export CYA=`echo $PDATE|cut -c9-10`
-   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
+   /bin/sh ${DE_SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
 
    if [ -s $radstat -a -s $biascr ]; then
       need_radstat=0
@@ -114,7 +113,6 @@ done
 
 
 export biascr=$biascr
-#export satang=$satang
 export radstat=$radstat
 
 #--------------------------------------------------------------------
@@ -143,8 +141,6 @@ if [ -s $radstat -a -s $biascr ]; then
    export DATA_IN=${WORKverf_rad}
    export DATA=${WORKverf_rad}/radmon_regional
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
-   export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
-   export LOGDIR=$PTMP/$LOGNAME/logs/radnrx
    export USER_CLASS=dev
    export DO_DIAG_RPT=0
    export DO_DATA_RPT=0
@@ -160,9 +156,9 @@ if [ -s $radstat -a -s $biascr ]; then
    #   Submit data processing jobs.
    #
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGDIR/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -q $JOB_QUEUE -P $PROJECT -o $LOGdir/mk_ctl.${SUFFIX}.${PDY}.${cyc}.log -M 40 -R affinity[core] -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGDIR}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
+      $SUB -a $ACCOUNT -V -j ${jobname} -q dev -g ${USER_CLASS} -t 0:05:00 -o ${LOGdir}/make_ctl.${SUFFIX}.${PDY}.${cyc}.log -v ${HOMEgfs}/jobs/JGDAS_VRFYRAD.sms.prod
    fi
 
 fi
