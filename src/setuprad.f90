@@ -140,6 +140,7 @@
 !   2014-01-31  mkim    - Remove abs(60.0degree) boundary which existed for all-sky MW radiance DA 
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
+!   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -183,7 +184,7 @@
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-      two,three,cg_term,wgtlim,r100,r10,r0_01,pi
+      two,three,cg_term,wgtlim,r1000,r100,r10,r0_01,pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -196,9 +197,11 @@
   use clw_mod, only: calc_clw, ret_amsua 
   use qcmod, only: qc_ssmi,qc_seviri,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
-  use qcmod, only: setup_tzr_qc
+  use qcmod, only: setup_tzr_qc,ifail_outside_range
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
+  use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
+
   implicit none
 
 ! Declare passed variables
@@ -1172,7 +1175,38 @@
 
         icc = 0
         iccm= 0
+!           if ( abs(cenlat - oblat) .lt. 0.3d0 .and. &
+!                  abs(cenlon - oblon) .lt. 0.3d0) then
+!              write(6,*) 'cenlat',abs(cenlat - oblat),cenlat
+!              write(6,*) 'cenlon',abs(cenlon - oblon),cenlon
+!           endif
         do i = 1,nchanl
+!       This is where channels are rejected for lsingleradob
+          ! if lsingleradob is on, then...
+          if (lsingleradob) then
+            ! if the channels are beyond 0.001 of oblat/oblon, specified
+            ! in gsi namelist or aren't of type 'oneob_type', reject
+            if ( (abs(cenlat - oblat) .gt. 0.3 .or. &
+                  abs(cenlon - oblon) .gt. 0.3) .or. &
+!            if ( (abs(cenlat - oblat) .gt. one/r1000 .or. &
+!                  abs(cenlon - oblon) .gt. one/r1000) .or. &
+                  obstype .ne. oneob_type ) then
+              varinv(i) = zero
+              varinv_use(i) = zero
+              if (id_qc(i) .eq. igood_qc) id_qc(i) = ifail_outside_range
+            else
+!              write(6,*)'channel',i,'obchan',obchan
+              if (varinv(i).ne.zero)write(6,*)'not zero'
+                ! if obchan <= zero, keep all footprints, if obchan > zero,
+                ! keep only that which has channel obchan
+                if (i .ne. obchan .and. obchan .gt. 0) then
+                  varinv(i) = zero
+                  varinv_use(i) = zero
+                  if (id_qc(i) .eq. igood_qc) id_qc(i) = ifail_outside_range
+                endif
+            endif
+          endif
+
 
 !          Only process observations to be assimilated
 
