@@ -1,0 +1,22 @@
+set vpage 0.0 11.0 0.0 8.5
+set grads off
+set gxout scatter
+enable print fig.meta
+open anal.ctl
+set x 1 69013
+set y 1
+
+
+*set parea 1.0 5.0 5.0 8.0
+*d stdw(y=32);stdw(y=33)*100.0
+*draw ylab QI
+*draw xlab RFF
+*draw title The RFF Vs. QI
+
+*set parea 6.0 10.0 5.0 8.0
+d skip(stdw(y=32),50);stdw(y=33)*100.0
+draw ylab QI
+draw xlab RFF 
+
+*draw title The RFF Vs. QI (data thinned) 
+ print
