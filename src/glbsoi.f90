@@ -183,12 +183,6 @@ subroutine glbsoi(mype)
      endif
   endif
 
-! If l_hyb_ens is true, then read in ensemble perturbations
-  if(l_hyb_ens) then
-     call load_ensemble
-     call hybens_localization_setup
-  end if
-
 ! Set cost function
   call create_jfunc
 
@@ -225,6 +219,12 @@ subroutine glbsoi(mype)
      else
         call prewgt(mype)
      end if
+  end if
+
+! If l_hyb_ens is true, then read in ensemble perturbations
+  if(l_hyb_ens) then
+     call load_ensemble
+     call hybens_localization_setup
   end if
 
 ! Set error (variance) for predictors (only use guess)

@@ -117,6 +117,17 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    fi
 
    #------------------------------------------------------------------
+   #  Remove any directories in $TANKDIR in excess of 60
+   #------------------------------------------------------------------
+   total=`ls -d1 ${TANKDIR}/radmon.* | wc -l`
+   ((extra=total-61))
+
+   if [[ $extra -gt 0 ]]; then
+      `ls -d1 ${TANKDIR}/radmon.* | head -n $extra | xargs rm -rf`
+   fi
+
+
+   #------------------------------------------------------------------
    #  Copy the data_map.xml file to the $TOP_ARCHIVE_DIR 
    #------------------------------------------------------------------
    if [[ -e ${RADMON_PARM}/data_map.xml ]]; then

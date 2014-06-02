@@ -79,8 +79,12 @@ module bad_penalty
       integer, intent( in )		:: region
       real, intent( in )		:: penalty
       real, intent( in )                :: bound
+      character(60)                     :: myformat
 
-      write(funit,*) satname, 'channel= ',channel, '	region= ', region, '	penalty= ', penalty, '	bound=', bound
+      myformat = "(A20,A10,I5,A9,I1,A10,ES15.7E2,A8,ES15.7E2)"
+
+      
+      write(funit,myformat) satname, ' channel= ',channel, ' region= ', region, ' penalty= ', penalty, ' bound= ', bound
 
     end subroutine write_bad_penalty
 

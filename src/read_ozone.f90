@@ -744,14 +744,17 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call ufbrep(lunin,hdrmlsl,3,100,iret,mlstrl)
      nloz=iret
 !    for NRT data, mlsv=20 or 30 depending on the nloz
+     mlsv=-999
      if(nloz==37) then
         if(index(sis,'mls22')/=0 ) then       !mls v2.2 data
            mlsv=22
         else if(index(sis,'mls20')/=0 ) then  !mls v2 nrt data
            mlsv=20
         end if
-     else if(nloz==55) then                  !mls v3 nrt data
-        mlsv=30
+     else if (nloz==55) then                !mls v3 nrt data
+        if (index(sis,'mls30')/=0 ) then
+           mlsv=30
+        endif
      else
         write(6,*) 'invalid vertical level number: ', nloz
         write(6,*) '******STOP*******: error reading MLS vertical levels in read_ozone.f90'
@@ -761,6 +764,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      write(6,*) 'READ_OZONE: MLS data version=',mlsv
      write(6,*) 'READ_OZONE: MLS vertical level number=',nloz
+
+     if (mlsv<0) then
+        write(6,*) 'inconsistent MLS versions.  bufr nloz=',nloz,' obsinput sis= ',trim(sis)
+        write(6,*) '******STOP*******: error bufr and specified MLS versions'
+        call stop2(338)
+     end if
 
 !    Allocate arrays
      allocate(hdrmlsl(3,nloz))

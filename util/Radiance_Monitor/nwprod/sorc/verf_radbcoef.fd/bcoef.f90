@@ -87,7 +87,7 @@ program bcoef
 !
 ! Initialize variables
   iread=0
-  npred_radiag = 5
+  npred_radiag = 12 
   angord = 0
 
 ! Read namelist input
