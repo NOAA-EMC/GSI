@@ -11,6 +11,9 @@
 set -ax
 date
 
+echo Start mk_time_plots.sh
+echo USE_ANL = $USE_ANL
+
 export NUM_CYCLES=${NUM_CYCLES:-121}
 
 imgndir=${IMGNDIR}/time
@@ -251,4 +254,5 @@ fi
       fi
    done
 
+echo End mk_time_plots.sh
 exit

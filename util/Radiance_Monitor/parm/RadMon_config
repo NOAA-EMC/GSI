@@ -26,6 +26,16 @@ export MY_RADMON=${MY_RADMON:-/gpfs/td2/emc/da/noscrub/Edward.Safford/RadMon_390
 #
 export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
 
+if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
+   if [[ $RAD_AREA = "glb" ]]; then
+      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${SUFFIX}}
+      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/${SUFFIX}}
+   else
+      export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
+      export TANKimg=${TANKimg:-${MY_TANKDIR}/stats/regional/${SUFFIX}}
+   fi
+fi
+
 #
 #  Web server resources include the sever name (WEB_SVR), the user name
 #  on the web server (WEB_USER), and location of the top level directory
@@ -52,12 +62,18 @@ export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 #
 #  Log and work space definitions
 #
-export PTMP=${PTMP:-/ptmp}
-export STMP=${STMP:-/stmp}
-  
-export LOGSverf_rad=$PTMP/$LOGNAME/logs    
-export WORKverf_rad=$STMP/$LOGNAME         
+export PTMP=${PTMP:-/ptmpp1}
+export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
+export STMP=${STMP:-/stmpp1}
+export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
 
+export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
+export LOGSverf=${LOGSverf_rad:-${PTMP_USER}/logs/rad${SUFFIX}}
+export LOGdir=${LOGdir:-${PTMP_USER}/logs/rad${SUFFIX}}
+
+export PLOT_WORK_DIR=${PLOT_WORK_DIR:-${STMP_USER}/plotjobs_${SUFFIX}}
+export WORKverf_rad=${WORKverf_rad:-${STMP_USER}}
+  
 
 #
 #  Job queue check definition
@@ -72,11 +88,27 @@ fi
 #
 #  Definitions for internal reference
 #
-export RADMON_DATA_EXTRACT=${MY_RADMON}/data_extract
-export RADMON_IMAGE_GEN=${MY_RADMON}/image_gen
-export RADMON_PARM=${MY_RADMON}/parm
-export DATA_MAP=${RADMON_PARM}/data_map.xml
-export HOMEgfs=${MY_RADMON}/nwprod
+export RADMON_DATA_EXTRACT=${RADMON_DATA_EXTRACT:-${MY_RADMON}/data_extract}
+export DE_EXEC=${DE_EXEC:-${RADMON_DATA_EXTRACT}/exec}
+export DE_PARM=${DE_PARM:-${RADMON_DATA_EXTRACT}/parm}
+export DE_SCRIPTS=${DE_SCRIPTS:-${RADMON_DATA_EXTRACT}/ush}
+
+export RADMON_IMAGE_GEN=${RADMON_IMAGE_GEN:-${MY_RADMON}/image_gen}
+export IG_EXEC=${IG_EXEC:-${RADMON_IMAGE_GEN}/exec}
+export IG_GSCRIPTS=${IG_GSCRIPTS:-${RADMON_IMAGE_GEN}/gscripts}
+export IG_PARM=${IG_PARM:-${RADMON_IMAGE_GEN}/parm}
+export IG_SCRIPTS=${IG_SCRIPTS:-${RADMON_IMAGE_GEN}/ush}
+
+export RADMON_PARM=${RADMON_PARM:-${MY_RADMON}/parm}
+export HOMEgfs=${HOMEgfs:-${MY_RADMON}/nwprod}
+
+#
+#  Definitions for parm files.  This allows users to swap in 
+#  their version of the two parm files when using a central install
+#  point and multiple users of the RadMon package.
+#
+export RADMON_CONFIG=${RADMON_CONFIG:-${RADMON_PARM}/RadMon_config}
+export RADMON_USER_SETTINGS=${RADMON_USER_SETTINGS:-${RADMON_PARM}/RadMon_user_settings}
 
 
 #

@@ -9,6 +9,9 @@
 set -ax
 export list=$listvars
 
+echo Start plot_summary.sh
+echo USE_ANL = $USE_ANL
+
 #SATYPE2=$1
 SATYPE2=$SATYPE
 
@@ -71,13 +74,16 @@ for type in ${SATYPE2}; do
    done
    ${UNCOMPRESS} *.ieee_d.${Z}
 
-cat << EOF > ${type}.gs
+   outfile=${tmpdir}/${type}.gs
+   rm -f ${outfile}
+
+cat << EOF > ${outfile}
 'open ${type}.ctl'
-'run ${IG_GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
+'run ${IG_GSCRIPTS}/plot_summary.gs ${type} ${PLOT_SUB_AVGS} ${USE_ANL} x1100 y850'
 'quit'
 EOF
 
-   $GRADS -bpc "run ${tmpdir}/${type}.gs"
+   $GRADS -bpc "run ${outfile}"
 
 #   rm -f ${type}.ctl 
 #   rm -f ${type}*.ieee_d
@@ -103,6 +109,7 @@ $NCP -r *summary.png ${IMGNDIR}/summary/.
 #cd ../
 #rm -rf $tmpdir
 
+echo End plot_summary.sh
 
 exit
 

@@ -17,7 +17,6 @@ SATYPE2=$1
 PVAR=$2
 PTYPE=$3
 
-export SUB_AVG=${SUB_AVG:-1}
 export PLOT_ALL_REGIONS=${PLOT_ALL_REGIONS:-1}
 
 plot_angle_count=plot_angle_count.${RAD_AREA}.gs
@@ -107,21 +106,21 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${IG_GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${PLOT_SUB_AVGS} x1100 y850'
 'quit'
 EOF
 
       elif [ "$var" =  'penalty' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${IG_GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_angle_count} ${type} ${var} ${PLOT_ALL_REGIONS} ${PLOT_SUB_AVGS} x1100 y850'
 'quit'
 EOF
       else
 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${IG_GSCRIPTS}/${plot_angle_sep} ${type} ${var} ${PLOT_ALL_REGIONS} ${SUB_AVG} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_angle_sep} ${type} ${var} ${PLOT_ALL_REGIONS} ${PLOT_SUB_AVGS} x1100 y850'
 'quit'
 EOF
       fi
