@@ -1224,7 +1224,7 @@ subroutine wrnemsnmma_binary(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ref',ges_ref,istatus);ier_cloud=ier_cloud+iret
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tten',dfi_tten,istatus);ier_cloud=ier_cloud+iret
      if(ier_cloud/=0) then
-        write(6,*)'wrwrfnmma.F90 :: missng hydrometeor/tten/ref fields for, cloud analysis nothing to do'
+        write(6,*)'wrwrfnmma.F90 :: missng hydrometeor/tten/ref fields for cloud analysis nothing to do'
 	n_actual_clouds=0
      end if	
   end if 
