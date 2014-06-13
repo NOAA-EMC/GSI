@@ -32,6 +32,7 @@ module anisofilter
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-24  todling - general interface to strip
 !                       - reposition ltosi and others to commvars
+!   2014-06-09  carlye/zhu - add ceiling
 !
 !
 ! subroutines included:
@@ -122,7 +123,7 @@ module anisofilter
 
   use raflib,only: init_raf4_wrap,raf_sm4_wrap,raf_sm4_ad_wrap
 
-  use jfunc, only: varq,qoption
+  use jfunc, only: varq,qoption,R_option
 
   use control_vectors, only: cvars2d,cvars3d,cvarsmd
   use control_vectors, only: nvars,nrf,nrf3_loc,nrf2_loc,nrf_3d,nrf_var
@@ -131,7 +132,7 @@ module anisofilter
   use control_vectors, only: an_amp0
 
   use guess_grids, only: ges_prsl,ntguessig,&
-                         ges_prslavg,ges_psfcavg,ges_tsen
+                         ges_prslavg,ges_psfcavg,ges_tsen,wgt_lcbas
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
                     mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,&
@@ -179,7 +180,7 @@ module anisofilter
   public :: theta0zf,theta0f,asp3_max,u0f,v0zf,v0f,u0zf,tx1_slab,hfilter,hfine,tx2_slab,asp2_max,asp1_max,tx3_slab
   public :: qltv_wind,qlth_wind,qltv_temp,eampmax,pgesmax,pgesmin,eampmin,asp10f,rh0f,z0f,z0f2,asp20f,qlth_temp,psg,asp30f
   public :: qlth_wind0,qltv_temp0,qlth_temp0,qltv_wind0,scalex3,scalex2,scalex1,lreadnorm
-  public :: r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,stpcode_ensdata,stpcode_namelist,stpcode_alloc
+  public :: r015,corp,corz,rfact0v,hwll,aspect,vz,hwllp,hwllp_lcbas,stpcode_ensdata,stpcode_namelist,stpcode_alloc
   public :: stpcode_statdata,rfact0h,ks,mlat,rllatf,ensamp
 
 ! Declare passed variables
@@ -205,7 +206,7 @@ module anisofilter
   real(r_kind),parameter:: qls_rh       = 5.e+05_r_kind
 
   real(r_kind) scalex1,scalex2,scalex3
-
+  real(r_kind) R_f
   real(r_single),parameter:: EAMPMAX=2.0_r_single
   real(r_single),parameter:: EAMPMIN=0.5_r_single
 
@@ -219,6 +220,7 @@ module anisofilter
   real(r_kind)  ,allocatable::rfact0h(:),rfact0v(:)
 ! real(r_kind)  ,allocatable::corz(:,:,:),corp(:),hwll(:,:,:),hwllp(:),vz(:,:,:)
   real(r_kind)  ,allocatable::corz(:,:,:),corp(:,:),hwll(:,:,:),hwllp(:,:),vz(:,:,:)
+  real(r_kind)  ,allocatable::hwllp_lcbas(:,:)
 
   real(r_kind)  ,allocatable,dimension(:,:)    :: dxf,dyf,rllatf,hfilter
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: hfine
@@ -226,6 +228,7 @@ module anisofilter
   real(r_single),allocatable,dimension(:,:,:)  :: theta0f,theta0zf,u0f,u0zf,v0f,v0zf,z0f,z0f2,rh0f,vis0f ! for regional / zonal patch
   real(r_kind)  ,allocatable,dimension(:,:)    :: asp10f,asp20f,asp30f ! for regional / zonal patch
   real(r_kind)  ,allocatable,dimension(:,:,:)  :: psg
+  real(r_single),allocatable,dimension(:,:,:)  :: wgt0f
 
   real(r_single),allocatable,dimension(:,:,:)::tx1_slab,tx2_slab,tx3_slab
   real(r_kind),allocatable::asp1_max(:,:),asp2_max(:,:),asp3_max(:,:)
@@ -262,12 +265,14 @@ module anisofilter
   logical lsmoothterrain
   logical lwater_scaleinfl
   integer(i_kind) nhscale_pass
-  real(r_kind) water_scalefact(10),hsmooth_len
+  real(r_kind) water_scalefact(10),hsmooth_len,hsmooth_len_lcbas
   real(r_kind),allocatable,dimension(:,:,:)::rsliglb      !sea-land-ice mask on analysis grid. type real
-  real(r_kind):: rltop,rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh
+  real(r_kind):: rltop,rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust, &
+                 rltop_vis,rltop_pblh,rltop_tcamt,rltop_lcbas
 
   integer(i_kind):: nrf3_oz,nrf3_t,nrf3_sf,nrf3_vp,nrf3_q,nrf3_cw
   integer(i_kind):: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_stl,nrf2_sti
+  integer(i_kind):: nrf2_tcamt,nrf2_lcbas
 
 !_RT  integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc  ! should !become local
   character(len=*),parameter::myname='anisofilter'
@@ -302,6 +307,7 @@ subroutine anprewgt_reg(mype)
 !                      are almost same, so they are moved back to anprewgt.
 !                      Some processes were moved to new subroutine.
 !   2010-03-10  zhu  - use nrf* for generalized control variable
+!   2014-06-09  carley/zhu  - add tcamt and lcbas
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -359,6 +365,8 @@ subroutine anprewgt_reg(mype)
   nrf2_pblh = getindex(cvars2d,'pblh')
   nrf2_stl  = getindex(cvarsmd,'stl')
   nrf2_sti  = getindex(cvarsmd,'sti')
+  nrf2_tcamt = getindex(cvars2d,'tcamt')
+  nrf2_lcbas = getindex(cvars2d,'lcbas')
 
   call init_anisofilter_reg(mype)
   call read_bckgstats(mype)
@@ -538,6 +546,9 @@ subroutine anprewgt_reg(mype)
                              thisvis0f=min(vis0fmax, max(vis0fmin,vis0f(i,j,1)))
                              factk=factk/(log(ten)*thisvis0f)        !in other words,trust the smaller bckg vis values more than the larger ones
                           end if
+                          if (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS') then
+                             factk=factk/(log(ten)*8000.0_r_kind) 
+                          end if
                        end if
                        exit
                     end if
@@ -653,6 +664,7 @@ subroutine get_aspect_reg_2d
 !                         in which some procedures are moved
 !                         to the parent subroutine anprewgt_reg().
 !   2008-11-26  zhu  - use nrf* for generalized control variable
+!   2014-06-09  carley/zhu  - add tcamt and lcbas
 !
 !   input argument list:
 !
@@ -670,7 +682,7 @@ subroutine get_aspect_reg_2d
 
 ! Declare local variables
   integer(i_kind):: i,j,k,k1,ip,im,jp,jm,ivar
-
+  logical no_elev_grad
   real(r_kind):: fx2,fx1,fx3,dxi,dyi
   real(r_kind):: asp1,asp2,asp3
   real(r_kind):: afact,deta0,deta1
@@ -710,7 +722,11 @@ subroutine get_aspect_reg_2d
            fx2= dxi*real(z0f(i,jp,k)-z0f(i,jm,k),r_kind)
            fx3= zero
 
-           if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then !no land/water elev gradient artifact for visibility
+ 
+           no_elev_grad=nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS'
+           no_elev_grad=no_elev_grad .or. (nrf_var(ivar)=='tcamt' .or. nrf_var(ivar)=='TCAMT')
+           no_elev_grad=no_elev_grad .or. (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS')
+           if (no_elev_grad) then !no land/water elev gradient artifact
               fx1= dyi*real(z0f2(ip,j,k)-z0f2(im,j,k),r_kind)
               fx2= dxi*real(z0f2(i,jp,k)-z0f2(i,jm,k),r_kind)
            endif
@@ -728,6 +744,8 @@ subroutine get_aspect_reg_2d
               case('gust','GUST'); rltop=rltop_gust
               case('vis','VIS'); rltop=rltop_vis
               case('pblh','PBLH'); rltop=rltop_pblh
+              case('tcamt','TCAMT'); rltop=rltop_tcamt
+              case('lcbas','LCBAS'); rltop=rltop_lcbas
            end select
            afact=afact0(ivar)
            if (cvar=='pblh' .or. cvar=='PBLH') afact=zero    ! for now, Geoff preferrs this due to lacking of obs
@@ -998,6 +1016,8 @@ end subroutine fact_qopt2
 !
 ! program history log:
 !   2008-11-28  zhu
+!   2014-06-09
+!   2014-06-09  carley/zhu  - add tcamt and lcbas
 !
 !   input argument list:
 !
@@ -1028,6 +1048,8 @@ end subroutine fact_qopt2
   if (nrf2_gust>0.and.ivar==nrf2_loc(nrf2_gust)) fvarname='gust'
   if (nrf2_vis>0.and.ivar==nrf2_loc(nrf2_vis)) fvarname='vis'
   if (nrf2_pblh>0.and.ivar==nrf2_loc(nrf2_pblh)) fvarname='pblh'
+  if (nrf2_tcamt>0.and.ivar==nrf2_loc(nrf2_tcamt)) fvarname='tcamt'
+  if (nrf2_lcbas>0.and.ivar==nrf2_loc(nrf2_lcbas)) fvarname='lcbas'
   if (nrf2_sst>0.and.ivar==nrf+1) fvarname='lst'   ! _RTod this is a disaster!
   if (nrf2_sst>0.and.ivar==nrf+2) fvarname='ist'   ! _RTod this is a disaster!
 
@@ -1047,6 +1069,7 @@ subroutine init_anisofilter_reg(mype)
 !   2006-08-01  pondeca
 !   2010-03-31  zhu - make changes using nvars,nrf* for generaling control variable
 !   2010-11-09  treadon - initialize rltop_* to huge_single
+!   2014-06-09  carley/zhu  - add tcamt and lcbas
 !
 !   input argument list:
 !    mype
@@ -1070,22 +1093,26 @@ subroutine init_anisofilter_reg(mype)
   logical:: fexist
   integer(i_kind)           :: nlatf,nlonf
 
-  real(r_double) svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh
-  real(r_kind) sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh
+  real(r_double) svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh,svtcamt,svlcbas
+  real(r_kind) sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh,&
+               scltcamt,scllcbas
   real(r_kind) water_scalefactpsi,water_scalefactchi,water_scalefacttemp, &
                water_scalefactq,water_scalefactpsfc,water_scalefactgust, &
-               water_scalefactpblh,water_scalefactvis
+               water_scalefactpblh,water_scalefactvis,&
+               water_scalefacttcamt,water_scalefactlcbas
 
   namelist/parmcardanisof/latdepend,scalex1,scalex2,scalex3,afact0,hsteep, &
-          lsmoothterrain,hsmooth_len,volpreserve, &
+          lsmoothterrain,hsmooth_len,hsmooth_len_lcbas,R_f,volpreserve, &
           lwater_scaleinfl,water_scalefactpsi,water_scalefactchi, &
           water_scalefacttemp,water_scalefactq,water_scalefactpsfc, &
           water_scalefactgust,water_scalefactvis,water_scalefactpblh, &
-          nhscale_pass, &
+          water_scalefacttcamt,water_scalefactlcbas,nhscale_pass, &
           rltop_wind,rltop_temp,rltop_q,rltop_psfc, &
           rltop_gust,rltop_vis,rltop_pblh, &
+          rltop_tcamt,rltop_lcbas, &
           svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh, &
-          sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh
+          sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh, &
+          scltcamt,scllcbas
 !*******************************************************************
 
   nlatf=pf2aP1%nlatf
@@ -1150,7 +1177,9 @@ subroutine init_anisofilter_reg(mype)
                               rfact0h(nrf+2)=one;  rfact0v(nrf+2)=1.25_r_kind
            case('gust','GUST'); rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind 
            case('pblh','PBLH'); rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind 
-           case('vis','VIS')  ; rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind 
+           case('vis','VIS')  ; rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind
+           case('tcamt','TCAMT'); rfact0h(n)=one;  rfact0v(n)=1.50_r_kind 
+           case('lcbas','LCBAS'); rfact0h(n)=one;  rfact0v(n)=1.50_r_kind 
         end select
      end do
 
@@ -1168,6 +1197,8 @@ subroutine init_anisofilter_reg(mype)
      water_scalefactgust=one
      water_scalefactvis=one
      water_scalefactpblh=one
+     water_scalefacttcamt=one
+     water_scalefactlcbas=one
      nhscale_pass=0
 
      rltop_wind=huge_single
@@ -1177,6 +1208,8 @@ subroutine init_anisofilter_reg(mype)
      rltop_gust=huge_single
      rltop_vis=huge_single
      rltop_pblh=huge_single
+     rltop_tcamt=huge_single
+     rltop_lcbas=huge_single
 
      svpsi =0.35_r_double
      svchi =0.35_r_double*2.063_r_double
@@ -1195,8 +1228,12 @@ subroutine init_anisofilter_reg(mype)
      sclgust=0.3_r_kind*1.2_r_kind
      sclvis =0.3_r_kind*1.2_r_kind
      sclpblh=0.3_r_kind*1.2_r_kind
+     scltcamt=0.3_r_kind*1.2_r_kind
+     scllcbas=0.3_r_kind*1.2_r_kind
 
      water_scalefact(:)=one
+
+     R_f=one 
 
      inquire(file='parmcard_input',exist=fexist)
      if (fexist) then
@@ -1245,12 +1282,21 @@ subroutine init_anisofilter_reg(mype)
               an_amp(:,n) =svpblh
               rfact0h(n)=sclpblh
               water_scalefact(n)=water_scalefactpblh
+           case('tcamt','TCAMT')
+              an_amp(:,n) =svtcamt
+              rfact0h(n)=scltcamt
+              water_scalefact(n)=water_scalefacttcamt
+           case('lcbas','LCBAS')
+              an_amp(:,n) =svlcbas
+              rfact0h(n)=scllcbas
+              water_scalefact(n)=water_scalefactlcbas
         end select
      end do
 
      if (mype==0) then
         print*,'in init_anisofilter_reg: hsteep=',hsteep
         print*,'in init_anisofilter_reg: hsmooth_len=',hsmooth_len
+        print*,'in init_anisofilter_reg: hsmooth_len_lcbas=',hsmooth_len_lcbas
         print*,'in init_anisofilter_reg: lsmoothterrain=',lsmoothterrain
         print*,'in init_anisofilter_reg: volpreserve=',volpreserve
         print*,'in init_anisofilter_reg: lwater_scaleinfl=',lwater_scaleinfl
@@ -1262,6 +1308,8 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: water_scalefactgust=',water_scalefactgust
         print*,'in init_anisofilter_reg: water_scalefactvis=',water_scalefactvis
         print*,'in init_anisofilter_reg: water_scalefactpblh=',water_scalefactpblh
+        print*,'in init_anisofilter_reg: water_scalefacttcamt=',water_scalefacttcamt
+        print*,'in init_anisofilter_reg: water_scalefactlcbas=',water_scalefactlcbas
 
         print*,'in init_anisofilter_reg: latdepend=',latdepend
         print*,'in init_anisofilter_reg: scalex1=',scalex1
@@ -1275,6 +1323,8 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: rltop_gust=',rltop_gust
         print*,'in init_anisofilter_reg: rltop_vis=',rltop_vis
         print*,'in init_anisofilter_reg: rltop_pblh=',rltop_pblh
+        print*,'in init_anisofilter_reg: rltop_tcamt=',rltop_tcamt
+        print*,'in init_anisofilter_reg: rltop_lcbas=',rltop_lcbas
 
         print*,'in init_anisofilter_reg: svpsi=',svpsi
         print*,'in init_anisofilter_reg: svchi=',svchi
@@ -1284,6 +1334,8 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: svgust=',svgust
         print*,'in init_anisofilter_reg: svvis=',svvis
         print*,'in init_anisofilter_reg: svpblh=',svpblh
+        print*,'in init_anisofilter_reg: svtcamt=',svtcamt
+        print*,'in init_anisofilter_reg: svlcbas=',svlcbas
 
         print*,'in init_anisofilter_reg: sclpsi=',sclpsi
         print*,'in init_anisofilter_reg: sclchi=',sclchi
@@ -1293,8 +1345,11 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: sclgust=',sclgust
         print*,'in init_anisofilter_reg: sclvis=',sclvis
         print*,'in init_anisofilter_reg: sclpblh=',sclpblh
+        print*,'in init_anisofilter_reg: scltcamt=',scltcamt
+        print*,'in init_anisofilter_reg: scllcbas=',scllcbas
 
         print*,'in init_anisofilter_reg: nhscale_pass=',nhscale_pass
+        print*,'in init_anisofilter_reg: R_f=',R_f
      endif
   endif
 
@@ -3982,6 +4037,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 !   2010-03-10  zhu   - make changes for generalizing control variable
 !   2010-12-05  pondeca   - bug fix: add chvarname=fvarname(ivar) before reading
 !                           in RF normalization coefficients
+!   2014-06-09  carley/zhu  - add tcamt and lcbas
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -4009,6 +4065,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 ! Declare local variables
   integer(i_kind) n,i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
   integer(i_kind) iglob,jglob
+  logical no_elev_grad
 
   real(r_kind) dl1,dl2,factk,factor,anhswgtsum
   real(r_kind) a1,a2,a3,a4,a5,a6,detai
@@ -4019,7 +4076,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single) thisvis0f
 
   real(r_kind),allocatable,dimension(:,:,:):: bckgvar0f
-  real(r_single),allocatable,dimension(:,:)::bckgvar4,bckgvar4a,zsmooth4,zsmooth4a
+  real(r_single),allocatable,dimension(:,:)::bckgvar4,bckgvar4a,zsmooth4,zsmooth4a,hwllp_lcbas4,hwllp_lcbas4a
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   character(10) chvarname
@@ -4044,6 +4101,12 @@ subroutine get2berr_reg_subdomain_option(mype)
   allocate(asp30f(lat2,lon2))
 
   call get_background_subdomain_option(mype)
+
+  if (R_option) then
+     allocate(hwllp_lcbas(lat2,lon2))
+     call get_hwllp_lcbas_subdomain_option(mype)
+  end if
+
 
 !-----define the anisotropic aspect tensor-----------------------------
 !-------------------------------------------------------------------------------------
@@ -4084,7 +4147,11 @@ subroutine get2berr_reg_subdomain_option(mype)
            fx2= dxi*(z0f(iloc,jploc,k1)-z0f(iloc,jmloc,k1))
            fx3= zero
 
-           if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then !no land/water elev gradient artifact for visibility
+
+           no_elev_grad=nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS'
+           no_elev_grad=no_elev_grad .or. (nrf_var(ivar)=='tcamt' .or. nrf_var(ivar)=='TCAMT')
+           no_elev_grad=no_elev_grad .or. (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS')
+           if (no_elev_grad) then !no land/water elev gradient artifact
               fx1= dyi*(z0f2(iploc,jloc,k1)-z0f2(imloc,jloc,k1))
               fx2= dxi*(z0f2(iloc,jploc,k1)-z0f2(iloc,jmloc,k1))
            endif
@@ -4102,6 +4169,8 @@ subroutine get2berr_reg_subdomain_option(mype)
               case('gust','GUST'); rltop=rltop_gust
               case('vis','VIS'); rltop=rltop_vis
               case('pblh','PBLH'); rltop=rltop_pblh
+              case('tcamt','TCAMT'); rltop=rltop_tcamt
+              case('lcbas','LCBAS'); rltop=rltop_lcbas
            end select
            afact=afact0(ivar)  !(use "zero" for isotropic computations)
            if (cvar=='pblh' .or. cvar=='PBLH') afact=zero
@@ -4168,8 +4237,9 @@ subroutine get2berr_reg_subdomain_option(mype)
   end do
 
 
-  if(mype==0) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc=,rltop_gust,rltop_vis,rltop_pblh=',&
-                         rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh
+  if(mype==0) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc=,rltop_gust,rltop_vis,rltop_pblh,rltop_tcamt,rltop_lcbas=',&
+                         rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh,&
+                         rltop_tcamt,rltop_lcbas
 
   if(mype==0) write(6,*)' in get2berr_reg, nlat,nlon,nlatf,nlonf=',nlat,nlon,nlatf,nlonf
 
@@ -4267,6 +4337,9 @@ subroutine get2berr_reg_subdomain_option(mype)
                        thisvis0f=min(vis0fmax, max(vis0fmin,vis0f(iloc,jloc,1)))
                        factk=factk/(log(ten)*thisvis0f)        !in other words,trust the smaller bckg vis values more than the larger ones
                     end if
+                    if (nrf_var(ivar)=='lcbas' .or. nrf_var(ivar)=='LCBAS') then
+                       factk=factk/(log(ten)*8000.0_r_kind) 
+                    end if
                     exit
                  end if
               end do
@@ -4335,6 +4408,53 @@ subroutine get2berr_reg_subdomain_option(mype)
   end do
   call mpi_reduce(psg4a,psg4,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
 
+  if (R_option) then
+     allocate(hwllp_lcbas4a(nlat,nlon))
+     allocate(hwllp_lcbas4(nlat,nlon))
+     hwllp_lcbas4a=zero
+     hwllp_lcbas4=zero
+     do j=2,lon2-1
+        jglob=j+jstart(mm1)-2
+        do i=2,lat2-1
+           iglob=i+istart(mm1)-2
+           hwllp_lcbas4a(iglob,jglob)=hwllp_lcbas(i,j)
+        end do
+     end do
+     call mpi_reduce(hwllp_lcbas4a,hwllp_lcbas4,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+     if (mype==0) then
+        open (95,file='hwllp_lcbas.dat',form='unformatted')
+        write(95) hwllp_lcbas4
+        close(95)
+     end if
+
+     hwllp_lcbas4a=zero
+     hwllp_lcbas4=zero
+     do j=2,lon2-1
+        jglob=j+jstart(mm1)-2
+        do i=2,lat2-1
+           iglob=i+istart(mm1)-2
+           hwllp_lcbas4a(iglob,jglob)=wgt0f(i,j,1)
+        end do
+     end do
+     call mpi_reduce(hwllp_lcbas4a,hwllp_lcbas4,nlat*nlon,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
+     if (mype==0) then
+        open (95,file='wgt0f.dat',form='unformatted')
+        write(95) hwllp_lcbas4
+        close(95)
+     end if
+     deallocate(hwllp_lcbas4,hwllp_lcbas4a)
+  end if
+
+
+
+
+
+
+
+
+
+
+
   allocate(region_dy4(nlat,nlon),region_dx4(nlat,nlon))
 
   if (mype==0) then
@@ -4359,6 +4479,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   deallocate(bckgvar4)
   deallocate(region_dy4,region_dx4)
   deallocate(corz,corp,hwll,hwllp,vz,aspect)
+  if (R_option) deallocate(hwllp_lcbas,wgt0f)
   deallocate(dxf,dyf,rllatf,theta0f)
   deallocate(u0f,v0f,z0f,z0f2)
   deallocate(zsmooth4a,psg4a)
@@ -4608,6 +4729,181 @@ subroutine get_background_subdomain_option(mype)
  deallocate(idvar0,kvar_start0,kvar_end0,var_names0)
 
 end subroutine get_background_subdomain_option
+!=======================================================================
+!=======================================================================
+subroutine get_hwllp_lcbas_subdomain_option(mype)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:   get_hwllp_lcbas_subdomain_option
+! prgmmr: pondeca          org: np22                date: 2006-08-01
+!
+! abstract: compute background fields and their spatial derivatives
+!           on filter grid for use in anisotropic covariance model.
+!           built from parrish's old anprewgt_reg
+!
+!
+! program history log:
+!   2012-05-07  yanqiu zhu    
+!
+!   input argument list:
+!    mype     - mpi task id
+!
+!   output argument list:
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+  use raflib, only: init_raf4,raf_sm4,raf_sm4_ad
+  use gridmod, only: istart,jstart
+  use anberror, only: halo_update_reg
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in   ) :: mype
+
+! Declare local variables
+  integer(i_kind) i,j,k,mm1
+  integer(i_kind) n,iloc,jloc
+  integer(i_kind) kds0,kde0,kps0,kpe0
+  integer(i_kind) nvars0
+  integer(i_kind),allocatable::idvar0(:),kvar_start0(:),kvar_end0(:)
+  character(80),allocatable::var_names0(:)
+
+  real(r_kind),allocatable,dimension(:,:,:)::field2
+  real(r_single),allocatable,dimension(:,:,:)::field
+
+  integer(i_long):: ngauss_smooth,npass_smooth,normal_smooth,ifilt_ord_smooth
+  integer(i_long):: nsmooth_smooth,nsmooth_shapiro_smooth
+  real(r_double) :: rgauss_smooth(1)
+
+  integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
+  integer(i_kind):: nlatf,nlonf
+
+  ids=indices%ids; ide=indices%ide
+  jds=indices%jds; jde=indices%jde
+  kds=indices%kds; kde=indices%kde
+  ips=indices%ips; ipe=indices%ipe
+  jps=indices%jps; jpe=indices%jpe
+  kps=indices%kps; kpe=indices%kpe
+  nlatf=pf2aP1%nlatf
+  nlonf=pf2aP1%nlonf
+
+!   get dxf,dyf,rllatf
+!       note: if filter grid coarser than analysis grid, then normalized
+!       adjoint of filter to analysis interpolation used to transfer fields
+!       from analysis grid to filter grid. otherwise, normal interpolation
+!       is done. this is transparent at this level. it appears in the
+!       definition of the interpolation and adjoint of interpolation
+!       weights. check for accuracy.(done).
+
+  if(nlat/=nlatf.or.nlon/=nlonf) then
+     if(mype==0) &
+        write(6,*)' rtma_subdomain_option true, nlat ne nlatf and/or nlon ne nlonf, nlat,nlatf,nlon,nlonf=', &
+                          nlat,nlatf,nlon,nlonf
+     call mpi_finalize(i)
+     stop
+  end if
+
+  mm1=mype+1
+
+! define local vertical index for smoothing single variables
+  kds0=1
+  kde0=nsig
+  kps0=kds0
+  kpe0=kde0
+  nvars0=1
+  allocate(idvar0(kds0:kde0),kvar_start0(nvars0),kvar_end0(nvars0))
+  allocate(var_names0(nvars0))
+  idvar0=1
+  kvar_start0=1
+  kvar_end0=nsig
+  var_names0(1)='background'
+! ------------------------------------------------------------
+! ------------ in this section, set up isotropic filter for
+! ------------ generating smoothed guess
+! ------------------------------------------------------------
+
+  allocate(aspect(7,ips:ipe,jps:jpe,kps0:kpe0))
+
+  do k=kps0,kpe0
+     do j=jps,jpe
+        do i=ips,ipe
+
+           aspect(1,i,j,k)=hsmooth_len_lcbas**2
+           aspect(2,i,j,k)=hsmooth_len_lcbas**2
+           aspect(3,i,j,k)=one**2
+           aspect(4:7,i,j,k)=zero
+ 
+        end do
+     end do
+  end do
+
+  ngauss_smooth=1
+  rgauss_smooth=one
+  npass_smooth=1
+  normal_smooth=0
+  ifilt_ord_smooth=4
+  nsmooth_smooth=0
+  nsmooth_shapiro_smooth=0
+  call init_raf4(aspect,triad4,ngauss_smooth,rgauss_smooth, &
+                 npass_smooth,normal_smooth,binom, &
+                 ifilt_ord_smooth,filter_all, &
+                 nsmooth_smooth,nsmooth_shapiro_smooth, &
+                 nvars0,idvar0,kvar_start0,kvar_end0,var_names0, &
+                 ids, ide, jds, jde, kds0, kde0, &         ! domain indices
+                 ips, ipe, jps, jpe, kps0, kpe0, &         ! patch indices
+                 mype, npe)
+
+  allocate(field(ips:ipe,jps:jpe,kps0:kpe0),field2(lat2,lon2,nsig))
+  allocate(wgt0f(lat2,lon2,nsig))
+ 
+  do k=kps0,kpe0
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2
+           field(i,j,k)=wgt_lcbas(iloc,jloc)
+        end do
+     end do
+  end do
+  call raf_sm4(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+  call raf_sm4_ad(field,filter_all,ngauss_smooth,ips,ipe,jps,jpe,kps0,kpe0,npe)
+  do k=kps0,kpe0
+     do j=jps,jpe
+        jloc=j-jstart(mm1)+2
+        do i=ips,ipe
+           iloc=i-istart(mm1)+2
+           field2(iloc,jloc,k)=field(i,j,k)
+        end do
+     end do
+  end do
+  call halo_update_reg(field2,nsig)
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           wgt0f(i,j,k)=field2(i,j,k)
+           wgt0f(i,j,k)=max(0.0001_r_single,wgt0f(i,j,k))
+        end do
+     end do
+  end do
+
+  do j=1,lon2
+     do i=1,lat2
+        hwllp_lcbas(i,j)=R_f*min(dyf(nlatf/2,nlonf/2),dxf(nlatf/2,nlonf/2))/sqrt(wgt0f(i,j,1))
+     end do
+  end do
+  print*, "get_hwllp_lcbas_subdomain_option: dxf=", min(dyf(nlatf/2,nlonf/2),dxf(nlatf/2,nlonf/2))
+  print*, "get_hwllp_lcbas_subdomain_option: wgt0f=", minval(wgt0f(:,:,1)),maxval(wgt0f(:,:,1))
+  print*, "get_hwllp_lcbas_subdomain_option: hwllp_lcbas=", minval(hwllp_lcbas),maxval(hwllp_lcbas)
+
+ deallocate(field)
+ deallocate(field2)
+ deallocate(aspect)
+ deallocate(idvar0,kvar_start0,kvar_end0,var_names0)
+end subroutine get_hwllp_lcbas_subdomain_option
 !=======================================================================
 !=======================================================================
 subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
