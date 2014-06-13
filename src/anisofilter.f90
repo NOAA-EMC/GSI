@@ -32,7 +32,7 @@ module anisofilter
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-24  todling - general interface to strip
 !                       - reposition ltosi and others to commvars
-!   2014-06-09  carlye/zhu - add ceiling
+!   2014-06-09  carley/zhu - add ceiling
 !
 !
 ! subroutines included:
