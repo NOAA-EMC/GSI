@@ -140,6 +140,7 @@
 !   2014-01-31  mkim    - Remove abs(60.0degree) boundary which existed for all-sky MW radiance DA 
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
+!   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -199,6 +200,7 @@
   use qcmod, only: setup_tzr_qc
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
+  use radinfo, only: radinfo_adjust_jacobian
   implicit none
 
 ! Declare passed variables
@@ -254,6 +256,7 @@
   logical no85GHz
   logical in_curbin, in_anybin
   logical lcw4crtm
+  logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
 
 ! Declare local arrays
@@ -265,6 +268,7 @@
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
+  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -965,7 +969,6 @@
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
 
-
 !  --------- MSU -------------------
 !       QC MSU data
         else if (msu) then
@@ -1289,6 +1292,12 @@
               radtail(ibin)%head%time=dtime
               radtail(ibin)%head%luse=luse(n)
               radtail(ibin)%head%ich(:)=-1
+
+              utbc=tbc
+              adaptinf = error0 ! on input
+              account_for_corr_obs = radinfo_adjust_jacobian (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
+                                                              utbc,obvarinv,adaptinf,jacobian)
+
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1296,9 +1305,15 @@
 
                     iii=iii+1
 
-                    radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
-                    radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
-                    radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    if(account_for_corr_obs) then
+                      radtail(ibin)%head%res(iii)= utbc(ii)                   ! evecs(R)*[obs-ges innovation]
+                      radtail(ibin)%head%err2(iii)= obvarinv(ii)              ! 1/eigenvalue(R)
+                      radtail(ibin)%head%raterr2(iii)=adaptinf(ii)            ! inflation factor 
+                    else
+                      radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
+                      radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
+                      radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    endif
                     radtail(ibin)%head%icx(iii)= m                         ! channel index
 
                     do k=1,npred
@@ -1367,7 +1382,7 @@
                  end if
               end do
               radtail(ibin)%head%nchan  = iii         ! profile observation count
-           end if
+           end if ! icc
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure

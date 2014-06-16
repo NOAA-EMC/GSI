@@ -33,7 +33,7 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nouse

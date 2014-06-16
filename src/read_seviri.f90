@@ -62,7 +62,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Declare passed variables
   character(len=*),intent(in):: infile,obstype,jsatid
-  character(len=*),intent(in):: sis
+  character(len=20),intent(in):: sis
   integer(i_kind),intent(in):: mype,lunout,ithin
   integer(i_kind),intent(inout):: ndata,nodata
   integer(i_kind),intent(inout):: nread
@@ -166,7 +166,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Open bufr file.
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)

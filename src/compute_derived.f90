@@ -251,11 +251,11 @@ subroutine compute_derived(mype,init_pass)
        if(istatus/=0) call die(myname,'gsi_4dcoupler_init_traj(), rc =',istatus)
   endif
 
+  call init_vars_('guess')
+
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
   if (.not. twodvar_regional)then
-
-     call init_vars_('guess')
 
      if (switch_on_derivatives) then
         if(.not.drv_initialized) &
@@ -317,8 +317,6 @@ subroutine compute_derived(mype,init_pass)
        end if	! (regional)
   
      endif       ! (init_pass)
-
-     call final_vars_('guess')
 
   endif         ! (!twodvar_regional)
 
@@ -387,6 +385,8 @@ subroutine compute_derived(mype,init_pass)
     end do
 
   endif
+
+  call final_vars_('guess')
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH
