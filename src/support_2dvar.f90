@@ -22,6 +22,7 @@ subroutine convert_binary_2d
 !                         station location. used for qc purposes in 2dvar.
 !   2009-02-27  pondeca - add fgat to 2dvar
 !   2011-02-09  zhu     - add gust,vis and pblh
+!   2014-06-16  carley/zhu - add tcamt and ceiling
 !
 !   input argument list:
 !
@@ -282,6 +283,16 @@ subroutine convert_binary_2d
      write(6,*)' convert_binary_2d: mid PBLH=',field2(nlon_regional/2,nlat_regional/2)
      write(lendian_out)field2
 
+     read(in_unit)field2             !  TCAMT
+     write(6,*)' convert_binary_2d: max,min TCAMT=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid TCAMT=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
+     read(in_unit)field2             !  LCBAS
+     write(6,*)' convert_binary_2d: max,min LCBAS=',maxval(field2),minval(field2)
+     write(6,*)' convert_binary_2d: mid LCBAS=',field2(nlon_regional/2,nlat_regional/2)
+     write(lendian_out)field2
+
      close(in_unit)
      close(lendian_out)
 
@@ -488,6 +499,7 @@ subroutine read_2d_guess(mype)
 !   2011-05-01  todling - introduce met-guess (cwmr no longer in guess-grids)
 !   2013-10-19  todling - metguess now holds background
 !                         remove reference to tv and q derivatives
+!   2014-06-16  carley/zhu - add tcamt and ceiling
 !
 !   input argument list:
 !     mype     - pe number
@@ -538,23 +550,28 @@ subroutine read_2d_guess(mype)
   integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_psfc,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac,i_gust,i_vis,i_pblh
+  integer(i_kind) i_tcamt,i_lcbas
   integer(i_kind) isli_this
   real(r_kind) psfc_this,sm_this,xice_this
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all,icwmr,ier,istatus
-  logical ihave_gust,ihave_pblh,ihave_vis
+  logical ihave_gust,ihave_pblh,ihave_vis,ihave_tcamt,ihave_lcbas
 
-  real(r_kind),pointer,dimension(:,:  )::ges_gust  =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_vis   =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_pblh  =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_ps_it  =>NULL()
-  real(r_kind),pointer,dimension(:,:  )::ges_z_it   =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_u_it   =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_v_it   =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_div_it =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_vor_it =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_tv_it  =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_q_it   =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it=>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_gust     =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_vis      =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_pblh     =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_ps_it    =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_z_it     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_u_it     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_v_it     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_div_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_vor_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_tv_it    =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_q_it     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_tcamt_it =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_lcbas_it =>NULL()
+
+
 
 
 !  RESTART FILE input grid dimensions in module gridmod
@@ -577,7 +594,7 @@ subroutine read_2d_guess(mype)
   lm=nsig
 
 ! Following is for convenient 2D input
-  num_2d_fields=21! Adjust once exact content of RTMA restart file is known
+  num_2d_fields=23! Adjust once exact content of RTMA restart file is known
   num_all_fields=num_2d_fields*nfldsig
   num_loc_groups=num_all_fields/npe
 ! if(mype==0) write(6,'(" at 1 in read_2d_guess, lm            =",i6)')lm
@@ -685,7 +702,12 @@ subroutine read_2d_guess(mype)
   i=i+1 ; i_pblh=i                                            ! pblh
   write(identity(i),'("record ",i3,"--pblh")')i
   jsig_skip(i)=0 ; igtype(i)=1
-
+  i=i+1 ; i_tcamt=i                                           ! tcamt
+  write(identity(i),'("record ",i3,"--tcamt")')i
+  jsig_skip(i)=0 ; igtype(i)=1
+  i=i+1 ; i_lcbas=i                                           ! lcbas
+  write(identity(i),'("record ",i3,"--lcbas")')i
+  jsig_skip(i)=0 ; igtype(i)=1
 ! End of stuff from 2D restart file
 
   allocate(temp1(im,jm),itemp1(im,jm),temp1u(im+1,jm),temp1v(im,jm+1))
@@ -842,6 +864,10 @@ subroutine read_2d_guess(mype)
         ihave_vis =ier==0
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ges_pblh,ier)
         ihave_pblh=ier==0
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt',ges_tcamt,ier)
+        ihave_tcamt =ier==0
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'lcbas',ges_lcbas,ier)
+        ihave_lcbas =ier==0
 
         i_0=(it-1)*num_2d_fields
         do i=1,lon1+2
@@ -883,6 +909,14 @@ subroutine read_2d_guess(mype)
               if(ihave_pblh) &
               ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
 
+              if (ihave_tcamt) ges_tcamt(j,i,it)=all_loc(j,i,i_0+i_tcamt)
+             
+              if (ihave_lcbas) then
+                 ges_lcbas(j,i,it)=all_loc(j,i,i_0+i_lcbas)
+                 ges_lcbas(j,i,it)=max(0.1_r_kind,ges_lcbas(j,i,it))      !Lower bound on celing
+                 ges_lcbas(j,i,it)=min(20000.0_r_kind,ges_lcbas(j,i,it))  !Upper bound on ceiling
+              endif
+
            end do
         end do
      end do
@@ -902,7 +936,10 @@ subroutine read_2d_guess(mype)
 !         minval(isli),maxval(isli)
 !    if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_gust)=', &
 !         minval(ges_gust),maxval(ges_gust)
-
+     if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_tcamt)=', &
+          minval(ges_tcamt),maxval(ges_tcamt)
+     if(mype==10) write(6,*)' in read_2d_guess, min,max(ges_lcbas)=', &
+          minval(ges_lcbas),maxval(ges_lcbas)
      deallocate(all_loc,jsig_skip,igtype,identity)
      deallocate(temp1,itemp1,temp1u,temp1v)
 
@@ -934,6 +971,7 @@ subroutine wr2d_binary(mype)
 !   2013-10-19  todling - metguess now holds background
 !                         correct reference to svars rather than cvars
 !   2013-10-24  todling - general interface to strip
+!   2014-06-16  carley/zhu - add tcamt and ceiling
 !
 !   input argument list:
 !     mype     - pe number
@@ -978,7 +1016,7 @@ subroutine wr2d_binary(mype)
   character(6) filename
   character(2) ch2
   integer(i_kind) iog,ioan,i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus
+  integer(i_kind) i_sst,i_skt,i_gust,i_vis,i_pblh,ier,istatus,i_tcamt,i_lcbas
   integer(i_kind) num_2d_fields,num_all_fields,num_all_pad
   integer(i_kind) regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_kind) psfc_this
@@ -997,7 +1035,7 @@ subroutine wr2d_binary(mype)
   jm=nlat_regional
   lm=nsig
 
-  num_2d_fields=6+4*lm
+  num_2d_fields=8+4*lm
   num_all_fields=num_2d_fields
   num_all_pad=num_all_fields
   allocate(all_loc(lat1+2,lon1+2,num_all_pad))
@@ -1015,6 +1053,8 @@ subroutine wr2d_binary(mype)
   i_gust=i_skt+1
   i_vis=i_gust+1
   i_pblh=i_vis+1
+  i_tcamt=i_pblh+1
+  i_lcbas=i_tcamt+1
 
   allocate(temp1(im*jm),temp1u((im+1)*jm),temp1v(im*(jm+1)))
   allocate(temp1_ps(im*jm))
@@ -1376,6 +1416,71 @@ subroutine wr2d_binary(mype)
            tempa(i)=tempa(i)-tempb(i)
         end do
         call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(ioan)temp1
+     end if
+  else
+     if(mype==0) then
+        read(iog)temp1
+        write(ioan)temp1
+     end if
+  endif
+
+
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt', ptr2d, ier)
+  if (ier==0) then
+     do i=1,lon2
+        do j=1,lat2
+           all_loc(j,i,i_tcamt)=ptr2d(j,i)
+        end do
+     end do
+     if(mype==0) read(iog)temp1
+     if(mype == 0) then
+        write(6,*)' ges_tcamt in wr2d_binary,max,min(ges_tcamt)=',maxval(ges_tcamt),minval(ges_tcamt)
+        write(6,*)' tcamt in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
+     end if
+     call strip(all_loc(:,:,i_tcamt),strp)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(6,*)' tcamt in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
+        write(ioan)temp1
+     end if
+  else
+     if(mype==0) then
+        read(iog)temp1
+        write(ioan)temp1
+     end if
+  endif
+
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'lcbas', ptr2d, ier)
+  if (ier==0) then
+     do i=1,lon2
+        do j=1,lat2
+           all_loc(j,i,i_lcbas)=ptr2d(j,i)
+        end do
+     end do
+     if(mype==0) read(iog)temp1
+     if(mype == 0) then
+        write(6,*)' ges_lcbas in wr2d_binary,max,min(ges_lcabs)=',maxval(ges_lcbas),minval(ges_lcbas)
+        write(6,*)' lcbas in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
+     end if
+     call strip(all_loc(:,:,i_lcbas),strp)
+     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+     if(mype == 0) then
+        call fill_mass_grid2t(temp1,im,jm,tempb,2)
+        do i=1,iglobal
+           tempa(i)=tempa(i)-tempb(i)
+        end do
+        call unfill_mass_grid2t(tempa,im,jm,temp1)
+        write(6,*)' lcbas in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
         write(ioan)temp1
      end if
   else
@@ -2161,7 +2266,8 @@ module hilbertcurve
 !                         than one processor handling the same ob type or if the
 !                         same processor handles more than one ob-type. This
 !                         poses no threat to the RTMA so far, but nonetheless it is
-!                         something that will have to be dealt with in the future. 
+!                         something that will have to be dealt with in the future.
+!   2014-06-16  carley - add tcamt and lcbas
 !                        
 !
 ! subroutines included:
@@ -2214,6 +2320,9 @@ module hilbertcurve
   integer(i_kind) ngrps_sstob
   integer(i_kind) ngrps_gustob
   integer(i_kind) ngrps_visob
+  integer(i_kind) ngrps_tcamtob
+  integer(i_kind) ngrps_lcbasob
+
 
   logical random_cvgrp
   real(r_kind) usagecv
@@ -2230,6 +2339,7 @@ subroutine init_hilbertcurve(maxobs)
 !
 ! program history log:
 !   2009-10-01  lueken - added subprogram doc block
+!   2014-06-16  carley - add tcamt and lcbas
 !
 !   input argument list:
 !    maxobs
@@ -2253,7 +2363,8 @@ subroutine init_hilbertcurve(maxobs)
 
   namelist/parmcardhcurve/random_cvgrp,usagecv,ngrps_tob,ngrps_uvob, & 
                     ngrps_spdob,ngrps_psob,ngrps_qob, & 
-                    ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob
+                    ngrps_pwob,ngrps_sstob,ngrps_gustob,ngrps_visob, &
+                    ngrps_tcamtob,ngrps_lcbasob
 
   random_cvgrp=.false.
   usagecv=3._r_kind
@@ -2266,6 +2377,8 @@ subroutine init_hilbertcurve(maxobs)
   ngrps_sstob=0
   ngrps_gustob=8
   ngrps_visob=8
+  ngrps_tcamtob=8
+  ngrps_lcbasob=8
 
   inquire(file='parmcard_input',exist=fexist)
   if (fexist) then
@@ -2284,9 +2397,12 @@ subroutine init_hilbertcurve(maxobs)
     print*,'in init_hilbertcurve: ngrps_qob=',ngrps_qob
     print*,'in init_hilbertcurve: ngrps_pwob=',ngrps_pwob
     print*,'in init_hilbertcurve: ngrps_sstob=',ngrps_sstob
+    print*,'in init_hilbertcurve: ngrps_gustob=',ngrps_gustob
+    print*,'in init_hilbertcurve: ngrps_visob=',ngrps_visob
+    print*,'in init_hilbertcurve: ngrps_tcamtob=',ngrps_tcamtob
+    print*,'in init_hilbertcurve: ngrps_lcbasob=',ngrps_lcbasob
   end if
-  print*,'in init_hilbertcurve: ngrps_gustob=',ngrps_gustob
-  print*,'in init_hilbertcurve: ngrps_visob=',ngrps_visob
+
 
   ncross=0
 
@@ -2378,7 +2494,8 @@ end subroutine accum_hilbertcurve
 
 subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdob, & 
                               psob,kpsob,qob,kqob,pwob,kpwob,sstob,ksstob, & 
-                              gustob,kgustob,visob,kvisob)
+                              gustob,kgustob,visob,kvisob,tcamtob,ktcamtob,&
+                              lcbasob,klcbasob)
 !$$$  subprogram documentation block
 !                .      .    .                                      .
 ! subprogram:    apply_hilbertcurve
@@ -2388,6 +2505,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 !
 ! program history log:
 !   2009-10-01  lueken - added subprogram doc block
+!   2014-06-16  carley - add tcamt and lcbas
+! 
 !
 !   input argument list:
 !    tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
@@ -2410,8 +2529,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
 
 !Declare passed variables
-  logical        ,intent(in   ) :: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
-  integer(i_kind),intent(in   ) :: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob,kgustob,kvisob
+  logical        ,intent(in   ) :: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob,tcamtob,lcbasob
+  integer(i_kind),intent(in   ) :: ktob,kuvob,kspdob,kpsob,kqob,kpwob,ksstob,kgustob,kvisob,ktcamtob,klcbasob
   integer(i_kind),intent(in   ) :: maxobs,k1,k2
   real(r_kind)   ,intent(inout) :: cdata(k1:k2,maxobs)
 
@@ -2438,8 +2557,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
   allocate(hildlon(maxobs))
   allocate(hildlat(maxobs))
 
-      print*,'in apply_hilbertcurve: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',&
-                                     tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+      print*,'in apply_hilbertcurve: tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob,tcamtob,lcbasob=',&
+                                     tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob,tcamtob,lcbasob
 
       nt=ncross
       if(nt.gt.0) then
@@ -2500,6 +2619,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
             if(sstob) ncnumgrp0=ngrps_sstob
             if(gustob)ncnumgrp0=ngrps_gustob
             if(visob) ncnumgrp0=ngrps_visob
+            if(tcamtob)ncnumgrp0=ngrps_tcamtob
+            if(lcbasob)ncnumgrp0=ngrps_lcbasob
           else
             ncnumgrp0=ncnumgrp(hilikx(ncross)) ! number of cross-validating datasets is
                                                ! chosen to be the last "number of groups" 
@@ -2535,6 +2656,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
               if(sstob) cdata(ksstob,hili(i))=usage
               if(gustob)cdata(kgustob,hili(i))=usage
               if(visob) cdata(kvisob,hili(i))=usage
+              if(tcamtob) cdata(ktcamtob,hili(i))=usage
+              if(lcbasob) cdata(klcbasob,hili(i))=usage
 
               j=ipoint(i)
               do n=1,nt
@@ -2551,6 +2674,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
                     if(sstob) cdata(ksstob,hil_i(n))=usage_dup
                     if(gustob)cdata(kgustob,hil_i(n))=usage_dup
                     if(visob) cdata(kvisob,hil_i(n))=usage_dup
+                    if(tcamtob) cdata(ktcamtob,hil_i(n))=usage_dup
+                    if(lcbasob) cdata(klcbasob,hil_i(n))=usage_dup
                  endif
               enddo
            endif
@@ -2561,8 +2686,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
 
       if(ncross.gt.0) then
         ! count number of obs in each cross-validation dataset
-        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob=',&
-                ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob
+        print*,'ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob,tcamtob,lcbasob=',&
+                ncnumgrp0,tob,uvob,spdob,psob,qob,pwob,sstob,gustob,visob,tcamtob,lcbasob
         ncvcount=0
         do n=1,ncnumgrp0
            do i=1,ncross
@@ -2581,7 +2706,8 @@ subroutine apply_hilbertcurve(maxobs,cdata,k1,k2,tob,ktob,uvob,kuvob,spdob,kspdo
         if(qob)   outfile='qobs_allcv_groups'
         if(gustob)outfile='gustobs_allcv_groups'
         if(visob) outfile='visobs_allcv_groups'
-
+        if(tcamtob) outfile='tcamtobs_allcv_groups'
+        if(lcbasob) outfile='lcbasobs_allcv_groups'
         open (92,file=trim(outfile),form='unformatted')
 
         write(92) ncross,ncnumgrp0,ncgroup0
@@ -2733,6 +2859,17 @@ subroutine mkheader_madis_and_time_rejects(cobtype,lun)
      write(lun,*)   'RTMA CEELING HEIGHT OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
      write(lun,*)   'OB UNITS are m'
   endif
+
+  if (trim(cobtype)=='tcamt') then
+     write(lun,*)   'RTMA TOTAL CLOUD AMOUNT OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are %'
+  endif
+
+  if (trim(cobtype)=='lcbas') then
+     write(lun,*)   'RTMA LOWEST CLOUD BASE OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
+     write(lun,*)   'OB UNITS are m'
+  endif
+
 
   write(lun,*)   'dtime is the hour relative to the analysis time. For example, dtime=-0.1'
   write(lun,*)   '             means 0.1h (i.e. 6 minutes) before the analysis time'
