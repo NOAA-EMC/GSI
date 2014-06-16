@@ -96,6 +96,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2013-01-26 parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                                   tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !  2013-10-19 todling - metguess now holds background
+!  2014-04-10 todling - 4dvar fix: obs must be in current time bin
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -888,7 +889,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !       If obs is "acceptable", load array with obs info for use
 !       in inner loop minimization (int* and stp* routines)
 
-        if ( muse(i) ) then
+        if ( in_curbin .and. muse(i) ) then
  
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)
@@ -973,8 +974,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
-        endif
 
+        endif ! (in_curbin .and. muse=1)
      endif ! (last_pass)
   end do
 

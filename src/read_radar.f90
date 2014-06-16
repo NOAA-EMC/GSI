@@ -93,7 +93,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
@@ -250,7 +250,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 ! Check to see if radar wind files exist.  If none exist, exit this routine.
   inquire(file='radar_supobs_from_level2',exist=lexist1)
-  inquire(file=infile,exist=lexist2)
+  inquire(file=trim(infile),exist=lexist2)
   if (.not.lexist1 .and. .not.lexist2) goto 900
 
   eradkm=rearth*0.001_r_kind
@@ -271,7 +271,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   isort = 0
   cdata_all=zero
 
-  if (infile == 'tldplrbufr' .or. infile == 'tldplrso') goto 65
+  if (trim(infile) == 'tldplrbufr' .or. trim(infile) == 'tldplrso') goto 65
 
   ithin=-9
   rmesh=-99.999_r_kind
@@ -854,7 +854,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      if(loop==2)     outmessage='level 3 superobs:'
 
 !    Open, then read bufr data
-     open(lnbufr,file=infile,form='unformatted')
+     open(lnbufr,file=trim(infile),form='unformatted')
 
      call openbf(lnbufr,'IN',lnbufr)
      call datelen(10)
@@ -1368,13 +1368,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   if(loop == 3) outmessage='tail Doppler radar obs:'
 
-  if(infile == 'tldplrso') goto 75
+  if(trim(infile) == 'tldplrso') goto 75
 
   nswptype=0
   if(l_foreaft_thin)then
 ! read the first 500 records to deterine which criterion
 ! should be used to seperate fore/aft sweep
-    open(lnbufr,file=infile,form='unformatted')
+    open(lnbufr,file=trim(infile),form='unformatted')
     call openbf(lnbufr,'IN',lnbufr)
     call datelen(10)
     call readmg(lnbufr,subset,idate,iret)
@@ -1432,7 +1432,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   print *,'nmrecs, nswptype=', nmrecs, nswptype
 
 ! Open, then read bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
@@ -1934,7 +1934,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   call w3fs21(iadate,mincy) ! analysis time in minutes
 
-  open(lnbufr,file=infile,form='formatted',err=300)
+  open(lnbufr,file=trim(infile),form='formatted',err=300)
   rewind (lnbufr)
   do n=1,10
      istop=0

@@ -390,6 +390,7 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 #  Remove extra spaces in new bad_pen file
 #
    gawk '{$1=$1}1' $bad_pen > tmp.bad_pen
+   rm -f $bad_pen
    mv -f tmp.bad_pen $bad_pen
 
 

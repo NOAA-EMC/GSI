@@ -45,7 +45,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -136,7 +136,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Read in observations from ascii file 
 
 !    Opening file for reading
-     open(lunin,file=infile,form='formatted',iostat=iferror)
+     open(lunin,file=trim(infile),form='formatted',iostat=iferror)
      lerror = (iferror/=0)
 
 110  continue

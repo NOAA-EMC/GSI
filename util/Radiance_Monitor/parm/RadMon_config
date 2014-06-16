@@ -114,8 +114,8 @@ export RADMON_USER_SETTINGS=${RADMON_USER_SETTINGS:-${RADMON_PARM}/RadMon_user_s
 #
 #  Utilities used by the RadMon package
 #
-export NCP="/bin/cp -f"
-export Z="gz"
+export NCP=${NCP:-"/bin/cp -f"}
+export Z=${Z:-"gz"}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    shell=sh

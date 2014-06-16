@@ -139,7 +139,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     ,intent(in   ) :: gstime
   integer(i_kind)  ,intent(in   ) :: lunout
   real(r_kind)     ,intent(in   ) :: rmesh
-  character(len=*) ,intent(in   ) :: sis
+  character(len=20),intent(in   ) :: sis
   integer(i_kind)  ,intent(in   ) :: mype_root
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
@@ -355,7 +355,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open BUFR file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
 
 ! Open BUFR table
   table_file = 'airs_bufr.table'      ! make table file name

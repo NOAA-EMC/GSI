@@ -48,7 +48,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -117,7 +117,7 @@ subroutine read_lag(nread,ndata,nodata,infile,lunout, &
   allocate(lagdata(npara,nmaxobs))
 
 ! Opening file for reading
-  open(lunin,file=infile,form='formatted',iostat=iferror)
+  open(lunin,file=trim(infile),form='formatted',iostat=iferror)
   lerror = (iferror/=0)
 
 ! Read the first line of the data file

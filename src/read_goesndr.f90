@@ -55,6 +55,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2013-01-26  parrish - question about bmiss and hdr(15).  debug compile execution on WCOSS failed.  
 !                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
 !                          causes integer overflow with current logic.  Made quick fix, but needs review.
+!   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -99,7 +100,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: ndata,nodata,nread
   real(r_kind)    ,intent(in   ) :: rmesh,twind,gstime
@@ -138,6 +139,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),allocatable,dimension(:)::nrec
+  integer(i_kind) ibfms         ! BUFR missing value function
 
   real(r_kind) dlon,dlat,timedif,emiss,sfcr
   real(r_kind) dlon_earth,dlat_earth
@@ -237,7 +239,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Open then read the bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
@@ -292,12 +294,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
               if(ldetect /= nint(hdr(8)))cycle read_loop
            end if
 
-!          test for case when hdr(15) comes back with bmiss signifying 1x1 data
-         !      write(6,'(" in read_goesndr, bmiss,hdr(15)=",2ES25.18)')bmiss,hdr(15) !???????for debug only
-           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind.or.hdr(15)>bmiss) then !???bad way to test???
-                      ! dparrish fix: apparently there is a new definition of   ????????
-                      ! missing -- bmiss = 1e9, large numbers of hdr(15)=1e11 or  ????????
-                      ! 5x5 missing is 1e11 ???????????????????
+!   test for case when hdr(15) comes back with bmiss signifying 1x1 data
+           if (ibfms(hdr(15)) .eq. 1) then
               ifov = 0
            else ! 5x5 data
               ifov = nint(hdr(15)) ! number of averaged FOVS

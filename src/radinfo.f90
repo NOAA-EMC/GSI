@@ -91,6 +91,7 @@ module radinfo
   public :: nst_gsi,nst_tzr,nstinfo,fac_dtl,fac_tsl,tzr_bufrsave
   public :: radedge1, radedge2
   public :: ssmis_precond
+  public :: radinfo_adjust_jacobian
 
   integer(i_kind),parameter:: numt = 33   ! size of AVHRR bias correction file
   integer(i_kind),parameter:: ntlapthresh = 100 ! threshhold value of cycles if tlapmean update is needed
@@ -175,6 +176,9 @@ module radinfo
   real(r_kind) :: biaspredvar
   logical,save :: newpc4pred ! controls preconditioning due to sat-bias correction term 
 
+  interface radinfo_adjust_jacobian; module procedure adjust_jac_; end interface
+
+  character(len=*),parameter :: myname='radinfo'
 contains
 
 
@@ -437,6 +441,7 @@ contains
 !
 ! program history log:
 !   2011-05-16  todling
+!   2014-04-13  todling - add call to finalize correlated R related quantities
 !
 !   input argument list:
 !
@@ -448,8 +453,10 @@ contains
 !
 !$$$ end documentation block
 
+    use correlated_obsmod, only: corr_ob_finalize
     implicit none
 
+    call corr_ob_finalize
     if(allocated(radjacindxs)) deallocate(radjacindxs)
     if(allocated(radjacnames)) deallocate(radjacnames)
 
@@ -506,6 +513,7 @@ contains
 !   2013-02-13  eliu    - change write-out format for iout_rad (for two
 !                         additional SSMIS bias correction coefficients)
 !   2013-05-14  guo     - add read error messages to alarm user a format change.
+!   2014-04-13  todling - add initialization of correlated R-covariance
 !
 !   input argument list:
 !
@@ -519,6 +527,7 @@ contains
 
 ! !USES:
 
+    use correlated_obsmod, only: corr_ob_initialize
     use obsmod, only: iout_rad
     use constants, only: zero,one,zero_quad
     use mpimod, only: mype
@@ -928,6 +937,9 @@ contains
        close(lunin)
     endif           ! endif for if (retrieval) then
 
+!   Initialize observation error covariance for 
+!   instruments we account for inter-channel correlations
+    call corr_ob_initialize
 
 !   Close unit for runtime output.  Return to calling routine
     if(mype==mype_rad)close(iout_rad)
@@ -1758,5 +1770,74 @@ contains
    return
    end subroutine init_predx
 
+   logical function adjust_jac_ (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
+                                 depart,obvarinv,adaptinf,jacobian)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    adjust_jac_
+!
+!   prgrmmr:     todling  org: gmao                date: 2014-04-15
+!
+! abstract:  provide hook to module handling inter-channel ob correlated errors
+!
+! program history log:
+!   2014-04-15  todling - initial code
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
+!
+!$$$ end documentation block
+   use constants, only: tiny_r_kind,zero,one
+   use correlated_obsmod, only: idnames
+   use correlated_obsmod, only: corr_ob_amiset
+   use correlated_obsmod, only: corr_ob_scale_jac
+   use correlated_obsmod, only: GSI_BundleErrorCov 
+   use mpeu_util, only: getindex
+   use mpeu_util, only: die
+   use mpimod, only: mype
+   implicit none
+   character(len=*),intent(in) :: obstype
+   logical,         intent(in) :: sea
+   logical,         intent(in) :: land
+   integer(i_kind), intent(in) :: nchanl
+   integer(i_kind), intent(in) :: nsigradjac
+   integer(i_kind), intent(in) :: ich(nchanl)
+   real(r_kind), intent(inout) :: varinv(nchanl)
+   real(r_kind), intent(inout) :: depart(nchanl)
+   real(r_kind), intent(inout) :: obvarinv(nchanl)
+   real(r_kind), intent(inout) :: adaptinf(nchanl)
+   real(r_kind), intent(inout) :: jacobian(nsigradjac,nchanl)
+
+   character(len=*),parameter::myname_ = myname//'*adjust_jac_'
+   character(len=80) covtype
+   integer(i_kind) ii,jj,nn,mm,ni,iinstr,ifound,nch_active
+   integer(i_kind),allocatable,dimension(:) :: indx
+   real(r_kind),   allocatable,dimension(:,:) :: col
+   logical subset
+   integer,save:: icount=0
+
+   adjust_jac_=.false.
+
+   if(.not.allocated(idnames)) then
+     return
+   endif
+
+               covtype = trim(obstype)//':global'
+   if (sea)    covtype = trim(obstype)//':sea'
+   if (land)   covtype = trim(obstype)//':land'
+   iinstr=getindex(idnames,trim(covtype))
+   if(iinstr<0) then
+      return ! nothing to do
+   endif
+
+   if(.not.corr_ob_amiset(GSI_BundleErrorCov(iinstr))) then
+      call die(myname_,' improperly set GSI_BundleErrorCov')
+   endif
+
+   adjust_jac_ = corr_ob_scale_jac (depart,obvarinv,adaptinf,jacobian,nchanl,jpch_rad,varinv, &
+                                    iuse_rad,ich,GSI_BundleErrorCov(iinstr))
+
+end function adjust_jac_
  
 end module radinfo

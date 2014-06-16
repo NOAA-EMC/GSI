@@ -80,11 +80,26 @@ module bad_penalty
       real, intent( in )		:: penalty
       real, intent( in )                :: bound
       character(60)                     :: myformat
+      character(100)                     :: chan
+      character(100)                     :: rgn 
+      character(100)                     :: pen 
+      character(100)                     :: bnd 
+      character(200)                    :: outstr
 
-      myformat = "(A20,A10,I5,A9,I1,A10,ES15.7E2,A8,ES15.7E2)"
+      myformat = "(A20,A10,I5,A9,I1,A10,ES11.6E1,A8,ES11.6E1)"
 
-      
-      write(funit,myformat) satname, ' channel= ',channel, ' region= ', region, ' penalty= ', penalty, ' bound= ', bound
+      write(chan,'(A10,I5)') 'channel= ',channel
+      write(rgn, '(A9,I1)') ' region= ', region
+      write(pen, '(A10,ES15.7E2)') ' penalty= ', penalty
+      write(bnd, '(A8,ES15.7E2)') ' bound= ', bound
+
+      outstr = trim(satname)//trim(chan)//trim(rgn)//trim(pen)//trim(bnd)
+
+!      write(outstr,myformat) satname, ' channel= ',channel, ' region= ', region, ' penalty= ', penalty, ' bound= ', bound
+
+!      write(funit,myformat) satname, ' channel= ',channel, ' region= ', region, ' penalty= ', penalty, ' bound= ', bound
+
+      write(funit,'(A90)') trim(outstr)
 
     end subroutine write_bad_penalty
 

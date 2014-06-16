@@ -82,8 +82,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
 ! Declare passed variables
-  character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=*), intent(in  ) :: infile,obstype,jsatid
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -228,7 +228,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
-  open(lnbufr,file=infile,form='unformatted')         ! open bufr data file
+  open(lnbufr,file=trim(infile),form='unformatted')         ! open bufr data file
 
 ! Associate the tables file with the message file, and identify the 
 ! latter to BUFRLIB software
