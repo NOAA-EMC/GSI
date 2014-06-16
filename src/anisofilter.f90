@@ -32,6 +32,9 @@ module anisofilter
 !   2013-10-19  todling - metguess now holds background
 !   2013-10-24  todling - general interface to strip
 !                       - reposition ltosi and others to commvars
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
 !
 !
 ! subroutines included:
@@ -128,6 +131,7 @@ module anisofilter
   use control_vectors, only: nvars,nrf,nrf3_loc,nrf2_loc,nrf_3d,nrf_var
   use control_vectors, only: nrf3 => nc3d
   use control_vectors, only: nrf2 => nc2d
+  use control_vectors, only: nmotl_loc,mvars
   use control_vectors, only: an_amp0
 
   use guess_grids, only: ges_prsl,ntguessig,&
@@ -262,12 +266,17 @@ module anisofilter
   logical lsmoothterrain
   logical lwater_scaleinfl
   integer(i_kind) nhscale_pass
-  real(r_kind) water_scalefact(10),hsmooth_len
+  real(r_kind) hsmooth_len
+  real(r_kind),allocatable,dimension(:):: water_scalefact
   real(r_kind),allocatable,dimension(:,:,:)::rsliglb      !sea-land-ice mask on analysis grid. type real
-  real(r_kind):: rltop,rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh
+  real(r_kind):: rltop,rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh, &
+                 rltop_wspd10m,rltop_td2m,rltop_mxtm,rltop_mitm,rltop_pmsl,rltop_howv
 
   integer(i_kind):: nrf3_oz,nrf3_t,nrf3_sf,nrf3_vp,nrf3_q,nrf3_cw
-  integer(i_kind):: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_stl,nrf2_sti
+  integer(i_kind):: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_stl,nrf2_sti, &
+                    nrf2_wspd10m,nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv
+  integer(i_kind):: nrf3_sfwter,nrf3_vpwter,nrf2_twter,nrf2_qwter,nrf2_pswter,nrf2_gustwter, &
+                    nrf2_wspd10mwter,nrf2_td2mwter,nrf2_mxtmwter,nrf2_mitmwter
 
 !_RT  integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc  ! should !become local
   character(len=*),parameter::myname='anisofilter'
@@ -359,6 +368,22 @@ subroutine anprewgt_reg(mype)
   nrf2_pblh = getindex(cvars2d,'pblh')
   nrf2_stl  = getindex(cvarsmd,'stl')
   nrf2_sti  = getindex(cvarsmd,'sti')
+  nrf2_wspd10m = getindex(cvars2d,'wspd10m')
+  nrf2_td2m = getindex(cvars2d,'td2m')
+  nrf2_mxtm = getindex(cvars2d,'mxtm')
+  nrf2_mitm = getindex(cvars2d,'mitm')
+  nrf2_pmsl = getindex(cvars2d,'pmsl')
+  nrf2_howv = getindex(cvars2d,'howv')
+  nrf3_sfwter = getindex(cvars3d,'sfwter')
+  nrf3_vpwter = getindex(cvars3d,'vpwter')
+  nrf2_twter = getindex(cvarsmd,'twter')
+  nrf2_qwter = getindex(cvarsmd,'qwter')
+  nrf2_pswter = getindex(cvarsmd,'pswter')
+  nrf2_gustwter = getindex(cvarsmd,'gustwter')
+  nrf2_wspd10mwter = getindex(cvarsmd,'wspd10mwter')
+  nrf2_td2mwter = getindex(cvarsmd,'td2mwter')
+  nrf2_mxtmwter = getindex(cvarsmd,'mxtmwter')
+  nrf2_mitmwter = getindex(cvarsmd,'mitmwter')
 
   call init_anisofilter_reg(mype)
   call read_bckgstats(mype)
@@ -624,6 +649,7 @@ subroutine anprewgt_reg(mype)
   deallocate(u0f,u0zf,v0f,v0zf,z0f,z0f2,rh0f,vis0f,psg,rsliglb)
 
   deallocate(rfact0h,rfact0v)
+  deallocate(water_scalefact)
   deallocate(hfine,hfilter)
 
 end subroutine anprewgt_reg
@@ -676,7 +702,7 @@ subroutine get_aspect_reg_2d
   real(r_kind):: afact,deta0,deta1
 
   integer(i_kind):: nlatf,nlonf
-  character(len=5) cvar
+  character(len=8) cvar
 
   nlatf=pf2aP1%nlatf
   nlonf=pf2aP1%nlonf
@@ -728,6 +754,12 @@ subroutine get_aspect_reg_2d
               case('gust','GUST'); rltop=rltop_gust
               case('vis','VIS'); rltop=rltop_vis
               case('pblh','PBLH'); rltop=rltop_pblh
+              case('wspd10m','WSPD10M'); rltop=rltop_wspd10m
+              case('td2m','TD2M'); rltop=rltop_td2m
+              case('mxtm','MXTM'); rltop=rltop_mxtm
+              case('mitm','MITM'); rltop=rltop_mitm
+              case('pmsl','PMSL'); rltop=rltop_pmsl
+              case('howv','HOWV'); rltop=rltop_howv
            end select
            afact=afact0(ivar)
            if (cvar=='pblh' .or. cvar=='PBLH') afact=zero    ! for now, Geoff preferrs this due to lacking of obs
@@ -882,7 +914,7 @@ subroutine get_aspect_reg_pt(mype)
 
            if ( (nvar_id(k)==nrf3_loc(nrf3_sf) .or. nvar_id(k)==nrf3_loc(nrf3_vp) &
               .or. nvar_id(k)==nrf3_loc(nrf3_t)) .and. afact0(nvar_id(k))>zero ) then
-              afact=real(afact0(nvar_id(k)),r_single)
+              afact=afact0(nvar_id(k))
               asp1=scalex1*asp1
               asp2=scalex2*asp2
               asp3=scalex3*asp3
@@ -1028,8 +1060,24 @@ end subroutine fact_qopt2
   if (nrf2_gust>0.and.ivar==nrf2_loc(nrf2_gust)) fvarname='gust'
   if (nrf2_vis>0.and.ivar==nrf2_loc(nrf2_vis)) fvarname='vis'
   if (nrf2_pblh>0.and.ivar==nrf2_loc(nrf2_pblh)) fvarname='pblh'
+  if (nrf2_wspd10m>0.and.ivar==nrf2_loc(nrf2_wspd10m)) fvarname='wspd10m'
+  if (nrf2_td2m>0.and.ivar==nrf2_loc(nrf2_td2m)) fvarname='td2m'
+  if (nrf2_mxtm>0.and.ivar==nrf2_loc(nrf2_mxtm)) fvarname='mxtm'
+  if (nrf2_mitm>0.and.ivar==nrf2_loc(nrf2_mitm)) fvarname='mitm'
+  if (nrf2_pmsl>0.and.ivar==nrf2_loc(nrf2_pmsl)) fvarname='pmsl'
+  if (nrf2_howv>0.and.ivar==nrf2_loc(nrf2_howv)) fvarname='howv'
   if (nrf2_sst>0.and.ivar==nrf+1) fvarname='lst'   ! _RTod this is a disaster!
   if (nrf2_sst>0.and.ivar==nrf+2) fvarname='ist'   ! _RTod this is a disaster!
+  if (ivar==nrf3_loc(nrf3_sfwter)) fvarname='sfwter'
+  if (ivar==nrf3_loc(nrf3_vpwter)) fvarname='vpwter'
+  if (nrf2_twter>0.and.ivar==nmotl_loc(nrf2_twter)) fvarname='twter'
+  if (nrf2_qwter>0.and.ivar==nmotl_loc(nrf2_qwter)) fvarname='qwter'
+  if (nrf2_pswter>0.and.ivar==nmotl_loc(nrf2_pswter)) fvarname='pswter'
+  if (nrf2_gustwter>0.and.ivar==nmotl_loc(nrf2_gustwter)) fvarname='gustwter'
+  if (nrf2_wspd10mwter>0.and.ivar==nmotl_loc(nrf2_wspd10mwter)) fvarname='wspd10mwter'
+  if (nrf2_td2mwter>0.and.ivar==nmotl_loc(nrf2_td2mwter)) fvarname='td2mwter'
+  if (nrf2_mxtmwter>0.and.ivar==nmotl_loc(nrf2_mxtmwter)) fvarname='mxtmwter'
+  if (nrf2_mitmwter>0.and.ivar==nmotl_loc(nrf2_mitmwter)) fvarname='mitmwter'
 
   return
 end function fvarname
@@ -1065,27 +1113,49 @@ subroutine init_anisofilter_reg(mype)
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
 
+! Declare local parameters
+  real(r_kind),parameter::r0_27=0.27_r_kind
+  real(r_kind),parameter::r0_36=0.36_r_kind
+  real(r_kind),parameter::r1_2=1.2_r_kind
+  real(r_kind),parameter::r1_25=1.25_r_kind
+  real(r_kind),parameter::r1_5=1.5_r_kind
+
 ! Declare local variables
   integer(i_kind):: i,n
   logical:: fexist
   integer(i_kind)           :: nlatf,nlonf
 
-  real(r_double) svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh
-  real(r_kind) sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh
+  real(r_double) svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh,svwspd10m, &
+                 svtd2m,svmxtm,svmitm,svpmsl,svhowv, &
+                 svpsi_w,svchi_w,svpsfc_w,svtemp_w,svshum_w,svgust_w,svwspd10m_w, &
+                 svtd2m_w,svmxtm_w,svmitm_w
+  real(r_kind) sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh,sclwspd10m, &
+               scltd2m,sclmxtm,sclmitm,sclpmsl,sclhowv, &
+               sclpsi_w,sclchi_w,sclpsfc_w,scltemp_w,sclhum_w,sclgust_w,sclwspd10m_w, &
+               scltd2m_w,sclmxtm_w,sclmitm_w
   real(r_kind) water_scalefactpsi,water_scalefactchi,water_scalefacttemp, &
                water_scalefactq,water_scalefactpsfc,water_scalefactgust, &
-               water_scalefactpblh,water_scalefactvis
+               water_scalefactpblh,water_scalefactvis,water_scalefactwspd10m, &
+               water_scalefacttd2m,water_scalefactmxtm,water_scalefactmitm,water_scalefactpmsl
 
   namelist/parmcardanisof/latdepend,scalex1,scalex2,scalex3,afact0,hsteep, &
           lsmoothterrain,hsmooth_len,volpreserve, &
           lwater_scaleinfl,water_scalefactpsi,water_scalefactchi, &
           water_scalefacttemp,water_scalefactq,water_scalefactpsfc, &
           water_scalefactgust,water_scalefactvis,water_scalefactpblh, &
-          nhscale_pass, &
+          water_scalefactwspd10m,water_scalefacttd2m, &
+          water_scalefactmxtm,water_scalefactmitm,water_scalefactpmsl,nhscale_pass, &
           rltop_wind,rltop_temp,rltop_q,rltop_psfc, &
-          rltop_gust,rltop_vis,rltop_pblh, &
-          svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh, &
-          sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh
+          rltop_gust,rltop_vis,rltop_pblh,rltop_wspd10m, &
+          rltop_td2m,rltop_mxtm,rltop_mitm,rltop_pmsl,rltop_howv, &
+          svpsi,svchi,svpsfc,svtemp,svshum,svgust,svvis,svpblh,svwspd10m, &
+          svtd2m,svmxtm,svmitm,svpmsl,svhowv, &
+          svpsi_w,svchi_w,svpsfc_w,svtemp_w,svshum_w,svgust_w,svwspd10m_w, &
+          svtd2m_w,svmxtm_w,svmitm_w, &
+          sclpsi,sclchi,sclpsfc,scltemp,sclhum,sclgust,sclvis,sclpblh, &
+          sclwspd10m,scltd2m,sclmxtm,sclmitm,sclpmsl,sclhowv, &
+          sclpsi_w,sclchi_w,sclpsfc_w,scltemp_w,sclhum_w,sclgust_w, &
+          sclwspd10m_w,scltd2m_w,sclmxtm_w,sclmitm_w
 !*******************************************************************
 
   nlatf=pf2aP1%nlatf
@@ -1136,21 +1206,39 @@ subroutine init_anisofilter_reg(mype)
 !---
   else
 
-     do n=1,nrf
+     do n=1,nvars
         select case(nrf_var(n))
-           case('sf','SF'); rfact0h(n)=one;  rfact0v(n)=1.50_r_kind
-           case('vp','VP'); rfact0h(n)=one;  rfact0v(n)=1.50_r_kind
-           case('t','T')  ; rfact0h(n)=1.5_r_kind;  rfact0v(n)=1.50_r_kind
-           case('q','Q')  ; rfact0h(n)=1.5_r_kind;  rfact0v(n)=1.25_r_kind
-           case('oz','OZ'); rfact0h(n)=one;  rfact0v(n)=1.25_r_kind
-           case('cw','CW'); rfact0h(n)=one;  rfact0v(n)=1.25_r_kind
-           case('ps','PS'); rfact0h(n)=1.2_r_kind;  rfact0v(n)=1.50_r_kind 
-           case('sst','SST'); rfact0h(n)=one    ;  rfact0v(n)=1.25_r_kind;
-                              rfact0h(nrf+1)=one;  rfact0v(nrf+1)=1.25_r_kind;
-                              rfact0h(nrf+2)=one;  rfact0v(nrf+2)=1.25_r_kind
-           case('gust','GUST'); rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind 
-           case('pblh','PBLH'); rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind 
-           case('vis','VIS')  ; rfact0h(n)=one    ;  rfact0v(n)=1.50_r_kind 
+           case('sf','SF');                   rfact0h(n)=one;     rfact0v(n)=r1_5  !rfact0v is not used in 2DVar mode
+           case('vp','VP');                   rfact0h(n)=one;     rfact0v(n)=r1_5
+           case('t','T')  ;                   rfact0h(n)=r1_5;    rfact0v(n)=r1_5
+           case('q','Q')  ;                   rfact0h(n)=r1_5;    rfact0v(n)=r1_25
+           case('oz','OZ');                   rfact0h(n)=one;     rfact0v(n)=r1_25
+           case('cw','CW');                   rfact0h(n)=one;     rfact0v(n)=r1_25
+           case('ps','PS');                   rfact0h(n)=r1_2;    rfact0v(n)=r1_5
+
+           case('sst','SST');                 rfact0h(n)=one    ; rfact0v(n)=r1_25;
+                                              rfact0h(nrf+1)=one; rfact0v(nrf+1)=r1_25;
+                                              rfact0h(nrf+2)=one; rfact0v(nrf+2)=r1_25
+
+           case('gust','GUST');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('pblh','PBLH');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('vis','VIS')  ;               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('wspd10m','WSPD10M');         rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('td2m','TD2M');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('mxtm','MXTM');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('mitm','MITM');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('pmsl','PMSL');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('howv','HOWV');               rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('sfwter','SFWTER')  ;         rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('vpwter','VPWTER')  ;         rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('twter','TWTER')    ;         rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('qwter','QWTER')    ;         rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('pswter','PSWTER')  ;         rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('gustwter','GUSTWTER')  ;     rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('wspd10mwter','WSPD10MWTER'); rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('td2mwter','TD2MWTER');       rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('mxtmwter','MXTMWTER');       rfact0h(n)=one    ; rfact0v(n)=r1_5
+           case('mitmwter','MITMWTER');       rfact0h(n)=one    ; rfact0v(n)=r1_5
         end select
      end do
 
@@ -1168,6 +1256,11 @@ subroutine init_anisofilter_reg(mype)
      water_scalefactgust=one
      water_scalefactvis=one
      water_scalefactpblh=one
+     water_scalefactwspd10m=one
+     water_scalefacttd2m=one
+     water_scalefactmxtm=one
+     water_scalefactmitm=one
+     water_scalefactpmsl=one
      nhscale_pass=0
 
      rltop_wind=huge_single
@@ -1177,6 +1270,12 @@ subroutine init_anisofilter_reg(mype)
      rltop_gust=huge_single
      rltop_vis=huge_single
      rltop_pblh=huge_single
+     rltop_wspd10m=huge_single
+     rltop_td2m=huge_single
+     rltop_mxtm=huge_single
+     rltop_mitm=huge_single
+     rltop_pmsl=huge_single
+     rltop_howv=huge_single
 
      svpsi =0.35_r_double
      svchi =0.35_r_double*2.063_r_double
@@ -1186,15 +1285,49 @@ subroutine init_anisofilter_reg(mype)
      svgust=one
      svvis=one
      svpblh=one
+     svwspd10m=one
+     svtd2m=one
+     svmxtm=one
+     svmitm=one
+     svpmsl=one
+     svhowv=one
+     svpsi_w =svpsi
+     svchi_w =svchi
+     svpsfc_w =svpsfc
+     svtemp_w =svtemp
+     svshum_w =svshum
+     svgust_w =svgust
+     svwspd10m_w =svwspd10m
+     svtd2m_w =svtd2m
+     svmxtm_w =svmxtm
+     svmitm_w =svmitm
 
-     sclpsi =0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
-     sclchi =0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
-     sclpsfc=0.3_r_kind*75._r_kind/100._r_kind*1.2_r_kind
-     scltemp=0.3_r_kind*1.2_r_kind
-     sclhum =0.3_r_kind*1.2_r_kind
-     sclgust=0.3_r_kind*1.2_r_kind
-     sclvis =0.3_r_kind*1.2_r_kind
-     sclpblh=0.3_r_kind*1.2_r_kind
+     sclpsi =r0_27
+     sclchi =r0_27
+     sclpsfc=r0_27
+     scltemp=r0_36
+     sclhum =r0_36
+     sclgust=r0_36
+     sclvis =r0_36
+     sclpblh=r0_36
+     sclwspd10m=r0_36
+     scltd2m=r0_36
+     sclmxtm=r0_36
+     sclmitm=r0_36
+     sclpmsl=r0_27
+     sclhowv=r0_27
+     sclpsi_w =sclpsi
+     sclchi_w =sclchi
+     sclpsfc_w =sclpsfc
+     scltemp_w =scltemp
+     sclhum_w =sclhum
+     sclgust_w =sclgust
+     sclwspd10m_w =sclwspd10m
+     scltd2m_w =scltd2m
+     sclmxtm_w =sclmxtm
+     sclmitm_w =sclmitm
+
+     allocate(water_scalefact(nvars))
 
      water_scalefact(:)=one
 
@@ -1210,7 +1343,7 @@ subroutine init_anisofilter_reg(mype)
           !Rescaling of correlation lengths over water only
      an_amp=0.60_r_double
      rfact0h=one
-     do n=1,nrf
+     do n=1,nvars
         select case(nrf_var(n))
            case('sf','SF') 
               an_amp(:,n) =svpsi
@@ -1245,6 +1378,70 @@ subroutine init_anisofilter_reg(mype)
               an_amp(:,n) =svpblh
               rfact0h(n)=sclpblh
               water_scalefact(n)=water_scalefactpblh
+           case('wspd10m','WSPD10M')
+              an_amp(:,n) =svwspd10m
+              rfact0h(n)=sclwspd10m
+              water_scalefact(n)=water_scalefactwspd10m
+           case('td2m','TD2M')
+              an_amp(:,n) =svtd2m
+              rfact0h(n)=scltd2m
+              water_scalefact(n)=water_scalefacttd2m
+           case('mxtm','MXTM')
+              an_amp(:,n) =svmxtm
+              rfact0h(n)=sclmxtm
+              water_scalefact(n)=water_scalefactmxtm
+           case('mitm','MITM')
+              an_amp(:,n) =svmitm
+              rfact0h(n)=sclmitm
+              water_scalefact(n)=water_scalefactmitm
+           case('pmsl','PMSL')
+              an_amp(:,n) =svpmsl
+              rfact0h(n)=sclpmsl
+              water_scalefact(n)=water_scalefactpmsl
+           case('howv','HOWV')
+              an_amp(:,n) =svhowv
+              rfact0h(n)=sclhowv
+              water_scalefact(n)=one
+           case('sfwter','SFWTER')
+              an_amp(:,n) =svpsi_w
+              rfact0h(n)=sclpsi_w
+              water_scalefact(n)=one
+           case('vpwter','VPWTER')
+              an_amp(:,n) =svchi_w
+              rfact0h(n)=sclchi_w
+              water_scalefact(n)=one
+           case('twter','TWTER')
+              an_amp(:,n) =svtemp_w
+              rfact0h(n)=scltemp_w
+              water_scalefact(n)=one
+           case('qwter','QWTER')
+              an_amp(:,n) =svshum_w
+              rfact0h(n)=sclhum_w
+              water_scalefact(n)=one
+           case('pswter','PSWTER')
+              an_amp(:,n) =svpsfc_w
+              rfact0h(n)=sclpsfc_w
+              water_scalefact(n)=one
+           case('gustwter','GUSTWTER')
+              an_amp(:,n) =svgust_w
+              rfact0h(n)=sclgust_w
+              water_scalefact(n)=one
+           case('wspd10mwter','WSPD10MWTER')
+              an_amp(:,n) =svwspd10m_w
+              rfact0h(n)=sclwspd10m_w
+              water_scalefact(n)=one
+           case('td2mwter','TD2MWTER')
+              an_amp(:,n) =svtd2m_w
+              rfact0h(n)=scltd2m_w
+              water_scalefact(n)=one
+           case('mxtmwter','MXTMWTER')
+              an_amp(:,n) =svmxtm_w
+              rfact0h(n)=sclmxtm_w
+              water_scalefact(n)=one
+           case('mitmwter','MITMWTER')
+              an_amp(:,n) =svmitm_w
+              rfact0h(n)=sclmitm_w
+              water_scalefact(n)=one
         end select
      end do
 
@@ -1262,6 +1459,11 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: water_scalefactgust=',water_scalefactgust
         print*,'in init_anisofilter_reg: water_scalefactvis=',water_scalefactvis
         print*,'in init_anisofilter_reg: water_scalefactpblh=',water_scalefactpblh
+        print*,'in init_anisofilter_reg: water_scalefactwspd10m=',water_scalefactwspd10m
+        print*,'in init_anisofilter_reg: water_scalefacttd2m=',water_scalefacttd2m
+        print*,'in init_anisofilter_reg: water_scalefactmxtm=',water_scalefactmxtm
+        print*,'in init_anisofilter_reg: water_scalefactmitm=',water_scalefactmitm
+        print*,'in init_anisofilter_reg: water_scalefactpmsl=',water_scalefactpmsl
 
         print*,'in init_anisofilter_reg: latdepend=',latdepend
         print*,'in init_anisofilter_reg: scalex1=',scalex1
@@ -1275,6 +1477,12 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: rltop_gust=',rltop_gust
         print*,'in init_anisofilter_reg: rltop_vis=',rltop_vis
         print*,'in init_anisofilter_reg: rltop_pblh=',rltop_pblh
+        print*,'in init_anisofilter_reg: rltop_wspd10m=',rltop_wspd10m
+        print*,'in init_anisofilter_reg: rltop_td2m=',rltop_td2m
+        print*,'in init_anisofilter_reg: rltop_mxtm=',rltop_mxtm
+        print*,'in init_anisofilter_reg: rltop_mitm=',rltop_mitm
+        print*,'in init_anisofilter_reg: rltop_pmsl=',rltop_pmsl
+        print*,'in init_anisofilter_reg: rltop_howv=',rltop_howv
 
         print*,'in init_anisofilter_reg: svpsi=',svpsi
         print*,'in init_anisofilter_reg: svchi=',svchi
@@ -1284,6 +1492,22 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: svgust=',svgust
         print*,'in init_anisofilter_reg: svvis=',svvis
         print*,'in init_anisofilter_reg: svpblh=',svpblh
+        print*,'in init_anisofilter_reg: svwspd10m=',svwspd10m
+        print*,'in init_anisofilter_reg: svtd2m=',svtd2m
+        print*,'in init_anisofilter_reg: svmxtm=',svmxtm
+        print*,'in init_anisofilter_reg: svmitm=',svmitm
+        print*,'in init_anisofilter_reg: svpmsl=',svpmsl
+        print*,'in init_anisofilter_reg: svhowv=',svhowv
+        print*,'in init_anisofilter_reg: svpsi_w=',svpsi_w
+        print*,'in init_anisofilter_reg: svchi_w=',svchi_w
+        print*,'in init_anisofilter_reg: svpsfc_w=',svpsfc_w
+        print*,'in init_anisofilter_reg: svtemp_w=',svtemp_w
+        print*,'in init_anisofilter_reg: svshum_w=',svshum_w
+        print*,'in init_anisofilter_reg: svgust_w=',svgust_w
+        print*,'in init_anisofilter_reg: svwspd10m_w=',svwspd10m_w
+        print*,'in init_anisofilter_reg: svtd2m_w=',svtd2m_w
+        print*,'in init_anisofilter_reg: svmxtm_w=',svmxtm_w
+        print*,'in init_anisofilter_reg: svmitm_w=',svmitm_w
 
         print*,'in init_anisofilter_reg: sclpsi=',sclpsi
         print*,'in init_anisofilter_reg: sclchi=',sclchi
@@ -1293,6 +1517,22 @@ subroutine init_anisofilter_reg(mype)
         print*,'in init_anisofilter_reg: sclgust=',sclgust
         print*,'in init_anisofilter_reg: sclvis=',sclvis
         print*,'in init_anisofilter_reg: sclpblh=',sclpblh
+        print*,'in init_anisofilter_reg: sclwspd10m=',sclwspd10m
+        print*,'in init_anisofilter_reg: scltd2m=',scltd2m
+        print*,'in init_anisofilter_reg: sclmxtm=',sclmxtm
+        print*,'in init_anisofilter_reg: sclmitm=',sclmitm
+        print*,'in init_anisofilter_reg: sclpmsl=',sclpmsl
+        print*,'in init_anisofilter_reg: sclhowv=',sclhowv
+        print*,'in init_anisofilter_reg: sclpsi_w=',sclpsi_w
+        print*,'in init_anisofilter_reg: sclchi_w=',sclchi_w
+        print*,'in init_anisofilter_reg: sclsfc_w=',sclpsfc_w
+        print*,'in init_anisofilter_reg: scltemp_w=',scltemp_w
+        print*,'in init_anisofilter_reg: sclhum_w=',sclhum_w
+        print*,'in init_anisofilter_reg: sclgust_w=',sclgust_w
+        print*,'in init_anisofilter_reg: sclwspd10m_w=',sclwspd10m_w
+        print*,'in init_anisofilter_reg: scltd2m_w=',scltd2m_w
+        print*,'in init_anisofilter_reg: sclmxtm_w=',sclmxtm_w
+        print*,'in init_anisofilter_reg: sclmitm_w=',sclmitm_w
 
         print*,'in init_anisofilter_reg: nhscale_pass=',nhscale_pass
      endif
@@ -1401,7 +1641,7 @@ subroutine read_bckgstats(mype)
 
 ! Allocate arrays in stats file
   allocate ( corz(1:mlat,1:nsig,1:nrf3) )
-  allocate ( corp(1:mlat,nrf2) )
+  allocate ( corp(1:mlat,nvars-nrf3) )
   allocate ( hwll(0:mlat+1,1:nsig,1:nrf3),hwllp(0:mlat+1,nvars-nrf3) )
   allocate ( vz(1:nsig,0:mlat+1,1:nrf3) )
 
@@ -1467,8 +1707,9 @@ subroutine read_bckgstats(mype)
 
      allocate(corzavg(1:nsig,1:nrf3))
      allocate(hwllavg(1:nsig,1:nrf3))
-     allocate(corpavg(1:nrf2))
-     allocate(hwllpavg(1:nrf2))
+     allocate(corpavg(1:nvars-nrf3))
+     allocate(hwllpavg(1:nvars-nrf3))
+
 
      do n=1,nrf3
         do k=1,nsig
@@ -1476,18 +1717,18 @@ subroutine read_bckgstats(mype)
            hwllavg(k,n)=sum(hwll(0:mlat+1,k,n))/float(mlat+2)
         end do
      end do
-     do n=1,nrf2
+     do n=1,nvars-nrf3
         corpavg(n)=sum(corp(1:mlat,n))/float(mlat)
         hwllpavg(n)=sum(hwllp(0:mlat+1,n))/float(mlat+2)
      end do
 
      do j=1,mlat
         corz(j,1:nsig,1:nrf3)=corzavg(1:nsig,1:nrf3)
-        corp(j,1:nrf2)=corpavg(1:nrf2)
+        corp(j,1:nvars-nrf3)=corpavg(1:nvars-nrf3)
      end do
      do j=0,mlat+1
         hwll(j,1:nsig,1:nrf3)=hwllavg(1:nsig,1:nrf3)
-        hwllp(j,1:nrf2)=hwllpavg(1:nrf2)
+        hwllp(j,1:nvars-nrf3)=hwllpavg(1:nvars-nrf3)
         vz(1:nsig,j,1:nrf3)=one/vziavg(1:nsig,1:nrf3)
      end do
 
@@ -1957,7 +2198,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
      enddo
   enddo
 
-  if (lwater_scaleinfl .and. water_scalefact(nvar_id(k))/=one) then
+  if (twodvar_regional .and. lwater_scaleinfl .and. water_scalefact(nvar_id(k))/=one) then
      call fgrid2agrid(pf2aP1,scale1,scaleaux1)
      call fgrid2agrid(pf2aP1,scale2,scaleaux2)
      do j=1,nlon
@@ -4009,6 +4250,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 ! Declare local variables
   integer(i_kind) n,i,j,k,l,lp,k1,kvar,ivar,im,ip,jm,jp,mm1,iloc,iploc,imloc,jloc,jploc,jmloc,igauss
   integer(i_kind) iglob,jglob
+  integer(i_kind) ivartype(nvars) ! load with +3, +1, or -1 for 3d static, 2d static, and motley, respectively
 
   real(r_kind) dl1,dl2,factk,factor,anhswgtsum
   real(r_kind) a1,a2,a3,a4,a5,a6,detai
@@ -4024,7 +4266,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   character(10) chvarname
   character(80) fname
-  character(5) cvar
+  character(8) cvar
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
   integer(i_kind):: nlatf,nlonf
@@ -4047,6 +4289,19 @@ subroutine get2berr_reg_subdomain_option(mype)
 
 !-----define the anisotropic aspect tensor-----------------------------
 !-------------------------------------------------------------------------------------
+  ivartype=0
+  do n=1,nvars
+     do i=1,nrf3
+        if (trim(cvars3d(i))==trim(nrf_var(n))) then ; ivartype(n)=+3 ; cycle ; endif
+     enddo
+     do i=1,nrf2
+        if (trim(cvars2d(i))==trim(nrf_var(n))) then ; ivartype(n)=+1 ; cycle ; endif
+     enddo
+     do i=1,mvars
+        if (trim(cvarsmd(i))==trim(nrf_var(n))) then ; ivartype(n)=-1 ; cycle ; endif
+     enddo
+  enddo
+
 ! Set up scales
 
 ! This first loop for nsig1o will be if we aren't dealing with
@@ -4059,7 +4314,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   do k=kds,kde
      ivar=jdvar(k)
      k1=levs_jdvar(k)
-     call isotropic_scales_subdomain_option(asp10f,asp20f,asp30f,k,mype)
+     call isotropic_scales_subdomain_option(asp10f,asp20f,asp30f,k,ivartype(k),mype)
 
      do j=jps,jpe
         jloc=j-jstart(mm1)+2
@@ -4102,6 +4357,22 @@ subroutine get2berr_reg_subdomain_option(mype)
               case('gust','GUST'); rltop=rltop_gust
               case('vis','VIS'); rltop=rltop_vis
               case('pblh','PBLH'); rltop=rltop_pblh
+              case('wspd10m','WSPD10M'); rltop=rltop_wspd10m
+              case('td2m','TD2M'); rltop=rltop_td2m
+              case('mxtm','MXTM'); rltop=rltop_mxtm
+              case('mitm','MITM'); rltop=rltop_mitm
+              case('pmsl','PMSL'); rltop=rltop_pmsl
+              case('howv','HOWV'); rltop=rltop_howv
+              case('sfwter','SFWTER'); rltop=rltop_wind
+              case('vpwter','VPWTER'); rltop=rltop_wind
+              case('pswter','PSWTER'); rltop=rltop_psfc
+              case('twter','TWTER'); rltop=rltop_temp
+              case('qwter','QWTER'); rltop=rltop_q
+              case('gustwter','GUSTWTER'); rltop=rltop_gust
+              case('wspd10mwter','WSPD10MWTER'); rltop=rltop_wspd10m
+              case('td2mwter','TD2MWTER'); rltop=rltop_td2m
+              case('mxtmwter','MXTMWTER'); rltop=rltop_mxtm
+              case('mitmwter','MITMWTER'); rltop=rltop_mitm
            end select
            afact=afact0(ivar)  !(use "zero" for isotropic computations)
            if (cvar=='pblh' .or. cvar=='PBLH') afact=zero
@@ -4168,8 +4439,11 @@ subroutine get2berr_reg_subdomain_option(mype)
   end do
 
 
-  if(mype==0) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc=,rltop_gust,rltop_vis,rltop_pblh=',&
-                         rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh
+  if(mype==0) write(6,*)'rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh, &
+                         &rltop_wspd10m,rltop_td2m,rltop_mxtm,rltop_mitm,rltop_pmsl,rltop_howv=',&
+                         rltop_wind,rltop_temp,rltop_q,rltop_psfc,rltop_gust,rltop_vis,rltop_pblh, &
+                         &rltop_wspd10m,rltop_td2m,rltop_mxtm,rltop_mitm,rltop_pmsl,rltop_howv
+
 
   if(mype==0) write(6,*)' in get2berr_reg, nlat,nlon,nlatf,nlonf=',nlat,nlon,nlatf,nlonf
 
@@ -4186,7 +4460,7 @@ subroutine get2berr_reg_subdomain_option(mype)
               ips, ipe, jps, jpe, kps, kpe, &         ! patch indices
               mype, npe)
 
-  call antest_maps0_subdomain_option(mype,theta0f,z0f)
+! call antest_maps0_subdomain_option(mype,theta0f,z0f)
 
   allocate(fltvals0(ngauss,nlatf,nlonf))
   allocate(fltvals(ngauss,nlatf,nlonf))
@@ -4252,21 +4526,30 @@ subroutine get2berr_reg_subdomain_option(mype)
            lp=min((l+1),mlat)
            dl2=rllatf(i,j)-float(l)
            dl1=one-dl2
-           if (nrf_3d(ivar)) then
-              do n=1,nrf3
-                 if (nrf3_loc(n)==ivar) then
-                    factk=dl1*corz(l,kvar,n)+dl2*corz(lp,kvar,n)
-                    exit
-                 end if
-              end do
-           else
-              do n=1,nrf2
-                 if (nrf2_loc(n)==ivar) then
-                    factk=dl1*corp(l,n)+dl2*corp(lp,n)
-                    if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then
-                       thisvis0f=min(vis0fmax, max(vis0fmin,vis0f(iloc,jloc,1)))
-                       factk=factk/(log(ten)*thisvis0f)        !in other words,trust the smaller bckg vis values more than the larger ones
-                    end if
+           if (ivar <= nrf) then
+              if (nrf_3d(ivar)) then
+                  do n=1,nrf3
+                     if (nrf3_loc(n)==ivar) then
+                        factk=dl1*corz(l,kvar,n)+dl2*corz(lp,kvar,n)
+                        exit
+                     end if
+                  end do
+                else
+                  do n=1,nrf2
+                     if (nrf2_loc(n)==ivar) then
+                        factk=dl1*corp(l,n)+dl2*corp(lp,n)
+                        if (nrf_var(ivar)=='vis' .or. nrf_var(ivar)=='VIS') then
+                           thisvis0f=min(vis0fmax, max(vis0fmin,vis0f(iloc,jloc,1)))
+                           factk=factk/(log(ten)*thisvis0f)        !in other words,trust the smaller bckg vis values more than the larger ones
+                        end if
+                        exit
+                     end if
+                  end do
+              end if
+            else
+              do n=1,mvars
+                 if (nmotl_loc(n)==ivar) then
+                    factk=dl1*corp(l,nrf2+n)+dl2*corp(lp,nrf2+n)
                     exit
                  end if
               end do
@@ -4359,6 +4642,8 @@ subroutine get2berr_reg_subdomain_option(mype)
   deallocate(bckgvar4)
   deallocate(region_dy4,region_dx4)
   deallocate(corz,corp,hwll,hwllp,vz,aspect)
+  deallocate(rfact0h,rfact0v)
+  deallocate(water_scalefact)
   deallocate(dxf,dyf,rllatf,theta0f)
   deallocate(u0f,v0f,z0f,z0f2)
   deallocate(zsmooth4a,psg4a)
@@ -4610,7 +4895,7 @@ subroutine get_background_subdomain_option(mype)
 end subroutine get_background_subdomain_option
 !=======================================================================
 !=======================================================================
-subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
+subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,ivartype0,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:   isotropic_scales_subdomain_option
@@ -4646,6 +4931,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: k, mype
+  integer(i_kind),intent(in   ) :: ivartype0  ! +3, +1, -1 for 3d static, 2d static, and motley, respectively
 
   real(r_kind)   ,intent(  out) :: scale1(lat2,lon2)
   real(r_kind)   ,intent(  out) :: scale2(lat2,lon2)
@@ -4675,7 +4961,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
         iglob=i+istart(mm1)-2
         if(iglob<1.or.iglob>nlatf) cycle
 
-        if (nrf_3d(ivar)) then
+        if (ivartype0==3) then
            do n=1,nrf3
               if (nrf3_loc(n)==ivar) then
                  if (n==nrf3_oz) then
@@ -4693,15 +4979,29 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
                  exit
               end if
            end do
-        else
+         else if (ivartype0==1) then
            do n=1,nrf2
-              if (nrf2_loc(n)==ivar .or. ivar>nrf) then
-                 nn=n
-                 if (ivar>nrf) nn=ivar-nrf3
-
+              if (nrf2_loc(n)==ivar) then
                  cc=one
-                 if (nn==nrf2_sst) cc=half
-                 if (ivar>nrf) cc=quarter
+                 if (n==nrf2_sst) cc=half
+
+                 l=int(rllatf(iglob,jglob))
+                 lp=l+1
+                 dl2=rllatf(iglob,jglob)-float(l)
+                 dl1=one-dl2
+                 hwll_loc=cc*(dl1*hwllp(l,n)+dl2*hwllp(lp,n))
+                 scale3(i,j)=one
+                 exit
+              end if
+           end do
+         else if (ivartype0==-1) then
+           do n=1,mvars
+              if (nmotl_loc(n)==ivar) then
+                 nn=nrf2+n
+                 cc=one 
+                 if (trim(cvarsmd(n))=='stl') cc=quarter
+                 if (trim(cvarsmd(n))=='sti') cc=quarter
+
                  l=int(rllatf(iglob,jglob))
                  lp=l+1
                  dl2=rllatf(iglob,jglob)-float(l)
@@ -4712,7 +5012,6 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
               end if
            end do
         end if
-
 
         scale1(i,j)=hwll_loc/dyf(iglob,jglob)
         scale2(i,j)=hwll_loc/dxf(iglob,jglob)
@@ -4773,7 +5072,6 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
         enddo
      endif
   endif
-
   return
 end subroutine isotropic_scales_subdomain_option
 
