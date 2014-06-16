@@ -174,7 +174,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
-  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,&
+  use intjcmod, only: intlimq,intlimg,intlimv,intlimp,intlimw10m,intlimhowv,&
       intjcpdry,intjcdfi
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
@@ -239,6 +239,12 @@ subroutine intall(sval,sbias,rval,rbias)
 ! RHS for pblh constraint
      if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
   end if
+
+! RHS for wspd10m constraint
+     if (getindex(svars2d,'wspd10m')>0)call intlimw10m(rval(1),sval(1))
+
+! RHS for howv constraint
+     if (getindex(svars2d,'howv')>0)call intlimhowv(rval(1),sval(1))
 
 ! RHS for dry ps constraint
   if(ljcpdry)then
