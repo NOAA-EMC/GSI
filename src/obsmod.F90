@@ -93,6 +93,7 @@ module obsmod
 !                        - removed type(aofp_obs_diag) from public entity list, which is not used
 !                          anywhere else, except in this module.  It might be needed to be public
 !                          in the future, but atleast not now.
+!   2014-06-16 carley/zhu - add tcamt and lcbas
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -164,6 +165,10 @@ module obsmod
 !   def vistail      - visibility linked list tail
 !   def pblhhead     - wind pblhs linked list head
 !   def pblhtail     - wind pblhs linked list tail
+!   def tcamthead    - total cloud amount linked list head
+!   def tcamttail    - total cloud amount linked list tail
+!   def lcbashead    - lowest cloud base linked list head
+!   def lcbastail    - lowest cloud base linked list tail
 !   def pwhead       - precipitable water linked list head
 !   def pwtail       - precipitable water linked list tail
 !   def ozhead       - sbuv ozone profile linked list head
@@ -205,6 +210,8 @@ module obsmod
 !   def iout_gust    - output unit for conventional gust stats
 !   def iout_vis     - output unit for conventional vis stats
 !   def iout_pblh    - output unit for conventional pblh stats
+!   def iout_tcamt   - output unit for total cloud amount stats
+!   def iout_lcbas   - output unit for lowest cloud base stats
 !   def iout_lag     - output unit for conventional lag stats
 !   def iout_pm2_5   - output unit for pm2_5 stats
 !   def mype_t       - task to handle temperature stats
@@ -220,6 +227,8 @@ module obsmod
 !   def mype_gust    - task to handle conventional gust stats
 !   def mype_vis     - task to handle conventional vis stats
 !   def mype_pblh    - task to handle conventional pblh stats
+!   def mype_tcamt   - task to handle total cloud amount stats
+!   def mype_lcbas   - task to handle lowest cloud base stats
 !   def mype_lag     - task to handle conventional lag stats
 !   def mype_aero    - task to handle aerosol stats
 !   def mype_pm2_5   - task to handle pm2_5
@@ -290,11 +299,11 @@ module obsmod
   public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,colvk_ob_type,pcp_ob_type,dw_ob_type
   public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,gps_all_ob_type,tcp_ob_type
-  public :: gust_ob_type,vis_ob_type,pblh_ob_type
+  public :: gust_ob_type,vis_ob_type,pblh_ob_type,tcamt_ob_type,lcbas_ob_type
   public :: rad_ob_type,q_ob_type,pw_ob_type,ps_ob_type,w_ob_type,t_ob_type
   public :: obs_handle,yobs,i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
   public :: i_spd_ob_type,i_srw_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
-  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type
+  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type,i_tcamt_ob_type,i_lcbas_ob_type
   public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_colvk_ob_type,i_gps_ob_type
   public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type,obscounts,obsptr,nobs_type,obsdiags
   public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
@@ -305,7 +314,7 @@ module obsmod
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
   public :: pwhead,oztail,ozhead,o3ltail,o3lhead,colvktail,colvkhead,pcptail,pcphead,gpstail,gpshead
-  public :: gusttail,gusthead,vistail,vishead,pblhtail,pblhhead
+  public :: gusttail,gusthead,vistail,vishead,pblhtail,pblhhead,tcamttail,tcamthead,lcbastail,lcbashead
   public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
   public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
   public :: pm2_5_ob_head,pm2_5_ob_type,i_pm2_5_ob_type,pm2_5head,pm2_5tail
@@ -318,6 +327,7 @@ module obsmod
   public :: ozptr,o3lptr,coptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
   public :: aeroptr,aerolptr,pm2_5ptr
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
+  public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas,tcamtptr,lcbasptr
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
   public :: bmiss
 !
@@ -326,6 +336,7 @@ module obsmod
   public :: gust_ob_head,vis_ob_head,pblh_ob_head
   public :: pcp_ob_head,o3l_ob_head,gps_ob_head
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
+  public :: tcamt_ob_head,lcbas_ob_head
   public :: tcp_ob_head,colvk_ob_head
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
@@ -378,9 +389,10 @@ module obsmod
   integer(i_kind),parameter:: i_gust_ob_type=22   ! gust_ob_type
   integer(i_kind),parameter:: i_vis_ob_type=23    ! vis_ob_type
   integer(i_kind),parameter:: i_pblh_ob_type=24   ! pblh_ob_type
-  
+  integer(i_kind),parameter:: i_tcamt_ob_type=25  ! tcamt_ob_type
+  integer(i_kind),parameter:: i_lcbas_ob_type=26  ! lcbas_ob_type  
 
-  integer(i_kind),parameter:: nobs_type = 24      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 26      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -939,6 +951,52 @@ module obsmod
      integer(i_kind):: n_alloc=0
      type(pblh_ob_type),pointer :: head => NULL()
   end type pblh_ob_head
+
+  type tcamt_ob_type
+     sequence
+     type(tcamt_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  tcamt residual
+     real(r_kind)    :: err2          !  tcamt error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type tcamt_ob_type
+
+  type tcamt_ob_head
+     integer(i_kind):: n_alloc=0
+     type(tcamt_ob_type),pointer :: head => NULL()
+  end type tcamt_ob_head
+
+  type lcbas_ob_type
+     sequence
+     type(lcbas_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  lcbas residual
+     real(r_kind)    :: err2          !  lcbas error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type lcbas_ob_type
+
+  type lcbas_ob_head
+     integer(i_kind):: n_alloc=0
+     type(lcbas_ob_type),pointer :: head => NULL()
+  end type lcbas_ob_head
   
   type gps_ob_type
      sequence
@@ -1112,6 +1170,8 @@ module obsmod
      type(gust_ob_type),pointer  :: gust => NULL()
      type(vis_ob_type),pointer   :: vis => NULL()
      type(pblh_ob_type),pointer  :: pblh => NULL()
+     type(tcamt_ob_type),pointer :: tcamt => NULL()
+     type(lcbas_ob_type),pointer :: lcbas => NULL()
 
   end type obs_handle
 
@@ -1195,6 +1255,12 @@ module obsmod
   type(pblh_ob_head),dimension(:),pointer :: pblhhead
   type(pblh_ob_head),dimension(:),pointer :: pblhtail
   type(pblh_ob_type),pointer :: pblhptr => NULL()
+  type(tcamt_ob_head),dimension(:),pointer :: tcamthead
+  type(tcamt_ob_head),dimension(:),pointer :: tcamttail
+  type(tcamt_ob_type),pointer :: tcamtptr => NULL()
+  type(lcbas_ob_head),dimension(:),pointer :: lcbashead
+  type(lcbas_ob_head),dimension(:),pointer :: lcbastail
+  type(lcbas_ob_type),pointer :: lcbasptr => NULL()
 
   type(obs_handle),dimension(:),pointer :: yobs
 
@@ -1216,7 +1282,7 @@ module obsmod
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
-  integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh
+  integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh
@@ -1281,6 +1347,7 @@ contains
 !   2008-11-25  todling - remove line-by-line adj triggers
 !   2011-02-09  zhu     - add gust,vis and pblh
 !   2013-09-27  todling - initialization of ob-instr/type move to sub init_instr_table_
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !
@@ -1350,6 +1417,8 @@ contains
     iout_vis=219   ! visibility
     iout_pblh=221  ! pbl height
     iout_pm2_5=222 ! pm2_5
+    iout_tcamt=223 ! total cloud amount
+    iout_lcbas=224 ! base height of lowest cloud
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -1368,6 +1437,8 @@ contains
     mype_vis = max(0,npe-15) ! visibility
     mype_pblh= max(0,npe-16) ! pbl height
     mype_pm2_5= max(0,npe-17)! pm2_5
+    mype_tcamt=max(0,npe-18) ! total cloud amount
+    mype_lcbas=max(0,npe-19) ! base height of lowest cloud
     
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours
@@ -1412,7 +1483,8 @@ contains
     cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
     cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
     cobstype(i_pblh_ob_type) ="pblh                " ! pblh_ob_type
-
+    cobstype(i_tcamt_ob_type)="tcamt               " ! tcamt_ob_type
+    cobstype(i_lcbas_ob_type)="lcbas               " ! lcbas_ob_type
 
     hilbert_curve=.false.
 
@@ -1549,6 +1621,10 @@ contains
     ALLOCATE(vistail(nobs_bins))
     ALLOCATE(pblhhead(nobs_bins))
     ALLOCATE(pblhtail(nobs_bins))
+    ALLOCATE(tcamthead(nobs_bins))
+    ALLOCATE(tcamttail(nobs_bins))
+    ALLOCATE(lcbashead(nobs_bins))
+    ALLOCATE(lcbastail(nobs_bins))
 
     ALLOCATE(yobs(nobs_bins))
 
@@ -1903,6 +1979,26 @@ contains
           deallocate(pblhtail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pblh, istatus=',istatus
           pblhtail(ii)%head => pblhhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       tcamttail(ii)%head => tcamthead(ii)%head
+       do while (associated(tcamttail(ii)%head))
+          tcamthead(ii)%head => tcamttail(ii)%head%llpoint
+          deallocate(tcamttail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for tcamt, istatus=',istatus
+          tcamttail(ii)%head => tcamthead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       lcbastail(ii)%head => lcbashead(ii)%head
+       do while (associated(lcbastail(ii)%head))
+          lcbashead(ii)%head => lcbastail(ii)%head%llpoint
+          deallocate(lcbastail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lcbas, istatus=',istatus
+          lcbastail(ii)%head => lcbashead(ii)%head
        end do
     end do
 
