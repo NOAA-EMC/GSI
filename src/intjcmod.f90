@@ -9,6 +9,8 @@ module intjcmod
 ! program history log:
 !   2012-01-21  kleist - consolidation of Jc int routines into single module
 !   2013-10-25  todling - nullify work pointers
+!   2014-03-19  pondeca - add weak constraint subroutine for wspd10m
+!   2014-05-07  pondeca - add weak constraint subroutine for howv
 !
 ! subroutines included:
 !

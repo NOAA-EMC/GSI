@@ -8,6 +8,8 @@ module stpjcmod
 !
 ! program history log:
 !   2012-01-21  kleist - consolidation of Jc step routines into single module
+!   2014-03-19  pondeca - add stepzise calculation for wspd10m weak constraint term
+!   2014-05-07  pondeca - add stepzise calculation for howv weak constraint term
 !
 ! subroutines included:
 !

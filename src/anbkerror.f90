@@ -21,6 +21,9 @@ subroutine anbkerror(gradx,grady)
 !   2010-08-19  lueken - add only to module use
 !   2012-10-09  Gu - add fut2ps as arg to (t)balance routine(s)
 !   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction
+!   2014-02-07  pondeca - update to handle motley variables
+!   2014-02-14  pondeca - update to handle optional separation of sf and vp control variables
+                          into land-only and water-only parts
 !
 !   input argument list:
 !     gradx    - input field  
@@ -1207,6 +1210,7 @@ subroutine ansmoothrf_reg_subdomain_option(cstate)
 ! program history log:
 !   2005-02-14  parrish
 !   2011-02-22  zhu - use cstate to replace argument list such as p,t,q,vp,st 
+!   2014-02-07  pondeca - update to include motley variables as well in 2d set of filtered variables
 !
 !   input argument list:
 !     t,p,q,oz,st,stl,sti,cwmr,st,vp   -  fields to be smoothed

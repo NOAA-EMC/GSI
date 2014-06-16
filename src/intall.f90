@@ -145,6 +145,8 @@ subroutine intall(sval,sbias,rval,rbias)
 !   2007-04-13  tremolet - split Jo and 3dvar components into intjo and int3dvar
 !   2007-10-01  todling  - add timers
 !   2011-10-20  todling  - observation operators refer to state- not control-vec (cvars->svars)
+!   2014-03-19  pondeca -  Add RHS calculation for wspd10m constraint
+!   2014-05-07  pondeca -  Add RHS calculation for howv constraint
 !
 !   input argument list:
 !     sval     - solution on grid
