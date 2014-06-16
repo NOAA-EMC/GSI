@@ -77,6 +77,7 @@ subroutine update_guess(sval,sbias)
 !   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
 !   2014-02-15  kim     - revisit various options of cloud-related updates
 !   2014-04-13  todling - replace update bias code w/ call to routine in bias_predictors
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !    sval
@@ -371,6 +372,8 @@ subroutine update_guess(sval,sbias)
      enddo
 
      if (twodvar_regional) then
+
+        !- Update gust
         ier=0
         call gsi_bundlegetpointer (sval(ii),'gust',ptr2dinc,istatus)
         ier=ier+istatus
@@ -380,6 +383,8 @@ subroutine update_guess(sval,sbias)
            ptr2dges = ptr2dges + ptr2dinc
            ptr2dges = max(ptr2dges,zero)
         endif
+ 
+        !- Update vis
         ier=0
         call gsi_bundlegetpointer (sval(ii),'vis',ptr2dinc,istatus)
         ier=ier+istatus
@@ -394,6 +399,8 @@ subroutine update_guess(sval,sbias)
               end do
            end do
         endif
+        
+        !- Update PBLH
         ier=0
         call gsi_bundlegetpointer (sval(ii),'pblh',ptr2dinc,istatus)
         ier=ier+istatus
@@ -403,7 +410,31 @@ subroutine update_guess(sval,sbias)
            ptr2dges = ptr2dges + ptr2dinc
            ptr2dges = max(ptr2dges,zero)
         endif
-     end if
+
+        !- Update tcamt
+        ier=0
+        call gsi_bundlegetpointer (sval(ii),'tcamt',ptr2dinc,istatus)
+        ier=ier+istatus
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt',ptr2dges,istatus)
+        ier=ier+istatus
+        if(ier==0) then
+           ptr2dges = ptr2dges + ptr2dinc
+           ptr2dges = max(ptr2dges,zero)
+           ptr2dges = min(100.0_r_kind,ptr2dges) !Cannot have more than 100% cloud amount
+        endif
+
+        !- Update lcbas
+        ier=0
+        call gsi_bundlegetpointer (sval(ii),'lcbas',ptr2dinc,istatus)
+        ier=ier+istatus
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'lcbas',ptr2dges,istatus)
+        ier=ier+istatus
+        if(ier==0) then
+           ptr2dges = max(0.1_r_kind,ptr2dges)
+           ptr2dges = min(20000.0_r_kind,ptr2dges)
+        endif
+
+     end if ! End twodvar_regional if-check
   end do
 
   if(ngases>0)then

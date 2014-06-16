@@ -1,6 +1,6 @@
 subroutine statsconv(mype,&
      i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-     i_gust,i_vis,i_pblh,i_ref,bwork,awork,ndata)
+     i_gust,i_vis,i_pblh,i_tcamt,i_lcbas,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -35,6 +35,7 @@ subroutine statsconv(mype,&
 !   2009-03-05  meunier - add lagrangean data
 !   2011-01-06  cucurull - replace gps_ref/gps_bnd with gps due to a change in the convinfo files gps structure
 !                        - maintain dtype information in the output file, add ctype
+!   2014-06-06  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !     mype     - mpi task number
@@ -53,6 +54,8 @@ subroutine statsconv(mype,&
 !     i_gust   - index in awork array holding gust info
 !     i_vis    - index in awork array holding vis info
 !     i_pblh   - index in awork array holding pblh info
+!     i_tcamt   - index in awork array holding tcamt info
+!     i_lcbas   - index in awork array holding lcbas info
 !     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
@@ -71,9 +74,10 @@ subroutine statsconv(mype,&
   use constants, only: zero,three,five
   use obsmod, only: iout_sst,iout_pw,iout_t,iout_rw,iout_dw,&
        iout_srw,iout_uv,iout_gps,iout_ps,iout_q,iout_tcp,iout_lag,&
-       iout_gust,iout_vis,iout_pblh,mype_dw,mype_rw,mype_srw,&
-       mype_sst,mype_gps,mype_uv,mype_ps,mype_t,mype_pw,mype_q,&
-       mype_tcp,ndat,dtype,mype_lag,mype_gust,mype_vis,mype_pblh
+       iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas,mype_dw,&
+       mype_rw,mype_srw,mype_sst,mype_gps,mype_uv,mype_ps,mype_t, &
+       mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,     &
+       mype_vis,mype_pblh,mype_tcamt,mype_lcbas
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -82,7 +86,8 @@ subroutine statsconv(mype,&
 
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
-       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,i_ref
+       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,    &
+       i_tcamt,i_lcbas,i_ref
   real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -91,7 +96,7 @@ subroutine statsconv(mype,&
   character(100) mesage
 
   integer(i_kind) numgrspw,numsst,nsuperp,nump,nhitopo,ntoodif
-  integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh
+  integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh,numtcamt,numlcbas
   integer(i_kind) ntot,numlow,k,numssm,i,j
   integer(i_kind) numgross,numfailqc,numfailqc_ssmi,nread,nkeep
   integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd
@@ -645,6 +650,84 @@ subroutine statsconv(mype,&
      write(iout_pblh,951) 'pblh',awork(4,i_pblh),awork(22,i_pblh),pw,pw3
 
      close(iout_pblh)
+  end if
+
+! Summary report for tcamt
+  if(mype==mype_tcamt) then
+     if(first)then
+        open(iout_tcamt)
+     else
+        open(iout_tcamt,position='append')
+     end if
+
+     numtcamt=nint(awork(5,i_tcamt))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'tcamt')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional tcamt data, ranges in  %$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'tcamt'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_tcamt,pflag)
+
+        numgross=nint(awork(6,i_tcamt))
+        numfailqc=nint(awork(21,i_tcamt))
+        if(numtcamt > 0)then
+           pw=awork(4,i_tcamt)/numtcamt
+           pw3=awork(22,i_tcamt)/numtcamt
+        end if
+        write(iout_tcamt,925) 'tcamt',numgross,numfailqc
+     end if
+     write(iout_tcamt,950) 'tcamt',jiter,nread,nkeep,numtcamt
+     write(iout_tcamt,951) 'tcamt',awork(4,i_tcamt),awork(22,i_tcamt),pw,pw3
+
+     close(iout_tcamt)
+  end if
+
+! Summary report for lcbas
+  if(mype==mype_lcbas) then
+     if(first)then
+        open(iout_lcbas)
+     else
+        open(iout_lcbas,position='append')
+     end if
+
+     numlcbas=nint(awork(5,i_lcbas))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'lcbas')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional lcbas data, ranges in  m$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'lcbas'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_lcbas,pflag)
+
+        numgross=nint(awork(6,i_lcbas))
+        numfailqc=nint(awork(21,i_lcbas))
+        if(numlcbas > 0)then
+           pw=awork(4,i_lcbas)/numlcbas
+           pw3=awork(22,i_lcbas)/numlcbas
+        end if
+        write(iout_lcbas,925) 'lcbas',numgross,numfailqc
+     end if
+     write(iout_lcbas,950) 'lcbas',jiter,nread,nkeep,numlcbas
+     write(iout_lcbas,951) 'lcbas',awork(4,i_lcbas),awork(22,i_lcbas),pw,pw3
+
+     close(iout_lcbas)
   end if
 
 ! Summary report for temperature  

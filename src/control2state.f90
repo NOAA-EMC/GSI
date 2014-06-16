@@ -35,6 +35,7 @@ subroutine control2state(xhat,sval,bval)
 !   2013-10-28  todling  - rename p3d to prse
 !   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !   2014-01-31  mkim     - add support for when ql and qi are CVs for all-sky mw radiance DA
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !     xhat - Control variable
@@ -88,13 +89,14 @@ type(gsi_bundle):: wbundle ! work bundle
 ! Declare required local control variables
 integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis,icoz
+integer(i_kind) :: icpblh,icgust,icvis,icoz,ictcamt,iclcbas
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ', 'ql ', 'qi ' /)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
@@ -107,7 +109,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ' /)
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
-real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh
+real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_tcamt,sv_lcbas
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
@@ -169,6 +171,8 @@ call gsi_bundlegetpointer (xhat%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'pblh',icpblh,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'tcamt',ictcamt,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'lcbas',iclcbas,istatus)
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -188,6 +192,7 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
    if (icvis >0) call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
+   if (iclcbas >0) call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
    if(ladtest_obs) then
 ! Convert from subdomain to full horizontal field distributed among processors
       call general_sub2grid(s2g_cv,wbundle%values,hwork)
@@ -207,6 +212,8 @@ do jj=1,nsubwin
    if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
    if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
    if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
+   if (ictcamt>0) call gsi_bundlegetpointer (sval(jj),'tcamt' ,sv_tcamt, istatus)
+   if (iclcbas>0) call gsi_bundlegetpointer (sval(jj),'lcbas' ,sv_lcbas, istatus)
 
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
@@ -223,6 +230,9 @@ do jj=1,nsubwin
 !  Convert log(vis) to vis
    if (icvis >0)  call logvis_to_vis(cv_vis,sv_vis)
 
+!  Convert log(lcbas) to lcbas
+   if (iclcbas >0)  call loglcbas_to_lcbas(cv_lcbas,sv_lcbas)
+
 !  Copy other variables
    call gsi_bundlegetvar ( wbundle, 't'  , sv_tv,  istatus )
    if (icoz>0) then
@@ -234,6 +244,7 @@ do jj=1,nsubwin
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
    if (icgust>0) call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )
    if (icpblh>0) call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
+   if (ictcamt>0) call gsi_bundlegetvar ( wbundle, 'tcamt', sv_tcamt, istatus )
 
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)

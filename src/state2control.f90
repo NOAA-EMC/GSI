@@ -32,6 +32,7 @@ subroutine state2control(rval,bval,grad)
 !   2013-10-25  todling  - nullify work pointers
 !   2013-10-28  todling  - rename p3d to prse
 !   2014-01-31  mkim     - add support for when ql and qi are CVs for all-sky mw radiance DA
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !     rval - State variable
@@ -79,12 +80,13 @@ type(gsi_bundle) :: wbundle ! work bundle
 !       this routines knows how to handle.
 integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis,icoz
+integer(i_kind) :: icpblh,icgust,icvis,icoz,ictcamt,iclcbas
 character(len=3), parameter :: mycvars(ncvars) = (/  &
                                'sf ', 'vp ', 'ps ', 't  ', 'q  ','cw ', 'ql ', 'qi '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
 real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: cv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
@@ -97,7 +99,7 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ', 'qi  ' /)
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh
+real(r_kind),pointer,dimension(:,:)   :: rv_gust,rv_vis,rv_pblh,rv_tcamt,rv_lcbas
 real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
@@ -155,6 +157,8 @@ call gsi_bundlegetpointer (grad%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (grad%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (grad%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (grad%step(1),'pblh',icpblh,istatus)
+call gsi_bundlegetpointer (grad%step(1),'tcamt',ictcamt,istatus)
+call gsi_bundlegetpointer (grad%step(1),'lcbas',iclcbas,istatus)
 
 ! Loop over control steps
 do jj=1,nsubwin
@@ -173,6 +177,8 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
    if (icvis>0) call gsi_bundlegetpointer (wbundle,'vis'  ,cv_vis ,istatus)
+   if (iclcbas>0) call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
+
 
 !  Get pointers to this subwin require state variables
    call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
@@ -188,6 +194,8 @@ do jj=1,nsubwin
    if (icgust>0) call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
    if (icvis >0) call gsi_bundlegetpointer (rval(jj),'vis'  ,rv_vis , istatus)
    if (icpblh>0) call gsi_bundlegetpointer (rval(jj),'pblh' ,rv_pblh, istatus)
+   if (ictcamt>0) call gsi_bundlegetpointer (rval(jj),'tcamt',rv_tcamt, istatus)
+   if (iclcbas>0) call gsi_bundlegetpointer (rval(jj),'lcbas',rv_lcbas, istatus)
 
 !  Adjoint of control to initial state
    call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
@@ -204,6 +212,8 @@ do jj=1,nsubwin
    if (icgust>0) call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
    if (icvis >0) call gsi_bundleputvar ( wbundle, 'vis' , zero   , istatus )
    if (icpblh>0) call gsi_bundleputvar ( wbundle, 'pblh', rv_pblh, istatus )
+   if (ictcamt>0) call gsi_bundleputvar ( wbundle, 'tcamt', rv_tcamt, istatus )
+   if (iclcbas>0) call gsi_bundleputvar ( wbundle, 'lcbas', zero, istatus )
 
    if (do_cw_to_hydro_ad) then
 !     Case when cloud-vars do not map one-to-one
@@ -256,6 +266,9 @@ do jj=1,nsubwin
 
 !  Adjoint of convert logvis to vis
    if(icvis >0) call logvis_to_vis_ad(cv_vis,rv_vis)
+
+!  Adjoint of convert loglcbas to lcbas
+   if(iclcbas >0) call loglcbas_to_lcbas_ad(cv_lcbas,rv_lcbas)
 
 !  Adjoint of transfer variables
 
