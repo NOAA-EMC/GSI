@@ -117,8 +117,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2013-06-07  zhu  - read aircraft data from prepbufr_profl when aircraft_t_bc=.true.
 !   2013-09-08  s.liu  - increase nmsgmax to 100000 to read NESDIS cloud product
 !   2013-12-08  s.liu  - identify VAD wind based on sub type
-!
 !   2014-02-28  sienkiewicz - added code for option aircraft_t_bc_ext for external aircraft bias table
+!   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -170,6 +170,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
+  use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
 
   implicit none
 
@@ -207,7 +208,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob
-  logical metarcldobs,geosctpobs
+  logical metarcldobs,goesctpobs,tcamtob,lcbasob
   logical outside,driftl,convobs,inflate_error
   logical sfctype
   logical luse,ithinp,windcorr
@@ -217,7 +218,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
-  character(40) metarcldstr,geoscldstr,metarvisstr,metarwthstr
+  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqlevs,cld2seqlevs
   character(80) obstr
   character(10) date
   character(8) subset
@@ -248,7 +249,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) minobs,minan
   integer(i_kind) ntb,ntmatch,ncx
   integer(i_kind) nmsg                ! message index
-  integer(i_kind) idx                 ! order index of aircraft temperature bias 
+  integer(i_kind) idx                 ! order index of aircraft temperature bias
+  integer(i_kind) tcamt_qc,lcbas_qc
+  integer(i_kind) low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
   integer(i_kind) iyyyymm
   integer(i_kind) jj,start,next
   integer(i_kind) tab(mxtb,3)
@@ -272,6 +275,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) tsavg,ff10,sfcr,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind) time_correction
+  real(r_kind) obval
+  real(r_kind) tcamt,lcbas,ceiling
+  real(r_kind) tcamt_oe,lcbas_oe
+  real(r_kind) low_cldamt,mid_cldamt,hig_cldamt
   real(r_kind),dimension(nsig):: presl
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),dimension(255)::plevs
@@ -287,10 +294,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr
   real(r_double),dimension(11,255):: obsdat
   real(r_double),dimension(8,1):: sstdat
+  real(r_double),dimension(2,1):: cld2seq
+  real(r_double),dimension(3,10):: cldseq
   real(r_double),dimension(2,10):: metarcld
   real(r_double),dimension(1,10):: metarwth
   real(r_double),dimension(2,1) :: metarvis
-  real(r_double),dimension(4,1) :: geoscld
+  real(r_double),dimension(4,1) :: goescld
   real(r_double),dimension(1):: satqc
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg 
   real(r_double),dimension(1,255):: levdat
@@ -316,11 +325,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data satqcstr  /'QIFN'/
   data prvstr /'PRVSTG'/   
   data sprvstr /'SPRVSTG'/ 
-  data levstr  /'POB'/ 
+  data levstr  /'POB'/
+  data cld2seqstr /'TOCC HBLCS'/      ! total cloud cover and height above surface of base of lowest cloud see
+  data cldseqstr /'VSSO CLAM HOCB'/   ! vertical significance, cloud amount and cloud base height
   data metarcldstr /'CLAM HOCB'/      ! cloud amount and cloud base height
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
-  data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
+  data goescldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
   data aircraftstr /'POAF IALR'/      ! phase of aircraft flight and vertical velocity
 
   data lunin / 13 /
@@ -363,7 +374,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   gustob = obstype == 'gust'
   visob = obstype == 'vis'
   metarcldobs = obstype == 'mta_cld'
-  geosctpobs = obstype == 'gos_ctp'
+  goesctpobs = obstype == 'gos_ctp'
+  tcamtob = obstype == 'tcamt'
+  lcbasob = obstype == 'lcbas'
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
@@ -390,8 +403,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      nreal=21
   else if(metarcldobs) then
      nreal=25
-  else if(geosctpobs) then
+  else if(goesctpobs) then
      nreal=8
+  else if(tcamtob) then
+     nreal=20
+  else if(lcbasob) then
+     nreal=23
   else 
      write(6,*) ' illegal obs type in READ_PREPBUFR '
      call stop2(94)
@@ -961,9 +978,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  write(6,*) 'READ_PREPBUFR: error in Metar observations, levs sould be 1 !!!'
                  call stop2(110)
               endif
-           else if(geosctpobs) then
-              geoscld=bmiss
-              call ufbint(lunin,geoscld,4,1,levs,geoscldstr)
+           else if(goesctpobs) then
+              goescld=bmiss
+              call ufbint(lunin,goescld,4,1,levs,goescldstr)
            else if (visob) then
               metarwth=bmiss
               call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
@@ -1059,7 +1076,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
               endif
               if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
-              if (geosctpobs) plevs(k)=geoscld(1,k)/1000.0_r_kind ! cloud top pressure in cb
+              if (goesctpobs) plevs(k)=goescld(1,k)/1000.0_r_kind ! cloud top pressure in cb
               pqm(k)=nint(qcmark(1,k))
               qqm(k)=nint(qcmark(2,k))
               tqm(k)=nint(qcmark(3,k))
@@ -1157,9 +1174,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qm=visqm
               else if(metarcldobs) then
                  qm=0      
-              else if(geosctpobs) then
+              else if(goesctpobs) then
                  qm=0
-              end if
+              else if(tcamtob) then
+                 qm=0
+              else if(lcbasob) then
+                 qm=0
+             end if
  
 
 !             Check qc marks to see if obs should be processed or skipped
@@ -1882,15 +1903,114 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
 ! cdata_all(24,iout) and cdata_all(25,iout) will be used to save dlon and dlat
 ! NESDIS cloud products
-              else if(geosctpobs) then
+              else if(goesctpobs) then
                  cdata_all(1,iout)=rstation_id    !  station ID
                  cdata_all(2,iout)=dlon                 !  grid relative longitude
                  cdata_all(3,iout)=dlat                 !  grid relative latitude
-                 cdata_all(4,iout)=geoscld(1,k)/100.0_r_kind   !  cloud top pressure (pa)
-                 cdata_all(5,iout)=geoscld(2,k)         !  cloud cover
-                 cdata_all(6,iout)=geoscld(3,k)         !  Cloud top temperature (K)
+                 cdata_all(4,iout)=goescld(1,k)/100.0_r_kind   !  cloud top pressure (pa)
+                 cdata_all(5,iout)=goescld(2,k)         !  cloud cover
+                 cdata_all(6,iout)=goescld(3,k)         !  Cloud top temperature (K)
                  cdata_all(7,iout)=timeobs              !  time
                  cdata_all(8,iout)=usage
+
+!             Total cloud amount
+              else if(tcamtob) then
+                 if (k==1) then
+!                   adjust quality mark/usage parameter
+                    if (trim(subset) == 'GOESND') then
+                       call adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
+                                  low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc)
+                    else
+                       call adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,metarwth,metarwthlevs, &
+                                  low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling)
+                    end if
+
+                    usage=zero
+                    if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9) usage=100._r_kind
+                    tcamt_oe=25.0_r_kind
+                    if(tcamt_qc==3) tcamt_oe=tcamt_oe*1.5_r_kind
+
+                    cdata_all( 1,iout)=tcamt_oe               !  obs error
+                    cdata_all( 2,iout)=dlon                   !  grid relative longitude
+                    cdata_all( 3,iout)=dlat                   !  grid relative latitude
+                    cdata_all( 4,iout)=tcamt                  !  total cloud amount (%)
+                    cdata_all( 5,iout)=rstation_id            !  station ID
+                    cdata_all( 6,iout)=t4dv                   !  time
+                    cdata_all( 7,iout)=nc                     !  type
+                    cdata_all( 8,iout)=tcamt_qc               !  quality mark
+                    cdata_all( 9,iout)=usage                  !  usage paramete
+                    cdata_all(10,iout)=idomsfc                !  dominate surface type
+                    cdata_all(11,iout)=tsavg                  ! skin temperature
+                    cdata_all(12,iout)=ff10                   ! 10 meter wind factor
+                    cdata_all(13,iout)=sfcr                   ! surface roughness
+                    cdata_all(14,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                    cdata_all(15,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                    cdata_all(16,iout)=stnelev                ! station elevation (m)
+                    cdata_all(17,iout)=obsdat(4,k)            ! observation height (m)
+                    cdata_all(18,iout)=zz                     ! terrain height at ob location
+                    cdata_all(19,iout)=r_prvstg(1,1)          ! provider name
+                    cdata_all(20,iout)=r_sprvstg(1,1)         ! subprovider name
+                 end if
+
+!             Base height of the lowest cloud seen
+              else if(lcbasob) then
+                 if (k==1) then
+!                   adjust quality mark/usage parameter
+                    ceiling=bmiss
+                    if (trim(subset) == 'GOESND') then
+                       call adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
+                                  low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc)
+                    else
+                       call adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,metarwth,metarwthlevs, &
+                                  low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling)
+                    end if
+
+                    usage=zero
+                    if(lcbas_qc==15 .or. lcbas_qc==12 .or. lcbas_qc==9) usage=100._r_kind
+                    lcbas_oe=4500.0_r_kind
+                    if(lcbas_qc==3) lcbas_oe=lcbas_oe*1.25_r_kind
+                    if(lcbas_qc==4) lcbas_oe=lcbas_oe*1.5_r_kind
+
+                    cdata_all( 1,iout)=lcbas_oe               !  obs error
+                    cdata_all( 2,iout)=dlon                   !  grid relative longitude
+                    cdata_all( 3,iout)=dlat                   !  grid relative latitude
+                    cdata_all( 4,iout)=lcbas                  !  base height of lowest cloud (m)
+                    cdata_all( 5,iout)=rstation_id            !  station ID
+                    cdata_all( 6,iout)=t4dv                   !  time
+                    cdata_all( 7,iout)=nc                     !  type
+                    cdata_all( 8,iout)=lcbas_qc               !  quality mark
+                    cdata_all( 9,iout)=usage                  !  usage paramete
+                    cdata_all(10,iout)=idomsfc                !  dominate surface type
+                    cdata_all(11,iout)=tsavg                  ! skin temperature
+                    cdata_all(12,iout)=ff10                   ! 10 meter wind factor
+                    cdata_all(13,iout)=sfcr                   ! surface roughness
+                    cdata_all(14,iout)=dlon_earth*rad2deg     ! earth relative longitude (degrees)
+                    cdata_all(15,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
+                    cdata_all(16,iout)=stnelev                ! station elevation (m)
+                    cdata_all(17,iout)=obsdat(4,k)            ! observation height (m)
+                    cdata_all(18,iout)=zz                     ! terrain height at ob location
+                    cdata_all(19,iout)=ceiling                ! cloud ceiling obs
+                    if (trim(subset) == 'GOESND') then
+!                      cdata_all(20,iout)=goescld(1,k)/100.0_r_kind   !  cloud top pressure (pa)
+                       cdata_all(20,iout)=goescld(1,k)           !  cloud top pressure
+                       cdata_all(21,iout)=goescld(3,k)           !  Cloud top temperature (K)
+                    else
+                       cdata_all(20,iout)=bmiss
+                       cdata_all(21,iout)=bmiss
+                    end if
+                    cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
+                    cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
+                 end if
+
+
+
+
+
+
               end if
 
 !
@@ -1918,7 +2038,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
     if(lhilbert) &
        call apply_hilbertcurve(maxobs,cdata_all(10:14,1:maxobs),10,14,&
                   tob,12,uvob,14,spdob,13,psob,12,qob,13,pwob,11,sstob,13, &
-                  gustob,12,visob,10)
+                  gustob,12,visob,10,tcamtob,9,lcbasob,9)
 
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))

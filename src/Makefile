@@ -192,6 +192,7 @@ clean:
 	add_gfs_stratosphere.f90 \
 	adjtest.f90 \
         adjtest_obs.f90 \
+        adjust_cloudobs_mod.f90 \
 	aeroinfo.f90 \
 	aircraftinfo.f90 \
         aircraftobsqc.f90 \
