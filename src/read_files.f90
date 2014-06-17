@@ -148,6 +148,7 @@ subroutine read_files(mype)
 
 ! Check for atm files with non-zero length
   irec=i_missing
+  if(mype==npem1)then
   do i=0,max_file-1
      write(filename,'(''sigf'',i2.2)')i
      call gsi_inquire(lenbytes,fexist,filename,mype)
@@ -162,9 +163,11 @@ subroutine read_files(mype)
   end if
   allocate( fcst_hr_sig(nfldsig) )
   fcst_hr_sig(:) = irec(1:nfldsig)
+  end if
 
 ! Check for sfc files with non-zero length
   irec=i_missing
+  if(mype==npem1)then
   do i=0,max_file-1
      write(filename,'(''sfcf'',i2.2)')i
      call gsi_inquire(lenbytes,fexist,filename,mype)
@@ -179,6 +182,10 @@ subroutine read_files(mype)
   end if
   allocate( fcst_hr_sfc(nfldsfc) )
   fcst_hr_sfc(:) = irec(1:nfldsfc)
+  end if
+
+  call mpi_bcast(nfldsig,1,mpi_itype,npem1,mpi_comm_world,ierror)
+  call mpi_bcast(nfldsfc,1,mpi_itype,npem1,mpi_comm_world,ierror)
 
   allocate(time_atm(nfldsig,2),time_sfc(nfldsfc,2))
 
