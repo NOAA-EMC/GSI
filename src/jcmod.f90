@@ -15,6 +15,7 @@ module jcmod
 !   2006-04-06  kleist, expand and redefine Jc term for two formulations
 !   2007-10-18  tremolet - added Jc DFI option
 !   2012-02-08  kleist - add parameter ljc4tlevs 
+!   2013-05-15  todling - add knobs to control constraint on total water
 !
 ! subroutines included:
 !   sub init_jcvars          - initialize Jc related variables

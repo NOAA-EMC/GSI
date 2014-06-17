@@ -25,7 +25,8 @@ subroutine tsen_to_tv(tsen,q,tv)
   use gridmod, only: lat2,lon2,nsig,twodvar_regional
   use constants, only: fv,one
   use guess_grids, only: ges_tsen,fact_tv,ntguessig
-  use jfunc, only: tsensible,qgues
+  use jfunc, only: tsensible
+  use derivsmod, only: qgues
 
   implicit none
 
@@ -84,7 +85,8 @@ subroutine tsen_to_tv_ad(tsen,q,tv)
   use gridmod, only: lat2,lon2,nsig,twodvar_regional
   use constants, only: fv,zero,one
   use guess_grids, only: ges_tsen,fact_tv,ntguessig
-  use jfunc, only: tsensible,qgues
+  use jfunc, only: tsensible
+  use derivsmod, only: qgues
 
   implicit none
 

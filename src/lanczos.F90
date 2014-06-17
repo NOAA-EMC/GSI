@@ -362,7 +362,8 @@ Lanczos_loop : DO
 
    preduc_norm = SQRT(DOT_PRODUCT(zww,zww))
    preduc = preduc_norm/zgnorm
-   if (mype==0) write (6,*)'Estimated gradient norm=',preduc_norm,' Estimated reduction = ',preduc
+   if (mype==0) write (6,'(2(1X,A,ES25.18))') &
+      'Estimated gradient norm=',preduc_norm,' reduction = ',preduc
 
 
 !--- determine eigenvalues and eigenvectors of the tri-diagonal problem

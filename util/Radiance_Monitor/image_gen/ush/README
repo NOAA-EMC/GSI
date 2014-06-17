@@ -66,10 +66,10 @@ as a cron or from the command line, and takes a SUFFIX as it's only argument.  W
 run it will copy any files in $IMGNDIR that are newer than the web server's versions.  
 If there are no differences between the files in $IMGNDIR and the web server then no
 file transfers are made.  This is an example of a cron entry to run Transfer.sh once
-an hour at 20 minutes after the hour (HH:20:00).
+an hour at 20 minutes after the hour (HH:20:00):
 
-20 * * * * /bin/sh /global/save/wx20es/RadMon_256/util/Radiance_Monitor/image_gen/ush/Transfer.sh \
-   opr 1>/ptmp/wx20es/logs/radopr/Transfer_opr.log 2>/ptmp/wx20es/logs/radopr/Transfer_opr.err
+20 * * * * /bin/sh /global/save/wx20es/RadMon_256/util/Radiance_Monitor/image_gen/ush/Transfer.sh opr 1>/ptmpp1/wx20es/logs/radopr/Transfer_opr.log 2>/ptmpp1/wx20es/logs/radopr/Transfer_opr.err
+
 
 Please note that scripted file transfers generally cannot be done from zeus to the
 web server.  If you need to move files from zeus you will have to resort to tarring them

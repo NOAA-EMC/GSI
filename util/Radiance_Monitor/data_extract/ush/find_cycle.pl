@@ -9,11 +9,12 @@
 #
 #    Return that first/last cycle as a text string in YYYYMMDDHH format,
 #      or return nothing if none of the expected data files are found.
-#
 #-----------------------------------------------------------------------
 
     use strict;
     use warnings;
+
+    use Scalar::Util qw(looks_like_number);
 
    #-------------------------------------------------------------------
    #
@@ -96,12 +97,24 @@
          if( $#timefiles >= 0 ) {
             my @sorttime = sort( @timefiles );
             my @times;
-   
+            my $idx = 0;
+
+            #  Find the first string of 10 digits; that's the date.  Use that $idx
+            #  number to process all files.
+            #
+            my @vals = split( '\.', $timefiles[0] ); 
+            for ( my $ii=$#vals; $ii >= 0; $ii-- ) {
+               if( looks_like_number( $vals[$ii] )  && length($vals[$ii] ) == 10 ){
+                     $idx = $ii;
+               }
+            }
+ 
             for ( my $ii=$#sorttime; $ii >= 0; $ii-- ) {
                my $teststr = $sorttime[$ii];
 
-               my @values = split( '\.', $sorttime[$ii] );
-               push( @times, $values[2] );
+               my @values = split( '\.', $teststr );
+               push( @times, $values[$idx] );
+
             }
 
             if ( $#times >= 0 ) {
@@ -113,7 +126,7 @@
 
       } while $found_cycle == 0 && $ctr > 0;
    }
-   else {				# search is for earlies date/time
+   else {				# search is for earliest date/time
 
       my @sortrad = sort( @raddirs );
       my $ctr = -1;

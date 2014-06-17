@@ -25,13 +25,12 @@
   use kinds,       only: r_kind,i_kind
   use constants,   only: zero,one,two,quarter,half,r0_05,r1000,t0c,fv
   use constants,   only: qmin,qcmin
-  use jfunc,       only: qsatg,rhtgues,cwgues,qgues,qtgues,qtdist_gues,cfgues 
-  use jfunc,       only: dqdrh,dqdp,dqdt,dqsdt,dqsdp
+  use derivsmod,   only: qsatg,rhtgues,cwgues,qgues,qtgues,qtdist_gues,cfgues 
+  use derivsmod,   only: dqdrh,dqdp,dqdt,dqsdt,dqsdp
   use jfunc,       only: iter 
   use gridmod,     only: lat2,lon2,nsig,nlat,nlon,nnnn1o
   use gridmod,     only: istart,rbs2
-  use guess_grids, only: ges_prsl,ges_tsen,ges_tv,fact_tv,ges_ps,ntguessig
-  use guess_grids, only: ges_tv_ten,ges_tsen_ten,ges_q_ten,ges_prs_ten 
+  use guess_grids, only: ges_prsl,ges_tsen,fact_tv,ntguessig
   use mpimod,      only: mype
   implicit none
 

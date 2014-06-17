@@ -123,7 +123,7 @@ subroutine simpin1(wgts,wgtsx1,wgtsx11,iwgts, &
   dx1gridi(n1grid:n1grid+3)=dx1gridi(n1grid-1)
   if(dxmax*dxmin<=zero) then
      write(6,*)' INTERPOLATION GRID NOT MONOTONIC IN SIMPIN1'
-     stop
+     call stop2(999)
   end if
   dxminmin=min(abs(dxmax),abs(dxmin))
   dxfine=sign(dxminmin,dxmax)

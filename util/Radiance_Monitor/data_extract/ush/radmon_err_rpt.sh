@@ -221,8 +221,8 @@ fi
             #  grouping number in order to produce an accurate hyperlink.
             #
             ctlfile="time.${satname}.ctl"
-            if [[ -s ${ctlfile}.Z ]]; then
-               uncompress ${ctlfile}.Z
+            if [[ -s ${ctlfile}.Z || -s ${ctlfile}.gz ]]; then
+               uncompress ${ctlfile}.*
             fi
             changrp=`${USHgfs}/radmon_getchgrp.pl ${ctlfile} ${channel}`
             echo changrp = $changrp

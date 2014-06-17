@@ -14,6 +14,7 @@ module gfs_moistphys_mod
 !
 ! program history log:
 !   2011-12-28  eliu - initial code
+!   2014-05-06  eliu - modify to work with tendency and metguess bundles 
 !
 ! subroutines included:
 !   sub moistphys_tl
@@ -31,15 +32,18 @@ module gfs_moistphys_mod
   use constants,   only: zero,one,two,quarter,half,r0_05,r1000,t0c,fv,max_varname_length
   use constants,   only: rhctop,rhcbot,dx_min,dx_inv
   use constants,   only: qmin,qcmin
-  use jfunc,       only: qsatg,cwgues,qgues,sl,del_si
-  use jfunc,       only: tgs,qgs,cwgs                               
-  use jfunc,       only: tlrg,qlrg,cwlrg,rnlrg                     
+  use derivsmod,   only: qsatg,cwgues,qgues,sl,del_si
+  use derivsmod,   only: tgs,qgs,cwgs                               
+  use derivsmod,   only: tlrg,qlrg,cwlrg,rnlrg                     
   use gridmod,     only: lat2,lon2,nsig,nlat,nlon,nnnn1o
   use gridmod,     only: istart,rbs2
-  use guess_grids, only: ges_tsen,ges_q,ges_tv,fact_tv,ges_ps,ntguessig
-  use guess_grids, only: ges_tv_ten,ges_tsen_ten,ges_q_ten,ges_prs_ten
+  use guess_grids, only: ges_tsen,fact_tv,ntguessig
   use mpimod,      only: mype
   use pcpinfo,     only: deltim,dtphys
+  use gsi_bundlemod, only: gsi_bundlegetpointer                   
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle 
+  use tendsmod, only: gsi_tendency_bundle                         
+  use mpeu_util,only: die                                          
 
   implicit none
 
@@ -87,6 +91,7 @@ subroutine moistphys_tl(tsen,q,cw)
   integer(i_kind):: im,ix,it
   integer(i_kind):: i,j,k,ii,mm1
   integer(i_kind):: nsphys
+  integer(i_kind):: ier,istatus  
 
   real(r_kind),dimension(lat2,lon2,nsig):: tsen_in,  q_in, cw_in
   real(r_kind),dimension(lat2,lon2,nsig):: tsen_out, q_out,cw_out
@@ -109,9 +114,16 @@ subroutine moistphys_tl(tsen,q,cw)
   real(r_kind),dimension(nsig):: tlrg_o,qlrg_o,cwlrg_o
   real(r_kind):: del_rnlrg_i,del_rnlrg_o,rnlrg_o
   
+  real(r_kind),dimension(:,:  ),pointer::ges_ps=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
+
+  real(r_kind),dimension(:,:,:),pointer::ges_prs_ten=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_ten=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_q_ten=>NULL()
+  real(r_kind),dimension(lat2,lon2,nsig):: ges_tsen_ten
 
 !--------------------------------------------------------------------------------------------
-
 ! Initialize I/O variables
   do k=1,nsig
      do j=1,lon2
@@ -122,12 +134,42 @@ subroutine moistphys_tl(tsen,q,cw)
            tsen_out(i,j,k) = zero      
               q_out(i,j,k) = zero      
              cw_out(i,j,k) = zero      
+             ges_tsen_ten(i,j,k) = zero      
         enddo
      enddo
   enddo
 
 ! Linearized about guess solution, so set it flag accordingly
   it=ntguessig
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'ps',ges_ps,istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv,istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q' ,ges_q,istatus)
+  ier=ier+istatus
+  if(ier/=0) call die('gfs_moistphys','not all fields available, ier=',ier)
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_tendency_bundle,'tv', ges_tv_ten, istatus)        
+  ier=istatus 
+  if(ier/=0) call die('gfs_moistphys','ges_tv_ten fields not available, ier=',ier)
+   
+  ier=0
+  call gsi_bundlegetpointer(gsi_tendency_bundle,'q',  ges_q_ten, istatus)              
+  ier=istatus 
+  if(ier/=0) call die('gfs_moistphys','ges_q_ten fields not available, ier=',ier)
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_tendency_bundle,'prse',ges_prs_ten,istatus)
+  ier=istatus 
+  if(ier/=0) call die('gfs_moistphys','ges_prs_ten fields not available, ier=',ier)
+
+
+  ! Convert guess time derivative of Tv to guess time derivatives of Tsen
+  ! ges_tv_ten ---> ges_tsen_ten
+  ges_tsen_ten = ges_tv_ten*fact_tv
 
   nsphys = max(int(two*deltim/dtphys+0.9999_r_kind),1)
   dtp    = two*deltim/nsphys
@@ -156,7 +198,7 @@ subroutine moistphys_tl(tsen,q,cw)
 !       if (mype==0 .and. i*j==1) write(6,*) 'gfs_moistphys_tl: do gfs_gscond_tl '
 !       GFS grid-scale condensation/evaporation processes
 !       Initialize TL I/O
-        ges_ps_i = ges_ps(i,j,it)
+        ges_ps_i = ges_ps(i,j)
         do k = 1, nsig
 !          Initialize TL input
 !          Guess profiles (input) --- from outer loop   
@@ -209,7 +251,7 @@ subroutine moistphys_tl(tsen,q,cw)
 !       if (mype==0 .and. i*j==1) write(6,*) 'gfs_moistphys_tl: do gfs_precip_tl '
 !       GFS grid-scale condensation/evaporation processes
 !       Initialize TL I/O
-        ges_ps_i = ges_ps(i,j,it)
+        ges_ps_i = ges_ps(i,j)
         do k = 1, nsig
 !          Initialize TL input
 !          Guess profiles (input) --- from gscond 
@@ -309,6 +351,8 @@ subroutine moistphys_ad(tsen,q,cw)
   integer(i_kind):: im,ix,it
   integer(i_kind):: i,j,k,ii,mm1
   integer(i_kind):: nsphys
+  integer(i_kind):: ier,istatus
+
   logical        :: adjoint
 
   real(r_kind),dimension(lat2,lon2,nsig):: tsen_in,  q_in, cw_in
@@ -331,6 +375,15 @@ subroutine moistphys_ad(tsen,q,cw)
   real(r_kind),dimension(nsig):: del_tlrg_o,del_qlrg_o,del_cwlrg_o
   real(r_kind),dimension(nsig):: tlrg_o,qlrg_o,cwlrg_o
   real(r_kind):: del_rnlrg_i,del_rnlrg_o,rnlrg_o
+
+  real(r_kind),dimension(:,:  ),pointer::ges_ps=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
+
+  real(r_kind),dimension(:,:,:),pointer::ges_prs_ten=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_ten=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_q_ten=>NULL()
+  real(r_kind),dimension(lat2,lon2,nsig):: ges_tsen_ten
 
 !--------------------------------------------------------------------------------------------
 ! Initialize local adjoint variables
@@ -363,6 +416,23 @@ subroutine moistphys_ad(tsen,q,cw)
 ! Linearized about guess solution, so set it flag accordingly
   it=ntguessig
 
+  ier=0
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'ps',ges_ps,istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv,istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q' ,ges_q,istatus)
+  ier=ier+istatus
+  if(ier/=0) call die('gfs_moistphys','not all fields available, ier=',ier)
+
+  call gsi_bundlegetpointer(gsi_tendency_bundle,'tv',  ges_tv_ten,istatus)                                                      
+  call gsi_bundlegetpointer(gsi_tendency_bundle,'q',   ges_q_ten,istatus)
+  call gsi_bundlegetpointer(gsi_tendency_bundle,'prse',ges_prs_ten,istatus)
+
+  ! Convert guess time derivative of Tv to guess time derivatives of Tsen
+  ! ges_tv_ten ---> ges_tsen_ten
+  ges_tsen_ten = ges_tv_ten*fact_tv
+
   nsphys = max(int(two*deltim/dtphys+0.9999_r_kind),1)
   dtp    = two*deltim/nsphys
   mm1    = mype+1
@@ -390,7 +460,7 @@ subroutine moistphys_ad(tsen,q,cw)
 !       if (mype==0 .and. i*j==1) write(6,*) 'gfs_moistphys_ad: do gfs_precip_ad '
 !       GFS grid-scale condensation/evaporaton processes
 !       Initialize AD I/O
-        ges_ps_i = ges_ps(i,j,it)
+        ges_ps_i = ges_ps(i,j)
         do k = 1, nsig
 !          Initialize AD input
 !          Guess profiles (input)  --- from gscond
@@ -429,7 +499,7 @@ subroutine moistphys_ad(tsen,q,cw)
 !       if (mype==0 .and. i*j==1) write(6,*) 'gfs_moistphys_ad: do gfs_gscond_ad '
 !       GFS grid-scale condensation/evaporaton processes
 !       Initialize AD I/O
-        ges_ps_i = ges_ps(i,j,it)
+        ges_ps_i = ges_ps(i,j)
         do k = 1, nsig
 !          Initialize AD input
 !          Guess profiles (input) --- from outer loop 

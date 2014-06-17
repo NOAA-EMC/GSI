@@ -67,7 +67,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2010-09-02  zhu     - add use_edges option
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
 !   2011-04-07  todling - newpc4pred now in radinfo
-!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, and add NSST vars
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
@@ -79,7 +79,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
 !   2011-12-14  collard Remove ATMS
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-12-20  zhu - change icw4crtm>0 to icw4crtm>10  (bug fix)
+!   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -118,7 +121,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
-  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
@@ -133,11 +136,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
@@ -164,7 +168,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
   logical outside,iuse,assim,valid
 
-  character(14):: infile2
+  character(40):: infile2
   character(8) subset
   character(80) hdr1b,hdr2b
 
@@ -223,11 +227,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ilat=4
 
   if(nst_gsi>0) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
 ! Determine whether CW used in CRTM
-  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
+  call gsi_metguess_get ( 'i4crtm::ql', icw4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -457,7 +461,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !    Set bufr subset names based on type of data to read
 
 !    Open unit to satellite bufr file
-     infile2=infile
+     infile2=trim(infile)
      if(llll == 2)then
         infile2=trim(infile)//'ears'
         if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
@@ -465,7 +469,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
 
      call openbf(lnbufr,'IN',lnbufr)
 
@@ -820,7 +824,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               dtc   = zero
               tz_tr = one
               if(sfcpct(0)>zero) then
-                 call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               endif
            endif
 
