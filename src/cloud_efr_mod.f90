@@ -113,7 +113,6 @@ logical pcexist
  cloud_initialized_=.true.
  if (.not. wrf_mass_regional) then
 !   READ IN MASSI FROM LOOKUP TABLES
-    print *,'cloud init: calling inquire'
     inquire(file='eta_micro_lookup.dat',exist=pcexist)
     if (pcexist) then
        print *,'cloud init: Reading eta_micro_lookup.dat'
@@ -130,7 +129,6 @@ logical pcexist
        use_lookup_table=.true.
     else
        use_lookup_table=.false.
-       print *,'cloud init: Not using lookup table!'
     end if
  else
     use_lookup_table=.false.
