@@ -59,8 +59,8 @@ export PLOT_SUB_AVGS=${PLOT_SUB_AVGS:-1}
 #  DO_ARCHIVE switches on archiving of extracted data files.  This is generally
 #    used for the operational data sets (GDAS, NDAS) and isn't normally necessary
 #    for parallels.  0 = off, 1 = on
-export DO_ARCHIVE=${DO_ARCHIVE:-1}
-export ARCHIVE_DIR=${ARCHIVE_DIR:-/sss/emc/da/save/Edward.Safford/nbns/stats}
+export DO_ARCHIVE=${DO_ARCHIVE:-0}
+export ARCHIVE_DIR=${ARCHIVE_DIR:-}
 
 #
 #  HPSS_DIR is the location for archived data on the hpss.  It will only
