@@ -22,7 +22,7 @@ subroutine loglcbas_to_lcbas(loglcbas,lcbas)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2
-  use jfunc, only: dlcbasdlog
+  use derivsmod, only: dlcbasdlog
 
   implicit none
   real(r_kind),intent(in   ) :: loglcbas(lat2,lon2)
@@ -65,7 +65,7 @@ subroutine loglcbas_to_lcbas_ad(loglcbas,lcbas)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2
-  use jfunc, only: dlcbasdlog
+  use derivsmod, only: dlcbasdlog
 
   implicit none
   real(r_kind),intent(inout) :: loglcbas(lat2,lon2)

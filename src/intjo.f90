@@ -155,7 +155,8 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-10-15  pagowski - add intpm2_5 call
 !   2010-10-20  hclin    - added aod
 !   2011-02-20  zhu      - add intgust,intvis,intpblh calls
-!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction 
+!   2013-05-20  zhu      - add codes related to aircraft temperature bias correction
+!   2014-06-18  carley/zhu - add lcbas and tcamt 
 !
 !   input argument list:
 !     ibin
@@ -214,6 +215,8 @@ use intlagmod, only: intlag
 use intgustmod, only: intgust
 use intvismod, only: intvis
 use intpblhmod, only: intpblh
+use inttcamtmod, only: inttcamt
+use intlcbasmod, only: intlcbas
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none
@@ -313,6 +316,12 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS for conventional pblh observations
   call intpblh(yobs%pblh,rval,sval)
+
+! RHS for tcamt observations
+  call inttcamt(yobs%tcamt,rval,sval)
+
+! RHS for lcbas observations
+  call intlcbas(yobs%lcbas,rval,sval)
 
 ! Take care of background error for bias correction terms
 

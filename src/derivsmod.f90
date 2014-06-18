@@ -8,6 +8,7 @@ module derivsmod
 !
 ! program history log:
 !   2013-10-19 Todling - Initial code.
+!   2014-06-18 Carley - add lgues and dlcbasdlog
 !
 ! public subroutines:
 !  drv_initialized         - initialize name of fields to calc derivs for
@@ -58,7 +59,7 @@ public :: gsi_yderivative_bundle
 public :: dvars2d, dvars3d
 public :: dsrcs2d, dsrcs3d
 public :: cwgues
-public :: ggues,vgues,pgues,dvisdlog
+public :: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
 public :: qsatg,qgues,dqdt,dqdrh,dqdp
 
 logical :: drv_initialized = .false.
@@ -69,7 +70,7 @@ character(len=32),allocatable,dimension(:):: dvars2d, dvars3d
 character(len=32),allocatable,dimension(:):: dsrcs2d, dsrcs3d
 
 real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp
-real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
+real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,lgues,dvisdlog,dlcbasdlog
 real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
 
 ! below this point: declare vars not to be made public
@@ -397,6 +398,7 @@ drv_set_=.true.
 !   2013-10-25  todling - revisit variable initialization
 !   2013-11-12  lueken - revisit logic around cwgues
 !   2014-02-03  todling - CV length and B-dims here (no longer in observer)
+!   2014-06-18  carley - add lgues and dlcbasdlog
 !
 !   input argument list:
 !    mlat
@@ -468,6 +470,16 @@ drv_set_=.true.
           end do
        end do
     end if
+    if (getindex(cvars2d,'lcbas')>0) then
+       allocate(lgues(lat2,lon2),dlcbasdlog(lat2,lon2))
+       do j=1,lon2
+          do i=1,lat2
+             lgues(i,j)=zero
+             dlcbasdlog(i,j)=zero
+          end do
+       end do
+    end if
+
 
     return
   end subroutine create_auxiliar_
@@ -486,6 +498,7 @@ drv_set_=.true.
 !   2011-02-16  zhu     - add ggues,vgues,pgues
 !   2011-07-15  zhu     - add cwgues
 !   2013-10-25  todling, revisit deallocs
+!   2014-06-18  carley - add lgues and dlcbasdlog 
 !
 !   input argument list:
 !
@@ -508,6 +521,8 @@ drv_set_=.true.
     if(allocated(vgues)) deallocate(vgues)
     if(allocated(dvisdlog)) deallocate(dvisdlog)
     if(allocated(pgues)) deallocate(pgues)
+    if(allocated(lgues)) deallocate(lgues)
+    if(allocated(dlcbasdlog)) deallocate(dlcbasdlog)
 
     return
   end subroutine destroy_auxiliar_

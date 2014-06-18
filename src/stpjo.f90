@@ -135,6 +135,7 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2010-10-15  pagowski - add stppm2_5 call 
 !   2011-02-24  zhu    - add gust,vis,pblh calls
 !   2013-05-23  zhu    - add bias correction contribution from aircraft T bias correction
+!   2014-06-17  carley/zhu - add lcbas and tcamt
 !
 !   input argument list:
 !     yobs
@@ -170,8 +171,8 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_colvk_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
-                  &i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
-                    nobs_type
+                  & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
+                  & i_tcamt_ob_type,i_lcbas_ob_type,nobs_type
   use stptmod, only: stpt
   use stpwmod, only: stpw
   use stppsmod, only: stpps
@@ -192,6 +193,8 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stpgustmod, only: stpgust
   use stpvismod, only: stpvis
   use stppblhmod, only: stppblh
+  use stptcamtmod, only: stptcamt
+  use stplcbasmod, only: stplcbas
   use bias_predictors, only: predictors
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
@@ -302,6 +305,16 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   penalty, b, and c for conventional pblh
     if (getindex(cvars2d,'pblh')>0) &
     call stppblh(yobs%pblh,dval,xval,pbcjo(1,i_pblh_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for total cloud amount
+    if (getindex(cvars2d,'tcamt')>0) &
+    call stptcamt(yobs%tcamt,dval,xval,pbcjo(1,i_tcamt_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for cloud base of lowest cloud
+    if (getindex(cvars2d,'lcbas')>0) &
+    call stplcbas(yobs%lcbas,dval,xval,pbcjo(1,i_lcbas_ob_type),sges,nstep)
 
 !$omp end parallel sections
 

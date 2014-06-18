@@ -322,6 +322,7 @@ clean:
         intjcmod.f90 \
 	intjo.f90 \
 	intlag.f90 \
+	intlcbas.f90 \
 	intoz.f90 \
 	intpblh.f90 \
 	intpcp.f90 \
@@ -337,6 +338,7 @@ clean:
 	intsrw.f90 \
 	intsst.f90 \
 	intt.f90 \
+	inttcamt.f90 \
 	inttcp.f90 \
 	intvis.f90 \
 	intw.f90 \
@@ -349,6 +351,7 @@ clean:
 	lag_traj.f90 \
 	lagmod.f90 \
 	lanczos.F90 \
+	loglcbas_to_lcbas.f90 \
 	logvis_to_vis.f90 \
 	looplimits.f90 \
 	m_berror_stats.f90 \
@@ -464,6 +467,7 @@ clean:
 	stpgust.f90 \
 	stpjo.f90 \
         stpjcmod.f90 \
+	stplcbas.f90 \
 	stpoz.f90 \
 	stppblh.f90 \
 	stppcp.f90 \
@@ -477,6 +481,7 @@ clean:
 	stpsrw.f90 \
 	stpsst.f90 \
 	stpt.f90 \
+	stptcamt.f90 \
 	stptcp.f90 \
 	stpvis.f90 \
 	stpw.f90 \
@@ -570,6 +575,7 @@ clean:
 	setupdw.f90 \
 	setupgust.f90 \
 	setuplag.f90 \
+	setuplcbas.f90 \
 	setupoz.f90 \
 	setuppblh.f90 \
 	setuppcp.f90 \
@@ -585,6 +591,7 @@ clean:
 	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
+	setuptcmat.f90 \
 	setuptcp.f90 \
 	setupvis.f90 \
 	setupw.f90 \
