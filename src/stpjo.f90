@@ -135,6 +135,9 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   2010-10-15  pagowski - add stppm2_5 call 
 !   2011-02-24  zhu    - add gust,vis,pblh calls
 !   2013-05-23  zhu    - add bias correction contribution from aircraft T bias correction
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
 !
 !   input argument list:
 !     yobs
@@ -170,8 +173,9 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
                   & i_spd_ob_type, i_srw_ob_type, i_rw_ob_type, i_dw_ob_type, &
                   & i_sst_ob_type, i_pw_ob_type, i_oz_ob_type, i_colvk_ob_type, &
                   & i_gps_ob_type, i_rad_ob_type, i_pcp_ob_type,i_tcp_ob_type, &
-                  &i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
-                    nobs_type
+                  & i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type, &
+                  & i_wspd10m_ob_type,i_td2m_ob_type,i_mxtm_ob_type,i_mitm_ob_type, &
+                    i_pmsl_ob_type,i_howv_ob_type,nobs_type
   use stptmod, only: stpt
   use stpwmod, only: stpw
   use stppsmod, only: stpps
@@ -192,6 +196,12 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use stpgustmod, only: stpgust
   use stpvismod, only: stpvis
   use stppblhmod, only: stppblh
+  use stpwspd10mmod, only: stpwspd10m
+  use stptd2mmod, only: stptd2m
+  use stpmxtmmod, only: stpmxtm
+  use stpmitmmod, only: stpmitm
+  use stppmslmod, only: stppmsl
+  use stphowvmod, only: stphowv
   use bias_predictors, only: predictors
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc
   use gsi_bundlemod, only: gsi_bundle
@@ -302,6 +312,34 @@ subroutine stpjo(yobs,dval,dbias,xval,xbias,sges,pbcjo,nstep)
 !   penalty, b, and c for conventional pblh
     if (getindex(cvars2d,'pblh')>0) &
     call stppblh(yobs%pblh,dval,xval,pbcjo(1,i_pblh_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional wspd10m
+    if (getindex(cvars2d,'wspd10m')>0) &
+    call stpwspd10m(yobs%wspd10m,dval,xval,pbcjo(1,i_wspd10m_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional td2m
+    if (getindex(cvars2d,'td2m')>0) &
+    call stptd2m(yobs%td2m,dval,xval,pbcjo(1,i_td2m_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional mxtm
+    if (getindex(cvars2d,'mxtm')>0) &
+    call stpmxtm(yobs%mxtm,dval,xval,pbcjo(1,i_mxtm_ob_type),sges,nstep)
+
+!$omp section
+!   penalty, b, and c for conventional mitm
+    if (getindex(cvars2d,'mitm')>0) &
+    call stpmitm(yobs%mitm,dval,xval,pbcjo(1,i_mitm_ob_type),sges,nstep)
+
+!   penalty, b, and c for conventional pmsl
+    if (getindex(cvars2d,'pmsl')>0) &
+    call stppmsl(yobs%pmsl,dval,xval,pbcjo(1,i_pmsl_ob_type),sges,nstep)
+
+!   penalty, b, and c for conventional howv
+    if (getindex(cvars2d,'howv')>0) &
+    call stphowv(yobs%howv,dval,xval,pbcjo(1,i_howv_ob_type),sges,nstep)
 
 !$omp end parallel sections
 

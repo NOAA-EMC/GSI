@@ -21,9 +21,9 @@ subroutine anbkerror(gradx,grady)
 !   2010-08-19  lueken - add only to module use
 !   2012-10-09  Gu - add fut2ps as arg to (t)balance routine(s)
 !   2013-05-23  zhu    - add ntclen for aircraft temperature bias correction
-!   2014-02-07  pondeca - update to handle motley variables
+!   2014-02-07  pondeca - update to handle motley variables. rename p_st to p_sf
 !   2014-02-14  pondeca - update to handle optional separation of sf and vp control variables
-                          into land-only and water-only parts
+!                         into land-only and water-only parts
 !
 !   input argument list:
 !     gradx    - input field  
@@ -118,14 +118,14 @@ do_balancewter=ipnts(5)>0.and.ipnts(6)>0
         call gsi_bundlegetpointer (mbundle,'t ',p_t,   istatus)
         call gsi_bundlegetpointer (mbundle,'sfwter',p_sfwter,  istatus)
         call gsi_bundlegetpointer (mbundle,'vpwter',p_vpwter,  istatus)
-        call tbalance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+        call tbalance(p_t,p_ps,p_sf,p_vp,fpsproj,fut2ps)
      endif
 
 !    Apply variances, as well as vertical & horizontal parts of background error
      call anbkgcov(mbundle)
 
 !    Balance equation
-     if(do_balance) call balance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+     if(do_balance) call balance(p_t,p_ps,p_sf,p_vp,fpsproj,fut2ps)
 
      if(do_balancewter) then 
        do k=1,ke_vp

@@ -140,7 +140,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
@@ -167,7 +167,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
   logical outside,iuse,assim,valid
 
-  character(14):: infile2
+  character(40):: infile2
   character(8) subset
   character(80) hdr1b,hdr2b
 
@@ -461,7 +461,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !    Set bufr subset names based on type of data to read
 
 !    Open unit to satellite bufr file
-     infile2=infile
+     infile2=trim(infile)
      if(llll == 2)then
         infile2=trim(infile)//'ears'
         if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
@@ -469,7 +469,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
 
      call openbf(lnbufr,'IN',lnbufr)
 

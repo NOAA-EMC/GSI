@@ -115,7 +115,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     ,intent(inout) :: val_amsre
   real(r_kind)     ,intent(in   ) :: gstime,twind
   real(r_kind)     ,intent(in   ) :: rmesh
-  character(len=*) ,intent(in   ) :: sis
+  character(len=20),intent(in   ) :: sis
   integer(i_kind)  ,intent(in   ) :: mype_root
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub

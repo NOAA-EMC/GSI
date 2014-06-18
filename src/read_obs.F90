@@ -557,7 +557,7 @@ subroutine read_obs(ndata,mype)
     logical :: acft_profl_file
     character(10):: obstype,platid
     character(15):: string,infile
-    character(15):: infilen
+    character(20):: infilen
     character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
@@ -655,7 +655,10 @@ subroutine read_obs(ndata,mype)
            obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
            obstype == 'larccld' .or. obstype == 'pm2_5' .or. &
            obstype == 'gust' .or. obstype=='vis' .or. &
-           obstype == 'pblh') then
+           obstype == 'pblh' .or. obstype=='wspd10m' .or. &
+           obstype == 'td2m' .or. obstype=='mxtm' .or. &
+           obstype == 'mitm' .or. obstype=='pmsl' .or. &
+           obstype == 'howv') then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
@@ -779,8 +782,8 @@ subroutine read_obs(ndata,mype)
           ii=ii+1
           if (ii>npem1) ii=0
           if(mype==ii)then
-             call gsi_inquire(lenbytes,lexist,dfile(i),mype)
-             call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+             call gsi_inquire(lenbytes,lexist,trim(dfile(i)),mype)
+             call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse)
              
              len4file=lenbytes/4
              if (ears_possible(i))then
@@ -811,7 +814,7 @@ subroutine read_obs(ndata,mype)
           end if
        else
           if(mype == 0)write(6,*) 'data type ',dsis(i), &
-                'not used in info file -- do not read file ',dfile(i)
+                'not used in info file -- do not read file ',trim(dfile(i))
        end if
     end do
 
@@ -1004,7 +1007,7 @@ subroutine read_obs(ndata,mype)
 
           platid=dplat(i)                    !     platid   - satellites to read
           obstype=dtype(i)                   !     obstype  - observation types to process
-          infile=dfile(i)                    !     infile   - units from which to read data
+          infile=trim(dfile(i))              !     infile   - units from which to read data
           sis=dsis(i)                        !     sensor/instrument/satellite indicator
           val_dat=dval(i)                    !     weighting factors applied to super obs
           ithin=dthin(i)                     !     ithin    - flags to thin data
@@ -1028,6 +1031,9 @@ subroutine read_obs(ndata,mype)
              if (obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
+                 obstype == 'wspd10m' .or. obstype == 'td2m' .or. &
+                 obstype=='mxtm' .or. obstype == 'mitm' .or. &
+                 obstype=='howv' .or. obstype=='pmsl' .or. &
                  obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then
@@ -1040,7 +1046,7 @@ subroutine read_obs(ndata,mype)
                    string='READ_PREPBUFR'
                 endif
 !            Process winds in the prepbufr
-             else if(obstype == 'uv') then
+            else if(obstype == 'uv' .or. obstype == 'wspd10m') then
 !             Process satellite winds which seperate from prepbufr
                 if ( index(infile,'satwnd') /=0 ) then
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&

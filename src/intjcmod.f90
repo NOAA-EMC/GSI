@@ -334,7 +334,8 @@ subroutine intlimw10m(rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: factw10m,w10mgues
+  use jfunc, only: factw10m
+  use derivsmod, only: w10mgues
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -399,7 +400,8 @@ subroutine intlimhowv(rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: facthowv,howvgues
+  use jfunc, only: facthowv
+  use derivsmod, only: howvgues
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none

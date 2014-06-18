@@ -402,7 +402,8 @@ subroutine stplimw10m(rval,sval,sges,out,nstep)
 !
 !$$$
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factw10m,w10mgues
+  use jfunc, only: factw10m
+  use derivsmod, only: w10mgues
   implicit none
 
 ! Declare passed variables
@@ -476,7 +477,8 @@ subroutine stplimhowv(rval,sval,sges,out,nstep)
 !
 !$$$
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: facthowv,howvgues
+  use jfunc, only: facthowv
+  use derivsmod, only: howvgues
   implicit none
 
 ! Declare passed variables

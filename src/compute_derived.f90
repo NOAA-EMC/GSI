@@ -64,6 +64,8 @@ subroutine compute_derived(mype,init_pass)
 !                       - unlike original code, now all derivates available at all time slots
 !   2013-10-30  jung    - add test and removal of supersaturation
 !   2014-04-18  todling - revisit interface to q_diag
+!   2014-03-19  pondeca - add "load wspd10m guess"
+!   2014-05-07  pondeca - add "load howv guess"
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -92,7 +94,7 @@ subroutine compute_derived(mype,init_pass)
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
   use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,&
-       dvisdlog,cwgues
+       dvisdlog,w10mgues,howvgues,cwgues
   use tendsmod, only: tnd_initialized
   use tendsmod, only: gsi_tendency_bundle
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
@@ -251,11 +253,11 @@ subroutine compute_derived(mype,init_pass)
        if(istatus/=0) call die(myname,'gsi_4dcoupler_init_traj(), rc =',istatus)
   endif
 
+  call init_vars_('guess')
+
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
   if (.not. twodvar_regional)then
-
-     call init_vars_('guess')
 
      if (switch_on_derivatives) then
         if(.not.drv_initialized) &
@@ -318,8 +320,6 @@ subroutine compute_derived(mype,init_pass)
   
      endif       ! (init_pass)
 
-     call final_vars_('guess')
-
   endif         ! (!twodvar_regional)
 
   if(.not. init_pass) return
@@ -363,7 +363,22 @@ subroutine compute_derived(mype,init_pass)
         end do
      end do
   end if
-
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'wspd10m',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           w10mgues(i,j)=max(one,ptr2d(i,j))
+        end do
+     end do
+  end if
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'howv',ptr2d,istatus)
+  if (istatus==0) then
+     do j=1,lon2
+        do i=1,lat2
+           howvgues(i,j)=max(one,ptr2d(i,j))
+        end do
+     end do
+  end if
 
   if(allocated(ges_tv).and.allocated(ges_ps)) then
 
@@ -387,6 +402,8 @@ subroutine compute_derived(mype,init_pass)
     end do
 
   endif
+
+  call final_vars_('guess')
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH

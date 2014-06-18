@@ -42,6 +42,8 @@ module jfunc
 !   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
 !                         or aircraft_t_bc_pof=.true.
 !   2013-10-30  jung    - added logical clip_supersaturation
+!   2014-03-19  pondeca - add factw10m
+!   2014-05-07  pondeca - add facthowv
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
@@ -126,7 +128,7 @@ module jfunc
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
-  public :: factg,factv,factp,diag_precon,step_start
+  public :: factg,factv,factp,factw10m,facthowv,diag_precon,step_start
   public :: pseudo_q2
   public :: varq
 
@@ -141,7 +143,8 @@ module jfunc
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
-  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,step_start
+  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp, & 
+               factw10m,facthowv,step_start
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
@@ -197,6 +200,8 @@ contains
     factg=one
     factv=one
     factp=one
+    factw10m=one
+    facthowv=one
     iout_iter=220
     miter=1
     qoption=1
