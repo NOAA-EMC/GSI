@@ -14,6 +14,9 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !
 ! program history log:
 !   2012-01-29  zhu
+!   2014-06-19  carley - update for metguess bundle, change tintrp2a to tintrp2a11
+!                        for debug compile on WCOSS, write sensitivity slot indicator
+!                        (ioff) to header of diagfile, remove unused vars
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -33,20 +36,17 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: ges_ps,ges_lcbas,hrdifsig,nfldsig,ges_lnprsl,fact10,nfldsfc, &
-               hrdifsfc,geop_hgtl,ges_z,sfcmod_gfs,sfcmod_mm5,comp_fact10,ntguessig,wgt_lcbas     
+  use guess_grids, only: hrdifsig,nfldsig,ntguessig,wgt_lcbas     
   use obsmod, only: lcbashead,lcbastail,rmiss_single,i_lcbas_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset
   use obsmod, only: lcbas_ob_type
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
-  use gridmod, only: nlat,nlon,istart,jstart,lon1,nsig
-  use gridmod, only: get_ij,twodvar_regional
-  use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,rd,grav,&
-            two,cg_term,three,four,huge_single,r1000,rad2deg,r3600,&
-            grav_ratio,flattening,grav,deg2rad,grav_equator,somigliana, &
-            semi_major_axis,eccentricity
+  use gridmod, only: nlat,nlon,nsig
+  use gridmod, only: get_ij
+  use constants, only: zero,tiny_r_kind,one,one_tenth,half,wgtlim,&
+            two,cg_term,huge_single,r1000,rad2deg,deg2rad
   use jfunc, only: jiter,last,miter,jiterstart,R_option
   use qcmod, only: dfact,dfact1,npres_print
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
@@ -62,7 +62,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
 
 ! Declare external calls for code analysis
-  external:: tintrp2a
+  external:: tintrp2a11
   external:: stop2
 
 ! Declare local variables
@@ -86,7 +86,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) ier,ilon,ilat,izz,ihgt,ilcbas,id,itime,ikx,iqc,iceil
   integer(i_kind) iuse,ilate,ilone,istnelv,iprvd,isprvd
-  integer(i_kind) i,nchar,nreal,k,j,k1,k2,ii,ikxx,nn,isli,ibin,ioff,jj
+  integer(i_kind) i,nchar,nreal,k,j,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
   integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
@@ -107,10 +107,19 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   type(obs_diag),pointer:: my_diag
   character(len=*),parameter:: myname='setuplcbas'
 
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_lcbas
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_z
+
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
   
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -181,6 +190,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ii=0
      nchar=1
      nreal=23
+     ioff0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      allocate(cprvstg(nobs),csprvstg(nobs))
@@ -259,11 +269,12 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 !    Interpolate to get lcbas at obs location/time (MSL)
-     call tintrp2a(ges_lcbas,lcbasges,dlat,dlon,dtime,hrdifsig,&
-          1,1,mype,nfldsig)
+     call tintrp2a11(ges_lcbas,lcbasges,dlat,dlon,dtime,hrdifsig,&
+            mype,nfldsig)
 
 !    Get guess sfc hght at obs location
-     call intrp2a(ges_z(1,1,ntguessig),zsges,dlat,dlon,1,1,mype)
+     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
+            mype,nfldsig)
 
      if(luse(i))then
         awork(1) = awork(1) + one
@@ -470,7 +481,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         csprvstg(ii)    = c_sprvstg          ! subprovider name
 
         if (lobsdiagsave) then
-           ioff=23
+           ioff=ioff0
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_lcbas_ob_type,ibin)%tail%muse(jj)) then
@@ -501,14 +512,83 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Write information to diagnostic file
   if(conv_diagsave)then
      call dtime_show(myname,'diagsave:lcbas',i_lcbas_ob_type)
-     write(7)'lcb',nchar,nreal,ii,mype
+     write(7)'lcb',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
 
      write(7)cprvstg(1:ii),csprvstg(1:ii)
      deallocate(cprvstg,csprvstg)
   end if
-
+int
 ! End of routine
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::lcbas', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get lcbas ...
+     varname='lcbas'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_lcbas))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_lcbas(size(rank2,1),size(rank2,2),nfldsig))
+         ges_lcbas(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_lcbas(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_z  )) deallocate(ges_z  )
+    if(allocated(ges_lcbas)) deallocate(ges_lcbas)
+  end subroutine final_vars_
 end subroutine setuplcbas
 

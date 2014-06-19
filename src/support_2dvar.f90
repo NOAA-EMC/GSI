@@ -1468,7 +1468,7 @@ subroutine wr2d_binary(mype)
      end do
      if(mype==0) read(iog)temp1
      if(mype == 0) then
-        write(6,*)' ges_lcbas in wr2d_binary,max,min(ges_lcabs)=',maxval(ges_lcbas),minval(ges_lcbas)
+        write(6,*)' ges_lcbas in wr2d_binary,max,min(ges_lcbas)=',maxval(ges_lcbas),minval(ges_lcbas)
         write(6,*)' lcbas in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
      end if
      call strip(all_loc(:,:,i_lcbas),strp)
