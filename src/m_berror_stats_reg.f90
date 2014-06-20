@@ -271,6 +271,7 @@ end subroutine berror_read_bal_reg
 !                          related change in read
 !       16Feb11 Zhu - add gust,vis,pblh
 !       03Feb14 Todling - varq & qoption in arg list (remove dep on jfunc)
+!       19Jun14 Carley/Zhu - add tcamt and lcbas
 !
 !EOP ___________________________________________________________________
 
@@ -296,7 +297,7 @@ end subroutine berror_read_bal_reg
   logical,dimension(nrf):: nrf_err
 
   integer(i_kind) :: nrf3_oz,nrf3_q,nrf3_cw,nrf3_sf,nrf2_sst
-  integer(i_kind) :: nrf3_t,nrf2_gust,nrf2_vis,nrf2_pblh
+  integer(i_kind) :: nrf3_t,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_tcamt,nrf2_lcbas
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
   integer(i_kind) :: loc,nn,m1,m,i,n,j,k
@@ -479,6 +480,8 @@ end subroutine berror_read_bal_reg
   nrf2_gust=getindex(cvars2d,'gust')
   nrf2_vis=getindex(cvars2d,'vis')
   nrf2_pblh=getindex(cvars2d,'pblh')
+  nrf2_tcamt=getindex(cvars2d,'tcamt')
+  nrf2_lcbas=getindex(cvars2d,'lcbas')
 
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
@@ -546,6 +549,23 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=3.0_r_kind*hwll(i,1,nrf3_t)
         end do
+     end if
+     if (n==nrf2_tcamt) then
+        do i=1,mlat
+           corp(i,n)=50.0_r_kind
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_t)
+        end do
+     end if
+     if (n==nrf2_lcbas) then
+        do i=1,mlat
+           corp(i,n)=40000.0_r_kind
+        end do
+        do i=0,mlat+1
+           hwllp(i,n)=hwll(i,1,nrf3_t)
+        end do
+        print*, 'm_berror_reg: maxhwllp_lcbas=',maxval(hwllp(:,n))
      end if
   enddo
 

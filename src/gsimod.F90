@@ -55,8 +55,8 @@
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
-  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,niter,niter_no_qc,biascor,&
-     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,&
+  use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,factv,factl,niter,niter_no_qc,biascor,&
+     init_jfunc,qoption,switch_on_derivatives,tendsflag,l_foto,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,lgschmidt,diag_precon,step_start,pseudo_q2,&
      clip_supersaturation
   use state_vectors, only: init_anasv,final_anasv
@@ -284,6 +284,7 @@
 !                              grid than mass background grid
 !  02-05-2014 todling   add parameter cwcoveqqcov (cw_cov=q_cov)
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
+!  06-19-2014 carley/zhu  add factl and R_option for twodvar_regional lcbas/ceiling analysis
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -441,11 +442,14 @@
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
+!     R_option   - Option to use variable correlation length for lcbas based on data
+!                    density - follows Hayden and Purser (1995) (twodvar_regional only)
+!
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
 
-  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,deltim,dtphys,&
+  namelist/setup/gencode,factqmin,factqmax,clip_supersaturation,factv,factl,R_option,deltim,dtphys,&
        biascor,bcoption,diurnalbc,&
        niter,niter_no_qc,miter,qoption,nhr_assimilation,&
        min_offset,pseudo_q2,&

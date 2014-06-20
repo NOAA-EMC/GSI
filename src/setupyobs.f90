@@ -17,6 +17,7 @@ subroutine setupyobs()
 !   2010-07-10  todling  - add aerosols pointer
 !   2010-10-15  pagowski  - add pm2_5 pointer
 !   2011-02-19  zhu      - add gust,vis,pblh pointers
+!   2014-06-20  carley/zhu - add tcamt and lcbas pointers
 !
 !   input argument list:
 !
@@ -29,9 +30,10 @@ subroutine setupyobs()
 !$$$ end documentation block
 use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
-                & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &
+                & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &tcamthead, lcbashead
                 & ozhead, o3lhead, tcphead, laghead, colvkhead, aerohead, &
-                & aerolhead, pm2_5head, gusthead, vishead, pblhhead, yobs
+                & aerolhead, pm2_5head, gusthead, vishead, pblhhead, &
+                tcamthead, lcbashead, yobs
 use gsi_4dvar, only: nobs_bins
 implicit none
 
@@ -65,6 +67,8 @@ do ii=1,nobs_bins
    yobs(ii)%gust=>gusthead(ii)%head
    yobs(ii)%vis=>vishead(ii)%head
    yobs(ii)%pblh=>pblhhead(ii)%head
+   yobs(ii)%tcamt=>tcamthead(ii)%head
+   yobs(ii)%lcbas=>lcbashead(ii)%head
 end do
 
 return

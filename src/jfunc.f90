@@ -89,6 +89,8 @@ module jfunc
 !   def ntracer    - total number of tracer variables
 !   def nrft       - total number of time tendencies for upper level control variables
 !   def nrft_      - order of time tendencies for 3d control variables
+!   def R_option   - Option to use variable correlation length for lcbas based on data
+!                    density - follows Hayden and Purser (1995) (twodvar_regional only)
 !
 ! attributes:
 !   language: f90

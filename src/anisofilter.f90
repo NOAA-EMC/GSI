@@ -4445,16 +4445,6 @@ subroutine get2berr_reg_subdomain_option(mype)
      deallocate(hwllp_lcbas4,hwllp_lcbas4a)
   end if
 
-
-
-
-
-
-
-
-
-
-
   allocate(region_dy4(nlat,nlon),region_dx4(nlat,nlon))
 
   if (mype==0) then

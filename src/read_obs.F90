@@ -499,6 +499,7 @@ subroutine read_obs(ndata,mype)
 !                         through module m_extOzone, separated from read_ozone.
 !                       - Added some -do- and -if- construct names, for easier
 !                         understanding of the code.
+!   2014-06-19  carley/zhu - add tcamt and lcbas
 !   
 !
 !   input argument list:
@@ -655,7 +656,7 @@ subroutine read_obs(ndata,mype)
            obstype == 'rad_ref' .or. obstype=='lghtn' .or. &
            obstype == 'larccld' .or. obstype == 'pm2_5' .or. &
            obstype == 'gust' .or. obstype=='vis' .or. &
-           obstype == 'pblh') then
+           obstype == 'pblh' .or. obstype=='tcamt' .or. obstype=='lcbas') then
           ditype(i) = 'conv'
        else if( hirs   .or. sndr      .or.  seviri .or. &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
@@ -1028,7 +1029,8 @@ subroutine read_obs(ndata,mype)
              if (obstype == 't' .or. obstype == 'q'  .or. obstype == 'ps' .or. &
                  obstype == 'pw' .or. obstype == 'spd'.or. & 
                  obstype == 'gust' .or. obstype == 'vis'.or. &
-                 obstype == 'mta_cld' .or. obstype == 'gos_ctp'  ) then
+                 obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
+                 obstype == 'tcamt' .or. obstype == 'lcbas' ) then
 !               Process flight-letel high-density data not included in prepbufr
                 if ( index(infile,'hdobbufr') /=0 ) then
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
