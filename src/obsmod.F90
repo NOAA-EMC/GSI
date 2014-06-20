@@ -1285,7 +1285,8 @@ module obsmod
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
-                  mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh
+                  mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh,&
+                  mype_tcamt,mype_lcbas
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind) iout_pm2_5, mype_pm2_5
   integer(i_kind),dimension(5):: iadate

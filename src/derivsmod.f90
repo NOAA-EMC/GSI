@@ -470,7 +470,7 @@ drv_set_=.true.
           end do
        end do
     end if
-    if (getindex(cvars2d,'lcbas')>0) then
+    if (getindex(svars2d,'lcbas')>0) then
        allocate(lgues(lat2,lon2),dlcbasdlog(lat2,lon2))
        do j=1,lon2
           do i=1,lat2

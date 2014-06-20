@@ -241,7 +241,7 @@ subroutine intall(sval,sbias,rval,rbias)
      if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
 
 ! RHS for lcbas constraint
-     if (getindex(cvars2d,'lcbas')>0) call intliml(rval(1),sval(1))
+     if (getindex(svars2d,'lcbas')>0) call intliml(rval(1),sval(1))
 
   end if
 

@@ -910,9 +910,9 @@ subroutine correct_()
         call comp2d_(b_vis ,bias_vis ,hours(it))
         if (getindex(svars2d,'pblh')>0) &
         call comp2d_(b_pblh,bias_pblh,hours(it))
-        if (getindex(cvars2d,'tcamt')>0) &
+        if (getindex(svars2d,'tcamt')>0) &
         call comp2d_(b_tcamt,bias_tcamt,hours(it))
-        if (getindex(cvars2d,'lcbas')>0) &
+        if (getindex(svars2d,'lcbas')>0) &
         call comp2d_(b_lcbas,bias_lcbas,hours(it))
      end if
 

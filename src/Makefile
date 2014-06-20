@@ -591,7 +591,7 @@ clean:
 	setupsrw.f90 \
 	setupsst.f90 \
 	setupt.f90 \
-	setuptcmat.f90 \
+	setuptcamt.f90 \
 	setuptcp.f90 \
 	setupvis.f90 \
 	setupw.f90 \

@@ -52,6 +52,10 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+
+
   implicit none
 
 ! Declare passed variables
@@ -100,7 +104,7 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
 
-  logical:: in_curbin, in_anybin
+  logical:: in_curbin, in_anybin,proceed
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(lcbas_ob_type),pointer:: my_head
@@ -519,7 +523,6 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      write(7)cprvstg(1:ii),csprvstg(1:ii)
      deallocate(cprvstg,csprvstg)
   end if
-int
 ! End of routine
 
   return

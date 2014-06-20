@@ -568,8 +568,8 @@ subroutine read_2d_guess(mype)
   real(r_kind),pointer,dimension(:,:,:)::ges_tv_it    =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_q_it     =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_cwmr_it  =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_tcamt_it =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::ges_lcbas_it =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_tcamt    =>NULL()
+  real(r_kind),pointer,dimension(:,:  )::ges_lcbas    =>NULL()
 
 
 
@@ -909,12 +909,12 @@ subroutine read_2d_guess(mype)
               if(ihave_pblh) &
               ges_pblh(j,i)=all_loc(j,i,i_0+i_pblh)
 
-              if (ihave_tcamt) ges_tcamt(j,i,it)=all_loc(j,i,i_0+i_tcamt)
+              if (ihave_tcamt) ges_tcamt(j,i)=all_loc(j,i,i_0+i_tcamt)
              
               if (ihave_lcbas) then
-                 ges_lcbas(j,i,it)=all_loc(j,i,i_0+i_lcbas)
-                 ges_lcbas(j,i,it)=max(0.1_r_kind,ges_lcbas(j,i,it))      !Lower bound on celing
-                 ges_lcbas(j,i,it)=min(20000.0_r_kind,ges_lcbas(j,i,it))  !Upper bound on ceiling
+                 ges_lcbas(j,i)=all_loc(j,i,i_0+i_lcbas)
+                 ges_lcbas(j,i)=max(0.1_r_kind,ges_lcbas(j,i))      !Lower bound on celing
+                 ges_lcbas(j,i)=min(20000.0_r_kind,ges_lcbas(j,i))  !Upper bound on ceiling
               endif
 
            end do
@@ -1436,7 +1436,7 @@ subroutine wr2d_binary(mype)
      end do
      if(mype==0) read(iog)temp1
      if(mype == 0) then
-        write(6,*)' ges_tcamt in wr2d_binary,max,min(ges_tcamt)=',maxval(ges_tcamt),minval(ges_tcamt)
+        write(6,*)' ges_tcamt in wr2d_binary,max,min(ges_tcamt)=',maxval(ptr2d),minval(ptr2d)
         write(6,*)' tcamt in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
      end if
      call strip(all_loc(:,:,i_tcamt),strp)
@@ -1468,7 +1468,7 @@ subroutine wr2d_binary(mype)
      end do
      if(mype==0) read(iog)temp1
      if(mype == 0) then
-        write(6,*)' ges_lcbas in wr2d_binary,max,min(ges_lcbas)=',maxval(ges_lcbas),minval(ges_lcbas)
+        write(6,*)' ges_lcbas in wr2d_binary,max,min(ges_lcbas)=',maxval(ptr2d),minval(ptr2d)
         write(6,*)' lcbas in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
      end if
      call strip(all_loc(:,:,i_lcbas),strp)

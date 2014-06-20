@@ -101,14 +101,14 @@ subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
 
-  logical:: in_curbin, in_anybin
+  logical:: in_curbin, in_anybin, proceed
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(tcamt_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   character(len=*),parameter:: myname='setuptcamt'
 
-  real(r_kind),allocatable,dimension(:,:,:) :: ges_tacmt
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_tcamt
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)

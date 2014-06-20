@@ -218,7 +218,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
-  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqlevs,cld2seqlevs
+  character(40) metarcldstr,goescldstr,metarvisstr,metarwthstr,cldseqstr,cld2seqstr
   character(80) obstr
   character(10) date
   character(8) subset
@@ -236,7 +236,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,id,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
-  integer(i_kind) metarcldlevs,metarwthlevs
+  integer(i_kind) metarcldlevs,metarwthlevs,cldseqlevs,cld2seqlevs
   integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm
   integer(i_kind) lim_tqm,lim_qqm
@@ -892,7 +892,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
            call ufbint(lunin,qcmark,8,255,levs,qcstr)
            call ufbint(lunin,obserr,8,255,levs,oestr)
-              call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
+           call ufbevn(lunin,tpc,1,255,20,levs,'TPC')
 
 !          If available, get obs errors from error table
            if(oberrflg)then
@@ -984,6 +984,21 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            else if (visob) then
               metarwth=bmiss
               call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
+           else if(tcamtob .or. lcbasob) then
+              if (trim(subset) == 'GOESND') then
+                 goescld=bmiss
+                 call ufbint(lunin,goescld,4,1,levs,goescldstr)
+                 if (all(goescld==bmiss)) cycle
+              else
+                 cldseq=bmiss
+                 metarwth=bmiss
+                 cld2seq =bmiss
+                 call ufbint(lunin,cldseq,3,10,cldseqlevs,cldseqstr)
+                 call ufbrep(lunin,cld2seq,2,1,cld2seqlevs,cld2seqstr)
+                 call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
+                 if (all(cldseq==bmiss) .and. all(cld2seq==bmiss) .and. all(metarwth==bmiss)) cycle
+              endif
+
            endif
 
 !          Set station ID

@@ -134,7 +134,7 @@ module jfunc
   public :: varq
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
-  logical clip_supersaturation
+  logical clip_supersaturation,R_option
   logical pseudo_q2
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter

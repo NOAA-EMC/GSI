@@ -66,6 +66,7 @@ subroutine intlimq(rval,sval,itbin)
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
   use jfunc, only: factqmin,factqmax
   use derivsmod, only: qgues,qsatg
+  use gsi_metguess_mod, only: gsi_metguess_bundle 
   use guess_grids, only: ges_qsat
   implicit none
 

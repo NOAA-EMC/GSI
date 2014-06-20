@@ -30,10 +30,10 @@ subroutine setupyobs()
 !$$$ end documentation block
 use kinds, only: i_kind
 use obsmod, only: pshead, thead, whead, qhead, spdhead, srwhead, rwhead, &
-                & dwhead, ssthead, radhead, pcphead, pwhead, gpshead, &tcamthead, lcbashead
-                & ozhead, o3lhead, tcphead, laghead, colvkhead, aerohead, &
-                & aerolhead, pm2_5head, gusthead, vishead, pblhhead, &
-                tcamthead, lcbashead, yobs
+                 dwhead, ssthead, radhead, pcphead, pwhead, gpshead, & 
+                 ozhead, o3lhead, tcphead, laghead, colvkhead, aerohead, &
+                 aerolhead, pm2_5head, gusthead, vishead, pblhhead, &
+                 tcamthead, lcbashead, yobs
 use gsi_4dvar, only: nobs_bins
 implicit none
 
