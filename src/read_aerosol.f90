@@ -67,8 +67,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !
 ! Declare passed variables
 !
-  character(10),   intent(in)    :: obstype, infile, jsatid
-  character(20),   intent(in)    :: sis
+  character(len=*),intent(in)    :: obstype, infile, jsatid
+  character(len=20),intent(in)   :: sis
   integer(i_kind), intent(in)    :: lunout, ithin
   integer(i_kind), intent(inout) :: nread
   integer(i_kind), intent(inout) :: ndata, nodata
@@ -172,7 +172,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   if ( obstype == 'modis_aod' ) then
 !
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      call readmg(lunin,subset,idate,iret)

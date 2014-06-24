@@ -557,7 +557,7 @@ subroutine read_obs(ndata,mype)
     logical :: acft_profl_file
     character(10):: obstype,platid
     character(15):: string,infile
-    character(15):: infilen
+    character(20):: infilen
     character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
@@ -779,8 +779,8 @@ subroutine read_obs(ndata,mype)
           ii=ii+1
           if (ii>npem1) ii=0
           if(mype==ii)then
-             call gsi_inquire(lenbytes,lexist,dfile(i),mype)
-             call read_obs_check (lexist,dfile(i),dplat(i),dtype(i),minuse)
+             call gsi_inquire(lenbytes,lexist,trim(dfile(i)),mype)
+             call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse)
              
              len4file=lenbytes/4
              if (ears_possible(i))then
@@ -811,7 +811,7 @@ subroutine read_obs(ndata,mype)
           end if
        else
           if(mype == 0)write(6,*) 'data type ',dsis(i), &
-                'not used in info file -- do not read file ',dfile(i)
+                'not used in info file -- do not read file ',trim(dfile(i))
        end if
     end do
 
@@ -1004,7 +1004,7 @@ subroutine read_obs(ndata,mype)
 
           platid=dplat(i)                    !     platid   - satellites to read
           obstype=dtype(i)                   !     obstype  - observation types to process
-          infile=dfile(i)                    !     infile   - units from which to read data
+          infile=trim(dfile(i))              !     infile   - units from which to read data
           sis=dsis(i)                        !     sensor/instrument/satellite indicator
           val_dat=dval(i)                    !     weighting factors applied to super obs
           ithin=dthin(i)                     !     ithin    - flags to thin data

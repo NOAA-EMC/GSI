@@ -56,7 +56,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
-  character(len=*)                      ,intent(in   ) :: sis
+  character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twind
@@ -249,7 +249,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !** Open and read data from bufr data file
 
   call closbf(lunin)
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
@@ -391,7 +391,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      endif
 
      call closbf(lunin)
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
 

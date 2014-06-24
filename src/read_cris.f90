@@ -91,9 +91,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  character(len=10),intent(in   ) :: infile
+  character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
-  character(len=10),intent(in   ) :: obstype
+  character(len=*), intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind
   real(r_kind)     ,intent(inout) :: val_cris
@@ -185,7 +185,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   nreal  = maxinfo + nstinfo
   ndata = 0
   nodata = 0
-  cris=      obstype == 'cris'
+  cris= obstype == 'cris'
   r01=0.01_r_kind
 
   ilon=3
@@ -200,7 +200,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end if
 
   if (nst_gsi > 0 ) then
-    call gsi_nstcoupler_skindepth(obstype,zob)
+    call gsi_nstcoupler_skindepth(trim(obstype),zob)
   endif
 
 !  write(6,*)'READ_CRIS: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
@@ -301,7 +301,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open BUFR file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
 
 ! Open BUFR table
   call openbf(lnbufr,'IN',lnbufr)

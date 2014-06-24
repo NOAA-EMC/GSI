@@ -329,6 +329,10 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr2dinc,istatus)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
            ptr2dges = ptr2dges + ptr2dinc
+           if (trim(guess(ic))=='gust') ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='vis')  ptr2dges = &
+              max(min(ptr2dges,20000.0_r_kind),0.1_r_kind)
+           if (trim(guess(ic))=='pblh') ptr2dges = max(ptr2dges,zero)
            cycle
         endif
      enddo
@@ -345,11 +349,11 @@ subroutine update_guess(sval,sbias)
         if (.not.twodvar_regional .or. .not.tsensible) then
 !           TV analyzed; Tsens diagnosed
             ptr3dges = ptr3dges + ptr3dinc
-            if(idq>0) ges_tsen(:,:,:,it) = ptr3dges/(one+fv*ptr3daux)
+            if(idq==0) ges_tsen(:,:,:,it) = ptr3dges/(one+fv*ptr3daux)
         else
 !           Tsens analyzed; Tv diagnosed
             ges_tsen(:,:,:,it) = ges_tsen(:,:,:,it) + ptr3dinc
-            if(idq>0) ptr3dges = ges_tsen(i,j,k,it)*(one+fv*ptr3daux)
+            if(idq==0) ptr3dges = ges_tsen(:,:,:,it)*(one+fv*ptr3daux)
         endif
      endif
 !    Update trace gases
@@ -370,40 +374,6 @@ subroutine update_guess(sval,sbias)
         endif
      enddo
 
-     if (twodvar_regional) then
-        ier=0
-        call gsi_bundlegetpointer (sval(ii),'gust',ptr2dinc,istatus)
-        ier=ier+istatus
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',ptr2dges,istatus)
-        ier=ier+istatus
-        if(ier==0) then
-           ptr2dges = ptr2dges + ptr2dinc
-           ptr2dges = max(ptr2dges,zero)
-        endif
-        ier=0
-        call gsi_bundlegetpointer (sval(ii),'vis',ptr2dinc,istatus)
-        ier=ier+istatus
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',ptr2dges,istatus)
-        ier=ier+istatus
-        if(ier==0) then
-           ptr2dges = ptr2dges + ptr2dinc
-           do j=1,lon2
-              do i=1,lat2
-                 if (ptr2dges(i,j)<=zero) ptr2dges(i,j)=0.1_r_kind
-                 if (ptr2dges(i,j)>20000.0_r_kind) ptr2dges(i,j)=20000.0_r_kind
-              end do
-           end do
-        endif
-        ier=0
-        call gsi_bundlegetpointer (sval(ii),'pblh',ptr2dinc,istatus)
-        ier=ier+istatus
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ptr2dges,istatus)
-        ier=ier+istatus
-        if(ier==0) then
-           ptr2dges = ptr2dges + ptr2dinc
-           ptr2dges = max(ptr2dges,zero)
-        endif
-     end if
   end do
 
   if(ngases>0)then
