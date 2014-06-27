@@ -409,6 +409,9 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2011-06-06  pondeca - add output for gust,vis,pblh,dist
 !   2011-07-03  todling - avoid explicit reference to internal bundle arrays
 !   2013-10-25  todling - reposition ltosi and others to commvars
+!   2014-03-19  pondeca - add output for wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
 !   2014-06-18  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
@@ -451,8 +454,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 ! Declare local variables
   integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
-  integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,&
-                          nrf2_tcamt,nrf2_lcbas
+  integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,nrf2_wspd10m,&
+                          nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
 
   integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,ip,istatus
 
@@ -492,6 +495,12 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      nrf2_vis  = getindex(cvars2d,'vis')
      nrf2_pblh = getindex(cvars2d,'pblh')
      nrf2_dist = getindex(cvars2d,'dist')
+     nrf2_wspd10m = getindex(cvars2d,'wspd10m')
+     nrf2_td2m = getindex(cvars2d,'td2m')
+     nrf2_mxtm = getindex(cvars2d,'mxtm')
+     nrf2_mitm = getindex(cvars2d,'mitm')
+     nrf2_pmsl = getindex(cvars2d,'pmsl')
+     nrf2_howv = getindex(cvars2d,'howv')
      nrf2_tcamt = getindex(cvars2d,'tcamt')
      nrf2_lcbas = getindex(cvars2d,'lcbas')
   endif
@@ -519,8 +528,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
      write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma, &
                  nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw, & 
-                 nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,&
-                 nrf2_tcamt,nrf2_lcbas
+                 nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,nrf2_wspd10m, &
+                 nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
 
      ii=1
      do ifield=1,my3d
@@ -626,6 +635,96 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 !                               gradient wrt dist
      call gsi_bundlegetpointer(dz%step(ii),'dist',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt wspd10m
+     call gsi_bundlegetpointer(dz%step(ii),'wspd10m',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt td2m
+     call gsi_bundlegetpointer(dz%step(ii),'td2m',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt mxtm
+     call gsi_bundlegetpointer(dz%step(ii),'mxtm',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt mitm
+     call gsi_bundlegetpointer(dz%step(ii),'mitm',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt pmsl
+     call gsi_bundlegetpointer(dz%step(ii),'pmsl',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt howv
+     call gsi_bundlegetpointer(dz%step(ii),'howv',ptr2d,istatus)
      if (istatus==0) then
         call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &

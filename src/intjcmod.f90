@@ -9,6 +9,8 @@ module intjcmod
 ! program history log:
 !   2012-01-21  kleist - consolidation of Jc int routines into single module
 !   2013-10-25  todling - nullify work pointers
+!   2014-03-19  pondeca - add weak constraint subroutine for wspd10m
+!   2014-05-07  pondeca - add weak constraint subroutine for howv
 !   2014-06-17  carley/zhu - add intliml for lcbas + some cleanup
 !
 ! subroutines included:
@@ -25,7 +27,7 @@ use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
 implicit none
 
 PRIVATE
-PUBLIC intlimq,intlimg,intlimp,intlimv,intliml,intjcdfi,intjcpdry
+PUBLIC intlimq,intlimg,intlimp,intlimv,intlimw10m,intlimhowv,intliml,intjcdfi,intjcpdry
 
 contains
 
@@ -302,6 +304,138 @@ subroutine intlimv(rval,sval)
   return
 end subroutine intlimv
 
+subroutine intlimw10m(rval,sval)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    intlimw10m
+!   prgmmr: pondeca           org: np23                date: 2014-03-19
+!
+! abstract: limit negative 10-m wind speed as a weak constraint
+!
+! program history log:
+!   2014-03-19  pondeca
+!
+!   input argument list:
+!     sg       - increment in grid space
+!
+!   output argument list:
+!     rg       - results from limiting operator                 
+!
+! remarks: see modules used
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use jfunc, only: factw10m
+  use derivsmod, only: w10mgues
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  implicit none
+
+! Declare passed variables
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
+
+! Declare local variables
+  integer(i_kind) i,j,k,ier,istatus
+  real(r_kind) wspd10m
+  real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
+  real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
+
+  if (factw10m==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'wspd10m',sg,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'wspd10m',rg,istatus);ier=istatus+ier
+  if(ier/=0)return
+ 
+  do j = 2,lon1+1
+     do i = 2,lat1+1
+        wspd10m = w10mgues(i,j) + sg(i,j)
+           
+!       Lower constraint limit
+        if (wspd10m < zero) then
+           rg(i,j) = rg(i,j) + factw10m*wspd10m/(w10mgues(i,j)*w10mgues(i,j))
+        end if
+     end do
+  end do
+
+  return
+end subroutine intlimw10m
+
+subroutine intlimhowv(rval,sval)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    intlimhowv
+!   prgmmr: pondeca           org: np23                date: 2014-05-07
+!
+! abstract: limit negative significant wave height as a weak constraint
+!
+! program history log:
+!   2014-03-19  pondeca
+!
+!   input argument list:
+!     sg       - increment in grid space
+!
+!   output argument list:
+!     rg       - results from limiting operator                 
+!
+! remarks: see modules used
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use gridmod, only: lat2,lon2,nsig,lat1,lon1
+  use jfunc, only: facthowv
+  use derivsmod, only: howvgues
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  implicit none
+
+! Declare passed variables
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
+
+! Declare local variables
+  integer(i_kind) i,j,k,ier,istatus
+  real(r_kind) howv
+  real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
+  real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
+
+  if (facthowv==zero) return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'howv',sg,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'howv',rg,istatus);ier=istatus+ier
+  if(ier/=0)return
+ 
+  do j = 2,lon1+1
+     do i = 2,lat1+1
+        howv = howvgues(i,j) + sg(i,j)
+           
+!       Lower constraint limit
+        if (howv < zero) then
+           rg(i,j) = rg(i,j) + facthowv*howv/(howvgues(i,j)*howvgues(i,j))
+        end if
+     end do
+  end do
+
+  return
+end subroutine intlimhowv
+
 subroutine intliml(rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -349,18 +483,18 @@ subroutine intliml(rval,sval)
   call gsi_bundlegetpointer(sval,'lcbas',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'lcbas',rv,istatus);ier=istatus+ier
   if(ier/=0)return
- 
+
   do j = 2,lon1+1
      do i = 2,lat1+1
         lcbas = lgues(i,j) + sv(i,j)
-           
+
 !       Lower constraint limit
         if (lcbas < zero) then
            rv(i,j) = rv(i,j) + factl*lcbas/(lgues(i,j)*lgues(i,j))
         end if
      end do
   end do
-  
+
   return
 end subroutine intliml
 

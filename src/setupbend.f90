@@ -80,6 +80,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
 !   2013-10-19  todling - metguess now holds background
+!   2014-04-10  todling - 4dvar fix: obs must be in current time bi
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -113,7 +114,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
       grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
   use lagmod, only: slagdw, slagdw_TL
-  use jfunc, only: jiter,last,miter,iter
+  use jfunc, only: jiter,miter,iter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 
@@ -937,7 +938,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
 
-        if (muse(i)) then
+        if (in_curbin .and. muse(i)) then
 
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)
@@ -1097,8 +1098,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
-        end if
- 
+
+        end if ! (in_curbin .and. muse=1)
      endif ! (last_pass)
   end do ! i=1,nobs
 

@@ -35,6 +35,9 @@ subroutine control2state(xhat,sval,bval)
 !   2013-10-28  todling  - rename p3d to prse
 !   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !   2014-01-31  mkim     - add support for when ql and qi are CVs for all-sky mw radiance DA
+!   2014-03-19  pondeca  - add wspd10m
+!   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
@@ -52,7 +55,7 @@ use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, nobs_bins, l4dvar, lsqrtb, ladtest_obs
-use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon
+use gridmod, only: latlon1n,latlon11,regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional
 use jfunc, only: nsclen,npclen,ntclen,nrclen
 use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
@@ -89,7 +92,9 @@ type(gsi_bundle):: wbundle ! work bundle
 ! Declare required local control variables
 integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
-integer(i_kind) :: icpblh,icgust,icvis,icoz,ictcamt,iclcbas
+integer(i_kind) :: icpblh,icgust,icvis,icoz,icwspd10m
+integer(i_kind) :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
+integer(i_kind) :: icsfwter,icvpwter,ictcamt,iclcbas
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ', 'ql ', 'qi ' /)
@@ -101,6 +106,8 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_sfwter=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7
@@ -109,10 +116,13 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
                                'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ' /)
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
-real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_tcamt,sv_lcbas
+real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh,sv_wspd10m,sv_tcamt,sv_lcbas
+real(r_kind),pointer,dimension(:,:)   :: sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv
 real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+
+real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 
@@ -171,6 +181,14 @@ call gsi_bundlegetpointer (xhat%step(1),'oz',icoz,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'gust',icgust,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vis',icvis,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'pblh',icpblh,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'wspd10m',icwspd10m,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'td2m',ictd2m,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'mxtm',icmxtm,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'mitm',icmitm,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'pmsl',icpmsl,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'howv',ichowv,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'sfwter',icsfwter,istatus)
+call gsi_bundlegetpointer (xhat%step(1),'vpwter',icvpwter,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'tcamt',ictcamt,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'lcbas',iclcbas,istatus)
 
@@ -192,7 +210,10 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (wbundle,'t'  ,cv_t,  istatus)
    call gsi_bundlegetpointer (wbundle,'q'  ,cv_rh ,istatus)
    if (icvis >0) call gsi_bundlegetpointer (wbundle,'vis',cv_vis,istatus)
+   if (icsfwter >0) call gsi_bundlegetpointer (wbundle,'sfwter',cv_sfwter,istatus)
+   if (icvpwter >0) call gsi_bundlegetpointer (wbundle,'vpwter',cv_vpwter,istatus)
    if (iclcbas >0) call gsi_bundlegetpointer (wbundle,'lcbas',cv_lcbas,istatus)
+
    if(ladtest_obs) then
 ! Convert from subdomain to full horizontal field distributed among processors
       call general_sub2grid(s2g_cv,wbundle%values,hwork)
@@ -212,8 +233,16 @@ do jj=1,nsubwin
    if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
    if (icpblh>0) call gsi_bundlegetpointer (sval(jj),'pblh' ,sv_pblh, istatus)
    if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
+   if (icwspd10m>0) call gsi_bundlegetpointer (sval(jj),'wspd10m' ,sv_wspd10m, istatus)
+   if (ictd2m>0) call gsi_bundlegetpointer (sval(jj),'td2m' ,sv_td2m, istatus)
+   if (icmxtm>0) call gsi_bundlegetpointer (sval(jj),'mxtm' ,sv_mxtm, istatus)
+   if (icmitm>0) call gsi_bundlegetpointer (sval(jj),'mitm' ,sv_mitm, istatus)
+   if (icpmsl>0) call gsi_bundlegetpointer (sval(jj),'pmsl' ,sv_pmsl, istatus)
+   if (ichowv>0) call gsi_bundlegetpointer (sval(jj),'howv' ,sv_howv, istatus)
    if (ictcamt>0) call gsi_bundlegetpointer (sval(jj),'tcamt' ,sv_tcamt, istatus)
    if (iclcbas>0) call gsi_bundlegetpointer (sval(jj),'lcbas' ,sv_lcbas, istatus)
+
+
 
 !  Get 3d pressure
    if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
@@ -225,7 +254,20 @@ do jj=1,nsubwin
    if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)
 
 !  Convert streamfunction and velocity potential to u,v
-   if(do_getuv) call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
+   if(do_getuv) then
+      if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
+          allocate(uland(lat2,lon2,nsig),vland(lat2,lon2,nsig), &
+                   uwter(lat2,lon2,nsig),vwter(lat2,lon2,nsig))
+
+          call getuv(uland,vland,cv_sf,cv_vp,0)
+          call getuv(uwter,vwter,cv_sfwter,cv_vpwter,0)
+
+          call landlake_uvmerge(sv_u,sv_v,uland,vland,uwter,vwter,1)
+          deallocate(uland,vland,uwter,vwter)
+       else
+          call getuv(sv_u,sv_v,cv_sf,cv_vp,0)
+      endif
+   endif
 
 !  Convert log(vis) to vis
    if (icvis >0)  call logvis_to_vis(cv_vis,sv_vis)
@@ -244,7 +286,14 @@ do jj=1,nsubwin
    call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
    if (icgust>0) call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )
    if (icpblh>0) call gsi_bundlegetvar ( wbundle, 'pblh', sv_pblh, istatus )
+   if (icwspd10m>0) call gsi_bundlegetvar ( wbundle, 'wspd10m', sv_wspd10m, istatus )
+   if (ictd2m>0) call gsi_bundlegetvar ( wbundle, 'td2m', sv_td2m, istatus )
+   if (icmxtm>0) call gsi_bundlegetvar ( wbundle, 'mxtm', sv_mxtm, istatus )
+   if (icmitm>0) call gsi_bundlegetvar ( wbundle, 'mitm', sv_mitm, istatus )
+   if (icpmsl>0) call gsi_bundlegetvar ( wbundle, 'pmsl', sv_pmsl, istatus )
+   if (ichowv>0) call gsi_bundlegetvar ( wbundle, 'howv', sv_howv, istatus )
    if (ictcamt>0) call gsi_bundlegetvar ( wbundle, 'tcamt', sv_tcamt, istatus )
+
 
    if (do_cw_to_hydro) then
 !     Case when cloud-vars do not map one-to-one (cv-to-sv)

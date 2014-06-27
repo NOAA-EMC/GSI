@@ -81,7 +81,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
@@ -325,7 +325,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Reopen unit to satellite bufr file
   iob=1
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted',status = 'old',err = 500)
+  open(lnbufr,file=trim(infile),form='unformatted',status = 'old',err = 500)
 
   call openbf(lnbufr,'IN',lnbufr)
   hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH'

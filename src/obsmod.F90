@@ -93,6 +93,9 @@ module obsmod
 !                        - removed type(aofp_obs_diag) from public entity list, which is not used
 !                          anywhere else, except in this module.  It might be needed to be public
 !                          in the future, but atleast not now.
+!   2014-03-19  pondeca  - add wspd10m
+!   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca  - add howv
 !   2014-06-16 carley/zhu - add tcamt and lcbas
 ! 
 ! Subroutines Included:
@@ -191,6 +194,18 @@ module obsmod
 !   def pcptail      - precipitation linked list tail
 !   def laghead      - lagrangian data linked list head
 !   def lagtail      - lagrangian data linked list tail
+!   def wspd10mhead  - 10-wind speed linked list head
+!   def wspd10mtail  - 10-wind speed linked list tail
+!   def td2mhead     - 2m dew point linked list head
+!   def td2mtail     - 2m dew point linked list tail
+!   def mxtmhead     - daily maximum temperature linked list head
+!   def mxtmtail     - daily maximum temperature linked list tail
+!   def mitmhead     - daily minimum temperature linked list head
+!   def mitmtail     - daily minimum temperature linked list tail
+!   def pmslhead     - pressure at mean sea level linked list head
+!   def pmsltail     - pressure at mean sea level linked list tail
+!   def howvhead     - significant wave height linked list head
+!   def howvtail     - significant wave height linked list tail
 !   def lunobs_obs   - unit to save satellite observation
 !   def iout_rad     - output unit for satellite stats
 !   def iout_pcp     - output unit for precipitation stats
@@ -213,6 +228,12 @@ module obsmod
 !   def iout_tcamt   - output unit for total cloud amount stats
 !   def iout_lcbas   - output unit for lowest cloud base stats
 !   def iout_lag     - output unit for conventional lag stats
+!   def iout_wspd10m - output unit for conventional 10-m wind speed stats
+!   def iout_td2m    - output unit for conventional 2-m dew point
+!   def iout_mxtm    - output unit for conventional daily maximum temperature
+!   def iout_mitm    - output unit for conventional daily minimum temperature
+!   def iout_pmsl    - output unit for conventional pressure at mean sea level
+!   def iout_howv    - output unit for conventional significant wave height stats
 !   def iout_pm2_5   - output unit for pm2_5 stats
 !   def mype_t       - task to handle temperature stats
 !   def mype_q       - task to handle moisture stats
@@ -230,6 +251,12 @@ module obsmod
 !   def mype_tcamt   - task to handle total cloud amount stats
 !   def mype_lcbas   - task to handle lowest cloud base stats
 !   def mype_lag     - task to handle conventional lag stats
+!   def mype_wspd10m - task to handle conventional 10-m wind speed stats
+!   def mype_td2m    - task to handle conventional 2-m dew point
+!   def mype_mxtm    - task to handle conventional daily maximum temperature 
+!   def mype_mitm    - task to handle conventional daily minimum temperature
+!   def mype_pmsl    - task to handle conventional pressure at mean seal level
+!   def mype_howv    - task to handle conventional significant wave height stats
 !   def mype_aero    - task to handle aerosol stats
 !   def mype_pm2_5   - task to handle pm2_5
 !   def oberrflg     - logical for reading in new observation error table
@@ -299,11 +326,13 @@ module obsmod
   public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,colvk_ob_type,pcp_ob_type,dw_ob_type
   public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,gps_all_ob_type,tcp_ob_type
-  public :: gust_ob_type,vis_ob_type,pblh_ob_type,tcamt_ob_type,lcbas_ob_type
+  public :: gust_ob_type,vis_ob_type,pblh_ob_type,wspd10m_ob_type,td2m_ob_type
+  public :: mxtm_ob_type,mitm_ob_type,pmsl_ob_type,howv_ob_type,tcamt_ob_type,lcbas_ob_type
   public :: rad_ob_type,q_ob_type,pw_ob_type,ps_ob_type,w_ob_type,t_ob_type
   public :: obs_handle,yobs,i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
   public :: i_spd_ob_type,i_srw_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
-  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type,i_tcamt_ob_type,i_lcbas_ob_type
+  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type,i_wspd10m_ob_type,i_td2m_ob_type
+  public :: i_mxtm_ob_type,i_mitm_ob_type,i_pmsl_ob_type,i_howv_ob_type,,i_tcamt_ob_type,i_lcbas_ob_type
   public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_colvk_ob_type,i_gps_ob_type
   public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type,obscounts,obsptr,nobs_type,obsdiags
   public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
@@ -314,7 +343,8 @@ module obsmod
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
   public :: pwhead,oztail,ozhead,o3ltail,o3lhead,colvktail,colvkhead,pcptail,pcphead,gpstail,gpshead
-  public :: gusttail,gusthead,vistail,vishead,pblhtail,pblhhead,tcamttail,tcamthead,lcbastail,lcbashead
+  public :: gusttail,gusthead,vistail,vishead,pblhtail,pblhhead,wspd10mtail,wspd10mhead,td2mtail,td2mhead
+  public :: mxtmtail,mxtmhead,mitmtail,mitmhead,pmsltail,pmslhead,howvtail,howvhead,tcamttail,tcamthead,lcbastail,lcbashead
   public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
   public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
   public :: pm2_5_ob_head,pm2_5_ob_type,i_pm2_5_ob_type,pm2_5head,pm2_5tail
@@ -328,12 +358,17 @@ module obsmod
   public :: aeroptr,aerolptr,pm2_5ptr
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
   public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas,tcamtptr,lcbasptr
+  public :: mype_wspd10m,mype_td2m,iout_wspd10m,iout_td2m,wspd10mptr,td2mptr
+  public :: mype_mxtm,mype_mitm,iout_mxtm,iout_mitm,mxtmptr,mitmptr
+  public :: mype_pmsl,mype_howv,iout_pmsl,iout_howv,pmslptr,howvptr
   public :: ndat_times,lwrite_predterms,lwrite_peakwt
   public :: bmiss
 !
   public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
   public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
   public :: gust_ob_head,vis_ob_head,pblh_ob_head
+  public :: wspd10m_ob_head,td2m_ob_head,mxtm_ob_head
+  public :: mitm_ob_head,pmsl_ob_head,howv_ob_head
   public :: pcp_ob_head,o3l_ob_head,gps_ob_head
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
   public :: tcamt_ob_head,lcbas_ob_head
@@ -389,10 +424,16 @@ module obsmod
   integer(i_kind),parameter:: i_gust_ob_type=22   ! gust_ob_type
   integer(i_kind),parameter:: i_vis_ob_type=23    ! vis_ob_type
   integer(i_kind),parameter:: i_pblh_ob_type=24   ! pblh_ob_type
-  integer(i_kind),parameter:: i_tcamt_ob_type=25  ! tcamt_ob_type
-  integer(i_kind),parameter:: i_lcbas_ob_type=26  ! lcbas_ob_type  
+  integer(i_kind),parameter:: i_wspd10m_ob_type=25! wspd10m_ob_type
+  integer(i_kind),parameter:: i_td2m_ob_type=26   ! td2m_ob_type
+  integer(i_kind),parameter:: i_mxtm_ob_type=27   ! mxtm_ob_type
+  integer(i_kind),parameter:: i_mitm_ob_type=28   ! mitm_ob_type
+  integer(i_kind),parameter:: i_pmsl_ob_type=29   ! pmsl_ob_type
+  integer(i_kind),parameter:: i_howv_ob_type=30   ! howv_ob_type
+  integer(i_kind),parameter:: i_tcamt_ob_type=31  ! tcamt_ob_type
+  integer(i_kind),parameter:: i_lcbas_ob_type=32  ! lcbas_ob_type  
 
-  integer(i_kind),parameter:: nobs_type = 26      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 32      ! number of observation types
 
 ! Structure for diagnostics
 
@@ -952,6 +993,144 @@ module obsmod
      type(pblh_ob_type),pointer :: head => NULL()
   end type pblh_ob_head
 
+  type wspd10m_ob_type
+     sequence
+     type(wspd10m_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  wspd10m residual
+     real(r_kind)    :: err2          !  wspd10m error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type wspd10m_ob_type
+
+  type wspd10m_ob_head
+     integer(i_kind):: n_alloc=0
+     type(wspd10m_ob_type),pointer :: head => NULL()
+  end type wspd10m_ob_head
+
+  type td2m_ob_type
+     sequence
+     type(td2m_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  td2m residual
+     real(r_kind)    :: err2          !  td2m error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type td2m_ob_type
+
+  type td2m_ob_head
+     integer(i_kind):: n_alloc=0
+     type(td2m_ob_type),pointer :: head => NULL()
+  end type td2m_ob_head
+
+  type mxtm_ob_type
+     sequence
+     type(mxtm_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  mxtm residual
+     real(r_kind)    :: err2          !  mxtm error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type mxtm_ob_type
+
+  type mxtm_ob_head
+     integer(i_kind):: n_alloc=0
+     type(mxtm_ob_type),pointer :: head => NULL()
+  end type mxtm_ob_head
+
+  type mitm_ob_type
+     sequence
+     type(mitm_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  mitm residual
+     real(r_kind)    :: err2          !  mitm error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type mitm_ob_type
+
+  type mitm_ob_head
+     integer(i_kind):: n_alloc=0
+     type(mitm_ob_type),pointer :: head => NULL()
+  end type mitm_ob_head
+
+  type pmsl_ob_type
+     sequence
+     type(pmsl_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  pmsl residual
+     real(r_kind)    :: err2          !  pmsl error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type pmsl_ob_type
+
+  type pmsl_ob_head
+     integer(i_kind):: n_alloc=0
+     type(pmsl_ob_type),pointer :: head => NULL()
+  end type pmsl_ob_head
+
+  type howv_ob_type
+     sequence
+     type(howv_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  howv residual
+     real(r_kind)    :: err2          !  howv error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type howv_ob_type
+
+  type howv_ob_head
+     integer(i_kind):: n_alloc=0
+     type(howv_ob_type),pointer :: head => NULL()
+  end type howv_ob_head
+
   type tcamt_ob_type
      sequence
      type(tcamt_ob_type),pointer :: llpoint => NULL()
@@ -970,7 +1149,7 @@ module obsmod
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
   end type tcamt_ob_type
 
-  type tcamt_ob_head
+  type tcamt_ob_head 
      integer(i_kind):: n_alloc=0
      type(tcamt_ob_type),pointer :: head => NULL()
   end type tcamt_ob_head
@@ -993,7 +1172,7 @@ module obsmod
      integer(i_kind) :: idv,iob       ! device id and obs index for sorting
   end type lcbas_ob_type
 
-  type lcbas_ob_head
+  type lcbas_ob_head 
      integer(i_kind):: n_alloc=0
      type(lcbas_ob_type),pointer :: head => NULL()
   end type lcbas_ob_head
@@ -1170,8 +1349,15 @@ module obsmod
      type(gust_ob_type),pointer  :: gust => NULL()
      type(vis_ob_type),pointer   :: vis => NULL()
      type(pblh_ob_type),pointer  :: pblh => NULL()
+     type(wspd10m_ob_type),pointer :: wspd10m => NULL()
+     type(td2m_ob_type),pointer  :: td2m => NULL()
+     type(mxtm_ob_type),pointer ::  mxtm => NULL()
+     type(mitm_ob_type),pointer ::  mitm => NULL()
+     type(pmsl_ob_type),pointer  :: pmsl => NULL()
+     type(howv_ob_type),pointer  :: howv => NULL()
      type(tcamt_ob_type),pointer :: tcamt => NULL()
      type(lcbas_ob_type),pointer :: lcbas => NULL()
+
 
   end type obs_handle
 
@@ -1255,12 +1441,31 @@ module obsmod
   type(pblh_ob_head),dimension(:),pointer :: pblhhead
   type(pblh_ob_head),dimension(:),pointer :: pblhtail
   type(pblh_ob_type),pointer :: pblhptr => NULL()
+  type(wspd10m_ob_head),dimension(:),pointer :: wspd10mhead
+  type(wspd10m_ob_head),dimension(:),pointer :: wspd10mtail
+  type(wspd10m_ob_type),pointer :: wspd10mptr => NULL()
+  type(td2m_ob_head),dimension(:),pointer :: td2mhead
+  type(td2m_ob_head),dimension(:),pointer :: td2mtail
+  type(td2m_ob_type),pointer :: td2mptr => NULL()
+  type(mxtm_ob_head),dimension(:),pointer :: mxtmhead
+  type(mxtm_ob_head),dimension(:),pointer :: mxtmtail
+  type(mxtm_ob_type),pointer :: mxtmptr => NULL()
+  type(mitm_ob_head),dimension(:),pointer :: mitmhead
+  type(mitm_ob_head),dimension(:),pointer :: mitmtail
+  type(mitm_ob_type),pointer :: mitmptr => NULL()
+  type(pmsl_ob_head),dimension(:),pointer :: pmslhead
+  type(pmsl_ob_head),dimension(:),pointer :: pmsltail
+  type(pmsl_ob_type),pointer :: pmslptr => NULL()
+  type(howv_ob_head),dimension(:),pointer :: howvhead
+  type(howv_ob_head),dimension(:),pointer :: howvtail
+  type(howv_ob_type),pointer :: howvptr => NULL()
   type(tcamt_ob_head),dimension(:),pointer :: tcamthead
   type(tcamt_ob_head),dimension(:),pointer :: tcamttail
   type(tcamt_ob_type),pointer :: tcamtptr => NULL()
   type(lcbas_ob_head),dimension(:),pointer :: lcbashead
   type(lcbas_ob_head),dimension(:),pointer :: lcbastail
   type(lcbas_ob_type),pointer :: lcbasptr => NULL()
+
 
   type(obs_handle),dimension(:),pointer :: yobs
 
@@ -1283,9 +1488,11 @@ module obsmod
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
+  integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
-                  mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh,&
+                  mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
+                  mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_tcamt,mype_lcbas
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind) iout_pm2_5, mype_pm2_5
@@ -1297,9 +1504,9 @@ module obsmod
   character(128) obs_setup
   character(128) dirname
   character(128) obs_input_common
-  character(14),allocatable,dimension(:):: obsfile_all
+  character(20),allocatable,dimension(:):: obsfile_all
   character(10),allocatable,dimension(:):: dtype,ditype,dplat
-  character(15),allocatable,dimension(:):: dfile
+  character(20),allocatable,dimension(:):: dfile
   character(20),allocatable,dimension(:):: dsis
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
@@ -1348,6 +1555,9 @@ contains
 !   2008-11-25  todling - remove line-by-line adj triggers
 !   2011-02-09  zhu     - add gust,vis and pblh
 !   2013-09-27  todling - initialization of ob-instr/type move to sub init_instr_table_
+!   2014-03-19  pondeca - add wspd10m
+!   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
+!   2014-05-07  pondeca - add howv
 !   2014-06-16  carley/zhu - add tcamt and lcbas
 !
 !   input argument list:
@@ -1418,8 +1628,15 @@ contains
     iout_vis=219   ! visibility
     iout_pblh=221  ! pbl height
     iout_pm2_5=222 ! pm2_5
-    iout_tcamt=223 ! total cloud amount
-    iout_lcbas=224 ! base height of lowest cloud
+    iout_wspd10m=223  ! 10-m wind speed
+    iout_td2m=224  ! 2-m dew point
+    iout_mxtm=225  ! daily maximum temperature
+    iout_mitm=226  ! daily minimum temperature
+    iout_pmsl=227  ! pressure at mean sea level
+    iout_howv=228  ! significant wave height
+    iout_tcamt=229 ! total cloud amount
+    iout_lcbas=230 ! base height of lowest cloud
+
 
     mype_ps = npe-1          ! surface pressure
     mype_uv = max(0,npe-2)   ! u,v wind components
@@ -1438,8 +1655,14 @@ contains
     mype_vis = max(0,npe-15) ! visibility
     mype_pblh= max(0,npe-16) ! pbl height
     mype_pm2_5= max(0,npe-17)! pm2_5
-    mype_tcamt=max(0,npe-18) ! total cloud amount
-    mype_lcbas=max(0,npe-19) ! base height of lowest cloud
+    mype_wspd10m= max(0,npe-18)! wspd10m
+    mype_td2m= max(0,npe-19) ! 2m dew point
+    mype_mxtm= max(0,npe-20) ! daily maximum temperature
+    mype_mitm= max(0,npe-21) ! daily minimum temperature
+    mype_pmsl= max(0,npe-22) ! pressure at mean sea level
+    mype_howv= max(0,npe-23) ! significant wave height
+    mype_tcamt=max(0,npe-24) ! total cloud amount
+    mype_lcbas=max(0,npe-25) ! base height of lowest cloud
     
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours
@@ -1484,8 +1707,15 @@ contains
     cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
     cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
     cobstype(i_pblh_ob_type) ="pblh                " ! pblh_ob_type
+    cobstype(i_wspd10m_ob_type) ="wspd10m             " ! wspd10m_ob_type
+    cobstype(i_td2m_ob_type) ="td2m                " ! td2m_ob_type
+    cobstype(i_mxtm_ob_type) ="mxtm                " ! mxtm_ob_type
+    cobstype(i_mitm_ob_type) ="mitm                " ! mitm_ob_type
+    cobstype(i_pmsl_ob_type) ="pmsl                " ! pmsl_ob_type
+    cobstype(i_howv_ob_type) ="howv                " ! howv_ob_type
     cobstype(i_tcamt_ob_type)="tcamt               " ! tcamt_ob_type
     cobstype(i_lcbas_ob_type)="lcbas               " ! lcbas_ob_type
+
 
     hilbert_curve=.false.
 
@@ -1622,6 +1852,18 @@ contains
     ALLOCATE(vistail(nobs_bins))
     ALLOCATE(pblhhead(nobs_bins))
     ALLOCATE(pblhtail(nobs_bins))
+    ALLOCATE(wspd10mhead(nobs_bins))
+    ALLOCATE(wspd10mtail(nobs_bins))
+    ALLOCATE(td2mhead(nobs_bins))
+    ALLOCATE(td2mtail(nobs_bins))
+    ALLOCATE(mxtmhead(nobs_bins))
+    ALLOCATE(mxtmtail(nobs_bins))
+    ALLOCATE(mitmhead(nobs_bins))
+    ALLOCATE(mitmtail(nobs_bins))
+    ALLOCATE(pmslhead(nobs_bins))
+    ALLOCATE(pmsltail(nobs_bins))
+    ALLOCATE(howvhead(nobs_bins))
+    ALLOCATE(howvtail(nobs_bins))
     ALLOCATE(tcamthead(nobs_bins))
     ALLOCATE(tcamttail(nobs_bins))
     ALLOCATE(lcbashead(nobs_bins))
@@ -1727,12 +1969,15 @@ contains
              ipoint(ioff+jj) = ipoint(jj)
              dthin (ioff+jj) = dthin(jj)
              dval  (ioff+jj) = dval(jj)
+             dsfcalc(ioff+jj)= dsfcalc(jj)
+             obsfile_all(ioff+jj) = trim(obsfile_all(jj))//'.'//cind
              time_window(ioff+jj) = time_window(jj)
           ENDDO
        ENDDO
 !      Then change name for first time slot
        IF (ndat_times>1) THEN
           DO jj=1,ndat_types
+             obsfile_all(jj) = trim(obsfile_all(jj))//'.01'
              dfile(jj) = trim(dfile(jj))//'.01'
           ENDDO
        ENDIF
@@ -1980,6 +2225,66 @@ contains
           deallocate(pblhtail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pblh, istatus=',istatus
           pblhtail(ii)%head => pblhhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       wspd10mtail(ii)%head => wspd10mhead(ii)%head
+       do while (associated(wspd10mtail(ii)%head))
+          wspd10mhead(ii)%head => wspd10mtail(ii)%head%llpoint
+          deallocate(wspd10mtail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for wspd10m, istatus=',istatus
+          wspd10mtail(ii)%head => wspd10mhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       td2mtail(ii)%head => td2mhead(ii)%head
+       do while (associated(td2mtail(ii)%head))
+          td2mhead(ii)%head => td2mtail(ii)%head%llpoint
+          deallocate(td2mtail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for td2m, istatus=',istatus
+          td2mtail(ii)%head => td2mhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       mxtmtail(ii)%head => mxtmhead(ii)%head
+       do while (associated(mxtmtail(ii)%head))
+          mxtmhead(ii)%head => mxtmtail(ii)%head%llpoint
+          deallocate(mxtmtail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for mxtm, istatus=',istatus
+          mxtmtail(ii)%head => mxtmhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       mitmtail(ii)%head => mitmhead(ii)%head
+       do while (associated(mitmtail(ii)%head))
+          mitmhead(ii)%head => mitmtail(ii)%head%llpoint
+          deallocate(mitmtail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for mitm, istatus=',istatus
+          mitmtail(ii)%head => mitmhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       pmsltail(ii)%head => pmslhead(ii)%head
+       do while (associated(pmsltail(ii)%head))
+          pmslhead(ii)%head => pmsltail(ii)%head%llpoint
+          deallocate(pmsltail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pmsl, istatus=',istatus
+          pmsltail(ii)%head => pmslhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       howvtail(ii)%head => howvhead(ii)%head
+       do while (associated(howvtail(ii)%head))
+          howvhead(ii)%head => howvtail(ii)%head%llpoint
+          deallocate(howvtail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for howv, istatus=',istatus
+          howvtail(ii)%head => howvhead(ii)%head
        end do
     end do
 
