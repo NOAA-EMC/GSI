@@ -2273,7 +2273,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Apply hilbert curve for cross validation if requested
     if(lhilbert) &
-       call apply_hilbertcurve(maxobs,obstype,cdata_all(thisobtype_usage))   
+       call apply_hilbertcurve(maxobs,obstype,cdata_all(thisobtype_usage,1:maxobs))   
 
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))

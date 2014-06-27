@@ -85,11 +85,11 @@ subroutine statsconv(mype,&
   use obsmod, only: iout_sst,iout_pw,iout_t,iout_rw,iout_dw,&
        iout_srw,iout_uv,iout_gps,iout_ps,iout_q,iout_tcp,iout_lag,&
        iout_gust,iout_vis,iout_pblh,iout_wspd10m,iout_td2m,& 
-       iout_mxtm,iout_mitm,iout_pmsl,iout_howv,mype_dw,mype_rw,mype_srw,&
-       mype_sst,mype_gps,mype_uv,mype_ps,mype_t,mype_pw,mype_q,&
-       mype_tcp,ndat,dtype,mype_lag,mype_gust,mype_vis,mype_pblh,&
-       mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
-       mype_tcamt,mype_lcbas
+       iout_mxtm,iout_mitm,iout_pmsl,iout_howv,iout_tcamt,iout_lcbas,&
+       mype_dw,mype_rw,mype_srw,mype_sst,mype_gps,mype_uv,mype_ps,&
+       mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,&
+       mype_vis,mype_pblh,mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,&
+       mype_pmsl,mype_howv,mype_tcamt,mype_lcbas
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig

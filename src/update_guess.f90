@@ -97,8 +97,8 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,r100,
-                       one_tenth
+  use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
+                       r100,one_tenth
   use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone,use_reflectivity
