@@ -884,7 +884,7 @@ subroutine read_2d_guess(mype)
         do j=1,lat1+2
            ges_z_it(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! surface elevation multiplied by g
 
-!          convert input psfc to psfc in mb, and then to log(psfc) in cb
+!          convert input psfc to psfc in mb, and then to cb
 
            psfc_this=r0_01*all_loc(j,i,i_0+i_psfc)
            ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
@@ -1353,11 +1353,17 @@ subroutine wr2d_binary(mype)
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
      if (ier==0) then
+
         do i=1,lon2
            do j=1,lat2
-              all_loc(j,i,iaux(k))=ptr2d(j,i)
+              if (trim(caux(k))=='pmsl') then 
+                 all_loc(j,i,iaux(k))=r100*r10*ptr2d(j,i)
+               else
+                 all_loc(j,i,iaux(k))=ptr2d(j,i)
+               endif
            end do
         end do
+
         if(mype==0) read(iog)temp1
         call strip(all_loc(:,:,iaux(k)),strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &

@@ -334,6 +334,7 @@ subroutine update_guess(sval,sbias)
            ptr2dges = ptr2dges + ptr2dinc
            if (trim(guess(ic))=='gust')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='vis')   ptr2dges = max(min(ptr2dges,20000.0_r_kind),one_tenth)
+           if (trim(guess(ic))=='wspd10m') ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='pblh')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='howv')  ptr2dges = max(ptr2dges,zero)
            if (trim(guess(ic))=='tcamt') ptr2dges = max(min(ptr2dges,r100),zero) !Cannot have > 100% or < 0% cloud amount

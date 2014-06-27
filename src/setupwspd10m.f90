@@ -677,7 +677,7 @@ subroutine setupwspd10m(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
-  character(len=5) :: varname
+  character(len=10) :: varname
   integer(i_kind) ifld, istatus
 
 ! If require guess vars available, extract from bundle ...
