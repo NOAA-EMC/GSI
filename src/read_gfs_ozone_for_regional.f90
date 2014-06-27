@@ -444,7 +444,7 @@ subroutine read_gfs_ozone_for_regional
   integer istatus,ivar
 ! Check to see if required guess fields are available
   call gsi_metguess_get ('var::oz' , ivar, istatus )
-  proceed=proceed.and.ivar>0
+  proceed=ivar>0
   end subroutine check_vars_ 
 
   subroutine init_vars_
