@@ -240,13 +240,13 @@ subroutine intall(sval,sbias,rval,rbias)
 
 ! RHS for pblh constraint
      if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
-  end if
 
 ! RHS for wspd10m constraint
      if (getindex(svars2d,'wspd10m')>0)call intlimw10m(rval(1),sval(1))
 
 ! RHS for howv constraint
      if (getindex(svars2d,'howv')>0)call intlimhowv(rval(1),sval(1))
+  end if
 
 ! RHS for dry ps constraint
   if(ljcpdry)then
