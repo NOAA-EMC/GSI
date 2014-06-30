@@ -77,6 +77,7 @@ subroutine update_guess(sval,sbias)
 !   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
 !   2014-02-15  kim     - revisit various options of cloud-related updates
 !   2014-04-13  todling - replace update bias code w/ call to routine in bias_predictors
+!   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
 !
 !   input argument list:
 !    sval
@@ -98,7 +99,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin
   use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone,use_reflectivity
+       regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_tsen,ges_qsat,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
@@ -168,7 +169,6 @@ subroutine update_guess(sval,sbias)
 
 ! Inquire about guess fields
   call gsi_metguess_get('dim',nguess,istatus)
-!  if(use_reflectivity) nguess=0
   if (nguess>0) then
      allocate(guess(nguess))
      call gsi_metguess_get('gsinames',guess,istatus)
