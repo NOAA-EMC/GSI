@@ -21,6 +21,7 @@ subroutine read_gfs_ozone_for_regional
 !                           Also deallocate other locally allocated arrays.
 !   2013-10-19  todling - metguess now holds background
 !   2013-12-06  eliu    - add FGAT capability 
+!   2014-06-30  wu      - bug fix for undefined variable "proceed" in check_vars_
 !
 !   input argument list:
 !
@@ -444,7 +445,7 @@ subroutine read_gfs_ozone_for_regional
   integer istatus,ivar
 ! Check to see if required guess fields are available
   call gsi_metguess_get ('var::oz' , ivar, istatus )
-  proceed=proceed.and.ivar>0
+  proceed=ivar>0
   end subroutine check_vars_ 
 
   subroutine init_vars_
