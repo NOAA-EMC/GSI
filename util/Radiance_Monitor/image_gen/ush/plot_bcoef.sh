@@ -83,7 +83,7 @@ for type in ${SATYPE}; do
    for var in $list; do
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_bcoef} ${type} ${var} x1100 y850'
 'quit'
 EOF
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"

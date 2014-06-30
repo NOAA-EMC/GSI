@@ -77,7 +77,7 @@ fi
       if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
         ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
       fi
-      ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
+      ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
  
       if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
          sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
@@ -106,23 +106,23 @@ fi
 
    cmdfile=${PLOT_WORK_DIR}/cmdfile_psummary
    jobname=plot_${SUFFIX}_sum
-   logfile=${LOGDIR}/plot_summary.log
+   logfile=${LOGdir}/plot_summary.log
 
    rm -f $cmdfile
    rm ${logfile}
 
 >$cmdfile
    for type in ${SATYPE}; do
-      echo "$SCRIPTS/plot_summary.sh $type" >> $cmdfile
+      echo "$IG_SCRIPTS/plot_summary.sh $type" >> $cmdfile
    done
 
    ntasks=`cat $cmdfile|wc -l `
    ((nprocs=(ntasks+1)/2))
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
+      $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -155,7 +155,7 @@ fi
       suffix=a
       cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
       jobname=plot_${SUFFIX}_tm_${suffix}
-      logfile=${LOGDIR}/plot_time_${suffix}.log
+      logfile=${LOGdir}/plot_time_${suffix}.log
 
       rm -f $cmdfile
       rm ${logfile}
@@ -163,7 +163,7 @@ fi
 >$cmdfile
 
       for sat in ${SATLIST}; do
-         echo "$SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
+         echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
       done
       chmod 755 $cmdfile
 
@@ -179,12 +179,12 @@ fi
       for sat in ${SATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${SUFFIX}_tm_${sat}
-         logfile=${LOGDIR}/plot_time_${sat}
+         logfile=${LOGdir}/plot_time_${sat}
 
          rm -f ${cmdfile}
          rm -f ${logfile}
 
-         echo "$SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
+         echo "$IG_SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
             wall_tm="1:30:00"
@@ -209,14 +209,14 @@ fi
       if [[ $MY_MACHINE = "wcoss" ]]; then	
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
          jobname=plot_${SUFFIX}_tm_${sat}
-         logfile=${LOGDIR}/plot_time_${sat}.log
+         logfile=${LOGdir}/plot_time_${sat}.log
 
          rm -f ${logfile}
          rm -f ${cmdfile}
  
          list="count penalty omgnbc total omgbc"
          for var in $list; do
-            echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
+            echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
          done
          chmod 755 $cmdfile
 
@@ -234,7 +234,7 @@ fi
          for var in $list; do
             cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
             jobname=plot_${SUFFIX}_tm_${sat}_${var}
-            logfile=${LOGDIR}/plot_time_${sat}_${var}.log
+            logfile=${LOGdir}/plot_time_${sat}_${var}.log
             rm -f ${logfile}
             rm -f ${cmdfile}
 
@@ -244,7 +244,7 @@ fi
                wall_tm="1:00:00"
             fi
 
-            echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
+            echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
 
             $SUB -A $ACCOUNT -l procs=1,walltime=${wall_tm} -N ${jobname} -V -j oe -o ${logfile} $cmdfile
          done

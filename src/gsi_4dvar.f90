@@ -37,6 +37,7 @@ module gsi_4dvar
 !   lbfgsmin          - Use L-BFGS minimizer
 !   ltlint            - Use TL inner loop (ie TL intall)
 !   lanczosave        - Save Lanczos vectors to file
+!   lnested_loops     - Allows multiple inner loops to work at differing resolutions
 !   jsiga             - Calculate approximate analysis errors for iteration jiter=jsiga
 !   nwrvecs           - Number of precond vectors (Lanczos) or pairs of vectors (QN)
 !                       being saved
@@ -102,7 +103,7 @@ module gsi_4dvar
   public :: hr_obsbin,ltlint,idmodel,iwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
-  public :: jsiga,ltcost,iorthomax,liauon
+  public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
   public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
 
   logical         :: l4dvar
@@ -119,6 +120,7 @@ module gsi_4dvar
   logical         :: ltcost
   logical         :: liauon
   logical         :: l4densvar
+  logical         :: lnested_loops
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -149,6 +151,7 @@ subroutine init_4dvar ()
 !   2009-08-04  lueken - added subprogram doc block
 !   2012-01-13  m. tong - remove regional block setting nhr_assimilation=3 and min_offset=90
 !                         (related to fixing fgat for regional ??)
+!   2012-05-23  todling - add nested_loops option
 !
 !   input argument list:
 !
@@ -173,6 +176,7 @@ ltlint = .false.
 ltcost = .false.
 liauon = .false.
 l4densvar = .false.
+lnested_loops=.false.
 
 nhr_assimilation=6
 min_offset=180

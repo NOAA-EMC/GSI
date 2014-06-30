@@ -24,7 +24,7 @@ EXE_FILE = gsi.exe
 # ---------
 ## LIBmpeu  = -L$(CORELIB) -lmpeu
 LIBbufr     = -L$(CORELIB) -lbufr_i4r8
-LIBw3       = -L$(CORELIB) -lw3_i4r8
+LIBw3       = -L$(CORELIB) -lw3nco_i4r8 -lw3emc_i4r8
 LIBsp       = -L$(CORELIB) -lsp_i4r8
 LIBbacio    = -L$(CORELIB) -lbacio
 LIBsfcio    = -L$(CORELIB) -lsfcio_i4r4
@@ -34,7 +34,7 @@ LIBtransf   = -L$(CORELIB) -ltransf
 LIBhermes   = -L$(CORELIB) -lhermes
 LIBnemsio   = -L$(CORELIB) -lnemsio
 LIBrrcld    = -L$(CORELIB) -lgsdcloud
-LIBprpdcdr  = -L$(CORELIB) -lprepdecode_i4r8
+LIBprpdcdr  = # -L$(CORELIB) -lprepdecode_i4r8
 
 # --------------------------
 # Default Baselibs Libraries
@@ -124,6 +124,7 @@ LIBsys          = $(MYLIBsys)
 	converr.o \
 	convinfo.o \
 	convthin.o \
+        correlated_obsmod.o \
 	crtm_interface.o \
 	cwhydromod.o \
 	cvsection.o \
@@ -150,6 +151,7 @@ LIBsys          = $(MYLIBsys)
 	general_tll2xy_mod.o \
 	general_transform.o \
 	gengrid_vars.o \
+        general_write_gfsatm.o \
 	genqsat.o \
 	genstats_gps.o \
 	gesinfo.o \
@@ -233,19 +235,24 @@ LIBsys          = $(MYLIBsys)
 	m_berror_stats.o \
 	m_berror_stats_reg.o \
 	m_dgeevx.o \
+        m_distance.o \
 	m_dtime.o	\
+        m_find.o \
 	m_gpsrhs.o \
 	m_gsiBiases.o \
 	m_rerank.o \
 	m_obdiag.o	\
 	m_rhs.o	\
+        m_sortind.o \
 	m_stats.o \
 	m_tick.o \
+        m_uniq.o \
 	mpeu_mpif.o \
 	mpeu_util.o \
 	mod_nmmb_to_a.o \
 	mod_strong.o \
 	mod_vtrans.o \
+        mod_wrfmass_to_a.o \
 	model_ad.o \
 	model_tl.o \
 	model2control.o \
@@ -307,6 +314,7 @@ LIBsys          = $(MYLIBsys)
 	read_cris.o \
 	read_diag.o \
 	read_files.o \
+        read_fl_hdob.o \
 	read_gfs_ozone_for_regional.o \
 	read_goesimg.o \
 	read_goesndr.o \
@@ -329,6 +337,7 @@ LIBsys          = $(MYLIBsys)
 	read_RadarRef_mosaic.o \
 	read_satwnd.o \
 	read_seviri.o \
+        read_sfcwnd.o \
 	read_ssmi.o \
 	read_ssmis.o \
 	read_superwinds.o \
@@ -379,6 +388,7 @@ LIBsys          = $(MYLIBsys)
 	smoothwwrf.o \
 	smoothzrf.o \
 	sqrtmin.o \
+        ssmis_spatial_average_mod.o \
 	sst_retrieval.o \
 	state2control.o \
 	state2ensctl.o \
@@ -416,7 +426,6 @@ LIBsys          = $(MYLIBsys)
 	strong_bal_correction.o \
 	strong_baldiag_inc.o \
 	strong_fast_global_mod.o \
-	strong_slow_global_mod.o \
 	sub2fslab_mod.o \
 	support_2dvar.o \
 	stub_set_crtm_aerosol.o \
@@ -478,15 +487,14 @@ $(EXE_FILE):  $(OBJS) $(LIB) gsimain.o
 
 include Makefile.dependency
 
-.SUFFIXES : .F90 .o
+.SUFFIXES : .f90 .F90 .fpp .o
 
 .F90.o:
-	$(SED_FTN) $*.F90 > $*.b
-	$(CPP) $(CPP_FLAGS) $(CPP_F90FLAGS) $*.b  > $*.f90
-	$(RM) $*.b
-	$(F90) $(FFLAGS) -c $*.f90
-	$(RM) $*.f90
+	$(CPP) $(CPP_FLAGS) $(CPP_F90FLAGS) $*.F90  > $*.fpp
+	$(F90) $(FFLAGS) -c $*.fpp
+	$(RM) $*.fpp
 
+%.o : %.mod
 
 clean:
 	$(RM) -f *.o *.exe $(LIB)

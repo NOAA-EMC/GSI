@@ -12,6 +12,7 @@ module oneobmod
 !   2004-05-13  kleist, documentation
 !   2005-04-04  todling, fixed little endian ouput of prepqc file
 !   2009-04-28  sienkiewicz - add text output for ozone level obs testing
+!   2012-07-14  todling - only do it once (in observer mode)
 !
 ! subroutines included:
 !   sub init_oneobmod
@@ -54,6 +55,8 @@ module oneobmod
   logical oneobtest
   logical pctswitch
 
+  logical :: oneobmade
+
 contains
 
   subroutine init_oneobmod
@@ -91,6 +94,7 @@ contains
     obhourset=zero
     pctswitch=.false.
 
+    oneobmade=.false.
     return
   end subroutine init_oneobmod
 
@@ -138,6 +142,8 @@ contains
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM'
     character(80):: errstr='POE QOE TOE WOE'
+
+    if (oneobmade) return
 
     if (oneob_type == 'o3lev') then
        call oneobo3lv
@@ -244,6 +250,8 @@ contains
        call writsb(lendian_in)
     enddo
     call closbf(lendian_in)
+ 
+    oneobmade=.true.
 
     return
   end subroutine oneobmakebufr

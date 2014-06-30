@@ -152,7 +152,8 @@ subroutine intjo_(yobs,rval,rbias,sval,sbias,ibin)
 !   2010-03-24  zhu      - change the interfaces of intt,intrad,intpcp for generalizing control variable
 !   2010-05-13  todling  - harmonized interfaces to int* routines when it comes to state_vector (add only's)
 !   2010-06-13  todling  - add intco call
-!   2010-10-15  pagowski  - add intpm2_5 call
+!   2010-10-15  pagowski - add intpm2_5 call
+!   2010-10-20  hclin    - added aod
 !   2011-02-20  zhu      - add intgust,intvis,intpblh calls
 !   2013-05-20  zhu      - add codes related to aircraft temperature bias correction 
 !
@@ -191,6 +192,7 @@ use constants, only: zero_quad
 use obsmod, only: obs_handle
 use jfunc, only: nrclen,nsclen,npclen,ntclen,l_foto,xhat_dt
 use bias_predictors, only: predictors
+use intaodmod, only: intaod
 use inttmod, only: intt
 use intwmod, only: intw
 use intpsmod, only: intps
@@ -299,6 +301,9 @@ real(r_quad),dimension(max(1,nrclen)):: qpred
 
 ! RHS calculation for precipitation
   call intpcp(yobs%pcp,rval,sval)
+
+! RHS calculation for AOD
+  call intaod(yobs%aero,rval,sval)
 
 ! RHS for conventional gust observations
   call intgust(yobs%gust,rval,sval)

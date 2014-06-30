@@ -13,6 +13,7 @@ subroutine enorm_state(xst,enorm,yst)
 !   2010-05-13  todling  - update to use gsi_bundle
 !   2010-09-06  todling  - revisit pointers; add Q-term to norm
 !   2011-08-01  lueken   - replaced F90 with f90 (no machine logic)
+!   2013-10-19  todling  - metguess now holds background
 !
 !   input argument list:
 !    xst
@@ -33,11 +34,12 @@ use constants, only: zero,one,cp,rd,pi,two,r1000,hvap
 use jcmod, only: eps_eer
 use gridmod, only: nsig,nlat,nlon,lon2,lat2,istart,rlats,ak5,bk5
 use mpimod, only: mype
-use guess_grids, only: ges_ps,ntguessig
+use guess_grids, only: ntguessig
 use state_vectors, only: dot_product
 use gsi_bundlemod, only: assignment(=)
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
+use gsi_metguess_mod, only: gsi_metguess_bundle
 
 implicit none
 
@@ -54,6 +56,7 @@ real(r_kind),pointer,dimension(:,:,:) :: xst_u,xst_v,xst_t,xst_q
 real(r_kind),pointer,dimension(:,:,:) :: yst_u,yst_v,yst_t,yst_q
 real(r_kind),pointer,dimension(:,:)   :: xst_p
 real(r_kind),pointer,dimension(:,:)   :: yst_p
+real(r_kind),pointer,dimension(:,:)   :: ges_ps
 
 ! ----------------------------------------------------------------------
 tref=280.0_r_kind
@@ -67,10 +70,13 @@ gridfac=one/(nlat*nlon)
 do kk=1,nsig
    akk(kk) = Pa_per_kPa * (ak5(kk)-ak5(kk+1))
 enddo
+
+call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'ps', ges_ps,ier)
+
 dsig=HUGE(dsig)
 do jj=2,lon2-1
    do ii=2,lat2-1
-      zps = Pa_per_kPa * ges_ps(ii,jj,ntguessig)
+      zps = Pa_per_kPa * ges_ps(ii,jj)
       do kk=1,nsig
          dsig(ii,jj,kk) = akk(kk) + (bk5(kk)-bk5(kk+1)) * zps
       enddo

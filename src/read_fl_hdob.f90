@@ -62,7 +62,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Declare passed variables
      character(len=*), intent(in   ) :: infile,obstype
-     character(len=*), intent(in   ) :: sis
+     character(len=20),intent(in   ) :: sis
      integer(i_kind) , intent(in   ) :: lunout
      integer(i_kind) , intent(inout) :: nread,ndata,nodata
      real(r_kind)    , intent(in   ) :: twind
@@ -338,7 +338,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      nmsg   = 0
      maxobs = 0
      call closbf(lunin) 
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
 
@@ -371,7 +371,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Open bufr file again for reading
      call closbf(lunin)
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      ntb   = 0     

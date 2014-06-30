@@ -101,9 +101,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
 !   2012-04-03  s.liu    - thin new VAD wind 
 !   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
+!   2012-08-29  akella  - extend nst_gsi option to handle sstobs
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
 !                                    Initialize pflag=0 at beginning of subroutine.
+!   2013-02-28  sienkiewicz - put in subset via SAID for kx=290 ASCAT to allow
+!                        separate control of metop-a and metop-b ASCAT if 
+!                        needed
+!   2013-05-03  sienkiewicz - if ACARS SID == 'ACARS' take ID from ACID instead
 !   2013-05-15  zhu  - add phase of aircraft flight and vertical velocity for aircraft data
 !                    - match aircraft obs with temperature bias file 
 !                    - add new tail number info if there is any
@@ -113,6 +118,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2013-09-08  s.liu  - increase nmsgmax to 100000 to read NESDIS cloud product
 !   2013-12-08  s.liu  - identify VAD wind based on sub type
 !
+!   2014-02-28  sienkiewicz - added code for option aircraft_t_bc_ext for external aircraft bias table
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -146,8 +152,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
+  use radinfo,only: nst_gsi,nstinfo
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
-      ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
+      aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -160,6 +167,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use jfunc, only: tsensible
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
 
@@ -167,7 +175,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
-  character(len=*)                      ,intent(in   ) :: sis
+  character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twindin
@@ -250,6 +258,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
   integer(i_kind),allocatable,dimension(:):: isort,iloc
+  integer(i_kind) ibfms
 
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage
@@ -269,6 +278,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(255):: tvflg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd
@@ -357,7 +367,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
-     nreal=24
+     nreal=25
   else if(uvob) then 
      nreal=24
   else if(spdob) then
@@ -369,7 +379,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(pwob) then
      nreal=20
   else if(sstob) then
-     nreal=20
+     if (nst_gsi > 0) then
+        nreal=20 + nstinfo
+     else
+        nreal=20
+     end if
   else if(gustob) then
      nreal=21
   else if(visob) then
@@ -396,7 +410,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if (tob)  lim_qqm=4
   endif
 
-  if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) nreal=nreal+3
+  if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
+       aircraft_t_bc_ext )) nreal=nreal+3
   if(perturb_obs .and. (tob .or. psob .or. qob))nreal=nreal+1
   if(perturb_obs .and. uvob )nreal=nreal+2
 
@@ -409,7 +424,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 ! Open, then read date from bufr data
   call closbf(lunin)
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
@@ -538,7 +553,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! temporary specify iobsub until put in bufr file
         iobsub = 0                                                  
-        if(kx == 280) iobsub=hdr(3)                                            
+        if(kx == 280 .or. kx == 180 ) iobsub=hdr(3)                                            
         if(kx == 290) iobsub=hdr(2)
         if(use_prepb_satwnd .and. (kx >= 240 .and. kx <=260 )) iobsub = hdr(2)
 
@@ -919,13 +934,18 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               aircraftobst = (kx==131) .or. (kx==133)
 
               aircraftwk = bmiss
-              if (aircraftobst .and. aircraft_t_bc_pof) then
-                 call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
-                 aircraftwk(2,:) = bmiss
-              end if
-              if (aircraftobst .and. aircraft_t_bc) then
-                 call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
-                 if (kx0>=330 .and. kx0<340) aircraftwk(2,:) = zero
+              if (aircraftobst) then
+                 if (aircraft_t_bc) then
+                    call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                    if (kx0>=330 .and. kx0<340) aircraftwk(2,:) = zero
+                 else if (aircraft_t_bc_pof) then
+                    call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                    aircraftwk(2,:) = bmiss
+              
+                 else if (aircraft_t_bc_ext) then
+                    call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                    aircraftwk(2,:) = bmiss
+                 end if
               end if
            else if(sstob)then 
               sstdat=bmiss
@@ -949,6 +969,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
            endif
 
+!          Set station ID
+           rstation_id=hdr(1)
+           if ((kx==133 .or. kx==233) .and. c_station_id=='ACARS') then
+              call ufbint(lunin,hdr,1,1,iret,'ACID')
+              if(ibfms(hdr(1))==0) rstation_id=hdr(1)
+           end if
+
 !          Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
            rstation_id=hdr(1)
            do k=1,levs
@@ -963,7 +990,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          Determine tail number for aircraft temperature data
            idx = 0
            iyyyymm = iadate(1)*100+iadate(2)
-           if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+           if (aircraftobst .and. (aircraft_t_bc_pof .or. &
+                aircraft_t_bc .or. aircraft_t_bc_ext)) then
 !             Determine if the tail number is included in the taillist
               do j=1,nsort
                  cb = c_station_id(1:1)
@@ -1342,6 +1370,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
               endif
+              if(plevs(k) < 0.0001_r_kind) then
+                 write(*,*) 'warning: obs pressure is too small:',kx,k,plevs(k)
+                 cycle
+              endif
 
               if(ncnumgrp(nc) > 0 .and. .not.lhilbert )then                 ! default cross validation on
                  if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
@@ -1407,7 +1439,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
-                 if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+                 if (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
+                      aircraft_t_bc_ext) then
                     cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
                     cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
                     cdata_all(27,iout)=idx                 ! index of temperature bias
@@ -1693,6 +1726,22 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(20,iout)=stnelev                ! station elevation (m)
 
+                 if( nst_gsi > 0) then
+                   zob   = sstdat(2,k)
+                   if (zob > 10.0) then
+                      tref  = tsavg
+                      dtw   = zero
+                      dtc   = zero
+                      tz_tr = one
+                   else
+                      call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                   end if
+
+                   cdata_all(21,iout) = tref               ! foundation temperature
+                   cdata_all(22,iout) = dtw                ! dt_warm at zob
+                   cdata_all(23,iout) = dtc                ! dt_cool at zob
+                   cdata_all(24,iout) = tz_tr              ! d(Tz)/d(Tr)
+                 end if
 
 !          Measurement types
 !             0       Ship intake
@@ -1895,7 +1944,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! define a closest METAR cloud observation for each grid point
   if(metarcldobs .and. ndata > 0) then
-     maxobs=200000
+     maxobs=2000000
      allocate(cdata_all(nreal,maxobs))
      call reorg_metar_cloud(cdata_out,nreal,ndata,cdata_all,maxobs,iout)
      ndata=iout
@@ -1903,7 +1952,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      write(lunout) ((cdata_all(i,j),i=1,nreal),j=1,ndata)
      deallocate(cdata_all)
   else
-     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
      write(lunout) cdata_out
   endif
 
@@ -2013,10 +2062,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 
   if(kx==120)then
-     pqm(1)=nint(qcmark(1,1))
-     qqm(1)=nint(qcmark(2,1))
-     tqm(1)=nint(qcmark(3,1))
-     zqm(1)=nint(qcmark(4,1))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     qqm(1)=nint(min(qcmark(2,1),10000.0))
+     tqm(1)=nint(min(qcmark(3,1),10000.0))
+     zqm(1)=nint(min(qcmark(4,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -2028,10 +2077,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
         do i=2,levs
            im=i-1
-           pqm(i)=nint(qcmark(1,i))
-           qqm(i)=nint(qcmark(2,i))
-           tqm(i)=nint(qcmark(3,i))
-           zqm(i)=nint(qcmark(4,i))
+           pqm(i)=nint(min(qcmark(1,i),10000.0))
+           qqm(i)=nint(min(qcmark(2,i),10000.0))
+           tqm(i)=nint(min(qcmark(3,i),10000.0))
+           zqm(i)=nint(min(qcmark(4,i),10000.0))
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1
@@ -2087,14 +2136,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
   elseif(kx==220)then
-     pqm(1)=nint(qcmark(1,1))
-     wqm(1)=nint(qcmark(5,1))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     wqm(1)=nint(min(qcmark(5,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
      do i=2,levs
         im=i-1
-        wqm(i)=nint(qcmark(5,i))
-        zqm(i)=nint(qcmark(4,i))
-        pqm(i)=nint(qcmark(1,i))
+        wqm(i)=nint(min(qcmark(5,i),10000.0))
+        zqm(i)=nint(min(qcmark(4,i),10000.0))
+        pqm(i)=nint(min(qcmark(1,i),10000.0))
         if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
            ku=dpres(i)-1

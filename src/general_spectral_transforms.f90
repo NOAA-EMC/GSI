@@ -1339,6 +1339,7 @@ subroutine general_test_inverses(grd,sp,mype)
 !   2010-02-18  parrish, test_inverses to general_test_inverses--
 !                          replace 'use specmod' with structure var sp
 !                           also replace 'use gridmod' with input structure variable grd
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     mype  - processor number
@@ -1368,30 +1369,38 @@ subroutine general_test_inverses(grd,sp,mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use guess_grids, only: ges_tv,ntguessig
+  use guess_grids, only: ntguessig
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use constants, only: zero,one
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
   type(spec_vars),intent(in   ) :: sp
   type(sub2grid_info),intent(in   ) :: grd
   integer(i_kind),intent(in   ) :: mype
 
+  character(len=*),parameter::myname='general_test_inverses'
   integer(i_kind) :: index (5)
-  integer(i_kind) :: i,j,n,ig,ncstep
+  integer(i_kind) :: i,j,n,ig,ncstep,istatus
   real(r_kind),dimension(grd%nlat,grd%nlon):: u1,v1,u2,u3,v2,t1,t2
   real(r_kind),dimension(sp%nc):: s1,s2,s3
   real(r_kind),dimension(sp%nc):: d1,d2,d3
   real(r_kind):: diffmax, absmax
 ! smallfrac is expected size of lagest fractional roundoff error 
   real(r_kind),parameter:: smallfrac=1.e-9_r_kind
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_nt=>NULL()
 
   s1=zero ; s2=zero ; s3=zero
   t1=zero ; t2=zero ; v1=zero
 
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'tv',ges_tv_nt, istatus)
+  if(istatus/=0) call die(myname,'variable tv missing, ier=',istatus)
+
 ! use the following field to create a test field t1
-  call gather_stuff2(ges_tv(1,1,1,ntguessig),t1,mype,0)
+  call gather_stuff2(ges_tv_nt,t1,mype,0)
 
 ! only perform the test on one processor.
   if (mype==0) then

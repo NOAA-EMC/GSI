@@ -16,7 +16,7 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
 !    2011-05-29  Todling - extra cloud-guess from MetGuess-Bundle (see Remark 1)
 !                          some fields now from wrf_mass_guess_mod
 !    2013-10-20  s.liu   - use cloud analysis for NMMB
-
+!    2013-10-19  todling - metguess now holds background
 !
 !
 !   input argument list:
@@ -51,8 +51,8 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
   use gridmod, only: nsig,lat2,lon2,istart,jstart
   use obsmod,  only: obs_setup,nsat1,ndat,dtype
   use guess_grids, only: ntguessig,ntguessfc
-  use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat
-  use guess_grids, only: ges_q,ges_z,ges_ps,ges_tv,soil_temp,isli2
+  use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld
+  use guess_grids, only: soil_temp,isli2
   use guess_grids, only: ges_tsen,geop_hgtl
   use guess_grids, only: ges_prsl
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,  &
@@ -83,6 +83,11 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
   real(r_single),allocatable:: soiltbk(:,:)
 !  real(r_single),allocatable:: z_lcl(:,:)       ! lifting condensation level
   real(r_single),allocatable:: pblh(:,:)         ! PBL height (grid coordinate)
+
+  real(r_kind),pointer,dimension(:,:)   :: ges_z =>NULL()
+  real(r_kind),pointer,dimension(:,:)   :: ges_ps=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_q =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_tv=>NULL()
 !
 !  surface observation
 !
@@ -173,14 +178,14 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
   INTEGER(i_kind) :: istat_Surface,istat_NESDIS,istat_radar    ! 1 has observation
   INTEGER(i_kind) :: istat_NASALaRC,istat_lightning            ! 0 no observation
 !
-  REAL(r_kind), pointer :: ges_ql(:,:,:)  ! cloud water
-  REAL(r_kind), pointer :: ges_qi(:,:,:)  ! could ice
-  REAL(r_kind), pointer :: ges_qr(:,:,:)  ! rain
-  REAL(r_kind), pointer :: ges_qs(:,:,:)  ! snow
-  REAL(r_kind), pointer :: ges_qg(:,:,:)  ! graupel
-  REAL(r_kind), pointer :: ges_ref(:,:,:)  ! ref
-  REAL(r_kind), pointer :: ges_tten(:,:,:)  ! ref
-  REAL(r_kind), pointer :: dfi_tten(:,:,:)  ! tten
+  REAL(r_kind), pointer :: ges_ql(:,:,:)=>NULL()    ! cloud water
+  REAL(r_kind), pointer :: ges_qi(:,:,:)=>NULL()    ! could ice
+  REAL(r_kind), pointer :: ges_qr(:,:,:)=>NULL()    ! rain
+  REAL(r_kind), pointer :: ges_qs(:,:,:)=>NULL()    ! snow
+  REAL(r_kind), pointer :: ges_qg(:,:,:)=>NULL()    ! graupel
+  REAL(r_kind), pointer :: ges_ref(:,:,:)=>NULL()   ! ref
+  REAL(r_kind), pointer :: ges_tten(:,:,:)=>NULL()  ! t-sensible
+  REAL(r_kind), pointer :: dfi_tten(:,:,:)=>NULL()  ! tten
 !
 !  misc.
 !
@@ -203,6 +208,11 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
 !
   call gsi_metguess_get('var::qi',ivar,ier)
   ier=0
+! call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'tv',ges_tv,istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'q' ,ges_q, istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'z' ,ges_z, istatus);ier=ier+istatus
+  call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ps',ges_ps,istatus);ier=ier+istatus
+
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qi',ges_qi,istatus);ier=ier+istatus
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'ql',ges_ql,istatus);ier=ier+istatus
   call gsi_bundlegetpointer (GSI_MetGuess_Bundle(itsig),'qr',ges_qr,istatus);ier=ier+istatus
@@ -466,8 +476,8 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
      do i=1,lon2
         iss=jstart(mype+1)+i-1
         jss=istart(mype+1)+j-1
-        zh(i,j)     =ges_z(j,i,itsfc)               !  terrain in meter
-        ps_bk(i,j)  =ges_ps(j,i,itsfc)*10.0_r_single!  surace pressure in mb
+        zh(i,j)     =ges_z(j,i)                     !  terrain in meter
+        ps_bk(i,j)  =ges_ps(j,i)*10.0_r_single      !  surace pressure in mb
         xland(i,j)  =isli2(j,i)
         soiltbk(i,j)=soil_temp(j,i,itsfc)           !  soil temperature
         xlon(i,j)   =region_lon(jss,iss)*rad2deg    !  longitude back to degree
@@ -486,12 +496,12 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
   do k=1,nsig
      do j=1,lat2
         do i=1,lon2
-           q_bk(i,j,k)=ges_q(j,i,k,1)/(1.0-ges_q(j,i,k,1))                           ! specific humidity
+           q_bk(i,j,k)=ges_q(j,i,k)/(1.0-ges_q(j,i,k))                           ! specific humidity
            ref_mos_3d(i,j,k)=ges_ref(j,i,k)                       ! specific humidity
 
 !          if(abs(ges_ref(j,i,k))<60.0)write(6,*)"gsdcloud:: ges_ref", ges_ref(j,i,k)
            h_bk(i,j,k)=geop_hgtl(j,i,k,1)                           ! specific humidity
-!          t_bk(i,j,k)=ges_tv(j,i,k,itsig)/                                  &
+!          t_bk(i,j,k)=ges_tv(j,i,k)/                                  &
 !                    (1.0_r_single+0.61_r_single*q_bk(i,j,k))   ! virtual temp to temp
            t_bk(i,j,k)=ges_tsen(j,i,k,1)*(100.0_r_kind/ges_prsl(j,i,k,1))**rd_over_cp
            p_bk(i,j,k)=ges_prsl(j,i,k,1)*10.0_r_kind
@@ -722,7 +732,7 @@ SUBROUTINE  gsdcloudanalysis4NMMB(mype)
      do j=1,lat2
         do i=1,lon2
 
-           ges_q(j,i,k,1)=q_bk(i,j,k)/(1+q_bk(i,j,k))   ! Here q is mixing ratio kg/kg, 
+           ges_q(j,i,k)=q_bk(i,j,k)/(1+q_bk(i,j,k))   ! Here q is mixing ratio kg/kg, 
                                                         ! need to convert to specific humidity
 !          ges_tsen(j,i,k)=t_bk(i,j,k)/((100.0/ges_prsl(j,i,k,1))**rd_over_cp)
 !          ges_tsen(j,i,k,1)=ges_tsen(j,i,k,1)+ges_tten(j,i,k,1)*3600.0

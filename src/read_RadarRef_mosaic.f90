@@ -48,7 +48,7 @@ subroutine read_RadarRef_mosaic(nread,ndata,infile,obstype,lunout,twind,sis)
   implicit none
 !
 
-  character(10),    intent(in)    :: infile,obstype
+  character(len=*), intent(in)    :: infile,obstype
   integer(i_kind),  intent(in)    :: lunout
   integer(i_kind),  intent(inout) :: nread,ndata
   real(r_kind),     intent(in   ) :: twind
