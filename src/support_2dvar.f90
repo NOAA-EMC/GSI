@@ -1347,8 +1347,10 @@ subroutine wr2d_binary(mype)
   caux(7)='mitm'    ; iaux(7)=i_mitm
   caux(8)='pmsl'    ; iaux(8)=i_pmsl
   caux(9)='howv'    ; iaux(9)=i_howv
+  caux(10)='tcamt'  ; iaux(9)=i_tcamt 
+  caux(11)='lcbas'  ; iaux(9)=i_lcbas
 
-  kaux=9  !Adjust as you add variables
+  kaux=11  !Adjust as you add variables
 
   do k=1,kaux
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),trim(caux(k)),ptr2d, ier)
@@ -1383,71 +1385,6 @@ subroutine wr2d_binary(mype)
         end if
      endif
   enddo
-
-
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tcamt', ptr2d, ier)
-  if (ier==0) then
-     do i=1,lon2
-        do j=1,lat2
-           all_loc(j,i,i_tcamt)=ptr2d(j,i)
-        end do
-     end do
-     if(mype==0) read(iog)temp1
-     if(mype == 0) then
-        write(6,*)' ges_tcamt in wr2d_binary,max,min(ges_tcamt)=',maxval(ptr2d),minval(ptr2d)
-        write(6,*)' tcamt in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-     end if
-     call strip(all_loc(:,:,i_tcamt),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           tempa(i)=tempa(i)-tempb(i)
-        end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(6,*)' tcamt in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-        write(ioan)temp1
-     end if
-  else
-     if(mype==0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  endif
-
-
-  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'lcbas', ptr2d, ier)
-  if (ier==0) then
-     do i=1,lon2
-        do j=1,lat2
-           all_loc(j,i,i_lcbas)=ptr2d(j,i)
-        end do
-     end do
-     if(mype==0) read(iog)temp1
-     if(mype == 0) then
-        write(6,*)' ges_lcbas in wr2d_binary,max,min(ges_lcbas)=',maxval(ptr2d),minval(ptr2d)
-        write(6,*)' lcbas in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-     end if
-     call strip(all_loc(:,:,i_lcbas),strp)
-     call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-          tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-     if(mype == 0) then
-        call fill_mass_grid2t(temp1,im,jm,tempb,2)
-        do i=1,iglobal
-           tempa(i)=tempa(i)-tempb(i)
-        end do
-        call unfill_mass_grid2t(tempa,im,jm,temp1)
-        write(6,*)' lcbas in wr2d_binary,max,min(temp1)=',maxval(temp1),minval(temp1)
-        write(ioan)temp1
-     end if
-  else
-     if(mype==0) then
-        read(iog)temp1
-        write(ioan)temp1
-     end if
-  endif
-
   if (mype==0) then
      close(iog)
      close(ioan)

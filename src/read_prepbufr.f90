@@ -394,7 +394,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   lcbasob = obstype == 'lcbas'
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob .or. &
-            tdob .or. mxtmob .or. mitmob .or. pmob .or. howvob
+            tdob .or. mxtmob .or. mitmob .or. pmob .or. howvob .or. &
+            tcamtob .or. lcbasob
   if(tob)then
      nreal=25
   else if(uvob) then 
@@ -587,9 +588,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
         if(twodvar_regional)then
 !          If running in 2d-var (surface analysis) mode, check to see if observation
-!          is surface type.  If not, read next observation report from bufr file
+!          is surface type or GOES cloud product(kx=151).  If not, read next observation report from bufr file
            sfctype=(kx>179.and.kx<190).or.(kx>=280.and.kx<=290).or. &
-                   (kx>=192.and.kx<=199).or.(kx>=292.and.kx<=299)
+                   (kx>=192.and.kx<=199).or.(kx>=292.and.kx<=299) .or. &
+                   (kx==151)
            if (.not.sfctype ) cycle loop_report
 
         end if
