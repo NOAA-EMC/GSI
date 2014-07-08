@@ -134,6 +134,11 @@
     if (idpsfc5 /= 2) then
        do j=1,grd%lon2
           do i=1,grd%lat2
+             if(work_ps(i,j)<=zero)then
+                write(6,*) 'surface pressure is ',work_ps(i,j),&
+                   '. Exiting the code now.'
+                exit
+             end if
              work_ps(i,j)=log(work_ps(i,j))
           end do
        end do

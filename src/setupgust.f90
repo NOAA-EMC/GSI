@@ -406,6 +406,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
        endif
 
        dz21     = z2-z1
+       if(dz21==zero)cycle
        dlnp21   = p2-p1
        dz       = zob-z1
        pobl     = p1 + (dlnp21/dz21)*dz
