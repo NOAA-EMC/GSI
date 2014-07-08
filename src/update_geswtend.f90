@@ -1,4 +1,4 @@
- subroutine update_geswtend(xut,xvt,xtt,xqt,xozt,xcwt,xpt)
+ subroutine update_geswtend(xhat_dt)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    update_geswtend              add tendency to analysis
@@ -13,6 +13,13 @@
 ! program history log:
 !   2007-02-15  rancic -  add foto
 !   2008-12-02  todling - separated this routine from update_guess
+!   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
+!   2010-05-13  todling - udpate to use gsi_bundle; interface via state vector
+!   2011-05-01  todling - udpate to use gsi_metguess_bundle: cwmr taken from it now
+!   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2012-06-12  parrish - replace mpi_all2allv and all supporting code with general_sub2grid and
+!                         general_grid2sub.
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     xut,xvt,xtt,xqt,xozt,xcwt,xpt - tendencies
@@ -27,35 +34,59 @@
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,isduv_s,&
-       strip,reorder,reorder2
   use constants, only: zero, one, fv, r3600
   use jfunc, only: l_foto
-  use gridmod, only: lat1,lon1,lat2,lon2,itotsub,nsig,&
-       regional
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,&
-       nfldsig,hrdifsig
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig,regional
+  use guess_grids, only: ges_tsen,nfldsig,hrdifsig
   use compact_diffs, only: uv2vordiv
-
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_commvars_mod, only: s2guv
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: xut,xvt,xtt,xqt, &
-                                                          xozt,xcwt
-  real(r_kind),dimension(lat2,lon2)     ,intent(in   ) :: xpt
+  type(gsi_bundle),intent(in   ) :: xhat_dt
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it
-  real(r_kind),dimension(lat1,lon1,nsig):: usm,vsm
+  character(len=*),parameter::myname='update_geswtend'
+  integer(i_kind) i,j,k,it,ier,istatus
+  real(r_kind),dimension(nlat,nlon):: usm,vsm
   real(r_kind),dimension(lat2,lon2,nsig):: dvor_t,ddiv_t
-  real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
+  real(r_kind),dimension(:,:,:,:),allocatable:: work1,worksub
+  real(r_kind),pointer,dimension(:,:,:) :: xut,xvt,xtt,xqt,xozt,xcwt
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3d
+  real(r_kind),pointer,dimension(:,:)   :: xpt
 
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u_it  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v_it  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_div_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_vor_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q_it  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_oz_it =>NULL()
 
   real(r_kind) tcon
 
   if (.not.l_foto) return
+
+  ier=0
+  call gsi_bundlegetpointer(xhat_dt,'u', xut, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'v', xvt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'tv',xtt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'q', xqt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'oz',xozt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'cw',xcwt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xhat_dt,'ps',xpt, istatus);ier=istatus+ier
+  if (ier/=0) then
+     write(6,*) 'update_geswtend: cannot find pointer to do update'
+     call stop2(999) 
+  endif
 
 ! Initialize local arrays
   do k=1,nsig
@@ -84,51 +115,54 @@
 ! For NCEP GFS convert increment in u,v to increments in vor,div
   if (.not.regional) then
 
+     allocate(work1(2,s2guv%nlat,s2guv%nlon,s2guv%kbegin_loc:s2guv%kend_alloc))
+     allocate(worksub(2,s2guv%lat2,s2guv%lon2,s2guv%nsig))
 !  Do time derivative of vorticity and divergence
 
 !    Zero work arrays
-     do k=1,nuvlevs
-        do j=1,itotsub
-           work1(j,k)=zero
-           work2(j,k)=zero
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              worksub(1,i,j,k)=xut(i,j,k)
+              worksub(2,i,j,k)=xvt(i,j,k)
+           end do
         end do
      end do
   
-!    Strip off halo for u,v grids on subdomains
-     call strip(xut,usm,nsig)
-     call strip(xvt,vsm,nsig)
-
-!    Put u,v subdomains on global slabs
-!    Note:  u --> work1, v --> work2
-     call mpi_alltoallv(usm,iscuv_g,isduv_g,&
-          mpi_rtype,work1,ircuv_g,irduv_g,mpi_rtype,&
-          mpi_comm_world,ierror)
-     call mpi_alltoallv(vsm,iscuv_g,isduv_g,&
-          mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
-          mpi_comm_world,ierror)
-  
-!    Reorder work arrays before converting u,v to vor,div
-     call reorder(work1,nuvlevs,nnnuvlevs)
-     call reorder(work2,nuvlevs,nnnuvlevs)
+     call general_sub2grid(s2guv,worksub,work1)
   
 !    Call u,v --> vor,div routine (conversion uses compact differences)
-     do k=1,nnnuvlevs
-        call uv2vordiv(work1(1,k),work2(1,k))
+     do k=s2guv%kbegin_loc,s2guv%kend_loc
+        do j=1,nlon
+           do i=1,nlat
+              usm(i,j)=work1(1,i,j,k)
+              vsm(i,j)=work1(2,i,j,k)
+           end do
+        end do
+        call uv2vordiv(usm,vsm)
+        do j=1,nlon
+           do i=1,nlat
+              work1(1,i,j,k)=usm(i,j)
+              work1(2,i,j,k)=vsm(i,j)
+           end do
+        end do
      end do
 
-!    Reorder work arrays for mpi communication
-     call reorder2(work1,nuvlevs,nnnuvlevs)
-     call reorder2(work2,nuvlevs,nnnuvlevs)
-  
-!    Get vor,div on subdomains
-!    Note:  work1 --> vor, work2 --> div
-     call mpi_alltoallv(work1,iscuv_s,isduv_s,&
-          mpi_rtype,dvor_t,ircuv_s,irduv_s,mpi_rtype,&
-          mpi_comm_world,ierror)
-     call mpi_alltoallv(work2,iscuv_s,isduv_s,&
-          mpi_rtype,ddiv_t,ircuv_s,irduv_s,mpi_rtype,&
-          mpi_comm_world,ierror)
+!       Get vor,div on subdomains
+!       Note:  work1 --> vor, work2 --> div
 
+
+     call general_grid2sub(s2guv,work1,worksub)
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              dvor_t(i,j,k)=worksub(1,i,j,k)
+              ddiv_t(i,j,k)=worksub(2,i,j,k)
+           end do
+        end do
+     end do
+
+     deallocate(work1,worksub)
 
 !   End of NCEP GFS block
 
@@ -137,31 +171,55 @@
   
   do it=1,nfldsig
      tcon=hrdifsig(it)*r3600
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q', ges_q_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,  istatus)
+     ier=ier+istatus
+     if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_u(i,j,k,it)    = ges_u(i,j,k,it) + xut(i,j,k)*tcon
-              ges_v(i,j,k,it)    = ges_v(i,j,k,it) + xvt(i,j,k)*tcon
-              ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)+ xtt(i,j,k)*tcon
-              ges_q(i,j,k,it)    = ges_q(i,j,k,it) + xqt(i,j,k)*tcon
+              ges_u_it(i,j,k)    = ges_u_it(i,j,k) + xut(i,j,k)*tcon
+              ges_v_it(i,j,k)    = ges_v_it(i,j,k) + xvt(i,j,k)*tcon
+              ges_tv_it(i,j,k)   = ges_tv_it(i,j,k)+ xtt(i,j,k)*tcon
+              ges_q_it(i,j,k)    = ges_q_it(i,j,k) + xqt(i,j,k)*tcon
 
 !  produce sensible temperature
-              ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
+              ges_tsen(i,j,k,it) = ges_tv_it(i,j,k)/(one+fv*max(zero,ges_q_it(i,j,k)))
 
 !             Note:  Below variables only used in NCEP GFS model
 
-              ges_oz(i,j,k,it)   = ges_oz(i,j,k,it) + xozt(i,j,k)*tcon
-              ges_cwmr(i,j,k,it) = ges_cwmr(i,j,k,it)+ xcwt(i,j,k)*tcon
-              ges_div(i,j,k,it)  = ges_div(i,j,k,it) + ddiv_t(i,j,k)*tcon
-              ges_vor(i,j,k,it)  = ges_vor(i,j,k,it) + dvor_t(i,j,k)*tcon
+              ges_oz_it(i,j,k)   = ges_oz_it(i,j,k) + xozt(i,j,k)*tcon
+              ges_div_it(i,j,k)  = ges_div_it(i,j,k) + ddiv_t(i,j,k)*tcon
+              ges_vor_it(i,j,k)  = ges_vor_it(i,j,k) + dvor_t(i,j,k)*tcon
            end do
         end do
      end do
      do j=1,lon2
         do i=1,lat2
-           ges_ps(i,j,it) = ges_ps(i,j,it) + xpt(i,j)*tcon
+           ges_ps_it(i,j) = ges_ps_it(i,j) + xpt(i,j)*tcon
         end do
      end do
+
+!    update cw (used to be array in guess_grids
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3d,istatus)
+     if(istatus==0) &
+     ptr3d = ptr3d + xcwt(i,j,k)*tcon
+
   end do
 
   return

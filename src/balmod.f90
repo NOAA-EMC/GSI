@@ -18,6 +18,13 @@ module balmod
 !                          can be turned off in these routines when running in hybrid ensemble mode
 !                         (strong constraint gets moved to control2state and state2control routines
 !                            when l_hyb_ens=.true.)
+!   2010-03-04  zhu  - add horizontally interpolated agvk,wgvk,bvk for regional
+!   2011-09-07  todling - note that implementation of hybrid in sqrt-B case
+!                         does not follow Dave's statement above (2009-06-15)
+!   2012-02-08  kleist - remove ref to l_hyb_ens in subroutines balance, tbalance, strong_bk, 
+!                          and strong_bk_ad.  add new parameter tlnmc_option.
+!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
+!   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !
 ! subroutines included:
 !   sub create_balance_vars      - create arrays for balance vars
@@ -69,11 +76,17 @@ module balmod
   public :: strong_bk
   public :: strong_bk_ad
 ! set passed variables to public
-  public :: fstat,llmax,llmin,rllat,rllat1,ke_vp,f1,bvz,agvz,wgvz
+  public :: fstat,llmax,llmin,rllat,rllat1,ke_vp,f1,bvz,agvz,wgvz,bvk,agvk,wgvk,agvk_lm
+  public :: pput
 
   real(r_kind),allocatable,dimension(:,:,:):: agvz
   real(r_kind),allocatable,dimension(:,:):: wgvz
+  real(r_kind),allocatable,dimension(:,:):: pput
   real(r_kind),allocatable,dimension(:,:):: bvz
+  real(r_kind),allocatable,dimension(:,:,:,:):: agvk
+  real(r_kind),allocatable,dimension(:,:):: agvk_lm
+  real(r_kind),allocatable,dimension(:,:,:):: wgvk
+  real(r_kind),allocatable,dimension(:,:,:):: bvk
   real(r_kind),allocatable   :: rllat(:,:),rllat1(:,:),f1(:,:)
 
   integer(i_kind) ke_vp
@@ -105,6 +118,7 @@ contains
     implicit none
     
     allocate(agvz(lat2,nsig,nsig),wgvz(lat2,nsig),bvz(lat2,nsig))
+    allocate(pput(lat2,nsig))
     
     return
   end subroutine create_balance_vars
@@ -133,6 +147,7 @@ contains
     implicit none
 
     deallocate(agvz,wgvz,bvz)
+    deallocate(pput)
 
     return
   end subroutine destroy_balance_vars
@@ -147,6 +162,7 @@ contains
 !
 ! program history log:
 !   2005-01-22  parrish
+!   2008-11-13  zhu - replace agvz,wgvz and bvz by interpolated agvk,wgvk,bvk
 !
 !   input argument list:
 !    mype
@@ -169,9 +185,8 @@ contains
     allocate(f1(lat2,lon2))
     call locatelat_reg(mype)
     
-    allocate(agvz(llmin:llmax,nsig,nsig), &
-         wgvz(llmin:llmax,nsig), &
-         bvz(llmin:llmax,nsig))
+    allocate(agvk(lat2,lon2,nsig,nsig),agvk_lm(nsig,nsig), &
+             wgvk(lat2,lon2,nsig),bvk(lat2,lon2,nsig))
     
     return
   end subroutine create_balance_vars_reg
@@ -187,6 +202,7 @@ contains
 ! program history log:
 !   2005-01-22  parrish
 !   2005-03-03  treadon - add implicit none
+!   2010-03-04  zhu - change agvz,wgvz and bvz to agvk,wgvk,bvk
 !
 !   input argument list:
 !
@@ -199,12 +215,12 @@ contains
 !$$$
     implicit none
 
-    deallocate(rllat,rllat1,f1,agvz,wgvz,bvz)
+    deallocate(rllat,rllat1,f1,agvk,agvk_lm,wgvk,bvk)
 
     return
   end subroutine destroy_balance_vars_reg
 
-  subroutine prebal(mlat)
+  subroutine prebal(fut2ps,cwcoveqqcov)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prebal
@@ -233,11 +249,12 @@ contains
 !   2007-05-30  h.liu   - add coroz
 !   2008-07-10  jguo    - place read of bkgerr fields in m_berror_stats
 !   2008-12-29  todling - get mlat from dims in m_berror_stats; mype from mpimod
+!   2009-02-25  zhu     - remove the error message
+!   2014-02-05  todling - add parameter to control overwrite of cw w/ q cov
 !
 !   input argument list:
 !
 !   output argument list:
-!     mlat     - number of latitudes in stats
 !
 !
 ! attributes:
@@ -248,12 +265,12 @@ contains
     use kinds, only: r_single
     use mpimod, only: mype
     use gridmod, only: istart,lat2,nlat,nsig
-    use constants, only: ione,zero
-    use m_berror_stats,only: berror_get_dims,berror_read_bal
+    use constants, only: zero
+    use m_berror_stats,only: berror_set,berror_read_bal
     implicit none
     
-!   Declare passed variables
-    integer(i_kind),intent(  out) :: mlat
+    logical              ,intent(in   ) :: fut2ps
+    logical              ,intent(in   ) :: cwcoveqqcov
 
 !   Declare local variables
     integer(i_kind) i,j,k,msig
@@ -262,16 +279,16 @@ contains
     
     real(r_single),dimension(nlat,nsig,nsig):: agvin
     real(r_single),dimension(nlat,nsig) :: wgvin,bvin
+    real(r_single),dimension(nlat,nsig) :: pputin
     
 !   Initialize local variables
-    mm1=mype+ione
+    mm1=mype+1
 
-    call berror_read_bal(agvin,bvin,wgvin,mype)
-    call berror_get_dims(msig,mlat)
-    if(msig/=nsig) then
-       write(6,*) 'prebal: levs in file inconsistent with GSI',msig,nsig
-       call stop2(101)
-    end if
+!   Set internal parameters to m_berror_stats
+    call berror_set('cwcoveqqcov',cwcoveqqcov)
+
+!   Read in balance variables
+    call berror_read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype)
 
 !   Set ke_vp=nsig (note:  not used in global)
     ke_vp=nsig
@@ -280,28 +297,30 @@ contains
     agvz=zero
     bvz=zero
     wgvz=zero
+    pput=zero
     do k=1,nsig
        do j=1,nsig
           do i=1,lat2
-             jx=istart(mm1)+i-2_i_kind
-             jx=max(jx,2_i_kind)
-             jx=min(nlat-ione,jx)
+             jx=istart(mm1)+i-2
+             jx=max(jx,2)
+             jx=min(nlat-1,jx)
              agvz(i,j,k)=agvin(jx,j,k)
           end do
        end do
        do i=1,lat2
-          jx=istart(mm1)+i-2_i_kind
-          jx=max(jx,2_i_kind)
-          jx=min(nlat-ione,jx)
+          jx=istart(mm1)+i-2
+          jx=max(jx,2)
+          jx=min(nlat-1,jx)
           wgvz(i,k)=wgvin(jx,k)
           bvz(i,k)=bvin(jx,k)
+          pput(i,k)=pputin(jx,k)
        end do
     enddo
-    
+
     return
   end subroutine prebal
   
-  subroutine prebal_reg(mlat)
+  subroutine prebal_reg
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prebal_reg  setup balance vars
@@ -322,11 +341,13 @@ contains
 !   2005-02-07  treadon - add deallocate(corz,corp,hwll,hwllp,vz,agvi,bvi,wgvi)
 !   2005-03-28  wu - replace mlath with mlat and modify dim of corz, corp
 !   2006-04-17  treadon - replace sigl with ges_prslavg/ges_psfcavg 
+!   2008-11-13  zhu - add changes for generalized control variables
+!                   - change the structure of covariance error file
+!                   - move horizontal interpolation into this subroutine
 !
 !   input argument list:
 !
 !   output argument list:
-!     mlat     - number of latitude grid points
 !
 !   other important variables
 !     nsig     - number of sigma levels
@@ -336,49 +357,40 @@ contains
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
-    use gridmod, only: nsig,twodvar_regional
+    use gridmod, only: lat2,lon2,nsig,twodvar_regional
     use guess_grids, only: ges_prslavg,ges_psfcavg
-    use constants, only: ione,zero
+    use mpimod, only: mype
+    use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_bal_reg
+    use constants, only: zero,half,one
     implicit none
 
 !   Declare passed variables
-    integer(i_kind),intent(  out) :: mlat
 
 !   Declare local parameters
     real(r_kind),parameter:: r08 = 0.8_r_kind
 
 !   Declare local variables
-    integer(i_kind) k,i
-    integer(i_kind) j
+    integer(i_kind) k,i,mlat
+    integer(i_kind) j,m,lm,l,l2
     integer(i_kind) ke,inerr
     integer(i_kind) msig                   ! stats dimensions
 
     real(r_kind):: psfc08
-    real(r_kind),dimension(nsig):: rlsig
-    real(r_kind),allocatable,dimension(:):: corp, hwllp
+    real(r_kind):: dl1,dl2
     real(r_kind),allocatable,dimension(:,:):: wgvi ,bvi
-    real(r_kind),allocatable,dimension(:,:,:):: corz, hwll, agvi ,vz
-    
+    real(r_kind),allocatable,dimension(:,:,:):: agvi
 
 
 !   Read dimension of stats file
-    inerr=22_i_kind
-    open(inerr,file='berror_stats',form='unformatted')
-    rewind inerr
-    read(inerr)msig,mlat
-    
+    inerr=22
+    call berror_get_dims_reg(msig,mlat)
+
 !   Allocate arrays in stats file
-    allocate ( corz(1:mlat,1:nsig,1:4) )
-    allocate ( corp(1:mlat) )
-    allocate ( hwll(0:mlat+ione,1:nsig,1:4),hwllp(0:mlat+ione) )
-    allocate ( vz(1:nsig,0:mlat+ione,1:6) )
-    allocate ( agvi(0:mlat+ione,1:nsig,1:nsig) )
-    allocate ( bvi(0:mlat+ione,1:nsig),wgvi(0:mlat+ione,1:nsig) )
+    allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
+    allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
     
 !   Read in background error stats and interpolate in vertical to that specified in namelist
-    call rdgstat_reg(msig,mlat,inerr,&
-         hwll,hwllp,vz,agvi,bvi,wgvi,corz,corp,rlsig)
-    close(inerr)
+    call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
     
 !   ke_vp used to project SF to balanced VP
 !   below sigma level 0.8
@@ -392,46 +404,74 @@ contains
        endif
     enddo j_loop
     
-    ke_vp=ke-ione
+    agvk=zero
+    bvk=zero
+    wgvk=zero
+    ke_vp=ke-1
     if (twodvar_regional) ke_vp=ke
-    do k=1,ke_vp
-       do j=llmin,llmax
-          bvz(j,k)=bvi(j,k)
-       enddo
-    enddo
     if (.not.twodvar_regional) then
-       do k=ke_vp+ione,nsig
-          do j=llmin,llmax
-             bvz(j,k)=zero
-          enddo
-       enddo
-    endif
-    
-    do k=1,nsig
-       do j=1,nsig
-          do i=llmin,llmax
-             agvz(i,j,k)=agvi(i,j,k)
+       do k=1,ke_vp
+          do j=1,lon2
+             do i=1,lat2
+                l=int(rllat1(i,j))
+                l2=min0(l+1,llmax)
+                dl2=rllat1(i,j)-float(l)
+                dl1=one-dl2
+                bvk(i,j,k)=dl1*bvi(l,k)+dl2*bvi(l2,k)
+             end do
           end do
        end do
-       do i=llmin,llmax
-          wgvz(i,k)=wgvi(i,k)
+       do k=ke_vp+1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                bvk(i,j,k)=zero
+             enddo
+          enddo
+       enddo
+
+       lm=(llmax+llmin)*half
+       do k=1,nsig
+          do m=1,nsig
+             agvk_lm(m,k)=agvi(lm,m,k)
+             do j=1,lon2
+                do i=1,lat2
+                   l=int(rllat1(i,j))
+                   l2=min0(l+1,llmax)
+                   dl2=rllat1(i,j)-float(l)
+                   dl1=one-dl2
+                   agvk(i,j,m,k)=dl1*agvi(l,m,k)+dl2*agvi(l2,m,k)
+                end do
+             end do
+          end do
        end do
-    enddo
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+                l=int(rllat1(i,j))
+                l2=min0(l+1,llmax)
+                dl2=rllat1(i,j)-float(l)
+                dl1=one-dl2
+                wgvk(i,j,k)=dl1*wgvi(l,k)+dl2*wgvi(l2,k)
+             end do
+          end do
+       end do
+    endif
+
 
 !   Alternatively, zero out all balance correlation matrices
 !   for univariate surface analysis
     if (twodvar_regional) then
-       bvz(:,:)=zero
-       agvz(:,:,:)=zero
-       wgvz(:,:)=zero
+       bvk(:,:,:)=zero
+       agvk(:,:,:,:)=zero
+       wgvk(:,:,:)=zero
     endif
     
-    deallocate ( corz,corp,hwll,hwllp,vz,agvi,bvi,wgvi)
+    deallocate (agvi,bvi,wgvi)
     
     return
   end subroutine prebal_reg
   
-  subroutine balance(t,p,st,vp,fpsproj)
+  subroutine balance(t,p,st,vp,fpsproj,fut2ps)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    balance     apply balance equation
@@ -464,6 +504,12 @@ contains
 !   2006-11-30  todling - add fpsproj to control diff projection contributions to ps  
 !   2008-06-05  safford - rm unused vars
 !   2008-12-29  todling - remove q from arg list
+!   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
+!   2011-09-07  todling - in sqrt-b case, always apply balance (even in hyb mode) 
+!   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
+!                           with   "use mod_strong, only: tlnmc_option".
+!                           then trigger call to strong_bk at end of subroutine balance with 
+!                           new parameter tlnmc_option and add uvflag=.false. to call strong_bk.
 !
 !   input argument list:
 !     t        - t grid values 
@@ -483,23 +529,22 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: ione,one,half
+    use constants, only: one,half
+    use gsi_4dvar, only: lsqrtb
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
-    use hybrid_ensemble_parameters, only: l_hyb_ens
+    use mod_strong, only: tlnmc_option
     implicit none
     
 !   Declare passed variables
     real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,vp,st
     logical                               ,intent(in   ) :: fpsproj
+    logical                               ,intent(in   ) :: fut2ps
 
 !   Declare local variables
-    integer(i_kind) i,j,k,l,m,l2,isize,lm
+    integer(i_kind) i,j,k,l,m
 
     real(r_kind) dl1,dl2
-
-!   Initialize variables
-    isize=max(iglobal,itotsub)
 
 
 !   REGIONAL BRANCH
@@ -509,11 +554,7 @@ contains
        do k=1,ke_vp
           do j=1,lon2
              do i=1,lat2
-                l=int(rllat1(i,j))
-                l2=min0(l+ione,llmax)
-                dl2=rllat1(i,j)-float(l)
-                dl1=one-dl2
-                vp(i,j,k)=vp(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*st(i,j,k)
+                vp(i,j,k)=vp(i,j,k)+bvk(i,j,k)*st(i,j,k)
              end do
           end do
        end do
@@ -521,12 +562,11 @@ contains
 
        if (fstat) then
 !      Add contribution from streamfunction to unbalanced temperature.
-          lm=(llmax+llmin)*half
           do k=1,nsig
              do m=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      t(i,j,m)=t(i,j,m)+agvz(lm,m,k)*f1(i,j)*st(i,j,k)
+                      t(i,j,k)=t(i,j,k)+agvk_lm(k,m)*f1(i,j)*st(i,j,m)
                    end do
                 end do
              end do
@@ -539,11 +579,7 @@ contains
              do m=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      l=int(rllat1(i,j))
-                      l2=min0(l+ione,llmax)
-                      dl2=rllat1(i,j)-float(l)
-                      dl1=one-dl2
-                      t(i,j,m)=t(i,j,m)+(dl1*agvz(l,m,k)+dl2*agvz(l2,m,k))*st(i,j,k)
+                      t(i,j,k)=t(i,j,k)+agvk(i,j,k,m)*st(i,j,m)
                    end do
                 end do
              end do
@@ -554,11 +590,7 @@ contains
        do k=1,nsig
           do j=1,lon2
              do i=1,lat2
-                l=int(rllat1(i,j))
-                l2=min0(l+ione,llmax)
-                dl2=rllat1(i,j)-float(l)
-                dl1=one-dl2
-                p(i,j)=p(i,j)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*st(i,j,k)
+                p(i,j)=p(i,j)+wgvk(i,j,k)*st(i,j,k)
              end do
           end do
        end do
@@ -576,32 +608,44 @@ contains
                 end do
              end do
           end do
+          if(fut2ps) then
+            do k=1,nsig
+               do j=1,lon2
+                  do i=1,lat2
+                     p(i,j)=p(i,j)+pput(i,k)*t(i,j,k)
+                  end do
+               end do
+            end do
+          endif
        else
-          do j=1,lon2
-             do i=1,lat2
-                do k=1,nsig-ione
+          do k=1,nsig-1
+             do j=1,lon2
+                do i=1,lat2
                    p(i,j)=p(i,j)+wgvz(i,k)*st(i,j,k)
                 end do
+             end do
+          end do
+          do j=1,lon2
+             do i=1,lat2
                 p(i,j)=p(i,j)+wgvz(i,nsig)*vp(i,j,1)
              end do
           end do
        endif
 
-!      Add contribution from streamfunction to veloc. potential
+!$omp parallel do  schedule(dynamic,1) private(k,l,j,i)
        do k=1,nsig
+!      Add contribution from streamfunction to veloc. potential
           do j=1,lon2
              do i=1,lat2
                 vp(i,j,k)=vp(i,j,k)+bvz(i,k)*st(i,j,k)
              end do
           end do
-       end do
 
 !      Add contribution from streamfunction to unbalanced temperature.
-       do k=1,nsig
           do l=1,nsig
              do j=1,lon2
                 do i=1,lat2
-                   t(i,j,l)=t(i,j,l)+agvz(i,l,k)*st(i,j,k)
+                   t(i,j,k)=t(i,j,k)+agvz(i,k,l)*st(i,j,l)
                 end do
              end do
           end do
@@ -610,14 +654,20 @@ contains
 !   End of REGIONAL/GLOBAL if-then block
     endif
 
-!   Strong balance constraint
-    if(.not.l_hyb_ens) call strong_bk(st,vp,p,t)
+!!   Strong balance constraint
+!!   Pass uvflag=.false.
+    if(lsqrtb) then
+       call strong_bk(st,vp,p,t,.false.)
+     else
+       if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk(st,vp,p,t,.false.)
+     endif
+
 
 
     return
   end subroutine balance
   
-  subroutine tbalance(t,p,st,vp,fpsproj)
+  subroutine tbalance(t,p,st,vp,fpsproj,fut2ps)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tbalance    adjoint of balance
@@ -650,6 +700,12 @@ contains
 !                          can be turned off in these routines when running in hybrid ensemble mode
 !                         (strong constraint gets moved to control2state and state2control routines
 !                            when l_hyb_ens=.true.)
+!   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
+!   2011-09-07  todling - in sqrt-b case, always apply balance (even in hyb mode) 
+!   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
+!                           with   "use mod_strong, only: tlnmc_option".
+!                           then trigger call to strong_bk_ad at beginning of subroutine tbalance with 
+!                           new parameter tlnmc_option and add uvflag=.false. to call strong_bk_ad.
 !
 !   input argument list:
 !     t        - t grid values from int routines 
@@ -669,9 +725,10 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants,   only: ione,one,half
+    use constants,   only: one,half
+    use gsi_4dvar,   only: lsqrtb
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
-    use hybrid_ensemble_parameters, only: l_hyb_ens
+    use mod_strong,  only: tlnmc_option
     implicit none
 
 !   Declare passed variables
@@ -679,30 +736,31 @@ contains
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: st,vp
     logical                               ,intent(in   ) :: fpsproj
+    logical                               ,intent(in   ) :: fut2ps
 
 !   Declare local variables
-    integer(i_kind) l,m,l2,i,j,k,igrid,isize,lm
+    integer(i_kind) l,m,l2,i,j,k
 
     real(r_kind) dl1,dl2
   
 !  Adjoint of strong balance constraint
-    if(.not.l_hyb_ens) call strong_bk_ad(st,vp,p,t)
-
-!   Initialize variables
-    igrid=lat2*lon2
-    isize=max(iglobal,itotsub)
+!  pass uvflag=.false.
+    if(lsqrtb) then
+       call strong_bk_ad(st,vp,p,t,.false.)
+     else
+       if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
+     endif
 
 !   REGIONAL BRANCH
     if (regional) then
 
        if(fstat) then
 !      Adjoint of contribution to temperature from streamfunction.
-          lm=(llmax+llmin)*half
           do m=1,nsig
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      st(i,j,m)=st(i,j,m)+agvz(lm,k,m)*f1(i,j)*t(i,j,k)
+                      st(i,j,m)=st(i,j,m)+agvk_lm(k,m)*f1(i,j)*t(i,j,k)
                    end do
                 end do
              end do
@@ -715,11 +773,7 @@ contains
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      l=int(rllat1(i,j))
-                      l2=min0(l+ione,llmax)
-                      dl2=rllat1(i,j)-float(l)
-                      dl1=one-dl2
-                      st(i,j,m)=st(i,j,m)+(dl1*agvz(l,k,m)+dl2*agvz(l2,k,m))*t(i,j,k)
+                      st(i,j,m)=st(i,j,m)+agvk(i,j,k,m)*t(i,j,k)
                    end do
                 end do
              end do
@@ -731,11 +785,7 @@ contains
        do k=1,nsig
           do j=1,lon2
              do i=1,lat2
-                l=int(rllat1(i,j))
-                l2=min0(l+ione,llmax)
-                dl2=rllat1(i,j)-float(l)
-                dl1=one-dl2
-                st(i,j,k)=st(i,j,k)+(dl1*wgvz(l,k)+dl2*wgvz(l2,k))*p(i,j)
+                st(i,j,k)=st(i,j,k)+wgvk(i,j,k)*p(i,j)
              end do
           end do
        end do
@@ -744,11 +794,7 @@ contains
        do k=1,ke_vp
           do j=1,lon2
              do i=1,lat2
-                l=int(rllat1(i,j))
-                l2=min0(l+ione,llmax)
-                dl2=rllat1(i,j)-float(l)
-                dl1=one-dl2
-                st(i,j,k)=st(i,j,k)+(dl1*bvz(l,k)+dl2*bvz(l2,k))*vp(i,j,k)
+                st(i,j,k)=st(i,j,k)+bvk(i,j,k)*vp(i,j,k)
              end do
           end do
        end do
@@ -756,8 +802,9 @@ contains
 !   GLOBAL BRANCH
     else
 
-!      Adjoint of contribution to temperature from streamfunction.
+!$omp parallel do  schedule(dynamic,1) private(k,l,j,i)
        do k=1,nsig
+!         Adjoint of contribution to temperature from streamfunction.
           do l=1,nsig
              do j=1,lon2
                 do i=1,lat2
@@ -765,37 +812,47 @@ contains
                 end do
              end do
           end do
-       end do
 
-!      Adjoint of contribution to velocity potential from streamfunction.
-       do k=1,nsig
+!         Adjoint of contribution to velocity potential from streamfunction.
           do j=1,lon2
              do i=1,lat2
                 st(i,j,k)=st(i,j,k)+bvz(i,k)*vp(i,j,k)
              end do
           end do
-       end do
 
-!      Adjoint of streamfunction and unbalanced velocity potential
-!      contribution to surface pressure.
-       if ( fpsproj ) then
-          do k=1,nsig
+!         Adjoint of streamfunction and unbalanced velocity potential
+!         contribution to surface pressure.
+          if ( fpsproj ) then
+             if ( fut2ps ) then
+                do j=1,lon2
+                   do i=1,lat2
+                      t(i,j,k)=t(i,j,k)+pput(i,k)*p(i,j)
+                   end do
+                end do
+             endif
              do j=1,lon2
                 do i=1,lat2
                    st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
                 end do
              end do
-          end do
-       else
-          do j=1,lon2
-             do i=1,lat2
-                do k=1,nsig-ione
-                   st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
-                end do
-                vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
-             end do
-          end do
-       endif
+          else
+             if(k < nsig)then
+                 do j=1,lon2
+                   do i=1,lat2
+                      st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)
+                   end do
+                 end do
+             end if
+             if(k == 1)then
+                 do j=1,lon2
+                   do i=1,lat2
+                     vp(i,j,1)=vp(i,j,1)+wgvz(i,nsig)*p(i,j)
+                   end do
+                 end do
+              end if
+             
+          endif
+       end do
 !   End of REGIONAL/GLOBAL if-then block
     endif
 
@@ -833,7 +890,7 @@ contains
 !$$$
     use kinds, only: r_single
     use gridmod, only: nlon,nlat,lat2,lon2,istart,jstart,region_lat
-    use constants, only: ione,deg2rad,one
+    use constants, only: deg2rad,one
     implicit none
     
 !   Declare passed variables
@@ -847,7 +904,7 @@ contains
 
 
 !   Read in dim of stats file
-    lunin=22_i_kind
+    lunin=22
     open(lunin,file='berror_stats',form='unformatted')
     rewind lunin
     read(lunin)msig,mlat
@@ -868,8 +925,8 @@ contains
 !   llmax,llmin: max,min stats grid needed in analysis domain
 !   rllat1: location of analysis grid in stats grid unit (MPP local domain)
 
-    llmax=-999_i_kind
-    llmin=999_i_kind
+    llmax=-999
+    llmin=999
     do j=1,nlon 
        do i=1,nlat   
           if(region_lat(i,j)>=clat_avn(mlat))then
@@ -878,11 +935,11 @@ contains
              llmin=min0(mlat,llmin)
           else if(region_lat(i,j)<clat_avn(1))then
              rllat(i,j)=one
-             llmax=max0(ione,llmax)
-             llmin=min0(ione,llmin)
+             llmax=max0(1,llmax)
+             llmin=min0(1,llmin)
           else
-             do m=1,mlat-ione
-                m1=m+ione
+             do m=1,mlat-1
+                m1=m+1
                 if((region_lat(i,j)>=clat_avn(m)).and.  &
                    (region_lat(i,j)<clat_avn(m1)))then
                    rllat(i,j)=float(m)
@@ -896,29 +953,29 @@ contains
           endif
        end do
     end do
-    llmax=min0(mlat,llmax+ione)
-    llmin=max0(ione,llmin-ione)
+    llmax=min0(mlat,llmax+1)
+    llmin=max0(1,llmin-1)
     
     deallocate(clat_avn)
     
-    mm1=mype+ione
+    mm1=mype+1
     do j=1,lon2            
-       jl=j+jstart(mm1)-2_i_kind
-       jl=min0(max0(ione,jl),nlon)
+       jl=j+jstart(mm1)-2
+       jl=min0(max0(1,jl),nlon)
        do i=1,lat2            
-          il=i+istart(mm1)-2_i_kind
-          il=min0(max0(ione,il),nlat)
+          il=i+istart(mm1)-2
+          il=min0(max0(1,il),nlat)
           rllat1(i,j)=rllat(il,jl)
        enddo
     enddo
     if(fstat)then
        fmid=one/sin(region_lat(nlat/2,nlon/2))
        do j=1,lon2
-          jl=j+jstart(mm1)-2_i_kind
-          jl=min0(max0(ione,jl),nlon)
+          jl=j+jstart(mm1)-2
+          jl=min0(max0(1,jl),nlon)
           do i=1,lat2
-             il=i+istart(mm1)-2_i_kind
-             il=min0(max0(ione,il),nlat)
+             il=i+istart(mm1)-2
+             il=min0(max0(1,il),nlat)
              f1(i,j)=sin(region_lat(il,jl))*fmid
           enddo
        enddo
@@ -927,7 +984,7 @@ contains
     return
 end subroutine locatelat_reg
   
-subroutine strong_bk(st,vp,p,t)
+subroutine strong_bk(st,vp,p,t,uvflag)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    strong_bk   apply strong balance constraint
@@ -940,6 +997,8 @@ subroutine strong_bk(st,vp,p,t)
 !   2008-09-19  derber,j.
 !   2008-12-29  todling   - redefine interface
 !   2009-04-21  derber - modify interface with calctends_no
+!   2012-02-08  kleist  - add uvflag input parameter, passed in call to calctends_no_tl 
+!                            and strong_bal_correction
 !
 !   input argument list:
 !     st       - input control vector, stream function
@@ -959,7 +1018,6 @@ subroutine strong_bk(st,vp,p,t)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: izero
   use mpimod, only: mype
   use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
@@ -970,6 +1028,7 @@ subroutine strong_bk(st,vp,p,t)
   real(r_kind),dimension(latlon1n),intent(inout) :: st,vp
   real(r_kind),dimension(latlon11),intent(inout) :: p
   real(r_kind),dimension(latlon1n),intent(inout) :: t
+  logical, intent(in):: uvflag
 
   logical:: fullfield
   integer(i_kind) istrong
@@ -977,24 +1036,24 @@ subroutine strong_bk(st,vp,p,t)
   real(r_kind),dimension(latlon11):: ps_t
 
 !******************************************************************************  
-  if(nvmodes_keep <= izero .or. nstrong <= izero) return
+  if(nvmodes_keep <= 0 .or. nstrong <= 0) return
 
 ! compute derivatives
 
   fullfield=.false.
   do istrong=1,nstrong
  
-     call calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)
+     call calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,ps_t,uvflag)
 
      call strong_bal_correction(u_t,v_t,t_t, &
-          ps_t,mype,st,vp,t,p,.false.,fullfield,.true.)
+          ps_t,mype,st,vp,t,p,.false.,fullfield,.true.,uvflag)
 
   end do
 
   return
 end subroutine strong_bk
 
-subroutine strong_bk_ad(st,vp,p,t)
+subroutine strong_bk_ad(st,vp,p,t,uvflag)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    strong_bk_ad   apply adjoint of strong balance constraint
@@ -1007,6 +1066,8 @@ subroutine strong_bk_ad(st,vp,p,t)
 !   2008-09-19  derber,j.
 !   2008-12-29  todling   - redefine interface
 !   2009-04-21  derber - modify interface with calctends_no
+!   2012-02-08  kleist  - add uvflag input parameter, passed in call to calctends_no_ad 
+!                            and strong_bal_correction_ad
 !
 !   input argument list:
 !     st       - input control vector, stream function
@@ -1027,7 +1088,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 !
 !$$$
   use mpimod, only: mype
-  use constants, only: izero,zero
+  use constants, only: zero
   use gridmod, only: latlon1n,latlon11
   use mod_vtrans,only: nvmodes_keep
   use mod_strong,only: nstrong
@@ -1037,6 +1098,7 @@ subroutine strong_bk_ad(st,vp,p,t)
   real(r_kind),dimension(latlon1n),intent(inout) :: st,vp
   real(r_kind),dimension(latlon11),intent(inout) :: p
   real(r_kind),dimension(latlon1n),intent(inout) :: t
+  logical,intent(in):: uvflag
 
 ! Declare local variables  	
   integer(i_kind) i
@@ -1046,7 +1108,7 @@ subroutine strong_bk_ad(st,vp,p,t)
 
 !******************************************************************************
 
-  if(nvmodes_keep <= izero .or. nstrong <= izero) return
+  if(nvmodes_keep <= 0 .or. nstrong <= 0) return
      
   do istrong=1,nstrong
 ! Zero gradient arrays
@@ -1059,9 +1121,9 @@ subroutine strong_bk_ad(st,vp,p,t)
         ps_t(i)=zero
      end do
 
-     call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p)
+     call strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,st,vp,t,p,uvflag)
 
-     call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t)  
+     call calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,ps_t,uvflag)  
 !
   end do
 

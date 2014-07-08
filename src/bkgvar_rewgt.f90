@@ -13,6 +13,11 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
 !   2009-04-15  wgu - added fpsproj option
 !   2009-04-21  wgu - bug fix in routine smooth2d
+!   2010-03-31  treadon - replace specmod components with sp_a structure
+!   2011-10-09  wgu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
+!   2012-06-25  parrish - reorganize subroutine smooth2d so use one call in place of 4 calls.
+!   2013-10-19  todling - metguess now holds background; count to fcount (count is intrisic function);
+!                         protect against calls from non-FGAT run
 !
 !   input argument list:
 !     sfvar     - stream function variance
@@ -33,12 +38,15 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use constants, only: ione,one,zero,two,zero_quad,tiny_r_kind
+  use constants, only: one,zero,two,zero_quad,tiny_r_kind
   use gridmod, only: nlat,nlon,nsig,lat2,lon2
-  use guess_grids, only: ges_div,ges_vor,ges_tv,ges_ps,nfldsig
+  use guess_grids, only: nfldsig
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_sum,mpi_rtype,mpi_max
-  use balmod, only: agvz,wgvz,bvz
-  use berror, only: bkgv_rewgtfct,bkgv_write,fpsproj
+  use balmod, only: agvz,wgvz,bvz,pput
+  use berror, only: bkgv_rewgtfct,bkgv_write,fpsproj,fut2ps
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
@@ -47,12 +55,13 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   integer(i_kind)                       ,intent(in   ) :: mype
 
 ! Declare local variables
+  character(len=*),parameter::myname='bkgvar_rewgt'
   real(r_kind),dimension(lat2,lon2,nsig):: bald,balt
   real(r_kind),dimension(lat2,lon2,nsig):: delpsi,delchi,deltv
   real(r_kind),dimension(lat2,lon2):: delps,psresc,balps
 
   real(r_quad),dimension(nsig):: mean_dz,mean_dd,mean_dt
-  real(r_quad) mean_dps,count
+  real(r_quad) mean_dps,fcount
 
   real(r_kind),dimension(nsig,2,npe):: mean_dz0,mean_dd0,mean_dz1,mean_dd1,&
        mean_dt0,mean_dt1
@@ -64,8 +73,16 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   real(r_kind),dimension(nsig):: max_dz,max_dd,max_dt,max_dz0,max_dd0,&
        max_dt0,rmax_dz0,rmax_dd0,rmax_dt0
   real(r_kind) max_dps,max_dps0,rmax_dps0
-  integer(i_kind) i,j,k,l,nsmth,mm1
+  integer(i_kind) i,j,k,l,nsmth,mm1,nf,ier,istatus
 
+  real(r_kind),dimension(:,:  ),pointer::ges_ps_01 =>NULL()
+  real(r_kind),dimension(:,:  ),pointer::ges_ps_nf =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_div_01=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_div_nf=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_vor_01=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_vor_nf=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_01 =>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_nf =>NULL()
 
 ! Initialize local arrays
   psresc=zero
@@ -80,10 +97,10 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   balt   =zero ; bald    =zero ; balps =zero
 
 ! Set count to number of global grid points in quad precision
-  count = float(nlat)*float(nlon)
+  fcount = float(nlat)*float(nlon)
 
 ! Set parameter for communication
-  mm1=mype+ione
+  mm1=mype+1
 
 ! NOTES:
 ! This subroutine will only work if FGAT (more than one guess time level)
@@ -94,22 +111,44 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 ! currently set up for global only
 !
 ! No reweighting of ozone, cloud water, moisture yet
+  if(nfldsig==1) return  ! not FGAT, nothing to do
+
+! Get all pointers from met-guess
+  nf=nfldsig
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'ps'  ,ges_ps_01,    istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'ps'  ,ges_ps_nf,    istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'div' ,ges_div_01,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'div' ,ges_div_nf,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'vor' ,ges_vor_01,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'vor' ,ges_vor_nf,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle( 1),'tv'  ,ges_tv_01,    istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(nf),'tv'  ,ges_tv_nf,    istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname,'missing fields, ier= ', ier)
 
 ! Get stream function and velocity potential from guess vorticity and divergence
-  call getpsichi(ges_vor(1,1,1,1),ges_vor(1,1,1,nfldsig),delpsi)
-  call getpsichi(ges_div(1,1,1,1),ges_div(1,1,1,nfldsig),delchi)
+  call getpsichi(ges_vor_01,ges_vor_nf,delpsi)
+  call getpsichi(ges_div_01,ges_div_nf,delchi)
 
 ! Get delta variables
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           deltv(i,j,k) =ges_tv(i,j,k,nfldsig)-ges_tv(i,j,k,1)
+           deltv(i,j,k) =ges_tv_nf(i,j,k)-ges_tv_01(i,j,k)
         end do
      end do
   end do
   do j=1,lon2
      do i=1,lat2
-        delps(i,j) = ges_ps(i,j,nfldsig)-ges_ps(i,j,1)
+        delps(i,j) = ges_ps_nf(i,j)-ges_ps_01(i,j)
      end do
   end do
 
@@ -121,24 +160,6 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
         end do
      end do
   end do
-  if(fpsproj)then
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
-           end do
-        end do
-     end do
-  else
-     do j=1,lon2
-        do i=1,lat2
-           do k=1,nsig-ione
-              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
-           end do
-           balps(i,j)=balps(i,j)+wgvz(i,nsig)*(delchi(i,j,1)-bald(i,j,1))
-        end do
-     end do
-  endif
 
 ! Balanced temperature from delta stream function
   do k=1,nsig
@@ -160,6 +181,35 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
         end do
      end do
   end do
+
+  if(fpsproj)then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+           end do
+        end do
+     end do
+     if(fut2ps)then
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 balps(i,j)=balps(i,j)+pput(i,k)*deltv(i,j,k)
+              end do
+           end do
+        end do
+     endif
+  else
+     do j=1,lon2
+        do i=1,lat2
+           do k=1,nsig-1
+              balps(i,j)=balps(i,j)+wgvz(i,k)*delpsi(i,j,k)
+           end do
+           balps(i,j)=balps(i,j)+wgvz(i,nsig)*delchi(i,j,1)
+        end do
+     end do
+  endif
+
   do j=1,lon2
      do i=1,lat2
         delps(i,j) = delps(i,j) - balps(i,j)
@@ -184,12 +234,8 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 
 ! Smooth the delta fields before computing variance reweighting
-  nsmth=8_i_kind
-  call smooth2d(delpsi,nsig,nsmth,mype)
-  call smooth2d(delchi,nsig,nsmth,mype)
-  call smooth2d(deltv ,nsig,nsmth,mype)
-  call smooth2d(delps ,ione,nsmth,mype)
-
+  nsmth=8
+  call smooth2d(delpsi,delchi,deltv,delps,nsig,nsmth,mype)
 
 ! Get global maximum and mean of each of the delta fields; while accounting for
 ! reproducibility of this kind of calculation 
@@ -197,8 +243,8 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   mean_dps=zero_quad
 
   do k=1,nsig
-     do j=2,lon2-ione
-        do i=2,lat2-ione
+     do j=2,lon2-1
+        do i=2,lat2-1
            mean_dz(k) = mean_dz(k) + delpsi(i,j,k)
            mean_dd(k) = mean_dd(k) + delchi(i,j,k)
            mean_dt(k) = mean_dt(k) + deltv (i,j,k)
@@ -209,8 +255,8 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
         end do
      end do
   end do
-  do j=2,lon2-ione
-     do i=2,lat2-ione
+  do j=2,lon2-1
+     do i=2,lat2-1
         mean_dps = mean_dps + delps(i,j)
         max_dps  = max(max_dps,delps(i,j))
      end do
@@ -237,7 +283,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   call mpi_allreduce(max_dz,max_dz0,nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
   call mpi_allreduce(max_dd,max_dd0,nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
   call mpi_allreduce(max_dt,max_dt0,nsig,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-  call mpi_allreduce(max_dps,max_dps0,ione,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+  call mpi_allreduce(max_dps,max_dps0,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
 
 ! Reintegrate quad precision number and sum over all mpi tasks  
   mean_dz =zero_quad ; mean_dd=zero_quad ; mean_dt=zero_quad
@@ -253,11 +299,11 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 ! Divide by number of grid points to get the mean
   do k=1,nsig
-     mean_dz(k)=mean_dz(k)/count
-     mean_dd(k)=mean_dd(k)/count
-     mean_dt(k)=mean_dt(k)/count
+     mean_dz(k)=mean_dz(k)/fcount
+     mean_dd(k)=mean_dd(k)/fcount
+     mean_dt(k)=mean_dt(k)/fcount
   end do
-  mean_dps = mean_dps/count
+  mean_dps = mean_dps/fcount
 
 ! Load quad precision array back into double precision array for use
   do k=1,nsig
@@ -303,17 +349,14 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
 
 
 ! Smooth background error variances and write out grid
-  nsmth=8_i_kind
-  call smooth2d(sfvar,nsig,nsmth,mype)
-  call smooth2d(vpvar,nsig,nsmth,mype)
-  call smooth2d(tvar,nsig,nsmth,mype)
-  call smooth2d(psvar,ione,nsmth,mype)
-
+  nsmth=8
+  call smooth2d(sfvar,vpvar,tvar,psvar,nsig,nsmth,mype)
+ 
   if (bkgv_write) call write_bkgvars_grid(sfvar,vpvar,tvar,psvar,mype)
+  if(mype==0) write(6,*) 'bkgvar_rewgt: Flow-dependent feature on: nt=',nfldsig, ' minus nt= 1'
 
   return
 end subroutine bkgvar_rewgt
-
 
 subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 !$$$  subprogram documentation block
@@ -328,6 +371,9 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 !   2007-07-03  kleist
 !   2008-06-05  safford - rm unused uses
 !   2008-09-05  lueken - merged ed's changes into q1fy09 code
+!   2010-04-01  treadon - move strip,reorder,reorder2 to gridmod
+!   2012-06-25  parrish - replace strip,reorder,reorder2, mpi_all2allv with
+!                         general_sub2grid/general_grid2sub.
 !
 !   input argument list:
 !     vor       - vorticity on subdomains
@@ -343,13 +389,10 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
-  use gridmod, only: lat2,nsig,iglobal,lon1,itotsub,lon2,lat1,&
-       nlat,nlon,ltosi,ltosj,ltosi_s,ltosj_s
-  use mpimod, only: iscuv_s,ierror,mpi_comm_world,irduv_s,ircuv_s,&
-       isduv_s,isduv_g,iscuv_g,nnnuvlevs,nuvlevs,irduv_g,ircuv_g,mpi_rtype,&
-       strip,reorder,reorder2
-  use specmod, only: ncd2,nc,enn1
+  use constants, only: zero
+  use gridmod, only: lat2,nsig,lon2,nlat,nlon,sp_a,grd_a
+  use general_commvars_mod, only: g3
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   implicit none
 
 ! Declare passed variables
@@ -357,76 +400,60 @@ subroutine getpsichi(vordiv1,vordiv2,dpsichi)
   real(r_kind),dimension(lat2,lon2,nsig),intent(  out) :: dpsichi
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ni1,ni2
+  integer(i_kind) i,ii,j,k
 
-  real(r_kind),dimension(lat1,lon1,nsig):: vordivsm1,vordivsm2
-  real(r_kind),dimension(itotsub,nuvlevs):: work1,work2
-  real(r_kind),dimension(nlat,nlon):: work3
-  real(r_kind),dimension(nc):: spc1
+  real(r_kind),dimension(lat2*lon2*nsig) :: vd1,vd2
+  real(r_kind),dimension(g3%inner_vars,nlat,nlon,g3%kbegin_loc:g3%kend_alloc):: work1,work2
+  real(r_kind),dimension(sp_a%nc):: spc1
 
-  dpsichi=zero 
-
-! Zero out work arrays
-  do k=1,nuvlevs
-     do j=1,itotsub
-        work1(j,k)=zero
-        work2(j,k)=zero
+  ii=0
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           ii=ii+1
+           vd1(ii)=vordiv1(i,j,k)
+           vd2(ii)=vordiv2(i,j,k)
+        end do
      end do
   end do
-
-! Strip off endpoints arrays on subdomains
-  call strip(vordiv1,vordivsm1,nsig)
-  call strip(vordiv2,vordivsm2,nsig)
-  vordivsm1=vordivsm2-vordivsm1
-
-  call mpi_alltoallv(vordivsm1,iscuv_g,isduv_g,&
-       mpi_rtype,work2,ircuv_g,irduv_g,mpi_rtype,&
-       mpi_comm_world,ierror)
-
-! Reorder work arrays
-  call reorder(work2,nuvlevs,nnnuvlevs)
+  call general_sub2grid(g3,vd1,work1)
+  call general_sub2grid(g3,vd2,work2)
+  work1=work2-work1
 
 ! Perform scalar g2s on work array
-  do k=1,nnnuvlevs
+  do k=g3%kbegin_loc,g3%kend_loc
      spc1=zero 
-     work3=zero
-
-     do kk=1,iglobal
-        ni1=ltosi(kk); ni2=ltosj(kk)
-        work3(ni1,ni2)=work2(kk,k)
-     end do
-
-     call g2s0(spc1,work3)
+     call general_g2s0(grd_a,sp_a,spc1,work1(1,:,:,k))
 
 ! Inverse laplacian
-     do i=2,ncd2
-        spc1(2*i-ione)=spc1(2*i-ione)/(-enn1(i))
-        spc1(2*i)=spc1(2*i)/(-enn1(i))
+     do i=2,sp_a%ncd2
+        spc1(2*i-1)=spc1(2*i-1)/(-sp_a%enn1(i))
+        spc1(2*i)=spc1(2*i)/(-sp_a%enn1(i))
      end do
      spc1(1)=zero
      spc1(2)=zero
 
-     work3=zero 
-     call s2g0(spc1,work3)
+     work1(1,:,:,k)=zero 
+     call general_s2g0(grd_a,sp_a,spc1,work1(1,:,:,k))
 
-     do kk=1,itotsub
-        ni1=ltosi_s(kk); ni2=ltosj_s(kk)
-        work1(kk,k)=work3(ni1,ni2)
-     end do
-  end do  !end do nuvlevs
-
-! Reorder the work array for the mpi communication
-  call reorder2(work1,nuvlevs,nnnuvlevs)
+  end do
 
 ! Get psi/chi back on subdomains
-  call mpi_alltoallv(work1,iscuv_s,isduv_s,&
-       mpi_rtype,dpsichi,ircuv_s,irduv_s,mpi_rtype,&
-       mpi_comm_world,ierror)
+  call general_grid2sub(g3,work1,vd1)
+  ii=0
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           ii=ii+1
+           dpsichi(i,j,k)=vd1(ii)
+        end do
+     end do
+  end do
 
   return
 end subroutine getpsichi
 
-subroutine smooth2d(subd,nlevs,nsmooth,mype)
+subroutine smooth2d(subd1,subd2,subd3,subd4,nlevs,nsmooth,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    smooth2d    perform nine point smoother to interior
@@ -437,6 +464,8 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 !
 ! program history log:
 !   2007-07-03  kleist
+!   2012-06-25  parrish - create new version of smooth2d using general_sub2grid/general_grid2sub.
+!   2012-06-25  parrish - remove following subroutine scatter_stuff2 (no longer needed).
 !
 !   input argument list:
 !     subd      - field to be smoothed on subdomains
@@ -454,20 +483,61 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
 !$$$
   use gridmod,only: nlat,nlon,lat2,lon2
   use kinds,only: r_kind,i_kind
-  use constants, only: izero,ione,zero,half,one,two,three,four
+  use constants, only: zero,half,one,two,three,four
+  use general_commvars_mod, only: g33p1
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   implicit none
 
   integer(i_kind),intent(in   ) :: nlevs,mype,nsmooth
-  real(r_kind)   ,intent(inout) :: subd(lat2,lon2,nlevs)
+  real(r_kind)   ,intent(inout) :: subd1(lat2,lon2,nlevs)
+  real(r_kind)   ,intent(inout) :: subd2(lat2,lon2,nlevs)
+  real(r_kind)   ,intent(inout) :: subd3(lat2,lon2,nlevs)
+  real(r_kind)   ,intent(inout) :: subd4(lat2,lon2)
 
-  real(r_kind),dimension(nlat,nlon):: grd
-  real(r_kind),dimension(nlat,0:nlon+ione):: grd2
+  real(r_kind),dimension(g33p1%inner_vars,lat2,lon2,g33p1%num_fields)::worksub
+  real(r_kind),dimension(g33p1%inner_vars,nlat,nlon,g33p1%kbegin_loc:g33p1%kend_alloc)::grd
+  real(r_kind),dimension(nlat,0:nlon+1):: grd2
   real(r_kind) corn,cent,side,temp,c2,c3,c4,rterm,sums,sumn
-  integer i,j,k,n,workpe
-
-  workpe=izero
+  integer i,j,k,kk,n
 
 ! Get subdomains on the grid
+  kk=0
+  do k=1,nlevs
+     kk=kk+1
+     do j=1,lon2
+        do i=1,lat2
+           worksub(1,i,j,kk)=subd1(i,j,k)
+        end do
+     end do
+  end do
+  do k=1,nlevs
+     kk=kk+1
+     do j=1,lon2
+        do i=1,lat2
+           worksub(1,i,j,kk)=subd2(i,j,k)
+        end do
+     end do
+  end do
+  do k=1,nlevs
+     kk=kk+1
+     do j=1,lon2
+        do i=1,lat2
+           worksub(1,i,j,kk)=subd3(i,j,k)
+        end do
+     end do
+  end do
+  kk=kk+1
+  if(kk/=g33p1%num_fields) then
+     if(mype==0) write(6,*)' 3*nlevs+1 /= g33p1%num_fields in smooth2d, program stops'
+     call stop2(99)
+  end if
+     do j=1,lon2
+        do i=1,lat2
+           worksub(1,i,j,kk)=subd4(i,j)
+        end do
+     end do
+
+  call general_sub2grid(g33p1,worksub,grd)
 
 ! Set weights for nine point smoother
   corn=0.3_r_kind
@@ -479,55 +549,88 @@ subroutine smooth2d(subd,nlevs,nsmooth,mype)
   rterm = one/(cent + c4*side + c4*corn)
 
 
-  do k=1,nlevs
-     call gather_stuff2(subd(1,1,k),grd,mype,workpe)
- 
-     if (mype==workpe) then
+  do k=g33p1%kbegin_loc,g33p1%kend_loc
+
 ! Do nsmooth number of passes over the 9pt smoother
         do n=1,nsmooth
 
 ! Load grd2 which is used in computing the smoothed fields
            do j=1,nlon
               do i=1,nlat
-                 grd2(i,j)=grd(i,j)
+                 grd2(i,j)=grd(1,i,j,k)
               end do
            end do
 
 ! Load longitude wrapper rows
            do i=1,nlat
-              grd2(i,0)=grd(i,nlon)
-              grd2(i,nlon+ione)=grd(i,1)
+              grd2(i,0)=grd(1,i,nlon,k)
+              grd2(i,nlon+1)=grd(1,i,1,k)
            end do
 
 ! special treatment for near-poles
            sumn=zero
            sums=zero
            do i=1,nlon
-              sumn=sumn+grd2(nlat-ione,i)
+              sumn=sumn+grd2(nlat-1,i)
               sums=sums+grd2(2,i)
            end do
            sumn=sumn/(real(nlon,r_kind))
            sums=sums/(real(nlon,r_kind))
-           do i=0,nlon+ione
+           do i=0,nlon+1
               grd2(nlat,i)=sumn
               grd2(1,i)=sums
            end do
 ! Perform smoother on interior 
            do j=1,nlon
-              do i=2,nlat-ione
-                 temp = cent*grd2(i,j) + side*(grd2(i+ione,j) + &
-                    grd2(i-ione,j) + grd2(i,j+ione) + grd2(i,j-ione)) + &
-                    corn*(grd2(i+ione,j+ione) + grd2(i+ione,j-ione) + grd2(i-ione,j-ione) + &
-                    grd2(i-ione,j+ione))
-                 grd(i,j) = temp*rterm
+              do i=2,nlat-1
+                 temp = cent*grd2(i,j) + side*(grd2(i+1,j) + &
+                    grd2(i-1,j) + grd2(i,j+1) + grd2(i,j-1)) + &
+                    corn*(grd2(i+1,j+1) + grd2(i+1,j-1) + grd2(i-1,j-1) + &
+                    grd2(i-1,j+1))
+                 grd(1,i,j,k) = temp*rterm
               end do
            end do
         end do    ! n smooth number of passes
-     end if    ! mype
-     call scatter_stuff2(grd,subd(1,1,k),mype,workpe)
   end do  ! k levs
 
 ! Get back on subdomains
+  call general_grid2sub(g33p1,grd,worksub)
+
+  kk=0
+  do k=1,nlevs
+     kk=kk+1
+     do j=1,lon2
+        do i=1,lat2
+           subd1(i,j,k)=worksub(1,i,j,kk)
+        end do
+     end do
+  end do
+  do k=1,nlevs
+     kk=kk+1
+     do j=1,lon2
+        do i=1,lat2
+           subd2(i,j,k)=worksub(1,i,j,kk)
+        end do
+     end do
+  end do
+  do k=1,nlevs
+     kk=kk+1
+     do j=1,lon2
+        do i=1,lat2
+           subd3(i,j,k)=worksub(1,i,j,kk)
+        end do
+     end do
+  end do
+  kk=kk+1
+  if(kk/=g33p1%num_fields) then
+     if(mype==0) write(6,*)' 3*nlevs+1 /= g33p1%num_fields in smooth2d, program stops'
+     call stop2(99)
+  end if
+     do j=1,lon2
+        do i=1,lat2
+           subd4(i,j)=worksub(1,i,j,kk)
+        end do
+     end do
 
   return
 end subroutine smooth2d
@@ -543,6 +646,8 @@ subroutine gather_stuff2(f,g,mype,outpe)
 !
 ! program history log:
 !   2007-07-03  kleist
+!   2010-04-01  treadon - move strip and reorder to gridmod
+!   2010-06-02  kokron - protect my reorder & copy to work on outpe only
 !
 !   input argument list:
 !     f        - field on subdomains
@@ -558,100 +663,48 @@ subroutine gather_stuff2(f,g,mype,outpe)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
-  use gridmod, only: iglobal,itotsub,nlat,nlon,lat1,lon1,lat2,lon2,ijn,displs_g,&
-     ltosi,ltosj
-  use mpimod, only: mpi_rtype,mpi_comm_world,ierror,strip,reorder
+  use mpimod, only: mpi_rtype,mpi_comm_world,ierror
+  use general_commvars_mod, only: g1
   implicit none
 
   integer(i_kind),intent(in   ) :: mype,outpe
-  real(r_kind)   ,intent(in   ) :: f(lat2,lon2)
-  real(r_kind)   ,intent(  out) :: g(nlat,nlon)
+  real(r_kind)   ,intent(in   ) :: f(g1%lat2,g1%lon2)
+  real(r_kind)   ,intent(  out) :: g(g1%nlat,g1%nlon)
 
-  real(r_kind) fsm(lat1,lon1)
+  real(r_kind) fsm(g1%lat1,g1%lon1)
   real(r_kind),allocatable:: tempa(:)
-  integer(i_kind) i,ii,isize,j
+  integer(i_kind) i,isize,j,ioffset,ilat,jlon,n,i0,j0,iloc,iskip
 
-  isize=max(iglobal,itotsub)
+  isize=max(g1%iglobal,g1%itotsub)
   allocate(tempa(isize))
 
 ! Strip off endpoints of input array on subdomains
 
-  call strip(f,fsm,ione)
-  call mpi_gatherv(fsm,ijn(mype+ione),mpi_rtype, &
-                  tempa,ijn,displs_g,mpi_rtype,outpe,mpi_comm_world,ierror)
-  call reorder(tempa,ione,ione)
-
-  do ii=1,iglobal
-     i=ltosi(ii)
-     j=ltosj(ii)
-     g(i,j)=tempa(ii)
+  do j=2,g1%lon2-1
+     j0=j-1
+     do i=2,g1%lat2-1
+        i0=i-1
+        fsm(i0,j0)=f(i,j)
+     end do
   end do
+  call mpi_gatherv(fsm,g1%ijn(mype+1),mpi_rtype, &
+                  tempa,g1%ijn,g1%displs_g,mpi_rtype,outpe,mpi_comm_world,ierror)
 
+  if(mype==outpe) then
+     iskip=0
+     iloc=0
+     do n=1,g1%npe
+        ioffset=iskip
+        do i=1,g1%ijn(n)
+           iloc=iloc+1
+           ilat=g1%ltosi(iloc)
+           jlon=g1%ltosj(iloc)
+           g(ilat,jlon)=tempa(i+ioffset)
+        end do
+        iskip=iskip+g1%ijn(n)
+     end do
+  endif
 
   deallocate(tempa)
 
 end subroutine gather_stuff2
-
-subroutine scatter_stuff2(g,f,mype,inpe)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    scatter_stuff2    scatter global slabs to subdomains
-!   prgmmr: kleist           org: np22                date: 2007-07-03
-!
-! abstract: perform communication necessary to scatter global slabs
-!           onto the subdomains
-!
-! program history log:
-!   2007-07-03  kleist
-!   2008-06-05  safford - rm unused uses
-!   2008-09-05  lueken - merged ed's changes into q1fy09 code
-!
-!   input argument list:
-!     g        - field on global slabs
-!     mype     - mpi integer task id
-!     inpe     - task which contains slab
-!
-!   output argument list:
-!     f        - field on subdomains
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use kinds, only: r_kind,i_kind
-  use constants, only: ione
-  use gridmod, only: iglobal,itotsub,nlat,nlon,lat2,lon2,ijn_s,displs_s,&
-     ltosi_s,ltosj_s
-  use mpimod, only: mpi_rtype,mpi_comm_world,ierror
-  implicit none
-
-  integer(i_kind),intent(in   ) :: mype,inpe
-
-  real(r_kind)   ,intent(in   ) :: g(nlat,nlon)
-  real(r_kind)   ,intent(  out) :: f(lat2,lon2)
-
-  real(r_kind),allocatable:: tempa(:)
-  integer(i_kind) i,ii,isize,j,mm1
-
-  isize=max(iglobal,itotsub)
-  allocate(tempa(isize))
-
-  mm1=mype+ione
-
-  if (mype==inpe) then
-     do ii=1,itotsub
-        i=ltosi_s(ii) ; j=ltosj_s(ii)
-        tempa(ii)=g(i,j)
-     end do
-  end if
-
-  call mpi_scatterv(tempa,ijn_s,displs_s,mpi_rtype,&
-       f,ijn_s(mm1),mpi_rtype,inpe,mpi_comm_world,ierror)
-
-  deallocate(tempa)
-
-  return
-end subroutine scatter_stuff2
-

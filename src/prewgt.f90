@@ -48,6 +48,27 @@ subroutine prewgt(mype)
 !   2008-04-23  safford - rm unused uses and vars
 !   2008-07-30  guo     - read stats using m_berror_stats
 !   2009-01-12  gayno   - rm use of read_gfssfc_full
+!   2010-02-25  zhu     - mv varq to m_berror_stats
+!                       - make changes for generalizing control variables,
+!                         change interface of berror_read_wgt,use nrf*
+!   2010-04-01  treadon - move strip to gridmod
+!   2010-04-10  parrish - remove rhgues, no longer needed
+!   2010-05-28  todling - obtain variable id's on the fly (add getindex)
+!   2010-06-01  todling - bypass calculation when pointer not defined
+!                         sort of generalize pert_berr
+!                         rename as,tsfc_sdv to as3d,as2d,atsfc_sdv (alloc now)
+!   2010-06-03  todling - protect motley in dssvs w/ mvars check
+!                       - turn nrf2_loc/nrf3_loc into local variables
+!   2010-06-18  todling - add call to write_bkgvars_grid and write_bkgvars2_grid
+!   2010-07-07  kokron/todling - fix definition of hwllp to do sfc-only
+!   2011-07-03  todling - calculation of bl and bl2 must be done in double-prec
+!                         or GSI won'd work when running in single precision; go figure!
+!   2012-05-14  wargan - add adjustozvar
+!   2012-11-26  parrish - move subroutine blend to module blendmod.f90, and add "use blendmod, only: blend"
+!   2013-10-19  todling - all guess variables in met-guess
+!   2013-10-25  todling - reposition ltosi and others to commvars
+!   2014-02-01  todling - update interface to berror_read_wgt
+!   2014-02-05  mkim/todling - move cw overwrite w/ q to m_berror_stats
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -60,21 +81,33 @@ subroutine prewgt(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,i_kind,r_single
-  use berror, only: dssvp,dssvt,wtaxs,&
-       bw,wtxrs,inaxs,inxrs,as,nr,ny,nx,mr,ndeg,&
+  use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
+  use berror, only: dssvs,wtaxs,&
+       bw,wtxrs,inaxs,inxrs,nr,ny,nx,mr,ndeg,&
        nf,vs,be,dssv,norh,bl2,bl,init_rftable,hzscl,&
-       pert_berr,bkgv_flowdep,tsfc_sdv,slw,slw1,slw2
+       pert_berr,bkgv_flowdep,slw,slw1,slw2,bkgv_write,nhscrf,&
+       adjustozvar
   use m_berror_stats,only : berror_read_wgt
   use mpimod, only: nvar_id,levs_id
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
-  use jfunc, only: qoption,varq
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+  use jfunc, only: varq,qoption
+  use control_vectors, only: cvars2d,cvars3d
+  use control_vectors, only: cvars => nrf_var
+  use control_vectors, only: as2d,as3d,atsfc_sdv
+  use control_vectors, only: nrf,nc2d,nc3d,mvars
   use gridmod, only: istart,jstart,lat2,lon2,rlats,nlat,nlon,nsig,&
-       nnnn1o,lat1,lon1,itotsub,iglobal,ltosi,ltosj,ijn,displs_g
-  use constants, only: izero,ione,zero,quarter,half,one,two,three,&
-       rearth_equator,pi,r1000
+       nnnn1o,lat1,lon1,itotsub,iglobal,ijn,displs_g,&
+       strip
+  use general_commvars_mod, only: ltosi,ltosj
+  use constants, only: zero,quarter,half,one,two,three,&
+       rearth_equator,pi,r1000,r400
   use guess_grids, only: isli2
+  use guess_grids, only: ntguessig
   use smooth_polcarf, only: norsp,setup_smooth_polcas
+  use mpeu_util, only: getindex
+  use blendmod, only: blend
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
 
   implicit none
 
@@ -82,46 +115,52 @@ subroutine prewgt(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) nrr,iii,jjj,nxg,i2,im,jm,j2
-  integer(i_kind) i,j,k,nbuf,nmix,nxe,nor,ndx,ndy
+  integer(i_kind) n,nrr,iii,jjj,nxg,i2,im,jm,j2
+  integer(i_kind) i,j,k,ii,nn,nbuf,nmix,nxe,nor,ndx,ndy
   integer(i_kind) nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
-  integer(i_kind) kd,kt,kq,kc,koz,nf2p
+  integer(i_kind) kd,kt,kq,kc,koz,nf2p,istatus
   integer(i_kind),dimension(0:40):: iblend
+  integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst
+  integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   real(r_kind) wlipi,wlipih,df
-  real(r_kind) samp,y,s2u,x,dxx,df2,pi2
+  real(r_kind) samp,s2u,df2,pi2
+  real(r_quad) y,x,dxx
   real(r_kind),dimension(ndeg):: rate
   real(r_kind),dimension(ndeg,ndeg):: turn
-  real(r_kind),dimension(nsig,0:nlat+ione):: vz,vd,vt,vq,voz,vcwm
-  real(r_kind),dimension(0:nlat+ione,nsig,5):: hwll
   real(r_kind),dimension(lat2,lon2)::temp
-  real(r_kind),dimension(0:nlat+ione):: hwllp
   real(r_kind),dimension(nlat,nlon):: sl,factx
   real(r_kind),dimension(-nf:nf,-nf:nf) :: fact1,fact2
-  real(r_kind),dimension(mr:nlat-2_i_kind):: rs
+  real(r_kind),dimension(mr:nlat-2):: rs
   real(r_kind),dimension(lat1*lon1)::zsm
   real(r_kind),dimension(itotsub)::work1
   real(r_kind),dimension(ny,nx,3):: scsli
   real(r_kind),dimension(-nf:nf,-nf:nf,3):: scs12
-  real(r_single),dimension(nlat,nsig):: corz,cord,corh,corq,corc,corq2,coroz
-  real(r_single),dimension(nlat):: corp
   real(r_single),dimension(nlat,nlon):: corsst
+  real(r_kind),dimension(lon2,nsig):: dsv
   real(r_single) hsstmin
-  real(r_kind) minhsst,corq2x
+  real(r_kind) minhsst
+  real(r_kind) my_corz
   real(r_kind),allocatable:: randfct(:)
   real(r_kind),allocatable,dimension(:,:,:,:):: sli,sli1,sli2
 
-  real(r_single),dimension(nlat,nsig*6+ione):: hwllin
-  real(r_single),dimension(nlat,nlon):: hsst
-  real(r_single),dimension(nlat,nsig*6):: vscalesin
+  real(r_kind),allocatable,dimension(:,:,:):: vz
+  real(r_kind),allocatable,dimension(:,:,:):: hwll
+  real(r_kind),allocatable,dimension(:,:)  :: hwllp
+
+  real(r_single),allocatable,dimension(:,:,:):: corz
+  real(r_single),allocatable,dimension(:,:,:):: hwllin
+  real(r_single),allocatable,dimension(:,:,:):: vscalesin
+  real(r_single),allocatable,dimension(:,:)  :: corp
+  real(r_single),allocatable,dimension(:,:)  :: hwllinp
+  real(r_single),allocatable,dimension(:,:)  :: hsst
 
   real(r_kind),dimension(lat2,lon2,nsig):: sfvar,vpvar,tvar
   real(r_kind),dimension(lat2,lon2):: psvar
-
+  real(r_kind),dimension(:,:,:),pointer :: ges_oz=>NULL()
 ! real(r_kind),parameter:: eight_tenths = 0.8_r_kind
 ! real(r_kind),parameter:: six          = 6.0_r_kind
-! real(r_kind),parameter:: r400         = 400.0_r_kind
 ! real(r_kind),parameter:: r800         = 800.0_r_kind
 ! real(r_kind),parameter:: r40000       = 40000.0_r_kind
 ! real(r_kind),parameter:: r25          = one/25.0_r_kind
@@ -131,53 +170,91 @@ subroutine prewgt(mype)
   ndy=(nlat-ny)/2
   nxe=nlon/8
   nor=norh*2
-  mm1=mype+ione
+  mm1=mype+1
   nlathh=nlat/4
-  nf2p=2*nf+ione
+  nf2p=2*nf+1
 
+  if(nc2d>0) then
+     allocate(hwllp(0:nlat+1,nc2d))
+     allocate(corp(nlat,nc2d))
+     allocate(hwllinp(nlat,nc2d))
+  endif
+
+  if(nc3d>0)then
+     allocate(vz(nsig,0:nlat+1,nc3d))
+     allocate(hwll(0:nlat+1,nsig,nc3d))
+     allocate(corz(nlat,nsig,nc3d))
+     allocate(hwllin(nlat,nsig,nc3d))
+     allocate(vscalesin(nsig,nlat,nc3d))
+  endif
+
+  allocate(hsst(nlat,nlon))
+
+! Get indexes to required CV variables
+  nrf3_oz   = getindex(cvars3d,'oz')
+  nrf3_t    = getindex(cvars3d,'t')
+  nrf3_sf   = getindex(cvars3d,'sf')
+  nrf3_vp   = getindex(cvars3d,'vp')
+  nrf3_q    = getindex(cvars3d,'q')
+  nrf2_ps   = getindex(cvars2d,'ps')
+  nrf2_sst  = getindex(cvars2d,'sst')
+! nrf2_stl  = getindex(cvarsmd,'stl')
+! nrf2_sti  = getindex(cvarsmd,'sti')
 
 ! Setup blending
-  mm=4_i_kind
+  mm=4
   call blend(mm,iblend)
 
-  nolp=nr+ione+(ny-nlat)/2
+  nolp=nr+1+(ny-nlat)/2
 !  nbuf=nolp/4
-  nbuf=izero
+  nbuf=0
   nmix=nolp-nbuf*2
-  dxx=one/(nmix+ione)
-  bl2=zero
-  k=izero
+  dxx=1._r_quad/real((nmix+1),r_quad)
+  bl2=0._r_kind
+  k=0
   do i=1,nmix
-     k=k+ione
+     k=k+1
      x=i*dxx
-     y=zero
-     y=iblend(mm)
-     do j=mm-ione,0,-1
-        y=x*y+iblend(j)
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
+     do j=mm-1,0,-1
+        y=x*y+real(iblend(j),r_quad)
      enddo
-     y=y*x**(mm+ione)
-     bl2(k)=one-y
+     y=y*x**(mm+1)
+     bl2(k)=1._r_quad-y
   enddo
+  if(minval(bl2)<zero) then
+     write(6,*) 'prewgt: trouble bl2 coeffs negative ', bl2
+     call stop2(99)
+  endif
   do k=1,nmix    
     bl2(k)=sqrt(bl2(k))
   end do
   
+! Modify precision to be consistent with bl2 for higher res grids
+! ** NOTE ** bl and bl2 are actually defined to be r_kind
+! 
   nmix=(nx-nlon)
-  dxx=one/(nmix+ione)
+  dxx=1._r_quad/real((nmix+1),r_quad)
   ndx=(nx-nlon)
-  bl=zero
+  bl=0._r_kind
   k=ndx-nmix
   do i=1,nmix
-     k=k+ione
-     x=i*dxx
-     y=zero
-     y=iblend(mm)
-     do j=mm-ione,0,-1
-        y=x*y+iblend(j)
+     k=k+1
+     x=real(i,r_quad)*dxx
+     y=0._r_quad
+     y=real(iblend(mm),r_quad)
+     do j=mm-1,0,-1
+        y=x*y+real(iblend(j),r_quad)
      enddo
-     y=y*x**(mm+ione)
-     bl(k)=one-y
+     y=y*x**real((mm+1),r_quad)
+     bl(k)=1._r_quad-y
   enddo
+
+  if(minval(bl)<zero) then
+     write(6,*) 'prewgt: trouble bl coeffs negative ', bl
+     call stop2(99)
+  endif
   do k=1,nmix
      bl(k)=sqrt(bl(k))
   end do
@@ -194,7 +271,7 @@ subroutine prewgt(mype)
         end do
      end do
 
-     call strip(temp,zsm,ione)
+     call strip(temp,zsm)
 
      call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
         work1,ijn,displs_g,mpi_rtype,&
@@ -212,7 +289,7 @@ subroutine prewgt(mype)
            if(sl(i,j) > one)sl(i,j)=zero
         enddo
      enddo
-     call smoothww(nlat,nlon,sl,half,2_i_kind,ione)
+     call smoothww(nlat,nlon,sl,half,2,1)
      do j=1,nlon
         do i=1,nlat
            sl(i,j)=min(max(sl(i,j),zero),one)
@@ -221,31 +298,27 @@ subroutine prewgt(mype)
   end if
 
 ! Get background error statistics from a file ("berror_stats").
-  call berror_read_wgt(corz,cord,corh,corq,corq2,coroz,corc,corp,&
-    hwllin,vscalesin,corsst,hsst,mype)
+  call berror_read_wgt(corz,corp,hwllin,hwllinp,vscalesin,corsst,hsst,varq,qoption,mype)
   mlat=nlat
 
-
 ! load the horizontal length scales
-  do k=1,nsig
-     kd=nsig+k
-     kt=nsig*2+k
-     kq=nsig*3+k
-     koz=nsig*4+k
-     do i=1,nlat
-        hwll(i,k,1)=hwllin(i,k)
-        hwll(i,k,2)=hwllin(i,kd)
-        hwll(i,k,3)=hwllin(i,kt)
-        hwll(i,k,4)=hwllin(i,kq)
-        hwll(i,k,5)=hwllin(i,koz)*three   !inflate scale
+  hwll=zero
+  do j=1,nc3d
+     do k=1,nsig
+        do i=1,nlat
+           hwll(i,k,j)=hwllin(i,k,j)
+        end do
      end do
   end do
+  if(nrf3_oz>0) hwll(:,:,nrf3_oz)=hwll(:,:,nrf3_oz)*three   !inflate scale
 
 ! surface pressure
-  k=nsig*6+ione
-  do i=1,nlat
-     hwllp(i)=hwllin(i,k)
-  end do
+  hwllp=zero
+  if(nrf2_ps>0) then
+     do i=1,nlat
+        hwllp(i,nrf2_ps)=hwllinp(i,nrf2_ps)
+     end do
+  endif
 
 
 ! sea surface temperature, convert from km to m
@@ -265,18 +338,23 @@ subroutine prewgt(mype)
 ! perturb background error
 ! Things to perturb: as(1-8), hzscl(1-3) and vs(1)
   if (pert_berr) then
-     allocate(randfct(12))
+     allocate(randfct(nc2d+nc3d+3+1))
 
-     call get_randoms(12_i_kind,randfct)
-     do i=1,8
-        as(i)=as(i)+as(i)*randfct(i)
+     call get_randoms(nc2d+nc3d+3+1,randfct)
+     do i=1,nc3d
+        as3d(i)=as3d(i)+as3d(i)*randfct(i)
      end do
-     do i=1,3
-        hzscl(i)=hzscl(i)+hzscl(i)*randfct(8_i_kind+i)
+     ii=nc3d
+     do i=1,nc2d
+        ii=ii+1
+        as2d(i)=as2d(i)+as2d(i)*randfct(ii)
      end do
-     vs=vs+vs*randfct(12)
-     if (mype==izero) then
-        write(6,*) 'PREWGT: REDEFINE AS = ',as
+     do i=1,nhscrf
+        hzscl(i)=hzscl(i)+hzscl(i)*randfct(nc2d+nc3d+i)
+     end do
+     vs=vs+vs*randfct(nc2d+nc3d+3+1)
+     if (mype==0) then
+        write(6,*) 'PREWGT: REDEFINE AS = ',as3d,as2d
         write(6,*) 'PREWGT: REDEFINE HZSCL = ',hzscl
         write(6,*) 'PREWGT: REDEFINE VS = ',vs
      end if
@@ -286,7 +364,7 @@ subroutine prewgt(mype)
 ! As used in the code, the horizontal length scale
 ! parameters are used in an inverted form.  Invert
 ! the parameter values here.
-  do i=1,3
+  do i=1,nhscrf
      hzscl(i)=one/hzscl(i)
   end do
 ! apply scaling (deflate/inflate) to vertical length scales
@@ -294,122 +372,150 @@ subroutine prewgt(mype)
   vs=one/vs
 
 ! Initialize full array to zero before loading part of array below
-  do i=0,nlat+ione
-     do k=1,nsig
-        vz(k,i)=zero
-        vd(k,i)=zero
-        vt(k,i)=zero
-        vq(k,i)=zero
-        voz(k,i)=zero
-        vcwm(k,i)=zero
-     end do
-  end do
+  vz=zero
 
 ! load vertical length scales
-  do k=1,nsig
-     do i=1,nlat
-        kd=nsig+k
-        kt=nsig*2+k
-        kq=nsig*3+k
-        koz=nsig*4+k
-        kc=nsig*5+k
-        vz(k,i)=vs*vscalesin(i,k)
-        vd(k,i)=vs*vscalesin(i,kd)
-        vt(k,i)=vs*vscalesin(i,kt)
-        vq(k,i)=vs*vscalesin(i,kq)
-        voz(k,i)=vs*vscalesin(i,koz)
-        vcwm(k,i)=vs*vscalesin(i,kc)
+  do j=1,nc3d
+     do k=1,nsig
+        do i=1,nlat
+           vz(k,i,j)=vs*vscalesin(k,i,j)
+        end do
      end do
   end do
-  vcwm=vq   ! for now use q error for cwm
 
   call rfdpar1(be,rate,ndeg)
   call rfdpar2(be,rate,turn,samp,ndeg)
 
-  if(qoption==2_i_kind)then
-     do k=1,nsig
-        do j=1,mlat
-           corq2x=corq2(j,k)
-           varq(j,k)=min(max(corq2x,0.0015_r_kind),one)
-        enddo
-     enddo
-     do k=1,nsig
-        do j=1,nlat
-           corq(j,k)=one
-        end do
-     end do
-  endif
-
 ! Load background error variances onto subdomains
-  do k=1,nsig
-     do i=1,lat2
-        ix=istart(mm1)+i-2_i_kind
-        ix=max(ix,2_i_kind)
-        ix=min(nlat-ione,ix)
-        do j=1,lon2
-           sfvar(i,j,k)=corz(ix,k)
-           vpvar(i,j,k)=cord(ix,k)
-           tvar(i,j,k)=corh(ix,k)
+  if(nrf3_sf>0.and.nrf3_vp>0) then
+     do k=1,nsig
+        do i=1,lat2
+           ix=istart(mm1)+i-2
+           ix=max(ix,2)
+           ix=min(nlat-1,ix)
+           do j=1,lon2
+              sfvar(i,j,k)=corz(ix,k,nrf3_sf)
+              vpvar(i,j,k)=corz(ix,k,nrf3_vp)
+           end do
         end do
      end do
-  end do
-
-  do i=1,lat2
-     ix=istart(mm1)+i-2_i_kind
-     ix=max(ix,2_i_kind)
-     ix=min(nlat-ione,ix)
-     do j=1,lon2
-        psvar(i,j)=corp(ix)
+  end if
+  if(nrf3_t>0) then
+     do k=1,nsig
+        do i=1,lat2
+           ix=istart(mm1)+i-2
+           ix=max(ix,2)
+           ix=min(nlat-1,ix)
+           do j=1,lon2
+              tvar(i,j,k)=corz(ix,k,nrf3_t)
+           end do
+        end do
      end do
-  end do
+  end if
+
+  if(nrf2_ps>0) then
+     do i=1,lat2
+        ix=istart(mm1)+i-2
+        ix=max(ix,2)
+        ix=min(nlat-1,ix)
+        do j=1,lon2
+           psvar(i,j)=corp(ix,nrf2_ps)
+        end do
+     end do
+  end if
 
 ! Reweight the variances based on flow dependence if flag set
-  if (bkgv_flowdep)  call bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
+  if (bkgv_flowdep) then
+      call bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
+  else
+      if (bkgv_write) call write_bkgvars_grid(sfvar,vpvar,tvar,psvar,mype)
+  endif
 
 ! vertical length scales
-!$omp parallel do  schedule(dynamic,1) private(i,k,j,jx,ix)
-  do j=1,lat2         
-     jx=istart(mm1)+j-2_i_kind
-     jx=max(jx,2_i_kind)
-     jx=min(nlat-ione,jx)
-     call smoothzo(vz(1,jx),samp,rate,ione,j)
-     call smoothzo(vd(1,jx),samp,rate,2_i_kind,j)
-     call smoothzo(vt(1,jx),samp,rate,3_i_kind,j)
-     call smoothzo(vq(1,jx),samp,rate,4_i_kind,j)
-     call smoothzo(voz(1,jx),samp,rate,5_i_kind,j)
-     call smoothzo(vcwm(1,jx),samp,rate,6_i_kind,j)
-!    load variances onto subdomains
-     do k=1,nsig
-        do i=1,lon2
-           dssv(1,j,i,k)=dssv(1,j,i,k)*sfvar(j,i,k)*as(1)    ! streamfunction
-           dssv(2,j,i,k)=dssv(2,j,i,k)*vpvar(j,i,k)*as(2)    ! velocity potential
-           dssv(3,j,i,k)=dssv(3,j,i,k)*tvar(j,i,k)*as(4)     ! temperature
+!!!$omp parallel do  schedule(dynamic,1) private(i,n,k,j,jx,ix,loc,dsv)
+  do n=1,nc3d
+     do j=1,lat2         
+        jx=istart(mm1)+j-2
+        jx=max(jx,2)
+        jx=min(nlat-1,jx)
+        call smoothzo(vz(1,jx,n),samp,rate,n,j,dsv)
 
-           dssv(4,j,i,k)=dssv(4,j,i,k)*corq(jx,k)*as(5)      ! specific humidity
-           dssv(5,j,i,k)=dssv(5,j,i,k)*coroz(jx,k)*as(6)     ! ozone
-           dssv(6,j,i,k)=dssv(6,j,i,k)*corc(jx,k)*as(8)      ! cloud condensate mixing ratio
-        enddo
-     enddo
-
-     do i=1,lon2
-        dssvp(j,i)=psvar(j,i)*as(3)             ! surface pressure
-
-        if(isli2(j,i) == ione)then
-          dssvt(j,i,2)= tsfc_sdv(1)               ! land surface temperature
-        else if(isli2(j,i) == 2_i_kind)then
-          dssvt(j,i,3)= tsfc_sdv(2)               ! ice surface temperature
+!       load variances onto subdomains
+        if (n==nrf3_sf) then
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*sfvar(j,i,k)*as3d(n)   ! streamfunction
+              end do
+           end do
+        else if (n==nrf3_vp) then
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*vpvar(j,i,k)*as3d(n)   ! velocity potential
+              end do
+           end do
+        else if (n==nrf3_t) then
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*tvar(j,i,k)*as3d(n)    ! temperature
+              end do
+           end do
+        else if (n==nrf3_oz.and.adjustozvar) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'oz',ges_oz,istatus)
+           if (istatus==0) then
+              do k=1,nsig
+                 do i=1,lon2
+                    my_corz = max(ges_oz(j,i,k),0.000000002_r_kind)
+                    ! Reduce weight in the stratosphere
+                    if (my_corz .gt. 0.0000001_r_kind) my_corz = my_corz/4.0 
+                    dssv(j,i,k,n)=dsv(i,k)*my_corz*as3d(n)   ! ozone
+                 end do
+              end do
+           endif
         else
-          ix=jstart(mm1)+i-2_i_kind
-          if (ix==izero) ix=nlon
-          ix=max(ix,ione)
-          if (ix==nlon+ione) ix=ione
-          ix=min(nlon,ix)
-          dssvt(j,i,1)=corsst(jx,ix)*as(7)        ! sea surface temperature
+           do k=1,nsig
+              do i=1,lon2
+                 dssv(j,i,k,n)=dsv(i,k)*corz(jx,k,n)*as3d(n)
+              end do
+           end do
         end if
-
-     end do
+    enddo
   end do
 
+! Special case of dssv for qoption=2
+  if (qoption==2) call compute_qvar3d
+
+!!!$omp parallel do  schedule(dynamic,1) private(i,n,j,jx,ix,loc)
+  do n=1,nc2d
+     if (n==nrf2_ps) then
+        do j=1,lat2         
+           do i=1,lon2
+              dssvs(j,i,n)=psvar(j,i)*as2d(n)             ! surface pressure
+           end do
+        end do
+     else if (n==nrf2_sst) then
+        do j=1,lat2         
+           do i=1,lon2
+              if(mvars>=2 .and. isli2(j,i)==1)then
+                 dssvs(j,i,nc2d+1)= atsfc_sdv(1)          ! land surface temperature
+              else if(mvars>=2 .and. isli2(j,i)==2)then
+                 dssvs(j,i,nc2d+2)= atsfc_sdv(2)          ! ice surface temperature
+              else
+                 jx=istart(mm1)+j-2
+                 jx=max(jx,2)
+                 jx=min(nlat-1,jx)
+                 ix=jstart(mm1)+i-2
+                 if (ix==0) ix=nlon
+                 ix=max(ix,1)
+                 if (ix==nlon+1) ix=1
+                 ix=min(nlon,ix)
+                 dssvs(j,i,n)=corsst(jx,ix)*as2d(n)        ! sea surface temperature
+              end if
+           end do
+        end do
+     end if
+  end do
+
+  if (bkgv_write) call write_bkgvars2_grid
 
 ! distance of gaussian lat from pole on stereogaphic map
 ! r=r/(1+z)
@@ -422,29 +528,29 @@ subroutine prewgt(mype)
   call setwts(wtaxs,wtxrs,inaxs,inxrs,rs,df,nor,nxe,nf,mr,nr)
 
 ! set up smooth_polcas if desired (norsp > 0)
-  if(norsp>izero) call setup_smooth_polcas
+  if(norsp>0) call setup_smooth_polcas
 
 ! load arrays which are in correct units, to be used to
 ! define the scales below
   do j=1,nlon
-     do i=2,nlat-ione
+     do i=2,nlat-1
         factx(i,j)=one/(one+(one-sl(i,j))*bw)
      end do
      factx(1,j)=factx(2,j)
-     factx(nlat,j)=factx(nlat-ione,j)
+     factx(nlat,j)=factx(nlat-1,j)
   end do
 
   wlipi=nlon/pi2
   wlipih=nlon/pi2*half*samp*samp
   do j=1,nx
      jjj=j-ndx
-     if(jjj<ione)jjj=nlon+jjj
+     if(jjj<1)jjj=nlon+jjj
      if(jjj>nlon)jjj=jjj-nlon
      do i=1,ny
         iii=i+ndy
-        scsli(i,j,1)=(rlats(iii+ione)-rlats(iii-ione))*wlipih*cos(rlats(iii))* &
+        scsli(i,j,1)=(rlats(iii+1)-rlats(iii-1))*wlipih*cos(rlats(iii))* &
                      factx(iii,jjj)**2
-        scsli(i,j,2)=(rlats(iii     )-rlats(iii-ione))*wlipi*factx(iii,jjj)
+        scsli(i,j,2)=(rlats(iii     )-rlats(iii-1))*wlipi*factx(iii,jjj)
         scsli(i,j,3)=cos(rlats(iii))*factx(iii,jjj)
      enddo
   enddo
@@ -452,16 +558,16 @@ subroutine prewgt(mype)
   nxg=nxe+norh
   nrr=ubound(rs,1)	! was nf*3/2
   ndx=(nx-nlon)/2
-  call polcasl(factx,fact1,fact2,ione,nf,mr,nrr,nor,rs,df,nxe,nxg)
+  call polcasl(factx,fact1,fact2,1,nf,mr,nrr,nor,rs,df,nxe,nxg)
   fact1(0,0)=quarter*(fact1(1,0)+fact1(0,1)+fact1(-1,0)+fact1(0,-1))
   fact2(0,0)=quarter*(fact2(1,0)+fact2(0,1)+fact2(-1,0)+fact2(0,-1))
 
   df2=df*df
   do j=-nf,nf
-     jm=j-ione
+     jm=j-1
      j2=j*j
      do i=-nf,nf
-        im=i-ione
+        im=i-1
         i2=i*i
         scs12(i,j,1)=(samp/(one+(i2+j2)*df2))**2*fact1(i,j)**2
         scs12(i,j,2)=one/(one+((im*im+i2)*half+j2)*df2)*fact1(i,j)
@@ -478,104 +584,85 @@ subroutine prewgt(mype)
 
 
   allocate(sli(ny,nx,2,nnnn1o),sli1(-nf:nf,-nf:nf,2,nnnn1o), &
-                            sli2(-nf:nf,-nf:nf,2,nnnn1o))
+                               sli2(-nf:nf,-nf:nf,2,nnnn1o))
 
-!$omp parallel do  schedule(dynamic,1) private(k,k1,j,iii,jjj,i,factx,fact1,fact2)
+  allocate(nrf3_loc(nc3d),nrf2_loc(nc2d))
+  do ii=1,nc3d
+     nrf3_loc(ii)=getindex(cvars,cvars3d(ii))
+  enddo
+  do ii=1,nc2d
+     nrf2_loc(ii)=getindex(cvars,cvars2d(ii))
+  enddo
+
+!!!$omp parallel do  schedule(dynamic,1) private(k,k1,j,ii,iii,jjj,i,n,nn,factx,fact1,fact2)
   do k=1,nnnn1o
      k1=levs_id(k)
-     if (k1==izero) then
+     if (k1==0) then
         do j=1,nlon
-           do i=2,nlat-ione
+           do i=2,nlat-1
               factx(i,j)=zero
            end do
         end do
-     else if (nvar_id(k)==ione) then
-! streamfunction
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,1)
-           end do
+     else 
+        n=nvar_id(k)
+        nn=-1
+        do ii=1,nc3d
+           if (nrf3_loc(ii)==n) then
+              nn=ii
+              do j=1,nlon
+                 do i=2,nlat-1
+                    factx(i,j)=s2u/hwll(i,k1,nn)
+                 end do
+              end do
+              exit
+           end if
         end do
-     else if (nvar_id(k)==2_i_kind) then
-! velocity potential
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,2)
+
+        if (nn==-1) then
+           do ii=1,nc2d
+              if (nrf2_loc(ii)==n .or. n>nrf) then
+                 nn=ii
+                 if (n>nrf) nn=n-nc3d
+                 if (nn==nrf2_sst) then
+                    do j=1,nlon
+                       do i=2,nlat-1
+                          factx(i,j)=s2u/hsst(i,j)
+                       end do
+                    end do
+                 else if (nn>nc2d) then 
+                    do j=1,nlon
+                       do i=2,nlat-1
+                          factx(i,j)=two*s2u/minhsst
+                       end do
+                    end do
+                 else  
+                    do j=1,nlon
+                       do i=2,nlat-1
+                          factx(i,j)=s2u/hwllp(i,nn)
+                       end do
+                    end do
+                 end if
+                 exit
+              end if
            end do
-        end do
-     else if (nvar_id(k)==3_i_kind) then
-! Surface pressure
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwllp(i)
-           end do
-        end do
-     else if (nvar_id(k)==4_i_kind) then    
-! Temperature
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,3)
-           end do
-        end do
-     else if (nvar_id(k)==5_i_kind) then
-! Specific humidity
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,4)
-           end do
-        end do
-     else if(nvar_id(k)==6_i_kind)then
-! Ozone
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,5)
-           end do
-        end do
-     else if(nvar_id(k)==7_i_kind)then
-! sst
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hsst(i,j)
-           end do
-        end do
-     else if (nvar_id(k)==8_i_kind) then
-! Cloud water
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=s2u/hwll(i,k1,4)
-           end do
-        end do
-     else if(nvar_id(k)==9_i_kind)then
-! surface temp (land)
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=two*s2u/minhsst
-           end do
-        end do
-     else if(nvar_id(k)==10_i_kind)then
-! surface temp (ice)
-        do j=1,nlon
-           do i=2,nlat-ione
-              factx(i,j)=two*s2u/minhsst
-           end do
-        end do
+        end if
      endif    ! end if over nvar_id
      do j=1,nlon
         factx(1,j)=factx(2,j)
-        factx(nlat,j)=factx(nlat-ione,j)
+        factx(nlat,j)=factx(nlat-1,j)
      end do
 
-     call polcasl(factx,fact1,fact2,ione,nf,mr,nrr,nor,rs,df,nxe,nxg)
+     call polcasl(factx,fact1,fact2,1,nf,mr,nrr,nor,rs,df,nxe,nxg)
      fact1(0,0)=quarter*(fact1(1,0)+fact1(0,1)+fact1(-1,0)+fact1(0,-1))
      fact2(0,0)=quarter*(fact2(1,0)+fact2(0,1)+fact2(-1,0)+fact2(0,-1))
 ! first sli
      do j=1,nx
         jjj=j-ndx
-        if(jjj < ione)jjj=jjj+nlon
+        if(jjj < 1)jjj=jjj+nlon
         if(jjj > nlon)jjj=jjj-nlon
         do i=1,ny
            iii=i+ndy
-           slw((j-ione)*ny+i,k)=scsli(i,j,1)*factx(iii,jjj)**2
+           slw((j-1)*ny+i,k)=scsli(i,j,1)*factx(iii,jjj)**2
            sli(i,j,1,k)=scsli(i,j,2)*factx(iii,jjj)        
            sli(i,j,2,k)=scsli(i,j,3)*factx(iii,jjj)        
         enddo
@@ -583,8 +670,8 @@ subroutine prewgt(mype)
 ! now load sli1/sli2 
      do j=-nf,nf
         do i=-nf,nf
-           slw2((j+nf)*nf2p+nf+ione+i,k)=scs12(i,j,1)*fact1(i,j)**2
-           slw1((j+nf)*nf2p+nf+ione+i,k)=scs12(i,j,1)*fact2(i,j)**2
+           slw2((j+nf)*nf2p+nf+1+i,k)=scs12(i,j,1)*fact1(i,j)**2
+           slw1((j+nf)*nf2p+nf+1+i,k)=scs12(i,j,1)*fact2(i,j)**2
            sli2(i,j,1,k)=scs12(i,j,2)*fact1(i,j)
            sli1(i,j,1,k)=scs12(i,j,2)*fact2(i,j)
            sli2(i,j,2,k)=scs12(i,j,3)*fact1(i,j)
@@ -593,83 +680,27 @@ subroutine prewgt(mype)
      enddo
   end do ! end do over nsig1o/loadling of sli arrays
 
+  deallocate(nrf3_loc,nrf2_loc)
 
 ! Load tables used in recursive filters
   call init_rftable(mype,rate,nnnn1o,sli,sli1,sli2)
+
+! Clean up: first-in, last-out
   deallocate(sli,sli1,sli2)
+  deallocate(hsst)
+
+  if(allocated(vscalesin)) deallocate(vscalesin)
+  if(allocated(hwllin))    deallocate(hwllin)
+  if(allocated(corz))      deallocate(corz)
+  if(allocated(hwll))      deallocate(hwll)
+  if(allocated(vz))        deallocate(vz)
+
+  if(allocated(hwllinp)) deallocate(hwllinp)
+  if(allocated(corp))    deallocate(corp)
+  if(allocated(hwllp))   deallocate(hwllp)
 
   return
 end subroutine prewgt
-
-subroutine blend(n,iblend)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    blend
-!   prgmmr: purser           org: w/nmc22     date:1998
-!
-! abstract: put coefficients for n+1,..,2n+1, into iblend(0),..
-!           iblend(n)
-!
-! program history log:
-!   2004-05-13  kleist  documentation
-!   2008-04-23  safford - rm unused uses
-!
-!   input argument list:
-!     n      - number of powers to blend
-!
-!   output argument list:
-!     iblend - blended coefficients
-!
-! remarks: put the coefficients for powers n+1,..,2n+1, into iblend(0),
-!          ..iblend(n),for the "blending polynomial" of continuity-
-!          degree n in the interval [0,1].  For example, with n=1, the 
-!          blending polynomial has up to 1st derivatives continuous 
-!          with y(0)=0, y(1)=1, y'(0)=y'(1)=0, when y(x)=3x^2-2x^3. 
-!          Hence iblend={3,-2}
-! 
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp
-!
-!$$$
-  use kinds, only: i_kind
-  use constants, only: izero,ione
-  implicit none
-
-! Declare passed variables
-  integer(i_kind)               ,intent(in   ) :: n
-  integer(i_kind),dimension(0:n),intent(  out) :: iblend
-
-! Declare local parameters
-  integer(i_kind),parameter:: nn=12_i_kind
-
-! Declare local variables
-  integer(i_kind) np,i,j,ib
-  integer(i_kind),dimension(0:nn):: ipascal(0:nn)
-
-  if(n>nn)stop
-  np=n+ione
-  do i=0,n
-    ipascal(i)=izero
-  enddo
-
-  ipascal(0)=ione
-  do i=0,n
-     do j=i,1,-1
-        ipascal(j)=ipascal(j)-ipascal(j-ione)
-     enddo
-  enddo
-
-  ib=ione
-  do i=1,n
-     ib=(ib*2*(2*i+1))/i
-  enddo
-  do j=0,n
-     iblend(j)=(ib*ipascal(j))/(np+j)
-  enddo
-
-  return
-end subroutine blend
 
 subroutine get_randoms(count,randnums)
 !$$$  subprogram documentation block
@@ -698,14 +729,14 @@ subroutine get_randoms(count,randnums)
   use kinds, only: r_kind,i_kind
   use obsmod, only: iadate
   use berror, only: pert_berr_fct
-  use constants, only: ione, one, two
+  use constants, only: one, two
   implicit none
 
   integer(i_kind)              ,intent(in   ) :: count
   real(r_kind),dimension(count),intent(  out) :: randnums
 
   integer(i_kind),allocatable,dimension(:):: numrnds
-  real(r_kind),dimension(count+ione):: temps
+  real(r_kind),dimension(count+1):: temps
   real(r_kind):: rseed
 
   integer(i_kind) i,ksize
@@ -730,7 +761,7 @@ subroutine get_randoms(count,randnums)
 ! Set range to be +/- factor
 ! and don't use first random number generated based on date
   do i=1,count
-     randnums(i) = pert_berr_fct*(one - two*temps(i+ione))
+     randnums(i) = pert_berr_fct*(one - two*temps(i+1))
   end do
 
   return

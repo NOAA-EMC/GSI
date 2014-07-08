@@ -41,6 +41,21 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !   2008-04-21  safford - rm unused vars
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2009-09-01  li      - add to handle nst fields
+!   2010-06-27  kokron  - added test for returned value of bmiss in hdr(15)
+!   2010-06-29  zhu     - add newpc4pred option
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2013-01-26  parrish - question about bmiss and hdr(15).  debug compile execution on WCOSS failed.  
+!                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
+!                          causes integer overflow with current logic.  Made quick fix, but needs review.
+!   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -71,17 +86,21 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-             checkob,finalcheck,score_crit
-  use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad 
+      checkob,finalcheck,score_crit
+  use obsmod, only: bmiss
+  use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
+      newpc4pred,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
-  use constants, only: deg2rad,izero,ione,zero,rad2deg, r60inv,two
+  use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: ndata,nodata,nread
   real(r_kind)    ,intent(in   ) :: rmesh,twind,gstime
@@ -93,16 +112,16 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Declare local parameters
-  integer(i_kind),parameter:: maxinfo=33_i_kind
-  integer(i_kind),parameter:: mfov=25_i_kind   ! maximum number of fovs (currently 5x5)
+  integer(i_kind),parameter:: maxinfo=33
+  integer(i_kind),parameter:: mfov=25   ! maximum number of fovs (currently 5x5)
 
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
   character(80),parameter:: hdstr = &
-               'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
+     'CLON CLAT ELEV SOEL BEARAZ SOLAZI SAID DINU YEAR MNTH DAYS HOUR MINU SECO ACAV' 
   character(80),parameter:: hdstr5 = &
-               'XOB YOB ELEV SOEL BEARAZ SOLAZI SAID TYP ACAV DHR SID '
+     'XOB YOB ELEV SOEL BEARAZ SOLAZI SAID TYP ACAV DHR SID '
   character(80),parameter:: rbstr = 'TMBR'
 
 ! Declare local variables
@@ -119,6 +138,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) nele,iscan,nmind
   integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
   integer(i_kind),dimension(5):: idate5
+  integer(i_kind),allocatable,dimension(:)::nrec
+  integer(i_kind) ibfms         ! BUFR missing value function
 
   real(r_kind) dlon,dlat,timedif,emiss,sfcr
   real(r_kind) dlon_earth,dlat_earth
@@ -130,6 +151,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind),allocatable,dimension(:,:):: data_all
 
@@ -141,18 +163,21 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !**************************************************************************
 
 ! Start routine here.  Set constants.  Initialize variables
-  lnbufr = 10_i_kind
+  lnbufr = 10
   disterrmax=zero
-  ntest  = izero
-  nreal  = maxinfo
-  ich8   = 8_i_kind        !channel 8
-  ndata  = izero
-  nchanl = 18_i_kind
-  ifov = -999_i_kind
+  ntest  = 0
+  ich8   = 8        !channel 8
+  ndata  = 0
+  nchanl = 18
+  ifov = -999
   r01 = 0.01_r_kind
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
+
+  if (nst_gsi > 0 ) then
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
+  endif
 
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -182,26 +207,31 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
   g5x5 = jsatid == 'g08_prep' .or. jsatid == 'g09_prep' .or.     &
          jsatid == 'g10_prep' .or. jsatid == 'g11_prep' .or.     &
-         jsatid == 'g12_prep' .or. jsatid == 'g13_prep'
+         jsatid == 'g12_prep' .or. jsatid == 'g13_prep' .or.     &
+         jsatid == 'g14_prep' .or. jsatid == 'g15_prep'
 
   if(g5x5)then
-       if(jsatid=='g08_prep')lsatid=252_i_kind
-       if(jsatid=='g09_prep')lsatid=253_i_kind
-       if(jsatid=='g10_prep')lsatid=254_i_kind
-       if(jsatid=='g11_prep')lsatid=255_i_kind
-       if(jsatid=='g12_prep')lsatid=256_i_kind
-       if(jsatid=='g13_prep')lsatid=257_i_kind
+       if(jsatid=='g08_prep')lsatid=252
+       if(jsatid=='g09_prep')lsatid=253
+       if(jsatid=='g10_prep')lsatid=254
+       if(jsatid=='g11_prep')lsatid=255
+       if(jsatid=='g12_prep')lsatid=256
+       if(jsatid=='g13_prep')lsatid=257
+       if(jsatid=='g14_prep')lsatid=258
+       if(jsatid=='g15_prep')lsatid=259
    else
-       if(jsatid=='g08')lsatid=252_i_kind
-       if(jsatid=='g09')lsatid=253_i_kind
-       if(jsatid=='g10')lsatid=254_i_kind
-       if(jsatid=='g11')lsatid=255_i_kind
-       if(jsatid=='g12')lsatid=256_i_kind
-       if(jsatid=='g13')lsatid=257_i_kind
-       if(obstype == 'sndrd1')ldetect = ione
-       if(obstype == 'sndrd2')ldetect = 2_i_kind
-       if(obstype == 'sndrd3')ldetect = 3_i_kind
-       if(obstype == 'sndrd4')ldetect = 4_i_kind
+       if(jsatid=='g08')lsatid=252
+       if(jsatid=='g09')lsatid=253
+       if(jsatid=='g10')lsatid=254
+       if(jsatid=='g11')lsatid=255
+       if(jsatid=='g12')lsatid=256
+       if(jsatid=='g13')lsatid=257
+       if(jsatid=='g14')lsatid=258
+       if(jsatid=='g15')lsatid=259
+       if(obstype == 'sndrd1')ldetect = 1
+       if(obstype == 'sndrd2')ldetect = 2
+       if(obstype == 'sndrd3')ldetect = 3
+       if(obstype == 'sndrd4')ldetect = 4
   end if
 
 ! Set array index for surface-sensing channels
@@ -209,7 +239,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Open then read the bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
@@ -217,27 +247,31 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call time_4dvar(idate,toff)
 
 ! Allocate arrays to hold data
-  nele=nreal+nchanl
-  allocate(data_all(nele,itxmax))
+  nreal  = maxinfo + nstinfo
+  nele   = nreal   + nchanl
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
-  next=izero
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
+  nrec=999999
+  next=0
+  irec=0
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
 !    Time offset
-     if(next == izero)call time_4dvar(idate,toff)
-     next=next+ione
-     if(next == npe_sub)next=izero
+     if(next == 0)call time_4dvar(idate,toff)
+     irec=irec+1
+     next=next+1
+     if(next == npe_sub)next=0
      if(next/=mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==izero)
+     read_loop: do while (ireadsb(lnbufr)==0)
 
 !       Extract type, date, and location information
         if(g5x5)then
 !       Prepbufr file
-           call ufbint(lnbufr,hdr,11_i_kind,ione,iret,hdstr5)
+           call ufbint(lnbufr,hdr,11,1,iret,hdstr5)
            kx = hdr(8)
-           if(kx /= 164_i_kind .and. kx /= 165_i_kind .and. kx /= 174_i_kind .and. kx /= 175_i_kind)cycle read_loop
+           if(kx /= 164 .and. kx /= 165 .and. kx /= 174 .and. kx /= 175)cycle read_loop
 !          If not goes data over ocean , read next bufr record
-!          if(kx /= 174_i_kind .and. kx /= 175_i_kind)cycle read_loop
+!          if(kx /= 174 .and. kx /= 175)cycle read_loop
 
            ksatid=nint(hdr(7))
 !          if not proper satellite read next bufr record
@@ -245,13 +279,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !          Extract number of averaged FOVS
            ifov = hdr(9) ! number of averaged FOVS 
-           if(ifov <= 3_i_kind) cycle read_loop
+           if(ifov <= 3) cycle read_loop
 !          Extract obs time difference. 
            tdiff=hdr(10)  ! relative obs time in hours
            t4dv=toff+tdiff
         else
 !          GOES 1x1 or 5x5 file
-           call ufbint(lnbufr,hdr,15_i_kind,ione,iret,hdstr)
+           call ufbint(lnbufr,hdr,15,1,iret,hdstr)
 
            ksatid=hdr(7)   !bufr satellite id
 !          if not proper satellite/detector read next bufr record
@@ -260,11 +294,15 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
               if(ldetect /= nint(hdr(8)))cycle read_loop
            end if
 
-           ifov = nint(hdr(15)) ! number of averaged FOVS
-
-           if(ifov < mfov .and. ifov > izero)then
-              if(ifov <= 3_i_kind) cycle read_loop
-           end if
+!   test for case when hdr(15) comes back with bmiss signifying 1x1 data
+           if (ibfms(hdr(15)) .eq. 1) then
+              ifov = 0
+           else ! 5x5 data
+              ifov = nint(hdr(15)) ! number of averaged FOVS
+              if(ifov < mfov .and. ifov > 0)then
+                 if(ifov <= 3) cycle read_loop
+              end if
+           endif
 
 !          Extract obs time.  If not within analysis window, skip obs
 !          Extract date information.  If time outside window, skip this obs
@@ -286,8 +324,9 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
            if (abs(tdiff)>twind) cycle read_loop
         endif
 
+        if(abs(hdr(2))>90._r_kind .or. abs(hdr(1))>r360) cycle read_loop
 !       Convert obs location to radians
-        if (hdr(1)>=r360) hdr(1)=hdr(1)-r360
+        if (hdr(1)==r360) hdr(1)=zero
         if (hdr(1)< zero) hdr(1)=hdr(1)+r360
 
         dlon_earth = hdr(1)*deg2rad   !convert degrees to radians
@@ -309,8 +348,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         else
            dlon = dlon_earth 
            dlat = dlat_earth 
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
 
@@ -325,7 +364,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         nread=nread+nchanl
 
         crit1=0.01_r_kind+timedif
-        if(ifov < mfov .and. ifov > izero)then
+        if(ifov < mfov .and. ifov > 0)then
            crit1=crit1+two*float(mfov-ifov)
         end if
 
@@ -334,13 +373,13 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 !       Increment goes sounder data counter
 !       Extract brightness temperatures
-        call ufbint(lnbufr,grad,ione,18_i_kind,levs,rbstr)
+        call ufbint(lnbufr,grad,1,18,levs,rbstr)
 
-        iskip = izero
+        iskip = 0
         do l=1,nchanl
 
            if( grad(l) < tbmin .or. grad(l) > tbmax )then
-              iskip = iskip + ione
+              iskip = iskip + 1
               if(l == ich8)iskip = nchanl
            endif
         end do
@@ -360,20 +399,26 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                4 mixed 
 
         call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
-                ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 
 !       If not goes data over ocean , read next bufr record
-        if(isflg /= izero) cycle read_loop
+        if(isflg /= 0) cycle read_loop
 
-        crit1 = crit1 + rlndsea(isflg)  
-        call checkob(dist1,crit1,itx,iuse)
-        if(.not. iuse)cycle read_loop
+!   Following lines comment out because only using data over ocean
+!       crit1 = crit1 + rlndsea(isflg)  
+!       call checkob(dist1,crit1,itx,iuse)
+!       if(.not. iuse)cycle read_loop
 
 !       Set data quality predictor
         iscan   = nint(hdr(3))+0.001_r_kind   ! "scan" position
-        ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
+        if (newpc4pred) then
+           ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
+                                 predx(1,ichan8)*air_rad(ichan8)
+        else
+           ch8     = grad(ich8) -ang_rad(ichan8)*cbias(iscan,ichan8) -  &
                                  r01*predx(1,ichan8)*air_rad(ichan8)
+        end if
         emiss=0.992_r_kind-0.013_r_kind*(hdr(3)/65._r_kind)**3.5_r_kind-0.026_r_kind*(hdr(3)/65._r_kind)**7.0_r_kind
         pred = abs(ch8-tsavg*emiss)
 
@@ -382,6 +427,18 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
         call finalcheck(dist1,crit1,itx,iuse)
         if(.not. iuse)cycle read_loop
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if ( sfcpct(0) > zero ) then
+             call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+        endif
 
 !       Transfer observation location and other data to local arrays
 
@@ -421,9 +478,17 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
         data_all(32,itx)= val_goes
         data_all(33,itx)= itt
 
+        if ( nst_gsi > 0 ) then
+          data_all(maxinfo+1,itx) = tref         ! foundation temperature
+          data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+          data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+          data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+        endif
+
         do k=1,nchanl
            data_all(k+nreal,itx)=grad(k)
         end do
+        nrec(itx)=irec
 
 
      end do read_loop
@@ -435,12 +500,12 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -448,9 +513,9 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-              data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_goes
 
      end do
@@ -461,12 +526,12 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   
   endif
 
-  deallocate(data_all) ! Deallocate data arrays
+  deallocate(data_all,nrec) ! Deallocate data arrays
   call destroygrids    ! Deallocate satthin arrays
 
-  if(diagnostic_reg .and. ntest>izero .and. mype_sub==mype_root) &
-       write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+  if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
+     write(6,*)'READ_GOESNDR:  mype,ntest,disterrmax=',&
+     mype,ntest,disterrmax
 
   return
 

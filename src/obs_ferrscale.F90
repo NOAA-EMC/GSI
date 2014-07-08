@@ -9,6 +9,8 @@ module obs_ferrscale
 !
 ! program history log:
 !   2008-11-17 todling 
+!   2010-05-14 todling - update  to use gsi_bundle
+!   2010-08-19 lueken  - add only to module use
 !
 ! Subroutines Included:
 !   init_ferr_scale  - Initialize parameters
@@ -27,15 +29,16 @@ module obs_ferrscale
 
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind, i_kind
-use constants, only: izero, ione, zero
+use constants, only: zero
 use gsi_4dvar, only: nobs_bins, idmodel, lsqrtb
 use mpimod, only: mype
-use state_vectors
-use bias_predictors
+use state_vectors, only: allocate_state,deallocate_state,prt_state_norms,dot_product
+use gsi_bundlemod, only: gsi_bundle
+use gsi_bundlemod, only: self_add,assignment(=)
+use gsi_4dcouplermod, only: gsi_4dcoupler_init_traj
+use gsi_4dcouplermod, only: gsi_4dcoupler_final_traj
+use bias_predictors, only: predictors,allocate_preds,deallocate_preds,assignment(=)
 use obsmod, only: l_do_adjoint
-#ifdef GEOS_PERT
-use geos_pertmod, only: model_init, model_clean, pgcm2gsi, gsi2pgcm
-#endif /* GEOS_PERT */
 ! ------------------------------------------------------------------------------
 implicit none
 save
@@ -64,6 +67,7 @@ subroutine init_ferr_scale
 !
 ! program history log:
 !   2009-08-07  lueken - added subprogram doc block
+!   2010-05-27  todling - use gsi_4dcoupler
 !
 !   input argument list:
 !
@@ -83,9 +87,7 @@ lthis_adj=l_do_adjoint
 l_do_adjoint=.true.
 lthis_sqrt=lsqrtb
 lsqrtb=.false.
-#ifdef GEOS_PERT
-      call model_init(ierr,skiptraj=idmodel)
-#endif /* GEOS_PERT */
+call gsi_4dcoupler_init_traj(idmodel)
 
 end subroutine init_ferr_scale
 
@@ -99,6 +101,7 @@ subroutine clean_ferr_scale
 !
 ! program history log:
 !   2009-08-07  lueken - added subprogram doc block
+!   2010-05-27  todling - use gsi_4dcoupler
 !
 !   input argument list:
 !
@@ -112,9 +115,7 @@ subroutine clean_ferr_scale
 
 implicit none
 
-#ifdef GEOS_PERT
-      call model_clean()
-#endif /* GEOS_PERT */
+call gsi_4dcoupler_final_traj()
 l_do_adjoint=lthis_adj
 lsqrtb=lthis_sqrt
 
@@ -146,8 +147,8 @@ implicit none
 
 integer(i_kind),intent(in   ) :: nprt
 
-type(state_vector) :: ferrin
-type(state_vector) :: ferrout
+type(gsi_bundle) :: ferrin
+type(gsi_bundle) :: ferrout
 integer(i_kind) :: nymd, nhms
 
 if(.not.lferrscale) return
@@ -179,6 +180,7 @@ subroutine get_ferr_scale (ferrin,nymd,nhms)
 ! program history log:
 !   2008-11-16  todling - initial code
 !   2009-08-07  lueken  - updated documentation
+!   2010-05-14  todling - update to use gsi_bundle
 !
 !   input argument list:
 !    ferrin
@@ -194,13 +196,13 @@ subroutine get_ferr_scale (ferrin,nymd,nhms)
 !$$$ end documentation block
 
 implicit none
-type(state_vector),intent(inout) :: ferrin ! not yet implemented
-integer(i_kind)   ,intent(in   ) :: nymd,nhms
+type(gsi_bundle),intent(inout) :: ferrin ! not yet implemented
+integer(i_kind) ,intent(inout) :: nymd,nhms
 
 real(r_kind) :: zjx
 integer(i_kind) :: ierr
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'get_ferr_scale: read forecast error vector'
 endif
 
@@ -208,13 +210,13 @@ ferrin = zero ! not yet implemented
 
 ! Read in forecast error
 if (lferrscale) then
-#ifdef GEOS_PERT
-      call pgcm2gsi(ferrin,'tlm',ierr,nymd_in=nymd,nhms_in=nhms,filename=fnerri)
-#endif /* GEOS_PERT */
+!_RT #ifdef GEOS_PERT
+!_RT       call pgcm2gsi(ferrin,'tlm',ierr,nymd_in=nymd,nhms_in=nhms,filename=fnerri)
+!_RT #endif /* GEOS_PERT */
    zjx=dot_product(ferrin,ferrin)
-   if (mype==izero) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
+   if (mype==0) write(6,888)'get_ferr_scale: Norm ferrin=',sqrt(zjx)
 endif
-888 format(A,3(1X,ES24.18))
+888 format(A,3(1X,ES25.18))
 
 return
 end subroutine get_ferr_scale
@@ -230,6 +232,8 @@ subroutine put_ferr_scale (ferrout,nymd,nhms)
 ! program history log:
 !   2008-11-16  todling - initial code
 !   2009-08-07  lueken  - updated documentation
+!   2010-05-13  todling - dot_prod now requires inout
+!   2010-05-14  todling - update  to use gsi_bundle
 !
 !   input argument list:
 !    ferrout
@@ -244,25 +248,25 @@ subroutine put_ferr_scale (ferrout,nymd,nhms)
 !$$$ end documentation block
 
 implicit none
-type(state_vector),intent(in   ) :: ferrout
-integer(i_kind)   ,intent(in   ) :: nymd,nhms
+type(gsi_bundle),intent(inout) :: ferrout
+integer(i_kind) ,intent(in   ) :: nymd,nhms
 
 real(r_kind) :: zjx
 integer(i_kind) :: ierr
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'put_ferr_scale: store scaled forecast error vector'
 endif
 
 ! Write out scaled forecast error to file
 if (lferrscale) then
    zjx=dot_product(ferrout,ferrout)
-   if (mype==izero) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
-#ifdef GEOS_PERT
-   call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
-#endif /* GEOS_PERT */
+   if (mype==0) write(6,888)'put_ferr_scale: Norm ferrout=',sqrt(zjx)
+!_RT #ifdef GEOS_PERT
+!_RT    call gsi2pgcm(nymd,nhms,ferrout,'adm',ierr,filename=fnerro)
+!_RT #endif /* GEOS_PERT */
 endif
-888 format(A,3(1X,ES24.18))
+888 format(A,3(1X,ES25.18))
 
 return
 end subroutine put_ferr_scale
@@ -281,6 +285,7 @@ subroutine hrm1h_ferr_scale(xin,xout,nprt,calledby)
 !   2008-12-06 todling - intjo is now a module
 !   2009-01-18 todling - quad precision passed to evaljo
 !   2009-08-07 lueken  - updated documentation
+!   2010-05-14 todling - update to use gsi_bundle
 !
 !   input argument list:
 !    xin  - state vector to be scaled
@@ -305,15 +310,15 @@ use intjomod, only: intjo
 implicit none
 
 ! Declare passed variables
-type(state_vector), intent(in   ) :: xin
-type(state_vector), intent(inout) :: xout
+type(gsi_bundle), intent(in   ) :: xin
+type(gsi_bundle), intent(inout) :: xout
 integer(i_kind)   , intent(in   ) :: nprt
 character(len=*)  , intent(in   ) :: calledby
 
 ! Declare local variables  
 character(len=*), parameter :: myname='hrm1h_ferr_scale'
-type(state_vector) :: sval(nobs_bins), rval(nobs_bins)
-type(state_vector) :: mval(nsubwin)
+type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
+type(gsi_bundle) :: mval(nsubwin)
 type(predictors) :: sbias, rbias
 real(r_quad) :: zjb,zjo,zjc,zjl
 integer(i_kind) :: ii,iobs,ibin
@@ -322,7 +327,7 @@ character(len=255) :: seqcalls
 
 !**********************************************************************
 
-llprt=(mype==izero.and.nprt>=2_i_kind)
+llprt=(mype==0.and.nprt>=2)
 llouter=.false.
 seqcalls = trim(calledby)//'::'//trim(myname)
 
@@ -346,7 +351,7 @@ do ii=1,nsubwin
    mval(ii)=zero
 enddo
 call self_add(mval(1),xout)
-if (nprt>=2_i_kind) then
+if (nprt>=2) then
     call prt_state_norms(mval(1),'mval(ii=1)')
 endif
 
@@ -359,7 +364,7 @@ else
    enddo
 end if
 
-if (nprt>=2_i_kind) then
+if (nprt>=2) then
    do ii=1,nobs_bins
       call prt_state_norms(sval(ii),'sval')
    enddo
@@ -388,7 +393,7 @@ if (l_do_adjoint) then
 
    zjc=zero_quad
 
-   if (nprt>=2_i_kind) then
+   if (nprt>=2) then
       do ii=1,nobs_bins
          call prt_state_norms(rval(ii),'rval')
       enddo
@@ -404,7 +409,7 @@ if (l_do_adjoint) then
       enddo
    end if
 
-   if (nprt>=2_i_kind) then
+   if (nprt>=2) then
       do ii=1,nsubwin
          call prt_state_norms(mval(ii),'mval')
       enddo
@@ -415,8 +420,8 @@ if (l_do_adjoint) then
    call self_add(xout,mval(1))
 
 !  Print diagnostics
-   if (nprt>=2_i_kind) call prt_state_norms(xout,'xout')
-   if (nprt>=ione.and.mype==izero) write(6,999)trim(seqcalls),': grepcost Jb,Jo,Jc,Jl=',&
+   if (nprt>=2) call prt_state_norms(xout,'xout')
+   if (nprt>=1.and.mype==0) write(6,999)trim(seqcalls),': grepcost Jb,Jo,Jc,Jl=',&
                                       zjb,zjo,zjc,zjl
 endif
 
@@ -431,7 +436,7 @@ do ii=1,nobs_bins
    call deallocate_state(sval(ii))
 end do
 
-999 format(2A,5(1X,ES24.18))
+999 format(2A,5(1X,ES25.18))
 
 return
 end subroutine hrm1h_ferr_scale

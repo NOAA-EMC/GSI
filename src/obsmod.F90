@@ -37,7 +37,6 @@ module obsmod
 !   2005-12-21  treadon  - add arrays and code for gps data
 !   2006-02-03  derber   - add new obs control and simplify makecobs call
 !   2006-02-17  treadon  - add stat check on all allocate and deallocate
-!   2006-02-27  todling  - introduce ndatmax
 !   2006-03-21  treadon  - modify optional perturbation to observations
 !   2006-04-19  treadon  - add logical switch dtbduv_on
 !   2006-05-05  treadon  - add maximum time window variable
@@ -52,7 +51,6 @@ module obsmod
 !   2007-03-09        su - add observation perturbation paramters in the
 !                          observation position structure
 !   2007-03-19  tremolet - binning of observations
-!   2007-04-17  todling  - getting nhr_assimilation from gsi_4dvar
 !   2007-05-03  todling  - add reference to o3l
 !   2007-05-30  h.liu    - change wij to 2d array for oz_ob_type, ozo_ob_type
 !   2007-05-31  tremolet - add observation diagnostics structure
@@ -70,13 +68,40 @@ module obsmod
 !   2009-03-05  meunier  - add lagrangean observation type
 !   2009-07-09  park,purser,pondeca - add logical variable hilbert_curve for
 !                                     cross-validation in 2dvar
+!   2010-02-10  jing     - merge in obs key set (idv,iob,ich) in obs types for unique
+!                          run-time identification (in sorting and searching).
+!   2010-03-05  pondeca  - set ndat_times=1 for 2dvar mode
+!   2010-03-24  tangborn - added carbon monoxide (co) observation type type 
+!   2010-04-01  li       - add zob, tz_tr to sst_ob_type
+!   2010-05-12  zhu      - add create_passive_obsmod_vars and destroyobs_passive
+!   2010-05-26  treadon  - add tcpptr to public list 
+!   2010-06-14  huang    - add aerosol variable (*aero*)
+!   2010-07-10  todling  - turn aerosol heads/tails public
+!   2010-08-18       hu  - add codiags to public declaration
+!   2010-10-15 pagowski  - add pm2_5 in-situ
+!   2010-10-20 hclin     - use 1d wij for aod in channels
+!   2011-02-09      zhu  - add gust,visibility,and pbl height
+!   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
+!   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
+!   2012-04-05  todling  - nullify ich in rad_ob_type and aero_ob_type; also dealloc them
+!   2012-09-10  wargan   - add  OMI with efficiency factors
+!   2013-05-19  zhu      - add pred and idx in t_ob_type for aircraft temperature bias correction
+!   2013-09-27  todling - revisit handling of ob-instr/type (now in table of its own)
+!   2014-01-31  guo      - removed redundant "type codiags", which is identical to "type odiags".
+!                        - renamed odiags to aofp_obs_diag, "array-of-Fortran-pointers of obs_diag",
+!                          for explicity.
+!                        - removed type(aofp_obs_diag) from public entity list, which is not used
+!                          anywhere else, except in this module.  It might be needed to be public
+!                          in the future, but atleast not now.
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
 !   sub init_directories    - create sub-directories for tasks specific i/o
 !   sub create_obsmod_vars  - allocate obs related variables
+!   sub create_passive_obsmod_vars  - allocate monitored radiance obs related variables
 !   sub init_obsmod_vars    - initialize obs related variables to actual values
 !   sub destroyobs          - deallocate obs linked lists
+!   sub destroyobs_passive  - deallocate monitored radiance obs linked lists
 !   sub destroy_obsmod_vars - deallocate obsmod arrays
 !   sub destroy_genstats_gps- deallocate linked list for gsp statistics
 !   sub inquire_obsdiags
@@ -89,8 +114,12 @@ module obsmod
 !   def perturb_obs  - namelist logical to perturb (=true) observations
 !   def perturb_fact - namelist scaling factor for observation perturbations
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
+!   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
+!   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
 !   def dsfcalc      - specifies method to determine surface fields within a FOV
+!                      when equal to one, integrate model fields over FOV. 
+!                      when not one, bilinearly interpolate model fields to FOV center.
 !   def dfile        - input observation file names
 !   def dsis         - sensor/instrument/satellite flag from info files
 !   def dtype        - observation types
@@ -100,7 +129,6 @@ module obsmod
 !   def obsfile_all  - file containing observations after initial read
 !   def ndat_types   - number of available data types
 !   def ndat_times   - number of available synoptic times
-!   def ndatmax      - maximum number of data types
 !   def ndat         - total number of data types
 !   def ipoint       - pointer to input namelist for particular processor
 !   def iadate       - analysis date and time array
@@ -111,6 +139,8 @@ module obsmod
 !   def nsat1        - number of observations of satellites in each pe
 !   def mype_diaghdr - pe id for writing out satellite diagnostic file
 !   def dval         - relative value of each profile within group
+!                      relative weight for observation = dval/sum(dval)
+!                      within grid box
 !   def dmesh        - mesh size (km) for radiance thinning grid (used in satthin)
 !   def pshead       - surface pressure linked list head
 !   def pstail       - surface pressure linked list tail
@@ -128,14 +158,30 @@ module obsmod
 !   def qtail        - moisture linked list tail
 !   def ssthead      - sea surface temperature linked list head
 !   def ssttail      - sea surface temperature linked list tail
+!   def gusthead     - wind gusts linked list head
+!   def gusttail     - wind gusts linked list tail
+!   def vishead      - visibility linked list head
+!   def vistail      - visibility linked list tail
+!   def pblhhead     - wind pblhs linked list head
+!   def pblhtail     - wind pblhs linked list tail
 !   def pwhead       - precipitable water linked list head
 !   def pwtail       - precipitable water linked list tail
 !   def ozhead       - sbuv ozone profile linked list head
 !   def oztail       - sbuv ozone profile linked list tail
 !   def o3lhead      - ozone level data linked list head
 !   def o3ltail      - ozone level data linked list tail
+!   def colvkhead    - carbon monoxide level data linked list head 
+!   def colvktail    - carbon monoxide level data linked list tail 
+!   def aerohead     - aerosol profile linked list head
+!   def aerotail     - aerosol profile linked list tail
+!   def aerolhead    - aerosol level data linked list head
+!   def aeroltail    - aerosol level data linked list tail
+!   def pm2_5head    - pm2_5 level data linked list head
+!   def pm2_5tail    - pm2_5 level data linked list tail
 !   def radhead      - radiance linked list head
 !   def radtail      - radiance linked list tail
+!   def radheadm     - radiance linked list head for monitored radiance data
+!   def radtailm     - radiance linked list tail for monitored radiance data
 !   def pcphead      - precipitation linked list head
 !   def pcptail      - precipitation linked list tail
 !   def laghead      - lagrangian data linked list head
@@ -147,6 +193,8 @@ module obsmod
 !   def iout_q       - output unit for moisture stats
 !   def iout_uv      - output unit for wind stats
 !   def iout_oz      - output unit for ozone stats
+!   def iout_co      - output unit for co stats 
+!   def iout_aero    - output unit for aerosol stats
 !   def iout_ps      - output unit for surface pressure stats
 !   def iout_pw      - output unit for precipitable water stats
 !   def iout_rw      - output unit for radar wind stats
@@ -154,7 +202,11 @@ module obsmod
 !   def iout_srw     - output unit for radar superob wind stats
 !   def iout_gps     - output unit for gps refractivity or bending angle stats
 !   def iout_sst     - output unit for conventional sst stats
+!   def iout_gust    - output unit for conventional gust stats
+!   def iout_vis     - output unit for conventional vis stats
+!   def iout_pblh    - output unit for conventional pblh stats
 !   def iout_lag     - output unit for conventional lag stats
+!   def iout_pm2_5   - output unit for pm2_5 stats
 !   def mype_t       - task to handle temperature stats
 !   def mype_q       - task to handle moisture stats
 !   def mype_uv      - task to handle wind stats
@@ -165,7 +217,12 @@ module obsmod
 !   def mype_srw     - task to handle radar superob wind stats
 !   def mype_gps     - task to handle gps observation stats
 !   def mype_sst     - task to handle conventional sst stats
+!   def mype_gust    - task to handle conventional gust stats
+!   def mype_vis     - task to handle conventional vis stats
+!   def mype_pblh    - task to handle conventional pblh stats
 !   def mype_lag     - task to handle conventional lag stats
+!   def mype_aero    - task to handle aerosol stats
+!   def mype_pm2_5   - task to handle pm2_5
 !   def oberrflg     - logical for reading in new observation error table
 !                      .true.  will read in obs errors from file 'errtable'
 !                      .false. will not read in new obs errors
@@ -188,6 +245,19 @@ module obsmod
 !   def lread_obs_save - logical, if .true., then write out collective obs selection info
 !   def lread_obs_skip - logical, if .true., then read in collective obs selection info
 !   def obs_input_common - scratch file to receive collective obs selection info
+!   def lwrite_predterms - logical to write out actual predictor terms in diagnostic files
+!                          .true. will write out actual predictor terms (for EnKF)
+!                          .false. will write out predicted bias (default)
+!   def lwrite_peakwt    - logical to write out approximate peak pressure of weighting 
+!                          function to diag file
+!                          .true. - uses iextra,jextra to append information to diag file
+!                          .false. - write out standard diag file (default)
+!   def ext_sonde    - logical for extended forward model on sonde data
+!   def bmiss            - parameter to define missing value from bufr
+!                      [10e10 on IBM CCS, 10e08 elsewhere]
+!   def lrun_subdirs - logical to toggle use of subdirectories at run time for pe specific
+!                      files
+!   def l_foreaft_thin -   separate TDR fore/aft scan for thinning
 !
 ! attributes:
 !   langauge: f90
@@ -197,7 +267,7 @@ module obsmod
 
   use kinds, only: r_kind,i_kind,r_single
   use gsi_4dvar, only: l4dvar
-  use constants, only:  izero,ione,zero,one,two,three,four,five
+  use constants, only:  zero,one,two,three,four,five
   use mpimod, only: mpi_max,mpi_itype,mpi_comm_world,ierror,npe,mype
   implicit none
 
@@ -207,68 +277,117 @@ module obsmod
   public :: init_obsmod_dflts
   public :: init_directories
   public :: create_obsmod_vars
+  public :: create_passive_obsmod_vars
   public :: init_obsmod_vars
   public :: destroyobs
+  public :: destroyobs_passive
   public :: destroy_obsmod_vars
   public :: ran01dom
   public :: destroy_genstats_gps
   public :: inquire_obsdiags
+  public :: dfile_format
 ! set passed variables to public
-  public :: iout_pcp,iout_rad,iadate,write_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
-  public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,pcp_ob_type,dw_ob_type
-  public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,tcp_ob_type
+  public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
+  public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,colvk_ob_type,pcp_ob_type,dw_ob_type
+  public :: sst_ob_type,srw_ob_type,spd_ob_type,rw_ob_type,gps_ob_type,gps_all_ob_type,tcp_ob_type
+  public :: gust_ob_type,vis_ob_type,pblh_ob_type
   public :: rad_ob_type,q_ob_type,pw_ob_type,ps_ob_type,w_ob_type,t_ob_type
   public :: obs_handle,yobs,i_ps_ob_type,i_t_ob_type,i_w_ob_type,i_q_ob_type
   public :: i_spd_ob_type,i_srw_ob_type,i_rw_ob_type,i_dw_ob_type,i_sst_ob_type
-  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_gps_ob_type
+  public :: i_gust_ob_type,i_vis_ob_type,i_pblh_ob_type
+  public :: i_pw_ob_type,i_pcp_ob_type,i_oz_ob_type,i_o3l_ob_type,i_colvk_ob_type,i_gps_ob_type
   public :: i_rad_ob_type,i_tcp_ob_type,i_lag_ob_type,obscounts,obsptr,nobs_type,obsdiags
   public :: cobstype,gpsptr,obs_diag,nprof_gps,gps_allhead,gps_allptr,time_offset,ianldate
-  public :: iout_oz,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
+  public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
-  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel
-  public :: perturb_fact,dtbduv_on,ndatmax,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
+  public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
+  public :: perturb_fact,dtbduv_on,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
-  public :: pwhead,oztail,ozhead,o3ltail,o3lhead,pcptail,pcphead,gpstail,gpshead
-  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nobskeep,gps_alltail
-  public :: grids_dim,rmiss_single,nchan_total,tcphead,tcptail,mype_sst,mype_gps
+  public :: pwhead,oztail,ozhead,o3ltail,o3lhead,colvktail,colvkhead,pcptail,pcphead,gpstail,gpshead
+  public :: gusttail,gusthead,vistail,vishead,pblhtail,pblhhead
+  public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
+  public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
+  public :: pm2_5_ob_head,pm2_5_ob_type,i_pm2_5_ob_type,pm2_5head,pm2_5tail
+  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep,gps_alltail
+  public :: radptrm,radtailm,radheadm
+  public :: grids_dim,rmiss_single,nchan_total,tcpptr,tcphead,tcptail,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
   public :: mype_pw,iout_rw,iout_dw,iout_srw,iout_sst,iout_pw,iout_t,iout_q,iout_tcp
   public :: iout_lag,iout_uv,iout_gps,iout_ps,spdptr,srwptr,rwptr,dwptr,sstptr,pwptr
-  public :: ozptr,o3lptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
+  public :: ozptr,o3lptr,coptr,pcpptr,lagptr,lread_obs_save,obs_input_common,lread_obs_skip
+  public :: aeroptr,aerolptr,pm2_5ptr
+  public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh,gustptr,visptr,pblhptr
+  public :: ndat_times,lwrite_predterms,lwrite_peakwt
+  public :: bmiss
+!
+  public :: obs_diags,gps_all_ob_head,w_ob_head,ps_ob_head,q_ob_head
+  public :: t_ob_head,spd_ob_head,rw_ob_head,dw_ob_head,sst_ob_head
+  public :: gust_ob_head,vis_ob_head,pblh_ob_head
+  public :: pcp_ob_head,o3l_ob_head,gps_ob_head
+  public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
+  public :: tcp_ob_head,colvk_ob_head
+  public :: mype_aero,iout_aero,nlaero
+  public :: mype_pm2_5,iout_pm2_5
+  public :: use_limit,lrun_subdirs
+  public :: l_foreaft_thin
+
+  public :: obsmod_init_instr_table
+  public :: obsmod_final_instr_table
+
+  interface obsmod_init_instr_table
+          module procedure init_instr_table_
+  end interface
+  interface obsmod_final_instr_table
+          module procedure final_instr_table_
+  end interface
 
 ! Set parameters
-  integer(i_kind),parameter:: ndatmax = 200_i_kind  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
+
+! Set bufr missing value
+#ifdef ibm_sp
+  real(r_kind), parameter:: bmiss = 1.0e11_r_kind
+#else
+  real(r_kind), parameter:: bmiss = 1.0e9_r_kind
+#endif
 
 ! Declare types
 
-  integer(i_kind),parameter::  i_ps_ob_type= ione        ! ps_ob_type
-  integer(i_kind),parameter::   i_t_ob_type= 2_i_kind    ! t_ob_type
-  integer(i_kind),parameter::   i_w_ob_type= 3_i_kind    ! w_ob_type
-  integer(i_kind),parameter::   i_q_ob_type= 4_i_kind    ! q_ob_type
-  integer(i_kind),parameter:: i_spd_ob_type= 5_i_kind    ! spd_ob_type
-  integer(i_kind),parameter:: i_srw_ob_type= 6_i_kind    ! srw_ob_type
-  integer(i_kind),parameter::  i_rw_ob_type= 7_i_kind    ! rw_ob_type
-  integer(i_kind),parameter::  i_dw_ob_type= 8_i_kind    ! dw_ob_type
-  integer(i_kind),parameter:: i_sst_ob_type= 9_i_kind    ! sst_ob_type
-  integer(i_kind),parameter::  i_pw_ob_type=10_i_kind    ! pw_ob_type
-  integer(i_kind),parameter:: i_pcp_ob_type=11_i_kind    ! pcp_ob_type
-  integer(i_kind),parameter::  i_oz_ob_type=12_i_kind    ! oz_ob_type
-  integer(i_kind),parameter:: i_o3l_ob_type=13_i_kind    ! o3l_ob_type
-  integer(i_kind),parameter:: i_gps_ob_type=14_i_kind    ! gps_ob_type
-  integer(i_kind),parameter:: i_rad_ob_type=15_i_kind    ! rad_ob_type
-  integer(i_kind),parameter:: i_tcp_ob_type=16_i_kind    ! tcp_ob_type
-  integer(i_kind),parameter:: i_lag_ob_type=17_i_kind    ! lag_ob_type
+  integer(i_kind),parameter::  i_ps_ob_type= 1    ! ps_ob_type
+  integer(i_kind),parameter::   i_t_ob_type= 2    ! t_ob_type
+  integer(i_kind),parameter::   i_w_ob_type= 3    ! w_ob_type
+  integer(i_kind),parameter::   i_q_ob_type= 4    ! q_ob_type
+  integer(i_kind),parameter:: i_spd_ob_type= 5    ! spd_ob_type
+  integer(i_kind),parameter:: i_srw_ob_type= 6    ! srw_ob_type
+  integer(i_kind),parameter::  i_rw_ob_type= 7    ! rw_ob_type
+  integer(i_kind),parameter::  i_dw_ob_type= 8    ! dw_ob_type
+  integer(i_kind),parameter:: i_sst_ob_type= 9    ! sst_ob_type
+  integer(i_kind),parameter::  i_pw_ob_type=10    ! pw_ob_type
+  integer(i_kind),parameter:: i_pcp_ob_type=11    ! pcp_ob_type
+  integer(i_kind),parameter::  i_oz_ob_type=12    ! oz_ob_type
+  integer(i_kind),parameter:: i_o3l_ob_type=13    ! o3l_ob_type
+  integer(i_kind),parameter:: i_gps_ob_type=14    ! gps_ob_type
+  integer(i_kind),parameter:: i_rad_ob_type=15    ! rad_ob_type
+  integer(i_kind),parameter:: i_tcp_ob_type=16    ! tcp_ob_type
+  integer(i_kind),parameter:: i_lag_ob_type=17    ! lag_ob_type
+  integer(i_kind),parameter:: i_colvk_ob_type= 18 ! colvk_ob_type
+  integer(i_kind),parameter:: i_aero_ob_type =19  ! aero_ob_type
+  integer(i_kind),parameter:: i_aerol_ob_type=20  ! aerol_ob_type
+  integer(i_kind),parameter:: i_pm2_5_ob_type=21  ! pm2_5_ob_type
+  integer(i_kind),parameter:: i_gust_ob_type=22   ! gust_ob_type
+  integer(i_kind),parameter:: i_vis_ob_type=23    ! vis_ob_type
+  integer(i_kind),parameter:: i_pblh_ob_type=24   ! pblh_ob_type
+  
 
-  integer(i_kind),parameter:: nobs_type = 17_i_kind      ! number of observation types
+  integer(i_kind),parameter:: nobs_type = 24      ! number of observation types
 
 ! Structure for diagnostics
 
   type obs_diag
      sequence
      type(obs_diag), pointer :: next => NULL()
-     real(r_kind), pointer :: nldepart(:)    ! (miter+ione)
+     real(r_kind), pointer :: nldepart(:)    ! (miter+1)
      real(r_kind), pointer :: tldepart(:)    ! (miter)
      real(r_kind), pointer :: obssen(:)      ! (miter)
      real(r_kind) :: wgtjo
@@ -277,17 +396,20 @@ module obsmod
                                              !  (dummy, expect for radiances)
      logical, pointer :: muse(:)             ! (miter)
      logical :: luse
+
+     integer(i_kind) :: idv,iob,ich	! device id and obs index for verification
   end type obs_diag
 
   type obs_diags
+     integer(i_kind):: n_alloc=0
      type(obs_diag), pointer :: head => NULL()
      type(obs_diag), pointer :: tail => NULL()
   end type obs_diags
 
-  type odiags
+  type aofp_obs_diag   ! array-of-Fortran-pointers of type(obs_diag)
      sequence
      type(obs_diag), pointer :: ptr => NULL()
-  end type odiags
+  end type aofp_obs_diag
 
 ! Main observation data structure
 
@@ -307,9 +429,12 @@ module obsmod
      integer(i_kind) :: ij(4)         !  horizontal locations
      integer(i_kind) :: kx            !  ob type
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type ps_ob_type
  
   type ps_ob_head
+     integer(i_kind):: n_alloc=0
      type(ps_ob_type),pointer :: head => NULL()
   end type ps_ob_head
 
@@ -330,9 +455,11 @@ module obsmod
      integer(i_kind) :: kx            !  ob type
      logical         :: luse          !  flag indicating if ob is used in pen.
 
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type tcp_ob_type
 
   type tcp_ob_head
+     integer(i_kind):: n_alloc=0
      type(tcp_ob_type),pointer :: head => NULL()
   end type tcp_ob_head
 
@@ -354,12 +481,18 @@ module obsmod
      logical         :: luse          !  flag indicating if ob is used in pen.
      logical         :: use_sfc_model !  logical flag for using boundary model
      logical         :: tv_ob         !  logical flag for virtual temperature or
+     integer(i_kind) :: idx           !  index of tail number
+     real(r_kind),dimension(:),pointer :: pred => NULL() 
+                                      !  predictor for aircraft temperature bias 
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: ij(8)         !  horizontal locations
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type t_ob_type
 
   type t_ob_head
+     integer(i_kind):: n_alloc=0
      type(t_ob_type),pointer :: head => NULL()
   end type t_ob_head
   
@@ -383,9 +516,12 @@ module obsmod
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type w_ob_type
 
   type w_ob_head
+     integer(i_kind):: n_alloc=0
      type(w_ob_type),pointer :: head => NULL()
   end type w_ob_head
 
@@ -406,9 +542,12 @@ module obsmod
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type q_ob_type
 
   type q_ob_head
+     integer(i_kind):: n_alloc=0
      type(q_ob_type),pointer :: head => NULL()
   end type q_ob_head
 
@@ -428,9 +567,12 @@ module obsmod
      real(r_kind)    :: vges          !  guess v value        
      integer(i_kind) :: ij(4)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type spd_ob_type
 
   type spd_ob_head
+     integer(i_kind):: n_alloc=0
      type(spd_ob_type),pointer :: head => NULL()
   end type spd_ob_head
 
@@ -453,9 +595,12 @@ module obsmod
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type srw_ob_type
 
   type srw_ob_head
+     integer(i_kind):: n_alloc=0
      type(srw_ob_type),pointer :: head => NULL()
   end type srw_ob_head
 
@@ -475,9 +620,12 @@ module obsmod
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type rw_ob_type
 
   type rw_ob_head    
+     integer(i_kind):: n_alloc=0
      type(rw_ob_type),pointer :: head => NULL()
   end type rw_ob_head
 
@@ -497,9 +645,12 @@ module obsmod
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type dw_ob_type
 
   type dw_ob_head
+     integer(i_kind):: n_alloc=0
      type(dw_ob_type),pointer :: head => NULL()
   end type dw_ob_head
 
@@ -516,10 +667,15 @@ module obsmod
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: wij(4)        !  horizontal interpolation weights
      integer(i_kind) :: ij(4)         !  horizontal locations
+     real(r_kind)    :: zob           !  observation depth in meter
+     real(r_kind)    :: tz_tr         !  sensitivity of tob to tref : d(Tz)/d(Tr)
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type sst_ob_type
 
   type sst_ob_head
+     integer(i_kind):: n_alloc=0
      type(sst_ob_type),pointer :: head => NULL()
   end type sst_ob_head
 
@@ -539,16 +695,19 @@ module obsmod
                                       !  delta pressure at mid layers at obs locations
      integer(i_kind) :: ij(4)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type pw_ob_type
 
   type pw_ob_head
+     integer(i_kind):: n_alloc=0
      type(pw_ob_type),pointer :: head => NULL()
   end type pw_ob_head
 
   type oz_ob_type
      sequence
      type(oz_ob_type),pointer :: llpoint => NULL()
-     type(odiags), dimension(:), pointer :: diags => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
                                       !  ozone residual
      real(r_kind),dimension(:),pointer :: err2 => NULL()
@@ -565,9 +724,14 @@ module obsmod
      integer(i_kind) :: nloz          ! number of levels for this profile
      integer(i_kind) :: ij(4)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
+     real(r_kind),dimension(:),pointer :: apriori    ! OMI retrieval first guess
+     real(r_kind),dimension(:),pointer :: efficiency ! OMI efficiency factor
   end type oz_ob_type
 
   type oz_ob_head    
+     integer(i_kind):: n_alloc=0
      type(oz_ob_type),pointer :: head => NULL()
   end type oz_ob_head
 
@@ -585,12 +749,197 @@ module obsmod
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type o3l_ob_type
 
   type o3l_ob_head
+     integer(i_kind):: n_alloc=0
      type(o3l_ob_type),pointer :: head => NULL()
   end type o3l_ob_head
 
+  type colvk_ob_type
+     sequence
+     type(colvk_ob_type),pointer :: llpoint => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
+     real(r_kind),dimension(:),pointer :: res => NULL()
+                                      !  co residual
+     real(r_kind),dimension(:),pointer :: err2 => NULL()
+                                      !  co error squared
+     real(r_kind),dimension(:),pointer :: raterr2 => NULL()
+                                      !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind),dimension(:,:),pointer :: wij => NULL()
+                                      !  horizontal interpolation weights
+     real(r_kind),dimension(:),pointer :: prs => NULL()
+                                      !  pressure levels
+     integer(i_kind),dimension(:),pointer :: ipos  => NULL()
+     real(r_kind),dimension(:,:),pointer :: ak  => NULL()   
+                                      ! MOPITT vertical averaging kernel
+     real(r_kind),dimension(:),pointer :: ap  => NULL()   
+                                      ! MOPITT a priori
+     real(r_kind),dimension(:),pointer   :: wkk1 => NULL()
+     real(r_kind),dimension(:),pointer   :: wkk2 => NULL()
+                                      ! vertical intropolation weights for MOPITT
+
+     integer(i_kind) :: nlco          ! number of levels for this profile
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob         ! device id and obs index for sorting
+  end type colvk_ob_type
+
+  type colvk_ob_head
+     integer(i_kind):: n_alloc=0
+     type(colvk_ob_type),pointer :: head => NULL()
+  end type colvk_ob_head
+
+  type aero_ob_type
+     sequence
+     type(aero_ob_type),pointer :: llpoint => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
+     real(r_kind),dimension(:),pointer    :: res  => NULL()    !  aerosol property residual
+     real(r_kind),dimension(:),pointer    :: err2 => NULL()    !  aerosol property error squared
+     real(r_kind),dimension(:),pointer    :: raterr2 => NULL() !  square of ratio of final obs error
+                                                               !  to original obs error
+     real(r_kind)                         :: time              !  observation time in sec
+     real(r_kind)    :: wij(4)                                 !  horizontal interpolation weights
+     real(r_kind),dimension(:,:),pointer :: daod_dvar => NULL() ! jacobians_aero (nsig*n_aerosols,nchan)
+     real(r_kind),dimension(:),pointer    :: prs => NULL()     !  pressure levels
+     integer(i_kind),dimension(:),pointer :: ipos  => NULL()
+     integer(i_kind),dimension(:),pointer :: icx  => NULL()
+     integer(i_kind) :: ij(4)                                  !  horizontal locations
+     integer(i_kind) :: nlaero                                 !  number of channels
+     logical         :: luse                                   !  flag indicating if ob is used in pen.
+     integer(i_kind) :: idv,iob                                !  device id and obs index for sorting
+     integer(i_kind),dimension(:),pointer :: ich => NULL()
+  end type aero_ob_type
+
+  type aero_ob_head
+     type(aero_ob_type),pointer :: head => NULL()
+  end type aero_ob_head
+
+  type aerol_ob_type
+    sequence
+     type(aerol_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  aerosol residual
+     real(r_kind)    :: err2          !  aerosol obs error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(8)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob         ! device id and obs index for sorting
+  end type aerol_ob_type
+
+  type aerol_ob_head
+     type(aerol_ob_type),pointer :: head => NULL()
+  end type aerol_ob_head
+
+  type pm2_5_ob_type
+! to avoid separate coding for pm2_5 profile e.g. from aircraft or 
+! soundings obs weights are coded as 
+! wij(8) even though for surface pm2_5 wij(4) would be sufficient.
+! also surface pm2_5 may be treated differently than now for vertical
+! interpolation
+
+     sequence
+     type(pm2_5_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  pm2_5 residual
+     real(r_kind)    :: err2          !  pm2_5 obs error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+!  to original obs error
+     real(r_kind)    :: time          !  observation time
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(8)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(8)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+     
+  end type pm2_5_ob_type
+  
+  type pm2_5_ob_head
+     integer(i_kind):: n_alloc=0
+     type(pm2_5_ob_type),pointer :: head => NULL()
+  end type pm2_5_ob_head
+
+  type gust_ob_type
+     sequence
+     type(gust_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  gust residual
+     real(r_kind)    :: err2          !  gust error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type gust_ob_type
+
+  type gust_ob_head
+     integer(i_kind):: n_alloc=0
+     type(gust_ob_type),pointer :: head => NULL()
+  end type gust_ob_head
+
+  type vis_ob_type
+     sequence
+     type(vis_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  vis residual
+     real(r_kind)    :: err2          !  vis error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type vis_ob_type
+
+  type vis_ob_head
+     integer(i_kind):: n_alloc=0
+     type(vis_ob_type),pointer :: head => NULL()
+  end type vis_ob_head
+
+  type pblh_ob_type
+     sequence
+     type(pblh_ob_type),pointer :: llpoint => NULL()
+     type(obs_diag), pointer :: diags => NULL()
+     real(r_kind)    :: res           !  pblh residual
+     real(r_kind)    :: err2          !  pblh error squared
+     real(r_kind)    :: raterr2       !  square of ratio of final obs error
+                                      !  to original obs error
+     real(r_kind)    :: time          !  observation time in sec
+     real(r_kind)    :: b             !  variational quality control parameter
+     real(r_kind)    :: pg            !  variational quality control parameter
+     real(r_kind)    :: wij(4)        !  horizontal interpolation weights
+     integer(i_kind) :: ij(4)         !  horizontal locations
+     logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob       ! device id and obs index for sorting
+  end type pblh_ob_type
+
+  type pblh_ob_head
+     integer(i_kind):: n_alloc=0
+     type(pblh_ob_type),pointer :: head => NULL()
+  end type pblh_ob_head
+  
   type gps_ob_type
      sequence
      type(gps_ob_type),pointer :: llpoint => NULL()
@@ -612,9 +961,12 @@ module obsmod
                                       !  p jacobian
      integer(i_kind),dimension(:,:),pointer :: ij  => NULL()
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type gps_ob_type
 
   type gps_ob_head
+     integer(i_kind):: n_alloc=0
      type(gps_ob_type),pointer :: head => NULL()
   end type gps_ob_head
 
@@ -633,18 +985,22 @@ module obsmod
      real(r_kind),dimension(:),pointer :: rdiag => NULL()
      integer(i_kind) :: kprof
      logical         :: luse          !  flag indicating if ob is used in pen.
+
      logical         :: muse          !  flag indicating if ob is used in pen.
      character(8)    :: cdiag
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type gps_all_ob_type
 
   type gps_all_ob_head
+     integer(i_kind):: n_alloc=0
      type(gps_all_ob_type),pointer :: head => NULL()
   end type gps_all_ob_head
 
   type rad_ob_type
      sequence
      type(rad_ob_type),pointer :: llpoint => NULL()
-     type(odiags), dimension(:), pointer :: diags => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
                                       !  error variances squared (nchan)
      real(r_kind),dimension(:),pointer :: err2 => NULL()
@@ -656,14 +1012,18 @@ module obsmod
      real(r_kind),dimension(:,:),pointer :: pred => NULL()
                                       !  predictors (npred,nchan)
      real(r_kind),dimension(:,:),pointer :: dtb_dvar => NULL()
-                                      !  error variances squared (nsig3p3,nchan)
+                                      !  error variances squared (nsigradjac,nchan)
      integer(i_kind),dimension(:),pointer :: icx  => NULL()
      integer(i_kind) :: nchan         !  number of channels for this profile
      integer(i_kind) :: ij(4)         !  horizontal locations
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
+     integer(i_kind),dimension(:),pointer :: ich => NULL()
   end type rad_ob_type
 
   type rad_ob_head   
+     integer(i_kind):: n_alloc=0
      type(rad_ob_type),pointer :: head => NULL()
   end type rad_ob_head
 
@@ -684,9 +1044,12 @@ module obsmod
      integer(i_kind) :: ij(4)         !  horizontal locations
      integer(i_kind) :: icxp          !  type of precipitation rate observation
      logical         :: luse          !  flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type pcp_ob_type
 
   type pcp_ob_head
+     integer(i_kind):: n_alloc=0
      type(pcp_ob_type),pointer :: head => NULL()
   end type pcp_ob_head
  
@@ -713,32 +1076,43 @@ module obsmod
      integer(i_kind),dimension(:),allocatable :: speci  ! TL parameter
      integer(i_kind) :: intnum        ! internal number of balloon
      logical         :: luse          ! flag indicating if ob is used in pen.
+
+     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
   end type lag_ob_type
 
   type lag_ob_head
+     integer(i_kind):: n_alloc=0
      type(lag_ob_type),pointer :: head => NULL()
   end type lag_ob_head
   ! lfm --------------------------------------------------------------------
 
   type obs_handle
      sequence
-     type(ps_ob_type),pointer  :: ps  => NULL() 
-     type(t_ob_type),pointer   :: t   => NULL()
-     type(w_ob_type),pointer   :: w   => NULL()
-     type(q_ob_type),pointer   :: q   => NULL()
-     type(spd_ob_type),pointer :: spd => NULL()
-     type(srw_ob_type),pointer :: srw => NULL()
-     type(rw_ob_type),pointer  :: rw  => NULL()
-     type(dw_ob_type),pointer  :: dw  => NULL()
-     type(sst_ob_type),pointer :: sst => NULL()
-     type(pw_ob_type),pointer  :: pw  => NULL()
-     type(oz_ob_type),pointer  :: oz  => NULL()
-     type(o3l_ob_type),pointer :: o3l => NULL()
-     type(gps_ob_type),pointer :: gps => NULL()
-     type(rad_ob_type),pointer :: rad => NULL()
-     type(pcp_ob_type),pointer :: pcp => NULL()
-     type(tcp_ob_type),pointer :: tcp => NULL()
-     type(lag_ob_type),pointer :: lag => NULL()
+     type(ps_ob_type),pointer    :: ps  => NULL() 
+     type(t_ob_type),pointer     :: t   => NULL()
+     type(w_ob_type),pointer     :: w   => NULL()
+     type(q_ob_type),pointer     :: q   => NULL()
+     type(spd_ob_type),pointer   :: spd => NULL()
+     type(srw_ob_type),pointer   :: srw => NULL()
+     type(rw_ob_type),pointer    :: rw  => NULL()
+     type(dw_ob_type),pointer    :: dw  => NULL()
+     type(sst_ob_type),pointer   :: sst => NULL()
+     type(pw_ob_type),pointer    :: pw  => NULL()
+     type(oz_ob_type),pointer    :: oz  => NULL()
+     type(o3l_ob_type),pointer   :: o3l => NULL()
+     type(gps_ob_type),pointer   :: gps => NULL()
+     type(rad_ob_type),pointer   :: rad => NULL()
+     type(pcp_ob_type),pointer   :: pcp => NULL()
+     type(tcp_ob_type),pointer   :: tcp => NULL()
+     type(lag_ob_type),pointer   :: lag => NULL()
+     type(colvk_ob_type),pointer :: colvk => NULL()
+     type(aero_ob_type),pointer  :: aero  => NULL()
+     type(aerol_ob_type),pointer :: aerol => NULL()
+     type(pm2_5_ob_type),pointer :: pm2_5  => NULL()
+     type(gust_ob_type),pointer  :: gust => NULL()
+     type(vis_ob_type),pointer   :: vis => NULL()
+     type(pblh_ob_type),pointer  :: pblh => NULL()
+
   end type obs_handle
 
 ! Declare types
@@ -785,6 +1159,15 @@ module obsmod
   type(o3l_ob_head),dimension(:),pointer :: o3lhead
   type(o3l_ob_head),dimension(:),pointer :: o3ltail
   type(o3l_ob_type),pointer :: o3lptr => NULL()
+  type(aero_ob_head),dimension(:),pointer :: aerohead => NULL()
+  type(aero_ob_head),dimension(:),pointer :: aerotail => NULL()
+  type(aero_ob_type),pointer :: aeroptr => NULL()
+  type(aerol_ob_head),dimension(:),pointer :: aerolhead
+  type(aerol_ob_head),dimension(:),pointer :: aeroltail
+  type(aerol_ob_type),pointer :: aerolptr => NULL()
+  type(pm2_5_ob_head),dimension(:),pointer :: pm2_5head
+  type(pm2_5_ob_head),dimension(:),pointer :: pm2_5tail
+  type(pm2_5_ob_type),pointer :: pm2_5ptr => NULL()
   type(gps_ob_head),dimension(:),pointer :: gpshead
   type(gps_ob_head),dimension(:),pointer :: gpstail
   type(gps_ob_type),pointer :: gpsptr => NULL()
@@ -794,9 +1177,24 @@ module obsmod
   type(rad_ob_head),dimension(:),pointer :: radhead
   type(rad_ob_head),dimension(:),pointer :: radtail
   type(rad_ob_type),pointer :: radptr => NULL()
+  type(rad_ob_head),dimension(:),pointer :: radheadm
+  type(rad_ob_head),dimension(:),pointer :: radtailm
+  type(rad_ob_type),pointer :: radptrm => NULL()
   type(lag_ob_head),dimension(:),pointer :: laghead
   type(lag_ob_head),dimension(:),pointer :: lagtail
   type(lag_ob_type),pointer :: lagptr => NULL()
+  type(colvk_ob_head),dimension(:),pointer :: colvkhead
+  type(colvk_ob_head),dimension(:),pointer :: colvktail
+  type(colvk_ob_type),pointer :: coptr => NULL()
+  type(gust_ob_head),dimension(:),pointer :: gusthead
+  type(gust_ob_head),dimension(:),pointer :: gusttail
+  type(gust_ob_type),pointer :: gustptr => NULL()
+  type(vis_ob_head),dimension(:),pointer :: vishead
+  type(vis_ob_head),dimension(:),pointer :: vistail
+  type(vis_ob_type),pointer :: visptr => NULL()
+  type(pblh_ob_head),dimension(:),pointer :: pblhhead
+  type(pblh_ob_head),dimension(:),pointer :: pblhtail
+  type(pblh_ob_type),pointer :: pblhptr => NULL()
 
   type(obs_handle),dimension(:),pointer :: yobs
 
@@ -809,40 +1207,55 @@ module obsmod
 ! Declare global variables
 
   real(r_kind) perturb_fact,time_window_max,time_offset
-  real(r_kind),dimension(ndatmax):: dval,dmesh,time_window
+  real(r_kind),dimension(50):: dmesh
 
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
-  integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep
+  integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
+  integer(i_kind) nlco,use_limit 
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
   integer(i_kind) iout_dw,iout_srw,iout_gps,iout_sst,iout_tcp,iout_lag
+  integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_srw,mype_gps,mype_sst, &
-                  mype_tcp,mype_lag
+                  mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh
+  integer(i_kind) nlaero, iout_aero, mype_aero
+  integer(i_kind) iout_pm2_5, mype_pm2_5
   integer(i_kind),dimension(5):: iadate
-  integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
+  integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
   integer(i_kind),allocatable :: obscounts(:,:)
   
   character(128) obs_setup
   character(128) dirname
   character(128) obs_input_common
-  character(14),dimension(ndatmax):: obsfile_all
-  character(10),dimension(ndatmax):: dtype,ditype,dplat
-  character(13),dimension(ndatmax):: dfile
-  character(20),dimension(ndatmax):: dsis
+  character(20),allocatable,dimension(:):: obsfile_all
+  character(10),allocatable,dimension(:):: dtype,ditype,dplat
+  character(20),allocatable,dimension(:):: dfile
+  character(20),allocatable,dimension(:):: dsis
+  real(r_kind) ,allocatable,dimension(:):: dval
+  real(r_kind) ,allocatable,dimension(:):: time_window
   character(len=20) :: cobstype(nobs_type)
+
+  logical, save :: obs_instr_initialized_=.false.
 
   logical oberrflg,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
   logical lobserver,l_do_adjoint
   logical,dimension(0:50):: write_diag
+  logical reduce_diag
   logical offtime_data
   logical hilbert_curve
   logical lread_obs_save
   logical lread_obs_skip
+  logical lwrite_predterms
+  logical lwrite_peakwt
+  logical ext_sonde
+  logical lrun_subdirs
+  logical l_foreaft_thin
 
+  character(len=*),parameter:: myname='obsmod'
 contains
 
   subroutine init_obsmod_dflts
@@ -866,6 +1279,8 @@ contains
 !   2006-10-25  sienkiewicz - introduce blacklst
 !   2007-05-03  todling - use values def above as indexes to cobstype
 !   2008-11-25  todling - remove line-by-line adj triggers
+!   2011-02-09  zhu     - add gust,vis and pblh
+!   2013-09-27  todling - initialization of ob-instr/type move to sub init_instr_table_
 !
 !   input argument list:
 !
@@ -888,11 +1303,13 @@ contains
     do i=0,50
        write_diag(i)=.false.
     end do
-    write_diag(ione)=.true.
+    write_diag(1)=.true.
+    reduce_diag = .false.
+    use_limit = -1
     lobsdiagsave=.false.
     lobsdiag_allocated=.false.
     lobskeep=.false.
-    nobskeep=izero
+    nobskeep=0
     lsaveobsens=.false.
     l_do_adjoint=.true.     ! .true. = apply H^T when in int routines
     oberrflg  = .false.
@@ -907,93 +1324,105 @@ contains
     endif
     blacklst  = .false.
     lobserver = .false.     ! when .t., calculate departure vectors only
+    ext_sonde = .false.     ! .false. = do not use extended forward model for sonde
 
 !   Specify unit numbers to which to write data counts, indication of quality control
 !   decisions, and statistics summary of innovations.  For radiance data also write
 !   bias correction coefficients to this unit (iout_rad)
-    iout_ps=201_i_kind    ! surface pressure
-    iout_uv=202_i_kind    ! u,v wind components
-    iout_t=203_i_kind     ! virtual temperature
-    iout_q=204_i_kind     ! moisure (specific humidity)
-    iout_pw=205_i_kind    ! total column water (precipitable water)
-    iout_oz=206_i_kind    ! ozone
-    iout_rad=207_i_kind   ! radiance (brightness temperature)
-    iout_pcp=208_i_kind   ! precipitation rate
-    iout_rw=209_i_kind    ! radar radial wind
-    iout_dw=210_i_kind    ! doppler lidar wind
-    iout_srw=211_i_kind   ! radar superob wind
-    iout_gps=212_i_kind   ! gps refractivity or bending angle
-    iout_sst=213_i_kind   ! conventional sst
-    iout_tcp=214_i_kind   ! synthetic tc-mslp
-    iout_lag=215_i_kind   ! lagrangian tracers
+    iout_ps=201    ! surface pressure
+    iout_uv=202    ! u,v wind components
+    iout_t=203     ! virtual temperature
+    iout_q=204     ! moisure (specific humidity)
+    iout_pw=205    ! total column water (precipitable water)
+    iout_oz=206    ! ozone
+    iout_rad=207   ! radiance (brightness temperature)
+    iout_pcp=208   ! precipitation rate
+    iout_rw=209    ! radar radial wind
+    iout_dw=210    ! doppler lidar wind
+    iout_srw=211   ! radar superob wind
+    iout_gps=212   ! gps refractivity or bending angle
+    iout_sst=213   ! conventional sst
+    iout_tcp=214   ! synthetic tc-mslp
+    iout_lag=215   ! lagrangian tracers
+    iout_co=216    ! co tracers
+    iout_aero=217  ! aerosol product (aod)
+    iout_gust=218  ! wind gust
+    iout_vis=219   ! visibility
+    iout_pblh=221  ! pbl height
+    iout_pm2_5=222 ! pm2_5
 
-    mype_ps = npe-ione                  ! surface pressure
-    mype_uv = max(izero,npe-2_i_kind)   ! u,v wind components
-    mype_t  = max(izero,npe-3_i_kind)   ! virtual temperature
-    mype_q  = max(izero,npe-4_i_kind)   ! moisture (specific humidity)
-    mype_pw = max(izero,npe-5_i_kind)   ! total column water
-    mype_rw = max(izero,npe-6_i_kind)   ! radar radial wind
-    mype_dw = max(izero,npe-7_i_kind)   ! doppler lidar wind
-    mype_srw= max(izero,npe-8_i_kind)   ! radar superob wind
-    mype_gps= max(izero,npe-9_i_kind)   ! gps refractivity or bending angle
-    mype_sst= max(izero,npe-10_i_kind)  ! conventional sst
-    mype_tcp= max(izero,npe-11_i_kind)  ! synthetic tc-mslp
-    mype_lag= max(izero,npe-12_i_kind)  ! lagrangian tracers
+    mype_ps = npe-1          ! surface pressure
+    mype_uv = max(0,npe-2)   ! u,v wind components
+    mype_t  = max(0,npe-3)   ! virtual temperature
+    mype_q  = max(0,npe-4)   ! moisture (specific humidity)
+    mype_pw = max(0,npe-5)   ! total column water
+    mype_rw = max(0,npe-6)   ! radar radial wind
+    mype_dw = max(0,npe-7)   ! doppler lidar wind
+    mype_srw= max(0,npe-8)   ! radar superob wind
+    mype_gps= max(0,npe-9)   ! gps refractivity or bending angle
+    mype_sst= max(0,npe-10)  ! conventional sst
+    mype_tcp= max(0,npe-11)  ! synthetic tc-mslp
+    mype_lag= max(0,npe-12)  ! lagrangian tracers
+    mype_aero= max(0,npe-13) ! aerosol product (aod)
+    mype_gust= max(0,npe-14) ! wind gust
+    mype_vis = max(0,npe-15) ! visibility
+    mype_pblh= max(0,npe-16) ! pbl height
+    mype_pm2_5= max(0,npe-17)! pm2_5
     
 !   Initialize arrays used in namelist obs_input 
-    ndat = ndatmax          ! number of observation types (files)
     time_window_max = three ! set maximum time window to +/-three hours
-    do i=ione,ndat
-       dfile(i) = ' '     ! local file name from which to read observatinal data
-       dtype(i) = ' '     ! character string identifying type of observation
-       ditype(i)= ' '     ! character string identifying group type of ob
-       dplat(i) = ' '     ! currently contains satellite id (no meaning for non-sat data)
-       dsis(i)  = ' '     ! sensor/instrument/satellite identifier for info files
-       dsfcalc(i)=izero   ! use orig bilinear FOV surface calculation (routine deter_sfc)
-       ipoint(i)= izero   ! default pointer (values set in gsisub)
-       dthin(i) = ione    ! thinning flag (1=thinning on; otherwise off)
-       time_window(i) = time_window_max ! default to maximum time window
-       write(obsfile_all(i),100) i      ! name of scratch file to hold obs data
-    end do
-100 format('obs_input.',i4.4)
 
 
 !   Other initializations
-    nloz_v6 = 12_i_kind               ! number of "levels" in ozone version8 data
-    nloz_v8 = 21_i_kind               ! number of "levels" in ozone version6 data
+    nloz_v6 = 12               ! number of "levels" in ozone version8 data
+    nloz_v8 = 21               ! number of "levels" in ozone version6 data
+    nloz_omi= 11               ! number of "levels" in OMI apriori profile
+    nlco    = 10               ! number of "levels" in MOPITT version 4 CO data
 
-    lunobs_obs = 2_i_kind             ! unit to which to write/read information
-                                      ! related to brightness temperature and 
-                                      ! precipitation rate observations
+    lunobs_obs = 2             ! unit to which to write/read information
+                               ! related to brightness temperature and 
+                               ! precipitation rate observations
 
-    grids_dim= 161_i_kind             ! grid points for integration of GPS bend
+    grids_dim= 80              ! grid points for integration of GPS bend
 
-    nprof_gps = izero
+    nprof_gps = 0
 
 !   Define a name for obs types
-    cobstype( i_ps_ob_type)="surface pressure    " ! ps_ob_type
-    cobstype(  i_t_ob_type)="temperature         " ! t_ob_type
-    cobstype(  i_w_ob_type)="wind                " ! w_ob_type
-    cobstype(  i_q_ob_type)="moisture            " ! q_ob_type
-    cobstype(i_spd_ob_type)="wind speed          " ! spd_ob_type
-    cobstype(i_srw_ob_type)="srw                 " ! srw_ob_type
-    cobstype( i_rw_ob_type)="radial wind         " ! rw_ob_type
-    cobstype( i_dw_ob_type)="doppler wind        " ! dw_ob_type
-    cobstype(i_sst_ob_type)="sst                 " ! sst_ob_type
-    cobstype( i_pw_ob_type)="precipitable water  " ! pw_ob_type
-    cobstype(i_pcp_ob_type)="precipitation       " ! pcp_ob_type
-    cobstype( i_oz_ob_type)="ozone               " ! oz_ob_type
-    cobstype(i_o3l_ob_type)="level ozone         " ! o3l_ob_type
-    cobstype(i_gps_ob_type)="gps                 " ! gps_ob_type
-    cobstype(i_rad_ob_type)="radiance            " ! rad_ob_type
-    cobstype(i_tcp_ob_type)="tcp (tropic cyclone)" ! tcp_ob_type
-    cobstype(i_lag_ob_type)="lagrangian tracer   " ! lag_ob_type
+    cobstype( i_ps_ob_type)  ="surface pressure    " ! ps_ob_type
+    cobstype(  i_t_ob_type)  ="temperature         " ! t_ob_type
+    cobstype(  i_w_ob_type)  ="wind                " ! w_ob_type
+    cobstype(  i_q_ob_type)  ="moisture            " ! q_ob_type
+    cobstype(i_spd_ob_type)  ="wind speed          " ! spd_ob_type
+    cobstype(i_srw_ob_type)  ="srw                 " ! srw_ob_type
+    cobstype( i_rw_ob_type)  ="radial wind         " ! rw_ob_type
+    cobstype( i_dw_ob_type)  ="doppler wind        " ! dw_ob_type
+    cobstype(i_sst_ob_type)  ="sst                 " ! sst_ob_type
+    cobstype( i_pw_ob_type)  ="precipitable water  " ! pw_ob_type
+    cobstype(i_pcp_ob_type)  ="precipitation       " ! pcp_ob_type
+    cobstype( i_oz_ob_type)  ="ozone               " ! oz_ob_type
+    cobstype(i_o3l_ob_type)  ="level ozone         " ! o3l_ob_type
+    cobstype(i_gps_ob_type)  ="gps                 " ! gps_ob_type
+    cobstype(i_rad_ob_type)  ="radiance            " ! rad_ob_type
+    cobstype(i_tcp_ob_type)  ="tcp (tropic cyclone)" ! tcp_ob_type
+    cobstype(i_lag_ob_type)  ="lagrangian tracer   " ! lag_ob_type
+    cobstype(i_colvk_ob_type)="carbon monoxide     " ! colvk_ob_type
+    cobstype( i_aero_ob_type)="aerosol aod         " ! aero_ob_type
+    cobstype(i_aerol_ob_type)="level aero aod      " ! aerol_ob_type
+    cobstype( i_pm2_5_ob_type)="in-situ pm2_5 obs  " ! pm2_5_ob_type
+    cobstype(i_gust_ob_type) ="gust                " ! gust_ob_type
+    cobstype(i_vis_ob_type)  ="vis                 " ! vis_ob_type
+    cobstype(i_pblh_ob_type) ="pblh                " ! pblh_ob_type
+
 
     hilbert_curve=.false.
 
     obs_input_common = 'obs_input.common'
-    lread_obs_save = .false.
-    lread_obs_skip = .false.
+    lread_obs_save   = .false.
+    lread_obs_skip   = .false.
+    lwrite_predterms = .false.
+    lwrite_peakwt    = .false.
+    lrun_subdirs     = .false.
+    l_foreaft_thin   = .false.
 
     return
   end subroutine init_obsmod_dflts
@@ -1030,16 +1459,17 @@ contains
     character(len=144):: command
     character(len=8):: pe_name
 
-#ifdef ibm_sp
-    write(pe_name,'(i4.4)') mype
-    dirname = 'dir.'//trim(pe_name)//'/'
-    command = 'mkdir -m 755 ' // trim(dirname)
-    call system(command)
-#else
-    write(pe_name,100) mype
+    if (lrun_subdirs) then
+       write(pe_name,'(i4.4)') mype
+       dirname = 'dir.'//trim(pe_name)//'/'
+       command = 'mkdir -m 755 ' // trim(dirname)
+       call system(command)
+    else
+       write(pe_name,100) mype
 100 format('pe',i4.4,'.')
-    dirname= trim(pe_name)
-#endif
+       dirname= trim(pe_name)
+    end if
+
     return
   end subroutine init_directories
   
@@ -1097,6 +1527,12 @@ contains
     ALLOCATE(oztail (nobs_bins))
     ALLOCATE(o3lhead(nobs_bins))
     ALLOCATE(o3ltail(nobs_bins))
+    ALLOCATE(aerohead (nobs_bins))
+    ALLOCATE(aerotail (nobs_bins))
+    ALLOCATE(aerolhead(nobs_bins))
+    ALLOCATE(aeroltail(nobs_bins))
+    ALLOCATE(pm2_5head(nobs_bins))
+    ALLOCATE(pm2_5tail(nobs_bins))
     ALLOCATE(radhead(nobs_bins))
     ALLOCATE(radtail(nobs_bins))
     ALLOCATE(gpshead(nobs_bins))
@@ -1105,6 +1541,14 @@ contains
     ALLOCATE(gps_alltail(nobs_bins))
     ALLOCATE(laghead(nobs_bins))
     ALLOCATE(lagtail(nobs_bins))
+    ALLOCATE(colvkhead(nobs_bins))
+    ALLOCATE(colvktail(nobs_bins))
+    ALLOCATE(gusthead(nobs_bins))
+    ALLOCATE(gusttail(nobs_bins))
+    ALLOCATE(vishead(nobs_bins))
+    ALLOCATE(vistail(nobs_bins))
+    ALLOCATE(pblhhead(nobs_bins))
+    ALLOCATE(pblhtail(nobs_bins))
 
     ALLOCATE(yobs(nobs_bins))
 
@@ -1112,8 +1556,39 @@ contains
 
     return
   end subroutine create_obsmod_vars
+
 ! ----------------------------------------------------------------------
-  subroutine init_obsmod_vars(mype)
+  subroutine create_passive_obsmod_vars
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    create_passive_obsmod_vars
+!     prgmmr:    zhu            org: np23           date: 2010-05-12
+!
+! abstract:  allocate arrays to hold observation related information
+!
+! program history log:
+!   2010-05-12 zhu
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$ end documentation block
+    use gsi_4dvar, only: nobs_bins
+    implicit none
+
+    ALLOCATE(radheadm(nobs_bins))
+    ALLOCATE(radtailm(nobs_bins))
+
+    return
+  end subroutine create_passive_obsmod_vars
+
+! ----------------------------------------------------------------------
+  subroutine init_obsmod_vars(nhr_assim,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_obsmod_vars
@@ -1123,6 +1598,7 @@ contains
 !
 ! program history log:
 !   2007-02-02  tremolet
+!   2012-09-27  todling - remove dmesh from loop below; slight revision
 !
 !   input argument list:
 !
@@ -1132,29 +1608,18 @@ contains
 !   language: f90
 !
 !$$$  end documentation block
-    use gsi_4dvar, only: nhr_assimilation
-    use gridmod, only: regional
+    use gridmod, only: regional,twodvar_regional
     implicit none
 
+    integer(i_kind),intent(in   ) :: nhr_assim
     integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) ii,jj,ioff
     character(len=2) :: cind
     logical :: limit
 
-!   Because obs come in 6-hour batches
-    ndat_times=nhr_assimilation/6
-    if(regional)ndat_times = nhr_assimilation/3
-!   if (ndat_times*6/=nhr_assimilation) then
-!       write(6,*)'OBSMOD:  ***ERROR*** in assimilation time window setting; ', &
-!        ' must be a multiple of 6hrs: ndat_times= ', ndat_times, &
-!        ' nhr_assimilation= ', nhr_assimilation, &
-!              ' ***STOP IN OBSMOD***'
-!       call stop2(70)
-!   endif
-    ndat_types=ndat
-
-    ndat=ndat_times*ndat_types
+!   if(regional .and. .not.twodvar_regional)ndat_times = nhr_assim/3
+    if(twodvar_regional)ndat_times = 1
 
 !   The following was in gsimain.
 !   Ensure time window specified in obs_input does not exceed
@@ -1166,19 +1631,18 @@ contains
           limit = .true.
        endif
     end do
-    if (mype==izero .and. limit) &
+    if (mype==0 .and. limit) &
        write(6,*)'INIT_OBSMOD_VARS: reset time window for one or ',&
                  'more OBS_INPUT entries to ',time_window_max
 
 !   Initialize arrays in obs_input if more than one synoptic time
-    IF (ndat_times>ione) THEN
+    IF (ndat_times>1) THEN
 !      Copy other things
        DO ii=2,ndat_times
           write(cind,'(i2.2)')ii
-          ioff=(ii-ione)*ndat_types
+          ioff=(ii-1)*ndat_types
           DO jj=1,ndat_types
              dfile (ioff+jj) = trim(dfile(jj))//'.'//cind
-             dmesh (ioff+jj) = dmesh(jj)
              dtype (ioff+jj) = dtype(jj)
              ditype(ioff+jj) = ditype(jj)
              dplat (ioff+jj) = dplat(jj)
@@ -1186,21 +1650,24 @@ contains
              ipoint(ioff+jj) = ipoint(jj)
              dthin (ioff+jj) = dthin(jj)
              dval  (ioff+jj) = dval(jj)
+             dsfcalc(ioff+jj)= dsfcalc(jj)
+             obsfile_all(ioff+jj) = trim(obsfile_all(jj))//'.'//cind
              time_window(ioff+jj) = time_window(jj)
           ENDDO
        ENDDO
 !      Then change name for first time slot
-       IF (ndat_times>ione) THEN
-          DO jj=ione,ndat_types
+       IF (ndat_times>1) THEN
+          DO jj=1,ndat_types
+             obsfile_all(jj) = trim(obsfile_all(jj))//'.01'
              dfile(jj) = trim(dfile(jj))//'.01'
           ENDDO
        ENDIF
     ENDIF
 
-    IF (mype==izero) THEN
+    IF (mype==0) THEN
        write(6,*)'INIT_OBSMOD_VARS: ndat_times,ndat_types,ndat=', &
                                   & ndat_times,ndat_types,ndat
-       write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assimilation
+       write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assim
     ENDIF
 
     return
@@ -1250,8 +1717,10 @@ contains
        ttail(ii)%head => thead(ii)%head
        do while (associated(ttail(ii)%head))
           thead(ii)%head => ttail(ii)%head%llpoint
+          deallocate(ttail(ii)%head%pred,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t arrays, istatus=',istatus
           deallocate(ttail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for t, istatus=',istatus
           ttail(ii)%head => thead(ii)%head
        end do
     end do
@@ -1261,9 +1730,9 @@ contains
        do while (associated(pwtail(ii)%head))
           pwhead(ii)%head => pwtail(ii)%head%llpoint
           deallocate(pwtail(ii)%head%dp,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw arrays, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pw arrays, istatus=',istatus
           deallocate(pwtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pw, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pw, istatus=',istatus
           pwtail(ii)%head => pwhead(ii)%head
        end do
     end do
@@ -1273,7 +1742,7 @@ contains
        do while (associated(pstail(ii)%head))
           pshead(ii)%head => pstail(ii)%head%llpoint
           deallocate(pstail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for ps, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for ps, istatus=',istatus
           pstail(ii)%head => pshead(ii)%head
        end do
     end do
@@ -1283,7 +1752,7 @@ contains
        do while (associated(wtail(ii)%head))
           whead(ii)%head => wtail(ii)%head%llpoint
           deallocate(wtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for w, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for w, istatus=',istatus
           wtail(ii)%head => whead(ii)%head
        end do
     end do
@@ -1293,7 +1762,7 @@ contains
        do while (associated(qtail(ii)%head))
           qhead(ii)%head => qtail(ii)%head%llpoint
           deallocate(qtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for q, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for q, istatus=',istatus
           qtail(ii)%head => qhead(ii)%head
        end do
     end do
@@ -1303,7 +1772,7 @@ contains
        do while (associated(spdtail(ii)%head))
           spdhead(ii)%head => spdtail(ii)%head%llpoint
           deallocate(spdtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for spd, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for spd, istatus=',istatus
           spdtail(ii)%head => spdhead(ii)%head
        end do
     end do
@@ -1313,7 +1782,7 @@ contains
        do while (associated(srwtail(ii)%head))
           srwhead(ii)%head => srwtail(ii)%head%llpoint
           deallocate(srwtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for srw, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for srw, istatus=',istatus
           srwtail(ii)%head => srwhead(ii)%head
        end do
     end do
@@ -1323,7 +1792,7 @@ contains
        do while (associated(rwtail(ii)%head))
           rwhead(ii)%head => rwtail(ii)%head%llpoint
           deallocate(rwtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rw, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rw, istatus=',istatus
           rwtail(ii)%head => rwhead(ii)%head
        end do
     end do
@@ -1333,7 +1802,7 @@ contains
        do while (associated(dwtail(ii)%head))
           dwhead(ii)%head => dwtail(ii)%head%llpoint
           deallocate(dwtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for dw, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for dw, istatus=',istatus
           dwtail(ii)%head => dwhead(ii)%head
        end do
     end do
@@ -1343,7 +1812,7 @@ contains
        do while (associated(ssttail(ii)%head))
           ssthead(ii)%head => ssttail(ii)%head%llpoint
           deallocate(ssttail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for sst, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for sst, istatus=',istatus
           ssttail(ii)%head => ssthead(ii)%head
        end do
     end do
@@ -1354,10 +1823,12 @@ contains
           ozhead(ii)%head => oztail(ii)%head%llpoint
           deallocate(oztail(ii)%head%res, oztail(ii)%head%wij,&
                      oztail(ii)%head%err2,oztail(ii)%head%raterr2, &
-                     oztail(ii)%head%prs,oztail(ii)%head%ipos,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
+                     oztail(ii)%head%prs,oztail(ii)%head%ipos, &
+                     oztail(ii)%head%apriori, &
+                     oztail(ii)%head%efficiency, stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
           deallocate(oztail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
           oztail(ii)%head => ozhead(ii)%head
        end do
     end do
@@ -1367,8 +1838,74 @@ contains
        do while (associated(o3ltail(ii)%head))
           o3lhead(ii)%head => o3ltail(ii)%head%llpoint
           deallocate(o3ltail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for o3l, istatus=',istatus
           o3ltail(ii)%head => o3lhead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+      aerotail(ii)%head => aerohead(ii)%head
+      do while (associated(aerotail(ii)%head))
+        aerohead(ii)%head => aerotail(ii)%head%llpoint
+        deallocate(aerotail(ii)%head%res, &
+                   aerotail(ii)%head%err2,aerotail(ii)%head%raterr2, &
+                   aerotail(ii)%head%daod_dvar, &
+                   aerotail(ii)%head%ich, &
+                   aerotail(ii)%head%icx,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero arrays, istatus=',istatus
+        deallocate(aerotail(ii)%head,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero, istatus=',istatus
+        aerotail(ii)%head => aerohead(ii)%head
+      end do
+    end do
+
+    do ii=1,nobs_bins
+      aeroltail(ii)%head => aerolhead(ii)%head
+      do while (associated(aeroltail(ii)%head))
+        aerolhead(ii)%head => aeroltail(ii)%head%llpoint
+        deallocate(aeroltail(ii)%head,stat=istatus)
+        if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aerol, istatus=',istatus
+        aeroltail(ii)%head => aerolhead(ii)%head
+      end do
+    end do
+
+    do ii=1,nobs_bins
+       pm2_5tail(ii)%head => pm2_5head(ii)%head
+       do while (associated(pm2_5tail(ii)%head))
+          pm2_5head(ii)%head => pm2_5tail(ii)%head%llpoint
+          deallocate(pm2_5tail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pm2_5, istatus=',istatus
+          pm2_5tail(ii)%head => pm2_5head(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       gusttail(ii)%head => gusthead(ii)%head
+       do while (associated(gusttail(ii)%head))
+          gusthead(ii)%head => gusttail(ii)%head%llpoint
+          deallocate(gusttail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for gust, istatus=',istatus
+          gusttail(ii)%head => gusthead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       vistail(ii)%head => vishead(ii)%head
+       do while (associated(vistail(ii)%head))
+          vishead(ii)%head => vistail(ii)%head%llpoint
+          deallocate(vistail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for vis, istatus=',istatus
+          vistail(ii)%head => vishead(ii)%head
+       end do
+    end do
+
+    do ii=1,nobs_bins
+       pblhtail(ii)%head => pblhhead(ii)%head
+       do while (associated(pblhtail(ii)%head))
+          pblhhead(ii)%head => pblhtail(ii)%head%llpoint
+          deallocate(pblhtail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pblh, istatus=',istatus
+          pblhtail(ii)%head => pblhhead(ii)%head
        end do
     end do
 
@@ -1379,9 +1916,9 @@ contains
           deallocate(gpstail(ii)%head%jac_q,gpstail(ii)%head%jac_t, &
                      gpstail(ii)%head%jac_p, &
                      gpstail(ii)%head%ij,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps arrays, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for gps arrays, istatus=',istatus
           deallocate(gpstail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for gps, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for gps, istatus=',istatus
           gpstail(ii)%head => gpshead(ii)%head
        end do
     end do
@@ -1393,10 +1930,11 @@ contains
           deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
                      radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
                      radtail(ii)%head%dtb_dvar, &
+                     radtail(ii)%head%ich, &
                      radtail(ii)%head%icx,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
           deallocate(radtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for rad, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad, istatus=',istatus
           radtail(ii)%head => radhead(ii)%head
        end do
     end do
@@ -1406,9 +1944,9 @@ contains
        do while (associated(pcptail(ii)%head))
           pcphead(ii)%head => pcptail(ii)%head%llpoint
           deallocate(pcptail(ii)%head%predp,pcptail(ii)%head%dpcp_dvar,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp arrays, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pcp arrays, istatus=',istatus
           deallocate(pcptail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for pcp, istatus=',istatus
           pcptail(ii)%head => pcphead(ii)%head
        end do
     end do
@@ -1418,7 +1956,7 @@ contains
        do while (associated(tcptail(ii)%head))
           tcphead(ii)%head => tcptail(ii)%head%llpoint
           deallocate(tcptail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for tcp, istatus=',istatus
           tcptail(ii)%head => tcphead(ii)%head
        end do
     end do
@@ -1428,12 +1966,29 @@ contains
        do while (associated(lagtail(ii)%head))
           laghead(ii)%head => lagtail(ii)%head%llpoint
           deallocate(lagtail(ii)%head%speci,lagtail(ii)%head%specr,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lag arrays, istatus=',istatus
           deallocate(lagtail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for lag, istatus=',istatus
           lagtail(ii)%head => laghead(ii)%head
        end do
     end do
+
+    do ii=1,nobs_bins
+       colvktail(ii)%head => colvkhead(ii)%head
+       do while (associated(colvktail(ii)%head))
+          colvkhead(ii)%head => colvktail(ii)%head%llpoint
+          deallocate(colvktail(ii)%head%res, colvktail(ii)%head%wij,&
+                     colvktail(ii)%head%err2,colvktail(ii)%head%raterr2, &
+                     colvktail(ii)%head%prs,colvktail(ii)%head%ipos, &
+                     colvktail(ii)%head%ak, colvktail(ii)%head%ap, &
+                     stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for co arrays, istatus=',istatus
+          deallocate(colvktail(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for co, istatus=',istatus
+          colvktail(ii)%head => colvkhead(ii)%head
+       end do
+    end do
+
 
     if (l4dvar) then
        if (.not. skipit_) then
@@ -1457,6 +2012,54 @@ contains
     return
   end subroutine destroyobs_
   
+! ----------------------------------------------------------------------
+
+  subroutine destroyobs_passive
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroyobs_passive
+!     prgmmr:    zhu            org: np23           date: 2010-05-12
+!
+! abstract:  deallocate arrays that hold observation information for
+!            use in outer and inner loops
+!
+! program history log:
+!   2010-05-12  zhu
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$  end documentation block
+    use gsi_4dvar, only: nobs_bins
+
+    implicit none
+
+    integer(i_kind) :: ii,istatus
+
+    do ii=1,nobs_bins
+       radtailm(ii)%head => radheadm(ii)%head
+       do while (associated(radtailm(ii)%head))
+          radheadm(ii)%head => radtailm(ii)%head%llpoint
+          deallocate(radtailm(ii)%head%res,radtailm(ii)%head%err2, &
+                     radtailm(ii)%head%raterr2,radtailm(ii)%head%pred, &
+                     radtailm(ii)%head%ich,&
+                     radtailm(ii)%head%icx,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad arrays, istatus=',istatus
+          deallocate(radtailm(ii)%head,stat=istatus)
+          if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad, istatus=',istatus
+          radtailm(ii)%head => radheadm(ii)%head
+       end do
+    end do
+
+    return
+  end subroutine destroyobs_passive
+
+
   subroutine destroy_obsmod_vars
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1550,7 +2153,7 @@ contains
        do while (associated(gps_alltail(ii)%head))
           gps_allhead(ii)%head => gps_alltail(ii)%head%llpoint
           deallocate(gps_alltail(ii)%head,stat=istatus)
-          if (istatus/=izero) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
+          if (istatus/=0) write(6,*)'DESTROY_GENSTATS_GPS: deallocate error for gps_all, istatus=',istatus
           gps_alltail(ii)%head => gps_allhead(ii)%head
        end do
     end do
@@ -1594,32 +2197,227 @@ sizer=8.0_r_kind
 sizel=one
 sizep=four
 
-iobsa(:)=izero
+iobsa(:)=0
 do ii=1,size(obsdiags,2)
    do jj=1,size(obsdiags,1)
       obsptr => obsdiags(jj,ii)%head
       do while (associated(obsptr))
-         iobsa(ione)=iobsa(ione)+ione
-         if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+ione
+         iobsa(1)=iobsa(1)+1
+         if (ANY(obsptr%muse(:))) iobsa(2)=iobsa(2)+1
          obsptr => obsptr%next
       enddo
    enddo
 enddo
 
-call mpi_reduce(iobsa,iobsb,2_i_kind,mpi_itype,mpi_max,izero,mpi_comm_world,ierror)
+call mpi_reduce(iobsa,iobsb,2,mpi_itype,mpi_max,0,mpi_comm_world,ierror)
 
-if (mype==izero) then
+if (mype==0) then
    ziter=real(kiter,r_kind)
    zsize = sizer*(three*ziter+two) + sizei + sizel*(ziter+one) + sizep*five
-   ztot=real(iobsb(ione),r_kind)*zsize
+   ztot=real(iobsb(1),r_kind)*zsize
    ztot=ztot/(1024.0_r_kind*1024.0_r_kind)
  
    write(6,*)'obsdiags: Bytes per element=',NINT(zsize)
-   write(6,*)'obsdiags: length total, used=',iobsb(ione),iobsb(2_i_kind)
+   write(6,*)'obsdiags: length total, used=',iobsb(1),iobsb(2)
    write(6,'(A,F8.1,A)')'obsdiags: Estimated memory usage= ',ztot,' Mb'
 endif
 
 end subroutine inquire_obsdiags
 ! ----------------------------------------------------------------------
+function dfile_format(dfile) result(dform)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 function dfile_format
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
+!     date:	 2013-02-04
+!
+! abstract: - check filename suffix to guess its format
+!
+! program history log:
+!   2013-02-04  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! function interface:
+
+  implicit none
+
+  character(len=len('unknown')):: dform	! a 2-4 byte code for a format guess,
+  	! from a list of filename suffixes, 'bufr', 'text' (also for 'txt',
+	! 'tcvitle', or 'vitl'), 'nc', or return a default value 'unknown'.  One
+	! can extend the list to other suffixes, such as 'hdf', 'hdf4', 'hdf5',
+	! etc., if they are needed in the future.
+  character(len=*),intent(in):: dfile	! a given filename
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  character(len=*),parameter :: myname_=myname//'::dfile_format'
+  integer(i_kind):: i,l
+
+  dform='unknown'
+  l=len_trim(dfile)
+
+  i=max(0,l-6)+1	! 6 byte code?
+  select case(dfile(i:l))
+  case ('tcvitl')
+    dform='text'
+  end select
+  if(dform/='unknown') return
+
+  i=max(0,l-4)+1	! 4 byte code?
+  select case(dfile(i:l))
+  case ('bufr')
+    dform='bufr'
+  case ('text','vitl')
+    dform='text'
+  end select
+  if(dform/='unknown') return
+
+  i=max(0,l-3)+1	! 3 byte code?
+  select case(dfile(i:l))
+  case ('txt')		! a short
+    dform='text'
+  end select
+  if(dform/='unknown') return
+
+  i=max(0,l-2)+1	! 2 byte code?
+  select case(dfile(i:l))
+  case ('nc')
+    dform='nc'
+  end select
+
+return
+end function dfile_format
+
+subroutine init_instr_table_ (nhr_assim,nall,iamroot,rcname)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 function dfile_format
+!   prgmmr:	 todling
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
+!     date:	 2013-02-04
+!
+! abstract: - read instrument table from file
+!
+! program history log:
+!   2013-09-27  todling  - initial code
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+use file_utility, only : get_lun
+use mpeu_util, only: gettablesize
+use mpeu_util, only: gettable
+use mpeu_util, only: getindex
+implicit none
+
+integer(i_kind),intent(in)  :: nhr_assim       ! number of assimilation hours
+integer(i_kind),intent(out) :: nall            ! number of data_type*assim_intervals
+logical,optional,intent(in) :: iamroot         ! optional root processor id
+character(len=*),optional,intent(in) :: rcname ! optional input filename
+
+character(len=*),parameter::myname_=myname//'*init_instr_table_'
+character(len=*),parameter:: tbname='OBS_INPUT::'
+integer(i_kind) luin,i,ii,ntot,nrows
+character(len=256),allocatable,dimension(:):: utable
+logical iamroot_
+
+nall=0
+if(obs_instr_initialized_) return
+
+iamroot_=mype==0
+if(present(iamroot)) iamroot_=iamroot 
+
+! load file
+if (present(rcname)) then
+   luin=get_lun()
+   open(luin,file=trim(rcname),form='formatted')
+else
+   luin=5
+endif
+
+! Scan file for desired table first
+! and get size of table
+call gettablesize(tbname,luin,ntot,nrows)
+if(nrows==0) then
+   if(luin/=5) close(luin)
+   return
+endif
+
+! Get contents of table
+allocate(utable(nrows))
+call gettable(tbname,luin,ntot,nrows,utable)
+
+! release file unit
+if(luin/=5) close(luin)
+
+! Because obs come in 6-hour batches
+ndat_times=max(1,nhr_assim/6)
+ndat_types=nrows
+nall=ndat_times*ndat_types
+
+! allocate space for entries from table
+allocate(dfile(nall),dtype(nall),dplat(nall),&
+         dsis(nall),dval(nall),dthin(nall),dsfcalc(nall),&
+         time_window(nall),obsfile_all(nall))
+
+! things not in table, but dependent on nrows ... move somewhere else !_RTodling
+! reality is that these things are not a function of nrows
+allocate(ditype(nall),ipoint(nall))
+
+! Retrieve each token of interest from table and define
+! variables participating in state vector
+do ii=1,nrows
+   read(utable(ii),*) dfile(ii),& ! local file name from which to read observatinal data
+                      dtype(ii),& ! character string identifying type of observatio
+                      dplat(ii),& ! currently contains satellite id (no meaning for non-sat data)
+                      dsis(ii), & ! sensor/instrument/satellite identifier for info files
+                      dval(ii), & ! 
+                      dthin(ii),& ! thinning flag (1=thinning on; otherwise off)
+                      dsfcalc(ii) ! use orig bilinear FOV surface calculation (routine deter_sfc)
+
+   if(trim(dplat(ii))=='null') dplat(ii)=' '
+   ditype(ii)= ' '                    ! character string identifying group type of ob (see read_obs)
+   ipoint(ii)= 0                      ! default pointer (values set in gsisub) _RT: This is never needed
+   time_window(ii) = time_window_max  ! default to maximum time window
+   write(obsfile_all(ii),'(a,i4.4)') 'obs_input.', ii      ! name of scratch file to hold obs data
+   
+enddo
+
+deallocate(utable)
+
+obs_instr_initialized_=.true.
+
+end subroutine init_instr_table_
+
+subroutine final_instr_table_
+
+! clean up things initialized in init_instr_table_
+
+if(.not.obs_instr_initialized_) return
+
+deallocate(ditype,ipoint)
+
+deallocate(dfile,dtype,dplat,&
+           dsis,dval,dthin,dsfcalc,&
+           time_window,obsfile_all)
+
+obs_instr_initialized_ = .false.
+
+end subroutine final_instr_table_
 
 end module obsmod

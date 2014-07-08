@@ -59,8 +59,29 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2009-04-17  todling - zero out azimuth angle when unavailable (otherwise can't use old files)
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
-!   2009-12-20  gayno - modify for updated version of FOV surface code which calculates
-!                       relative antenna power for some instruments.
+!   2009-12-20  gayno - modify for updated version of FOV surface code which 
+!                       calculates relative antenna power for some instruments.
+!   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
+!   2010-06-29  zhu     - add newpc4pred option
+!   2010-07-12  zhu     - include global offset for amsua in bias correction for adp_anglebc option
+!   2010-09-02  zhu     - add use_edges option
+!   2010-10-12  zhu     - use radstep and radstart from radinfo
+!   2011-04-07  todling - newpc4pred now in radinfo
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
+!   2011-05-05  todling - merge in Min-Jeong update for cloudy-radiance work
+!   2011-05-20  mccarty - updated to read ATMS data
+!   2011-07-04  todling  - fixes to run either single or double precision
+!   2011-08-01  lueken  - removed deter_sfc subroutines, placed in new module deter_sfc_mod
+!   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
+!                       (isfcalc=1)
+!   2011-12-13  collard Replace find_edges code to speed up execution.
+!   2011-12-14  collard Remove ATMS
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -96,23 +117,32 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
-           finalcheck,map2tgrid,score_crit
-  use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad
-  use radinfo, only: crtm_coeffs_path
+      finalcheck,map2tgrid,score_crit
+  use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
+      use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
+  use radinfo, only: nst_gsi,nstinfo
+  use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
-  use constants, only: izero,ione,deg2rad,zero,one,two,three,five,izero,rad2deg,r60inv,r1000,h300
-  use crtm_parameters, only: MAX_SENSOR_ZENITH_ANGLE
+  use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
+  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type, &
+      crtm_kind => fp, &
+      MAX_SENSOR_ZENITH_ANGLE
   use crtm_spccoeff, only: sc
-  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
-  use antcorr_application
+  use antcorr_application, only: remove_antcorr
+  use control_vectors, only: cvars3d
+  use mpeu_util, only: getindex
+  use gsi_metguess_mod, only: gsi_metguess_get
+  use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
-  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin,isfcalc
+  character(len=20),intent(in  ) :: sis
+  integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
+  integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(  out) :: ndata,nodata
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
@@ -126,9 +156,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 ! Declare local parameters
 
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: n1bhdr=13_i_kind
-  integer(i_kind),parameter:: n2bhdr=14_i_kind
-  integer(i_kind),parameter:: maxinfo=33_i_kind
+  integer(i_kind),parameter:: n1bhdr=13
+  integer(i_kind),parameter:: n2bhdr=4
+  integer(i_kind),parameter:: maxinfo=33
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -137,33 +167,37 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
   logical outside,iuse,assim,valid
 
-  character(14):: infile2
+  character(40):: infile2
   character(8) subset
   character(80) hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,irec,isub,next
   integer(i_kind) i,j,k,ifov,ntest,llll
-  integer(i_kind) iret,idate,nchanl,n,idomsfc
-  integer(i_kind) ich1,ich2,ich8,ich15,kidsat,instrument
-  integer(i_kind) nmind,itx,nele,itt,ninstruments
-  integer(i_kind) iskip,ichan2,ichan1,ichan15
+  integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
+  integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
+  integer(i_kind) kidsat,instrument
+  integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
+  integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan
-  integer(i_kind):: error_status
+  integer(i_kind) instr,ichan,icw4crtm,iql4crtm
+  integer(i_kind) error_status,ier
+  integer(i_kind) radedge_min, radedge_max
+  integer(i_kind),allocatable,dimension(:)::nrec
   character(len=20),dimension(1):: sensorlist
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,qval
+  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,ch16,ch17,qval
   real(r_kind) ch1flg
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
-  real(r_kind) pred
+  real(r_kind) pred, pred_water, pred_not_water
   real(r_kind) rsat,dlat,panglr,dlon,rato,sstime,tdiff,t4dv
   real(r_kind) dlon_earth_deg,dlat_earth_deg,sat_aziang
   real(r_kind) dlon_earth,dlat_earth,r01
@@ -172,25 +206,32 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),allocatable,dimension(:,:):: data_all
 
+  real(crtm_kind),allocatable,dimension(:):: data1b4
   real(r_double),allocatable,dimension(:):: data1b8,data1b8x
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
-
 !**************************************************************************
 ! Initialize variables
 
-  lnbufr = 15_i_kind
+  lnbufr = 15
   disterrmax=zero
-  ntest=izero
-  ndata  = izero
-  nodata  = izero
-  nread  = izero
+  ntest=0
+  ndata  = 0
+  nodata  = 0
+  nread  = 0
 
-  ilon=3_i_kind
-  ilat=4_i_kind
-  
+  ilon=3
+  ilat=4
+
+  if(nst_gsi>0) then
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
+  endif
+
+! Determine whether CW used in CRTM
+  call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
+  call gsi_metguess_get ( 'i4crtm::ql', iql4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -200,24 +241,26 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   hirs2 =    obstype == 'hirs2'
   hirs3 =    obstype == 'hirs3'
   hirs4 =    obstype == 'hirs4'
-  hirs =     hirs2 .or. hirs3 .or. hirs4
-  msu=       obstype == 'msu'
-  amsua=     obstype == 'amsua'
-  amsub=     obstype == 'amsub'
-  mhs  =     obstype == 'mhs'
-  ssu =      obstype == 'ssu'
+  hirs  =    hirs2 .or. hirs3 .or. hirs4
+  msu   =    obstype == 'msu'
+  amsua =    obstype == 'amsua'
+  amsub =    obstype == 'amsub'
+  mhs   =    obstype == 'mhs'
+  ssu   =    obstype == 'ssu'
 
 !  instrument specific variables
   d1 =  0.754_r_kind
   d2 = -2.265_r_kind 
   r01 = 0.01_r_kind
-  ich1   = ione       !1
-  ich2   = 2_i_kind   !2
-  ich3   = 3_i_kind   !3
-  ich4   = 4_i_kind   !4
-  ich6   = 6_i_kind   !6
-  ich8   = 8_i_kind   !8
-  ich15  = 15_i_kind  !15
+  ich1   = 1   !1
+  ich2   = 2   !2
+  ich3   = 3   !3
+  ich4   = 4   !4
+  ich6   = 6   !6
+  ich8   = 8   !8
+  ich15  = 15  !15
+  ich16  = 16  !16
+  ich17  = 17  !17
 ! Set array index for surface-sensing channels
   ichan1  = newchn(sis,ich1)
   ichan2  = newchn(sis,ich2)
@@ -227,73 +270,82 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   endif
   if (amsua) ichan15 = newchn(sis,ich15)
 
-  if(jsatid == 'n05')kidsat=705_i_kind
-  if(jsatid == 'n06')kidsat=706_i_kind
-  if(jsatid == 'n07')kidsat=707_i_kind
-  if(jsatid == 'tirosn')kidsat=708_i_kind
-  if(jsatid == 'n08')kidsat=200_i_kind
-  if(jsatid == 'n09')kidsat=201_i_kind
-  if(jsatid == 'n10')kidsat=202_i_kind
-  if(jsatid == 'n11')kidsat=203_i_kind
-  if(jsatid == 'n12')kidsat=204_i_kind
+  if(jsatid == 'n05')kidsat=705
+  if(jsatid == 'n06')kidsat=706
+  if(jsatid == 'n07')kidsat=707
+  if(jsatid == 'tirosn')kidsat=708
+  if(jsatid == 'n08')kidsat=200
+  if(jsatid == 'n09')kidsat=201
+  if(jsatid == 'n10')kidsat=202
+  if(jsatid == 'n11')kidsat=203
+  if(jsatid == 'n12')kidsat=204
 
-  if(jsatid == 'n14')kidsat=205_i_kind
-  if(jsatid == 'n15')kidsat=206_i_kind
-  if(jsatid == 'n16')kidsat=207_i_kind
-  if(jsatid == 'n17')kidsat=208_i_kind
-  if(jsatid == 'n18')kidsat=209_i_kind
-  if(jsatid == 'n19')kidsat=223_i_kind
-  if(jsatid == 'metop-a')kidsat=4_i_kind
-  if(jsatid == 'metop-b')kidsat=5_i_kind
-  if(jsatid == 'metop-c')kidsat=6_i_kind
+  if(jsatid == 'n14')kidsat=205
+  if(jsatid == 'n15')kidsat=206
+  if(jsatid == 'n16')kidsat=207
+  if(jsatid == 'n17')kidsat=208
+  if(jsatid == 'n18')kidsat=209
+  if(jsatid == 'n19')kidsat=223
+  if(jsatid == 'metop-a')kidsat=4
+  if(jsatid == 'metop-b')kidsat=3
+  if(jsatid == 'metop-c')kidsat=5
+  if(jsatid == 'npp')kidsat=224
 
+  radedge_min = 0
+  radedge_max = 1000
+  do i=1,jpch_rad
+     if (trim(nusis(i))==trim(sis)) then
+        step  = radstep(i)
+        start = radstart(i)
+        if (radedge1(i)/=-1 .and. radedge2(i)/=-1) then
+           radedge_min=radedge1(i)
+           radedge_max=radedge2(i)
+        end if
+        exit 
+     endif
+  end do 
 
   rato=1.1363987_r_kind
   if ( hirs ) then
-     step   = 1.80_r_kind
-     start  = -49.5_r_kind
-     nchanl=19_i_kind
+     nchanl=19
 !   Set rlndsea for types we would prefer selecting
      rlndsea(0) = zero
      rlndsea(1) = 15._r_kind
      rlndsea(2) = 10._r_kind
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 30._r_kind
-     if (isfcalc == ione) then
+     if (isfcalc == 1) then
         expansion=one  ! use one for ir sensors
-        ichan=-999_i_kind  ! not used for hirs
+        ichan=-999  ! not used for hirs
         if (hirs2) then
-           if(kidsat==203_i_kind.or.kidsat==205_i_kind)then
-              instr=5_i_kind ! hirs-2i on noaa 11 and 14
-           elseif(kidsat==708_i_kind.or.kidsat==706_i_kind.or.kidsat==707_i_kind.or. &
-                  kidsat==200_i_kind.or.kidsat==201_i_kind.or.kidsat==202_i_kind.or. &
-                  kidsat==204_i_kind)then
-              instr=4_i_kind ! hirs-2 on tiros-n,noaa6-10,noaa12
+           if(kidsat==203.or.kidsat==205)then
+              instr=5 ! hirs-2i on noaa 11 and 14
+           elseif(kidsat==708.or.kidsat==706.or.kidsat==707.or. &
+                  kidsat==200.or.kidsat==201.or.kidsat==202.or. &
+                  kidsat==204)then
+              instr=4 ! hirs-2 on tiros-n,noaa6-10,noaa12
            else  ! sensor/sat mismatch
               write(6,*) 'READ_BUFRTOVS:  *** WARNING: HIRS2 SENSOR/SAT MISMATCH'
-              instr=5_i_kind ! set to something to prevent abort
+              instr=5 ! set to something to prevent abort
            endif
         elseif (hirs4) then
-           instr=8_i_kind
+           instr=8
         elseif (hirs3) then
-           if(kidsat==206_i_kind) then
-              instr=6_i_kind   ! noaa 15
-           elseif(kidsat==207_i_kind.or.kidsat==208_i_kind)then
-              instr=7_i_kind   ! noaa 16/17
+           if(kidsat==206) then
+              instr=6   ! noaa 15
+           elseif(kidsat==207.or.kidsat==208)then
+              instr=7   ! noaa 16/17
            else
               write(6,*) 'READ_BUFRTOVS:  *** WARNING: HIRS3 SENSOR/SAT MISMATCH'
-              instr=7_i_kind
+              instr=7
            endif
         endif
      endif  ! isfcalc == 1
-
   else if ( msu ) then
-     step   = 9.474_r_kind
-     start  = -47.37_r_kind
-     nchanl=4_i_kind
-     if (isfcalc==ione) then
-        instr=10_i_kind
-        ichan=-999_i_kind
+     nchanl=4
+     if (isfcalc==1) then
+        instr=10
+        ichan=-999
         expansion=2.9_r_kind
      endif
 !   Set rlndsea for types we would prefer selecting
@@ -303,13 +355,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(3) = 20._r_kind
      rlndsea(4) = 100._r_kind
   else if ( amsua ) then
-     step   = three + one/three
-     start = -48._r_kind - one/three
-!    start  = -48.33_r_kind
-     nchanl=15_i_kind
-     if (isfcalc==ione) then
-        instr=11_i_kind
-        ichan=15_i_kind  ! pick a surface sens. channel
+     nchanl=15
+     if (isfcalc==1) then
+        instr=11
+        ichan=15  ! pick a surface sens. channel
         expansion=2.9_r_kind ! use almost three for microwave sensors.
      endif
 !   Set rlndsea for types we would prefer selecting
@@ -319,12 +368,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
   else if ( amsub )  then
-     step   = 1.1_r_kind
-     start  = -48.95_r_kind
-     nchanl=5_i_kind
-     if (isfcalc==ione) then
-        instr=12_i_kind
-        ichan=-999_i_kind
+     nchanl=5
+     if (isfcalc==1) then
+        instr=12
+        ichan=-999
         expansion=2.9_r_kind
      endif
 !   Set rlndsea for types we would prefer selecting
@@ -334,12 +381,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
   else if ( mhs )  then
-     step   = 10.0_r_kind/9.0_r_kind
-     start  = -445.0_r_kind/9.0_r_kind
-     nchanl=5_i_kind
-     if (isfcalc==ione) then
-        instr=13_i_kind
-        ichan=ione  ! all channels give similar result.
+     nchanl=5
+     if (isfcalc==1) then
+        instr=13
+        ichan=1  ! all channels give similar result.
         expansion=2.9_r_kind
      endif
 !   Set rlndsea for types we would prefer selecting
@@ -349,12 +394,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(3) = 15._r_kind
      rlndsea(4) = 100._r_kind
   else if ( ssu ) then
-     step  =  10.00_r_kind
-     start = -35.00_r_kind
-     nchanl=3_i_kind
-     if (isfcalc==ione) then
-        instr=9_i_kind
-        ichan=-999_i_kind  ! not used for this sensor
+     nchanl=3
+     if (isfcalc==1) then
+        instr=9
+        ichan=-999  ! not used for this sensor
         expansion=one
      endif
 !   Set rlndsea for types we would prefer selecting
@@ -365,11 +408,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      rlndsea(4) = 30._r_kind
   end if
 
-! Initialize variables for use by FOV-based surface code.
-  if (isfcalc == ione) then
-     call instrument_init(instr,jsatid,expansion)
-  endif
-
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
 ! We do not want such observations affecting the relative
@@ -377,91 +415,133 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
   end do search
   if (.not.assim) val_tovs=zero
 
+! Initialize variables for use by FOV-based surface code.
+  if (isfcalc == 1) then
+     call instrument_init(instr,jsatid,expansion,valid)
+     if (.not. valid) then
+       if (assim) then
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** IN SETUP OF FOV-SFC CODE. STOP'
+         call stop2(71)
+       else
+         call fov_cleanup
+         isfcalc = 0
+         write(6,*)'READ_BUFRTOVS:  ***ERROR*** IN SETUP OF FOV-SFC CODE'
+       endif
+     endif
+  endif
+
+  if (isfcalc==1) then
+    if (amsub.or.mhs)then
+      rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
+    else
+      rlndsea=0
+    endif
+  endif
 
 ! Allocate arrays to hold all data for given satellite
-  nele=maxinfo+nchanl
-  allocate(data_all(nele,itxmax),data1b8(nchanl))
+  nreal = maxinfo + nstinfo
+  nele  = nreal   + nchanl
+  hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
+  hdr2b ='SAZA SOZA BEARAZ SOLAZI'
+  allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl),nrec(itxmax))
 
 
+  irec=0
 ! Big loop over standard data feed and possible ears data
   do llll=llb,lll
 
 
 !    Set bufr subset names based on type of data to read
 
-!  Open unit to satellite bufr file
-  infile2=infile
-  if(llll == 2_i_kind)then
-     infile2=trim(infile)//'ears'
-     if(amsua .and. kidsat >= 200_i_kind .and. kidsat <= 207_i_kind)go to 500
-  end if
-
-!  Reopen unit to satellite bufr file
-  call closbf(lnbufr)
-  open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
-  call openbf(lnbufr,'IN',lnbufr)
-
-  if(llll == 2_i_kind)then
-     allocate(data1b8x(nchanl))
-     sensorlist(1)=sis
-     if( crtm_coeffs_path /= "" ) then
-        if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-        error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-          Process_ID=mype_sub,Output_Process_ID=mype_root, &
-          File_Path = crtm_coeffs_path )
-     else
-        error_status = crtm_init(channelinfo,SensorID=sensorlist,&
-          Process_ID=mype_sub,Output_Process_ID=mype_root)
-     endif
-     if (error_status /= success) then
-        write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
-             '   TERMINATE PROGRAM EXECUTION'
-        call stop2(71)
-     endif
-     ninstruments = size(sc)
-     instrument_loop: do n=1,ninstruments
-        if(sis == sc(n)%sensor_id)then
-           instrument=n
-           exit instrument_loop
-        end if
-     end do instrument_loop
-     if(instrument == izero)then
-        write(6,*)' failure to find instrument in read_bufrtovs ',sis
+!    Open unit to satellite bufr file
+     infile2=trim(infile)
+     if(llll == 2)then
+        infile2=trim(infile)//'ears'
+        if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
      end if
-  end if
+
+!    Reopen unit to satellite bufr file
+     call closbf(lnbufr)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
+
+     call openbf(lnbufr,'IN',lnbufr)
+
+     if(llll == 2)then
+        allocate(data1b8x(nchanl))
+        sensorlist(1)=sis
+        if( crtm_coeffs_path /= "" ) then
+           if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
+           error_status = crtm_init(sensorlist,channelinfo,&
+              Process_ID=mype_sub,Output_Process_ID=mype_root, &
+              Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
+              File_Path = crtm_coeffs_path )
+           else
+              error_status = crtm_init(sensorlist,channelinfo,&
+                 Process_ID=mype_sub,Output_Process_ID=mype_root,&
+                 Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
+           endif
+           if (error_status /= success) then
+              write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
+                 '   TERMINATE PROGRAM EXECUTION'
+           call stop2(71)
+        endif
+        ninstruments = size(sc)
+        instrument_loop: do n=1,ninstruments
+           if(sis == sc(n)%sensor_id)then
+              instrument=n
+              exit instrument_loop
+           end if
+        end do instrument_loop
+        if(instrument == 0)then
+           write(6,*)' failure to find instrument in read_bufrtovs ',sis
+        end if
+     end if
 
    
-!  Loop to read bufr file
-  next=izero
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
-     next=next+ione
-     if(next == npe_sub)next=izero
-     if(next/=mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==izero)
+!    Loop to read bufr file
+     next=0
+     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+        irec=irec+1
+        next=next+1
+        if(next == npe_sub)next=0
+        if(next/=mype_sub)cycle
+        read_loop: do while (ireadsb(lnbufr)==0)
 
 !          Read header record.  (llll=1 is normal feed, 2=EARS data)
-           hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS'
-           call ufbint(lnbufr,bfr1bhdr,n1bhdr,ione,iret,hdr1b)
+           call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !          Extract satellite id.  If not the one we want, read next record
-           rsat=bfr1bhdr(1) 
            ksatid=nint(bfr1bhdr(1))
            if(ksatid /= kidsat) cycle read_subset
+           rsat=bfr1bhdr(1) 
+
+!          If msu, drop obs from first (1) and last (11) scan positions
+           ifov = nint(bfr1bhdr(2))
+           if (use_edges) then 
+              if (msu .and. (ifov==1 .or. ifov==11)) cycle read_loop
+           else if ((ifov < radedge_min .OR. ifov > radedge_max )) then
+              cycle read_loop
+           end if
+
+           ! Check that ifov is not out of range of cbias dimension
+           if (ifov < 1 .OR. ifov > 90) cycle read_loop
 
 !          Extract observation location and other required information
-           if(abs(bfr1bhdr(11)) <= 91._r_kind .and. abs(bfr1bhdr(12)) <= 361._r_kind)then
+           if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
               dlat_earth = bfr1bhdr(11)
               dlon_earth = bfr1bhdr(12)
-           else
+           elseif(abs(bfr1bhdr(9)) <= 90._r_kind .and. abs(bfr1bhdr(10)) <= r360)then
               dlat_earth = bfr1bhdr(9)
               dlon_earth = bfr1bhdr(10)
+           else
+              cycle read_loop
            end if
            if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
            if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
@@ -469,14 +549,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            dlon_earth_deg = dlon_earth
            dlat_earth = dlat_earth*deg2rad
            dlon_earth = dlon_earth*deg2rad
-           
 
 !          Regional case
            if(regional)then
               call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
               if(diagnostic_reg) then
                  call txy2ll(dlon,dlat,dlon00,dlat00)
-                 ntest=ntest+ione
+                 ntest=ntest+1
                  disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                       (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
                  disterrmax=max(disterrmax,disterr)
@@ -489,8 +568,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            else
               dlat=dlat_earth
               dlon=dlon_earth
-              call grdcrd(dlat,ione,rlats,nlat,ione)
-              call grdcrd(dlon,ione,rlons,nlon,ione)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !          Extract date information.  If time outside window, skip this obs
@@ -509,10 +588,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if(abs(tdiff) > twind) cycle read_loop
            endif
 
-!          If msu, drop obs from first (1) and last (11) scan positions
-           ifov = nint(bfr1bhdr(2))
-           if (msu .and. (ifov==ione .or. ifov==11_i_kind)) cycle read_loop
-
            nread=nread+nchanl
 
            if (l4dvar) then
@@ -521,11 +596,43 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               timedif = two*abs(tdiff)        ! range:  0 to 6
            endif
            terrain = 50._r_kind
-           if(llll == ione)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
-           crit1 = 0.01_r_kind+terrain + (llll-ione)*500.0_r_kind + timedif 
+           if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
+           crit1 = 0.01_r_kind+terrain + (llll-1)*500.0_r_kind + timedif 
+           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           if(.not. iuse)cycle read_loop
 
-           hdr2b ='SAZA SOZA BEARAZ SOLAZI'
-           call ufbint(lnbufr,bfr2bhdr,n2bhdr,ione,iret,hdr2b)
+           call ufbint(lnbufr,bfr2bhdr,n2bhdr,1,iret,hdr2b)
+
+!          Set common predictor parameters
+           ifovmod=ifov
+
+!          Account for assymetry due to satellite build error
+           if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
+              ifovmod=ifovmod+1
+
+           panglr=(start+float(ifovmod-1)*step)*deg2rad
+           lzaest = asin(rato*sin(panglr))
+           if( msu .or. hirs2 .or. ssu)then
+              lza = lzaest
+           else
+              lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
+              if((amsua .and. ifovmod <= 15) .or.        &
+                 (amsub .and. ifovmod <= 45) .or.        &
+                 (mhs   .and. ifovmod <= 45) .or.        &
+                 (hirs  .and. ifovmod <= 28) )   lza=-lza
+           end if
+
+!  Check for errors in satellite zenith angles 
+           if(abs(lzaest-lza)*rad2deg > one) then
+              write(6,*)' READ_BUFRTOVS WARNING uncertainty in lza ', &
+                 lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
+              cycle read_loop
+           end if
+
+           if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
+              write(6,*)'READ_BUFRTOVS WARNING lza error ',bfr2bhdr(1),panglr
+              cycle read_loop
+           end if
 
            sat_aziang=bfr2bhdr(3)
            if (abs(sat_aziang) > r360) then
@@ -535,13 +642,17 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            endif
 
 !          Read data record.  Increment data counter
-           if(llll == ione)then
-              call ufbrep(lnbufr,data1b8,ione,nchanl,iret,'TMBR')
-           else
-              call ufbrep(lnbufr,data1b8,ione,nchanl,iret,'TMBRST')
+!          TMBR is actually the antenna temperature for most microwave 
+!          sounders.
+           if (llll == 1) then
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
+           else     ! EARS
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
               data1b8x=data1b8
               if(.not. hirs)then
-                 call remove_antcorr(sc(instrument)%ac,ifov,data1b8)
+                 data1b4=data1b8
+                 call remove_antcorr(sc(instrument)%ac,ifov,data1b4)
+                 data1b8=data1b4
                  do j=1,nchanl
                     if(data1b8x(j) > r1000)data1b8(j) = 1000000._r_kind
                  end do
@@ -550,23 +661,24 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !          Transfer observed brightness temperature to work array.  If any
 !          temperature exceeds limits, reset observation to "bad" value
-           iskip=izero
+           iskip=0
            do j=1,nchanl
               if (data1b8(j) < tbmin .or. data1b8(j) > tbmax) then
-                 iskip = iskip + ione
+                 iskip = iskip + 1
 
 !                Remove profiles where key channels are bad  
                  if(( msu  .and.  j == ich1) .or.                                 &
-                      (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
-                      j == ich4 .or. j==ich6 .or. j == ich15 )) .or. &
-                      (hirs  .and. (j == ich8 )) .or.                               &
-                      (amsub .and.  j == ich1) .or.                                 &
-                      (mhs   .and.  (j == ich1 .or. j == ich2))) iskip = iskip+nchanl
+                    (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
+                                  j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
+                    (hirs  .and. (j == ich8 )) .or.                               &
+                    (amsub .and.  j == ich1) .or.                                 &
+                    (mhs   .and. (j == ich1 .or. j == ich2)) ) iskip = iskip+nchanl
               endif
            end do
            if (iskip >= nchanl) cycle read_loop
 !          Map obs to thinning grid
-           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis)
+           crit1 = crit1 + 10._r_kind*float(iskip)
+           call checkob(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
 !          Determine surface properties based on 
@@ -582,96 +694,88 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          FOV-based surface code requires fov number.  if out-of-range, then
 !          skip this ob.
 
-           if (isfcalc == ione) then
-              call fov_check(ifov,instr,valid)
+           if (isfcalc == 1) then
+              call fov_check(ifov,instr,ichan,valid)
               if (.not. valid) cycle read_loop
-           end if
 
 !          When isfcalc is one, calculate surface fields based on size/shape of fov.
 !          Otherwise, use bilinear method.
 
-           if (isfcalc == ione) then
               call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-                                 dlon_earth_deg,expansion,t4dv,isflg,idomsfc, &
-                                 sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+                 dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
+                 sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
            else
               call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
-                     idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+                 idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
            endif
 
 
-           crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip)
+           crit1 = crit1 + rlndsea(isflg) 
            call checkob(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
-!          Set common predictor parameters
-           ifovmod=ifov
-
-!          Account for assymetry due to satellite build error
-           if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
-                  ifovmod=ifovmod+ione
-
-           panglr=(start+float(ifovmod-ione)*step)*deg2rad
-           lzaest = asin(rato*sin(panglr))
-           if( msu .or. hirs2 .or. ssu)then
-              lza = lzaest
-           else
-              lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
-              if((amsua .and. ifovmod <= 15_i_kind) .or.        &
-                 (amsub .and. ifovmod <= 45_i_kind) .or.        &
-                 (mhs   .and. ifovmod <= 45_i_kind) .or.        &
-                 (hirs  .and. ifovmod <= 28_i_kind)) lza=-lza
-           end if
-
-!  Check for errors in satellite zenith angles 
-           if(abs(lzaest-lza)*rad2deg > one) then
-              write(6,*)' READ_BUFRTOVS WARNING uncertainty in lza ', &
-                      lza*rad2deg,lzaest*rad2deg,sis,ifovmod,start,step
-              cycle read_loop
-           end if
-
-           if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
-              write(6,*)'READ_BUFRTOVS WARNING lza error ',bfr2bhdr(1),panglr
-              cycle read_loop
-           end if
 
 !          Set data quality predictor
            if (msu) then
-              ch1    = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+              if (newpc4pred) then
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                       predx(1,ichan1)*air_rad(ichan1)
+              else
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
                        r01*predx(1,ichan1)*air_rad(ichan1)
+              end if
               ch1flg = tsavg-ch1
-              if(isflg == izero)then
+              if(isflg == 0)then
                  pred = 100._r_kind-min(ch1flg,100.0_r_kind)
               else
                  pred = abs(ch1flg)
               end if
            else if (hirs) then
-              ch8    = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+              if (newpc4pred) then
+                 ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+                       predx(1,ichan8)*air_rad(ichan8)
+              else
+                 ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
                        r01*predx(1,ichan8)*air_rad(ichan8)
+              end if
               ch8flg = tsavg-ch8
               pred   = 10.0_r_kind*max(zero,ch8flg)
            else if (amsua) then
 !   Remove angle dependent pattern (not mean)
-              ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
-                    air_rad(ichan1)*cbias(15,ichan1)
-              ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
-                    air_rad(ichan2)*cbias(15,ichan2)   
-              if (isflg == izero .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+              if (adp_anglebc .and. newpc4pred) then
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1) 
+                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2) 
+              else
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
+                       air_rad(ichan1)*cbias(15,ichan1)
+                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
+                       air_rad(ichan2)*cbias(15,ichan2)   
+              end if
+              if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                 qval  = cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 if (icw4crtm>10 .or. iql4crtm>10) then
+                    qval=zero
+                 else
+                    qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                 end if
                  pred  = max(zero,qval)*100.0_r_kind
               else
-                 ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
-                        air_rad(ichan3)*cbias(15,ichan3)   
-                 ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
-                        air_rad(ichan15)*cbias(15,ichan15)
+                 if (adp_anglebc .and. newpc4pred) then
+                    ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3) 
+                    ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15) 
+                 else
+                    ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
+                           air_rad(ichan3)*cbias(15,ichan3)   
+                    ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
+                           air_rad(ichan15)*cbias(15,ichan15)
+                 end if
                  pred = abs(ch1-ch15)
                  if(ch1-ch15 >= three) then
                     df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
                     tt   = 168._r_kind-0.49_r_kind*ch15
                     if(ch1 > 261._r_kind .or. ch1 >= tt .or. & 
-                         (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
+                      (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
                        pred = 100._r_kind
                     end if
                  end if
@@ -681,29 +785,49 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !               0.454_r_kind*ch2-ch15
 
            else if (amsub .or. mhs) then
-              ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                    r01*predx(1,ichan1)*air_rad(ichan1)
-              ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
-                    r01*predx(1,ichan2)*air_rad(ichan2)
-              if(isflg == izero)then
-                 cosza = cos(lza)
-!                 pred = (ch1-ch2)/cosza+30.0_r_kind
-                 if(ch2 < h300)then 
-                    pred = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
-                         341.17_r_kind))*five
-                 else
-                    pred = 100._r_kind
-                 end if
+              if (newpc4pred) then
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                       predx(1,ichan1)*air_rad(ichan1)
+                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                       predx(1,ichan2)*air_rad(ichan2)
               else
-                 pred = 42.72_r_kind + 0.85_r_kind*ch1-ch2
+                 ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                       r01*predx(1,ichan1)*air_rad(ichan1)
+                 ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                       r01*predx(1,ichan2)*air_rad(ichan2)
               end if
+              pred_water = zero
+              if(sfcpct(0) > zero)then
+                 cosza = cos(lza)
+                 if(ch2 < h300)then 
+                    pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
+                       341.17_r_kind))*five
+                 else
+                    pred_water = 100._r_kind
+                 end if
+              end if
+              pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
+              pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
               pred = max(zero,pred)
+
            endif
            
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
            crit1 = crit1+pred 
            call finalcheck(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
+
+!          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+           if(nst_gsi>0) then
+              tref  = ts(0)
+              dtw   = zero
+              dtc   = zero
+              tz_tr = one
+              if(sfcpct(0)>zero) then
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              endif
+           endif
+
 
 !          Load selected observation into data array
               
@@ -712,10 +836,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(3 ,itx)= dlon                      ! grid relative longitude
            data_all(4 ,itx)= dlat                      ! grid relative latitude
            data_all(5 ,itx)= lza                       ! local zenith angle
-           data_all(6 ,itx)= bfr2bhdr(3)              ! local azimuth angle
+           data_all(6 ,itx)= bfr2bhdr(3)               ! local azimuth angle
            data_all(7 ,itx)= panglr                    ! look angle
            data_all(8 ,itx)= ifov                      ! scan position
-           data_all(9 ,itx)= bfr2bhdr(2)              ! solar zenith angle
+           data_all(9 ,itx)= bfr2bhdr(2)               ! solar zenith angle
            data_all(10,itx)= bfr2bhdr(4)               ! solar azimuth angle
            data_all(11,itx) = sfcpct(0)                ! sea percentage of
            data_all(12,itx) = sfcpct(1)                ! land percentage
@@ -733,7 +857,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(24,itx)= sm                        ! soil moisture
            data_all(25,itx)= sn                        ! snow depth
            data_all(26,itx)= zz                        ! surface height
-           data_all(27,itx)= idomsfc + 0.001_r_kind    ! dominate surface type
+           data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
            data_all(28,itx)= sfcr                      ! surface roughness
            data_all(29,itx)= ff10                      ! ten meter wind factor
            data_all(30,itx) = dlon_earth_deg           ! earth relative longitude (deg)
@@ -742,9 +866,17 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            data_all(32,itx)= val_tovs
            data_all(33,itx)= itt
 
+           if(nst_gsi>0) then
+              data_all(maxinfo+1,itx) = tref            ! foundation temperature
+              data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
+              data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob
+              data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
+           endif
+
            do i=1,nchanl
-              data_all(i+maxinfo,itx)=data1b8(i)
+              data_all(i+nreal,itx)=data1b8(i)
            end do
+           nrec(itx)=irec
 
 
 !       End of bufr read loops
@@ -753,7 +885,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   call closbf(lnbufr)
 
 
-  if(llll == 2_i_kind)then
+  if(llll == 2)then
 ! deallocate crtm info
      error_status = crtm_destroy(channelinfo)
      if (error_status /= success) &
@@ -761,22 +893,22 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end if
 
 !   Jump here when there is a problem opening the bufr file
-  if (llll==2_i_kind) deallocate(data1b8x)
+  if (llll==2) deallocate(data1b8x)
 500  continue
 
   end do
-  deallocate(data1b8)
+  deallocate(data1b8,data1b4)
 !  end of llll loop
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! 
   if(mype_sub==mype_root)then
      do n=1,ndata
         do i=1,nchanl
-           if(data_all(i+maxinfo,n) > tbmin .and. &
-              data_all(i+maxinfo,n) < tbmax)nodata=nodata+ione
+           if(data_all(i+nreal,n) > tbmin .and. &
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
         itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_tovs
@@ -784,1588 +916,23 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      end do
 
 !    Write final set of "best" observations to output file
-     write(lunout) obstype,sis,maxinfo,nchanl,ilat,ilon
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
   end if
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
   call destroygrids
  
 ! Deallocate FOV surface code arrays and nullify pointers.
-  if (isfcalc == ione) call fov_cleanup
+  if (isfcalc == 1) call fov_cleanup
 
-  if(diagnostic_reg.and.ntest>izero) write(6,*)'READ_BUFRTOVS:  ',&
-       'mype,ntest,disterrmax=',mype,ntest,disterrmax
+  if(diagnostic_reg.and.ntest>0) write(6,*)'READ_BUFRTOVS:  ',&
+     'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
 ! End of routine
   return
 
 end subroutine read_bufrtovs
-
-subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
-       idomsfc,sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    deter_sfc                     determine land surface type
-!   prgmmr: derber           org: np2                date: 2005-01-27
-!
-! abstract:  determines land surface type based on surrounding land
-!            surface types
-!
-! program history log:
-!   2005-01-27 derber
-!   2005-03-03 treadon - add implicit none, define zero
-!   2006-02-01 parrish  - change names of sno,isli,sst
-!
-!   input argument list:
-!     alat
-!     alon
-!     obstime- observation time relative to analysis time
-!     dlat_earth
-!     dlon_earth
-!
-!   output argument list:
-!      isflg    - surface flag
-!                 0 sea
-!                 1 land
-!                 2 sea ice
-!                 3 snow
-!                 4 mixed
-!      sfcpct(0:3)- percentage of 4 surface types
-!                 (0) - sea percentage
-!                 (1) - land percentage
-!                 (2) - sea ice percentage
-!                 (3) - snow percentage
-!      tsavg - sea surface temperature
-!      idomsfc
-!      ts
-!      dfcr
-!      vty,vfr,sty,stp,sm,sn,zz,ff10
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-     use kinds, only: r_kind,i_kind
-     use satthin, only: sno_full,isli_full,sst_full,soil_moi_full, &
-           soil_temp_full,soil_type_full,veg_frac_full,veg_type_full, &
-           fact10_full,zs_full,sfc_rough_full
-     use constants, only: izero,ione,zero,one,one_tenth
-     use gridmod, only: nlat,nlon,regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-     use guess_grids, only: nfldsfc,hrdifsfc
-     implicit none
-
-     real(r_kind)               ,intent(in   ) :: dlat_earth,dlon_earth,obstime,alat,alon
-     integer(i_kind)            ,intent(  out) :: isflg,idomsfc
-     real(r_kind),dimension(0:3),intent(  out) :: sfcpct
-     real(r_kind),dimension(0:3),intent(  out) :: ts
-     real(r_kind)               ,intent(  out) :: tsavg,sfcr
-     real(r_kind)               ,intent(  out) :: vty,vfr,sty,stp,sm,sn,zz,ff10
-
-     real(r_kind),parameter:: minsnow=one_tenth
-
-     integer(i_kind) istyp00,istyp01,istyp10,istyp11
-     integer(i_kind):: itsfc,itsfcp
-     integer(i_kind):: ix,iy,ixp,iyp,j
-     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtsfc,dtsfcp,wgtmin
-     real(r_kind):: sno00,sno01,sno10,sno11,dlat,dlon
-     real(r_kind):: sst00,sst01,sst10,sst11
-     real(r_kind),dimension(0:3)::wgtavg
-
-!  First do surface field since it is on model grid
-     iy=int(alon); ix=int(alat)
-     dy  =alon-iy; dx  =alat-ix
-     dx1 =one-dx;    dy1 =one-dy
-     w00=dx1*dy1; w10=dx*dy1; w01=dx1*dy; w11=dx*dy
-
-     ix=min(max(ione,ix),nlat); iy=min(max(izero,iy),nlon)
-     ixp=min(nlat,ix+ione); iyp=iy+ione
-     if(iy==izero) iy=nlon
-     if(iyp==nlon+ione) iyp=ione
-
-!    Interpolate fields which only vary in space (no time component)
-!       zz   = surface height
-     zz   = zs_full(ix,iy) *w00 + zs_full(ixp,iy) *w10 + &
-            zs_full(ix,iyp)*w01 + zs_full(ixp,iyp)*w11
-
-     if(regional)then
-!       call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-        dlat=alat
-        dlon=alon
-     else
-        dlat=dlat_earth
-        dlon=dlon_earth
-        call grdcrd(dlat,ione,rlats_sfc,nlat_sfc,ione)
-        call grdcrd(dlon,ione,rlons_sfc,nlon_sfc,ione)
-     end if
-     iy=int(dlon); ix=int(dlat)
-     dy  =dlon-iy; dx  =dlat-ix
-     dx1 =one-dx;    dy1 =one-dy
-     w00=dx1*dy1; w10=dx*dy1; w01=dx1*dy; w11=one-w00-w10-w01
-
-     ix=min(max(ione,ix),nlat_sfc); iy=min(max(izero,iy),nlon_sfc)
-     ixp=min(nlat_sfc,ix+ione); iyp=iy+ione
-     if(iy==izero) iy=nlon_sfc
-     if(iyp==nlon_sfc+ione) iyp=ione
-
-!    Get time interpolation factors for surface files
-     if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
-        do j=1,nfldsfc-ione
-           if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+ione))then
-              itsfc=j
-              itsfcp=j+ione
-              dtsfc=(hrdifsfc(j+ione)-obstime)/(hrdifsfc(j+ione)-hrdifsfc(j))
-           end if
-        end do
-     else if(obstime <=hrdifsfc(1))then
-        itsfc=ione
-        itsfcp=ione
-        dtsfc=one
-     else
-        itsfc=nfldsfc
-        itsfcp=nfldsfc
-        dtsfc=one
-     end if
-     dtsfcp=one-dtsfc
-
-!    Set surface type flag.  Begin by assuming obs over ice-free water
-
-     istyp00 = isli_full(ix ,iy )
-     istyp10 = isli_full(ixp,iy )
-     istyp01 = isli_full(ix ,iyp)
-     istyp11 = isli_full(ixp,iyp)
-
-     sno00= sno_full(ix ,iy ,itsfc)*dtsfc+sno_full(ix ,iy ,itsfcp)*dtsfcp
-     sno01= sno_full(ix ,iyp,itsfc)*dtsfc+sno_full(ix ,iyp,itsfcp)*dtsfcp
-     sno10= sno_full(ixp,iy ,itsfc)*dtsfc+sno_full(ixp,iy ,itsfcp)*dtsfcp
-     sno11= sno_full(ixp,iyp,itsfc)*dtsfc+sno_full(ixp,iyp,itsfcp)*dtsfcp
-
-     sst00= sst_full(ix ,iy ,itsfc)*dtsfc+sst_full(ix ,iy ,itsfcp)*dtsfcp
-     sst01= sst_full(ix ,iyp,itsfc)*dtsfc+sst_full(ix ,iyp,itsfcp)*dtsfcp
-     sst10= sst_full(ixp,iy ,itsfc)*dtsfc+sst_full(ixp,iy ,itsfcp)*dtsfcp
-     sst11= sst_full(ixp,iyp,itsfc)*dtsfc+sst_full(ixp,iyp,itsfcp)*dtsfcp
-
-!    Interpolate sst to obs location
-
-     tsavg=sst00*w00+sst10*w10+sst01*w01+sst11*w11
-
-     if(istyp00 >=ione .and. sno00 > minsnow)istyp00 = 3_i_kind
-     if(istyp01 >=ione .and. sno01 > minsnow)istyp01 = 3_i_kind
-     if(istyp10 >=ione .and. sno10 > minsnow)istyp10 = 3_i_kind
-     if(istyp11 >=ione .and. sno11 > minsnow)istyp11 = 3_i_kind
-
-     sfcpct = zero
-     sfcpct(istyp00)=sfcpct(istyp00)+w00
-     sfcpct(istyp01)=sfcpct(istyp01)+w01
-     sfcpct(istyp10)=sfcpct(istyp10)+w10
-     sfcpct(istyp11)=sfcpct(istyp11)+w11
-
-     isflg = izero
-     if(sfcpct(0) > 0.99_r_kind)then
-        isflg = izero
-     else if(sfcpct(1) > 0.99_r_kind)then
-        isflg = ione
-     else if(sfcpct(2) > 0.99_r_kind)then
-        isflg = 2_i_kind
-     else if(sfcpct(3) > 0.99_r_kind)then
-        isflg = 3_i_kind
-     else
-        isflg = 4_i_kind
-     end if
-
-!       vty  = vegetation type
-!       sty  = soil type
-
-     ts(0:3)=zero
-     wgtavg(0:3)=zero
-     vfr=zero
-     stp=zero
-     sty=zero
-     vty=zero
-     sm=zero
-     sn=zero
-     idomsfc=isli_full(ix ,iy )
-     wgtmin = w00
-     if(istyp00 == ione)then
-        vty  = veg_type_full(ix ,iy)
-        sty  = soil_type_full(ix ,iy)
-        wgtavg(1) = wgtavg(1) + w00
-        ts(1)=ts(1)+w00*sst00
-        vfr  =vfr  +w00*(veg_frac_full(ix ,iy ,itsfc ) *dtsfc+   &
-                         veg_frac_full(ix ,iy ,itsfcp) *dtsfcp)
-        stp  =stp  +w00*(soil_temp_full(ix ,iy ,itsfc )*dtsfc+   &
-                         soil_temp_full(ix ,iy ,itsfcp)*dtsfcp)
-        sm   =sm   +w00*(soil_moi_full(ix ,iy ,itsfc ) *dtsfc+   &
-                         soil_moi_full(ix ,iy ,itsfcp) *dtsfcp)
-     else if(istyp00 == 2_i_kind)then
-        wgtavg(2) = wgtavg(2) + w00
-        ts(2)=ts(2)+w00*sst00
-     else if(istyp00 == 3_i_kind)then
-        wgtavg(3) = wgtavg(3) + w00
-        ts(3)=ts(3)+w00*sst00
-        sn = sn + w00*sno00
-     else
-        wgtavg(0) = wgtavg(0) + w00
-        ts(0)=ts(0)+w00*sst00
-     end if
-     if(istyp01 == ione)then
-        if(wgtmin < w01 .or. (vty == zero .and. sty == zero))then
-           vty  = veg_type_full(ix ,iyp)
-           sty  = soil_type_full(ix ,iyp)
-        end if
-        wgtavg(1) = wgtavg(1) + w01
-        ts(1)=ts(1)+w01*sst01
-        vfr  =vfr  +w01*(veg_frac_full(ix ,iyp,itsfc ) *dtsfc+   &
-                         veg_frac_full(ix ,iyp,itsfcp) *dtsfcp)
-        stp  =stp  +w01*(soil_temp_full(ix ,iyp,itsfc )*dtsfc+   &
-                         soil_temp_full(ix ,iyp,itsfcp)*dtsfcp)
-        sm   =sm   +w01*(soil_moi_full(ix ,iyp,itsfc ) *dtsfc+   &
-                         soil_moi_full(ix ,iyp,itsfcp) *dtsfcp)
-     else if(istyp01 == 2_i_kind)then
-        wgtavg(2) = wgtavg(2) + w01
-        ts(2)=ts(2)+w01*sst01
-     else if(istyp01 == 3_i_kind)then
-        wgtavg(3) = wgtavg(3) + w01
-        ts(3)=ts(3)+w01*sst01
-        sn = sn + w01*sno01
-     else
-        wgtavg(0) = wgtavg(0) + w01
-        ts(0)=ts(0)+w01*sst01
-     end if
-     if(wgtmin < w01)then
-        idomsfc=isli_full(ix ,iyp)
-        wgtmin = w01
-     end if
-     if(istyp10 == ione)then
-        if(wgtmin < w10 .or. (vty == zero .and. sty == zero))then
-           vty  = veg_type_full(ixp,iy)
-           sty  = soil_type_full(ixp,iy)
-        end if
-        wgtavg(1) = wgtavg(1) + w10
-        ts(1)=ts(1)+w10*sst10
-        vfr  =vfr  +w10*(veg_frac_full(ixp,iy ,itsfc ) *dtsfc+   &
-                         veg_frac_full(ixp,iy ,itsfcp) *dtsfcp)
-        stp  =stp  +w10*(soil_temp_full(ixp,iy ,itsfc )*dtsfc+   &
-                         soil_temp_full(ixp,iy ,itsfcp)*dtsfcp)
-        sm   =sm   +w10*(soil_moi_full(ixp,iy ,itsfc ) *dtsfc+   &
-                         soil_moi_full(ixp,iy ,itsfcp) *dtsfcp)
-     else if(istyp10 == 2_i_kind)then
-        wgtavg(2) = wgtavg(2) + w10
-        ts(2)=ts(2)+w10*sst10
-     else if(istyp10 == 3_i_kind)then
-        wgtavg(3) = wgtavg(3) + w10
-        ts(3)=ts(3)+w10*sst10
-        sn = sn + w10*sno10
-     else
-        wgtavg(0) = wgtavg(0) + w10
-        ts(0)=ts(0)+w10*sst10
-     end if
-     if(wgtmin < w10)then
-        idomsfc=isli_full(ixp,iy )
-        wgtmin = w10
-     end if
-     if(istyp11 == ione)then
-        if(wgtmin < w11 .or. (vty == zero .and. sty == zero))then
-           vty  = veg_type_full(ixp,iyp)
-           sty  = soil_type_full(ixp,iyp)
-        endif
-        wgtavg(1) = wgtavg(1) + w11
-        ts(1)=ts(1)+w11*sst11
-        vfr  =vfr  +w11*(veg_frac_full(ixp,iyp,itsfc ) *dtsfc+   &
-                         veg_frac_full(ixp,iyp,itsfcp) *dtsfcp)
-        stp  =stp  +w11*(soil_temp_full(ixp,iyp,itsfc )*dtsfc+   &
-                         soil_temp_full(ixp,iyp,itsfcp)*dtsfcp)
-        sm   =sm   +w11*(soil_moi_full(ixp,iyp,itsfc ) *dtsfc+   &
-                         soil_moi_full(ixp,iyp,itsfcp) *dtsfcp)
-     else if(istyp11 == 2_i_kind)then
-        wgtavg(2) = wgtavg(2) + w11
-        ts(2)=ts(2)+w11*sst11
-     else if(istyp11 == 3_i_kind)then
-        wgtavg(3) = wgtavg(3) + w11
-        ts(3)=ts(3)+w11*sst11
-        sn = sn + w11*sno11
-     else
-        wgtavg(0) = wgtavg(0) + w11
-        ts(0)=ts(0)+w11*sst11
-     end if
-     if(wgtmin < w11)then
-        idomsfc=isli_full(ixp,iyp)
-        wgtmin = w11
-     end if
-
-     if(wgtavg(0) > zero)then
-        ts(0) = ts(0)/wgtavg(0)
-     else
-        ts(0) = tsavg
-     end if
-     if(wgtavg(1) > zero)then
-        ts(1) = ts(1)/wgtavg(1)
-        sm = sm/wgtavg(1)
-        vfr = vfr/wgtavg(1)
-        stp = stp/wgtavg(1)
-     else
-        ts(1) = tsavg
-        sm=one
-     end if
-     if(wgtavg(2) > zero)then
-        ts(2) = ts(2)/wgtavg(2)
-     else
-        ts(2) = tsavg
-     end if
-     if(wgtavg(3) > zero)then
-        ts(3) = ts(3)/wgtavg(3)
-        sn = sn/wgtavg(3)
-     else
-        ts(3) = tsavg
-     end if
-!    ts(0)=max(ts(0),270._r_kind)
-!    ts(2)=min(ts(2),280._r_kind)
-!    ts(3)=min(ts(3),280._r_kind)
-
-!    Space-time interpolation of fields from surface wind speed
-
-     ff10=(fact10_full(ix ,iy ,itsfc )*w00+ &
-           fact10_full(ixp,iy ,itsfc )*w10+ &
-           fact10_full(ix ,iyp,itsfc )*w01+ &
-           fact10_full(ixp,iyp,itsfc )*w11)*dtsfc + &
-          (fact10_full(ix ,iy ,itsfcp)*w00+ &
-           fact10_full(ixp,iy ,itsfcp)*w10+ &
-           fact10_full(ix ,iyp,itsfcp)*w01+ &
-           fact10_full(ixp,iyp,itsfcp)*w11)*dtsfcp
-
-     sfcr=(sfc_rough_full(ix ,iy ,itsfc )*w00+ &
-           sfc_rough_full(ixp,iy ,itsfc )*w10+ &
-           sfc_rough_full(ix ,iyp,itsfc )*w01+ &
-           sfc_rough_full(ixp,iyp,itsfc )*w11)*dtsfc + &
-          (sfc_rough_full(ix ,iy ,itsfcp)*w00+ &
-           sfc_rough_full(ixp,iy ,itsfcp)*w10+ &
-           sfc_rough_full(ix ,iyp,itsfcp)*w01+ &
-           sfc_rough_full(ixp,iyp,itsfcp)*w11)*dtsfcp
-
-     return
-end subroutine deter_sfc
-
-subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    deter_sfc                     determine land surface type
-!   prgmmr: derber           org: np2                date: 2005-01-27
-!
-! abstract:  determines land surface type based on surrounding land
-!            surface types
-!
-! program history log:
-!   2005-01-27 derber
-!   2005-03-03 treadon - add implicit none, define zero
-!   2006-02-01 parrish  - change names of sno,isli,sst
-!
-!   input argument list:
-!     dlat      
-!     dlon      
-!     obstime
-!
-!   output argument list:
-!     isflg    - surface flag
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!                4 mixed
-!     tsavg
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-     use kinds, only: r_kind,i_kind
-     use satthin, only: isli_full,sst_full,sno_full
-     use constants, only: izero,ione,zero,one,one_tenth
-     use gridmod, only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-     use guess_grids, only: nfldsfc,hrdifsfc
-     implicit none
-
-     real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth,obstime
-
-     integer(i_kind),intent(  out) :: isflg
-     real(r_kind)   ,intent(  out) :: tsavg
-
-     logical outside
-     integer(i_kind) istyp00,istyp01,istyp10,istyp11
-     integer(i_kind):: ix,iy,ixp,iyp,j,itsfc,itsfcp
-     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtsfc
-     real(r_kind):: dtsfcp,dlat,dlon
-     real(r_kind):: sst00,sst01,sst10,sst11
-     real(r_kind):: sno00,sno01,sno10,sno11
-
-     real(r_kind),parameter:: minsnow=one_tenth
-
-     real(r_kind),dimension(0:3):: sfcpct
-
-     if(regional)then
-        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-     else
-        dlat=dlat_earth
-        dlon=dlon_earth
-        call grdcrd(dlat,ione,rlats_sfc,nlat_sfc,ione)
-        call grdcrd(dlon,ione,rlons_sfc,nlon_sfc,ione)
-     end if
-
-     iy=int(dlon); ix=int(dlat)
-     dy  =dlon-iy; dx  =dlat-ix
-     dx1 =one-dx;    dy1 =one-dy
-     w00=dx1*dy1; w10=dx*dy1; w01=dx1*dy; w11=one-w00-w10-w01
-
-     ix=min(max(ione,ix),nlat_sfc); iy=min(max(izero,iy),nlon_sfc)
-     ixp=min(nlat_sfc,ix+ione); iyp=iy+ione
-     if(iy==izero) iy=nlon_sfc
-     if(iyp==nlon_sfc+ione) iyp=ione
-
-!    Get time interpolation factors for surface files
-     if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
-        do j=1,nfldsfc-ione
-           if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+ione))then
-              itsfc=j
-              itsfcp=j+ione
-              dtsfc=(hrdifsfc(j+ione)-obstime)/(hrdifsfc(j+ione)-hrdifsfc(j))
-           end if
-        end do
-     else if(obstime <=hrdifsfc(1))then
-        itsfc=ione
-        itsfcp=ione
-        dtsfc=one
-     else
-        itsfc=nfldsfc
-        itsfcp=nfldsfc
-        dtsfc=one
-     end if
-     dtsfcp=one-dtsfc
-
-!    Set surface type flag.  Begin by assuming obs over ice-free water
-
-     istyp00 = isli_full(ix ,iy )
-     istyp10 = isli_full(ixp,iy )
-     istyp01 = isli_full(ix ,iyp)
-     istyp11 = isli_full(ixp,iyp)
-
-     sno00= sno_full(ix ,iy ,itsfc)*dtsfc+sno_full(ix ,iy ,itsfcp)*dtsfcp
-     sno01= sno_full(ix ,iyp,itsfc)*dtsfc+sno_full(ix ,iyp,itsfcp)*dtsfcp
-     sno10= sno_full(ixp,iy ,itsfc)*dtsfc+sno_full(ixp,iy ,itsfcp)*dtsfcp
-     sno11= sno_full(ixp,iyp,itsfc)*dtsfc+sno_full(ixp,iyp,itsfcp)*dtsfcp
-
-
-     sst00= sst_full(ix ,iy ,itsfc)*dtsfc+sst_full(ix ,iy ,itsfcp)*dtsfcp
-     sst01= sst_full(ix ,iyp,itsfc)*dtsfc+sst_full(ix ,iyp,itsfcp)*dtsfcp
-     sst10= sst_full(ixp,iy ,itsfc)*dtsfc+sst_full(ixp,iy ,itsfcp)*dtsfcp
-     sst11= sst_full(ixp,iyp,itsfc)*dtsfc+sst_full(ixp,iyp,itsfcp)*dtsfcp
-
-!    Interpolate sst to obs location
-
-     tsavg=sst00*w00+sst10*w10+sst01*w01+sst11*w11
-
-     if(istyp00 >=ione .and. sno00 > minsnow)istyp00 = 3_i_kind
-     if(istyp01 >=ione .and. sno01 > minsnow)istyp01 = 3_i_kind
-     if(istyp10 >=ione .and. sno10 > minsnow)istyp10 = 3_i_kind
-     if(istyp11 >=ione .and. sno11 > minsnow)istyp11 = 3_i_kind
-
-     sfcpct = zero
-     sfcpct(istyp00)=sfcpct(istyp00)+w00
-     sfcpct(istyp01)=sfcpct(istyp01)+w01
-     sfcpct(istyp10)=sfcpct(istyp10)+w10
-     sfcpct(istyp11)=sfcpct(istyp11)+w11
-
-     isflg = izero
-     if(sfcpct(0) > 0.99_r_kind)then
-        isflg = izero
-     else if(sfcpct(1) > 0.99_r_kind)then
-        isflg = ione
-     else if(sfcpct(2) > 0.99_r_kind)then
-        isflg = 2_i_kind
-     else if(sfcpct(3) > 0.99_r_kind)then
-        isflg = 3_i_kind
-     else
-        isflg = 4_i_kind
-     end if
-     return
-end subroutine deter_sfc_type
-
-subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    deter_sfc                     determine land surface type
-!   prgmmr: derber           org: np2                date: 2005-01-27
-!
-! abstract:  determines land surface type based on surrounding land
-!            surface types
-!
-! program history log:
-!   2005-01-27 derber
-!   2005-03-03 treadon - add implicit none, define zero
-!   2006-02-01 parrish  - change names of sno,isli,sst
-!
-!   input argument list:
-!     dlat_earth
-!     dlon_earth
-!     obstime- observation time relative to analysis time
-!
-!   output argument list:
-!     tsavg - sea surface temperature
-!     idomsfc
-!     sfcr
-!     ff10
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-     use kinds, only: r_kind,i_kind
-     use satthin, only: isli_full,sst_full,fact10_full,sfc_rough_full
-     use constants, only: izero,ione,one
-     use gridmod, only: regional,tll2xy,nlat_sfc,nlon_sfc,rlats_sfc,rlons_sfc
-     use guess_grids, only: nfldsfc,hrdifsfc
-     implicit none
-
-     real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth,obstime
-
-     integer(i_kind),intent(  out) :: idomsfc
-     real(r_kind)   ,intent(  out) :: tsavg,sfcr
-     real(r_kind)   ,intent(  out) :: ff10
-
-     integer(i_kind):: itsfc,itsfcp
-     integer(i_kind):: ix,iy,ixp,iyp,j
-     real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtsfc,dtsfcp,wgtmin
-     real(r_kind):: sst00,sst01,sst10,sst11,dlat,dlon
-     logical outside
-
-     if(regional)then
-        call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-     else
-        dlat=dlat_earth
-        dlon=dlon_earth
-        call grdcrd(dlat,ione,rlats_sfc,nlat_sfc,ione)
-        call grdcrd(dlon,ione,rlons_sfc,nlon_sfc,ione)
-     end if
-
-     iy=int(dlon); ix=int(dlat)
-     dy  =dlon-iy; dx  =dlat-ix
-     dx1 =one-dx;    dy1 =one-dy
-     w00=dx1*dy1; w10=dx*dy1; w01=dx1*dy; w11=dx*dy
-
-     ix=min(max(ione,ix),nlat_sfc); iy=min(max(izero,iy),nlon_sfc)
-     ixp=min(nlat_sfc,ix+ione); iyp=iy+ione
-     if(iy==izero) iy=nlon_sfc
-     if(iyp==nlon_sfc+ione) iyp=ione
-
-
-!    Get time interpolation factors for surface files
-     if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
-        do j=1,nfldsfc-ione
-           if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+ione))then
-              itsfc=j
-              itsfcp=j+ione
-              dtsfc=(hrdifsfc(j+ione)-obstime)/(hrdifsfc(j+ione)-hrdifsfc(j))
-           end if
-        end do
-     else if(obstime <=hrdifsfc(1))then
-        itsfc=ione
-        itsfcp=ione
-        dtsfc=one
-     else
-        itsfc=nfldsfc
-        itsfcp=nfldsfc
-        dtsfc=one
-     end if
-     dtsfcp=one-dtsfc
-
-     sst00= sst_full(ix ,iy ,itsfc)*dtsfc+sst_full(ix ,iy ,itsfcp)*dtsfcp
-     sst01= sst_full(ix ,iyp,itsfc)*dtsfc+sst_full(ix ,iyp,itsfcp)*dtsfcp
-     sst10= sst_full(ixp,iy ,itsfc)*dtsfc+sst_full(ixp,iy ,itsfcp)*dtsfcp
-     sst11= sst_full(ixp,iyp,itsfc)*dtsfc+sst_full(ixp,iyp,itsfcp)*dtsfcp
-
-!    Interpolate sst to obs location
-
-     tsavg=sst00*w00+sst10*w10+sst01*w01+sst11*w11
-
-     idomsfc=isli_full(ix ,iy )
-     wgtmin = w00
-     if(wgtmin < w01 )then
-        idomsfc=isli_full(ix ,iyp)
-        wgtmin = w01
-     end if
-     if(wgtmin < w10)then
-        idomsfc=isli_full(ixp,iy )
-        wgtmin = w10
-     end if
-     if(wgtmin < w11)then
-        idomsfc=isli_full(ixp,iyp)
-        wgtmin = w11
-     end if
-     if((isli_full(ix ,iy ) /= isli_full(ix ,iyp)) .or. &
-        (isli_full(ix ,iy ) /= isli_full(ixp,iy )) .or. &
-        (isli_full(ix ,iy ) /= isli_full(ixp,iyp)) .or. &
-        (isli_full(ixp,iy ) /= isli_full(ix ,iyp)) .or. &
-        (isli_full(ixp,iy ) /= isli_full(ixp,iyp)) .or. &
-        (isli_full(ix ,iyp) /= isli_full(ixp,iyp)) ) idomsfc = idomsfc+3_i_kind
-
-!    Space-time interpolation of fields from surface wind speed
-
-     ff10=(fact10_full(ix ,iy ,itsfc )*w00+ &
-           fact10_full(ixp,iy ,itsfc )*w10+ &
-           fact10_full(ix ,iyp,itsfc )*w01+ &
-           fact10_full(ixp,iyp,itsfc )*w11)*dtsfc + &
-          (fact10_full(ix ,iy ,itsfcp)*w00+ &
-           fact10_full(ixp,iy ,itsfcp)*w10+ &
-           fact10_full(ix ,iyp,itsfcp)*w01+ &
-           fact10_full(ixp,iyp,itsfcp)*w11)*dtsfcp
-
-     sfcr=(sfc_rough_full(ix ,iy ,itsfc )*w00+ &
-           sfc_rough_full(ixp,iy ,itsfc )*w10+ &
-           sfc_rough_full(ix ,iyp,itsfc )*w01+ &
-           sfc_rough_full(ixp,iyp,itsfc )*w11)*dtsfc + &
-          (sfc_rough_full(ix ,iy ,itsfcp)*w00+ &
-           sfc_rough_full(ixp,iy ,itsfcp)*w10+ &
-           sfc_rough_full(ix ,iyp,itsfcp)*w01+ &
-           sfc_rough_full(ixp,iyp,itsfcp)*w11)*dtsfcp
-
-     return
-end subroutine deter_sfc2
-subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-                         dlon_earth_deg,expansion,obstime,isflg,idomsfc, &
-                         sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    deter_sfc_fov           determine surface characteristics
-!   prgmmr: gayno            org: np2                date: 2008-11-04
-!
-! abstract:  determines surface characteristics within a field of view
-!            based on model information and the size/shape of the 
-!            field of view.
-!
-! program history log:
-!   2008-11-04 gayno
-!   2009-12-20 gayno - modify to use relative antenna power.
-!
-!   input argument list:
-!     fov_flag        - is this a crosstrack or conical instrument?
-!     ichan           - channel number - conical scanners only
-!     ifov            - field of view number
-!     instr           - instrument number
-!     sat_aziang      - satellite azimuth angle
-!     dlat_earth_deg  - latitude of fov center (degrees)
-!     dlon_earth_deg  - longitude of fov center (degrees)
-!     expansion       - fov expansion factor
-!     obstime         - observation time
-!
-!   output argument list:
-!     idomsfc  - dominate surface type
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!     isflg    - surface flag
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!                4 mixed
-!     sfcpct(0:3)- percentage of 4 surface types
-!                (0) - sea percentage
-!                (1) - land percentage
-!                (2) - sea ice percentage
-!                (3) - snow percentage
-!     vfr      - vegetation fraction
-!     sty      - dominate soil type
-!     vty      - dominate vegetation type
-!     stp      - top layer soil temperature
-!     sm       - top layer soil moisture
-!     ff10     - wind factor
-!     sfcr     - surface roughness lenght
-!     zz       - terrain height
-!     sn       - snow depth
-!     ts       - skin temperature for each surface type
-!     tsavg    - average skin temperature
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use calc_fov_crosstrk, only    : npoly, fov_ellipse_crosstrk, inside_fov_crosstrk
-  use calc_fov_conical, only : fov_ellipse_conical, inside_fov_conical
-  use constants, only   : ione, deg2rad, rad2deg, one, zero, two
-  use gridmod, only     : nlat_sfc, rlats_sfc, dx_gfs, regional, tll2xy, txy2ll
-  use guess_grids, only : nfldsfc, hrdifsfc
-  use kinds, only       : i_kind, r_kind
-
-  implicit none
-
-! Declare passed variables.
-  character(len=*), intent(in   ) :: fov_flag
-  integer(i_kind) , intent(in   ) :: ifov, instr
-  integer(i_kind) , intent(in   ) :: ichan
-  real(r_kind)    , intent(in   ) :: dlat_earth_deg, dlon_earth_deg, sat_aziang
-  real(r_kind)    , intent(in   ) :: expansion, obstime
-
-  integer(i_kind) , intent(  out) :: isflg, idomsfc
-  real(r_kind)    , intent(  out) :: sfcpct(0:3), sty, vty, vfr, stp, sm
-  real(r_kind)    , intent(  out) :: ff10, sfcr, zz, sn, ts(0:3), tsavg
-
-! Declare local variables.
-  integer(i_kind)              :: i, ii, iii, j, jj, jjj
-  integer(i_kind)              :: is(npoly), js(npoly)
-  integer(i_kind)              :: n, nearest_i, nearest_j
-  integer(i_kind), allocatable :: max_i(:), min_i(:)
-  integer(i_kind)              :: ifull, jstart, jend
-  integer(i_kind)              :: itsfc, itsfcp
-  integer(i_kind)              :: subgrid_lengths_x, subgrid_lengths_y
-  logical                      :: outside
-  real(r_kind)                 :: lats_edge_fov(npoly), lons_edge_fov(npoly)
-  real(r_kind)                 :: lat_mdl, lon_mdl
-  real(r_kind)                 :: lat_rad, lon_rad
-  real(r_kind)                 :: dtsfc, dtsfcp
-  real(r_kind)                 :: x, xstart, xend, y, ystart, yend
-  real(r_kind)                 :: dx_fov, dx_fov_max, dy_fov, power
-  real(r_kind)                 :: del, mid, rlon1, rlon2
-  real(r_kind), allocatable    :: y_off(:), x_off(:)
-
-  type surface2
-     sequence
-     real(r_kind) :: vfr
-     real(r_kind) :: sfcr
-     real(r_kind) :: sm
-     real(r_kind) :: stp
-     real(r_kind) :: ff10
-     real(r_kind) :: sn
-     real(r_kind) :: ts
-  end type surface2
-
-  type(surface2) :: sfc_mdl  ! holds time interpolated surface data
-
-  type surface
-     sequence
-     real(r_kind) :: vfr
-     real(r_kind) :: sm
-     real(r_kind) :: stp
-     real(r_kind) :: ff10
-     real(r_kind) :: sfcr
-     real(r_kind) :: zz
-     real(r_kind) :: sn
-     real(r_kind), dimension(0:3)  :: ts
-     real(r_kind), dimension(0:3)  :: count
-     real(r_kind), dimension(0:24) :: count_vty
-     real(r_kind), dimension(0:16) :: count_sty
-  end type surface
-
-  type(surface) :: sfc_sum  ! holds sums during integration across fov
-
-! Get time interpolation factors for surface files
-
-  if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
-     do j=1,nfldsfc-ione
-        if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+ione))then
-           itsfc=j
-           itsfcp=j+ione
-           dtsfc=(hrdifsfc(j+ione)-obstime)/(hrdifsfc(j+ione)-hrdifsfc(j))
-        end if
-     end do
-  else if(obstime <=hrdifsfc(1))then
-     itsfc=ione
-     itsfcp=ione
-     dtsfc=one
-  else
-     itsfc=nfldsfc
-     itsfcp=nfldsfc
-     dtsfc=one
-  end if
-  dtsfcp=one-dtsfc
-! The algorithm that locates the fov breaks down if its crosses the pole.
-! so, just assign surface characteristics using a nearest neighbor
-! approach.
-
-  if (abs(dlat_earth_deg) > 88.0_r_kind) then
-!    print*,'USE NEAREST NEIGHBOR NEAR POLE'
-     if (regional) then
-        lat_rad = dlat_earth_deg*deg2rad
-        lon_rad = dlon_earth_deg*deg2rad
-        call tll2xy(lon_rad,lat_rad,x,y,outside)
-        nearest_i = nint(x)
-        nearest_j = nint(y)
-     else
-        y = dlat_earth_deg*deg2rad
-        call grdcrd(y,ione,rlats_sfc,nlat_sfc,ione)
-        nearest_j = nint(y)
-        jj = nearest_j
-        if (jj > nlat_sfc/2_i_kind) jj = nlat_sfc - nearest_j + ione
-        x = (dlon_earth_deg/dx_gfs(jj)) + one
-        nearest_i = nint(x)
-        call reduce2full(nearest_i,nearest_j,ifull)
-        nearest_i = ifull
-     end if
-     call time_int_sfc(nearest_i,nearest_j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-     call init_sfc(sfc_sum)
-     power = one
-     call accum_sfc(nearest_i,nearest_j,power,sfc_mdl,sfc_sum)
-     call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
-     return
-  endif
-
-! Determine the edge of the fov.  the fov is described by a polygon with
-! with npoly-1 vertices.  the routine returns the lat/lon of the intersection
-! of the vertices.  the size of the polygon is a function of the
-! expansion factor.
-
-  if (fov_flag=="crosstrk")then
-     call fov_ellipse_crosstrk(ifov,instr,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
-                               lats_edge_fov,lons_edge_fov)
-  elseif(fov_flag=="conical")then
-     call fov_ellipse_conical(ichan,sat_aziang,dlat_earth_deg,dlon_earth_deg, &
-                              lats_edge_fov,lons_edge_fov)
-  endif
-
-  if (regional) then
-     xstart=999999._r_kind
-     xend=-999999._r_kind
-     ystart=999999._r_kind
-     yend=-999999._r_kind
-     do n = 1, npoly
-        lat_rad = lats_edge_fov(n)*deg2rad
-        lon_rad = lons_edge_fov(n)*deg2rad
-        call tll2xy(lon_rad,lat_rad,x,y,outside)
-! if any part of fov is outside grid, just set is/js to
-! be the near grid point at fov center.  we already know the
-! center grid point is inside the grid as that is checked
-! in calling routine.
-        if (outside) then
-!       print*,"FOV ON EDGE OF GRID"
-           lat_rad = dlat_earth_deg*deg2rad
-           lon_rad = dlon_earth_deg*deg2rad
-           call tll2xy(lon_rad,lat_rad,x,y,outside)
-           js = nint(y)
-           is = nint(x)
-           exit
-        endif
-        xstart=min(xstart,x)
-        xend=max(xend,x)
-        ystart=min(ystart,y)
-        yend=max(yend,y)
-        is(n)=nint(x)
-        js(n)=nint(y)
-     enddo
-     jstart=minval(js)
-     jend=maxval(js)
-     allocate (max_i(jstart:jend))
-     allocate (min_i(jstart:jend))
-     max_i = -999_i_kind
-     min_i = 999999_i_kind
-     do j = jstart, jend
-        do n = 1, npoly
-           if (js(n) == j) then
-              max_i(j) = max(max_i(j),is(n))
-              min_i(j) = min(min_i(j),is(n))
-           endif
-        enddo
-     enddo
-  else   ! global grid
-!  Locate the fov on the model grid.  in the "j" direction, this is
-!  based on the latitudinal extent of the fov.
-     yend = maxval(lats_edge_fov)*deg2rad
-     call grdcrd(yend,ione,rlats_sfc,nlat_sfc,ione)
-     ystart = minval(lats_edge_fov)*deg2rad
-     call grdcrd(ystart,ione,rlats_sfc,nlat_sfc,ione)
-!  Note two extra rows are added for the n/s poles.
-     jstart = nint(ystart)
-     jstart = max(jstart,2_i_kind)
-     jend = nint(yend)
-     jend = min(jend,nlat_sfc-ione)
-!  Locate the extent of the fov on the model grid in the "i" direction.  note, the
-!  algorithm works on the reduced gaussian grid.  hence, the starting/ending
-!  "i" indices are a function of "j".
-     allocate (max_i(jstart:jend))
-     allocate (min_i(jstart:jend))
-     do j = jstart, jend
-        jj = j
-        if (jj > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
-        x = (minval(lons_edge_fov)/dx_gfs(jj)) + one
-        nearest_i = nint(x)
-        min_i(j) = nearest_i
-        x = (maxval(lons_edge_fov)/dx_gfs(jj)) + one
-        nearest_i = nint(x)
-        max_i(j) = nearest_i
-     enddo
-  end if  ! is this regional or global
-
-! In this case, the fov is located completely within one grid
-! point. this is common when the fov is small compared with
-! the model grid resolution.
-
-  if ((jstart == jend) .and. (max_i(jstart) == min_i(jstart))) then
-!   print*,'ONLY ONE MODEL POINT WITHIN FOV'
-     nearest_j = jstart
-     nearest_i = max_i(jstart)
-     if (.not. regional) then
-        call reduce2full(nearest_i,nearest_j,ifull)
-        nearest_i = ifull
-     endif
-     call time_int_sfc(nearest_i,nearest_j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-     call init_sfc(sfc_sum)
-     power = one
-     call accum_sfc(nearest_i,nearest_j,power,sfc_mdl,sfc_sum)
-     call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
-     deallocate(max_i,min_i)
-     return
-  endif
-
-! Find the size of the fov in model grid units.  if the
-! fov is small compared to the model grid, there is the
-! possibility that there are no model grid boxes inside the fov.
-! (a grid box is "inside" the fov if its center is within
-! the fov.) this situation can be avoided by
-! "chopping" the model grid boxes into smaller pieces, which
-! is done below.  first, find the n/s size of the fov
-! in grid units.
-
-  if (regional) then
-     dy_fov = abs(yend-ystart)
-     dx_fov = abs(xend-xstart)
-  else  ! global
-     dy_fov = abs(yend-ystart)  ! n/s size of fov in grid units.
-!  Find the e/w size of the fov in grid units.  note: the resolution
-!  of the model decreases towards the poles.  use the max
-!  value of model grid spacing in this calculation to make
-!  the most conservative estimate as to whether or not to
-!  "chop" the model grid boxes.
-     dx_fov_max = zero
-     do j = jstart,jend
-        jj = j
-        if (jj > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
-        dx_fov_max = max(dx_fov_max, dx_gfs(jj))
-     enddo
-!  When taking the longitudinal difference, don't worry
-!  about greenwich or the dateline as the fov code calculates
-!  longitude relative to the center of the fov.
-     rlon1 = maxval(lons_edge_fov)
-     rlon2 = minval(lons_edge_fov)
-     dx_fov = (rlon1-rlon2)/dx_fov_max
-  end if  ! is this regional or global?
-
-! if the fov is small compared to the model resolution, there
-! is a possibility that there will be no model points located
-! within the fov.  to prevent this, the model grid may be
-! subdivided into smaller pieces.  this subdivision is
-! done separately for each direction.
-
-  subgrid_lengths_x = nint(one/dx_fov) + ione
-  subgrid_lengths_y = nint(one/dy_fov) + ione
-
-  99 continue
-
-! If the fov is very small compared to the model grid, it
-! is more computationally efficient to take a simple average.
-
-  if (subgrid_lengths_x > 7_i_kind .or. subgrid_lengths_y > 7_i_kind) then
-!   print*,'FOV MUCH SMALLER THAN MODEL GRID POINTS, TAKE SIMPLE AVERAGE.'
-     call init_sfc(sfc_sum)
-     if (regional) then
-        do j = jstart, jend
-           do i = min_i(j), max_i(j)
-              call time_int_sfc(i,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-              power = one
-              call accum_sfc(i,j,power,sfc_mdl,sfc_sum)
-           enddo
-        enddo
-     else  ! global
-        do j = jstart, jend
-           do i = min_i(j), max_i(j)
-              ii = i
-              call reduce2full(ii,j,ifull)
-              call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-              power = one
-              call accum_sfc(ifull,j,power,sfc_mdl,sfc_sum)
-           enddo
-        enddo
-     endif
-     call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
-     deallocate(max_i,min_i)
-     return
-  endif
-
-  mid = (float(subgrid_lengths_y)-one)/two + one
-  del = one/ float(subgrid_lengths_y)
-
-  allocate (y_off(subgrid_lengths_y))
-
-  do i= 1, subgrid_lengths_y
-     y_off(i) = (float(i)-mid)*del
-  enddo
-
-  mid = (float(subgrid_lengths_x)-one)/two + one
-  del = one / float(subgrid_lengths_x)
-
-  allocate (x_off(subgrid_lengths_x))
-  do i= 1, subgrid_lengths_x
-     x_off(i) = (float(i)-mid)*del
-  enddo
-
-! Determine the surface characteristics by integrating over the
-! fov.
-
-  call init_sfc(sfc_sum)
-
-  if (regional) then
-     do j = jstart, jend
-        do i = min_i(j), max_i(j)
-           call time_int_sfc(i,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-           do jjj = 1, subgrid_lengths_y
-              y = float(j) + y_off(jjj)
-              do iii = 1, subgrid_lengths_x
-                 x = float(i) + x_off(iii)
-                 call txy2ll(x,y,lon_rad,lat_rad)
-                 lat_mdl = lat_rad*rad2deg
-                 lon_mdl = lon_rad*rad2deg
-                 if (lon_mdl < zero) lon_mdl = lon_mdl + 360._r_kind
-                 if (lon_mdl >= 360._r_kind) lon_mdl = lon_mdl - 360._r_kind
-                 if (fov_flag=="crosstrk")then
-                    call inside_fov_crosstrk(instr,ifov,sat_aziang, &
-                                            dlat_earth_deg,dlon_earth_deg, &
-                                            lat_mdl,    lon_mdl,  &
-                                            expansion, ichan, power )
-                 elseif (fov_flag=="conical")then
-                    call inside_fov_conical(instr,ichan,sat_aziang, &
-                                           dlat_earth_deg,dlon_earth_deg,&
-                                           lat_mdl,    lon_mdl,  &
-                                           expansion, power )
-                 endif
-                 call accum_sfc(i,j,power,sfc_mdl,sfc_sum)
-              enddo
-           enddo
-        enddo
-     enddo
-  else
-     do j = jstart, jend
-        jj = j
-        if (j > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
-        do i = min_i(j), max_i(j)
-           call reduce2full(i,j,ifull)
-           call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-           do jjj = 1, subgrid_lengths_y
-              if (y_off(jjj) >= zero) then
-                 lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+ione)
-              else
-                 lat_mdl = (one+y_off(jjj))*rlats_sfc(j)-y_off(jjj)*rlats_sfc(j-ione)
-              endif
-              lat_mdl = lat_mdl * rad2deg
-              do iii = 1, subgrid_lengths_x
-!           Note, near greenwich, "i" index may be out of range.  that is
-!           ok here when calculating longitude even if the value is
-!           greater than 360. the ellipse code works from longitude relative
-!           to the center of the fov.
-                 lon_mdl = (float(i)+x_off(iii) - one) * dx_gfs(jj)
-                 if (fov_flag=="crosstrk")then
-                    call inside_fov_crosstrk(instr,ifov,sat_aziang, &
-                                            dlat_earth_deg,dlon_earth_deg, &
-                                            lat_mdl,    lon_mdl,  &
-                                            expansion, ichan, power )
-                 elseif (fov_flag=="conical")then
-                    call inside_fov_conical(instr,ichan,sat_aziang, &
-                                           dlat_earth_deg,dlon_earth_deg,&
-                                           lat_mdl,    lon_mdl,  &
-                                           expansion, power )
-                 endif
-                 call accum_sfc(ifull,j,power,sfc_mdl,sfc_sum)
-              enddo
-           enddo
-        enddo
-     enddo
-  endif  ! regional or global
-  deallocate (x_off, y_off)
-
-! If there were no model points within the fov, the model points need to be
-! "chopped" into smaller pieces.
-
-  if (sum(sfc_sum%count) == zero) then
-     close(9)
-     subgrid_lengths_x = subgrid_lengths_x + ione
-     subgrid_lengths_y = subgrid_lengths_y + ione
-!    print*,'NO GRID POINTS INSIDE FOV, CHOP MODEL BOX INTO FINER PIECES',subgrid_lengths_x,subgrid_lengths_y
-     goto 99
-  else
-     call calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm,stp,ff10,sfcr,zz,sn,ts,tsavg)
-  endif
-
-  deallocate (max_i, min_i)
-
-  return
-end subroutine deter_sfc_fov
-subroutine reduce2full(ireduce, j, ifull)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    reduce2full        find "i" index on "full" gfs grid
-!   prgmmr: gayno            org: np2                date: 2008-11-04
-!
-! abstract:  for a given "i" index on the gfs "reduced" grid, find
-!            the corresponding "i" index on the "full" grid.
-!
-! program history log:
-!   2008-11-04 gayno
-!
-!   input argument list:
-!     ireduce    - "i" index on reduced gfs grid
-!     j          - "j" index (same for both grids)
-!
-!   output argument list:
-!     ifull      - "i" index on full gfs grid
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-
-  use kinds, only     : i_kind, r_kind
-  use constants, only : izero, ione
-  use gridmod, only   : nlat_sfc, nlon_sfc, lpl_gfs
-
-  implicit none
-
-! Declare passed variables.
-  integer(i_kind), intent(in   ) :: ireduce, j
-  integer(i_kind), intent(  out) :: ifull
-
-! Declare local variables.
-  integer(i_kind)              :: ii, jj, m1, m2
-  real(r_kind)                 :: r, x1
-
-  jj = j
-  if (j > nlat_sfc/2_i_kind) jj = nlat_sfc - j + ione
-  m2 = lpl_gfs(jj)
-  m1 = nlon_sfc
-  r=real(m1)/real(m2)
-  ii = ireduce
-  if (ii <= izero) ii = ii + lpl_gfs(jj)
-  if (ii > lpl_gfs(jj)) ii = ii - lpl_gfs(jj)
-  x1=(ii-ione)*r
-  ifull=mod(nint(x1),m1)+ione
-  return
-end subroutine reduce2full
-subroutine init_sfc(sfc_sum)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    init_sfc               initialize surface structure
-!   prgmmr: gayno            org: np2                date: 2008-11-04
-!
-! abstract:  initialize to zero all elements of the surface type
-!            data structure.
-!
-! program history log:
-!   2008-11-04 gayno
-!
-!   input argument list:
-!     none
-!
-!   output argument list:
-!     sfc_sum   - holds 'sums' used in the calculation of surface fields
-!                 within a fov.
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-
-  use kinds, only     : r_kind
-  use constants, only : zero
-
-  implicit none
-
-  type surface
-     sequence
-     real(r_kind) :: vfr
-     real(r_kind) :: sm
-     real(r_kind) :: stp
-     real(r_kind) :: ff10
-     real(r_kind) :: sfcr
-     real(r_kind) :: zz
-     real(r_kind) :: sn
-     real(r_kind), dimension(0:3)  :: ts
-     real(r_kind), dimension(0:3)  :: count
-     real(r_kind), dimension(0:24) :: count_vty
-     real(r_kind), dimension(0:16) :: count_sty
-  end type surface
-
-  type(surface), intent(out) :: sfc_sum
-
-! The surface characteristics of a fov are determined by:
-!
-! sum(sfc_field*ant_power) / sum(ant_power)
-!
-! This structure holds the various 'sums' and thus must
-! be initialized to zero before use.
-
-  sfc_sum%vfr        = zero  ! greenness
-  sfc_sum%sm         = zero  ! soil moisture - top layer
-  sfc_sum%stp        = zero  ! soil temperature - top layer
-  sfc_sum%ff10       = zero  ! wind factor
-  sfc_sum%sfcr       = zero  ! roughness length
-  sfc_sum%zz         = zero  ! terrain
-  sfc_sum%sn         = zero  ! snow depth
-  sfc_sum%ts         = zero  ! skin temperature for each surface type
-                             ! 0-water,1-land,2-ice,3-snow
-  sfc_sum%count      = zero  ! sum of the antenna power for each
-                             ! surface type
-  sfc_sum%count_vty  = zero  ! vegetation type
-  sfc_sum%count_sty  = zero  ! soil type
-
-  return
-
-end subroutine init_sfc
-subroutine time_int_sfc(ix,iy,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    time_int_sfc           time interpolate surface data
-!   prgmmr: gayno            org: np2                date: 2008-11-04
-!
-! abstract:  time interpolate surface data to the observation time
-!
-! program history log:
-!   2008-11-04 gayno
-!
-!   input argument list:
-!     ix, iy       - x/y indices of grid point
-!     dtsfc/dtsfcp - time interpolation factors
-!     itsfc/itsfcp - bounding indices of data
-!
-!   output argument list:
-!     sfc_mdl - holds surface information for a single model point
-!               valid at the observation time
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-
-  use kinds, only    : i_kind, r_kind
-  use satthin, only  : sno_full, veg_frac_full, soil_temp_full, &
-                       soil_moi_full, fact10_full, sfc_rough_full, &
-                       sst_full
-
-  implicit none
-
-! Declare passed variables.
-  integer(i_kind), intent(in   ) :: ix,iy,itsfc, itsfcp
-  real(r_kind)   , intent(in   ) :: dtsfc, dtsfcp
-
-  type surface2
-     sequence
-     real(r_kind) :: vfr
-     real(r_kind) :: sfcr
-     real(r_kind) :: sm
-     real(r_kind) :: stp
-     real(r_kind) :: ff10
-     real(r_kind) :: sn
-     real(r_kind) :: ts
-  end type surface2
-
-  type(surface2) , intent(  out) :: sfc_mdl
-
-! Note, indices are reversed (y/x).
-
-  sfc_mdl%sn=sno_full(iy,ix,itsfc)*dtsfc+sno_full(iy,ix,itsfcp)*dtsfcp
-  sfc_mdl%vfr=veg_frac_full(iy,ix,itsfc)*dtsfc+veg_frac_full(iy,ix,itsfcp)*dtsfcp
-  sfc_mdl%stp=soil_temp_full(iy,ix,itsfc)*dtsfc+soil_temp_full(iy,ix,itsfcp)*dtsfcp
-  sfc_mdl%sm=soil_moi_full(iy,ix,itsfc)*dtsfc+soil_moi_full(iy,ix,itsfcp)*dtsfcp
-  sfc_mdl%ff10=fact10_full(iy,ix,itsfc)*dtsfc+fact10_full(iy,ix,itsfcp)*dtsfcp
-  sfc_mdl%sfcr=sfc_rough_full(iy,ix,itsfc)*dtsfc+sfc_rough_full(iy,ix,itsfcp)*dtsfcp
-  sfc_mdl%ts=sst_full(iy,ix,itsfc)*dtsfc+sst_full(iy,ix,itsfcp)*dtsfcp
-
-  return
-end subroutine time_int_sfc
-subroutine accum_sfc(i,j,power,sfc_mdl,sfc_sum)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    accum_sfc           "accumulate" surface fields
-!   prgmmr: gayno            org: np2                date: 2008-11-04
-!
-! abstract:  The surface characteristics of a fov are determined by:
-!            sum(sfc_field*ant_power) / sum(ant_power)
-!            this routine determines the required "sums".
-!
-! program history log:
-!   2008-11-04 gayno
-!
-!   input argument list:
-!     i, j         - i/j indices of model grid point
-!     power        - antenna power
-!     sfc_sum      - holds required surface data "sums"
-!
-!   output argument list:
-!     sfc_mdl - holds surface information for a single model point
-!               valid at the observation time
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-
-  use kinds, only     : i_kind, r_kind
-  use constants, only : ione,zero,one_tenth
-  use gridmod, only   : regional
-  use satthin, only   : isli_full,soil_type_full,veg_type_full,zs_full,zs_full_gfs
-
-  implicit none
-
-! Declare passed variables.
-  integer(i_kind), intent(in   ) :: i, j
-  real(r_kind)   , intent(in   ) :: power
-
-  type surface2
-     sequence
-     real(r_kind) :: vfr    ! greenness (veg fraction)
-     real(r_kind) :: sfcr   ! roughness length
-     real(r_kind) :: sm     ! soil moisture
-     real(r_kind) :: stp    ! soil temperature
-     real(r_kind) :: ff10   ! wind factor
-     real(r_kind) :: sn     ! snow depth
-     real(r_kind) :: ts     ! skin temperature
-  end type surface2
-
-  type(surface2) , intent(in   ) :: sfc_mdl
-
-  type surface
-     sequence
-     real(r_kind) :: vfr    ! greenness (veg fraction)
-     real(r_kind) :: sm     ! soil moisture
-     real(r_kind) :: stp    ! soil temperautre
-     real(r_kind) :: ff10   ! wind factor
-     real(r_kind) :: sfcr   ! roughness length
-     real(r_kind) :: zz     ! terrain height
-     real(r_kind) :: sn     ! snow depth
-     real(r_kind), dimension(0:3)  :: ts        ! skin temp (each land type)
-     real(r_kind), dimension(0:3)  :: count     ! count of each land type
-     real(r_kind), dimension(0:24) :: count_vty ! count of each landuse type
-     real(r_kind), dimension(0:16) :: count_sty ! count of each soil type
-  end type surface
-
-  type(surface)  , intent(inout) :: sfc_sum
-
-! Declare local parameters.
-  real(r_kind),parameter:: minsnow=one_tenth
-
-! Declare local variables.
-  integer(i_kind)             :: mask, sty, vty
-
-  if (power == zero) return
-
-  mask=isli_full(j,i)
-  if (mask>=ione.and.sfc_mdl%sn>minsnow) mask=3_i_kind
-
-  if (mask==ione) then  ! bare (non-snow covered) land
-     vty=nint(veg_type_full(j,i))
-     sfc_sum%count_vty(vty)=sfc_sum%count_vty(vty)+power
-     sty=nint(soil_type_full(j,i))
-     sfc_sum%count_sty(sty)=sfc_sum%count_sty(sty)+power
-     sfc_sum%vfr=sfc_sum%vfr + (power*sfc_mdl%vfr)
-     sfc_sum%sm=sfc_sum%sm + (power*sfc_mdl%sm)
-     sfc_sum%stp=sfc_sum%stp + (power*sfc_mdl%stp)
-  elseif (mask==3_i_kind) then  ! snow cover land or sea ice
-     sfc_sum%sn=sfc_sum%sn + (power*sfc_mdl%sn)
-  endif
-
-! wind factor, roughness length and terrain are summed
-! across all surface types.
-  sfc_sum%ff10=sfc_sum%ff10 + (power*sfc_mdl%ff10)
-  sfc_sum%sfcr=sfc_sum%sfcr + (power*sfc_mdl%sfcr)
-  if (regional) then
-     sfc_sum%zz=sfc_sum%zz + (power*zs_full(j,i))
-  else
-     sfc_sum%zz=sfc_sum%zz + (power*zs_full_gfs(j,i))
-  endif
-
-! keep track of skin temperature for each surface type
-  sfc_sum%ts(mask)=sfc_sum%ts(mask) + (power*sfc_mdl%ts)
-! keep count of each surface type
-  sfc_sum%count(mask) = power + sfc_sum%count(mask)
-
-  return
-end subroutine accum_sfc
-subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
-                    stp,ff10,sfcr,zz,sn,ts,tsavg)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    calc_sfc            calculate surface fields
-!   prgmmr: gayno            org: np2                date: 2008-11-04
-!
-! abstract:  The surface characteristics of a fov are determined by:
-!            sum(sfc_field*ant_power) / sum(ant_power)
-!
-! program history log:
-!   2008-11-04 gayno
-!
-!   input argument list:
-!     sfc_sum      - holds required surface data "sums"
-!
-!   output argument list:
-!     idomsfc  - dominate surface type
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!     isflg    - surface flag
-!                0 sea
-!                1 land
-!                2 sea ice
-!                3 snow
-!                4 mixed
-!     sfcpct(0:3)- percentage of 4 surface types
-!                (0) - sea percentage
-!                (1) - land percentage
-!                (2) - sea ice percentage
-!                (3) - snow percentage
-!     vfr      - vegetation fraction
-!     sty      - dominate soil type
-!     vty      - dominate vegetation type
-!     stp      - top layer soil temperature
-!     sm       - top layer soil moisture
-!     ff10     - wind factor
-!     sfcr     - surface roughness lenght
-!     zz       - terrain height
-!     sn       - snow depth
-!     ts       - skin temperature for each surface type
-!     tsavg    - average skin temperature
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use constants, only : izero, ione, zero, one
-  use kinds, only : i_kind, r_kind
-
-  implicit none
-
-! Declare passed variables
-  integer(i_kind), intent(  out) :: isflg, idomsfc(1)
-  real(r_kind)   , intent(  out) :: sm, stp, sty, vty, vfr, sfcpct(0:3)
-  real(r_kind)   , intent(  out) :: ff10, sfcr, zz, sn, ts(0:3), tsavg
-
-  type surface
-     sequence
-     real(r_kind) :: vfr
-     real(r_kind) :: sm
-     real(r_kind) :: stp
-     real(r_kind) :: ff10
-     real(r_kind) :: sfcr
-     real(r_kind) :: zz
-     real(r_kind) :: sn
-     real(r_kind), dimension(0:3)  :: ts
-     real(r_kind), dimension(0:3)  :: count
-     real(r_kind), dimension(0:24) :: count_vty
-     real(r_kind), dimension(0:16) :: count_sty
-  end type surface
-
-  type(surface)  , intent(in   ) :: sfc_sum
-
-! Declare local variables
-  integer(i_kind)   :: itmp(1), n
-  real(r_kind)      :: count_tot, count_land, count_sty_tot, &
-                       count_snow, count_vty_tot, count_ice, count_water
-
-  count_tot = sum(sfc_sum%count)
-
-! skin temperature over entire fov
-  tsavg = sum(sfc_sum%ts(0:3))/count_tot
-
-! landuse is predominate type
-  count_vty_tot = sum(sfc_sum%count_vty)
-  if (count_vty_tot==zero) then
-     vty=zero
-  else
-     itmp=lbound(sfc_sum%count_vty)-ione+maxloc(sfc_sum%count_vty)
-     vty=float(itmp(1))
-  endif
-
-! soil type is predominate type
-  count_sty_tot = sum(sfc_sum%count_sty)
-  if (count_sty_tot==zero) then
-     sty=zero
-  else
-     itmp=lbound(sfc_sum%count_sty)-ione+maxloc(sfc_sum%count_sty)
-     sty=float(itmp(1))
-  endif
-
-! fields for bare (non-snow covered) land
-  count_land = sfc_sum%count(1)
-  if (count_land>zero) then
-     vfr = sfc_sum%vfr / count_land
-     stp = sfc_sum%stp / count_land
-     sm  = sfc_sum%sm / count_land
-     ts(1) = sfc_sum%ts(1) / count_land
-  else
-     vfr = zero
-     stp = zero
-     sm  = one
-     ts(1) = tsavg
-  endif
-
-! fields for open water
-  count_water=sfc_sum%count(0)
-  if(count_water>zero)then
-     ts(0)=sfc_sum%ts(0)/count_water
-  else
-     ts(0)=tsavg
-  endif
-
-! fields for non-snow covered sea ice
-  count_ice=sfc_sum%count(2)
-  if(count_ice>zero)then
-     ts(2)=sfc_sum%ts(2)/count_ice
-  else
-     ts(2)=tsavg
-  endif
-
-! fields for snow covered land and sea ice
-  count_snow=sfc_sum%count(3)
-  if(count_snow>zero)then
-     sn=sfc_sum%sn/count_snow
-     ts(3) = sfc_sum%ts(3) / count_snow
-  else
-     sn=zero
-     ts(3) = tsavg
-  endif
-
-! percent of each surface type
-  sfcpct=zero
-  do n = 0, 3
-     sfcpct(n) = sfc_sum%count(n) / count_tot
-  enddo
-
-  idomsfc=lbound(sfcpct)+maxloc(sfcpct)-ione
-
-! wind factor, roughness and terrain are determined
-! over entire fov.
-  ff10 = sfc_sum%ff10/count_tot
-  sfcr = sfc_sum%sfcr/count_tot
-  zz   = sfc_sum%zz/count_tot
-
-  isflg = izero
-  if(sfcpct(0) > 0.99_r_kind)then
-     isflg = izero      ! open water
-  else if(sfcpct(1) > 0.99_r_kind)then
-     isflg = ione       ! bare land
-  else if(sfcpct(2) > 0.99_r_kind)then
-     isflg = 2_i_kind   ! bare sea ice
-  else if(sfcpct(3) > 0.99_r_kind)then
-     isflg = 3_i_kind   ! snow covered land and sea ice
-  else
-     isflg = 4_i_kind   ! mixture
-  end if
-
-  return
- end subroutine calc_sfc
-

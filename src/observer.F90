@@ -1,4 +1,7 @@
 module observermod
+!#define VERBOSE
+!#define DEBUG_TRACE
+#include "mytrace.H"
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -10,6 +13,15 @@ module observermod
 !
 ! program history log:
 !   2009-01-28  todling - split observer into init/set/run/finalize
+!   2009-08-19  guo     - modified to support multi-pass observer_run
+!   2009-09-14  guo     - moved compact_diff related statements from
+!			  glbsoi here.
+!   2010-05-19  todling - revist initialization/finalization of chem
+!   2011-04-29  todling - add metguess initialization/finalization
+!   2013-07-02  parrish - changes to remove tlnmc_type for global tlnmc and add
+!                          reg_tlnmc_type for two kinds of regional tlnmc.
+!   2013-10-19  todling - update cloud_efr module name
+!   2014-02-03  todling - remove B-dependence; move cost-create/destroy out
 !
 !   input argument list:
 !     mype - mpi task id
@@ -23,25 +35,35 @@ module observermod
 !$$$
 
   use kinds, only: i_kind
-  use constants, only: izero,ione
+  use constants, only: rearth
   use mpimod, only: mype
-  use jfunc, only: miter,jiter,jiterstart,destroy_jfunc,&
-       set_pointer,&
-       switch_on_derivatives,tendsflag,create_jfunc
+  use jfunc, only: miter,jiter,jiterstart,&
+       switch_on_derivatives,tendsflag
+  use gridmod, only: nlat,nlon,rlats,regional,twodvar_regional,wgtlats,nsig,&
+                     lat2,lon2
   use guess_grids, only: create_ges_grids,create_sfc_grids,&
-       destroy_sfct,destroy_ges_grids,destroy_gesfinfo,destroy_sfc_grids
+       destroy_ges_grids,destroy_sfc_grids,nfldsig
+  use cloud_efr_mod, only: cloud_init,cloud_final
   use obsmod, only: write_diag,obs_setup,ndat,dirname,lobserver,&
-       lread_obs_skip,nprof_gps,ditype,obs_input_common
+       lread_obs_skip,nprof_gps,ditype,obs_input_common,iadate
   use satthin, only: superp,super_val1,getsfc,destroy_sfc
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
   use m_gsiBiases, only : create_bias_grids, destroy_bias_grids
-  use control_vectors
   use m_berror_stats, only: berror_get_dims
+  use m_berror_stats_reg, only: berror_get_dims_reg
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini
 
+  use mod_strong, only: l_tlnmc,reg_tlnmc_type
+  use mod_vtrans, only: nvmodes_keep,create_vtrans,destroy_vtrans
+  use strong_fast_global_mod, only: init_strongvars
+  use zrnmi_mod, only: zrnmi_initialize
+  use turblmod, only: create_turblvars,destroy_turblvars
+
+  use guess_grids, only: create_chemges_grids, destroy_chemges_grids
+  use guess_grids, only: create_metguess_grids, destroy_metguess_grids
 
   implicit none
 
@@ -77,7 +99,8 @@ module observermod
 
   logical,save:: iamset_         = .false.
   logical,save:: fg_initialized_ = .false.
-  logical,save:: fg_finalized_   = .false.
+
+  logical,save:: ob_initialized_ = .false.
 
 contains
 
@@ -95,6 +118,11 @@ subroutine guess_init_
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
 !   2009-03-10  meunier - read in the original position of balloons
+!   2010-04-20  todling - add call to create tracer grid
+!   2010-05-19  todling - update interface to read_guess
+!   2010-06-25  treadon - pass mlat into create_jfunc
+!   2011-05-24  yang    - pass iadate(3) (day of the month) into read_guess
+!   2014-02-03  todling - remove dependence on B & major cost func settings
 !
 !   input argument list:
 !     mype - mpi task id
@@ -107,43 +135,71 @@ subroutine guess_init_
 !
 !$$$
 
+  use compact_diffs,only: cdiff_created
+  use compact_diffs,only: cdiff_initialized
+  use compact_diffs,only: create_cdiff_coefs, inisph
+  use mp_compact_diffs_mod1, only: init_mp_compact_diffs1
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
 
 ! Declare local variables
 
-  integer(i_kind):: msig,mlat
+  integer(i_kind):: msig,mlat,mlon
+  integer(i_kind):: ierr
 
 !*******************************************************************************************
 !
-  if( fg_initialized_ ) return
+  if( fg_initialized_ ) call die('observer.guess_init_','already initialized')
+  fg_initialized_ = .true.
 
 ! Allocate arrays to hold surface and sigma guess fields.
+#ifndef HAVE_ESMF
+  call create_metguess_grids(mype,ierr)
+  call create_chemges_grids(mype,ierr)
+#endif /*/ HAVE_ESMF */
+
   call create_ges_grids(switch_on_derivatives,tendsflag)
   call create_bias_grids()
-  call create_sfc_grids
+  call create_sfc_grids()
+  call cloud_init()
 
 ! Read model guess fields.
-  call read_guess(mype)
-
-! Set length of control vector and other control vector constants
-  call set_pointer
-
-! Allocate arrays used in minimization
-  call berror_get_dims(msig,mlat)  ! _RT: observer should not depend on B
-  call create_jfunc(mlat)
+  call read_guess(iadate(1),iadate(2),iadate(3),mype)
 
 ! Intialize lagrangian data assimilation and read in initial position of balloons
-  call lag_guessini()
+  if(l4dvar) then
+#ifdef _LAG_MODEL_
+    call lag_guessini()
+#endif /* _LAG_MODEL_ */
+  endif
  
 ! Read output from previous min.
-  if (l4dvar.and.jiterstart>ione) then
+  if (l4dvar.and.jiterstart>1) then
   else
   ! If requested and if available, read guess solution.
   endif
 
-  fg_initialized_ = .true.
+! Generate coefficients for compact differencing
+  if(.not.regional)then
+     if(.not.cdiff_created()) call create_cdiff_coefs()
+     if(.not.cdiff_initialized()) call inisph(rearth,rlats(2),wgtlats(2),nlon,nlat-2)
+     call init_mp_compact_diffs1(nsig+1,mype,.false.)
+  endif
+
+  if (tendsflag) then
+     call create_turblvars()
+  endif
+  if ( (l_tlnmc) .and. nvmodes_keep>0) then
+     call create_vtrans(mype)
+     if(regional) then
+        if(reg_tlnmc_type==1) call zrnmi_initialize(mype)
+        if(reg_tlnmc_type==2) call fmg_initialize_e(mype)
+     else
+        call init_strongvars(mype)
+     end if
+  end if
 
 ! End of routine
 end subroutine guess_init_
@@ -174,28 +230,55 @@ subroutine init_
 !
 !$$$
 
+  use mpeu_util,only : tell, die
   implicit none
+  character(len=*),parameter:: Iam='observer_init'
 
 ! Declare passed variables
 
 ! Declare local variables
+_ENTRY_(Iam)
 
 
+  if(ob_initialized_) call die(Iam,'already initialized')
+  ob_initialized_=.true.
+  iamset_ = .false.
+
+#ifdef VERBOSE
+  call tell('observer.init_','entered')
+#endif
 !*******************************************************************************************
 !
 ! Initialize timer for this procedure
   call timer_ini('observer')
+  call timer_ini('observer.init_')
+#ifdef VERBOSE
+  call tell('observer.init_','timer_ini_()')
+#endif
 
 ! Initialize guess
   call guess_init_
+#ifdef VERBOSE
+  call tell('observer.init_','guess_init_()')
+#endif
 
 !     ndata(*,1)- number of prefiles retained for further processing
 !     ndata(*,2)- number of observations read
 !     ndata(*,3)- number of observations keep after read
+#ifdef VERBOSE
+  call tell('observer.init_','ndat =',ndat)
+#endif
   allocate(ndata(ndat,3))
+#ifdef VERBOSE
+  call tell('observer.init_','allocate(ndata)')
 
 
+  call tell('observer.init_','exiting')
+#endif
+  if(mype==0) write(6,*) Iam, ': successfully initialized'
 ! End of routine
+  call timer_fnl('observer.init_')
+_EXIT_(Iam)
 end subroutine init_
 
 subroutine set_
@@ -223,20 +306,23 @@ subroutine set_
 !
 !$$$
 
+  use mpeu_util, only: tell,die
   implicit none
+  character(len=*), parameter :: Iam="observer_set"
 
 ! Declare passed variables
 
 ! Declare local variables
   logical:: lhere,use_sfc
   integer(i_kind):: lunsave,istat1,istat2
-
-  data lunsave  / 22_i_kind /
-
+  
+  data lunsave  / 22 /
+_ENTRY_(Iam)
 
 !*******************************************************************************************
+  call timer_ini('observer.set_')
  
-  if ( iamset_ ) return
+  if ( iamset_ ) call die(Iam,'already set')
 
 ! Create file names for pe relative observation data.  obs_setup files are used
 ! in outer loop setup routines. 
@@ -257,7 +343,7 @@ subroutine set_
              trim(obs_input_common),' does NOT exist.  Terminate execution'
         call stop2(329)
      endif
-
+  
      open(lunsave,file=obs_input_common,form='unformatted')
      read(lunsave,iostat=istat1) ndata,superp,nprof_gps,ditype
      allocate(super_val1(0:superp))
@@ -265,7 +351,7 @@ subroutine set_
      if (istat1/=0 .or. istat2/=0) then
         if (mype==0) write(6,*)'OBSERVER_SET:  ***ERROR*** reading file ',&
              trim(obs_input_common),' istat1,istat2=',istat1,istat2,'  Terminate execution'
-        call stop2(329)
+        call stop2(329) 
      endif
      close(lunsave)
 
@@ -276,7 +362,6 @@ subroutine set_
 !    isli2 and sno2 are used in intppx (called from setuprad) and setuppcp.
      use_sfc=.false.
      call getsfc(mype,use_sfc)
-     call destroy_sfc_grids
      call destroy_sfc
 
   endif
@@ -287,9 +372,11 @@ subroutine set_
   iamset_ = .true.
 
 ! End of routine
+  call timer_fnl('observer.set_')
+_EXIT_(Iam)
 end subroutine set_
 
-subroutine run_
+subroutine run_(init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    observer_run       driver for gridpoint statistical 
@@ -314,20 +401,40 @@ subroutine run_
 !
 !$$$
 
+  use mpeu_util, only: tell,die
   implicit none
+  logical,optional,intent(in) :: init_pass
+  logical,optional,intent(in) :: last_pass
 
 ! Declare passed variables
 
 ! Declare local variables
+  character(len=*), parameter :: Iam="observer_run"
 
   integer(i_kind) jiterlast
   logical :: last
   character(len=12) :: clfile
+  logical :: init_pass_
+  logical :: last_pass_
+  
+_ENTRY_(Iam)
+  call timer_ini('observer.run_')
+  init_pass_=.false.
+  if(present(init_pass)) init_pass_=init_pass
+  last_pass_=.false.
+  if(present(last_pass)) last_pass_= last_pass
+
+#ifdef VERBOSE
+  call tell(Iam,'init_pass =',init_pass_)
+  call tell(Iam,'last_pass =',last_pass_)
+#endif
+
+  if(.not.ob_initialized_) call die(Iam,'not initialized')
 
 !*******************************************************************************************
  
-! Read observations and scatter
-  call set_
+! Read observations and scatter, if it is not already been done.
+  if(.not.iamset_) call set_
 
   jiterlast=miter
   if (l4dvar) then
@@ -336,16 +443,24 @@ subroutine run_
      write(6,*)'observer should only be called in 4dvar'
      call stop2(157)
   endif
-  if (mype==izero) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
+#ifdef VERBOSE
+  if(mype==0) then
+     call tell(Iam,'miter =',miter)
+     call tell(Iam,'jiterstart =',jiterstart)
+     call tell(Iam,'jiterlast  =',jiterlast )
+  endif
+#endif
+  if (mype==0) write(6,*)'OBSERVER: jiterstart,jiterlast=',jiterstart,jiterlast
 
 ! Main outer analysis loop
   do jiter=jiterstart,jiterlast
 
 !    Set up right hand side of analysis equation
-     call setuprhsall(ndata,mype)
+     call setuprhsall(ndata,mype,init_pass_,last_pass_)
 
-     last  = jiter == miter+ione
-     if (l4dvar.and.(.not.last)) then
+     last  = jiter == miter+1 ! there is no obsdiags output if
+                              ! jiterstart==miter+1.  e.g. miter=2 and jiterstart=3
+     if (l4dvar.and.(.not.last) .and. last_pass_) then
         clfile='obsdiags.ZZZ'
         write(clfile(10:12),'(I3.3)') jiter
         call write_obsdiags(clfile)
@@ -355,13 +470,15 @@ subroutine run_
   end do
 
   if (.not.l4dvar) then
-     jiter=miter+ione
+     jiter=miter+1
 !    If requested, write obs-anl information to output files
-     if (write_diag(jiter)) call setuprhsall(ndata,mype)
+     if (write_diag(jiter)) call setuprhsall(ndata,mype,.true.,.true.)
 
   endif
 
+  call timer_fnl('observer.run_')
 ! End of routine
+_EXIT_(Iam)
 end subroutine run_
 
 subroutine final_
@@ -388,25 +505,47 @@ subroutine final_
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use compact_diffs,only: destroy_cdiff_coefs
+  use mp_compact_diffs_mod1, only: destroy_mp_compact_diffs1
+  use mpeu_util, only: tell,die
   implicit none
 
 ! Declare passed variables
 
 ! Declare local variables
+  integer(i_kind) error_status
+  character(len=*),parameter:: Iam="observer_final"
 
 !*******************************************************************************************
+_ENTRY_(Iam)
+  call timer_ini('observer.final_')
+
+  if(.not.ob_initialized_) call die(Iam,'not initialized')
+  ob_initialized_=.false.
  
+  if (tendsflag) then
+     call destroy_turblvars()
+  endif
+  if ( (l_tlnmc ) .and. nvmodes_keep>0) call destroy_vtrans
+
+  if(.not.regional)then
+     call destroy_cdiff_coefs()
+     call destroy_mp_compact_diffs1()
+  endif
   call guess_final_
 
 ! Deallocate arrays
   call convinfo_destroy
 
   deallocate(ndata)
+  if(mype==0) write(6,*) Iam, ': successfully finalized'
 
 ! Finalize timer for this procedure
+  call timer_fnl('observer.final_')
   call timer_fnl('observer')
 
 ! End of routine
+_EXIT_(Iam)
 end subroutine final_
 
 subroutine guess_final_
@@ -422,6 +561,8 @@ subroutine guess_final_
 !   1990-10-06  parrish
 !   2007-10-03  todling - created this file from slipt of glbsoi
 !   2009-01-28  todling - split observer into init/set/run/finalize
+!   2010-04-20  todling - add call to destroy tracer grid
+!   2013-10-23  todling - first-in, last-out alloc/dealloc
 !
 !   input argument list:
 !     mype - mpi task id
@@ -433,23 +574,27 @@ subroutine guess_final_
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
 
 ! Declare local variables
+  integer(i_kind):: ierr
 
 !*******************************************************************************************
-  if ( fg_finalized_ ) return
+  if ( .not. fg_initialized_ ) call die('observer.guess_final_','object not initialized')
+  fg_initialized_=.false.
  
 ! Deallocate remaining arrays
-  call destroy_sfct
-  call destroy_ges_grids(switch_on_derivatives,tendsflag)
+  call cloud_final()
+  call destroy_sfc_grids()
   call destroy_bias_grids()
-  call destroy_jfunc
-  call destroy_gesfinfo
-
-  fg_finalized_ = .true.
+  call destroy_ges_grids(switch_on_derivatives,tendsflag)
+#ifndef HAVE_ESMF
+  call destroy_chemges_grids(mype,ierr)
+  call destroy_metguess_grids(mype,ierr)
+#endif /* HAVE_ESMF */
 
 ! End of routine
 end subroutine guess_final_

@@ -26,36 +26,34 @@
 !$$$ end documentation block
 
       use kinds, only: i_kind
-      use constants, only: ione
 
       implicit none
  
       integer(i_kind),intent(in   ) :: taskid, ntasks, lb, ub
       integer(i_kind),intent(  out) :: i1, i2
 
-      integer(i_kind) chunk, nwork, nt1, nt2
+      integer(i_kind) chunk, nwork, nt1
       integer(i_kind) itask, netdisp
       integer(i_kind) counts(ntasks), displacements(ntasks)
 
-      nwork = ub - lb + ione
+      nwork = ub - lb + 1
       chunk = nwork/ntasks
       nt1 = nwork - ntasks*chunk
-      nt2 = ntasks - nt1
 
       netdisp = lb
       do itask = 1, nt1
-         counts(itask) = chunk + ione
+         counts(itask) = chunk + 1
          displacements(itask) = netdisp  
-         netdisp = min(ub,netdisp+chunk+ione)
+         netdisp = min(ub,netdisp+chunk+1)
       end do
-      do itask = nt1 + ione , ntasks
+      do itask = nt1 + 1 , ntasks
          counts(itask) = chunk
          displacements(itask) = netdisp  
          netdisp = min(ub,netdisp+chunk)
       end do
 
-      i1 = displacements(taskid+ione)
-      i2 = min(ub,i1+counts(taskid+ione)-ione)
+      i1 = displacements(taskid+1)
+      i2 = min(ub,i1+counts(taskid+1)-1)
 
       return
       end subroutine looplimits

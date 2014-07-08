@@ -36,9 +36,11 @@ module gsi_io
   implicit none
 
   integer(i_kind):: lendian_in,lendian_out
+  integer(i_kind):: mype_io
 
   private
   public lendian_in, lendian_out
+  public mype_io
   public init_io
   public read_bias
   public write_bias
@@ -56,7 +58,7 @@ module gsi_io
 
 contains
 
-  subroutine init_io(mype)
+  subroutine init_io(mype,iope)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_io                initialize quanities related 
@@ -70,6 +72,7 @@ contains
 !
 !   input argument list:
 !     mype     - mpi task id
+!     iope     - io server mpi task id
 !
 !   output argument list:
 !
@@ -78,19 +81,23 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: izero
     implicit none
 
 !   Declare passed variables
     integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: iope
 
 
 !   Set unit numbers reserved for little endian input and output
-    lendian_in  = 15_i_kind
-    lendian_out = 66_i_kind
+    lendian_in  = 15
+    lendian_out = 66
 
-    if (mype==izero) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
+    if (mype==0) write(6,*)'INIT_IO:  reserve units lendian_in=',lendian_in,&
        ' and lendian_out=',lendian_out,' for little endian i/o'
+
+!   Set mpi io task
+    mype_io=iope
+    if (mype==mype_io) write(6,*)'INIT_IO:  set IO server task to mype_io=',mype_io
 
   end subroutine init_io
 
@@ -136,13 +143,13 @@ contains
     use kinds, only: r_kind,r_single
     use gridmod, only: itotsub,nlon,nlat,lat2,lon2,nsig,displs_s,ijn_s,&
          ntracer,ncloud
-    use constants, only: izero,ione,zero
+    use constants, only: zero
     use mpimod, only: mpi_rtype,ierror,mpi_comm_world
     implicit none
     
 !   Declare local parameters
-    integer(i_kind):: lunin=11_i_kind
-    integer(i_kind):: nsize=4_i_kind
+    integer(i_kind):: lunin=11
+    integer(i_kind):: nsize=4
 
 !   Declare passed variables
     character(24)                             ,intent(in   ) :: filename
@@ -164,16 +171,16 @@ contains
     
 !******************************************************************************  
 !   Initialize variables used below
-    mype_in=izero
-    mm1=mype+ione
-    ib=-ione
+    mype_in=0
+    mm1=mype+1
+    ib=-1
     nb=nsize*nlon*nlat
 
 
 !   Open file to read bias fields
-    istatus=izero
+    istatus=0
     call baopenr(lunin,filename,iret)
-    if (iret/=izero) then
+    if (iret/=0) then
        if (mype==mype_in) write(6,*) &
           'READ_BIAS:  ***ERROR*** opening output file, iret=',iret,lunin,filename
        istatus=istatus+iret
@@ -320,7 +327,7 @@ contains
     
 
 !   Cloud condensate mixing ratio.
-       if (ntracer>2_i_kind .or. ncloud>=ione) then
+       if (ntracer>2 .or. ncloud>=1) then
           do k=1,nsig
              if (mype==mype_in) then
                 call baread(lunin,ib,nb,ka,grid4)
@@ -348,7 +355,7 @@ contains
     
 !   Close input file
     call baclose(lunin,iret)
-    if (iret/=izero) then
+    if (iret/=0) then
        write(6,*)'READ_BIAS:  ***ERROR*** closing input file, iret=',iret
     endif
     istatus=istatus+iret
@@ -374,11 +381,8 @@ contains
 !
     use kinds, only: r_kind,r_single
     
-    use constants, only: izero,ione
-  
     use mpimod, only: mpi_rtype
     use mpimod, only: mpi_comm_world
-    use mpimod, only: strip
     use mpimod, only: ierror
     
     use gridmod, only: nlat, nlon     ! no. lat/lon
@@ -391,6 +395,8 @@ contains
     use gridmod, only: itotsub        ! no. of horizontal points of all subdomains combined
     use gridmod, only: ntracer        ! no. of tracers
     use gridmod, only: ncloud         ! no. of cloud types
+    use gridmod, only: strip
+
     
   
     implicit none
@@ -433,6 +439,8 @@ contains
 ! !REVISION HISTORY:
 !
 !   2006-12-04  todling - add nbc and loop over nbc
+!   2010-04-01  treadon - move strip to gridmod
+!   2013-10-24  todling - revisit strip interface
 !
 ! !REMARKS:
 !
@@ -446,8 +454,8 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind),parameter::  lunout = 51_i_kind
-    integer(i_kind),parameter::  nsize=4_i_kind
+    integer(i_kind),parameter::  lunout = 51
+    integer(i_kind),parameter::  nsize=4
 
     integer(i_kind) k,mm1
     integer(i_kind):: iret
@@ -461,14 +469,14 @@ contains
 !*************************************************************************
 
 !   Initialize local variables
-    mm1=mype+ione
+    mm1=mype+1
     nb=nsize*nlon*nlat
 
 !   Open file to receive bias fields
-    istatus=izero
+    istatus=0
     if (mype==mype_out) then
        call baopenwt(lunout,filename,iret)
-       if (iret/=izero) then
+       if (iret/=0) then
           write(6,*)'WRITE_BIAS:  ***ERROR*** opening output file, iret=',iret
        endif
        istatus=istatus+iret
@@ -479,17 +487,17 @@ contains
     do n=1,nbc
 
 !   Strip off boundary points from subdomains
-       call strip(sub_z    (1,1,n)  ,zsm    ,ione)
-       call strip(sub_ps   (1,1,n)  ,psm    ,ione)
-       call strip(sub_tskin(1,1,n)  ,tskinsm,ione)
-       call strip(sub_vor  (1,1,1,n),vorsm  ,nsig)
-       call strip(sub_div  (1,1,1,n),divsm  ,nsig)
-       call strip(sub_u    (1,1,1,n),usm    ,nsig)
-       call strip(sub_v    (1,1,1,n),vsm    ,nsig)
-       call strip(sub_tv   (1,1,1,n),tvsm   ,nsig)
-       call strip(sub_q    (1,1,1,n),qsm    ,nsig)
-       call strip(sub_oz   (1,1,1,n),ozsm   ,nsig)
-       call strip(sub_cwmr (1,1,1,n),cwmrsm ,nsig)
+       call strip(sub_z    (:,:,n)  ,zsm)
+       call strip(sub_ps   (:,:,n)  ,psm)
+       call strip(sub_tskin(:,:,n)  ,tskinsm)
+       call strip(sub_vor  (:,:,:,n),vorsm  ,nsig)
+       call strip(sub_div  (:,:,:,n),divsm  ,nsig)
+       call strip(sub_u    (:,:,:,n),usm    ,nsig)
+       call strip(sub_v    (:,:,:,n),vsm    ,nsig)
+       call strip(sub_tv   (:,:,:,n),tvsm   ,nsig)
+       call strip(sub_q    (:,:,:,n),qsm    ,nsig)
+       call strip(sub_oz   (:,:,:,n),ozsm   ,nsig)
+       call strip(sub_cwmr (:,:,:,n),cwmrsm ,nsig)
   
 
 !   For each output grid, the following steps are repeated
@@ -607,7 +615,7 @@ contains
     
 
 !   Cloud condensate mixing ratio
-       if (ntracer>2_i_kind .or. ncloud>=ione) then
+       if (ntracer>2 .or. ncloud>=1) then
           do k=1,nsig
              call mpi_gatherv(cwmrsm(1,k),ijn(mm1),mpi_rtype,&
                   work,ijn,displs_g,mpi_rtype,&
@@ -626,7 +634,7 @@ contains
        write(6,*) 'WRITE_BIAS:  bias file written to ',&
             trim(filename)
        call baclose(lunout,iret)
-       if (iret/=izero) then
+       if (iret/=0) then
           write(6,*)'WRITE_BIAS:  ***ERROR*** closing output file, iret=',iret
        endif
        istatus=istatus+iret
@@ -650,7 +658,8 @@ contains
 ! !USES:
 
    use kinds, only: r_kind,r_single
-   use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
+   use gridmod, only: itotsub,nlat,nlon
+   use general_commvars_mod, only: ltosi_s,ltosj_s
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -665,6 +674,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90
@@ -701,13 +711,14 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,r_single
-   use gridmod, only: itotsub,ltosi_s,ltosj_s,nlat,nlon
+   use kinds, only: r_kind,r_double
+   use gridmod, only: itotsub,nlat,nlon
+   use general_commvars_mod, only: ltosi_s,ltosj_s
    implicit none
 
 ! !INPUT PARAMETERS:
 
-   real(r_kind),dimension(nlon,nlat),intent(in   ) :: grid_in   ! input grid
+   real(r_double),dimension(nlon,nlat),intent(in ) :: grid_in   ! input grid
    real(r_kind),dimension(itotsub)  ,intent(  out) :: grid_out  ! output grid
 
 ! !DESCRIPTION: This routine transfers the contents of a two-diemnsional,
@@ -718,6 +729,8 @@ contains
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
 !   2007-05-27  todling - add double precision version
+!   2011-07-03  todling - true double prec interface
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90
@@ -755,7 +768,8 @@ contains
 ! !USES:
 
    use kinds, only: r_kind,r_single
-   use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
+   use gridmod, only: itotsub,iglobal,nlat,nlon
+   use general_commvars_mod, only: ltosi,ltosj
    implicit none
 
 ! !INPUT PARAMETERS:
@@ -770,6 +784,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90
@@ -805,14 +820,15 @@ contains
 
 ! !USES:
 
-   use kinds, only: r_kind,r_single
-   use gridmod, only: itotsub,iglobal,ltosi,ltosj,nlat,nlon
+   use kinds, only: r_kind,r_double
+   use gridmod, only: itotsub,iglobal,nlat,nlon
+   use general_commvars_mod, only: ltosi,ltosj
    implicit none
 
 ! !INPUT PARAMETERS:
 
    real(r_kind),dimension(max(iglobal,itotsub)),intent(in   ) :: grid_in   ! input grid
-   real(r_kind),dimension(nlon,nlat)           ,intent(  out) :: grid_out  ! input grid
+   real(r_double),dimension(nlon,nlat)         ,intent(  out) :: grid_out  ! input grid
 
 ! !DESCRIPTION: This routine transfers the contents of a one-diemnsional,
 !               type r_kind array into a two-dimensional, type r_single
@@ -822,6 +838,8 @@ contains
 ! !REVISION HISTORY:
 !   2004-08-27  treadon
 !   2007-05-27  todling - add double precision version
+!   2011-07-03  todling - true double prec interface
+!   2013-10-25  todling - repositioned ltosi and others to commvars
 !
 ! !REMARKS:
 !   language: f90

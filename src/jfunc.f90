@@ -5,6 +5,8 @@ module jfunc
 !   prgmmr: treadon          org: np23                date: 2003-11-24
 !
 ! abstract: module containing variables used in inner loop minimzation
+!           NOTE: it is ok for jfunc to depend on setting related to B,
+!                 but not the other way around.
 !
 ! program history log:
 !   2003-11-24  treadon
@@ -29,11 +31,23 @@ module jfunc
 !   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
 !                         re-orthogonalization of the gradx vectors in 2dvar mode
 !   2010-02-20  parrish - add change to get correct nval_len when using hybrid ensemble with dual resolution.
+!   2010-02-20  zhu     - add nrf_levb and nrf_leve
+!   2010-03-23  derber  - remove rhgues (not used)
+!   2010-03-25  zhu     - add pointer_state
+!   2010-05-12  todling - use gsi_bundle for state vector; remove pointer_state
+!   2010-05-12  todling - replace some existing subdomain pointers w/ nsubwhalo/nsubnhalo
+!                       - declare all variables coming from use statements
+!   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
+!   2010-08-15  gu/todling - add pseudo-q2 options
+!   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
+!                         or aircraft_t_bc_pof=.true.
+!   2013-10-30  jung    - added logical clip_supersaturation
 !
 ! Subroutines Included:
 !   sub init_jfunc           - set defaults for cost function variables
 !   sub create_jfunc         - allocate cost function arrays 
 !   sub destroy_jfunc        - deallocate cost function arrays
+!   anav_info                - control variables information
 !   sub read_guess_solution  - read guess solution
 !   sub write_guess_solution - write guess solution
 !   sub strip2               - strip off halo from subdomain arrays
@@ -57,32 +71,12 @@ module jfunc
 !   def jiterend   - last outloop iteration number
 !   def iter       - do loop iteration integer
 !   def nclen      - length of control (x,y) vectors
+!   def diag_precon- logical, if true do  preconditioning
+!   def step_start - initial stepsize
 !   def nvals_levs - number of 2d (x/y) state-vector variables
 !   def nvals_len  - number of 2d state-vector variables * subdomain size (with buffer)
 !   def nval_levs  - number of 2d (x/y) control-vector variables
 !   def nval_len   - number of 2d control-vector variables * subdomain size (with buffer)
-!   def nstsm      - starting point for streamfunction in control vector for comm.
-!                    from here on down, without buffer points
-!   def nvpsm      - starting point for velocity pot. in control vector for comm.
-!   def npsm       - starting point for ln(ps) in control vector for comm.
-!   def ntsm       - starting point for temperature in control vector for comm.
-!   def nqsm       - starting point for moisture in control vector for comm.
-!   def nozsm      - starting point for ozone in control vector for comm.
-!   def nsstsm     - starting point for sst in control vector for comm.
-!   def nsltsm     - starting point for skin/land temp. in control vector for comm.
-!   def nsitsm     - starting point for skin/ice temp. in control vector for comm.
-!   def ncwsm      - starting point for cloud water in control vector for comm.
-!   def nst2       - starting point for streamfunction in control vector for comm.
-!                    from here on down, including buffer points
-!   def nvp2       - starting point for velocity pot. in control vector for comm.
-!   def np2        - starting point for ln(ps) in control vector for comm.
-!   def nt2        - starting point for temperature in control vector for comm.
-!   def nq2        - starting point for moisture in control vector for comm.
-!   def noz2       - starting point for ozone in control vector for comm.
-!   def nsst2      - starting point for sst in control vector for comm.
-!   def nslt2      - starting point for skin/land temp. in control vector for comm.
-!   def nsit2      - starting point for skin/ice temp. in control vector for comm.
-!   def ncw2       - starting point for cloud water in control vector for comm.
 !   def l_foto     - option for foto
 !   def print_diag_pcg - option for turning on GMAO diagnostics in pcgsoi
 !   def tsensible  - option to use sensible temperature as the control variable. applicable
@@ -91,14 +85,28 @@ module jfunc
 !                    inner iteration using the modified gram-schmidt method. useful for
 !                    estimating the analysis error via the projection method. 
 !
+!   def ntracer    - total number of tracer variables
+!   def nrft       - total number of time tendencies for upper level control variables
+!   def nrft_      - order of time tendencies for 3d control variables
+!
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use control_vectors 
-  use state_vectors
+  use constants, only: zero
+  use control_vectors, only: nc2d,nc3d,mvars
+  use control_vectors, only: nrf,nrf_3d,nrf_var
+  use control_vectors, only: allocate_cv,deallocate_cv
+  use control_vectors, only: control_vector
+  use control_vectors, only: assignment(=)
+  use control_vectors, only: setup_control_vectors
+  use control_vectors, only: cvars3d
+  use state_vectors, only: setup_state_vectors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundle
+  use mpeu_util, only: getindex
   implicit none
 
 ! set default to private
@@ -111,31 +119,33 @@ module jfunc
   public :: write_guess_solution
   public :: strip2
   public :: set_pointer
+  public :: set_sqrt_2dsize
 ! set passed variables to public
-  public :: nrclen,npclen,nsclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
-  public :: switch_on_derivatives,qgues,qsatg,rhgues,jiterend,jiterstart,jiter,iter,niter,miter
+  public :: nrclen,npclen,nsclen,ntclen,qoption,nval_lenz,tendsflag,tsensible
+  public :: switch_on_derivatives,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
-  public :: factqmax,factqmin,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
+  public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
-  public :: nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
-  public :: nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
+  public :: factg,factv,factp,diag_precon,step_start
+  public :: pseudo_q2
+  public :: varq
 
-  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt
+  logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical clip_supersaturation
+  logical pseudo_q2
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
   integer(i_kind) nval_len,nval_lenz,nval_levs
-  integer(i_kind) nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
-  integer(i_kind) nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
-  integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen
+  integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen,ntclen
   integer(i_kind) nval2d,nclenz
+
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
-  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc
+  real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,step_start
   integer(i_kind) bcoption
-  real(r_kind),allocatable,dimension(:,:,:):: qsatg,rhgues,qgues,dqdt,dqdrh,dqdp 
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
-  type(state_vector),save ::xhat_dt,dhat_dt
+  type(gsi_bundle),save :: xhat_dt,dhat_dt
 
 contains
 
@@ -155,6 +165,7 @@ contains
 !   2005-10-27  kleist  - initialize tendency flag
 !   2006-08-30  zhang,b - initialize bias correction scheme
 !   2008-05-12  safford - rm unused uses
+!   2010-08-15  gu/todling - add pseudo-q2 options
 !
 !   input argument list:
 !
@@ -165,7 +176,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione,zero, one
+    use constants, only: zero, one
     implicit none
     integer(i_kind) i
 
@@ -177,24 +188,31 @@ contains
     print_diag_pcg=.false.
     tsensible=.false.
     lgschmidt=.false.
+    diag_precon=.false.
+    step_start=1.e-4_r_kind
 
     factqmin=one
     factqmax=one
-    iout_iter=220_i_kind
-    miter=ione
-    qoption=ione
+    clip_supersaturation=.false.
+    factg=one
+    factv=one
+    factp=one
+    iout_iter=220
+    miter=1
+    qoption=1
+    pseudo_q2=.false.
     do i=0,50
-       niter(i)=izero
-       niter_no_qc(i)=1000000_i_kind
+       niter(i)=0
+       niter_no_qc(i)=1000000
     end do
-    jiterstart=ione
-    jiterend=ione
+    jiterstart=1
+    jiterend=1
     jiter=jiterstart
     biascor=-one        ! bias multiplicative coefficient
-    diurnalbc=izero     ! 1= diurnal bias; 0= persistent bias
-    bcoption=ione       ! 0=ibc; 1=sbc
-    nclen=ione
-    nclenz=ione
+    diurnalbc=0         ! 1= diurnal bias; 0= persistent bias
+    bcoption=1          ! 0=ibc; 1=sbc
+    nclen=1
+    nclenz=1
 
     penorig=zero
     gnormorig=zero
@@ -204,12 +222,13 @@ contains
 ! iguess =  1  read and write guess file
 ! iguess =  2  read only guess file
 
-    iguess=ione
+    iguess=1
 
     return
   end subroutine init_jfunc
 
-  subroutine create_jfunc(mlat)
+
+  subroutine create_jfunc
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create_jfunc
@@ -224,6 +243,9 @@ contains
 !   2005-03-28  wu - replace mlath with mlat, modify dim of varq 
 !   2005-06-15  treadon - remove "use guess_grids"
 !   2008-05-12  safford - rm unused uses
+!   2013-10-25  todling - revisit variable initialization
+!   2013-11-12  lueken - revisit logic around cwgues
+!   2014-02-03  todling - CV length and B-dims here (no longer in observer)
 !
 !   input argument list:
 !    mlat
@@ -235,42 +257,38 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione,zero
-    use gridmod, only: lat2,lon2,nsig
+    use constants, only: zero
+    use gridmod, only: lat2,lon2,nsig,regional
+    use m_berror_stats, only: berror_get_dims
+    use m_berror_stats_reg, only: berror_get_dims_reg
     implicit none
 
-    integer(i_kind),intent(in   ) :: mlat
-
     integer(i_kind) i,j,k
+    integer(i_kind) msig,mlat,mlon 
+
+!   Set length of control vector and other control vector constants
+    call set_pointer
+
+!   Allocate arrays used in minimization
+    if(.not.regional)then                    ! If global, use msig, mlat, and mlon
+       call berror_get_dims(msig,mlat,mlon)
+    else                                     ! If regional, use msig and mlat only
+       call berror_get_dims_reg(msig,mlat)
+    endif
 
     call allocate_cv(xhatsave)
     call allocate_cv(yhatsave)
-    allocate(qsatg(lat2,lon2,nsig),&
-         dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
-         varq(ione:mlat,ione:nsig),dqdp(lat2,lon2,nsig),&
-         rhgues(lat2,lon2,nsig),qgues(lat2,lon2,nsig))
-
     xhatsave=zero
     yhatsave=zero
 
-    do k=ione,nsig
-       do j=1,mlat
-          varq(j,k)=zero
-       end do
-    end do
-
-    do k=1,nsig
-       do j=1,lon2
-          do i=1,lat2
-             qsatg(i,j,k)=zero
-             dqdt(i,j,k)=zero
-             dqdrh(i,j,k)=zero
-             dqdp(i,j,k)=zero
-             qgues(i,j,k)=zero
-             rhgues(i,j,k)=zero
+    if (getindex(cvars3d,'q')>0) then
+        allocate(varq(1:mlat,1:nsig))
+        do k=1,nsig
+          do j=1,mlat
+             varq(j,k)=zero
           end do
        end do
-    end do
+    endif
 
     return
   end subroutine create_jfunc
@@ -286,6 +304,7 @@ contains
 ! program history log:
 !   2003-11-24  treadon
 !   2004-05-18  kleist, documentation
+!   2013-10-25  todling, revisit deallocs
 !
 !   input argument list:
 !
@@ -300,8 +319,7 @@ contains
 
     call deallocate_cv(xhatsave)
     call deallocate_cv(yhatsave)
-    deallocate(varq)
-    deallocate(dqdt,dqdrh,dqdp,qsatg,qgues,rhgues)
+    if(allocated(varq)) deallocate(varq)
 
     return
   end subroutine destroy_jfunc
@@ -319,6 +337,7 @@ contains
 !   2004-05-18  kleist, documentation
 !   2005-05-05  treadon - read guess solution from 4-byte reals
 !   2008-05-12  safford - rm unused uses and vars
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     mype   - mpi task id
@@ -332,10 +351,10 @@ contains
 !
 !$$$
     use kinds, only: r_single
-    use constants, only: izero,ione
     use mpimod, only: ierror, mpi_comm_world,mpi_real4
-    use gridmod, only: nlat,nlon,nsig,itotsub,ltosi_s,ltosj_s,&
+    use gridmod, only: nlat,nlon,nsig,itotsub,&
          displs_s,ijn_s,latlon11,iglobal
+    use general_commvars_mod, only: ltosi_s,ltosj_s
     use obsmod, only: iadate
     implicit none
 
@@ -349,39 +368,39 @@ contains
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nclen):: xhatsave_r4,yhatsave_r4
     
-    jiterstart = ione
-    mm1=mype+ione
-    myper=izero
+    jiterstart = 1
+    mm1=mype+1
+    myper=0
 
 ! Open unit to guess solution.  Read header.  If no header, file is
 ! empty and exit routine
     open(12,file='gesfile_in',form='unformatted')
-    iadateg=izero
-    nlatg=izero
-    nlong=izero
-    nsigg=izero
+    iadateg=0
+    nlatg=0
+    nlong=0
+    nsigg=0
     read(12,end=1234)iadateg,nlatg,nlong,nsigg
-    if(iadate(ione) == iadateg(ione) .and. iadate(2_i_kind) == iadate(2_i_kind) .and. &
-       iadate(3_i_kind) == iadateg(3_i_kind) .and. iadate(4_i_kind) == iadateg(4_i_kind) .and. &
-       iadate(5_i_kind) == iadateg(5_i_kind) .and. nlat == nlatg .and. &
+    if(iadate(1) == iadateg(1) .and. iadate(2) == iadate(2) .and. &
+       iadate(3) == iadateg(3) .and. iadate(4) == iadateg(4) .and. &
+       iadate(5) == iadateg(5) .and. nlat == nlatg .and. &
        nlon == nlong .and. nsig == nsigg) then
-       if(mype == izero) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
+       if(mype == 0) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
                      iadateg,nlatg,nlong,nsigg
-       jiterstart=izero
+       jiterstart=0
          
 ! Let all tasks read gesfile_in to pick up bias correction (second read)
 
 ! Loop to read input guess fields.  After reading in each field & level,
 ! scatter the grid to the appropriate location in the xhat and yhatsave
 ! arrays.
-       do k=ione,nval_levs
+       do k=1,nval_levs
           read(12,end=1236) xhatsave_g,yhatsave_g
           do kk=1,itotsub
              i1=ltosi_s(kk); i2=ltosj_s(kk)
              fieldx(kk)=xhatsave_g(i1,i2)
              fieldy(kk)=yhatsave_g(i1,i2)
           end do
-          i=(k-ione)*latlon11 + ione
+          i=(k-1)*latlon11 + 1
           call mpi_scatterv(fieldx,ijn_s,displs_s,mpi_real4,&
                    xhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
           call mpi_scatterv(fieldy,ijn_s,displs_s,mpi_real4,&
@@ -389,14 +408,14 @@ contains
        end do  !end do over nval_levs
 
 !      Read radiance and precipitation bias correction terms
-       read(12,end=1236) (xhatsave_r4(i),i=nclen1+ione,nclen),(yhatsave_r4(i),i=nclen1+ione,nclen)
+       read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
        do i=1,nclen
           dirx%values(i)=real(xhatsave_r4(i),r_kind)
           diry%values(i)=real(yhatsave_r4(i),r_kind)
        end do
 
     else
-       if(mype == izero) then
+       if(mype == 0) then
           write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
           write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
           write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
@@ -409,7 +428,7 @@ contains
 ! The guess file is empty.  Do not return an error code but print a message to
 ! standard out.
 1234 continue
-    if(mype == izero) then
+    if(mype == 0) then
        write(6,*) 'READ_GUESS_SOLUTION:  NO GUESS FILE, gesfile_in'
        write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
        write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
@@ -421,7 +440,7 @@ contains
 ! Error contition reading level or bias correction data.  Set error flag and
 ! return to the calling program.
 1236 continue
-    if (mype==izero) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
+    if (mype==0) write(6,*) 'READ_GUESS_SOLUTION:  ERROR in reading guess'
     close(12)
     call stop2(76)
 
@@ -443,6 +462,7 @@ contains
 !   2005-05-05  treadon - write guess solution using 4-byte reals
 !   2008-05-12  safford - rm unused uses
 !   2008-12-13  todling - strip2 called w/ consistent interface
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     mype   - mpi task id
@@ -456,10 +476,11 @@ contains
 !$$$
     use kinds, only: r_single
     use mpimod, only: ierror, mpi_comm_world, mpi_real4
-    use gridmod, only: ijn,latlon11,displs_g,ltosj,ltosi,nsig,&
+    use gridmod, only: ijn,latlon11,displs_g,nsig,&
          nlat,nlon,lat1,lon1,itotsub,iglobal
+    use general_commvars_mod, only: ltosj,ltosi 
     use obsmod, only: iadate
-    use constants, only: izero,ione,zero
+    use constants, only: zero
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -470,8 +491,8 @@ contains
     real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
     real(r_single),dimension(nrclen):: xhatsave4,yhatsave4
 
-    mm1=mype+ione
-    mypew=izero
+    mm1=mype+1
+    mypew=0
     
 ! Write header record to output file
     if (mype==mypew) then
@@ -480,8 +501,8 @@ contains
     endif
 
 ! Loop over levels.  Gather guess solution and write to output
-    do k=ione,nval_levs
-       ie=(k-ione)*latlon11 + ione
+    do k=1,nval_levs
+       ie=(k-1)*latlon11 + 1
        is=ie+latlon11
        call strip2(xhatsave%values(ie:is),yhatsave%values(ie:is),field)
        call mpi_gatherv(field(1,1,1),ijn(mm1),mpi_real4,&
@@ -550,7 +571,6 @@ contains
 !
 !$$$
     use kinds, only: r_single
-    use constants, only: ione
     use gridmod, only: lat1,lon1,lat2,lon2
     implicit none
 
@@ -561,10 +581,10 @@ contains
 
 
     do j=1,lon1
-       jp1 = j+ione
+       jp1 = j+1
        do i=1,lat1
-          field_out(i,j,1)=field_in1(i+ione,jp1)
-          field_out(i,j,2)=field_in2(i+ione,jp1)
+          field_out(i,j,1)=field_in1(i+1,jp1)
+          field_out(i,j,2)=field_in2(i+1,jp1)
        end do
     end do
 
@@ -585,6 +605,12 @@ contains
 !   2006-04-21  kleist - include pointers for more time tendency arrays
 !   2008-12-04  todling - increase number of 3d fields from 6 to 8 
 !   2009-09-16  parrish - add hybrid_ensemble connection in call to setup_control_vectors
+!   2010-03-01  zhu     - add nrf_levb and nrf_leve, generalize nval_levs
+!                       - generalize vector starting points such as nvpsm, nst2, and others
+!   2010-05-23  todling - remove pointers such as nvpsm, nst2, and others (intro on 10/03/01)
+!                       - move nrf_levb and nrf_leve to anberror where they are needed
+!   2010-05-29  todling - generalized count for number of levels in state variables
+!   2013-10-22  todling - revisit level count in view of changes to bundle
 !
 !   input argument list:
 !
@@ -595,97 +621,114 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione
     use gridmod, only: lat1,lon1,latlon11,latlon1n,nsig,lat2,lon2
     use gridmod, only: nnnn1o,regional,nlat,nlon
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
+    use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
+    use state_vectors, only: ns3d,ns2d,levels
+    use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
-    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens
+    use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens,nval_lenz_en
     implicit none
 
-    integer(i_kind) nx,ny,mr,nr,nf
+    integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,n_ensz,nval_lenz_tot,nval_lenz_enz
+    character(len=max_varname_length) cvar
 
-    nvals_levs=8*nsig+2+ione        ! +1 for extra level in p3d
+    nvals_levs=ns2d+sum(levels)
     nvals_len=nvals_levs*latlon11
 
-    nval_levs=6*nsig+2
+    nval_levs=max(0,nc3d)*nsig+max(0,nc2d)
     nval_len=nval_levs*latlon11
     if(l_hyb_ens) then
-       nval_len=nval_levs*latlon11+n_ens*nsig*grd_ens%latlon11
+       nval_len=nval_len+n_ens*nsig*grd_ens%latlon11
     end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype
-    nclen=nsubwin*nval_len+nsclen+npclen
-    nrclen=nsclen+npclen
+    if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
+       ntclen=npredt*ntail
+    else
+       ntclen=0
+    end if
+    nclen=nsubwin*nval_len+nsclen+npclen+ntclen
+    nrclen=nsclen+npclen+ntclen
     nclen1=nclen-nrclen
     nclen2=nclen1+nsclen
   
+    n_ensz=0
+    nval_lenz_enz=0
     if(lsqrtb.or.(l_hyb_ens.and.generate_ens)) then
        if(regional) then
           nval2d=nlat*nlon*3
        else
-!           following lifted from subroutine create_berror_vars in module berror.f90
-!            inserted because create_berror_vars called after this routine
-          nx=nlon*3/2
-          nx=nx/2*2
-          ny=nlat*8/9
-          ny=ny/2*2
-          if(mod(nlat,2)/=izero)ny=ny+ione
-          mr=izero
-          nr=nlat/4
-          nf=nr
-          nval2d=(ny*nx + 2*(2*nf+ione)*(2*nf+ione))*3
+          call set_sqrt_2dsize(nval2d)
        end if
        nval_lenz=nval2d*nnnn1o
-       nclenz=nsubwin*nval_lenz+nsclen+npclen
+       nval_lenz_tot=nval_lenz
+       if(lsqrtb.and.l_hyb_ens) then
+          n_ensz=n_ens
+          nval_lenz_enz=nval_lenz_en
+          nval_lenz_tot=nval_lenz+n_ensz*nval_lenz_enz
+       endif
+       nclenz=nsubwin*nval_lenz_tot+nsclen+npclen+ntclen
     else
        nval2d=latlon11
     end if
 
-
-!   For new mpi communication, define vector starting points
-!   for each variable type using the subdomains size without 
-!   buffer points
-    nstsm=ione                             ! streamfunction small 
-    nvpsm=nstsm  +(lat1*lon1*nsig)         ! vel. pot. small
-    npsm=nvpsm   +(lat1*lon1*nsig)         ! sfc. p. small
-    ntsm=npsm    +(lat1*lon1)              ! temp. small
-    nqsm=ntsm    +(lat1*lon1*nsig)         ! q small
-    nozsm=nqsm   +(lat1*lon1*nsig)         ! oz small
-    nsstsm=nozsm +(lat1*lon1*nsig)         ! sst small
-    nsltsm=nsstsm+(lat1*lon1)              ! land sfc. temp small
-    nsitsm=nsltsm+(lat1*lon1)              ! ice sfc. temp small
-    ncwsm=nsitsm +(lat1*lon1)              ! cloud water small
-    
-!   Define vector starting points for subdomains which include
-!   buffer points
-    nst2=ione                            ! streamfunction mpi
-    nvp2=nst2  +latlon1n                 ! vel pot mpi
-    np2=nvp2   +latlon1n                 ! sfc p mpi
-    nt2=np2    +latlon11                 ! temp mpi
-    nq2=nt2    +latlon1n                 ! q mpi
-    noz2=nq2   +latlon1n                 ! oz mpi
-    nsst2=noz2 +latlon1n                 ! sst mpi
-    nslt2=nsst2+latlon11                 ! sfc land temp mpi
-    nsit2=nslt2+latlon11                 ! ice sfc temp mpi
-    ncw2=nsit2 +latlon11                 ! cloud water mpi
-
     if (lsqrtb) then
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,nclenz,nsubwin,nval_lenz,lsqrtb)
+                                  nsclen,npclen,ntclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ensz, &
+                                  nval_lenz_enz)
     else
-       if(l_hyb_ens) then
-          CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
-       else
-          CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                 & nsclen,npclen,nclen,nsubwin,nval_len,lsqrtb)
-       end if
+       CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
+                                  nsclen,npclen,ntclen,nclen,nsubwin,nval_len,lsqrtb,n_ens, &
+                                  nval_lenz_enz)
     endif
+    CALL setup_predictors(nrclen,nsclen,npclen,ntclen)
     CALL setup_state_vectors(latlon11,latlon1n,nvals_len,lat2,lon2,nsig)
-    CALL setup_predictors(nrclen,nsclen,npclen)
 
   end subroutine set_pointer
+
+  subroutine set_sqrt_2dsize(ndim2d)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    set_sqrt_2dsize
+!   prgmmr: todling          org: np23                date: 2011-09-05
+!
+! abstract: Calculates size of 2d-component of control vector in sqrt-B
+!           case. This being an independent call allows using ckgcov
+!           within context of B-precond.
+!
+! program history log:
+!   2011-09-05  todling - move as independent piece out of set_pointer
+!
+!   input argument list:
+!
+!   output argument list:
+!     ndim2d - size of 2d component of control vector in sqrt-B case
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+  use kinds, only: i_kind
+  use gridmod, only: nlat,nlon
+  implicit none
+  integer(i_kind),intent(out):: ndim2d
+  integer(i_kind) nx,ny,mr,nr,nf
+!           following lifted from subroutine create_berror_vars in module berror.f90
+!            inserted because create_berror_vars called after this routine
+     nx=nlon*3/2
+     nx=nx/2*2
+     ny=nlat*8/9
+     ny=ny/2*2
+     if(mod(nlat,2)/=0)ny=ny+1
+     mr=0
+     nr=nlat/4
+     nf=nr
+     ndim2d=(ny*nx + 2*(2*nf+1)*(2*nf+1))*3
+  end subroutine set_sqrt_2dsize
+
 end module jfunc

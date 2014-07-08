@@ -12,6 +12,8 @@ module stppsmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpps_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
+!   2013-10-28  todling - reame p3d to prse
 !
 ! subroutines included:
 !   sub stpps
@@ -29,7 +31,7 @@ PUBLIC stpps
 
 contains
 
-subroutine stpps(pshead,rp,sp,out,sges,nstep)
+subroutine stpps(pshead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpps       calculate penalty and contribution to
@@ -54,6 +56,8 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
 !   2007-02-15  rancic  - add foto
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling  - update to use gsi_bundlemod
 !
 !   input argument list:
 !     pshead
@@ -73,31 +77,50 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: ps_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer               ,intent(in   ) :: pshead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(ps_ob_type),pointer            ,intent(in   ) :: pshead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,kk
+  integer(i_kind) j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) val,val2,w1,w2,w3,w4,time_ps
   real(r_kind) cg_ps,ps,wgross,wnotgross,ps_pg
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: sp
+  real(r_kind),pointer,dimension(:) :: rp
   type(ps_ob_type), pointer :: psptr
 
   out=zero_quad
 
+!  If no ps data return
+  if(.not. associated(pshead))return
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
+
   psptr => pshead
   do while (associated(psptr))
      if(psptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1 = psptr%ij(1)
            j2 = psptr%ij(2)
            j3 = psptr%ij(3)
@@ -110,10 +133,10 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
            val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)-psptr%res
            if(l_foto) then
               time_ps = psptr%time*r3600
-              val =val +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
-                         w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_ps
-              val2=val2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-                         w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
+              val =val +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
+                         w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_ps
+              val2=val2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+                         w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_ps
            end if
            do kk=1,nstep
               ps=val2+sges(kk)*val
@@ -131,7 +154,7 @@ subroutine stpps(pshead,rp,sp,out,sges,nstep)
            cg_ps=cg_term/psptr%b
            wnotgross= one-ps_pg
            wgross =ps_pg*cg_ps/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

@@ -12,6 +12,7 @@ module intozmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intoz_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test
 !
 ! subroutines included:
 !   sub intoz_
@@ -37,7 +38,7 @@ end interface
 
 contains
 
-subroutine intoz_(ozhead,o3lhead,roz,soz)
+subroutine intoz_(ozhead,o3lhead,rval,sval)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -50,6 +51,7 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
 ! program history log:
 !   2008-11-28  todling
 !   2009-01-08  todling - remove reference to ozohead
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -65,23 +67,23 @@ subroutine intoz_(ozhead,o3lhead,roz,soz)
 !
 !$$$
 !--------
-  use kinds, only: r_kind
   use obsmod, only: oz_ob_type,o3l_ob_type
-  use gridmod, only: latlon1n
+  use gsi_bundlemod, only: gsi_bundle
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer       ,intent(in   ) :: ozhead
-  type(o3l_ob_type),pointer       ,intent(in   ) :: o3lhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: soz
-  real(r_kind),dimension(latlon1n),intent(inout) :: roz
+  type( oz_ob_type),pointer,intent(in   ) :: ozhead
+  type(o3l_ob_type),pointer,intent(in   ) :: o3lhead
+  type(gsi_bundle),intent(in   ) :: sval
+  type(gsi_bundle),intent(inout) :: rval
 
-  call intozlay_( ozhead,roz,soz)
-  call intozlev_(o3lhead,roz,soz)
+!  If obs exist call int routines
+  if(associated(ozhead))call intozlay_( ozhead,rval,sval)
+  if(associated(o3lhead))call intozlev_(o3lhead,rval,sval)
 
 end subroutine intoz_
 
-subroutine intozlay_(ozhead,roz,soz)
+subroutine intozlay_(ozhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intoz       apply nonlin qc obs operator for ozone
@@ -113,6 +115,9 @@ subroutine intozlay_(ozhead,roz,soz)
 !   2008-??-??  ??????   - remove nonlinear qc gradient; folded OMI within layer O3
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2009-01-18  todling  - treat val in quad precision (revisit later)
+!   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-08  wargan   - add OMI with efficiency factors
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -129,24 +134,58 @@ subroutine intozlay_(ozhead,roz,soz)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint,nloz_omi
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
-  use constants, only: ione,one,zero,r3600,zero_quad
+  use constants, only: one,zero,r3600,zero_quad
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
-  type( oz_ob_type),pointer             ,intent(in   ) :: ozhead
-  real(r_kind),dimension(lat2*lon2,nsig),intent(in   ) :: soz
-  real(r_kind),dimension(lat2*lon2,nsig),intent(inout) :: roz
+  type( oz_ob_type),pointer,intent(in   ) :: ozhead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x
+  integer(i_kind) i,j,ij,ier,istatus
+  integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x,kl
   real(r_kind) dz1,pob,delz,time_oz
   real(r_quad) val1,valx
   real(r_kind) w1,w2,w3,w4
+  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
+  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind),pointer,dimension(:,:,:)  :: sozp
+  real(r_kind),pointer,dimension(:,:,:)  :: rozp
+  real(r_kind),allocatable,dimension(:,:) :: soz
+  real(r_kind),allocatable,dimension(:,:) :: roz
   type(oz_ob_type), pointer :: ozptr
+  real(r_kind),dimension(nloz_omi):: efficiency, val_lay
 
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0 
+  call gsi_bundlegetpointer(sval,'oz',sozp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'oz',rozp,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
+
+! Can't do rank-2 pointer into rank-2, therefore, allocate work space
+  allocate(soz(lat2*lon2,nsig),roz(lat2*lon2,nsig))
+  do k=1,nsig
+     ij=0
+     do j=1,lon2
+        do i=1,lat2
+           ij=ij+1
+           soz(ij,k) = sozp(i,j,k)
+           roz(ij,k) = rozp(i,j,k)
+        enddo
+     enddo
+  enddo
 !
 ! SBUV OZONE: LAYER O3 and TOTAL O3
 !
@@ -162,8 +201,8 @@ subroutine intozlay_(ozhead,roz,soz)
 
 
 !    Accumulate contribution from layer observations
-     dz1=nsig+ione
-     if ( ozptr%nloz >= ione ) then
+     dz1=nsig+1
+     if ( ozptr%nloz >= 1 ) then
 
         if(l_foto) time_oz = ozptr%time*r3600
         do k=1,ozptr%nloz
@@ -186,15 +225,15 @@ subroutine intozlay_(ozhead,roz,soz)
                    w3* soz(j3,kk)+ &
                    w4* soz(j4,kk))*delz
               if (l_foto) then
-                 j1x=w1+(kk-ione)*lat2*lon2
-                 j2x=w2+(kk-ione)*lat2*lon2
-                 j3x=w3+(kk-ione)*lat2*lon2
-                 j4x=w4+(kk-ione)*lat2*lon2
+                 j1x=w1+(kk-1)*lat2*lon2
+                 j2x=w2+(kk-1)*lat2*lon2
+                 j3x=w3+(kk-1)*lat2*lon2
+                 j4x=w4+(kk-1)*lat2*lon2
                  val1=val1 + ( &
-                     (w1*xhat_dt%oz(j1x)+ &
-                      w2*xhat_dt%oz(j2x)+ &
-                      w3*xhat_dt%oz(j3x)+ &
-                      w4*xhat_dt%oz(j4x))*time_oz)*delz
+                     (w1*xhat_dt_oz(j1x)+ &
+                      w2*xhat_dt_oz(j2x)+ &
+                      w3*xhat_dt_oz(j3x)+ &
+                      w4*xhat_dt_oz(j4x))*time_oz)*delz
               endif
            enddo
 
@@ -209,10 +248,14 @@ subroutine intozlay_(ozhead,roz,soz)
                  valx = ozptr%diags(k)%ptr%obssen(jiter)
 
               else
-                 val1=val1-ozptr%res(k)
+                 if(ladtest_obs) then
+                    valx=val1
+                 else
+                    val1=val1-ozptr%res(k)
 
-                 valx     = val1*ozptr%err2(k) 
-                 valx     = valx*ozptr%raterr2(k)
+                    valx     = val1*ozptr%err2(k) 
+                    valx     = valx*ozptr%raterr2(k)
+                 endif
               endif
 
               do kk=iz1,iz2,-1
@@ -237,14 +280,14 @@ subroutine intozlay_(ozhead,roz,soz)
                     w2=ozptr%wij(2,kk)
                     w3=ozptr%wij(3,kk)
                     w4=ozptr%wij(4,kk)
-                    j1x=w1+(kk-ione)*lat2*lon2
-                    j2x=w2+(kk-ione)*lat2*lon2
-                    j3x=w3+(kk-ione)*lat2*lon2
-                    j4x=w4+(kk-ione)*lat2*lon2
-                    dhat_dt%oz(j1x) = dhat_dt%oz(j1x) + valx*w1*delz*time_oz
-                    dhat_dt%oz(j2x) = dhat_dt%oz(j2x) + valx*w2*delz*time_oz
-                    dhat_dt%oz(j3x) = dhat_dt%oz(j3x) + valx*w3*delz*time_oz
-                    dhat_dt%oz(j4x) = dhat_dt%oz(j4x) + valx*w4*delz*time_oz
+                    j1x=w1+(kk-1)*lat2*lon2
+                    j2x=w2+(kk-1)*lat2*lon2
+                    j3x=w3+(kk-1)*lat2*lon2
+                    j4x=w4+(kk-1)*lat2*lon2
+                    dhat_dt_oz(j1x) = dhat_dt_oz(j1x) + valx*w1*delz*time_oz
+                    dhat_dt_oz(j2x) = dhat_dt_oz(j2x) + valx*w2*delz*time_oz
+                    dhat_dt_oz(j3x) = dhat_dt_oz(j3x) + valx*w3*delz*time_oz
+                    dhat_dt_oz(j4x) = dhat_dt_oz(j4x) + valx*w4*delz*time_oz
                  enddo
               endif
               dz1=pob
@@ -254,36 +297,70 @@ subroutine intozlay_(ozhead,roz,soz)
      end if   ! (ozptr%nloz >= 1)
 
 !    Add contribution from total column observation
-     k=ozptr%nloz+ione
-     val1= zero
-     do kk=nsig,1,-1
-        w1=ozptr%wij(1,kk)
-        w2=ozptr%wij(2,kk)
-        w3=ozptr%wij(3,kk)
-        w4=ozptr%wij(4,kk)
-        val1=val1 + &
-             w1* soz(j1,kk)+ &
-             w2* soz(j2,kk)+ &
-             w3* soz(j3,kk)+ &
-             w4* soz(j4,kk)
-     enddo
-     if (l_foto) then
+     k=ozptr%nloz+1
+     if (ozptr%apriori(1) .lt. zero) then ! non-OMIEFF ozone
+        val1= zero
         do kk=nsig,1,-1
            w1=ozptr%wij(1,kk)
            w2=ozptr%wij(2,kk)
            w3=ozptr%wij(3,kk)
            w4=ozptr%wij(4,kk)
-           j1x=w1+(kk-ione)*lat2*lon2
-           j2x=w2+(kk-ione)*lat2*lon2
-           j3x=w3+(kk-ione)*lat2*lon2
-           j4x=w4+(kk-ione)*lat2*lon2
            val1=val1 + &
-               (w1*xhat_dt%oz(j1x)+ &
-                w2*xhat_dt%oz(j2x)+ &
-                w3*xhat_dt%oz(j3x)+ &
-                w4*xhat_dt%oz(j4x))*time_oz
+                w1* soz(j1,kk)+ &
+                w2* soz(j2,kk)+ &
+                w3* soz(j3,kk)+ &
+                w4* soz(j4,kk)
         enddo
-     endif
+        if (l_foto) then
+           do kk=nsig,1,-1
+              w1=ozptr%wij(1,kk)
+              w2=ozptr%wij(2,kk)
+              w3=ozptr%wij(3,kk)
+              w4=ozptr%wij(4,kk)
+              j1x=w1+(kk-1)*lat2*lon2
+              j2x=w2+(kk-1)*lat2*lon2
+              j3x=w3+(kk-1)*lat2*lon2
+              j4x=w4+(kk-1)*lat2*lon2
+              val1=val1 + &
+                   (w1*xhat_dt_oz(j1x)+ &
+                   w2*xhat_dt_oz(j2x)+ &
+                   w3*xhat_dt_oz(j3x)+ &
+                   w4*xhat_dt_oz(j4x))*time_oz
+           enddo
+        endif
+     else  ! OMI ozone with efficiency factor
+! Integrate ozone within each layer
+        dz1=nsig+1
+        do kl=1,nloz_omi
+           val_lay(kl)= zero_quad
+           pob = ozptr%prs(kl)
+           iz1=dz1
+           if (iz1 > nsig) iz1=nsig
+           iz2=pob
+           do kk=iz1,iz2,-1
+              delz=one
+              if (kk==iz1) delz=dz1-iz1
+              if (kk==iz2) delz=delz-pob+iz2
+              w1=ozptr%wij(1,kk)
+              w2=ozptr%wij(2,kk)
+              w3=ozptr%wij(3,kk)
+              w4=ozptr%wij(4,kk)
+              val_lay(kl)=val_lay(kl) + ( &
+                   w1* soz(j1,kk)+ &
+                   w2* soz(j2,kk)+ &
+                   w3* soz(j3,kk)+ &
+                   w4* soz(j4,kk))*delz     
+           enddo
+           dz1=pob 
+        enddo
+
+! Apply the efficiency factor
+        val1=zero_quad
+        do j=1,nloz_omi 
+           val1=val1+ozptr%efficiency(j)*val_lay(j)
+        enddo    
+     endif ! OMI ozone with efficiency factor
+     
 
      if (lsaveobsens) then
         ozptr%diags(k)%ptr%obssen(jiter)=val1*ozptr%err2(k)*ozptr%raterr2(k)
@@ -292,54 +369,109 @@ subroutine intozlay_(ozhead,roz,soz)
      endif
 
      if (l_do_adjoint) then
-        if (lsaveobsens) then
-           valx = ozptr%diags(k)%ptr%obssen(jiter)
-
-        else
-           val1=val1-ozptr%res(k)
-
-           valx     = val1*ozptr%err2(k)
-           valx     = valx*ozptr%raterr2(k)
-        endif
-
-        do kk=nsig,1,-1
-           w1=ozptr%wij(1,kk)
-           w2=ozptr%wij(2,kk)
-           w3=ozptr%wij(3,kk)
-           w4=ozptr%wij(4,kk)
-           roz(j1,kk)  = roz(j1,kk) + valx*w1
-           roz(j2,kk)  = roz(j2,kk) + valx*w2
-           roz(j3,kk)  = roz(j3,kk) + valx*w3
-           roz(j4,kk)  = roz(j4,kk) + valx*w4
-        enddo
-        if (l_foto) then
+        if (ozptr%apriori(1) .lt. zero) then ! non-OMI ozone
+           if (lsaveobsens) then
+              valx = ozptr%diags(k)%ptr%obssen(jiter)
+              
+           else
+              if(ladtest_obs) then
+                 valx=val1
+              else
+                 val1=val1-ozptr%res(k)
+              
+                 valx     = val1*ozptr%err2(k)
+                 valx     = valx*ozptr%raterr2(k)
+              endif
+           endif
+           
            do kk=nsig,1,-1
               w1=ozptr%wij(1,kk)
               w2=ozptr%wij(2,kk)
               w3=ozptr%wij(3,kk)
               w4=ozptr%wij(4,kk)
-              j1x=w1+(kk-ione)*lat2*lon2
-              j2x=w2+(kk-ione)*lat2*lon2
-              j3x=w3+(kk-ione)*lat2*lon2
-              j4x=w4+(kk-ione)*lat2*lon2
-              dhat_dt%oz(j1x) =dhat_dt%oz(j1x) + valx*w1*time_oz
-              dhat_dt%oz(j2x) =dhat_dt%oz(j2x) + valx*w2*time_oz
-              dhat_dt%oz(j3x) =dhat_dt%oz(j3x) + valx*w3*time_oz
-              dhat_dt%oz(j4x) =dhat_dt%oz(j4x) + valx*w4*time_oz
+              roz(j1,kk)  = roz(j1,kk) + valx*w1
+              roz(j2,kk)  = roz(j2,kk) + valx*w2
+              roz(j3,kk)  = roz(j3,kk) + valx*w3
+              roz(j4,kk)  = roz(j4,kk) + valx*w4
            enddo
-        endif
-     endif
+           if (l_foto) then
+              do kk=nsig,1,-1
+                 w1=ozptr%wij(1,kk)
+                 w2=ozptr%wij(2,kk)
+                 w3=ozptr%wij(3,kk)
+                 w4=ozptr%wij(4,kk)
+                 j1x=w1+(kk-1)*lat2*lon2
+                 j2x=w2+(kk-1)*lat2*lon2
+                 j3x=w3+(kk-1)*lat2*lon2
+                 j4x=w4+(kk-1)*lat2*lon2
+                 dhat_dt_oz(j1x) =dhat_dt_oz(j1x) + valx*w1*time_oz
+                 dhat_dt_oz(j2x) =dhat_dt_oz(j2x) + valx*w2*time_oz
+                 dhat_dt_oz(j3x) =dhat_dt_oz(j3x) + valx*w3*time_oz
+                 dhat_dt_oz(j4x) =dhat_dt_oz(j4x) + valx*w4*time_oz
+              enddo
+           endif
+        else  ! OMI ozone with efficiency factor
+           if (lsaveobsens) then
+              valx = ozptr%diags(k)%ptr%obssen(jiter)              
+           else
+              if(ladtest_obs) then
+                 valx=val1
+              else
+                 val1=val1-ozptr%res(k)
+                 valx     = val1*ozptr%err2(k) 
+                 valx     = valx*ozptr%raterr2(k)
+              endif
+           endif
+           ! Apply the transpose of the efficiency factor
+           do j=1,nloz_omi 
+              val_lay(j)=ozptr%efficiency(j)*valx
+           enddo
+! spread the info over GSI levels
+           do kl=1,nloz_omi
+              pob = ozptr%prs(kl)
+              iz1=dz1
+              if (iz1 > nsig) iz1=nsig
+              iz2=pob              
+              do kk=iz1,iz2,-1
+                 delz=one
+                 if(kk==iz1)delz=dz1-iz1
+                 if(kk==iz2)delz=delz-pob+iz2
+                 w1=ozptr%wij(1,kk)
+                 w2=ozptr%wij(2,kk)
+                 w3=ozptr%wij(3,kk)
+                 w4=ozptr%wij(4,kk)
+                 roz(j1,kk)  =  roz(j1,kk) + val_lay(kl)*w1*delz
+                 roz(j2,kk)  =  roz(j2,kk) + val_lay(kl)*w2*delz
+                 roz(j3,kk)  =  roz(j3,kk) + val_lay(kl)*w3*delz
+                 roz(j4,kk)  =  roz(j4,kk) + val_lay(kl)*w4*delz
+              enddo
+              dz1=pob 
+           end do
+        endif  ! OMI
+     endif   ! do adjoint
 
      ozptr => ozptr%llpoint
 
 ! End loop over observations
   enddo
 
+! Copy output and clean up 
+  do k=1,nsig
+     ij=0
+     do j=1,lon2
+        do i=1,lat2
+           ij=ij+1
+           rozp(i,j,k) = roz(ij,k)
+        enddo
+     enddo
+  enddo
+  deallocate(soz,roz)
+
 ! End of routine
   return
 end subroutine intozlay_
 
-subroutine intozlev_(o3lhead,roz1d,soz1d)
+subroutine intozlev_(o3lhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    into3l       apply nonlin qc obs operator for o3 level
@@ -357,6 +489,8 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
 !   2007-02-16  sienkiewicz - changes for new inner loop obs data structure
 !   2009-01-08  todling - remove nonlinear qc
 !   2009-01-22  sienkiewicz - add time derivative
+!   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     o3lhead - level ozone obs type pointer to obs structure
@@ -378,18 +512,37 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
   use gridmod, only: latlon1n
   use constants, only: r3600
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
-  type(o3l_ob_type),pointer       ,intent(in   ) :: o3lhead
-  real(r_kind),dimension(latlon1n),intent(in   ) :: soz1d
-  real(r_kind),dimension(latlon1n),intent(inout) :: roz1d
+  type(o3l_ob_type),pointer,intent(in   ) :: o3lhead
+  type(gsi_bundle),         intent(in   ) :: sval
+  type(gsi_bundle),         intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8
   real(r_kind) val,grad
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_o3l
+  real(r_kind),pointer,dimension(:) :: xhat_dt_oz
+  real(r_kind),pointer,dimension(:) :: dhat_dt_oz
+  real(r_kind),pointer,dimension(:) :: soz1d
+  real(r_kind),pointer,dimension(:) :: roz1d
   type(o3l_ob_type), pointer :: o3lptr
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0 
+  call gsi_bundlegetpointer(sval,'oz',soz1d,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'oz',roz1d,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'oz',xhat_dt_oz,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'oz',dhat_dt_oz,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
 ! LEVEL-OZONE OBSERVATIONS
 
@@ -424,10 +577,10 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
      if ( l_foto ) then
         time_o3l=o3lptr%time*r3600
         val=val+&
-            (w1*xhat_dt%oz(j1)+w2*xhat_dt%oz(j2)+ &
-             w3*xhat_dt%oz(j3)+w4*xhat_dt%oz(j4)+ &
-             w5*xhat_dt%oz(j5)+w6*xhat_dt%oz(j6)+ &
-             w7*xhat_dt%oz(j7)+w8*xhat_dt%oz(j8))*time_o3l
+            (w1*xhat_dt_oz(j1)+w2*xhat_dt_oz(j2)+ &
+             w3*xhat_dt_oz(j3)+w4*xhat_dt_oz(j4)+ &
+             w5*xhat_dt_oz(j5)+w6*xhat_dt_oz(j6)+ &
+             w7*xhat_dt_oz(j7)+w8*xhat_dt_oz(j8))*time_o3l
      endif
 
      if (lsaveobsens) then
@@ -441,9 +594,13 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
            grad = o3lptr%diags%obssen(jiter)
 
         else
-           val=val-o3lptr%res
+           if(ladtest_obs) then
+              grad = val
+           else
+              val=val-o3lptr%res
 
-           grad = val*o3lptr%raterr2*o3lptr%err2
+              grad = val*o3lptr%raterr2*o3lptr%err2
+           endif
         endif
 
 !    Adjoint
@@ -458,14 +615,14 @@ subroutine intozlev_(o3lhead,roz1d,soz1d)
 
         if ( l_foto ) then
            grad=grad*time_o3l
-           dhat_dt%oz(j1)=dhat_dt%oz(j1)+w1*grad
-           dhat_dt%oz(j2)=dhat_dt%oz(j2)+w2*grad
-           dhat_dt%oz(j3)=dhat_dt%oz(j3)+w3*grad
-           dhat_dt%oz(j4)=dhat_dt%oz(j4)+w4*grad
-           dhat_dt%oz(j5)=dhat_dt%oz(j5)+w5*grad
-           dhat_dt%oz(j6)=dhat_dt%oz(j6)+w6*grad
-           dhat_dt%oz(j7)=dhat_dt%oz(j7)+w7*grad
-           dhat_dt%oz(j8)=dhat_dt%oz(j8)+w8*grad
+           dhat_dt_oz(j1)=dhat_dt_oz(j1)+w1*grad
+           dhat_dt_oz(j2)=dhat_dt_oz(j2)+w2*grad
+           dhat_dt_oz(j3)=dhat_dt_oz(j3)+w3*grad
+           dhat_dt_oz(j4)=dhat_dt_oz(j4)+w4*grad
+           dhat_dt_oz(j5)=dhat_dt_oz(j5)+w5*grad
+           dhat_dt_oz(j6)=dhat_dt_oz(j6)+w6*grad
+           dhat_dt_oz(j7)=dhat_dt_oz(j7)+w7*grad
+           dhat_dt_oz(j8)=dhat_dt_oz(j8)+w8*grad
         endif
 
      endif

@@ -91,7 +91,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
   
       use kinds, only: r_kind,i_kind   
 
-      use constants, only: izero,ione,grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000
+      use constants, only: grav,fv,rd_over_cp,zero,quarter,one,two,four,five,r1000,r10,r100,r0_01
 
       IMPLICIT NONE
 
@@ -105,8 +105,8 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 
 ! Maximum number of iterations in computing psim, psih
 
-!     INTEGER(i_kind), PARAMETER :: k_iteration = 10_i_kind
-!     INTEGER(i_kind), PARAMETER :: k_iteration = ione
+!     INTEGER(i_kind), PARAMETER :: k_iteration = 10
+!     INTEGER(i_kind), PARAMETER :: k_iteration = 1
 
 ! h10 is the height of 10m where the wind observed
 ! h2  is the height of 2m where the temperature and 
@@ -140,13 +140,10 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 
 ! local 
 
-      real(r_kind),parameter :: r100  = 100.0_r_kind
       real(r_kind),parameter :: r16   = 16.0_r_kind
-      real(r_kind),parameter :: r10   = 10.0_r_kind
       real(r_kind),parameter :: r1_1  = 1.1_r_kind
       real(r_kind),parameter :: r0_9  = 0.9_r_kind
       real(r_kind),parameter :: r0_2  = 0.2_r_kind
-      real(r_kind),parameter :: r0_01 = 0.01_r_kind
 
 !-----------------------------------------------------------------------------!
 
@@ -169,7 +166,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 ! 1.2 Define the rouhgness length for moisture
 !     -----------------
 
-      if ( iland == izero ) then
+      if ( iland == 0 ) then
          zq0 = z0
       else
          zq0 =  zint0
@@ -269,7 +266,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 !     ---------------------------
 
       IF       (rib >= r0_2) THEN
-         regime = ione
+         regime = 1
          psim = -r10*gzsoz0
          psimz = -r10*gz10oz0
          psim2 = -r10*gz2oz0
@@ -285,7 +282,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 
       ELSE IF ((rib < r0_2) .AND. (rib > zero)) THEN
 
-         regime = 2_i_kind
+         regime = 2
          psim = ( -five * rib ) * gzsoz0 / (r1_1 - five*rib)
          psimz = ( -five * rib ) * gz10oz0 / (r1_1 - five*rib)
          psim2 = ( -five * rib ) * gz2oz0 / (r1_1 - five*rib)
@@ -301,7 +298,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 !     -------------------------------------
 
       ELSE IF ((rib == zero) .or. (rib<zero .and. thvs2>thvs)) THEN
-         regime = 3_i_kind
+         regime = 3
          psim = zero
          psimz = zero
          psim2 = zero
@@ -314,7 +311,7 @@ SUBROUTINE SFC_WTQ_FWD (psfc_in,tg,ps_in,tvs,qs,us,vs, &
 !     --------------------------
 
       ELSE 
-         regime = 4_i_kind
+         regime = 4
        
 !      Calculate psi m and pshi h using iteration method
        
@@ -470,7 +467,7 @@ SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
 !$$$ end documentation block
 
    use kinds, only: r_kind
-   use constants, only: eps,omeps,t0c
+   use constants, only: eps,omeps,t0c,r0_01
 
    IMPLICIT NONE
 
@@ -486,7 +483,6 @@ SUBROUTINE DA_TP_To_Qs( t, p, es, qs )
     
    REAL(r_kind)                          :: t_c              ! T in degreesC.
 
-   real(r_kind),parameter:: r0_01 = 0.01_r_kind
  
 !------------------------------------------------------------------------------
 !  [1.0] Initialise:
@@ -571,7 +567,7 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 
 
       use kinds, only: r_kind,i_kind  
-      use constants, only: grav,fv,rd_over_cp,zero,quarter,half,one,two,four,five,r1000,izero
+      use constants, only: grav,fv,rd_over_cp,zero,quarter,half,one,two,four,five,r1000,r10,r100,r0_01
 
       IMPLICIT NONE
 
@@ -587,8 +583,8 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 
 ! Maximum number of iterations in computing psim, psih
 
-!      INTEGER(i_kind), PARAMETER :: k_iteration = 10_i_kind
-!      INTEGER, PARAMETER :: k_iteration = ione
+!      INTEGER(i_kind), PARAMETER :: k_iteration = 10
+!      INTEGER, PARAMETER :: k_iteration = 1
 
 ! h10 is the height of 10m where the wind observed
 ! h2  is the height of 2m where the temperature and 
@@ -634,14 +630,11 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
       REAL(r_kind), PARAMETER :: ka = 2.4E-5_r_kind
 
 ! local
-      real(r_kind),parameter :: r100  = 100.0_r_kind
       real(r_kind),parameter :: r16   = 16.0_r_kind
-      real(r_kind),parameter :: r10   = 10.0_r_kind
       real(r_kind),parameter :: r5_5  = 5.5_r_kind
       real(r_kind),parameter :: r1_1  = 1.1_r_kind
       real(r_kind),parameter :: r0_9  = 0.9_r_kind
       real(r_kind),parameter :: r0_75 = 0.75_r_kind
-      real(r_kind),parameter :: r0_01 = 0.01_r_kind
 
 !-----------------------------------------------------------------------------!
 
@@ -664,7 +657,7 @@ SUBROUTINE sfc_wtq_Lin(psfc_in, tg, ps_in, tvs, qs, us, vs, regime,           &
 ! 1.2 Define the rouhgness length for moisture
 !     -----------------
 
-      if ( iland == izero ) then
+      if ( iland == 0 ) then
          zq0 = z0
       else
          zq0 =  zint0

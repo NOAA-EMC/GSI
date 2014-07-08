@@ -1,4 +1,4 @@
-subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
+subroutine bkgcov(cstate)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bkgcov    perform hor & vert of background error 
@@ -13,102 +13,85 @@ subroutine bkgcov(st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !                         factors to namelist
 !   2004-11-22  derber - add openMP
 !   2008-06-05  safford - rm unused vars
+!   2010-03-01  zhu     - make changes for generalizing control vectors
+!                       - replace explicit use of each control variable 
+!                         by a control_state 'cstate'
+!                       - use nrf* for generalized control variables
+!                       - make changes to interfaces of sub2grid and grid2sub
+!   2010-04-28  todling - update to use gsi_bundle
+!   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2012-06-25  parrish - replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
+!                         Remove arrays sst, slndt, sicet.  These are now contained as
+!                         motley variables in input/output bundle cstate.  Remove unused variables
+!                         nnnn1o,latlon11.
 !
 !   input argument list:
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
-!     nlevs    - number of vertical levels for smoothing
+!     cstate   - bundle containing control fields
 !
 !   output argument list:
 !                 all after smoothing, combining scales
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing control fields
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
+  use constants, only: zero
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
-  integer(i_kind)                       ,intent(in   ) :: nlevs
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
+  type(gsi_bundle),intent(inout) :: cstate
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,iflg
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
+  integer(i_kind) i,j,n,nsloop,loc,n3d,istatus,nlevs
+  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
 
-  nsloop=3_i_kind
-  iflg=ione
-
-  do j=1,lon2
-     do i=1,lat2
-        sst(i,j)=zero
-        slndt(i,j)=zero
-        sicet(i,j)=zero
-     end do
-  end do
+  nlevs=s2g_raf%nlevs_loc
+  nsloop=3
+  n3d=cstate%n3d
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,izero)
+  call bkgvar(cstate,0)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k)
-  do k=1,6
-     if(k == ione)    call frfhvo(st,k)
-     if(k == 2_i_kind)call frfhvo(vp,k)
-     if(k == 3_i_kind)call frfhvo(t,k)
-     if(k == 4_i_kind)call frfhvo(q,k)
-     if(k == 5_i_kind)call frfhvo(oz,k)
-     if(k == 6_i_kind)call frfhvo(cwmr,k)
+!$omp parallel do  schedule(dynamic,1) private(n,ptr3d,istatus)
+  do n=1,n3d
+     call gsi_bundlegetpointer ( cstate,cstate%r3(n)%shortname,ptr3d,istatus )
+     call frfhvo(ptr3d,n)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call sub2grid(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
+  call general_sub2grid(s2g_raf,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
-  call smoothrf(hwork,nsloop,nlevs)
+  call smoothrf(hwork,nlevs)
 
 ! Put back onto subdomains
-  call grid2sub(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
+  call general_grid2sub(s2g_raf,hwork,cstate%values)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k)
-  do k=1,6
-     if(k == ione)    call frfhvo(st,k)
-     if(k == 2_i_kind)call frfhvo(vp,k)
-     if(k == 3_i_kind)call frfhvo(t,k)
-     if(k == 4_i_kind)call frfhvo(q,k)
-     if(k == 5_i_kind)call frfhvo(oz,k)
-     if(k == 6_i_kind)call frfhvo(cwmr,k)
+!$omp parallel do  schedule(dynamic,1) private(n,ptr3d,istatus)
+  do n=1,n3d
+     call gsi_bundlegetpointer ( cstate,cstate%r3(n)%shortname,ptr3d,istatus )
+     call frfhvo(ptr3d,n)
   end do
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
 ! into skin temperature field
-  call bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,ione)
+  call bkgvar(cstate,1)
 
   return
 end subroutine bkgcov
 ! -----------------------------------------------------------------------------
-subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
+subroutine ckgcov(z,cstate,nval_lenz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ckgcov   sqrt of bkgcov
@@ -120,85 +103,74 @@ subroutine ckgcov(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !   2007-04-24  parrish
 !   2008-12-04  todling - turn sst,slndt,sicet to locals per GSI May08 
 !                         update to bkgcov above.
+!   2010-03-15  zhu - use nrf* and cstate for generalized control variable
+!                   - make changes to interface of grid2sub
+!   2010-04-28  todling - udpate to use gsi_bundle
+!   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2011-09-05  todling - add explicit reference to navl_lenz, and remove connection through jfunc
+!   2012-06-25  parrish - replace grid2sub with general_grid2sub.
+!                         Remove arrays sst, slndt, sicet.  These are now contained as
+!                         motley variables in input/output bundle cstate.  Remove unused variables
+!                         nnnn1o,latlon11,nval_levs.
 !
 !   input argument list:
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     z        - long vector input control fields
+!     cstate   - bundle containing control fields
 !     nlevs    - number of vertical levels for smoothing
+!     nval_lenz- length of sqrt-B control vector
 !
 !   output argument list:
 !                 all after smoothing, combining scales
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing control fields
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: ione,zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
-  use jfunc,only: nval_lenz
+  use constants, only: zero
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_grid2sub
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
-  integer(i_kind)                       ,intent(in   ) :: nlevs
-  real(r_kind),dimension(nval_lenz)     ,intent(in   ) :: z
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
+  integer(i_kind)    ,intent(in   ) :: nval_lenz
+  type(gsi_bundle),intent(inout) :: cstate
+  real(r_kind),dimension(nval_lenz),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
+  integer(i_kind) i,j,k,nsloop,n3d,istatus,nlevs
+  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
-  nsloop=3_i_kind
-
-  do j=1,lon2
-     do i=1,lat2
-        sst(i,j)=zero
-        slndt(i,j)=zero
-        sicet(i,j)=zero
-     end do
-  end do
+  nlevs=s2g_raf%nlevs_loc
+  nsloop=3
 
 ! Apply horizontal smoother for number of horizontal scales
-  call sqrt_smoothrf(z,hwork,nsloop,nlevs)
+  call sqrt_smoothrf(z,hwork,nlevs)
 
 ! Put back onto subdomains
-  call grid2sub(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp)
+  call general_grid2sub(s2g_raf,hwork,cstate%values)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k)
-  do k=1,6
-     if(k == ione)    call frfhvo(st,k)
-     if(k == 2_i_kind)call frfhvo(vp,k)
-     if(k == 3_i_kind)call frfhvo(t,k)
-     if(k == 4_i_kind)call frfhvo(q,k)
-     if(k == 5_i_kind)call frfhvo(oz,k)
-     if(k == 6_i_kind)call frfhvo(cwmr,k)
+  n3d=cstate%n3d
+!$omp parallel do  schedule(dynamic,1) private(k,ptr3d,istatus)
+  do k=1,n3d
+     call gsi_bundlegetpointer ( cstate,cstate%r3(k)%shortname,ptr3d,istatus )
+     call frfhvo(ptr3d,k)
   end do
 
 ! Multiply by background error variances, and combine sst,sldnt, and sicet
 ! into skin temperature field
-  call bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,ione)
+  call bkgvar(cstate,1)
 
   return
 end subroutine ckgcov
 ! -----------------------------------------------------------------------------
-subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
+subroutine ckgcov_ad(z,cstate,nval_lenz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    ckgcov_ad  adjoint of ckgcov
@@ -210,81 +182,70 @@ subroutine ckgcov_ad(z,st,vp,t,p,q,oz,skint,cwmr,nlevs)
 !   2007-04-24  parrish
 !   2008-12-04  todling - turn sst,slndt,sicet to locals per GSI May08 
 !                         update to bkgcov above.
+!   2010-03-15  zhu - use nrf* and cstate for generalized control variable
+!                   - make changes to interface of sub2grid 
+!   2010-04-15  treadon - add %values to cstate in bkgvar call
+!   2010-04-28  todling - update to use gsi_bundle
+!   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2011-09-05  todling - add explicit reference to navl_lenz, and remove connection through jfunc
+!   2012-06-25  parrish - replace sub2grid with general_sub2grid.
+!                         Remove arrays sst, slndt, sicet.  These are now contained as
+!                         motley variables in input/output bundle cstate.  Remove unused variables
+!                         nnnn1o,latlon11.
 !
 !   input argument list:
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     z        - long vector adjoint input/output control fields
+!     cstate   - bundle containing control fields
 !     nlevs    - number of vertical levels for smoothing
+!     nval_lenz- length of sqrt-B control vector
 !
 !   output argument list:
 !                 all after smoothing, combining scales
-!     t        - t on subdomain
-!     p        - p surface pressure on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     skint    - skin temperature on subdomain
-!     cwmr     - cloud water mixing ratio on subdomain
-!     st       - streamfunction on subdomain
-!     vp       - velocity potential on subdomain
+!     cstate   - bundle containing adjoint control fields
 !
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
-  use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
-  use jfunc, only: nval_lenz
+  use constants, only: zero
+  use gridmod, only: nlat,nlon,lat2,lon2,nsig
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use general_sub2grid_mod, only: general_sub2grid
+  use general_commvars_mod, only: s2g_raf
   implicit none
 
 ! Passed Variables
-  integer(i_kind)                       ,intent(in   ) :: nlevs
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,st,vp
-  real(r_kind),dimension(nval_lenz)     ,intent(inout) :: z
+  integer(i_kind)    ,intent(in   ) :: nval_lenz
+  type(gsi_bundle),intent(inout) :: cstate
+  real(r_kind),dimension(nval_lenz),intent(inout) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,iflg
-  real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(nlat,nlon,nnnn1o):: hwork
+  integer(i_kind) i,j,k,nsloop,n3d,istatus,nlevs
+  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
+  real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
-  nsloop=3_i_kind
-  iflg=ione
-
-  do j=1,lon2
-     do i=1,lat2
-        sst(i,j)=zero
-        slndt(i,j)=zero
-        sicet(i,j)=zero
-     end do
-  end do
+  nlevs=s2g_raf%nlevs_loc
+  nsloop=3
 
 ! Multiply by background error variances, and break up skin temp
 ! into components
-  call bkgvar(t,p,q,oz,skint,cwmr,st,vp,sst,slndt,sicet,izero)
+  call bkgvar(cstate,0)
 
 ! Apply vertical smoother
-!$omp parallel do  schedule(dynamic,1) private(k)
-  do k=1,6
-     if(k == ione)    call frfhvo(st,k)
-     if(k == 2_i_kind)call frfhvo(vp,k)
-     if(k == 3_i_kind)call frfhvo(t,k)
-     if(k == 4_i_kind)call frfhvo(q,k)
-     if(k == 5_i_kind)call frfhvo(oz,k)
-     if(k == 6_i_kind)call frfhvo(cwmr,k)
+  n3d=cstate%n3d
+!$omp parallel do  schedule(dynamic,1) private(k,ptr3d,istatus)
+  do k=1,n3d
+     call gsi_bundlegetpointer ( cstate,cstate%r3(k)%shortname,ptr3d,istatus )
+     call frfhvo(ptr3d,k)
   end do
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call sub2grid(hwork,t,p,q,oz,sst,slndt,sicet,cwmr,st,vp,iflg)
+  call general_sub2grid(s2g_raf,cstate%values,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
-  call sqrt_smoothrf_ad(z,hwork,nsloop,nlevs)
+  call sqrt_smoothrf_ad(z,hwork,nlevs)
 
   return
 end subroutine ckgcov_ad

@@ -12,6 +12,7 @@ module stptmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpt_tl
 !   2009-08-12  lueken - update documentation
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub stpt
@@ -28,7 +29,7 @@ PUBLIC stpt
 
 contains
 
-subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,nstep)
+subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpt        calculate penalty and contribution to stepsize
@@ -57,6 +58,13 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-03-25  zhu     - use state_vector in the interface;
+!                       - add handling of sst case; add pointer_state
+!   2010-05-13  todling - update to use gsi_bundle
+!                       - on-the-spot handling of non-essential vars
+!   2013-05-23  zhu     - add search direction for aircraft data bias predictors
+!   2013-10-29  todling - tendencies now in bundle
 !
 !   input argument list:
 !     thead
@@ -76,6 +84,8 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
 !     ssst     - analysis increment for sst
 !     sges     - step size estimates (nstep)
 !     nstep    - number of stepsizes (==0 means use outer iteration values)
+!     rpred    - search direction for predictors
+!     spred    - input predictor values
 !                                         
 !   output argument list:         
 !     out(1:nstep)   - penalty from temperature observations sges(1:nstep)
@@ -88,25 +98,29 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: t_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n,latlon11,latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(t_ob_type),pointer                ,intent(in   ) :: thead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
-  real(r_kind),dimension(latlon11)       ,intent(in   ) :: rsst,ssst
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(t_ob_type),pointer             ,intent(in   ) :: thead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_kind),dimension(npredt,ntail),optional,intent(in   ) :: rpred,spred
+  type(gsi_bundle),intent(in) :: dval
+  type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
+  integer(i_kind) ier,istatus,isst
+  integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk,n,ix
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind) cg_t,val,val2,wgross,wnotgross,t_pg
-  real(r_kind),dimension(max(ione,nstep))::pen,tt
+  real(r_kind),dimension(max(1,nstep))::pen,tt
   real(r_kind) tg_prime,valq,valq2,valp,valp2,valu,valu2
   real(r_kind) ts_prime,valv,valv2,valsst,valsst2
   real(r_kind) qs_prime
@@ -115,14 +129,58 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
   real(r_kind) psfc_prime
   real(r_kind) time_t
   type(t_ob_type), pointer :: tptr
+  real(r_kind),pointer,dimension(:) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
+  real(r_kind),pointer,dimension(:) :: rsst,ssst
+  real(r_kind),pointer,dimension(:) :: rp,sp
+  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_prse
+  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_prse
 
   out=zero_quad
+
+!  If no t data return
+  if(.not. associated(thead))return
+
+! Retrieve pointers
+  ier=0; isst=0
+  call gsi_bundlegetpointer(xval,'u',   su, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'v',   sv, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'tsen',st, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'tv',  stv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'q',   sq, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'prse',sp, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'sst',ssst,istatus);isst=istatus+isst
+  if(ier/=0)return
+
+  call gsi_bundlegetpointer(dval,'u',   ru, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'v',   rv, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'tsen',rt, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'tv',  rtv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'q',   rq, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'prse',rp, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'sst',rsst,istatus);isst=istatus+isst
+  if(ier/=0)return
+
+  if (l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tv',     xhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tv',     dhat_dt_t,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
+     if(ier/=0)return
+  endif
 
   tptr => thead
   do while (associated(tptr))
 
      if(tptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=tptr%ij(1)
            j2=tptr%ij(2)
            j3=tptr%ij(3)
@@ -149,14 +207,14 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
                    w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
               if(l_foto)then
                  time_t=tptr%time*r3600
-                 val =val + (w1*dhat_dt%t(j1)+w2*dhat_dt%t(j2)+ &
-                             w3*dhat_dt%t(j3)+w4*dhat_dt%t(j4)+ &
-                             w5*dhat_dt%t(j5)+w6*dhat_dt%t(j6)+ &
-                             w7*dhat_dt%t(j7)+w8*dhat_dt%t(j8))*time_t
-                 val2=val2+ (w1*xhat_dt%t(j1)+w2*xhat_dt%t(j2)+ &
-                             w3*xhat_dt%t(j3)+w4*xhat_dt%t(j4)+ &
-                             w5*xhat_dt%t(j5)+w6*xhat_dt%t(j6)+ &
-                             w7*xhat_dt%t(j7)+w8*xhat_dt%t(j8))*time_t
+                 val =val + (w1*dhat_dt_t(j1)+w2*dhat_dt_t(j2)+ &
+                             w3*dhat_dt_t(j3)+w4*dhat_dt_t(j4)+ &
+                             w5*dhat_dt_t(j5)+w6*dhat_dt_t(j6)+ &
+                             w7*dhat_dt_t(j7)+w8*dhat_dt_t(j8))*time_t
+                 val2=val2+ (w1*xhat_dt_t(j1)+w2*xhat_dt_t(j2)+ &
+                             w3*xhat_dt_t(j3)+w4*xhat_dt_t(j4)+ &
+                             w5*xhat_dt_t(j5)+w6*xhat_dt_t(j6)+ &
+                             w7*xhat_dt_t(j7)+w8*xhat_dt_t(j8))*time_t
               end if
            else
               val= w1*    rt(j1)+w2*    rt(j2)+w3*    rt(j3)+w4*    rt(j4)+ &
@@ -164,15 +222,24 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
               val2=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)+ &
                    w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
               if(l_foto)then
-                 val =val + (w1*dhat_dt%tsen(j1)+w2*dhat_dt%tsen(j2)+ &
-                             w3*dhat_dt%tsen(j3)+w4*dhat_dt%tsen(j4)+ &
-                             w5*dhat_dt%tsen(j5)+w6*dhat_dt%tsen(j6)+ &
-                             w7*dhat_dt%tsen(j7)+w8*dhat_dt%tsen(j8))*time_t
-                 val2=val2+ (w1*xhat_dt%tsen(j1)+w2*xhat_dt%tsen(j2)+ &
-                             w3*xhat_dt%tsen(j3)+w4*xhat_dt%tsen(j4)+ &
-                             w5*xhat_dt%tsen(j5)+w6*xhat_dt%tsen(j6)+ &
-                             w7*xhat_dt%tsen(j7)+w8*xhat_dt%tsen(j8))*time_t
+                 val =val + (w1*dhat_dt_tsen(j1)+w2*dhat_dt_tsen(j2)+ &
+                             w3*dhat_dt_tsen(j3)+w4*dhat_dt_tsen(j4)+ &
+                             w5*dhat_dt_tsen(j5)+w6*dhat_dt_tsen(j6)+ &
+                             w7*dhat_dt_tsen(j7)+w8*dhat_dt_tsen(j8))*time_t
+                 val2=val2+ (w1*xhat_dt_tsen(j1)+w2*xhat_dt_tsen(j2)+ &
+                             w3*xhat_dt_tsen(j3)+w4*xhat_dt_tsen(j4)+ &
+                             w5*xhat_dt_tsen(j5)+w6*xhat_dt_tsen(j6)+ &
+                             w7*xhat_dt_tsen(j7)+w8*xhat_dt_tsen(j8))*time_t
               end if
+           end if
+
+!          contribution from bias correction
+           if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. tptr%idx>0) then
+              ix=tptr%idx
+              do n=1,npredt
+                 val2=val2+spred(n,ix)*tptr%pred(n)
+                 val =val +rpred(n,ix)*tptr%pred(n)
+              end do 
            end if
 
            do kk=1,nstep
@@ -181,8 +248,13 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
 
            if(tptr%use_sfc_model) then
 
-              valsst =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-              valsst2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+              if (isst==0) then
+                 valsst =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+                 valsst2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+              else
+                 valsst =zero
+                 valsst2=zero
+              end if
               valq =w1* rq(j1)+w2* rq(j2)+w3* rq(j3)+w4* rq(j4)
               valq2=w1* sq(j1)+w2* sq(j2)+w3* sq(j3)+w4* sq(j4)
               valu =w1* ru(j1)+w2* ru(j2)+w3* ru(j3)+w4* ru(j4)
@@ -192,22 +264,22 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
               valp =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
               valp2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
               if(l_foto)then
-                 valq =valq +(w1*dhat_dt%q(j1)+w2*dhat_dt%q(j2)+ &
-                              w3*dhat_dt%q(j3)+w4*dhat_dt%q(j4))*time_t
-                 valq2=valq2+(w1*xhat_dt%q(j1)+w2*xhat_dt%q(j2)+ &
-                              w3*xhat_dt%q(j3)+w4*xhat_dt%q(j4))*time_t
-                 valu =valu +(w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-                              w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4))*time_t
-                 valu2=valu2+(w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                              w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_t
-                 valv =valv +(w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-                              w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4))*time_t
-                 valv2=valv2+(w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                              w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_t
-                 valp =valp +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
-                              w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_t
-                 valp2=valp2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-                              w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_t
+                 valq =valq +(w1*dhat_dt_q(j1)+w2*dhat_dt_q(j2)+ &
+                              w3*dhat_dt_q(j3)+w4*dhat_dt_q(j4))*time_t
+                 valq2=valq2+(w1*xhat_dt_q(j1)+w2*xhat_dt_q(j2)+ &
+                              w3*xhat_dt_q(j3)+w4*xhat_dt_q(j4))*time_t
+                 valu =valu +(w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
+                              w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4))*time_t
+                 valu2=valu2+(w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
+                              w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_t
+                 valv =valv +(w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
+                              w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4))*time_t
+                 valv2=valv2+(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
+                              w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_t
+                 valp =valp +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
+                              w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_t
+                 valp2=valp2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+                              w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_t
               end if
               do kk=1,nstep
                  ts_prime=tt(kk)
@@ -231,7 +303,7 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
            tt(1)=tptr%res
         end if
 
-        do kk=1,max(ione,nstep)
+        do kk=1,max(1,nstep)
            pen(kk) = tt(kk)*tt(kk)*tptr%err2
         end do
 
@@ -242,7 +314,7 @@ subroutine stpt(thead,rt,st,rtv,stv,rq,sq,ru,su,rv,sv,rp,sp,rsst,ssst,out,sges,n
            cg_t=cg_term/tptr%b
            wnotgross= one-t_pg
            wgross =t_pg*cg_t/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

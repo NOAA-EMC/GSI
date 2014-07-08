@@ -7,6 +7,7 @@ module projmethod_support
 !
 ! program history log:
 !   2007-10-01  pondeca
+!   2010-08-19  lueken  - add only to module use
 !
 ! subroutines included:
 !   sub init_mgram_schmidt
@@ -28,7 +29,7 @@ module projmethod_support
 
 ! Uses:
   use kinds, only: r_kind
-  use control_vectors
+  use control_vectors, only: control_vector
 
   implicit none
 
@@ -136,7 +137,7 @@ subroutine mgram_schmidt(gradx,grady)
 !$$$
   use kinds, only: i_kind
   use jfunc, only: iter,nclen
-  use constants, only: izero,ione,tiny_r_kind
+  use constants, only: tiny_r_kind
   use mpimod, only: mype
 
   implicit none
@@ -155,14 +156,14 @@ subroutine mgram_schmidt(gradx,grady)
 !==> orthogonalization + renormalization
 
   do k=1,2
-     do i=izero,iter-ione
+     do i=0,iter-1
         prd0=dplev_mask(gy(1,iter),gx(1,i),mype)
         gx(1:nclen,iter)=gx(1:nclen,iter)-gx(1:nclen,i)*prd0
         gy(1:nclen,iter)=gy(1:nclen,iter)-gy(1:nclen,i)*prd0
      enddo
      prd0=dplev_mask(gx(1,iter),gy(1,iter),mype)
      if (prd0 <= tiny_r_kind) then
-        if (mype==izero) then 
+        if (mype==0) then 
            print*,'in mgram_schmidt: unable to bi-orthogonalize due to round-off error for iter,k=',iter,k
            print*,'in mgram_schmidt: likely to happen when using fast version of inner product'
            print*,'in mgram_schmidt: iter,k,prd0=',iter,k,prd0
@@ -223,12 +224,12 @@ real(r_kind) function dplev_mask(dx,dy,mype)
 !                set fast to .true. for twodvar_regional,
 !                  substantially faster, but no roundoff error reduction and
 !                  results differ for different number of processors.
-  if(twodvar_regional) then
-!    fast=.true.
-     mask(5)=.false.
-     mask(6)=.false.
-     mask(8)=.false.
-  end if
+!  if(twodvar_regional) then
+!!    fast=.true.
+!     mask(5)=.false.
+!     mask(6)=.false.
+!     mask(8)=.false.
+!  end if
 
   if(fast) then
      dplev_mask=fast_dplev(dx,dy,mask)
@@ -280,14 +281,14 @@ real(r_kind) function fast_dplev(dx,dy,mask)
   sum=zero
   do k=1,nval_levs
      if(.not.mask(k)) cycle
-     do j=2,lon2-ione
-        do i=2,lat2-ione
+     do j=2,lon2-1
+        do i=2,lat2-1
            sum=sum+dx(i,j,k)*dy(i,j,k)
         end do
      end do
   end do
 
-  call mpi_allgather(sum,ione,mpi_rtype,sumall,ione,mpi_rtype,mpi_comm_world,ierror)
+  call mpi_allgather(sum,1,mpi_rtype,sumall,1,mpi_rtype,mpi_comm_world,ierror)
   fast_dplev=zero
   do i=1,npe
      fast_dplev=fast_dplev+sumall(i)
@@ -308,6 +309,8 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
 ! program history log:
 !   2004-05-13  derber, document
 !   2004-07-28  treadon - add only on use declarations; add intent in/out
+!   2010-04-01  treadon - move strip to grimod
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     dx       - input vector 1
@@ -325,8 +328,9 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
 
   use jfunc, only: nval_levs
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
-     ltosi,ltosj,iglobal,ijn,displs_g
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+     iglobal,ijn,displs_g,strip
+  use general_commvars_mod, only: ltosi,ltosj
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use constants, only: zero
   implicit none
 
@@ -344,7 +348,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
   integer(i_kind) i,j,k,mm1
   real(r_kind) e,y,temp
 
-  mm1=mype+ione
+  mm1=mype+1
   sum=zero
   do k=1,nval_levs
      if(.not.mask(k)) cycle
@@ -358,7 +362,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
      zsm(j)=zero
   end do
 
-  call strip(sum,zsm,ione)
+  call strip(sum,zsm)
 
   call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
      work1,ijn,displs_g,mpi_rtype,&
@@ -398,6 +402,13 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !
 ! program history log:
 !   2006-10-17  pondeca, document
+!   2010-03-29  zhu      - make changes for generalizing control variables
+!   2010-04-01  treadon - move strip to grimod
+!   2010-04-29  todling - update to use control vectory based on gsi_bundle
+!   2010-08-19  lueken  - add only to module use
+!   2011-06-06  pondeca - add output for gust,vis,pblh,dist
+!   2011-07-03  todling - avoid explicit reference to internal bundle arrays
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     nv
@@ -416,14 +427,19 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !$$$
 !*************************************************************************
   use kinds, only: r_kind,i_kind
-  use mpimod, only: mpi_comm_world,ierror,mpi_rtype,strip
+  use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use gridmod, only: nsig,lat1,lon1,lat2,lon2,nlon,nlat,itotsub,iglobal, & 
-                     ltosi,ltosj,latlon11,ijn,displs_g
+                     latlon11,ijn,displs_g,strip
+  use general_commvars_mod, only: ltosi,ltosj
   use radinfo, only: npred,jpch_rad
   use pcpinfo, only: npredp,npcptype
   use jfunc, only: iter,jiter
-  use control_vectors
-  use constants, only: izero,ione
+  use gsi_bundlemod, only: gsi_bundlegetvar
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use control_vectors, only: control_vector,allocate_cv,deallocate_cv, &
+      assignment(=)
+  use control_vectors, only: cvars3d,cvars2d
+  use mpeu_util, only: getindex
   implicit none
 
 ! Declare passed variables
@@ -433,15 +449,50 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 
 
 ! Declare local variables
-  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii
+  integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
+  integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist
+
+  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,ip,istatus
+
   real(r_kind),allocatable,dimension(:)::tempa
   real(r_kind),allocatable,dimension(:,:)::slab
   real(r_kind),allocatable,dimension(:)::strp
   real(r_kind),allocatable,dimension(:)::field
+  real(r_kind),pointer,dimension(:,:)  :: ptr2d=>NULL()
   type(control_vector)::dz
+! RTodling: not sure this is the best thing to do here
+! This assumes the control vector has variables named
+! as below ... the way code now, if the control vector
+! does not have the fields below, they won't be written
+! out to file
+  integer(i_kind),  parameter :: my3d = 6
+  character(len=3), parameter :: myvars3d(my3d) = (/  &
+                                  'sf ',    &
+                                  'vp ',    &
+                                  't  ',    &
+                                  'q  ',    &
+                                  'oz ',    &
+                                  'cw '    /)  
   character(2) clun1
   character(3) clun2
 !*************************************************************************
+! Get control variable indices
+  if (iter==0) then
+     nrf3_sf   = getindex(cvars3d,'sf')
+     nrf3_vp   = getindex(cvars3d,'vp')
+     nrf3_t    = getindex(cvars3d,'t')
+     nrf3_q    = getindex(cvars3d,'q')
+     nrf3_oz   = getindex(cvars3d,'oz')
+     nrf3_cw   = getindex(cvars3d,'cw')
+     nrf2_ps   = getindex(cvars2d,'ps')
+     nrf2_sst  = getindex(cvars2d,'sst')
+     nrf2_gust = getindex(cvars2d,'gust')
+     nrf2_vis  = getindex(cvars2d,'vis')
+     nrf2_pblh = getindex(cvars2d,'pblh')
+     nrf2_dist = getindex(cvars2d,'dist')
+  endif
+
+
   call allocate_cv(dz)
   allocate(tempa(itotsub))
   allocate(slab(nlon,nlat))
@@ -451,75 +502,143 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   write (clun1(1:2),'(i2.2)') jiter
   write (clun2(1:3),'(i3.3)') iter
 
-  lun=19_i_kind
+  lun=19
   do icase=1,2
  
-     if (icase==ione) then 
+     if (icase==1) then 
         dz=dx
         open (lun,file='gradx.dat_'//clun1//'_'//clun2,form='unformatted')
-     else if (icase==2_i_kind) then 
+     else if (icase==2) then 
         dz=dy
         open (lun,file='grady.dat_'//clun1//'_'//clun2,form='unformatted')
      endif
 
-     write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma
+     write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma, &
+                 nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw, & 
+                 nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist
 
-     ii=ione
-     do ifield=1,6
-        if (ifield==ione)        field=dz%step(ii)%st
-        if (ifield==2_i_kind)    field=dz%step(ii)%vp
-        if (ifield==3_i_kind)    field=dz%step(ii)%t
-        if (ifield==4_i_kind)    field=dz%step(ii)%rh
-        if (ifield==5_i_kind)    field=dz%step(ii)%oz
-        if (ifield==6_i_kind)    field=dz%step(ii)%cw
+     ii=1
+     do ifield=1,my3d
+        call gsi_bundlegetvar(dz%step(ii),myvars3d(ifield),field,istatus)
+        if (istatus==0) then
 
-        do k=1,nsig
-           k1=ione+(k-ione)*latlon11
-           k2=k1+latlon11-ione
-           call strip(field(k1:k2),strp,ione)
+           do k=1,nsig
+              k1=1+(k-1)*latlon11
+              k2=k1+latlon11-1
+              call strip(field(k1:k2),strp)
+   
+              call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+                   tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
-           call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
-                tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+              if(mype == 0) then
+                 do i=1,iglobal
+                    slab(ltosj(i),ltosi(i))=tempa(i)
+                 end do
+                 write(lun) slab
+              endif
+           end do
 
-           if(mype == izero) then
-              do i=1,iglobal
-                 slab(ltosj(i),ltosi(i))=tempa(i)
-              end do
-              write(lun) slab
-           endif
-
-        end do
+        endif !ip>0
      enddo !ifield
 
 !                               gradient wrt sfcp
-     call strip(dz%step(ii)%p,strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
-          tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+     call gsi_bundlegetpointer(dz%step(ii),'ps',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
-     if(mype == izero) then
-        do i=1,iglobal
-           slab(ltosj(i),ltosi(i))=tempa(i)
-        end do
-        write(lun) slab
-     endif
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
 
 !                               gradient wrt sfct
-     call strip(dz%step(ii)%sst,strp,ione)
-     call mpi_gatherv(strp,ijn(mype+ione),mpi_rtype, &
-         tempa,ijn,displs_g,mpi_rtype,izero,mpi_comm_world,ierror)
+     call gsi_bundlegetpointer(dz%step(ii),'sst',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
-     if(mype == izero) then
-        do i=1,iglobal
-           slab(ltosj(i),ltosi(i))=tempa(i)
-        end do
-        write(lun) slab
-     endif
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+
+!                               gradient wrt gust
+     call gsi_bundlegetpointer(dz%step(ii),'gust',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+
+!                               gradient wrt vis
+     call gsi_bundlegetpointer(dz%step(ii),'vis',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt pblh
+     call gsi_bundlegetpointer(dz%step(ii),'pblh',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
+
+!                               gradient wrt dist
+     call gsi_bundlegetpointer(dz%step(ii),'dist',ptr2d,istatus)
+     if (istatus==0) then
+        call strip(ptr2d,strp)
+        call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
+             tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+
+        if(mype == 0) then
+           do i=1,iglobal
+              slab(ltosj(i),ltosi(i))=tempa(i)
+           end do
+           write(lun) slab
+        endif
+     endif !ip>0
 
 !                   gradient wrt satellite radiance bias correction coefficients
-     if (mype==izero) write(lun) dz%predr
+     if (mype==0) write(lun) dz%predr
 
 !                   gradient wrt precipitation bias correction coefficients
-     if (mype==izero)write(lun) dz%predp
+     if (mype==0)write(lun) dz%predp
 
      close(lun)
   end do ! icase

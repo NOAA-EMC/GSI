@@ -12,6 +12,7 @@ module oneobmod
 !   2004-05-13  kleist, documentation
 !   2005-04-04  todling, fixed little endian ouput of prepqc file
 !   2009-04-28  sienkiewicz - add text output for ozone level obs testing
+!   2012-07-14  todling - only do it once (in observer mode)
 !
 ! subroutines included:
 !   sub init_oneobmod
@@ -54,6 +55,8 @@ module oneobmod
   logical oneobtest
   logical pctswitch
 
+  logical :: oneobmade
+
 contains
 
   subroutine init_oneobmod
@@ -87,10 +90,11 @@ contains
     oblat=zero
     oblon=zero
     obpres=r1000
-    obdattim=2000010100_i_kind
+    obdattim=2000010100
     obhourset=zero
     pctswitch=.false.
 
+    oneobmade=.false.
     return
   end subroutine init_oneobmod
 
@@ -117,14 +121,12 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione, zero, one, five, one_tenth
+    use constants, only: zero, one, five, one_tenth, r100, r0_01
     use gsi_io, only: lendian_in
-    use obsmod, only: offtime_data,iadate
+    use obsmod, only: offtime_data,iadate,bmiss
     implicit none
 
-    real(r_kind),parameter:: r0_01=0.01_r_kind
     real(r_kind),parameter:: r20=20.0_r_kind
-    real(r_kind),parameter:: r100=100.0_r_kind
 
     integer(i_kind) ludx,nobs,nlev,idate
     character(8) subset,sid(1)
@@ -135,12 +137,13 @@ contains
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
     integer(i_kind) n,k,iret
-    real(r_kind):: bmiss=10.e10_r_kind
     real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM'
     character(80):: errstr='POE QOE TOE WOE'
+
+    if (oneobmade) return
 
     if (oneob_type == 'o3lev') then
        call oneobo3lv
@@ -151,12 +154,12 @@ contains
     yob=oblat
     dhr=obhourset
     idate=iadate(1)*1000000+iadate(2)*10000+iadate(3)*100+iadate(4)
-    write(6,*)idate
+    write(6,*)'OneObMake: ', idate
     pob=obpres
 ! set default values for this routine
-    ludx=22_i_kind
-    nobs=ione
-    nlev=ione
+    ludx=22
+    nobs=1
+    nlev=1
     subset='ADPUPA'
     sid='SID00001'
     qob=r100
@@ -216,10 +219,10 @@ contains
           err(3,k)=toe(k,n)
        enddo
        call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10_i_kind,ione,iret,hdrstr)
-       call ufbint(lendian_in,obs,10_i_kind,nlev,iret,obsstr)
-       call ufbint(lendian_in,qms,10_i_kind,nlev,iret,qmsstr)
-       call ufbint(lendian_in,err,10_i_kind,nlev,iret,errstr)
+       call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
+       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
+       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
+       call ufbint(lendian_in,err,10,nlev,iret,errstr)
        call writsb(lendian_in)
        hdr(1)=transfer(sid(n),hdr(1))
        hdr(2)=xob(n)
@@ -240,13 +243,15 @@ contains
           err(4,k)=woe(k,n)
        enddo
        call openmb(lendian_in,subset,idate)
-       call ufbint(lendian_in,hdr,10_i_kind,ione,iret,hdrstr)
-       call ufbint(lendian_in,obs,10_i_kind,nlev,iret,obsstr)
-       call ufbint(lendian_in,qms,10_i_kind,nlev,iret,qmsstr)
-       call ufbint(lendian_in,err,10_i_kind,nlev,iret,errstr)
+       call ufbint(lendian_in,hdr,10,1,iret,hdrstr)
+       call ufbint(lendian_in,obs,10,nlev,iret,obsstr)
+       call ufbint(lendian_in,qms,10,nlev,iret,qmsstr)
+       call ufbint(lendian_in,err,10,nlev,iret,errstr)
        call writsb(lendian_in)
     enddo
     call closbf(lendian_in)
+ 
+    oneobmade=.true.
 
     return
   end subroutine oneobmakebufr
@@ -270,7 +275,7 @@ contains
 !   machine:  ?
 !
 !$$$
-    use constants, only: izero, ione, zero, one
+    use constants, only: zero, one
     implicit none
 
     integer(i_kind) lumk                          ! output unit
@@ -281,22 +286,22 @@ contains
 
 2   format(i5,4i3,f6.2,i7,i5,f10.4,f11.4,e16.7,i7,i5,g16.7,g15.7,f6.3)
 
-    lumk = 22_i_kind
-    ilev = ione               ! ilev > 24 is passive
-    isnd = ione
+    lumk = 22
+    ilev = 1               ! ilev > 24 is passive
+    isnd = 1
     ppmv = one                ! dummy value 
 
 !    obdattim=2000010100
 
     rlnc = zero
     rlnc(2) = obhourset
-    ildat(1) = obdattim  / 1000000                   ! year
-    ildat(2) = mod(obdattim,1000000_i_kind)/10000    ! month
-    ildat(3) = mod(obdattim,10000_i_kind)/100        ! day
-    ildat(4) = izero
-    ildat(5) = mod(obdattim,100_i_kind)              ! hour
+    ildat(1) = obdattim  / 1000000            ! year
+    ildat(2) = mod(obdattim,1000000)/10000    ! month
+    ildat(3) = mod(obdattim,10000)/100        ! day
+    ildat(4) = 0
+    ildat(5) = mod(obdattim,100)              ! hour
 
-    ildat(6:8) = izero                               ! (no minute/sec in obdattim)
+    ildat(6:8) = 0                               ! (no minute/sec in obdattim)
 
     call w3movdat(rlnc,ildat,jldat)
 

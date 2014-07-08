@@ -12,6 +12,8 @@ module intpsmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intps_tl; add interface back
 !   2009-08-13  lueken - update documentation
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub intps_
@@ -35,7 +37,7 @@ end interface
 
 contains
 
-subroutine intps_(pshead,rp,sp)
+subroutine intps_(pshead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intps       apply nonlin qc obs operator for ps
@@ -63,6 +65,8 @@ subroutine intps_(pshead,rp,sp)
 !   2008-06-02  safford - rm unused vars
 !   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
+!   2010-05-13  todling  - update to use gsi_bundlemod; update interface
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
 !     pshead  - obs type pointer to obs structure
@@ -83,19 +87,41 @@ subroutine intps_(pshead,rp,sp)
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon1n1
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_4dvar, only: ladtest_obs
   implicit none
 
 ! Declare passed variables
-  type(ps_ob_type),pointer         ,intent(in   ) :: pshead
-  real(r_kind),dimension(latlon1n1),intent(in   ) :: sp
-  real(r_kind),dimension(latlon1n1),intent(inout) :: rp
+  type(ps_ob_type),pointer,intent(in   ) :: pshead
+  type(gsi_bundle),        intent(in   ) :: sval
+  type(gsi_bundle),        intent(inout) :: rval
 
 ! Declare local variables
+  integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4
 ! real(r_kind) penalty
   real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
   real(r_kind) w1,w2,w3,w4,time_ps
+  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: sp
+  real(r_kind),pointer,dimension(:) :: rp
   type(ps_ob_type), pointer :: psptr
+
+!  If no ps data return
+  if(.not. associated(pshead))return
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
+
   psptr => pshead
   do while (associated(psptr))
      j1=psptr%ij(1)
@@ -113,8 +139,8 @@ subroutine intps_(pshead,rp,sp)
      if (l_foto) then
         time_ps=psptr%time*r3600
         val=val+&
-          (w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-           w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_ps
+          (w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+           w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_ps
      endif
 
      if (lsaveobsens) then
@@ -128,8 +154,7 @@ subroutine intps_(pshead,rp,sp)
            grad = psptr%diags%obssen(jiter)
   
         else
-           val=val-psptr%res
-
+           if( .not. ladtest_obs)   val=val-psptr%res
 !          gradient of nonlinear operator
            if (nlnqc_iter .and. psptr%pg > tiny_r_kind .and.  &
                                 psptr%b  > tiny_r_kind) then
@@ -140,8 +165,11 @@ subroutine intps_(pshead,rp,sp)
               p0=wgross/(wgross+exp(-half*psptr%err2*val**2)) ! p0 is P in Enderson
               val=val*(one-p0)                                ! term is Wqc in Enderson
            endif
-
-           grad = val*psptr%raterr2*psptr%err2
+           if( ladtest_obs) then
+              grad = val
+           else
+              grad = val*psptr%raterr2*psptr%err2
+           end if
         endif
 
 !       Adjoint
@@ -153,10 +181,10 @@ subroutine intps_(pshead,rp,sp)
 
         if (l_foto) then
            grad=grad*time_ps
-           dhat_dt%p3d(j1)=dhat_dt%p3d(j1)+w1*grad
-           dhat_dt%p3d(j2)=dhat_dt%p3d(j2)+w2*grad
-           dhat_dt%p3d(j3)=dhat_dt%p3d(j3)+w3*grad
-           dhat_dt%p3d(j4)=dhat_dt%p3d(j4)+w4*grad
+           dhat_dt_prse(j1)=dhat_dt_prse(j1)+w1*grad
+           dhat_dt_prse(j2)=dhat_dt_prse(j2)+w2*grad
+           dhat_dt_prse(j3)=dhat_dt_prse(j3)+w3*grad
+           dhat_dt_prse(j4)=dhat_dt_prse(j4)+w4*grad
         endif
 
      endif

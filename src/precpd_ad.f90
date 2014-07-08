@@ -65,7 +65,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
 !==============================================
   use kinds, only: r_kind,i_kind
   use constants, only: cmr,cws,half,epsm1,h300,rrow,two,&
-       hfus,hvap,hsub,rcp,h1000,ke2,izero,ione,zero,one,ttp,eps,epsq,&
+       hfus,hvap,hsub,rcp,h1000,ke2,zero,one,ttp,eps,epsq,&
        grav,climit
   implicit none
 !==============================================
@@ -197,7 +197,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
   real(r_kind) fi
   integer(i_kind) i
   integer(i_kind) iwl
-  integer(i_kind) iwl1,iwl1k(km+ione,ix)
+  integer(i_kind) iwl1,iwl1k(km+1,ix)
   integer(i_kind) k
   real(r_kind) ppr0
   real(r_kind) ppr1
@@ -209,14 +209,14 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
   real(r_kind) praut0
   real(r_kind) precrk0
   real(r_kind) precrk1
-  real(r_kind) precrl1k,precrl1ki(km+ione,ix)
+  real(r_kind) precrl1k,precrl1ki(km+1,ix)
   real(r_kind) precrl_0
   real(r_kind) precrl_1
   real(r_kind) precrl_2
   real(r_kind) precrl_3
   real(r_kind) precsk0
   real(r_kind) precsk1
-  real(r_kind) precsl1k,precsl1ki(km+ione,ix)
+  real(r_kind) precsl1k,precsl1ki(km+1,ix)
   real(r_kind) precsl_0
   real(r_kind) precsl_1
   real(r_kind) precsl_2
@@ -376,7 +376,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
      end do
 !new
 
-     iwl1      = izero
+     iwl1      = 0
      precrl1k  = zero
      precsl1k  = zero
      rn_out(i) = zero
@@ -394,7 +394,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
            precsl1ki(k,i) = precsl_0
            iwl1k(k,i)     = iwl1
 
-           iwl   = izero
+           iwl   = 0
            tin   = t_in(k,i)
            qin   = q_in(k,i)
            cwmin = cwm_in(k,i)
@@ -439,16 +439,16 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
               if (tmt0 < (-15._r_kind)) then
                  fi = qk-rhc(k,i)*qs
                  if (fi > zero .or. wwn > climit) then
-                    iwl = ione
+                    iwl = 1
                  else
-                    iwl = izero
+                    iwl = 0
                  endif
               else if (tmt0 >= zero) then
-                 iwl = izero
+                 iwl = 0
               else
-                 iwl = izero
-                 if (iwl1 == ione .and. wwn > climit) then
-                    iwl = ione
+                 iwl = 0
+                 if (iwl1 == 1 .and. wwn > climit) then
+                    iwl = 1
                  endif
               endif
               if (qs <= onem10) then
@@ -475,7 +475,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
                  else
                     cwmk = zero
                  endif
-                 if (iwl == ione) then
+                 if (iwl == 1) then
                     term1 = cwmk-wmin
                     if (term1 > zero) then
                        amaxcms = term1
@@ -745,16 +745,16 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
               if (tmt0 < (-15._r_kind)) then
                  fi = qk-rhc(k,i)*qs
                  if (fi > zero .or. wwn > climit) then
-                    iwl = ione
+                    iwl = 1
                  else
-                    iwl = izero
+                    iwl = 0
                  endif
               else if (tmt0 >= zero) then
-                 iwl = izero
+                 iwl = 0
               else
-                 iwl = izero
-                 if (iwl1 == ione .and. wwn > climit) then
-                    iwl = ione
+                 iwl = 0
+                 if (iwl1 == 1 .and. wwn > climit) then
+                    iwl = 1
                  endif
               endif
               if (qs <= onem10) then
@@ -781,7 +781,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
                  else
                     cwmk = zero
                  endif
-                 if (iwl == ione) then
+                 if (iwl == 1) then
                     term1 = cwmk-wmin
                     if (term1 > zero) then
                        amaxcms = term1
@@ -1133,7 +1133,7 @@ subroutine precpd_ad( im, ix, km, dt, del, sl, ps, rhc, q_in, &
                  tmt0k_ad = zero
               endif
               if (ccr > zero) then
-                 if (iwl == ione) then
+                 if (iwl == 1) then
                     precrl_0_ad = precrl_0_ad+precrl_1_ad
                     precrl_1_ad = zero
                     precsl_0_ad = precsl_0_ad+precsl_1_ad

@@ -2073,8 +2073,7 @@ contains
     allocate(v(0:ny1,0:nx1))
     allocate(w(0:ny1,0:nx1))
     f=test_div
-               time0=timef()
-              write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
+        write(6,'(" min,max f before call fmg=",2e15.4)')minval(f),maxval(f)
         call fmg(v,f,helmholtz_on,1,1,20,mg(1)%nx,mg(1)%ny)
                write(6,'(" time in fmg =",f15.6," seconds")') .001*(timef()-time0)
         w=zero
@@ -2945,8 +2944,6 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delpsitilde,delchitilde,delmtilde,dummytilde
   real(r_kind),dimension(nlat,nlon)::u0t,v0t,m0t,div0t,vor0t,rhs,mtg,delm,divtg,vortg,mtg_x,mtg_y
   real(r_kind),dimension(nlat,nlon)::delvor,deldiv,delpsi,delchi,u_psi,v_psi,u_chi,v_chi,delf1,delf2
-  real(r_kind),dimension(lat2,lon2,nsig)::dpsi,dchi,dt
-  real(r_kind),dimension(lat2,lon2)::dps
   integer(i_kind) mode_number_a,mode_number_b
   real(r_kind) bal_a (nvmodes_keep),bal_b (nvmodes_keep)
   real(r_kind) bal_a0(nvmodes_keep),bal_b0(nvmodes_keep)
@@ -3144,13 +3141,7 @@ subroutine fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnosti
       end do
     end if
     call special_for_llfmg_grid2sub2(delf1,delf2,delpsitilde,delmtilde,delchitilde,dummytilde,mype)
-    call vtrans_inv(delpsitilde,delchitilde,delmtilde,dpsi,dchi,dt,dps)
-    if(update) then
-      psi=psi+dpsi ; chi=chi+dchi
-    end if
-    if(update) then
-      t=t+dt ; ps=ps+dps
-    end if
+    if(update) call vtrans_inv(delpsitilde,delchitilde,delmtilde,psi,chi,t,ps)
 
 end subroutine fmg_strong_bal_correction
 
@@ -3711,9 +3702,14 @@ subroutine outgrad1(f,label,nx,ny)
          character(80) dsdes,dsdat
          character(80) datdes(1000)
          character(1) blank
+         integer np,ioutcor,ioutdat,ntime
+         integer i,j,k,next,last,koutmax
+         real(4) out(nx,ny)
+         real(4) undef,rlonmap0,rlatmap0,dlonmap,dlatmap
+         real(4) startp,pinc
          data blank/' '/
          data undef/-9.99e33/
-         real(4) out(nx,ny)
+
 
          np=1
          ioutcor=10
@@ -3769,7 +3765,8 @@ subroutine special_for_llfmg_sub2grid3(a1,a2,a3,b1,b2,b3,f1,f2,f3,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -3835,7 +3832,8 @@ subroutine special_for_llfmg_sub2grid2(a1,a2,b1,b2,f1,f2,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal,ltosi,ltosj
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -3895,7 +3893,8 @@ subroutine special_for_llfmg_grid2sub2(f1,f2,a1,a2,b1,b2,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,ltosi_s,ltosj_s
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub
+  use general_commvars_mod, only: ltosi_s,ltosj_s
   use mod_vtrans, only: nvmodes_keep
   implicit none
 
@@ -3954,7 +3953,8 @@ subroutine special_for_llfmg_grid2sub3(f1,f2,f3,a1,a2,a3,b1,b2,b3,mype)
 
   use kinds, only: i_kind,r_kind
   use mpimod, only: npe
-  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub,ltosi_s,ltosj_s
+  use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon,itotsub
+  use general_commvars_mod, only: ltosi_s,ltosj_s
   use mod_vtrans, only: nvmodes_keep
   implicit none
 

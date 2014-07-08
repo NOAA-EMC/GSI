@@ -1,4 +1,4 @@
-subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
+subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -10,17 +10,21 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !           which zeroes out input gravity component of perturbation tendencies.
 !           also output, for later use, input tendencies projected onto gravity modes.
 !           this is higher level routine, which calls more specific routines, based
-!           on the value of parameter jcstrong_option, passed through module mod_jcstrong
+!           on the value of parameters regional and reg_tlnmc_type, passed through module mod_strong
 !
-!               jcstrong_option = 1   -- then call original slow global application
-!                               = 2   -- then call faster global applicatioin
-!                               = 3   -- then call regional application
-!                               = 4   -- then call version 3 regional application
+!           If .not. regional then call global application
+!           If regional, then
+!               reg_tlnmc_type = 1 for 1st version of regional application
+!                              = 2 for 2nd version of regional application
 !           
 !
 ! program history log:
 !   2007-02-15  parrish
 !   2008-08-10  derber - update to output correction to psi and chi for global
+!   2012-02-08  kleist - add uvflag to argument list
+!   2013-07-02  parrish - changes to eliminate tlnmc_type for global tlnmc and
+!                          add new variable reg_tlnmc_type for two versions of
+!                          regional tlnmc.
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency (subdomains)
@@ -55,53 +59,49 @@ subroutine strong_bal_correction(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnost
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
-  use mod_strong, only: jcstrong_option
+  use mod_strong, only: reg_tlnmc_type
   use zrnmi_mod, only: zrnmi_strong_bal_correction
-  use strong_slow_global_mod, only: strong_bal_correction_slow_global
   use strong_fast_global_mod, only: strong_bal_correction_fast_global
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,regional
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
-  logical                               ,intent(in   ) :: bal_diagnostic,update,fullfield
+  logical                               ,intent(in   ) :: bal_diagnostic,update,fullfield,uvflag
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: u_t,v_t,t_t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps
 
-  if(jcstrong_option==ione) then
+  if(.not.regional) then
 
-!    slow global option:
+!    global option:
 
-     call strong_bal_correction_slow_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
+     call strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update,uvflag)
 
-  elseif(jcstrong_option==2_i_kind) then
+  else
 
-!    faster global option:
+     if(reg_tlnmc_type==1) then
 
-     call strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,bal_diagnostic,fullfield,update)
+!       regional option 1:
 
-  elseif(jcstrong_option==3_i_kind) then
+        call zrnmi_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
 
-!    regional option:
+     elseif(reg_tlnmc_type==2) then
 
-     call zrnmi_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
+!       regional option 2:
 
-  elseif(jcstrong_option==4_i_kind) then
+        !call fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
+        !call zrnmi_filter_uvm_ad_test(mype)
 
-!    version 3 regional option
+        call fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
 
-     !call fmg_strong_bal_correction_ad_test(u_t,v_t,t_t,ps_t,psi,chi,t,ps,mype)
-     !call zrnmi_filter_uvm_ad_test(mype)
-
-     call fmg_strong_bal_correction(u_t,v_t,t_t,ps_t,psi,chi,t,ps,bal_diagnostic,fullfield,update,mype)
+     end if
 
   end if
 
 end subroutine strong_bal_correction
 
-subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -113,17 +113,18 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 !           which zeroes out input gravity component of perturbation tendencies.
 !           also output, for later use, input tendencies projected onto gravity modes.
 !           this is higher level routine, which calls more specific routines, based
-!           on the value of parameter jcstrong_option, passed through module mod_jcstrong
+!           on the value of parameters regional and reg_tlnmc_type, passed through module mod_strong
 !
-!               jcstrong_option = 1   -- then call original slow global application
-!                               = 2   -- then call faster global applicatioin
-!                               = 3   -- then call regional application
-!                               = 4   -- then call version 3 regional application
+!           If .not. regional then call global application
+!           If regional, then
+!               reg_tlnmc_type = 1 for 1st version of regional application
+!                              = 2 for 2nd version of regional application
 !           
 !
 ! program history log:
 !   2007-02-15  parrish
 !   2008-08-10  derber - update to output correction to psi and chi for global
+!   2012-02-08  kleist - add uvflag to argument list
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency (subdomains)
@@ -153,12 +154,10 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use constants, only: ione
-  use mod_strong, only: jcstrong_option
+  use mod_strong, only: reg_tlnmc_type
   use zrnmi_mod, only: zrnmi_strong_bal_correction_ad
-  use strong_slow_global_mod, only: strong_bal_correction_slow_global_ad
   use strong_fast_global_mod, only: strong_bal_correction_fast_global_ad
-  use gridmod, only: lat2,lon2,nsig
+  use gridmod, only: lat2,lon2,nsig,regional
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
@@ -166,34 +165,32 @@ subroutine strong_bal_correction_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps_t
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: psi,chi,t
   real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: ps
+  logical,intent(in):: uvflag
 
   logical update
 
-  if(jcstrong_option==ione) then
+  if(.not.regional) then
 
-!    slow global option:
+!    global option:
 
-     call strong_bal_correction_slow_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+     call strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,uvflag)
 
-  elseif(jcstrong_option==2_i_kind) then
+  else
 
-!    faster global option:
+     if(reg_tlnmc_type==1) then
 
-     call strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps)
+!       regional option 1:
 
-  elseif(jcstrong_option==3_i_kind) then
+        update=.true.
+        call zrnmi_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
 
-!    regional option:
+     elseif(reg_tlnmc_type==2) then
 
-     update=.true.
-     call zrnmi_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+!       regional option 2:
 
-  elseif(jcstrong_option==4_i_kind) then
-
-!    version 3 regional option
-
-     update=.true.
-     call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+        update=.true.
+        call fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,mype)
+     end if
 
   end if
 

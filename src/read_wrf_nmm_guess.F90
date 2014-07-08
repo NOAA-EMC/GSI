@@ -53,6 +53,13 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !                          grid ordering for input 3D fields
 !   2007-05-02  parrish - fix bug to prevent out of memory reference when pint missing
 !   2008-04-16  safford - rm unused uses
+!   2012-01-14  zhu     - add cloud hydrometeors for cloudy radiance
+!   2012-10-11  parrish - add option to swap bytes immediately after every call to mpi_file_read_at.
+!                           (to handle cases of big-endian file/little-endian machine and vice-versa)
+!   2012-11-30  tong    - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
+!                         because load_prsges is called after this subroutine is called.                       
+!   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
+!   2013-10-30  todling - ltosj/i now live in commvars
 !
 !   input argument list:
 !     mype     - pe number
@@ -78,27 +85,37 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use kinds, only: r_kind,r_single,i_long,i_llong,i_kind
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+  use guess_grids, only: & 
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen
+       isli,nfldsig,ifilesig,ges_tsen,ges_prsl
+  use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+  use cloud_efr_mod, only: cloud_calc
   use gridmod, only: lat2,lon2,itotsub,&
        pdtop_ll,pt_ll,nlon,nlat,nlon_regional,nsig,nlat_regional,half_grid,&
-       filled_grid, &
-      displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3
-  use constants, only: izero,ione,zero,one_tenth,half,one,grav,fv,zero_single
+       filled_grid,aeta1_ll,aeta2_ll, &
+      displs_s,ijn_s,half_nmm_grid2a,fill_nmm_grid2a3,regional               
+  use general_commvars_mod, only: ltosi_s,ltosj_s
+  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die,getindex
+  use control_vectors, only: cvars3d
+  use native_endianness, only: byte_swap
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
+
   implicit none
 
 ! Declare passed variables here
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
+  character(len=*),parameter :: myname='read_wrf_nmm_binary_guess:: '
   integer(i_kind) kpint,kt,kq,ku,kv
+  integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
 
 ! NMM variable names stuck in here
   integer(i_kind) mfcst
@@ -112,21 +129,25 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(kind=mpi_offset_kind) this_offset
   integer(i_kind),allocatable::length(:)
   integer(i_kind) this_length
+  integer(i_llong) num_swap
   character(9) wrfges
   character(6) filename 
   integer(i_kind) ifld,im,jm,lm,num_nmm_fields
   integer(i_kind) num_loc_groups,num_j_groups
   integer(i_kind) i,it,j,k
+  integer(i_kind) iii,jjj,lll
   integer(i_kind) i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smc,i_stc
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
+  integer(i_kind) i_cwm,i_f_ice,i_f_rain,i_f_rimef
   integer(i_kind) isli_this
+  integer(i_kind) nsig_read  
   real(r_kind) pd,psfc_this,sm_this,sice_this,wmag
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   integer(i_llong) n_position
   integer(i_kind) iskip,ksize,jextra,nextra
   integer(i_kind) status(mpi_status_size)
-  integer(i_kind) jbegin(0:npe),jend(0:npe-ione)
-  integer(i_kind) kbegin(0:npe),kend(0:npe-ione)
+  integer(i_kind) jbegin(0:npe),jend(0:npe-1)
+  integer(i_kind) kbegin(0:npe),kend(0:npe-1)
   integer(i_long),allocatable:: ibuf(:,:)
   integer(i_long),allocatable:: jbuf(:,:,:)
   real(r_kind) rough0(nlon,nlat)
@@ -136,6 +157,27 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) mm1                               
   integer(i_kind) iadd
   character(132) memoryorder
+
+! variables for cloud info
+  integer(i_kind) n_actual_clouds,istatus,ier,iret
+  integer(i_kind) iqtotal,icw4crtm
+  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
 
 !  NMM input grid dimensions in module reg_glob_ll
 !      These are the following:
@@ -147,16 +189,37 @@ subroutine read_wrf_nmm_binary_guess(mype)
      im=nlon_regional
      jm=nlat_regional
      lm=nsig
+     nsig_read=nsig
+     if (use_gfs_stratosphere) then
+        lm=nsig_save
+        nsig_read=nsig_save
+     endif
+
+!    Inquire about cloud guess fields
+     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+
+!    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
+     icw4crtm=getindex(cvars3d,'cw')
+
+!    Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
+     iqtotal=getindex(cvars3d,'qt')
+
 
 !    Following is for convenient NMM/WRF NMM input
-     num_nmm_fields=20_i_kind+4_i_kind*lm
-     if(update_pint) num_nmm_fields=num_nmm_fields+lm+ione   ! add contribution of PINT
+     num_nmm_fields=20+4*lm
+     if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
+     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
      num_loc_groups=num_nmm_fields/npe
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_binary_guess, lm            =",i6)')lm
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_nmm_fields=",i6)')num_nmm_fields
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_binary_guess, nfldsig       =",i6)')nfldsig
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_binary_guess, npe           =",i6)')npe
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_loc_groups=",i6)')num_loc_groups
+
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, update_pint   =",l6)')update_pint   
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, nsig          =",i6)')nsig               
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, lm            =",i6)')lm           
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, im            =",i6)')im            
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, jm            =",i6)')jm                 
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_nmm_fields=",i6)')num_nmm_fields   
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, nfldsig       =",i6)')nfldsig                 
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, npe           =",i6)')npe  
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, num_loc_groups=",i6)')num_loc_groups          
 
      allocate(offset(num_nmm_fields))
      allocate(igtype(num_nmm_fields),kdim(num_nmm_fields),kord(num_nmm_fields))
@@ -174,203 +237,266 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !       used as individual file pointers by mpi_file_read_at
 
      do it=1,nfldsig
-        num_doubtful_sfct=izero
+        num_doubtful_sfct=0
         write(filename,'("sigf",i2.2)')ifilesig(it)
         open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
-        if(mype == izero) write(6,*)'READ_WRF_NMM_OFFSET_FILE:  open lendian_in=',&
+        if(mype == 0) write(6,*)'READ_WRF_NMM_OFFSET_FILE:  open lendian_in=',&
              lendian_in,' to file=',filename
         do iskip=1,9
            read(lendian_in)
         end do
         read(lendian_in) wrfges
-        if(mype==izero) write(6,*)' in read_wrf_nmm_binary_guess, wrfges=',trim(wrfges)
+        if(mype==0) write(6,*)' in read_wrf_nmm_binary_guess, wrfges=',trim(wrfges)
         read(lendian_in) ! n_position          !  offset for START_DATE record
+        read(lendian_in) ! n_position          !  offset for NSTART_HOUR record
         
-        i=izero
-        i=i+ione ; i_pd=i                                                ! pd
+        i=0
+        i=i+1 ; i_pd=i                                                ! pd
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' pd, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' pd, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_fis=i                                                ! fis
+        i=i+1 ; i_fis=i                                                ! fis
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' fis, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' fis, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i_pint=i+ione
+        i_pint=i+1
         if(update_pint) then
-           i_pint=i+ione
+           i_pint=i+1
            read(lendian_in) n_position,memoryorder
-           do k=1,lm+ione
-              i=i+ione                                                       ! pint(k)
+           do k=1,lm+1
+              i=i+1                                                       ! pint(k)
               if(trim(memoryorder)=='XZY') then
-                 iadd=izero
-                 kord(i)=lm+ione
+                 iadd=0
+                 kord(i)=lm+1
               else
-                 iadd=(k-ione)*im*jm*4
-                 kord(i)=ione
+                 iadd=(k-1)*im*jm*4
+                 kord(i)=1
               end if
-              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm+ione
-              if(mype == izero.and.k==ione) write(6,*)' pint i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm+1
+              if(mype == 0.and.k==1) write(6,*)' pint i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
            end do
         end if
         
-        i_t=i+ione
+        i_t=i+1
         read(lendian_in) n_position,memoryorder
         do k=1,lm
-           i=i+ione                                                       ! t(k)
+           i=i+1                                                       ! t(k)
            if(trim(memoryorder)=='XZY') then
-              iadd=izero
+              iadd=0
               kord(i)=lm
            else
-              iadd=(k-ione)*im*jm*4
-              kord(i)=ione
+              iadd=(k-1)*im*jm*4
+              kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-           if(mype == izero.and.k==ione) write(6,*)' temp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+           if(mype == 0.and.k==1) write(6,*)' temp i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         end do
         
-        i_q=i+ione
+        i_q=i+1
         read(lendian_in) n_position,memoryorder
         do k=1,lm
-           i=i+ione                                                       ! q(k)
+           i=i+1                                                       ! q(k)
            if(trim(memoryorder)=='XZY') then
-              iadd=izero
+              iadd=0
               kord(i)=lm
            else
-              iadd=(k-ione)*im*jm*4
-              kord(i)=ione
+              iadd=(k-1)*im*jm*4
+              kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=lm
-           if(mype == izero.and.k==ione) write(6,*)' q i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+           if(mype == 0.and.k==1) write(6,*)' q i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         end do
         
-        i_u=i+ione
+        i_u=i+1
         read(lendian_in) n_position,memoryorder
         do k=1,lm
-           i=i+ione                                                       ! u(k)
+           i=i+1                                                       ! u(k)
            if(trim(memoryorder)=='XZY') then
-              iadd=izero
+              iadd=0
               kord(i)=lm
            else
-              iadd=(k-ione)*im*jm*4
-              kord(i)=ione
+              iadd=(k-1)*im*jm*4
+              kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2_i_kind ; kdim(i)=lm
-           if(mype == izero.and.k==ione) write(6,*)' u i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2 ; kdim(i)=lm
+           if(mype == 0.and.k==1) write(6,*)' u i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         end do
         
-        i_v=i+ione
+        i_v=i+1
         read(lendian_in) n_position,memoryorder
         do k=1,lm
-           i=i+ione                                                       ! v(k)
+           i=i+1                                                       ! v(k)
            if(trim(memoryorder)=='XZY') then
-              iadd=izero
+              iadd=0
               kord(i)=lm
            else
-              iadd=(k-ione)*im*jm*4
-              kord(i)=ione
+              iadd=(k-1)*im*jm*4
+              kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2_i_kind ; kdim(i)=lm
-           if(mype == izero.and.k==ione) write(6,*)' v i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=2 ; kdim(i)=lm
+           if(mype == 0.and.k==1) write(6,*)' v i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         end do
         
-        i=i+ione ; i_sm=i                                                ! sm
+        i=i+1 ; i_sm=i                                                ! sm
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' sm, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' sm, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_sice=i                                                ! sice
+        i=i+1 ; i_sice=i                                                ! sice
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' sice, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' sice, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_sst=i                                                ! sst
+        i=i+1 ; i_sst=i                                                ! sst
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' sst, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' sst, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_ivgtyp=i                                                ! ivgtyp
+        i=i+1 ; i_ivgtyp=i                                                ! ivgtyp
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=-ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' ivgtyp, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=-1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' ivgtyp, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_isltyp=i                                                ! isltyp
+        i=i+1 ; i_isltyp=i                                                ! isltyp
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=-ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' isltyp, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=-1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' isltyp, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_vegfrac=i                                                ! vegfrac
+        i=i+1 ; i_vegfrac=i                                                ! vegfrac
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' vegfrac, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' vegfrac, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_sno=i                                                ! sno
+        i=i+1 ; i_sno=i                                                ! sno
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' sno, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' sno, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_u10=i                                                ! u10
+        i=i+1 ; i_u10=i                                                ! u10
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' u10, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' u10, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        i=i+ione ; i_v10=i                                                ! v10
+        i=i+1 ; i_v10=i                                                ! v10
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' v10, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' v10, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         
-        i=i+ione ; i_smc=i                                             ! smc
+        i=i+1 ; i_smc=i                                             ! smc
         read(lendian_in) n_position,ksize,memoryorder
         if(trim(memoryorder)=='XZY') then
            kord(i)=ksize
         else
-           kord(i)=ione
+           kord(i)=1
         end if
-        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ksize
-        if(mype == izero) write(6,*)' smc i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
+        if(mype == 0) write(6,*)' smc i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         do k=2,ksize
-           i=i+ione
+           i=i+1
            if(trim(memoryorder)=='XZY') then
-              iadd=izero
+              iadd=0
               kord(i)=ksize
            else
-              iadd=(k-ione)*im*jm*4
-              kord(i)=ione
+              iadd=(k-1)*im*jm*4
+              kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ksize
+           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
         end do
         
-        i=i+ione ; i_stc=i                                             ! stc
+        i=i+1 ; i_stc=i                                             ! stc
         read(lendian_in) n_position,ksize,memoryorder
         if(trim(memoryorder)=='XZY') then
            kord(i)=ksize
         else
-           kord(i)=ione
+           kord(i)=1
         end if
-        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ksize
-        if(mype == izero) write(6,*)' stc i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
+        if(mype == 0) write(6,*)' stc i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
         do k=2,ksize
-           i=i+ione
+           i=i+1
            if(trim(memoryorder)=='XZY') then
-              iadd=izero
+              iadd=0
               kord(i)=ksize
            else
-              iadd=(k-ione)*im*jm*4
-              kord(i)=ione
+              iadd=(k-1)*im*jm*4
+              kord(i)=1
            end if
-           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=ione ; kdim(i)=ksize
+           offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=ksize
         end do
         
-        i=i+ione ; i_tsk=i                                                ! tsk
+        i=i+1 ; i_tsk=i                                                ! tsk
         read(lendian_in) n_position
-        offset(i)=n_position ; length=im*jm ; igtype(i)=ione ; kdim(i)=ione
-        if(mype == izero) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+        offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
+        if(mype == 0) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+
+        if (n_actual_clouds>0) then
+           i_cwm=i+1
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+1                                                       ! cwm(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=0
+                 kord(i)=lm
+              else
+                 iadd=(k-1)*im*jm*4
+                 kord(i)=1
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+              if(mype == 0.and.k==1) write(6,*)' cwm i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           end do
+
+           i_f_ice=i+1
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+1                                                       ! f_ice(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=0
+                 kord(i)=lm
+              else
+                 iadd=(k-1)*im*jm*4
+                 kord(i)=1
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+              if(mype == 0.and.k==1) write(6,*)' f_ice i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           end do
+
+           i_f_rain=i+1
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+1                                                       ! f_rain(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=0
+                 kord(i)=lm
+              else
+                 iadd=(k-1)*im*jm*4
+                 kord(i)=1
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+              if(mype == 0.and.k==1) write(6,*)' f_rain i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           end do
+
+           i_f_rimef=i+1
+           read(lendian_in) n_position,memoryorder
+           do k=1,lm
+              i=i+1                                                       ! f_rimef(k)
+              if(trim(memoryorder)=='XZY') then
+                 iadd=0
+                 kord(i)=lm
+              else
+                 iadd=(k-1)*im*jm*4
+                 kord(i)=1
+              end if
+              offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
+              if(mype == 0.and.k==1) write(6,*)' f_rimef i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
+           end do
+        end if  ! end of n_actual_clouds>0
 
 !       bring in z0 (roughness length)
-        mm1=mype+ione
+        mm1=mype+1
         read(lendian_in) rough_in
-        if(half_grid) call half_nmm_grid2a(rough_in,nlon_regional,nlat_regional,rough0,ione)
+        if(half_grid) call half_nmm_grid2a(rough_in,nlon_regional,nlat_regional,rough0,1)
         if(filled_grid) then
            rough_in2=rough_in
            call fill_nmm_grid2a3(rough_in2,nlon_regional,nlat_regional,rough0)
@@ -381,7 +507,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            work(k)=rough0(j,i)
         end do
         call mpi_scatterv(work,ijn_s,displs_s,mpi_rtype, &
-                       sfc_rough,ijn_s(mm1),mpi_rtype,izero,mpi_comm_world,ierror)
+                       sfc_rough,ijn_s(mm1),mpi_rtype,0,mpi_comm_world,ierror)
 
         close(lendian_in)
 
@@ -392,37 +518,37 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
         num_loc_groups=num_nmm_fields/npe
         nextra=num_nmm_fields-num_loc_groups*npe
-        kbegin(0)=ione
-        if(nextra > izero) then
+        kbegin(0)=1
+        if(nextra > 0) then
            do k=1,nextra
-              kbegin(k)=kbegin(k-ione)+ione+num_loc_groups
+              kbegin(k)=kbegin(k-1)+1+num_loc_groups
            end do
         end if
-        do k=nextra+ione,npe
-           kbegin(k)=kbegin(k-ione)+num_loc_groups
+        do k=nextra+1,npe
+           kbegin(k)=kbegin(k-1)+num_loc_groups
         end do
-        do k=0,npe-ione
-           kend(k)=kbegin(k+ione)-ione
+        do k=0,npe-1
+           kend(k)=kbegin(k+1)-1
         end do
-        if(mype == izero) then
+        if(mype == 0) then
            write(6,*)' kbegin=',kbegin
            write(6,*)' kend= ',kend
         end if
         num_j_groups=jm/npe
         jextra=jm-num_j_groups*npe
-        jbegin(0)=ione
-        if(jextra > izero) then
+        jbegin(0)=1
+        if(jextra > 0) then
            do j=1,jextra
-              jbegin(j)=jbegin(j-ione)+ione+num_j_groups
+              jbegin(j)=jbegin(j-1)+1+num_j_groups
            end do
         end if
-        do j=jextra+ione,npe
-           jbegin(j)=jbegin(j-ione)+num_j_groups
+        do j=jextra+1,npe
+           jbegin(j)=jbegin(j-1)+num_j_groups
         end do
-        do j=0,npe-ione
-           jend(j)=min(jbegin(j+ione)-ione,jm)
+        do j=0,npe-1
+           jend(j)=min(jbegin(j+1)-1,jm)
         end do
-        if(mype == izero) then
+        if(mype == 0) then
            write(6,*)' jbegin=',jbegin
            write(6,*)' jend= ',jend
         end if
@@ -432,93 +558,191 @@ subroutine read_wrf_nmm_binary_guess(mype)
         call mpi_file_open(mpi_comm_world,trim(wrfges),mpi_mode_rdonly,mpi_info_null,mfcst,ierror)
         
 !                                    read pint
-        if(update_pint.and.kord(i_pint)/=ione) then
-           allocate(jbuf(im,lm+ione,jbegin(mype):jend(mype)))
-           this_offset=offset(i_pint)+(jbegin(mype)-ione)*4*im*(lm+ione)
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*(lm+ione)
+        if(update_pint.and.kord(i_pint)/=1) then
+           allocate(jbuf(im,lm+1,jbegin(mype):jend(mype)))
+           this_offset=offset(i_pint)+(jbegin(mype)-1)*4*im*(lm+1)
+           this_length=(jend(mype)-jbegin(mype)+1)*im*(lm+1)
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+ione,im,jm,i_pint,i_pint+lm)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm+1,im,jm,i_pint,i_pint+lm)
            deallocate(jbuf)
         end if
         
 !                                    read temps
-        if(kord(i_t)/=ione) then
+        if(kord(i_t)/=1) then
            allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-           this_offset=offset(i_t)+(jbegin(mype)-ione)*4*im*lm
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+           this_offset=offset(i_t)+(jbegin(mype)-1)*4*im*lm
+           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-ione)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_t,i_t+lm-1)
            deallocate(jbuf)
         end if
 
 !                                    read q
-        if(kord(i_q)/=ione) then
+        if(kord(i_q)/=1) then
            allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-           this_offset=offset(i_q)+(jbegin(mype)-ione)*4*im*lm
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+           this_offset=offset(i_q)+(jbegin(mype)-1)*4*im*lm
+           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-ione)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_q,i_q+lm-1)
            deallocate(jbuf)
         end if
 
 !                                    read u
-        if(kord(i_u)/=ione) then
+        if(kord(i_u)/=1) then
            allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-           this_offset=offset(i_u)+(jbegin(mype)-ione)*4*im*lm
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+           this_offset=offset(i_u)+(jbegin(mype)-1)*4*im*lm
+           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-ione)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_u,i_u+lm-1)
            deallocate(jbuf)
         end if
 
 !                                    read v
-        if(kord(i_v)/=ione) then
+        if(kord(i_v)/=1) then
            allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
-           this_offset=offset(i_v)+(jbegin(mype)-ione)*4*im*lm
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*lm
+           this_offset=offset(i_v)+(jbegin(mype)-1)*4*im*lm
+           this_length=(jend(mype)-jbegin(mype)+1)*im*lm
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
-                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-ione)
+                jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_v,i_v+lm-1)
            deallocate(jbuf)
         end if
 
 !                                    read smc
-        if(kord(i_smc)/=ione) then
+        if(kord(i_smc)/=1) then
            allocate(jbuf(im,ksize,jbegin(mype):jend(mype)))
-           this_offset=offset(i_smc)+(jbegin(mype)-ione)*4*im*ksize
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*ksize
+           this_offset=offset(i_smc)+(jbegin(mype)-1)*4*im*ksize
+           this_length=(jend(mype)-jbegin(mype)+1)*im*ksize
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im,jm,i_smc,i_smc)
            deallocate(jbuf)
         end if
 
 !                                    read stc
-        if(kord(i_stc)/=ione) then
+        if(kord(i_stc)/=1) then
            allocate(jbuf(im,ksize,jbegin(mype):jend(mype)))
-           this_offset=offset(i_stc)+(jbegin(mype)-ione)*4*im*ksize
-           this_length=(jend(mype)-jbegin(mype)+ione)*im*ksize
+           this_offset=offset(i_stc)+(jbegin(mype)-1)*4*im*ksize
+           this_length=(jend(mype)-jbegin(mype)+1)*im*ksize
            call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
                                  status,ierror)
+           if(byte_swap) then
+              num_swap=this_length
+              call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+           end if
            call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
                 jbegin,jend,kbegin,kend,mype,npe,im,jm,ksize,im,jm,i_stc,i_stc)
            deallocate(jbuf)
         end if
 
+        if (n_actual_clouds>0) then
+!                                    read cwm
+           if(kord(i_cwm)/=1) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_cwm)+(jbegin(mype)-1)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
+                                    status,ierror)
+              if(byte_swap) then
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+              end if
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                   jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_cwm,i_cwm+lm-1)
+              deallocate(jbuf)
+           end if
+
+!                                    read f_ice
+           if(kord(i_f_ice)/=1) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_f_ice)+(jbegin(mype)-1)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
+                                    status,ierror)
+              if(byte_swap) then
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+              end if
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                   jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_ice,i_f_ice+lm-1)
+              deallocate(jbuf)
+           end if
+
+!                                    read f_rain
+           if(kord(i_f_rain)/=1) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_f_rain)+(jbegin(mype)-1)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
+                                    status,ierror)
+              if(byte_swap) then
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+              end if
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                   jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_rain,i_f_rain+lm-1)
+              deallocate(jbuf)
+           end if
+
+!                                    read f_rimef
+           if(kord(i_f_rimef)/=1) then
+              allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
+              this_offset=offset(i_f_rimef)+(jbegin(mype)-1)*4*im*lm
+              this_length=(jend(mype)-jbegin(mype)+1)*im*lm
+              call mpi_file_read_at(mfcst,this_offset,jbuf(1,1,jbegin(mype)),this_length,mpi_integer, &
+                                    status,ierror)
+              if(byte_swap) then
+                 num_swap=this_length
+                 call to_native_endianness_i4(jbuf(1,1,jbegin(mype)),num_swap)
+              end if
+              call transfer_jbuf2ibuf(jbuf,jbegin(mype),jend(mype),ibuf,kbegin(mype),kend(mype), &
+                   jbegin,jend,kbegin,kend,mype,npe,im,jm,lm,im,jm,i_f_rimef,i_f_rimef+lm-1)
+              deallocate(jbuf)
+           end if
+        end if
+
 !---------------------- read surface files last
         do k=kbegin(mype),kend(mype)
-           if(kdim(k)==ione.or.kord(k)==ione) then
+           if(kdim(k)==1.or.kord(k)==1) then
               call mpi_file_read_at(mfcst,offset(k),ibuf(1,k),length(k),mpi_integer,status,ierror)
+              if(byte_swap) then
+                 num_swap=length(k)
+                 call to_native_endianness_i4(ibuf(1,k),num_swap)
+              end if
            end if
         end do
 
@@ -528,13 +752,13 @@ subroutine read_wrf_nmm_binary_guess(mype)
 
         allocate(tempa(itotsub,kbegin(mype):kend(mype)))
         do ifld=kbegin(mype),kend(mype)
-           if(igtype(ifld) >  izero) then
+           if(igtype(ifld) >  0) then
               call move_ibuf_hg(ibuf(1,ifld),temp1,im,jm,im,jm)
            else
               call move_ibuf_ihg(ibuf(1,ifld),temp1,im,jm,im,jm)
            end if
-           if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa(1,ifld),abs(igtype(ifld)),ione)
-           if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa(1,ifld),abs(igtype(ifld)),ione)
+           if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa(1,ifld),abs(igtype(ifld)),1)
+           if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa(1,ifld),abs(igtype(ifld)),1)
         end do
         deallocate(ibuf)
 
@@ -544,69 +768,165 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !    Next do conversion of units as necessary and
 !    reorganize into WeiYu's format--
 
-        kt=i_t-ione
-        kq=i_q-ione
-        ku=i_u-ione
-        kv=i_v-ione
-        do k=1,nsig
-           kt=kt+ione
-           kq=kq+ione
-           ku=ku+ione
-           kv=kv+ione
+        ier=0
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
+        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+
+!       Get pointer to cloud water mixing ratio
+        if (n_actual_clouds>0) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
+        end if
+
+        kt=i_t-1
+        kq=i_q-1
+        ku=i_u-1
+        kv=i_v-1
+        if (n_actual_clouds>0) then 
+           kcwm=i_cwm-1
+           kf_ice=i_f_ice-1
+           kf_rain=i_f_rain-1
+           kf_rimef=i_f_rimef-1
+        end if
+        do k=1,nsig_read  
+           kt=kt+1      
+           kq=kq+1
+           ku=ku+1
+           kv=kv+1
+           if (n_actual_clouds>0) then
+              kcwm=kcwm+1
+              kf_ice=kf_ice+1
+              kf_rain=kf_rain+1
+              kf_rimef=kf_rimef+1
+           end if
            do i=1,lon2
               do j=1,lat2
-                 ges_u(j,i,k,it) = all_loc(j,i,ku)
-                 ges_v(j,i,k,it) = all_loc(j,i,kv)
-                 ges_q(j,i,k,it)   = all_loc(j,i,kq)
+                 ges_u(j,i,k) = all_loc(j,i,ku)
+                 ges_v(j,i,k) = all_loc(j,i,kv)
+                 ges_q(j,i,k)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
+
+                 if (n_actual_clouds>0) then
+                    clwmr(j,i,k) = all_loc(j,i,kcwm)
+                    fice(j,i,k) = all_loc(j,i,kf_ice)
+                    frain(j,i,k) = all_loc(j,i,kf_rain)
+                    frimef(j,i,k) = all_loc(j,i,kf_rimef)
+                 end if
+              end do
+           end do
+           if (n_actual_clouds>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+                   fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
+                   ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
+                   efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+           end if
+        end do
+        do k=nsig_read+1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 ges_u(j,i,k)    = zero
+                 ges_v(j,i,k)    = zero
+                 ges_q(j,i,k)    = zero
+                 ges_tsen(j,i,k,it) = zero
+                 if (n_actual_clouds>0) then
+                    clwmr(j,i,k)  = zero
+                    fice(j,i,k)   = zero
+                    frain(j,i,k)  = zero
+                    frimef(j,i,k) = zero
+                 end if
               end do
            end do
         end do
+
+        if (n_actual_clouds>0) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
+           if (iret==0) ges_cwmr=clwmr
+        end if
+
         do i=1,lon2
            do j=1,lat2
-              ges_z(j,i,it)    = all_loc(j,i,i_fis)/grav ! NMM surface elevation multiplied by g
+              ges_z(j,i)    = all_loc(j,i,i_fis)/grav ! NMM surface elevation multiplied by g
               
 !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
               
               pd=r0_01*all_loc(j,i,i_pd)
               psfc_this=pd+pdtop_ll+pt_ll
-              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
+              ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_smc)
               soil_temp(j,i,it)=all_loc(j,i,i_stc)
            end do
         end do
         if(update_pint) then
-           kpint=i_pint-ione
-           do k=1,nsig+ione
-              kpint=kpint+ione
+           ier=0
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+           ier=ier+istatus
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+           ier=ier+istatus
+           if (ier/=0) then ! doesn't need to die (but needs careful revision)
+              call die(myname,': missing pint/pd fields',ier)
+           endif
+           kpint=i_pint-1
+           do k=1,nsig_read+1 
+              kpint=kpint+1
               do i=1,lon2
                  do j=1,lat2
-                    ges_pint(j,i,k,it)  = all_loc(j,i,kpint)
+                    ges_pint(j,i,k)  = all_loc(j,i,kpint)
                  end do
               end do
            end do
+           do k=nsig_read+2,nsig+1 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_pint(j,i,k)  = zero
+                 enddo
+              enddo
+           enddo
            do i=1,lon2
               do j=1,lat2
-                 ges_pd(j,i,it)=all_loc(j,i,i_pd)
+                 ges_pd(j,i)=all_loc(j,i,i_pd)
               end do
            end do
         end if
 
 !       Convert sensible temp to virtual temp
-        do k=1,nsig
-           do i=1,lon2
+        do k=1,nsig_read       
+           do i=1,lon2       
               do j=1,lat2
-                 ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+                 ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))
               end do
            end do
         end do
+           do k=nsig_read+1,nsig 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_tv(j,i,k)  = zero
+                 enddo
+              enddo
+          enddo
      
 !    Transfer surface fields
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-              wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+              wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
               if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_u10)**2 + &
                       all_loc(j,i,i_v10)**2)/wmag
               fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
@@ -618,19 +938,19 @@ subroutine read_wrf_nmm_binary_guess(mype)
               sice_this=zero
               if(all_loc(j,i,i_sice) /= zero_single) sice_this=one
               
-              isli_this=izero
-              if(sice_this == one) isli_this=2_i_kind
-              if(sice_this == zero.and.sm_this == zero) isli_this=ione
+              isli_this=0
+              if(sice_this == one) isli_this=2
+              if(sice_this == zero.and.sm_this == zero) isli_this=1
               isli(j,i,it)=isli_this
               
               sfct(j,i,it)=all_loc(j,i,i_sst)
-              if(isli(j,i,it) /= izero) sfct(j,i,it)=all_loc(j,i,i_tsk)
+              if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_tsk)
               if(sfct(j,i,it) < one) then
 
 !             For now, replace missing skin temps with 1st sigma level temp
                  sfct(j,i,it)=all_loc(j,i,i_t) 
-                 num_doubtful_sfct=num_doubtful_sfct+ione
-                 if(num_doubtful_sfct <= 100_i_kind) &
+                 num_doubtful_sfct=num_doubtful_sfct+1
+                 if(num_doubtful_sfct <= 100) &
                       write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
                       j,i,mype,sfct(j,i,it)
               end if
@@ -638,14 +958,19 @@ subroutine read_wrf_nmm_binary_guess(mype)
         end do
 
      
-        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,ione,mpi_integer,mpi_sum,&
-             izero,mpi_comm_world,ierror)
-        if(mype == izero) write(6,*)' in read_wrf_nmm_binary_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-        if(mype == izero) write(6,*)' in read_wrf_nmm_binary_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+        call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
+             0,mpi_comm_world,ierror)
+        if(mype == 0) write(6,*)' in read_wrf_nmm_binary_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+        if(mype == 0) write(6,*)' in read_wrf_nmm_binary_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
      end do ! enddo it     
      deallocate(all_loc)
      deallocate(temp1,igtype,kdim,kord,offset,length)
      
+     if (use_gfs_stratosphere) then
+        if (mype==0) write(6,*)'in read_wrf_binary_netcdf: use_gfs_stratosphere ...beg'                          
+        call add_gfs_stratosphere
+        if (mype==0) write(6,*)'in read_wrf_binary_netcdf: use_gfs_stratosphere ...end'                         
+     endif
 
      return 
 end subroutine read_wrf_nmm_binary_guess
@@ -689,6 +1014,11 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !   2006-07-31  kleist - change to use ges_ps instead of lnps
 !   2007-03-13  derber - remove unused qsinv2 from jfunc use list
 !   2008-04-16  safford - rm unused uses
+!   2012-10-11  eliu - add capability of uing gfs-regional blended vertical coordinate 
+!                      for wrf_nmm_regional (HWRF)                 
+!   2012-11-30  tong  - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
+!                       because load_prsges is called after this subroutine is called.
+!   2013-10-13  todling - efr_q vars now in cloud_efr module (update mod name too)
 !
 !   input argument list:
 !     mype     - pe number
@@ -713,25 +1043,34 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_kind
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+  use guess_grids, only: &
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen
+       isli,nfldsig,ifilesig,ges_tsen,ges_prsl
+  use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+  use cloud_efr_mod, only: cloud_calc
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
        pdtop_ll,pt_ll,nlon_regional,nsig,nlat_regional,half_grid,&
-       filled_grid
-  use constants, only: izero,ione,zero,one_tenth,half,one,grav,fv,zero_single
+       filled_grid,aeta1_ll,aeta2_ll
+  use gridmod, only: regional
+  use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die,getindex
+  use control_vectors, only: cvars3d
   implicit none
 
 ! Declare passed variables here
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01=0.01_r_kind
+  character(len=*),parameter :: myname='read_wrf_nmm_netcdf_guess:: '
 
 ! Declare local variables
   integer(i_kind) kpint,kt,kq,ku,kv
+  integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
 
 ! NMM variable names stuck in here
 
@@ -749,9 +1088,33 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   integer(i_kind) i,icount,icount_prev,it,j,k
   integer(i_kind) i_0,i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smc,i_stc
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
+  integer(i_kind) i_cwm,i_f_ice,i_f_rain,i_f_rimef
   integer(i_kind) isli_this
+  integer(i_kind) nsig_read 
   real(r_kind) pd,psfc_this,sm_this,sice_this,wmag
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
+
+! variables for cloud info
+  integer(i_kind) n_actual_clouds,istatus,ier,iret
+  integer(i_kind) iqtotal,icw4crtm
+  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_oz  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
 
 !  NMM input grid dimensions in module reg_glob_ll
 !      These are the following:
@@ -760,30 +1123,49 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !          lm -- number of NMM vertical levels ( = nsig for now)
 
 
-     num_doubtful_sfct=izero
+     good_o3mr=.false.  ! no input guess for ozone; will use gfs ozone
+
+     num_doubtful_sfct=0
 
      im=nlon_regional
      jm=nlat_regional
-     lm=nsig
+     if(use_gfs_stratosphere) then
+        nsig_read=nsig_save
+        lm=nsig_save
+     else
+        nsig_read=nsig
+        lm=nsig
+     end if
+
+!    Inquire about cloud guess fields
+     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+
+!    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
+     icw4crtm=getindex(cvars3d,'cw')
+
+!    Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
+     iqtotal=getindex(cvars3d,'qt')
 
 !    Following is for convenient NMM/WRF NMM input
-     num_nmm_fields=14_i_kind+4_i_kind*lm
-     if(update_pint) num_nmm_fields=num_nmm_fields+lm+ione   ! add contribution of PINT
+     num_nmm_fields=14+4*lm
+     if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
+     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm
      num_all_fields=num_nmm_fields*nfldsig
      num_loc_groups=num_all_fields/npe
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, lm            =",i6)')lm
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_nmm_fields=",i6)')num_nmm_fields
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, nfldsig       =",i6)')nfldsig
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_fields=",i6)')num_all_fields
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, npe           =",i6)')npe
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
+
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, lm            =",i6)')lm
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_nmm_fields=",i6)')num_nmm_fields
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, nfldsig       =",i6)')nfldsig
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_fields=",i6)')num_all_fields
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, npe           =",i6)')npe
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
      do 
         num_all_pad=num_loc_groups*npe
         if(num_all_pad >= num_all_fields) exit
-        num_loc_groups=num_loc_groups+ione
+        num_loc_groups=num_loc_groups+1
      end do
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_pad   =",i6)')num_all_pad
-     if(mype == izero) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_all_pad   =",i6)')num_all_pad
+     if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_netcdf_guess, num_loc_groups=",i6)')num_loc_groups
 
      allocate(all_loc(lat2,lon2,num_all_pad))
      allocate(jsig_skip(num_nmm_fields))
@@ -796,98 +1178,128 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !                =2 for v-grid
 !     igtype < 0 for integer field
 
-     i=izero
-     i=i+ione ; i_pd=i                                                ! pd
+     i=0
+     i=i+1 ; i_pd=i                                                ! pd
      write(identity(i),'("record ",i3,"--pd")')i
-     jsig_skip(i)=9_i_kind     ! number of files to skip before getting to pd
-     igtype(i)=ione
-     i=i+ione ; i_fis=i                                               ! fis
+     jsig_skip(i)=9     ! number of files to skip before getting to pd
+     igtype(i)=1
+     i=i+1 ; i_fis=i                                               ! fis
      write(identity(i),'("record ",i3,"--fis")')i
-     jsig_skip(i)=izero
-     igtype(i)=ione
+     jsig_skip(i)=0
+     igtype(i)=1
 
      if(update_pint) then
-        i_pint=i+ione
-        do k=1,lm+ione
-           i=i+ione                                                       ! pint(k)
+        i_pint=i+1
+        do k=1,lm+1
+           i=i+1                                                       ! pint(k)
            write(identity(i),'("record ",i3,"--pint(",i2,")")')i,k
-           jsig_skip(i)=izero
-           igtype(i)=ione
+           jsig_skip(i)=0
+           igtype(i)=1
         end do
      end if
 
-     i_t=i+ione
+     i_t=i+1
      do k=1,lm
-        i=i+ione                                                       ! t(k)
+        i=i+1                                                       ! t(k)
         write(identity(i),'("record ",i3,"--t(",i2,")")')i,k
-        jsig_skip(i)=izero
-        igtype(i)=ione
+        jsig_skip(i)=0
+        igtype(i)=1
      end do
-     i_q=i+ione
+     i_q=i+1
      do k=1,lm
-        i=i+ione                                                       ! q(k)
+        i=i+1                                                       ! q(k)
         write(identity(i),'("record ",i3,"--q(",i2,")")')i,k
-        jsig_skip(i)=izero ; igtype(i)=ione
+        jsig_skip(i)=0 ; igtype(i)=1
      end do
-     i_u=i+ione
+     i_u=i+1
      do k=1,lm
-        i=i+ione                                                       ! u(k)
+        i=i+1                                                       ! u(k)
         write(identity(i),'("record ",i3,"--u(",i2,")")')i,k
-        jsig_skip(i)=izero ; igtype(i)=2_i_kind
+        jsig_skip(i)=0 ; igtype(i)=2
      end do
-     i_v=i+ione
+     i_v=i+1
      do k=1,lm
-        i=i+ione                                                       ! v(k)
+        i=i+1                                                       ! v(k)
         write(identity(i),'("record ",i3,"--v(",i2,")")')i,k
-        jsig_skip(i)=izero ; igtype(i)=2_i_kind
+        jsig_skip(i)=0 ; igtype(i)=2
      end do
-     i=i+ione   ; i_sm=i                                              ! sm
+     i=i+1   ; i_sm=i                                              ! sm
      write(identity(i),'("record ",i3,"--sm")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_sice=i                                              ! sice
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_sice=i                                              ! sice
      write(identity(i),'("record ",i3,"--sice")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_sst=i                                               ! sst
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_sst=i                                               ! sst
      write(identity(i),'("record ",i3,"--sst")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_ivgtyp=i                                            ! ivgtyp
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_ivgtyp=i                                            ! ivgtyp
      write(identity(i),'("record ",i3,"--ivgtyp")')i
-     jsig_skip(i)=izero ; igtype(i)=-ione
-     i=i+ione ; i_isltyp=i                                            ! isltyp
+     jsig_skip(i)=0 ; igtype(i)=-1
+     i=i+1 ; i_isltyp=i                                            ! isltyp
      write(identity(i),'("record ",i3,"--isltyp")')i
-     jsig_skip(i)=izero ; igtype(i)=-ione
-     i=i+ione ; i_vegfrac=i                                           ! vegfrac
+     jsig_skip(i)=0 ; igtype(i)=-1
+     i=i+1 ; i_vegfrac=i                                           ! vegfrac
      write(identity(i),'("record ",i3,"--vegfrac")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_sno=i                                               ! sno
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_sno=i                                               ! sno
      write(identity(i),'("record ",i3,"--sno")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_u10=i                                               ! u10
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_u10=i                                               ! u10
      write(identity(i),'("record ",i3,"--u10")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_v10=i                                               ! v10
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_v10=i                                               ! v10
      write(identity(i),'("record ",i3,"--v10")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_smc=i                                               ! smc
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_smc=i                                               ! smc
      write(identity(i),'("record ",i3,"--smc(",i2,")")')i,k
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_stc=i                                               ! stc
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_stc=i                                               ! stc
      write(identity(i),'("record ",i3,"--stc(",i2,")")')i,k
-     jsig_skip(i)=izero ; igtype(i)=ione
-     i=i+ione ; i_tsk=i                                               ! tsk
+     jsig_skip(i)=0 ; igtype(i)=1
+     i=i+1 ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
-     jsig_skip(i)=izero ; igtype(i)=ione
+     jsig_skip(i)=0 ; igtype(i)=1
+     if (n_actual_clouds>0) then
+        i_cwm=i+1
+        do k=1,lm
+           i=i+1                                                   ! cwm(k)
+           write(identity(i),'("record ",i3,"--cwm(",i2,")")')i,k
+           jsig_skip(i)=0
+           igtype(i)=1
+        end do
+        i_f_ice=i+1
+        do k=1,lm
+           i=i+1                                                   ! f_ice(k)
+           write(identity(i),'("record ",i3,"--f_ice(",i2,")")')i,k
+           jsig_skip(i)=0
+           igtype(i)=1
+        end do
+        i_f_rain=i+1
+        do k=1,lm
+           i=i+1                                                   ! f_rain(k)
+           write(identity(i),'("record ",i3,"--f_rain(",i2,")")')i,k
+           jsig_skip(i)=0
+           igtype(i)=1
+        end do
+        i_f_rimef=i+1
+        do k=1,lm
+           i=i+1                                                   ! f_rimef(k)
+           write(identity(i),'("record ",i3,"--f_rimef(",i2,")")')i,k
+           jsig_skip(i)=0
+           igtype(i)=1
+        end do
+     end if  ! end of n_actual_clouds>0
 
 !    End of stuff from NMM restart file
 
      allocate(temp1(im,jm),itemp1(im,jm))
      
      do i=1,npe
-        irc_s_reg(i)=ijn_s(mype+ione)
+        irc_s_reg(i)=ijn_s(mype+1)
      end do
-     ird_s_reg(1)=izero
+     ird_s_reg(1)=0
      do i=1,npe
-        if(i /= ione) ird_s_reg(i)=ird_s_reg(i-ione)+irc_s_reg(i-ione)
+        if(i /= 1) ird_s_reg(i)=ird_s_reg(i-1)+irc_s_reg(i-1)
      end do
      
 !    Read wrf NMM fixed format file created from external interface
@@ -895,22 +1307,35 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !    to local domains once for every npe fields read in, using 
 !    mpi_all_to_allv
 
-     icount=izero
-     icount_prev=ione
+!     if (mype==0) then
+!        do ifld=1,num_nmm_fields
+!           write(6,'("ifld,identity,icount,icount_prev,jsig_skip:",i12,a30,2x,i12,2x,i12)') &
+!                       ifld,identity(ifld),jsig_skip(ifld),igtype(ifld)
+!        enddo
+!        do i=1,npe
+!          write(6,'(" i,irec_s_reg,ird_s_reg = ",i12,2x,i12,2x,i12)') &
+!                       i,irc_s_reg(i),ird_s_reg(i)
+!        enddo
+!     endif
+
+     icount=0
+     icount_prev=1
      do it=1,nfldsig
         write(filename,'("sigf",i2.2)')ifilesig(it)
         open(lendian_in,file=filename,form='unformatted') ; rewind lendian_in
+        if (mype==0) &
+        write(6,*) 'in read_wrf_nmm_netcdf: it filename = ', it, filename
 
 !       Read, interpolate, and distribute NMM restart fields
         do ifld=1,num_nmm_fields
-           icount=icount+ione
-           if(jsig_skip(ifld) > izero) then
+           icount=icount+1
+           if(jsig_skip(ifld) > 0) then
               do i=1,jsig_skip(ifld)
                  read(lendian_in)
               end do
            end if
-           if(mype == mod(icount-ione,npe)) then
-              if(igtype(ifld) > izero) then
+           if(mype == mod(icount-1,npe)) then
+              if(igtype(ifld) > 0) then
                  read(lendian_in)((temp1(i,j),i=1,im),j=1,jm)
               else
                  read(lendian_in)((itemp1(i,j),i=1,im),j=1,jm)
@@ -920,121 +1345,210 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                     end do
                  end do
               end if
-              write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)')&
-                 ifld,temp1(im/2,jm/2)
-              if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),ione)
-              if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),ione)
-! if(igtype(ifld) == 2_i_kind) then
-! write(6,*)' at 1.1 in read_wrf_nmm_netcdf_guess, max,min temp1 = ',maxval(temp1),minval(temp1)
-! write(6,*)' at 1.1 in read_wrf_nmm_netcdf_guess, max,min tempa = ',maxval(tempa),minval(tempa)
-! end if
+!             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,e15.5)'),ifld,temp1(im/2,jm/2)
+!             write(6,'(" ifld, temp1(im/2,jm/2)=",i6,5x,a30,e15.5)')ifld,identity(ifld),temp1(im/2,jm/2)                                                  
+              if(filled_grid) call fill_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
+              if(half_grid)   call half_nmm_grid2(temp1,im,jm,tempa,abs(igtype(ifld)),1)
 
            else
               read(lendian_in)
            end if
            
 !          Distribute to local domains everytime we have npe fields
-           if(mod(icount,npe) == izero.or.icount == num_all_fields) then
+           if(mod(icount,npe) == 0.or.icount == num_all_fields) then
               call mpi_alltoallv(tempa,ijn_s,displs_s,mpi_real4, &
                    all_loc(1,1,icount_prev),irc_s_reg,ird_s_reg,mpi_real4,mpi_comm_world,ierror)
-              icount_prev=icount+ione
+              icount_prev=icount+1
            end if
 
         end do
         close(lendian_in)
      end do
-!    do kv=i_v,i_v+nsig-ione
-!       if(mype == izero) write(6,*)' at 1.15, kv,mype,j,i,v=', &
-!            kv,mype,2,1,all_loc(2,1,kv)
-!    end do
 
 
 !    Next do conversion of units as necessary and
 !    reorganize into WeiYu's format--
 
-!    do kv=i_v,i_v+nsig-ione
-!       if(mype == izero) write(6,*)' at 1.16, kv,mype,j,i,v=', &
-!            kv,mype,2,1,all_loc(2,1,kv)
-!    end do
-
      do it=1,nfldsig
-        i_0=(it-ione)*num_nmm_fields
-        kt=i_0+i_t-ione
-        kq=i_0+i_q-ione
-        ku=i_0+i_u-ione
-        kv=i_0+i_v-ione
 
-        do k=1,nsig
-           kt=kt+ione
-           kq=kq+ione
-           ku=ku+ione
-           kv=kv+ione
+!       Get pointers to typical met-fields
+        ier=0
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz' ,ges_oz ,istatus );ier=ier+istatus
+        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+
+!       Get pointer to cloud water mixing ratio
+        if (n_actual_clouds>0) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
+        end if
+
+        i_0=(it-1)*num_nmm_fields
+        kt=i_0+i_t-1
+        kq=i_0+i_q-1
+        ku=i_0+i_u-1
+        kv=i_0+i_v-1
+        if (n_actual_clouds>0) then
+           kcwm=i_0+i_cwm-1
+           kf_ice=i_0+i_f_ice-1
+           kf_rain=i_0+i_f_rain-1
+           kf_rimef=i_0+i_f_rimef-1
+        end if
+
+        do k=1,nsig_read
+           kt=kt+1
+           kq=kq+1
+           ku=ku+1
+           kv=kv+1
+           if (n_actual_clouds>0) then
+              kcwm=kcwm+1
+              kf_ice=kf_ice+1
+              kf_rain=kf_rain+1
+              kf_rimef=kf_rimef+1
+           end if
 
            do i=1,lon2
               do j=1,lat2
-!                if(mype == izero.and.j == 2_i_kind.and.i == ione) write(6,*)' at 1.2, k,mype,j,i,u,v=', &
-!                     k,mype,j,i,all_loc(j,i,ku),all_loc(j,i,kv)
-                 ges_u(j,i,k,it) = all_loc(j,i,ku)
-                 ges_v(j,i,k,it) = all_loc(j,i,kv)
-                 ges_q(j,i,k,it)   = all_loc(j,i,kq)
+                 ges_u(j,i,k) = all_loc(j,i,ku)
+                 ges_v(j,i,k) = all_loc(j,i,kv)
+                 ges_q(j,i,k)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
+                 ges_oz(j,i,k) = zero                  ! set to zero for now 
+
+                 if (n_actual_clouds>0) then
+                    clwmr(j,i,k) = all_loc(j,i,kcwm)
+                    fice(j,i,k) = all_loc(j,i,kf_ice)
+                    frain(j,i,k) = all_loc(j,i,kf_rain)
+                    frimef(j,i,k) = all_loc(j,i,kf_rimef)
+                 end if
               end do
            end do
+           if (n_actual_clouds>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+                   fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
+                   ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
+                   efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+           end if
         end do
+        do k=nsig_read+1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 ges_u(j,i,k)    = zero 
+                 ges_v(j,i,k)    = zero 
+                 ges_q(j,i,k)    = zero 
+                 ges_tsen(j,i,k,it) = zero
+                 ges_oz(j,i,k)   = zero 
+
+                 if (n_actual_clouds>0) then
+                    clwmr(j,i,k)  = zero 
+                    fice(j,i,k)   = zero 
+                    frain(j,i,k)  = zero
+                    frimef(j,i,k) = zero 
+                 end if
+              enddo
+           enddo
+        enddo
+        if (n_actual_clouds>0) then
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
+           if (iret==0) ges_cwmr=clwmr
+        end if
 
         do i=1,lon2
            do j=1,lat2
-              ges_z(j,i,it)    = all_loc(j,i,i_0+i_fis)/grav ! NMM surface elevation multiplied by g
+              ges_z(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! NMM surface elevation multiplied by g
 
 !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
               
               pd=r0_01*all_loc(j,i,i_0+i_pd)
               psfc_this=pd+pdtop_ll+pt_ll
-              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
+              ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smc)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_stc)
            end do
         end do
 
-        if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_moi)=', &
+        if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(ges_ps)=', &          
+             minval(ges_ps),maxval(ges_ps)                                                        
+        if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_moi)=', &
              minval(soil_moi),maxval(soil_moi)
-        if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_temp)=', &
+        if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_temp)=', &
              minval(soil_temp),maxval(soil_temp)
         if(update_pint) then
-           kpint=i_0+i_pint-ione
-           do k=1,nsig+ione
-              kpint=kpint+ione
+           ier=0
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+           ier=ier+istatus
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+           ier=ier+istatus
+           if (ier/=0) then ! doesn't need to die (but needs careful revision)
+              call die(myname,': missing pint/pd fields',ier)
+           endif
+           kpint=i_0+i_pint-1
+           do k=1,nsig_read+1
+              kpint=kpint+1
               do i=1,lon2
                  do j=1,lat2
-                    ges_pint(j,i,k,it)  = all_loc(j,i,kpint) ! actually holds sensible temperature
+                    ges_pint(j,i,k)  = all_loc(j,i,kpint) ! actually holds sensible temperature
                  end do
               end do
            end do
+           do k=nsig_read+2,nsig+1
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_pint(j,i,k) = zero
+                 end do
+              end do
+           end do
+
            do i=1,lon2
               do j=1,lat2
-                 ges_pd(j,i,it)  = all_loc(j,i,i_0+i_pd)
+                 ges_pd(j,i)  = all_loc(j,i,i_0+i_pd)
               end do
            end do
         end if
 
 !       Convert sensible temp to virtual temp
-        do k=1,nsig
+        do k=1,nsig_read
            do i=1,lon2
               do j=1,lat2
-                 ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+                 ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))
               end do
            end do
         end do
-     end do
+        do k=nsig_read+1,nsig
+           do i=1,lon2
+              do j=1,lat2
+                 ges_tv(j,i,k) = zero 
+              end do
+           end do
+        end do
+
+     end do ! it loop  
 
 !    Transfer surface fields
      do it=1,nfldsig
-        i_0=(it-ione)*num_nmm_fields
+        i_0=(it-1)*num_nmm_fields
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-              wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+              wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
               if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_0+i_u10)**2 + &
                       all_loc(j,i,i_0+i_v10)**2)/wmag
               fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
@@ -1048,43 +1562,55 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               sice_this=zero
               if(all_loc(j,i,i_0+i_sice) /= zero_single) sice_this=one
               
-              isli_this=izero
-              if(sice_this == one) isli_this=2_i_kind
-              if(sice_this == zero.and.sm_this == zero) isli_this=ione
+              isli_this=0
+              if(sice_this == one) isli_this=2
+              if(sice_this == zero.and.sm_this == zero) isli_this=1
               isli(j,i,it)=isli_this
               
               sfct(j,i,it)=all_loc(j,i,i_0+i_sst)
-              if(isli(j,i,it) /= izero) sfct(j,i,it)=all_loc(j,i,i_0+i_tsk)
+              if(isli(j,i,it) /= 0) sfct(j,i,it)=all_loc(j,i,i_0+i_tsk)
               if(sfct(j,i,it) < one) then
 
 !             For now, replace missing skin temps with 1st sigma level temp
                  sfct(j,i,it)=all_loc(j,i,i_0+i_t) 
                  write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
                       j,i,mype,sfct(j,i,it)
-                 num_doubtful_sfct=num_doubtful_sfct+ione
+                 num_doubtful_sfct=num_doubtful_sfct+1
               end if
            end do
         end do
-     end do
+     end do ! it loop 
      
-     call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,ione,mpi_integer,mpi_sum,&
-          izero,mpi_comm_world,ierror)
-     if(mype == izero) write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-     if(mype == izero) write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
-     if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(sfct)=', &
+     call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
+          0,mpi_comm_world,ierror)
+     if(mype == 0) write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+     if(mype == 0) write(6,*)' in read_wrf_nmm_netcdf_guess, num_doubtful_sfct_all = ',num_doubtful_sfct_all
+     if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(sfct)=', &
           minval(sfct),maxval(sfct)
-     if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_type)=', &
+     if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_type)=', &
           minval(veg_type),maxval(veg_type)
-     if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_frac)=', &
+     if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(veg_frac)=', &
           minval(veg_frac),maxval(veg_frac)
-     if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_type)=', &
+     if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_type)=', &
           minval(soil_type),maxval(soil_type)
-     if(mype == 10_i_kind) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(isli)=', &
+     if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(isli)=', &
           minval(isli),maxval(isli)
      
      deallocate(all_loc,jsig_skip,igtype,identity)
      deallocate(temp1,itemp1)
 
+     if (use_gfs_stratosphere) then
+        if (mype==0) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...beg'     
+        call add_gfs_stratosphere
+        if (mype==0) write(6,*)'in read_wrf_nmm_netcdf: use_gfs_stratosphere ...end'         
+     endif
+
+     if (mype==0) then
+        do k=1,nsig
+           write(6,*)' in read_wrf_nmm_netcdf_k,ges_tv  =',k,ges_tv(10,10,k)   !debug            
+           write(6,*)' in read_wrf_nmm_netcdf_k,ges_tsen=',k,ges_tsen(10,10,k,1) !debug        
+        enddo
+     endif
 
 end subroutine read_wrf_nmm_netcdf_guess
 
@@ -1108,6 +1634,11 @@ subroutine read_nems_nmmb_guess(mype)
 !                           from gfs sigma file to analysis grid with later call to
 !                           read_gfs_ozone_for_regional.
 !   2010-03-15  parrish - add option regional_ozone to turn on ozone in regional analysis
+!   2011-06-16  zhu     - add option to read cloud info for cloudy radiance
+!   2012-02-16  parrish - include option to replace nmmb stratosphere with gfs stratosphere.
+!   2012-10-18  s.liu   - add use_reflectivity option for cloud analysis variables.
+!   2012-12-16  s.liu   - add gsd cloud analysis variables.
+!   2013-10-19  todling - efr fields now live in cloud_efr_mod
 !
 !   input argument list:
 !     mype     - pe number
@@ -1132,49 +1663,108 @@ subroutine read_nems_nmmb_guess(mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_sum
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+  use guess_grids, only: &
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ges_tsen,ges_oz
-  use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone
-  use constants, only: izero,ione,zero,one_tenth,half,one,fv,rd_over_cp
+       isli,nfldsig,ges_tsen,ges_prsl
+  use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+  use guess_grids, only: ges_prsi,ges_prsl,ges_prslavg
+  use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone,& 
+       aeta1_ll,aeta2_ll,use_reflectivity
+  use constants, only: zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01,ten
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
+  use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr
+  use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die,getindex
+  use control_vectors, only: cvars3d
+  use cloud_efr_mod, only: cloud_calc
   implicit none
 
 ! Declare passed variables here
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
-  real(r_kind),parameter:: r0_01 = 0.01_r_kind
-  real(r_kind),parameter:: r100  = 100.0_r_kind
 
 ! Declare local variables
 
 ! other internal variables
   character(255) wrfges
+  character(len=*),parameter :: myname='read_nems_nmmb_guess:: '
   integer(i_kind) i,it,j,k,kr,mype_input
-  integer(i_kind) isli_this
+  integer(i_kind) isli_this,nsig_read
   real(r_kind) pd,psfc_this,wmag,pd_to_ps
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
   real(r_kind),dimension(lat2,lon2):: smthis,sicethis,u10this,v10this,sstthis,tskthis
-  logical good_o3mr
 
-!     get conversion factor for pd to psfc
+! variables for cloud info
+  integer(i_kind) iqtotal,icw4crtm,ier,iret,n_actual_clouds,istatus
+  real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef,qhtmp
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_oz  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ref =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: dfi_tten=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
+
+!  check to see if using GFS stratosphere:
+  if(use_gfs_stratosphere) then
+     nsig_read=nsig_save
+  else
+     nsig_read=nsig
+  end if
+
+! get conversion factor for pd to psfc
 
   if(nmmb_verttype=='OLD') then
      pd_to_ps=pdtop_ll+pt_ll
   else
      pd_to_ps=pt_ll
   end if
+      write(6,*) ' in read_nems_nmmb_guess, nmmb_verttype,pdtop_ll,pt_ll,pd_to_ps=', &
+                                            nmmb_verttype,pdtop_ll,pt_ll,pd_to_ps
 
-!        do serial input for now, with mpi_send to put on appropriate processor.
+! Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
+  icw4crtm=getindex(cvars3d,'cw')
 
-  mype_input=izero
+! Determine whether or not total moisture (water vapor+total cloud condensate) is the control variable
+  iqtotal=getindex(cvars3d,'qt')
+
+! Inquire about cloud guess fields
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
+
+! do serial input for now, with mpi_send to put on appropriate processor.
+
+  mype_input=0
   do it=1,nfldsig
-     num_doubtful_sfct=izero
+     num_doubtful_sfct=0
        
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz' ,ges_oz ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'pd' ,ges_pd,istatus );ier=ier+istatus
+     if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+
      if(mype==mype_input) then
-        if(it==ione)then
+        if(it==1)then
            wrfges = 'wrf_inout'
         else
            write(wrfges,'("wrf_inou",i1.1)')it
@@ -1185,67 +1775,162 @@ subroutine read_nems_nmmb_guess(mype)
 
 !                            ! pd
 
-     call gsi_nemsio_read('dpres','hybrid sig lev','H',ione,ges_pd(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('dpres','hybrid sig lev','H',1,ges_pd,mype,mype_input)
      do i=1,lon2
         do j=1,lat2
 !               convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
-           pd=r0_01*ges_pd(j,i,it)
+           pd=r0_01*ges_pd(j,i)
            psfc_this=pd+pd_to_ps
-           ges_ps(j,i,it)=one_tenth*psfc_this
+           ges_ps(j,i)=one_tenth*psfc_this
+           if(i==1.and.j==1) write(6,*)' it,i,j,psfc_this,ges_ps(j,i)=',it,i,j,psfc_this,ges_ps(j,i)
         end do
      end do
 
 !                          !   fis
 
-     call gsi_nemsio_read('hgt','sfc','H',ione,ges_z(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('hgt','sfc','H',1,ges_z(:,:),mype,mype_input)
 
 !                          !   u,v,q,tsen,tv
-     do kr=1,nsig
-        k=nsig+ione-kr
-        call gsi_nemsio_read('ugrd','mid layer','V',kr,ges_u(:,:,k,it),   mype,mype_input)
-        call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k,it),   mype,mype_input)
-        call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k,it),   mype,mype_input)
+     do k=nsig_read+1,nsig
+        ges_u(:,:,k)=zero
+        ges_v(:,:,k)=zero
+        ges_q(:,:,k)=zero
+        ges_tsen(:,:,k,it)=zero
+        ges_oz(:,:,k)=zero
+     end do
+     do kr=1,nsig_read
+        k=nsig_read+1-kr
+        call gsi_nemsio_read('ugrd','mid layer','V',kr,ges_u(:,:,k),   mype,mype_input)
+        call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k),   mype,mype_input)
+        call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k),   mype,mype_input)
         call gsi_nemsio_read('tmp' ,'mid layer','H',kr,ges_tsen(:,:,k,it),mype,mype_input)
         do i=1,lon2
            do j=1,lat2
-              ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+              ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))
            end do
         end do
         if(regional_ozone) then
            if(use_gfs_ozone) then
-              ges_oz(:,:,k,it)=zero
+              ges_oz(:,:,k)=zero
            else
               good_o3mr=.false.
-              call gsi_nemsio_read('o3mr' ,'mid layer','H',kr,ges_oz(:,:,k,it),mype,mype_input,good_o3mr)
-              if(.not.good_o3mr) write(6,*)' IN READ_NEMS_NMMB_GUESS, O3MR FIELD NOT YET AVAILABLE'
+              call gsi_nemsio_read('o3mr' ,'mid layer','H',kr,ges_oz(:,:,k),mype,mype_input,good_o3mr)
+              if(.not.good_o3mr) then
+                 write(6,*)' IN READ_NEMS_NMMB_GUESS, O3MR FIELD NOT YET AVAILABLE'
+                 ges_oz(:,:,k)=zero
+              end if
            end if
         end if
      end do
 
+!                          !  cloud liquid water,ice,snow,graupel,hail,rain for cloudy radiance
+     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+
+!       Get pointer to cloud water mixing ratio
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
+        if ((icw4crtm>0 .or. iqtotal>0) .and. ier==0) then
+           do kr=1,nsig
+              k=nsig+1-kr
+              call gsi_nemsio_read('clwmr', 'mid layer','H',kr,clwmr(:,:,k), mype,mype_input) !read total condensate
+              call gsi_nemsio_read('f_ice', 'mid layer','H',kr,fice(:,:,k),  mype,mype_input) !read ice fraction
+              call gsi_nemsio_read('f_rain','mid layer','H',kr,frain(:,:,k), mype,mype_input) !read rain fraction
+              call gsi_nemsio_read('f_rimef','mid layer','H',kr,frimef(:,:,k), mype,mype_input) !read rime factor
+
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+                   fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
+                   ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
+                   efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+
+           end do
+
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
+           if (iret==0) ges_cwmr=clwmr 
+        end if  ! icw4crtm>10 .or. iqtotal>0
+     end if    ! end of (n_actual_clouds>0)
+
+
+     if (n_actual_clouds>0 .and. use_reflectivity) then
+
+!       Get pointer to cloud water mixing ratio
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
+        call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'ref',ges_ref,istatus);ier=ier+istatus
+        call gsi_bundlegetpointer (GSI_MetGuess_Bundle(it),'tten',dfi_tten,istatus);ier=ier+istatus
+           do kr=1,nsig
+              k=nsig+1-kr
+              call gsi_nemsio_read('clwmr', 'mid layer','H',kr,clwmr(:,:,k), mype,mype_input) !read total condensate
+              call gsi_nemsio_read('f_ice', 'mid layer','H',kr,fice(:,:,k),  mype,mype_input) !read ice fraction
+              call gsi_nemsio_read('f_rain','mid layer','H',kr,frain(:,:,k), mype,mype_input) !read rain fraction
+              call gsi_nemsio_read('f_rimef','mid layer','H',kr,frimef(:,:,k), mype,mype_input) !read rime factor
+
+              do i=1,lon2
+                 do j=1,lat2
+                    ges_prsl(j,i,k,it)=one_tenth* &
+                                (aeta1_ll(k)*pdtop_ll + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
+                                 pt_ll)
+                 end do
+              end do
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+                   fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
+                   ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),qhtmp(:,:,k), &
+                   efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
+           end do
+
+     end if 
+
                                    !   pint
      if(update_pint) then
 
-        do kr=1,nsig+ione
-           k=nsig+2_i_kind-kr
-           call gsi_nemsio_read('pres' ,'layer','H',kr,ges_pint(:,:,k,it),mype,mype_input)
+        ier=0
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+        ier=ier+istatus
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+        ier=ier+istatus
+        if (ier/=0) then ! doesn't need to die (but needs careful revision)
+           call die(myname,': missing pint/pd fields',ier)
+        endif
+
+        do k=nsig_read+2,nsig+1
+           ges_pint(:,:,k)=zero
+        end do
+        do kr=1,nsig_read+1
+           k=nsig_read+2-kr
+           call gsi_nemsio_read('pres' ,'layer','H',kr,ges_pint(:,:,k),mype,mype_input)
         end do
 
      end if
 
 !                            ! sno
-     call gsi_nemsio_read('sno' ,'sfc','H',ione,sno(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('sno' ,'sfc','H',1,sno(:,:,it),mype,mype_input)
 
 !                            ! surface roughness
-     call gsi_nemsio_read('zorl' ,'sfc','H',ione,sfc_rough(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('zorl' ,'sfc','H',1,sfc_rough(:,:,it),mype,mype_input)
 
 !                            ! soil_moisture
-     call gsi_nemsio_read('smc' ,'soil layer','H',ione,soil_moi(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('smc' ,'soil layer','H',1,soil_moi(:,:,it),mype,mype_input)
 
 !                            ! soil_temp
-     call gsi_nemsio_read('stc' ,'soil layer','H',ione,soil_temp(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('stc' ,'soil layer','H',1,soil_temp(:,:,it),mype,mype_input)
 
 !                            ! veg type
-     call gsi_nemsio_read('vgtyp' ,'sfc','H',ione,veg_type(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('vgtyp' ,'sfc','H',1,veg_type(:,:,it),mype,mype_input)
 
     !           because veg_type is integer quantity, do an nint operation to remove fractional values
     !           due to interpolation
@@ -1255,11 +1940,11 @@ subroutine read_nems_nmmb_guess(mype)
         end do
      end do
 !                            ! veg frac
-     call gsi_nemsio_read('vegfrc' ,'sfc','H',ione,veg_frac(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('vegfrc' ,'sfc','H',1,veg_frac(:,:,it),mype,mype_input)
 
 
 !                            ! soil type
-     call gsi_nemsio_read('sltyp' ,'sfc','H',ione,soil_type(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('sltyp' ,'sfc','H',1,soil_type(:,:,it),mype,mype_input)
 
     !           because soil_type is integer quantity, do an nint operation to remove fractional values
     !           due to interpolation
@@ -1270,7 +1955,7 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                            ! sm
-     call gsi_nemsio_read('sm' ,'sfc','H',ione,smthis(:,:),mype,mype_input)
+     call gsi_nemsio_read('sm' ,'sfc','H',1,smthis(:,:),mype,mype_input)
 
     !           because sm is integer quantity, do an nint operation to remove fractional values
     !           due to interpolation
@@ -1281,7 +1966,7 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                            ! sice
-     call gsi_nemsio_read('sice' ,'sfc','H',ione,sicethis(:,:),mype,mype_input)
+     call gsi_nemsio_read('sice' ,'sfc','H',1,sicethis(:,:),mype,mype_input)
 
     !           because sice is integer quantity, do an nint operation to remove fractional values
     !           due to interpolation
@@ -1292,44 +1977,44 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
 !                            ! sst
-     call gsi_nemsio_read('tsea' ,'sfc','H',ione,sstthis(:,:),mype,mype_input)
+     call gsi_nemsio_read('tsea' ,'sfc','H',1,sstthis(:,:),mype,mype_input)
 
 !                            ! tsk
-     call gsi_nemsio_read('ths' ,'sfc','H',ione,tskthis(:,:),mype,mype_input)
+     call gsi_nemsio_read('ths' ,'sfc','H',1,tskthis(:,:),mype,mype_input)
 !                 convert tsk from potential to virtual temperature
-     if(mype==izero) write(6,*)' in read_nems_nmmb_guess, rd_over_cp=',rd_over_cp
+     if(mype==0) write(6,*)' in read_nems_nmmb_guess, rd_over_cp=',rd_over_cp
      do i=1,lon2
         do j=1,lat2
-           tskthis(j,i)=tskthis(j,i)*(ges_ps(j,i,it)/r100)**rd_over_cp
+           tskthis(j,i)=tskthis(j,i)*(ges_ps(j,i)/r100)**rd_over_cp
         end do
      end do
 
 !                            ! u10,v10
-     call gsi_nemsio_read('u10' ,'10 m above gnd','H',ione,u10this(:,:),mype,mype_input)
-     call gsi_nemsio_read('v10' ,'10 m above gnd','H',ione,v10this(:,:),mype,mype_input)
+     call gsi_nemsio_read('u10' ,'10 m above gnd','H',1,u10this(:,:),mype,mype_input)
+     call gsi_nemsio_read('v10' ,'10 m above gnd','H',1,v10this(:,:),mype,mype_input)
 
      do i=1,lon2
         do j=1,lat2
            fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-           wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+           wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
            if(wmag > zero)fact10(j,i,it)=sqrt(u10this(j,i)**2+v10this(j,i)**2)/wmag
            fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
 
            if(smthis(j,i)/=zero) smthis(j,i)=one
            if(sicethis(j,i)/=zero) sicethis(j,i)=one
-           isli_this=izero
-           if(sicethis(j,i)==one) isli_this=2_i_kind
-           if(sicethis(j,i)==zero.and.smthis(j,i)==zero) isli_this=ione
+           isli_this=0
+           if(sicethis(j,i)==one) isli_this=2
+           if(sicethis(j,i)==zero.and.smthis(j,i)==zero) isli_this=1
            isli(j,i,it)=isli_this
 
            sfct(j,i,it)=sstthis(j,i)
-           if(isli(j,i,it)/=izero) sfct(j,i,it)=tskthis(j,i)
+           if(isli(j,i,it)/=0) sfct(j,i,it)=tskthis(j,i)
            if(sfct(j,i,it)<one) then
 
 !             For now, replace missing skin temps with 1st sigma level temp
               sfct(j,i,it)=ges_tsen(j,i,1,it)
-              num_doubtful_sfct=num_doubtful_sfct+ione
-              if(num_doubtful_sfct <= 100_i_kind) &
+              num_doubtful_sfct=num_doubtful_sfct+1
+              if(num_doubtful_sfct <= 100) &
                    write(6,*)' doubtful skint replaced with 1st sigma level t, j,i,mype,sfct=',&
                    j,i,mype,sfct(j,i,it)
            end if
@@ -1337,14 +2022,43 @@ subroutine read_nems_nmmb_guess(mype)
      end do
 
      call gsi_nemsio_close(wrfges,'READ_NEMS_NMMB_GUESS',mype,mype_input)
-     call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,ione,mpi_integer,mpi_sum,&
-                     izero,mpi_comm_world,ierror)
-     if(mype == izero) write(6,*)' in read_nems_nmmb_binary_guess, num_doubtful_sfct_all = ', &
+
+!    read in radar reflectivity
+!    mype_input=0
+     if(use_reflectivity) then
+     if(mype==mype_input) then
+        wrfges = 'obsref.nemsio'
+!       write(6,*)'start to read obsref.nemsio'
+     end if
+     call gsi_nemsio_open(wrfges,'READ', &
+                    'READ_radar_reflecitivity_mosaic:  problem with obsref.nemsio',mype,mype_input)
+     do kr=1,nsig
+        k=nsig+1-kr
+        call gsi_nemsio_read('obs_ref' ,'mid layer','H',kr,ges_ref(:,:,k),mype,mype_input)
+!       write(6,*)'reading obsref.nemsio'
+     end do
+!       write(6,*)'before close obsref.nemsio'
+     call gsi_nemsio_close(wrfges,'READ_radar_reflectivity_mosaic',mype,mype_input)
+     end if
+!    end read in radar reflectivity
+
+
+     call mpi_reduce(num_doubtful_sfct,num_doubtful_sfct_all,1,mpi_integer,mpi_sum,&
+                     0,mpi_comm_world,ierror)
+     if(mype == 0) write(6,*)' in read_nems_nmmb_binary_guess, num_doubtful_sfct_all = ', &
                                                            num_doubtful_sfct_all
   end do ! enddo it
 
+  if(use_gfs_stratosphere) call add_gfs_stratosphere
+
+     do k=1,nsig
+                     if(mype==0) &
+         write(6,*)' k,ges_tv=',k,ges_tv(10,10,k)  ! debug
+     end do
+
   return 
 end subroutine read_nems_nmmb_guess
+
 #else /* Start no WRF-library block */
 subroutine read_wrf_nmm_binary_guess()
   write(6,*)'READ_WRF_NMM_BINARY_GUESS:  dummy routine, does nothing!'

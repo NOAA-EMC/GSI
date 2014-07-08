@@ -13,6 +13,8 @@ subroutine getprs(ps,prs)
 !                       - remove gues_tv from argument list; clean up code
 !   2008-06-04  safford - rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2010-09-15  pagowski  - added cmaq
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -27,31 +29,34 @@ subroutine getprs(ps,prs)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero,half,one_tenth,rd_over_cp,one
+  use constants,only: zero,half,one_tenth,rd_over_cp,one
   use gridmod,only: nsig,lat2,lon2,ak5,bk5,ck5,tref5,idvc5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
-       regional,wrf_mass_regional,twodvar_regional
-  use guess_grids, only: ges_tv,ntguessig
+       regional,wrf_mass_regional,cmaq_regional,twodvar_regional
+  use guess_grids, only: ntguessig
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,trk
-  integer(i_kind) i,j,k,k2,it
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  integer(i_kind) i,j,k,k2,it,istatus
 
 ! Declare local parameter
   real(r_kind),parameter:: ten = 10.0_r_kind
 
-  kapr=one/rd_over_cp
-  prs=zero 
+! prs=zero 
   it=ntguessig
 
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
+          cmaq_regional) then
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=one_tenth* &
@@ -62,7 +67,7 @@ subroutine getprs(ps,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
@@ -71,15 +76,15 @@ subroutine getprs(ps,prs)
         end do
      endif
   else
-     k=ione
-     k2=nsig+ione
+     k=1
+     k2=nsig+1
      do j=1,lon2
         do i=1,lat2
            prs(i,j,k)=ps(i,j)
            prs(i,j,k2)=zero
         end do
      end do
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
@@ -88,14 +93,25 @@ subroutine getprs(ps,prs)
            end do
         end do
      else
+        kapr=one/rd_over_cp
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 trk=(half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k))**kapr
-                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))
               end do
            end do
         end do
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+        if(istatus==0) then
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    trk=(half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k))**kapr
+                    prs(i,j,k)=prs(i,j,k)+(ck5(k)*trk)
+                 end do
+              end do
+           end do
+        end if
      end if
   end if
 
@@ -115,6 +131,7 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 ! program history log:
 !   2008-06-04  safford - complete documentation block, rm unused var k2
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2012-06-12  parrish - replace sub2grid2/grid2sub2 with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     prs      - 3d pressure
@@ -132,27 +149,31 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$
   
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero
+  use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
-  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
-  use mpimod, only: nvarbal_id,nnnvsbal
+  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
+       cmaq_regional
   use compact_diffs, only: compact_dlat,compact_dlon
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g2
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg
-  real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) i,j,k
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hwork_g
+  real(r_kind),dimension(1,lat2,lon2,nsig+1):: p4
 
+  allocate(hwork(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
+  allocate(hwork_g(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
 
   if(regional)then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
@@ -164,21 +185,40 @@ subroutine getprs_horiz(ps_x,ps_y,prs,prs_x,prs_y)
         prs_x=zero ; prs_y=zero
      end if
   else
-     iflg=ione
-     st=zero
-     vp=zero
-     t=zero
-     hwork=zero
-     call sub2grid2(hwork,st,vp,prs,t,iflg)
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == 3_i_kind)then
-           call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-           call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-        end if
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              p4(1,i,j,k)=prs(i,j,k)
+           end do
+        end do
      end do
-     call grid2sub2(hwork_x,st,vp,prs_x,t)
-     call grid2sub2(hwork_y,st,vp,prs_y,t)
+     call general_sub2grid(s2g2,p4,hwork)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlon(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_x(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlat(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_y(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
   end if
+
+!  clean work space
+  deallocate(hwork,hwork_g)
 
   return
 end subroutine getprs_horiz
@@ -202,6 +242,7 @@ subroutine getprs_tl(ps,t,prs)
 !                       - fix buf for t dimension
 !   2008-06-04  safford - complete doc block, rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     ps       - surface pressure
@@ -216,25 +257,29 @@ subroutine getprs_tl(ps,t,prs)
 !$$$ end documentation block
   
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero,one,rd_over_cp,half
+  use constants,only: zero,one,rd_over_cp,half
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,idvc5,tref5
-  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,eta1_ll,regional,wrf_mass_regional,&
+  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,eta1_ll,regional,wrf_mass_regional,cmaq_regional,&
        twodvar_regional
-  use guess_grids, only: ges_tv,ntguessig
+  use guess_grids, only: ntguessig
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: t
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: t
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
-  integer(i_kind) i,j,k,k2,it
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  integer(i_kind) i,j,k,k2,it,istatus
 
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
+          cmaq_regional) then
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=eta2_ll(k)*ps(i,j)
@@ -242,7 +287,7 @@ subroutine getprs_tl(ps,t,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs(i,j,k)=eta1_ll(k)*ps(i,j)
@@ -251,15 +296,15 @@ subroutine getprs_tl(ps,t,prs)
         end do
      endif
   else
-     k=ione
-     k2=nsig+ione
+     k=1
+     k2=nsig+1
      do j=1,lon2
         do i=1,lat2
            prs(i,j,k)=ps(i,j)
            prs(i,j,k2)=zero
         end do
      end do
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
@@ -274,13 +319,23 @@ subroutine getprs_tl(ps,t,prs)
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
-                 t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
-                 tc1=half/tref5(k)
-                 trk=kapr*tc1*(t(i,j,k-ione)+t(i,j,k))*(t9trm**kaprm1)
-                 prs(i,j,k)=bk5(k)*ps(i,j) + ck5(k)*trk
+                 prs(i,j,k)=bk5(k)*ps(i,j)
               end do
            end do
         end do
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+        if(istatus==0) then
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    t9trm=half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k)
+                    tc1=half/tref5(k)
+                    trk=kapr*tc1*(t(i,j,k-1)+t(i,j,k))*(t9trm**kaprm1)
+                    prs(i,j,k)=prs(i,j,k) + ck5(k)*trk
+                 end do
+              end do
+           end do
+        end if
      end if
   end if
 
@@ -300,6 +355,8 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 ! program history log:
 !   2008-06-04  safford - complete doc block
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2010-05-23  todling - unwired location of ps in control array
+!   2012-06-12  parrish - replace sub2grid2/grid2sub2 with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     prs      - 3d pressure
@@ -317,27 +374,31 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero
+  use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
-  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
-  use mpimod, only: nvarbal_id,nnnvsbal
+  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
+       cmaq_regional
   use compact_diffs, only: compact_dlat,compact_dlon
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g2
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: ps_x,ps_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(  out) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2)       ,intent(in   ) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: prs_x,prs_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg
-  real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) i,j,k
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hwork_g
+  real(r_kind),dimension(1,lat2,lon2,nsig+1):: p4
 
+  allocate(hwork(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
+  allocate(hwork_g(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
 
   if(regional)then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  prs_x(i,j,k)=eta2_ll(k)*ps_x(i,j)
@@ -350,20 +411,40 @@ subroutine getprs_horiz_tl(ps_x,ps_y,prs,prs_x,prs_y)
         prs_y=zero
      end if
   else
-     iflg=ione
-     st=zero
-     vp=zero
-     t=zero
-     call sub2grid2(hwork,st,vp,prs,t,iflg)
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == 3_i_kind)then
-           call compact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-           call compact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-        end if
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              p4(1,i,j,k)=prs(i,j,k)
+           end do
+        end do
      end do
-     call grid2sub2(hwork_x,st,vp,prs_x,t)
-     call grid2sub2(hwork_y,st,vp,prs_y,t)
-  endif
+     call general_sub2grid(s2g2,p4,hwork)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlon(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_x(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call compact_dlat(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork_g,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs_y(i,j,k)=p4(1,i,j,k)
+           end do
+        end do
+     end do
+  end if
+
+!  clean work space
+  deallocate(hwork,hwork_g)
 
   return
 end subroutine getprs_horiz_tl
@@ -386,6 +467,7 @@ subroutine getprs_ad(ps,t,prs)
 !                       - remove gues_tv from argument list; clean up code
 !   2008-06-04  safford - complete doc block, rm unused uses
 !   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     prs        - 3d pressure
@@ -404,26 +486,30 @@ subroutine getprs_ad(ps,t,prs)
   
   use kinds,only: r_kind,i_kind
   use gridmod,only: nsig,lat2,lon2,bk5,ck5,tref5,idvc5
-  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,wrf_mass_regional,eta1_ll,&
+  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,wrf_mass_regional,cmaq_regional,eta1_ll,&
        twodvar_regional
-  use guess_grids, only: ges_tv,ntguessig 
-  use constants,only: ione,zero,half,one,rd_over_cp
+  use guess_grids, only: ntguessig 
+  use constants,only: zero,half,one,rd_over_cp
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prs
-  real(r_kind),dimension(lat2,lon2,nsig)     ,intent(inout) :: t
-  real(r_kind),dimension(lat2,lon2)          ,intent(inout) :: ps
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: prs
+  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(inout) :: t
+  real(r_kind),dimension(lat2,lon2)       ,intent(inout) :: ps
 
 ! Declare local variables
   real(r_kind) kapr,kaprm1,trk,tc1,t9trm
-  integer(i_kind) i,j,k,it
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
+  integer(i_kind) i,j,k,it,istatus
 
 
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.&
+          cmaq_regional) then
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  ps(i,j) = ps(i,j) + eta2_ll(k)*prs(i,j,k)
@@ -431,7 +517,7 @@ subroutine getprs_ad(ps,t,prs)
            end do
         end do
      elseif (wrf_mass_regional .or. twodvar_regional) then
-        do k=1,nsig+ione
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  ps(i,j) = ps(i,j) + eta1_ll(k)*prs(i,j,k)
@@ -440,7 +526,7 @@ subroutine getprs_ad(ps,t,prs)
         end do
      endif
   else
-     if (idvc5 /= 3_i_kind) then
+     if (idvc5 /= 3) then
         do k=2,nsig
            do j=1,lon2
               do i=1,lat2
@@ -452,20 +538,31 @@ subroutine getprs_ad(ps,t,prs)
         kapr=one/rd_over_cp
         kaprm1=kapr-one
         it=ntguessig
-        do k=2,nsig
-           do j=1,lon2
-              do i=1,lat2
-                 t9trm=half*(ges_tv(i,j,k-ione,it)+ges_tv(i,j,k,it))/tref5(k)
-                 tc1=half/tref5(k)
-                 ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
-                 trk = ck5(k)*prs(i,j,k)
-                 t(i,j,k-ione) = t(i,j,k-ione) + kapr*tc1*trk*(t9trm**kaprm1)
-                 t(i,j,k     ) = t(i,j,k     ) + kapr*tc1*trk*(t9trm**kaprm1)
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+        if(istatus==0) then
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    t9trm=half*(ges_tv_it(i,j,k-1)+ges_tv_it(i,j,k))/tref5(k)
+                    tc1=half/tref5(k)
+                    ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
+                    trk = ck5(k)*prs(i,j,k)
+                    t(i,j,k-1) = t(i,j,k-1) + kapr*tc1*trk*(t9trm**kaprm1)
+                    t(i,j,k  ) = t(i,j,k  ) + kapr*tc1*trk*(t9trm**kaprm1)
+                 end do
               end do
            end do
-        end do
+        else
+           do k=2,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    ps(i,j) = ps(i,j) + bk5(k)*prs(i,j,k)
+                 end do
+              end do
+           end do
+        end if
      end if
-     k=ione
+     k=1
      do j=1,lon2
         do i=1,lat2
            ps(i,j)=ps(i,j) + prs(i,j,k)
@@ -473,7 +570,7 @@ subroutine getprs_ad(ps,t,prs)
      end do
   end if
 
-  do k=1,nsig+ione
+  do k=1,nsig+1
      do j=1,lon2
         do i=1,lat2
            prs(i,j,k)=zero
@@ -497,6 +594,8 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 ! program history log:
 !   2008-06-04  safford - complete doc block
 !   2008-09-05  lueken  - merged ed's changes into q1fy09
+!   2010-05-23  todling - unwired location of ps in control array
+!   2012-06-12  parrish - replace sub2grid2/grid2sub2 with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     prs_x      - dp/dx
@@ -517,28 +616,33 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
 !$$$ end documentation block
 
   use kinds,only: r_kind,i_kind
-  use constants,only: ione,zero
+  use constants,only: zero
   use gridmod,only: nsig,lat2,lon2,nlat,nlon
-  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll
-  use mpimod, only: nvarbal_id,nnnvsbal
+  use gridmod,only: regional,wrf_nmm_regional,nems_nmmb_regional,eta2_ll,&
+       cmaq_regional
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g2
 
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(in   ) :: prs_x,prs_y
-  real(r_kind),dimension(lat2,lon2,nsig+ione),intent(inout) :: prs
-  real(r_kind),dimension(lat2,lon2)          ,intent(inout) :: ps_x,ps_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: prs_x,prs_y
+  real(r_kind),dimension(lat2,lon2,nsig+1),intent(inout) :: prs
+  real(r_kind),dimension(lat2,lon2)       ,intent(inout) :: ps_x,ps_y
 
 ! Declare local variables
-  integer(i_kind) i,j,k,iflg
-  real(r_kind),dimension(lat2,lon2,nsig):: st,vp,t
-  real(r_kind),dimension(nlat,nlon,nnnvsbal):: hwork,hwork_x,hwork_y
+  integer(i_kind) i,j,k
+  real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hwork_g
+  real(r_kind),dimension(1,lat2,lon2,nsig+1):: p4
+
+  allocate(hwork(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
+  allocate(hwork_g(s2g2%inner_vars,s2g2%nlat,s2g2%nlon,s2g2%kbegin_loc:s2g2%kend_alloc))
 
 ! Adjoint of horizontal derivatives
   if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+ione
+     if(wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
+        do k=1,nsig+1
            do j=1,lon2
               do i=1,lat2
                  ps_y(i,j) = ps_y(i,j) + eta2_ll(k)*prs_y(i,j,k)
@@ -548,29 +652,41 @@ subroutine getprs_horiz_ad(ps_x,ps_y,prs,prs_x,prs_y)
         end do
      end if
   else
-     iflg=ione
-     st=zero
-     vp=zero
-     t=zero
      hwork=zero
-     call sub2grid2(hwork_x,st,vp,prs_x,t,iflg)
-     call sub2grid2(hwork_y,st,vp,prs_y,t,iflg)
-     do k=1,nnnvsbal
-        if(nvarbal_id(k) == 3_i_kind)then
-           call tcompact_dlon(hwork(1,1,k),hwork_x(1,1,k),.false.)
-           call tcompact_dlat(hwork(1,1,k),hwork_y(1,1,k),.false.)
-        end if
-     end do
-     call grid2sub2(hwork,st,vp,prs_x,t)
-     do k=1,nsig+ione
+     do k=1,nsig+1
         do j=1,lon2
            do i=1,lat2
-              prs(i,j,k)=prs(i,j,k)+prs_x(i,j,k)
+              p4(1,i,j,k)=prs_x(i,j,k)
+           end do
+        end do
+     end do
+     call general_sub2grid(s2g2,p4,hwork_g)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call tcompact_dlon(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              p4(1,i,j,k)=prs_y(i,j,k)
+           end do
+        end do
+     end do
+     call general_sub2grid(s2g2,p4,hwork_g)
+     do k=s2g2%kbegin_loc,s2g2%kend_loc
+        call tcompact_dlat(hwork(1,:,:,k),hwork_g(1,:,:,k),.false.)
+     end do
+     call general_grid2sub(s2g2,hwork,p4)
+     do k=1,nsig+1
+        do j=1,lon2
+           do i=1,lat2
+              prs(i,j,k)=prs(i,j,k)+p4(1,i,j,k)
            end do
         end do
      end do
   end if
 
+!  clean work space
+  deallocate(hwork,hwork_g)
 
   return
 end subroutine getprs_horiz_ad

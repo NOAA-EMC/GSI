@@ -50,6 +50,7 @@ module blacklist
   integer(i_kind) ibcnt,ilcnt
   character(len=8),allocatable,dimension(:) :: blkstns
   integer(i_kind), allocatable,dimension(:) :: blkkx
+  logical, save :: blacklist_initialized=.false.
 
 contains
 
@@ -66,7 +67,6 @@ contains
 
 ! !USES:
 
-    use constants, only: izero,ione
     implicit none
 
 ! !DESCRIPTION:  This routine reads the conventional information file
@@ -74,6 +74,7 @@ contains
 ! !REVISION HISTORY:
 !   2006-02-08  todling - brought sienkiewicz's code into this routine
 !   2007-02-15  todling - arbitrary lengh for obstype
+!   2009-12-03  todling - check to see if initialized already
 !
 ! !INPUT PARAMETERS:
 
@@ -99,45 +100,47 @@ contains
     character(len=8) stnid
     logical eof
 
-    iblktbl = 19_i_kind
+    if (blacklist_initialized) return
+    iblktbl = 19
     open(iblktbl,file='blacklist',form='formatted')
     rewind iblktbl
-    ibcnt = izero
-    ilcnt = izero
+    ibcnt = 0
+    ilcnt = 0
     eof = .false.
     do while (.not. eof)     ! get number of applicable entries in table
        read(iblktbl,fmt='(a1,a7)',iostat=ios)cflg,iotype
-       if (ios /= izero) then
+       if (ios /= 0) then
           eof = .true.
           cycle
        endif
-       ilcnt = ilcnt + ione
+       ilcnt = ilcnt + 1
        if (cflg == '!') cycle
        if (iotype/=obstype)cycle
-       ibcnt = ibcnt + ione
+       ibcnt = ibcnt + 1
     end do
-    if (ibcnt > izero) then     ! allocate and read in table
-       allocate(blkstns(ibcnt),blkkx(ibcnt),stat=ier)
-       if (ier /= izero) then
-          write(6,*)'***READ_PREPBUFR ERROR*** Error allocating ',&
-               'memory; blacklist will not be applied'
-          ibcnt = izero
-       else
-          rewind iblktbl
-          ibcnt = izero
-          do i = 1, ilcnt
-             read(iblktbl,fmt='(a1,a7,1x,a120)',iostat=ios) &
-                  cflg,iotype,crecord
-             if (ios /= izero) exit
-             if (cflg == '!') cycle
-             if (iotype == obstype) then
-                read(crecord,'(i3,1x,a8)') ikx,stnid
-                ibcnt = ibcnt + ione
-                blkstns(ibcnt) = stnid
-                blkkx(ibcnt) = ikx
-             endif
-          enddo
-       endif
+    if (ibcnt > 0) then     ! allocate and read in table
+        allocate(blkstns(ibcnt),blkkx(ibcnt),stat=ier)
+        if (ier /=0) then
+           write(6,*)'***READ_PREPBUFR ERROR*** Error allocating ',&
+                'memory; blacklist will not be applied'
+           ibcnt = 0
+        else
+           blacklist_initialized=.true.
+           rewind iblktbl
+           ibcnt = 0
+           do i = 1, ilcnt
+              read(iblktbl,fmt='(a1,a7,1x,a120)',iostat=ios) &
+                   cflg,iotype,crecord
+              if (ios /=0) exit
+              if (cflg == '!') cycle
+              if (iotype == obstype) then
+                 read(crecord,'(i3,1x,a8)') ikx,stnid
+                 ibcnt = ibcnt + 1
+                 blkstns(ibcnt) = stnid
+                 blkkx(ibcnt) = ikx
+              endif
+           enddo
+        endif
     endif
     close(iblktbl)
     

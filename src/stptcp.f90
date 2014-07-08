@@ -10,6 +10,8 @@ module stptcpmod
 ! program history log:
 !   2005-05-18  Yanqiu zhu - wrap stptcp
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub stptcp
@@ -26,7 +28,7 @@ PRIVATE
 PUBLIC stptcp
 
 contains
-subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
+subroutine stptcp(tcphead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stptcp       calculate penalty and contribution to
@@ -39,6 +41,8 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
 !
 ! program history log:
 !   2009-02-02  kleist
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling - update to use gsi_bundle
 !
 !   input argument list:
 !     tcphead
@@ -58,31 +62,51 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: tcp_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n1
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(tcp_ob_type),pointer              ,intent(in   ) :: tcphead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n1)      ,intent(in   ) :: rp,sp
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(tcp_ob_type),pointer           ,intent(in   ) :: tcphead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,kk
+  integer(i_kind) j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) val,val2,w1,w2,w3,w4,time_tcp
   real(r_kind) cg_ps,wgross,wnotgross,ps_pg,ps
-  real(r_kind),dimension(max(ione,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: sp
+  real(r_kind),pointer,dimension(:) :: rp
   type(tcp_ob_type), pointer :: tcpptr
 
   out=zero_quad
 
+!  If no tcp data return
+  if(.not. associated(tcphead))return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier 
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
+
   tcpptr => tcphead
   do while (associated(tcpptr))
      if(tcpptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1 = tcpptr%ij(1)
            j2 = tcpptr%ij(2)
            j3 = tcpptr%ij(3)
@@ -95,10 +119,10 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
            val2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)-tcpptr%res
            if(l_foto) then
               time_tcp = tcpptr%time*r3600
-              val =val +(w1*dhat_dt%p3d(j1)+w2*dhat_dt%p3d(j2)+ &
-                         w3*dhat_dt%p3d(j3)+w4*dhat_dt%p3d(j4))*time_tcp
-              val2=val2+(w1*xhat_dt%p3d(j1)+w2*xhat_dt%p3d(j2)+ &
-                         w3*xhat_dt%p3d(j3)+w4*xhat_dt%p3d(j4))*time_tcp
+              val =val +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
+                         w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_tcp
+              val2=val2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+                         w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_tcp
            end if
        
            do kk=1,nstep
@@ -118,7 +142,7 @@ subroutine stptcp(tcphead,rp,sp,out,sges,nstep)
            cg_ps=cg_term/tcpptr%b
            wnotgross= one-ps_pg
            wgross =ps_pg*cg_ps/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
            end do
         endif

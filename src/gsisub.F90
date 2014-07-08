@@ -1,4 +1,5 @@
-subroutine gsisub(mype)
+!#define VERBOSE
+subroutine gsisub(mype,init_pass,last_pass)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  gsisub                  high level driver for gridpoint 
@@ -47,7 +48,17 @@ subroutine gsisub(mype)
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2007-10-03  todling - add observer call
 !   2009-01-28  todling - update observer calling procedure 
-!                         
+!   2009-08-19  guo     - #ifdef out destroy_gesfinfo() call for multi-pass observer.
+!   2010-04-22  tangborn - add carbon monoxide settings
+!   2010-05-13  huang   - add aeroinfo_read call
+!   2010-05-19  todling - move oneob test outside esmf ifdef
+!   2010-05-29  todling - update interface to ozinfo_read,pcpinfo_read,&convinfo_read
+!   2010-06-05  todling - repositioned call to init_commvars
+!   2010-07-19  lueken  - remove call to deter_subdomain (general_deter_subdomain is also used)
+!   2010-11-08  treadon - remove create_mapping and init_subdomain_vars (now in init_grid_vars)
+!   2012-06-12  parrish - remove init_commvars (replaced in gsimod.F90 with general_commvars).
+!   2013-05-19  zhu     - add aircraft temperature bias correction
+!   2014-02-27  sienkiewicz - add additional aircraft bias option (external table)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -60,26 +71,47 @@ subroutine gsisub(mype)
 !
 !$$$
   use kinds, only: i_kind
-  use constants, only: izero
   use obsmod, only: iadate,lobserver
   use observermod, only: observer_init,observer_run,observer_finalize
   use gridmod, only: twodvar_regional,regional,&
-       create_grid_vars,create_mapping,init_subdomain_vars,&
-       destroy_mapping,destroy_grid_vars
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional
+       create_grid_vars,&
+       destroy_grid_vars
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,cmaq_regional
   use mpimod, only: npe,mpi_comm_world,ierror
   use radinfo, only: radinfo_read
   use pcpinfo, only: pcpinfo_read,create_pcp_random,&
        destroy_pcp_random
+  use aeroinfo, only: aeroinfo_read
   use convinfo, only: convinfo_read
   use ozinfo, only: ozinfo_read
+  use coinfo, only: coinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr
+  use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
+     aircraft_t_bc_ext
+#ifndef HAVE_ESMF
+  use guess_grids, only: destroy_gesfinfo
+#endif
+
+  use mpeu_util, only: die,tell
 
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in   ) :: mype
+  logical        ,intent(in) :: init_pass
+  logical        ,intent(in) :: last_pass
+
+  if(mype==0) call tell('gsisub',': starting ...')
+#ifdef VERBOSE
+  call tell('gsisub','init_pass =',init_pass)
+  call tell('gsisub','last_pass =',last_pass)
+  call tell('gsisub','iadate(1)=',iadate(1))
+  call tell('gsisub','iadate(2)=',iadate(2))
+  call tell('gsisub','iadate(3)=',iadate(3))
+  call tell('gsisub','iadate(4)=',iadate(4))
+  call tell('gsisub','iadate(5)=',iadate(5))
+#endif
 
 #ifndef HAVE_ESMF
 
@@ -90,55 +122,75 @@ subroutine gsisub(mype)
 ! Get date, grid, and other information from model guess files
   call gesinfo(mype)
 
+#endif /* !HAVE_ESMF */
+
 ! If single ob test, create prep.bufr file with single ob in it
   if (oneobtest) then
-     if(mype==izero)call oneobmakebufr
+     if(mype==0)call oneobmakebufr
      call mpi_barrier(mpi_comm_world,ierror)
   end if
 
-! Create analysis subdomains and initialize subdomain variables
-  call create_mapping(npe)
-  call deter_subdomain(mype)
-  call init_subdomain_vars
-
-#endif /* HAVE_ESMF */
-
 ! Process any level 2 bufr format land doppler radar winds and create radar wind superob file
-  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional) call radar_bufr_read_all(npe,mype)
+  if(wrf_nmm_regional.or.wrf_mass_regional.or.nems_nmmb_regional &
+       .or. cmaq_regional) call radar_bufr_read_all(npe,mype)
+!at some point cmaq will become also an online met/chem model (?)
 
 ! Read info files for assimilation of various obs
-  if (.not.twodvar_regional) then
-     call radinfo_read
-     call ozinfo_read(mype)
-     call pcpinfo_read(mype)
+  if (init_pass) then
+     if (.not.twodvar_regional) then
+        call radinfo_read
+        call ozinfo_read
+        call coinfo_read
+        call pcpinfo_read
+        call aeroinfo_read
+        if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
+           call aircraftinfo_read
+     endif
+     call convinfo_read
+#ifdef VERBOSE
+     call tell('gsisub','returned from convinfo_read()')
+#endif
   endif
-  call convinfo_read(mype)
-
-#ifndef HAVE_ESMF
-! Set communicators between subdomain and global/horizontal slabs
-  call init_commvars(mype)
-#endif /* HAVE_ESMF */
 
 ! Compute random number for precipitation forward model.  
-  call create_pcp_random(iadate,mype)
+  if(init_pass) then
+     call create_pcp_random(iadate,mype)
+#ifdef VERBOSE
+     call tell('gsisub','returned from create_pcp_random()')
+#endif
+  endif
 
 ! Complete setup and execute external and internal minimization loops
+#ifdef VERBOSE
+  call tell('gsisub','lobserver=',lobserver)
+#endif
   if (lobserver) then
-     call observer_init
-     call observer_run
-     call observer_finalize
+    if(init_pass) call observer_init()
+#ifdef VERBOSE
+    call tell('gsisub','calling observer_run()')
+#endif
+    call observer_run(init_pass=init_pass,last_pass=last_pass)
+#ifdef VERBOSE
+    call tell('gsisub','returned from observer_run()')
+#endif
+    if(last_pass) call observer_finalize()
+#ifndef HAVE_ESMF
+      call destroy_gesfinfo()	! paired with gesinfo()
+#endif
   else
      call glbsoi(mype)
   endif
 
   
-! Deallocate arrays
-  call destroy_pcp_random
+  if(last_pass) then
+!    Deallocate arrays
+     call destroy_pcp_random
 #ifndef HAVE_ESMF
-  call destroy_mapping
-  call destroy_grid_vars
+     call destroy_grid_vars
 #endif /* HAVE_ESMF */
+  endif
 
+  if(mype==0) call tell('gsisub',': complete.')
 ! End of gsi driver routine
   return
 end subroutine gsisub

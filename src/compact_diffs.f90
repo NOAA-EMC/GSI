@@ -11,6 +11,11 @@ module compact_diffs
 ! program history log:
 !   2005-01-21  parrish
 !   2005-01-26  treadon - add init_compact_diffs
+!   2009-08-19  guo     - add inisphed_ to track the state of module variables.
+!   2009-09-14  guo     - add status checking interfaces, cdiff_created() and
+!			  cdiff_initialized().
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error in
+!                           compact_dlon, compact_dlat, tcompact_dlon, tcompact_dlat
 !
 ! subroutines included:
 !   sub init_compact_diffs  - initialize parameters used by compact diffs
@@ -58,6 +63,7 @@ module compact_diffs
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind
+  use mpeu_util, only: die, tell, perr
   implicit none
 
 ! set default to private
@@ -98,13 +104,31 @@ module compact_diffs
 ! set passed variables to public
   public :: coef,noq
 
-  integer(i_kind) noq
+  public:: cdiff_created
+  public:: cdiff_initialized
+
+  integer(i_kind),save :: noq
   logical,save :: initialized_=.false.
   real(r_kind),allocatable,dimension(:):: coef
 
+  logical,save :: inisphed_=.false.
+  integer,save :: nlon_alloced_=-1
+  integer,save :: nlat_alloced_=-1
+  integer,save :: noq_alloced_ =-1
 
 contains
 
+
+  function cdiff_created() result(created)
+    implicit none
+    logical:: created
+    created = initialized_
+  end function cdiff_created
+  function cdiff_initialized() result(inited)
+    implicit none
+    logical:: inited
+    inited = initialized_ .and. inisphed_
+  end function cdiff_initialized
 
   subroutine init_compact_diffs
 !$$$  subprogram documentation block
@@ -128,7 +152,7 @@ contains
 !$$$
     implicit none
     
-    noq=3_i_kind
+    noq=3
     return
   end subroutine init_compact_diffs
 
@@ -155,13 +179,16 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione
   use gridmod, only: nlat,nlon
   implicit none
 
   if(initialized_) return
-  allocate(coef(3*nlat+4*(2*(noq+5_i_kind)+ione)*(nlat+nlon/2)))
+  allocate(coef(3*nlat+4*(2*(noq+5)+1)*(nlat+nlon/2)))
   initialized_=.true.
+  nlon_alloced_=nlon
+  nlat_alloced_=nlat
+  noq_alloced_ =noq
+  inisphed_=.false.
 
   return
   end subroutine create_cdiff_coefs
@@ -193,6 +220,11 @@ contains
     if(.not.initialized_) return
     deallocate(coef)
     initialized_=.false.
+    inisphed_=.false.
+
+    nlon_alloced_=-1
+    nlat_alloced_=-1
+    noq_alloced_ =-1
 
     return
   end subroutine destroy_cdiff_coefs
@@ -228,7 +260,7 @@ contains
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use constants, only: ione,zero
+  use constants, only: zero
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -240,15 +272,15 @@ contains
   integer(i_kind) nxh,nxa,lacox2,lbcox2,lacox1,lbcox1,ny,i,j
   real(r_kind) polsu,polnu,polnv,polsv
   real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
-  real(r_kind),dimension(nlat-2_i_kind,nlon):: a,b,grid1,grid2,grid3,grid4
+  real(r_kind),dimension(nlat-2,nlon):: a,b,grid1,grid2,grid3,grid4
 
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
 
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -256,10 +288,10 @@ contains
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
   
   do j=1,nlon
-     do i=2,nlat-ione
+     do i=2,nlat-1
         a(i-1,j)=work1(i,j)
         b(i-1,j)=work2(i,j)
      end do
@@ -305,10 +337,10 @@ contains
 ! work 1 is u, work2 is v
   do j=1,nlon
      do i=1,nlat
-        if(i /= ione .and. i /= nlat)then
-           work1(i,j)=grid3(i-ione,j)
-           work2(i,j)=grid1(i-ione,j)
-        else if(i == ione)then
+        if(i /= 1 .and. i /= nlat)then
+           work1(i,j)=grid3(i-1,j)
+           work2(i,j)=grid1(i-1,j)
+        else if(i == 1)then
            work1(i,j)=grid3s(j)
            work2(i,j)=grid1s(j)
         else
@@ -335,6 +367,8 @@ contains
 ! program history log:
 !   2005-03-21  treadon
 !   2006-02-02  derber  - modify code around poles (no difference)
+!   2012-06-06  parrish - remove itotsub, ltosi, ltosj, etc. from subroutine uv2vordiv. Change work1,work2
+!                           dimensions from (itotsub) to (nlat,nlon)
 !
 !   input argument list:
 !     work1  - array containing the u component
@@ -349,28 +383,27 @@ contains
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use constants, only: ione,zero,one
-  use gridmod, only: iglobal,itotsub,ltosi,ltosj,ltosi_s,ltosj_s,&
-       nlon,nlat
+  use constants, only: zero,one
+  use gridmod, only: nlon,nlat
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(itotsub),intent(inout) :: work1,work2
+  real(r_kind),dimension(nlat,nlon),intent(inout) :: work1,work2
 
 ! Declare local variables  
-  integer(i_kind) kk,ni1,ni2,lacox1,nxa,lacox2,lbcox1,nxh,ny,nya
+  integer(i_kind) i,j,lacox1,nxa,lacox2,lbcox1,nxh,ny,nya
   integer(i_kind) nbp,lcy,lbcoy2,iy,ix,lacoy1,lbcox2,lacoy2,lbcoy1
   real(r_kind) rnlon,div_n,div_s,vor_n,vor_s
   real(r_kind),dimension(nlat-2,nlon):: u,v,&
        grid_div,grid_vor,du_dlat,du_dlon,dv_dlat,dv_dlon
 
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
 
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -378,7 +411,7 @@ contains
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
 
   do ix=1,nlon
      do iy=1,ny
@@ -395,12 +428,11 @@ contains
 
 
 ! Transfer u,v to local work arrays.  
-  do kk=1,iglobal
-     ni1=ltosi(kk); ni2=ltosj(kk)
-     if(ni1 /= ione .and. ni1 /= nlat)then
-        u(ni1-ione,ni2)=work1(kk)   ! work1 contains u on input
-        v(ni1-ione,ni2)=work2(kk)   ! work2 contains v on input
-     end if
+  do j=1,nlon
+     do i=2,nlat-1
+        u(i-1,j)=work1(i,j)   ! work1 contains u on input
+        v(i-1,j)=work2(i,j)   ! work2 contains v on input
+     end do
   end do
 
 ! Compute x derivative of u:  du_dlon = du/dlon
@@ -461,18 +493,15 @@ contains
   vor_n = vor_n*rnlon
   
 ! Transfer to output arrays
-  do kk=1,itotsub
-     ni1=ltosi_s(kk); ni2=ltosj_s(kk)
-     if(ni1 /= ione .and. ni1 /= nlat)then
-        work1(kk)=grid_vor(ni1-ione,ni2)
-        work2(kk)=grid_div(ni1-ione,ni2)
-     else if(ni1 == ione)then
-        work1(kk)=vor_s
-        work2(kk)=div_s
-     else
-        work1(kk)=vor_n
-        work2(kk)=div_n
-     end if
+  do j=1,nlon
+     do i=2,nlat-1
+        work1(i,j)=grid_vor(i-1,j)
+        work2(i,j)=grid_div(i-1,j)
+     end do
+     work1(1,j)=vor_s
+     work2(1,j)=div_s
+     work1(nlat,j)=vor_n
+     work2(nlat,j)=div_n
   enddo
 
   return
@@ -513,7 +542,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -526,8 +554,8 @@ end subroutine uv2vordiv
   integer(i_kind) nxhp,ix,iy,nxp,ix1,ix2
   real(r_kind),dimension(ny,nx):: v1,v2
 
-  nxhp=nxh+ione
-  nxp=nx+ione
+  nxhp=nxh+1
+  nxp=nx+1
 
 !  treat odd-symmetry component of input:
   do ix=1,nxh
@@ -588,7 +616,7 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
@@ -601,17 +629,17 @@ end subroutine uv2vordiv
   logical odd
   integer(i_kind) ix,iy,jix,ix1,iy1
 
-  odd=mod(ny,2)==ione
+  odd=mod(ny,2)==1
   do ix=1,n1x
      do iy=1,ny
         v2(iy,ix)=zero
      enddo
   enddo
   do jix=-nbh1,nbh2
-     do ix=max(ione,ione-jix),min(n1x,n2x-jix)
+     do ix=max(1,1-jix),min(n1x,n2x-jix)
         ix1=jix+ix
-        do iy=1,ny-ione,2
-           iy1=iy+ione
+        do iy=1,ny-1,2
+           iy1=iy+1
            v2(iy,ix )=v2(iy,ix )+a(ix,jix)*v1(iy,ix1)
            v2(iy1,ix)=v2(iy1,ix)+a(ix,jix)*v1(iy1,ix1)
         enddo
@@ -655,7 +683,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -667,7 +694,7 @@ end subroutine uv2vordiv
   integer(i_kind) jx,ix,iy,ix1
 
   do jx=1,nx
-     do ix=jx+ione,min(nx,jx+nbh1)
+     do ix=jx+1,min(nx,jx+nbh1)
         ix1=jx-ix
         do iy=1,ny
            v(iy,ix)=v(iy,ix)-a(ix,ix1)*v(iy,jx)
@@ -678,7 +705,7 @@ end subroutine uv2vordiv
      end do
   end do
   do jx=nx,2,-1
-     do ix=max(ione,jx-nbh2),jx-ione
+     do ix=max(1,jx-nbh2),jx-1
         ix1=jx-ix
         do iy=1,ny
            v(iy,ix)=v(iy,ix)-a(ix,ix1)*v(iy,jx)
@@ -722,7 +749,7 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
   use gridmod, only: sinlon,coslon,nlat,nlon
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed scalars, arrays
@@ -733,16 +760,16 @@ end subroutine uv2vordiv
   integer(i_kind) lacoy2,lbcoy2,lcy,iy,ix,i,j
   real(r_kind) polsu,polsv,polnu,polnv
   real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
-  real(r_kind),dimension(nlat-2_i_kind,nlon):: a,b,grid2,grid3,grid1,grid4
+  real(r_kind),dimension(nlat-2,nlon):: a,b,grid2,grid3,grid1,grid4
 
 
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -750,14 +777,14 @@ end subroutine uv2vordiv
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
   
   do j=1,nlon
      do i=1,nlat
-        if(i /= ione .and. i /= nlat)then
-           grid3(i-ione,j)=work1(i,j)
-           grid1(i-ione,j)=work2(i,j)
-        else if(i == ione)then
+        if(i /= 1 .and. i /= nlat)then
+           grid3(i-1,j)=work1(i,j)
+           grid1(i-1,j)=work2(i,j)
+        else if(i == 1)then
            grid3s(j)=work1(i,j)
            grid1s(j)=work2(i,j)
         else
@@ -818,10 +845,10 @@ end subroutine uv2vordiv
 
   do j=1,nlon
      do i=1,nlat
-        if(i /= ione .and. i /= nlat)then
+        if(i /= 1 .and. i /= nlat)then
 !          NOTE:  Adjoint of first derivative is its negative
-           work1(i,j)=-a(i-ione,j)
-           work2(i,j)=-b(i-ione,j)
+           work1(i,j)=-a(i-1,j)
+           work2(i,j)=-b(i-1,j)
         else
            work1(i,j)=zero
            work2(i,j)=zero
@@ -866,7 +893,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -880,7 +906,7 @@ end subroutine uv2vordiv
   real(r_kind),dimension(ny,nx):: v1,v2
 
   nxh=nx/2
-  nxhp=nxh+ione
+  nxhp=nxh+1
 
 !  treat odd-symmetry component of input:
   do ix=1,nxh
@@ -940,7 +966,7 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Declare passed variables
@@ -959,7 +985,7 @@ end subroutine uv2vordiv
   enddo
   do ix=1,nx
      do jiy=-nbh1,nbh2
-        do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
+        do iy=max(1,1-jiy),min(n1y,n2y-jiy)
            v2(iy,ix)=v2(iy,ix)+a(iy,jiy)*v1(jiy+iy,ix)
         enddo
      end do
@@ -1001,7 +1027,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -1013,11 +1038,11 @@ end subroutine uv2vordiv
   logical odd
   integer(i_kind) jy,iy,ix,ix1
 
-  odd = mod(nx,2)==ione
-  do ix=1,nx-ione,2
-     ix1=ix+ione
+  odd = mod(nx,2)==1
+  do ix=1,nx-1,2
+     ix1=ix+1
      do jy=1,ny
-        do iy=jy+ione,min(ny,jy+nbh1)
+        do iy=jy+1,min(ny,jy+nbh1)
            v(iy,ix) =v(iy,ix) -a(iy,jy-iy)*v(jy,ix)
            v(iy,ix1)=v(iy,ix1)-a(iy,jy-iy)*v(jy,ix1)
         enddo
@@ -1025,7 +1050,7 @@ end subroutine uv2vordiv
         v(jy,ix1)=a(jy,0)*v(jy,ix1)
      end do
      do jy=ny,2,-1
-        do iy=max(ione,jy-nbh2),jy-ione
+        do iy=max(1,jy-nbh2),jy-1
            v(iy,ix) =v(iy,ix) -a(iy,jy-iy)*v(jy,ix)
            v(iy,ix1)=v(iy,ix1)-a(iy,jy-iy)*v(jy,ix1)
         enddo
@@ -1034,13 +1059,13 @@ end subroutine uv2vordiv
   if (odd) then
      ix=nx
      do jy=1,ny
-        do iy=jy+ione,min(ny,jy+nbh1)
+        do iy=jy+1,min(ny,jy+nbh1)
            v(iy,ix)=v(iy,ix)-a(iy,jy-iy)*v(jy,ix)
         enddo
         v(jy,ix)=a(jy,0)*v(jy,ix)
      end do
      do jy=ny,2,-1
-        do iy=max(ione,jy-nbh2),jy-ione
+        do iy=max(1,jy-nbh2),jy-1
            v(iy,ix)=v(iy,ix)-a(iy,jy-iy)*v(jy,ix)
         enddo
      enddo
@@ -1083,7 +1108,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -1097,7 +1121,7 @@ end subroutine uv2vordiv
   real(r_kind),dimension(ny,nx):: v1,v2
 
   nxh=nx/2
-  nxhp=nxh+ione
+  nxhp=nxh+1
   do ix=1,nxh
      ix1=nxh+ix
      do iy=1,ny
@@ -1156,7 +1180,6 @@ end subroutine uv2vordiv
 !   language: f90
 !   machine:  ibm rs/6000 sp
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -1168,12 +1191,12 @@ end subroutine uv2vordiv
   logical odd
   integer(i_kind) iy,jy,ix,ix1
 
-  odd = mod(nx,2)==ione
+  odd = mod(nx,2)==1
 
-  do ix=1,nx-ione,2
-     ix1=ix+ione
+  do ix=1,nx-1,2
+     ix1=ix+1
      do iy=1,ny
-        do jy=iy+ione,min(ny,iy+nbh2)
+        do jy=iy+1,min(ny,iy+nbh2)
            v(jy,ix) =v(jy,ix) -v(iy,ix) *a(iy,jy-iy)
            v(jy,ix1)=v(jy,ix1)-v(iy,ix1)*a(iy,jy-iy)
         enddo
@@ -1182,7 +1205,7 @@ end subroutine uv2vordiv
      enddo
 
      do iy=ny,2,-1
-        do jy=max(ione,iy-nbh1),iy-ione
+        do jy=max(1,iy-nbh1),iy-1
            v(jy,ix) =v(jy,ix) -v(iy,ix) *a(iy,jy-iy)
            v(jy,ix1)=v(jy,ix1)-v(iy,ix1)*a(iy,jy-iy)
         enddo
@@ -1192,13 +1215,13 @@ end subroutine uv2vordiv
   if (odd) then
      ix=nx
      do iy=1,ny
-        do jy=iy+ione,min(ny,iy+nbh2)
+        do jy=iy+1,min(ny,iy+nbh2)
            v(jy,ix) =v(jy,ix) -v(iy,ix) *a(iy,jy-iy)
         enddo
         v(iy,ix) =v(iy,ix) *a(iy,0)
      end do
      do iy=ny,2,-1
-        do jy=max(ione,iy-nbh1),iy-ione
+        do jy=max(1,iy-nbh1),iy-1
            v(jy,ix) =v(jy,ix) -v(iy,ix) *a(iy,jy-iy)
         enddo
      end do
@@ -1239,7 +1262,7 @@ end subroutine uv2vordiv
 !   machine:  ibm rs/6000 sp
 !$$$
 
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
 ! Delcare passed variables
@@ -1260,7 +1283,7 @@ end subroutine uv2vordiv
 
   do ix=1,nx
      do jiy=-nbh1,nbh2
-        do iy=max(ione,ione-jiy),min(n1y,n2y-jiy)
+        do iy=max(1,1-jiy),min(n1y,n2y-jiy)
            jy=jiy+iy
            aij=a(iy,jiy)
            v2(jy,ix)=v2(jy,ix)+v1(iy,ix)*aij
@@ -1306,27 +1329,45 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero,half,one,two,pi
+  use constants, only: zero,half,one,two,pi
   use gridmod, only: nlat
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                  ,intent(in   ) :: nx,ny
-  real(r_kind)                     ,intent(in   ) :: r
-  real(r_kind),dimension(nlat-ione),intent(in   ) :: tau,yor
+  integer(i_kind)               ,intent(in   ) :: nx,ny
+  real(r_kind)                  ,intent(in   ) :: r
+  real(r_kind),dimension(nlat-1),intent(in   ) :: tau,yor
   
 ! Declare local variables
   integer(i_kind) nxh,nbp,nya,nxa,lbcox1,lacox1,ltaui,lbcox2
   integer(i_kind) lacoy1,lacox2,lbcoy1,lcy,lacoy2,lbcoy2,i,ix,ltau,iy
   real(r_kind) pih,pi2onx,ri
-  real(r_kind),dimension(max(nx/2,ny+2_i_kind)+16_i_kind+52*(noq+5_i_kind)+32*(noq+5_i_kind)**2):: w
+  real(r_kind),dimension(max(nx/2,ny+2)+16+52*(noq+5)+32*(noq+5)**2):: w
+
+  character(len=*),parameter :: myname_='compact_diffs.inisph'
+
+  if(.not.initialized_) call die(myname_,'coef not created')
+  if( nlon_alloced_ /= nx		.or. &
+      nlat_alloced_ /= ny+2	.or. &
+      noq_alloced_  /= noq	) then
+    call perr(myname_,'mismatching dimensions')
+    call perr(myname_,'nlon_alloced_ =',nlon_alloced_)
+    call perr(myname_,'nlon(nx) =',nx)
+    call perr(myname_,'nlat_alloced_ =',nlat_alloced_)
+    call perr(myname_,'nlat(ny+2) =',ny)
+    call perr(myname_,'noq_alloced_ =',noq_alloced_)
+    call perr(myname_,'noq =',noq)
+    call die(myname_)
+  endif
+
+  inisphed_=.true.
 
 ! Set parameters for calls to subsequent routines  
   nxh=nx/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -1334,7 +1375,7 @@ end subroutine uv2vordiv
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
   ltau  =lcy   +ny
   ltaui =ltau  +ny
   coef = zero
@@ -1364,13 +1405,13 @@ end subroutine uv2vordiv
   pih=pi/two
   pi2onx=pi/float(nxh)
   do ix=1,nxh
-     coef(lacoy1+ix-ione)=(float(ix)-half)*pi2onx
+     coef(lacoy1+ix-1)=(float(ix)-half)*pi2onx
   enddo
 
   call cdcoef(nxh,noq,zero,pi,coef(lacoy1),w&
        ,coef(lacox1),coef(lbcox1),coef(lacox2),coef(lbcox2)&
        ,nxh,nxh,nxh,nxh)
-  do i=0,nxa-ione
+  do i=0,nxa-1
      coef(lbcox1+i)=coef(lbcox1+i)*ri
      coef(lbcox2+i)=coef(lbcox2+i)*ri
   enddo
@@ -1378,7 +1419,7 @@ end subroutine uv2vordiv
   call cdcoef(ny,noq,-pih,pih,yor,w&
        ,coef(lacoy1),coef(lbcoy1),coef(lacoy2),coef(lbcoy2)&
        ,ny,ny,ny,ny)
-  do i=0,nya-ione
+  do i=0,nya-1
      coef(lbcoy1+i)=coef(lbcoy1+i)*ri
      coef(lbcoy2+i)=coef(lbcoy2+i)*ri
   enddo
@@ -1435,14 +1476,14 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero,two
+  use constants, only: zero,two
   implicit none
 
 ! Declare passed variables  
   integer(i_kind)                     ,intent(in   ) :: nh,noq,na1,nb1,na2,nb2
   real(r_kind)                        ,intent(in   ) :: zlim1,zlim2
   real(r_kind),dimension(*)           ,intent(in   ) :: z
-  real(r_kind),dimension(ione-noq:*)  ,intent(inout) :: work
+  real(r_kind),dimension(1-noq:*)     ,intent(inout) :: work
   real(r_kind),dimension(na1,-noq:noq),intent(  out) :: aco1
   real(r_kind),dimension(nb1,-noq:noq),intent(  out) :: bco1
   real(r_kind),dimension(na2,-noq:noq),intent(  out) :: aco2
@@ -1465,13 +1506,13 @@ end subroutine uv2vordiv
 
 ! Load work array
   do i=1,noq
-     work(ione-i)=two*zlim1-work(i)
-     work(nh+i  )=two*zlim2-work(nh+ione-i)
+     work(1 -i)=two*zlim1-work(i)
+     work(nh+i)=two*zlim2-work(nh+1-i)
   enddo
 
 ! Set local parameters
-  nohp=noq*2+ione
-  ka=nh+noq+ione
+  nohp=noq*2+1
+  ka=nh+noq+1
   kb=ka+nohp
   kw=kb+nohp
 
@@ -1481,15 +1522,15 @@ end subroutine uv2vordiv
      call dfcd(work(i-noq),work(i-noq),work(i),nohp,nohp&
           ,work(ka),work(kb),work(kw))
      do j=i-noq,i+noq
-        if(j<ione)then
-           ir=-ione
-           js=ione-j-i
+        if(j<1)then
+           ir=-1
+           js=1-j-i
         elseif(j>nh)then
-           js=n+ione-j-i
-           ir=-ione
+           js=n+1-j-i
+           ir=-1
         else
            js=j-i
-           ir=ione
+           ir=1
         endif
         aco1(i,js)=aco1(i,js)+	 work(ka+noq+j-i)
         bco1(i,js)=bco1(i,js)+ir*work(kb+noq+j-i)/two
@@ -1564,7 +1605,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
 ! Declare passed variables
@@ -1579,24 +1620,24 @@ end subroutine uv2vordiv
   
   nc=na+nb
   ncs=nc*nc
-  ncsp=ncs+ione
+  ncsp=ncs+1
   do j=1,na
-     iw=ione+(j-ione)*nc
+     iw=1+(j-1)*nc
      work(iw)=one
-     work(iw+ione)=zero
-     work(iw+2_i_kind)=one
+     work(iw+1)=zero
+     work(iw+2)=one
   enddo
   do j=1,nb
-     iw=ione+(j+na-ione)*nc
+     iw=1+(j+na-1)*nc
      work(iw)=zero
-     work(iw+ione)=one
+     work(iw+1)=one
   enddo
   do j=1,na
      z=za(j)-z0
      p=one
      do i=4,nc
         p=p*z
-        work(i+(j-ione)*nc)=p*(i-2_i_kind)
+        work(i+(j-1)*nc)=p*(i-2)
      enddo
   enddo
   do j=1,nb
@@ -1604,7 +1645,7 @@ end subroutine uv2vordiv
      p=one
      do i=3,nc
         p=p*z
-        work(i+(j+na-ione)*nc)=-p
+        work(i+(j+na-1)*nc)=-p
      enddo
   enddo
   work(ncsp)=one
@@ -1615,7 +1656,7 @@ end subroutine uv2vordiv
 ! Find the following routine qlinvmv (a linear equation solver) amongst
 ! all the other basic matrix routines (here, the double precision
 ! version is used).
-  call dlinvmm(work,work(ncsp),nc,ione,nc,nc)
+  call dlinvmm(work,work(ncsp),nc,1,nc,nc)
   do i=1,na
      a(i)=work(ncs+i)
   enddo
@@ -1660,7 +1701,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
 ! Declare passed variables
@@ -1674,7 +1715,7 @@ end subroutine uv2vordiv
   do j=1,n
      imost=min(n,j+nbh1)
      jmost=min(n,j+nbh2)
-     jp=j+ione
+     jp=j+1
      ajj=a(j,0)
      if(ajj==zero)then
         write(6,*)'ALDUB:  ***ERROR***'
@@ -1737,7 +1778,7 @@ end subroutine uv2vordiv
   real(r_kind),dimension(nb,*),intent(inout) :: b  
 
 ! Declare local parameters
-  integer(i_kind),parameter:: nn = 500_i_kind
+  integer(i_kind),parameter:: nn = 500
 
 ! Declare local variables
   integer(i_kind),dimension(nn):: ipiv
@@ -1778,7 +1819,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
 ! Declare passed variables
@@ -1793,8 +1834,8 @@ end subroutine uv2vordiv
 
   d=one
   ipiv(m)=m
-  do j=1,m-ione
-     jp=j+ione
+  do j=1,m-1
+     jp=j+1
      abig=abs(a(j,j))
      ibig=j
      do i=jp,m
@@ -1816,7 +1857,7 @@ end subroutine uv2vordiv
      endif
      ajj=a(j,j)
      if(ajj==zero)then
-        jm=j-ione
+        jm=j-1
         write(6,*)'DLUFM:  ***ERROR***'
         write(6,'("DLUFM:  failure due to singular matrix,r, rank=",i3)') jm
         call stop2(64)
@@ -1863,7 +1904,6 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione
   implicit none
 
 ! Declare passed variables
@@ -1881,14 +1921,14 @@ end subroutine uv2vordiv
         l=ipiv(i)
         s=b(l,k)
         b(l,k)=b(i,k)
-        do j=1,i-ione
+        do j=1,i-1
            s=s-a(i,j)*b(j,k)
         enddo
         b(i,k)=s
      enddo
      do i=m,1,-1
         s=b(i,k)
-        do j=i+ione,m
+        do j=i+1,m
            s=s-a(i,j)*b(j,k)
         enddo
         b(i,k)=s/a(i,i)
@@ -1910,6 +1950,7 @@ end subroutine uv2vordiv
 ! program history log:
 !   2005-05-16  parrish
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing the scalar field
@@ -1924,7 +1965,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -1935,19 +1976,20 @@ end subroutine uv2vordiv
 
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat-2_i_kind,nlon):: work3,grid3
+  real(r_kind),dimension(nlat-2,nlon):: work3,grid3
   real(r_kind),dimension(nlon):: grid3n,grid3s
   real(r_kind) polnu,polnv,polsu,polsv
 
+  if(.not.inisphed_) call die('compact_dlon','coef not computed')
 
 ! Set parameters for calls to subsequent routines
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -1955,7 +1997,7 @@ end subroutine uv2vordiv
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
 
 
 ! Initialize output arrays to zero
@@ -1969,7 +2011,7 @@ end subroutine uv2vordiv
 ! Zero other work arrays.
   do j=1,nlon
      do i=1,ny
-        work3(i,j) = b(i+ione,j)
+        work3(i,j) = b(i+1,j)
         grid3(i,j) = zero
      end do
   end do
@@ -1998,10 +2040,10 @@ end subroutine uv2vordiv
         polsu=polsu+grid3(1 ,ix)*coslon(ix)
         polsv=polsv+grid3(1 ,ix)*sinlon(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid3n(ix)= polnu*coslon(ix)+polnv*sinlon(ix)
         grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
@@ -2018,7 +2060,7 @@ end subroutine uv2vordiv
      dbdx(1,j)=grid3s(j)
      dbdx(nlat,j)=grid3n(j)
      do i=1,ny
-        dbdx(i+ione,j) = grid3(i,j)
+        dbdx(i+1,j) = grid3(i,j)
      end do
   end do
   
@@ -2038,6 +2080,7 @@ end subroutine uv2vordiv
 !   2005-05-16  parrish
 !   2005-07-01  kleist, bug fix
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing existing contents to be accumulated to
@@ -2053,7 +2096,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2063,19 +2106,19 @@ end subroutine uv2vordiv
 
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat-2_i_kind,nlon):: work3,grid3
+  real(r_kind),dimension(nlat-2,nlon):: work3,grid3
   real(r_kind),dimension(nlon):: grid3n,grid3s
   real(r_kind) polnu,polnv,polsu,polsv
 
 
 ! Set parameters for calls to subsequent routines
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -2083,13 +2126,13 @@ end subroutine uv2vordiv
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
 
   do j=1,nlon
      grid3s(j)=dbdx(1,j)
      grid3n(j)=dbdx(nlat,j)
      do i=1,ny
-        grid3(i,j)=dbdx(i+ione,j) 
+        grid3(i,j)=dbdx(i+1,j) 
      end do
   end do
   if(.not.vector) then
@@ -2103,10 +2146,10 @@ end subroutine uv2vordiv
         polsu=polsu+coslon(ix)*grid3s(ix)
         polsv=polsv+sinlon(ix)*grid3s(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid3(ny,ix)=grid3(ny,ix)+coslon(ix)*polnu+sinlon(ix)*polnv
         grid3(1 ,ix)=grid3(1 ,ix)+coslon(ix)*polsu+sinlon(ix)*polsv
@@ -2135,7 +2178,7 @@ end subroutine uv2vordiv
   do j=1,nlon
      do i=1,ny
 !       NOTE:  Adjoint of first derivative is its negative
-        b(i+ione,j)=b(i+ione,j)-work3(i,j)
+        b(i+1,j)=b(i+1,j)-work3(i,j)
      end do
   end do
   
@@ -2156,6 +2199,7 @@ end subroutine uv2vordiv
 !   2005-05-16  parrish
 !   2005-07-01  kleist, bug fix
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing the scalar field
@@ -2171,7 +2215,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2182,19 +2226,20 @@ end subroutine uv2vordiv
 
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat-2_i_kind,nlon):: work2,grid4
+  real(r_kind),dimension(nlat-2,nlon):: work2,grid4
   real(r_kind),dimension(nlon)::grid4n,grid4s
   real(r_kind) polnu,polnv,polsu,polsv
 
+  if(.not.inisphed_) call die('compact_dlat','coef not computed')
 
 ! Set parameters for calls to subsequent routines
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -2202,7 +2247,7 @@ end subroutine uv2vordiv
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
 
 
 ! Initialize output arrays to zero
@@ -2216,7 +2261,7 @@ end subroutine uv2vordiv
 ! Zero other work arrays.
   do j=1,nlon
      do i=1,ny
-        work2(i,j) = b(i+ione,j)
+        work2(i,j) = b(i+1,j)
         grid4(i,j) = zero
      end do
   end do
@@ -2257,10 +2302,10 @@ end subroutine uv2vordiv
         polsu=polsu+grid4(1 ,ix)*sinlon(ix)
         polsv=polsv-grid4(1 ,ix)*coslon(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid4n(ix)=-polnu*sinlon(ix)+polnv*coslon(ix)
         grid4s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
@@ -2272,7 +2317,7 @@ end subroutine uv2vordiv
      dbdy(1,j)=grid4s(j)
      dbdy(nlat,j)=grid4n(j)
      do i=1,ny
-        dbdy(i+ione,j) = grid4(i,j)
+        dbdy(i+1,j) = grid4(i,j)
      end do
   end do
   
@@ -2292,6 +2337,7 @@ end subroutine uv2vordiv
 !   2005-05-16  parrish
 !   2005-07-01  kleist, bug and sign fixes
 !   2008-06-05  safford - rm unused vars
+!   2013-12-18  parrish - add factor of 2 to pole values to correct error
 !
 !   input argument list:
 !     "b"    - array containing existing contents to be accumulated to
@@ -2308,7 +2354,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use constants, only: ione,zero
+  use constants, only: zero,two
   use gridmod, only: nlon,nlat,sinlon,coslon
   implicit none
 
@@ -2318,19 +2364,19 @@ end subroutine uv2vordiv
 
   integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
   integer(i_kind) lbcoy2,lacoy2,iy,ix,i,j,lcy
-  real(r_kind),dimension(nlat-2_i_kind,nlon):: work2,grid4
+  real(r_kind),dimension(nlat-2,nlon):: work2,grid4
   real(r_kind),dimension(nlon)::grid4n,grid4s
   real(r_kind) polnu,polnv,polsu,polsv
 
 
 ! Set parameters for calls to subsequent routines
-  ny=nlat-2_i_kind
+  ny=nlat-2
   nxh=nlon/2
-  nbp=2*noq+ione
+  nbp=2*noq+1
   nya=ny*nbp
   nxa=nxh*nbp
   
-  lacox1=ione
+  lacox1=1
   lbcox1=lacox1+nxa
   lacox2=lbcox1+nxa
   lbcox2=lacox2+nxa
@@ -2338,13 +2384,13 @@ end subroutine uv2vordiv
   lbcoy1=lacoy1+nya
   lacoy2=lbcoy1+nya
   lbcoy2=lacoy2+nya
-  lcy   =lbcoy2+nya-ione
+  lcy   =lbcoy2+nya-1
 
   do j=1,nlon
      grid4s(j)=dbdy(1,j)
      grid4n(j)=dbdy(nlat,j)
      do i=1,ny
-        grid4(i,j)=dbdy(i+ione,j) 
+        grid4(i,j)=dbdy(i+1,j) 
      end do
   end do
   if(vector) then
@@ -2369,10 +2415,10 @@ end subroutine uv2vordiv
         polsu=polsu+sinlon(ix)*grid4s(ix)
         polsv=polsv-coslon(ix)*grid4s(ix)
      end do
-     polnu=polnu/float(nlon)
-     polnv=polnv/float(nlon)
-     polsu=polsu/float(nlon)
-     polsv=polsv/float(nlon)
+     polnu=two*polnu/float(nlon)
+     polnv=two*polnv/float(nlon)
+     polsu=two*polsu/float(nlon)
+     polsv=two*polsv/float(nlon)
      do ix=1,nlon
         grid4(ny,ix)=grid4(ny,ix)-sinlon(ix)*polnu+coslon(ix)*polnv
         grid4(1 ,ix)=grid4(1 ,ix)+sinlon(ix)*polsu-coslon(ix)*polsv
@@ -2398,7 +2444,7 @@ end subroutine uv2vordiv
   do j=1,nlon
      do i=1,ny
 !       NOTE:  Adjoint of first derivative is its negative
-        b(i+ione,j)=b(i+ione,j)-work2(i,j)   !????/check this in particular
+        b(i+1,j)=b(i+1,j)-work2(i,j)   !????/check this in particular
      end do
   end do
   
@@ -2545,7 +2591,7 @@ end subroutine uv2vordiv
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: ione,zero
+    use constants, only: zero
     use gridmod, only: nlon, nlat
     implicit none
 
@@ -2554,16 +2600,16 @@ end subroutine uv2vordiv
 
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
-    real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,grid1,grid2
+    real(r_kind),dimension(nlat-2,nlon):: work1,grid1,grid2
 
 ! Set parameters for calls to subsequent routines
-    ny=nlat-2_i_kind
+    ny=nlat-2
     nxh=nlon/2
-    nbp=2*noq+ione
+    nbp=2*noq+1
     nya=ny*nbp
     nxa=nxh*nbp
 
-    lacox1=ione
+    lacox1=1
     lbcox1=lacox1+nxa
     lacox2=lbcox1+nxa
     lbcox2=lacox2+nxa
@@ -2571,7 +2617,7 @@ end subroutine uv2vordiv
     lbcoy1=lacoy1+nya
     lacoy2=lbcoy1+nya
     lbcoy2=lacoy2+nya
-    lcy   =lbcoy2+nya-ione
+    lcy   =lbcoy2+nya-1
 
 ! Initialize output arrays to zero
     do j=1,nlon
@@ -2585,7 +2631,7 @@ end subroutine uv2vordiv
 ! Zero other work arrays.
     do j=1,nlon
        do i=1,ny
-          work1(i,j) = a(i+ione,j)
+          work1(i,j) = a(i+1,j)
           grid1(i,j)=zero
           grid2(i,j)=zero
        end do
@@ -2611,8 +2657,8 @@ end subroutine uv2vordiv
 ! Load results into ouptut arrays
     do j=1,nlon
        do i=1,ny
-          dadx(i+ione,j) = grid1(i,j)
-          dady(i+ione,j) = grid2(i,j)
+          dadx(i+1,j) = grid1(i,j)
+          dady(i+1,j) = grid2(i,j)
        end do
     end do
 
@@ -2644,7 +2690,7 @@ end subroutine uv2vordiv
 !
 !$$$ end documentation block
 
-    use constants, only: ione,zero
+    use constants, only: zero
     use gridmod, only: nlon, nlat
     implicit none
 
@@ -2653,16 +2699,16 @@ end subroutine uv2vordiv
 
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
-    real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,work2,grid1,grid2
+    real(r_kind),dimension(nlat-2,nlon):: work1,work2,grid1,grid2
 
 ! Set parameters for calls to subsequent routines
-    ny=nlat-2_i_kind
+    ny=nlat-2
     nxh=nlon/2
-    nbp=2*noq+ione
+    nbp=2*noq+1
     nya=ny*nbp
     nxa=nxh*nbp
 
-    lacox1=ione
+    lacox1=1
     lbcox1=lacox1+nxa
     lacox2=lbcox1+nxa
     lbcox2=lacox2+nxa
@@ -2670,13 +2716,13 @@ end subroutine uv2vordiv
     lbcoy1=lacoy1+nya
     lacoy2=lbcoy1+nya
     lbcoy2=lacoy2+nya
-    lcy   =lbcoy2+nya-ione
+    lcy   =lbcoy2+nya-1
 
 ! Initialize output arrays to zero
     do j=1,nlon
        do i=1,ny
-          grid1(i,j) = dadx(i+ione,j)
-          grid2(i,j) = dady(i+ione,j)
+          grid1(i,j) = dadx(i+1,j)
+          grid2(i,j) = dady(i+1,j)
           work1(i,j)=zero
           work2(i,j)=zero
        end do
@@ -2703,7 +2749,7 @@ end subroutine uv2vordiv
     a=zero
     do j=1,nlon
        do i=1,ny
-          a(i+ione,j) = -work1(i,j)-work2(i,j)
+          a(i+1,j) = -work1(i,j)-work2(i,j)
        end do
     end do
 
@@ -2735,7 +2781,7 @@ end subroutine uv2vordiv
 !
 !$$$ end documentation block
 
-    use constants, only: ione,zero
+    use constants, only: zero
     use gridmod, only: nlon,nlat
     implicit none
 
@@ -2744,16 +2790,16 @@ end subroutine uv2vordiv
 
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
-    real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,work2,grid1,grid2
+    real(r_kind),dimension(nlat-2,nlon):: work1,work2,grid1,grid2
 
 ! Set parameters for calls to subsequent routines
-    ny=nlat-2_i_kind
+    ny=nlat-2
     nxh=nlon/2
-    nbp=2*noq+ione
+    nbp=2*noq+1
     nya=ny*nbp
     nxa=nxh*nbp
 
-    lacox1=ione
+    lacox1=1
     lbcox1=lacox1+nxa
     lacox2=lbcox1+nxa
     lbcox2=lacox2+nxa
@@ -2761,7 +2807,7 @@ end subroutine uv2vordiv
     lbcoy1=lacoy1+nya
     lacoy2=lbcoy1+nya
     lbcoy2=lacoy2+nya
-    lcy   =lbcoy2+nya-ione
+    lcy   =lbcoy2+nya-1
 
 ! Initialize output arrays to zero
     do j=1,nlon
@@ -2774,8 +2820,8 @@ end subroutine uv2vordiv
 ! Zero other work arrays.
     do j=1,nlon
        do i=1,ny
-          work1(i,j) = uin(i+ione,j)
-          work2(i,j) = vin(i+ione,j)
+          work1(i,j) = uin(i+1,j)
+          work2(i,j) = vin(i+1,j)
           grid1(i,j)=zero
           grid2(i,j)=zero
        end do
@@ -2815,7 +2861,7 @@ end subroutine uv2vordiv
 ! Load results into ouptut arrays
     do j=1,nlon
        do i=1,ny
-          div(i+ione,j)=grid1(i,j)+grid2(i,j)
+          div(i+1,j)=grid1(i,j)+grid2(i,j)
        end do
     end do
 
@@ -2845,7 +2891,7 @@ end subroutine uv2vordiv
 !
 !$$$ end documentation block
 
-    use constants, only: ione,zero
+    use constants, only: zero
     use gridmod, only: nlat,nlon
     implicit none
     
@@ -2854,16 +2900,16 @@ end subroutine uv2vordiv
 
     integer(i_kind) ny,nxh,nbp,nya,nxa,lacox1,lbcox1,lacox2,lbcox2,lacoy1,lbcoy1
     integer(i_kind) lbcoy2,lacoy2,lcy,iy,ix,i,j
-    real(r_kind),dimension(nlat-2_i_kind,nlon):: work1,work2,grid1,grid2
+    real(r_kind),dimension(nlat-2,nlon):: work1,work2,grid1,grid2
 
 ! Set parameters for calls to subsequent routines
-    ny=nlat-2_i_kind
+    ny=nlat-2
     nxh=nlon/2
-    nbp=2*noq+ione
+    nbp=2*noq+1
     nya=ny*nbp
     nxa=nxh*nbp
 
-    lacox1=ione
+    lacox1=1
     lbcox1=lacox1+nxa
     lacox2=lbcox1+nxa
     lbcox2=lacox2+nxa
@@ -2871,14 +2917,14 @@ end subroutine uv2vordiv
     lbcoy1=lacoy1+nya
     lacoy2=lbcoy1+nya
     lbcoy2=lacoy2+nya
-    lcy   =lbcoy2+nya-ione
+    lcy   =lbcoy2+nya-1
 
 ! Transfer scalar input field to work array.
 ! Zero other work arrays.
     do j=1,nlon
        do i=1,ny
-          grid1(i,j) = ddiv(i+ione,j)
-          grid2(i,j) = ddiv(i+ione,j)
+          grid1(i,j) = ddiv(i+1,j)
+          grid2(i,j) = ddiv(i+1,j)
           work1(i,j) = zero
           work2(i,j) = zero
        end do
@@ -2921,8 +2967,8 @@ end subroutine uv2vordiv
 ! Load results into ouptut arrays
     do j=1,nlon
        do i=1,ny
-          ux(i+ione,j) = -work1(i,j)
-          vy(i+ione,j) = -work2(i,j)
+          ux(i+1,j) = -work1(i,j)
+          vy(i+1,j) = -work2(i,j)
        end do
     end do
 

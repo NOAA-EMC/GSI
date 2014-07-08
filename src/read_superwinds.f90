@@ -24,6 +24,14 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !   2006-02-24  derber  - modify to take advantage of convinfo module
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-17  safford - rm unused vars
+!   2010-09-08  parrish - remove subroutine check_rotate_wind.  This was a debug routine introduced when
+!                           the reference wind rotation angle was stored as an angle, beta_ref.  This field
+!                           had a discontinuity at the date line (180E), which resulted in erroneous wind
+!                           rotation angles for a small number of winds whose rotation angle was interpolated
+!                           from beta_ref values across the discontinuity.  This was fixed by replacing the
+!                           beta_ref field with cos_beta_ref, sin_beta_ref.
+!   2011-08-01  lueken  - add module use deter_sfc_mod
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     nread    - counter for all data on this pe
@@ -74,18 +82,18 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 !
 !$$$
   use kinds, only: r_kind,r_single,i_kind
-  use constants, only: deg2rad,rad2deg,izero,ione,zero,one,r60inv
+  use constants, only: deg2rad,rad2deg,zero,one,r60inv
   use gridmod, only: regional,nlat,nlon,tll2xy,rotate_wind_ll2xy,rlats,rlons
-  use gridmod, only: check_rotate_wind
   use convinfo, only: nconvtype,ctwind, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ioctype
+      ncmiter,ncgroup,ncnumgrp,icuse,ioctype
   use obsmod, only: iadate,offtime_data
   use gsi_4dvar, only: l4dvar,winlen,time_4dvar
+  use deter_sfc_mod, only: deter_sfc2
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
@@ -116,18 +124,18 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr=10_i_kind
-  maxobs=2e6_i_kind
-  nreal=21_i_kind
-  nchanl=izero
-  ilon=ione
-  ilat=2_i_kind
+  lnbufr=10
+  maxobs=2e6
+  nreal=21
+  nchanl=0
+  ilon=1
+  ilat=2
 
-  ikx = izero
+  ikx = 0
   do i=1,nconvtype
      if(trim(obstype) == trim(ioctype(i)))ikx=i
   end do
-  if(ikx == izero)then
+  if(ikx == 0)then
      write(6,*) ' READSUPERWIND: NO DATA REQUESTED'
      return
   end if
@@ -135,7 +143,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 
   
 ! Open, then read date from bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   rewind lnbufr
   read(lnbufr,end=1010,err=1010)ndata_in,iord_in,iuvw_in,nbar_in,iyref,imref,idref,ihref
   if(offtime_data) then
@@ -147,7 +155,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      idate5(2)=imref
      idate5(3)=idref
      idate5(4)=ihref
-     idate5(5)=izero
+     idate5(5)=0
      call w3fs21(idate5,minobs)          !  obs ref time in minutes relative to historic date
      call w3fs21(iadate,minan)           !  analysis ref time in minutes relative to historic date
 
@@ -163,7 +171,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   rstation_id=999._r_kind
   write(6,*)'READ_SUPERWINDS:  ndata_in,iord_in,iuvw_in,nbar_in =', &
        ndata_in,iord_in,iuvw_in,nbar_in
-  if(iord_in/=izero.or.iuvw_in/=2_i_kind.or.nbar_in/=2_i_kind) then
+  if(iord_in/=0.or.iuvw_in/=2.or.nbar_in/=2) then
      write(6,*)'READ_SUPERWINDS:  ***ERROR*** iord =',iord_in,' iuvw=',iuvw_in,' nbar=',nbar_in
      write(6,*)'  currently only able to do iord=0 (traditional superob), iuvw=2 (u,v only), and nbar=2'
      call stop2(97)
@@ -172,7 +180,7 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
   
 ! Loop to read in data
   do icount=1,ndata_in
-     nread=nread+2_i_kind
+     nread=nread+2
      read(lnbufr)suplon0,suplat0,suphgt,suptime0,supyhat,suprhat,supbigu,supid
 
      t4dv = toff + suptime0
@@ -194,12 +202,12 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      else
         dlat = dlat_earth
         dlon = dlon_earth
-        call grdcrd(dlat,ione,rlats,nlat,ione)
-        call grdcrd(dlon,ione,rlons,nlon,ione)
+        call grdcrd1(dlat,rlats,nlat,1)
+        call grdcrd1(dlon,rlons,nlon,1)
      endif
 
-     ndata=min(ndata+ione,maxobs)
-     nodata=min(nodata+ione,maxobs)
+     ndata=min(ndata+1,maxobs)
+     nodata=min(nodata+1,maxobs)
 
 !  rotate forward matrix to account for input u,v being in regional coordinate
 !
@@ -238,9 +246,9 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
      if(suprhat(2)<1.e-20_r_single)superrinv(2)=zero
      superrinv(1)=one
      usage = zero
-     if(icuse(ikx) < izero)usage=100._r_kind
-     if(ncnumgrp(ikx) > izero )then                     ! cross validation on
-        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-ione)usage=ncmiter(ikx)
+     if(icuse(ikx) < 0)usage=100._r_kind
+     if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
+        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
      end if
 
      call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
@@ -284,9 +292,6 @@ subroutine read_superwinds(nread,ndata,nodata,infile,obstype,lunout, &
 1010 continue
   close(lnbufr)
   deallocate(cdata_all)
-
-! Generate stats on regional wind rotation
-  if (regional) call check_rotate_wind('read_superwinds')
 
 ! End of routine
   return

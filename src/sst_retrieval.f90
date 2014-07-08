@@ -40,7 +40,7 @@ module sst_retrieval
   public :: finish_sst_retrieval
 
 ! Define parameters
-  integer(i_kind),parameter:: lnbufr = 12_i_kind
+  integer(i_kind),parameter:: lnbufr = 12
 
 ! Declare variables and arrays
   real(r_kind), dimension(0:1) :: e_ts,e_ta,e_qa
@@ -80,7 +80,7 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only: ione,one,half,ttp
+    use constants, only: one,half,ttp
     use gsi_io, only: lendian_in
     implicit none
 
@@ -106,7 +106,7 @@ contains
 
 !   Assign x cooridinate for SST dependent AVHRR radiance bias correction
     do i = 1, numt
-       x_bias_sst(i) =  ttp - one + real(i-ione)
+       x_bias_sst(i) =  ttp - one + real(i-1)
     enddo
 
 !   Assign error parameters for background (Ts, Ta, Qa)
@@ -119,10 +119,9 @@ contains
     e_ts(1) = 0.45_r_kind; e_ta(1) = 0.90_r_kind; e_qa(1) = 0.65_r_kind
   end subroutine setup_sst_retrieval
 
-  subroutine avhrr_sst_retrieval(obstype,csatid,nchanl,&
-       tnoise,varinv,ts5,sstnv,sstcu,temp,wmix,ts,tbc,obslat,obslon,zasat,&
-       dtime,dtp_avh,tlapchn,predterms,emissivity,pangs,tbcnob,tb_obs, & 
-       rad_diagsave,sfcpct,id_qc,nadir,ireal,ipchan,duse)
+  subroutine avhrr_sst_retrieval(csatid,nchanl,&
+       tnoise,varinv,ts5,sstnv,sstph,temp,wmix,ts,tbc,obslat,obslon,zasat,&
+       dtime,dtp_avh,pangs,tbcnob,tb_obs,dta,dqa,duse)
 !subprogram:    avhrr_sst_retrieval  compute sst retrieval from AVHRR radiances
 !   prgmmr: Xu Li, John Derber          org: w/nmc2     date: 04-12-29
 !
@@ -137,7 +136,6 @@ contains
 !   2008-04-11 safford - rm unused vars and uses
 !
 !   input argument list:
-!     obstype      - observation type
 !     nsig         - number of model layers
 !     csatid       - satellite id
 !     nchanl       - number of channels for instruments
@@ -145,7 +143,6 @@ contains
 !     varinv       - inverse error squared
 !     ts5          - sst used in Radiative transfer and first guess for SST retrieval
 !     sstnv        - navy sst retrieval
-!     sstcu        - ncep rtg sst analysis for the current day
 !     temp         - d(brightness temperature)/d(temperature)
 !     wmix         - d(brightness temperature)/d(mixing ratio)
 !     ts           - d(brightness temperature)/d(skin temperature)
@@ -155,10 +152,6 @@ contains
 !     iadate       - analysis time window (00, 06, 12, 18)
 !     dtime        - observed time distance from iadate
 !     dtp_avh      - night/day mode
-!     rad_diagsave - logical to switch on diagnostic output (.false.=no output)
-!     nadir        - number of FOV
-!     ireal        - rank of array diagbuf
-!     ipchan       - The first number (7) of elements in array diagbufchan 
 !
 !   output argument list:
 !
@@ -170,27 +163,24 @@ contains
     use radinfo, only: npred
     use gridmod, only: nsig
     use obsmod, only: iadate,rmiss_single
-    use constants, only: izero,ione,zero,one,tiny_r_kind,rad2deg,ttp,one_tenth
+    use constants, only: zero,one,tiny_r_kind,rad2deg,ttp,one_tenth
 
     implicit none
 
 !   Declare passed variables
-    integer(i_kind)                          , intent(in   ) :: nchanl,ireal,ipchan
-    integer(i_kind)                          , intent(in   ) :: nadir
+    integer(i_kind)                          , intent(in   ) :: nchanl
     real(r_kind),dimension(nchanl)           , intent(in   ) :: tnoise
-    real(r_kind),dimension(nchanl)           , intent(in   ) :: varinv,tbc,tb_obs,tbcnob,tlapchn
-    real(r_kind),dimension(nchanl)           , intent(in   ) :: emissivity
+    real(r_kind),dimension(nchanl)           , intent(in   ) :: varinv,tbc,tb_obs,tbcnob
     real(r_kind)                             , intent(in   ) :: obslat,obslon,pangs,zasat,dtime,ts5,&
-         sstnv,sstcu,dtp_avh
+         sstnv,dtp_avh
     real(r_kind),dimension(nchanl)           , intent(in   ) :: ts
     real(r_kind),dimension(nsig,nchanl)      , intent(in   ) :: wmix,temp
-    real(r_kind),dimension(npred+ione,nchanl), intent(in   ) :: predterms
-    character(10)                            , intent(in   ) :: obstype,csatid
-    logical                                  , intent(in   ) :: rad_diagsave
+    character(10)                            , intent(in   ) :: csatid
     logical                                  , intent(in   ) :: duse
+    real(r_kind)                             , intent(  out) :: sstph,dta,dqa
 
 !   Declare local parameters
-    integer(i_kind),parameter:: nmsg=11_i_kind
+    integer(i_kind),parameter:: nmsg=11
     character(len=8), parameter :: subset='NC012017'
     real(r_kind),parameter:: r180=180.0_r_kind
     real(r_kind),parameter:: r360=360.0_r_kind
@@ -198,37 +188,21 @@ contains
 !   Declare local variables
     real(r_kind) :: ws,wa,wq,errinv
     integer(i_kind) :: icount,idate,md,ch3,ch4,ch5,iret,nn,i,j,l
-    integer(i_kind) :: iextra,jextra
     real(r_kind), dimension(nchanl) :: tb_ta,tb_qa
     real(r_kind), dimension(nchanl) :: w_avh
     real(r_kind) :: delt,delt1,delt2,delt3,c1x,c2x,c3x
     real(r_kind) :: a11,a12,a13,a23,a22,a33
     real(r_kind) :: bt3,bt4,bt5,varrad,rsat
     real(r_kind) :: nuse
-    logical :: lextra
 
 !   Declare local arrays
-    real(r_kind) :: sstph,dsst,dqa,dta
+    real(r_kind) :: dsst
     integer(i_kind),dimension(8) :: idat8,jdat8
     real(r_kind), dimension(5) :: rinc
-    real(r_kind), dimension(4) :: sfcpct
     real(r_kind), dimension(nmsg) :: bufrf
-    integer(i_kind),dimension(nchanl):: id_qc
     
-    real(r_single),dimension(ireal) :: diagbuf
-    real(r_single),dimension(ipchan+npred+ione,nchanl) ::diagbufchan
-    real(r_single),allocatable,dimension(:,:) :: diagbufex
 
-    ch3=ione;ch4=2_i_kind;ch5=3_i_kind
-    lextra=.false.
-    iextra=izero
-    jextra=izero
-    if(obstype == 'avhrr' .or. obstype == 'avhrr_navy')then
-       lextra=.true.
-       iextra=3_i_kind
-       jextra=nchanl
-    end if
-    allocate (diagbufex(iextra,jextra))
+    ch3=1;ch4=2;ch5=3
 !**********************************
 ! Get tb_ta & tb_qa
 !**********************************
@@ -253,9 +227,9 @@ contains
 
 !      Get day/night mode
        if ( dtp_avh /= 152.0_r_kind ) then
-          md = izero                 ! Day time
+          md = 0                 ! Day time
        else
-          md = ione                  ! Night time
+          md = 1                  ! Night time
        endif
 
        ws = one/e_ts(md)**2
@@ -268,14 +242,14 @@ contains
 
        a12 = zero; a13 = zero; a23 = zero
        c1x = zero; c2x = zero; c3x = zero
-       delt1 = zero; delt = one; icount = izero
+       delt1 = zero; delt = one; icount = 0
 
        do l=1,nchanl
 
 !         Get coefficients for linear equations
           if (varinv(l) > tiny_r_kind) then
 
-             icount = icount+ione
+             icount = icount+1
 
              w_avh(l) = (one/tnoise(l))**2
 
@@ -296,8 +270,8 @@ contains
        end do               ! do l=1,nchanl
 
 !      Solve linear equations with three unknowns (dsst, dta, dqa)
-       if( (dtp_avh == 152._r_kind .and. icount > 2_i_kind ) .or. &
-           (dtp_avh /= 152._r_kind .and. icount > ione   ) ) then
+       if( (dtp_avh == 152._r_kind .and. icount > 2 ) .or. &
+           (dtp_avh /= 152._r_kind .and. icount > 1 ) ) then
         
           delt  =  a11*(a22*a33-a23*a23) +  &
                    a12*(a13*a23-a12*a33) +  &
@@ -343,11 +317,11 @@ contains
           idat8(1) = iadate(1)              ! 4-digit year
           idat8(2) = iadate(2)              ! months of a year
           idat8(3) = iadate(3)              ! days of a month
-          idat8(4) = izero                  ! time zone
+          idat8(4) = 0                      ! time zone
           idat8(5) = iadate(4)              ! hours of a day
-          idat8(6) = izero                  ! minutes of a hour
-          idat8(7) = izero                  ! seconds
-          idat8(8) = izero                  ! milliseconds
+          idat8(6) = 0                      ! minutes of a hour
+          idat8(7) = 0                      ! seconds
+          idat8(8) = 0                      ! milliseconds
         
           rinc(1) = dtime/24._r_kind
           rinc(2) = zero
@@ -384,88 +358,9 @@ contains
 !       --------------------------
           idate=iadate(4)+iadate(3)*100+iadate(2)*10000+iadate(1)*1000000
           CALL OPENMB(lnbufr,subset,idate)
-          CALL UFBSEQ(lnbufr,bufrf,nmsg,ione,iret,subset)
+          CALL UFBSEQ(lnbufr,bufrf,nmsg,1,iret,subset)
           CALL WRITSB(lnbufr)
                                                                                                                                                              
-!         Save diagnostics at the satellite observation locations
-          if (rad_diagsave) then
-
-!            Write diagnostics to output file.  Only generate
-!            file on first outer iteration.
-             diagbuf(1)  = obslat                         ! observation latitude (degrees)
-             diagbuf(2)  = obslon                         ! observation longitude (degrees)
-             diagbuf(3)  = rmiss_single                   ! model (guess) elevation at observation location
-
-             diagbuf(4)  = dtime                          ! observation time (hours relative to analysis time)
-
-             diagbuf(5)  = nadir                          ! sensor scan position
-             diagbuf(6)  = zasat*rad2deg                  ! satellite zenith angle (degrees)
-             diagbuf(7)  = rmiss_single                   ! satellite azimuth angle (degrees)
-             diagbuf(8)  = pangs                          ! solar zenith angle (degrees)
-             diagbuf(9)  = rmiss_single                   ! solar azimuth angle (degrees)
-             diagbuf(10) = rmiss_single                   ! sun glint angle (degrees) (sgagl)
-
-             diagbuf(11) = sfcpct(1)                      ! fractional coverage by water
-             diagbuf(12) = sfcpct(2)                      ! fractional coverage by land
-             diagbuf(13) = sfcpct(3)                      ! fractional coverage by ice
-             diagbuf(14) = sfcpct(4)                      ! fractional coverage by snow
-             diagbuf(15) = ts5                            ! SST first guess used for SST retrieval
-             diagbuf(16) = sstcu                          ! NCEP SST analysis at t
-             diagbuf(17) = sstph                          ! Physical SST retrieval
-             diagbuf(18) = sstnv                          ! Navy SST retrieval
-             diagbuf(19) = dta                            ! d(ta) corresponding to sstph
-             diagbuf(20) = dqa                            ! d(qa) corresponding to sstph
-             diagbuf(21) = dtp_avh                        ! data type
-             diagbuf(22) = rmiss_single                   ! vegetation fraction
-             diagbuf(23) = rmiss_single                   ! snow depth
-             diagbuf(24) = rmiss_single                   ! surface wind speed (m/s)
-
-
-!            Note:  The following quantities are not computed for all sensors
-             diagbuf(25)  = rmiss_single                  ! cloud fraction (%)
-             diagbuf(26)  = rmiss_single                  ! cloud top pressure (hPa)
-
-
-             do i=1,nchanl
-                diagbufchan(1,i)=tb_obs(i)       ! observed brightness temperature (K)
-                diagbufchan(2,i)=tbc(i)          ! final observed minus simulated difference (K)
-                diagbufchan(3,i)=tbcnob(i)       ! initial observed minus simulated difference (K)
-                errinv = sqrt(varinv(i))
-                diagbufchan(4,i)=errinv          ! inverse observation error
-                diagbufchan(5,i)=id_qc(i)        ! quality control mark or event
-                diagbufchan(6,i)=emissivity(i)   ! surface emissivity
-                diagbufchan(7,i)=tlapchn(i)      ! stability index
-
-                if ( nn == ione .and. varinv(nn) == zero ) then
-                   diagbufchan(1,nn) = rmiss_single                   
-                   diagbufchan(2,nn) = rmiss_single                  
-                   diagbufchan(3,nn) = rmiss_single                 
-                   diagbufchan(4,nn) = rmiss_single                
-                   diagbufchan(5,nn) = rmiss_single               
-                   diagbufchan(6,nn) = rmiss_single              
-                   diagbufchan(7,nn) = rmiss_single              
-                endif
-              
-                do j=1,npred+ione
-                   diagbufchan(7_i_kind+j,i)=predterms(j,i) ! brightness temperature bias correction terms (K)
-                end do
-              
-                if (lextra) then
-                   do nn=1,nchanl
-                      diagbufex(1,nn)=ts(nn)              ! d(Tb)/d(Ts)
-                      diagbufex(2,nn)=tb_ta(nn)           ! d(Tb)/d(Ta)
-                      diagbufex(3,nn)=tb_qa(nn)           ! d(Tb)/d(Qa)
-                   end do
-                endif
-
-             end do
-             if (.not.lextra) then
-                write(4) diagbuf,diagbufchan
-             else
-                write(4) diagbuf,diagbufchan,diagbufex
-             endif
-
-          end if              ! if (rad_diagsave) then
        end if                 ! if( (dtp_avh == 152. .and. icount > 2 ) .or. &
     end if                   ! if(duse) then 
 
@@ -497,7 +392,7 @@ contains
 !
 !$$$ end documentation block
 
-    use constants, only: ione,zero,half,one,two,three
+    use constants, only: zero,half,one,two,three
 
     implicit none
 
@@ -514,41 +409,41 @@ contains
     if ( xs < x_bias_sst(1) )    xs = x_bias_sst(1)
     if ( xs > x_bias_sst(numt) ) xs = x_bias_sst(numt)
 
-    do i = 1, numt - ione
-       g(i) = one/(x_bias_sst(i+ione) - x_bias_sst(i))
+    do i = 1, numt - 1
+       g(i) = one/(x_bias_sst(i+1) - x_bias_sst(i))
     enddo
 
     a(1) = half
-    do i = 2, numt - ione
-       a(i) = g(i)/(two*(g(i-ione)+g(i)) - a(i-ione)*g(i-ione))
+    do i = 2, numt - 1
+       a(i) = g(i)/(two*(g(i-1)+g(i)) - a(i-1)*g(i-1))
     enddo
     
     d(1) = 1.5_r_kind*(y(2) - y(1))/(x_bias_sst(2) - x_bias_sst(1))
-    do i = 2, numt - ione
-       d(i) = (three*(g(i-ione)*(y(i)-y(i-ione))/(x_bias_sst(i)-x_bias_sst(i-ione))+g(i)*(y(i+ione)-y(i))/(x_bias_sst(i+ione)-x_bias_sst(i))) &
-            -g(i-ione)*d(i-ione))/(two*(g(i-ione)+g(i))-g(i-ione)*a(i-ione))
+    do i = 2, numt - 1
+       d(i) = (three*(g(i-1)*(y(i)-y(i-1))/(x_bias_sst(i)-x_bias_sst(i-1))+g(i)*(y(i+1)-y(i))/(x_bias_sst(i+1)-x_bias_sst(i))) &
+            -g(i-1)*d(i-1))/(two*(g(i-1)+g(i))-g(i-1)*a(i-1))
     enddo
     
-    m(numt) = (three*(y(numt)-y(numt-ione))/(x_bias_sst(numt)-x_bias_sst(numt-ione)) - g(numt-ione)*d(numt-ione)) &
-         /(g(numt-ione)*(two-a(numt-ione)))
-    do i = numt-ione, 1, -1
-       m(i) = d(i) - a(i)*m(i+ione)
+    m(numt) = (three*(y(numt)-y(numt-1))/(x_bias_sst(numt)-x_bias_sst(numt-1)) - g(numt-1)*d(numt-1)) &
+         /(g(numt-1)*(two-a(numt-1)))
+    do i = numt-1, 1, -1
+       m(i) = d(i) - a(i)*m(i+1)
     enddo
     
     k(1) = zero
     k(numt) = zero
-    do i = 2, numt - ione
-       k(i) = 6.0_r_kind*g(i)*(y(i+ione)-y(i))/(x_bias_sst(i+ione)-x_bias_sst(i)) - two*g(i)*(two*m(i)+m(i+ione))
+    do i = 2, numt - 1
+       k(i) = 6.0_r_kind*g(i)*(y(i+1)-y(i))/(x_bias_sst(i+1)-x_bias_sst(i)) - two*g(i)*(two*m(i)+m(i+1))
     enddo
     
-    do j = 1, numt-ione
-       if ( xs >= x_bias_sst(j) .and. xs < x_bias_sst(j+ione) ) then
+    do j = 1, numt-1
+       if ( xs >= x_bias_sst(j) .and. xs < x_bias_sst(j+1) ) then
           i = j
        endif
     enddo
     
     ys = y(i)+m(i)*(xs-x_bias_sst(i))+half*k(i)*(xs-x_bias_sst(i))**2 &
-         + ((k(i+ione)-k(i))/((x_bias_sst(i+ione)-x_bias_sst(i))*6.0_r_kind))*(xs-x_bias_sst(i))**3
+         + ((k(i+1)-k(i))/((x_bias_sst(i+1)-x_bias_sst(i))*6.0_r_kind))*(xs-x_bias_sst(i))**3
     
   end subroutine spline_cub
 

@@ -12,6 +12,7 @@ module stppcpmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stppcp_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutines included:
 !   sub stppcp
@@ -29,8 +30,7 @@ PUBLIC  stppcp
 
 contains
 
-subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
-     out,sges,nstep)
+subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stppcp     compute contribution to penalty and
@@ -58,6 +58,13 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
 !   2008-06-02  safford - rm unused var and uses
 !   2008-12-03  todling - changed handling of ptr%time
 !   2009-01-26  todling - re-implement Tremolet's linearization for q1fy10
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-03-25  zhu     - use state_vector in the interface;
+!                       - add handlings of cw case; add pointer_state
+!   2010-05-13 todling  - update to use gsi_bundle
+!                       - on-the-spot handling of non-essential vars
+!   2010-09-25 todling  - fix linearization
+!   2011-11-01 eliu     - add handling for ql and qi increments 
 !
 !   input argument list:
 !     pcphead
@@ -65,12 +72,14 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
 !     rq       - search direction for moisture 
 !     ru       - search direction for zonal wind
 !     rv       - search direction for meridional wind
-!     rcwm     - search direction for cloud condensate mixing ratio
+!     rql      - search direction for cloud liquid water mixing ratio
+!     rqi      - search direction for cloud ice water mixing ratio
 !     st       - input temperature correction field
-!     sq       - input q correction field
-!     su       - input u correction field
-!     sv       - input v correction field
-!     scwm     - input cwm correction field
+!     sq       - input  q correction field
+!     su       - input  u correction field
+!     sv       - input  v correction field
+!     sql      - input ql correction field
+!     sqi      - input qi correction field
 !     sges     - step size estimates (nstep)
 !     nstep    - number of stepsizes  (==0 means use outer iteration values)
 !
@@ -85,23 +94,26 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   use kinds, only: r_kind,i_kind,r_quad
   use pcpinfo, only: b_pcp,pg_pcp,tinym1_obs
   use obsmod, only: pcp_ob_type
-  use constants, only: izero,ione,zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: zero,one,half,two,tiny_r_kind,cg_term,zero_quad,r3600
   use qcmod, only: nlnqc_iter,varqc_iter
   use gridmod, only: latlon11,nsig,latlon1n
   use gsi_4dvar, only: ltlint
   use jfunc, only: l_foto,xhat_dt,dhat_dt
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(pcp_ob_type),pointer              ,intent(in   ) :: pcphead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: rt,st,rq,sq,ru,su,&
-       rv,sv,rcwm,scwm
+  type(pcp_ob_type),pointer           ,intent(in   ) :: pcphead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  type(gsi_bundle),intent(in) :: dval
+  type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
-  integer(i_kind) n,ncwm,nq,nt,nu,nv,kx
+  logical:: lcld 
+  integer(i_kind) n,ncwm,nq,nt,nu,nv,kx,ier,istatus,icw,iql,iqi
   integer(i_kind) i,j1,j2,j3,j4,kk
   real(r_kind) dt,dt0,w1,w2,w3,w4,time_pcp
   real(r_kind) dq,dq0
@@ -109,19 +121,64 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
   real(r_kind) dv,dv0
   real(r_kind) dcwm,dcwm0
   real(r_kind) pcp_gest,pcp_ges0,pcp_ges,obsges,termges,termgtl,obsgtl
-  real(r_kind),dimension(max(ione,nstep)):: pen
-  real(r_kind) cg_pcp,wgross,wnotgross
+  real(r_kind),dimension(max(1,nstep)):: pen
+  real(r_kind) cg_pcp,wgross,wnotgross,pentl,pencur
   type(pcp_ob_type), pointer :: pcpptr
+  real(r_kind),pointer,dimension(:):: rt,st,rq,sq,ru,su,rv,sv,rcwm,scwm
+  real(r_kind),pointer,dimension(:):: rql,rqi,sql,sqi
+  real(r_kind),pointer,dimension(:):: xhat_dt_tsen,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_cw
+  real(r_kind),pointer,dimension(:):: dhat_dt_tsen,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_cw
 
 ! Initialize penalty, b1, and b3 to zero  
   out=zero_quad
+
+! If no  pcp data return
+  if(.not. associated(pcphead))return
+
+! Retrieve pointers
+  ier=0; icw=0; iql=0; iqi=0
+  call gsi_bundlegetpointer(xval,'u',    su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'v',    sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'tsen' ,st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'q',    sq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'cw', scwm,istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(xval,'ql',  sql,istatus);iql=istatus+iql
+  call gsi_bundlegetpointer(xval,'qi',  sqi,istatus);iqi=istatus+iqi
+  if(ier/=0)return
+
+  call gsi_bundlegetpointer(dval,'u',    ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'v',    rv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'tsen' ,rt,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'q',    rq,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'cw', rcwm,istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(dval,'ql',  rql,istatus);iql=istatus+iql
+  call gsi_bundlegetpointer(dval,'qi',  rqi,istatus);iqi=istatus+iqi
+  if(ier/=0)return
+
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'tsen',xhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'cw',    xhat_dt_cw,istatus);icw=istatus+icw
+     if(ier/=0)return
+
+     call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'cw',    dhat_dt_cw,istatus);icw=istatus+icw
+     if(ier/=0)return
+  endif
+
+  lcld = (icw==0 .or. (iql+iqi)==0)
 
 ! Loop over number of observations.
   pcpptr => pcphead
   do while(associated(pcpptr))
      if(pcpptr%luse)then
         pcp_ges0 = pcpptr%ges
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=pcpptr%ij(1)
            j2=pcpptr%ij(2)
            j3=pcpptr%ij(3)
@@ -139,35 +196,61 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
               dq  =w1*   sq(j1)+w2*   sq(j2)+ w3*   sq(j3)+w4*   sq(j4)
               du  =w1*   su(j1)+w2*   su(j2)+ w3*   su(j3)+w4*   su(j4)
               dv  =w1*   sv(j1)+w2*   sv(j2)+ w3*   sv(j3)+w4*   sv(j4)
-              dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
+              if (lcld) then
+                 if (icw==0) then
+                    dcwm=w1* scwm(j1)+w2* scwm(j2)+ w3* scwm(j3)+w4* scwm(j4)
+                 else
+                    dcwm=w1* (sql(j1)+sqi(j1))+ &
+                         w2* (sql(j2)+sqi(j2))+ &
+                         w3* (sql(j3)+sqi(j3))+ &
+                         w4* (sql(j4)+sqi(j4))
+                 end if
+              else
+                 dcwm=zero
+              endif
 
               dt0  =w1*   rt(j1)+w2*   rt(j2)+ w3*   rt(j3)+w4*   rt(j4)
               dq0  =w1*   rq(j1)+w2*   rq(j2)+ w3*   rq(j3)+w4*   rq(j4)
               du0  =w1*   ru(j1)+w2*   ru(j2)+ w3*   ru(j3)+w4*   ru(j4)
               dv0  =w1*   rv(j1)+w2*   rv(j2)+ w3*   rv(j3)+w4*   rv(j4)
-              dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
+
+              if (lcld) then
+                 if (icw==0) then
+                    dcwm0=w1* rcwm(j1)+w2* rcwm(j2)+ w3* rcwm(j3)+w4* rcwm(j4)
+                 else
+                    dcwm0=w1* (rql(j1)+rqi(j1))+ &
+                          w2* (rql(j2)+rqi(j2))+ &
+                          w3* (rql(j3)+rqi(j3))+ &
+                          w4* (rql(j4)+rqi(j4))
+                 end if
+	      else
+                 dcwm0=zero
+              endif
+
               if(l_foto) then
                  time_pcp=pcpptr%time*r3600
-                 dt=dt+(w1*  xhat_dt%tsen(j1)+w2*  xhat_dt%tsen(j2)+ &
-                        w3*  xhat_dt%tsen(j3)+w4*  xhat_dt%tsen(j4))*time_pcp
-                 dq=dq+(w1*  xhat_dt%q(j1)+w2*  xhat_dt%q(j2)+ &
-                        w3*  xhat_dt%q(j3)+w4*  xhat_dt%q(j4))*time_pcp
-                 du=du+(w1*  xhat_dt%u(j1)+w2*  xhat_dt%u(j2)+ &
-                        w3*  xhat_dt%u(j3)+w4*  xhat_dt%u(j4))*time_pcp
-                 dv=dv+(w1*  xhat_dt%v(j1)+w2*  xhat_dt%v(j2)+ &
-                        w3*  xhat_dt%v(j3)+w4*  xhat_dt%v(j4))*time_pcp
-                 dcwm=dcwm+(w1*xhat_dt%cw(j1)+w2*xhat_dt%cw(j2)+ &
-                            w3*xhat_dt%cw(j3)+w4*xhat_dt%cw(j4))*time_pcp
-                 dt0=dt0+(w1*  dhat_dt%tsen(j1)+w2*  dhat_dt%tsen(j2)+  &
-                          w3*  dhat_dt%tsen(j3)+w4*  dhat_dt%tsen(j4))*time_pcp
-                 dq0=dq0+(w1*  dhat_dt%q(j1)+w2*  dhat_dt%q(j2)+  &
-                          w3*  dhat_dt%q(j3)+w4*  dhat_dt%q(j4))*time_pcp
-                 du0=du0+(w1*  dhat_dt%u(j1)+w2*  dhat_dt%u(j2)+  &
-                          w3*  dhat_dt%u(j3)+w4*  dhat_dt%u(j4))*time_pcp
-                 dv0=dv0+(w1*  dhat_dt%v(j1)+w2*  dhat_dt%v(j2)+  &
-                          w3*  dhat_dt%v(j3)+w4*  dhat_dt%v(j4))*time_pcp
-                 dcwm0=dcwm0+(w1*dhat_dt%cw(j1)+w2*dhat_dt%cw(j2)+ &
-                              w3*dhat_dt%cw(j3)+w4*dhat_dt%cw(j4))*time_pcp
+                 dt=dt+(w1*  xhat_dt_tsen(j1)+w2*  xhat_dt_tsen(j2)+ &
+                        w3*  xhat_dt_tsen(j3)+w4*  xhat_dt_tsen(j4))*time_pcp
+                 dq=dq+(w1*  xhat_dt_q(j1)+w2*  xhat_dt_q(j2)+ &
+                        w3*  xhat_dt_q(j3)+w4*  xhat_dt_q(j4))*time_pcp
+                 du=du+(w1*  xhat_dt_u(j1)+w2*  xhat_dt_u(j2)+ &
+                        w3*  xhat_dt_u(j3)+w4*  xhat_dt_u(j4))*time_pcp
+                 dv=dv+(w1*  xhat_dt_v(j1)+w2*  xhat_dt_v(j2)+ &
+                        w3*  xhat_dt_v(j3)+w4*  xhat_dt_v(j4))*time_pcp
+                 if (icw==0) &
+                 dcwm=dcwm+(w1*xhat_dt_cw(j1)+w2*xhat_dt_cw(j2)+ &
+                            w3*xhat_dt_cw(j3)+w4*xhat_dt_cw(j4))*time_pcp
+                 dt0=dt0+(w1*  dhat_dt_tsen(j1)+w2*  dhat_dt_tsen(j2)+  &
+                          w3*  dhat_dt_tsen(j3)+w4*  dhat_dt_tsen(j4))*time_pcp
+                 dq0=dq0+(w1*  dhat_dt_q(j1)+w2*  dhat_dt_q(j2)+  &
+                          w3*  dhat_dt_q(j3)+w4*  dhat_dt_q(j4))*time_pcp
+                 du0=du0+(w1*  dhat_dt_u(j1)+w2*  dhat_dt_u(j2)+  &
+                          w3*  dhat_dt_u(j3)+w4*  dhat_dt_u(j4))*time_pcp
+                 dv0=dv0+(w1*  dhat_dt_v(j1)+w2*  dhat_dt_v(j2)+  &
+                          w3*  dhat_dt_v(j3)+w4*  dhat_dt_v(j4))*time_pcp
+                 if (icw==0) &
+                 dcwm0=dcwm0+(w1*dhat_dt_cw(j1)+w2*dhat_dt_cw(j2)+ &
+                              w3*dhat_dt_cw(j3)+w4*dhat_dt_cw(j4))*time_pcp
               end if
         
               nt=n; nq=nt+nsig; nu=nq+nsig; nv=nu+nsig; ncwm=nv+nsig
@@ -188,23 +271,34 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
               j4=j4+latlon11
 
            end do
-           do kk=1,nstep
-              pcp_ges = pcp_ges0 + sges(kk)*pcp_gest
+
+           if (ltlint) then
+              pcp_ges = pcp_ges0
 !             Logrithmic formulation.  Ensure pcp_ges > zero
               pcp_ges = max(pcp_ges,zero)
               termges = log(one+pcp_ges)
               obsges= pcpptr%obs - termges
-              pen(kk) = pcpptr%err2*obsges*obsges
-              if(ltlint)then
+              pencur = pcpptr%err2*obsges*obsges
+              do kk=1,nstep
                  if (pcp_ges>tinym1_obs) then
                     termgtl = pcp_gest/(one+pcp_ges)
                  else
                     termgtl = zero
                  endif
                  obsgtl= - termgtl
-                 pen(kk) =   pen(kk)+pcpptr%err2*obsges*obsgtl
-              end if
-           enddo
+                 pentl   = two*pcpptr%err2*obsges*obsgtl
+                 pen(kk) = pencur+sges(kk)*pentl
+              enddo
+           else
+              do kk=1,nstep
+                 pcp_ges = pcp_ges0 + sges(kk)*pcp_gest
+!                Logrithmic formulation.  Ensure pcp_ges > zero
+                 pcp_ges = max(pcp_ges,zero)
+                 termges = log(one+pcp_ges)
+                 obsges= pcpptr%obs - termges
+                 pen(kk) = pcpptr%err2*obsges*obsges
+              enddo
+           end if
 
         else
            pen(1)=pcpptr%err2*pcp_ges0*pcp_ges0
@@ -217,7 +311,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
            cg_pcp=cg_term/b_pcp(kx)
            wnotgross= one-pg_pcp(kx)*varqc_iter
            wgross = varqc_iter*pg_pcp(kx)*cg_pcp/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk)= -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
            end do
         endif
@@ -232,7 +326,7 @@ subroutine stppcp(pcphead,rt,rq,ru,rv,rcwm,st,sq,su,sv,scwm, &
      
      pcpptr => pcpptr%llpoint
   end do
-  
+ 
   return
 end subroutine stppcp
 

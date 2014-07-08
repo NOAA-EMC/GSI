@@ -18,6 +18,7 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 ! program history log:
 !   2004-06-22  parrish, document
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     gout     - input filled grid  (reorganized for distibution to local 
@@ -39,18 +40,18 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
 !
 !$$$
   use kinds, only: r_single,i_kind
-  use constants, only: ione
-  use gridmod, only: itotsub,ltosi,ltosj,ltosi_s,ltosj_s,iglobal
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj,ltosi_s,ltosj_s
   implicit none
   
   integer(i_kind), intent(in   ) :: nx,ny,igtype,iorder
   real(r_single) , intent(in   ) :: gout(itotsub)
   real(r_single) , intent(inout) :: gin(nx,ny)
   
-  real(r_single) b(2*nx-ione,ny)
+  real(r_single) b(2*nx-1,ny)
   integer(i_kind) i,j
   
-  if(iorder==ione)then
+  if(iorder==1)then
      do i=1,itotsub
         b(ltosj_s(i),ltosi_s(i))=gout(i)
      end do
@@ -60,26 +61,26 @@ subroutine unfill_nmm_grid2(gout,nx,ny,gin,igtype,iorder)
      end do
   endif
   
-  if(igtype==ione) then
+  if(igtype==1) then
      do j=1,ny,2
         do i=1,nx
-           gin(i,j)=gin(i,j)+b(2*i-ione,j)
+           gin(i,j)=gin(i,j)+b(2*i-1,j)
         end do
      end do
      do j=2,ny,2
-        do i=1,nx-ione
+        do i=1,nx-1
            gin(i,j)=gin(i,j)+b(2*i,j)
         end do
      end do
   else
      do j=1,ny,2
-        do i=1,nx-ione
+        do i=1,nx-1
            gin(i,j)=gin(i,j)+b(2*i,j)
         end do
      end do
      do j=2,ny,2
         do i=1,nx
-           gin(i,j)=gin(i,j)+b(2*i-ione,j)
+           gin(i,j)=gin(i,j)+b(2*i-1,j)
         end do
      end do
   end if

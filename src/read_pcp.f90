@@ -40,6 +40,9 @@
 !   2006-05-25  treadon - replace obstype "pcp_ssm/i" with "pcp_ssmi"
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-04-18  safford - rm unused vars
+!   2011-04-01  li      - update argument list to deter_sfc
+!   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -60,14 +63,16 @@
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
-  use constants, only: izero,ione,zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600
+  use constants, only: zero,deg2rad,tiny_r_kind,rad2deg,r60inv,r3600,r100
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
+  use obsmod, only: bmiss
 
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -75,7 +80,6 @@
   real(r_kind)    ,intent(in   ) :: twind
 
 ! Declare local parameters
-  real(r_kind),parameter:: r100=100.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
 
 ! Declare local variables
@@ -95,7 +99,6 @@
   real(r_kind) scli,sclw,dlon,dlat,scnt,sfcr
   real(r_kind) dlat_earth,dlon_earth
   real(r_kind) scnv,stdv,spcp,tdiff,sstime,t4dv
-  real(r_kind) bmiss
   real(r_kind),dimension(0:3)::sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
@@ -110,32 +113,31 @@
   data stramb5  / 'CLAT CLON REQV SNCV ICEP' /
 
 
-  data lnbufr /10_i_kind/
-  data bmiss / 10e10_r_kind /
+  data lnbufr /10/
 
 
 !**************************************************************************
 ! Initialize variables
-  maxobs=1e6_i_kind
-  nchanl = izero
+  maxobs=1e6
+  nchanl = 0
   pcp_ssmi=  obstype == 'pcp_ssmi'
   pcp_tmi=   obstype == 'pcp_tmi'
   pcp_amsu=  obstype == 'pcp_amsu'
   pcp_stage3=obstype == 'pcp_stage3'
   if (pcp_ssmi) then
-     nreal=12_i_kind
+     nreal=12
      ptype='ssmi'
   endif
   if (pcp_tmi)  then
-     nreal=14_i_kind
+     nreal=14
      ptype='tmi'
   endif
   if (pcp_amsu) then
-     nreal=12_i_kind
+     nreal=12
      ptype='amsu'
   endif
   if (pcp_stage3) then
-     nreal=12_i_kind
+     nreal=12
      ptype='stage3'
   endif
   ndatout=nreal+nchanl
@@ -143,17 +145,17 @@
 
 ! Open and read the bufr data
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
-  if (iret/=izero) goto 110
+  if (iret/=0) goto 110
 
-  iy=izero; im=izero; idd=izero; ihh=izero
+  iy=0; im=0; idd=0; ihh=0
          
 ! Write header record to pcp obs output file
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
 
   allocate(pcpdata(ndatout,maxobs))
@@ -161,15 +163,15 @@
 
 ! Big loop over bufr file	
 10 call readsb(lnbufr,iret)
-  if(iret/=izero) then
+  if(iret/=0) then
      call readmg(lnbufr,subset,jdate,iret)
-     if(iret/=izero) go to 100
+     if(iret/=0) go to 100
      go to 10
   end if
 
   
 ! Extract satellite id and observation date/time
-  call ufbint(lnbufr,hdr7,7_i_kind,ione,iret,strhdr7)
+  call ufbint(lnbufr,hdr7,7,1,iret,strhdr7)
 
   iyr = hdr7(2)
   imo = hdr7(3)
@@ -192,28 +194,28 @@
      if (abs(tdiff) > twind) goto 10
   endif
 
-  if (pcp_ssmi)   kx = 264_i_kind
-  if (pcp_tmi)    kx = 211_i_kind
-  if (pcp_amsu)   kx = 258_i_kind
-  if (pcp_stage3) kx = 260_i_kind
+  if (pcp_ssmi)   kx = 264
+  if (pcp_tmi)    kx = 211
+  if (pcp_amsu)   kx = 258
+  if (pcp_stage3) kx = 260
 
 
 ! Extract observation location and value(s)
   if (pcp_ssmi) then
 
-     call ufbint(lnbufr,pcpdat,4_i_kind,ione,iret,strsmi4)
+     call ufbint(lnbufr,pcpdat,4,1,iret,strsmi4)
      itype = nint(pcpdat(3))
      scnt  = pcpdat(4)
-     if (itype/=66_i_kind) goto 10
+     if (itype/=66) goto 10
 
 !    Transition across PREPBUFR mnemonic change from REQ6 to REQV
 
-     call ufbrep(lnbufr,pcpprd,2_i_kind,2_i_kind,iret,strsmi2_old)
+     call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2_old)
      if(min(pcpprd(2,1),pcpprd(2,2))>=bmiss) &
-        call ufbrep(lnbufr,pcpprd,2_i_kind,2_i_kind,iret,strsmi2)
+        call ufbrep(lnbufr,pcpprd,2,2,iret,strsmi2)
      spcp = bmiss
-     if (nint(pcpprd(1,1))==4_i_kind)  spcp=pcpprd(2,1)*r3600
-     if (nint(pcpprd(1,2))==10_i_kind) stdv=pcpprd(2,2)*r3600
+     if (nint(pcpprd(1,1))==4)  spcp=pcpprd(2,1)*r3600
+     if (nint(pcpprd(1,2))==10) stdv=pcpprd(2,2)*r3600
 
 !    Check for negative, very large, or missing pcp.
 !    If any case is found, skip this observation.
@@ -221,7 +223,7 @@
           (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
 
   elseif (pcp_tmi) then
-     call ufbint(lnbufr,pcpdat,7_i_kind,ione,iret,strtmi7)
+     call ufbint(lnbufr,pcpdat,7,1,iret,strtmi7)
      spcp=bmiss; scnv=bmiss
      spcp = pcpdat(3)  ! total rain
      scnv = pcpdat(4)  ! convective rain
@@ -235,12 +237,12 @@
           (abs(spcp-bmiss)<tiny_r_kind) ) goto 10
 
   elseif (pcp_amsu) then
-     call ufbint(lnbufr,pcpdat,5_i_kind,ione,iret,stramb5)
+     call ufbint(lnbufr,pcpdat,5,1,iret,stramb5)
      spcp   = pcpdat(3)*r3600   ! convert to mm/hr
      lndsea = nint(pcpdat(4))   ! water=0, land=1, coast=2
      itype  = nint(pcpdat(5))   ! water=0, land=1, coast=-1
 
-     if (lndsea==2_i_kind .or. itype==-ione) goto 10  ! skip coastal points
+     if (lndsea==2 .or. itype==-1) goto 10  ! skip coastal points
 
 !    Check for negative, very large, or missing pcp.
 !    If any case is found, skip this observation.
@@ -262,8 +264,9 @@
 ! If regional mode, see if observation falls within limited area domain
   dlat_earth = pcpdat(1)
   dlon_earth = pcpdat(2)
+  if (abs(dlat_earth)>90._r_kind .or. abs(dlon_earth)>r360) goto 10
   if (dlon_earth< zero) dlon_earth=dlon_earth+r360
-  if (dlon_earth>=r360) dlon_earth=dlon_earth-r360
+  if (dlon_earth==r360) dlon_earth=dlon_earth-r360
   dlat_earth=dlat_earth*deg2rad
   dlon_earth=dlon_earth*deg2rad
   if(regional)then
@@ -274,15 +277,15 @@
   else
      dlat = dlat_earth
      dlon = dlon_earth
-     call grdcrd(dlat,ione,rlats,nlat,ione)
-     call grdcrd(dlon,ione,rlons,nlon,ione)
+     call grdcrd1(dlat,rlats,nlat,1)
+     call grdcrd1(dlon,rlons,nlon,1)
   endif
 
 !
 ! Do we want to keep this observation?
-  nread = nread + ione
-  ndata = min(ndata + ione,maxobs)
-  nodata = nodata + ione
+  nread = nread + 1
+  ndata = min(ndata + 1,maxobs)
+  nodata = nodata + 1
 !
 
 !     isflg    - surface flag
@@ -297,8 +300,8 @@
 !                 (2) - sea ice percentage
 !                 (3) - snow percentage
 
-  call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct,ts,tsavg, &
-             vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+  call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
+     ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
 
 ! Load output array
 

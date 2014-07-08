@@ -42,6 +42,15 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !   2008-04-17  safford - rm unused vars
 !   2009-04-18  woollen - improve mpi_io interface with bufrlib routines
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod 
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2014-05-02  sienkiewicz- modify gross check screening to allow data to be used with bad ch6, if
+!                              ch6 data has been turned off - only toss if do85GHz is true
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -72,18 +81,21 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !$$$  end documentation block
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-            checkob,finalcheck,score_crit
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan
+      checkob,finalcheck,score_crit
+  use obsmod, only: bmiss
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nuchan,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,regional,rlats,rlons,nlat,nlon,&
-       tll2xy,txy2ll
-  use constants, only: deg2rad,rad2deg,izero,ione,zero,one,two,three,four,r60inv
+      tll2xy,txy2ll
+  use constants, only: deg2rad,rad2deg,zero,one,two,three,four,r60inv
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
 ! Declare passed variables
-  character(10)  ,intent(in   ) :: infile,obstype,jsatid
-  character(20)  ,intent(in   ) :: sis
+  character(len=*),intent(in   ) :: infile,obstype,jsatid
+  character(len=20),intent(in  ) :: sis
   integer(i_kind),intent(in   ) :: mype,lunout,ithin
   integer(i_kind),intent(in   ) :: mype_root
   integer(i_kind),intent(in   ) :: mype_sub
@@ -98,17 +110,16 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
 
 ! Declare local parameters
-  integer(i_kind),parameter :: n1bhdr=14_i_kind
-  integer(i_kind),parameter :: maxinfo=33_i_kind
-  integer(i_kind),parameter :: maxchanl=30_i_kind
+  integer(i_kind),parameter :: n1bhdr=14
+  integer(i_kind),parameter :: maxinfo=33
+  integer(i_kind),parameter :: maxchanl=30
 
-  integer(i_kind),parameter :: ntime=8_i_kind      !time header
-  integer(i_kind),parameter :: nloc=5_i_kind       !location dat used for ufbint()
-  integer(i_kind),parameter :: maxscan=64_i_kind   !possible max of scan positons
+  integer(i_kind),parameter :: ntime=8      !time header
+  integer(i_kind),parameter :: nloc=5       !location dat used for ufbint()
+  integer(i_kind),parameter :: maxscan=64   !possible max of scan positons
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
-  real(r_kind),parameter:: tbbad=-9.99e11_r_kind
   character(80),parameter:: hdr1b='SAID YEAR MNTH DAYS HOUR MINU SECO ORBN'   !use for ufbint()
   character(40),parameter:: str1='CLAT CLON SFTG POSN SAZA'   !use for ufbint()
   character(40),parameter:: str2='TMBR'                  !use for ufbrep()
@@ -126,6 +137,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind):: iskip
   integer(i_kind):: lnbufr
   integer(i_kind):: ilat,ilon
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) sfcr
 
@@ -152,41 +164,45 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:3):: ts
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind):: dlat,dlon,dlon_earth,dlat_earth
   real(r_kind):: ssmi_def_ang,ssmi_zen_ang  ! default and obs SSM/I zenith ang
   logical  do85GHz, ch6, ch7
-  real(r_kind):: bmiss=10.e10_r_kind
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr = 15_i_kind
+  lnbufr = 15
   disterrmax=zero
-  ntest=izero
-  nreal  = maxinfo
-  nchanl = 30_i_kind
-  ndata  = izero
-  nodata  = izero
-  nread  = izero
+  ntest=0
+
+  nchanl = 30
+  ndata  = 0
+  nodata = 0
+  nread  = 0
   ssmi_def_ang = 53.1_r_kind
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
+
+  if(nst_gsi>0) then
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
+  endif
 
 ! Set various variables depending on type of data to be read
 
   ssmi  = obstype  == 'ssmi'
 
   if ( ssmi ) then
-     nscan  = 64_i_kind   !for A-scan
-!    nscan  = 128_i_kind  !for B-scan
-     nchanl = 7_i_kind
-     if(jsatid == 'f08')bufsat=241_i_kind
-     if(jsatid == 'f10')bufsat=243_i_kind
-     if(jsatid == 'f11')bufsat=244_i_kind
-     if(jsatid == 'f13')bufsat=246_i_kind
-     if(jsatid == 'f14')bufsat=247_i_kind
-     if(jsatid == 'f15')bufsat=248_i_kind
+     nscan  = 64   !for A-scan
+!    nscan  = 128  !for B-scan
+     nchanl = 7
+     if(jsatid == 'f08')bufsat=241
+     if(jsatid == 'f10')bufsat=243
+     if(jsatid == 'f11')bufsat=244
+     if(jsatid == 'f13')bufsat=246
+     if(jsatid == 'f14')bufsat=247
+     if(jsatid == 'f15')bufsat=248
      rlndsea(0) = zero
      rlndsea(1) = 30._r_kind
      rlndsea(2) = 30._r_kind
@@ -204,10 +220,10 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   ch7=.false.
   search: do i=1,jpch_rad
      if (nusis(i)==sis) then
-        if (iuse_rad(i)>=izero) then
-           if (iuse_rad(i)>izero) assim=.true.
-	   if (nuchan(i)==6_i_kind) ch6=.true.
-	   if (nuchan(i)==7_i_kind) ch7=.true.
+        if (iuse_rad(i)>=0) then
+           if (iuse_rad(i)>0) assim=.true.
+	   if (nuchan(i)==6) ch6=.true.
+	   if (nuchan(i)==7) ch7=.true.
 	   if (assim.and.ch6.and.ch7) exit
         endif
      endif
@@ -220,25 +236,29 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open unit to satellite bufr file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
 ! Allocate arrays to hold data
-  nele=nreal+nchanl
-  allocate(data_all(nele,itxmax))
+  nreal  = maxinfo + nstinfo
+  nele   = nreal   + nchanl
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
 ! Big loop to read data file
-  next=izero
-  read_subset: do while(ireadmg(lnbufr,subset,idate)>=izero)
-     next=next+ione
-     if(next == npe_sub)next=izero
+  nrec=999999
+  irec=0
+  next=0
+  read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+     irec=irec+1
+     next=next+1
+     if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
-     read_loop: do while (ireadsb(lnbufr)==izero)
+     read_loop: do while (ireadsb(lnbufr)==0)
 
 ! ----- Read header record to extract satid,time information  
 !       SSM/I data are stored in groups of nscan, hence the loop.  
-        call ufbint(lnbufr,bfr1bhdr,ntime,ione,iret,hdr1b)
+        call ufbint(lnbufr,bfr1bhdr,ntime,1,iret,hdr1b)
 
 !       Extract satellite id.  If not the one we want, read next record
         if(nint(bfr1bhdr(1)) /= bufsat) cycle read_subset
@@ -265,18 +285,19 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !---    Extract brightness temperature data.  Apply gross check to data. 
 !       If obs fails gross check, reset to missing obs value.
 
-        call ufbrep(lnbufr,mirad,ione,nchanl*nscan,iret,str2)
+        call ufbrep(lnbufr,mirad,1,nchanl*nscan,iret,str2)
 
 
-        ij=izero
+        ij=0
         scan_loop:   do js=1,nscan
 
 
 !          Regional case
            dlat_earth = midat(1,js)  !deg
            dlon_earth = midat(2,js)  !deg
+           if(abs(dlat_earth)>90.0_r_kind .or. abs(dlon_earth)>r360) cycle scan_loop
            if(dlon_earth< zero) dlon_earth = dlon_earth+r360
-           if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
+           if(dlon_earth==r360) dlon_earth = dlon_earth-r360
            dlat_earth = dlat_earth*deg2rad
            dlon_earth = dlon_earth*deg2rad
 
@@ -284,21 +305,22 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
               call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
               if(diagnostic_reg) then
                  call txy2ll(dlon,dlat,dlon00,dlat00)
-                 ntest=ntest+ione
+                 ntest=ntest+1
                  disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                       (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
                  disterrmax=max(disterrmax,disterr)
               end if
 
 !             Check to see if in domain
+!cggg should this be cycle scan_loop?
               if(outside) cycle read_loop
 
 !          Global case
            else
               dlat = dlat_earth  
               dlon = dlon_earth  
-              call grdcrd(dlat,ione,rlats,nlat,ione)
-              call grdcrd(dlon,ione,rlons,nlon,ione)
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
            endif
 
 !  If available, set value of ssmi zenith angle
@@ -313,15 +335,15 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !          Transfer observed brightness temperature to work array.  
 !          If any temperature exceeds limits, reset observation to "bad" value
 !          mirad(1:maxchanl*nscan) => data1b(1:6+nchanl)
-           iskip=izero
+           iskip=0
            do jc=1,nchanl
-              ij = ij+ione
+              ij = ij+1
               if(mirad(ij)<tbmin .or. mirad(ij)>tbmax ) then
-                 mirad(ij) = tbbad
-                 iskip = iskip + ione
-                 if(jc == ione .or. jc == 3_i_kind .or. jc == 6_i_kind)iskip=iskip+nchanl
+                 iskip = iskip + 1
+                 if(jc == 1 .or. jc == 3)iskip=iskip+nchanl
+                 if(jc == 6 .and. do85GHz)iskip=iskip+nchanl    ! skip on bad ch6 only if using 85GHz data
               else
-                 nread=nread+ione
+                 nread=nread+1
               end if
               tbob(jc) = mirad(ij) 
   
@@ -364,7 +386,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !      -  simple si index : taken out from ssmiqc()
 !            note! it exclude emission rain
               tb19v=tbob(1);  tb22v=tbob(3); tb85v=tbob(6)
-              if(isflg/=izero)  then !land+snow+ice
+              if(isflg/=0)  then !land+snow+ice
                  si85 = 451.9_r_kind - 0.44_r_kind*tb19v - 1.775_r_kind*tb22v + &
                     0.00574_r_kind*tb22v*tb22v - tb85v
               else    !sea
@@ -377,14 +399,16 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
            else              ! otherwise do alternate check for rain
 
-              if (isflg/=izero) then     ! just try to scren out land pts.
-                 pred = 30_r_kind
+              if (isflg/=0) then     ! just try to scren out land pts.
+                 pred = 50_r_kind
               else
                  tb19v=tbob(1);  tb22v=tbob(3);
                  if (tb19v < 288.0_r_kind .and. tb22v < 288.0_r_kind) then
                     q19 = -6.723_r_kind * ( log(290.0_r_kind - tb19v)  &
                          - 2.850_r_kind - 0.405_r_kind* log(290.0_r_kind - tb22v))
-                    pred = 75._r_kind * q19  ! scale 0.4mm -> pred ~ 30
+                    pred = min(75._r_kind * q19,50.)  ! scale 0.4mm -> pred ~ 30
+                 else
+                    pred = 50_r_kind      ! default if Tb 19/22 > 288
                  endif
               endif
            endif
@@ -397,6 +421,18 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            if(.not. iuse)cycle scan_loop
 
            npos = (midat(4,js)-one)/four+one !original scan position 1.0->253.0 =4*(n-1)+1
+!
+!          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+           if(nst_gsi>0) then
+              tref  = ts(0)
+              dtw   = zero
+              dtc   = zero
+              tz_tr = one
+              if(sfcpct(0)>zero) then
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              endif
+           endif
 
 !          Transfer observation parameters to output array.  
            data_all( 1,itx) = bufsat              ! satellite id
@@ -431,14 +467,20 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
            data_all(29,itx)= ff10                 ! ten meter wind factor
            data_all(30,itx)= dlon_earth*rad2deg   ! earth relative longitude (degrees)
            data_all(31,itx)= dlat_earth*rad2deg   ! earth relative latitude (degrees)
+           data_all(maxinfo-1,itx)= val_ssmi
+           data_all(maxinfo,itx)= itt
 
-           data_all(nreal-ione,itx)=val_ssmi
-           data_all(nreal,itx)=itt
+           if(nst_gsi>0) then
+              data_all(maxinfo+1,itx) = tref       ! foundation temperature
+              data_all(maxinfo+2,itx) = dtw        ! dt_warm at zob
+              data_all(maxinfo+3,itx) = dtc        ! dt_cool at zob
+              data_all(maxinfo+4,itx) = tz_tr      ! d(Tz)/d(Tr)
+           endif
 
            do i=1,nchanl
               data_all(i+nreal,itx)=tbob(i)
            end do
-
+           nrec(itx)=irec
         end do  scan_loop    !js_loop end
 
      end do read_loop
@@ -449,13 +491,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
   write(6,*) 'READ_SSMI: after combine_obs, nread,ndata is ',nread,ndata
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.
-  if (mype_sub==mype_root.and.ndata>izero) then
+  if (mype_sub==mype_root.and.ndata>0) then
 
 !    Identify "bad" observation (unreasonable brightness temperatures).
 !    Update superobs sum according to observation location
@@ -463,9 +505,9 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      do n=1,ndata
         do i=1,nchanl
            if(data_all(i+nreal,n) > tbmin .and. &
-              data_all(i+nreal,n) < tbmax)nodata=nodata+ione
+              data_all(i+nreal,n) < tbmax)nodata=nodata+1
         end do
-        itt=nint(data_all(nreal,n))
+        itt=nint(data_all(maxinfo,n))
         super_val(itt)=super_val(itt)+val_ssmi
 
      end do
@@ -477,16 +519,16 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   endif
 
 ! Deallocate data arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 
 ! Deallocate satthin arrays
 1000 continue
   call destroygrids
 
-  if(diagnostic_reg .and. ntest>izero .and. mype_sub==mype_root) &
-       write(6,*)'READ_SSMI:  mype,ntest,disterrmax=',&
-       mype,ntest,disterrmax
+  if(diagnostic_reg .and. ntest>0 .and. mype_sub==mype_root) &
+     write(6,*)'READ_SSMI:  mype,ntest,disterrmax=',&
+        mype,ntest,disterrmax
 
 ! End of routine
  return

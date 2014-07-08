@@ -2,16 +2,28 @@ module mod_nmmb_to_a
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   mod_nmmb_to_a
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract:  This module contains routines to interpolate from the nmmb b grid to analysis a grid
+!             which exactly covers either the H or V component of the nmmb grid, but optionally
+!             at a coarser resolution.
+!            The resolution of the a grid is controlled by the variable grid_ratio_nmmb, which is 
+!             an input variable to subroutine init_nmmb_to_a in this module.
+!            Because the B grid is actually two A grids staggered with respect to each other, one
+!             for mass variables, the other for wind variables, there is an input character variable
+!             nmmb_reference_grid, which if ="H", then uses H grid as reference for the analysis grid
+!             and similarly for the V grid.
 !
 ! program history log:
 !   2009-08-06  lueken - added module doc block
+!   2010-09-10  parrish, add more extensive description, and add routine nmmb_h_to_a8
+!   2012-02-08  parrish - add public variables ratio_x, ratio_y, for use in gridmod.F90 for bug fix
+!                            in definition of region_dx, region_dy.
 !
 ! subroutines included:
 !   sub init_nmmb_to_a
 !   sub nmmb_h_to_a
+!   sub nmmb_h_to_a8
 !   sub nmmb_v_to_a
 !   sub nmmb_a_to_h
 !   sub nmmb_a_to_v
@@ -27,12 +39,13 @@ module mod_nmmb_to_a
   implicit none
 
   private
-  public init_nmmb_to_a,nmmb_h_to_a,nmmb_v_to_a,nmmb_a_to_h,nmmb_a_to_v
-  public nxa,nya
+  public init_nmmb_to_a,nmmb_h_to_a,nmmb_h_to_a8,nmmb_v_to_a,nmmb_a_to_h,nmmb_a_to_v
+  public nxa,nya,ratio_x,ratio_y
 
   integer(i_kind) nxa,nya,nxb,nyb
   real(r_kind),allocatable,dimension(:)::xbh_a,xbh_b,xbv_a,xbv_b,xa_a,xa_b
   real(r_kind),allocatable,dimension(:)::ybh_a,ybh_b,ybv_a,ybv_b,ya_a,ya_b
+  real(r_kind) ratio_x,ratio_y
 
 contains
 
@@ -40,17 +53,19 @@ subroutine init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nxb_in,nyb_in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_nmmb_to_a
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract:  define analysis grid and set up interpolation constants required to
+!             interpolate back and forth between nmmb grid and analysis grid.
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2010-09-10  parrish, add more extensive description
 !
 !   input argument list:
-!    nmmb_refernce_grid
-!    grid_ratio_nmmb
-!    nxb_in,nyb_in
+!    nmmb_reference_grid - character variable, ="H" for H grid as reference, ="V" for V grid as reference
+!    grid_ratio_nmmb     - analysis grid increment in nmmb grid units
+!    nxb_in,nyb_in       - x and y dimensions of nmmb grid
 !
 !   output argument list:
 !
@@ -62,7 +77,7 @@ subroutine init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nxb_in,nyb_in)
 
 !   initialize constants required to interpolate back and forth between nmmb grid and analysis grid
 
-  use constants, only:ione, half,one,two
+  use constants, only: half,one,two
   implicit none
 
   character(1)   , intent(in   ) :: nmmb_reference_grid   ! ='H': use nmmb H grid as reference for analysis grid
@@ -70,7 +85,6 @@ subroutine init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nxb_in,nyb_in)
   real(r_kind)   , intent(in   ) :: grid_ratio_nmmb       ! analysis grid increment in nmmb grid units
   integer(i_kind), intent(in   ) :: nxb_in,nyb_in         ! x and y dimensions of nmmb grid.
 
-  real(r_kind) ratio_x,ratio_y
   integer(i_kind) i,j
 
   nxb=nxb_in
@@ -79,11 +93,11 @@ subroutine init_nmmb_to_a(nmmb_reference_grid,grid_ratio_nmmb,nxb_in,nyb_in)
 !--------------------------obtain analysis grid dimensions nxa,nxb
 
   if(nmmb_reference_grid=='H') then
-     nxa=ione+nint((nxb-one)/grid_ratio_nmmb)
-     nya=ione+nint((nyb-one)/grid_ratio_nmmb)
+     nxa=1+nint((nxb-one)/grid_ratio_nmmb)
+     nya=1+nint((nyb-one)/grid_ratio_nmmb)
   else if(nmmb_reference_grid=='V') then
-     nxa=ione+nint((nxb-two)/grid_ratio_nmmb)
-     nya=ione+nint((nyb-two)/grid_ratio_nmmb)
+     nxa=1+nint((nxb-two)/grid_ratio_nmmb)
+     nya=1+nint((nyb-two)/grid_ratio_nmmb)
   end if
 
 !--------------------compute all combinations of relative coordinates
@@ -147,18 +161,19 @@ subroutine nmmb_h_to_a(hb,ha)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    nmmb_h_to_a
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract: interpolate from nmmb H grid to analysis grid
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2010-09-10  parrish, add documentation
 !
 !   input argument list:
-!    hb
+!    hb - input nmmb H grid variable
 !
 !   output argument list:
-!    ha
+!    ha - output interpolated variable on analysis grid
 !
 ! attributes:
 !   language: f90
@@ -184,22 +199,64 @@ subroutine nmmb_h_to_a(hb,ha)
 
 end subroutine nmmb_h_to_a
 
+subroutine nmmb_h_to_a8(hb,ha)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    nmmb_h_to_a
+!   prgmmr:
+!
+! abstract:  copy of nmmb_h_to_a for input variable hb real(r_kind)
+!
+! program history log:
+!   2009-08-06  lueken - added subprogram doc block
+!   2010-09-10  parrish, add documentation
+!
+!   input argument list:
+!    hb - input nmmb H grid variable
+!
+!   output argument list:
+!    ha - output interpolated variable on analysis grid
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+  implicit none
+
+  real(r_kind),intent(in   ) :: hb(nxb,nyb)
+  real(r_kind)  ,intent(  out) :: ha(nya,nxa)
+
+  integer(i_kind) i,j
+  real(r_kind) bh(nyb,nxb)
+
+  do j=1,nxb
+     do i=1,nyb
+        bh(i,j)=hb(j,i)
+     end do
+  end do
+  call b_to_a_interpolate(bh,ha,nxb,nyb,nxa,nya,xbh_b,ybh_b,xa_b,ya_b)
+
+end subroutine nmmb_h_to_a8
+
 subroutine nmmb_v_to_a(vb,va)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    nmmb_v_to_a
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract: interpolate from nmmb V grid to analysis grid
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2010-09-10  parrish, add documentation
 !
 !   input argument list:
-!    vb
+!    vb - variable on nmmb V grid
 !
 !   output argument list:
-!    va
+!    va - interolated variable on analysis grid
 !
 ! attributes:
 !   language: f90
@@ -208,7 +265,6 @@ subroutine nmmb_v_to_a(vb,va)
 !$$$ end documentation block
 
   use kinds, only: r_single
-  use constants, only: ione
   implicit none
 
   real(r_single),intent(in   ) :: vb(nxb,nyb)
@@ -220,9 +276,9 @@ subroutine nmmb_v_to_a(vb,va)
 !                  input variable on v grid is zero on north and east boundaries,
 !                  so replace with values of adjacent interior points.
   do j=1,nxb
-     jj=min(j,nxb-ione)
+     jj=min(j,nxb-1)
      do i=1,nyb
-        ii=min(i,nyb-ione)
+        ii=min(i,nyb-1)
         bv(i,j)=vb(jj,ii)
      end do
   end do
@@ -234,18 +290,19 @@ subroutine nmmb_a_to_h(ha,hb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    nmmb_a_to_h
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract: interpolate from analysis grid to nmmb H grid
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2010-09-10  parrish - add documentation
 !
 !   input argument list:
-!    ha
+!    ha - variable on analysis grid
 !
 !   output argument list:
-!    hb
+!    hb - interpolated variable on nmmb H grid
 !
 ! attributes:
 !   language: f90
@@ -275,18 +332,19 @@ subroutine nmmb_a_to_v(va,vb)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    nmmb_a_to_v
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract: interpolate from analysis grid to nmmb V grid
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2010-09-10  parrish - add documentation
 !
 !   input argument list:
-!    va
+!    va - analysis variable
 !
 !   output argument list:
-!    vb
+!    vb - interpolated nmmb V grid variable
 !
 ! attributes:
 !   language: f90
@@ -295,7 +353,7 @@ subroutine nmmb_a_to_v(va,vb)
 !$$$ end documentation block
 
   use kinds, only: r_single
-  use constants, only: ione,zero
+  use constants, only: zero
   implicit none
 
   real(r_kind)  ,intent(in   ) :: va(nya,nxa)
@@ -316,7 +374,7 @@ subroutine nmmb_a_to_v(va,vb)
   do i=1,nyb
      vb(nxb,i)=zero
   end do
-  do j=1,nxb-ione
+  do j=1,nxb-1
      vb(j,nyb)=zero
   end do
 
@@ -326,19 +384,26 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    b_to_a_interpolate
-!   prgmmr:
+!   prgmmr: parrish
 !
-! abstract:
+! abstract: interpolate from variable b to variable a.  This routine is
+!    used for interpolating both ways, nmmb H/V grid to analysis and back.
+!    Direction is controlled by input arguments.  Interpolation is bilinear
+!    both ways.
 !
 ! program history log:
 !   2009-08-06  lueken - added subprogram doc block
+!   2013-01-23  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
-!    mb,nb,ma,na
-!    b,xb,yb,xa,ya
+!    mb,nb - b dimensions
+!    ma,na - a dimensions
+!    b     - input variable b
+!    xb,yb - b array x and y coordinates
+!    xa,ya - a array coordinates (xa in xb units, ya in yb units)
 !
 !   output argument list:
-!    a
+!    a     - output interpolated array
 !
 ! attributes:
 !   language: f90
@@ -350,7 +415,7 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
 
 !   NOTE:  xa is in xb units, ya is in yb units
 
-  use constants, only: ione,zero,one
+  use constants, only: zero,one
   implicit none
 
   integer(i_kind),intent(in   ) :: mb,nb,ma,na
@@ -364,21 +429,21 @@ subroutine b_to_a_interpolate(b,a,mb,nb,ma,na,xb,yb,xa,ya)
 
   do j=1,ma
      gxa=xa(j)
-     call grdcrd(gxa,ione,xb,mb,ione)
+     call grdcrd1(gxa,xb,mb,1)
      jxa(j)=int(gxa)
-     jxa(j)=min(max(ione,jxa(j)),mb)
+     jxa(j)=min(max(1,jxa(j)),mb)
      dx(j)=max(zero,min(one,gxa-jxa(j)))
      dx1(j)=one-dx(j)
-     jxap(j)=min(mb,jxa(j)+ione)
+     jxap(j)=min(mb,jxa(j)+1)
   end do
   do i=1,na
      gya=ya(i)
-     call grdcrd(gya,ione,yb,nb,ione)
+     call grdcrd1(gya,yb,nb,1)
      iya(i)=int(gya)
-     iya(i)=min(max(ione,iya(i)),nb)
+     iya(i)=min(max(1,iya(i)),nb)
      dy(i)=max(zero,min(one,gya-iya(i)))
      dy1(i)=one-dy(i)
-     iyap(i)=min(nb,iya(i)+ione)
+     iyap(i)=min(nb,iya(i)+1)
   end do
 
   do j=1,ma

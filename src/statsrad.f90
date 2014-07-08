@@ -42,7 +42,7 @@ subroutine statsrad(aivals,stats,ndata)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,one
+  use constants, only: zero,one
   use obsmod, only: dtype,iout_rad,ndat,dplat,ditype
   use radinfo, only: varch,iuse_rad,nuchan,jpch_rad,nusis
   use jfunc, only: jiter
@@ -72,19 +72,19 @@ subroutine statsrad(aivals,stats,ndata)
 ! Loop over all observational data types
   penalty_all=zero
   qcpenalty_all=zero
-  nlgross_all=izero
+  nlgross_all=0
   idisplay=.false.
   do is=1,ndat
-     obstype=dtype(is)
 
 !    If radiance observation type and has nonzero number of obs, generate output
      if(ditype(is) == 'rad' ) then 
+        obstype=dtype(is)
         iobs2 = nint(aivals(1,is))
         penalty_all=penalty_all+aivals(40,is)
         qcpenalty_all=qcpenalty_all+aivals(39,is)
         nlgross_all = nlgross_all + nint(aivals(2,is))
         idisplay(is) = .true.
-        if(iobs2 > izero)then
+        if(iobs2 > 0)then
 
            nlgross = nint(aivals(2,is))
            iland   = nint(aivals(3,is))
@@ -109,16 +109,17 @@ subroutine statsrad(aivals,stats,ndata)
      end if
      
   end do
-  write(iout_rad,*)'rad total   penalty_all=',penalty_all
-  write(iout_rad,*)'rad total qcpenalty_all=',qcpenalty_all
-  write(iout_rad,*)'rad total failed nonlinqc=',nlgross_all
+  write(iout_rad,100)'rad total   penalty_all=',penalty_all
+  write(iout_rad,100)'rad total qcpenalty_all=',qcpenalty_all
+  write(iout_rad,100)'rad total failed nonlinqc=',nlgross_all
+100 format(a26,1x,g25.18)
 
 ! Print counts, bias, rms, stndev as a function of channel.
   do i = 1,jpch_rad
      iasim = nint(stats(1,i))
-     if (iasim > izero) then
+     if (iasim > 0) then
         svar = varch(i)
-        if (iuse_rad(i) < ione) svar=-svar
+        if (iuse_rad(i) < 1) svar=-svar
         rsum = one/float(iasim)
         icerr = nint(stats(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)
@@ -128,7 +129,7 @@ subroutine statsrad(aivals,stats,ndata)
            stats(j,i) = stats(j,i)*rsum
         end do
         stats(4,i) = sqrt(stats(4,i))
-        if (iasim > ione) then
+        if (iasim > 1) then
            stdev  = sqrt(stats(4,i)*stats(4,i)-stats(3,i)*stats(3,i))
         else
            stdev = zero
@@ -147,7 +148,7 @@ subroutine statsrad(aivals,stats,ndata)
         rpenal = aivals(40,i)
         cpen=zero
         qcpen=zero
-        if (iobs2 > izero) then
+        if (iobs2 > 0) then
            cpen=rpenal/aivals(38,i)
            qcpen=qcpenal/aivals(38,i)
         end if
@@ -164,7 +165,7 @@ subroutine statsrad(aivals,stats,ndata)
 1109 format(t5,'it',t13,'satellite',t23,'instrument',t38, &
           '# read',t49,'# keep',t59,'# assim',&
           t68,'penalty',t81,'qcpnlty',t95,'cpen',t105,'qccpen')
-1115 format('o-g',1x,i2.2,1x,'rad',2x,2A10,2x,3(i9,2x),4(g11.5,1x))
+1115 format('o-g',1x,i2.2,1x,'rad',2x,2A10,2x,3(i9,2x),4(g12.5,1x))
 
 ! Close output unit
   close(iout_rad)

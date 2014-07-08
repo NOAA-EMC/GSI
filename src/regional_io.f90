@@ -12,6 +12,8 @@ module regional_io
 !   2005-05-24  pondeca - add 2dvar only surface analysis option
 !   2005-07-06  parrish - add variable update_pint
 !   2005-10-17  parrish - add ctph0,stph0,tlm0 
+!   2010-09-15  pagowski - add cmaq
+!   2012-02-16  parrish - if use_gfs_stratosphere true, then broadcast extra parameters to all pes from pe 0.
 !   
 ! Subroutines Included:
 !   sub convert_regional_guess  - convert regional guess to internal format
@@ -25,7 +27,8 @@ module regional_io
 !
 !$$$ end documentation block
 
-  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,nems_nmmb_regional,&
+  use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
+       nems_nmmb_regional,cmaq_regional,&
        twodvar_regional,netcdf
   use mpimod, only: mpi_comm_world,ierror
   implicit none
@@ -33,6 +36,7 @@ module regional_io
 ! set default to private
   private
 ! set subroutines to public
+  public :: init_regional_io
   public :: convert_regional_guess
   public :: write_regional_analysis
 ! set passed variables to public
@@ -44,6 +48,9 @@ module regional_io
 
 contains
 
+  subroutine init_regional_io
+   preserve_restart_date = .false.
+  end subroutine init_regional_io
 
   subroutine convert_regional_guess(mype,ctph0,stph0,tlm0)
 !$$$  subprogram documentation block
@@ -57,6 +64,7 @@ contains
 !   2004-12-29  treadon
 !   2005-05-24  pondeca - add 2dvar only surface analysis option
 !   2005-07-06  parrish - add variable update_pint
+!   2012-10-11  parrish - add byte_swap, which is set only on pe 0 and must be broadcast to all pes.
 !
 !   input argument list:
 !      mype - mpi task id
@@ -71,8 +79,9 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use constants, only: izero,ione
     use mpimod, only: mpi_integer4,mpi_rtype
+    use hybrid_ensemble_parameters, only: l_hyb_ens,regional_ensemble_option
+    use native_endianness, only: byte_swap
     implicit none
 
 !   Declare passed variables
@@ -85,25 +94,32 @@ contains
 
     update_pint=.false.
     if (wrf_nmm_regional) then
-       if (mype==izero) then
+       if (mype==0) then
           if (netcdf) then
              call convert_netcdf_nmm(update_pint,ctph0,stph0,tlm0)
+             if (l_hyb_ens .and. regional_ensemble_option == 2)then
+                call convert_netcdf_nmm_ens
+             end if
           else
              call convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
+             if (l_hyb_ens .and. regional_ensemble_option == 2)then
+                call convert_binary_nmm_ens
+             end if
           end if
        end if
        call mpi_barrier(mpi_comm_world,ierror)
-       call mpi_bcast(update_pint,ione,mpi_integer4,izero,mpi_comm_world,ierror)
-       call mpi_bcast(ctph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
-       call mpi_bcast(stph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
-       call mpi_bcast(tlm0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
-
+       call mpi_bcast(update_pint,1,mpi_integer4,0,mpi_comm_world,ierror)
+       call mpi_bcast(ctph0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
+       write(6,*)' in convert_regional_guess, for wrf nmm binary input, byte_swap=',byte_swap
 
 !   Convert mass guess file to internal gsi format.  Consider
 !   two possible input formats:  netcdf or binary
 
     elseif (wrf_mass_regional) then
-       if (mype==izero) then
+       if (mype==0) then
           if (netcdf) then
              call convert_netcdf_mass
           else
@@ -111,23 +127,33 @@ contains
           end if
        end if
        call mpi_barrier(mpi_comm_world,ierror)
+       call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
+       write(6,*)' in convert_regional_guess, for wrf arw binary input, byte_swap=',byte_swap
 
+    elseif (cmaq_regional) then
+       if (mype==0) then
+!cmaq binary is read in directly, only need to link file to sigf
+          call make_sigf
+       end if
+       
+       call mpi_barrier(mpi_comm_world,ierror)
+       
 !   Convert nems nmmb guess file to internal gsi format.
 
     elseif (nems_nmmb_regional) then
-       if (mype==izero) then
+       if (mype==0) then
           call convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
        end if
        call mpi_barrier(mpi_comm_world,ierror)
-       call mpi_bcast(update_pint,ione,mpi_integer4,izero,mpi_comm_world,ierror)
-       call mpi_bcast(ctph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
-       call mpi_bcast(stph0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
-       call mpi_bcast(tlm0,ione,mpi_rtype,izero,mpi_comm_world,ierror)
+       call mpi_bcast(update_pint,1,mpi_integer4,0,mpi_comm_world,ierror)
+       call mpi_bcast(ctph0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(stph0,1,mpi_rtype,0,mpi_comm_world,ierror)
+       call mpi_bcast(tlm0,1,mpi_rtype,0,mpi_comm_world,ierror)
 
 !   Convert binary twodvar guess file to internal gsi format.
 
     elseif (twodvar_regional) then
-       if (mype==izero) then
+       if (mype==0) then
           call convert_binary_2d
        end if
        call mpi_barrier(mpi_comm_world,ierror)
@@ -161,7 +187,6 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind
-    use constants, only: izero
     implicit none
 
 !   Declare passed variables
@@ -172,7 +197,7 @@ contains
     if (wrf_nmm_regional) then
        if (netcdf) then
           call wrwrfnmma_netcdf(mype)
-          if (mype==izero) then
+          if (mype==0) then
              call update_netcdf_nmm
           end if
           call mpi_barrier(mpi_comm_world,ierror)
@@ -186,7 +211,7 @@ contains
     if (wrf_mass_regional) then
        if(netcdf) then
           call wrwrfmassa_netcdf(mype)
-          if (mype==izero) then
+          if (mype==0) then
              call update_netcdf_mass
           endif
           call mpi_barrier(mpi_comm_world,ierror)
@@ -194,6 +219,10 @@ contains
           call wrwrfmassa_binary(mype)
        end if
     end if
+
+!write cmaq analysis
+
+    if (cmaq_regional) call write_cmaq(mype)
 
 !   Write nems nmmb analysis file.
 

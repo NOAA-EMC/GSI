@@ -1,6 +1,6 @@
 subroutine statsconv(mype,&
      i_ps,i_uv,i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-     bwork,awork,ndata)
+     i_gust,i_vis,i_pblh,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -33,6 +33,8 @@ subroutine statsconv(mype,&
 !   2008-04-11  safford - rm unused uses
 !   2009-02-02  kleist  - add synthetic tc-mslp
 !   2009-03-05  meunier - add lagrangean data
+!   2011-01-06  cucurull - replace gps_ref/gps_bnd with gps due to a change in the convinfo files gps structure
+!                        - maintain dtype information in the output file, add ctype
 !
 !   input argument list:
 !     mype     - mpi task number
@@ -48,6 +50,10 @@ subroutine statsconv(mype,&
 !     i_sst    - index in awork array holding sst info
 !     i_tcp    - index in awork array holding tcps info
 !     i_lag    - index in awork array holding lag info
+!     i_gust   - index in awork array holding gust info
+!     i_vis    - index in awork array holding vis info
+!     i_pblh   - index in awork array holding pblh info
+!     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
 !     awork    - array containing information for data counts and gross checks
 !     ndata(*,1)- number of profiles retained for further processing
@@ -62,11 +68,12 @@ subroutine statsconv(mype,&
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero,three,five,izero
+  use constants, only: zero,three,five
   use obsmod, only: iout_sst,iout_pw,iout_t,iout_rw,iout_dw,&
        iout_srw,iout_uv,iout_gps,iout_ps,iout_q,iout_tcp,iout_lag,&
-       mype_dw,mype_rw,mype_srw,mype_sst,mype_gps,mype_uv,mype_ps,&
-       mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag
+       iout_gust,iout_vis,iout_pblh,mype_dw,mype_rw,mype_srw,&
+       mype_sst,mype_gps,mype_uv,mype_ps,mype_t,mype_pw,mype_q,&
+       mype_tcp,ndat,dtype,mype_lag,mype_gust,mype_vis,mype_pblh
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -75,8 +82,8 @@ subroutine statsconv(mype,&
 
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
-       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag
-  real(r_kind),dimension(7*nsig+100_i_kind,13)     ,intent(in   ) :: awork
+       i_srw,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,i_ref
+  real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
 
@@ -84,7 +91,7 @@ subroutine statsconv(mype,&
   character(100) mesage
 
   integer(i_kind) numgrspw,numsst,nsuperp,nump,nhitopo,ntoodif
-  integer(i_kind) numgrsq,numhgh
+  integer(i_kind) numgrsq,numhgh,numgust,numvis,numpblh
   integer(i_kind) ntot,numlow,k,numssm,i,j
   integer(i_kind) numgross,numfailqc,numfailqc_ssmi,nread,nkeep
   integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd
@@ -98,6 +105,7 @@ subroutine statsconv(mype,&
   real(r_kind),dimension(1):: pbotall,ptopall
   
   logical,dimension(nconvtype):: pflag
+  character(7):: ctype
 !*********************************************************************************
 ! Initialize constants and variables.
 
@@ -123,13 +131,13 @@ subroutine statsconv(mype,&
 !    Compute and write counts, penalties, and ratio of penalty
 !    to data counts for each model level
      numssm=nint(awork(6,i_uv)); numgross=nint(awork(4,i_uv))
-     umplty=zero; vmplty=zero; uvqcplty=zero ; ntot=izero;
+     umplty=zero; vmplty=zero; uvqcplty=zero ; ntot=0;
      tu=zero; tv=zero ; tuv=zero
      tssm=zero ; qctssm=zero
-     nread=izero
-     nkeep=izero
-     nreadspd=izero
-     nkeepspd=izero
+     nread=0
+     nkeep=0
+     nreadspd=0
+     nkeepspd=0
      do i=1,ndat
         if(dtype(i)== 'uv')then
            nread=nread+ndata(i,2)  
@@ -139,7 +147,7 @@ subroutine statsconv(mype,&
            nkeepspd=nkeepspd+ndata(i,3)
         end if
      end do
-     if(nkeep > izero .or. nkeepspd > izero)then
+     if(nkeep > 0 .or. nkeepspd > 0)then
 !       Write header information  
         mesage='current vfit of wind data, ranges in m/s$'
 
@@ -155,42 +163,42 @@ subroutine statsconv(mype,&
 !       keep a seperate record of numfailqc for ssmi wind speeds
         numfailqc_ssmi=nint(awork(61,i_uv))
         do k=1,nsig
-           num(k)=nint(awork(6*nsig+k+100_i_kind,i_uv))
+           num(k)=nint(awork(6*nsig+k+100,i_uv))
            rat1=zero
            rat2=zero
-           if(num(k) > izero)then
-              rat1=awork(4*nsig+k+100_i_kind,i_uv)/float(num(k))
-              rat2=awork(5*nsig+k+100_i_kind,i_uv)/float(num(k))
+           if(num(k) > 0)then
+              rat1=awork(4*nsig+k+100,i_uv)/float(num(k))
+              rat2=awork(5*nsig+k+100,i_uv)/float(num(k))
            end if
-           umplty=umplty+awork(4*nsig+k+100_i_kind,i_uv)
-           vmplty=vmplty+awork(5*nsig+k+100_i_kind,i_uv)
+           umplty=umplty+awork(4*nsig+k+100,i_uv)
+           vmplty=vmplty+awork(5*nsig+k+100,i_uv)
            ntot=ntot+num(k)
-           write(iout_uv,241) 'w',num(k),k,awork(4*nsig+k+100_i_kind,i_uv),&
-                           awork(5*nsig+k+100_i_kind,i_uv),rat1,rat2
+           write(iout_uv,241) 'w',num(k),k,awork(4*nsig+k+100,i_uv),&
+                           awork(5*nsig+k+100,i_uv),rat1,rat2
         end do
         do k=1,nsig
-           num(k)=nint(awork(6*nsig+k+100_i_kind,i_uv))
+           num(k)=nint(awork(6*nsig+k+100,i_uv))
            rat1=zero
            rat3=zero
-           if(num(k) > izero)then
-              rat1=(awork(4*nsig+k+100_i_kind,i_uv)+awork(5*nsig+k+100_i_kind,i_uv))/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_uv)/float(num(k))
+           if(num(k) > 0)then
+              rat1=(awork(4*nsig+k+100,i_uv)+awork(5*nsig+k+100,i_uv))/float(num(k))
+              rat3=awork(3*nsig+k+100,i_uv)/float(num(k))
            end if
-           uvqcplty=uvqcplty+awork(3*nsig+k+100_i_kind,i_uv)
-           write(iout_uv,240) 'w',num(k),k,awork(4*nsig+k+100_i_kind,i_uv)+awork(5*nsig+k+100_i_kind,i_uv), &
-                           awork(3*nsig+k+100_i_kind,i_uv),rat1,rat3
+           uvqcplty=uvqcplty+awork(3*nsig+k+100,i_uv)
+           write(iout_uv,240) 'w',num(k),k,awork(4*nsig+k+100,i_uv)+awork(5*nsig+k+100,i_uv), &
+                           awork(3*nsig+k+100,i_uv),rat1,rat3
         end do
 
 !       Write statistics  gross checks
-        write(iout_uv,*)' number ssm/i winds that fail nonlinear qc =',numfailqc_ssmi
+        write(iout_uv,920)' number ssm/i winds that fail nonlinear qc =',numfailqc_ssmi
         write(iout_uv,925) 'wind',numgross,numfailqc
 !       Write statistics regarding penalties                   
-        if(ntot > izero)then
+        if(ntot > 0)then
            tu=umplty/float(ntot)
            tv=vmplty/float(ntot)
            tuv=uvqcplty/float(ntot)
         end if
-        if(numssm > izero)then
+        if(numssm > 0)then
            tssm=awork(5,i_uv)/awork(6,i_uv)
            qctssm=awork(22,i_uv)/awork(6,i_uv)
         end if
@@ -215,17 +223,17 @@ subroutine statsconv(mype,&
         open(iout_srw,position='append')
      end if
 
-     umplty=zero; vmplty=zero; uvqcplty=zero ; ntot=izero;
+     umplty=zero; vmplty=zero; uvqcplty=zero ; ntot=0;
      tu=zero; tv=zero ; tuv=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'srw')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of radar superob wind data, ranges in stderr$'
         do j=1,nconvtype
            pflag(j)= trim(ioctype(j)) == 'srw' 
@@ -233,28 +241,30 @@ subroutine statsconv(mype,&
         call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_srw,pflag)
 
         do k=1,nsig
-           num(k)=nint(awork(6*nsig+k+100_i_kind,i_srw))
+           num(k)=nint(awork(6*nsig+k+100,i_srw))
            rat1=zero
            rat2=zero
            rat3=zero
-           if(num(k) > izero)then
-              rat1=awork(4*nsig+k+100_i_kind,i_srw)/float(num(k))
-              rat2=awork(5*nsig+k+100_i_kind,i_srw)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_srw)/float(num(k))
+           if(num(k) > 0)then
+              rat1=awork(4*nsig+k+100,i_srw)/float(num(k))
+              rat2=awork(5*nsig+k+100,i_srw)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_srw)/float(num(k))
            end if
-           umplty=umplty+awork(4*nsig+k+100_i_kind,i_srw)
-           vmplty=vmplty+awork(5*nsig+k+100_i_kind,i_srw)
-           uvqcplty=uvqcplty+awork(3*nsig+k+100_i_kind,i_srw)
+           umplty=umplty+awork(4*nsig+k+100,i_srw)
+           vmplty=vmplty+awork(5*nsig+k+100,i_srw)
+           uvqcplty=uvqcplty+awork(3*nsig+k+100,i_srw)
            ntot=ntot+num(k)
-           write(iout_srw,241) 's',num(k),k,awork(4*nsig+k+100_i_kind,i_srw),&
-                awork(5*nsig+k+100_i_kind,i_srw),awork(3*nsig+k+100_i_kind,i_srw),rat1,rat2,rat3
+           write(iout_srw,241) 's',num(k),k,awork(4*nsig+k+100,i_srw),&
+                awork(5*nsig+k+100,i_srw),awork(3*nsig+k+100,i_srw),rat1,rat2,rat3
         end do
         numgross=nint(awork(4,i_srw))
         numfailqc=nint(awork(21,i_srw))
         write(iout_srw,925) 'srw',numgross,numfailqc
-        tu=umplty/float(ntot)
-        tv=vmplty/float(ntot)
-        tuv=uvqcplty/float(ntot)
+        if(ntot > 0) then
+           tu=umplty/float(ntot)
+           tv=vmplty/float(ntot)
+           tuv=uvqcplty/float(ntot)
+        endif
         numlow      = nint(awork(2,i_srw))
         numhgh      = nint(awork(3,i_srw))
         write(iout_srw,900) 'srw',numhgh,numlow
@@ -278,34 +288,36 @@ subroutine statsconv(mype,&
      end if
 
 
-     gpsmplty=zero; gpsqcplty=zero ; ntot=izero
+     gpsmplty=zero; gpsqcplty=zero ; ntot=0
      tgps=zero ; qctgps=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
+     ctype=' '
      do i=1,ndat
         if(dtype(i)== 'gps_ref' .or. dtype(i) == 'gps_bnd')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
+           ctype=dtype(i)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of gps data in fractional difference$'
         do j=1,nconvtype
-           pflag(j)=trim(ioctype(j)) == 'gps_ref' .or. trim(ioctype(j)) == 'gps_bnd' 
+            pflag(j)=trim(ioctype(j)) == 'gps'
         end do
         call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_gps,pflag)
         do k=1,nsig
-           num(k)=nint(awork(5*nsig+k+100_i_kind,i_gps))
+           num(k)=nint(awork(5*nsig+k+100,i_gps))
            rat=zero
            rat3=zero
            if(num(k)>0) then
-              rat=awork(6*nsig+k+100_i_kind,i_gps)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_gps)/float(num(k))
+              rat=awork(6*nsig+k+100,i_gps)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_gps)/float(num(k))
            end if
-           ntot=ntot+num(k); gpsmplty=gpsmplty+awork(6*nsig+k+100_i_kind,i_gps)
-           gpsqcplty=gpsqcplty+awork(3*nsig+k+100_i_kind,i_gps)
-           write(iout_gps,240)'gps',num(k),k,awork(6*nsig+k+100_i_kind,i_gps), &
-                             awork(3*nsig+k+100_i_kind,i_gps),rat,rat3
+           ntot=ntot+num(k); gpsmplty=gpsmplty+awork(6*nsig+k+100,i_gps)
+           gpsqcplty=gpsqcplty+awork(3*nsig+k+100,i_gps)
+           write(iout_gps,240)'gps',num(k),k,awork(6*nsig+k+100,i_gps), &
+                             awork(3*nsig+k+100,i_gps),rat,rat3
         end do
         numgross=nint(awork(4,i_gps))
         numfailqc=nint(awork(21,i_gps))
@@ -313,20 +325,21 @@ subroutine statsconv(mype,&
         numfail2_gps=nint(awork(23,i_gps))
         numfail3_gps=nint(awork(24,i_gps))
         write(iout_gps,925)'gps',numgross,numfailqc
-        write(iout_gps,*)' number of gps obs failed stats qc in NH =',numfail1_gps
-        write(iout_gps,*)' number of gps obs failed stats qc in SH =',numfail2_gps
-        write(iout_gps,*)' number of gps obs failed stats qc in TR =',numfail3_gps
+        write(iout_gps,920)' number of gps obs failed stats qc in NH =',numfail1_gps
+        write(iout_gps,920)' number of gps obs failed stats qc in SH =',numfail2_gps
+        write(iout_gps,920)' number of gps obs failed stats qc in TR =',numfail3_gps
 
         numlow        = nint(awork(2,i_gps))
         numhgh        = nint(awork(3,i_gps))
         write(iout_gps,900) 'gps',numhgh,numlow
-        tgps=gpsmplty/ntot
-        qctgps=gpsqcplty/ntot
+        if(ntot > 0) then
+           tgps=gpsmplty/ntot
+           qctgps=gpsqcplty/ntot
+        endif
      end if
 
-     write(iout_gps,950)'gps',jiter,nread,nkeep,ntot
-     write(iout_gps,951)'gps',gpsmplty,gpsqcplty,tgps,qctgps
-     
+     write(iout_gps,950) ctype,jiter,nread,nkeep,ntot
+     write(iout_gps,951) ctype,gpsmplty,gpsqcplty,tgps,qctgps
 
      close(iout_gps)
   endif
@@ -346,42 +359,44 @@ subroutine statsconv(mype,&
      end do
      call dtast(bwork,npres_print,pbotq,ptopq,mesage,jiter,iout_q,pflag)
 
-     qmplty=zero; qqcplty=zero ; ntot=izero
+     qmplty=zero; qqcplty=zero ; ntot=0
      tq=zero ; qctq=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'q')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         do k=1,nsig
-           num(k)=nint(awork(k+6*nsig+100_i_kind,i_q))
+           num(k)=nint(awork(k+6*nsig+100,i_q))
            rat=zero
            rat3=zero
-           if(num(k) > izero)then
-              rat=awork(5*nsig+k+100_i_kind,i_q)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_q)/float(num(k))
+           if(num(k) > 0)then
+              rat=awork(5*nsig+k+100,i_q)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_q)/float(num(k))
            end if
-           qmplty=qmplty+awork(5*nsig+k+100_i_kind,i_q)
-           qqcplty=qqcplty+awork(3*nsig+k+100_i_kind,i_q)
+           qmplty=qmplty+awork(5*nsig+k+100,i_q)
+           qqcplty=qqcplty+awork(3*nsig+k+100,i_q)
            ntot=ntot+num(k)
-           write(iout_q,240) 'q',num(k),k,awork(5*nsig+k+100_i_kind,i_q), &
-                                  awork(3*nsig+k+100_i_kind,i_q),rat,rat3
+           write(iout_q,240) 'q',num(k),k,awork(5*nsig+k+100,i_q), &
+                                  awork(3*nsig+k+100,i_q),rat,rat3
         end do
         grsmlt=five
         numgrsq=nint(awork(4,i_q))
         numfailqc=nint(awork(21,i_q))
-        write(iout_q,*)'  (scaled as precent of guess specific humidity)'
+        write(iout_q,924)'  (scaled as precent of guess specific humidity)'
         write(iout_q,925) 'q',numgrsq,numfailqc
         write(iout_q,975) grsmlt,'q',awork(5,i_q)
         numlow      = nint(awork(2,i_q))
         numhgh      = nint(awork(3,i_q))
         write(iout_q,900) 'q',numhgh,numlow
-        tq=qmplty/float(ntot)
-        qctq=qqcplty/float(ntot)
+        if(ntot > 0) then
+           tq=qmplty/float(ntot)
+           qctq=qqcplty/float(ntot)
+        end if
      end if
 
      write(iout_q,950) 'q',jiter,nread,nkeep,ntot
@@ -401,25 +416,25 @@ subroutine statsconv(mype,&
 
      nump=nint(awork(5,i_ps))
      pw=zero ; pw3=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'ps')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of surface pressure data, ranges in mb$'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'ps'  
         end do
-        call dtast(bwork,ione,pbotall,ptopall,mesage,jiter,iout_ps,pflag)
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_ps,pflag)
  
         numgross=nint(awork(6,i_ps))
         numfailqc=nint(awork(21,i_ps))
         write(iout_ps,925) 'psfc',numgross,numfailqc
-        if(nump > izero)then
+        if(nump > 0)then
            pw=awork(4,i_ps)/float(nump)
            pw3=awork(22,i_ps)/float(nump)
         end if
@@ -443,27 +458,27 @@ subroutine statsconv(mype,&
      nsuperp=nint(awork(4,i_pw))
 
      tpw=zero ; tpw3=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'pw')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of precip. water data, ranges in mm$'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'pw'  
         end do
-        call dtast(bwork,ione,pbotall,ptopall,mesage,jiter,iout_pw,pflag)
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_pw,pflag)
 
         numgrspw=nint(awork(6,i_pw))
         numfailqc=nint(awork(21,i_pw))
         grsmlt=three
         tpw=zero
         tpw3=zero
-        if(nsuperp > izero)then
+        if(nsuperp > 0)then
            tpw=awork(5,i_pw)/nsuperp
            tpw3=awork(22,i_pw)/nsuperp
         end if
@@ -486,24 +501,24 @@ subroutine statsconv(mype,&
 
      numsst=nint(awork(5,i_sst))
      pw=zero ; pw3=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'sst')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of conventional sst data, ranges in  C$'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'sst'  
         end do
-        call dtast(bwork,ione,pbotall,ptopall,mesage,jiter,iout_sst,pflag)
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_sst,pflag)
 
         numgross=nint(awork(6,i_sst))
         numfailqc=nint(awork(21,i_sst))
-        if(numsst > izero)then
+        if(numsst > 0)then
            pw=awork(4,i_sst)/numsst
            pw3=awork(22,i_sst)/numsst
         end if
@@ -515,6 +530,122 @@ subroutine statsconv(mype,&
      close(iout_sst)
   end if
 
+! Summary report for conventional gust
+  if(mype==mype_gust) then
+     if(first)then
+        open(iout_gust)
+     else
+        open(iout_gust,position='append')
+     end if
+
+     numgust=nint(awork(5,i_gust))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'gust')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional gust data, ranges in  m/s$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'gust'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_gust,pflag)
+
+        numgross=nint(awork(6,i_gust))
+        numfailqc=nint(awork(21,i_gust))
+        if(numgust > 0)then
+           pw=awork(4,i_gust)/numgust
+           pw3=awork(22,i_gust)/numgust
+        end if
+        write(iout_gust,925) 'gust',numgross,numfailqc
+     end if
+     write(iout_gust,950) 'gust',jiter,nread,nkeep,numgust
+     write(iout_gust,951) 'gust',awork(4,i_gust),awork(22,i_gust),pw,pw3
+
+     close(iout_gust)
+  end if
+
+! Summary report for conventional vis
+  if(mype==mype_vis) then
+     if(first)then
+        open(iout_vis)
+     else
+        open(iout_vis,position='append')
+     end if
+
+     numvis=nint(awork(5,i_vis))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'vis')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional vis data, ranges in  m$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'vis'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_vis,pflag)
+
+        numgross=nint(awork(6,i_vis))
+        numfailqc=nint(awork(21,i_vis))
+        if(numvis > 0)then
+           pw=awork(4,i_vis)/numvis
+           pw3=awork(22,i_vis)/numvis
+        end if
+        write(iout_vis,925) 'vis',numgross,numfailqc
+     end if
+     write(iout_vis,950) 'vis',jiter,nread,nkeep,numvis
+     write(iout_vis,951) 'vis',awork(4,i_vis),awork(22,i_vis),pw,pw3
+
+     close(iout_vis)
+  end if
+
+! Summary report for conventional pblh
+  if(mype==mype_pblh) then
+     if(first)then
+        open(iout_pblh)
+     else
+        open(iout_pblh,position='append')
+     end if
+
+     numpblh=nint(awork(5,i_pblh))
+     pw=zero ; pw3=zero
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'pblh')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+        end if
+     end do
+     if(nkeep > 0)then
+        mesage='current fit of conventional pblh data, ranges in  m$'
+        do j=1,nconvtype
+           pflag(j)=trim(ioctype(j)) == 'pblh'
+        end do
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_pblh,pflag)
+
+        numgross=nint(awork(6,i_pblh))
+        numfailqc=nint(awork(21,i_pblh))
+        if(numpblh > 0)then
+           pw=awork(4,i_pblh)/numpblh
+           pw3=awork(22,i_pblh)/numpblh
+        end if
+        write(iout_pblh,925) 'pblh',numgross,numfailqc
+     end if
+     write(iout_pblh,950) 'pblh',jiter,nread,nkeep,numpblh
+     write(iout_pblh,951) 'pblh',awork(4,i_pblh),awork(22,i_pblh),pw,pw3
+
+     close(iout_pblh)
+  end if
 
 ! Summary report for temperature  
   if (mype==mype_t)then
@@ -524,33 +655,33 @@ subroutine statsconv(mype,&
         open(iout_t,position='append')
      end if
 
-     tmplty=zero; tqcplty=zero ; ntot=izero
+     tmplty=zero; tqcplty=zero ; ntot=0
      tt=zero ; qctt=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 't')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of temperature data, ranges in K $'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 't'  
         end do
         call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_t,pflag)
         do k=1,nsig
-           num(k)=nint(awork(5*nsig+k+100_i_kind,i_t))
+           num(k)=nint(awork(5*nsig+k+100,i_t))
            rat=zero ; rat3=zero
-           if(num(k) > izero) then
-              rat=awork(6*nsig+k+100_i_kind,i_t)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_t)/float(num(k))
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_t)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_t)/float(num(k))
            end if
-           ntot=ntot+num(k); tmplty=tmplty+awork(6*nsig+k+100_i_kind,i_t)
-           tqcplty=tqcplty+awork(3*nsig+k+100_i_kind,i_t)
-           write(iout_t,240) 't',num(k),k,awork(6*nsig+k+100_i_kind,i_t), &
-                                          awork(3*nsig+k+100_i_kind,i_t),rat,rat3
+           ntot=ntot+num(k); tmplty=tmplty+awork(6*nsig+k+100,i_t)
+           tqcplty=tqcplty+awork(3*nsig+k+100,i_t)
+           write(iout_t,240) 't',num(k),k,awork(6*nsig+k+100,i_t), &
+                                          awork(3*nsig+k+100,i_t),rat,rat3
         end do
         numgross=nint(awork(4,i_t))
         numfailqc=nint(awork(21,i_t))
@@ -558,8 +689,10 @@ subroutine statsconv(mype,&
         numlow      = nint(awork(2,i_t))
         numhgh      = nint(awork(3,i_t))
         write(iout_t,900) 't',numhgh,numlow
-        tt=tmplty/ntot
-        qctt=tqcplty/ntot
+        if(ntot > 0) then
+           tt=tmplty/ntot
+           qctt=tqcplty/ntot
+        end if
      end if
 
      write(iout_t,950) 't',jiter,nread,nkeep,ntot
@@ -578,17 +711,17 @@ subroutine statsconv(mype,&
         open(iout_dw,position='append')
      end if
 
-     dwmplty=zero; dwqcplty=zero ; ntot=izero
+     dwmplty=zero; dwqcplty=zero ; ntot=0
      tdw=zero ; qctdw=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'dw')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current vfit of lidar wind data, ranges in m/s$'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'dw' 
@@ -596,23 +729,25 @@ subroutine statsconv(mype,&
         call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_dw,pflag)
  
         do k=1,nsig
-           num(k)=nint(awork(k+5*nsig+100_i_kind,i_dw))
+           num(k)=nint(awork(k+5*nsig+100,i_dw))
            rat=zero
            rat3=zero
-           if(num(k) > izero) then
-              rat=awork(6*nsig+k+100_i_kind,i_dw)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_dw)/float(num(k))
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_dw)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_dw)/float(num(k))
            end if
            ntot=ntot+num(k)
-           dwmplty=dwmplty+awork(6*nsig+k+100_i_kind,i_dw)
-           dwqcplty=dwqcplty+awork(3*nsig+k+100_i_kind,i_dw)
-           write(iout_dw,240) 'r',num(k),k,awork(6*nsig+k+100_i_kind,i_dw), &
-                                           awork(3*nsig+k+100_i_kind,i_dw),rat,rat3
+           dwmplty=dwmplty+awork(6*nsig+k+100,i_dw)
+           dwqcplty=dwqcplty+awork(3*nsig+k+100,i_dw)
+           write(iout_dw,240) 'r',num(k),k,awork(6*nsig+k+100,i_dw), &
+                                           awork(3*nsig+k+100,i_dw),rat,rat3
         end do
         numgross=nint(awork(4,i_dw))
         numfailqc=nint(awork(21,i_dw))
-        tdw=dwmplty/float(ntot)
-        qctdw=dwqcplty/float(ntot)
+        if(ntot > 0) then
+           tdw=dwmplty/float(ntot)
+           qctdw=dwqcplty/float(ntot)
+        end if
         write(iout_dw,925) 'dw',numgross,numfailqc
         numlow       = nint(awork(2,i_dw))
         numhgh       = nint(awork(3,i_dw))
@@ -634,17 +769,17 @@ subroutine statsconv(mype,&
         open(iout_rw,position='append')
      end if
      
-     rwmplty=zero; rwqcplty=zero ; ntot=izero
+     rwmplty=zero; rwqcplty=zero ; ntot=0
      trw=zero ; qctrw=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'rw')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current vfit of radar wind data, ranges in m/s$'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'rw' 
@@ -654,21 +789,23 @@ subroutine statsconv(mype,&
         numgross=nint(awork(4,i_rw))
         numfailqc=nint(awork(21,i_rw))
         do k=1,nsig
-           num(k)=nint(awork(k+5*nsig+100_i_kind,i_rw))
+           num(k)=nint(awork(k+5*nsig+100,i_rw))
            rat=zero
            rat3=zero
-           if(num(k) > izero) then
-              rat=awork(6*nsig+k+100_i_kind,i_rw)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_rw)/float(num(k))
+           if(num(k) > 0) then
+              rat=awork(6*nsig+k+100,i_rw)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_rw)/float(num(k))
            end if
            ntot=ntot+num(k)
-           rwmplty=rwmplty+awork(6*nsig+k+100_i_kind,i_rw)
-           rwqcplty=rwqcplty+awork(3*nsig+k+100_i_kind,i_rw)
-           write(iout_rw,240) 'r',num(k),k,awork(6*nsig+k+100_i_kind,i_rw), &
-                                           awork(3*nsig+k+100_i_kind,i_rw),rat,rat3
+           rwmplty=rwmplty+awork(6*nsig+k+100,i_rw)
+           rwqcplty=rwqcplty+awork(3*nsig+k+100,i_rw)
+           write(iout_rw,240) 'r',num(k),k,awork(6*nsig+k+100,i_rw), &
+                                           awork(3*nsig+k+100,i_rw),rat,rat3
         end do
-        trw=rwmplty/float(ntot)
-        qctrw=rwqcplty/float(ntot)
+        if(ntot > 0) then
+           trw=rwmplty/float(ntot)
+           qctrw=rwqcplty/float(ntot)
+        end if
         write(iout_rw,925) 'rw',numgross,numfailqc
         numlow       = nint(awork(2,i_rw))
         numhgh       = nint(awork(3,i_rw))
@@ -692,26 +829,26 @@ subroutine statsconv(mype,&
 
      nump=nint(awork(5,i_tcp))
      pw=zero ; pw3=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'tcp')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of surface pressure data, ranges in mb$'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'tcp'
         end do
-        call dtast(bwork,ione,pbotall,ptopall,mesage,jiter,iout_tcp,pflag)
+        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_tcp,pflag)
 
         numgross=nint(awork(6,i_tcp))
         numfailqc=nint(awork(21,i_tcp))
         write(iout_tcp,925) 'psfc',numgross,numfailqc
 
-        if(nump > izero)then
+        if(nump > 0)then
            pw=awork(4,i_tcp)/float(nump)
            pw3=awork(22,i_tcp)/float(nump)
         end if
@@ -731,33 +868,33 @@ subroutine statsconv(mype,&
         open(iout_lag,position='append')
      end if
 
-     tmplty=zero; tqcplty=zero ; ntot=izero
+     tmplty=zero; tqcplty=zero ; ntot=0
      tt=zero ; qctt=zero
-     nread=izero
-     nkeep=izero
+     nread=0
+     nkeep=0
      do i=1,ndat
         if(dtype(i)== 'lag')then
            nread=nread+ndata(i,2)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > izero)then
+     if(nkeep > 0)then
         mesage='current fit of lagangian data, ranges in m $'
         do j=1,nconvtype
            pflag(j)=trim(ioctype(j)) == 'lag'
         end do
         call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_lag,pflag)
         do k=1,nsig
-           num(k)=nint(awork(6*nsig+k+100_i_kind,i_lag))
+           num(k)=nint(awork(6*nsig+k+100,i_lag))
            rat=zero ; rat3=zero
-           if(num(k) > izero) then
-              rat=awork(4*nsig+k+100_i_kind,i_lag)/float(num(k))
-              rat3=awork(3*nsig+k+100_i_kind,i_lag)/float(num(k))
+           if(num(k) > 0) then
+              rat=awork(4*nsig+k+100,i_lag)/float(num(k))
+              rat3=awork(3*nsig+k+100,i_lag)/float(num(k))
            end if
-           ntot=ntot+num(k); tmplty=tmplty+awork(4*nsig+k+100_i_kind,i_lag)
-           tqcplty=tqcplty+awork(3*nsig+k+100_i_kind,i_lag)
-           write(iout_lag,240) 'lag',num(k),k,awork(4*nsig+k+100_i_kind,i_lag), &
-                                          awork(3*nsig+k+100_i_kind,i_lag),rat,rat3
+           ntot=ntot+num(k); tmplty=tmplty+awork(4*nsig+k+100,i_lag)
+           tqcplty=tqcplty+awork(3*nsig+k+100,i_lag)
+           write(iout_lag,240) 'lag',num(k),k,awork(4*nsig+k+100,i_lag), &
+                                          awork(3*nsig+k+100,i_lag),rat,rat3
         end do
         numgross=nint(awork(4,i_lag))
         numfailqc=nint(awork(21,i_lag))
@@ -765,8 +902,10 @@ subroutine statsconv(mype,&
        ! numlow      = nint(awork(2,i_t))
        ! numhgh      = nint(awork(3,i_t))
        ! write(iout_lag,900) 't',numhgh,numlow
-        tt=tmplty/ntot
-        qctt=tqcplty/ntot
+        if(ntot > 0) then
+           tt=tmplty/ntot
+           qctt=tqcplty/ntot
+        end if
      end if
 
      write(iout_lag,950) 'lag',jiter,nread,nkeep,ntot
@@ -780,17 +919,19 @@ subroutine statsconv(mype,&
 
 ! Format statements used above
 111 format('obs lev   num     rms         bias        sumges       sumobs        cpen')
-240 format(' num(',A1,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g11.5,1x))
-241 format(' num(',A1,') = ',i6,' at lev ',i4,' upen,vpen,cupen,cvpen = ',6(g11.5,1x))
+240 format(' num(',A1,') = ',i6,' at lev ',i4,' pen,qcpen,cpen,cqcpen = ',6(g12.5,1x))
+241 format(' num(',A1,') = ',i6,' at lev ',i4,' upen,vpen,cupen,cvpen = ',6(g12.5,1x))
 900 format(' number of ',a5,' obs extrapolated above',&
          ' top sigma layer=',i8,/,10x,' number extrapolated below',&
          ' bottom sigma layer=',i8)
 905 format(' number of ',a5,' obs with station elevation > 2km = ',i8,/, &
          ' number with abs(guess topography-station elevation) > 200m = ',i8)
+920 format(a44,i7)
+924 format(a50)
 925 format(' number of ',a5,' obs that failed gross test = ',I5,' nonlin qc test = ',I5)
-949 format(' number of ',a5,' obs = ',i6,' pen= ',e24.18,' cpen= ',g12.6)
-950 format(' type ',a5,' jiter ',i3,' nread ',i7,' nkeep ',i7,' num ',i7)
-951 format(' type ',a5,' pen= ',e24.18,' qcpen= ',e24.18,' r= ',g12.6,' qcr= ',g12.6)
+949 format(' number of ',a5,' obs = ',i6,' pen= ',e25.18,' cpen= ',g13.6)
+950 format(' type ',a7,' jiter ',i3,' nread ',i7,' nkeep ',i7,' num ',i7)
+951 format(' type ',a7,' pen= ',e25.18,' qcpen= ',e25.18,' r= ',g13.6,' qcr= ',g13.6)
 952 format(t5,'it',t13,'sat',t21,'# read',t32,'# keep',t42,'# assim',&
          t52,'penalty',t67,'cpen')
 975 format(' grsmlt=',f7.1,' number of bad ',a5,' obs=',f8.0)

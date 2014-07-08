@@ -99,24 +99,24 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,r3600,one
+    use constants, only: r3600,one
     implicit none
 
     real(r_kind),parameter:: r1200=1200.0_r_kind
 
-    npredp    = 6_i_kind      ! number of predictors in precipitation bias correction
-    npcptype  = izero         ! number of entries read from pcpinfo
+    npredp    = 6             ! number of predictors in precipitation bias correction
+    npcptype  = 0             ! number of entries read from pcpinfo
     deltim    = r1200         ! model timestep
     dtphys    = r3600         ! relaxation time scale for convection
     diag_pcp =.true.          ! flag to toggle creation of precipitation diagnostic file
-    mype_pcp  = izero         ! task to print pcp info to.  Note that mype_pcp MUST equal
+    mype_pcp  = 0             ! task to print pcp info to.  Note that mype_pcp MUST equal
                               !    mype_rad (see radinfo.f90) in order for statspcp.f90
                               !    to print out the correct information          
     tiny_obs = 1.e-9_r_kind   ! "small" observation
     tinym1_obs = tiny_obs - one
   end subroutine init_pcp
 
-  subroutine pcpinfo_read(mype)
+  subroutine pcpinfo_read
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    pcpinfo_read
@@ -132,8 +132,9 @@ contains
 !   2004-05-13  treadon, documentation
 !   2004-08-04  treadon - add only on use declarations; add intent in/out
 !   2005-10-11  treadon - change pcpinfo read to free format
-!   2008-04-29  safford - rm redundent uses
+!   2008-04-29  safford - rm redundant uses
 !   2008-10-10  derber  - flip indices for predxp
+!   2010-05-29  todling - interface consistent w/ similar routines
 !
 !   input argument list:
 !      mype - mpi task id
@@ -145,34 +146,36 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: izero,ione,zero
-    use obsmod, only: iout_pcp
+    use mpimod, only: mype
+    use constants, only: zero
+    use obsmod, only: iout_pcp,use_limit
     implicit none
-
-! Declare passed variables
-    integer(i_kind),intent(in   ) :: mype
 
 ! Declare local varianbes
     logical lexist
     character(len=1):: cflg
     character(len=120) crecord
-    integer(i_kind) lunin,i,j,k,istat,nlines
+    integer(i_kind) lunin,i,j,k,istat,nlines,iusept
+    character(len=20) :: nupcpt
     real(r_kind),dimension(npredp):: predrp
 
-    data lunin / 48_i_kind /
+    data lunin / 48 /
     
 !   Determine number of entries in pcp information file
     open(lunin,file='pcpinfo',form='formatted')
-    j=izero
-    nlines=izero
+    j=0
+    nlines=0
     read1:  do
-       read(lunin,100,iostat=istat) cflg,crecord
-       if (istat /= izero) exit
-       nlines=nlines+ione
+       read(lunin,100,iostat=istat,end=120) cflg,crecord
+       if (istat /= 0) exit
+       nlines=nlines+1
        if (cflg == '!') cycle
-       j=j+ione
+       read(crecord,*) nupcpt,iusept
+       if (iusept < use_limit) cycle
+       j=j+1
     end do read1
-    if (istat>izero) then
+120 continue
+    if (istat>0) then
        write(6,*)'PCPINFO_READ:  ***ERROR*** error reading pcpinfo, istat=',istat
        close(lunin)
        write(6,*)'PCPINFO_READ:  stop program execution'
@@ -191,14 +194,19 @@ contains
     
     if (mype==mype_pcp) then
        open(iout_pcp)
-       write(iout_pcp,*)'PCPINFO_READ:  npcptype=',npcptype
+       write(iout_pcp,110) npcptype
+110    format('PCPINFO_READ:  npcptype=',1x,i6)
     endif
     rewind(lunin)
-    j=izero
+    j=0
     do k=1,nlines
        read(lunin,100)  cflg,crecord
        if (cflg == '!') cycle
-       j=j+ione
+       read(crecord,*) nupcpt,iusept
+       if (mype==mype_pcp .and. iusept < use_limit) write(iout_pcp, *) &
+                'line ignored due to use flag ',cflg,nupcpt,iusept
+       if (iusept < use_limit) cycle
+       j=j+1
        read(crecord,*) nupcp(j),iusep(j),ibias(j),&
             varchp(j),gross_pcp(j),b_pcp(j),pg_pcp(j)
 
@@ -228,7 +236,7 @@ contains
             write(iout_pcp,*)'PCPINFO_READ:  read pcpbias coefs with npredp=',npredp
        read2: do
           read(lunin,'(I5,10f12.6)') i,(predrp(j),j=1,npredp)
-          if (istat /= izero) exit
+          if (istat /= 0) exit
           do j=1,npredp
              predxp(j,i)=predrp(j)
           end do
@@ -269,7 +277,7 @@ contains
     implicit none
     integer(i_kind) iobcof,ityp,ip
 
-    iobcof=52_i_kind
+    iobcof=52
     open(iobcof,file='pcpbias_out',form='formatted')
     rewind iobcof
     do ityp=1,npcptype
@@ -295,6 +303,7 @@ contains
 !                         standard mpi_scatterv
 !   2005-12-12  treadon - remove IBM specific call to random_seed(generator)
 !   2006-01-10  treadon - move myper inside routine
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !      iadate - analysis date (year, month, day, hour, minute)
@@ -307,10 +316,11 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$
-    use constants, only: ione
-    use gridmod, only: ijn_s,ltosj_s,ltosi_s,displs_s,itotsub,&
+    use gridmod, only: ijn_s,displs_s,itotsub,&
        lat2,lon2,nlat,nlon
+    use general_commvars_mod, only: ltosj_s,ltosi_s
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype,npe
+    use mersenne_twister, only: random_setseed, random_number
     implicit none
 
 ! Declare passed variables
@@ -318,35 +328,36 @@ contains
     integer(i_kind),dimension(5),intent(in   ) :: iadate    
 
 ! Declare local variables
-    integer(i_kind) krsize,i,j,k,mm1,myper
-    integer(i_kind),allocatable,dimension(:):: nrnd
+    integer(i_kind) i,j,k,mm1,myper,iseed
     
     real(r_kind) rseed
-    real(r_kind),allocatable,dimension(:):: rwork
-    real(r_kind),allocatable,dimension(:,:):: rgrid
+    real(r_kind),allocatable,dimension(:):: rwork,rgrid1
+    real(r_kind),allocatable,dimension(:,:):: rgrid2
 
 ! Compute random number for precipitation forward model.  
-    mm1=mype+ione
-    allocate(rwork(itotsub),xkt2d(lat2,lon2))
-    myper=npe-ione
+    mm1=mype+1
+    allocate(xkt2d(lat2,lon2))
+    allocate(rwork(itotsub))
+    myper=npe-1
     if (mype==myper) then
-       allocate(rgrid(nlat,nlon))
-       call random_seed(size=krsize)
-       allocate(nrnd(krsize))
-       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) &
-          + 1e2_r_kind*iadate(3) + iadate(4)
-       write(6,*)'CREATE_PCP_RANDOM:  rseed,krsize=',rseed,krsize
-       do i=1,krsize
-          nrnd(i) = rseed
+       rseed = 1e6_r_kind*iadate(1) + 1e4_r_kind*iadate(2) + 1e2_r_kind*iadate(3) + iadate(4)
+       iseed=rseed
+       write(6,*)'CREATE_PCP_RANDOM:  iseed=',iseed
+       call random_setseed(iseed)
+       allocate(rgrid1(nlat*nlon),rgrid2(nlat,nlon))
+       call random_number(rgrid1)
+       k=0
+       do j=1,nlon
+          do i=1,nlat
+             k=k+1
+             rgrid2(i,j)=rgrid1(k)
+          end do
        end do
-       call random_seed(put=nrnd)
-       deallocate(nrnd)
-       call random_number(rgrid)
        do k=1,itotsub
           i=ltosi_s(k); j=ltosj_s(k)
-          rwork(k)=rgrid(i,j)
+          rwork(k)=rgrid2(i,j)
        end do
-       deallocate(rgrid)
+       deallocate(rgrid1,rgrid2)
     endif
     call mpi_scatterv(rwork,ijn_s,displs_s,mpi_rtype,xkt2d,ijn_s(mm1),&
          mpi_rtype,myper,mpi_comm_world,ierror)
@@ -366,6 +377,7 @@ contains
 ! program history log:
 !   2003-09-25  treadon
 !   2004-05-13  treadon, documentation
+!   2013-10-24  todling, dealloc a number of arrays
 !
 !   input argument list:
 !
@@ -378,6 +390,13 @@ contains
 !$$$
      implicit none
 
+     if(allocated(nupcp))     deallocate(nupcp)
+     if(allocated(iusep))     deallocate(iusep)
+     if(allocated(ibias))     deallocate(ibias)
+     if(allocated(varchp))    deallocate(varchp)
+     if(allocated(gross_pcp)) deallocate(gross_pcp)
+     if(allocated(b_pcp))     deallocate(b_pcp)
+     if(allocated(pg_pcp))    deallocate(pg_pcp)
      deallocate(xkt2d)
      return
   end subroutine destroy_pcp_random

@@ -13,6 +13,8 @@ subroutine getuv(u,v,st,vp,iflg)
 !   2005-01-22  parrish - add "use compact_diffs"
 !   2008-06-04  safford - rm unused var i
 !   2009-04-21  derber - rewrite for improved communication - combine with adjoint
+!   2010-04-01  treadon - move strip,reorder,reorder2,vectosub to gridmod
+!   2012-06-12  parrish - replace sub2grid/grid2sub with general_sub2grid/general_grid2sub
 !
 !   input argument list:
 !     st        - stream function grid values 
@@ -30,13 +32,11 @@ subroutine getuv(u,v,st,vp,iflg)
 !
 !$$$
   use kinds, only: r_kind,i_kind
-  use constants, only: izero,ione,zero
-  use gridmod, only: regional,lat2,nsig,iglobal,lon1,itotsub,lon2,lat1, &
-        nlat,nlon,latlon11,ltosj_s,ltosi_s,ltosi,ltosj
-  use mpimod, only: iscvec_s,ierror,mpi_comm_world,irdvec_s,ircvec_s,&
-       isdvec_s,isdvec_g,iscvec_g,nnnvsuv,nlevsuv,mpi_rtype,&
-       strip,reorder,reorder2,lu_gs,lv_gs,ircvec_g,irdvec_g,vectosub
+  use constants, only: zero
+  use gridmod, only: regional,lat2,nsig,lon2,nlat,nlon
   use compact_diffs, only: stvp2uv,tstvp2uv
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2guv
   implicit none
 
 ! Declare passed variables
@@ -46,111 +46,82 @@ subroutine getuv(u,v,st,vp,iflg)
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: u,v
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,ioff,ni1,ni2
+  integer(i_kind) i,j,k
 
-  real(r_kind),dimension(lat2*lon2*2*nsig):: uvsm
-  real(r_kind),dimension(itotsub,nlevsuv):: work1
-  real(r_kind),dimension(nlat,nlon,nlevsuv)::workin
-  real(r_kind),dimension(nlat,nlon)::stx,vpx
-  real(r_kind),dimension(lat2,lon2)::ux,vx
+  real(r_kind),allocatable,dimension(:,:,:,:):: work1,worksub
+  real(r_kind),dimension(nlat,nlon)::awork,bwork
 
+  allocate(worksub(2,s2guv%lat2,s2guv%lon2,s2guv%nsig))
+  allocate(work1(2,s2guv%nlat,s2guv%nlon,s2guv%kbegin_loc:s2guv%kend_alloc))
 
-  if(iflg == izero)then
+  if(iflg == 0)then
      do k=1,nsig
-        ioff=lu_gs(k)*lat1*lon1+ione
-        call strip(st(1,1,k),uvsm(ioff),ione)
-        ioff=lv_gs(k)*lat1*lon1+ione
-        call strip(vp(1,1,k),uvsm(ioff),ione)
-     end do
-  else
-     do k=1,nsig
-        ioff=lu_gs(k)*lat1*lon1+ione
-        call strip(u(1,1,k),uvsm(ioff),ione)
-        ioff=lv_gs(k)*lat1*lon1+ione
-        call strip(v(1,1,k),uvsm(ioff),ione)
-     end do
-  end if
-   
-
-! zero out work arrays
-  do k=1,nlevsuv
-     do j=1,itotsub
-        work1(j,k)=zero
-     end do
-  end do
-
-!  subdomain vector to global slabs
-  call mpi_alltoallv(uvsm(1),iscvec_g,isdvec_g,&
-       mpi_rtype,work1(1,1),ircvec_g,irdvec_g,mpi_rtype,&
-       mpi_comm_world,ierror)
-
-! reorder work1 array post communication
-  call reorder(work1,nlevsuv,nnnvsuv)
-  if(regional)then
-     do k=1,nnnvsuv,2
-        do l=1,iglobal
-           ni1=ltosi(l); ni2=ltosj(l)
-           stx(ni1,ni2)=work1(l,k)
-           vpx(ni1,ni2)=work1(l,k+ione)
-        end do
-        if(iflg == izero)then
-           call psichi2uv_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
-        else
-           call psichi2uvt_reg(stx,vpx,workin(1,1,k),workin(1,1,k+ione))
-        end if
-     end do
-  else
-     do k=1,nnnvsuv,2
-        do l=1,iglobal
-           ni1=ltosi(l); ni2=ltosj(l)
-           workin(ni1,ni2,k)=work1(l,k)
-           workin(ni1,ni2,k+ione)=work1(l,k+ione)
-        end do
-        if(iflg == izero)then
-           call stvp2uv(workin(1,1,k),workin(1,1,k+ione))
-        else
-           call tstvp2uv(workin(1,1,k),workin(1,1,k+ione))
-        end if
-     end do
-  end if
-
-! Transfer input array to local work array
-  do k=1,nnnvsuv
-     do l=1,itotsub
-        ni1=ltosi_s(l); ni2=ltosj_s(l)
-        work1(l,k)=workin(ni1,ni2,k)
-     end do
-  end do
-
-! reorder work1 global slab array for communications
-  call reorder2(work1,nlevsuv,nnnvsuv)
-
-! send global slabs to subdomains
-  call mpi_alltoallv(work1(1,1),iscvec_s,isdvec_s,&
-       mpi_rtype,uvsm(1),ircvec_s,irdvec_s,&
-       mpi_rtype,mpi_comm_world,ierror)
-
-  if(iflg == izero)then
-     do k=1,nsig
-        ioff=lu_gs(k)*latlon11+ione
-        call vectosub(uvsm(ioff),latlon11,u(1,1,k))
-        ioff=lv_gs(k)*latlon11+ione
-        call vectosub(uvsm(ioff),latlon11,v(1,1,k))
-     end do
-  else
-     do k=1,nsig
-        ioff=lu_gs(k)*latlon11+ione
-        call vectosub(uvsm(ioff),latlon11,ux)
-        ioff=lv_gs(k)*latlon11+ione
-        call vectosub(uvsm(ioff),latlon11,vx)
         do j=1,lon2
            do i=1,lat2
-              st(i,j,k)=st(i,j,k)+ux(i,j)
-              vp(i,j,k)=vp(i,j,k)+vx(i,j)
+              worksub(1,i,j,k)=st(i,j,k)
+              worksub(2,i,j,k)=vp(i,j,k)
+           end do
+        end do
+     end do
+     call general_sub2grid(s2guv,worksub,work1)
+  else
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              worksub(1,i,j,k)=u(i,j,k)
+              worksub(2,i,j,k)=v(i,j,k)
+           end do
+        end do
+     end do
+     call general_sub2grid(s2guv,worksub,work1)
+  end if
+
+  if(regional)then
+     do k=s2guv%kbegin_loc,s2guv%kend_loc
+        if(iflg == 0)then
+           call psichi2uv_reg(work1(1,:,:,k),work1(2,:,:,k),awork,bwork)
+        else
+           call psichi2uvt_reg(work1(1,:,:,k),work1(2,:,:,k),awork,bwork)
+        end if
+        do j=1,nlon
+           do i=1,nlat
+              work1(1,i,j,k)=awork(i,j)
+              work1(2,i,j,k)=bwork(i,j)
+           end do
+        end do
+     end do
+  else
+     do k=s2guv%kbegin_loc,s2guv%kend_loc
+        if(iflg == 0)then
+           call stvp2uv(work1(1,:,:,k),work1(2,:,:,k))
+        else
+           call tstvp2uv(work1(1,:,:,k),work1(2,:,:,k))
+        end if
+     end do
+  end if
+
+  call general_grid2sub(s2guv,work1,worksub)
+  if(iflg == 0) then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              u(i,j,k)=worksub(1,i,j,k)
+              v(i,j,k)=worksub(2,i,j,k)
+           end do
+        end do
+     end do
+  else
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              st(i,j,k)=st(i,j,k)+worksub(1,i,j,k)
+              vp(i,j,k)=vp(i,j,k)+worksub(2,i,j,k)
            end do
         end do
      end do
   end if
+
+  deallocate(worksub,work1)
 
   return
 end subroutine getuv

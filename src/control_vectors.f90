@@ -14,10 +14,23 @@ module control_vectors
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
 !   2009-08-12  lueken   - updated documentation
 !   2009-09-20  parrish  - add pointer variable a_en to definition of type control_state
-!                           also, add module variables n_ens, nlva_en
+!                           also, add module variables n_ens
+!   2009-11-10  todling  - remove redundant dot products
+!   2010-02-17  treadon  - fix in predictor part of random vector
 !   2010-02-20  parrish  - add functions dplevs_ens for use with dual-resolution hybrid ensemble option.
+!   2010-03-11  zhu      - add changes for generalizing control variables,i.e.,
+!                          init_anacv,nvars,nrf*,allocate_cs,deallocate_cs,
+!                          assign_cs2array,assign_array2cs
+!   2010-05-01  todling  - introduce gsi_bundle
+!   2010-05-05  derber   - omp commands removed
+!   2010-05-22  todling  - add a wired-in set of variables composing a motley (not fully part of CVector)
+!   2010-05-28  todling  - remove all nrf2/3_VAR-specific "pointers"
+!   2011-07-04  todling  - fixes to run either single or double precision
+!   2013-05-20  zhu      - add aircraft temperature bias correction coefficients as control variables
 !
 ! subroutines included:
+!   sub init_anacv   
+!   sub final_anacv   
 !   sub setup_control_vectors
 !   sub allocate_cv
 !   sub deallocate_cv
@@ -25,7 +38,6 @@ module control_vectors
 !   sub assign_cv2cv
 !   sub assign_array2cv
 !   sub assign_cv2array
-!   sub ddot_prod_vars
 !   sub qdot_prod_vars
 !   sub prt_norms
 !   sub prt_norms_vars
@@ -36,7 +48,6 @@ module control_vectors
 !   sub inquire_cv
 !
 ! functions included:
-!   dplevs
 !   dplevs_ens
 !   qdot_prod_sub
 !   dot_prod_cv
@@ -47,7 +58,6 @@ module control_vectors
 !
 ! variable definitions:
 !   def n_ens     - number of ensemble perturbations (=0 except when hybrid ensemble option turned on)
-!   def nlva_en   - total number of levels for hybrid ensemble control variable a_en
 !
 ! attributes:
 !   language: f90
@@ -55,47 +65,103 @@ module control_vectors
 !
 !$$$ end documentation block
 
-use kinds, only: r_kind,i_kind,r_quad
+use kinds, only: r_kind,r_double,r_single,i_kind,r_quad
 use mpimod, only: mpi_comm_world,mpi_max,mpi_rtype,mype,npe,ierror
-use constants, only: izero, ione, zero, one, two, zero_quad
+use constants, only: zero, one, two, three, zero_quad, tiny_r_kind
 use gsi_4dvar, only: iadatebgn
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
+use hybrid_ensemble_parameters, only: beta1_inv,l_hyb_ens
+use hybrid_ensemble_parameters, only: grd_ens
+use constants, only : max_varname_length
+
+use m_rerank, only : rerank
+use GSI_BundleMod, only : GSI_BundleCreate
+use GSI_BundleMod, only : GSI_BundleSet
+use GSI_BundleMod, only : GSI_Bundle
+use GSI_BundleMod, only : GSI_BundleGetPointer
+use GSI_BundleMod, only : dplevs => GSI_BundleDpLevs
+use GSI_BundleMod, only : GSI_BundleUnSet
+use GSI_BundleMod, only : GSI_BundleDestroy
+
+use GSI_BundleMod, only : GSI_Grid
+use GSI_BundleMod, only : GSI_GridCreate
+
+use mpeu_util, only: gettablesize
+use mpeu_util, only: gettable
 
 implicit none
 save
 private
-public control_state, control_vector, allocate_cv, deallocate_cv, assignment(=), &
-     & dot_product, prt_control_norms, axpy, random_cv, setup_control_vectors, &
-     & write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub
+! 
+! Public functions
+!
+public control_vector
+public allocate_cv
+public deallocate_cv
+public assignment(=)
+public dot_product  
+public prt_control_norms, axpy, random_cv, setup_control_vectors, &
+     write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, init_anacv, &
+     final_anacv
 
-type control_state
-   real(r_kind), pointer :: values(:) => NULL()
-   real(r_kind), pointer :: st(:)  => NULL()
-   real(r_kind), pointer :: vp(:)  => NULL()
-   real(r_kind), pointer :: t(:)   => NULL()
-   real(r_kind), pointer :: rh(:)  => NULL()
-   real(r_kind), pointer :: oz(:)  => NULL()
-   real(r_kind), pointer :: cw(:)  => NULL()
-   real(r_kind), pointer :: p(:)   => NULL()
-   real(r_kind), pointer :: sst(:) => NULL()
-  real(r_kind), pointer :: a_en(:)=> NULL()    !  ensemble control variable (only used if l_hyb_ens=.true.)
-end type control_state
+! 
+! Public variables
+!
+public cvars2d, cvars3d, cvarsmd, evars2d, evars3d, nrf_var
+public nc2d        ! number of 2d static control fields
+public nc3d        ! number of 3d static control fields
+public mvars       ! number of motley fields
+public nrf         ! total number of static control fields
+public nvars       ! total number of static plus motley fields
+public nrf_3d      ! when .t., indicates 3d-fields
+public as3d        ! normalized scale factor for background error 3d-variables
+public as2d        ! normalized scale factor for background error 2d-variables
+public atsfc_sdv   ! standard deviation of surface temperature error over (1) land (and (2) ice
+public an_amp0     ! multiplying factors on reference background error variances
+
+public nrf2_loc,nrf3_loc   ! what are these for??
+public ntracer
 
 type control_vector
    integer(i_kind) :: lencv
    real(r_kind), pointer :: values(:) => NULL()
-   type(control_state), allocatable :: step(:)
+   type(GSI_Grid)  :: grid_step
+   type(GSI_Bundle), pointer :: step(:)
+   type(GSI_Bundle), pointer :: motley(:)
+   type(GSI_Grid)  :: grid_aens
+   type(GSI_Bundle), pointer :: aens(:,:)
    real(r_kind), pointer :: predr(:) => NULL()
    real(r_kind), pointer :: predp(:) => NULL()
+   real(r_kind), pointer :: predt(:) => NULL()
    logical :: lallocated = .false.
 end type control_vector
 
-integer(i_kind) :: nclen,nclen1,nsclen,npclen,nrclen,nsubwin,nval_len
-integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens,nlva_en
+character(len=*),parameter:: myname='control_vectors'
+
+integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
+integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
+integer(i_kind) :: nval_lenz_en
 logical :: lsqrtb
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
+
+logical,allocatable,dimension(:):: nrf_3d
+integer(i_kind),allocatable,dimension(:):: nrf2_loc,nrf3_loc
+integer(i_kind) nrf,nvars
+integer(i_kind) ntracer
+
+integer(i_kind) :: nc2d,nc3d,mvars
+character(len=max_varname_length),allocatable,dimension(:) :: nrf_var  ! names of all variables
+character(len=max_varname_length),allocatable,dimension(:) :: cvars2d  ! 2-d fields for static   CV
+character(len=max_varname_length),allocatable,dimension(:) :: cvars3d  ! 3-d fields for static   CV
+character(len=max_varname_length),allocatable,dimension(:) :: evars2d  ! 2-d fields for ensemble CV
+character(len=max_varname_length),allocatable,dimension(:) :: evars3d  ! 3-d fields for ensemble CV
+character(len=max_varname_length),allocatable,dimension(:) :: cvarsmd  ! motley variable names
+real(r_kind)    ,allocatable,dimension(:) :: as3d
+real(r_kind)    ,allocatable,dimension(:) :: as2d
+real(r_kind)    ,allocatable,dimension(:) :: atsfc_sdv
+real(r_kind)    ,allocatable,dimension(:) :: an_amp0
 
 logical :: llinit = .false.
 
@@ -108,10 +174,6 @@ INTERFACE DOT_PRODUCT
 MODULE PROCEDURE dot_prod_cv,qdot_prod_cv,qdot_prod_cv_eb
 END INTERFACE
 
-INTERFACE DOT_PROD_VARS
-MODULE PROCEDURE ddot_prod_vars,qdot_prod_vars
-END INTERFACE
-
 INTERFACE MAXVAL
 MODULE PROCEDURE maxval_cv
 END INTERFACE
@@ -119,11 +181,13 @@ END INTERFACE
 INTERFACE PRT_CONTROL_NORMS
 MODULE PROCEDURE prt_norms
 END INTERFACE
+
 ! ----------------------------------------------------------------------
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
-                               & ksclen,kpclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
+                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens,&
+                                 kval_lenz_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_control_vectors
@@ -134,7 +198,9 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add optional input variable k_ens, which communicates size
-!                          of ensemble used when hybrid ensemble option is turned on.
+!                         of ensemble used when hybrid ensemble option is turned on.
+!   2010-05-19  todling - k_ens no longer optional
+!   2010-05-23  todling - move lev pointer init from jfunc here
 !
 !   input argument list:
 !    ksig
@@ -143,11 +209,12 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 !    katlon1n
 !    ksclen
 !    kpclen
+!    ktclen
 !    kclen
 !    ksubwin
 !    kval_len
 !    ldsqrtb
-!    k_ens     - optional, if present, then size of ensemble used in hybrid ensemble option
+!    k_ens     - if applicable, size of ensemble used in hybrid ensemble option
 !
 !   output argument list:
 !
@@ -159,9 +226,11 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 
   implicit none
   integer(i_kind)          , intent(in   ) :: ksig,klat,klon,katlon11,katlon1n, &
-                               & ksclen,kpclen,kclen,ksubwin,kval_len
-  integer(i_kind), optional, intent(in   ) :: k_ens
+                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,k_ens,&
+                                 kval_lenz_en
   logical                  , intent(in   ) :: ldsqrtb
+
+  integer(i_kind) n
 
   nsig=ksig
   lat2=klat
@@ -170,29 +239,160 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   latlon1n=katlon1n
   nsclen=ksclen
   npclen=kpclen
-  nrclen=nsclen+npclen
+  ntclen=ktclen
+  nrclen=nsclen+npclen+ntclen
   nclen =kclen
   nclen1=nclen-nrclen
   nsubwin=ksubwin
   nval_len=kval_len
   lsqrtb=ldsqrtb
-  n_ens=izero
-  nlva_en=izero
-  if(present(k_ens)) then
-     n_ens=k_ens
-     nlva_en=n_ens*nsig
-  end if
+  n_ens=k_ens
+  nval_lenz_en=kval_lenz_en
 
   llinit = .true.
-  m_vec_alloc=izero
-  max_vec_alloc=izero
-  m_allocs=izero
-  m_deallocs=izero
+  m_vec_alloc=0
+  max_vec_alloc=0
+  m_allocs=0
+  m_deallocs=0
 
   call inquire_cv
 
   return
 end subroutine setup_control_vectors
+! ----------------------------------------------------------------------
+subroutine init_anacv
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_anacv
+!   prgmmr: zhu          org: np23               date:  2008-03-29
+!
+! abstract: read in control variables information
+!
+! program history log:
+!   2010-03-11  zhu     - initial code
+!   2010-05-30  todling - revamp initial code
+!   2014-02-11  todling - rank-2 must have lev=1, anything else is rank-3
+!
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+implicit none
+!character(len=*),parameter:: rcname='anavinfo.txt'
+character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
+character(len=*),parameter:: tbname='control_vector::'
+character(len=256),allocatable,dimension(:):: utable
+character(len=20) var,source,funcof
+character(len=*),parameter::myname_=myname//'*init_anacv'
+integer(i_kind) luin,i,ii,ntot
+integer(i_kind) ilev, itracer
+real(r_kind) aas,amp
+
+! load file
+luin=get_lun()
+open(luin,file=rcname,form='formatted')
+
+! Scan file for desired table first
+! and get size of table
+call gettablesize(tbname,luin,ntot,nvars)
+
+! Get contents of table
+allocate(utable(nvars))
+call gettable(tbname,luin,ntot,nvars,utable)
+
+! release file unit
+close(luin)
+
+! Retrieve each token of interest from table and define
+! variables participating in state vector
+
+! Count variables first
+nc3d=0; nc2d=0;mvars=0
+do ii=1,nvars
+   read(utable(ii),*) var, ilev, itracer, aas, amp, source, funcof
+   if(trim(adjustl(source))=='motley') then
+      mvars=mvars+1
+   else
+      if(ilev==1) then
+          nc2d=nc2d+1
+      else
+          nc3d=nc3d+1
+      endif
+   endif
+enddo
+
+allocate(nrf_var(nvars),cvars3d(nc3d),cvars2d(nc2d))
+allocate(as3d(nc3d),as2d(nc2d))
+allocate(cvarsmd(mvars))
+allocate(atsfc_sdv(mvars))
+allocate(an_amp0(nvars))
+
+! want to rid code from the following ...
+nrf=nc2d+nc3d
+allocate(nrf_3d(nrf),nrf2_loc(nc2d),nrf3_loc(nc3d))
+
+! Now load information from table
+nc3d=0;nc2d=0;mvars=0
+nrf_3d=.false.
+do ii=1,nvars
+   read(utable(ii),*) var, ilev, itracer, aas, amp, source, funcof
+   if(trim(adjustl(source))=='motley') then
+       mvars=mvars+1
+       cvarsmd(mvars)=trim(adjustl(var))
+       atsfc_sdv(mvars)=aas
+   else
+      if(ilev==1) then
+         nc2d=nc2d+1
+         cvars2d(nc2d)=trim(adjustl(var))
+         nrf2_loc(nc2d)=ii  ! rid of soon
+         as2d(nc2d)=aas
+      else
+         nc3d=nc3d+1
+         cvars3d(nc3d)=trim(adjustl(var))
+         nrf3_loc(nc3d)=ii  ! rid of soon
+         nrf_3d(ii)=.true.
+         as3d(nc3d)=aas
+      endif
+   endif
+   nrf_var(ii)=trim(adjustl(var))
+   if(amp>zero) then
+      an_amp0(ii)=amp
+   else
+      an_amp0(ii)=one/three
+   endif
+enddo
+
+deallocate(utable)
+
+! right now, ens is made ideantical to static CV
+allocate(evars2d(nc2d),evars3d(nc3d))
+evars2d=cvars2d
+evars3d=cvars3d
+
+if (mype==0) then
+    write(6,*) myname_,': 2D-CONTROL VARIABLES ARE ', cvars2d
+    write(6,*) myname_,': 3D-CONTROL VARIABLES ARE ', cvars3d
+    write(6,*) myname_,': MOTLEY CONTROL VARIABLES ', cvarsmd
+    write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
+end if
+
+end subroutine init_anacv
+subroutine final_anacv
+  implicit none
+  deallocate(nrf_var)
+  deallocate(nrf_3d,nrf2_loc,nrf3_loc)
+  deallocate(as3d,as2d)
+  deallocate(an_amp0)
+  deallocate(atsfc_sdv)
+  deallocate(cvarsmd)
+  deallocate(cvars2d,cvars3d)
+  deallocate(evars2d,evars3d)
+end subroutine final_anacv
+
 ! ----------------------------------------------------------------------
 subroutine allocate_cv(ycv)
 !$$$  subprogram documentation block
@@ -207,6 +407,10 @@ subroutine allocate_cv(ycv)
 !   2009-09-20  parrish - add optional allocation of hybrid ensemble control variable a_en
 !   2010-02-20  parrish - add structure variable grd_ens as part of changes for dual-resolution
 !                           hybrid ensemble system.
+!   2010-02-25  zhu     - use nrf_var and nrf_3d to specify the order control variables
+!   2010-05-01  todling - update to use gsi_bundle
+!   2010-05-17  todling - add back ens control; w/ a twist from original
+!   2010-05-22  todling - add support for motley variables
 !
 !   input argument list:
 !
@@ -222,7 +426,11 @@ subroutine allocate_cv(ycv)
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
   type(control_vector), intent(  out) :: ycv
-  integer(i_kind) :: ii,jj
+  character(len=max_varname_length) cvar
+  integer(i_kind) :: ii,jj,n,nn,ngrid,ndim,ierror,n_step,n_aens
+  integer(i_kind) :: mold2(2,2), mold3(2,2,2)
+  character(len=256)::bname
+  type(gsi_grid) :: grid_motley
 
   if (ycv%lallocated) then
      write(6,*)'allocate_cv: vector already allocated'
@@ -232,58 +440,130 @@ subroutine allocate_cv(ycv)
   ycv%lallocated=.true.
   ycv%lencv = nclen
   ALLOCATE(ycv%values(ycv%lencv))
-  ALLOCATE(ycv%step(nsubwin))
 
-  ii=izero
+! If so, define grid of regular control vector
+  n_step=0
+! if (beta1_inv>tiny_r_kind) then
+      ALLOCATE(ycv%step(nsubwin))
+      call GSI_GridCreate(ycv%grid_step,lat2,lon2,nsig)
+         if (lsqrtb) then
+            n_step=nval_len
+         else
+            n_step=nc3d*latlon1n+nc2d*latlon11
+         endif
+      if(mvars>0) then
+         ALLOCATE(ycv%motley(nsubwin))
+         call GSI_GridCreate(grid_motley,lat2,lon2,-1) ! this is sort of wired-in
+      endif
+! endif
+
+! If so, define grid of ensemble control vector
+  n_aens=0
+  if (l_hyb_ens) then
+      ALLOCATE(ycv%aens(nsubwin,n_ens))
+      call GSI_GridCreate(ycv%grid_aens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+         if (lsqrtb) then
+            n_aens=nval_lenz_en
+         else
+            n_aens=grd_ens%latlon11*grd_ens%nsig
+         endif
+  endif
+
+! Loop over sub-windows in time
+  ii=0; ndim=0
   do jj=1,nsubwin
-     ycv%step(jj)%values => ycv%values(ii+ione:ii+nval_len)
 
-     if (lsqrtb) then
-        ycv%step(jj)%st  => NULL()
-        ycv%step(jj)%vp  => NULL()
-        ycv%step(jj)%t   => NULL()
-        ycv%step(jj)%rh  => NULL()
-        ycv%step(jj)%oz  => NULL()
-        ycv%step(jj)%cw  => NULL()
-        ycv%step(jj)%p   => NULL()
-        ycv%step(jj)%sst => NULL()
-        ii=ii+nval_len
-     else
-        ycv%step(jj)%st  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%vp  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%t   => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%rh  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%oz  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%cw  => ycv%values(ii+ione:ii+latlon1n)
-        ii=ii+latlon1n
-        ycv%step(jj)%p   => ycv%values(ii+ione:ii+latlon11)
-        ii=ii+latlon11
-        ycv%step(jj)%sst => ycv%values(ii+ione:ii+latlon11)
-        ii=ii+latlon11
-        if(n_ens >  izero) then
-           ycv%step(jj)%a_en => ycv%values(ii+1:ii+n_ens*grd_ens%latlon1n)
-           ii=ii+n_ens*grd_ens%latlon1n
-        end if
+!    Set static part of control vector (non-ensemble-based)
+!    if (beta1_inv>tiny_r_kind) then
+         ycv%step(jj)%values => ycv%values(ii+1:ii+n_step)
+
+         write(bname,'(a,i3.3)') 'Static Control Bundle subwin-',jj
+         call GSI_BundleSet(ycv%step(jj),ycv%grid_step,bname,ierror,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+         if (ierror/=0) then
+             write(6,*)'allocate_cv: error alloc(static bundle)'
+             call stop2(109)
+         endif
+         ndim=ndim+ycv%step(jj)%ndim
+
+         ii=ii+n_step
+
+!        If motley variables needed (these don't contribute to CV size)
+!        Presently, there are thankfully only 2d-fields in this category
+         if(mvars>0) then
+            write(bname,'(a,i3.3,a,i4.4)') 'Motley Control Bundle subwin-',jj
+            call GSI_BundleCreate(ycv%motley(jj),grid_motley,bname,ierror,names2d=cvarsmd,bundle_kind=r_kind)
+            if (ierror/=0) then
+                write(6,*)'allocate_cv: error alloc(motley bundle)'
+                call stop2(109)
+            endif
+         endif
+!    endif ! beta1_inv
+
+!    Set ensemble-based part of control vector
+     if (l_hyb_ens) then
+
+         do nn=1,n_ens
+            ycv%aens(jj,nn)%values => ycv%values(ii+1:ii+n_aens)
+            write(bname,'(a,i3.3,a,i4.4)') 'Ensemble Control Bundle subwin-',jj,' and member-',nn
+            call GSI_BundleSet(ycv%aens(jj,nn),ycv%grid_aens,bname,ierror,names3d=(/'a_en'/),bundle_kind=r_kind)
+            if (ierror/=0) then
+                write(6,*)'allocate_cv: error alloc(ensemble bundle)'
+                call stop2(109)
+            endif
+            ndim=ndim+ycv%aens(jj,nn)%ndim
+
+            ii=ii+n_aens
+         enddo
+
      endif
+
   enddo
 
-  ycv%predr => ycv%values(ii+ione:ii+nsclen)
+  ycv%predr => ycv%values(ii+1:ii+nsclen)
   ii=ii+nsclen
-  ycv%predp => ycv%values(ii+ione:ii+npclen)
+  ycv%predp => ycv%values(ii+1:ii+npclen)
   ii=ii+npclen
+  if (ntclen>0) then
+     ycv%predt => ycv%values(ii+1:ii+ntclen)
+     ii=ii+ntclen
+  end if
 
   if (ii/=nclen) then
-     write(6,*)'allocate_mods: error length',ii,nclen
+     write(6,*)'allocate_cv: error length',ii,nclen
      call stop2(109)
   end if
 
-  m_allocs=m_allocs+ione
-  m_vec_alloc=m_vec_alloc+ione
+! Construct a list of integer pointers to the static and motley part of the 
+! control vector (this is to support operations on current (mpi) distribution)
+! it's enough to get these pointers to nsubwin=1, since they only serve the 
+! purpose of indexing arrays operating on single window (e.g. see grid2sub)
+! allocate(ycv%ivalues(n3d+n2d+mvars))
+! ii=0
+! do i=1,nc3d
+!    call gsi_bundlegetpointer (ycv%step(1),cvars3d,iptr,istatus,ival=ival)
+!    if(istatus==0) then
+!       ii=ii+1
+!       ycv%ivalues(ii)=ival
+!    endif
+! enddo
+! do i=1,nc2d
+!    call gsi_bundlegetpointer (ycv%step(1),cvars2d,iptr,istatus,ival=ival)
+!    if(istatus==0) then
+!       ii=ii+1
+!       ycv%ivalues(ii)=ival
+!    endif
+! enddo
+! do i=1,mvars
+!    call gsi_bundlegetpointer (ycv%motley(1),cvarsmd,iptr,istatus,ival=ival)
+!    if(istatus==0) then
+!       ii=ii+1
+!       ycv%ivalues(ii)=ival
+!    endif
+! enddo
+
+
+  m_allocs=m_allocs+1
+  m_vec_alloc=m_vec_alloc+1
   max_vec_alloc=MAX(max_vec_alloc,m_vec_alloc)
 
   return
@@ -300,6 +580,11 @@ subroutine deallocate_cv(ycv)
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add optional removal of pointer to hybrid ensemble control variable a_en
+!   2010-02-25  zhu     - add flexibility to control variable
+!   2010-05-01  todling - update to use gsi_bundle
+!   2010-05-17  todling - add back ens control; w/ a twist from original
+!   2010-05-22  todling - add support for motley variables
+!   2011-09-05  todling - replace destroy calls with unset calls
 !
 !   input argument list:
 !    ycv
@@ -315,32 +600,37 @@ subroutine deallocate_cv(ycv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  integer(i_kind) :: ii
+  integer(i_kind) :: ii,n,nn,ierror
 
   if (ycv%lallocated) then
      do ii=1,nsubwin
-        NULLIFY(ycv%step(ii)%st )
-        NULLIFY(ycv%step(ii)%vp )
-        NULLIFY(ycv%step(ii)%t  )
-        NULLIFY(ycv%step(ii)%rh )
-        NULLIFY(ycv%step(ii)%oz )
-        NULLIFY(ycv%step(ii)%cw )
-        NULLIFY(ycv%step(ii)%p  )
-        NULLIFY(ycv%step(ii)%sst)
-        if(n_ens >  izero) NULLIFY(ycv%step(ii)%a_en)
+        if (l_hyb_ens) then
+           do nn=n_ens,1,-1
+              call GSI_BundleUnset(ycv%aens(ii,nn),ierror)
+           enddo
+        endif
+!       if (beta1_inv>tiny_r_kind) then
+           if(mvars>0) then
+              call GSI_BundleDestroy(ycv%motley(ii),ierror)
+           endif
+           call GSI_BundleUnset(ycv%step(ii),ierror)
+!       endif ! beta1_inv
      end do
      NULLIFY(ycv%predr)
      NULLIFY(ycv%predp)
+     NULLIFY(ycv%predt)
 
+     if(l_hyb_ens) DEALLOCATE(ycv%aens)
+     if(mvars>0) DEALLOCATE(ycv%motley)
      DEALLOCATE(ycv%step)
      DEALLOCATE(ycv%values)
 
      ycv%lallocated=.false.
 
-     m_deallocs=m_deallocs+ione
-     m_vec_alloc=m_vec_alloc-ione
+     m_deallocs=m_deallocs+1
+     m_vec_alloc=m_vec_alloc-1
   else
-     if (mype==izero) write(6,*)'deallocate_cv warning: vector not allocated'
+     if (mype==0) write(6,*)'deallocate_cv warning: vector not allocated'
   endif
 
   return
@@ -416,11 +706,9 @@ subroutine assign_cv2cv(ycv,xcv)
      call stop2(110)
   end if
 
-!$omp parallel do
   DO ii=1,ycv%lencv
      ycv%values(ii)=xcv%values(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_cv2cv
@@ -460,11 +748,9 @@ subroutine assign_array2cv(ycv,parray)
   end if
 
 
-!$omp parallel do
   DO ii=1,ycv%lencv
      ycv%values(ii)=parray(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_array2cv
@@ -502,167 +788,12 @@ subroutine assign_cv2array(parray,ycv)
      call stop2(112)
   end if
 
-!$omp parallel do
   DO ii=1,ycv%lencv
      parray(ii)=ycv%values(ii)
   ENDDO
-!$omp end parallel do
 
   return
 end subroutine assign_cv2array
-! ----------------------------------------------------------------------
-real(r_quad) function dplevs(nlevs,dx,dy)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dplevs
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!
-!   input argument list:
-!    nlevs
-!    dx,dy
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-  integer(i_kind),intent(in   ) :: nlevs
-  real(r_kind)   ,intent(in   ) :: dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
-
-  integer(i_kind) :: ii,jj,kk
-
-  dplevs=zero_quad
-  do kk=1,nlevs
-     do jj=2,lon2-ione
-        do ii=2,lat2-ione
-           dplevs=dplevs+dx(ii,jj,kk)*dy(ii,jj,kk)
-        end do
-     end do
-  end do
-
-return
-end function dplevs
-! ----------------------------------------------------------------------
-real(r_quad) function dplevs_ens(nlevs,dx,dy)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dplevs_ens  copy of dplevs for use with ensemble control variable a_en
-!   prgmmr: parrish          org: wx22                date: 2010-02-20
-!
-! abstract:
-!
-! program history log:
-!   2010-02-20  parrish, initial documentation
-!
-!   input argument list:
-!    nlevs
-!    dx,dy
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  use hybrid_ensemble_parameters, only: grd_ens
-  implicit none
-  integer(i_kind),intent(in   ) :: nlevs
-  real(r_kind)   ,intent(in   ) :: dx(grd_ens%lat2,grd_ens%lon2,nlevs),dy(grd_ens%lat2,grd_ens%lon2,nlevs)
-
-  integer(i_kind) :: ii,jj,kk
-
-  dplevs_ens=zero_quad
-  do kk=1,nlevs
-     do jj=2,grd_ens%lon2-ione
-        do ii=2,grd_ens%lat2-ione
-           dplevs_ens=dplevs_ens+dx(ii,jj,kk)*dy(ii,jj,kk)
-        end do
-     end do
-  end do
-
-return
-end function dplevs_ens
-! ----------------------------------------------------------------------
-subroutine ddot_prod_vars(xcv,ycv,prods)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    ddot_prod_vars
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
-!
-!   input argument list:
-!    xcv,ycv
-!
-!   output argument list:
-!    prods
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-  type(control_vector), intent(in   ) :: xcv, ycv
-  real(r_kind)        , intent(  out) :: prods(nsubwin+ione)
-
-  real(r_kind) :: zz(nsubwin)
-  integer(i_kind) :: ii
-
-  prods(:)=zero
-  zz(:)=zero
-
-! Independent part of vector
-  if (lsqrtb) then
-!$omp parallel do
-     do ii=1,nsubwin
-        zz(ii)=dot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-     end do
-!$omp end parallel do
-  else
-     do ii=1,nsubwin
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-        if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
-     end do
-  end if
-
-  call mpl_allreduce(nsubwin,zz)
-  prods(1:nsubwin) = zz(1:nsubwin)
-
-! Duplicated part of vector
-  if (nsclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predr(:),ycv%predr(:))
-  endif
-  if (npclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + dot_product(xcv%predp(:),ycv%predp(:))
-  endif
-
-return
-end subroutine ddot_prod_vars
 ! ----------------------------------------------------------------------
 real(r_quad) function qdot_prod_sub(xcv,ycv)
 !$$$  subprogram documentation block
@@ -675,6 +806,10 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
 !   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
+!   2010-05-17  todling - update to use bundle
+!   2010-06-02  parrish - add contribution from ensemble control variable to dot product
+!   2010-10-08  derber  - optimize and clean up
+!   2011-09-05  todling - add hybrid to sqrt part of code
 !
 !   input argument list:
 !    xcv,ycv
@@ -690,112 +825,60 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
 
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
-  integer(i_kind) :: ii,j
-
+  integer(i_kind) :: ii,nn,m3d,m2d,i,j,itot
+  real(r_quad),allocatable,dimension(:) :: partsum
 
   qdot_prod_sub=zero_quad
 
 ! Independent part of vector
   if (lsqrtb) then
-!$omp parallel do
      do ii=1,nsubwin
         qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
      end do
-!$omp end parallel do
+     if(l_hyb_ens) then
+        do nn=1,n_ens
+           do ii=1,nsubwin
+              qdot_prod_sub=qdot_prod_sub+qdot_product( xcv%aens(ii,nn)%values(:) ,ycv%aens(ii,nn)%values(:) )
+           end do
+        end do
+     endif
   else
      do ii=1,nsubwin
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        qdot_prod_sub = qdot_prod_sub + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-        if(n_ens >  izero) &
-        qdot_prod_sub = qdot_prod_sub + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:)  ,ycv%step(ii)%a_en(:))
+        m3d=xcv%step(ii)%n3d
+        m2d=xcv%step(ii)%n2d
+        itot=max(m3d,0)+max(m2d,0)
+        if(l_hyb_ens)itot=itot+n_ens
+        allocate(partsum(itot))
+!$omp parallel do  schedule(dynamic,1) private(i)
+        do i = 1,m3d
+           partsum(i) = dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
+        enddo
+!$omp parallel do  schedule(dynamic,1) private(i)
+        do i = 1,m2d
+           partsum(m3d+i) = dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+        enddo
+        if(l_hyb_ens) then
+!$omp parallel do  schedule(dynamic,1) private(i)
+           do i = 1,n_ens
+              partsum(m3d+m2d+i) = dplevs(xcv%aens(ii,i)%r3(1)%q,ycv%aens(ii,i)%r3(1)%q,ihalo=1)
+           end do
+        end if
+        do i=1,itot
+          qdot_prod_sub = qdot_prod_sub + partsum(i)
+        end do
+        deallocate(partsum)
      end do
   end if
 
 ! Duplicated part of vector
-  if(mype == izero)then
-     do j=nclen1+ione,nclen
+  if(mype == 0)then
+     do j=nclen1+1,nclen
         qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
      end do
   end if
 
 return
 end function qdot_prod_sub
-! ----------------------------------------------------------------------
-subroutine qdot_prod_vars(xcv,ycv,prods)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    qdot_prod_vars
-!   prgmmr:                  org:                     date:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-04  lueken - added subprogram doc block
-!   2009-09-20  parrish - add hybrid ensemble control variable a_en contribution to dot product
-!
-!   input argument list:
-!    xcv,ycv
-!
-!   output argument list:
-!    prods
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  implicit none
-  type(control_vector), intent(in   ) :: xcv, ycv
-  real(r_quad)        , intent(  out) :: prods(nsubwin+ione)
-
-  real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii
-
-  prods(:)=zero_quad
-  zz(:)=zero_quad
-
-! Independent part of vector
-  if (lsqrtb) then
-!$omp parallel do
-     do ii=1,nsubwin
-        zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-     end do
-!$omp end parallel do
-  else
-     do ii=1,nsubwin
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-        zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-        zz(ii) = zz(ii) + dplevs(ione,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
-        if(n_ens >  izero) &
-        zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
-     end do
-  end if
-
-  call mpl_allreduce(nsubwin,zz)
-  prods(1:nsubwin) = zz(1:nsubwin)
-
-! Duplicated part of vector
-  if (nsclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
-  endif
-  if (npclen>izero) then
-     prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
-  endif
-
-return
-end subroutine qdot_prod_vars
 ! ----------------------------------------------------------------------
 subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 !$$$  subprogram documentation block
@@ -810,6 +893,9 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
 !
 ! program history log:
 !   2009-09-20  parrish - initial documentation
+!   2010-05-17  todling - update to use bundle
+!   2010-10-08  derber - optimize and clean up
+!   2011-09-05  todling - add hybrid to sqrt part of code
 !
 !   input argument list:
 !    xcv,ycv
@@ -828,52 +914,85 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
   implicit none
   type(control_vector), intent(in   ) :: xcv, ycv
   character(len=*)    , intent(in   ) :: eb
-  real(r_quad)        , intent(  out) :: prods(nsubwin+ione)
+  real(r_quad)        , intent(  out) :: prods(nsubwin+1)
 
   real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii
+  integer(i_kind) :: ii,i,nn,m3d,m2d,istatus
+  real(r_quad),allocatable,dimension(:) :: partsum
 
   prods(:)=zero_quad
   zz(:)=zero_quad
 
 ! Independent part of vector
   if (lsqrtb) then
-!$omp parallel do
-     do ii=1,nsubwin
-        zz(ii)=qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
-     end do
-!$omp end parallel do
-  else
      if(trim(eb) == 'cost_b') then
         do ii=1,nsubwin
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%st(:) ,ycv%step(ii)%st(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%vp(:) ,ycv%step(ii)%vp(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%t(:)  ,ycv%step(ii)%t(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%rh(:) ,ycv%step(ii)%rh(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%oz(:) ,ycv%step(ii)%oz(:))
-           zz(ii) = zz(ii) + dplevs(nsig,xcv%step(ii)%cw(:) ,ycv%step(ii)%cw(:))
-           zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%p(:)  ,ycv%step(ii)%p(:))
-           zz(ii) = zz(ii) + dplevs(1   ,xcv%step(ii)%sst(:),ycv%step(ii)%sst(:))
+           zz(ii)=zz(ii)+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+        end do
+     endif
+     if(trim(eb) == 'cost_e') then
+        do nn=1,n_ens
+           do ii=1,nsubwin
+              zz(ii)=zz(ii)+qdot_product( xcv%aens(ii,nn)%values(:) ,ycv%aens(ii,nn)%values(:) )
+           end do
+        end do
+     endif
+  else
+     if(trim(eb) == 'cost_b') then
+        do ii=1,nsubwin                                                         
+           m3d=xcv%step(ii)%n3d
+           m2d=xcv%step(ii)%n2d
+           allocate(partsum(m2d+m3d))
+!$omp parallel do  schedule(dynamic,1) private(i)
+           do i = 1,m3d
+              partsum(i)= dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
+           enddo
+!$omp parallel do  schedule(dynamic,1) private(i)
+           do i = 1,m2d
+              partsum(m3d+i)= dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+           enddo
+           do i = 1,m2d+m3d
+              zz(ii)=zz(ii) + partsum(i)
+           end do
+           deallocate(partsum)
         end do
      end if
      if(trim(eb) == 'cost_e') then
-        do ii=1,nsubwin
-           if(n_ens >  izero) &
-           zz(ii) = zz(ii) + dplevs_ens(nlva_en,xcv%step(ii)%a_en(:),  ycv%step(ii)%a_en(:))
+        do ii=1,nsubwin ! RTod: somebody could work in opt/zing this ...
+           allocate(partsum(n_ens))
+!$omp parallel do  schedule(dynamic,1) private(nn,m3d,m2d)
+           do nn=1,n_ens
+              partsum(nn) = zero_quad
+              m3d=xcv%aens(ii,nn)%n3d
+              do i = 1,m3d
+                 partsum(nn)= partsum(nn) + dplevs(xcv%aens(ii,nn)%r3(i)%q,ycv%aens(ii,nn)%r3(i)%q,ihalo=1)
+              enddo
+              m2d=xcv%aens(ii,nn)%n2d
+              do i = 1,m2d
+                 partsum(nn)= partsum(nn) + dplevs(xcv%aens(ii,nn)%r2(i)%q,ycv%aens(ii,nn)%r2(i)%q,ihalo=1)
+              enddo
+           enddo
+           do nn=1,n_ens
+             zz(ii)=zz(ii)+partsum(nn)
+           end do
+           deallocate(partsum)
         end do
      end if
   end if
 
-  call mpl_allreduce(nsubwin,zz)
+  call mpl_allreduce(nsubwin,qpvals=zz)
   prods(1:nsubwin) = zz(1:nsubwin)
 
 ! Duplicated part of vector
   if(trim(eb) == 'cost_b') then
-     if (nsclen>izero) then
-        prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predr(:),ycv%predr(:))
+     if (nsclen>0) then
+        prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predr(:),ycv%predr(:))
      endif
-     if (npclen>izero) then
-        prods(nsubwin+ione) = prods(nsubwin+ione) + qdot_product(xcv%predp(:),ycv%predp(:))
+     if (npclen>0) then
+        prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predp(:),ycv%predp(:))
+     endif
+     if (ntclen>0) then
+        prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predt(:),ycv%predt(:))
      endif
   end if
 
@@ -906,7 +1025,7 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
-  real(r_kind) :: zz(nsubwin+ione)
+  real(r_quad) :: dd(1)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -914,12 +1033,9 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
      call stop2(113)
   end if
 
-  call dot_prod_vars(xcv,ycv,zz)
-
-  dot_prod_cv = zero
-  do ii=1,nsubwin+ione
-     dot_prod_cv = dot_prod_cv + zz(ii)
-  enddo
+  dd(1) = qdot_prod_sub(xcv,ycv)
+  call mpl_allreduce(1,qpvals=dd)
+  dot_prod_cv = dd(1)
 
 return
 end function dot_prod_cv
@@ -952,7 +1068,7 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
-  real(r_quad) :: zz(nsubwin+ione)
+  real(r_quad) :: dd(1)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -960,12 +1076,9 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
      call stop2(114)
   end if
 
-  call qdot_prod_vars(xcv,ycv,zz)
-
-  qdot_prod_cv = zero_quad
-  do ii=1,nsubwin+ione
-     qdot_prod_cv = qdot_prod_cv + zz(ii)
-  enddo
+  dd(1) = qdot_prod_sub(xcv,ycv)
+  call mpl_allreduce(1,qpvals=dd)
+  qdot_prod_cv = dd(1)
 
 return
 end function qdot_prod_cv
@@ -1004,7 +1117,7 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
   type(control_vector), intent(in   ) :: xcv, ycv
 
 ! local variables
-  real(r_quad) :: zz(nsubwin+ione)
+  real(r_quad) :: zz(nsubwin+1)
   integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
@@ -1015,7 +1128,7 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,kind,eb)
   call qdot_prod_vars_eb(xcv,ycv,zz,eb)
 
   qdot_prod_cv_eb= zero_quad
-  do ii=1,nsubwin+ione
+  do ii=1,nsubwin+1
      qdot_prod_cv_eb = qdot_prod_cv_eb + zz(ii)
   enddo
 
@@ -1049,23 +1162,16 @@ subroutine prt_norms(xcv,sgrep)
   type(control_vector), intent(in   ) :: xcv
   character(len=*)    , intent(in   ) :: sgrep
 
-  real(r_quad) :: zz(nsubwin+ione),zt
-  integer(i_kind) :: ii
+  real(r_quad) :: zt
 
-  call dot_prod_vars(xcv,xcv,zz)
-  zt = zero_quad
-  do ii=1,nsubwin+ione
-     zt = zt + zz(ii)
-  enddo
+  zt = qdot_prod_cv(xcv,xcv,r_quad)
   zt=sqrt(zt)
-  zz(:) = SQRT(zz(:))
 
-  if (mype==izero) then
-     write(6,*)sgrep,' partial norms=',real(zz(:),r_kind)
+  if (mype==0) then
      write(6,*)sgrep,' global  norm =',real(zt,r_kind)
   endif
 
-!!!  call prt_norms_vars(xcv,sgrep)
+!_RT  call prt_norms_vars(xcv,sgrep) --->> this routine is hanging
 
   return
 end subroutine prt_norms
@@ -1074,12 +1180,13 @@ subroutine prt_norms_vars(xcv,sgrep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prt_norms_vars
-!   prgmmr:                  org:                     date:
+!   prgmmr: Jing Guo         org:  gmao               date:
 !
 ! abstract:
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
+!   2010-05-06  todling- update to use gsi_bundle-like vector
 !
 !   input argument list:
 !    xcv
@@ -1098,47 +1205,58 @@ subroutine prt_norms_vars(xcv,sgrep)
   type(control_vector), intent(in   ) :: xcv
   character(len=*)    , intent(in   ) :: sgrep
 
-  real   (r_kind),dimension(8) :: vdot,vsum,vmin,vmax
-  integer(i_kind),dimension(8) :: vnum
-  integer :: iw,nsw,iv,ivend,nv
+  real   (r_kind),allocatable,dimension(:) :: vdot,vsum,vmin,vmax
+  integer(i_kind),allocatable,dimension(:) :: vnum
+  integer :: jj,nsw,iv,nv
   real(r_kind),pointer,dimension(:) :: piv
-
-  character(len=4),dimension(9) :: vnames = &
-                        (/'st  ','vp  ','t   ','rh  ','oz  ','cw  ','p   ','sst ','a_en'/)
 
   nsw=size(xcv%step)
 
-  ivend=8_i_kind
-  if(n_ens >  izero) ivend=9_i_kind
-  do iv=1,ivend
-     do iw=1,nsw
-        piv => null()
-        select case(iv)
-           case(1); piv => xcv%step(iw)%st
-           case(2); piv => xcv%step(iw)%vp
-           case(3); piv => xcv%step(iw)%t
-           case(4); piv => xcv%step(iw)%rh
-           case(5); piv => xcv%step(iw)%oz
-           case(6); piv => xcv%step(iw)%cw
-           case(7); piv => xcv%step(iw)%p
-           case(8); piv => xcv%step(iw)%sst
-           case(9); piv => xcv%step(iw)%a_en
-        end select
+! process 3d variables first
+  allocate(vdot(nc3d),vsum(nc3d),vmin(nc3d),vmax(nc3d),vnum(nc3d))
+  do iv=1,nc3d
+     do jj=1,nsw
+        piv => rerank(xcv%step(jj)%r3(iv)%q)
 
         call stats_sum(piv, &
-                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=iw>ione)
+                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=jj>1)
      enddo
 
      call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),  &
                           vnum(iv),MPI_comm_world)
-     nv=max(vnum(iv),ione)
+     nv=max(vnum(iv),1)
   
-     if(mype==izero) then
+     if(mype==0) then
         write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')               &
-          sgrep,vnames(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
+          sgrep,cvars3d(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
           vmin(iv),vmax(iv),vnum(iv)
      endif
   end do
+  deallocate(vdot,vsum,vmin,vmax,vnum)
+
+! process 2d now
+  allocate(vdot(nc2d),vsum(nc2d),vmin(nc2d),vmax(nc2d),vnum(nc2d))
+  do iv=1,nc2d
+     do jj=1,nsw
+        piv => rerank(xcv%step(jj)%r2(iv)%q)
+
+        call stats_sum(piv, &
+                       vdot(iv),vsum(iv),vmin(iv),vmax(iv),vnum(iv),add=jj>1)
+     enddo
+
+     call stats_allreduce(vdot(iv),vsum(iv),vmin(iv),vmax(iv),  &
+                          vnum(iv),MPI_comm_world)
+     nv=max(vnum(iv),1)
+  
+     if(mype==0) then
+        write(6,'(2(1x,a),4(1x,ES20.12),1x,i10)')               &
+          sgrep,cvars2d(iv),sqrt(vdot(iv)/nv),vsum(iv)/nv,       &
+          vmin(iv),vmax(iv),vnum(iv)
+     endif
+  end do
+  deallocate(vdot,vsum,vmin,vmax,vnum)
+
+! release pointer
   piv => null()
   
 end subroutine prt_norms_vars
@@ -1147,9 +1265,9 @@ subroutine axpy(alpha,xcv,ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    axpy
-!   prgmmr:                  org:                     date:
+!   prgmmr: todling          org: gmao                date:
 !
-! abstract:
+! abstract: similar to BLAS axpy
 !
 ! program history log:
 !   2009-08-04  lueken - added subprogram doc block
@@ -1189,7 +1307,7 @@ subroutine random_cv(ycv,kseed)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    random_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org: gmao                date:
 !
 ! abstract:
 !
@@ -1212,7 +1330,7 @@ implicit none
 type(control_vector)     , intent(inout) :: ycv
 integer(i_kind), optional, intent(in   ) :: kseed
 
-integer(i_kind):: ii,jj,iseed
+integer(i_kind):: ii,jj,nn,iseed
 integer, allocatable :: nseed(:) ! Intentionaly default integer
 real(r_kind), allocatable :: zz(:)
 
@@ -1238,7 +1356,20 @@ do jj=1,nsubwin
 enddo
 deallocate(zz)
 
-if (nsclen>izero) then
+if (nval_lenz_en>0) then
+   allocate(zz(nval_lenz_en))
+   do nn=1,n_ens
+      do jj=1,nsubwin
+         call random_number(zz)
+         do ii=1,nval_lenz_en
+            ycv%aens(jj,nn)%values(ii) = two*zz(ii)-one
+         enddo
+      enddo
+   enddo
+   deallocate(zz)
+endif
+
+if (nsclen>0) then
    allocate(zz(nsclen))
    call random_number(zz)
    do ii=1,nsclen
@@ -1247,11 +1378,20 @@ if (nsclen>izero) then
    deallocate(zz)
 endif
 
-if (npclen>izero) then
+if (npclen>0) then
    allocate(zz(npclen))
    call random_number(zz)
    do ii=1,npclen
-      ycv%predr(ii) = two*zz(ii)-one
+      ycv%predp(ii) = two*zz(ii)-one
+   enddo
+   deallocate(zz)
+endif
+
+if (ntclen>0) then
+   allocate(zz(ntclen))
+   call random_number(zz)
+   do ii=1,ntclen
+      ycv%predt(ii) = two*zz(ii)-one
    enddo
    deallocate(zz)
 endif
@@ -1263,7 +1403,7 @@ subroutine write_cv(xcv,cdfile)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    write_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org:  gmao               date:
 !
 ! abstract:
 !
@@ -1294,7 +1434,7 @@ subroutine write_cv(xcv,cdfile)
   clmype='.YYYY'
   write(clmype(2:5),'(I4.4)')mype
   clfile=trim(cdfile)//clmype
-  if (mype==izero) write(6,*)'Writing control vector to file ',clfile
+  if (mype==0) write(6,*)'Writing control vector to file ',clfile
 
   open(iunit,file=trim(clfile),form='unformatted')
   write(iunit)xcv%lencv
@@ -1308,7 +1448,7 @@ subroutine read_cv(xcv,cdfile)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr:  tremolet        org: gmao                date:
 !
 ! abstract:
 !
@@ -1340,7 +1480,7 @@ subroutine read_cv(xcv,cdfile)
   clmype='.YYYY'
   write(clmype(2:5),'(I4.4)')mype
   clfile=trim(cdfile)//clmype
-  if (mype==izero) write(6,*)'Reading control vector from file ',clfile
+  if (mype==0) write(6,*)'Reading control vector from file ',clfile
 
   open(iunit,file=trim(clfile),form='unformatted')
   read(iunit)ilen
@@ -1358,7 +1498,7 @@ subroutine inquire_cv
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    inquire_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org: gmao                date:
 !
 ! abstract:
 !
@@ -1377,7 +1517,7 @@ subroutine inquire_cv
 implicit none
 real(r_kind) :: zz
 
-if (mype==izero) then
+if (mype==0) then
    zz=real(max_vec_alloc*nclen,r_kind)*8.0_r_kind/1.048e6_r_kind
    write(6,*)'control_vectors: length=',nclen
    write(6,*)'control_vectors: currently allocated=',m_vec_alloc
@@ -1393,7 +1533,7 @@ real(r_kind) function maxval_cv(ycv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    maxval_cv
-!   prgmmr:                  org:                     date:
+!   prgmmr: tremolet         org: gmao                date:
 !
 ! abstract:
 !
@@ -1417,8 +1557,8 @@ real(r_kind) :: zloc(1),zglo(1)
 
 zloc(1)=maxval(ycv%values(:))
 
-call mpi_allreduce(zloc,zglo,ione,mpi_rtype,mpi_max,mpi_comm_world,ierror)
-if (ierror/=izero) then
+call mpi_allreduce(zloc,zglo,1,mpi_rtype,mpi_max,mpi_comm_world,ierror)
+if (ierror/=0) then
    write(6,*)'maxval_cv: MPI error',ierror
    call stop2(117)
 end if
@@ -1432,7 +1572,7 @@ real(r_quad) function qdot_product(x,y)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    qdot_product
-!   prgmmr:                  org:                     date:
+!   prgmmr: todling         org: gmao                date:
 !
 ! abstract:
 !
@@ -1462,15 +1602,11 @@ real(r_quad) function qdot_product(x,y)
   end if
   zz=zero_quad
 
-! -- add omp reduction to get the correct qdot product
-!$omp parallel do &
-!$omp private( i ) &
-!$omp reduction( + : zz )
   do i=1,nx
      zz = zz + x(i)*y(i)
   enddo
-!$omp end parallel do
   qdot_product=zz
 end function qdot_product
 ! ----------------------------------------------------------------------
 end module control_vectors
+

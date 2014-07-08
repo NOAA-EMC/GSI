@@ -35,6 +35,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !   2007-03-01  tremolet - measure time from beginning of assimilation window
 !   2008-10-14  derber - allow mpi_io
 !   2009-04-21  derber  - add ithin to call to makegrids
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!                         (2) get zob, tz_tr (call skindepth and cal_tztr)
+!                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
+!                         (4) add more elements (nstinfo) in data array
+!   2011-08-01  lueken  - added module use deter_sfc_mod, fix indentation
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -61,16 +68,18 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
-            checkob,finalcheck,score_crit
+      checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
-  use constants, only: izero,ione,deg2rad,zero,rad2deg,r60inv,r60
-  use radinfo, only: iuse_rad,jpch_rad,nusis
+  use constants, only: deg2rad,zero,one,rad2deg,r60inv,r60
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
+  use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: ndata,nodata
   integer(i_kind) ,intent(inout) :: nread
@@ -82,9 +91,9 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
 
 ! Declare local parameters
-  integer(i_kind),parameter:: nimghdr=13_i_kind
-  integer(i_kind),parameter:: maxinfo=37_i_kind
-  integer(i_kind),parameter:: maxchanl=4_i_kind
+  integer(i_kind),parameter:: nimghdr=13
+  integer(i_kind),parameter:: maxinfo=37
+  integer(i_kind),parameter:: maxchanl=4
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -98,9 +107,10 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
-  integer(i_kind) ireadmg,ireadsb,iret,nele,itt
+  integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
   integer(i_kind) idate5(5)
+  integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
   real(r_kind) dlon,dlat,timedif,crit1,dist1
@@ -110,6 +120,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
   real(r_kind),allocatable,dimension(:,:):: data_all
 
   real(r_double),dimension(nimghdr) :: hdrgoesarr       !  goes imager header
@@ -121,13 +132,17 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !**************************************************************************
 ! Initialize variables
-  lnbufr = 10_i_kind
+  lnbufr = 10
   disterrmax=zero
-  ntest=izero
+  ntest=0
   dg2ew = r360*deg2rad
 
-  ilon=3_i_kind
-  ilat=4_i_kind
+  ilon=3
+  ilat=4
+
+  if (nst_gsi > 0 ) then
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
+  endif
 
   rlndsea(0) = zero
   rlndsea(1) = 15._r_kind
@@ -135,13 +150,13 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   rlndsea(3) = 15._r_kind
   rlndsea(4) = 30._r_kind
 
-  ndata=izero
-  nodata=izero
-  nchanl=4_i_kind       ! the channel number
-  ilath=8_i_kind        ! the position of latitude in the header
-  ilonh=9_i_kind        ! the position of longitude in the header
-  ilzah=10_i_kind       ! satellite zenith angle
-  iszah=11_i_kind       ! solar zenith angle
+  ndata=0
+  nodata=0
+  nchanl=4       ! the channel number
+  ilath=8        ! the position of latitude in the header
+  ilonh=9        ! the position of longitude in the header
+  ilzah=10       ! satellite zenith angle
+  iszah=11       ! solar zenith angle
 
 ! If all channels of a given sensor are set to monitor or not
 ! assimilate mode (iuse_rad<1), reset relative weight to zero.
@@ -150,7 +165,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   assim=.false.
   search: do i=1,jpch_rad
-     if ((nusis(i)==sis) .and. (iuse_rad(i)>izero)) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -164,33 +179,39 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 ! Open bufr file.
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
-  if(jsatid == 'g08') kidsat = 252_i_kind
-  if(jsatid == 'g09') kidsat = 253_i_kind
-  if(jsatid == 'g10') kidsat = 254_i_kind
-  if(jsatid == 'g11') kidsat = 255_i_kind
-  if(jsatid == 'g12') kidsat = 256_i_kind
-  if(jsatid == 'g13') kidsat = 257_i_kind
+  if(jsatid == 'g08') kidsat = 252
+  if(jsatid == 'g09') kidsat = 253
+  if(jsatid == 'g10') kidsat = 254
+  if(jsatid == 'g11') kidsat = 255
+  if(jsatid == 'g12') kidsat = 256
+  if(jsatid == 'g13') kidsat = 257
+  if(jsatid == 'g14') kidsat = 258
+  if(jsatid == 'g15') kidsat = 259
 
 ! Allocate arrays to hold all data for given satellite
-  nele=maxinfo+nchanl
-  allocate(data_all(nele,itxmax))
+  nreal = maxinfo + nstinfo
+  nele  = nreal   + nchanl
+  allocate(data_all(nele,itxmax),nrec(itxmax))
 
-  next=izero
+  next=0
+  nrec=999999
+  irec=0
 
 ! Big loop over bufr file
-  do while(IREADMG(lnbufr,subset,idate) >= izero)
+  do while(IREADMG(lnbufr,subset,idate) >= 0)
+     irec=irec+1
      next=next+1
-     if(next == npe_sub)next=izero
+     if(next == npe_sub)next=0
      if(next /= mype_sub)cycle
-     read_loop: do while (IREADSB(lnbufr) == izero)
+     read_loop: do while (IREADSB(lnbufr) == 0)
 
 !       Read through each reacord
-        call ufbint(lnbufr,hdrgoesarr,nimghdr,ione,iret,hdrgoes)
+        call ufbint(lnbufr,hdrgoesarr,nimghdr,1,iret,hdrgoes)
         if(hdrgoesarr(1) /= kidsat) cycle read_loop
-        call ufbrep(lnbufr,dataimg,3_i_kind,6_i_kind,iret,'TMBRST NCLDMNT SDTB')
+        call ufbrep(lnbufr,dataimg,3,6,iret,'TMBRST NCLDMNT SDTB')
         nread=nread+nchanl
 !      first step QC filter out data with less clear sky fraction
         if (hdrgoesarr(1) == 256_r_double .and. dataimg(2,3) < 70.0_r_kind) cycle read_loop
@@ -231,7 +252,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
            if(diagnostic_reg) then
               call txy2ll(dlon,dlat,dlon00,dlat00)
-              ntest=ntest+ione
+              ntest=ntest+1
               disterr=acos(sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
                    (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00)))*rad2deg
               disterrmax=max(disterrmax,disterr)
@@ -245,8 +266,8 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         else
            dlon=dlon_earth
            dlat=dlat_earth
-           call grdcrd(dlat,ione,rlats,nlat,ione)
-           call grdcrd(dlon,ione,rlons,nlon,ione)
+           call grdcrd1(dlat,rlats,nlat,1)
+           call grdcrd1(dlon,rlons,nlon,1)
         endif
 
         if (l4dvar) then
@@ -282,7 +303,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 !       Set data quality predictor 
         pred =(10.0_r_kind-dataimg(2,1)/10.0_r_kind)+dataimg(3,3)*10.0_r_kind  ! clear sky and
-                                                             ! bt std as quality indicater
+                                                                 ! bt std as quality indicater
 
 !       Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
         crit1 = crit1+pred 
@@ -296,6 +317,19 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         endif
         iscan = nint(hdrgoesarr(ilzah))+1.001_r_kind ! integer scan position
         
+!
+!       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+!
+        if ( nst_gsi > 0 ) then
+           tref  = ts(0)
+           dtw   = zero
+           dtc   = zero
+           tz_tr = one
+           if ( sfcpct(0) > zero ) then
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+           endif
+        endif
+
 !       Transfer information to work array
         data_all( 1,itx) = hdrgoesarr(1)              ! satellite id
         data_all( 2,itx) = t4dv                       ! analysis relative time
@@ -332,44 +366,52 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
         data_all(36,itx) = val_img
         data_all(37,itx) = itt
 
+        if ( nst_gsi > 0 ) then
+           data_all(maxinfo+1,itx) = tref         ! foundation temperature
+           data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
+           data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
+           data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+        endif
+
 !       Transfer observation location and other data to local arrays
 
         do k=1,nchanl
-           data_all(k+31_i_kind,itx)=dataimg(3,k+ione)
-           data_all(k+maxinfo,itx)=dataimg(1,k+ione)
+           data_all(k+31,itx)=dataimg(3,k+1)
+           data_all(k+nreal,itx)=dataimg(1,k+1)
         end do
+        nrec(itx)=irec
 
      enddo read_loop
   enddo
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
 
   do n=1,ndata
      do k=1,nchanl
-        if(data_all(k+maxinfo,n) > tbmin .and. &
-           data_all(k+maxinfo,n) < tbmax)nodata=nodata+ione
+        if(data_all(k+nreal,n) > tbmin .and. &
+           data_all(k+nreal,n) < tbmax)nodata=nodata+1
     end do
     itt=nint(data_all(maxinfo,n))
     super_val(itt)=super_val(itt)+val_img
   end do
 
 ! Write final set of "best" observations to output file
-  write(lunout) obstype,sis,maxinfo,nchanl,ilat,ilon
+  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,nrec)
 
 ! Deallocate satthin arrays
 900 continue
   call destroygrids
   call closbf(lnbufr)
 
-  if(diagnostic_reg.and.ntest>izero) write(6,*)'READ_GOESIMG:  ',&
-       'mype,ntest,disterrmax=',mype,ntest,disterrmax
+  if(diagnostic_reg.and.ntest>0) write(6,*)'READ_GOESIMG:  ',&
+     'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
   return
 end subroutine read_goesimg

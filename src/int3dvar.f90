@@ -55,6 +55,8 @@ subroutine int3dvar(rval,rval_dt)
 !   2008-06-02  safford - rm unused vars
 !   2008-10-08  derber - move strong balance constraint to background error covariance
 !   2008-12-01  todling - merge with 4dvar code (split of intall)
+!   2010-05-13  todling - update to use gsi_bundle
+!   2013-10-19  todling - update interface to calctends_ad
 !
 !   input argument list:
 !
@@ -70,28 +72,43 @@ subroutine int3dvar(rval,rval_dt)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: i_kind
+  use kinds, only: i_kind,r_kind
   use mpimod, only: mype
   use jfunc, only: l_foto
   use gridmod, only: nnnn1o
-  use state_vectors
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
   
 ! Declare passed variables  
-  type(state_vector),intent(inout) :: rval
-  type(state_vector),intent(inout) :: rval_dt
+  type(gsi_bundle),intent(inout) :: rval
+  type(gsi_bundle),intent(inout) :: rval_dt
+
+! Declare local variables
+  integer(i_kind) ier,istatus
+
+  real(r_kind),pointer,dimension(:,:,:) :: rval_dt_t=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rval_dt_q=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rval_dt_tsen=>NULL()
 
 !******************************************************************************
 
  if(l_foto )then
 
-!   Adjoint of virtual to sensible temperature conversion
-    call tv_to_tsen_ad(rval_dt%t,rval_dt%q,rval_dt%tsen)
+!   Get required pointers
+    ier=0
+    call gsi_bundlegetpointer(rval_dt,'t',   rval_dt_t,   istatus);ier=istatus+ier
+    call gsi_bundlegetpointer(rval_dt,'q',   rval_dt_q,   istatus);ier=istatus+ier
+    call gsi_bundlegetpointer(rval_dt,'tsen',rval_dt_tsen,istatus);ier=istatus+ier
+    if(ier/=0) then
+       write(6,*) 'int3dvar: pointers not found, ier=', ier
+       call stop2(999)
+    endif
 
-    call calctends_ad(rval%u,rval%v,rval%t,                               &
-                      rval%q,rval%oz,rval%cw,mype,nnnn1o,                    &
-                      rval_dt%u,rval_dt%v,rval_dt%t,rval_dt%p3d,  &
-                      rval_dt%q,rval_dt%oz,rval_dt%cw,rval%p3d)  
+!   Adjoint of virtual to sensible temperature conversion
+    call tv_to_tsen_ad(rval_dt_t,rval_dt_q,rval_dt_tsen)
+
+    call calctends_ad(rval,rval_dt,mype,nnnn1o)
 
   end if
 

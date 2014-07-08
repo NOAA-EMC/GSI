@@ -12,6 +12,8 @@ module stpsstmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpsst_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
+!   2011-04-03  li      - modify for Tr analysis
 !
 ! subroutines included:
 !   sub stpsst
@@ -29,7 +31,7 @@ PUBLIC stpsst
 
 contains
 
-subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
+subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpsst      calculate penalty and contribution to stepsize
@@ -52,6 +54,8 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
 !   2007-03-19  tremolet - binning of observations
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-06-02  safford - rm unused var and uses
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling  - update to use gsi_bundle
 !
 !   input argument list:
 !     ssthead
@@ -71,32 +75,48 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: sst_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,half,one,two,tiny_r_kind,cg_term,zero_quad
+  use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad
   use gridmod, only: latlon11
+  use radinfo, only: nst_gsi
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(sst_ob_type),pointer              ,intent(in   ) :: ssthead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon11)       ,intent(in   ) :: rsst,ssst
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
+  type(sst_ob_type),pointer           ,intent(in   ) :: ssthead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
 
 ! Declare local variables  
-  integer(i_kind) j1,j2,j3,j4,kk
+  integer(i_kind) j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) w1,w2,w3,w4
   real(r_kind) val,val2
   real(r_kind) cg_sst,sst,wgross,wnotgross
-  real(r_kind),dimension(max(ione,nstep)):: pen
+  real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) pg_sst
+  real(r_kind),pointer,dimension(:) :: ssst
+  real(r_kind),pointer,dimension(:) :: rsst
+  real(r_kind) tdir,rdir
   type(sst_ob_type), pointer :: sstptr
 
   out=zero_quad
 
+!  If no sst data return
+  if(.not. associated(ssthead))return
+
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'sst',ssst,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'sst',rsst,istatus);ier=istatus+ier
+  if(ier/=0)return
+
   sstptr => ssthead
   do while (associated(sstptr))
      if(sstptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1=sstptr%ij(1)
            j2=sstptr%ij(2)
            j3=sstptr%ij(3)
@@ -106,8 +126,15 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
            w3=sstptr%wij(3)
            w4=sstptr%wij(4)
 
-           val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-           val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
+           if ( nst_gsi > 2 ) then
+             tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+             rdir = w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+             val  = sstptr%tz_tr*rdir
+             val2 = sstptr%tz_tr*tdir - sstptr%res
+           else
+             val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+             val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
+           endif
 
            do kk=1,nstep
               sst=val2+sges(kk)*val
@@ -124,7 +151,7 @@ subroutine stpsst(ssthead,rsst,ssst,out,sges,nstep)
            cg_sst=cg_term/sstptr%b
            wnotgross= one-pg_sst
            wgross = pg_sst*cg_sst/wnotgross
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk)= -two*log((exp(-half*pen(kk)) + wgross)/(one+wgross))
            end do
         endif

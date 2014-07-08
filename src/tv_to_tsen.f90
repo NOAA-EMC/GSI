@@ -75,6 +75,7 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 !   2008-10-14  derber - modify to use fact_tv
 !   2008-11-03  sato - change for twodvar_regional
 !   2008-11-28  todling - no longer does tendencies (need to call twice)
+!   2009-11-25  todling - zero out tsen
 !
 !   input argument list:
 !      tv     - virtual temperature
@@ -92,7 +93,7 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,twodvar_regional
-  use constants, only: fv
+  use constants, only: fv,zero
   use guess_grids, only: ges_tsen,fact_tv,ntguessig
   use jfunc, only: tsensible
 
@@ -100,7 +101,7 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
 
   real(r_kind),intent(inout) :: tv(lat2,lon2,nsig)
   real(r_kind),intent(inout) :: q (lat2,lon2,nsig)
-  real(r_kind),intent(in   ) :: tsen(lat2,lon2,nsig)
+  real(r_kind),intent(inout) :: tsen(lat2,lon2,nsig)
 
 ! local variables:
   integer(i_kind) i,j,k
@@ -114,7 +115,7 @@ subroutine tv_to_tsen_ad(tv,q,tsen)
            do i=1,lat2
               tv(i,j,k)=tv(i,j,k)+tsen(i,j,k)*fact_tv(i,j,k)
               q(i,j,k)=q(i,j,k)-tsen(i,j,k)*fv*ges_tsen(i,j,k,ntguessig)*fact_tv(i,j,k)
-
+              tsen(i,j,k)=zero
            end do
         end do
      end do

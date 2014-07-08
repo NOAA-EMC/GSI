@@ -12,6 +12,7 @@ module stpspdmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpspd_tl
 !   2009-08-12  lueken - update documentation
+!   2010-05-13  todling - uniform interface across stp routines
 !
 ! subroutine included:
 !   sub stpspd
@@ -29,7 +30,7 @@ PUBLIC stpspd
 
 contains
 
-subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
+subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    stpspd  calculate penalty and stepsize terms
@@ -56,6 +57,9 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - changed handling of ptr%time
 !   2009-01-19  todling - re-implement Tremolet's linearization for q1fy10
+!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
+!   2010-05-13  todling  - update to use gsi_bundle
+!   2010-09-25  todling  - fix linearlization
 !
 !   input argument list:
 !     spdhead
@@ -77,30 +81,54 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
   use kinds, only: r_kind,i_kind,r_quad
   use obsmod, only: spd_ob_type
   use qcmod, only: nlnqc_iter,varqc_iter
-  use constants, only: izero,ione,zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
+  use constants, only: zero,half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gridmod, only: latlon1n
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_4dvar, only: ltlint
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
 
 ! Declare passed variables
-  type(spd_ob_type),pointer              ,intent(in   ) :: spdhead
-  integer(i_kind)                        ,intent(in   ) :: nstep
-  real(r_kind),dimension(max(ione,nstep)),intent(in   ) :: sges
-  real(r_quad),dimension(max(ione,nstep)),intent(  out) :: out
-  real(r_kind),dimension(latlon1n)       ,intent(in   ) :: ru,rv,su,sv
+  type(spd_ob_type),pointer           ,intent(in   ) :: spdhead
+  integer(i_kind)                     ,intent(in   ) :: nstep
+  real(r_kind),dimension(max(1,nstep)),intent(in   ) :: sges
+  real(r_quad),dimension(max(1,nstep)),intent(inout) :: out
+  type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j1,j2,j3,j4,kk
+  integer(i_kind) i,j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) w1,w2,w3,w4,time_spd
   real(r_kind) valu,valv,ucur,vcur,spdnl,spdtl,uu,vv,spd
-  real(r_kind),dimension(max(ione,nstep)):: pen,pentl
+  real(r_kind),dimension(max(1,nstep)):: pen
   real(r_kind) cg_spd,pencur,wgross,wnotgross
-  real(r_kind) pg_spd
+  real(r_kind) pg_spd,pentl
+  real(r_kind),pointer,dimension(:) :: xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_u,dhat_dt_v
+  real(r_kind),pointer,dimension(:) :: su,sv
+  real(r_kind),pointer,dimension(:) :: ru,rv
   type(spd_ob_type), pointer :: spdptr
 
   out=zero_quad
+
+!  If no spd data return
+  if(.not. associated(spdhead))return
+
   time_spd=zero
+! Retrieve pointers
+! Simply return if any pointer not found
+  ier=0
+  call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
+  if(l_foto) then
+     call gsi_bundlegetpointer(xhat_dt,'u',xhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'v',xhat_dt_v,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'u',dhat_dt_u,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'v',dhat_dt_v,istatus);ier=istatus+ier
+  endif
+  if(ier/=0)return
 
   if(ltlint.and.l_foto) then
      write(6,*)'ltlint & foto not compatible at this time',ltlint,l_foto
@@ -111,7 +139,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
   do while (associated(spdptr))
 
      if(spdptr%luse)then
-        if(nstep > izero)then
+        if(nstep > 0)then
            j1 = spdptr%ij(1)
            j2 = spdptr%ij(2)
            j3 = spdptr%ij(3)
@@ -129,36 +157,42 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
            if(l_foto) then 
               time_spd=spdptr%time*r3600
               valu=valu +&
-                  (w1*dhat_dt%u(j1)+w2*dhat_dt%u(j2)+ &
-                   w3*dhat_dt%u(j3)+w4*dhat_dt%u(j4))*time_spd
+                  (w1*dhat_dt_u(j1)+w2*dhat_dt_u(j2)+ &
+                   w3*dhat_dt_u(j3)+w4*dhat_dt_u(j4))*time_spd
               valv=valv +&
-                  (w1*dhat_dt%v(j1)+w2*dhat_dt%v(j2)+ &
-                   w3*dhat_dt%v(j3)+w4*dhat_dt%v(j4))*time_spd
+                  (w1*dhat_dt_v(j1)+w2*dhat_dt_v(j2)+ &
+                   w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4))*time_spd
               ucur=ucur +&
-                  (w1*xhat_dt%u(j1)+w2*xhat_dt%u(j2)+ &
-                   w3*xhat_dt%u(j3)+w4*xhat_dt%u(j4))*time_spd
+                  (w1*xhat_dt_u(j1)+w2*xhat_dt_u(j2)+ &
+                   w3*xhat_dt_u(j3)+w4*xhat_dt_u(j4))*time_spd
               vcur=vcur +&
-                  (w1*xhat_dt%v(j1)+w2*xhat_dt%v(j2)+ &
-                   w3*xhat_dt%v(j3)+w4*xhat_dt%v(j4))*time_spd
+                  (w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
+                   w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_spd
            endif
-           do kk=1,nstep
-              uu=ucur+sges(kk)*valu
-              vv=vcur+sges(kk)*valv
-              spd=sqrt(uu*uu+vv*vv)-spdptr%res
-              pen(kk)=spd*spd*spdptr%err2
-              if(ltlint)then
-                 spdnl=sqrt(uu*uu+vv*vv)
-                 spdtl=uu*valu+vv*valv
+           if (ltlint) then
+              spd=sqrt(ucur*ucur+vcur*vcur)-spdptr%res
+              pencur=spd*spd*spdptr%err2
+              do kk=1,nstep
+                 spdnl=sqrt(ucur*ucur+vcur*vcur)
+                 spdtl=ucur*valu+vcur*valv
                  if (spdnl>tiny_r_kind*100._r_kind) then
                     spdtl=spdtl/spdnl
                  else
                     spdtl=zero
                  endif
-                 pen(kk)=pen(kk)+two*spdtl*spd*spdptr%err2
-              end if
-           end do
+                 pentl  =two*spdtl*spd*spdptr%err2
+                 pen(kk)=pencur+sges(kk)*pentl
+              end do
+           else
+              do kk=1,nstep
+                 uu=ucur+sges(kk)*valu
+                 vv=vcur+sges(kk)*valv
+                 spd=sqrt(uu*uu+vv*vv)-spdptr%res
+                 pen(kk)=spd*spd*spdptr%err2
+              end do
+           end if
         else
-           pen(kk)=spdptr%res*spdptr%res*spdptr%err2
+           pen(1)=spdptr%res*spdptr%res*spdptr%err2
         end if
 
 !  Modify penalty term if nonlinear QC
@@ -169,7 +203,7 @@ subroutine stpspd(spdhead,ru,rv,su,sv,out,sges,nstep)
            wnotgross= one-pg_spd
            wgross = pg_spd*cg_spd/wnotgross
            pencur = -two*log((exp(-half*pencur) + wgross)/(one+wgross))
-           do kk=1,max(ione,nstep)
+           do kk=1,max(1,nstep)
               pen(kk) = -two*log((exp(-half*pen(kk)  ) + wgross)/(one+wgross))
            enddo
         endif

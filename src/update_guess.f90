@@ -59,6 +59,25 @@ subroutine update_guess(sval,sbias)
 !   2008-10-10  derber  - flip indices for predx and predxp
 !   2009-01-28  todling - remove reference to original GMAO interface
 !   2009-07-08  pondeca - add logical 'tsensible' for use with 2dvar only
+!   2010-04-30  wu - setup for regional ozone analysis
+!   2010-05-13  todling - update to use gsi_bundle
+!   2010-06-01  todling - skip upd when pointer not defined
+!   2010-06-02  todling - bug in upd of chem
+!   2010-11-02  ting - replace loop index k in nfldsfc loop with it (bug fix)
+!   2011-02-25  zhu  - add gust,vis,pblh
+!   2010-05-01  todling - add support for generalized guess (use met-guess)
+!                       - cwmr now in met-guess
+!   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2011-09-20  hclin   - enforce non-negative aerosol fields
+!   2011-11-01  eliu    - generalize met-guess updates for global/regional
+!   2011-10-01  Hu      - GSD limitation of Q over ocean
+!   2013-05-23  zhu     - add update for aircraft temperature bias correction coefficients
+!   2013-10-19  todling - metguess now holds background (considerable shuffling)
+!   2013-10-30  jung    - remove supersaturation
+!   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
+!   2014-02-15  kim     - revisit various options of cloud-related updates
+!   2014-04-13  todling - replace update bias code w/ call to routine in bias_predictors
+!   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
 !
 !   input argument list:
 !    sval
@@ -77,115 +96,327 @@ subroutine update_guess(sval,sbias)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: mype
-  use constants, only: izero,ione,zero,one,fv
-  use jfunc, only: iout_iter,biascor,tsensible
+  use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin
+  use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_cwmr,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,nfldsig,hrdifsig,hrdifsfc,&
-       nfldsfc,dsfct
+       regional,twodvar_regional,regional_ozone,use_reflectivity
+  use guess_grids, only: ges_tsen,ges_qsat,&
+       nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
+  use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
   use radinfo, only: npred,jpch_rad,predx
   use pcpinfo, only: npredp,npcptype,predxp
+  use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,npredt,predt,ntail
   use m_gsiBiases,only : bias_hour, update_bias
-  use bias_predictors
-  use state_vectors
+  use bias_predictors, only: predictors,update_bias_preds
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundlegetvar
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_metguess_mod, only: gsi_metguess_get
+  use gsi_chemguess_mod, only: gsi_chemguess_bundle
+  use gsi_chemguess_mod, only: gsi_chemguess_get
+  use mpeu_util, only: getindex
+  use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q,l_gsd_soilTQ_nudge
+  use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
+       gsd_update_th2,gsd_update_q2
 
   implicit none
 
 ! Declare passed variables
-  type(state_vector), intent(inout) :: sval(nobs_bins)
-  type(predictors)  , intent(inout) :: sbias
+  type(gsi_bundle), intent(inout) :: sval(nobs_bins)
+  type(predictors), intent(inout) :: sbias
 
 ! Declare local variables
-  integer(i_kind) i,j,k,it,ij,ijk,ii
+  character(len=*),parameter::myname='update_guess'
+  character(max_varname_length),allocatable,dimension(:) :: gases
+  character(max_varname_length),allocatable,dimension(:) :: guess
+  character(max_varname_length),allocatable,dimension(:) :: cloud
+  integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
+  integer(i_kind) is_t,is_q,is_oz,is_cw,is_sst
+  integer(i_kind) ipinc,ipinc1,ipinc2,ipges,icloud,ncloud
+  integer(i_kind) ipges_ql,ipges_qi,ipges_cw,idq,ier
   real(r_kind) :: zt
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc1=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc2=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges1 =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges2 =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ptr3daux =>NULL()
+  real(r_kind),pointer,dimension(:,:  ) :: ptr2daux =>NULL()
+
+  real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
 ! written in a way that is more efficient in that case but might not
 ! be the best in 4dvar.
+  tinc_1st=0.0_r_kind
+  qinc_1st=0.0_r_kind
+
+! Get required pointers and abort if not found (RTod: needs revision)
+  call gsi_bundlegetpointer(sval(1),'tv', is_t,  istatus)
+  call gsi_bundlegetpointer(sval(1),'q',  is_q,  istatus)
+  call gsi_bundlegetpointer(sval(1),'oz', is_oz, istatus)
+  call gsi_bundlegetpointer(sval(1),'cw', is_cw, istatus)
+  call gsi_bundlegetpointer(sval(1),'sst',is_sst,istatus)
+
+! Inquire about guess fields
+  call gsi_metguess_get('dim',nguess,istatus)
+  if (nguess>0) then
+     allocate(guess(nguess))
+     call gsi_metguess_get('gsinames',guess,istatus)
+  endif
+
+! Inquire about clouds
+  call gsi_metguess_get('clouds::3d',ncloud,istatus)
+  if (ncloud>0) then
+     allocate(cloud(ncloud))
+     call gsi_metguess_get('clouds::3d',cloud,istatus)
+  endif
+
+! Inquire about chemistry fields
+  call gsi_chemguess_get('dim',ngases,istatus)
+  if (ngases>0) then
+     allocate(gases(ngases))
+     call gsi_chemguess_get('gsinames',gases,istatus)
+  endif
 
 ! Initialize local arrays
   if (regional) then
-     do ii=1,nobs_bins
-        ijk=izero
-        do k=1,nsig
+     if(is_cw>0)then
+        do ii=1,nobs_bins
+           call gsi_bundlegetpointer (sval(ii),'cw',ptr3dinc,istatus)
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2
+                    ptr3dinc(i,j,k)=zero
+                 end do
+              end do
+           end do
+        end do
+     endif
+     if(.not.regional_ozone) then
+        if(is_oz>0)then
+           do ii=1,nobs_bins
+              call gsi_bundlegetpointer (sval(ii),'oz',ptr3dinc,istatus)
+              do k=1,nsig
+                 do j=1,lon2
+                    do i=1,lat2
+                       ptr3dinc(i,j,k)=zero
+                    end do
+                 end do
+              end do
+           end do
+        endif
+     endif
+  endif
+
+! Add increment to background
+  do it=1,nfldsig
+     if (nobs_bins>1) then
+        zt = hrdifsig(it)
+        ii = NINT(zt/hr_obsbin)+1
+     else
+        ii = 1
+     endif
+     call gsi_bundlegetpointer (sval(ii),'q' ,p_q ,istatus)
+     call gsi_bundlegetpointer (sval(ii),'tv',p_tv,istatus)
+! GSD modification for moisture
+     if(is_q>0) then
+        if(l_gsd_limit_ocean_q) then
+           call gsd_limit_ocean_q(p_q)
+        endif
+     endif
+
+! update surface and soil    
+     if (l_gsd_soilTQ_nudge ) then
+        if(is_q>0) then
            do j=1,lon2
               do i=1,lat2
-                 ijk=ijk+ione
-                 sval(ii)%oz(ijk)=zero
-                 sval(ii)%cw(ijk)=zero
+                  qinc_1st(i,j)=p_q(i,j,1)
               end do
+           end do
+        endif
+        if(is_t > 0) then
+           do j=1,lon2
+              do i=1,lat2
+                  tinc_1st(i,j)=p_tv(i,j,1)
+              end do
+           end do
+        endif
+        call  gsd_update_soil_tq(tinc_1st,is_t,qinc_1st,is_q)
+     endif  ! l_gsd_soilTQ_nudge
+     if (l_gsd_soilTQ_nudge .and. is_t>0) then
+        do j=1,lon2
+           do i=1,lat2
+              tinc_1st(i,j)=p_tv(i,j,1)
+           end do
+        end do
+        call  gsd_update_th2(tinc_1st)
+     endif ! l_gsd_th2_adjust
+     if (l_gsd_soilTQ_nudge .and. is_q>0) then
+        do j=1,lon2
+           do i=1,lat2
+              qinc_1st(i,j)=p_q(i,j,1)
+           end do
+        end do
+        call  gsd_update_q2(qinc_1st)
+     endif ! l_gsd_q2_adjust
+
+
+!    Update extra met-guess fields
+     do ic=1,nguess
+        id=getindex(svars3d,guess(ic))
+        if (id>0) then  ! Case when met_guess and state vars map one-to-one, take care of them together 
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr3dinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
+           if (trim(guess(ic))=='q') then
+               call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
+               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),ges_qsat(:,:,:,it))
+               cycle
+           endif
+           if (trim(guess(ic))=='oz') then
+               call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
+               cycle
+           endif
+           if (trim(guess(ic))=='tv') then
+              cycle ! updating tv is trick since it relates to tsen and therefore q
+                    ! since we don't know which comes first in met-guess, we
+                    ! must postpone updating tv after all other met-guess fields
+           endif
+           icloud=getindex(cloud,guess(ic))
+           if(icloud>0) then
+              if(cloud(icloud)=='cw') then
+                 call gsi_bundlegetpointer (sval(ii), 'ql',ptr3dinc1,istatus)
+                 call gsi_bundlegetpointer (sval(ii), 'qi',ptr3dinc2,istatus)
+                 if(istatus == 0)  then     !for metges:cw, state vec:ql/qi/cw 
+                    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ptr3dges, istatus)
+                    ptr3dges = ptr3dges+ptr3dinc1+ptr3dinc2
+                 else      ! for metges: cw=10,ql/qi=-1, state vec:cw only (such as original clr sky rad DA)
+                   ptr3dges = ptr3dges+ptr3dinc
+                   !let's split to ql/qi guess in GSI_Gridcomp because order of q, tv updates are tricky.
+                 endif    
+              else   !metges: ql (or qi)  , state vec:ql,qi,cw
+                   ptr3dges = ptr3dges+ptr3dinc
+              endif
+              ptr3dges = max(ptr3dges,qcmin)
+              cycle
+           else  
+              ptr3dges = ptr3dges + ptr3dinc
+              cycle
+           endif
+        else  ! Case when met_guess and state vars do not map one-to-one 
+           if (trim(guess(ic))=='div') then
+               call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
+               ptr3dges = ptr3dges + xhat_div(:,:,:,ii)
+               cycle
+           endif
+           if (trim(guess(ic))=='vor') then
+               call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
+               ptr3dges = ptr3dges + xhat_vor(:,:,:,ii)
+               cycle
+           endif
+        endif
+        id=getindex(svars2d,guess(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),               guess(ic),ptr2dinc,istatus)
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr2dges,istatus)
+           ptr2dges = ptr2dges + ptr2dinc
+           if (trim(guess(ic))=='gust') ptr2dges = max(ptr2dges,zero)
+           if (trim(guess(ic))=='vis')  ptr2dges = &
+              max(min(ptr2dges,20000.0_r_kind),0.1_r_kind)
+           if (trim(guess(ic))=='pblh') ptr2dges = max(ptr2dges,zero)
+           cycle
+        endif
+     enddo
+!    At this point, handle the Tv exception since by now Q has been updated 
+!    NOTE 1: This exceptions is unnecessary: all we need to do is put tsens in the
+!    state-vector instead of tv (but this will require changes elsewhere).
+!    For now we keep the exception code in place
+!    NOTE 2: the following assumes tv has same name in met-guess and increment vectors
+     id=getindex(svars3d,'tv')
+     if (id>0) then
+        call gsi_bundlegetpointer (sval(ii),               'tv',ptr3dinc,istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ptr3dges,istatus)
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q ',ptr3daux,idq)
+        if (.not.twodvar_regional .or. .not.tsensible) then
+!           TV analyzed; Tsens diagnosed
+            ptr3dges = ptr3dges + ptr3dinc
+            if(idq==0) ges_tsen(:,:,:,it) = ptr3dges/(one+fv*ptr3daux)
+        else
+!           Tsens analyzed; Tv diagnosed
+            ges_tsen(:,:,:,it) = ges_tsen(:,:,:,it) + ptr3dinc
+            if(idq==0) ptr3dges = ges_tsen(:,:,:,it)*(one+fv*ptr3daux)
+        endif
+     endif
+!    Update trace gases
+     do ic=1,ngases
+        id=getindex(svars3d,gases(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr3dinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr3dges,istatus)
+           call upd_positive_fldr3_(ptr3dges,ptr3dinc,tgmin)
+           cycle
+        endif
+        id=getindex(svars2d,gases(ic))
+        if (id>0) then
+           call gsi_bundlegetpointer (sval(ii),                gases(ic),ptr2dinc,istatus)
+           call gsi_bundlegetpointer (gsi_chemguess_bundle(it),gases(ic),ptr2dges,istatus)
+           call upd_positive_fldr2_(ptr2dges,ptr2dinc,tgmin)
+           cycle
+        endif
+     enddo
+
+  end do
+
+  if(ngases>0)then
+     deallocate(gases)
+  endif
+
+  if(is_sst>0) then
+     do it=1,nfldsfc
+        if (nobs_bins>1) then
+           zt = hrdifsfc(it)
+           ii = NINT(zt/hr_obsbin)+1
+        else
+           ii = 1
+        endif
+        ij=0
+        call gsi_bundlegetpointer (sval(ii),'sst',ptr2dinc,istatus)
+        do j=1,lon2
+           do i=1,lat2
+              dsfct(i,j,it)=dsfct(i,j,it)+ptr2dinc(i,j)
            end do
         end do
      end do
   endif
 
-! Add increment to background
-  do it=1,nfldsig
-     if (nobs_bins>ione) then
-        zt = hrdifsig(it)
-        ii = NINT(zt/hr_obsbin)+ione
-     else
-        ii = ione
+  if (regional_ozone) then
+     if(is_oz>0) then
+        do it=1,nfldsig
+           call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ptr3dges,istatus)
+           if(istatus/=0) cycle
+           do k=1,nsig
+              do j=1,lon2
+                 do i=1,lat2  ! this protect should not be needed (RTodling)
+                    if(ptr3dges(i,j,k)<zero) ptr3dges(i,j,k) = 1.e-10_r_kind
+                 enddo
+              enddo
+           enddo
+        enddo
      endif
-     ijk=izero
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              ijk=ijk+ione
-              ges_u(i,j,k,it)    =                 ges_u(i,j,k,it)    + sval(ii)%u(ijk)
-              ges_v(i,j,k,it)    =                 ges_v(i,j,k,it)    + sval(ii)%v(ijk)
-              ges_q(i,j,k,it)    =             max(ges_q(i,j,k,it)    + sval(ii)%q(ijk),1.e-10_r_kind) 
-              if (.not.twodvar_regional .or. .not.tsensible) then
-                 ges_tv(i,j,k,it)   =              ges_tv(i,j,k,it)   + sval(ii)%t(ijk)
-!  produce sensible temperature
-                 ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*ges_q(i,j,k,it))
-              else
-                 ges_tsen(i,j,k,it) =              ges_tsen(i,j,k,it) + sval(ii)%t(ijk)
-!  produce virtual temperature
-                 ges_tv(i,j,k,it)   = ges_tsen(i,j,k,it)*(one+fv*ges_q(i,j,k,it))
-              endif
-
-!             Note:  Below variables only used in NCEP GFS model
-              ges_oz(i,j,k,it)   =                 ges_oz(i,j,k,it)   + sval(ii)%oz(ijk)
-              ges_cwmr(i,j,k,it) =                 ges_cwmr(i,j,k,it) + sval(ii)%cw(ijk)
-              ges_div(i,j,k,it)  =                 ges_div(i,j,k,it)  + xhat_div(i,j,k,ii)
-              ges_vor(i,j,k,it)  =                 ges_vor(i,j,k,it)  + xhat_vor(i,j,k,ii)
-           end do
-        end do
-     end do
-     ij=izero
-     do j=1,lon2
-        do i=1,lat2
-           ij=ij+ione
-           ges_ps(i,j,it) = ges_ps(i,j,it) + sval(ii)%p(ij)
-        end do
-     end do
-  end do
-
-  do k=1,nfldsfc
-     if (nobs_bins>ione) then
-        zt = hrdifsfc(it)
-        ii = NINT(zt/hr_obsbin)+ione
-     else
-        ii = ione
-     endif
-     ij=izero
-     do j=1,lon2
-        do i=1,lat2
-           ij=ij+ione
-           dsfct(i,j,k)=dsfct(i,j,k)+sval(ii)%sst(ij)
-        end do
-     end do
-  end do
-
+  endif
 
 ! If requested, update background bias correction
   if (biascor >= zero) then
-     if (mype==izero) write(iout_iter,*) &
+     if (mype==0) write(iout_iter,*) &
         'UPDATE_GUESS:  update background bias correction.  biascor=',biascor
 
 !    Update bias correction field
@@ -196,28 +427,31 @@ subroutine update_guess(sval,sbias)
 
  
 ! Update bias correction coefficients.
-! Not necessary if running in 2dvar mode.
+  call update_bias_preds (twodvar_regional,sbias)
 
-  if (.not.twodvar_regional) then
-
-!    Satellite radiance biases
-     ij=izero
-     do j=1,jpch_rad
-        do i=1,npred
-           ij=ij+ione
-           predx(i,j)=predx(i,j)+sbias%predr(ij)
-        end do
-     end do
-
-!    Precipitation biases
-     ij=izero
-     do j=1,npcptype
-        do i=1,npredp
-           ij=ij+ione
-           predxp(i,j)=predxp(i,j)+sbias%predp(ij)
-        end do
-     end do
-  endif
-
+  if(mype==0) write(6,*) trim(myname), ': successfully complete'
   return
+  contains
+  subroutine upd_positive_fldr2_(ges,xinc,threshold)
+  real(r_kind) :: threshold
+  real(r_kind),pointer :: ges(:,:)
+  real(r_kind),pointer :: xinc(:,:)
+  do j=1,lon2
+     do i=1,lat2
+        ges(i,j) = max(ges(i,j)+ xinc(i,j),threshold)
+     end do
+  end do
+  end subroutine upd_positive_fldr2_
+  subroutine upd_positive_fldr3_(ges,xinc,threshold)
+  real(r_kind) :: threshold
+  real(r_kind),pointer :: ges(:,:,:)
+  real(r_kind),pointer :: xinc(:,:,:)
+  do k=1,nsig
+     do j=1,lon2
+        do i=1,lat2
+           ges(i,j,k) = max(ges(i,j,k)+ xinc(i,j,k),threshold)
+        end do
+     end do
+  end do
+  end subroutine upd_positive_fldr3_
 end subroutine update_guess

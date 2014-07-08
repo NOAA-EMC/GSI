@@ -10,19 +10,28 @@ module tcv_mod
 !
 ! program history log:
 !   2009-02-02  kleist
+!   2010-09-08  treadon - add centerid and destroy_tcv_card; code cleanup
 !
 ! Subroutines Included:
 !   sub get_storminfo       - loads storm data structure from tc vitals info
 !   sub read_tcv_card       - read data structure from tc vitals ascii file
+!   sub destroy_tcv_card    - deallocate arrays containing storm information
+!   sub init_tcps_errvals   - initialize values for tcps ob error
 !
 ! Variable Definitions:
-!   def numsstorms   - number of storms in tc vitals file
+!   def numstorms    - number of storms in tc vitals file
 !   def stormswitch  - integer switch to turn on reading of individual storms
 !   def stormid      - storm character identifier
 !   def stormlat     - storm latitude
 !   def stormlon     - storm longitude
 !   def stormpsmin   - storm sea level pressure minimum
 !   def stormdattim  - storm dat/time 
+!   def centerid     - organization (center) id
+!   def stormid      - storm id with basin identifier
+!   def tcp_refps    - reference pressure for tcps oberr calculation (mb)
+!   def tcp_width    - parameter for tcps oberr inflation (width, mb)
+!   def tcp_ermin    - parameter for tcps oberr inflation (minimum oberr, mb)
+!   def tcp_ermax    - parameter for tcps oberr inflation (maximum oberr, mb)
 !
 ! attributes:
 !   language: f90
@@ -37,14 +46,20 @@ module tcv_mod
 ! set subroutines to public
   public :: get_storminfo
   public :: read_tcv_card
+  public :: destroy_tcv_card
+  public :: init_tcps_errvals
 ! set passed variables to public
-  public :: stormpsmin,stormdattim,stormlon,numstorms,stormlat
+  public :: stormpsmin,stormdattim,stormlon,numstorms,stormlat,centerid,stormid
+  public :: tcvcard
+  public :: tcp_refps,tcp_width,tcp_ermin,tcp_ermax
 
   integer(i_kind) numstorms
   integer(i_kind),dimension(:),allocatable:: stormswitch
   character(len=3),dimension(:),allocatable:: stormid
+  character(len=4),dimension(:),allocatable:: centerid
   real(r_kind),dimension(:),allocatable:: stormlat,stormlon,stormpsmin
   integer(i_kind),dimension(:),allocatable:: stormdattim
+  real(r_kind) tcp_refps,tcp_width,tcp_ermin,tcp_ermax
 
   type:: tcvcard ! Define a new type for a TC Vitals card
      character*4    :: tcv_center      ! Hurricane Center Acronym
@@ -94,13 +109,11 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use kinds, only: r_single
-    use constants, only: izero,ione
     implicit none
 
     integer(i_kind),intent(in   ) :: lunin
 
-    integer(i_kind),parameter:: maxstorm=10_i_kind
+    integer(i_kind),parameter:: maxstorm=10
     integer(i_kind) iret,lucard,ii
     type(tcvcard) stormtmp
     type(tcvcard),dimension(:),allocatable:: storminfo
@@ -109,10 +122,10 @@ contains
 
 ! Find number of storms in tcvitals file
     rewind(lucard)
-    ii=izero
+    ii=0
     do while (.true.)
        read (lucard,21,END=801,ERR=891) stormtmp
-       ii = ii + ione
+       ii = ii + 1
     enddo
  801 continue
 !
@@ -122,33 +135,33 @@ contains
     numstorms=ii
 
 ! Allocate arrays
-    allocate(stormswitch(numstorms),stormid(numstorms))
+    allocate(stormswitch(numstorms),stormid(numstorms),centerid(numstorms))
     allocate(stormlat(numstorms),stormlon(numstorms),stormpsmin(numstorms))
     allocate(storminfo(numstorms))
     allocate(stormdattim(numstorms))
 
-    stormswitch=ione
-    call read_tcv_card(numstorms,storminfo,lucard,stormswitch,stormlon,stormlat,stormid,stormpsmin,stormdattim,iret)
-
+    stormswitch=1
+    call read_tcv_card(numstorms,storminfo,lucard,stormswitch,stormlon,stormlat,&
+         centerid,stormid,stormpsmin,stormdattim,iret)
     deallocate(storminfo)
 
-    if (numstorms>izero) then
-       iret = izero
+    if (numstorms>0) then
+       iret = 0
        return
     else
        write(6,*)'GET_STORMINFO:  ***ERROR*** num storms to be processed <= 0'
        write(6,*)'GET_STORMINFO:     Check file assigned to unit lucard=',lucard
-       iret = 99_i_kind
+       iret = 99
        return
     endif
 
  891 write(6,*)'GET_STORMINFO:  ***ERROR*** in reading unit luncard=',lucard
-    iret = 98_i_kind
+    iret = 98
 
     return
   end subroutine get_storminfo
 
-  subroutine read_tcv_card(nums,storm,lucard,stswitch,slonfg,slatfg,stid,stpsmin,stdattim,iret)
+  subroutine read_tcv_card(nums,storm,lucard,stswitch,slonfg,slatfg,centerid,stid,stpsmin,stdattim,iret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_storminfo       load tc storm information arrays
@@ -160,6 +173,7 @@ contains
 !
 ! program history log:
 !   2009-02-02  kleist
+!   2010-03-30  treadon - loop tcvitals read from 1 to nums
 !
 !   input argument list:
 !     nums     - integer number of storms to read
@@ -170,6 +184,7 @@ contains
 !     storm    - array containing data structure with tc vitals info
 !     slonfg   - storm longitudes
 !     slatfg   - storm latitudes
+!     centerid - organization (center) id
 !     stid     - storm id
 !     stpsmin  - storm minimum sea level pressure (mb)
 !     stdattim - storm date and time
@@ -180,13 +195,14 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use constants, only: izero,ione,zero,one
+    use constants, only: zero,one
     implicit none
 
     integer(i_kind)                 ,intent(in   ) :: nums,lucard
     integer(i_kind) ,dimension(nums),intent(in   ) :: stswitch
 
     type(tcvcard)   ,dimension(nums),intent(  out) :: storm
+    character(len=4),dimension(nums),intent(  out) :: centerid
     character(len=3),dimension(nums),intent(  out) :: stid
     real(r_kind)    ,dimension(nums),intent(  out) :: slonfg,slatfg,stpsmin
     integer(i_kind) ,dimension(nums),intent(  out) :: stdattim
@@ -197,10 +213,8 @@ contains
     slonfg = zero; slatfg = zero
 !
     rewind(lucard)
-    ii=ione
-    do while (.true.)
+    do ii=1,nums
        read (lucard,21,END=901,ERR=991) storm(ii)
-       ii = ii + ione
     enddo 
  901 continue
 !
@@ -208,10 +222,10 @@ contains
             i3,3(1x,i4),1x,i2,1x,i3,1x,4(i4,1x),a1)
 !
     write(6,*)'READ_TCV_CARD:  Following are the storms to be processed: '
-    ict=izero
+    ict=0
     do i=1,nums
-       if (stswitch(i)==ione) then
-          ict = ict + ione
+       if (stswitch(i)==1) then
+          ict = ict + 1
           write (6,31) storm(i)
  
           if (storm(i)%tcv_lonew == 'W') then
@@ -225,6 +239,7 @@ contains
              slatfg(i) = float(storm(i)%tcv_lat)/10.0_r_kind
           endif
         
+          centerid(i) = storm(i)%tcv_center
           stid(i) = storm(i)%tcv_storm_id
           stpsmin(i) = storm(i)%tcv_pcen
 
@@ -234,25 +249,81 @@ contains
        write(6,*)'READ_TCV_CARD:  STORM #, STID,LAT, LON, MINSLP = ',i,stid(i),slatfg(i),slonfg(i),stpsmin(i)
        write(6,*)'READ_TCV_CARD:  STORM DATTIM = ',stdattim(i)
     enddo
- 31 format (a4,1x,a3,1x,a9,1x,i2,i6.6,1x,i4.4,1x,i3,a1,1x,i4,a1,1x,i3, &
+ 31 format (1x,a4,1x,a3,1x,a9,1x,i2,i6.6,1x,i4.4,1x,i3,a1,1x,i4,a1,1x,i3, &
             1x,i3,3(1x,i4),1x,i2,1x,i3,1x,4(i4,1x),a1)
 
-    if (ict>izero) then
-       iret = izero
+    if (ict>0) then
+       iret = 0
        return
     else
        write(6,*)'READ_TCV_CARD:  ***ERROR*** num storms to be processed <=0 '
        write(6,*)'READ_TCV_CARD:     Check file assigned to unit lucard=',lucard
-       iret = 99_i_kind
+       iret = 99
        return
     endif
 !
   991 write(6,*)'READ_TCV_CARD:  ***ERROR*** in read_tcv_card reading unit lucard=',lucard
-    iret = 98_i_kind
+    iret = 98
 !
-    write(6,*) 'END OF READ_TCV_CARD: number of storms to process = ',numstorms
+    write(6,*) 'END OF READ_TCV_CARD: number of storms to process = ',nums
 
     return
   end subroutine read_tcv_card
+
+  subroutine destroy_tcv_card
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    destroy_tcv_card       deallocate storm information arrays
+!
+!   prgmmr: treadon           org: np23                date: 2010-09-08
+!
+! abstract: Deallocate storm information arrays.
+!
+! program history log:
+!   2010-09-08  treadon
+!
+!   input argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    implicit none
+
+    deallocate(stormswitch,stormid,centerid)
+    deallocate(stormlat,stormlon,stormpsmin)
+    deallocate(stormdattim)
+
+  end subroutine destroy_tcv_card
+
+  subroutine init_tcps_errvals
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    init_tcps_errvals       initialize parm values
+!
+!   prgmmr: kleist             org: np23                date: 2010-09-14
+!
+! abstract: Initialize parameter values for specification of tcps ob error
+!
+! program history log:
+!   2010-09-14  kleist
+!
+!   input argument list:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    implicit none
+
+!   note:  all values in mb
+    tcp_refps=1000.0_r_kind
+    tcp_width=50.0_r_kind
+    tcp_ermin=0.75_r_kind  
+    tcp_ermax=5.0_r_kind
+
+  end subroutine init_tcps_errvals
 
 end module tcv_mod

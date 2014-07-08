@@ -12,18 +12,17 @@ subroutine write_all(increment,mype)
 
 ! !USES:
 
-  use kinds, only: i_kind
+  use kinds, only: i_kind,r_kind
   
   use mpimod, only: npe
 
-  use gridmod, only: regional
+  use gridmod, only: regional, use_gfs_nemsio
 
-  use constants, only: izero, ione, zero
+  use constants, only: zero
   
   use jfunc, only: biascor
   
   use guess_grids, only: ntguessig
-  use guess_grids, only: ges_z
 
   use m_gsibiases, only: bias_tv, bias_q, bias_oz, bias_cwmr, bias_tskin
   use m_gsibiases, only: bias_ps, bias_vor, bias_div, bias_u, bias_v
@@ -34,12 +33,18 @@ subroutine write_all(increment,mype)
   use regional_io, only: write_regional_analysis
 
   use ncepgfs_io, only: write_gfs
+  use ncepnems_io, only: write_nems
+
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+
+  use mpeu_util, only: die
   
   implicit none
 
 ! !INPUT PARAMETERS:
 
-  logical        , intent(in   ) :: increment  ! when .t., write out w/ increment filenames
+  integer(i_kind), intent(in   ) :: increment  ! when >0 write out w/ increment
   integer(i_kind), intent(in   ) :: mype       ! task number
 
 ! !OUTPUT PARAMETERS:
@@ -85,6 +90,8 @@ subroutine write_all(increment,mype)
 !   2007-11-12  todling - move write of sat/pcp bias to glbsoi
 !   2009-01-28  todling - move ESMF if from glbsoi to this routine
 !                       - remove original GMAO interface
+!   2010-10-18  hcHuang - add flag use_gfs_nemsio and link to read_nems and read_nems_chem
+!   2013-10-19  todling - metguess holds ges fields now
 !
 ! !REMARKS:
 !
@@ -99,7 +106,8 @@ subroutine write_all(increment,mype)
 #ifndef HAVE_ESMF
 ! Declare local variables
   character(24):: filename
-  integer(i_kind) mype_atm,mype_bias,mype_sfc,iret_bias
+  integer(i_kind) mype_atm,mype_bias,mype_sfc,iret_bias,ier
+  real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
   
 !********************************************************************
 
@@ -114,16 +122,23 @@ subroutine write_all(increment,mype)
 !    NCEP GFS interface
 
 !    Write atmospheric and surface analysis
-     mype_atm=izero
+     mype_atm=0
      mype_sfc=npe/2
-     call write_gfs(increment,mype,mype_atm,mype_sfc)
+     if ( use_gfs_nemsio ) then
+!!        WRITE(6,*)'WARNING :: you elect to write analysis file in NEMSIO format'
+        call write_nems(increment,mype,mype_atm,mype_sfc)
+     else
+        call write_gfs(increment,mype,mype_atm,mype_sfc)
+     endif
 
 !    Write file bias correction     
      if(biascor >= zero)then
+        call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'z',ges_z,ier)
+        if(ier/=0)  call die('write_all',': missing require guess, aborting ',ier)
         filename='biascor_out'
-        mype_bias=npe-ione
+        mype_bias=npe-1
         call write_bias(filename,mype,mype_bias,nbc,&
-             ges_z(1,1,ntguessig),bias_ps,bias_tskin,&
+             ges_z,bias_ps,bias_tskin,&
              bias_vor,bias_div,bias_u,bias_v,bias_tv,&
              bias_q,bias_cwmr,bias_oz,iret_bias)
      endif

@@ -13,6 +13,8 @@ subroutine gengrid_vars
 !   2006-04-12  treadon - remove nsig,sigl (not used)
 !   2006-10-17  kleist  - add coriolis parameter
 !   2010-01-12  treadon - add hires_b section
+!   2010-03-10  lueken - remove hires_b section
+!   2010-03-31  treadon - replace specmod components with sp_a structure
 !
 !   input argument list:
 !
@@ -27,12 +29,8 @@ subroutine gengrid_vars
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: sinlon,coslon,region_lat,rbs2,&
-       rlons,rlats,corlats,nlon,nlat,regional,wgtlats,&
-       sinlon_b,coslon_b,rbs2_b,&
-       rlons_b,rlats_b,corlats_b,nlon_b,nlat_b,wgtlats_b,&
-       compute_b2a,hires_b
-  use specmod, only: slat,wlat,jb,je,slat_b,wlat_b,jb_b,je_b
-  use constants, only: ione,zero,half,one,four,pi,two,omega
+       rlons,rlats,corlats,nlon,nlat,regional,wgtlats,sp_a
+  use constants, only: zero,half,one,four,pi,two,omega
   implicit none
 
 ! Declare local variables
@@ -66,21 +64,21 @@ subroutine gengrid_vars
 
 ! Load grid lat,lon arrays.  rbs2 is used in pcp.
      do i=1,nlon
-        rlons(i)=float(i-ione)*dlon
+        rlons(i)=float(i-1)*dlon
         coslon(i)=cos(rlons(i))
         sinlon(i)=sin(rlons(i))
      end do
 
-     do i=jb,je
-        i1=i+ione
-        rlats(i1)=-asin(slat(i))
+     do i=sp_a%jb,sp_a%je
+        i1=i+1
+        rlats(i1)=-asin(sp_a%slat(i))
         rbs2(i1)=one/cos(rlats(i1))**2
-        wgtlats(i1)=wlat(i)
+        wgtlats(i1)=sp_a%wlat(i)
 
         i1=nlat-i
-        rlats(i1)=asin(slat(i))
+        rlats(i1)=asin(sp_a%slat(i))
         rbs2(i1)=one/cos(rlats(i1))**2
-        wgtlats(i1)=wlat(i)
+        wgtlats(i1)=sp_a%wlat(i)
      end do
 
      rlats(1)=-pih
@@ -95,52 +93,6 @@ subroutine gengrid_vars
      do i=1,nlat
         corlats(i)=two*omega*sin(rlats(i))
      end do
-
-
-!   Repeat calculations, if necessary, for background grid.
-    if (hires_b) then
-
-!      Set local constants
-       anlon=float(nlon_b)
-       dlon=two*pi/anlon
-
-!      Load grid lat,lon arrays.  rbs2 is used in pcp.
-       do i=1,nlon_b
-          rlons_b(i)=float(i-ione)*dlon
-          coslon_b(i)=cos(rlons_b(i))
-          sinlon_b(i)=sin(rlons_b(i))
-       end do
-       
-       do i=jb_b,je_b
-          i1=i+ione
-          rlats_b(i1)=-asin(slat_b(i))
-          rbs2_b(i1)=one/cos(rlats_b(i1))**2
-          wgtlats_b(i1)=wlat_b(i)
-          
-          i1=nlat_b-i
-          rlats_b(i1)=asin(slat_b(i))
-          rbs2_b(i1)=one/cos(rlats_b(i1))**2
-          wgtlats_b(i1)=wlat_b(i)
-       end do
-       
-       rlats_b(1)=-pih
-       rlats_b(nlat_b)=pih
-       
-       wgtlats_b(1)=zero
-       wgtlats_b(nlat_b)=zero
-       
-       rbs2_b(1)=zero
-       rbs2_b(nlat_b)=zero
-
-       do i=1,nlat_b
-          corlats_b(i)=two*omega*sin(rlats_b(i))
-       end do
-
-!      Compute interplation weights and ij indexes between
-!      background and analysis grid
-       call compute_b2a
-
-    endif
 
   end if  !end if global
 

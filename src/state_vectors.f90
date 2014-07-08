@@ -14,28 +14,29 @@ module state_vectors
 !   2008-11-27  todling  - add tsen and p3d for Map-2008 update
 !   2009-01-27  todling  - rename prt_norms to prevent IBM compiler confusion
 !   2009-08-12  lueken   - update documentation
+!   2010-05-13  todling  - udpate to use gsi_bundle (now the state_vector)
+!                        - declare all private (explicit public)
+!                        - remove following:  assignment, sum(s)
+!   2011-05-20  guo      - add a rank-1 interface of dot_product()
+!   2011-07-04  todling  - fixes to run either single or double precision
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS - bug fix for function dot_prod_st
+!   2013-10-22  todling  - revisit edge/general rank-3 (level) handle
+!   2013-10-28  todling  - rename p3d to prse
+!   2014-11-02  todling  - negative levs indicate rank-3 array
 !
 ! subroutines included:
 !   sub setup_state_vectors
 !   sub allocate_state
 !   sub deallocate_state
-!   sub assign_scalar2state
-!   sub assign_state2state
-!   sub self_add_st
-!   sub self_add_scal
-!   sub self_mul
-!   sub norm_vars
+!   sub norms_vars
 !   sub prt_norms1
 !   sub prt_norms0
 !   sub set_random_st
 !   sub inquire_state
+!   sub init_anasv
 !
 ! functions included:
-!   sum_mask
-!   dplevs
 !   dot_prod_st
-!   rsum
-!   qsum
 !
 ! attributes:
 !   language: f90
@@ -43,73 +44,77 @@ module state_vectors
 !
 !$$$
 
-use kinds, only: r_kind,i_kind,r_quad
-use constants, only: izero,ione,zero,zero_quad
+use kinds, only: r_kind,i_kind,r_single,r_double,r_quad
+use constants, only: one,zero,zero_quad,max_varname_length
 use mpimod, only: mype
+use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
+use GSI_BundleMod, only : GSI_BundleCreate
+use GSI_BundleMod, only : GSI_Bundle
+use GSI_BundleMod, only : GSI_BundleGetPointer
+use GSI_BundleMod, only : GSI_BundlePrint
+use GSI_BundleMod, only : dplevs => GSI_BundleDplevs
+use GSI_BundleMod, only : sum_mask => GSI_BundleSum
+use GSI_BundleMod, only : GSI_BundleDestroy
+use GSI_BundleMod, only : GSI_BundleUnset
+
+use GSI_BundleMod, only : GSI_Grid
+use GSI_BundleMod, only : GSI_GridCreate
+
+use mpeu_util, only: gettablesize
+use mpeu_util, only: gettable
 
 implicit none
 
 save
-private sum_mask,lat2,lon2,nsig,nval_len,latlon11,latlon1n
-public state_vector, allocate_state, deallocate_state, &
-     assignment(=), self_add, self_mul, prt_state_norms, setup_state_vectors, &
-     dot_product, set_random, inquire_state, assign_scalar2state
+private 
+  public  allocate_state
+  public  deallocate_state
+  public  prt_state_norms
+  public  setup_state_vectors
+  public  dot_product
+  public  set_random 
+  public  inquire_state
+  public  init_anasv
+  public  final_anasv
+  public  svars2d
+  public  svars3d
+  public  svars
+  public  levels
+  public  ns2d,ns3d
 
 ! State vector definition
 ! Could contain model state fields plus other fields required
 ! by observation operators that can be saved from TL model run
 ! (from the physics or others)
 
-type state_vector
-   real(r_kind), pointer :: values(:) => NULL()
-
-   real(r_kind), pointer :: u(:)   => NULL()
-   real(r_kind), pointer :: v(:)   => NULL()
-   real(r_kind), pointer :: t(:)   => NULL()
-   real(r_kind), pointer :: tsen(:)=> NULL()
-   real(r_kind), pointer :: q(:)   => NULL()
-   real(r_kind), pointer :: oz(:)  => NULL()
-   real(r_kind), pointer :: cw(:)  => NULL()
-   real(r_kind), pointer :: p3d(:) => NULL()
-   real(r_kind), pointer :: p(:)   => NULL()
-   real(r_kind), pointer :: sst(:) => NULL()
-
-   logical :: lallocated = .false.
-end type state_vector
-
+character(len=*),parameter::myname='state_vectors'
 integer(i_kind) :: nval_len,latlon11,latlon1n,latlon1n1,lat2,lon2,nsig
-
-integer(i_kind), parameter :: nvars=10_i_kind
-character(len=4) :: cvar(nvars)
 
 logical :: llinit = .false.
 integer(i_kind) :: m_st_alloc, max_st_alloc, m_allocs, m_deallocs
 
+integer(i_kind) :: nvars,ns2d,ns3d
+character(len=max_varname_length),allocatable,dimension(:) :: svars
+character(len=max_varname_length),allocatable,dimension(:) :: svars3d
+character(len=max_varname_length),allocatable,dimension(:) :: svars2d
+integer(i_kind)                  ,allocatable,dimension(:) :: levels
+
+
 ! ----------------------------------------------------------------------
-INTERFACE ASSIGNMENT (=)
-MODULE PROCEDURE assign_scalar2state, assign_state2state
-END INTERFACE
-
 INTERFACE PRT_STATE_NORMS
-MODULE PROCEDURE prt_norms0,prt_norms1
-END INTERFACE
-
-INTERFACE SELF_ADD  ! What we really want here is ASSIGNMENT (+=)
-MODULE PROCEDURE self_add_st, self_add_scal
+  MODULE PROCEDURE prt_norms0,prt_norms1
 END INTERFACE
 
 INTERFACE DOT_PRODUCT
 MODULE PROCEDURE dot_prod_st
+MODULE PROCEDURE dot_prod_st_r1
 END INTERFACE
 
 INTERFACE SET_RANDOM
 MODULE PROCEDURE set_random_st
 END INTERFACE
 
-INTERFACE SVSUM
-MODULE PROCEDURE rsum,qsum
-END INTERFACE
 ! ----------------------------------------------------------------------
 contains
 ! ----------------------------------------------------------------------
@@ -117,7 +122,7 @@ subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_state_vectors
-!   prgmmr:
+!   prgmmr: tremolet
 !
 ! abstract:
 !
@@ -137,6 +142,7 @@ subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
 
   implicit none
   integer(i_kind), intent(in   ) :: katlon11,katlon1n,kval_len,kat2,kon2,ksig
+  integer(i_kind) i,ii
 
   latlon11=katlon11
   latlon1n=katlon1n
@@ -148,40 +154,114 @@ subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
 
   llinit = .true.
 
-  cvar( 1)='U   '
-  cvar( 2)='V   '
-  cvar( 3)='TV  '
-  cvar( 4)='TSEN'
-  cvar( 5)='Q   '
-  cvar( 6)='OZ  '
-  cvar( 7)='CW  '
-  cvar( 8)='P   '
-  cvar( 9)='PS  '
-  cvar(10)='SST '
-
-  m_st_alloc=izero
-  max_st_alloc=izero
-  m_allocs=izero
-  m_deallocs=izero
+  m_st_alloc=0
+  max_st_alloc=0
+  m_allocs=0
+  m_deallocs=0
 
   return
 end subroutine setup_state_vectors
+! ----------------------------------------------------------------------
+subroutine init_anasv
+implicit none
+!character(len=*),parameter:: rcname='anavinfo.txt'
+character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
+character(len=*),parameter:: tbname='state_vector::'
+integer(i_kind) luin,i,ii,ntot
+character(len=256),allocatable,dimension(:):: utable
+character(len=20) var,source,funcof
+character(len=*),parameter::myname_=myname//'*init_anasv'
+integer(i_kind) ilev, itracer
+
+! load file
+luin=get_lun()
+open(luin,file=rcname,form='formatted')
+
+! Scan file for desired table first
+! and get size of table
+call gettablesize(tbname,luin,ntot,nvars)
+
+! Get contents of table
+allocate(utable(nvars))
+call gettable(tbname,luin,ntot,nvars,utable)
+
+! release file unit
+close(luin)
+
+! Retrieve each token of interest from table and define
+! variables participating in state vector
+
+! Count variables first
+ns3d=0; ns2d=0
+do ii=1,nvars
+   read(utable(ii),*) var, ilev, itracer, source, funcof
+   if(ilev==1) then
+       ns2d=ns2d+1
+   else
+       ns3d=ns3d+1
+   endif
+enddo
+
+allocate(svars3d(ns3d),svars2d(ns2d),levels(ns3d))
+
+! Now load information from table
+ns3d=0;ns2d=0
+do ii=1,nvars
+   read(utable(ii),*) var, ilev, itracer, source, funcof
+   if(ilev==1) then
+      ns2d=ns2d+1
+      svars2d(ns2d)=trim(adjustl(var))
+   else
+      ns3d=ns3d+1
+      svars3d(ns3d)=trim(adjustl(var))
+      levels(ns3d)=abs(ilev)
+   endif
+enddo
+
+deallocate(utable)
+
+allocate(svars(nvars))
+
+! Fill in array w/ all var names (must be 3d first, then 2d)
+ii=0
+do i=1,ns3d
+   ii=ii+1
+   svars(ii)=svars3d(i)
+enddo
+do i=1,ns2d
+   ii=ii+1
+   svars(ii)=svars2d(i)
+enddo
+
+if (mype==0) then
+    write(6,*) myname_,':  2D-STATE VARIABLES ', svars2d
+    write(6,*) myname_,':  3D-STATE VARIABLES ', svars3d
+    write(6,*) myname_,': ALL STATE VARIABLES ', svars
+end if
+
+end subroutine init_anasv
+subroutine final_anasv
+implicit none
+deallocate(svars)
+deallocate(svars3d,svars2d,levels)
+end subroutine final_anasv
 ! ----------------------------------------------------------------------
 subroutine allocate_state(yst)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    allocate_state
-!   prgmmr:
+!   prgmmr: tremolet
 !
 ! abstract:
 !
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-13  todling - major revamp: state now a gsi_bundle
 !
 !   input argument list:
 !
 !   output argument list:
-!    yst
+!    yst  - state vector
 !
 ! attributes:
 !   language: f90
@@ -189,47 +269,24 @@ subroutine allocate_state(yst)
 !
 !$$$ end documentation block
   implicit none
-  type(state_vector), intent(  out) :: yst
-  integer(i_kind) :: ii
+  type(gsi_bundle), intent(inout) :: yst
+  type(gsi_grid) :: grid
+  integer(i_kind) :: ierror
+  character(len=80) :: bname
 
-  if (yst%lallocated) then
-     write(6,*)'allocate_state: state already allocated'
-     call stop2(312)
-  end if
+  call GSI_GridCreate(grid,lat2,lon2,nsig)
+  write(bname,'(a)') 'State Vector'
+  call GSI_BundleCreate(yst,grid,bname,ierror, &
+                        names2d=svars2d,names3d=svars3d,levels=levels,bundle_kind=r_kind)  
 
-  yst%lallocated = .true.
-  ALLOCATE(yst%values(nval_len))
-
-  ii=izero
-  yst%u   => yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%v   => yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%t   => yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%tsen=> yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%q   => yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%oz  => yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%cw  => yst%values(ii+ione:ii+latlon1n)
-  ii=ii+latlon1n
-  yst%p3d => yst%values(ii+ione:ii+latlon1n1)
-  ii=ii+latlon1n1
-  yst%p   => yst%values(ii+ione:ii+latlon11)
-  ii=ii+latlon11
-  yst%sst => yst%values(ii+ione:ii+latlon11)
-  ii=ii+latlon11
-
-  if (ii/=nval_len) then
+  if (yst%ndim/=nval_len) then
      write(6,*)'allocate_state: error length'
      call stop2(313)
   end if
 
-  m_st_alloc=m_st_alloc+ione
+  m_st_alloc=m_st_alloc+1
   if (m_st_alloc>max_st_alloc) max_st_alloc=m_st_alloc
-  m_allocs=m_allocs+ione
+  m_allocs=m_allocs+1
 
   return
 end subroutine allocate_state
@@ -238,12 +295,13 @@ subroutine deallocate_state(yst)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    deallocate_state
-!   prgmmr:
+!   prgmmr: tremolet
 !
 ! abstract:
 !
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-13  todling - major revamp: state now a gsi_bundle
 !
 !   input argument list:
 !    yst
@@ -257,258 +315,34 @@ subroutine deallocate_state(yst)
 !
 !$$$ end documentation block
   implicit none
-  type(state_vector), intent(inout) :: yst
+  type(gsi_bundle), intent(inout) :: yst
+  integer(i_kind) ierror
 
-  if (yst%lallocated) then
-     NULLIFY(yst%u   )
-     NULLIFY(yst%v   )
-     NULLIFY(yst%t   )
-     NULLIFY(yst%tsen)
-     NULLIFY(yst%q   )
-     NULLIFY(yst%oz  )
-     NULLIFY(yst%cw  )
-     NULLIFY(yst%p3d )
-     NULLIFY(yst%p   )
-     NULLIFY(yst%sst )
-     DEALLOCATE(yst%values)
-     yst%lallocated = .false.
- 
-     m_st_alloc=m_st_alloc-ione
-     m_deallocs=m_deallocs+ione
-  else
+  call GSI_BundleDestroy(yst,ierror)
+  if(ierror/=0) then
      write(6,*)'deallocate_state warning: vector not allocated'
   endif
+
+  m_st_alloc=m_st_alloc-1
+  m_deallocs=m_deallocs+1
 
   return
 end subroutine deallocate_state
 ! ----------------------------------------------------------------------
-subroutine assign_scalar2state(yst,pval)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    assign_scalar2state
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    yst
-!    pval
-!
-!   output argument list:
-!    yst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  type(state_vector), intent(inout) :: yst
-  real(r_kind)      , intent(in   ) :: pval
-  integer(i_kind) :: ii
-
-  DO ii=1,nval_len
-     yst%values(ii)=pval
-  ENDDO
-
-  return
-end subroutine assign_scalar2state
-! ----------------------------------------------------------------------
-subroutine assign_state2state(yst,xst)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    assign_state2state
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    yst
-!    xst
-!
-!   output argument list:
-!    yst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  type(state_vector), intent(inout) :: yst
-  type(state_vector), intent(in   ) :: xst
-  integer(i_kind) :: ii
-
-  DO ii=1,nval_len
-     yst%values(ii)=xst%values(ii)
-  ENDDO
-
-  return
-end subroutine assign_state2state
-! ----------------------------------------------------------------------
-subroutine self_add_st(yst,xst)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    self_add_st
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    yst
-!    xst
-!
-!   output argument list:
-!    yst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  type(state_vector), intent(inout) :: yst
-  type(state_vector), intent(in   ) :: xst
-  integer(i_kind) :: ii
-
-  DO ii=1,nval_len
-     yst%values(ii)=yst%values(ii)+xst%values(ii)
-  ENDDO
-
-  return
-end subroutine self_add_st
-! ----------------------------------------------------------------------
-subroutine self_add_scal(yst,pa,xst)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    self_add_scal
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    yst
-!    pa
-!    xst
-!
-!   output argument list:
-!    yst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  type(state_vector), intent(inout) :: yst
-  real(r_kind),       intent(in   ) :: pa
-  type(state_vector), intent(in   ) :: xst
-  integer(i_kind) :: ii
-
-  DO ii=1,nval_len
-     yst%values(ii)=yst%values(ii)+pa*xst%values(ii)
-  ENDDO
-
-  return
-end subroutine self_add_scal
-! ----------------------------------------------------------------------
-subroutine self_mul(yst,pa)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    self_mul
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    yst
-!    pa
-!
-!   output argument list:
-!    yst
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  type(state_vector), intent(inout) :: yst
-  real(r_kind),       intent(in   ) :: pa
-  integer(i_kind) :: ii
-
-  DO ii=1,nval_len
-     yst%values(ii)=pa*yst%values(ii)
-  ENDDO
-
-  return
-end subroutine self_mul
-! ----------------------------------------------------------------------
-real(r_kind) function sum_mask(field,nlevs)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    sum_mask
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    nlevs
-!    field
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  integer(i_kind)                        ,intent(in   ) :: nlevs
-  real(r_kind),dimension(lat2,lon2,nlevs),intent(in   ) :: field
-
-! local variables
-  integer(i_kind) :: i,j,k
- 
-  sum_mask=zero
-  do k=1,nlevs
-     do j=2,lon2-ione
-        do i=2,lat2-ione
-           sum_mask=sum_mask+field(i,j,k)
-        end do
-     end do
-  end do
-  return
-end function sum_mask
-
 subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    norm_vars
+! subprogram:    norms_vars
 !   prgmmr:
 !
 ! abstract:
 !
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-15  todling - update to use gsi_bundle
+!   2010-06-02  todling - generalize to be order-independent
+!   2010-06-10  treadon - correct indexing for psum,pnum arrays
+!   2014-02-13  todling - revisit calculations due to generalized levels
 !
 !   input argument list:
 !    xst
@@ -523,71 +357,106 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 !$$$ end documentation block 
   use mpimod, only: ierror,mpi_comm_world,mpi_rtype,npe
   implicit none
-  type(state_vector), intent(in   ) :: xst
-  real(r_kind)      , intent(  out) :: pmin(nvars),pmax(nvars),psum(nvars),pnum(nvars)
+  type(gsi_bundle), intent(in   ) :: xst
+  real(r_kind)    , intent(  out) :: pmin(nvars),pmax(nvars),psum(nvars),pnum(nvars)
 
 ! local variables
-  real(r_kind) :: zloc(3*nvars+3_i_kind),zall(3*nvars+3_i_kind,npe),zz
-  integer(i_kind) :: ii
+  real(r_kind),allocatable,dimension(:)   :: zloc,nloc
+  real(r_kind),allocatable,dimension(:,:) :: zall,nall
+  real(r_kind) :: zz
+  integer(i_kind) :: i,ii,nn
+
+  pmin=zero
+  pmax=zero
+  psum=zero
+  pnum=one
+
+! Find number of non-compliant 3d fields (i.e., those with dim/=nsig)
+  allocate(zloc(3*nvars),zall(3*nvars,npe))
+  allocate(nloc(  nvars),nall(  nvars,npe))
+  zloc=zero
 
 ! Independent part of vector
-  zloc(1)                = sum_mask(xst%u,nsig)
-  zloc(2)                = sum_mask(xst%v,nsig)
-  zloc(3)                = sum_mask(xst%t,nsig)
-  zloc(4)                = sum_mask(xst%tsen,nsig)
-  zloc(5)                = sum_mask(xst%q,nsig)
-  zloc(6)                = sum_mask(xst%oz,nsig)
-  zloc(7)                = sum_mask(xst%cw,nsig)
-  zloc(8)                = sum_mask(xst%p3d,nsig+ione)
-  zloc(9)                = sum_mask(xst%p,1)
-  zloc(10)               = sum_mask(xst%sst,1)
-  zloc(nvars+ione)       = minval(xst%u(:))
-  zloc(nvars+2_i_kind)   = minval(xst%v(:))
-  zloc(nvars+3_i_kind)   = minval(xst%t(:))
-  zloc(nvars+4_i_kind)   = minval(xst%tsen(:))
-  zloc(nvars+5_i_kind)   = minval(xst%q(:))
-  zloc(nvars+6_i_kind)   = minval(xst%oz(:))
-  zloc(nvars+7_i_kind)   = minval(xst%cw(:))
-  zloc(nvars+8_i_kind)   = minval(xst%p3d(:))
-  zloc(nvars+9_i_kind)   = minval(xst%p(:))
-  zloc(nvars+10_i_kind)  = minval(xst%sst(:))
-  zloc(2*nvars+ione)     = maxval(xst%u(:))
-  zloc(2*nvars+2_i_kind) = maxval(xst%v(:))
-  zloc(2*nvars+3_i_kind) = maxval(xst%t(:))
-  zloc(2*nvars+4_i_kind) = maxval(xst%tsen(:))
-  zloc(2*nvars+5_i_kind) = maxval(xst%q(:))
-  zloc(2*nvars+6_i_kind) = maxval(xst%oz(:))
-  zloc(2*nvars+7_i_kind) = maxval(xst%cw(:))
-  zloc(2*nvars+8_i_kind) = maxval(xst%p3d(:))
-  zloc(2*nvars+9_i_kind) = maxval(xst%p(:))
-  zloc(2*nvars+10_i_kind)= maxval(xst%sst(:))
-  zloc(3*nvars+ione)     = real((lat2-2_i_kind)*(lon2-2_i_kind)*nsig, r_kind)
-  zloc(3*nvars+2_i_kind) = real((lat2-2_i_kind)*(lon2-2_i_kind)*(nsig+ione),r_kind)
-  zloc(3*nvars+3_i_kind) = real((lat2-2_i_kind)*(lon2-2_i_kind), r_kind)
+! Sum
+  ii=0
+  do i = 1,ns3d
+     ii=ii+1
+     if(xst%r3(i)%mykind==r_single)then
+        zloc(ii)= sum_mask(xst%r3(i)%qr4,ihalo=1)
+     else
+        zloc(ii)= sum_mask(xst%r3(i)%q,ihalo=1)
+     endif
+     nloc(ii) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
+  enddo
+  do i = 1,ns2d
+     ii=ii+1
+     if(xst%r2(i)%mykind==r_single)then
+        zloc(ii)= sum_mask(xst%r2(i)%qr4,ihalo=1)
+     else
+        zloc(ii)= sum_mask(xst%r2(i)%q,ihalo=1)
+     endif
+     nloc(ii) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
+  enddo
+! Min
+  do i = 1,ns3d
+     ii=ii+1
+     if(xst%r3(i)%mykind==r_single)then
+        zloc(ii)= minval(xst%r3(i)%qr4)
+     else
+        zloc(ii)= minval(xst%r3(i)%q)
+     endif
+  enddo
+  do i = 1,ns2d
+     ii=ii+1
+     if(xst%r2(i)%mykind==r_single)then
+        zloc(ii)= minval(xst%r2(i)%qr4)
+      else
+        zloc(ii)= minval(xst%r2(i)%q)
+     endif
+  enddo
+! Max
+  do i = 1,ns3d
+     ii=ii+1
+     if(xst%r3(i)%mykind==r_single)then
+        zloc(ii)= maxval(xst%r3(i)%qr4)
+     else
+        zloc(ii)= maxval(xst%r3(i)%q)
+     endif
+  enddo
+  do i = 1,ns2d
+     ii=ii+1
+     if(xst%r2(i)%mykind==r_single)then
+        zloc(ii)= maxval(xst%r2(i)%qr4)
+     else
+        zloc(ii)= maxval(xst%r2(i)%q)
+     endif
+  enddo
 
 ! Gather contributions
-  call mpi_allgather(zloc,3*nvars+3_i_kind,mpi_rtype, &
-                   & zall,3*nvars+3_i_kind,mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(zloc,size(zloc),mpi_rtype, &
+                   & zall,size(zloc),mpi_rtype, mpi_comm_world,ierror)
+  call mpi_allgather(nloc,size(nloc),mpi_rtype, &
+                   & nall,size(nloc),mpi_rtype, mpi_comm_world,ierror)
 
-  zz=SUM(zall(3*nvars+ione,:))
-  do ii=1,7
+  ii=0
+  do i=1,ns3d
+     ii=ii+1
      psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=zz
+     pnum(ii)=SUM(nall(ii,:))
   enddo
-  zz=SUM(zall(3*nvars+2_i_kind,:))
-  do ii=8,8
+  do i=1,ns2d
+     ii=ii+1
      psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=zz
-  enddo
-  zz=SUM(zall(3*nvars+3_i_kind,:))
-  do ii=9,10
-     psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=zz
+     pnum(ii)=SUM(nall(ii,:))
   enddo
   do ii=1,nvars
      pmin(ii)=MINVAL(zall(  nvars+ii,:))
      pmax(ii)=MAXVAL(zall(2*nvars+ii,:))
   enddo
+
+! Release work space
+  deallocate(nloc,nall)
+  deallocate(zloc,zall)
 
   return
 end subroutine norms_vars
@@ -596,7 +465,7 @@ subroutine prt_norms1(xst,sgrep)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prt_norms1
-!   prgmmr:
+!   prgmmr: j guo
 !
 ! abstract:
 !
@@ -615,20 +484,20 @@ subroutine prt_norms1(xst,sgrep)
 !
 !$$$ end documentation block
   implicit none
-  type(state_vector),dimension(:), intent(in   ) :: xst
-  character(len=256)             , intent(in   ) :: sgrep
+  type(gsi_bundle),dimension(:), intent(in   ) :: xst
+  character(len=256)          , intent(in   ) :: sgrep
 
   character(len=8) :: bindx,bform
-  character(len=len(sgrep)+len(bindx)+2_i_kind) :: bgrep
+  character(len=len(sgrep)+len(bindx)+2) :: bgrep
   
   integer(i_kind) :: nx,ix
 
   nx=size(xst)
-  ix=ione;
-  if(nx>9_i_kind)    ix=2_i_kind
-  if(nx>99_i_kind)   ix=3_i_kind
-  if(nx>999_i_kind)  ix=4_i_kind
-  if(nx>9999_i_kind) ix=izero
+  ix=1;
+  if(nx>9)    ix=2
+  if(nx>99)   ix=3
+  if(nx>999)  ix=4
+  if(nx>9999) ix=0
   write(bform,'(a,i1,a,i1,a)') '(i',ix,'.',min(ix,2),')'
 
   do ix=1,nx
@@ -649,6 +518,7 @@ subroutine prt_norms0(xst,sgrep)
 !
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-15  todling - update to use gsi_bundle
 !
 !   input argument list:
 !    xst
@@ -662,8 +532,8 @@ subroutine prt_norms0(xst,sgrep)
 !
 !$$$ end documentation block
   implicit none
-  type(state_vector), intent(in   ) :: xst
-  character(len=*)  , intent(in   ) :: sgrep
+  type(gsi_bundle), intent(in   ) :: xst
+  character(len=*), intent(in   ) :: sgrep
 
   real(r_kind) :: zmin(nvars),zmax(nvars),zsum(nvars),znum(nvars)
   real(r_kind) :: zavg
@@ -671,56 +541,16 @@ subroutine prt_norms0(xst,sgrep)
 
   call norms_vars(xst,zmin,zmax,zsum,znum)
 
-  if (mype==izero) then
+  if (mype==0) then
      do ii=1,nvars
         zavg=zsum(ii)/znum(ii)
-        write(6,999)sgrep,cvar(ii),zavg,zmin(ii),zmax(ii)
+        write(6,999)sgrep,svars(ii),zavg,zmin(ii),zmax(ii)
      enddo
   endif
 999 format(A,1X,A,3(1X,ES20.12))
 
   return
 end subroutine prt_norms0
-! ----------------------------------------------------------------------
-real(r_quad) function dplevs(nlevs,dx,dy)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    dplevs
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    nlevs
-!    dx,dy
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-  integer(i_kind),intent(in   ) :: nlevs
-  real(r_kind)   ,intent(in   ) :: dx(lat2,lon2,nlevs),dy(lat2,lon2,nlevs)
-
-  integer(i_kind) :: ii,jj,kk
-
-  dplevs=zero_quad
-  do kk=1,nlevs
-     do jj=2,lon2-ione
-        do ii=2,lat2-ione
-           dplevs=dplevs+dx(ii,jj,kk)*dy(ii,jj,kk)
-        end do
-     end do
-  end do
-
-  return
-end function dplevs
 ! ----------------------------------------------------------------------
 real(r_quad) function dot_prod_st(xst,yst,which)
 !$$$  subprogram documentation block
@@ -732,6 +562,11 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 !
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-13  todling - update to use gsi_bundle
+!   2011-04-28  guo     - bug fix: .not.which was doing (x,x) instead of (x,y)
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS - bug fix: for 
+!                                    if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)
+!                                    if( present (which)), ipntx and ipnty indexes should be used and not i 
 !
 !   input argument list:
 !    xst,yst
@@ -745,50 +580,116 @@ real(r_quad) function dot_prod_st(xst,yst,which)
 !
 !$$$ end documentation block
   implicit none
-  type(state_vector)         , intent(in   ) :: xst, yst
-  character(len=*)  ,optional, intent(in   ) :: which  ! in the form: "var1+var2+..."
+  type(gsi_bundle)         , intent(in) :: xst, yst
+  character(len=*)  ,optional, intent(in) :: which  ! variable name
 
-  real(r_quad) :: zz(nvars)
-  integer(i_kind) :: ii
+  real(r_quad),allocatable :: zz(:)
+  integer(i_kind) :: i,ii,nv,ipntx,ipnty,irkx,irky,ier,ist
 
-  zz=zero_quad
   if (.not.present(which)) then
 
-     zz(1) = dplevs(nsig,xst%u  ,yst%u)
-     zz(2) = dplevs(nsig,xst%v  ,yst%v)
-     zz(3) = dplevs(nsig,xst%t  ,yst%t)
-     zz(4) = dplevs(nsig,xst%tsen,yst%tsen)
-     zz(5) = dplevs(nsig,xst%q  ,yst%q)
-     zz(6) = dplevs(nsig,xst%oz ,yst%oz)
-     zz(7) = dplevs(nsig,xst%cw ,yst%cw)
-     zz(8) = dplevs(nsig,xst%p3d,yst%p3d)
-     zz(9) = dplevs(ione,xst%p  ,yst%p)
-     zz(10)= dplevs(ione,xst%sst,yst%sst)
+     nv=nvars
+     allocate(zz(nv))
+     zz=zero_quad
+     ii=0
+     do i = 1,ns3d
+        ii=ii+1
+        if(xst%r3(i)%mykind==r_single .and. yst%r3(i)%mykind==r_single)then
+           zz(ii)= dplevs(xst%r3(i)%qr4,yst%r3(i)%qr4,ihalo=1)
+        else if(xst%r3(i)%mykind==r_double .and. yst%r3(i)%mykind==r_double)then
+           zz(ii)= dplevs(xst%r3(i)%q,yst%r3(i)%q,ihalo=1)
+        else
+           dot_prod_st=zero_quad
+           return
+        endif
+     enddo
+     do i = 1,ns2d
+        ii=ii+1
+        if(xst%r2(i)%mykind==r_single .and. yst%r2(i)%mykind==r_single)then
+           zz(ii)= dplevs(xst%r2(i)%qr4,yst%r2(i)%qr4,ihalo=1)
+        else if(xst%r2(i)%mykind==r_double .and. yst%r2(i)%mykind==r_double)then
+           zz(ii)= dplevs(xst%r2(i)%q,yst%r2(i)%q,ihalo=1)
+        else ! this is an error ...
+           dot_prod_st=zero_quad
+           return
+        endif
+     enddo
 
   else
 
-     if(index(which,'u+'   )/=izero) zz(1) = dplevs(nsig,xst%u   ,yst%u)
-     if(index(which,'v+'   )/=izero) zz(2) = dplevs(nsig,xst%v   ,yst%v)
-     if(index(which,'tv+'  )/=izero) zz(3) = dplevs(nsig,xst%t   ,yst%t)
-     if(index(which,'tsen+')/=izero) zz(4) = dplevs(nsig,xst%tsen,yst%tsen)
-     if(index(which,'q+'   )/=izero) zz(5) = dplevs(nsig,xst%q   ,yst%q)
-     if(index(which,'oz+'  )/=izero) zz(6) = dplevs(nsig,xst%oz  ,yst%oz)
-     if(index(which,'cw+'  )/=izero) zz(7) = dplevs(nsig,xst%cw  ,yst%cw)
-     if(index(which,'p3d+' )/=izero) zz(8) = dplevs(nsig,xst%p3d ,yst%p3d)
-     if(index(which,'p+'   )/=izero) zz(9) = dplevs(ione,xst%p   ,yst%p)
-     if(index(which,'sst+' )/=izero) zz(10)= dplevs(ione,xst%sst ,yst%sst)
+     ier=0
+     call gsi_bundlegetpointer(xst,trim(which),ipntx,ist,irank=irkx);ier=ier+ist
+     call gsi_bundlegetpointer(yst,trim(which),ipnty,ist,irank=irky);ier=ier+ist
+     if(ier/=0) then
+        dot_prod_st=zero_quad
+        return
+     endif
+
+     if(irkx==irky) then
+
+        nv=1
+        allocate(zz(nv))
+        zz=zero_quad
+        if (irkx==2) then
+           if(xst%r2(ipntx)%mykind==r_single .and. yst%r2(ipnty)%mykind==r_single) then
+              zz(1)=dplevs(xst%r2(ipntx)%qr4,yst%r2(ipnty)%qr4,ihalo=1)
+           else if(xst%r2(ipntx)%mykind==r_double .and. yst%r2(ipnty)%mykind==r_double) then
+              zz(1)=dplevs(xst%r2(ipntx)%q,yst%r2(ipnty)%q,ihalo=1)
+           else ! this is an error
+              dot_prod_st=zero_quad
+              return
+           endif
+        endif
+        if (irkx==3) then
+           if(xst%r3(ipntx)%mykind==r_single .and. yst%r3(ipnty)%mykind==r_single) then
+              zz(1)=dplevs(xst%r3(ipntx)%qr4,yst%r3(ipnty)%qr4,ihalo=1)
+           else if(xst%r3(ipntx)%mykind==r_double .and. yst%r3(ipnty)%mykind==r_double) then
+              zz(1)=dplevs(xst%r3(ipntx)%q,yst%r3(ipnty)%q,ihalo=1)
+           else ! this is an error
+              dot_prod_st=zero_quad
+              return
+           endif
+        endif
+
+     else
+       write(6,*) 'dot_prod_st: improper ranks (x,y)', irkx,irky
+       call stop2(999)
+     endif
 
   endif
 
-  call mpl_allreduce(nvars,zz)
+  call mpl_allreduce(nv,qpvals=zz)
 
   dot_prod_st=zero_quad
-  do ii=1,nvars
+  do ii=1,nv
      dot_prod_st=dot_prod_st+zz(ii)
   enddo
 
+  deallocate(zz)
   return
 end function dot_prod_st
+function dot_prod_st_r1(xst,yst,which) result(dotprod_)
+  use mpeu_util, only: perr,die
+  implicit none
+  type(gsi_bundle), dimension(:), intent(in) :: xst, yst
+  character(len=*), optional    , intent(in) :: which  ! variable component name
+  real(r_quad):: dotprod_
+
+  integer(i_kind):: i
+  character(len=*),parameter::myname_=myname//'*dot_prod_st_r1'
+
+  dotprod_=0._r_quad
+  if(size(xst)/=size(yst)) then
+    call perr(myname_,'size(xst)/=size(yst))')
+    call perr(myname_,'size(xst) =',size(xst))
+    call perr(myname_,'size(yst) =',size(yst))
+    call die(myname_)
+  endif
+
+  do i=1,size(xst)
+    dotprod_=dotprod_+dot_prod_st(xst(i),yst(i),which=which)
+  enddo
+end function dot_prod_st_r1
 ! ----------------------------------------------------------------------
 subroutine set_random_st ( xst )
 !$$$  subprogram documentation block
@@ -800,6 +701,7 @@ subroutine set_random_st ( xst )
 !
 ! program history log:
 !   2009-08-12  lueken - added subprogram doc block
+!   2010-05-15  todling - update to use gsi_bundle
 !
 !   input argument list:
 !    xst
@@ -813,18 +715,61 @@ subroutine set_random_st ( xst )
 !
 !$$$ end documentation block
   implicit none
-  type(state_vector), intent(inout) :: xst
+  type(gsi_bundle), intent(inout) :: xst
 
-  call random ( xst%u   )
-  call random ( xst%v   )
-  call random ( xst%t   )
-  call random ( xst%tsen )
-  call random ( xst%q   )
-  call random ( xst%oz  )
-  call random ( xst%cw  )
-  call random ( xst%p3d  )
-  call random ( xst%p   )
-  call random ( xst%sst )
+  integer(i_kind):: i,ii,jj,iseed,itsn,iprse,ips,itv,iq,ierror,ier
+  integer, allocatable :: nseed(:) ! Intentionaly default integer
+  real(r_kind), allocatable :: zz(:)
+  real(r_kind), pointer,dimension(:,:,:):: p_tv,p_q,p_prse,p_tsen
+  real(r_kind), pointer,dimension(:,:  ):: p_ps
+
+  iseed=nsig ! just a number
+  call random_seed(size=jj)
+  allocate(nseed(jj))
+  nseed(1:jj)=iseed
+! The following because we don't want all procs to get
+! exactly the same sequence (which would be repeated in
+! the then not so random vector) but it makes the test
+! not reproducible if the number of procs is changed.
+  nseed(1)=iseed+mype
+  call random_seed(put=nseed)
+  deallocate(nseed)
+
+  ier=0
+  call gsi_bundlegetpointer ( xst, 'prse', iprse, ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tsen', itsn , ierror );ier=ierror+ier
+  do i = 1,ns3d
+     if (i/=iprse.and.i/=itsn) then ! Physical consistency
+         if(xst%r3(i)%mykind==r_single) then
+           call random_number ( xst%r3(i)%qr4 )
+         else
+           call random_number ( xst%r3(i)%q )
+         endif
+     endif
+  enddo
+  do i = 1,ns2d
+     if(xst%r2(i)%mykind==r_single) then
+        call random_number ( xst%r2(i)%qr4 )
+     else
+        call random_number ( xst%r2(i)%q )
+     endif
+  enddo
+
+! There must be physical consistency when creating random vectors
+
+  ier=0
+  call gsi_bundlegetpointer ( xst, 'ps'  , p_ps,  ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tv'  , p_tv,  ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'q'   , p_q ,  ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'prse', p_prse,ierror );ier=ierror+ier
+  call gsi_bundlegetpointer ( xst, 'tsen', p_tsen,ierror );ier=ierror+ier
+
+! There must be physical consistency when creating random vectors
+  if (ier==0) then
+      call getprs_tl (p_ps,p_tv,p_prse)
+      call tv_to_tsen(p_tv,p_q,p_tsen)
+  endif
+
 return
 end subroutine set_random_st
 ! ----------------------------------------------------------------------
@@ -851,7 +796,7 @@ subroutine inquire_state
 implicit none
 real(r_kind) :: zz
 
-if (mype==izero) then
+if (mype==0) then
    write(6,*)'state_vectors: latlon11,latlon1n,latlon1n1,lat2,lon2,nsig=', &
                              latlon11,latlon1n,latlon1n1,lat2,lon2,nsig
    zz=real(max_st_alloc*nval_len,r_kind)*8.0_r_kind/1.048e6_r_kind
@@ -864,75 +809,5 @@ if (mype==izero) then
 endif
 
 end subroutine inquire_state
-! ----------------------------------------------------------------------
-real(r_quad) function rsum(x)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    rsum
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    x
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-
-  real(r_kind), intent(in   ) :: x(:)
-  integer(i_kind) :: idim,i
-
-  idim=size(x)
-  rsum=zero_quad
-!$omp parallel do
-  do i=1,idim
-     rsum=rsum + x(i)
-  enddo
-!$omp end parallel do
-end function rsum
-! ----------------------------------------------------------------------
-real(r_quad) function qsum(x)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    qsum
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-12  lueken - added subprogram doc block
-!
-!   input argument list:
-!    x
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  implicit none
-
-  real(r_quad), intent(in   ) :: x(:)
-  integer(i_kind) :: idim,i
-
-  idim=size(x)
-  qsum=zero_quad
-!$omp parallel do
-  do i=1,idim
-     qsum=qsum + x(i)
-  enddo
-!$omp end parallel do
-end function qsum
 ! ----------------------------------------------------------------------
 end module state_vectors
