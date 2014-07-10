@@ -1,0 +1,5 @@
+SHELL=  /bin/sh
+CMD=	../exec/precip_score_vsdb.x
+SRCS=	precip_score_vsdb.f
+$(CMD): $(SRCS)
+	$(FCMP) $(FFLAGS) $(SRCS) $(LIBS) -o $(CMD)
