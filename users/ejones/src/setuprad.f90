@@ -237,7 +237,7 @@
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
-  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,amsr2_low,amsr2_mid,amsr2_higA, amsr2_higB
+  logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive
   logical microwave, microwave_low
@@ -333,11 +333,11 @@
   amsre_mid  = obstype == 'amsre_mid'
   amsre_hig  = obstype == 'amsre_hig'
   amsre      = amsre_low .or. amsre_mid .or. amsre_hig
-  amsr2_low  = obstype == 'amsr2_low'
-  amsr2_mid  = obstype == 'amsr2_mid'
-  amsr2_higA  = obstype == 'amsr2_higA'
-  amsr2_higB  = obstype == 'amsr2_higB'
-  amsr2      = amsr2_low .or. amsr2_mid .or. amsr2_higA .or. amsr2_higB
+!  amsr2_low  = obstype == 'amsr2_low'
+!  amsr2_mid  = obstype == 'amsr2_mid'
+!  amsr2_higA  = obstype == 'amsr2_higA'
+!  amsr2_higB  = obstype == 'amsr2_higB'
+  amsr2      = obstype == 'amsr2'
   ssmis      = obstype == 'ssmis'
   ssmis_las  = obstype == 'ssmis_las'
   ssmis_uas  = obstype == 'ssmis_uas'
