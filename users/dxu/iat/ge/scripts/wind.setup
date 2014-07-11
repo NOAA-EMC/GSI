@@ -35,15 +35,11 @@ date
 # 1. Get command parameters
 #================================
 time=${1:-"2007102112"}
-echo " time=$time "
 level=${2:-"1000"}
-echo " level=$level "
 mode=${3:-"b"}
-echo " mode=$mode "
 # parameter 4 is no use.
 var=${5:-"grdprs"}
 vare=prs
-echo " var=$var "
 lat=$6
 lon=$7
 orderNo=$8
@@ -77,7 +73,6 @@ lat1=`expr $lat \- $dist_lat`
 lat2=`expr $lat \+ $dist_lat`
 lon1=`expr $lon \- $dist_lon`
 lon2=`expr $lon \+ $dist_lon`
-echo " lat=$lat   lon=$lon   dist=$dist "
 PROJ=latlon
 sc5=1
 cbc=6
