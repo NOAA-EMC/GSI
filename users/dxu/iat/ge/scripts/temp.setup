@@ -13,11 +13,11 @@
 #   10/18/2013, V. Krishna Kumar NOAA/NESDIS/JCSDA Modified this script for S4
 #   07/08/2014, D.Xu / RTI@JCSDA, Modified the original script significantly to 
 #     facilitate the process so
-#       - Integrate two packages: (gfs anl vs. ecmwf anl && gfs exp vs. gfs ctl)
+#       - Integrated two packages: (gfs anl vs. ecmwf anl && gfs exp vs. gfs ctl)
 #       - Multiple grads sessions can run simutaneously.
 #       - Removed redundant processes that are done in parent script.
 #       - Removed unused variables 
-#       - Reorganize structure and add comments to facilitate process.
+#       - Reorganized structure and added comments to facilitate process.
 # How to run: 
 #    $ temp.setup 2012082600 925   b     06   grdprs   -63    44   7
 #                 cycle      pres batch  no   var      lat    lon  order#
