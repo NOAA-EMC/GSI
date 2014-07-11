@@ -125,8 +125,6 @@ cat << EOF > ${grads_batch_file}
 * * * * * * * * * * * * *
 * a) plot gfs guess
 * * * * * * * * * * * * *
-*'define udiff=u$var.1*1.94-u$var.2*1.94'
-*'define vdiff=v$var.1*1.94-v$var.2*1.94'
 'set grads off'
 'set gxout contour'
 'set cthick $cbc'
