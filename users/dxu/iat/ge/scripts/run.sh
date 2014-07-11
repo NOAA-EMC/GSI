@@ -56,10 +56,13 @@ err_file=err.${cycleTime}
 #===============================================
 # 5. Run f90 code to generate GRIB Extreme file
 #===============================================
+script_dir=${gribExtr_dir}/scripts
+exec_dir=${gribExtr_dir}/exec
+exec_file=gribExtreme.x
 # Copy input grib files into working directory 
-cp ${gfs_ges_input_dir}/${gfs_ges_input_file}         ${working_dir}/.
+cp ${gfs_ges_input_dir}/${gfs_ges_input_file}   ${working_dir}/.
 cp ${crnt_anl_input_dir}/${crnt_anl_input_file} ${working_dir}/.
-cp ${ref_anl_input_dir}/${ref_anl_input_file}         ${working_dir}/.
+cp ${ref_anl_input_dir}/${ref_anl_input_file}   ${working_dir}/.
 
 # Link two empty files to fort.55 and fort.66, to which f90 code writes data later.
 ln -sf  "${working_dir}/${gemout_file}"      "fort.55"
