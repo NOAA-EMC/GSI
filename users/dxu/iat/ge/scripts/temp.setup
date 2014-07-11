@@ -121,10 +121,7 @@ cat << EOF > ${grads_batch_file}
 'set mproj $PROJ'
 'set map 15 1 $cbt'
 'set lat $lat1 $lat2'
-*'set lon -270 90'
 'set lon $lon1  $lon2'
-*'set mpdset mres'
-*'set mpvals -120 -75 25 55'
 *
 'run ${gslib}/rgbset.gs'
 *
