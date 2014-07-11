@@ -40,7 +40,6 @@ level=${2:-"1000"}
 mode=${3:-"b"}
 # parameter 4 is no use.
 var=${5:-"grdprs"}
-vare=prs
 lat=$6
 lon=$7
 orderNo=$8
