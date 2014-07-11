@@ -263,6 +263,8 @@
 #                   defaults to ${COMIN}/${PREINP}sptrmm.tm00.bufr_d${SUFINP}
 #     GPSROBF       Input GPS radio occultation data
 #                   defaults to ${COMIN}/${PREINP}gpsro.tm00.bufr_d${SUFINP}
+#     AMSR2BF       Input AMSR2 LIB brightness temperature files
+#                   defaults to ${COMIN}/${PREINP}amsr2.tm00.bufr_d${SUFINP}
 #     TCVITL        Input tcvitals file
 #                   defaults to ${COMIN}/${PREINP}syndata.tcvitals.tm00
 #     INISCRIPT     Preprocessing script
@@ -415,6 +417,7 @@
 #                  $TMIPCP
 #                  $GPSROBF
 #                  $TCVITL
+#                  $AMSR2BF
 #
 #     output data: $SFCANL
 #                  $SIGANL
@@ -500,8 +503,10 @@ export CYCLEXEC=${CYCLEXEC:-${EXECGLOBAL}/global_cycle$XC}
 export GSIEXEC=${GSIEXEC:-${EXECGLOBAL}/global_gsi$XC}
 export CYCLESH=${CYCLESH:-${USHGLOBAL}/global_cycle.sh}
 export BERROR=${BERROR:-${FIXGLOBAL}/global_berror.l${LEVS}y${NLAT_A}.f77}
-export SATANGL=${SATANGL:-${FIXGLOBAL}/global_satangbias.txt}
-export SATINFO=${SATINFO:-${FIXGLOBAL}/global_satinfo.txt}
+#export SATANGL=${SATANGL:-${FIXGLOBAL}/global_satangbias.txt}
+#export SATINFO=${SATINFO:-${FIXGLOBAL}/global_satinfo.txt}
+export SATANGL=${SATANGL:-/scratch2/portfolios/NESDIS/drt/save/Erin.Jones/gsi_mod_r37663/fix/global_satangbias.txt}
+ATINFO=${SATINFO:-/scratch2/portfolios/NESDIS/drt/save/Erin.Jones/gsi_mod_r37663/fix/global_satinfo.txt}
 export ATMSFILTER=${ATMSFILTER:-${FIXGLOBAL}/atms_beamwidth.txt}
 export RTMFIX=${RTMFIX:-${FIXGLOBAL}/crtm_v2.1.3}
 export ANAVINFO=${ANAVINFO:-${FIXGLOBAL}/global_anavinfo.l${LEVS}.txt}
@@ -530,6 +535,7 @@ export ESAMUB=${ESAMUB:-${COMIN}/${PREINP}esamub.tm00.bufr_d${SUFINP}}
 export AIRSBF=${AIRSBF:-${COMIN}/${PREINP}airsev.tm00.bufr_d${SUFINP}}
 export IASIBF=${IASIBF:-${COMIN}/${PREINP}mtiasi.tm00.bufr_d${SUFINP}}
 export AMSREBF=${AMSREBF:-${COMIN}/${PREINP}amsre.tm00.bufr_d${SUFINP}}
+export AMSR2BF=${AMSR2BF:-${COMIN}/${PREINP}amsr2.tm00.bufr_d${SUFINP}}
 export SEVIRIBF=${SEVIRIBF:-${COMIN}/${PREINP}sevcsr.tm00.bufr_d${SUFINP}}
 export CRISBF=${CRISBF:-${COMIN}/${PREINP}cris.tm00.bufr_d${SUFINP}}
 export ATMSBF=${ATMSBF:-${COMIN}/${PREINP}atms.tm00.bufr_d${SUFINP}}
@@ -672,7 +678,7 @@ rm berror_stats satbias_angle satinfo *SpcCoeff.bin *TauCoeff.bin EmisCoeff.bin
 rm AerosolCoeff.bin CloudCoeff.bin anavinfo convinfo ozinfo pcpinfo aeroinfo scaninfo
 rm errtable prepbufr gsndrbufr gsnd1bufr hirs2bufr msubufr hirs3bufr hirs4bufr
 rm amsuabufr amsubbufr mhsbufr sbuvbufr gomebufr omibufr mlsbufr ssmirrbufr tmirrbufr
-rm airsbufr iasibufr amsrebufr ssmitbufr ssmisbufr gpsrobufr tcvitl hybens_locinfo atms_beamwidth.txt
+rm airsbufr iasibufr amsrebufr amsr2bufr ssmitbufr ssmisbufr gpsrobufr tcvitl hybens_locinfo atms_beamwidth.txt
 rm hirs3bufrears amsuabufrears amsubbufrears seviribufr crisbufr atmsbufr
 rm satbias_in satbias_ang.in satbias_out gsiparm.anl satbias_pc satbias_pc.out satbias_out.int
 rm sfcf03 sfcf04 sfcf05 sfcf06 sfcf07 sfcf08 sfcf09
@@ -740,6 +746,7 @@ then
    $NCP $AIRSBF   airsbufr
    $NCP $IASIBF   iasibufr
    $NCP $AMSREBF  amsrebufr
+   $NCP $AMSR2BF  amsr2bufr
    $NCP $SEVIRIBF seviribufr
    $NCP $CRISBF   crisbufr
    $NCP $ATMSBF   atmsbufr
@@ -876,6 +883,7 @@ else
    ln -fs $AIRSBF   airsbufr
    ln -fs $IASIBF   iasibufr
    ln -fs $AMSREBF  amsrebufr
+   ln -fs $AMSR2BF  amsr2bufr
    ln -fs $SEVIRIBF seviribufr
    ln -fs $CRISBF   crisbufr
    ln -fs $ATMSBF   atmsbufr
@@ -997,7 +1005,7 @@ cat <<EOF > gsiparm.anl
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
    qoption=2,
    gencode=$IGEN,factqmin=5.0,factqmax=0.005,deltim=$DELTIM,
-   ndat=77,iguess=-1,
+   ndat=78,iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=12,gpstop=50.,
    use_gfs_nemsio=.false.,lrun_subdirs=${lrun_subdirs},
@@ -1114,6 +1122,7 @@ cat <<EOF > gsiparm.anl
    dfile(75)='gsnd1bufr', dtype(75)='sndrd4',    dplat(75)='g15',     dsis(75)='sndrD4_g15',      dval(75)=0.0,  dthin(75)=1,  dsfcalc(75)=0,
    dfile(76)='oscatbufr', dtype(76)='uv',        dplat(76)=' ',       dsis(76)='uv',              dval(76)=0.0,  dthin(76)=0,  dsfcalc(76)=0,
    dfile(77)='mlsbufr',   dtype(77)='mls30',     dplat(77)='aura',    dsis(77)='mls30_aura',      dval(77)=0.0,  dthin(77)=0,  dsfcalc(77)=0,
+   dfile(78)='amsr2bufr', dtype(78)='amsr2',   dplat(78)='gcom-w1',    dsis(78)='amsr2_gcomw1',    dval(78)=0.0,  dthin(78)=1,  dsfcalc(78)=0,
    $OBSINPUT
  /
  &SUPEROB_RADAR
@@ -1234,7 +1243,7 @@ ntype=3
 diagtype[0]="conv"
 diagtype[1]="pcp_ssmi_dmsp pcp_tmi_trmm"
 diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a gome_metop-b omi_aura mls30_aura"
-diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f14 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 cris_npp atms_npp hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b"
+diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f14 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 cris_npp atms_npp hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b amsr2_gcomw1"
 
 diaglist[0]=listcnv
 diaglist[1]=listpcp
