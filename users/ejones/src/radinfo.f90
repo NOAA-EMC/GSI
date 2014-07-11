@@ -1257,7 +1257,7 @@ write(6,*) jpch_rad
    logical update
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig
-   logical amsr2,amsr2_low,amsr2_mid,amsr2_higA, amsr2_higB
+   logical amsr2         !,amsr2_low,amsr2_mid,amsr2_higA, amsr2_higB
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
    logical avhrr,avhrr_navy,goessndr,goes_img,seviri
 
@@ -1401,11 +1401,12 @@ write(6,*) jpch_rad
       amsre_mid  = obstype == 'amsre_mid'
       amsre_hig  = obstype == 'amsre_hig'
       amsre      = amsre_low .or. amsre_mid .or. amsre_hig
-      amsr2_low  = obstype == 'amsr2_low'
-      amsr2_mid  = obstype == 'amsr2_mid'
-      amsr2_higA  = obstype == 'amsr2_higA'
-      amsr2_higB  = obstype == 'amsr2_higB'
-      amsr2      = amsr2_low .or. amsr2_mid .or. amsr2_higA .or. amsr2_higB
+!      amsr2_low  = obstype == 'amsr2_low'
+!      amsr2_mid  = obstype == 'amsr2_mid'
+!      amsr2_higA  = obstype == 'amsr2_higA'
+!      amsr2_higB  = obstype == 'amsr2_higB'
+!      amsr2      = amsr2_low .or. amsr2_mid .or. amsr2_higA .or. amsr2_higB
+      amsr2      = obstype == 'amsr2'
 
       ssmis      = obstype == 'ssmis'
       ssmis_las  = obstype == 'ssmis_las'
