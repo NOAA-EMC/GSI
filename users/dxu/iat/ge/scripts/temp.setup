@@ -192,8 +192,6 @@ cat << EOF > ${grads_batch_file}
 'd tmpprs.2 - tmpprs.1 '
 *
 'set gxout barb'
-'define udiff=u$var.2*1.94-u$var.1*1.94'
-'define vdiff=v$var.2*1.94-v$var.1*1.94'
 'set clevs 0   5  10  20  30  40 50 '
 'set ccols  0  43  1   1  26  27 28 29'
 *
