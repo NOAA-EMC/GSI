@@ -2243,12 +2243,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                     cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  end if
-
-
-
-
-
-
               end if
 
 !
@@ -2274,6 +2268,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(lmsg)
 
 ! Apply hilbert curve for cross validation if requested
+
     if(lhilbert) &
        call apply_hilbertcurve(maxobs,obstype,cdata_all(thisobtype_usage,1:maxobs))   
 
@@ -2300,6 +2295,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(iloc,isort,cdata_all)
 
 ! define a closest METAR cloud observation for each grid point
+
+  if(obstype=='lcbas')  open(9292,file='lcbas_readprepbufr.txt',form='formatted',status='NEW')
+  if(obstype=='tcamt')  open(9293,file='tcamt_readprepbufr.txt',form='formatted',status='NEW')
+
   if(metarcldobs .and. ndata > 0) then
      maxobs=2000000
      allocate(cdata_all(nreal,maxobs))
@@ -2309,9 +2308,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      write(lunout) ((cdata_all(i,j),i=1,nreal),j=1,ndata)
      deallocate(cdata_all)
   else
+     if(obstype=='lcbas'.or.obstype=='tcamt') print*,'CARLEY - INSIDE IFRITE: obstype,sis,nreal,nchanl,ilat,ilon,ndata:',obstype,sis,nreal,nchanl,ilat,ilon,ndata
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
      write(lunout) cdata_out
+
+     !CARLEY  write our own debug file    
+     if(obstype=='lcbas') then
+       write(9292,*)obstype,sis,nreal,nchanl,ilat,ilon
+       write(9292,*)((cdata_out(i,j),i=1,nreal),j=1,ndata)
+     end if
+     if(obstype=='tcamt') then
+       write(9293,*)obstype,sis,nreal,nchanl,ilat,ilon
+       write(9293,*)((cdata_out(i,j),i=1,nreal),j=1,ndata)
+     end if
+     !CARLEY
   endif
+  !CARLEY
+  if(obstype=='lcbas')  close(9292)
+  if(obstype=='tcamt')  close(9293)
+  !CARLEY
 
   deallocate(cdata_out)
   call destroy_rjlists

@@ -412,6 +412,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            read(lunin,iostat=ier) obstype,isis,nreal,nchanl
            if(mype == mype_diaghdr(is)) then
               write(6,*) 'SETUPALL:,obstype,isis,nreal,nchanl=',obstype,isis,nreal,nchanl
+              write(6,*) 'CARLEYSETUPALL:lunin,ditype,obstype=',lunin,ditype(is),obstype
            endif
            if(ier/=0) call die('setuprhsall','read(), iostat =',ier)
            nele=nreal+nchanl

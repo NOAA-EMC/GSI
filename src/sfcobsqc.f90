@@ -18,6 +18,7 @@ module sfcobsqc
 !   2011-02-15  zhu - add get_gustqm
 !   2014-04-10  pondeca - add reject lists for td, mxtm, mitm, pmsl
 !   2014-05-07  pondeca - add reject list for howv
+!   2014-07-11  carley - add reject list for lcbas and tcamt
 !
 ! subroutines included:
 !   sub init_rjlists
@@ -43,13 +44,15 @@ module sfcobsqc
   character(16),allocatable,dimension(:)::cprovider
   character(5),allocatable,dimension(:)::csta_winduse
   character(80),allocatable,dimension(:)::w_rjlist,t_rjlist,p_rjlist,q_rjlist
-  character(80),allocatable,dimension(:)::td_rjlist,mxtm_rjlist,mitm_rjlist,pmsl_rjlist,howv_rjlist
+  character(80),allocatable,dimension(:)::td_rjlist,mxtm_rjlist,mitm_rjlist,pmsl_rjlist,howv_rjlist, &
+                                          lcbas_rjlist,tcamt_rjlist
   character(80),allocatable,dimension(:)::t_day_rjlist,t_night_rjlist
   character(80),allocatable,dimension(:)::q_day_rjlist,q_night_rjlist
   character(8),allocatable,dimension(:,:)::csta_windbin
 
   integer(i_kind) nprov,nwrjs,ntrjs,nprjs,nqrjs,nsta_mesowind_use
-  integer(i_kind) ntdrjs,nmxtmrjs,nmitmrjs,npmslrjs,nhowvrjs
+  integer(i_kind) ntdrjs,nmxtmrjs,nmitmrjs,npmslrjs,nhowvrjs,&
+                  nlcbasrjs,ntcamtrjs
   integer(i_kind) ntrjs_day,ntrjs_night
   integer(i_kind) nqrjs_day,nqrjs_night
   integer(i_kind) nbins
@@ -65,6 +68,8 @@ module sfcobsqc
   logical mitmlistexist
   logical pmsllistexist
   logical howvlistexist
+  logical lcbaslistexist
+  logical tcamtlistexist
   logical listexist2
   logical t_day_listexist
   logical t_night_listexist
@@ -136,6 +141,8 @@ subroutine init_rjlists
   allocate(mitm_rjlist(nmax))
   allocate(pmsl_rjlist(nmax))
   allocate(howv_rjlist(nmax))
+  allocate(lcbas_rjlist(nmax))
+  allocate(tcamt_rjlist(nmax))
   allocate(csta_winduse(nmax))
   allocate(t_day_rjlist(nmax))
   allocate(t_night_rjlist(nmax))
@@ -237,6 +244,18 @@ subroutine init_rjlists
  if(verbose)&
  print*,'howv_rejectlist: howvlistexist,nhowvrjs=',howvlistexist,nhowvrjs
  
+
+ clistname='lcbas_rejectlist'
+ call readin_rjlists(clistname,lcbaslistexist,lcbas_rjlist,nmax,nlcbasrjs)
+ if(verbose)&
+ print*,'lcbas_rejectlist: lcbaslistexist,nlcbasrjs=',lcbaslistexist,nlcbasrjs
+
+ clistname='tcamt_rejectlist'
+ call readin_rjlists(clistname,tcamtlistexist,tcamt_rjlist,nmax,ntcamtrjs)
+ if(verbose)&
+ print*,'tcamt_rejectlist: tcamtlistexist,ntcamtrjs=',tcamtlistexist,ntcamtrjs
+
+
 !==> Read in 'good' mesonet station names from the station uselist
  inquire(file='mesonet_stnuselist',exist=listexist2)
  if(listexist2) then
@@ -514,6 +533,29 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
               exit
            endif
         enddo
+
+     elseif(obstype=='lcbas' .and. lcbaslistexist) then
+        do m=1,nlcbasrjs
+           ch8(1:8)=lcbas_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
+     elseif(obstype=='tcamt' .and. tcamtlistexist) then
+        do m=1,ntcamtrjs
+           ch8(1:8)=tcamt_rjlist(m)(1:8)
+           nlen=len_trim(ch8)
+           if ((trim(c_station_id) == trim(ch8)) .or. &
+               ((kx==188.or.kx==195).and.c_station_id(1:nlen)==ch8(1:nlen))) then !handle wfo's mesonets which never end with
+              usage_rj=r5000                                           !an "a" or "x" in the eight position following blanks
+              exit
+           endif
+        enddo
+
      end if
   endif
 
@@ -733,6 +775,8 @@ subroutine destroy_rjlists
   deallocate(mitm_rjlist)
   deallocate(pmsl_rjlist)
   deallocate(howv_rjlist)
+  deallocate(lcbas_rjlist)
+  deallocate(tcamt_rjlist)
   if(wbinlistexist) deallocate(nwbaccpts)
   if(wbinlistexist) deallocate(csta_windbin)
 end subroutine destroy_rjlists
