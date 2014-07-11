@@ -123,7 +123,7 @@ cat << EOF > ${grads_batch_file}
 'set lat $lat1 $lat2'
 'set lon $lon1  $lon2'
 *
-'run ${gslib}/rgbset.gs'
+'run ${gslib_dir}/rgbset.gs'
 *
 * * * * * * * * * * * * * 
 * a) plot gfs guess
