@@ -201,7 +201,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
          kidsat = 56 
        else if(jsatid == 'm10')then
          kidsat = 57 
-       else if(jsatid == 'gcomw1') then
+       else if(jsatid == 'gcom-w1') then
          kidsat = 122
        else if(jsatid == 'n08')then
          kidsat=200
@@ -534,12 +534,13 @@ subroutine read_obs(ndata,mype)
     integer(i_llong),parameter:: lenbuf=8388608_i_llong  ! lenbuf=8*1024*1024
 
 !   Declare local variables
-    logical :: lexist,ssmis,amsre,amsr2,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
+    logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full !amsr2
     logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
     logical :: modis
     logical :: acft_profl_file
-    character(15):: obstype,platid
+    character(10):: obstype,platid
+!    character(15):: obstype,platid   
     character(15):: string,infile
     character(15):: infilen
     character(16):: filesave
@@ -614,7 +615,7 @@ subroutine read_obs(ndata,mype)
     do i=1,ndat
        obstype=dtype(i)                   !     obstype  - observation types to process
        amsre= index(obstype,'amsre') /= 0
-       amsr2= index(obstype,'amsr2') /= 0
+!       amsr2= index(obstype,'amsr2') /= 0   ! Is this needed? -ej
        ssmis= index(obstype,'ssmis') /= 0
        sndr = index(obstype,'sndr') /= 0
        hirs = index(obstype,'hirs') /= 0
@@ -649,7 +650,8 @@ subroutine read_obs(ndata,mype)
                avhrr .or.                                               &
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
-               obstype == 'cris'      .or. amsr2    ) then
+               obstype == 'cris'      .or. obstype == 'amsr2'    ) then
+!               obstype == 'cris'      .or. amsr2    ) then
           ditype(i) = 'rad'
        else if (obstype == 'sbuv2' .or. obstype == 'omi' &
            .or. obstype == 'gome'  .or. obstype == 'o3lev' &
@@ -746,6 +748,7 @@ subroutine read_obs(ndata,mype)
                 parallel_read(i)= .true.
              else if(obstype == 'ssu' )then
                 parallel_read(i)= .true.
+             else if(obstype == 'amsr2')then
 !             else if(amsr2)then
 !                parallel_read(i)= .true.
              end if
