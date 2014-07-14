@@ -30,6 +30,7 @@ echo plot_time_sep = $plot_time_sep
 
 
 echo PLOT_WORK_DIR = $PLOT_WORK_DIR
+echo tmpdir        = $tmpdir
 
 #------------------------------------------------------------------
 #   Set dates
@@ -62,7 +63,7 @@ echo ctldir = $ctldir
 # of radmon.YYYYMMDD directories under $TANKDIR.
 
 for type in ${SATYPE2}; do
-   $NCP $ctldir/${type}*.ctl* ./
+   $NCP $ctldir/${type}.ctl* ./
    if [[ -s ./${type}.ctl.${Z} ]]; then
       ${UNCOMPRESS} ./${type}.ctl.${Z}
    fi
@@ -97,11 +98,6 @@ for type in ${SATYPE2}; do
          fi
       fi
 
-#  deprecated TANKDIR structure
-#      if [[ ! -s ${type}.${cdate}.ieee_d && ! -s ${type}.${cdate}.ieee_d.${Z} ]]; then
-#         $NCP $TANKDIR/time/${type}*${cdate}.ieee_d* ./
-#      fi
-
       adate=`$NDATE +6 $cdate`
       cdate=$adate
    done
@@ -128,15 +124,15 @@ cat << EOF > ${type}_${var}.gs
 'quit'
 EOF
 fi
-echo ${tmpdir}/${type}_${var}.gs
+      echo "running GrADS on ${tmpdir}/${type}_${var}.gs"
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done
 
 
 
-#   rm -f ${type}.ieee_d
-#   rm -f ${type}.${PDATE}.ieee_d
-#   rm -f ${type}.ctl
+   rm -f ${type}.ieee_d
+   rm -f ${type}.${PDATE}.ieee_d
+   rm -f ${type}.ctl
 
 done
 
@@ -148,7 +144,7 @@ done
 if [[ ! -d ${IMGNDIR}/time ]]; then
    mkdir -p ${IMGNDIR}/time
 fi
-cp -r *.png  ${IMGNDIR}/time
+cp -f *.png  ${IMGNDIR}/time
 
 
 #for var in ${PTYPE}; do

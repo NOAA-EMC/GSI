@@ -450,6 +450,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
+  deallocate(hdr,datasev2,datasev1)
 
 ! Deallocate satthin arrays
 900 continue

@@ -17,7 +17,8 @@ SATYPE2=$SATYPE
 
 #------------------------------------------------------------------
 # Set environment variables.
-tmpdir=${STMP_USER}/plot_summary_${SUFFIX}.$PDATE
+#tmpdir=${STMP_USER}/plot_summary_${SUFFIX}.$PDATE
+tmpdir=${PLOT_WORK_DIR}/../plot_summary_${SUFFIX}
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
@@ -110,7 +111,7 @@ done
 if [[ ! -d ${IMGNDIR}/summary ]]; then
    mkdir -p ${IMGNDIR}/summary
 fi
-$NCP -r *summary.png ${IMGNDIR}/summary/.
+$NCP -f *summary.png ${IMGNDIR}/summary/.
 
 #rm -f *.summary.png
 

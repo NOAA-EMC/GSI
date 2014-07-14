@@ -255,20 +255,22 @@ EOF
 #-------------------------------------------------------------------
 
          if [[ -s ${data_file} ]]; then
-            mv ${data_file} ${time_file}
-            mv ${time_file} $TANKverf_rad/.
+            mv ${data_file} ${TANKverf_rad}/${time_file}
+#            mv ${time_file} $TANKverf_rad/.
             ${COMPRESS} -f $TANKverf_rad/${time_file}
          fi
 
          if [[ -s ${ctl_file} ]]; then
-            $NCP ${ctl_file} ${time_ctl}
-            mv ${time_ctl}  ${TANKverf_rad}/.
+#            $NCP ${ctl_file} ${time_ctl}
+            mv ${ctl_file} ${TANKverf_rad}/${time_ctl}
+#            mv ${time_ctl}  ${TANKverf_rad}/.
             ${COMPRESS} -f ${TANKverf_rad}/${time_ctl}
          fi
 
          if [[ -s ${stdout_file} ]]; then
-            $NCP ${stdout_file} ${time_stdout}
-            mv ${time_stdout}  ${TANKverf_rad}/.
+#            $NCP ${stdout_file} ${time_stdout}
+            mv ${stdout_file} ${TANKverf_rad}/${time_stdout}
+#            mv ${time_stdout}  ${TANKverf_rad}/.
             ${COMPRESS} -f ${TANKverf_rad}/${time_stdout}
          fi
 

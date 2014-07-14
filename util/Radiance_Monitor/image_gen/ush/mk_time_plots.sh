@@ -140,7 +140,7 @@ fi
 #-------------------------------------------------------------------
 #   Rename PLOT_WORK_DIR to time subdir.
 #
-  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plot_time_${SUFFIX}"
+  export PLOT_WORK_DIR="${PLOT_WORK_DIR}/plottime_${SUFFIX}"
   if [ -d $PLOT_WORK_DIR ] ; then
      rm -f $PLOT_WORK_DIR
   fi
@@ -217,7 +217,7 @@ fi
          rm -f ${logfile}
          rm -f ${cmdfile}
  
-         list="count penalty omgnbc total omgbc"
+         list="penalty count omgnbc total omgbc"
          for var in $list; do
             echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
          done

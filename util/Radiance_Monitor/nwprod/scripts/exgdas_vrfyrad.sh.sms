@@ -318,9 +318,9 @@ if [[ "$VERBOSE" = "YES" ]]; then
 fi
 
 #if [[ ! "$RUN_ENVIR" = "prod" ]]; then
-#   cd $DATA
-#   cd ..
-#   rm -rf $DATA
+  cd $DATA
+  cd ..
+  rm -rf $DATA
 #fi
 
 if [[ ${err} -ne 0 ]]; then

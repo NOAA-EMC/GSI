@@ -13,7 +13,7 @@ Observation ATOVS Monitoring
 <TD ALIGN=LEFT><H1>Monitoring Plots</H1></TD></TR><TR>
 <TD VALIGN=TOP ALIGN=LEFT>
 <a target="_parent" href="http://www.emc.ncep.noaa.gov/gmb/gdas/index.html">GDAS home page</a><br>
-<a target="_parent" href="./index.html">Radiance monitoring home page</a><br>
+<a target="_parent" href="http://www.emc.ncep.noaa.gov/gmb/gdas/radiance/index.html">Radiance monitoring home page</a><br>
 <a target="leftbot" href="time.html">Time and Angle dependent plots</a><br>
 <a target="leftbot" href="horiz.html">Horizontal data plots</a><br>
 <a target="leftbot" href="bcoef.html">Bias correction coefficients</a><br>
