@@ -60,6 +60,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !                         because load_prsges is called after this subroutine is called.                       
 !   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
 !   2013-10-30  todling - ltosj/i now live in commvars
+!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !
 !   input argument list:
 !     mype     - pe number
@@ -1862,7 +1863,8 @@ subroutine read_nems_nmmb_guess(mype)
      end if    ! end of (n_actual_clouds>0)
 
 
-     if (n_actual_clouds>0 .and. use_reflectivity) then
+!    if (n_actual_clouds>0 .and. use_reflectivity) then
+     if (use_reflectivity) then
 
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=iret
