@@ -711,7 +711,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif ! qc_satwnds
    
 !    QC MODIS winds
-     if (itype==257 .or. itype==258 .or. itype==259) then
+     if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
 !       Get guess values of tropopause pressure and sea/land/ice
 !       mask at observation location
         prsfc = r10*prsfc       ! surface pressure in hPa

@@ -17,6 +17,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !            250: JMA WV deep layer. 251:GOES visible, 252: JMA IR winds
 !            253: EUMETSAT IR winds, 254: EUMETSAT WV deep layer winds
 !            257,258,259: MODIS IR,WV cloud top, WV deep layer winds
+!            260: VIIR IR winds
 !            respectively
 !            For satellite subtype: 50-70 from EUMETSAT geostationary satellites(METEOSAT) 
 !                                   100-199 from JMA geostationary satellites(MTSAT)
@@ -50,6 +51,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
 !   2013-08-26 McCarty -modified to remove automatic rejection of AVHRR winds
 !   2013-09-20  Su      - set satellite ID as satellite wind subtype
+!   2014-07-16  Su      - read VIIRS winds 
 
 !
 !   input argument list:
@@ -255,7 +257,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntxall=0
   do nc=1,nconvtype
      if(trim(ioctype(nc)) == 'uv' .and. ictype(nc) >=240 &
-             .and. ictype(nc) <=260) then
+             .and. ictype(nc) <=265) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
@@ -373,6 +375,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then   ! The range of NESDIS satellite IDS
               if(hdrdat(9) == one)  then                            ! short wave IR winds
                  itype=240
+              endif
+           endif
+        else if( trim(subset) == 'NC005090') then                   ! VIIRS winds 
+           if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
+              if(hdrdat(9) == one)  then                            ! VIIRS IR winds
+                 itype=260
               endif
            endif
          endif
@@ -727,6 +735,30 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                            ! short wave IR winds
                     itype=240
+                    qm=15
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
+                 endif
+! get quality information
+                 call ufbrep(lunin,qcdat,3,8,iret,qcstr)
+                 do j=1,6
+                    if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
+                    if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
+                       if(qcdat(2,j) ==  one  .and. qifn >r105) then
+                          qifn=qcdat(3,j)
+                       else if(qcdat(2,j) ==  three .and. qify >105) then
+                          qify=qcdat(3,j)
+                       else if( qcdat(2,j) == four .and. ee >105) then
+                          ee=qcdat(3,j)
+                       endif
+                    endif
+                 enddo
+              endif
+           else if( trim(subset) == 'NC005090') then                   ! VIIRS IR winds 
+               if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
+                 c_prvstg='VIIRS'
+                 if(hdrdat(9) == one)  then                            ! VIIRS IR winds
+                    itype=260
                     qm=15
                     c_station_id='IR'//stationid
                     c_sprvstg='IR'
