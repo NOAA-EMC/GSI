@@ -41,7 +41,6 @@ module ncepgfs_io
   implicit none
 
   private
-  public read_sighead
   public read_sfc
   public read_gfs
   public read_gfs_chem
@@ -490,106 +489,6 @@ subroutine write_ghg_grid(a,char_ghg,mype)
 
   return
 end subroutine write_ghg_grid
-
-  subroutine read_sighead(lunges,filename,gfshead,iope,mype,iret)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    read_sighead
-!
-!   prgrmmr: whitaker
-!
-! abstract: read a ncep GFS spectral sigma file on a specified task,
-!           broadcast data to other tasks.
-!
-! program history log:
-!   2012-01-24  whitaker - create routine
-!
-!   input argument list:
-!     lunges             - unit number to use for IO
-!     mype               - mpi task id
-!     filename           - gfs spectral file to read
-!     iope               - mpi task to perform IO
-!
-!   output argument list:
-!     sigdata (inout)    - sigio data structure to hold data
-!     gfshead (inout)    - gfs header structure to hole metadata
-!     iret               - return code (0 for successful completion)
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-!    use sigio_module, only: sigio_srohdc,sigio_head,sigio_data
-    use sigio_module, only: sigio_head,sigio_sropen,sigio_srhead,sigio_sclose
-    use kinds, only: i_kind,r_single,r_kind
-    use gridmod, only: ncepgfs_head
-    use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
-    character(*),intent(in) :: filename
-    type(sigio_head):: sighead
-
-!!    type(sigio_data), intent(inout):: sigdata
-
-    integer(i_kind), intent(inout) :: iret
-    integer(i_kind), intent(in) :: iope,mype,lunges
-    type(ncepgfs_head), intent(inout):: gfshead
-    integer(i_kind) nc,idate(4),levs,ntrac,ncldt,latb,lonb
-
-    real(r_single) fhour
-    ! read header on a specified task, broadcast data to other tasks.
-    ! iope is task that does IO for this file.
-
-    if (mype == iope) then
-!!        call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
-! on io task, open, read header, and close sigma file
-
-        call sigio_sropen(lunges,filename,iret)
-        call sigio_srhead(lunges,sighead,iret)
-        call sigio_sclose(lunges,iret)
-        if (iret /= 0) print *,'error in read_sighead',trim(filename),iret
-        nc = (sighead%jcap+1)*(sighead%jcap+2)
-        levs = sighead%levs
-        idate = sighead%idate
-        ntrac = sighead%ntrac
-        ncldt = sighead%ncldt
-        fhour = sighead%fhour
-        lonb = sighead%lonb
-        latb = sighead%latb
-    endif
-
-    call mpi_bcast(nc,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(levs,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(ntrac,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(ncldt,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
-
-!    if(mype /= iope) then
-!        ! allocate data structure for non-IO tasks.
-!        allocate(sigdata%hs(nc),sigdata%ps(nc),&
-!             sigdata%t(nc,levs),sigdata%d(nc,levs),sigdata%z(nc,levs),&
-!             sigdata%q(nc,levs,ntrac))
-!    endif
-
-!    call mpi_bcast(sigdata%ps(1),nc,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%hs(1),nc,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%t(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%z(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%d(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%q(1,1,1),nc*levs*ntrac,mpi_real4,iope,mpi_comm_world,iret)
-
-    gfshead%fhour   = fhour
-    gfshead%idate   = idate
-    gfshead%lonb    = lonb
-    gfshead%latb    = latb
-    gfshead%levs    = levs
-    gfshead%ntrac   = ntrac
-    gfshead%ncldt   = ncldt
-
-    return
-  end subroutine read_sighead
 
   subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
 !$$$  subprogram documentation block
@@ -1802,68 +1701,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !   End of routine
   end subroutine write_gfs_sfc_nst
-
-  subroutine reorder_gfsgrib(nx,ny,grid_1d,grid_2d)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    reorder_gfsgrib --- transfer gfsgrib data 1d <--> 2d
-!
-!   prgrmmr:     treadon -  initial version; org: np23
-!
-! abstract:      This routine transfers the contents of gfs grib arrays
-!                between 1d and 2d.
-!
-! program history log:
-!   2007-04-30  treadon -  original routine
-!   2008-05-28  safford -- add subprogram doc block
-!
-!   input argument list:
-!     nx        - number of grid points in zonal direction 
-!     ny        - number of grid points in meridional direction
-!     grid_1d   - 1d array
-!
-!   output argument list:
-!     grid_2d   - 2d array
-!
-! attributes:
-!   language: f90
-!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
-!
-!$$$ end documentation block
-
-! !USES:
-    use kinds, only: r_kind,i_kind
-    implicit none
-! !INPUT PARAMETERS:
-    integer(i_kind)              ,intent(in   ) :: nx      ! number of grid points in zonal direction 
-    integer(i_kind)              ,intent(in   ) :: ny      ! number of grid points in meridional direction
-
-    real(r_kind),dimension(nx*ny),intent(in   ) :: grid_1d   ! 1d array
-
-! !OUTPUT PARAMETERS:
-    real(r_kind),dimension(nx,ny),intent(  out) :: grid_2d   ! 2d array
-
-!-------------------------------------------------------------------------
-
-!   Declare local variables
-    integer(i_kind) i,j,ij
-
-!*****************************************************************************
-
-!   Loop to transfer array contents
-    ij=0
-    do j=1,ny
-       do i=1,nx
-          ij=ij+1
-          grid_2d(i,j)=grid_1d(ij)
-       end do
-    end do
-
-    
-!   End of routine
-    return
-  end subroutine reorder_gfsgrib
-
 
   subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)
 !$$$  subprogram documentation block

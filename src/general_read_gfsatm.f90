@@ -36,7 +36,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     use gridmod, only: &
          ncepgfs_head,idpsfc5,idthrm5,&
          ntracer,idvc5,cp5,idvm5
-    use ncepgfs_io, only: read_sighead
     use general_sub2grid_mod, only: sub2grid_info
     use general_specmod, only: spec_vars
     use mpimod, only: npe

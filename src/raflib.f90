@@ -4828,44 +4828,6 @@ call stop2(68)
 END SUBROUTINE gettri3
 
 
-SUBROUTINE getcol4(lv,color)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    getcol4
-!
-!   prgrmmr:
-!
-! abstract:
-!
-! program history log:
-!   2008-04-22  safford -- add subprogram doc block
-!
-!   input argument list:
-!     lv    -
-!
-!   output argument list:
-!     color -
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-use kinds, only: i_kind
-IMPLICIT NONE
-
-INTEGER(i_kind),DIMENSION(2,4),INTENT(IN   ) :: lv
-INTEGER(i_kind),DIMENSION(4)  ,INTENT(  OUT) :: color
-!----------------------------------------------------------------------------
-INTEGER(i_kind)                           :: k
-!=============================================================================
-DO k=1,4
-   CALL what_color_is_triad(lv(1,k),lv(2,k),color(k),3)
-ENDDO
-END SUBROUTINE getcol4
-
-
 SUBROUTINE what_color_is_triad(i1,i2,color,p)
 !$$$  subprogram documentation block
 !                .      .    .

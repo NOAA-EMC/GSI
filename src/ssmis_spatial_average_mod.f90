@@ -1307,48 +1307,4 @@ SUBROUTINE MODIFY_BEAMWIDTH ( MYPE, nx, ny, image, sampling_distx, sampling_dist
 ! 
       END SUBROUTINE SFFTCB
 
-  SUBROUTINE realdistance(latin1,lonin1,latin2,lonin2,dist)
-  !========================================================================================================
-  !
-  !  Purpose:
-  !    To calculate geophysical distance of two points
-  !
-  !  Record of revisions:
-  !     YYYY/MM/DD      Programmer                       Description of change
-  !    ============   ==============   ===========================================================
-  !     2007/03/01     Banghua Yan       Create orginal subroutine
-  !                    (NOAA/NESDIS)
-  !     2009/10/22     Banghua Yan       Implement to GSI package
-  !
-  !========================================================================================================
-
-    use kinds, only: r_kind,r_double,i_kind
-    IMPLICIT NONE
-
-    ! Declare subroutine arguments
-    REAL(r_kind) :: latin1,lonin1,latin2,lonin2
-    REAL(r_kind) :: dist
-    ! Declare local variables
-    REAL(r_kind) :: lat1,lon1,lat2,lon2
-    REAL(r_kind) :: PI,earth_radius,temp
-
-    PI=3.14159_r_kind
-    earth_radius=6378.0_r_kind
-    lat1=latin1*PI/180.0_r_kind
-    lon1=lonin1*PI/180.0_r_kind
-    lat2=latin2*PI/180.0_r_kind
-    lon2=lonin2*PI/180.0_r_kind
-    temp=SIN(lat1)*SIN(lat2) + COS(lat1)*COS(lat2)*COS(lon2-lon1)
-    temp=ACOS(temp)
-    temp=temp*earth_radius
-    IF (temp < 0.) temp=0.0_r_kind
-    dist = temp
-    !B.YAN (COR. 06/24/2008)
-    IF (ABS(lat1-lat2) <= 0.001_r_kind .AND. ABS(lon1-lon2) <= 0.001_r_kind) temp = 0.0_r_kind
-
-  END SUBROUTINE realdistance
-
-
-
-
 END MODULE SSMIS_Spatial_Average_Mod

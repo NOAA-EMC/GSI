@@ -16,7 +16,6 @@ module lag_fields
 ! subroutines included:
 !   sub lag_modini
 !   sub lag_guessini
-!   sub lag_destroy
 !   sub lag_alloc_uv
 !   sub lag_destroy_uv
 !   sub lag_destroy_state
@@ -73,7 +72,7 @@ module lag_fields
   ! Routines
   public:: lag_modini,lag_guessini,lag_presetup
   public:: lag_alloc_uv
-  public:: lag_destroy,lag_destroy_uv,lag_destroy_state
+  public:: lag_destroy_uv,lag_destroy_state
 
   public:: lag_gather_gesuv,lag_gather_stateuv,lag_ADscatter_stateuv
 
@@ -414,39 +413,6 @@ module lag_fields
     end if
 
   end subroutine lag_guessini
-  ! ------------------------------------------------------------------------
-
-  ! ------------------------------------------------------------------------
-  ! Clean all the allocated arrays
-  subroutine lag_destroy
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    lag_destroy
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-08-05  lueken - added subprogram doc block
-!
-!   input argument list:
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-    implicit none  
- 
-    call lag_destroy_state()
-
-    call lag_delpgrid()
-
-    call lag_destroy_uv()
-
-  end subroutine lag_destroy
   ! ------------------------------------------------------------------------
 
   ! ------------------------------------------------------------------------
