@@ -1335,7 +1335,7 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind) vert1(vlevs)
     integer(i_llong) iseed
     integer(4) iiseed(4) ! must be integer*4 given lapack interface
-    integer(i_kind) nvert,i,ii,is,naux,k,ic3
+    integer(i_kind) nvert,i,is,naux,k,ic3
     integer(i_kind) istat_st,istat_vp
     integer(i_kind) nval_lenz_save
     real(r_kind),dimension(nh_0:nh_1,vlevs,nscl):: zsub

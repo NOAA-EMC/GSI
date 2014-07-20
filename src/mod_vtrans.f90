@@ -811,7 +811,8 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   real(r_quad) rmat(nmat),qtildemat(nmat,nmat),atemp(nmat*nmat),btemp(nmat,nmat)
   real(r_quad) eigvals(nmat)
   integer(i_kind) i,j,k,ia,mv,iret,istop
-  real(r_quad) orthoerror,sum
+  real(r_quad) sum
+! real(r_quad) orthoerror
   real(r_quad) aminv(nmat,nmat),aminvt(nmat,nmat)
   real(r_quad) eigval_this,eigval_next
   real(r_quad) zero_quad,half_quad,one_quad

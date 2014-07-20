@@ -1169,7 +1169,7 @@ function w_verify_(hd,count,perr) result(good)
   logical:: perr_
   type(w_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diagu,my_diagv
-  integer(i_kind):: k,n
+  integer(i_kind):: n
 _ENTRY_(myname_)
   good = .true.
   if(SKIP_VERIFY_) then
@@ -1251,7 +1251,7 @@ function srw_verify_(hd,count,perr) result(good)
   logical:: perr_
   type(srw_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diagu,my_diagv
-  integer(i_kind):: k,n
+  integer(i_kind):: n
 _ENTRY_(myname_)
   good = .true.
   if(SKIP_VERIFY_) then
@@ -1415,7 +1415,7 @@ function oz_verify_(hd,count,perr) result(good)
   logical:: perr_
   type(oz_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diag
-  integer(i_kind):: k,n,nloz
+  integer(i_kind):: k,n
 _ENTRY_(myname_)
   good = .true.
   if(SKIP_VERIFY_) then
@@ -1609,7 +1609,7 @@ function rad_verify_(hd,count,perr) result(good)
   logical:: perr_
   type(rad_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diag
-  integer(i_kind):: k,n,nloz
+  integer(i_kind):: k,n
 _ENTRY_(myname_)
   good = .true.
   if(SKIP_VERIFY_) then
@@ -1706,7 +1706,7 @@ function aero_verify_(hd,count,perr) result(good)
   logical:: perr_
   type(aero_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diag
-  integer(i_kind):: k,n,nlaero
+  integer(i_kind):: k,n
 _ENTRY_(myname_)
   good = .true.
   if(SKIP_VERIFY_) then

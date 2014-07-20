@@ -52,7 +52,7 @@ subroutine smoothrf(work,nlevs)
   integer(i_kind) k,kk,kkk
 
   real(r_kind),dimension(nhscrf):: totwgt
-  real(r_kind),allocatable,dimension(:,:) :: pall,zloc
+  real(r_kind),allocatable,dimension(:,:) :: pall
   real(r_kind),dimension(nlat,nlon,3*nlevs) :: workout
 
 
@@ -978,7 +978,7 @@ subroutine rfhy(p1,p2,nx,ny,ndegy,aly,be)
   real(r_kind),dimension(ndegy)      ,intent(in   ) :: be
   real(r_kind),dimension(nx,ny)      ,intent(  out) :: p2
 
-  integer(i_kind) ix,iy,lx,kr,ki,ly
+  integer(i_kind) ix,iy,kr,ki,ly
 
   real(r_kind) gakr,gaki,dekr,deki
   real(r_kind) beki,bekr

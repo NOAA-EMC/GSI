@@ -81,8 +81,6 @@ subroutine init_ferr_scale
 
 implicit none
 
-integer(i_kind) :: ierr
-
 lthis_adj=l_do_adjoint
 l_do_adjoint=.true.
 lthis_sqrt=lsqrtb

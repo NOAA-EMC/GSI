@@ -62,8 +62,8 @@ CONTAINS
 
     integer(i_kind) :: i,iscan,ifov,ichan,nchannels,wmosatid,version
     integer(i_kind) :: is,ip,ic 
-    integer(i_kind) :: iobs,ii,jj   
-    integer(i_kind) :: ios,max_scan,min_scan,mintime
+    integer(i_kind) :: iobs   
+    integer(i_kind) :: ios,max_scan,min_scan
     integer(i_kind) :: ns1,ns2,np1,np2 
     integer(i_kind) :: nscan       
     integer(i_kind) :: ntime_scan   
@@ -71,32 +71,27 @@ CONTAINS
     integer(i_kind) :: scanline_new 
     integer(i_kind) :: ncount
     integer(i_kind) :: nxaverage(nchanl),nyaverage(nchanl)
-    integer(i_kind) :: channelnumber(nchanl),qc_dist(nchanl)
+    integer(i_kind) :: channelnumber(nchanl)
     integer(i_kind) :: qc_distx(nchanl),qc_disty(nchanl)
     integer(i_kind), allocatable ::  nodeinfo(:,:)
     integer(i_kind), allocatable ::  scanline(:),scanline_back(:,:)
-    integer(i_kind), allocatable ::  counter(:)
-    real(r_kind), allocatable ::  dt(:)
     real(r_kind), allocatable ::  latitude(:,:), longitude(:,:)
     real(r_kind), allocatable ::  time_scan(:)
     real(r_kind), allocatable ::  dist_scan(:)
     real(r_kind), allocatable ::  dist_scan_avg(:)
     real(r_kind), allocatable ::  alat(:),alon(:),blat(:),blon(:)
-    real(r_kind) :: dist_scan_sum, dlat
-    real(r_kind) :: time1,time2
+    real(r_kind) :: dlat
+!   real(r_kind) :: time1,time2
 
     real(r_kind) :: sampling_distx,sampling_disty,beamwidth(nchanl) 
     real(r_kind) :: newwidth(nchanl),cutoff(nchanl)
     real(r_kind), allocatable, target :: bt_image(:,:,:)
     real(r_kind), allocatable :: bt_image_orig(:,:,:)
     real(r_kind), pointer :: bt_image1(:,:)
-    real(r_kind) :: bt_mean(nchanl)
-    real(r_kind) :: num  
     real(r_kind) :: t1,t2,tdiff   
-    real(r_kind) :: s1,s2   
     real(r_kind) :: lat1,lat2,lon1,lon2,dist,wgt 
     real(r_kind) :: xnum,mta   
-    logical      :: pix1st,pixel_avail,gaussian_wgt,node_unknown
+    logical      :: gaussian_wgt
   
     Error_Status=0
 
@@ -508,7 +503,7 @@ CONTAINS
           where((abs(time(1:num_obs)-time_scan(iscan)))<=0.0001_r_kind) scanline = iscan
        enddo
        max_scan = maxval(scanline)
-       call cpu_time(time2)
+!      call cpu_time(time2)
 !      write(*,*)'CPU time for determining scanline index = ', time2-time1 
 !      write(*,*)'determine scanline index from time' 
 !      write(*,*)'ntime_scan        = ', ntime_scan
@@ -709,10 +704,11 @@ SUBROUTINE MODIFY_BEAMWIDTH ( MYPE, nx, ny, image, sampling_distx, sampling_dist
       INTEGER(I_KIND) :: ifirst
       INTEGER(I_KIND) :: xpow2, ypow2
       INTEGER(I_KIND) :: nxav2, nyav2, naverage
-      INTEGER(I_KIND) :: deltax, minii, maxii, minjj, maxjj
+!     INTEGER(I_KIND) :: deltax
+      INTEGER(I_KIND) :: minii, maxii, minjj, maxjj
       REAL(R_KIND), ALLOCATABLE :: mtfxin(:),mtfxout(:)
       REAL(R_KIND), ALLOCATABLE :: mtfyin(:),mtfyout(:)
-      REAL(R_KIND) :: mtfin,mtfout,mtf_constant     
+      REAL(R_KIND) :: mtfin,mtfout
       REAL(R_KIND) :: mtfx_constant, mtfy_constant   !test
       REAL(R_KIND), ALLOCATABLE :: mtfpad(:,:)
       REAL(R_KIND), ALLOCATABLE :: imagepad(:,:)

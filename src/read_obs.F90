@@ -566,7 +566,7 @@ subroutine read_obs(ndata,mype)
     integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
     integer(i_kind),dimension(ndat):: ntasks1,ntasks
     integer(i_kind),dimension(ndat,3):: ndata1
-    integer(i_kind),dimension(npe,ndat):: mype_work,mype_work_r1,mype_work_r2
+    integer(i_kind),dimension(npe,ndat):: mype_work
     integer(i_kind),dimension(npe,ndat):: mype_sub
     integer(i_kind),allocatable,dimension(:):: nrnd
     integer(i_kind):: nmls_type

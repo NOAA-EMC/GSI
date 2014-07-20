@@ -139,7 +139,6 @@ subroutine rhs_dealloc()
   use kinds, only: i_kind
   implicit none
   character(len=*),parameter:: myname_=myname//'.dealloc'
-  integer(i_kind):: is
 _ENTRY_(myname_)
   if(.not.rhs_allocated) call die(myname_,'can not be deallocted')
 
