@@ -237,7 +237,6 @@ contains
     
     integer(i_kind):: ip,itx
     integer(i_kind) ix,iy
-    integer(i_kind),dimension(0:51):: istart_val
 
     real(r_kind) dlat1,dlon1,pob1
     real(r_kind) dx,dy,dp,dxx,dyy,dpp

@@ -575,10 +575,10 @@ subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzb
 
 !   Declare local variables
     real(r_kind) :: ws,wa,wq
-    integer(i_kind) :: icount,i,j,k
+    integer(i_kind) :: icount,i,k
     real(r_kind), dimension(nchanl) :: tb_ta,tb_qa
     real(r_kind), dimension(nchanl) :: w_rad
-    real(r_kind) :: delt,delt1,delt2,delt3,c1x,c2x,c3x
+    real(r_kind) :: delt,delt1,c1x,c2x,c3x
     real(r_kind) :: a11,a12,a13,a23,a22,a33
     real(r_kind) :: varrad
     real(r_kind) :: vchk
@@ -1135,7 +1135,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
 
 
-  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact,sfchgtfact
+  real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,fact,sfchgtfact
   real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,j,k,kk,lcloud
@@ -1474,8 +1474,8 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
 
 
-  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact,sfchgtfact
-  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts,delta
+  real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,fact,sfchgtfact
+  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts
   real(r_kind),dimension(nchanl,nsig) :: dtb
   integer(i_kind) :: i,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
@@ -1772,11 +1772,11 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   real(r_kind),parameter:: w1f4=1.0_r_kind/0.3_r_kind
   real(r_kind),parameter:: w2f4=1.0_r_kind/1.8_r_kind
 
-  real(r_kind)    :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact
+  real(r_kind)    :: demisf,dtempf,efact,dtbf,term,cenlatx,fact
   real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dtde15,dsval,clwx
   real(r_kind)    :: factch6,de1,de2,de3,de15
   real(r_kind)    :: thrd1,thrd2,thrd3,thrd15
-  integer(i_kind) :: i,n,icw4crtm,ier
+  integer(i_kind) :: i,icw4crtm,ier
   logical lcw4crtm
   logical qc4emiss
 
@@ -2152,7 +2152,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
 ! Declare local parameters
 
   real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,fact
-  integer(i_kind) :: i,n
+  integer(i_kind) :: i
 
   efact = one
   vfact = one

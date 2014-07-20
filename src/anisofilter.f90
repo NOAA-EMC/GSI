@@ -3211,7 +3211,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   logical        ,intent(in   ) :: unbalens
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,m,l2,ivar,it
+  integer(i_kind) i,j,k,m,ivar,it
   integer(i_kind) n,kup
   integer(i_kind) inttype !read in from each e-member. tells about
 !                          desired vertical interp type for specific
@@ -3220,7 +3220,6 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
 
   real(r_kind) asp1,asp2,asp3
-  real(r_kind) dl1,dl2
 
   real(r_kind),allocatable,dimension(:,:,:)::field
 
@@ -3972,7 +3971,6 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   character(10) chvarname
-  character(80) fname
   character(5) cvar
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe

@@ -609,7 +609,6 @@ subroutine retrieval_amsre(tb,degre,  &
 
 ! Internal variable
   integer(i_kind) :: nchanl1
-  real(r_kind) :: wind
   real(r_kind) :: rwp,cwp,vr,vc
 !     si85    - scattering index over ocean
   real(r_kind) :: si85
@@ -749,8 +748,9 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
-  real(r_kind)  ev(nch),eh(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
+  real(r_kind)  ev(nch)
+  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),th(nch),tvmin(nch)
+! real(r_kind)  thmin(nch),eh(nch)
   real(r_kind),save :: freq(nch)
   real(r_kind),save :: kw(nch)
   real(r_kind),save :: ko2_coe(nch,3),kl_coe(nch,3)

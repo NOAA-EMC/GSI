@@ -98,8 +98,8 @@ contains
 
     character(24) filename
     logical:: l_cld_derived
-    integer(i_kind):: it,i,j,k,nlon_b
-    integer(i_kind):: iret,iret_cw,iret_ql,iret_qi,istatus 
+    integer(i_kind):: it,nlon_b
+    integer(i_kind):: iret,iret_ql,iret_qi,istatus 
 
     real(r_kind),allocatable,dimension(:,:  ):: aux_ps
     real(r_kind),allocatable,dimension(:,:  ):: aux_z
@@ -111,8 +111,6 @@ contains
     real(r_kind),allocatable,dimension(:,:,:):: aux_q
     real(r_kind),allocatable,dimension(:,:,:):: aux_oz
     real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
-    real(r_kind),allocatable,dimension(:,:,:):: aux_ql
-    real(r_kind),allocatable,dimension(:,:,:):: aux_qi
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => NULL()
@@ -331,7 +329,7 @@ contains
 
 !   Declare local variables
     character(len=*),parameter :: myname='read_gfs_chem'
-    integer(i_kind)            :: i,j,k,n,ier
+    integer(i_kind)            :: i,j,n,ier
     integer(i_kind)            :: ico24crtm,ich44crtm,in2o4crtm,ico4crtm
     character(len=3) :: char_ghg
     real(r_kind),dimension(lat2):: xlats
@@ -639,7 +637,7 @@ end subroutine write_ghg_grid
     integer(i_kind),parameter:: nsfc=11
 
 !   Declare local variables
-    integer(i_kind) i,j,k,latb,lonb,n
+    integer(i_kind) i,j,latb,lonb,n
     integer(sfcio_intkind):: irets,iret
     real(r_kind),allocatable,dimension(:,:):: outtmp
 
@@ -993,7 +991,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
-    integer(i_kind) itoutsig,istatus,iret_write,iret,nlon_b
+    integer(i_kind) itoutsig,istatus,iret_write,nlon_b
     character(24):: file_sfc,file_nst
 
     real(r_kind),allocatable,dimension(:,:  ):: aux_ps
@@ -1481,8 +1479,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   Declare local variables
     integer(i_kind):: iret
     integer(i_kind) latb,lonb,nlatm2
-    integer(i_kind) latd,lonl,version
-    integer(i_kind) i,j,k,ip1,jp1,ilat,ilon,jj,mm1
+    integer(i_kind) i,j,ip1,jp1,ilat,ilon,jj,mm1
 
     real(r_kind),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sosub

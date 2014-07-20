@@ -75,7 +75,7 @@ subroutine get_derivatives (guess,xderivative,yderivative)
 
 ! Local Variables
   character(len=*),parameter::myname='get_derivatives'
-  integer(i_kind) k,ic,rc,ier,istatus
+  integer(i_kind) k,ic,ier,istatus
   real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hworkd
   real(r_kind),dimension(:,:,:),pointer :: ptr3dges=>NULL()
   real(r_kind),dimension(:,:  ),pointer :: ptr2dges=>NULL()

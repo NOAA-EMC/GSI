@@ -116,7 +116,7 @@ logical,         intent(in) :: writecv   ! when .t., simply write out CV directl
 character(len=*),parameter:: myname_ = "view_cv"
 integer(i_kind)      :: nymd                      ! date as in YYYYMMDD
 integer(i_kind)      :: nhms                      ! time as in HHMMSS
-integer(i_kind)      :: ii,ier
+integer(i_kind)      :: ii
 type(gsi_bundle) :: mval(nsubwin)
 type(predictors) :: sbias
 
@@ -209,9 +209,7 @@ logical,         intent(in) :: readcv    ! when .t. simply read in CV
 character(len=*),parameter:: myname_ = "view_cv_ad"
 integer(i_kind)      :: nymd                      ! date as in YYYYMMDD
 integer(i_kind)      :: nhms                      ! time as in HHMMSS
-integer(i_kind)      :: ii,ier
-real(r_kind),pointer,dimension(:,:,:):: mv_3d
-real(r_kind),pointer,dimension(:,:  ):: mv_2d
+integer(i_kind)      :: ii
 type(gsi_bundle) :: mval(nsubwin)
 type(predictors) :: sbias
 
@@ -303,7 +301,7 @@ character(len=*),intent(in) :: filename
 character(len=*),parameter:: myname_ = "view_st"
 integer(i_kind)      :: nymd                      ! date as in YYYYMMDD
 integer(i_kind)      :: nhms                      ! time as in HHMMSS
-integer(i_kind)      :: ii,ier
+integer(i_kind)      :: ii
 integer(i_kind)      :: mydate(5)
 
 integer(i_kind),dimension(8) :: ida,jda

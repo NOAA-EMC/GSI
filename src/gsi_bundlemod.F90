@@ -1976,7 +1976,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
@@ -2016,7 +2016,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
@@ -2376,7 +2376,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: n,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 

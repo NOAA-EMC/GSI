@@ -153,7 +153,7 @@ subroutine intlimg(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) gust
   real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
   real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
@@ -215,7 +215,7 @@ subroutine intlimp(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) pblh
   real(r_kind),pointer,dimension(:,:) :: sp=>NULL()
   real(r_kind),pointer,dimension(:,:) :: rp=>NULL()
@@ -277,7 +277,7 @@ subroutine intlimv(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) vis
   real(r_kind),pointer,dimension(:,:) :: sv=>NULL()
   real(r_kind),pointer,dimension(:,:) :: rv=>NULL()
