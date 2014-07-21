@@ -153,7 +153,7 @@ end subroutine setup_pcglanczos
 ! -------------------------------------------------------------------
 
 !================================================================
-subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,iobsconv,lsavevecs)
+subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,lsavevecs)
 
 !$$$  subprogram documentation block
 !
@@ -185,7 +185,6 @@ type(control_vector),intent(inout)      :: xhat,yhat,gradx,grady
 real(r_kind)    , intent(out)           :: pcost
 real(r_kind)    , intent(inout)         :: preduc
 integer(i_kind) , intent(inout)         :: kmaxit
-integer(i_kind) , intent(in)            :: iobsconv
 logical         , intent(in)            :: lsavevecs
 
 type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry

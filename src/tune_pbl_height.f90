@@ -48,7 +48,7 @@ subroutine tune_pbl_height(mype,station_id,dx,dy,prestsfc,thisPBL_height,diffsfc
 
 ! Declare local variables
   real(r_kind) :: pblfact_cool
-  integer(i_kind) m1,i,ix1,iy1,ix,ixp,iyp,iy,itime,istatus
+  integer(i_kind) m1,ix1,iy1,ix,ixp,iyp,iy,itime,istatus
   real(r_kind) :: oldPBL_height
   real(r_kind),dimension(:,:),pointer::ges_ps=>NULL()
 

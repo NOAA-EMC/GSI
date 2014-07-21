@@ -136,7 +136,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) itx,k,i,itt,iskip,l,ifov,n
   integer(i_kind) ichan8,ich8
   integer(i_kind) nele,iscan,nmind
-  integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) ntest,ireadsb,ireadmg,irec,next
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind) ibfms         ! BUFR missing value function

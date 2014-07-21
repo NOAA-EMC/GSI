@@ -199,7 +199,7 @@ ibin_anl=1
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
-subroutine setup_4dvar(miter,mype)
+subroutine setup_4dvar(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_4dvar
@@ -214,7 +214,6 @@ subroutine setup_4dvar(miter,mype)
 !
 !   input argument list:
 !    mype     - mpi task id
-!    miter
 !
 !   output argument list:
 !
@@ -228,7 +227,6 @@ use hybrid_ensemble_parameters, only: ntlevs_ens
 use jcmod, only: ljc4tlevs
 implicit none
 integer(i_kind),intent(in   ) :: mype
-integer(i_kind),intent(in   ) :: miter
 
 ! local variables
 integer(i_kind) :: ibin,k

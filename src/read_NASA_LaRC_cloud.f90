@@ -44,7 +44,6 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 
 ! Declare local variables
   logical outside    !,good0,lexist1,lexist2,lexist3
-  real(r_kind),dimension(maxdat):: cdata
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_kind) dlat_earth,dlon_earth
   real(r_kind) dlat,dlon
@@ -57,14 +56,9 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 
 
   CHARACTER*80   satfile
-  INTEGER ::   nxp, nyp  ! dimension
   
 !     ****VARIABLES FOR THIS NETCDF FILE****
 !
-  CHARACTER*24 :: cbase_time
-  INTEGER(i_kind) ::  base_time
-  INTEGER(i_kind) ::  ibase_year,ibase_month,ibase_day,ibase_hour,ihour
-  INTEGER(i_kind) ::  icycle_year,icycle_month,icycle_day,icycle_hour
   REAL(r_single), allocatable ::   lat_l(:)
   REAL(r_single), allocatable ::   lon_l(:)
   REAL(r_single), allocatable ::   lwp_l(:)
@@ -74,24 +68,14 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
 !
 !  array for RR
 !
-  REAL(r_single), allocatable ::   w_pcld(:,:)
-  REAL(r_single), allocatable ::   w_tcld(:,:)
-  REAL(r_single), allocatable ::   w_frac(:,:)
-  REAL(r_single), allocatable ::   w_lwp (:,:)
-  integer(i_kind),allocatable ::   nlev_cld(:,:)
-
-!
-! Working
   
   integer :: nfov
   parameter (nfov=650)
 
-  integer i,j,k,ipt,cfov
-  Integer nf_status,nf_fid,nf_vid
+  integer i,k
 
-  integer :: NCID
   integer(i_kind) :: east_time, west_time
-  integer :: isat, maxobs,numobs
+  integer :: maxobs,numobs
 
   character*10  atime
 
@@ -259,7 +243,6 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
 !  ** misc
       
 !  integer i,j,k
-!  Integer nf_status,nf_fid,nx,ny,nf_vid
 !
 !  integer :: status
   character*10  atime

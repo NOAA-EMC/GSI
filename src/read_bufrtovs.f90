@@ -171,13 +171,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) ireadsb,ireadmg,irec,next
   integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
   integer(i_kind) kidsat,instrument
   integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
-  integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
+  integer(i_kind) iskip,ichan2,ichan1,ichan15
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
@@ -189,7 +189,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,ch16,ch17,qval
+  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,qval
   real(r_kind) ch1flg
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct

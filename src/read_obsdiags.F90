@@ -2199,7 +2199,7 @@ subroutine read_tcphead_ ()
     integer(i_kind) :: zkx            !  observation type 
     logical         :: zluse          !  flag indicating if ob is used in pen. 
  
-    integer(i_kind) :: j,mobs,jread,iostat 
+    integer(i_kind) :: mobs,jread,iostat 
     logical         :: passed 
     type(tcp_ob_type),pointer :: my_node  => NULL()
     character(len=*),parameter:: myname_=myname//".read_tcphead_" 
@@ -2316,7 +2316,7 @@ subroutine read_laghead_ ()
     real(r_kind)    :: pg            ! variational quality control parameter
     logical         :: luse          ! flag indicating if ob is used in pen.
 
-    integer(i_kind) :: j,mobs,jread,iostat
+    integer(i_kind) :: mobs,jread,iostat
     integer(i_kind) :: ich_lon,ich_lat
     logical         :: passed
     type(lag_ob_type),pointer:: my_node => NULL()

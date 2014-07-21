@@ -1934,7 +1934,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
         deallocate(filter(icolor)%ib,stat=istat)
         allocate(filter(icolor)%ib(max(1,npoints_recv(mype))))
         if(npoints_recv(mype)>0) then
-           call sort_strings4(info_string,aspect_full,npoints_recv(mype),filter(icolor)%ib,npes,nvars)
+           call sort_strings4(info_string,aspect_full,npoints_recv(mype),filter(icolor)%ib,nvars)
 
 !      count number of strings
 
@@ -2041,7 +2041,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 
       !       call adjoint_check4(filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
   call normalize2_raf4(filter,filter(1)%ngauss,normal, &
-                      ids, ide, jds, jde, kds, kde, &                    ! domain indices
+                      ids, ide, jds, jde, kde, &                    ! domain indices
                       ips, ipe, jps, jpe, kps, kpe, &                    ! patch indices
                       mype, npes)
 
@@ -2080,7 +2080,7 @@ return
 end subroutine init_raf4
 
 subroutine normalize2_raf4(filter,ngauss,normal, &
-                         ids, ide, jds, jde, kds, kde, &                ! domain indices
+                         ids, ide, jds, jde, kde, &                ! domain indices
                          ips, ipe, jps, jpe, kps, kpe, &                ! patch indices
                          mype, npes)
 !$$$  subprogram documentation block
@@ -2097,7 +2097,7 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
 !   input argument list:
 !     ngauss                        -
 !     normal                        -
-!     ids, ide, jds, jde, kds, kde  - domain indices
+!     ids, ide, jds, jde, kde  - domain indices
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
 !     mype                          - mpi task id
 !     npes                          -
@@ -2114,7 +2114,7 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
 
   implicit none
 
-  INTEGER(i_long)  ,INTENT(IN   ) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
+  INTEGER(i_long)  ,INTENT(IN   ) :: ids, ide, jds, jde, kde, &   ! domain indices
                                      ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long)  ,INTENT(IN   ) :: &
@@ -2658,7 +2658,7 @@ SUBROUTINE raf_sm4(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,npes)
 
 end subroutine raf_sm4
 
-subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
+subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,nvars)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    sort_strings4
@@ -2676,7 +2676,6 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
 !                                     5,6,7,8 - jumpx,jumpy,jumpz,ivar for this string
 !     aspect_full                   -
 !     npoints_recv                  -
-!     npes                          -
 !
 !   output argument list:
 !     info_string                   -
@@ -2691,7 +2690,6 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
 
   IMPLICIT NONE
 
-  INTEGER(i_long)                               ,INTENT(IN   ) :: npes
   integer(i_long)                               ,intent(in   ) :: nvars
 
   INTEGER(i_long)                               ,INTENT(IN   ) :: npoints_recv

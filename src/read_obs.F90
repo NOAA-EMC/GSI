@@ -1153,11 +1153,9 @@ subroutine read_obs(ndata,mype)
 
 !            Process atms data
              else if (obstype == 'atms') then
-                llb=1
-                lll=1
                 call read_atms(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),llb,lll)
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_ATMS'
 
 !            Process airs data        
@@ -1267,7 +1265,7 @@ subroutine read_obs(ndata,mype)
 !         Process co data
           else if (ditype(i) =='co')then 
              call read_co(nread,npuse,nouse,&
-                 platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)
+                 infile,gstime,lunout,obstype,sis)
              string='READ_CO'
 
 !         Process precipitation             

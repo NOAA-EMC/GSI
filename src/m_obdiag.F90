@@ -1511,7 +1511,7 @@ function colvk_verify_(hd,count,perr) result(good)
   logical:: perr_
   type(colvk_ob_type),pointer:: my_node
   type(obs_diag),pointer:: my_diag
-  integer(i_kind):: k,n,nlco
+  integer(i_kind):: k,n
 _ENTRY_(myname_)
   good = .true.
   if(SKIP_VERIFY_) then

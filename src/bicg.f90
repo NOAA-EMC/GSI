@@ -32,7 +32,7 @@ use qcmod,     only: nlnqc_iter
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
 use obs_sensitivity, only: lobsensadj, lobsensmin, lobsensfc, lobsensincr, &
-                           iobsconv, fcsens, llancdone, dot_prod_obs
+                           fcsens, llancdone, dot_prod_obs
 use obsmod,    only: lsaveobsens,l_do_adjoint,write_diag
 use adjtest,   only: adtest
 use grdtest,   only: grtest
@@ -146,7 +146,7 @@ call setup_pcglanczos(mype,nprt,jiter,jiterstart,itermax,nwrvecs, &
 
 if(jiter>=miter) lsavev=.false.
            
-call pcglanczos(xhat,yhat,costf,gradx,grady,eps,itermax,iobsconv,lsavev)
+call pcglanczos(xhat,yhat,costf,gradx,grady,eps,itermax,lsavev)
 
 call save_pcgprecond(lsavev)
 

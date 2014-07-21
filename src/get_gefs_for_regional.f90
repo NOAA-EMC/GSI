@@ -442,7 +442,7 @@ subroutine get_gefs_for_regional
      ! !ilook=29
      ! !jlook=41
      ilook=-1 ; jlook=-1
-     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl,tt, &
+     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl, &
                                  psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
                                  ilook,jlook)
      deallocate(tt,zbarl)
@@ -1078,7 +1078,7 @@ subroutine get_gefs_for_regional
    call stop2(555)
 end subroutine get_gefs_for_regional
 
-  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN,   &
+  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN,   &
                                     psfc_out,generic,IME,JME, Ilook,Jlook )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1114,7 +1114,6 @@ end subroutine get_gefs_for_regional
 
        real(r_kind),intent(in) :: TERRAIN_HGT_T(IME,JME)
        real(r_kind),intent(in) :: Z3D_IN(IME,JME,generic)
-       real(r_kind),intent(in) :: T3D_IN(IME,JME,generic)
        real(r_kind),intent(in) :: PRESS3D_IN(IME,JME,generic)
        real(r_kind),intent(out) :: psfc_out(IME,JME)
 

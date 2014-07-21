@@ -2057,7 +2057,6 @@ contains
     real(r_kind),intent(in):: test_div(0:ny1,0:nx1)
     logical,intent(in):: helmholtz_on
 
-    integer(i_kind) k
     real(r_kind) helmholtz
     real(r_kind),allocatable:: f(:,:),v(:,:),w(:,:)
               real(r_kind) time0,timef
@@ -3151,7 +3150,7 @@ subroutine fmg_strong_bal_correction_ad(u_t,v_t,t_t,ps_t,psi,chi,t,ps,update,myp
 
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::utilde,vtilde,mtilde,utdum,vtdum,mtdum
   real(r_kind),dimension(lat2,lon2,nvmodes_keep)::delpsitilde,delchitilde,delmtilde,dummytilde
-  real(r_kind),dimension(nlat,nlon)::u0t,v0t,m0t,div0t,vor0t,rhs,mtg,delm,divtg
+  real(r_kind),dimension(nlat,nlon)::u0t,v0t,m0t,div0t,vor0t,rhs,mtg,delm
   real(r_kind),dimension(nlat,nlon)::delvor,deldiv,delpsi,delchi,delf1,delf2
   real(r_kind),dimension(lat2,lon2,nsig)::dpsi,dchi,dt
   real(r_kind),dimension(lat2,lon2)::dps

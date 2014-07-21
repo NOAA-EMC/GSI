@@ -1812,7 +1812,6 @@ contains
    character(len=*),parameter::myname_ = myname//'*adjust_jac_'
    character(len=80) covtype
    integer(i_kind) iinstr
-   real(r_kind),   allocatable,dimension(:,:) :: col
 
    adjust_jac_=.false.
 

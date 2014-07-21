@@ -777,7 +777,7 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
 
   integer(kind=i_kind):: nrecDimId,lonVarID,latVarID,yyVarID,mmVarID
   integer(kind=i_kind):: ddVarID,hhVarID,minVarID,ssVarID
-  integer(kind=i_kind):: szaVarID,totozVarID,pressVarID
+  integer(kind=i_kind):: pressVarID
   integer(kind=i_kind):: convVarID, qualVarID, mlserrVarID, mlsozoneVarID
   integer(kind=i_kind):: mlslevsDimID,mlslevs
 

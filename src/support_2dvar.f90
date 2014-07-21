@@ -1924,12 +1924,11 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
 ! Declare local variables
   character(20) cvarname
   integer(i_kind) i,j,istart,jstart,is,ie,js,je
-  integer(i_kind) imin,jmin
   real(r_kind) rlonin8,rlatin8,xxin8,yyin8,xx8,yy8
   real(r_single) xxin,yyin
   real(r_single) dist,distmin,ri,rj,delx,dely
   real(r_single) ris,rie,rjs,rje,rimin,rjmin
-  real(r_single) idist,rlonin,rlatin,rlon,rlat
+  real(r_single) rlonin,rlatin,rlon,rlat
   real(r_single) slmin,slmout,slmask0
   logical lfound
 
@@ -2802,8 +2801,8 @@ subroutine shuffle(ngrps,ngrp0)
   integer(i_kind),intent(out):: ngrp0
 
 !Declare local variables
-  integer(i_kind) iseed,n,nt
-  real(r_kind) randx
+  integer(i_kind) iseed,nt
+! real(r_kind) randx
 
   call w3fs21(iadate,iseed) !use # of minutes since 0000, 1 jan 1978
                             !as the seed
