@@ -8,6 +8,7 @@ module gsi_nemsio_mod
 !
 ! program history log:
 !   2009-08-04  lueken - added module doc block
+!   2014-06-30  wu     - remove debugging printout
 !
 ! subroutines included:
 !   sub gsi_nemsio_open
@@ -161,18 +162,6 @@ contains
          nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
          nfday=nfday, &
          nframe=nframe,ntrac=ntrac,nsoil=nsoil,extrameta=extrameta,nmeta=nmeta)
-       write(6,*)' at 3.1 in gsi_nemsio_update, iret,nrec=',iret,nrec         ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, dimxyz=',im,jm,lm             ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, idate =',idate                ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, gdatatype=',gdatatype         ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, gtype=',gtype                 ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, modelname=',modelname         ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, nfhour,min=',nfhour,nfminute  ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, nfday='   ,nfday              ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, nfsec,secd=',nfsecondn,nfsecondd ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, nframe,ntrac=',nframe,ntrac   ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, nsoil,nmeta=',nsoil,nmeta     ! debug
-       write(6,*)' at 3.1 in gsi_nemsio_update, extrameta=',extrameta         ! debug
  
        write(6,*)' in gsi_nemsio_update, guess yr,mn,dy,hr,fhr=',idate(1:4),nfhour
        fha=zero ; ida=0 ; jda=0
@@ -228,18 +217,6 @@ contains
          nfhour=nfhour,nfminute=nfminute,nfsecondn=nfsecondn,nfsecondd=nfsecondd, &
          nfday=nfday, &
          nframe=nframe,ntrac=ntrac,nsoil=nsoil,extrameta=extrameta,nmeta=nmeta)
-       write(6,*)' at 9.1 in gsi_nemsio_update, iret,nrec=',iret,nrec         ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, dimxyz=',im,jm,lm             ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, idate =',idate                ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, gdatatype=',gdatatype         ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, gtype=',gtype                 ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, modelname=',modelname         ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, nfhour,min=',nfhour,nfminute  ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, nfday=',nfday                 ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, nfsec,secd=',nfsecondn,nfsecondd ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, nframe,ntrac=',nframe,ntrac   ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, nsoil,nmeta=',nsoil,nmeta     ! debug
-       write(6,*)' at 9.1 in gsi_nemsio_update, extrameta=',extrameta         ! debug
        write(6,*)' in gsi_nemsio_update, analysis yr,mn,dy,hr,fhr=',idate(1:4),nfhour
        call nemsio_getheadvar(gfile,'idat',idat,iret)
        write(6,*)' check new idat after getheadvar, idat,iret=',idat,iret

@@ -99,7 +99,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin
   use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone,use_reflectivity
+       regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_tsen,ges_qsat,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
