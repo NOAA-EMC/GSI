@@ -122,10 +122,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) then
-    print *, 'Whoa!  We have some missing variables in setupvis.f90....returning to setuprhsall.f90'
-    return  ! not all vars available, simply return
-  end if
+  if(.not.proceed) return  ! not all vars available, simply return
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_

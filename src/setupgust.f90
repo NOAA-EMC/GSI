@@ -19,7 +19,7 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !                          tintrp2a to tintrp2a1, tintrp2a11 (to allow successful debug compile on WCOSS)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
-!   2014-07-21  carley - ensure no division by 0 when calculation presw
+!   2014-07-21  carley - ensure no division by 0 when calculating presw
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
