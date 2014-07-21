@@ -198,7 +198,6 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   lunin=11
   open(lunin,file=trim(obsfile),form='unformatted')
   read(lunin)obstype,isis,nreal,nchanl,lat_data,lon_data
-  if(obstype=='lcbas'.or.obstype=='tcamt') print*,'CARLEY-TOPDISOBS:obstype,obstypeall,isis,nreal: ',obstype,obstypeall,isis,nreal
   if(trim(obstype) /=trim(obstypeall)) &
         write(6,*)'DISOBS:  ***ERROR***   obstype,obstypeall=',trim(obstype),trim(obstypeall)
 
@@ -258,8 +257,11 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
      end do
 
 
+
+
+
+
 ! Write observations for given task to output file
-     if(obstype=='lcbas'.or.obstype=='tcamt') print*,'CARLEY-BOTDISOBS:obstype,obstypeall,lunout: ',obstype,obstypeall,isis,lunout
      write(lunout) obstypeall,isis,nreal,nchanl
      write(lunout) data1_s,luse_s
      deallocate(data1_s,luse_s)

@@ -116,7 +116,11 @@ subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) return  ! not all vars available, simply return
+ if(.not.proceed) then
+    print *, 'Whoa!  We have some missing metguess variables in setuptcamt.f90....returning to setuprhsall.f90 after advancing through input file'
+    read(lunin)data,luse
+    return  ! not all vars available, simply return
+  end if
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
@@ -509,7 +513,7 @@ subroutine setuptcamt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ivar, istatus
 ! Check to see if required guess fields are available
   call gsi_metguess_get ('var::tcamt' , ivar, istatus )
-  proceed=proceed.and.ivar>0
+  proceed=ivar>0
   end subroutine check_vars_
 
   subroutine init_vars_

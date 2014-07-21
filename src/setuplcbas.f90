@@ -120,7 +120,11 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
-  if(.not.proceed) return  ! not all vars available, simply return
+ if(.not.proceed) then
+    print *, 'Whoa!  We have some missing metguess variables in setuplcbas.f90....returning to setuprhsall.f90 after advancing through input file'
+    read(lunin)data,luse
+    return  ! not all vars available, simply return
+  end if
 
 ! If require guess vars available, extract from bundle ...
   call init_vars_
