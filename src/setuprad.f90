@@ -225,9 +225,9 @@
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
-  integer(i_kind) kk,n,nlev,kval,ibin,ioff,ioff0,iii
+  integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
-  integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
+  integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
@@ -239,13 +239,13 @@
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
-  real(r_kind) wltm1,wltm2,wltm3  
+! real(r_kind) wltm1,wltm2,wltm3  
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
   real(r_kind) dtsavg,r90,coscon,sincon
-  real(r_kind) dlat,wlat 
+! real(r_kind) dlat,wlat 
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
@@ -282,8 +282,8 @@
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
-  real(r_kind) :: predchan6_save   
+  real(r_kind) :: clw_guess,clw_guess_retrieval
+! real(r_kind) :: predchan6_save   
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc

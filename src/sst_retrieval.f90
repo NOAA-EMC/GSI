@@ -186,8 +186,8 @@ contains
     real(r_kind),parameter:: r360=360.0_r_kind
 
 !   Declare local variables
-    real(r_kind) :: ws,wa,wq,errinv
-    integer(i_kind) :: icount,idate,md,ch3,ch4,ch5,iret,nn,i,j,l
+    real(r_kind) :: ws,wa,wq
+    integer(i_kind) :: icount,idate,md,ch3,ch4,ch5,iret,i,l
     real(r_kind), dimension(nchanl) :: tb_ta,tb_qa
     real(r_kind), dimension(nchanl) :: w_avh
     real(r_kind) :: delt,delt1,delt2,delt3,c1x,c2x,c3x

@@ -65,7 +65,6 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   INTEGER(i_kind) ::  base_time
   INTEGER(i_kind) ::  ibase_year,ibase_month,ibase_day,ibase_hour,ihour
   INTEGER(i_kind) ::  icycle_year,icycle_month,icycle_day,icycle_hour
-  REAL*8      time_offset
   REAL(r_single), allocatable ::   lat_l(:)
   REAL(r_single), allocatable ::   lon_l(:)
   REAL(r_single), allocatable ::   lwp_l(:)
@@ -86,13 +85,6 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   
   integer :: nfov
   parameter (nfov=650)
-  real, allocatable ::     Pxx(:,:,:),Txx(:,:,:),WPxx(:,:,:)
-  real,allocatable  ::     xdist(:,:,:), xxxdist(:)
-  real     fr,sqrt, qc, type
-  integer,allocatable  ::  PHxx(:,:,:),index(:,:), jndex(:)
-  integer  ioption
-  integer  ixx,ii,jj,med_pt,igrid,jgrid  &
-               ,ncount,ncount1,ncount2,ii1,jj1,nobs,n
 
   integer i,j,k,ipt,cfov
   Integer nf_status,nf_fid,nf_vid
@@ -101,7 +93,6 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,twind,s
   integer(i_kind) :: east_time, west_time
   integer :: isat, maxobs,numobs
 
-  integer :: status,mype
   character*10  atime
 
 !**********************************************************************
@@ -257,7 +248,6 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,east_time, west_time, &
 
   INTEGER ::   maxobs, numobs  ! dimension
   INTEGER(i_kind) ::  obs_time
-  REAL*8      time_offset
   REAL*4      lat                            (  maxobs)
   REAL*4      lon                            (  maxobs)
   integer     phase                          (  maxobs)
@@ -362,9 +352,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
   CHARACTER*40, intent(in)    ::   satfile
   integer(i_kind),intent(out) :: east_time, west_time 
 
-  INTEGER ::   maxobs, numobs  ! dimension
   INTEGER(i_kind) ::  obs_time
-  REAL*8      time_offset
 
   INTEGER(i_kind),parameter :: max_obstime=10
   integer(i_kind) :: num_obstime_all(max_obstime)  
@@ -373,7 +361,6 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
   integer(i_kind) :: num_obstime 
 
 !
-  character*10  atime
   integer :: i,ii,hhh
 !
 !**********************************************************************
