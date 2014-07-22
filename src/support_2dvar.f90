@@ -1347,8 +1347,8 @@ subroutine wr2d_binary(mype)
   caux(7)='mitm'    ; iaux(7)=i_mitm
   caux(8)='pmsl'    ; iaux(8)=i_pmsl
   caux(9)='howv'    ; iaux(9)=i_howv
-  caux(10)='tcamt'  ; iaux(9)=i_tcamt 
-  caux(11)='lcbas'  ; iaux(9)=i_lcbas
+  caux(10)='tcamt'  ; iaux(10)=i_tcamt 
+  caux(11)='lcbas'  ; iaux(11)=i_lcbas
 
   kaux=11  !Adjust as you add variables
 
