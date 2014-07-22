@@ -334,12 +334,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data prvstr /'PRVSTG'/   
   data sprvstr /'SPRVSTG'/ 
   data levstr  /'POB'/
-  data cld2seqstr /'TOCC HBLCS'/      ! total cloud cover and height above surface of base of lowest cloud see
+  data cld2seqstr /'TOCC HBLCS'/      ! total cloud cover and height above surface of base of lowest cloud seen
   data cldseqstr /'VSSO CLAM HOCB'/   ! vertical significance, cloud amount and cloud base height
   data metarcldstr /'CLAM HOCB'/      ! cloud amount and cloud base height
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
-  data goescldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
+  data goescldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, total cloud amount,
+                                                !   cloud top temperature, cloud top temp. qc mark
   data aircraftstr /'POAF IALR'/      ! phase of aircraft flight and vertical velocity
   data maxtmintstr  /'MXTM MITM'/
   data owavestr  /'HOWV'/

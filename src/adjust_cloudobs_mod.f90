@@ -122,7 +122,7 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
 !    15 Cloud cover is indiscernible for reasons other than
 !                 fog or other meteorological phenomena, or observation is not made
 
-! vsso 0 08002 (surface observations)
+! vsso 0 08002 (surface observations) - vertical significance
 !	5  Ceiling
 !   	6  Clouds not detected below the following height(s)
 !  	7  Low cloud
@@ -132,6 +132,8 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
 ! 	11 Cloud layer with base and top below the station level
      
   do k=1,cldseqlevs
+
+     ! Investigate cloud amounts
      if (cldseq(2,k) < 14.0_r_kind) then
         if (abs(cldseq(2,k)-13._r_kind) < tiny_r_kind) cldseq(2,k)=one
         if (abs(cldseq(2,k)-12._r_kind) < tiny_r_kind) cldseq(2,k)=three
@@ -145,17 +147,18 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
         cldamt_qc(k)=15
      end if
 
+     ! Investigate cloud base heights and obtain ceiling if present
      if (cldseq(3,k) < bmiss) then
         cldbas(k)=cldseq(3,k)
         cldbas_qc(k)=0
-        if (abs(cldseq(1,k)-5._r_kind) < tiny_r_kind) ceiling=cldbas(k)
+        if (abs(cldseq(1,k)-5._r_kind) < tiny_r_kind) ceiling=cldbas(k)  !Obtaining ceiling here if present
      else
         cldbas(k)=bmiss
         cldbas_qc(k)=15
      end if
   end do
 
-! total cloud amount (%)
+! total cloud amount (%) - TOCC
   if (cld2seqlevs>=1) then
      do k=1,cld2seqlevs
         if (cld2seq(1,k) <= 100.0_r_kind) then
@@ -171,9 +174,9 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
      if (cldseqlevs>0 .and. any(cldamt/=bmiss)) then 
 !       check repeated data
         do k=1,cldseqlevs
-           if (abs(cldamt(k)-bmiss) < tiny_r_kind) cycle
+           if (abs(cldamt(k)-bmiss) < tiny_r_kind) cycle  !avoid missing data
            do kk=k+1,cldseqlevs
-              if (abs(cldamt(k)-bmiss) < tiny_r_kind) cycle
+              if (abs(cldamt(k)-bmiss) < tiny_r_kind) cycle !is this line needed?
               if (abs(cldamt(k)-cldamt(kk)) < tiny_r_kind) fact(kk)=zero
            end do
         end do
