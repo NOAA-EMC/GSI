@@ -29,7 +29,6 @@ module m_obdiag
 
 ! module interface:
 
-!#define DEBUG_TRACE
 #include "mytrace.H"
   use kinds, only: i_kind
   use mpeu_util, only: perr,die,tell

@@ -24,7 +24,6 @@ module m_rhs
 !$$$  end subprogram documentation block
 
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 ! module interface:

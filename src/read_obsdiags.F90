@@ -1,6 +1,5 @@
 subroutine read_obsdiags(cdfile)
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block

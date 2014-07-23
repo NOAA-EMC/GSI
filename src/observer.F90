@@ -1,6 +1,5 @@
 module observermod
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block
