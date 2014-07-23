@@ -2157,11 +2157,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if (trim(subset) == 'GOESND') then
                        call adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc)
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,stnelev)
                     else
                        call adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,metarwth,metarwthlevs, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling)
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
                     end if
 
                     usage=zero
@@ -2200,11 +2200,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if (trim(subset) == 'GOESND') then
                        call adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc)
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,stnelev)
                     else
                        call adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,metarwth,metarwthlevs, &
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling)
+                                  hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
                     end if
 
                     usage=zero

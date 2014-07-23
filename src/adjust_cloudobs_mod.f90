@@ -28,9 +28,9 @@ module adjust_cloudobs_mod
 
 contains
 
-subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstrlevs, &
+subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,wthstrlevs, &
                         low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                        hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling)
+                        hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  adjust_convcldobs         obtain cloud amount info from conventional prepbufr
@@ -39,7 +39,9 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
 ! abstract:  This routine obtain cloud amount info from conventional prepbufr
 !
 ! program history log:
-!   2011-12-29  zhu    
+!   2011-12-29  zhu
+!   2014-07-23  carley - add station elevation to lcbas/ceiling so output
+!                        is MSL    
 !
 ! attributes:
 !   language: f90
@@ -51,17 +53,18 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
   implicit none
 
 ! input variables
-  integer(i_kind) :: cldseqlevs,wthstrlevs,cld2seqlevs
-  real(r_kind),dimension(3,10):: cldseq
-  real(r_kind),dimension(2,1):: cld2seq
-  real(r_kind),dimension(1):: wthstr
+  integer(i_kind),intent(in) :: cldseqlevs,wthstrlevs,cld2seqlevs
+  real(r_kind),dimension(3,10),intent(in):: input_cldseq
+  real(r_kind),dimension(2,1),intent(in):: cld2seq
+  real(r_kind),dimension(1),intent(in):: wthstr
+  real(r_kind),intent(in) :: stnelev
 
 ! output variables
-  integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
-  integer(i_kind) :: tcamt_qc,lcbas_qc
-  real(r_kind) :: low_cldamt,mid_cldamt,hig_cldamt
-  real(r_kind) :: tcamt,lcbas
-  real(r_kind) :: ceiling
+  integer(i_kind),intent (inout) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
+  integer(i_kind),intent (inout) :: tcamt_qc,lcbas_qc
+  real(r_kind),intent (inout) :: low_cldamt,mid_cldamt,hig_cldamt
+  real(r_kind),intent (inout) :: tcamt,lcbas
+  real(r_kind),intent (inout) :: ceiling
 
 ! declare local variables
   real(r_kind),parameter :: bmiss= 10.e10_r_kind
@@ -78,6 +81,7 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
   real(r_kind),dimension(10) :: cldamt
   real(r_kind),dimension(10) :: cldbas
   real(r_kind),dimension(10) :: fact
+  real(r_kind),dimension(3,10):: cldseq
   logical no_cloud
   logical fog
 
@@ -101,6 +105,9 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
   cldamt_qc=15
   cldbas_qc=15
   fact=one
+
+  !make local copy of cldseq
+  cldseq=input_cldseq
 
 ! cloud amount and base height
 ! C 020011
@@ -324,12 +331,16 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,cldseq,cldseqlevs,wthstr,wthstr
      end if
   end do
 
+!  Background field is MSL, so add station elevation to lcbas and ceiling here
+if (abs(lcbas-bmiss) < tiny_r_kind) lcbas=lcbas+stnelev
+if (abs(ceiling-bmiss) < tiny_r_kind) ceiling=ceiling+stnelev
+
 end subroutine adjust_convcldobs
 
 
 subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
                         low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                        hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc)
+                        hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,stnelev)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  adjust_goescldobs         obtain cloud amount info from NESDIS goescld
@@ -351,15 +362,15 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
   implicit none
 
 ! input variables
-  integer(i_kind) :: idomsfc
-  real(r_kind) :: timeobs,dlat_earth,dlon_earth
-  real(r_kind),dimension(:,:):: goescld
+  integer(i_kind),intent(in) :: idomsfc
+  real(r_kind),intent(in) :: timeobs,dlat_earth,dlon_earth,stnelev
+  real(r_kind),dimension(:,:),intent(in):: goescld
 
 ! output variables
-  integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
-  integer(i_kind) :: tcamt_qc,lcbas_qc
-  real(r_kind) :: low_cldamt,mid_cldamt,hig_cldamt
-  real(r_kind) :: tcamt,lcbas
+  integer(i_kind),intent(inout) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
+  integer(i_kind),intent(inout) :: tcamt_qc,lcbas_qc
+  real(r_kind),intent(inout) :: low_cldamt,mid_cldamt,hig_cldamt
+  real(r_kind),intent(inout) :: tcamt,lcbas
 
 ! declare local variables
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
@@ -456,6 +467,9 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
         tcamt_qc=3
      end if
   end if
+
+!  Background field is MSL, so add station elevation to lcbas and ceiling here
+if (abs(lcbas-bmiss) < tiny_r_kind) lcbas=lcbas+stnelev
 
 end subroutine adjust_goescldobs
 

@@ -2561,6 +2561,7 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
 !   machine:
 !
 !$$$ end documentation block
+  use constants, only: zero
   use convinfo, only:  ncmiter,ncgroup,ncnumgrp
   use  gridmod, only: nlon,nlat
 
@@ -2595,7 +2596,12 @@ subroutine apply_hilbertcurve(maxobs,obstype,cdata_usage)
   allocate(ipoint(maxobs))
   allocate(hildlon(maxobs))
   allocate(hildlat(maxobs))
+      
 
+
+      !initialize hildlon and hildlat (prevents floating point failure when run in debug mode)
+      hildlon=zero
+      hildlat=zero
 
       print*,'in apply_hilbertcurve: obstype=',obstype
 
