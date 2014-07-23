@@ -77,6 +77,8 @@ module gsi_4dvar
 !                       this should generally match with min_offset
 !   ibin_anl          - Analysis update bin.  This will be one for any 3D of 4DVAR mode, but
 !                       will be set to center of window for 4D-ens mode
+!   lwrite4danl       - logical to turn on writing out of 4D analysis state for 4D analysis modes
+!                       ** currently only set up for write_gfs in ncepgfs_io module
 !
 ! attributes:
 !   language: f90
@@ -105,6 +107,7 @@ module gsi_4dvar
   public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
   public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
   public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
+  public :: lwrite4danl
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -121,6 +124,7 @@ module gsi_4dvar
   logical         :: liauon
   logical         :: l4densvar
   logical         :: lnested_loops
+  logical         :: lwrite4danl
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -196,6 +200,8 @@ iorthomax=0
 ens4d_nhr=3
 ens4d_nstarthr=3
 ibin_anl=1
+
+lwrite4danl = .false.
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
@@ -295,6 +301,14 @@ if ( iwrtinc>0 .and. ((.not.l4dvar) .and. (.not.l4densvar)) ) then
    write(6,*)'SETUP_4DVAR: iwrtinc l4dvar inconsistent',iwrtinc,l4dvar
    call stop2(135)
 end if
+if ( lwrite4danl .and. ((.not.l4dvar) .and. (.not.l4densvar)) ) then
+   write(6,*)'SETUP_4DVAR: lwrite4danl,l4dvar,l4densvar inconsistent',lwrite4danl,l4dvar,l4densvar
+   call stop2(135)
+end if
+if ( iwrtinc>0 .and. lwrite4danl) then
+   write(6,*) 'SETUP_4DVAR: iwrtinc>0, cannot write out 4d analysis state, setting lwrite4danl to false'
+end if
+
 
 if (l4densvar) then
    ntlevs_ens=nobs_bins

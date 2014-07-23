@@ -1081,20 +1081,22 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
     use kinds, only: i_kind,r_kind
     use guess_grids, only: dsfct,isli2
-    use guess_grids, only: ntguessig,ntguessfc
+    use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
+    use gsi_4dvar, only: lwrite4danl
 
     implicit none
 
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
-    integer(i_kind) itoutsig,istatus,iret_write,iret,nlon_b
+    integer(i_kind) itoutsig,istatus,iret_write,iret,nlon_b,ntlevs,it
+
     character(24):: file_sfc,file_nst
 
     real(r_kind),allocatable,dimension(:,:  ):: aux_ps
@@ -1122,48 +1124,62 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     type(spec_vars):: sp_b
 
 !   Write atmospheric analysis file
-    if (increment>0) then
-       filename='siginc'
-       itoutsig=increment
-       if(mype==0) write(6,*) 'WRITE_GFS: writing time slot ', itoutsig
+    if (.not.lwrite4danl) then
+       ntlevs=1
     else
-       filename='siganl'
-       itoutsig=ntguessig
-    endif
+       ntlevs=nfldsig
+    end if
 
 !   Get space for temporary arrays need to read file
     call create_aux_
 
-    call set_analysis_(itoutsig)
+    do it=1,ntlevs
+       if (increment>0) then
+          filename='siginc'
+          itoutsig=increment
+          if(mype==0) write(6,*) 'WRITE_GFS: writing time slot ', itoutsig
+       else if (.not.lwrite4danl) then
+          filename='siganl'
+          itoutsig=ntguessig
+          if(mype==0) write(6,*) 'WRITE_GFS: writing single analysis state for F ', itoutsig
+       else
+          write(filename,100) ifilesig(it)
+100       format('siga',i2.2)
+          itoutsig=it
+          if(mype==0) write(6,*) 'WRITE_GFS: writing full analysis state for F ', itoutsig
+       endif
+
+       call set_analysis_(itoutsig)
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
-    nlon_b=((2*jcap_b+1)/nlon+1)*nlon
-    if (nlon_b /= sp_a%imax) then
-       hires_b=.true.
-       call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
-       if (mype==0) &
-            write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
-            sp_b%jcap,sp_b%imax,sp_b%jmax
+       nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+       if (nlon_b /= sp_a%imax) then
+          hires_b=.true.
+          call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+          if (mype==0) &
+               write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
+               sp_b%jcap,sp_b%imax,sp_b%jmax
 
-       call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
-            aux_z,aux_ps,&
-            aux_vor,aux_div,&
-            aux_tv,aux_q,&
-            aux_oz,aux_cwmr,&
-            iret_write)
+          call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
+               aux_z,aux_ps,&
+               aux_vor,aux_div,&
+               aux_tv,aux_q,&
+               aux_oz,aux_cwmr,it,&
+               iret_write)
 
-       call general_destroy_spec_vars(sp_b)
+          call general_destroy_spec_vars(sp_b)
 
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
-    else
-       call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
-            aux_z,aux_ps,&
-            aux_vor,aux_div,&
-            aux_tv,aux_q,&
-            aux_oz,aux_cwmr,&
-            iret_write)
-    endif
+       else
+          call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
+               aux_z,aux_ps,&
+               aux_vor,aux_div,&
+               aux_tv,aux_q,&
+               aux_oz,aux_cwmr,it,&
+               iret_write)
+       endif
+    end do ! end do over ntlevs
 
 !   Write surface analysis file
     if (increment>0) then

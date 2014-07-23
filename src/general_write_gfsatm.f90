@@ -1,5 +1,5 @@
   subroutine general_write_gfsatm(grd,sp_a,sp_b,filename,mype,mype_out,sub_z,sub_ps,&
-       sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,iret_write)
+       sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,ibin,iret_write)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_write_gfsatm  adaptation of write_gfsatm for general resolutions
@@ -36,6 +36,7 @@
     use general_commvars_mod, only: load_grid
     use ncepgfs_io, only: sigio_cnvtdv8
     use constants, only: zero,zero_single,one,fv
+    use gsi_4dvar, only: ibdate,nhr_obsbin,lwrite4danl
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -49,6 +50,7 @@
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) ,intent(in   ) :: sub_vor,sub_div,sub_tv,sub_q,sub_oz, &
                                                              sub_cwmr
 
+    integer(i_kind), intent(in)::   ibin
     integer(i_kind), intent(out)::  iret_write
 
     integer(i_kind),parameter::  lunges = 11
@@ -68,6 +70,10 @@
 
     integer nlatm2,icount,itotflds,i,j,iret,kvar,klev,k
     integer(i_kind),dimension(npe)::ilev,ivar
+    integer(i_kind),dimension(5):: mydate
+
+    integer(i_kind),dimension(8) :: ida,jda
+    real(r_kind),dimension(5)    :: fha
 
     type(sigio_head):: sigges_head,siganl_head
     type(sigio_dbti):: sigdati
@@ -97,14 +103,36 @@
     call sigio_rwopen(lunanl,filename,iret_write)
     if (iret_write /=0) goto 1000
 
+! Load date
+       if (.not.lwrite4danl) then
+          mydate=iadate
+       else
+!  increment mydate ...                                                                                                                              
+          mydate=ibdate
+          fha(:)=zero ; ida=0; jda=0
+          fha(2)=real(nhr_obsbin*(ibin-1))  ! relative time interval in hours
+          ida(1)=mydate(1) ! year
+          ida(2)=mydate(2) ! month
+          ida(3)=mydate(3) ! day
+          ida(4)=0         ! time zone
+          ida(5)=mydate(4) ! hour
+
+   ! Move date-time forward by nhr_assimilation hours
+          call w3movdat(fha,ida,jda)
+          mydate(1)=jda(1)
+          mydate(2)=jda(2)
+          mydate(3)=jda(3)
+          mydate(4)=jda(5)
+       end if
+
 !    if (mype==mype_out) then
 !      Replace header record date with analysis time
        siganl_head = sigges_head
        siganl_head%fhour    = zero_single
-       siganl_head%idate(1) = iadate(4) !hour
-       siganl_head%idate(2) = iadate(2) !month
-       siganl_head%idate(3) = iadate(3) !day
-       siganl_head%idate(4) = iadate(1) !year
+       siganl_head%idate(1) = mydate(4) !hour
+       siganl_head%idate(2) = mydate(2) !month
+       siganl_head%idate(3) = mydate(3) !day
+       siganl_head%idate(4) = mydate(1) !year
 
 !      Load grid dimension and other variables used below
 !      into local header structure
