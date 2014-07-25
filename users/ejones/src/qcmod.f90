@@ -596,7 +596,7 @@ end subroutine tz_retrieval
 subroutine qc_ssmi(nchanl,nsig,ich,  &
      sfchgt,luse,sea,ice,snow,mixed, &
      temp,wmix,ts,pems,ierrret,kraintype,tpwc,clw,sgagl,tzbgr,   &
-     tbc,tbcnob,tb_ges,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+     tbc,tbcnob,tb_ges,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis,amsr2, &
      varinv,errf,aivals,id_qc )
 
 !$$$ subprogram documentation block
@@ -702,7 +702,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
   logical                          ,intent(in   ) :: sea,snow,ice,mixed,luse
-  logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
+  logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis,amsr2
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl,tzbgr
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: ts,pems,tnoise
@@ -728,7 +728,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
      clwcutofx(1:nchanl) =  &  
           (/0.35_r_kind, 0.35_r_kind, 0.27_r_kind, 0.10_r_kind, &
           0.10_r_kind, 0.024_r_kind, 0.024_r_kind/) 
-  else if(amsre_low.or.amsre_mid.or.amsre_hig) then
+  else if(amsre_low.or.amsre_mid.or.amsre_hig .or. amsr2) then
      clwcutofx(1:nchanl) =  &  
           (/0.350_r_kind, 0.350_r_kind, 0.350_r_kind, 0.350_r_kind, &
           0.300_r_kind, 0.300_r_kind, 0.250_r_kind, 0.250_r_kind, &
