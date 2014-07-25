@@ -40,7 +40,7 @@ implicit none
 contains
 
 
- subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &   
+ subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,amsr2,atms, &   
           tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -90,7 +90,7 @@ contains
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
   integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
-  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms
+  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms,amsr2
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
   real(r_kind)                      ,intent(  out) :: clw,tpwc
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
@@ -142,6 +142,12 @@ contains
 
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
+     clw = max(zero,clw)
+
+  else if (amsr2) then
+
+     call retrieval_amsr2(tb_obs(1),zasat,           &
+          sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret )
      clw = max(zero,clw)
 
   endif
@@ -649,6 +655,110 @@ subroutine retrieval_amsre(tb,degre,  &
 
   return
 end subroutine retrieval_amsre
+
+subroutine retrieval_amsr2(tb,degre,  &
+                        sfc_speed, sst, &
+                        tpwc,clw,kraintype,ierr )
+
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  retrieval_amsr2         make retrieval from AMSR-E observation
+!
+!   prgmmr: kazumori          org: np23                date: 2005-10-20
+!
+! abstract: This subroutine create retrievals from AMSR-E observation
+!
+! program history log:
+!   2005-10-20  kazumori - create retrieval subroutine for AMSR-E
+!   2005-10-21  kazumori - reformated for GSI
+!   2006-04-26  kazumori - removed extra qc and comment changed
+!   2006-07-27  kazumori - modified bias correction of retrieval
+!                          and clean up the code
+!   2008-04-16  safford  - rm unused uses and vars
+!
+!   input argument list:
+!     tb      - Observed brightness temperature [K]
+!     amsre_low   - logical true if amsre_low is processed
+!     amsre_mid   - logical true if amsre_mid is processed
+!     amsre_hig   - logical true if amsre_hig is processed
+!     sfc_speed   - guess wind speed at 10m
+!     sst   - sea surface temperature[K]
+!
+!   output argument list:
+!     tpwc    - column water vapor over ocean  [kg/m2]
+!     clw     - column water vapor over ocean  [kg/m2]
+!     kraintype - kraintype flag
+!     ierr    - error flag
+!
+!   comments:
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use kinds, only: r_kind, i_kind
+  use constants, only: zero
+
+  implicit none
+
+! Input variable
+  real(r_kind),dimension(12),intent(in   ) :: tb
+  real(r_kind)              ,intent(in   ) :: sfc_speed
+  real(r_kind)              ,intent(in   ) :: sst,degre
+
+! Output variable
+  integer(i_kind)           ,intent(  out) :: kraintype,ierr
+  real(r_kind)              ,intent(  out) :: tpwc,clw
+
+! Internal variable
+  integer(i_kind) :: nchanl1
+  real(r_kind) :: wind
+  real(r_kind) :: rwp,cwp,vr,vc
+!     si85    - scattering index over ocean
+  real(r_kind) :: si85
+
+! Initialize variable
+  nchanl1 = 14   ! Total AMSR-E channel number=12
+  ierr = 0; kraintype=0
+  rwp =zero;cwp=zero;vr=zero;vc=zero
+
+! Gross error check on all channels.  If there are any
+! bad channels, skip this obs.
+
+  if ( any(tb < 50.0_r_kind) .or. any(tb > 400.0_r_kind ) ) then
+     ierr = 1
+     return
+  end if
+
+! Currently rwp and vc computations commented out since not used
+  call RCWPS_Alg(degre,tb,sst,sfc_speed,rwp,cwp,vr,vc)
+
+  tpwc=vr  ! 18.7GHz
+!  tpwc=vc ! 36.5GHz
+  clw=cwp
+  clw = clw - 0.03_r_kind   ! remove bias
+  si85=rwp
+
+!  =======   TPW over ocean (when no rain)  ====================
+
+  if(kraintype==0) then
+     tpwc = max(zero,tpwc)
+
+!  =======   CLW over ocean (when no rain)  ====================
+
+
+!    Ensure clw is non-negative.
+     clw    = max(zero,clw)
+
+!     upper limit of 6.0 kg/m2.
+!     if(clw>6.0_r_kind) clw=zero
+
+  end if  !no rain
+
+  return
+end subroutine retrieval_amsr2
 
 
 subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
