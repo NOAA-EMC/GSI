@@ -703,6 +703,12 @@
            id_qc(1:nchanl) = ifail_crtm_qc
            varinv(1:nchanl) = zero
         endif
+! --- erin debug stuff---
+if (amsr2) then
+write(6,*)'CHECKSETUPRAD varinv(1:nchanl), id_qc(1:nchanl)=', varinv(1:nchanl),id_qc(1:nchanl)
+endif
+!------/erin debug stuff----
+
 
 !  For SST retrieval, use interpolated NCEP SST analysis
         if (retrieval) then
@@ -757,7 +763,7 @@
         kraintype=0
         if(microwave .and. sea) then 
            ! add amsr2 to calc_clw call later?
-           call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
+           call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,amsr2,atms, &
                 tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
            if(lcw4crtm .and. abs(cenlat)<60.0_r_kind) then
               call ret_amsua(tb_obs, nchanl, tsavg5, zasat, clwp_amsua)
@@ -1083,7 +1089,7 @@
 
         ! add amsr2 to QC later
 
-        else if( ssmi .or. amsre .or. ssmis )then   
+        else if( ssmi .or. amsre .or. ssmis .or. amsr2 )then   
 
            if(amsre)then
               bearaz= (270._r_kind-data_s(ilazi_ang,n))*deg2rad
@@ -1096,7 +1102,7 @@
            call qc_ssmi(nchanl,nsig,ich, &
               zsges,luse(n),sea,ice,snow,mixed, &
               temp,wmix,ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl,tzbgr, &
-              tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
+              tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis,amsr2, &
               varinv,errf,aivals(1,is),id_qc)
 
 !  ---------- SSU  -------------------
