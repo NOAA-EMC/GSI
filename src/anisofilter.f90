@@ -1274,6 +1274,7 @@ subroutine init_anisofilter_reg(mype)
      afact0=one     !(use "zero" for isotropic computations)
      hsteep=zero
      hsmooth_len=10._r_kind
+     hsmooth_len_lcbas=10._r_kind
      lsmoothterrain=.false.
      volpreserve=.false.
      lwater_scaleinfl=.false.
