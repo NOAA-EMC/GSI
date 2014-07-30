@@ -149,7 +149,6 @@ MAIL_TO=${MAIL_TO:-}
 MAIL_CC=${MAIL_CC:-}
 VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
-#time_exec=radmon_time.${RAD_AREA}
 time_exec=radmon_time
 USE_ANL=${USE_ANL:-0}
 err=0 
@@ -339,7 +338,7 @@ EOF
    fi 
 
 #-------------------------------------------------------------------
-#  mail error notifications
+#  mail error notifications or dump to log file
 
    if [[ -s ${diag_report} ]]; then
       lines=`wc -l <${diag_report}`
@@ -352,6 +351,7 @@ EOF
                /bin/mail -v -s diagnostic_error_report -c "${MAIL_CC}" ${MAIL_TO}< ${diag_report}
             fi
          else
+            
             cat ${diag_report}
          fi
       fi
@@ -386,6 +386,12 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
       do_rpt=1
    fi
 
+#--------------------------------------------------------------------
+#  Remove extra spaces in new bad_pen file
+#
+   gawk '{$1=$1}1' $bad_pen > tmp.bad_pen
+   mv -f tmp.bad_pen $bad_pen
+
 
    if [[ $do_rpt -eq 1 ]]; then
 #-------------------------------------------------------------------
@@ -400,7 +406,6 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
    ${USHgfs}/radmon_err_rpt.sh ${prev_bad_pen} ${bad_pen} pen ${qdate} ${PDATE} ${diag_report} ${pen_err}
    ${USHgfs}/radmon_err_rpt.sh ${prev_bad_chan} ${bad_chan} chan ${qdate} ${PDATE} ${diag_report} ${chan_err}
 
-
 #-------------------------------------------------------------------
 #  put together the unified error report with any obs, chan, and
 #  penalty problems and mail it
@@ -409,8 +414,9 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 
       echo DOING ERROR REPORTING
 
-      cat << EOF > $report
+      echo "Begin Cycle Data Integrity Report" > $report
 
+      cat << EOF >> $report
 Cycle Data Integrity Report 
   $PDATE
 
@@ -462,7 +468,7 @@ EOF
    fi
 
 #-------------------------------------------------------------------
-#  mail error notifications
+#  mail error notifications or dump to log file
 #
    if [[ -s ${report} ]]; then
       lines=`wc -l <${report}`

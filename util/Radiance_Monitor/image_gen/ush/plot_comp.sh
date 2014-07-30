@@ -59,7 +59,7 @@ for type in ${SATYPE}; do
 cat << EOF > ${type}.gs
 'open ${SUFFIX1}.${type}.ctl'
 'open ${SUFFIX2}.${type}.ctl'
-'run ${GSCRIPTS}/plot_comp_summary.gs ${type} ${SUFFIX1} ${SUFFIX2} x1100 y850'
+'run ${IG_GSCRIPTS}/plot_comp_summary.gs ${type} ${SUFFIX1} ${SUFFIX2} x1100 y850'
 'quit'
 EOF
 

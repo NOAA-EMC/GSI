@@ -1,0 +1,72 @@
+set vpage 0.0 11.0 0.0 8.5
+set grads off
+set gxout scatter
+enable print fig.meta
+open anal.ctl
+set x 1 69013 
+set y 1
+
+
+set parea 6.0 10.0 5.0 8.0
+
+*set vrange -60 90
+*set vrange2 -40 40
+*d stdw(y=5);(stdw(y=21)-stdw(y=5))
+*draw ylab Um-Un(m/s)
+*draw xlab  Un(m/s)
+
+set vrange -40 100 
+set vrange2 -25 25
+d stdw(y=1);(stdw(y=9)-stdw(y=1))
+draw ylab Um-Us(m/s)
+draw xlab  Us(m/s)
+
+set parea 1.0 5.0 5.0 8.0
+
+*set vrange -60 90
+*set vrange2 -60 90
+*d stdw(y=5);stdw(y=21)
+*draw ylab  Um(m/s)
+*draw xlab  Un(m/s)
+
+set vrange -40 100 
+set vrange2 -40 100 
+d stdw(y=1);stdw(y=9)
+draw ylab  Um(m/s)
+draw xlab  Us(m/s)
+
+set parea 6.0 10.0 1.0 4.0
+*set vrange -70 60
+*set vrange2 -35 35 
+*d stdw(y=6);(stdw(y=22)-stdw(y=6))
+*draw ylab  Vm-Vn(m/s)
+*draw xlab  Vn(m/s)
+
+set vrange -70 60
+set vrange2 -35 35
+d stdw(y=2);(stdw(y=10)-stdw(y=2))
+draw ylab  Vm-Vn(m/s)
+draw xlab  Vn(m/s)
+
+
+set parea 1.0 5.0 1.0 4.0
+
+*set vrange -70 70
+*set vrange2 -70 70
+*d stdw(y=6);stdw(y=22)
+*draw ylab  Vm(m/s)
+*draw xlab  Vn(m/s)
+
+set vrange -70 70 
+set vrange2 -70 70 
+d stdw(y=2);stdw(y=10)
+draw ylab  Vm(m/s)
+draw xlab  Vs(m/s)
+
+
+*set string 1 bl 8
+*draw string 1.0 8.3  Satellite winds vs. model winds at final pressure level 
+*draw string 1.0 8.3  Satellite winds (speed,direction)vs. model winds at level determined by IR
+*draw string 1.0 8.3  Figure 1 Satellite guess winds (processed in NESDIS) vs. model guess winds from  EMC SSI 
+
+print

@@ -37,7 +37,7 @@ program time
   integer,allocatable,dimension(:):: io_chan,nu_chan
   integer :: ios = 0
   integer :: channel_obs
-  integer :: iret 
+  integer :: iret, ier, ver
   integer npred_radiag
 
   real rread, pen, bound
@@ -87,7 +87,7 @@ program time
 !
 ! Initialize variables
   iread=0
-  npred_radiag = 5
+  npred_radiag = 12 
 
 ! Read namelist input
   read(luname,input)
@@ -149,6 +149,9 @@ program time
   rewind lndiag
 
 ! File exists.  Read header
+  call get_radiag ('version',ver,ier)
+  write(6,*)'read_diag version = ', ver, ier
+
   write(6,*)'call read_diag_header'
   call read_radiag_header( lndiag, npred_radiag, retrieval, header_fix,&
         header_chan, data_name, iflag )
@@ -162,9 +165,6 @@ program time
   satsis = header_fix%isis
   dplat  = header_fix%id
   n_chan = header_fix%nchan
-
-  write(6,*)'satype,dplat,n_chan=',satype,' ',dplat,n_chan
-  write(6,*)'header_fix%iversion, iversion_radiag = ', header_fix%iversion, iversion_radiag
 
   string = trim(satype)//'_'//trim(dplat)
   write(6,*)'string,satname=',string,' ',satname
@@ -340,7 +340,6 @@ program time
      enddo loopd
 
 
-     close(lndiag)
      write(6,*)' '
      write(6,*)'read in ',iread,' obs ',rread
      write(6,*)' '
@@ -363,22 +362,18 @@ program time
 !           end if
 
            if (count(j,k)>0) then
-!              penalty(j,k)=penalty(j,k)/count(j,k)
                test_pen(j,k)=penalty(j,k)/count(j,k)
 
-              !---  check for valid penalty value for reagion 1 (global)
+              !---  check for valid penalty value for region 1 (global)
               !
               if ( use(j,k) > 0.0 .AND. k == 1 .AND. imkdata == 1 .AND. trim(gesanl) == 'ges' ) then 
-!                 call validate_penalty( j, k, penalty(j,k), valid_penalty, bound, iret )
                  call validate_penalty( j, k, test_pen(j,k), valid_penalty, bound, iret )
-!                 write(6,*) ' valid_penalty, iret = ', valid_penalty, iret
                  if( (iret == 0) .AND. (valid_penalty .eqv. .FALSE.) ) then
                     call write_bad_penalty( satname, nu_chan(j), k, test_pen(j,k), bound )
                  endif
               endif
 
            else
-!              write(6,*)' missing count(j,k)', j,k
               count(j,k)=rmiss
               penalty(j,k)=rmiss
            endif
