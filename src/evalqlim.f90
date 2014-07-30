@@ -32,7 +32,8 @@ subroutine evalqlim(sval,pbc,rval)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,zero_quad
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factqmin,factqmax,qgues,qsatg
+  use jfunc, only: factqmin,factqmax
+  use derivsmod, only: qgues,qsatg
   use mpl_allreducemod, only: mpl_allreduce
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer

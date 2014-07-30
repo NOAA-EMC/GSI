@@ -19,8 +19,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use gridmod, only: nsig,get_ijk
 
-  use guess_grids, only: hrdifsig,ges_ps,geop_hgtl,ges_lnprsl,&
-       nfldsig,ges_u,ges_v,sfcmod_gfs,sfcmod_mm5,comp_fact10,ges_z   !jsw add ges_z
+  use guess_grids, only: hrdifsig,geop_hgtl,ges_lnprsl,&
+       nfldsig,sfcmod_gfs,sfcmod_mm5,comp_fact10
 
   use constants, only: grav_ratio,flattening,grav,zero,rad2deg,deg2rad, &
        grav_equator,one,two,somigliana,semi_major_axis,eccentricity,r1000,&
@@ -38,6 +38,10 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: icsubtype
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -106,6 +110,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2011-05-26  mccarty - moved MSQ error logic from read_lidar
 !   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                           tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
+!   2013-10-19  todling - metguess now holds background
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !
 ! !REMARKS:
 !   language: f90
@@ -150,7 +156,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nsig):: hges,zges,prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
-  integer(i_kind) mm1,ikxx,nn,isli,ibin,ioff
+  integer(i_kind) mm1,ikxx,nn,isli,ibin,ioff,ioff0
   integer(i_kind) jsig
   integer(i_kind) i,nchar,nreal,k,j,k1,jj,l,ii,k2
   integer(i_kind) ier,ilon,ilat,ihgt,ilob,id,itime,ikx,iatd,inls,incls
@@ -162,6 +168,7 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8),allocatable,dimension(:):: cdiagbuf
 
   logical,dimension(nobs):: luse,muse
+  logical proceed
 
   logical:: in_curbin,in_anybin
   integer(i_kind),dimension(nobs_bins):: n_alloc
@@ -171,8 +178,21 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   
   equivalence(rstation_id,station_id)
 
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
+
   n_alloc(:)=0
   m_alloc(:)=0
+
 !*********************************************************************************
 ! Read and reformat observations in work arrays.  
   read(lunin)data,luse
@@ -225,7 +245,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     nreal=26
+     ioff0=26
+     nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
@@ -645,8 +666,8 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(25,ii) = data(iatd,i)         ! atmospheric depth
         rdiagbuf(26,ii) = data(ilob,i)         ! line of sight component of wind orig.
 
+        ioff=ioff0
         if (lobsdiagsave) then
-           ioff=26
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_dw_ob_type,ibin)%tail%muse(jj)) then
@@ -673,13 +694,129 @@ subroutine setupdw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   end do
 
+! Release memory of local guess arrays
+  call final_vars_
+
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
      call dtime_show('setupdw','diagsave:dw',i_dw_ob_type)
-     write(7)' dw',nchar,nreal,ii,mype
+     write(7)' dw',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
   end if
   
 ! End of routine
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::u', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::v', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_u(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_u(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_v(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_v(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_v )) deallocate(ges_v )
+    if(allocated(ges_u )) deallocate(ges_u )
+    if(allocated(ges_z )) deallocate(ges_z )
+    if(allocated(ges_ps)) deallocate(ges_ps)
+  end subroutine final_vars_
+
 end subroutine setupdw

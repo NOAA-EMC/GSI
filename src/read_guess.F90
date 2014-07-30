@@ -62,6 +62,9 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2010-10-21  r. yang - pass dd for read_gsf_chem
 !   2012-02-21  wu      - remove regional_ozone--causes conflict with using gfs ozone
 !   2012-12-21  s.liu   - add option to use reflectivity
+!   2013-10-19  todling - metguess now holds background
+!   2013-10-30  jung    - changed zero to qmin in sensible temp calc and re-compute sensible
+!                         temperature after clipping supersaturation
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -75,8 +78,8 @@ subroutine read_guess(iyear,month,idd,mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: biascor,bcoption
-  use guess_grids, only:  nfldsig,ges_tv,ges_q,ges_tsen,load_prsges,load_geop_hgt
+  use jfunc, only: biascor,bcoption,clip_supersaturation
+  use guess_grids, only:  nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl
   use m_gsiBiases,only : correct_bias,nbc
   use m_gsiBiases,only : bias_q,bias_tv,bias_cwmr,bias_oz,bias_ps,&
        bias_vor,bias_div,bias_tskin,bias_u,bias_v
@@ -88,9 +91,11 @@ subroutine read_guess(iyear,month,idd,mype)
   use gridmod, only: use_gfs_nemsio
   use gfs_stratosphere, only: use_gfs_stratosphere
 
-  use constants, only: zero,one,fv
+  use constants, only: zero,one,fv,qmin
   use ncepgfs_io, only: read_gfs,read_gfs_chem
   use ncepnems_io, only: read_nems,read_nems_chem
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
 
   implicit none
 
@@ -102,9 +107,15 @@ subroutine read_guess(iyear,month,idd,mype)
 
 ! Declare local variables
   character(24) filename
-  integer(i_kind) i,j,k,it,iret_bias
+  logical :: ice
+  integer(i_kind) i,j,k,it,iret_bias,ier,istatus
+  integer(i_kind) iderivative
 
+  real(r_kind) :: satval
+  real(r_kind),dimension(lat2,lon2,nsig) :: satq
   real(r_kind),dimension(lat2,lon2):: work
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q =>NULL()
 
 !-----------------------------------------------------------------------------------
 ! Certain functions are only done once --> on the first outer iteration. 
@@ -174,17 +185,51 @@ subroutine read_guess(iyear,month,idd,mype)
 ! Get sensible temperature (after bias correction's been applied)
 
   do it=1,nfldsig
-      do k=1,nsig
-         do j=1,lon2
-            do i=1,lat2
-               ges_tsen(i,j,k,it)= ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
-            end do
-         end do
-      end do
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q ,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv,istatus)
+     ier=ier+istatus
+     if (ier==0) then
+       do k=1,nsig
+          do j=1,lon2
+             do i=1,lat2
+!               ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*max(qmin,ges_q(i,j,k)))
+                ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*max(zero,ges_q(i,j,k)))
+             end do
+          end do
+       end do
+    end if
   end do
 
 ! Load 3d subdomain pressure arrays from the guess fields
   call load_prsges
+
+! recompute sensible temperature to remove supersaturation
+  if ( clip_supersaturation ) then
+    call tpause(mype,'pvoz')
+    ice = .true.
+    iderivative = 0
+    do it=1,nfldsig
+      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q, istatus)
+      ier=ier+istatus
+      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv,istatus)
+      ier=ier+istatus
+      call genqsat(satq,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+                   nsig,ice,iderivative)
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               satval = min(ges_q(i,j,k),satq(i,j,k))
+               satval = max(qmin,satval)
+               ges_q(i,j,k) = satval
+               ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*ges_q(i,j,k))
+            end do
+         end do
+      end do
+    end do
+  endif   ! clip_supersaturation
+
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt

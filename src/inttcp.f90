@@ -12,6 +12,7 @@ module inttcpmod
 !   2008-11-26  Todling - remove intps_tl; add interface back
 !   2009-08-13  lueken - update documentation
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub inttcp_
@@ -80,8 +81,8 @@ subroutine inttcp_(tcphead,rval,sval)
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,ier,istatus
 ! real(r_kind) penalty
-  real(r_kind),pointer,dimension(:) :: xhat_dt_p3d
-  real(r_kind),pointer,dimension(:) :: dhat_dt_p3d
+  real(r_kind),pointer,dimension(:) :: xhat_dt_prse
+  real(r_kind),pointer,dimension(:) :: dhat_dt_prse
   real(r_kind) cg_ps,val,p0,grad,wnotgross,wgross,ps_pg
   real(r_kind) w1,w2,w3,w4,time_tcp
   real(r_kind),pointer,dimension(:) :: sp
@@ -94,11 +95,11 @@ subroutine inttcp_(tcphead,rval,sval)
 ! Retrieve pointers
 ! Simply return if any pointer not found
   ier=0
-  call gsi_bundlegetpointer(sval,'p3d',sp,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'p3d',rp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'prse',sp,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(rval,'prse',rp,istatus);ier=istatus+ier
   if(l_foto) then
-     call gsi_bundlegetpointer(xhat_dt,'p3d',xhat_dt_p3d,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'p3d',dhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
   endif
   if(ier/=0)return
 
@@ -118,8 +119,8 @@ subroutine inttcp_(tcphead,rval,sval)
      if(l_foto)then
         time_tcp=tcpptr%time
         val=val+ &
-         (w1*xhat_dt_p3d(j1)+w2*xhat_dt_p3d(j2)+ &
-          w3*xhat_dt_p3d(j3)+w4*xhat_dt_p3d(j4))*time_tcp
+         (w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+          w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_tcp
      end if
 
      if (lsaveobsens) then
@@ -161,10 +162,10 @@ subroutine inttcp_(tcphead,rval,sval)
    
         if (l_foto) then
            grad=grad*time_tcp
-           dhat_dt_p3d(j1)=dhat_dt_p3d(j1)+w1*grad
-           dhat_dt_p3d(j2)=dhat_dt_p3d(j2)+w2*grad
-           dhat_dt_p3d(j3)=dhat_dt_p3d(j3)+w3*grad
-           dhat_dt_p3d(j4)=dhat_dt_p3d(j4)+w4*grad
+           dhat_dt_prse(j1)=dhat_dt_prse(j1)+w1*grad
+           dhat_dt_prse(j2)=dhat_dt_prse(j2)+w2*grad
+           dhat_dt_prse(j3)=dhat_dt_prse(j3)+w3*grad
+           dhat_dt_prse(j4)=dhat_dt_prse(j4)+w4*grad
         endif
 
      end if

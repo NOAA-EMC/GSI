@@ -36,6 +36,7 @@ module regional_io
 ! set default to private
   private
 ! set subroutines to public
+  public :: init_regional_io
   public :: convert_regional_guess
   public :: write_regional_analysis
 ! set passed variables to public
@@ -47,6 +48,9 @@ module regional_io
 
 contains
 
+  subroutine init_regional_io
+   preserve_restart_date = .false.
+  end subroutine init_regional_io
 
   subroutine convert_regional_guess(mype,ctph0,stph0,tlm0)
 !$$$  subprogram documentation block

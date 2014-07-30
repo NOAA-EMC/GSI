@@ -95,6 +95,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !  2013-01-16 cucurull - remove GRAS data below 8 km
 !  2013-01-26 parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                                   tintrp3 to tintrp31 (so debug compile works on WCOSS)
+!  2013-10-19 todling - metguess now holds background
+!  2014-04-10 todling - 4dvar fix: obs must be in current time bin
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -119,7 +121,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,geop_hgtl,nfldsig,&
-       ges_z,ges_tv,ges_q,gpstop
+       gpstop
   use gridmod, only: nsig
   use gridmod, only: latlon11,get_ij,regional
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,quarter
@@ -143,6 +145,10 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   use m_gpsrhs, only: gpsrhs_dealloc
   use m_gpsrhs, only: gpsrhs_aliases
   use m_gpsrhs, only: gpsrhs_unaliases
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+
   implicit none
 
 ! Declare local parameters
@@ -197,12 +203,17 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   integer(i_kind):: satellite_id,transmitter_id
 
   logical,dimension(nobs):: luse
+  logical proceed
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(gps_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -251,6 +262,13 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 ! Initialize variables
   rsig=float(nsig)
   mm1=mype+1
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
 ! Allocate arrays for output to diagnostic file
   mreal=21
@@ -840,8 +858,8 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
         obsdiags(i_gps_ob_type,ibin)%tail%wgtjo=(data(ier,i)*ratio_errors(i))**2
 
 !       Load additional obs diagnostic structure
+        ioff=mreal
         if (lobsdiagsave) then
-           ioff=mreal
            do jj=1,miter
               ioff=ioff+1
               if (obsdiags(i_gps_ob_type,ibin)%tail%muse(jj)) then
@@ -871,7 +889,7 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
 !       If obs is "acceptable", load array with obs info for use
 !       in inner loop minimization (int* and stp* routines)
 
-        if ( muse(i) ) then
+        if ( in_curbin .and. muse(i) ) then
  
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)
@@ -956,10 +974,13 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
-        endif
 
+        endif ! (in_curbin .and. muse=1)
      endif ! (last_pass)
   end do
+
+  ! Release memory of local guess arrays
+  call final_vars_
 
   ! Save these arrays for later passes
   data_ier (:)=data(ier ,:)
@@ -971,4 +992,96 @@ subroutine setupref(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_pa
   if(last_pass) call gpsrhs_dealloc(is)
 
 ! End of routine
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::q', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_q )) deallocate(ges_q )
+    if(allocated(ges_tv)) deallocate(ges_tv)
+    if(allocated(ges_z )) deallocate(ges_z )
+  end subroutine final_vars_
+
 end subroutine setupref

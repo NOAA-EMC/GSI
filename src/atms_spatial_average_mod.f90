@@ -202,7 +202,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
      Minval, MaxVal, Error)
      
 !-----------------------------------------
-! Name: $Id: modify_beamwidth.F 222 2010-08-11 14:39:09Z frna $
+! Name: $Id: atms_spatial_average_mod.f90,v 1.5 2013-04-02 23:30:37 jguo Exp $
 !
 ! Purpose:
 !   Manipulate the effective beam width of an image. For example, convert ATMS

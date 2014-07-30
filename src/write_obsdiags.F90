@@ -800,6 +800,7 @@ subroutine write_ozhead_ ()
 ! program history log:
 !   2007-10-03  todling
 !   2008-11-25  todling - merged with NCEP-May-2008
+!   2013-11-15  todling - add OMI-related changes (needs revision)
 !
 !   input argument list:
 !
@@ -860,7 +861,8 @@ _ENTRY_(myname_)
 	  call die(myname_)
 	endif
        write(iunit) ozptr%res,  ozptr%err2,ozptr%raterr2, ozptr%time, & 
-                    ozptr%luse, ozptr%wij, ozptr%ij, ozptr%prs , ozptr%ipos
+                    ozptr%luse, ozptr%wij, ozptr%ij, ozptr%prs , ozptr%ipos, &
+                    ozptr%apriori, ozptr%efficiency
        ozptr => ozptr%llpoint
     enddo
 

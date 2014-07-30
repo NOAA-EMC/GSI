@@ -758,6 +758,7 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
   use constants, only: one,ten,one_tenth,half,fv
   use gsi_io, only: lendian_in
   use general_sub2grid_mod, only: sub2grid_info
+  use hybrid_ensemble_parameters, only: q_hyb_ens
   implicit none
 
 ! Declare passed variables here
@@ -962,17 +963,27 @@ subroutine read_wrf_nmm_tclib(grd,filename,mype,ps,u,v,tv,rh)
      end do
   end do
 
-  ice=.true.
-  iderivative=0
-  call genqsat(rh,tsen,prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
+  if (.not.q_hyb_ens) then
+     ice=.true.
+     iderivative=0
+     call genqsat(rh,tsen,prsl,grd%lat2,grd%lon2,grd%nsig,ice,iderivative)
 
-  do k=1,grd%nsig
-     do i=1,grd%lon2
-        do j=1,grd%lat2
-           rh(j,i,k)=q(j,i,k)/rh(j,i,k)
+     do k=1,grd%nsig
+        do i=1,grd%lon2
+           do j=1,grd%lat2
+              rh(j,i,k)=q(j,i,k)/rh(j,i,k)
+           end do
         end do
      end do
-  end do
+  else
+     do k=1,grd%nsig
+        do i=1,grd%lon2
+           do j=1,grd%lat2
+              rh(j,i,k)=q(j,i,k)
+           end do
+        end do
+     end do
+  end if
 
 ! test
 !  write(fileout,'("tclib",i3.3)') 0

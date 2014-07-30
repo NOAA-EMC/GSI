@@ -11,6 +11,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-03-12  lmeunier
 !   2010-07-14  todling - use die to abort
 !   2011-08-01  lueken  - replaced F90 with f90 (no machine logic) and removed double &
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -90,7 +91,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind):: rmute,rsig
   real(r_kind),allocatable,dimension(:):: tlspecr
 
-  integer(i_kind):: jsig,ibin,ioff
+  integer(i_kind):: jsig,ibin,ioff,ioff0
   integer(i_kind):: i,nchar,nreal,k,ii,jj,istat,nn
   integer(i_kind):: inum,itime,ilon,ilat,ilone,ilate,ipress,ikxx,ier
   integer(i_kind):: dnum,ikx,laglocnum,mm1
@@ -130,7 +131,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     nreal=17
+     ioff0=17
+     nreal=ioff0
      if (lobsdiagsave) nreal=nreal+7*miter+2
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
@@ -554,9 +556,8 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(16,ii) = reslon*rad2deg                ! omf for longitude (m)
         rdiagbuf(17,ii) = reslat*rad2deg                ! omf for lattitude (m)
 
-
+        ioff=ioff0
         if (lobsdiagsave) then
-           ioff=17
            do jj=1,miter
               ioff=ioff+1
               if (obsdiags(i_lag_ob_type,ibin)%tail%muse(jj)) then
@@ -586,7 +587,7 @@ subroutine setuplag(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
      call dtime_show('setuplag','diagsave:lag',i_lag_ob_type)
-     write(7)'lag',nchar,nreal,ii,mype
+     write(7)'lag',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
   end if
