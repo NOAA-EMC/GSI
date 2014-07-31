@@ -36,7 +36,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     use gridmod, only: &
          ncepgfs_head,idpsfc5,idthrm5,&
          ntracer,idvc5,cp5,idvm5
-    use ncepgfs_io, only: read_sighead
     use general_sub2grid_mod, only: sub2grid_info
     use general_specmod, only: spec_vars
     use mpimod, only: npe
@@ -65,7 +64,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
          g_vor,g_div,g_cwmr,g_q,g_oz,g_tv
     
 !   Declare local variables
-    integer(i_kind):: iret,nlatm2,ij,n,ii1,l,m
+    integer(i_kind):: iret,nlatm2
     integer(i_kind) i,j,k,icount
     integer(i_kind),dimension(npe)::ilev,iflag
     real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
@@ -74,7 +73,6 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,mype,uvflag,g_z,g_ps,g_vor
     real(r_kind),dimension(sp_b%nc):: spec_work
 
     real(r_kind),dimension(grd%itotsub):: work
-    real(r_kind),allocatable,dimension(:,:,:):: grid_q
     real(r_kind),allocatable,dimension(:):: spec_div,work_x
     real(r_kind),allocatable,dimension(:,:):: grid_v
         

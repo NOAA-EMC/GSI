@@ -79,7 +79,7 @@ subroutine get_gefs_for_regional
 
   character(len=*),parameter::myname='get_gefs_for_regional'
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
-  integer(i_kind) iret,i,ig,j,jg,k,k2,n,il,jl,mm1,iderivative
+  integer(i_kind) iret,i,j,k,k2,n,mm1,iderivative
   integer(i_kind) ic2,ic3
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
   character(255) filename
@@ -90,8 +90,6 @@ subroutine get_gefs_for_regional
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r
   logical,allocatable :: vector(:)
-  real(r_kind) ozmin,ozmax
-  real(r_kind) ozmin0,ozmax0
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli,yspli,xsplo,ysplo
   integer(i_kind) iyr,ihourg
@@ -100,27 +98,11 @@ subroutine get_gefs_for_regional
   integer(i_kind),dimension(5) :: iadate_gfs
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
-  real(r_kind),allocatable,dimension(:)::glb_umin,glb_umax,reg_umin,reg_umax
-  real(r_kind),allocatable,dimension(:)::glb_vmin,glb_vmax,reg_vmin,reg_vmax
-  real(r_kind),allocatable,dimension(:)::glb_tmin,glb_tmax,reg_tmin,reg_tmax
-  real(r_kind),allocatable,dimension(:)::glb_rhmin,glb_rhmax,reg_rhmin,reg_rhmax
-  real(r_kind),allocatable,dimension(:)::glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax
-  real(r_kind),allocatable,dimension(:)::glb_cwmin,glb_cwmax,reg_cwmin,reg_cwmax
-  real(r_kind),allocatable,dimension(:)::glb_umin0,glb_umax0,reg_umin0,reg_umax0
-  real(r_kind),allocatable,dimension(:)::glb_vmin0,glb_vmax0,reg_vmin0,reg_vmax0
-  real(r_kind),allocatable,dimension(:)::glb_tmin0,glb_tmax0,reg_tmin0,reg_tmax0
-  real(r_kind),allocatable,dimension(:)::glb_rhmin0,glb_rhmax0,reg_rhmin0,reg_rhmax0
-  real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
-  real(r_kind),allocatable,dimension(:)::glb_cwmin0,glb_cwmax0,reg_cwmin0,reg_cwmax0
-  character(len=50) :: fname
   integer(i_kind) istatus
-  real(r_kind) rdog,h,dz,this_tv
+  real(r_kind) rdog,h,dz
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
   logical add_bias_perturbation
   integer(i_kind) n_ens_temp
-  logical point1,point2
-  integer(i_kind) kk,n_in
-  real(r_kind) pdiffmax,pmax,pdiffmax0,pmax0,pdiffmin,pdiffmin0
   real(r_kind),allocatable::psfc_out(:,:)
   integer(i_kind) ilook,jlook,ier
 
@@ -460,7 +442,7 @@ subroutine get_gefs_for_regional
      ! !ilook=29
      ! !jlook=41
      ilook=-1 ; jlook=-1
-     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl,tt, &
+     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl, &
                                  psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
                                  ilook,jlook)
      deallocate(tt,zbarl)
@@ -1096,7 +1078,7 @@ subroutine get_gefs_for_regional
    call stop2(555)
 end subroutine get_gefs_for_regional
 
-  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN,   &
+  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN,   &
                                     psfc_out,generic,IME,JME, Ilook,Jlook )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1132,20 +1114,16 @@ end subroutine get_gefs_for_regional
 
        real(r_kind),intent(in) :: TERRAIN_HGT_T(IME,JME)
        real(r_kind),intent(in) :: Z3D_IN(IME,JME,generic)
-       real(r_kind),intent(in) :: T3D_IN(IME,JME,generic)
        real(r_kind),intent(in) :: PRESS3D_IN(IME,JME,generic)
        real(r_kind),intent(out) :: psfc_out(IME,JME)
 
-       integer(i_kind) :: I,J,II,L,KINSERT,K,bot_lev,LL
+       integer(i_kind) :: I,J,L,LL
        integer(i_kind) :: loopinc,iloopinc
 
        real(r_kind) :: PSFC_IN(IME,JME),TOPO_IN(IME,JME)
-       real(r_kind) :: dif1,dif2,dif3,dif4,dlnpdz,BOT_INPUT_HGT,BOT_INPUT_PRESS,dpdz,rhs
-       real(r_kind) :: zin(generic),pin(generic)
+       real(r_kind) :: dlnpdz,BOT_INPUT_HGT,BOT_INPUT_PRESS
 
        real(r_kind), allocatable:: dum2d(:,:),DUM2DB(:,:)
-
-       character (len=132) :: message
 
        logical :: DEFINED_PSFC(IME,JME), DEFINED_PSFCB(IME,JME)
 
@@ -1741,7 +1719,7 @@ subroutine setup_ens_pwgt
   character(len=*),parameter::myname='setup_ens_pwgt::'
   integer(i_kind) k,i,j,istatus
   real(r_kind) sum
-  integer(i_kind) k8,k1,kb,kk
+  integer(i_kind) k8,k1
   real(r_kind) pih
   real(r_kind) beta2_inv
   real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl

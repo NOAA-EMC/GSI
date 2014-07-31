@@ -300,7 +300,7 @@ end subroutine read_bal
   integer(i_kind) :: i,n,k,iq,icw
   integer(i_kind) :: inerr,istat,ier
   integer(i_kind) :: nsigstat,nlatstat
-  integer(i_kind) :: loc,nn,isig
+  integer(i_kind) :: isig
   real(r_kind) :: corq2x
   character*5 var
   logical,allocatable,dimension(:) :: found3d

@@ -883,8 +883,7 @@ CONTAINS
 !noBOC
     character(len=*),parameter :: myname_=myname//'*set2_'
 
-    integer(i_kind) :: i,ii,nd,n1d,n2d,n3d,ndim1d,ndim2d,ndim3d,ntotal
-    integer(i_kind) :: mold2(2,2), mold3(2,2,2)
+    integer(i_kind) :: i,ii,nd,n1d,ndim1d,ntotal
 
     n1d = -1
     Bundle%name = name
@@ -1298,7 +1297,7 @@ CONTAINS
 !noBOC
 
     character(len=*),parameter::myname_=myname//'*create2_'
-    integer(i_kind) ::  i,k,n1d,n2d,n3d,this_bundle_kind
+    integer(i_kind) :: k,n1d,n2d,n3d,this_bundle_kind
     character(len=MAXSTR),allocatable::names1d(:),names2d(:),names3d(:)
     integer(i_kind),allocatable::levels(:)
 
@@ -1663,7 +1662,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i, n1d, n2d, n3d, irank_
+    integer(i_kind) :: i, n1d, n2d, n3d
 
     istatus=0
     n1d = Bundle%n1d
@@ -1731,7 +1730,6 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,nflds
     integer(i_kind) :: irank_
     integer(i_kind) :: ival_
 
@@ -1829,7 +1827,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt,ival,nsz
+    integer(i_kind) :: irank,ipnt,ival,nsz
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank, ival=ival )
@@ -1885,7 +1883,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt,ival,nsz
+    integer(i_kind) :: irank,ipnt,ival,nsz
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank, ival=ival )
@@ -1937,7 +1935,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
@@ -1978,7 +1976,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
@@ -2018,7 +2016,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
@@ -2058,7 +2056,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: i,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
     call GSI_BundleGetPointer ( Bundle, fldname, ipnt, istatus, irank=irank )
@@ -2103,7 +2101,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: n,irank,ipnt,im,jm,km
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 
@@ -2157,7 +2155,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: n,irank,ipnt,im,jm,km
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 
@@ -2216,7 +2214,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 !noBOC
-    integer(i_kind) :: n,irank,ipnt,im,jm,km
+    integer(i_kind) :: irank,ipnt,im,jm,km
 
     istatus=0
 
@@ -2279,7 +2277,7 @@ CONTAINS
 !EOP
 !-------------------------------------------------------------------------
 !noBOC
-    integer(i_kind) :: n,irank,ipnt,im,jm,km
+    integer(i_kind) :: irank,ipnt,im,jm,km
 
     istatus=0
 
@@ -2334,7 +2332,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: n,irank,ipnt,im,jm,km
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 
@@ -2378,7 +2376,7 @@ CONTAINS
 !-------------------------------------------------------------------------
 !noBOC
     
-    integer(i_kind) :: n,irank,ipnt,im,jm,km
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 
@@ -2400,7 +2398,7 @@ CONTAINS
     real(r_double),  intent(in) :: fld(:,:,:)
     integer(i_kind),intent(out) :: istatus
     
-    integer(i_kind) :: n,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 
@@ -2422,7 +2420,7 @@ CONTAINS
     real(r_single),  intent(in) :: fld(:,:,:)
     integer(i_kind),intent(out) :: istatus
     
-    integer(i_kind) :: n,irank,ipnt
+    integer(i_kind) :: irank,ipnt
 
     istatus=0
 
@@ -2904,7 +2902,7 @@ CONTAINS
 !noBOC
 
   character(len=*),parameter::myname_='copy_'
-  integer(i_kind) :: ii,istatus
+  integer(i_kind) :: ii
   logical :: samedim
 
   samedim = bundo%ndim==bundi%ndim.and.&
@@ -3012,7 +3010,7 @@ CONTAINS
 !noBOC
 
   character(len=*),parameter::myname_='assignR8_const_'
-  integer(i_kind) :: ii,istatus
+  integer(i_kind) :: ii
 
   if (bundo%AllKinds<0 ) then
      write(6,*)trim(myname_),': error bundle precision ',bundo%AllKinds
@@ -3062,7 +3060,7 @@ CONTAINS
 !noBOC
 
   character(len=*),parameter::myname_='assignR4_const_'
-  integer(i_kind) :: ii,istatus
+  integer(i_kind) :: ii
 
   if (bundo%AllKinds<0 ) then
      write(6,*)trim(myname_),': error bundle precision ',bundo%AllKinds
@@ -3438,7 +3436,7 @@ real(r_quad) function dplevs2dr8_(dx,dy,ihalo)
   integer(i_kind),optional,intent(in) :: ihalo
 
   real(r_quad) dplevs
-  integer(i_kind) :: im,jm,km,ii,jj,kk,ihalo_
+  integer(i_kind) :: im,jm,ii,jj,ihalo_
 
   im=size(dx,1)
   jm=size(dx,2)
@@ -3464,7 +3462,7 @@ real(r_double) function dplevs2dr4_(dx,dy,ihalo)
   integer(i_kind),optional,intent(in) :: ihalo
 
   real(r_double) dplevs
-  integer(i_kind) :: im,jm,km,ii,jj,kk,ihalo_
+  integer(i_kind) :: im,jm,ii,jj,ihalo_
 
   im=size(dx,1)
   jm=size(dx,2)
@@ -3950,7 +3948,7 @@ end function sum3dR4_
 
   logical function redundant_ ( Bundle )
   type(gsi_bundle),intent(in) :: Bundle
-  integer(i_kind) i,ii,j,ic,n1d,n2d,n3d,nvars,istatus
+  integer(i_kind) i,j,ic,n1d,n2d,n3d,nvars,istatus
   character(len=MAXSTR),allocatable::fnames(:)
 
   redundant_=.false.

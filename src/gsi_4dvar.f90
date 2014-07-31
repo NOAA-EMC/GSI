@@ -205,7 +205,7 @@ lwrite4danl = .false.
 
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
-subroutine setup_4dvar(miter,mype)
+subroutine setup_4dvar(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_4dvar
@@ -220,7 +220,6 @@ subroutine setup_4dvar(miter,mype)
 !
 !   input argument list:
 !    mype     - mpi task id
-!    miter
 !
 !   output argument list:
 !
@@ -234,10 +233,9 @@ use hybrid_ensemble_parameters, only: ntlevs_ens
 use jcmod, only: ljc4tlevs
 implicit none
 integer(i_kind),intent(in   ) :: mype
-integer(i_kind),intent(in   ) :: miter
 
 ! local variables
-integer(i_kind) :: ibin,ierr,k
+integer(i_kind) :: ibin,k
 
 winlen = real(nhr_assimilation,r_kind)
 winoff = real(min_offset/60._r_kind,r_kind)

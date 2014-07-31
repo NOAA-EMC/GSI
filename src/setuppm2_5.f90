@@ -109,10 +109,8 @@ subroutine setuppm2_5(lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   real(r_kind) err_input,err_adjst,err_final
 
   real(r_kind) ,dimension(nreal,nobs):: data
-  real(r_kind),pointer,dimension(:,:,:):: rank3
   
-  integer(i_kind) i,k,ier,ibin,ifld,l,istat,ikx,ii,jj,idia
-  integer(i_kind) ikeep
+  integer(i_kind) i,k,ier,ibin,l,istat,ikx,ii,jj,idia
   integer(i_kind) mm1
   integer(i_kind) :: nchar,nrealdiag
 

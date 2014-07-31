@@ -120,8 +120,8 @@ contains
   end subroutine setup_sst_retrieval
 
   subroutine avhrr_sst_retrieval(csatid,nchanl,&
-       tnoise,varinv,ts5,sstnv,sstph,temp,wmix,ts,tbc,obslat,obslon,zasat,&
-       dtime,dtp_avh,pangs,tbcnob,tb_obs,dta,dqa,duse)
+       tnoise,varinv,ts5,sstph,temp,wmix,ts,tbc,obslat,obslon,&
+       dtime,dtp_avh,tb_obs,dta,dqa,duse)
 !subprogram:    avhrr_sst_retrieval  compute sst retrieval from AVHRR radiances
 !   prgmmr: Xu Li, John Derber          org: w/nmc2     date: 04-12-29
 !
@@ -142,7 +142,6 @@ contains
 !     tnoise       - error of observed radiance
 !     varinv       - inverse error squared
 !     ts5          - sst used in Radiative transfer and first guess for SST retrieval
-!     sstnv        - navy sst retrieval
 !     temp         - d(brightness temperature)/d(temperature)
 !     wmix         - d(brightness temperature)/d(mixing ratio)
 !     ts           - d(brightness temperature)/d(skin temperature)
@@ -170,9 +169,9 @@ contains
 !   Declare passed variables
     integer(i_kind)                          , intent(in   ) :: nchanl
     real(r_kind),dimension(nchanl)           , intent(in   ) :: tnoise
-    real(r_kind),dimension(nchanl)           , intent(in   ) :: varinv,tbc,tb_obs,tbcnob
-    real(r_kind)                             , intent(in   ) :: obslat,obslon,pangs,zasat,dtime,ts5,&
-         sstnv,dtp_avh
+    real(r_kind),dimension(nchanl)           , intent(in   ) :: varinv,tbc,tb_obs
+    real(r_kind)                             , intent(in   ) :: obslat,obslon,dtime,ts5,&
+         dtp_avh
     real(r_kind),dimension(nchanl)           , intent(in   ) :: ts
     real(r_kind),dimension(nsig,nchanl)      , intent(in   ) :: wmix,temp
     character(10)                            , intent(in   ) :: csatid
@@ -186,8 +185,8 @@ contains
     real(r_kind),parameter:: r360=360.0_r_kind
 
 !   Declare local variables
-    real(r_kind) :: ws,wa,wq,errinv
-    integer(i_kind) :: icount,idate,md,ch3,ch4,ch5,iret,nn,i,j,l
+    real(r_kind) :: ws,wa,wq
+    integer(i_kind) :: icount,idate,md,ch3,ch4,ch5,iret,i,l
     real(r_kind), dimension(nchanl) :: tb_ta,tb_qa
     real(r_kind), dimension(nchanl) :: w_avh
     real(r_kind) :: delt,delt1,delt2,delt3,c1x,c2x,c3x

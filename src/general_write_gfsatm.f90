@@ -56,7 +56,6 @@
     integer(i_kind),parameter::  lunges = 11
     integer(i_kind),parameter::  lunanl = 51
 
-    character(5):: string
     character(6):: fname_ges
 
     real(r_kind),dimension(grd%itotsub):: work
@@ -336,7 +335,7 @@ subroutine general_gather(grd,g_z,g_ps,g_tv,g_vor,g_div,g_q,g_oz,g_cwmr, &
 !EOP
 !-------------------------------------------------------------------------
 
-  integer(i_kind) i,klev,itotal,k
+  integer(i_kind) klev,k
   real(r_kind),dimension(grd%lat1*grd%lon1,npe):: sub
 
   do k=1,npe

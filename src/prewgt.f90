@@ -119,7 +119,7 @@ subroutine prewgt(mype)
   integer(i_kind) i,j,k,ii,nn,nbuf,nmix,nxe,nor,ndx,ndy
   integer(i_kind) nlathh,mm1,nolp,mm,ir,k1
   integer(i_kind) ix,jx,mlat
-  integer(i_kind) kd,kt,kq,kc,koz,nf2p,istatus
+  integer(i_kind) nf2p,istatus
   integer(i_kind),dimension(0:40):: iblend
   integer(i_kind) nrf3_sf,nrf3_q,nrf3_vp,nrf3_t,nrf3_oz,nrf2_ps,nrf2_sst
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc

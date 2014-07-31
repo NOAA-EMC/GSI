@@ -981,7 +981,7 @@
   endif
 
 ! 4D-Var setup
-  call setup_4dvar(miter,mype)
+  call setup_4dvar(mype)
   if (l4dvar) then
      if(reduce_diag) &
      call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)

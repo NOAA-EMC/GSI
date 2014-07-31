@@ -294,7 +294,7 @@ contains
     integer(i_kind), intent(in):: idd
 
 !   Declare local variables
-    integer(i_kind) :: igfsco2, i, j, k, n, iret
+    integer(i_kind) :: igfsco2, i, j, n, iret
     real(r_kind),dimension(lat2):: xlats
     real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
     real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
@@ -384,8 +384,8 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: iret,nlatm2,n,l,m
-    integer(i_kind) :: i,j,k,icount,icount_prev,mm1
+    integer(i_kind) :: iret,nlatm2
+    integer(i_kind) :: k,icount,icount_prev,mm1
     integer(i_kind) :: mype_hs, mype_ps
     integer(i_kind) :: latb, lonb, levs, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
@@ -393,9 +393,9 @@ contains
     real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
          grid_vor, grid_div
     real(r_kind),allocatable,dimension(:)   :: work, work_vor, work_div, &
-         work_u, work_v
+         work_v
     real(r_kind),allocatable,dimension(:,:) :: sub, sub_vor, sub_div, &
-         sub_u, sub_v
+         sub_v
     real(r_kind),dimension(sp%nc):: spec_vor,spec_div
     real(r_kind),allocatable,dimension(:) :: rwork1d0, rwork1d1, rwork1d2
     real(r_kind) :: fhour
@@ -1146,7 +1146,6 @@ contains
                      ! indivialize write for more flexible choices)
        call write_atm_ (filename,mype,mype_atm,&
             ges_z_it,ges_ps_it,&
-            ges_vor_it,ges_div_it,&
             ges_tv_it,ges_q_it,&
             ges_oz_it,ges_cwmr_it,&
             ges_prsl(1,1,1,itoutsig),ges_u_it,&
@@ -1170,7 +1169,7 @@ contains
 
 
   subroutine write_atm_ (filename,mype,mype_out,sub_z,sub_ps,&
-       sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
+       sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
        sub_u,sub_v,sub_prsi)
 
 !$$$  subprogram documentation block
@@ -1196,8 +1195,6 @@ contains
 !     mype_out  - mpi task to write output file
 !     sub_z     - NEMS terrain field on subdomains
 !     sub_ps    - surface pressure on subdomains
-!     sub_vor   - vorticity on subdomains
-!     sub_div   - divergence on subdomains
 !     sub_tv    - virtual temperature on subdomains
 !     sub_q     - specific humidity on subdomains
 !     sub_oz    - ozone on subdomains
@@ -1257,8 +1254,6 @@ contains
     
     real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_z    ! NEMS terrain field on subdomains
     real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_vor  ! vorticity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_div  ! divergence on subdomains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
@@ -1275,7 +1270,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ij, k, n, mm1, nlatm2
+    integer(i_kind) :: k, mm1, nlatm2
     integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
@@ -1618,7 +1613,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
+    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1
     integer(i_kind) :: nlatm2, n, nrec, lonb, latb, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 105
@@ -1859,7 +1854,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
+    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1
     integer(i_kind) :: lonb, latb, nlatm2, n, nrec, nrec_nst, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 106

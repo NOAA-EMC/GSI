@@ -58,7 +58,7 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
 
   character(len=*),parameter::myname='gsd_terrain_match_surfTobs'
   real(r_kind) pres1,topo1,temp1,temp5,tvold,gamcorr,tvnew,factor 
-  real(r_kind) stnelevnew,dz,geop1,geop5
+  real(r_kind) geop5
   integer(i_kind) iobsout, kx, nc, ier, istatus
   real(r_kind) toe,dlat,dlon
   real(r_kind) stnelev, dlnpob, usage

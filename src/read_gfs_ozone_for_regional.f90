@@ -58,12 +58,11 @@ subroutine read_gfs_ozone_for_regional
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
 
   character(len=*),parameter::myname='read_gfs_ozone_for_regional'
-  real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
-  integer(i_kind) iret,i,j,k,k2,m,n,il,jl,mm1,ndim
+  real(r_kind) kapr,kap1,trk
+  integer(i_kind) iret,i,j,k,k2,ndim
   integer(i_kind) it,it_beg,it_end   
   character(24) filename
   character(255),allocatable,dimension(:)::infiles
-  logical ice
   logical uv_hyb_ens
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead

@@ -97,7 +97,7 @@ subroutine stpspd(spdhead,rval,sval,out,sges,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j1,j2,j3,j4,kk,ier,istatus
+  integer(i_kind) j1,j2,j3,j4,kk,ier,istatus
   real(r_kind) w1,w2,w3,w4,time_spd
   real(r_kind) valu,valv,ucur,vcur,spdnl,spdtl,uu,vv,spd
   real(r_kind),dimension(max(1,nstep)):: pen

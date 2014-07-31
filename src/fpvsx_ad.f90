@@ -119,7 +119,7 @@ use constants, only: zero, one, tmix, xai, xbi, xa, xb, ttp, psatk, init_constan
 
 IMPLICIT NONE
 
-REAL(r_kind) :: T, ES
+REAL(r_kind) :: T
 REAL(r_kind) :: TR,W, DTR_DT, dES_DT, DW_DT
 
 call init_constants(.false.)
