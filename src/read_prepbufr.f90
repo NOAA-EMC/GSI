@@ -2297,9 +2297,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! define a closest METAR cloud observation for each grid point
 
-  if(obstype=='lcbas')  open(9292,file='lcbas_readprepbufr.txt',form='formatted',status='UNKNOWN')
-  if(obstype=='tcamt')  open(9293,file='tcamt_readprepbufr.txt',form='formatted',status='UNKNOWN')
-
   if(metarcldobs .and. ndata > 0) then
      maxobs=2000000
      allocate(cdata_all(nreal,maxobs))
