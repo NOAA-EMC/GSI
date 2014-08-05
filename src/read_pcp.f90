@@ -88,7 +88,6 @@
   character(6) ptype
   character(8) subset
   character(40) strhdr7,strsmi4,strsmi2_old,strsmi2,strtmi7,stramb5
-  character(10) date
 
   integer(i_kind) imn,k,i,iyr,lnbufr,maxobs,isflg,idomsfc
   integer(i_kind) ihh,idd,im,kx,jdate

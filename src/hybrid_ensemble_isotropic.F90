@@ -214,9 +214,9 @@ subroutine init_rf_z(z_len)
 
   real(r_kind)   ,intent(in) :: z_len(grd_ens%nsig)
 
-  integer(i_kind) k,km,kp,nxy,i,ii,jj
+  integer(i_kind) k,nxy,i,ii,jj
   real(r_kind) aspect(nsig),p_interface(nsig+1),ln_p_int(nsig+1)
-  real(r_kind) p_layer,dlnp,kap1,kapr,d1,d2,rnsig
+  real(r_kind) dlnp,kap1,kapr,d1,rnsig
 
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
@@ -430,7 +430,7 @@ subroutine new_factorization_rf_z(f,iadvance,iback)
   integer(i_kind),intent(in   ) :: iadvance,iback
   real(r_kind)   ,intent(inout) :: f(grd_ens%latlon11,grd_ens%nsig)
 
-  integer(i_kind) i,j,k,l,nxy,nz
+  integer(i_kind) i,k,l,nxy,nz
 
   nxy=grd_ens%latlon11 ; nz=grd_ens%nsig
   if(iadvance == 1) then
@@ -1091,13 +1091,12 @@ end subroutine normal_new_factorization_rf_y
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
-    integer(i_kind) i,j,k,n,ii,ic2,m
-    integer(i_kind) istatus,ier
+    integer(i_kind) i,j,n,ii,m
+    integer(i_kind) istatus
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
     real(r_kind) sig_norm,bar_norm
     character(len=*),parameter::myname_=trim(myname)//'*load_ensemble'
-    character(50) title
 
 !      create simple regular grid
 
@@ -1336,10 +1335,9 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind) vert1(vlevs)
     integer(i_llong) iseed
     integer(4) iiseed(4) ! must be integer*4 given lapack interface
-    integer(i_kind) nvert,i,j,ii,is,naux,k,ic3
+    integer(i_kind) nvert,i,is,naux,k,ic3
     integer(i_kind) istat_st,istat_vp
     integer(i_kind) nval_lenz_save
-    real(r_kind) aux
     real(r_kind),dimension(nh_0:nh_1,vlevs,nscl):: zsub
     real(r_kind),dimension(:,:,:),allocatable:: ua,va
     real(r_kind),pointer,dimension(:,:,:):: st=>NULL()
@@ -1527,7 +1525,7 @@ end subroutine normal_new_factorization_rf_y
     use berror, only: qvar3d
     implicit none
 
-    integer(i_kind) i,ii,j,k,n,istatus,m
+    integer(i_kind) i,j,k,n,istatus,m
     real(r_kind) qvar3d_ens(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,1)
     real(r_single),pointer,dimension(:,:,:):: w3=>NULL()
 
@@ -1543,7 +1541,7 @@ end subroutine normal_new_factorization_rf_y
        call general_suba2sube(grd_a1,grd_e1,p_e2a, &
             reshape(qvar3d,(/size(qvar3d,1),size(qvar3d,2),size(qvar3d,3),1/)),qvar3d_ens,regional)
     end if
-!$omp parallel do schedule(dynamic,1) private(n,ii,i,j,k,w3,istatus)
+!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
     do m=1,ntlevs_ens
        do n=1,n_ens
           call gsi_bundlegetpointer(en_perts(n,m),'q',w3,istatus)
@@ -2443,7 +2441,6 @@ subroutine beta12mult(grady)
   character(len=*),parameter::myname_=myname//'*beta12mult'
   integer(i_kind) ii,nn,ic2,ic3
   integer(i_kind) i,j,k
-  real(r_kind) beta2_inv
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d),istatus
 
 ! Initialize timer
@@ -2720,15 +2717,13 @@ subroutine init_sf_xy(jcap_in)
   integer(i_kind),intent(in   ) :: jcap_in
 
   integer(i_kind) i,ii,j,k,l,n,jcap
-  real(r_kind),allocatable::g(:),gsave(:),errmax(:)
+  real(r_kind),allocatable::g(:),gsave(:)
   real(r_kind) factor
   real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
   real(r_kind) ftest(grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_single) out1(grd_ens%nlon,grd_ens%nlat)
   real(r_single),allocatable::pn0_npole(:)
   real(r_kind) s_ens_h_min
-  real(r_single) s_ens_hv4(grd_ens%nsig)
-  real(r_kind) hmin,hmax
   real(r_kind) rlats_ens_local(grd_ens%nlat)
   real(r_kind) rlons_ens_local(grd_ens%nlon)
   character(5) mapname
@@ -3204,7 +3199,7 @@ subroutine get_new_alpha_beta(aspect,ng,fmat_out,fmat0_out)
   real(r_kind), dimension(ng), intent(in   ) :: aspect
   real(r_kind)               , intent(  out) :: fmat_out(2,ng,2),fmat0_out(ng,2)
 
-  integer(i_kind) i,j
+  integer(i_kind) i
   real(r_double) sig(0:ng-1),fmat(0:ng-1,-2:0,2)
 
   do i=1,ng
@@ -3262,7 +3257,6 @@ subroutine bkerror_a_en(gradx,grady)
 
 ! Declare local variables
   integer(i_kind) ii,nn,ip,istatus
-  real(r_kind),allocatable::z(:)
 
   if (lsqrtb) then
      write(6,*)'bkerror_a_en: not for use with lsqrtb'
@@ -3349,7 +3343,7 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
 
 ! Local Variables
-  integer(i_kind) i,ii,j,k,n,iflg,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iflg,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
 
@@ -3456,7 +3450,7 @@ subroutine ckgcov_a_en_new_factorization(z,a_en)
   real(r_kind),dimension(nval_lenz_en),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) i,ii,k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
 !NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
 !      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
@@ -3568,7 +3562,7 @@ subroutine ckgcov_a_en_new_factorization_ad(z,a_en)
   real(r_kind),dimension(nval_lenz_en),intent(inout) :: z
 
 ! Local Variables
-  integer(i_kind) i,ii,k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
 !NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
 !      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
@@ -4035,7 +4029,7 @@ subroutine grads1(f,nvert,mype,fname)
   data blank/' '/
   data undef/-9.99e33_r_single/
 
-  integer(i_kind) i,k,kend,kstart,next,np,ioutdes,ioutdat
+  integer(i_kind) i,k,next,np,ioutdes,ioutdat
   integer(i_kind) last,j,koutmax
   real(r_single) undef
   real(r_single) startp,pinc
@@ -4207,7 +4201,7 @@ subroutine grads1_ens(f,nvert,mype,fname)
   data blank/' '/
   data undef/-9.99e33_r_single/
 
-  integer(i_kind) i,k,kend,kstart,next,np,ioutdes,ioutdat
+  integer(i_kind) i,k,next,np,ioutdes,ioutdat
   integer(i_kind) last,j,koutmax
   real(r_single) undef
   real(r_single) startp,pinc
@@ -4316,7 +4310,7 @@ subroutine general_grads1(f,nvert,mype,fname,grd)
   data blank/' '/
   data undef/-9.99e33_r_single/
 
-  integer(i_kind) i,k,kend,kstart,next,np,ioutdes,ioutdat
+  integer(i_kind) i,k,next,np,ioutdes,ioutdat
   integer(i_kind) last,j,koutmax
   real(r_single) undef
   real(r_single) startp,pinc
@@ -4547,7 +4541,6 @@ subroutine get_region_lat_lon_ens(region_lat_ens,region_lon_ens,rlat_e,rlon_e,nl
   logical make_test_maps
   real(r_single),allocatable::out1e(:,:)
   real(r_single),allocatable::out1(:,:)
-  real(r_kind),allocatable::region_lat_e(:,:),region_lon_e(:,:)
   real(r_kind) twopi
 
   twopi=two*pi
@@ -4727,8 +4720,8 @@ subroutine get_regional_dual_res_grid(eps,r_e,n_a,n_e,x_a,x_e)
   real(r_kind),intent(out)::x_a(n_a) !  analysis coordinate in analysis grid units
   real(r_kind),intent(out)::x_e(n_a) !  ensemble coordinate in analysis grid units
 
-  real(r_kind) bigl_e,bigl_e_x,r_e_x
-  integer(i_kind) i,j,n
+  real(r_kind) bigl_e,r_e_x
+  integer(i_kind) n
 
 !      schematic for one dimension of domain:
 !

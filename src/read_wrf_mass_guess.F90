@@ -125,7 +125,6 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind) ifld,im,jm,lm,num_mass_fields
   integer(i_kind) num_loc_groups,num_j_groups
   integer(i_kind) i,it,j,k
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) i_mub,i_mu,i_fis,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smois,i_tslb
   integer(i_kind) i_sm,i_xice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) isli_this
@@ -149,11 +148,6 @@ subroutine read_wrf_mass_binary_guess(mype)
   integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
   integer(i_kind) ier, istatus
   integer(i_kind) n_actual_clouds
-  integer(i_kind) :: indx_sulf, indx_bc1, indx_bc2,  &
-                     indx_oc1, indx_oc2, indx_dust1, indx_dust2, &
-                     indx_dust3, indx_dust4, indx_dust5, &
-                     indx_seas1, indx_seas2, indx_seas3, indx_seas4,indx_p25
-  character(len=5),allocatable :: cvar(:)
 
   real(r_kind), pointer :: ges_ps_it (:,:  )=>NULL()
   real(r_kind), pointer :: ges_th2_it(:,:  )=>NULL()
@@ -174,22 +168,6 @@ subroutine read_wrf_mass_binary_guess(mype)
   real(r_kind), pointer :: ges_qs (:,:,:)=>NULL()
   real(r_kind), pointer :: ges_qg (:,:,:)=>NULL()
   real(r_kind), pointer :: ges_qnr(:,:,:)=>NULL()
-
-  real(r_kind), pointer :: ges_sulf(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_bc1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_bc2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_oc1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_oc2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust3(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust4(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_dust5(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas1(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas2(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas3(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
-  real(r_kind), pointer :: ges_p25(:,:,:)=>NULL()
 
   integer(i_kind) iadd
   character(132) memoryorder
@@ -1303,7 +1281,7 @@ subroutine read_wrf_mass_netcdf_guess(mype)
   integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
   integer(i_kind) ier, istatus
   integer(i_kind) n_actual_clouds
-  integer(i_kind) iv,n,n_gocart_var
+  integer(i_kind) iv,n_gocart_var
   integer(i_kind) :: indx_sulf, indx_bc1, indx_bc2,  &
                      indx_oc1, indx_oc2, indx_dust1, indx_dust2, &
                      indx_dust3, indx_dust4, indx_dust5, &

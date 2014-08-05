@@ -129,24 +129,23 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare local variables
   logical outside,inflate_error
-  logical asort
   logical luse,ithinp
   logical,allocatable,dimension(:,:):: lmsg     ! set true when convinfo entry id found in a message
 
   character(70) obstr,hdrtr
-  character(50) satqctr,qcstr
+  character(50) qcstr
   character(8) subset
-  character(20) derdwtr,heightr
+! character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
   character(8) c_station_id,stationid
 
   integer(i_kind) ireadmg,ireadsb,iuse
-  integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
-  integer(i_kind) nc,nx,id,isflg,itx,j,nchanl
+  integer(i_kind) i,maxobs,idomsfc,nsattype
+  integer(i_kind) nc,nx,isflg,itx,j,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,icntpnt,ii,icntpnt2
+  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -173,16 +172,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,ree
-  real(r_kind) woe,errout,dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
+  real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
-  real(r_kind),dimension(nsig-1):: dpres
   
-  real(r_kind),dimension(22) :: ctwind_s,rmesh_conv_s,pmesh_conv_s
   real(r_double),dimension(13):: hdrdat
   real(r_double),dimension(4):: obsdat,satqc
   real(r_double),dimension(3,5) :: heightdat
@@ -201,9 +198,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA GCLONG SCCF SWQM'/ 
   data obstr/'HAMD PRLC WDIR WSPD'/ 
-  data heightr/'MDPT '/ 
-  data derdwtr/'TWIND'/
-  data satqctr/'RFFL EEQF QIFN QIFY'/
+! data heightr/'MDPT '/ 
+! data derdwtr/'TWIND'/
   data qcstr /' OGCE GNAP PCCF'/
 
   
@@ -735,7 +731,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
                  if(hdrdat(9) == one)  then                            ! short wave IR winds
                     itype=240
-                    qm=15
+!                    qm=15
                     c_station_id='IR'//stationid
                     c_sprvstg='IR'
                  endif
@@ -759,7 +755,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  c_prvstg='VIIRS'
                  if(hdrdat(9) == one)  then                            ! VIIRS IR winds
                     itype=260
-                    qm=15
+!                    qm=15
                     c_station_id='IR'//stationid
                     c_sprvstg='IR'
                  endif
@@ -966,7 +962,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then

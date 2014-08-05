@@ -143,7 +143,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   integer(i_kind) :: i,k,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
-  integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) :: n,ireadsb,ireadmg,irec
   integer(i_kind) :: nmind,itx,nele,itt
   integer(i_kind) :: iskip
   integer(i_kind) :: lnbufr,isflg,idomsfc(1)
@@ -155,7 +155,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: radedge_min, radedge_max  
   integer(i_kind) :: iobs,num_obs,method,iret
   integer(i_kind) :: irain
-  integer(i_kind) :: bch
   integer(i_kind) :: doy,mon,m
   integer(i_kind) :: ibfms
 

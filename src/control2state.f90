@@ -79,7 +79,7 @@ character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)      :: hwork
-integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
+integer(i_kind) :: ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle):: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in

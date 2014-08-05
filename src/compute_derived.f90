@@ -133,10 +133,10 @@ subroutine compute_derived(mype,init_pass)
 ! Declare local variables
   character(len=*),parameter::myname='compute_derived'
   logical ice,fullfield
-  integer(i_kind) i,j,k,ii,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q,istatus,ier
+  integer(i_kind) i,j,k,ii,it,l,l2,iderivative,nrf3_q,istatus,ier
   integer(i_kind) nt,n_actual_clouds
   
-  real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
+  real(r_kind) dl1,dl2
   real(r_kind) tem4,indexw
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
@@ -528,7 +528,7 @@ subroutine compute_derived(mype,init_pass)
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
-  integer(i_kind) ifld, istatus
+  integer(i_kind) istatus
 
 ! If require guess vars available, extract from bundle ...
   if(trim(thiscase)=='guess') then

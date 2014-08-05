@@ -142,7 +142,6 @@ subroutine setup_state_vectors(katlon11,katlon1n,kval_len,kat2,kon2,ksig)
 
   implicit none
   integer(i_kind), intent(in   ) :: katlon11,katlon1n,kval_len,kat2,kon2,ksig
-  integer(i_kind) i,ii
 
   latlon11=katlon11
   latlon1n=katlon1n
@@ -363,8 +362,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 ! local variables
   real(r_kind),allocatable,dimension(:)   :: zloc,nloc
   real(r_kind),allocatable,dimension(:,:) :: zall,nall
-  real(r_kind) :: zz
-  integer(i_kind) :: i,ii,nn
+  integer(i_kind) :: i,ii
 
   pmin=zero
   pmax=zero
@@ -717,9 +715,8 @@ subroutine set_random_st ( xst )
   implicit none
   type(gsi_bundle), intent(inout) :: xst
 
-  integer(i_kind):: i,ii,jj,iseed,itsn,iprse,ips,itv,iq,ierror,ier
+  integer(i_kind):: i,jj,iseed,itsn,iprse,ierror,ier
   integer, allocatable :: nseed(:) ! Intentionaly default integer
-  real(r_kind), allocatable :: zz(:)
   real(r_kind), pointer,dimension(:,:,:):: p_tv,p_q,p_prse,p_tsen
   real(r_kind), pointer,dimension(:,:  ):: p_ps
 

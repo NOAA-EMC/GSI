@@ -24,7 +24,6 @@ module m_rhs
 !$$$  end subprogram documentation block
 
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 ! module interface:
@@ -139,7 +138,6 @@ subroutine rhs_dealloc()
   use kinds, only: i_kind
   implicit none
   character(len=*),parameter:: myname_=myname//'.dealloc'
-  integer(i_kind):: is
 _ENTRY_(myname_)
   if(.not.rhs_allocated) call die(myname_,'can not be deallocted')
 

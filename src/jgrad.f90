@@ -62,7 +62,7 @@ type(gsi_bundle)     :: eval(ntlevs_ens)
 type(predictors)     :: sbias, rbias
 real(r_quad)         :: zjb,zjo,zjc,zjl,zjd
 integer(i_kind)      :: i,ii,iobs,ibin
-real(r_kind)         :: zdummy(lat2,lon2,nsig)
+!real(r_kind)         :: zdummy(lat2,lon2,nsig)
 logical              :: llprt,llouter
 character(len=255)   :: seqcalls
 
@@ -98,7 +98,7 @@ call control2state(xhat,mval,sbias)
 
 if (l4dvar) then
   if (l_hyb_ens) then
-     call ensctl2state(xhat,mval,eval)
+     call ensctl2state(xhat,mval(1),eval)
      mval(1)=eval(1)
   end if
 
@@ -113,7 +113,7 @@ else
 ! Get copy state-vector for comparison with observations
   if (l_hyb_ens) then
 !    Convert ensemble control variable to state space
-     call ensctl2state(xhat,mval,eval)
+     call ensctl2state(xhat,mval(1),eval)
      do ii=1,nobs_bins
         sval(ii)=eval(ii)
      end do
@@ -193,7 +193,7 @@ if (l_do_adjoint) then
     call model_ad(mval,rval,llprt)
     if (l_hyb_ens) then
        eval(1)=mval(1)
-       call state2ensctl(eval,mval,gradx)
+       call state2ensctl(eval,mval(1),gradx)
     end if
 
   else
@@ -203,7 +203,7 @@ if (l_do_adjoint) then
        do ii=1,nobs_bins
           eval(ii)=rval(ii)
        end do
-       call state2ensctl(eval,mval,gradx)
+       call state2ensctl(eval,mval(1),gradx)
     else
        mval(1)=rval(1)
        if (nobs_bins>1) then

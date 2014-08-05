@@ -135,7 +135,7 @@ character(len=*),optional,intent(in) :: rcname ! optional input filename
 
 character(len=*),parameter::myname_=myname//'*set_'
 character(len=*),parameter:: tbname='state_tendencies::'
-integer(i_kind) luin,i,ii,nrows,ntot,ipnt,istatus
+integer(i_kind) luin,ii,nrows,ntot,ipnt,istatus
 integer(i_kind) i2d,i3d,n2d,n3d,irank
 integer(i_kind),allocatable,dimension(:)::nlevs
 character(len=256),allocatable,dimension(:):: utable
