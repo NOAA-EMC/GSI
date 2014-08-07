@@ -69,8 +69,6 @@ module m_find
   !local variables
   integer(i_kind) :: i
   integer(i_kind) :: j
-  integer(i_kind) :: tempsize
-  integer(i_kind) :: error
 
   j = 1
   counts = count(mask)

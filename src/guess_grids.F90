@@ -430,8 +430,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,n,ivar,ivar_cw,ivar_qi,ivar_ql,istatus
-    logical lvar
+    integer(i_kind) i,j,k,n,istatus
     if(ges_grids_allocated_) call die('create_ges_grids','already allocated')
     ges_grids_allocated_=.true.
 
@@ -716,11 +715,10 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine destroy_chemges_grids(mype,istatus)
+  subroutine destroy_chemges_grids(istatus)
 ! !USES:
   implicit none
 ! !INPUT PARAMETERS:
-  integer(i_kind),intent(in)::mype
 ! !OUTPUT PARAMETERS:
   integer(i_kind),intent(out)::istatus
 ! !DESCRIPTION: destroy chem background
@@ -750,15 +748,13 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine destroy_ges_grids(switch_on_derivatives,tendsflag)
+  subroutine destroy_ges_grids
 
 ! !USES:
 
     implicit none
 
 ! !INPUT PARAMETERS:
-    logical,intent(in   ) :: switch_on_derivatives    ! flag for horizontal derivatives
-    logical,intent(in   ) :: tendsflag                ! flag for tendency
     
 ! !DESCRIPTION: deallocate guess and bias grids
 !
@@ -784,8 +780,7 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind):: ivar,ivar_cw,ivar_qi,ivar_ql,istatus
-    logical :: lvar
+    integer(i_kind):: istatus
 
     call destroy_ges_derivatives
 
@@ -1026,7 +1021,7 @@ contains
     real(r_kind) kap1,kapr,trk
     real(r_kind),dimension(:,:)  ,pointer::ges_ps=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
-    integer(i_kind) i,j,k,jj,itv,ips,ier,istatus
+    integer(i_kind) i,j,k,jj,itv,ips
     logical ihaveprs(nfldsig)
 
     kap1=rd_over_cp+one

@@ -596,7 +596,6 @@ SUBROUTINE raf4_ad(g,filter,ngauss,ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,npes)
   TYPE(filter_cons)                                            ,intent(in   ) :: filter(7)       ! structure defining recursive filter
 
   integer(i_long) i,icolor,igauss,ipass,j,k,iadvance,iback
-  INTEGER(i_long) nsmooth,nsmooth_shapiro
 
   if(filter(1)%npass>0) then
      do ipass=filter(1)%npass,1,-1
@@ -1935,7 +1934,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
         deallocate(filter(icolor)%ib,stat=istat)
         allocate(filter(icolor)%ib(max(1,npoints_recv(mype))))
         if(npoints_recv(mype)>0) then
-           call sort_strings4(info_string,aspect_full,npoints_recv(mype),filter(icolor)%ib,npes,nvars)
+           call sort_strings4(info_string,aspect_full,npoints_recv(mype),filter(icolor)%ib,nvars)
 
 !      count number of strings
 
@@ -2042,7 +2041,7 @@ SUBROUTINE init_raf4(aspect,triad4,ngauss,rgauss,npass,normal,binom,ifilt_ord,fi
 
       !       call adjoint_check4(filter,ngauss,ips,ipe,jps,jpe,kps,kpe,mype,npes)
   call normalize2_raf4(filter,filter(1)%ngauss,normal, &
-                      ids, ide, jds, jde, kds, kde, &                    ! domain indices
+                      ids, ide, jds, jde, kde, &                    ! domain indices
                       ips, ipe, jps, jpe, kps, kpe, &                    ! patch indices
                       mype, npes)
 
@@ -2081,7 +2080,7 @@ return
 end subroutine init_raf4
 
 subroutine normalize2_raf4(filter,ngauss,normal, &
-                         ids, ide, jds, jde, kds, kde, &                ! domain indices
+                         ids, ide, jds, jde, kde, &                ! domain indices
                          ips, ipe, jps, jpe, kps, kpe, &                ! patch indices
                          mype, npes)
 !$$$  subprogram documentation block
@@ -2098,7 +2097,7 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
 !   input argument list:
 !     ngauss                        -
 !     normal                        -
-!     ids, ide, jds, jde, kds, kde  - domain indices
+!     ids, ide, jds, jde, kde  - domain indices
 !     ips, ipe, jps, jpe, kps, kpe  - patch indices
 !     mype                          - mpi task id
 !     npes                          -
@@ -2115,7 +2114,7 @@ subroutine normalize2_raf4(filter,ngauss,normal, &
 
   implicit none
 
-  INTEGER(i_long)  ,INTENT(IN   ) :: ids, ide, jds, jde, kds, kde, &   ! domain indices
+  INTEGER(i_long)  ,INTENT(IN   ) :: ids, ide, jds, jde, kde, &   ! domain indices
                                      ips, ipe, jps, jpe, kps, kpe      ! patch indices
 
   INTEGER(i_long)  ,INTENT(IN   ) :: &
@@ -2659,7 +2658,7 @@ SUBROUTINE raf_sm4(g,filter,ngauss,ips,ipe,jps,jpe,kps,kpe,npes)
 
 end subroutine raf_sm4
 
-subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
+subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,nvars)
 !$$$  subprogram documentation block
 !                .      .    .
 ! subprogram:    sort_strings4
@@ -2677,7 +2676,6 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
 !                                     5,6,7,8 - jumpx,jumpy,jumpz,ivar for this string
 !     aspect_full                   -
 !     npoints_recv                  -
-!     npes                          -
 !
 !   output argument list:
 !     info_string                   -
@@ -2692,7 +2690,6 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
 
   IMPLICIT NONE
 
-  INTEGER(i_long)                               ,INTENT(IN   ) :: npes
   integer(i_long)                               ,intent(in   ) :: nvars
 
   INTEGER(i_long)                               ,INTENT(IN   ) :: npoints_recv
@@ -2708,16 +2705,12 @@ subroutine sort_strings4(info_string,aspect_full,npoints_recv,ib,npes,nvars)
 
   integer(i_long) ib0(npoints_recv),ib1(npoints_recv)
   integer(i_llong) ij_origin(npoints_recv)
-  integer(i_short) iwork(npoints_recv)
   integer(i_short) info2(8,npoints_recv)
-  integer(i_long) istart(npoints_recv+1)
-  integer(i_long) numvar
   integer(i_long) icountvar(nvars),istartvar(nvars)
   real(r_single) aspect2(npoints_recv)
 
   integer(i_long) i,j
   integer(i_llong) idist,idistlen,idistmax,idistmin,idjxlen,idjxylen,idjxyzlen,idjxyzx0len,idjxyzxy0len
-  integer(i_llong) idjxyzxyz0len
   integer(i_long) ii,k
   integer(i_llong) ix0,ix0len,ix0max,ix0min,iy0,iy0len,iy0max,iy0min,iz0,iz0len,iz0max
   integer(i_llong) iz0min,jumpx,jumpxlen,jumpxmax,jumpxmin,jumpy,jumpylen,jumpymax,jumpymin
@@ -2890,7 +2883,7 @@ SUBROUTINE string_assemble4(i1filter,i2filter,nstrings,label_string, &
   integer(i_short)                                           ,intent(  out) :: ia(npoints_send),ja(npoints_send),ka(npoints_send)
 
   integer(i_short) string_info(8,npoints_send)
-  real(r_single) full_aspect(npoints_send),work(npoints_send)
+  real(r_single) full_aspect(npoints_send)
 
   integer(i_long) i,i0,idestpe,idist,ierr,ivar,j,j0,jumpx,jumpy,jumpz,k,k0,kk,len,m,mbuf,mpe,mpi_string1
   integer(i_long) idestlast
@@ -3039,7 +3032,6 @@ SUBROUTINE string_label(i1filter,i2filter,nstrings,label_string,npoints_recv, &
   integer(i_long) j,jtest,jumpx,jumpy,jumpz,k,ktest,mpe,n,nstrings0
   integer(i_llong) lastlabel
 
-  integer(i_long) idvar(kds:kde)
   INTEGER(i_short), DIMENSION( 6, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: label_string2
   INTEGER(i_short), DIMENSION( 3, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: i1filter2
   INTEGER(i_short), DIMENSION( 5, (ipe-ips+1)*(jpe-jps+1)*(kpe-kps+1) ) :: i2filter2
@@ -4828,44 +4820,6 @@ call stop2(68)
 END SUBROUTINE gettri3
 
 
-SUBROUTINE getcol4(lv,color)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    getcol4
-!
-!   prgrmmr:
-!
-! abstract:
-!
-! program history log:
-!   2008-04-22  safford -- add subprogram doc block
-!
-!   input argument list:
-!     lv    -
-!
-!   output argument list:
-!     color -
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-use kinds, only: i_kind
-IMPLICIT NONE
-
-INTEGER(i_kind),DIMENSION(2,4),INTENT(IN   ) :: lv
-INTEGER(i_kind),DIMENSION(4)  ,INTENT(  OUT) :: color
-!----------------------------------------------------------------------------
-INTEGER(i_kind)                           :: k
-!=============================================================================
-DO k=1,4
-   CALL what_color_is_triad(lv(1,k),lv(2,k),color(k),3)
-ENDDO
-END SUBROUTINE getcol4
-
-
 SUBROUTINE what_color_is_triad(i1,i2,color,p)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -4966,7 +4920,7 @@ DO i=1,n; IF(v1(i) /= v2(i))same4=.FALSE.; ENDDO
 END FUNCTION same4
 
 subroutine smther(filter,g,nrows,ngauss,nsmooth,nsmooth_shapiro, &
-               ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes,gnormx,gnormy,adjoint)
+               ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,npes,gnormx,gnormy,adjoint)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    smther
@@ -5003,7 +4957,7 @@ subroutine smther(filter,g,nrows,ngauss,nsmooth,nsmooth_shapiro, &
   TYPE(filter_cons),intent(in   ) :: filter                               ! structure defining recursive filter
   integer(i_long)  ,intent(in   ) :: nrows,ngauss,nsmooth,nsmooth_shapiro
   logical          ,intent(in   ) :: adjoint
-  integer(i_long)  ,intent(in   ) :: ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,mype,npes
+  integer(i_long)  ,intent(in   ) :: ids,ide,jds,jde,ips,ipe,jps,jpe,kps,kpe,npes
   real(r_single)   ,intent(inout) :: g(ngauss,ips:ipe,jps:jpe,kps:kpe)
   real(r_single)   ,intent(in   ) :: gnormx(ips:ipe),gnormy(jps:jpe)
 
@@ -5423,7 +5377,7 @@ subroutine smther_two_gnorm(gnorm,ids,ide,ips,ipe)
 
   real(r_single) ,intent(  out) :: gnorm(ips:ipe)
 
-  integer(i_long) i,ip,ip3,istart,iend
+  integer(i_long) i,istart,iend
   real(r_double) const81,const82
 
   const81=four/three

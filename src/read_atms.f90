@@ -1,8 +1,7 @@
 subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      rmesh,jsatid,gstime,infile,lunout,obstype,&
      nread,ndata,nodata,twind,sis, &
-     mype_root,mype_sub,npe_sub,mpi_comm_sub, &
-     llb,lll)
+     mype_root,mype_sub,npe_sub,mpi_comm_sub)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_atms                  read atms 1b data
@@ -47,8 +46,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !     mype_sub - mpi task id within sub-communicator
 !     npe_sub  - number of data read tasks
 !     mpi_comm_sub - sub-communicator for data read
-!     llb
-!     lll
 !
 !   output argument list:
 !     nread    - number of BUFR ATMS 1b observations read
@@ -92,7 +89,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ,intent(in   ) :: mype_sub
   integer(i_kind) ,intent(in   ) :: npe_sub
   integer(i_kind) ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind) ,intent(in   ) :: lll,llb
 
 ! Declare local parameters
 
@@ -113,33 +109,29 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 ! Declare local variables
   logical outside,iuse,assim,valid
-  logical data_on_edges
 
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,irec,isub
-  integer(i_kind) i,j,k,ntest,llll,iob
+  integer(i_kind) ireadsb,ireadmg,irec
+  integer(i_kind) i,j,k,ntest,iob
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
-  integer(i_kind) kidsat,instrument
-  integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments, num_obs
-  integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
-  integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
+  integer(i_kind) kidsat
+  integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
+  integer(i_kind) iskip,ichan2,ichan1,ichan16,ichan17
+  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan,icw4crtm,iql4crtm
-  integer(i_kind):: error_status,ier
+  integer(i_kind):: ier
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind), POINTER :: ifov
   integer(i_kind), TARGET :: ifov_save(maxobs)
   integer(i_kind), ALLOCATABLE :: IScan(:)
 
-  character(len=20),dimension(1):: sensorlist
-
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,ch16,ch17,qval
-  real(r_kind) ch1flg
+  real(r_kind) ch1,ch2,ch3,d0,d1,d2,ch16,qval
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
@@ -348,7 +340,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
         solzen     => solzen_save(iob)
         solazi     => solazi_save(iob)
 
-!       Read header record.  (llll=1 is normal feed, 2=EARS data)
         call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
 !       Extract satellite id.  If not the one we want, read next record

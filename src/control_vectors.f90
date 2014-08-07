@@ -230,8 +230,6 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
                                  kval_lenz_en
   logical                  , intent(in   ) :: ldsqrtb
 
-  integer(i_kind) n
-
   nsig=ksig
   lat2=klat
   lon2=klon
@@ -288,7 +286,7 @@ character(len=*),parameter:: tbname='control_vector::'
 character(len=256),allocatable,dimension(:):: utable
 character(len=20) var,source,funcof
 character(len=*),parameter::myname_=myname//'*init_anacv'
-integer(i_kind) luin,i,ii,ntot
+integer(i_kind) luin,ii,ntot
 integer(i_kind) ilev, itracer
 real(r_kind) aas,amp
 
@@ -426,9 +424,7 @@ subroutine allocate_cv(ycv)
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
   type(control_vector), intent(  out) :: ycv
-  character(len=max_varname_length) cvar
-  integer(i_kind) :: ii,jj,n,nn,ngrid,ndim,ierror,n_step,n_aens
-  integer(i_kind) :: mold2(2,2), mold3(2,2,2)
+  integer(i_kind) :: ii,jj,nn,ndim,ierror,n_step,n_aens
   character(len=256)::bname
   type(gsi_grid) :: grid_motley
 
@@ -600,7 +596,7 @@ subroutine deallocate_cv(ycv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  integer(i_kind) :: ii,n,nn,ierror
+  integer(i_kind) :: ii,nn,ierror
 
   if (ycv%lallocated) then
      do ii=1,nsubwin
@@ -917,7 +913,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
   real(r_quad)        , intent(  out) :: prods(nsubwin+1)
 
   real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii,i,nn,m3d,m2d,istatus
+  integer(i_kind) :: ii,i,nn,m3d,m2d
   real(r_quad),allocatable,dimension(:) :: partsum
 
   prods(:)=zero_quad
@@ -1026,7 +1022,6 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
 
 ! local variables
   real(r_quad) :: dd(1)
-  integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
      write(6,*)'dot_prod_cv: error length',xcv%lencv,ycv%lencv
@@ -1069,7 +1064,6 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 
 ! local variables
   real(r_quad) :: dd(1)
-  integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
      write(6,*)'qdot_prod_cv: error length',xcv%lencv,ycv%lencv

@@ -1221,8 +1221,7 @@ module egrid2agrid_mod
       integer(i_kind),optional,intent(in) :: nord_blend,nmix
 
       integer(i_kind) i,j
-      real(r_kind) errtest
-      logical fail_tests,e2a_only
+      logical e2a_only
       integer(i_kind),dimension(0:40):: iblend
       integer(i_kind) mm
       real(r_kind) dxx,x,y
@@ -1330,7 +1329,7 @@ module egrid2agrid_mod
       real(r_kind) w(p%nlone)                  !  this array is too big by nlone/(nord_e2a+1)
                                                !   which is why this is the slow version.
       integer(i_kind) i,j,j1,k
-      real(r_kind) w1,factor
+      real(r_kind) w1
 
 !       for each point, first interpolate in latitude at longitudes required for longitude interpolation,
 !         then finish up with longitude interpolation
@@ -1397,7 +1396,7 @@ module egrid2agrid_mod
       type(egrid2agrid_parm),intent(inout) :: p
       logical,intent(in),optional:: eqspace
 
-      integer(i_kind) i,ilona,ilone,j,j180,nextend,nlate_ex,nlone_ex,nlone_half
+      integer(i_kind) i,ilona,ilone,j,nextend,nlate_ex,nlone_ex,nlone_half
       real(r_kind) half_pi,two_pi,dlona,dlone,errtest,diffmax,range_lat,range_lon
       real(r_kind),allocatable::rlate_ex(:),rlone_ex(:)
       logical fail_tests
@@ -2517,8 +2516,8 @@ module egrid2agrid_mod
       real(r_kind),intent(in) :: rlata(na),rlona(na),rlate(nlate),rlone(nlone)
       type(egrid2agrid_parm),intent(inout) :: p
 
-      integer(i_kind) i,ilona,ilone,j,j180,nextend,nlate_ex,nlone_ex,nlone_half
-      real(r_kind) half_pi,two_pi,dlona,dlone,errtest,diffmax,range_lat,range_lon
+      integer(i_kind) i,ilone,j,nextend,nlate_ex,nlone_ex,nlone_half
+      real(r_kind) half_pi,two_pi,dlone,errtest
       real(r_kind),allocatable::rlate_ex(:),rlone_ex(:)
       real(r_kind) rlona0(na)
       logical fail_tests,e2a_only

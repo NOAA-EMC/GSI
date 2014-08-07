@@ -262,7 +262,6 @@ subroutine read_cmaq_guess(mype)
   integer(i_kind) :: kfis,kpsfc,kt,kq,ku,kv,ier,istatus
   
   integer(i_kind) :: nskip
-  integer(i_kind) :: irank, ipnt
   
   real(r_kind),dimension(:,:  ),pointer::ges_ps_it=>NULL()
   real(r_kind),dimension(:,:  ),pointer::ges_z_it =>NULL()
@@ -587,7 +586,7 @@ subroutine write_cmaq(mype)
   integer(i_kind) :: ncmaqin,nskip
   integer(i_kind) :: regional_time0(6),nlon_regional0,nlat_regional0,nsig0
   real(r_single) aeta10(nsig),eta10(nsig+1),aeta20(nsig),eta20(nsig+1),pt0,pdt0
-  integer(i_kind) :: irank, ipnt,ifld
+  integer(i_kind) :: ifld
   integer :: status
   character(len=max_varname_length) :: cvar
   character(len=maxstr) :: cmaq_outfile_name,cmaq_incrementfile_name

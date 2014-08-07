@@ -333,7 +333,7 @@ subroutine antest_maps0_subdomain_option(mype,theta0f,z0f)
   real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
 
   real(r_kind) h00,h000
-  integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot
+  integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot
   integer(i_kind) it,mm1
   integer(i_kind) lvar
   integer(i_kind):: ips,ipe,jps,jpe,kps,kpe

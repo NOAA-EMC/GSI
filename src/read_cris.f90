@@ -113,15 +113,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(7)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-  real(r_double),dimension(3,3):: chanbound
-  real(r_double),dimension(6):: cloud_frac
+! real(r_double),dimension(6):: cloud_frac
   
   real(r_kind)      :: step, start
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: jstart, kidsat, ksatid
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
   integer(i_kind)   :: nchanl
   integer(i_kind),allocatable,dimension(:)::nrec
 
@@ -134,10 +133,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  real(r_kind)     :: clr_amt,piece
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
-  real(r_kind)     :: sat_height_ratio, rsat
+  real(r_kind)     :: rsat
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind)     :: sat_zenang, sat_look_angle, look_angle_est
   real(crtm_kind)  :: radiance
@@ -146,7 +144,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:3) :: ts
-  real(r_kind),dimension(10) :: sscale
   real(crtm_kind),allocatable,dimension(:) :: temperature
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
@@ -155,10 +152,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: cris
 
   integer(i_kind)  :: ifov, ifor, iscn, instr, ioff, ilat, ilon, sensorindex
-  integer(i_kind)  :: i, j, l, iskip, bad_line
+  integer(i_kind)  :: i, l, iskip, bad_line
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
-  integer(i_kind):: iexponent
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status

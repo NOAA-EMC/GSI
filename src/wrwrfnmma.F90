@@ -85,13 +85,12 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_llong) num_swap
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,i_f_rimef
-  integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
+  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain
+  integer(i_kind) kcwm,kf_ice,kf_rain
   integer(i_kind) num_nmm_fields,num_j_groups,num_loc_groups
   real(r_kind) pd,psfc_this
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -1077,6 +1076,7 @@ subroutine wrnemsnmma_binary(mype)
 !   2013-10-18  s.liu   - add use_reflectivity option for cloud analysis variables
 !   2013-10-19  todling - upper-air guess now in metguess
 !   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
+!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !
 !   input argument list:
 !     mype     - pe number
@@ -1211,8 +1211,8 @@ subroutine wrnemsnmma_binary(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier_cloud=ier_cloud+iret
 
      if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier_cloud/=0) n_actual_clouds=0
- 
-  else if (n_actual_clouds>0 .and. use_reflectivity)then
+
+  else if (use_reflectivity)then
     
 !    Get pointer to hydrometeor mixing ratios, reflectivity, and temperature tendency
 !       for the cloud analysis

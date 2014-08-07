@@ -99,7 +99,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin
   use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone,use_reflectivity
+       regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_tsen,ges_qsat,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
@@ -135,8 +135,8 @@ subroutine update_guess(sval,sbias)
   character(max_varname_length),allocatable,dimension(:) :: cloud
   integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
   integer(i_kind) is_t,is_q,is_oz,is_cw,is_sst
-  integer(i_kind) ipinc,ipinc1,ipinc2,ipges,icloud,ncloud
-  integer(i_kind) ipges_ql,ipges_qi,ipges_cw,idq,ier
+  integer(i_kind) icloud,ncloud
+  integer(i_kind) idq
   real(r_kind) :: zt
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
@@ -144,12 +144,9 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc1=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc2=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dges =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges1 =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges2 =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3daux =>NULL()
-  real(r_kind),pointer,dimension(:,:  ) :: ptr2daux =>NULL()
 
   real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
 

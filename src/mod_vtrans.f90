@@ -219,9 +219,9 @@ contains
 
 !   Declare local variables
     character(len=*),parameter::myname_=myname//'*create_vtrans'
-    integer(i_kind) i,j,k,n,kk,info
-    real(r_kind) count,factor,psbar
-    real(r_kind) factord,sum,errormax
+    integer(i_kind) i,j,k,n
+    real(r_kind) count,psbar
+    real(r_kind) sum
     real(r_kind),dimension(1,lat2,lon2,1):: worksub
     real(r_kind),allocatable,dimension(:,:,:,:):: hwork
     real(r_kind),dimension(nsig+1)::pbar
@@ -237,7 +237,6 @@ contains
     integer(i_kind) workpe,ier,istatus
     integer(i_kind) lpivot(nsig),mpivot(nsig)
     real(r_quad) qmatinv_quad(nsig,nsig),detqmat_quad
-    real(r_kind) t1,t2
 
 !   get work pe:
 
@@ -812,8 +811,8 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
   real(r_quad) rmat(nmat),qtildemat(nmat,nmat),atemp(nmat*nmat),btemp(nmat,nmat)
   real(r_quad) eigvals(nmat)
   integer(i_kind) i,j,k,ia,mv,iret,istop
-  real(r_quad) orthoerror,sum
-  real(r_quad) rnorm,sumd,rnormd,term,term2
+  real(r_quad) sum
+! real(r_quad) orthoerror
   real(r_quad) aminv(nmat,nmat),aminvt(nmat,nmat)
   real(r_quad) eigval_this,eigval_next
   real(r_quad) zero_quad,half_quad,one_quad
@@ -1063,7 +1062,7 @@ subroutine iterative_improvement0(a,mu,aminv,aminvt,na,iret,errormax)
   real(r_quad),intent(out):: errormax
   integer(i_kind),intent(out)::iret
 
-  real(r_quad) am(na,na),amwork(na,na)
+  real(r_quad) am(na,na)
   real(r_quad) sum,detam,errlimit
   integer(i_kind) i,j,k,lpivot(na),mpivot(na)
   real(r_quad) zero_quad,one_quad

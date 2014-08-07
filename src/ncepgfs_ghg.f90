@@ -162,16 +162,15 @@ module ncepgfs_ghg
    real(r_kind), allocatable, dimension(:)             :: rlats_co2
    real(r_kind)              :: co2diff
    real(r_kind)              :: co2rate
-   real(r_kind)              :: co2g1, co2g2, dlon, dlat
+   real(r_kind)              :: co2g1
    real(r_kind)              :: dydn, dyup, dyall
    integer(i_kind) :: iyr, imo, ierr
-   integer(i_kind) :: i, j, k, ilon, ilat, ires
-   integer(i_kind) :: ii,jj,kk
+   integer(i_kind) :: i, j, k, ires
+   integer(i_kind) :: ii
    integer(i_kind) :: luco2 = 43         ! data file unit, may be as an input param
    integer(i_kind) :: ndpm(12)
    integer(i_kind) :: ndmax
    logical         :: file_exist
-   character(len=100):: cline = ' '
    character(len=8)  :: cform = '(24f7.2)'      ! data format (nmxlon*f7.2)
    Character(len=20) :: cfile  = 'global_co2_data.txt'
 
@@ -438,12 +437,11 @@ module ncepgfs_ghg
    real(r_kind), allocatable, dimension(:)             :: rlats_ghg
    real(r_kind)              :: ghgdiff
    real(r_kind)              :: ghgrate
-   real(r_kind)              :: ghgg1, ghgg2, dlon, dlat
    real(r_kind)              :: dydn, dyup, dyall
    integer(i_kind) :: iyr, imo, ierr
-   integer(i_kind) :: i, j, k, ilon, ilat, ires
+   integer(i_kind) :: i, j, k
    integer(i_kind) :: nmaxlon,nmaxlat
-   integer(i_kind) :: ii,jj,kk
+   integer(i_kind) :: ii
    integer(i_kind) :: lughg = 43         ! data file unit, may be as an input param
    integer(i_kind) ::            ndpm(12)
    integer(i_kind) ::            ndmax
