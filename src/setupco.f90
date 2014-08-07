@@ -317,19 +317,21 @@ if(in_curbin) then
 
 !  MOPITT a priori and averaging kernel
 
-     do k=1,nlev
+      do k=1,nlev
         coap(k)=data(k+8,i)
-     enddo 
-     do k=1,nlev 
+      enddo 
+      do k=1,nlev 
         do j=1,nlev 
-           avk(k,j)=data(j+(k-1)*nlevs+8+nlevs,i)
+          avk(k,j)=data(j+(k-1)*nlevs+8+nlevs,i)
         enddo 
-     enddo 
+      enddo 
 
 !  interpolation output at ave ker levels is called coakl
 
-     call tintrp31v(ges_co,coakl,dlat,dlon,cop,dtime, &
-        hrdifsig,nlevs,mype,nfldsig)
+     do k=1,nlev
+        call tintrp3(ges_co,coakl(k),dlat,dlon,cop(k),dtime, &
+           hrdifsig,1,mype,nfldsig)
+     enddo
 
 !  application of averaging kernel for mopitt co 
 

@@ -406,7 +406,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            else if(ditype(is) == 'aero')then
               call setupaod(lunin,&
                  mype,nchanl,nreal,nobs,&
-                 obstype,isis,is,aero_diagsave,init_pass)
+                 obstype,isis,is,aero_diagsave,init_pass,last_pass)
 
 !          Set up for precipitation data
            else if(ditype(is) == 'pcp')then
