@@ -111,7 +111,7 @@ contains
 !   2004-05-13  kleist  documentation
 !   2006-04-06  middlecoff - changed lumk from 52 to lendian_in so one-obs prepqc 
 !                            file can be read as little endian
-!   2014-08-04  carley - modify for tcamt obs
+!   2014-08-04  carley - modify for tcamt and howv obs
 !
 !   input argument list:
 !
@@ -138,13 +138,14 @@ contains
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob    
     integer(i_kind) n,k,iret
-    real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255),cld2seq(2,1),cldseq(3,10)
+    real(r_kind) hdr(10),obs(10,255),qms(10,255),err(10,255),cld2seq(2,1),cldseq(3,10),owave(1,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM'
     character(80):: errstr='POE QOE TOE WOE'
     character(80):: cld2seqstr='TOCC HBLCS'      ! total cloud cover and height above surface of base of lowest cloud seen
     character(80):: cldseqstr='VSSO CLAM HOCB'   ! vertical significance, cloud amount and cloud base height
+    character(80):: owavestr='HOWV'              ! significant wave height
     if (oneobmade) return
 
     if (oneob_type == 'o3lev') then
@@ -169,6 +170,7 @@ contains
     zob=zero
     uob=five
     vob=five
+    owave=bmiss
     cld2seq=bmiss
     cldseq=bmiss
     pqm=one
@@ -184,7 +186,12 @@ contains
        subset='ADPSFC'
        typ(1)=87._r_kind
        cat(1,1)=zero
-       cld2seq(1,1)=25._r_kind !TOCC - total cloud amount       
+       cld2seq(1,1)=25._r_kind !TOCC - total cloud amount (%)       
+    else if (oneob_type=='howv') then
+       subset='SFCSHP'
+       typ(1)=80._r_kind
+       cat(1,1)=zero
+       owave(1,1)=4._r_kind !Significant wave height (m - includes wind+swell waves)
     else
        typ(1)=20._r_kind
        cat(1,1)=one
@@ -235,6 +242,8 @@ contains
        if (oneob_type=='tcamt') then
          call ufbint(lendian_in,cldseq,3,10,iret,cldseqstr)
          call ufbint(lendian_in,cld2seq,2,1,iret,cld2seqstr)
+       else if (oneob_type=='howv') then
+         call ufbint(lendian_in,owave,1,nlev,iret,owavestr)
        end if                              
        call writsb(lendian_in)
        hdr(1)=transfer(sid(n),hdr(1))
@@ -263,6 +272,8 @@ contains
        if (oneob_type=='tcamt') then
          call ufbint(lendian_in,cldseq,3,10,iret,cldseqstr)
          call ufbint(lendian_in,cld2seq,2,1,iret,cld2seqstr)
+       else if (oneob_type=='howv') then
+         call ufbint(lendian_in,owave,1,nlev,iret,owavestr)
        end if   
        call writsb(lendian_in)
     enddo
