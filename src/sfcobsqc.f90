@@ -71,6 +71,7 @@ module sfcobsqc
   public get_wbinid
   public destroy_rjlists
 
+  logical :: verbose = .false.
 contains
 
 subroutine init_rjlists
@@ -99,7 +100,7 @@ subroutine init_rjlists
 ! Declare passed variables
 
 ! Declare local variables
-  integer(i_kind) meso_unit,ncount,m
+  integer(i_kind) meso_unit,ncount
   integer(i_kind) ibin
   real(r_single) aa1,aa2
   character(80) cstring
@@ -126,6 +127,7 @@ subroutine init_rjlists
 !==> Read mesonet provider names from the uselist
  clistname='mesonetuselist'
  call readin_rjlists(clistname,listexist,cprovider,500,nprov)
+ if(verbose)&
  print*,'mesonetuselist: listexist,nprov=',listexist,nprov
 
 
@@ -133,6 +135,7 @@ subroutine init_rjlists
 !==> Read in station names from the reject list for wind
  clistname='w_rejectlist'
  call readin_rjlists(clistname,wlistexist,w_rjlist,nmax,nwrjs)
+ if(verbose)&
  print*,'w_rejectlist: wlistexist,nwrjs=',wlistexist,nwrjs
 
 
@@ -140,18 +143,21 @@ subroutine init_rjlists
 !==> Read in station names from the reject lists for temperature
  clistname='t_rejectlist'
  call readin_rjlists(clistname,tlistexist,t_rjlist,nmax,ntrjs)
+ if(verbose)&
  print*,'t_rejectlist: tlistexist,ntrjs=',tlistexist,ntrjs
 
 
  
  clistname='t_day_rejectlist'
  call readin_rjlists(clistname,t_day_listexist,t_day_rjlist,nmax,ntrjs_day)
+ if(verbose)&
  print*,'t_day_rejectlist: t_day_listexist,ntrjs_day=',t_day_listexist,ntrjs_day
 
 
  
  clistname='t_night_rejectlist'
  call readin_rjlists(clistname,t_night_listexist,t_night_rjlist,nmax,ntrjs_night)
+ if(verbose)&
  print*,'t_night_rejectlist: t_night_listexist,ntrjs_night=',t_night_listexist,ntrjs_night
 
 
@@ -159,6 +165,7 @@ subroutine init_rjlists
 !==> Read in station names from the reject list for surface pressure
  clistname='p_rejectlist'
  call readin_rjlists(clistname,plistexist,p_rjlist,nmax,nprjs)
+ if(verbose)&
  print*,'p_rejectlist: plistexist,nprjs=',plistexist,nprjs
 
 
@@ -166,18 +173,21 @@ subroutine init_rjlists
 !==> Read in station names from the reject lists for specific humidity
  clistname='q_rejectlist'
  call readin_rjlists(clistname,qlistexist,q_rjlist,nmax,nqrjs)
+ if(verbose)&
  print*,'q_rejectlist: qlistexist,nqrjs=',qlistexist,nqrjs
 
 
  
  clistname='q_day_rejectlist'
  call readin_rjlists(clistname,q_day_listexist,q_day_rjlist,nmax,nqrjs_day)
+ if(verbose)&
  print*,'q_day_rejectlist: q_day_listexist,nqrjs_day=',q_day_listexist,nqrjs_day
 
   
 
  clistname='q_night_rejectlist'
  call readin_rjlists(clistname,q_night_listexist,q_night_rjlist,nmax,nqrjs_night)
+ if(verbose)&
  print*,'q_night_rejectlist: q_night_listexist,nqrjs_night=',q_night_listexist,nqrjs_night
 
 
@@ -193,12 +203,14 @@ subroutine init_rjlists
     goto 180
 181 continue
     nsta_mesowind_use=ncount-1
+    if(verbose)&
     print*,'mesonet_stnuselist: nsta_mesowind_use=',nsta_mesowind_use
  endif
  close(meso_unit)
 
 !==> Read in wind direction stratified wind accept lists
  inquire(file='wbinuselist',exist=wbinlistexist)
+ if(verbose)&
  print*,'wdirbinuselist: wbinuselist=',wbinlistexist
 
  nbins=0
@@ -212,10 +224,13 @@ subroutine init_rjlists
     nwbaccpts(ibin)=nwbaccpts(ibin)+1 
     goto 190
 191 continue
-    print*,'wdirbinuselist: number of bins=',nbins 
-    print*,'wdirbinuselist: (nwbaccpts(ibin),ibin=1,nbins)=',(nwbaccpts(ibin),ibin=1,nbins)
+    if(verbose)then
+       print*,'wdirbinuselist: number of bins=',nbins 
+       print*,'wdirbinuselist: (nwbaccpts(ibin),ibin=1,nbins)=',(nwbaccpts(ibin),ibin=1,nbins)
+    endif
 
     nmax2=maxval(nwbaccpts(:))
+    if(verbose)&
     print*,'wdirbinuselist: maximum number of obs in a single bin=',nmax2
 
     allocate(csta_windbin(max(1,nmax2),max(1,nbins)))
@@ -469,7 +484,7 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
   character(8),intent(in)::  c_prvstg,c_sprvstg
 
 ! Declare local variables
-  integer(i_kind) m,idx
+  integer(i_kind) m
   character(8)  ch8
 
   gustqm=9

@@ -58,6 +58,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 !   2010-11-08  treadon - remove create_mapping and init_subdomain_vars (now in init_grid_vars)
 !   2012-06-12  parrish - remove init_commvars (replaced in gsimod.F90 with general_commvars).
 !   2013-05-19  zhu     - add aircraft temperature bias correction
+!   2014-02-27  sienkiewicz - add additional aircraft bias option (external table)
 !
 !   input argument list:
 !     mype - mpi task id
@@ -86,7 +87,8 @@ subroutine gsisub(mype,init_pass,last_pass)
   use coinfo, only: coinfo_read
   use read_l2bufr_mod, only: radar_bufr_read_all
   use oneobmod, only: oneobtest,oneobmakebufr
-  use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc
+  use aircraftinfo, only: aircraftinfo_read,aircraft_t_bc_pof,aircraft_t_bc,&
+     aircraft_t_bc_ext
 #ifndef HAVE_ESMF
   use guess_grids, only: destroy_gesfinfo
 #endif
@@ -100,8 +102,8 @@ subroutine gsisub(mype,init_pass,last_pass)
   logical        ,intent(in) :: init_pass
   logical        ,intent(in) :: last_pass
 
+  if(mype==0) call tell('gsisub',': starting ...')
 #ifdef VERBOSE
-  call tell('gsisub','entered ..')
   call tell('gsisub','init_pass =',init_pass)
   call tell('gsisub','last_pass =',last_pass)
   call tell('gsisub','iadate(1)=',iadate(1))
@@ -141,7 +143,8 @@ subroutine gsisub(mype,init_pass,last_pass)
         call coinfo_read
         call pcpinfo_read
         call aeroinfo_read
-        if (aircraft_t_bc_pof .or. aircraft_t_bc) call aircraftinfo_read
+        if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
+           call aircraftinfo_read
      endif
      call convinfo_read
 #ifdef VERBOSE
@@ -187,9 +190,7 @@ subroutine gsisub(mype,init_pass,last_pass)
 #endif /* HAVE_ESMF */
   endif
 
-#ifdef VERBOSE
-  call tell('gsisub','exiting ..')
-#endif
+  if(mype==0) call tell('gsisub',': complete.')
 ! End of gsi driver routine
   return
 end subroutine gsisub

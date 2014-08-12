@@ -9,14 +9,12 @@ COM=$3
 mkdir -p $tmpdir
 
 rm -f $tmpdir/radstat.*
-#rm -f $tmpdir/satang.*
 rm -f $tmpdir/satbias.*
 
 rm -f datem00
 rm -f datem12
 
 echo $DATE > $tmpdir/datem00
-#DATEM12=`/nwprod/util/exec/ndate +12 $DATE`
 DATEM12=`${NDATE} +12 $DATE`
 echo $DATEM12 > $tmpdir/datem12
 
@@ -30,23 +28,18 @@ rm -f $tmpdir/datem12
 
 case $HH00 in
  00) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-#     ang1=$COM/ndas.$PDY12/ndas.t${HH12}z.satang.tm12
      bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12;;
  06) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-#     ang1=$COM/ndas.$PDY12/ndas.t${HH12}z.satang.tm12
      bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12;;
  12) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-#     ang1=$COM/ndas.$PDY12/ndas.t${HH12}z.satang.tm12
      bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12;;
  18) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-#     ang1=$COM/ndas.$PDY12/ndas.t${HH12}z.satang.tm12
      bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12;;
 esac
 
 if [ -s $ndas1 ]
 then
   cp $ndas1 $tmpdir/radstat.${DATE}
-#  cp $ang1 $tmpdir/satang.${DATE}
   cp $bias1  $tmpdir/satbias.${DATE}
 fi
 

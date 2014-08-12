@@ -30,8 +30,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use gridmod, only: get_ijk
   use jfunc, only: jiter,last,jiterstart,miter
 
-  use guess_grids, only: nfldsig, hrdifsig,ges_ps,ges_lnprsl,ges_tv,ges_q,&
-       ges_u,ges_v,geop_hgtl,ges_tsen,pt_ll,pbl_height
+  use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
+       geop_hgtl,ges_tsen,pt_ll,pbl_height
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two,cg_term
@@ -43,9 +43,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT, pblH_ration,pps_press_incr
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
-       ostats_t,rstats_t,upd_pred_t
+       aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -137,6 +141,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-05-17  zhu     - add contribution from aircraft temperature bias correction
 !                       - with option aircraft_t_bc_pof or aircraft_t_bc
 !   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
+!   2013-10-19  todling - metguess now holds background
+!   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
+!   2014-03-04  sienkiewicz - implementation of option aircraft_t_bc_ext (external table)
 !
 ! !REMARKS:
 !   language: f90
@@ -190,7 +197,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   real(r_kind),dimension(nsig):: prsltmp2
 
-  integer(i_kind) i,j,nchar,nreal,k,ii,jj,l,nn,ibin,idia,ix
+  integer(i_kind) i,j,nchar,nreal,k,ii,jj,l,nn,ibin,idia,idia0,ix
   integer(i_kind) mm1,jsig,iqt
   integer(i_kind) itype,msges
   integer(i_kind) ier,ilon,ilat,ipres,itob,id,itime,ikx,iqc,iptrb,icat,ipof,ivvlc,idx
@@ -210,18 +217,33 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical aircraftobst
 
   logical:: in_curbin, in_anybin
+  logical proceed
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(t_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,pblfact_cool,dthetav
+  real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
 
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+
   n_alloc(:)=0
   m_alloc(:)=0
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
 !*********************************************************************************
 ! Read and reformat observations in work arrays.
@@ -257,7 +279,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iprvd=22    ! index of observation provider
   isprvd=23   ! index of observation subprovider
   icat=24     ! index of data level category
-  if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+  if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
      ipof=25     ! index of data pof
      ivvlc=26    ! index of data vertical velocity
      idx=27      ! index of tail number
@@ -292,7 +314,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ii=0
      nchar=1
      nreal=19
-     if (aircraft_t_bc_pof .or. aircraft_t_bc) nreal=nreal+npredt+1
+     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
+          nreal=nreal+npredt+1
+     idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -387,7 +411,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      if(.not.in_curbin) cycle
 
 !    Compute bias correction for aircraft data
-     if (aircraft_t_bc_pof .or. aircraft_t_bc) then 
+     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then 
         pof_idx = zero
         do j = 1, npredt
            pred(j) = zero
@@ -398,11 +422,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    aircraftobst = itype>129.and.itype<140
      aircraftobst = (itype==131) .or. (itype==133)
      ix = 0
-     if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then 
+     if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext)) then 
         ix = data(idx,i)
         if (ix==0) then
 !          Inflate obs error for new tail number
-           data(ier,i) = 1.2_r_kind*data(ier,i)
+           if ( .not. aircraft_t_bc_ext )  &
+              data(ier,i) = 1.2_r_kind*data(ier,i)
         else
 !          Bias for existing tail numbers
            do j = 1, npredt
@@ -410,7 +435,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
            end do
 
 !          inflate obs error for any uninitialized tail number
-           if (all(predcoef==zero)) then
+           if (all(predcoef==zero) .and. .not. aircraft_t_bc_ext) then
               data(ier,i) = 1.2_r_kind*data(ier,i)
            end if
 
@@ -451,6 +476,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
                  pred(3) = zero
               end if
            end if
+
+           if (aircraft_t_bc_ext) pred(1) = one
 
            do j = 1, npredt
               predbias(j) = predcoef(j)*pred(j)
@@ -560,7 +587,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      ddiff = tob-tges
 
 ! Apply bias correction to innovation
-     if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc)) then
+     if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. &
+            aircraft_t_bc_ext)) then
         do j = 1, npredt
            ddiff = ddiff - predbias(j) 
         end do
@@ -823,15 +851,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(17,ii) = data(itob,i)       ! temperature observation (K)
         rdiagbuf(18,ii) = ddiff              ! obs-ges used in analysis (K)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
-        if (aircraft_t_bc_pof .or. aircraft_t_bc) then
+        if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
            rdiagbuf(20,ii) = data(ipof,i)       ! data pof
            do j=1,npredt
               rdiagbuf(20+j,ii) = predbias(j)
            end do
-           idia=20+npredt
-        else
-           idia=19
         end if
+        idia=idia0
         if (lobsdiagsave) then
            do jj=1,miter
               idia=idia+1
@@ -949,10 +975,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! End of loop over observations
   end do
 
+! Release memory of local guess arrays
+  call final_vars_
 
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
-     write(7)'  t',nchar,nreal,ii,mype
+     write(7)'  t',nchar,nreal,ii,mype,idia0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
 
@@ -964,4 +992,199 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
 
 ! End of routine
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::u' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::v' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::q', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_u(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_u(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_v(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_v(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_q )) deallocate(ges_q )
+    if(allocated(ges_tv)) deallocate(ges_tv)
+    if(allocated(ges_v )) deallocate(ges_v )
+    if(allocated(ges_u )) deallocate(ges_u )
+    if(allocated(ges_ps)) deallocate(ges_ps)
+  end subroutine final_vars_
+
 end subroutine setupt
+
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !ROUTINE:  ifind --- find character string in sorted list
+!
+! !INTERFACE:
+integer function ifind (sid,xsid,nsid)
+
+! !USES:
+
+  implicit none
+
+! !INPUT PARAMETERS:
+  integer nsid
+  character(len=8) sid(nsid), xsid
+
+! !DESCRIPTION:  Find character string in a sorted list - used to
+!                find aircraft tail id from list for bias correction
+!
+! !REVISION HISTORY:
+!
+!   2013-04-23  sienkiewicz   Original routine
+!
+!EOP
+!-------------------------------------------------------------------------
+
+
+! Declare local variables
+  integer istart,iend,imid
+  
+  if (xsid .gt. sid(nsid) .or. xsid .lt. sid(1)) then
+     ifind = 0
+     return
+  end if
+  istart=0
+  iend=nsid+1
+  do while (iend-istart > 1)
+     imid=(istart+iend)/2
+     if (xsid .eq. sid(imid)) then
+        ifind = imid
+        return
+     else if (xsid .gt. sid(imid)) then
+        istart = imid
+     else 
+        iend = imid
+     endif
+  end do
+  
+  if (xsid .eq. sid(iend)) then
+     ifind = imid
+  else
+     ifind = 0
+  end if
+  return
+end function ifind
+
+      

@@ -72,7 +72,7 @@ use gsi_4dvar, only: iadatebgn
 use file_utility, only : get_lun
 use mpl_allreducemod, only: mpl_allreduce
 use hybrid_ensemble_parameters, only: beta1_inv,l_hyb_ens
-use hybrid_ensemble_parameters, only: grd_ens,nval_lenz_en
+use hybrid_ensemble_parameters, only: grd_ens
 use constants, only : max_varname_length
 
 use m_rerank, only : rerank
@@ -141,6 +141,7 @@ character(len=*),parameter:: myname='control_vectors'
 
 integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
+integer(i_kind) :: nval_lenz_en
 logical :: lsqrtb
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
@@ -185,7 +186,8 @@ END INTERFACE
 contains
 ! ----------------------------------------------------------------------
 subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
-                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens)
+                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,ldsqrtb,k_ens,&
+                                 kval_lenz_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_control_vectors
@@ -224,10 +226,9 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
 
   implicit none
   integer(i_kind)          , intent(in   ) :: ksig,klat,klon,katlon11,katlon1n, &
-                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,k_ens
+                                 ksclen,kpclen,ktclen,kclen,ksubwin,kval_len,k_ens,&
+                                 kval_lenz_en
   logical                  , intent(in   ) :: ldsqrtb
-
-  integer(i_kind) n
 
   nsig=ksig
   lat2=klat
@@ -244,6 +245,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   nval_len=kval_len
   lsqrtb=ldsqrtb
   n_ens=k_ens
+  nval_lenz_en=kval_lenz_en
 
   llinit = .true.
   m_vec_alloc=0
@@ -251,7 +253,7 @@ subroutine setup_control_vectors(ksig,klat,klon,katlon11,katlon1n, &
   m_allocs=0
   m_deallocs=0
 
-! call inquire_cv
+  call inquire_cv
 
   return
 end subroutine setup_control_vectors
@@ -267,6 +269,7 @@ subroutine init_anacv
 ! program history log:
 !   2010-03-11  zhu     - initial code
 !   2010-05-30  todling - revamp initial code
+!   2014-02-11  todling - rank-2 must have lev=1, anything else is rank-3
 !
 !   input argument list:
 !
@@ -283,7 +286,7 @@ character(len=*),parameter:: tbname='control_vector::'
 character(len=256),allocatable,dimension(:):: utable
 character(len=20) var,source,funcof
 character(len=*),parameter::myname_=myname//'*init_anacv'
-integer(i_kind) luin,i,ii,ntot
+integer(i_kind) luin,ii,ntot
 integer(i_kind) ilev, itracer
 real(r_kind) aas,amp
 
@@ -312,13 +315,10 @@ do ii=1,nvars
    if(trim(adjustl(source))=='motley') then
       mvars=mvars+1
    else
-      if(ilev>1) then
-          nc3d=nc3d+1
-      else if(ilev==1) then
+      if(ilev==1) then
           nc2d=nc2d+1
       else
-          write(6,*) myname_,': error, unknown number of levels'
-          call stop2(999)
+          nc3d=nc3d+1
       endif
    endif
 enddo
@@ -343,17 +343,17 @@ do ii=1,nvars
        cvarsmd(mvars)=trim(adjustl(var))
        atsfc_sdv(mvars)=aas
    else
-      if(ilev>1) then
+      if(ilev==1) then
+         nc2d=nc2d+1
+         cvars2d(nc2d)=trim(adjustl(var))
+         nrf2_loc(nc2d)=ii  ! rid of soon
+         as2d(nc2d)=aas
+      else
          nc3d=nc3d+1
          cvars3d(nc3d)=trim(adjustl(var))
          nrf3_loc(nc3d)=ii  ! rid of soon
          nrf_3d(ii)=.true.
          as3d(nc3d)=aas
-      else
-         nc2d=nc2d+1
-         cvars2d(nc2d)=trim(adjustl(var))
-         nrf2_loc(nc2d)=ii  ! rid of soon
-         as2d(nc2d)=aas
       endif
    endif
    nrf_var(ii)=trim(adjustl(var))
@@ -424,9 +424,7 @@ subroutine allocate_cv(ycv)
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
   type(control_vector), intent(  out) :: ycv
-  character(len=max_varname_length) cvar
-  integer(i_kind) :: ii,jj,n,nn,ngrid,ndim,ierror,n_step,n_aens
-  integer(i_kind) :: mold2(2,2), mold3(2,2,2)
+  integer(i_kind) :: ii,jj,nn,ndim,ierror,n_step,n_aens
   character(len=256)::bname
   type(gsi_grid) :: grid_motley
 
@@ -461,8 +459,7 @@ subroutine allocate_cv(ycv)
       ALLOCATE(ycv%aens(nsubwin,n_ens))
       call GSI_GridCreate(ycv%grid_aens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
          if (lsqrtb) then
-            write(6,*) 'allocate_cv: this opt not ready (lsqrtb+ens), aborting ...' 
-            call stop2(999)
+            n_aens=nval_lenz_en
          else
             n_aens=grd_ens%latlon11*grd_ens%nsig
          endif
@@ -599,7 +596,7 @@ subroutine deallocate_cv(ycv)
 
   implicit none
   type(control_vector), intent(inout) :: ycv
-  integer(i_kind) :: ii,n,nn,ierror
+  integer(i_kind) :: ii,nn,ierror
 
   if (ycv%lallocated) then
      do ii=1,nsubwin
@@ -916,7 +913,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
   real(r_quad)        , intent(  out) :: prods(nsubwin+1)
 
   real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii,i,nn,m3d,m2d,istatus
+  integer(i_kind) :: ii,i,nn,m3d,m2d
   real(r_quad),allocatable,dimension(:) :: partsum
 
   prods(:)=zero_quad
@@ -1025,7 +1022,6 @@ real(r_kind) function dot_prod_cv(xcv,ycv)
 
 ! local variables
   real(r_quad) :: dd(1)
-  integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
      write(6,*)'dot_prod_cv: error length',xcv%lencv,ycv%lencv
@@ -1068,7 +1064,6 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,kind)
 
 ! local variables
   real(r_quad) :: dd(1)
-  integer(i_kind) :: ii
 
   if (xcv%lencv/=ycv%lencv) then
      write(6,*)'qdot_prod_cv: error length',xcv%lencv,ycv%lencv

@@ -1,4 +1,4 @@
-subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri)
+subroutine calctends_tl(fields,fields_dt,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_tl       tlm of calctends
@@ -30,27 +30,17 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
 !   2012-03-11  tong    - added condition to calcuate cw_t
+!   2013-10-19  todling - revamp interface (pass all in bundles); derivatives and
+!                         guess fields also in bundles
+!   2013-10-28  todling - rename p3d to prse
 !
 ! usage:
 !   input argument list:
-!     u        - zonal wind on subdomain
-!     v        - meridional wind on subdomain
-!     t        - virtual temperature on subdomain
-!     q        - q on subdomain
-!     oz       - ozone on subdomain
-!     cw       - cloud water mixing ratio on subdomain 
-!     mype     - task id
-!     nnn      - number of levels on each processor
-!     tracer   - logical flag if true tracer time derivatives calculated
+!     fields    - bundle holding relevant fields
+!     mype      - task id
 !
 !   output argument list:
-!     u_t      - time tendency of u
-!     v_t      - time tendency of v
-!     t_t      - time tendency of t
-!     p_t      - time tendency of 3d pressure
-!     q_t      - time tendency of q
-!     oz_t     - time tendency of ozone
-!     cw_t     - time tendency of cloud water
+!     fields_dt - bundle holding related time tendencies
 !
 !   notes:
 !     TLM check performed & verified on 2005-09-29 by d. kleist
@@ -64,69 +54,189 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
   use gridmod, only: lat2,lon2,nsig,istart,nlat,idvc5,bk5,&
       wrf_nmm_regional,nems_nmmb_regional,eta2_ll,regional,nthreads,jtstart,jtstop
   use constants, only: zero,half,two,rd,rcp
-  use jfunc, only: cwgues
+  use derivsmod, only: cwgues
   use tendsmod, only: what9,prsth9,r_prsum9,prdif9,r_prdif9,pr_xsum9,pr_xdif9,&
       pr_ysum9,pr_ydif9,curvx,curvy,coriolis
-  use guess_grids, only: ntguessig,ges_u,&
-      ges_u_lon,ges_u_lat,ges_v,ges_v_lon,ges_v_lat,ges_tv,ges_tvlat,ges_tvlon,&
-      ges_q,ges_qlon,ges_qlat,ges_oz,ges_ozlon,ges_ozlat,ges_cwmr_lon,&
-      ges_cwmr_lat,ges_teta,ges_prsi
+  use guess_grids, only: ntguessig,ges_teta,ges_prsi
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use control_vectors, only: cvars3d
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundledup
+  use gsi_bundlemod, only: gsi_bundleinquire
+  use gsi_bundlemod, only: gsi_bundledestroy
   use mpeu_util, only: die, getindex
+  use derivsmod, only: gsi_xderivative_bundle
+  use derivsmod, only: gsi_yderivative_bundle
   implicit none
 
 ! Declare passed variables
-  integer(i_kind)                         ,intent(in   ) :: mype,nnn
-  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(  out) :: u_t,v_t,t_t,q_t,oz_t,cw_t
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(  out) :: p_t
-  real(r_kind),dimension(lat2,lon2,nsig+1),intent(in   ) :: pri
-  real(r_kind),dimension(lat2,lon2,nsig)  ,intent(in   ) :: u,v,t,q,oz,cw
+  type(gsi_bundle) :: fields
+  type(gsi_bundle) :: fields_dt
+  integer(i_kind),intent(in) :: mype
 
 ! Declare local variables
-  real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y,v_x,v_y,t_x,t_y
-  real(r_kind),dimension(lat2,lon2,nsig):: q_x,q_y,oz_x,oz_y,cw_x,cw_y
-  real(r_kind),dimension(lat2,lon2):: ps_x,ps_y,sst_x,sst_y,sst
-  real(r_kind),dimension(lat2,lon2,nsig+1):: pri_x,pri_y
+  character(len=*),parameter::myname='calctends_tl'
+  real(r_kind),dimension(:,:,:),pointer :: u_t,v_t,t_t,q_t,oz_t,cw_t
+  real(r_kind),dimension(:,:,:),pointer :: p_t
+  real(r_kind),dimension(:,:,:),pointer :: pri
+  real(r_kind),dimension(:,:,:),pointer :: u,v,t,q,oz,cw
+  real(r_kind),dimension(:,:,:),pointer :: u_x,u_y,v_x,v_y,t_x,t_y
+  real(r_kind),dimension(:,:,:),pointer :: q_x,q_y,oz_x,oz_y,cw_x,cw_y
+  real(r_kind),dimension(:,:)  ,pointer :: ps_x,ps_y
+  real(r_kind),dimension(:,:,:),pointer :: pri_x,pri_y
   real(r_kind),dimension(lat2,lon2,nsig+1):: prsth,what
   real(r_kind),dimension(lat2,lon2,nsig):: prsum,prdif,pr_xsum,pr_xdif,&
        pr_ysum,pr_ydif
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
-  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
 
   real(r_kind) tmp,tmp2,tmp3,sumk,sumvk,sum2k,sum2vk,uduvdv
-  integer(i_kind) i,j,k,ix,it,kk,istatus,nguess,ier,icw
+  integer(i_kind) i,j,k,ix,it,kk,istatus,n_actual_clouds,ier,icw
+  logical ihave_xtra_derivatives
+  character(len=10),allocatable,dimension(:)::fvars2d,fvars3d
+
+  type(gsi_bundle) :: xderivative
+  type(gsi_bundle) :: yderivative
+
+  real(r_kind),pointer,dimension(:,:,:) :: ges_u=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_v=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_tv=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_q =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_oz=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_cwmr=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:) :: ges_u_lon=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_v_lon=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_tv_lon=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_q_lon =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_oz_lon=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_cw_lon=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:) :: ges_u_lat=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_v_lat=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_tv_lat=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_q_lat =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_oz_lat=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_cw_lat=>NULL()
 
 ! linearized about guess solution, so set it flag accordingly
   it=ntguessig
 
+  ier=0
+  call gsi_bundlegetpointer(fields,'u',   u,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields,'v',   v,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields,'tv',  t,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields,'q',   q,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields,'oz' , oz,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields,'cw' , cw,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields,'prse',pri, istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname,': pointers not found on input, ier=', ier
+     call stop2(999)
+  endif
+
+  call gsi_bundlegetpointer(fields_dt,'u',   u_t, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields_dt,'v',   v_t, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields_dt,'tv',  t_t, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields_dt,'q',   q_t, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields_dt,'oz' , oz_t,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields_dt,'cw' , cw_t,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(fields_dt,'prse',p_t ,istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname,': pointers not found on tendency, ier=', ier
+     call stop2(999)
+  endif
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'u' ,ges_u, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'v' ,ges_v, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv',ges_tv,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q', ges_q ,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'oz',ges_oz,istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname, ': pointers not found in met-guess, ier=', ier
+     call stop2(999)
+  endif
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_xderivative_bundle(it),'u' ,ges_u_lon, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_xderivative_bundle(it),'v' ,ges_v_lon, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_xderivative_bundle(it),'tv',ges_tv_lon,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_xderivative_bundle(it),'q', ges_q_lon ,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_xderivative_bundle(it),'oz',ges_oz_lon,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_xderivative_bundle(it),'cw',ges_cw_lon,istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname, ': pointers not found in lon-derivatives, ier=', ier
+     call stop2(999)
+  endif
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_yderivative_bundle(it),'u' ,ges_u_lat, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_yderivative_bundle(it),'v' ,ges_v_lat, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_yderivative_bundle(it),'tv',ges_tv_lat,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_yderivative_bundle(it),'q', ges_q_lat ,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_yderivative_bundle(it),'oz',ges_oz_lat,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(gsi_yderivative_bundle(it),'cw',ges_cw_lat,istatus);ier=istatus+ier
+  if(ier/=0) then
+     write(6,*) myname, ': pointers not found in lat-derivatives, ier=', ier
+     call stop2(999)
+  endif
+
+
 ! Get pointer to could water mixing ratio
-  call gsi_metguess_get('dim',nguess,ier)
-  if (nguess>0) then
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
+  if (n_actual_clouds>0) then
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
      if (istatus/=0) then 
         if (regional) then 
-           ges_cwmr_it => cwgues     ! temporily, revise after moist physics is ready
+           ges_cwmr => cwgues     ! temporily, revise after moist physics is ready
         else
            call die('setuppcp','cannot get pointer to cwmr, istatus =',istatus)
         end if
      end if
   else
-     ges_cwmr_it => cwgues
+     ges_cwmr => cwgues
   end if
 
-  icw=getindex(cvars3d,'cw')  
-
 ! preliminaries:
-  sst=zero
 
-  call get_derivatives( &
-     u ,v ,t ,pri ,q ,oz ,sst ,cw , &
-     u_x, v_x, t_x , ps_x, q_x, oz_x, sst_x, cw_x, &
-     u_y, v_y, t_y , ps_y, q_y, oz_y, sst_y, cw_y, &
-     nnn,1)
+  if(fields%n2d>0) allocate(fvars2d(fields%n2d))
+  if(fields%n3d>0) allocate(fvars3d(fields%n3d))
+  call gsi_bundleinquire (fields,'shortnames::2d',fvars2d,istatus)
+  call gsi_bundleinquire (fields,'shortnames::3d',fvars3d,istatus)
+  icw=getindex(fvars3d,'cw')  
+
+  ihave_xtra_derivatives=.false. 
+  ier=0
+  call gsi_bundledup ( fields, xderivative, 'lon-derivatives', istatus )
+  ier=ier+istatus
+  call gsi_bundledup ( fields, yderivative, 'lat-derivatives', istatus )
+  ier=ier+istatus
+  if(ier==0) then
+    ihave_xtra_derivatives=.true. 
+  else
+    call die(myname,': trouble creating temporary space for derivatives',ier)
+  endif
+
+  call get_derivatives( fields, xderivative, yderivative )
+
+  call gsi_bundlegetpointer(xderivative,'ps'  , ps_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'u'   ,  u_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'v'   ,  v_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'tv'  ,  t_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'q'   ,  q_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'oz'  , oz_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'cw'  , cw_x,istatus)
+  call gsi_bundlegetpointer(xderivative,'prse',pri_x,istatus)
+
+  call gsi_bundlegetpointer(yderivative,'ps'  , ps_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'u'   ,  u_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'v'   ,  v_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'tv'  ,  t_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'q'   ,  q_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'oz'  , oz_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'cw'  , cw_y,istatus)
+  call gsi_bundlegetpointer(yderivative,'prse',pri_y,istatus)
 
   call getprs_horiz_tl(ps_x,ps_y,pri,pri_x,pri_y)
 
@@ -158,8 +268,8 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       do j=jtstart(kk),jtstop(kk) 
         do i=1,lat2
            prsth(i,j,k)=prsth(i,j,k+1) - ( u(i,j,k)*pr_xdif9(i,j,k) + &
-              ges_u(i,j,k,it)*pr_xdif(i,j,k) + v(i,j,k)*pr_ydif9(i,j,k) + &
-              ges_v(i,j,k,it)*pr_ydif(i,j,k) + &
+              ges_u(i,j,k)*pr_xdif(i,j,k) + v(i,j,k)*pr_ydif9(i,j,k) + &
+              ges_v(i,j,k)*pr_ydif(i,j,k) + &
               (u_x(i,j,k) + v_y(i,j,k))*(prdif9(i,j,k)) + &
               (ges_u_lon(i,j,k) + ges_v_lat(i,j,k))*(prdif(i,j,k)) )
         end do
@@ -171,16 +281,16 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
     do k=1,nsig
       do j=jtstart(kk),jtstop(kk) 
         do i=1,lat2
-           tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
-           t_t(i,j,k)=-u(i,j,k)*ges_tvlon(i,j,k) - ges_u(i,j,k,it)*t_x(i,j,k) - &
-              v(i,j,k)*ges_tvlat(i,j,k) - ges_v(i,j,k,it)*t_y(i,j,k) +          &
-              tmp*rcp*( ges_u(i,j,k,it)*pr_xsum(i,j,k) + &
+           tmp=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
+           t_t(i,j,k)=-u(i,j,k)*ges_tv_lon(i,j,k) - ges_u(i,j,k)*t_x(i,j,k) - &
+              v(i,j,k)*ges_tv_lat(i,j,k) - ges_v(i,j,k)*t_y(i,j,k) +          &
+              tmp*rcp*( ges_u(i,j,k)*pr_xsum(i,j,k) + &
               u(i,j,k)*pr_xsum9(i,j,k) + &
-              ges_v(i,j,k,it)*pr_ysum(i,j,k) + &
+              ges_v(i,j,k)*pr_ysum(i,j,k) + &
               v(i,j,k)*pr_ysum9(i,j,k) + &
               prsth(i,j,k) + prsth(i,j,k+1)) + &
-              rcp*( ges_u(i,j,k,it)*pr_xsum9(i,j,k) + &
-              ges_v(i,j,k,it)*pr_ysum9(i,j,k) + &
+              rcp*( ges_u(i,j,k)*pr_xsum9(i,j,k) + &
+              ges_v(i,j,k)*pr_ysum9(i,j,k) + &
               prsth9(i,j,k)+prsth9(i,j,k+1) ) * &
               ( rd*t(i,j,k)*r_prsum9(i,j,k) - tmp*prsum(i,j,k)*r_prsum9(i,j,k) )
  
@@ -198,12 +308,12 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       do k=1,nsig
         do j=jtstart(kk),jtstop(kk) 
            do i=1,lat2
-              tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
+              tmp=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
   
-              t_thor9(i,j,k)=-ges_u(i,j,k,it)*ges_tvlon(i,j,k) - &
-                   ges_v(i,j,k,it)*ges_tvlat(i,j,k)
-              t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k,it)*pr_xsum9(i,j,k) + &
-                 ges_v(i,j,k,it)*pr_ysum9(i,j,k) + &
+              t_thor9(i,j,k)=-ges_u(i,j,k)*ges_tv_lon(i,j,k) - &
+                   ges_v(i,j,k)*ges_tv_lat(i,j,k)
+              t_thor9(i,j,k)=t_thor9(i,j,k) -tmp*rcp * ( ges_u(i,j,k)*pr_xsum9(i,j,k) + &
+                 ges_v(i,j,k)*pr_ysum9(i,j,k) + &
                  prsth9(i,j,k) + prsth9(i,j,k+1) )
            end do
         end do
@@ -265,15 +375,15 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
     do k=1,nsig
       do j=jtstart(kk),jtstop(kk) 
         do i=1,lat2
-           uduvdv=two*(ges_u(i,j,k,it)*u(i,j,k) + ges_v(i,j,k,it)*v(i,j,k))
-           u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k) - ges_u(i,j,k,it)*u_x(i,j,k) - &
-              v(i,j,k)*ges_u_lat(i,j,k) - ges_v(i,j,k,it)*u_y(i,j,k) + &
+           uduvdv=two*(ges_u(i,j,k)*u(i,j,k) + ges_v(i,j,k)*v(i,j,k))
+           u_t(i,j,k)=-u(i,j,k)*ges_u_lon(i,j,k) - ges_u(i,j,k)*u_x(i,j,k) - &
+              v(i,j,k)*ges_u_lat(i,j,k) - ges_v(i,j,k)*u_y(i,j,k) + &
               coriolis(i,j)*v(i,j,k) + curvx(i,j)*uduvdv
-           v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k) - ges_u(i,j,k,it)*v_x(i,j,k) - &
-              v(i,j,k)*ges_v_lat(i,j,k) - ges_v(i,j,k,it)*v_y(i,j,k) - &
+           v_t(i,j,k)=-u(i,j,k)*ges_v_lon(i,j,k) - ges_u(i,j,k)*v_x(i,j,k) - &
+              v(i,j,k)*ges_v_lat(i,j,k) - ges_v(i,j,k)*v_y(i,j,k) - &
               coriolis(i,j)*u(i,j,k) + curvy(i,j)*uduvdv
 
-           tmp=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
+           tmp=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
            tmp2=rd*t(i,j,k)*r_prsum9(i,j,k)
 
            u_t(i,j,k) = u_t(i,j,k)-tmp*( pr_xsum(i,j,k) - &
@@ -290,27 +400,27 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
               tmp=half*what(i,j,k)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
 
-              u_t(i,j,k) = u_t(i,j,k) - tmp*(ges_u (i,j,k-1,it)-ges_u (i,j,k,it)) - &
-                 tmp2*( (u(i,j,k-1)-u(i,j,k)) - (ges_u (i,j,k-1,it)-ges_u (i,j,k,it))* &
+              u_t(i,j,k) = u_t(i,j,k) - tmp*(ges_u (i,j,k-1)-ges_u (i,j,k)) - &
+                 tmp2*( (u(i,j,k-1)-u(i,j,k)) - (ges_u (i,j,k-1)-ges_u (i,j,k))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))          
-              v_t(i,j,k) = v_t(i,j,k) - tmp*(ges_v (i,j,k-1,it)-ges_v (i,j,k,it)) - &
-                 tmp2*( (v(i,j,k-1)-v(i,j,k)) - (ges_v (i,j,k-1,it)-ges_v (i,j,k,it))* &
+              v_t(i,j,k) = v_t(i,j,k) - tmp*(ges_v (i,j,k-1)-ges_v (i,j,k)) - &
+                 tmp2*( (v(i,j,k-1)-v(i,j,k)) - (ges_v (i,j,k-1)-ges_v (i,j,k))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              t_t(i,j,k) = t_t(i,j,k) - tmp*(ges_tv(i,j,k-1,it)-ges_tv(i,j,k,it)) - &
-                 tmp2*( (t(i,j,k-1)-t(i,j,k)) - (ges_tv(i,j,k-1,it)-ges_tv(i,j,k,it))* &
+              t_t(i,j,k) = t_t(i,j,k) - tmp*(ges_tv(i,j,k-1)-ges_tv(i,j,k)) - &
+                 tmp2*( (t(i,j,k-1)-t(i,j,k)) - (ges_tv(i,j,k-1)-ges_tv(i,j,k))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
            end if
            if (k < nsig) then
               tmp=half*what(i,j,k+1)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
-              u_t(i,j,k) = u_t(i,j,k) - tmp*(ges_u (i,j,k,it)-ges_u (i,j,k+1,it)) - &
-                 tmp2*( (u(i,j,k)-u(i,j,k+1)) - (ges_u (i,j,k,it)-ges_u (i,j,k+1,it))* &
+              u_t(i,j,k) = u_t(i,j,k) - tmp*(ges_u (i,j,k)-ges_u (i,j,k+1)) - &
+                 tmp2*( (u(i,j,k)-u(i,j,k+1)) - (ges_u (i,j,k)-ges_u (i,j,k+1))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              v_t(i,j,k) = v_t(i,j,k) - tmp*(ges_v (i,j,k,it)-ges_v (i,j,k+1,it)) - &
-                 tmp2*( (v(i,j,k)-v(i,j,k+1)) - (ges_v (i,j,k,it)-ges_v (i,j,k+1,it))* &
+              v_t(i,j,k) = v_t(i,j,k) - tmp*(ges_v (i,j,k)-ges_v (i,j,k+1)) - &
+                 tmp2*( (v(i,j,k)-v(i,j,k+1)) - (ges_v (i,j,k)-ges_v (i,j,k+1))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              t_t(i,j,k) = t_t(i,j,k) - tmp*(ges_tv(i,j,k,it)-ges_tv(i,j,k+1,it)) - &
-                 tmp2*( (t(i,j,k)-t(i,j,k+1)) - (ges_tv(i,j,k,it)-ges_tv(i,j,k+1,it))* &
+              t_t(i,j,k) = t_t(i,j,k) - tmp*(ges_tv(i,j,k)-ges_tv(i,j,k+1)) - &
+                 tmp2*( (t(i,j,k)-t(i,j,k+1)) - (ges_tv(i,j,k)-ges_tv(i,j,k+1))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
            end if
          end do   !end do i
@@ -321,7 +431,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       do j=jtstart(kk),jtstop(kk) 
         do i=1,lat2
            tmp=rd*t(i,j,k)*r_prsum9(i,j,k)
-           tmp2=rd*ges_tv(i,j,k,it)*r_prsum9(i,j,k)
+           tmp2=rd*ges_tv(i,j,k)*r_prsum9(i,j,k)
            tmp3=prdif9(i,j,k)*r_prsum9(i,j,k)
 
            sumk = sumkm1(i,j) + ( tmp - tmp2*prsum(i,j,k)*r_prsum9(i,j,k) ) * &
@@ -337,11 +447,11 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
               prdif(i,j,k) - tmp3* prsum(i,j,k) )*r_prsum9(i,j,k) ) ) )
 
            sum2k  = sum2km1 (i,j) + t_x(i,j,k)*tmp3 + &
-              ges_tvlon(i,j,k)*( (prdif(i,j,k) - &
+              ges_tv_lon(i,j,k)*( (prdif(i,j,k) - &
               tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
 
            sum2vk = sum2vkm1(i,j) + t_y(i,j,k)*tmp3 + &
-              ges_tvlat(i,j,k)*( (prdif(i,j,k) - &
+              ges_tv_lat(i,j,k)*( (prdif(i,j,k) - &
               tmp3*prsum(i,j,k))*r_prsum9(i,j,k))
 
            u_t(i,j,k) = u_t(i,j,k) - sumkm1 (i,j) - rd*sum2km1 (i,j) - &
@@ -360,7 +470,7 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       end do   !end do j
     end do  !end do k
 
-    call turbl_tl(ges_prsi(1,1,1,it),ges_tv  (1,1,1,it),ges_teta(1,1,1,it),&
+    call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
                u,v,pri,t,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
     if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
@@ -383,41 +493,41 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
       do j=jtstart(kk),jtstop(kk) 
         do i=1,lat2
 !          tracer advection terms
-           q_t (i,j,k) = -u(i,j,k)*ges_qlon    (i,j,k) - ges_u(i,j,k,it)*q_x (i,j,k) - &
-              v(i,j,k)*ges_qlat    (i,j,k) - ges_v(i,j,k,it)*q_y (i,j,k)
-           oz_t(i,j,k) = -u(i,j,k)*ges_ozlon   (i,j,k) - ges_u(i,j,k,it)*oz_x(i,j,k) - &
-              v(i,j,k)*ges_ozlat   (i,j,k) - ges_v(i,j,k,it)*oz_y(i,j,k)
+           q_t (i,j,k) = -u(i,j,k)*ges_q_lon    (i,j,k) - ges_u(i,j,k)*q_x (i,j,k) - &
+              v(i,j,k)*ges_q_lat    (i,j,k) - ges_v(i,j,k)*q_y (i,j,k)
+           oz_t(i,j,k) = -u(i,j,k)*ges_oz_lon   (i,j,k) - ges_u(i,j,k)*oz_x(i,j,k) - &
+              v(i,j,k)*ges_oz_lat   (i,j,k) - ges_v(i,j,k)*oz_y(i,j,k)
            if (icw>0) then
-              cw_t(i,j,k) = -u(i,j,k)*ges_cwmr_lon(i,j,k) - ges_u(i,j,k,it)*cw_x(i,j,k) - &
-                 v(i,j,k)*ges_cwmr_lat(i,j,k) - ges_v(i,j,k,it)*cw_y(i,j,k)
+              cw_t(i,j,k) = -u(i,j,k)*ges_cw_lon(i,j,k) - ges_u(i,j,k)*cw_x(i,j,k) - &
+                 v(i,j,k)*ges_cw_lat(i,j,k) - ges_v(i,j,k)*cw_y(i,j,k)
            end if
            if(k > 1)then
               tmp=half*what(i,j,k)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k)*r_prdif9(i,j,k)
-              q_t (i,j,k) = q_t (i,j,k) - tmp*(ges_q   (i,j,k-1,it)-ges_q   (i,j,k,it)) - &
-                 tmp2*( (q (i,j,k-1)-q (i,j,k)) - (ges_q   (i,j,k-1,it)-ges_q   (i,j,k,it))* &
+              q_t (i,j,k) = q_t (i,j,k) - tmp*(ges_q   (i,j,k-1)-ges_q   (i,j,k)) - &
+                 tmp2*( (q (i,j,k-1)-q (i,j,k)) - (ges_q   (i,j,k-1)-ges_q   (i,j,k))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              oz_t(i,j,k) = oz_t(i,j,k) - tmp*(ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it)) - &
-                 tmp2*( (oz(i,j,k-1)-oz(i,j,k)) - (ges_oz  (i,j,k-1,it)-ges_oz  (i,j,k,it))* &
+              oz_t(i,j,k) = oz_t(i,j,k) - tmp*(ges_oz  (i,j,k-1)-ges_oz  (i,j,k)) - &
+                 tmp2*( (oz(i,j,k-1)-oz(i,j,k)) - (ges_oz  (i,j,k-1)-ges_oz  (i,j,k))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
               if (icw>0) then 
-                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k)) - &
-                    tmp2*( (cw(i,j,k-1)-cw(i,j,k)) - (ges_cwmr_it(i,j,k-1)-ges_cwmr_it(i,j,k))* &
+                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr(i,j,k-1)-ges_cwmr(i,j,k)) - &
+                    tmp2*( (cw(i,j,k-1)-cw(i,j,k)) - (ges_cwmr(i,j,k-1)-ges_cwmr(i,j,k))* &
                     prdif(i,j,k)*r_prdif9(i,j,k))
               end if
            end if
            if(k < nsig)then
               tmp=half*what(i,j,k+1)*r_prdif9(i,j,k)
               tmp2=half*what9(i,j,k+1)*r_prdif9(i,j,k)
-              q_t (i,j,k) = q_t (i,j,k) - tmp*(ges_q   (i,j,k,it)-ges_q   (i,j,k+1,it)) - &
-                 tmp2*( (q (i,j,k)-q (i,j,k+1)) - (ges_q   (i,j,k,it)-ges_q   (i,j,k+1,it))* &
+              q_t (i,j,k) = q_t (i,j,k) - tmp*(ges_q   (i,j,k)-ges_q   (i,j,k+1)) - &
+                 tmp2*( (q (i,j,k)-q (i,j,k+1)) - (ges_q   (i,j,k)-ges_q   (i,j,k+1))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
-              oz_t(i,j,k) = oz_t(i,j,k) - tmp*(ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it)) - &
-                 tmp2*( (oz(i,j,k)-oz(i,j,k+1)) - (ges_oz  (i,j,k,it)-ges_oz  (i,j,k+1,it))* &
+              oz_t(i,j,k) = oz_t(i,j,k) - tmp*(ges_oz  (i,j,k)-ges_oz  (i,j,k+1)) - &
+                 tmp2*( (oz(i,j,k)-oz(i,j,k+1)) - (ges_oz  (i,j,k)-ges_oz  (i,j,k+1))* &
                  prdif(i,j,k)*r_prdif9(i,j,k))
               if (icw>0) then
-                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1)) - &
-                    tmp2*( (cw(i,j,k)-cw(i,j,k+1)) - (ges_cwmr_it(i,j,k)-ges_cwmr_it(i,j,k+1))* &
+                 cw_t(i,j,k) = cw_t(i,j,k) - tmp*(ges_cwmr(i,j,k)-ges_cwmr(i,j,k+1)) - &
+                    tmp2*( (cw(i,j,k)-cw(i,j,k+1)) - (ges_cwmr(i,j,k)-ges_cwmr(i,j,k+1))* &
                     prdif(i,j,k)*r_prdif9(i,j,k))
               end if
            end if
@@ -426,6 +536,11 @@ subroutine calctends_tl(u,v,t,q,oz,cw,mype,nnn,u_t,v_t,t_t,p_t,q_t,oz_t,cw_t,pri
     end do
 
   end do
+  if (ihave_xtra_derivatives) then
+     deallocate(fvars2d,fvars3d)
+     call gsi_bundledestroy(yderivative,ier)
+     call gsi_bundledestroy(xderivative,ier)
+  endif
 ! end of threading loop
   return
 end subroutine calctends_tl

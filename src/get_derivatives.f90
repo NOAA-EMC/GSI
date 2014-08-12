@@ -1,7 +1,4 @@
-subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
-                 u_x,v_x,t_x,p_x,q_x,oz_x,skint_x,cwmr_x, &
-                 u_y,v_y,t_y,p_y,q_y,oz_y,skint_y,cwmr_y, &
-                 nlevs,nfldsig)
+subroutine get_derivatives (guess,xderivative,yderivative)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_derivatives  compute horizontal derivatives
@@ -21,36 +18,14 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2012-06-12  parrish - make changes to replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
 !                         Remove arrays slndt, sicet, slndt_x, sicet_x, slndt_y, sicet_y,
 !                         and variable nsig1o.
+!   2013-10-19  todling - derivatives now in bundle
 !
 !   input argument list:
-!     u        - longitude velocity component
-!     v        - latitude velocity component
-!     t        - virtual temperature
-!     p        - ln(psfc)
-!     q        - moisture
-!     oz       - ozone
-!     skint    - skin temperature
-!     cwmr     - cloud water mixing ratio
-!     nlevs    - number of levs on current processor in horizontal slab mode
-!     nfldsig  - number of time levels
+!     guess    - bundle holding guess fields
 !
 !   output argument list:
-!     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
-!     v_x      - longitude derivative of v  (note: in global mode, undefined at pole points)
-!     t_x      - longitude derivative of t
-!     p_x      - longitude derivative of ln(psfc)
-!     q_x      - longitude derivative of moisture
-!     oz_x     - longitude derivative of ozone
-!     skint_x  - longitude derivative of skin temperature
-!     cwmr_x   - longitude derivative of cwmr
-!     u_y      - latitude derivative of u  (note: in global mode, undefined at pole points)
-!     v_y      - latitude derivative of v  (note: in global mode, undefined at pole points)
-!     t_y      - latitude derivative of t
-!     p_y      - latitude derivative of ln(psfc)
-!     q_y      - latitude derivative of moisture
-!     oz_y     - latitude derivative of ozone
-!     skint_y  - latitude derivative of skin temperature
-!     cwmr_y   - latitude derivative of cwmr
+!     xderivative - longitudinal derivative
+!     yderivative - latitudinal  derivative
 !
 !   note:  u_x,v_x,u_y,v_y are not evaluated at the poles
 !     all other derivatives are
@@ -78,8 +53,6 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use constants, only: zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: compact_dlat,compact_dlon
-  use control_vectors, only: cvars2d
-  use control_vectors, only: cvars3d
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetvar
@@ -87,29 +60,41 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundleinquire
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use general_commvars_mod, only: s2g_d
+  use mpeu_util, only: die
 
   implicit none
 
 ! Passed variables
-  integer(i_kind)                          ,intent(in   ) :: nlevs,nfldsig
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(in   ) :: p
-  real(r_kind),dimension(lat2,lon2)        ,intent(in   ) :: skint
-  real(r_kind),dimension(lat2,lon2,nsig)   ,intent(in   ) :: t,q,cwmr,oz,u,v
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(  out) :: p_x
-  real(r_kind),dimension(lat2,lon2)        ,intent(  out) :: skint_x
-  real(r_kind),dimension(lat2,lon2,nsig)   ,intent(  out) :: t_x,q_x,cwmr_x,oz_x,u_x,v_x
-  real(r_kind),dimension(lat2,lon2,nfldsig),intent(  out) :: p_y
-  real(r_kind),dimension(lat2,lon2)        ,intent(  out) :: skint_y
-  real(r_kind),dimension(lat2,lon2,nsig)   ,intent(  out) :: t_y,q_y,cwmr_y,oz_y,u_y,v_y
+  type(gsi_bundle) :: guess
+  type(gsi_bundle) :: xderivative
+  type(gsi_bundle) :: yderivative
 
 ! Local Variables
   character(len=*),parameter::myname='get_derivatives'
-  integer(i_kind) k,i,j,it,ii,rc,ier
+  integer(i_kind) k,ic,ier,istatus
   real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hworkd
-  type(gsi_bundle):: cstate
+  real(r_kind),dimension(:,:,:),pointer :: ptr3dges=>NULL()
+  real(r_kind),dimension(:,:  ),pointer :: ptr2dges=>NULL()
+  real(r_kind),dimension(:,:,:),pointer :: ptr3ddrv=>NULL()
+  real(r_kind),dimension(:,:  ),pointer :: ptr2ddrv=>NULL()
+  character(len=20),dimension(:),allocatable:: dvars2d
+  character(len=20),dimension(:),allocatable:: dvars3d
+  type(gsi_bundle):: work_bundle
   type(gsi_grid) :: grid
+
+! inquire variable names in x(y)derivative
+
+  if(xderivative%n2d>0) allocate(dvars2d(xderivative%n2d))
+  if(xderivative%n3d>0) allocate(dvars3d(xderivative%n3d))
+  call gsi_bundleinquire (xderivative,'shortnames::2d',dvars2d,istatus)
+  ier=istatus
+  call gsi_bundleinquire (xderivative,'shortnames::3d',dvars3d,istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname,': cannot determine field names',ier)
 
   allocate(hwork (s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
   allocate(hworkd(s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
@@ -118,24 +103,33 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 
   ier=0
   call gsi_gridcreate(grid,lat2,lon2,nsig)
-  do it=1,nfldsig
-     call gsi_bundlecreate (cstate,grid,'derivatives work',ier, &
-                            names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
+
+     call gsi_bundlecreate (work_bundle,grid,'derivatives work',ier, &
+                            names2d=dvars2d,names3d=dvars3d,bundle_kind=r_kind)
      if(ier/=0) then
-        write(6,*) trim(myname), ': trouble creating work bundle'
+        write(6,*) myname, ': trouble creating work bundle'
         call stop2(999)
      endif
-     call gsi_bundleputvar ( cstate, 'ps' , p(:,:,it), rc )
-     call gsi_bundleputvar ( cstate, 'sf' , u,         rc )
-     call gsi_bundleputvar ( cstate, 'vp' , v,         rc )
-     call gsi_bundleputvar ( cstate, 't'  , t,         rc )
-     call gsi_bundleputvar ( cstate, 'q ' , q,         rc )
-     call gsi_bundleputvar ( cstate, 'oz' , oz,        rc )
-     call gsi_bundleputvar ( cstate, 'cw' , cwmr,      rc )
-     call gsi_bundleputvar ( cstate, 'sst', skint,     rc )
 
-     call general_sub2grid(s2g_d,cstate%values,hwork)
+!    copy relevant fields from guess to work_bundle
+     do ic=1,size(dvars2d)
+        ier=0
+        call gsi_bundlegetpointer (guess,      dvars2d(ic),ptr2dges,istatus)
+        ier=ier+istatus
+        call gsi_bundlegetpointer (work_bundle,dvars2d(ic),ptr2ddrv,istatus)
+        ier=ier+istatus
+        if(ier==0) ptr2ddrv=ptr2dges
+     enddo
+     do ic=1,size(dvars3d)
+        ier=0
+        call gsi_bundlegetpointer (guess,      dvars3d(ic),ptr3dges,istatus)
+        ier=ier+istatus
+        call gsi_bundlegetpointer (work_bundle,dvars3d(ic),ptr3ddrv,istatus)
+        ier=ier+istatus
+        if(ier==0) ptr3ddrv=ptr3dges
+     enddo
 
+     call general_sub2grid(s2g_d,work_bundle%values,hwork)
 
 !    x derivative
 !              !$omp parallel do private(k,vector)     !  fix later
@@ -147,15 +141,7 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
         end if
      end do
 !                !$omp end parallel do                   !  fix later
-     call general_grid2sub(s2g_d,hworkd,cstate%values)
-     call gsi_bundlegetvar ( cstate, 'ps' , p_x(:,:,it), rc )
-     call gsi_bundlegetvar ( cstate, 'sf' , u_x,         rc )
-     call gsi_bundlegetvar ( cstate, 'vp' , v_x,         rc )
-     call gsi_bundlegetvar ( cstate, 't'  , t_x,         rc )
-     call gsi_bundlegetvar ( cstate, 'q ' , q_x,         rc )
-     call gsi_bundlegetvar ( cstate, 'oz' , oz_x,        rc )
-     call gsi_bundlegetvar ( cstate, 'cw' , cwmr_x,      rc )
-     call gsi_bundlegetvar ( cstate, 'sst', skint_x,     rc )
+     call general_grid2sub(s2g_d,hworkd,xderivative%values)
 
 !    y derivative
 !                  !$omp parallel do private(k,vector)    !  fix later ?????????
@@ -166,33 +152,24 @@ subroutine get_derivatives(u,v,t,p,q,oz,skint,cwmr, &
            call compact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
         end if
      end do
-!                   !$omp end parallel do                   !  fix later ?????????
-     call general_grid2sub(s2g_d,hworkd,cstate%values)
-     call gsi_bundlegetvar ( cstate, 'ps' , p_y(:,:,it), rc )
-     call gsi_bundlegetvar ( cstate, 'sf' , u_y,         rc )
-     call gsi_bundlegetvar ( cstate, 'vp' , v_y,         rc )
-     call gsi_bundlegetvar ( cstate, 't'  , t_y,         rc )
-     call gsi_bundlegetvar ( cstate, 'q ' , q_y,         rc )
-     call gsi_bundlegetvar ( cstate, 'oz' , oz_y,        rc )
-     call gsi_bundlegetvar ( cstate, 'cw' , cwmr_y,      rc )
-     call gsi_bundlegetvar ( cstate, 'sst', skint_y,     rc )
-
+!
+     call general_grid2sub(s2g_d,hworkd,yderivative%values)
+     
 !    clean work space
-     call gsi_bundledestroy(cstate,ier)
+     call gsi_bundledestroy(work_bundle,ier)
      if(ier/=0) then
-        write(6,*) trim(myname), ': trouble destroying work bundle'
+        write(6,*) myname, ': trouble destroying work bundle'
         call stop2(999)
      endif
-  end do  ! end do it
 
   deallocate(hwork,hworkd)
+  deallocate(dvars2d,dvars3d)
 
   return
 end subroutine get_derivatives
 
-subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
-                 u_x,v_x,t_x,p_x,q_x,oz_x,skint_x,cwmr_x, &
-                 u_y,v_y,t_y,p_y,q_y,oz_y,skint_y,cwmr_y,nlevs)
+subroutine tget_derivatives(guess,xderivative,yderivative)
+
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tget_derivatives  adjoint of get_derivatives
@@ -210,36 +187,15 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
 !   2012-06-12  parrish - make changes to replace sub2grid/grid2sub with general_sub2grid/general_grid2sub.
 !                         Remove arrays slndt, sicet, slndt_x, sicet_x, slndt_y, sicet_y,
 !                         and variable nsig1o.
+!   2013-10-19  todling - derivatives now in bundle
 !   2013-12-18  parrish - change "call delx_reg" to "call tdelx_reg" and "call dely_reg" to "call tdely_reg"
 !
 !   input argument list:
-!     u_x      - longitude derivative of u  (note: in global mode, undefined at pole points)
-!     v_x      - longitude derivative of v  (note: in global mode, undefined at pole points)
-!     t_x      - longitude derivative of t
-!     p_x      - longitude derivative of ln(psfc)
-!     q_x      - longitude derivative of moisture
-!     oz_x     - longitude derivative of ozone
-!     skint_x  - longitude derivative of skin temperature
-!     cwmr_x   - longitude derivative of cwmr
-!     u_y      - latitude derivative of u  (note: in global mode, undefined at pole points)
-!     v_x      - latitude derivative of v  (note: in global mode, undefined at pole points)
-!     t_y      - latitude derivative of t
-!     p_y      - latitude derivative of ln(psfc)
-!     q_y      - latitude derivative of moisture
-!     oz_y     - latitude derivative of ozone
-!     skint_y  - latitude derivative of skin temperature
-!     cwmr_y   - latitude derivative of cwmr
-!     nlevs    - number of levs on current processor in horizontal slab mode
+!     xderivatives - longitude derivatives
+!     yderivatives - latitude derivatives
 !
 !   output argument list:
-!     u        - longitude velocity component
-!     v        - latitude velocity component
-!     t        - virtual temperature
-!     p        - ln(psfc)
-!     q        - moisture
-!     oz       - ozone
-!     skint    - skin temperature
-!     cwmr     - cloud water mixing ratio
+!     guess    - guess fields
 !
 ! attributes:
 !   language: f90
@@ -251,8 +207,6 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use constants, only: zero
   use gridmod, only: regional,nlat,nlon,lat2,lon2,nsig
   use compact_diffs, only: tcompact_dlat,tcompact_dlon
-  use control_vectors, only: cvars2d
-  use control_vectors, only: cvars3d
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetvar
@@ -261,54 +215,53 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   use gsi_bundlemod, only: gsi_grid
   use gsi_bundlemod, only: gsi_gridcreate
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_bundlemod, only: gsi_bundleinquire
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use general_commvars_mod, only: s2g_d
+  use mpeu_util, only: die
   implicit none
 
 ! Passed variables
-  integer(i_kind)                       ,intent(in   ) :: nlevs
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p,skint
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,cwmr,oz,u,v
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p_x,skint_x
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t_x,q_x,cwmr_x,oz_x,u_x,v_x
-  real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p_y,skint_y
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t_y,q_y,cwmr_y,oz_y,u_y,v_y
+  type(gsi_bundle) :: guess
+  type(gsi_bundle) :: xderivative
+  type(gsi_bundle) :: yderivative
 
 ! Local Variables
   character(len=*),parameter::myname='tget_derivatives'
-  integer(i_kind) k,i,j,ii,rc,ier
+  integer(i_kind) k,ic,ier,istatus
   real(r_kind),allocatable,dimension(:,:,:,:):: hwork,hworkd
-  type(gsi_bundle):: cstate
+  real(r_kind),pointer    ,dimension(:,:,:)  :: ptr3dges=>NULL()
+  real(r_kind),pointer    ,dimension(:,:,:)  :: ptr3ddrv=>NULL()
+  real(r_kind),pointer    ,dimension(:,:)    :: ptr2dges=>NULL()
+  real(r_kind),pointer    ,dimension(:,:)    :: ptr2ddrv=>NULL()
+  character(len=20),dimension(:),allocatable:: dvars2d
+  character(len=20),dimension(:),allocatable:: dvars3d
+  type(gsi_bundle):: derivative
   type(gsi_grid):: grid
+
+! inquire variable names in x(y)derivative
+
+  if(xderivative%n2d>0) allocate(dvars2d(xderivative%n2d))
+  if(xderivative%n3d>0) allocate(dvars3d(xderivative%n3d))
+  call gsi_bundleinquire (xderivative,'shortnames::2d',dvars2d,istatus)
+  ier=istatus
+  call gsi_bundleinquire (xderivative,'shortnames::3d',dvars3d,istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname,': cannot determine field names',ier)
+
+!        use s2g_d%kend_alloc instead of s2g_d%kend_loc to force hworkd=0 even if not used on this pe
 
   allocate(hwork (s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
   allocate(hworkd(s2g_d%inner_vars,s2g_d%nlat,s2g_d%nlon,s2g_d%kbegin_loc:s2g_d%kend_alloc))
 
-!        use s2g_d%kend_alloc instead of s2g_d%kend_loc to force hworkd=0 even if not used on this pe
-  ier=0
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
   hwork=zero
 
 !   adjoint of y derivative
 
-  call gsi_gridcreate(grid,lat2,lon2,nsig)
-  call gsi_bundlecreate (cstate,grid,'ad derivatives work',ier, &
-                         names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
-  if(ier/=0) then
-     write(6,*) trim(myname), ': trouble creating work bundle'
-     call stop2(999)
-  endif
-  call gsi_bundleputvar ( cstate, 'ps', p_y,    rc )
-  call gsi_bundleputvar ( cstate, 'sf', u_y,    rc )
-  call gsi_bundleputvar ( cstate, 'vp', v_y,    rc )
-  call gsi_bundleputvar ( cstate, 't' , t_y,    rc )
-  call gsi_bundleputvar ( cstate, 'q ', q_y,    rc )
-  call gsi_bundleputvar ( cstate, 'oz', oz_y,   rc )
-  call gsi_bundleputvar ( cstate, 'cw', cwmr_y, rc )
-  call gsi_bundleputvar ( cstate, 'sst', skint, rc )
-
-  call general_sub2grid(s2g_d,cstate%values,hworkd)
+  call general_sub2grid(s2g_d,yderivative%values,hworkd)
 !     !$omp parallel do private(k,vector)   !  fix later ???????????
   do k=s2g_d%kbegin_loc,s2g_d%kend_loc
      if(regional) then
@@ -317,20 +270,10 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
         call tcompact_dlat(hwork(1,:,:,k),hworkd(1,:,:,k),s2g_d%vector(k))
      end if
   end do
-!     !$omp end parallel do   !  fix later ???????????
 
 !   adjoint of x derivative
 
-  call gsi_bundleputvar ( cstate, 'ps', p_x,    rc )
-  call gsi_bundleputvar ( cstate, 'sf', u_x,    rc )
-  call gsi_bundleputvar ( cstate, 'vp', v_x,    rc )
-  call gsi_bundleputvar ( cstate, 't' , t_x,    rc )
-  call gsi_bundleputvar ( cstate, 'q ', q_x,    rc )
-  call gsi_bundleputvar ( cstate, 'oz', oz_x,   rc )
-  call gsi_bundleputvar ( cstate, 'cw', cwmr_x, rc )
-  call gsi_bundleputvar ( cstate, 'sst', skint, rc )
-
-  call general_sub2grid(s2g_d,cstate%values,hworkd)
+  call general_sub2grid(s2g_d,xderivative%values,hworkd)
 !     !$omp parallel do private(k,vector)   ! fix later ?????
   do k=s2g_d%kbegin_loc,s2g_d%kend_loc
      if(regional) then
@@ -341,46 +284,43 @@ subroutine tget_derivatives(u,v,t,p,q,oz,skint,cwmr, &
   end do
 !     !$omp end parallel do                 ! fix later ??????
 
-!       use t_x,etc since don't need to save contents
-  call general_grid2sub(s2g_d,hwork,cstate%values)
-  call gsi_bundlegetvar ( cstate, 'ps', p_x,    rc )
-  call gsi_bundlegetvar ( cstate, 'sf', u_x,    rc )
-  call gsi_bundlegetvar ( cstate, 'vp', v_x,    rc )
-  call gsi_bundlegetvar ( cstate, 't' , t_x,    rc )
-  call gsi_bundlegetvar ( cstate, 'q ', q_x,    rc )
-  call gsi_bundlegetvar ( cstate, 'oz', oz_x,   rc )
-  call gsi_bundlegetvar ( cstate, 'cw', cwmr_x, rc )
-  call gsi_bundlegetvar ( cstate, 'sst', skint, rc )
-
-  call gsi_bundledestroy(cstate,ier)
+  ier=0
+  call gsi_gridcreate(grid,lat2,lon2,nsig)
+  call gsi_bundlecreate (derivative,grid,'AD derivs work',ier, &
+                         names2d=dvars2d,names3d=dvars3d,bundle_kind=r_kind)
   if(ier/=0) then
-     write(6,*) trim(myname), ': trouble destroying work bundle'
+     write(6,*) myname, ': trouble creating work bundle'
      call stop2(999)
   endif
 
-!   accumulate to contents of t,p,etc (except st,vp, which are zero on input
-!     !$omp parallel do private(k,j,i)   ! fix later ????
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           t(i,j,k)=t(i,j,k)+t_x(i,j,k)
-           q(i,j,k)=q(i,j,k)+q_x(i,j,k)
-           u(i,j,k)=u(i,j,k)+u_x(i,j,k)
-           v(i,j,k)=v(i,j,k)+v_x(i,j,k)
-           oz(i,j,k)=oz(i,j,k)+oz_x(i,j,k)
-           cwmr(i,j,k)=cwmr(i,j,k)+cwmr_x(i,j,k)
-        end do
-     end do
-  end do
-!       !$omp end parallel do      ! fix later ????
-  do j=1,lon2
-     do i=1,lat2
-        p(i,j)=p(i,j)+p_x(i,j)
-        skint(i,j)=skint(i,j)+skint_x(i,j)
-     end do
-  end do
+  call general_grid2sub(s2g_d,hwork,derivative%values)
+
+! Accumulate results
+  do ic=1,size(dvars3d)
+     ier=0
+     call gsi_bundlegetpointer (guess,     dvars3d(ic),ptr3dges,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (derivative,dvars3d(ic),ptr3ddrv,istatus)
+     ier=ier+istatus
+     if(ier==0) ptr3dges = ptr3dges + ptr3ddrv
+  enddo
+  do ic=1,size(dvars2d)
+     ier=0
+     call gsi_bundlegetpointer (guess,     dvars2d(ic),ptr2dges,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (derivative,dvars2d(ic),ptr2ddrv,istatus)
+     ier=ier+istatus
+     if(ier==0) ptr2dges = ptr2dges + ptr2ddrv
+  enddo
+
+  call gsi_bundledestroy(derivative,ier)
+  if(ier/=0) then
+     write(6,*) myname, ': trouble destroying work bundle'
+     call stop2(999)
+  endif
 
   deallocate(hwork,hworkd)
+  deallocate(dvars2d,dvars3d)
 
 end subroutine tget_derivatives
 

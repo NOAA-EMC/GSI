@@ -20,6 +20,7 @@ module stpjcmod
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero,two,one,half,zero_quad,one_quad,two_quad
 use gsi_bundlemod, only: gsi_bundle,gsi_bundlegetpointer
+use gsi_metguess_mod, only: gsi_metguess_bundle
 
 implicit none
 
@@ -70,7 +71,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
 !$$$
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
   use jfunc, only: factqmin,factqmax
-  use guess_grids, only: ges_q,ges_qsat
+  use guess_grids, only: ges_qsat
   implicit none
 
 ! Declare passed variables
@@ -83,6 +84,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
   integer(i_kind) i,j,k,kk,ier,istatus
   real(r_kind) q,qx
   real(r_kind),pointer,dimension(:,:,:) :: rq,sq
+  real(r_kind),pointer,dimension(:,:,:) :: ges_q_it=>NULL()
 
   outmin=zero_quad; outmax=zero_quad
 
@@ -95,6 +97,9 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
   if(ier/=0)return
 
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'q',ges_q_it,ier)
+  if(ier/=0)return
+
 ! Loop over interior of subdomain
   if(nstep > 0)then
      do k = 1,nsig
@@ -102,7 +107,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
            do i = 2,lat1+1
 
 !             Values for q using stepsizes
-              q  = ges_q(i,j,k,itbin) + sq(i,j,k)
+              q  = ges_q_it(i,j,k) + sq(i,j,k)
               do kk=1,nstep
                  qx = q + sges(kk)*rq(i,j,k)
                  if(qx < zero)then
@@ -123,7 +128,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
            do i = 2,lat1+1
 
 !             Values for q using stepsizes
-              q  = ges_q(i,j,k,itbin)
+              q  = ges_q_it(i,j,k)
               if(q < zero)then
                  outmin(1)=outmin(1)+factqmin*q*q/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
               else
@@ -170,7 +175,8 @@ subroutine stplimg(rval,sval,sges,out,nstep)
 !
 !$$$
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factg,ggues
+  use derivsmod, only: ggues
+  use jfunc, only: factg
   implicit none
 
 ! Declare passed variables
@@ -180,7 +186,7 @@ subroutine stplimg(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) gust,gx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
 
@@ -244,7 +250,8 @@ subroutine stplimp(rval,sval,sges,out,nstep)
 !
 !$$$
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factp,pgues
+  use derivsmod, only: pgues
+  use jfunc, only: factp
   implicit none
 
 ! Declare passed variables
@@ -254,7 +261,7 @@ subroutine stplimp(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) pblh,px
   real(r_kind),pointer,dimension(:,:) :: rp,sp
 
@@ -318,7 +325,8 @@ subroutine stplimv(rval,sval,sges,out,nstep)
 !
 !$$$
   use gridmod, only: lat1,lon1,lat2,lon2,nsig
-  use jfunc, only: factv,vgues
+  use jfunc, only: factv
+  use derivsmod, only: vgues
   implicit none
 
 ! Declare passed variables
@@ -328,7 +336,7 @@ subroutine stplimv(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) vis,vx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
 
@@ -381,6 +389,7 @@ subroutine stpjcpdry(rval,sval,pen,b,c)
 !   2010-05-25  derber  - modify to decrease number of communications
 !   2010-08-18  hu      - add qpvals= to mpl_allreduce call
 !   2011-11-01  eliu    - add handling for ql & qi increments and search directions
+!   2013-05-05  todling - separate dry mass from the rest (zero-diff change)
 !
 !   input argument list:
 !     rq       - q search direction
@@ -461,12 +470,14 @@ subroutine stpjcpdry(rval,sval,pen,b,c)
         do i=2,lat2-1
            ii=istart(mm1)+i-2
            con=(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)*rcon
+           dmass(1)=dmass(1) - sq(i,j,k)*con
+           dmass(2)=dmass(2) - rq(i,j,k)*con
            if(icw==0)then
-              dmass(1)=dmass(1) - (sq(i,j,k)+sc(i,j,k))*con
-              dmass(2)=dmass(2) - (rq(i,j,k)+rc(i,j,k))*con
+              dmass(1)=dmass(1) - sc(i,j,k)*con
+              dmass(2)=dmass(2) - rc(i,j,k)*con
            else
-              dmass(1)=dmass(1) - (sq(i,j,k)+sql(i,j,k)+sqi(i,j,k))*con
-              dmass(2)=dmass(2) - (rq(i,j,k)+rql(i,j,k)+rqi(i,j,k))*con
+              dmass(1)=dmass(1) - (sql(i,j,k)+sqi(i,j,k))*con
+              dmass(2)=dmass(2) - (rql(i,j,k)+rqi(i,j,k))*con
            endif
         end do
      end do
@@ -497,6 +508,7 @@ subroutine stpjcdfi(rval,sval,pen,b,c)
 !
 ! program history log:
 !   2012-01-19  kleist - adaptation of evaljcdfi
+!   2013-05-15  todling - penalty should be non-zero on root only
 !
 !   input argument list:
 !     rval     -
@@ -563,11 +575,12 @@ subroutine stpjcdfi(rval,sval,pen,b,c)
   call enorm_state(rfilter,rjc,bfilter)
 
 ! Penalty, b, c
-  pen =  dot_product(afilter,afilter)
-  b   = -dot_product(afilter,bfilter)
-  c   =  dot_product(bfilter,bfilter)
-
-  if (mype==0) write(6,*)'Jc DFI penalty = ',pen
+  if (mype==0) then
+     pen =  dot_product(afilter,afilter)
+     b   = -dot_product(afilter,bfilter)
+     c   =  dot_product(bfilter,bfilter)
+     write(6,*)'Jc DFI penalty = ',pen
+  endif
 
   call deallocate_state(sfilter)
   call deallocate_state(afilter)

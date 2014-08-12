@@ -37,7 +37,6 @@ module obsmod
 !   2005-12-21  treadon  - add arrays and code for gps data
 !   2006-02-03  derber   - add new obs control and simplify makecobs call
 !   2006-02-17  treadon  - add stat check on all allocate and deallocate
-!   2006-02-27  todling  - introduce ndatmax
 !   2006-03-21  treadon  - modify optional perturbation to observations
 !   2006-04-19  treadon  - add logical switch dtbduv_on
 !   2006-05-05  treadon  - add maximum time window variable
@@ -52,7 +51,6 @@ module obsmod
 !   2007-03-09        su - add observation perturbation paramters in the
 !                          observation position structure
 !   2007-03-19  tremolet - binning of observations
-!   2007-04-17  todling  - getting nhr_assimilation from gsi_4dvar
 !   2007-05-03  todling  - add reference to o3l
 !   2007-05-30  h.liu    - change wij to 2d array for oz_ob_type, ozo_ob_type
 !   2007-05-31  tremolet - add observation diagnostics structure
@@ -85,7 +83,16 @@ module obsmod
 !   2011-02-09      zhu  - add gust,visibility,and pbl height
 !   2011-11-14  whitaker - set ndat_times = 1, when assimilation window is less than 6 hours
 !   2011-11-14  wu       - add logical for extended forward model on rawinsonde data
+!   2012-04-05  todling  - nullify ich in rad_ob_type and aero_ob_type; also dealloc them
+!   2012-09-10  wargan   - add  OMI with efficiency factors
 !   2013-05-19  zhu      - add pred and idx in t_ob_type for aircraft temperature bias correction
+!   2013-09-27  todling - revisit handling of ob-instr/type (now in table of its own)
+!   2014-01-31  guo      - removed redundant "type codiags", which is identical to "type odiags".
+!                        - renamed odiags to aofp_obs_diag, "array-of-Fortran-pointers of obs_diag",
+!                          for explicity.
+!                        - removed type(aofp_obs_diag) from public entity list, which is not used
+!                          anywhere else, except in this module.  It might be needed to be public
+!                          in the future, but atleast not now.
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -111,6 +118,8 @@ module obsmod
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
 !   def dsfcalc      - specifies method to determine surface fields within a FOV
+!                      when equal to one, integrate model fields over FOV. 
+!                      when not one, bilinearly interpolate model fields to FOV center.
 !   def dfile        - input observation file names
 !   def dsis         - sensor/instrument/satellite flag from info files
 !   def dtype        - observation types
@@ -120,7 +129,6 @@ module obsmod
 !   def obsfile_all  - file containing observations after initial read
 !   def ndat_types   - number of available data types
 !   def ndat_times   - number of available synoptic times
-!   def ndatmax      - maximum number of data types
 !   def ndat         - total number of data types
 !   def ipoint       - pointer to input namelist for particular processor
 !   def iadate       - analysis date and time array
@@ -131,6 +139,8 @@ module obsmod
 !   def nsat1        - number of observations of satellites in each pe
 !   def mype_diaghdr - pe id for writing out satellite diagnostic file
 !   def dval         - relative value of each profile within group
+!                      relative weight for observation = dval/sum(dval)
+!                      within grid box
 !   def dmesh        - mesh size (km) for radiance thinning grid (used in satthin)
 !   def pshead       - surface pressure linked list head
 !   def pstail       - surface pressure linked list tail
@@ -275,6 +285,7 @@ module obsmod
   public :: ran01dom
   public :: destroy_genstats_gps
   public :: inquire_obsdiags
+  public :: dfile_format
 ! set passed variables to public
   public :: iout_pcp,iout_rad,iadate,write_diag,reduce_diag,oberrflg,ndat,dthin,dmesh,l_do_adjoint
   public :: lsaveobsens,lag_ob_type,o3l_ob_type,oz_ob_type,colvk_ob_type,pcp_ob_type,dw_ob_type
@@ -290,7 +301,7 @@ module obsmod
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
-  public :: perturb_fact,dtbduv_on,ndatmax,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
+  public :: perturb_fact,dtbduv_on,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
   public :: pwhead,oztail,ozhead,o3ltail,o3lhead,colvktail,colvkhead,pcptail,pcphead,gpstail,gpshead
@@ -298,7 +309,7 @@ module obsmod
   public :: aero_ob_head,aero_ob_type,aerohead,aerotail,i_aero_ob_type
   public :: aerol_ob_head,aerol_ob_type,aerolhead,aeroltail,i_aerol_ob_type
   public :: pm2_5_ob_head,pm2_5_ob_type,i_pm2_5_ob_type,pm2_5head,pm2_5tail
-  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nlco,nobskeep,gps_alltail
+  public :: radptr,radtail,radhead,lagtail,laghead,nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep,gps_alltail
   public :: radptrm,radtailm,radheadm
   public :: grids_dim,rmiss_single,nchan_total,tcpptr,tcphead,tcptail,mype_sst,mype_gps
   public :: mype_uv,mype_dw,mype_rw,mype_srw,mype_q,mype_tcp,mype_lag,mype_ps,mype_t
@@ -315,14 +326,23 @@ module obsmod
   public :: gust_ob_head,vis_ob_head,pblh_ob_head
   public :: pcp_ob_head,o3l_ob_head,gps_ob_head
   public :: lag_ob_head,srw_ob_head,pw_ob_head,oz_ob_head,rad_ob_head
-  public :: tcp_ob_head,colvk_ob_head,odiags
+  public :: tcp_ob_head,colvk_ob_head
   public :: mype_aero,iout_aero,nlaero
   public :: mype_pm2_5,iout_pm2_5
-  public :: codiags,use_limit,lrun_subdirs
+  public :: use_limit,lrun_subdirs
   public :: l_foreaft_thin
 
+  public :: obsmod_init_instr_table
+  public :: obsmod_final_instr_table
+
+  interface obsmod_init_instr_table
+          module procedure init_instr_table_
+  end interface
+  interface obsmod_final_instr_table
+          module procedure final_instr_table_
+  end interface
+
 ! Set parameters
-  integer(i_kind),parameter:: ndatmax = 200  ! maximum number of observation files
   real(r_single), parameter:: rmiss_single = -999.0_r_single
 
 ! Set bufr missing value
@@ -386,15 +406,10 @@ module obsmod
      type(obs_diag), pointer :: tail => NULL()
   end type obs_diags
 
-  type odiags
+  type aofp_obs_diag   ! array-of-Fortran-pointers of type(obs_diag)
      sequence
      type(obs_diag), pointer :: ptr => NULL()
-  end type odiags
-
-  type codiags 
-      sequence 
-      type(obs_diag), pointer :: ptr => NULL()
-  end type codiags
+  end type aofp_obs_diag
 
 ! Main observation data structure
 
@@ -692,7 +707,7 @@ module obsmod
   type oz_ob_type
      sequence
      type(oz_ob_type),pointer :: llpoint => NULL()
-     type(odiags), dimension(:), pointer :: diags => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
                                       !  ozone residual
      real(r_kind),dimension(:),pointer :: err2 => NULL()
@@ -711,6 +726,8 @@ module obsmod
      logical         :: luse          !  flag indicating if ob is used in pen.
 
      integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
+     real(r_kind),dimension(:),pointer :: apriori    ! OMI retrieval first guess
+     real(r_kind),dimension(:),pointer :: efficiency ! OMI efficiency factor
   end type oz_ob_type
 
   type oz_ob_head    
@@ -744,7 +761,7 @@ module obsmod
   type colvk_ob_type
      sequence
      type(colvk_ob_type),pointer :: llpoint => NULL()
-     type(codiags), dimension(:), pointer :: diags => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
                                       !  co residual
      real(r_kind),dimension(:),pointer :: err2 => NULL()
@@ -781,7 +798,7 @@ module obsmod
   type aero_ob_type
      sequence
      type(aero_ob_type),pointer :: llpoint => NULL()
-     type(odiags),dimension(:),pointer    :: diags => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer    :: res  => NULL()    !  aerosol property residual
      real(r_kind),dimension(:),pointer    :: err2 => NULL()    !  aerosol property error squared
      real(r_kind),dimension(:),pointer    :: raterr2 => NULL() !  square of ratio of final obs error
@@ -796,7 +813,7 @@ module obsmod
      integer(i_kind) :: nlaero                                 !  number of channels
      logical         :: luse                                   !  flag indicating if ob is used in pen.
      integer(i_kind) :: idv,iob                                !  device id and obs index for sorting
-     integer(i_kind),dimension(:),pointer :: ich
+     integer(i_kind),dimension(:),pointer :: ich => NULL()
   end type aero_ob_type
 
   type aero_ob_head
@@ -983,7 +1000,7 @@ module obsmod
   type rad_ob_type
      sequence
      type(rad_ob_type),pointer :: llpoint => NULL()
-     type(odiags), dimension(:), pointer :: diags => NULL()
+     type(aofp_obs_diag), dimension(:), pointer :: diags => NULL()
      real(r_kind),dimension(:),pointer :: res => NULL()
                                       !  error variances squared (nchan)
      real(r_kind),dimension(:),pointer :: err2 => NULL()
@@ -1002,7 +1019,7 @@ module obsmod
      logical         :: luse          !  flag indicating if ob is used in pen.
 
      integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
-     integer(i_kind),dimension(:),pointer :: ich
+     integer(i_kind),dimension(:),pointer :: ich => NULL()
   end type rad_ob_type
 
   type rad_ob_head   
@@ -1190,11 +1207,11 @@ module obsmod
 ! Declare global variables
 
   real(r_kind) perturb_fact,time_window_max,time_offset
-  real(r_kind),dimension(ndatmax):: dval,dmesh,time_window
+  real(r_kind),dimension(50):: dmesh
 
   integer(i_kind) grids_dim,nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
-  integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep
+  integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
   integer(i_kind) nlco,use_limit 
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
                   iout_oz,iout_ps,iout_pw,iout_rw
@@ -1206,18 +1223,22 @@ module obsmod
   integer(i_kind) nlaero, iout_aero, mype_aero
   integer(i_kind) iout_pm2_5, mype_pm2_5
   integer(i_kind),dimension(5):: iadate
-  integer(i_kind),dimension(ndatmax):: dsfcalc,dthin,ipoint
+  integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
   integer(i_kind),allocatable :: obscounts(:,:)
   
   character(128) obs_setup
   character(128) dirname
   character(128) obs_input_common
-  character(14),dimension(ndatmax):: obsfile_all
-  character(10),dimension(ndatmax):: dtype,ditype,dplat
-  character(15),dimension(ndatmax):: dfile
-  character(20),dimension(ndatmax):: dsis
+  character(20),allocatable,dimension(:):: obsfile_all
+  character(10),allocatable,dimension(:):: dtype,ditype,dplat
+  character(20),allocatable,dimension(:):: dfile
+  character(20),allocatable,dimension(:):: dsis
+  real(r_kind) ,allocatable,dimension(:):: dval
+  real(r_kind) ,allocatable,dimension(:):: time_window
   character(len=20) :: cobstype(nobs_type)
+
+  logical, save :: obs_instr_initialized_=.false.
 
   logical oberrflg,oberror_tune,perturb_obs,ref_obs,sfcmodel,dtbduv_on
   logical blacklst,lobsdiagsave,lobsdiag_allocated,lobskeep,lsaveobsens
@@ -1259,6 +1280,7 @@ contains
 !   2007-05-03  todling - use values def above as indexes to cobstype
 !   2008-11-25  todling - remove line-by-line adj triggers
 !   2011-02-09  zhu     - add gust,vis and pblh
+!   2013-09-27  todling - initialization of ob-instr/type move to sub init_instr_table_
 !
 !   input argument list:
 !
@@ -1348,26 +1370,13 @@ contains
     mype_pm2_5= max(0,npe-17)! pm2_5
     
 !   Initialize arrays used in namelist obs_input 
-    ndat = ndatmax          ! number of observation types (files)
     time_window_max = three ! set maximum time window to +/-three hours
-    do i=1,ndat
-       dfile(i) = ' '     ! local file name from which to read observatinal data
-       dtype(i) = ' '     ! character string identifying type of observation
-       ditype(i)= ' '     ! character string identifying group type of ob
-       dplat(i) = ' '     ! currently contains satellite id (no meaning for non-sat data)
-       dsis(i)  = ' '     ! sensor/instrument/satellite identifier for info files
-       dsfcalc(i)=0   ! use orig bilinear FOV surface calculation (routine deter_sfc)
-       ipoint(i)= 0   ! default pointer (values set in gsisub)
-       dthin(i) = 1    ! thinning flag (1=thinning on; otherwise off)
-       time_window(i) = time_window_max ! default to maximum time window
-       write(obsfile_all(i),100) i      ! name of scratch file to hold obs data
-    end do
-100 format('obs_input.',i4.4)
 
 
 !   Other initializations
     nloz_v6 = 12               ! number of "levels" in ozone version8 data
     nloz_v8 = 21               ! number of "levels" in ozone version6 data
+    nloz_omi= 11               ! number of "levels" in OMI apriori profile
     nlco    = 10               ! number of "levels" in MOPITT version 4 CO data
 
     lunobs_obs = 2             ! unit to which to write/read information
@@ -1579,7 +1588,7 @@ contains
   end subroutine create_passive_obsmod_vars
 
 ! ----------------------------------------------------------------------
-  subroutine init_obsmod_vars(mype)
+  subroutine init_obsmod_vars(nhr_assim,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_obsmod_vars
@@ -1589,6 +1598,7 @@ contains
 !
 ! program history log:
 !   2007-02-02  tremolet
+!   2012-09-27  todling - remove dmesh from loop below; slight revision
 !
 !   input argument list:
 !
@@ -1598,31 +1608,18 @@ contains
 !   language: f90
 !
 !$$$  end documentation block
-    use gsi_4dvar, only: nhr_assimilation
     use gridmod, only: regional,twodvar_regional
     implicit none
 
+    integer(i_kind),intent(in   ) :: nhr_assim
     integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) ii,jj,ioff
     character(len=2) :: cind
     logical :: limit
 
-!   Because obs come in 6-hour batches
-    ndat_times=nhr_assimilation/6
-!    if(regional .and. .not.twodvar_regional)ndat_times = nhr_assimilation/3
+!   if(regional .and. .not.twodvar_regional)ndat_times = nhr_assim/3
     if(twodvar_regional)ndat_times = 1
-    if(nhr_assimilation < 6)ndat_times = 1
-!   if (ndat_times*6/=nhr_assimilation) then
-!       write(6,*)'OBSMOD:  ***ERROR*** in assimilation time window setting; ', &
-!        ' must be a multiple of 6hrs: ndat_times= ', ndat_times, &
-!        ' nhr_assimilation= ', nhr_assimilation, &
-!              ' ***STOP IN OBSMOD***'
-!       call stop2(70)
-!   endif
-    ndat_types=ndat
-
-    ndat=ndat_times*ndat_types
 
 !   The following was in gsimain.
 !   Ensure time window specified in obs_input does not exceed
@@ -1646,7 +1643,6 @@ contains
           ioff=(ii-1)*ndat_types
           DO jj=1,ndat_types
              dfile (ioff+jj) = trim(dfile(jj))//'.'//cind
-!_RT???      dmesh (ioff+jj) = dmesh(jj)
              dtype (ioff+jj) = dtype(jj)
              ditype(ioff+jj) = ditype(jj)
              dplat (ioff+jj) = dplat(jj)
@@ -1654,12 +1650,15 @@ contains
              ipoint(ioff+jj) = ipoint(jj)
              dthin (ioff+jj) = dthin(jj)
              dval  (ioff+jj) = dval(jj)
+             dsfcalc(ioff+jj)= dsfcalc(jj)
+             obsfile_all(ioff+jj) = trim(obsfile_all(jj))//'.'//cind
              time_window(ioff+jj) = time_window(jj)
           ENDDO
        ENDDO
 !      Then change name for first time slot
        IF (ndat_times>1) THEN
           DO jj=1,ndat_types
+             obsfile_all(jj) = trim(obsfile_all(jj))//'.01'
              dfile(jj) = trim(dfile(jj))//'.01'
           ENDDO
        ENDIF
@@ -1668,7 +1667,7 @@ contains
     IF (mype==0) THEN
        write(6,*)'INIT_OBSMOD_VARS: ndat_times,ndat_types,ndat=', &
                                   & ndat_times,ndat_types,ndat
-       write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assimilation
+       write(6,*)'INIT_OBSMOD_VARS: nhr_assimilation=',nhr_assim
     ENDIF
 
     return
@@ -1824,7 +1823,9 @@ contains
           ozhead(ii)%head => oztail(ii)%head%llpoint
           deallocate(oztail(ii)%head%res, oztail(ii)%head%wij,&
                      oztail(ii)%head%err2,oztail(ii)%head%raterr2, &
-                     oztail(ii)%head%prs,oztail(ii)%head%ipos,stat=istatus)
+                     oztail(ii)%head%prs,oztail(ii)%head%ipos, &
+                     oztail(ii)%head%apriori, &
+                     oztail(ii)%head%efficiency, stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz arrays, istatus=',istatus
           deallocate(oztail(ii)%head,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for oz, istatus=',istatus
@@ -1849,6 +1850,7 @@ contains
         deallocate(aerotail(ii)%head%res, &
                    aerotail(ii)%head%err2,aerotail(ii)%head%raterr2, &
                    aerotail(ii)%head%daod_dvar, &
+                   aerotail(ii)%head%ich, &
                    aerotail(ii)%head%icx,stat=istatus)
         if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for aero arrays, istatus=',istatus
         deallocate(aerotail(ii)%head,stat=istatus)
@@ -1928,6 +1930,7 @@ contains
           deallocate(radtail(ii)%head%res,radtail(ii)%head%err2, &
                      radtail(ii)%head%raterr2,radtail(ii)%head%pred, &
                      radtail(ii)%head%dtb_dvar, &
+                     radtail(ii)%head%ich, &
                      radtail(ii)%head%icx,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS:  deallocate error for rad arrays, istatus=',istatus
           deallocate(radtail(ii)%head,stat=istatus)
@@ -2044,6 +2047,7 @@ contains
           radheadm(ii)%head => radtailm(ii)%head%llpoint
           deallocate(radtailm(ii)%head%res,radtailm(ii)%head%err2, &
                      radtailm(ii)%head%raterr2,radtailm(ii)%head%pred, &
+                     radtailm(ii)%head%ich,&
                      radtailm(ii)%head%icx,stat=istatus)
           if (istatus/=0) write(6,*)'DESTROYOBS_PASSIVE:  deallocate error for rad arrays, istatus=',istatus
           deallocate(radtailm(ii)%head,stat=istatus)
@@ -2220,5 +2224,200 @@ endif
 
 end subroutine inquire_obsdiags
 ! ----------------------------------------------------------------------
+function dfile_format(dfile) result(dform)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 function dfile_format
+!   prgmmr:	 j guo <jguo@nasa.gov>
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
+!     date:	 2013-02-04
+!
+! abstract: - check filename suffix to guess its format
+!
+! program history log:
+!   2013-02-04  j guo   - added this document block
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+
+! function interface:
+
+  implicit none
+
+  character(len=len('unknown')):: dform	! a 2-4 byte code for a format guess,
+  	! from a list of filename suffixes, 'bufr', 'text' (also for 'txt',
+	! 'tcvitle', or 'vitl'), 'nc', or return a default value 'unknown'.  One
+	! can extend the list to other suffixes, such as 'hdf', 'hdf4', 'hdf5',
+	! etc., if they are needed in the future.
+  character(len=*),intent(in):: dfile	! a given filename
+
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  character(len=*),parameter :: myname_=myname//'::dfile_format'
+  integer(i_kind):: i,l
+
+  dform='unknown'
+  l=len_trim(dfile)
+
+  i=max(0,l-6)+1	! 6 byte code?
+  select case(dfile(i:l))
+  case ('tcvitl')
+    dform='text'
+  end select
+  if(dform/='unknown') return
+
+  i=max(0,l-4)+1	! 4 byte code?
+  select case(dfile(i:l))
+  case ('bufr')
+    dform='bufr'
+  case ('text','vitl')
+    dform='text'
+  end select
+  if(dform/='unknown') return
+
+  i=max(0,l-3)+1	! 3 byte code?
+  select case(dfile(i:l))
+  case ('txt')		! a short
+    dform='text'
+  end select
+  if(dform/='unknown') return
+
+  i=max(0,l-2)+1	! 2 byte code?
+  select case(dfile(i:l))
+  case ('nc')
+    dform='nc'
+  end select
+
+return
+end function dfile_format
+
+subroutine init_instr_table_ (nhr_assim,nall,iamroot,rcname)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:	 function dfile_format
+!   prgmmr:	 todling
+!      org:	 NASA/GSFC, Global Modeling and Assimilation Office, 610.1
+!     date:	 2013-02-04
+!
+! abstract: - read instrument table from file
+!
+! program history log:
+!   2013-09-27  todling  - initial code
+!
+!   input argument list: see Fortran 90 style document below
+!
+!   output argument list: see Fortran 90 style document below
+!
+! attributes:
+!   language: Fortran 90 and/or above
+!   machine:
+!
+!$$$  end subprogram documentation block
+use file_utility, only : get_lun
+use mpeu_util, only: gettablesize
+use mpeu_util, only: gettable
+use mpeu_util, only: getindex
+implicit none
+
+integer(i_kind),intent(in)  :: nhr_assim       ! number of assimilation hours
+integer(i_kind),intent(out) :: nall            ! number of data_type*assim_intervals
+logical,optional,intent(in) :: iamroot         ! optional root processor id
+character(len=*),optional,intent(in) :: rcname ! optional input filename
+
+character(len=*),parameter::myname_=myname//'*init_instr_table_'
+character(len=*),parameter:: tbname='OBS_INPUT::'
+integer(i_kind) luin,ii,ntot,nrows
+character(len=256),allocatable,dimension(:):: utable
+logical iamroot_
+
+nall=0
+if(obs_instr_initialized_) return
+
+iamroot_=mype==0
+if(present(iamroot)) iamroot_=iamroot 
+
+! load file
+if (present(rcname)) then
+   luin=get_lun()
+   open(luin,file=trim(rcname),form='formatted')
+else
+   luin=5
+endif
+
+! Scan file for desired table first
+! and get size of table
+call gettablesize(tbname,luin,ntot,nrows)
+if(nrows==0) then
+   if(luin/=5) close(luin)
+   return
+endif
+
+! Get contents of table
+allocate(utable(nrows))
+call gettable(tbname,luin,ntot,nrows,utable)
+
+! release file unit
+if(luin/=5) close(luin)
+
+! Because obs come in 6-hour batches
+ndat_times=max(1,nhr_assim/6)
+ndat_types=nrows
+nall=ndat_times*ndat_types
+
+! allocate space for entries from table
+allocate(dfile(nall),dtype(nall),dplat(nall),&
+         dsis(nall),dval(nall),dthin(nall),dsfcalc(nall),&
+         time_window(nall),obsfile_all(nall))
+
+! things not in table, but dependent on nrows ... move somewhere else !_RTodling
+! reality is that these things are not a function of nrows
+allocate(ditype(nall),ipoint(nall))
+
+! Retrieve each token of interest from table and define
+! variables participating in state vector
+do ii=1,nrows
+   read(utable(ii),*) dfile(ii),& ! local file name from which to read observatinal data
+                      dtype(ii),& ! character string identifying type of observatio
+                      dplat(ii),& ! currently contains satellite id (no meaning for non-sat data)
+                      dsis(ii), & ! sensor/instrument/satellite identifier for info files
+                      dval(ii), & ! 
+                      dthin(ii),& ! thinning flag (1=thinning on; otherwise off)
+                      dsfcalc(ii) ! use orig bilinear FOV surface calculation (routine deter_sfc)
+
+   if(trim(dplat(ii))=='null') dplat(ii)=' '
+   ditype(ii)= ' '                    ! character string identifying group type of ob (see read_obs)
+   ipoint(ii)= 0                      ! default pointer (values set in gsisub) _RT: This is never needed
+   time_window(ii) = time_window_max  ! default to maximum time window
+   write(obsfile_all(ii),'(a,i4.4)') 'obs_input.', ii      ! name of scratch file to hold obs data
+   
+enddo
+
+deallocate(utable)
+
+obs_instr_initialized_=.true.
+
+end subroutine init_instr_table_
+
+subroutine final_instr_table_
+
+! clean up things initialized in init_instr_table_
+
+if(.not.obs_instr_initialized_) return
+
+deallocate(ditype,ipoint)
+
+deallocate(dfile,dtype,dplat,&
+           dsis,dval,dthin,dsfcalc,&
+           time_window,obsfile_all)
+
+obs_instr_initialized_ = .false.
+
+end subroutine final_instr_table_
 
 end module obsmod

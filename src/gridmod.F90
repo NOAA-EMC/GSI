@@ -15,6 +15,7 @@ module gridmod
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use omp_lib, only: omp_get_max_threads
+  use mpeu_util, only: die
   implicit none
 
 ! !DESCRIPTION: module containing grid related variable declarations
@@ -74,6 +75,8 @@ module gridmod
 !   2012-01-24 parrish  - correct bug in definition of region_dx, region_dy.
 !   2013-05-14 guo      - added "only" declaration to "use omp_lib", and removed
 !                         a redundant "use omp_lib".
+!   2013-10-24 todling  - general interface to strip routine
+!                       - move vars ltosj/i to commvars and corresponding load routines
 !   2012-12-04 s.liu    - added use_reflectivity flag
 !   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
 !
@@ -89,6 +92,7 @@ module gridmod
 ! set subroutines to public
   public :: init_grid
   public :: init_grid_vars
+  public :: final_grid_vars
   public :: init_subdomain_vars
   public :: create_grid_vars
   public :: destroy_grid_vars
@@ -102,14 +106,10 @@ module gridmod
   public :: fill_nmm_grid2a3
   public :: rotate_wind_ll2xy
   public :: rotate_wind_xy2ll
-  public :: load_grid
-  public :: fill_ns
-  public :: filluv_ns
   public :: get_ij
   public :: get_ijk
   public :: reorder
   public :: reorder2
-  public :: strip_single
   public :: strip
   public :: vectosub
   public :: reload
@@ -117,8 +117,8 @@ module gridmod
 
 ! set passed variables to public
   public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
-  public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g,ltosj_s,ltosi_s
-  public :: ltosj,ltosi,bk5,regional,latlon11,latlon1n,twodvar_regional
+  public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g
+  public :: bk5,regional,latlon11,latlon1n,twodvar_regional
   public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional,cmaq_regional
   public :: aeta2_ll,pdtop_ll,pt_ll,eta1_ll,eta2_ll,aeta1_ll,idsl5,ck5,ak5
   public :: tref5,idvc5,nlayers,msig,jstart,istart,region_lat,vlevs,nsig1o,rlats
@@ -137,6 +137,17 @@ module gridmod
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
   public :: use_reflectivity
+  public :: use_sp_eqspace
+
+  interface strip
+     module procedure strip_single_rank33_
+     module procedure strip_single_rank21_
+     module procedure strip_double_rank33_
+     module procedure strip_double_rank22_
+     module procedure strip_double_rank32_
+     module procedure strip_double_rank21_
+     module procedure strip_double_rank11_
+  end interface
 
   logical regional          ! .t. for regional background/analysis
   logical diagnostic_reg    ! .t. to activate regional analysis diagnostics
@@ -157,6 +168,7 @@ module gridmod
   logical hires_b           ! .t. when jcap_b requires double FFT
   logical use_gfs_nemsio    ! .t. for using NEMSIO to real global first guess
   logical use_reflectivity  ! .t. for using reflectivity for NMMB
+  logical use_sp_eqspace    ! .t. use equally-space grid in spectral transforms
 
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
@@ -237,12 +249,6 @@ module gridmod
   integer(i_kind),allocatable,dimension(:):: isd_g     !   displacement for send to global
   integer(i_kind),allocatable,dimension(:):: displs_s  !   displacement for send from subdomain
   integer(i_kind),allocatable,dimension(:):: displs_g  !   displacement for receive on global grid
-
-                                             ! array element indices for location of ...
-  integer(i_kind),allocatable,dimension(:):: ltosi   !   lats in iglobal array excluding buffer
-  integer(i_kind),allocatable,dimension(:):: ltosj   !   lons in iglobal array excluding buffer
-  integer(i_kind),allocatable,dimension(:):: ltosi_s !   lats in itotsub array including buffer
-  integer(i_kind),allocatable,dimension(:):: ltosj_s !   lons in itotsub array including buffer
 
   integer(i_kind),dimension(100):: nlayers        ! number of RTM layers per model layer
                                                   ! (k=1 is near surface layer), default is 1
@@ -340,6 +346,7 @@ module gridmod
   type(spec_vars),save:: sp_a
   type(sub2grid_info),save:: grd_a
 
+  character(len=*),parameter::myname='gridmod'
 contains
    
 !-------------------------------------------------------------------------
@@ -367,6 +374,7 @@ contains
 !   2010-08-10  wu      - add initialization of nvege_type          
 !   2010-10-14  pagowski- add CMAQ
 !   2010-10-18  hcHuang - add flag use_gfs_nemsio to determine whether to use NEMSIO to read global first guess field
+!   2011-09-14  todling - add use_sp_eqspace to better control lat/lon grid case
 !
 ! !REMARKS:
 !   language: f90
@@ -423,7 +431,7 @@ contains
     nlat_regional = 0
 
     msig = nsig
-    do k=1,100
+    do k=1,size(nlayers)
        nlayers(k) = 1
     end do
 
@@ -434,6 +442,8 @@ contains
     nthreads = 1  ! initialize the number of threads
 
     use_gfs_nemsio = .false.
+
+    use_sp_eqspace = .false.
 
     return
   end subroutine init_grid
@@ -473,6 +483,7 @@ contains
 !   2010-03-15  zhu - add nrf3 and nvars for generalized control variable
 !   2010-06-04  todling - revisit Zhu's general CV settings, and vector fields
 !   2010-11-08  treadon - call create_mapping; perform init_subdomain_vars initializations
+!   2012-15-04  todling - revisit call to general_init_spec_vars
 !
 !   input argument list:
 !
@@ -487,7 +498,8 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind) i,k,nlon_b,inner_vars,num_fields
+    character(len=*),parameter::myname_=myname//'*init_grid_vars'
+    integer(i_kind) i,k,inner_vars,num_fields
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
@@ -519,6 +531,7 @@ contains
 
 ! Sum total number of vertical layers for RTM call
     msig = 0
+    if(size(nlayers)<nsig) call die(myname_,'insufficient size of nlayers',99)
     do k=1,nsig
        msig = msig + nlayers(k)
     end do
@@ -526,11 +539,12 @@ contains
 ! Initialize structure(s) for spectral <--> grid transforms
     if (.not.regional) then
 !      Call general specmod for analysis grid
-       call general_init_spec_vars(sp_a,jcap,jcap,nlat,nlon)
+       call general_init_spec_vars(sp_a,jcap,jcap,nlat,nlon,eqspace=use_sp_eqspace)
 
        if (mype==0) &
             write(6,*) 'INIT_GRID_VARS:  allocate and load sp_a with jcap,imax,jmax=',&
             sp_a%jcap,sp_a%imax,sp_a%jmax
+       
     endif
 
 ! Initialize structures for grid(s)
@@ -571,7 +585,6 @@ contains
     endif
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
-
     deallocate(vector)
 
 ! Set values from grd_a to pertinent gridmod variables 
@@ -756,6 +769,7 @@ contains
 !   2005-03-03  treadon - add implicit none
 !   2009-12-20  gayno - add variable lpl_gfs
 !   2011-01-04  pagowski - deallocate regional grid arrays
+!   2013-10-27  todling - move final_grid_vars call to where init takes place (gsimod)
 !
 ! !REMARKS:
 !   language: f90
@@ -767,8 +781,6 @@ contains
 !EOP
 !-------------------------------------------------------------------------
     implicit none
-
-    call final_grid_vars
 
     deallocate(rlats,rlons,corlats,coslon,sinlon,wgtlats,rbs2)
     deallocate(ak5,bk5,ck5,tref5)
@@ -785,7 +797,6 @@ contains
     if (allocated(coeffy)) deallocate(coeffy)
 
     call general_destroy_spec_vars(sp_a)
-
     return
   end subroutine destroy_grid_vars
 
@@ -884,7 +895,6 @@ contains
 !-------------------------------------------------------------------------
     implicit none
 
-    deallocate(ltosi,ltosj,ltosi_s,ltosj_s)
     deallocate(periodic_s,jstart,istart,ilat1,jlon1,&
        ijn_s,irc_s,ird_s,displs_s,&
        ijn,isc_g,isd_g,displs_g)
@@ -966,7 +976,7 @@ contains
 !-------------------------------------------------------------------------
 
     logical fexist
-    integer(i_kind) i,j,k
+    integer(i_kind) i,k
     real(r_single)pt,pdtop
     real(r_single),allocatable:: deta1(:),aeta1(:),eta1(:),deta2(:),aeta2(:),eta2(:)
     real(r_single) dlmd,dphd
@@ -1175,7 +1185,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
@@ -1308,7 +1318,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
@@ -1477,7 +1487,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
@@ -1611,7 +1621,7 @@ contains
        end do
 
 
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,aeta2,eta2,glat,glon,glat_an,glon_an,dx_mc,dy_mc)
 
@@ -1719,7 +1729,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
@@ -1729,7 +1739,7 @@ contains
     return
   end subroutine init_reg_glob_ll
 
- subroutine init_general_transform(glats,glons,mype)
+ subroutine init_general_transform(glats,glons)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_general_transform
@@ -1748,7 +1758,6 @@ contains
 !
 !   input argument list:
 !    glons,glats - lons,lats of input grid points of dimesion nlon,nlat
-!    mype        - mpi task id
 !
 !   output argument list:
 !
@@ -1762,7 +1771,6 @@ contains
   implicit none
 
   real(r_kind)   ,intent(in   ) :: glats(nlon,nlat),glons(nlon,nlat)
-  integer(i_kind),intent(in   ) :: mype
 
   real(r_kind),parameter:: rbig =1.0e30_r_kind
   real(r_kind) xbar_min,xbar_max,ybar_min,ybar_max
@@ -2775,293 +2783,6 @@ end subroutine init_general_transform
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:  load_grid --- strip off south/north latitude rows
-!
-! !INTERFACE:
-!
- subroutine load_grid(grid_in,grid_out)
-
-! !USES:
-
-   implicit none
-
-! !INPUT PARAMETERS:
-
-   real(r_kind),dimension(max(iglobal,itotsub)),intent(in   ) :: grid_in  ! input grid
-   real(r_kind),dimension(nlon,nlat-2)  ,intent(  out) :: grid_out ! output grid
-
-! !DESCRIPTION: This routine prepares grids for use in splib
-!               grid to spectral tranforms.  This preparation
-!               entails to two steps
-!                  1) reorder indexing of the latitude direction.
-!                     The GSI ordering is south to north.  The 
-!                     ordering assumed in splib routines is north
-!                     to south.
-!                  2) The global GSI adds two latitude rows, one
-!                     for each pole.  These latitude rows are not
-!                     needed in the grid to spectral transforms of
-!                     splib.  The code below strips off these
-!                     "pole rows"
-!
-! !REVISION HISTORY:
-!   2004-08-27  treadon
-!
-! !REMARKS:
-!   language: f90
-!   machine:  ibm rs/6000
-!
-! !AUTHOR:
-!   treadon          org: np23                date: 2004-08-27
-!
-!EOP
-!-------------------------------------------------------------------------
-   integer(i_kind) i,j,k,nlatm1,jj
-   real(r_kind),dimension(nlon,nlat):: grid
-
-!  Transfer input grid from 1d to 2d local array.  As loading
-!  local array, reverse direction of latitude index.  Coming
-!  into the routine the order is south --> north.  On exit
-!  the order is north --> south
-   do k=1,iglobal
-      i=nlat-ltosi(k)+1
-      j=ltosj(k)
-      grid(j,i)=grid_in(k)
-   end do
-   
-!  Transfer contents of local array to output array.
-   nlatm1=nlat-1
-   do j=2,nlatm1
-      jj=j-1
-      do i=1,nlon
-         grid_out(i,jj)=grid(i,j)
-      end do
-   end do
-   
-   return
- end subroutine load_grid
-
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:  fill_ns --- add southern/northern latitude rows
-!
-! !INTERFACE:
-!
- subroutine fill_ns(grid_in,grid_out)
-
-! !USES:
-
-   use constants, only: zero,one
-   implicit none
-
-! !INPUT PARAMETERS:
-
-   real(r_kind),dimension(nlon,nlat-2),intent(in   ) :: grid_in  ! input grid
-   real(r_kind),dimension(itotsub)    ,intent(  out) :: grid_out ! output grid
-
-! !DESCRIPTION: This routine adds a southern and northern latitude
-!               row to the input grid.  The southern row contains
-!               the longitudinal mean of the adjacent latitude row.
-!               The northern row contains the longitudinal mean of
-!               the adjacent northern row.
-!               
-!               The added rows correpsond to the south and north poles.
-!
-!               In addition to adding latitude rows corresponding to the
-!               south and north poles, the routine reorder the output 
-!               array so that it is a one-dimensional array read in
-!               an order consisten with that assumed for total domain
-!               gsi grids.
-!
-!               The assumed order for the input grid is longitude as
-!               the first dimension with array index increasing from 
-!               east to west.  The second dimension is latitude with
-!               the index increasing from north to south.  This ordering
-!               differs from that used in the GSI.  
-!
-!               The GSI ordering is latitude first with the index 
-!               increasing from south to north.  The second dimension is
-!               longitude with the index increasing from east to west.
-!
-!               Thus, the code below also rearranges the indexing and
-!               order of the dimensions to make the output grid 
-!               consistent with that which is expected in the rest of
-!               gsi.
-!               
-!
-! !REVISION HISTORY:
-!   2004-08-27  treadon
-!
-! !REMARKS:
-!   language: f90
-!   machine:  ibm rs/6000
-!
-! !AUTHOR:
-!   treadon          org: np23                date: 2004-08-27
-!
-!EOP
-!-------------------------------------------------------------------------
-!  Declare local variables
-   integer(i_kind) i,j,k,jj,nlatm2
-   real(r_kind) rnlon,sumn,sums
-   real(r_kind),dimension(nlon,nlat):: grid
-
-!  Transfer contents of input grid to local work array
-!  Reverse ordering in j direction from n-->s to s-->n
-   do j=2,nlat-1
-      jj=nlat-j
-      do i=1,nlon
-         grid(i,j)=grid_in(i,jj)
-      end do
-   end do
-   
-!  Compute mean along southern and northern latitudes
-   sumn=zero
-   sums=zero
-   nlatm2=nlat-2
-   do i=1,nlon
-      sumn=sumn+grid_in(i,1)
-      sums=sums+grid_in(i,nlatm2)
-   end do
-   rnlon=one/float(nlon)
-   sumn=sumn*rnlon
-   sums=sums*rnlon
-
-!  Load means into local work array
-   do i=1,nlon
-      grid(i,1)   =sums
-      grid(i,nlat)=sumn
-   end do
-   
-!  Transfer local work array to output grid
-   do k=1,itotsub
-      i=ltosi_s(k)
-      j=ltosj_s(k)
-      grid_out(k)=grid(j,i)
-   end do
-   
-   return
- end subroutine fill_ns
-
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE:  filluv_ns --- add southern/northern latitude rows
-!
-! !INTERFACE:
-!
- subroutine filluv_ns(gridu_in,gridv_in,gridu_out,gridv_out)
-
-! !USES:
-
-   use constants, only: zero
-   implicit none
-
-! !INPUT PARAMETERS:
-
-   real(r_kind),dimension(nlon,nlat-2),intent(in   ) :: gridu_in,gridv_in   ! input grid
-   real(r_kind),dimension(itotsub)    ,intent(  out) :: gridu_out,gridv_out ! output grid
-
-! !DESCRIPTION: This routine adds a southern and northern latitude
-!               row to the input grid.  The southern row contains
-!               the longitudinal mean of the adjacent latitude row.
-!               The northern row contains the longitudinal mean of
-!               the adjacent northern row.
-!               
-!               The added rows correpsond to the south and north poles.
-!
-!               In addition to adding latitude rows corresponding to the
-!               south and north poles, the routine reorder the output 
-!               array so that it is a one-dimensional array read in
-!               an order consisten with that assumed for total domain
-!               gsi grids.
-!
-!               The assumed order for the input grid is longitude as
-!               the first dimension with array index increasing from 
-!               east to west.  The second dimension is latitude with
-!               the index increasing from north to south.  This ordering
-!               differs from that used in the GSI.  
-!
-!               The GSI ordering is latitude first with the index 
-!               increasing from south to north.  The second dimension is
-!               longitude with the index increasing from east to west.
-!
-!               Thus, the code below also rearranges the indexing and
-!               order of the dimensions to make the output grid 
-!               consistent with that which is expected in the rest of
-!               gsi.
-!               
-!
-! !REVISION HISTORY:
-!   2004-08-27  treadon
-!
-! !REMARKS:
-!   language: f90
-!   machine:  ibm rs/6000
-!
-! !AUTHOR:
-!   treadon          org: np23                date: 2004-08-27
-!
-!EOP
-!-------------------------------------------------------------------------
-!  Declare local variables
-   integer(i_kind) i,j,k,jj
-   real(r_kind) polnu,polnv,polsu,polsv
-   real(r_kind),dimension(nlon,nlat):: grid,grid2
-
-!  Transfer contents of input grid to local work array
-!  Reverse ordering in j direction from n-->s to s-->n
-   do j=2,nlat-1
-      jj=nlat-j
-      do i=1,nlon
-         grid(i,j)=gridu_in(i,jj)
-         grid2(i,j)=gridv_in(i,jj)
-      end do
-   end do
-   
-!  Compute mean along southern and northern latitudes
-   polnu=zero
-   polnv=zero
-   polsu=zero
-   polsv=zero
-   do i=1,nlon
-      polnu=polnu+grid(i,nlat-1)*coslon(i)-grid2(i,nlat-1)*sinlon(i)
-      polnv=polnv+grid(i,nlat-1)*sinlon(i)+grid2(i,nlat-1)*coslon(i)
-      polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
-      polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
-   end do
-   polnu=polnu/float(nlon)
-   polnv=polnv/float(nlon)
-   polsu=polsu/float(nlon)
-   polsv=polsv/float(nlon)
-   do i=1,nlon
-      grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
-      grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)
-      grid (i,1   )= polsu*coslon(i)+polsv*sinlon(i)
-      grid2(i,1   )= polsu*sinlon(i)-polsv*coslon(i)
-   end do
-
-!  Transfer local work array to output grid
-   do k=1,itotsub
-      i=ltosi_s(k)
-      j=ltosj_s(k)
-      gridu_out(k)=grid(j,i)
-      gridv_out(k)=grid2(j,i)
-   end do
-   
-   return
- end subroutine filluv_ns
-
-
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!-------------------------------------------------------------------------
-!BOP
-!
 ! !IROUTINE:  get_ij --- get (i,j) grid indices and interpolation weights
 !
 ! !INTERFACE:
@@ -3411,12 +3132,12 @@ end subroutine init_general_transform
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:  strip_single --- strip off buffer points froms subdomains for 
-!                       mpi comm purposes (works with 4 byte reals)
+! !IROUTINE:  strip_single_rank33 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes (works with 4 byte reals)
 !
 ! !INTERFACE:
 !
-  subroutine strip_single(field_in,field_out,nz)
+  subroutine strip_single_rank33_(field_in,field_out,nz)
 
 ! !USES:
 
@@ -3467,36 +3188,35 @@ end subroutine init_general_transform
     end do
 
     return
-  end subroutine strip_single
+  end subroutine strip_single_rank33_
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE:  strip --- strip off buffer points froms subdomains for 
-!                       mpi comm purposes
+! !IROUTINE:  strip_single_rank21 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes (works with 4 byte reals)
 !
 ! !INTERFACE:
 !
-  subroutine strip(field_in,field_out,nz)
+  subroutine strip_single_rank21_(field_in,field_out)
 
 ! !USES:
 
-    use kinds, only: r_kind
+    use kinds, only: r_single
     implicit none
 
 ! !INPUT PARAMETERS:
 
-    integer(i_kind)                     , intent(in   ) :: nz          !  number of levs in subdomain array
-    real(r_kind),dimension(lat2,lon2,nz), intent(in   ) :: field_in    ! full subdomain 
-                                                                       !    array containing 
-                                                                       !    buffer points
+    real(r_single),dimension(lat2,lon2), intent(in   ) :: field_in   ! full subdomain 
+                                                                     !    array containing 
+                                                                     !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(lat1,lon1,nz), intent(  out) :: field_out  ! subdomain array
-                                                                      !   with buffer points
-                                                                      !   stripped off
+    real(r_single),dimension(lat1*lon1), intent(  out) :: field_out ! subdomain array
+                                                                    !   with buffer points
+                                                                    !   stripped off
 
 ! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
 !               purposes
@@ -3506,6 +3226,70 @@ end subroutine init_general_transform
 !   2004-01-25  kleist
 !   2004-05-14  kleist, documentation
 !   2004-07-15  todling, protex-compliant prologue
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,ij,jp1
+
+    ij=0
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ij = ij+1
+          field_out(ij)=field_in(i+1,jp1)
+       end do
+    end do
+
+    return
+  end subroutine strip_single_rank21_
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_double_rank33 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_double_rank33_(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_double
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind)                       , intent(in   ) :: nz          !  number of levs in subdomain array
+    real(r_double),dimension(lat2,lon2,nz), intent(in   ) :: field_in    ! full subdomain 
+                                                                         !    array containing 
+                                                                         !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_double),dimension(lat1,lon1,nz), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2013-10-24  todling create general interface (single/double)
 !
 ! !REMARKS:
 !
@@ -3530,7 +3314,261 @@ end subroutine init_general_transform
     end do
 
     return
-  end subroutine strip
+  end subroutine strip_double_rank33_
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_double_rank22 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_double_rank22_(field_in,field_out)
+
+! !USES:
+
+    use kinds, only: r_double
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    real(r_double),dimension(lat2,lon2), intent(in   ) :: field_in    ! full subdomain 
+                                                                         !    array containing 
+                                                                         !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_double),dimension(lat1,lon1), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2013-10-24  todling create general interface (single/double)
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,jp1
+
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          field_out(i,j)=field_in(i+1,jp1)
+       end do
+    end do
+
+    return
+  end subroutine strip_double_rank22_
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_double_rank32 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_double_rank32_(field_in,field_out,nz)
+
+! !USES:
+
+    use kinds, only: r_double
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    integer(i_kind)                       , intent(in   ) :: nz          !  number of levs in subdomain array
+    real(r_double),dimension(lat2,lon2,nz), intent(in   ) :: field_in    ! full subdomain 
+                                                                         !    array containing 
+                                                                         !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_double),dimension(lat1*lon1,nz), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2013-10-24  todling create general interface (single/double)
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,k,ij,jp1
+
+    do k=1,nz
+       ij=0
+       do j=1,lon1
+          jp1 = j+1
+          do i=1,lat1
+             ij = ij+1
+             field_out(ij,k)=field_in(i+1,jp1,k)
+          end do
+       end do
+    end do
+
+    return
+  end subroutine strip_double_rank32_
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_double_rank21 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_double_rank21_(field_in,field_out)
+
+! !USES:
+
+    use kinds, only: r_double
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    real(r_double),dimension(lat2,lon2), intent(in   ) :: field_in    ! full subdomain 
+                                                                         !    array containing 
+                                                                         !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_double),dimension(lat1*lon1), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2013-10-24  todling create general interface (single/double)
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,ij,jp1
+
+    ij=0
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ij = ij+1
+          field_out(ij)=field_in(i+1,jp1)
+       end do
+    end do
+
+    return
+  end subroutine strip_double_rank21_
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!BOP
+!
+! !IROUTINE:  strip_double_rank11 --- strip off buffer points froms subdomains
+!                       for mpi comm purposes
+!
+! !INTERFACE:
+!
+  subroutine strip_double_rank11_(field_in,field_out)
+
+! !USES:
+
+    use kinds, only: r_double
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    real(r_double),dimension(lat2*lon2), intent(in   ) :: field_in    ! full subdomain 
+                                                                         !    array containing 
+                                                                         !    buffer points
+! !OUTPUT PARAMETERS:
+
+    real(r_double),dimension(lat1*lon1), intent(  out) :: field_out  ! subdomain array
+                                                                        !   with buffer points
+                                                                        !   stripped off
+
+! !DESCRIPTION: strip off buffer points froms subdomains for mpi comm
+!               purposes
+!
+! !REVISION HISTORY:
+!
+!   2004-01-25  kleist
+!   2004-05-14  kleist, documentation
+!   2004-07-15  todling, protex-compliant prologue
+!   2013-10-24  todling create general interface (single/double)
+!
+! !REMARKS:
+!
+!   language: f90
+!   machine:  ibm rs/6000 sp; sgi origin 2000; compaq/hp
+!
+! !AUTHOR: 
+!    kleist           org: np20                date: 2004-01-25
+!
+!EOP
+!-------------------------------------------------------------------------
+
+    integer(i_kind) i,j,ijo,iji,jp1
+
+    ijo=0
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          ijo = ijo+1
+          iji = (i+1)+(jp1-1)*lat1
+          field_out(ijo)=field_in(iji) !(i+1,jp1)
+       end do
+    end do
+
+    return
+  end subroutine strip_double_rank11_
 
 
 !-------------------------------------------------------------------------

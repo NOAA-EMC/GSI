@@ -124,7 +124,7 @@ subroutine convert_binary_mass
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
   real(r_single) pt_regional
   integer(i_kind) k,n
-  integer(i_kind) nguess,istatus
+  integer(i_kind) n_actual_clouds,istatus
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:),field2c(:,:)
   real(r_single) rad2deg_single
   real(r_single)rdx,rdy
@@ -132,7 +132,7 @@ subroutine convert_binary_mass
   integer(i_kind) index
 
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
   n_loop: do n=1,9  ! loop over forecast hours in assim interval
 
@@ -538,6 +538,7 @@ subroutine convert_binary_mass
      write(6,*)'  byte offset for Q2 = ',n_position
      write(lendian_out)n_position     !  Q2
 
+
      if(l_gsd_soilTQ_nudge) then
 !                      SOIL1              
         call retrieve_index(index,'SOILT1',varname_all,nrecs)
@@ -553,7 +554,7 @@ subroutine convert_binary_mass
         write(lendian_out)n_position     !  TH2
      endif
 
-     if(l_cloud_analysis .or. nguess>0) then
+     if(l_cloud_analysis .or. n_actual_clouds>0) then
 !      QCLOUD
         call retrieve_index(index,'QCLOUD',varname_all,nrecs)
         if(index<0) stop
@@ -593,8 +594,8 @@ subroutine convert_binary_mass
         call retrieve_index(index,'QNRAIN',varname_all,nrecs)
         if(index<0) stop
         n_position=file_offset(index+1)
-        write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)                                                    
-        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)              
+        write(6,*)'  byte offset, memoryorder for QNRAIN(',k,' = ',n_position,memoryorder_all(index)
+        write(lendian_out)n_position,memoryorder_all(index)    ! offset for QNRAIN(k)
 
 !      RAD_TTEN_DFI
         call retrieve_index(index,'RAD_TTEN_DFI',varname_all,nrecs)
@@ -742,7 +743,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional
   integer(i_kind) nsig_regional_new,nsig_read               
-  integer(i_kind) nguess,istatus
+  integer(i_kind) n_actual_clouds,istatus
   integer(i_kind) nstart_hour
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
   real(r_single) dy_nmm
@@ -756,7 +757,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) index
   
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
   n_loop: do n=1,9
 
@@ -1249,7 +1250,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
      write(6,*)'  byte offset for TSK = ',n_position
      write(lendian_out)n_position    ! offset for TSK   !
 
-     if (nguess>0) then
+     if (n_actual_clouds>0) then
 !                   CWM
         call retrieve_index(index,'CWM',varname_all,nrecs)
         if(index<0) stop
@@ -1277,7 +1278,7 @@ subroutine convert_binary_nmm(update_pint,ctph0,stph0,tlm0)
         n_position=file_offset(index+1)
         write(6,*)'  byte offset, memoryorder for F_RIMEF = ',n_position,memoryorder_all(index)
         write(lendian_out)n_position,memoryorder_all(index)    ! offset for F_RIMEF    !
-     end if  ! end of nguess>0
+     end if  ! end of n_actual_clouds>0
 
 !????????????????????????????????????????????????????????????????read z0 here to see what it looks like
      call retrieve_index(index,'Z0',varname_all,nrecs)
@@ -1403,9 +1404,8 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_regional_new
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-  real(r_single) dy_nmm
   integer(i_kind) i,j,ii,k,n
-  real(r_single),allocatable::field1(:),field1p(:),field2(:),field2b(:),field2c(:)
+  real(r_single),allocatable::field2(:),field2b(:),field2c(:)
   real(r_single),allocatable::aeta1(:),deta1(:),eta1(:)
   real(r_single),allocatable::aeta2(:),deta2(:),eta2(:)
   real(r_single),allocatable::aeta1_new(:),deta1_new(:),eta1_new(:)
@@ -1944,7 +1944,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,j,loc_count,nreads
+  integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_kind) ierr
 
@@ -2095,7 +2095,7 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
   integer(i_byte) lenrec4_swap(4)
-  integer(i_long) lenrec(1),lensave
+  integer(i_long) lenrec(1)
   integer(i_long) lenrec_swap
   equivalence (lenrec4(1),lenrec(1))
   equivalence (lenrec4_swap(1),lenrec_swap)
@@ -2213,7 +2213,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,j,loc_count,nreads
+  integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_byte) hdrbuf4(2048)
   integer(i_long) hdrbuf(512)
@@ -2643,7 +2643,7 @@ subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_by
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2725,7 +2725,7 @@ subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_by
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2809,7 +2809,7 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4*n1)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
+  integer(i_kind) i,ii,k,ibegin,iend,ierr,nretrieved
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 

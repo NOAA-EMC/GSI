@@ -547,7 +547,6 @@ function luavail_() result(lu)
   character(len=*),parameter :: myname_=myname//'::luavail_'
   integer ios
   logical inuse
-  character*8 attr
 
   lu=-1
   ios=0
@@ -1507,7 +1506,6 @@ end subroutine set_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1605,7 +1603,6 @@ end subroutine iSort_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1703,7 +1700,6 @@ end subroutine rSort_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1801,7 +1797,6 @@ end subroutine dSort_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1880,7 +1875,7 @@ integer,intent(in) :: lu
 character(len=*)::tname
 integer,intent(out) :: ntotal
 integer,intent(out) :: nactual
-integer(IK) ii,ier,ln,i,ios,n,ncomment
+integer(IK) ier,ln,ios,n,ncomment
 character(len=256)::buf
 
 ! Scan file for desired table first
@@ -1896,12 +1891,14 @@ done_scan: do
   if(index(buf(1:ln),trim(tname))>0) then ! found wanted table
      n=0
      table_scan: do  ! start reading table
-        n=n+1
-        read(lu,'(a)',end=998,iostat=ios) buf ! read next line, save contents
+        line_scan: do ! start reading line
+           n=n+1
+           read(lu,'(a)',advance='no',eor=998,iostat=ios) buf ! read next line, save contents
+        enddo line_scan ! finished reading line
+998 continue
         if(buf(1:2)=='::') exit  ! end of table
         if(buf(1:1)=='#'.or.buf(1:1)=='!') ncomment=ncomment+1
      enddo table_scan
-998 continue
      exit ! finished reading table
   endif
 enddo done_scan
@@ -1917,7 +1914,7 @@ character(len=*),intent(in):: tname
 character(len=*),intent(inout):: utable(nact)
 
 character(len=256)::buf
-integer(IK) ii,ier,ln,i,n,ios
+integer(IK) ier,ln,i,n,ios
 
 ! Now get contents
 n=ntot
@@ -1930,7 +1927,10 @@ done_read: do
   if(index(buf(1:ln),trim(tname))>0) then ! found wanted table
      i=0
      table: do  ! start reading table
-        read(lu,'(a)',end=999,iostat=ios) buf ! read next line, save contents
+        line: do ! start reading line
+           read(lu,'(a)',advance='no',eor=999,iostat=ios) buf ! read next line, save contents
+        enddo line ! finished reading line
+999 continue
         if(buf(1:2)=='::') exit  ! end of table
            if(buf(1:1)=='#'.or.buf(1:1)=='!') then
               ! ignore
@@ -1943,8 +1943,6 @@ done_read: do
               utable(i)=trim(buf)
            endif
      enddo table
-999 continue
-        if(buf(1:2)=='::') exit  ! end of table
      exit ! finished reading table
   endif
 enddo done_read

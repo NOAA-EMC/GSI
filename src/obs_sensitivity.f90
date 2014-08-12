@@ -16,6 +16,7 @@ module obs_sensitivity
 !   2010-07-16 todling  - add reference to aero and aerol
 !   2010-08-19 lueken   - add only to module use;no machine code, so use .f90
 !   2011-03-29 todling  - add reference to pm2_5
+!   2012-04-15 todling  - add reference to gust, vis, pblh
 !
 ! Subroutines Included:
 !   init_fc_sens  - Initialize computations
@@ -31,7 +32,7 @@ module obs_sensitivity
 ! ------------------------------------------------------------------------------
 use kinds, only: r_kind,i_kind,r_quad
 use constants, only: zero, zero_quad, two
-use gsi_4dvar, only: nobs_bins, l4dvar, nsubwin
+use gsi_4dvar, only: nobs_bins, l4dvar, lsqrtb, nsubwin
 use jfunc, only: jiter, miter, niter, iter
 use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                   i_ps_ob_type, i_t_ob_type, i_w_ob_type, i_q_ob_type, &
@@ -39,7 +40,7 @@ use obsmod, only: cobstype, nobs_type, obsdiags, obsptr, obscounts, &
                   i_sst_ob_type, i_pw_ob_type, i_pcp_ob_type, i_oz_ob_type, &
                   i_o3l_ob_type, i_gps_ob_type, i_rad_ob_type, i_tcp_ob_type, &
                   i_lag_ob_type, i_colvk_ob_type, i_aero_ob_type, i_aerol_ob_type, &
-                  i_pm2_5_ob_type
+                  i_pm2_5_ob_type, i_gust_ob_type, i_vis_ob_type, i_pblh_ob_type
 use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,read_cv,deallocate_cv, &
     dot_product,assignment(=)
@@ -50,6 +51,7 @@ use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
     assignment(=)
 use mpl_allreducemod, only: mpl_allreduce
 use gsi_4dcouplermod, only: gsi_4dcoupler_getpert
+use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
 ! ------------------------------------------------------------------------------
 implicit none
 save
@@ -115,6 +117,7 @@ subroutine init_fc_sens
 !   2007-06-26  tremolet - initial code
 !   2009-08-07  lueken - added subprogram doc block
 !   2010-05-27  todling - gsi_4dcoupler; remove dependence on GMAO specifics
+!   2012-05-22  todling - update interface to getpert
 !
 !   input argument list:
 !
@@ -130,10 +133,12 @@ implicit none
 
 character(len=12) :: clfile
 type(gsi_bundle) :: fcgrad(nsubwin)
+type(gsi_bundle) :: eval(ntlevs_ens)
 type(predictors) :: zbias
 type(control_vector) :: xwork
 real(r_kind) :: zjx
-integer(i_kind) :: ii,ierr
+integer(i_kind) :: ii
+character(len=80),allocatable,dimension(:)::fname
 
 if (mype==0) then
    write(6,*)'init_fc_sens: lobsensincr,lobsensfc,lobsensjb=', &
@@ -182,17 +187,37 @@ if (lobsensfc) then
             call read_cv(fcsens,clfile)
          else
 !           read and convert output of GCM adjoint
+            allocate(fname(nsubwin))
+            fname='NULL'
             do ii=1,nsubwin
                call allocate_state(fcgrad(ii))
             end do
             call allocate_preds(zbias)
             zbias=zero
-            call gsi_4dcoupler_getpert(fcgrad,nsubwin,'adm')
-            call model2control(fcgrad,zbias,fcsens)
+            call gsi_4dcoupler_getpert(fcgrad,nsubwin,'adm',fname)
+            if (lsqrtb) then
+               call model2control(fcgrad,zbias,fcsens)
+            else
+               if (l_hyb_ens) then
+                  do ii=1,ntlevs_ens
+                     call allocate_state(eval(ii))
+                  end do
+                  eval(1)=fcgrad(1)
+                  fcgrad(1)=zero
+                  call state2ensctl(eval,fcgrad,fcsens)
+                  call state2control(fcgrad,zbias,fcsens)
+                  do ii=1,ntlevs_ens
+                     call deallocate_state(eval(ii))
+                  end do
+               else
+                  call state2control(fcgrad,zbias,fcsens)
+               end if
+            endif
             do ii=1,nsubwin
                call deallocate_state(fcgrad(ii))
             end do
             call deallocate_preds(zbias)
+            deallocate(fname)
          endif
       else
 !        read gradient from outer loop jiter+1
@@ -228,6 +253,9 @@ cobtype(i_colvk_ob_type) ="colvk"
 cobtype(i_aero_ob_type)  ="aero "
 cobtype(i_aerol_ob_type) ="aerol"
 cobtype(i_pm2_5_ob_type) ="pm2_5"
+cobtype(i_gust_ob_type)  ="gust "
+cobtype(i_vis_ob_type)   ="vis  "
+cobtype(i_pblh_ob_type)  ="pblh "
 
 
 return

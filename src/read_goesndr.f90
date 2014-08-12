@@ -50,10 +50,12 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - question about bmiss and hdr(15).  debug compile execution on WCOSS failed.  
 !                           code tests for bmiss==1e9, but a lot of hdr(15) values = 1e11, which
 !                          causes integer overflow with current logic.  Made quick fix, but needs review.
+!   2013-12-30  sienkiewicz - use BUFR library function 'ibfms' to check for missing value of hdr(15)
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -85,19 +87,20 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       checkob,finalcheck,score_crit
+  use obsmod, only: bmiss
   use radinfo, only: cbias,newchn,predx,iuse_rad,jpch_rad,nusis,ang_rad,air_rad,&
-      newpc4pred,nst_gsi,nstinfo,fac_dtl,fac_tsl
+      newpc4pred,nst_gsi,nstinfo
   use gridmod, only: diagnostic_reg,nlat,nlon,regional,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,rad2deg, r60inv,one,two,tiny_r_kind
   use gsi_4dvar, only: l4dvar,time_4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
-  use obsmod, only: bmiss
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: ndata,nodata,nread
   real(r_kind)    ,intent(in   ) :: rmesh,twind,gstime
@@ -133,9 +136,10 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) itx,k,i,itt,iskip,l,ifov,n
   integer(i_kind) ichan8,ich8
   integer(i_kind) nele,iscan,nmind
-  integer(i_kind) ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) ntest,ireadsb,ireadmg,irec,next
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),allocatable,dimension(:)::nrec
+  integer(i_kind) ibfms         ! BUFR missing value function
 
   real(r_kind) dlon,dlat,timedif,emiss,sfcr
   real(r_kind) dlon_earth,dlat_earth
@@ -172,7 +176,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   rlndsea(0) = zero
@@ -235,7 +239,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
 
 ! Open then read the bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 
@@ -290,12 +294,8 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
               if(ldetect /= nint(hdr(8)))cycle read_loop
            end if
 
-!          test for case when hdr(15) comes back with bmiss signifying 1x1 data
-         !      write(6,'(" in read_goesndr, bmiss,hdr(15)=",2ES25.18)')bmiss,hdr(15) !???????for debug only
-           if (abs(dble(hdr(15))-bmiss)<tiny_r_kind.or.hdr(15)>bmiss) then !???bad way to test???
-                      ! dparrish fix: apparently there is a new definition of   ????????
-                      ! missing -- bmiss = 1e9, large numbers of hdr(15)=1e11 or  ????????
-                      ! 5x5 missing is 1e11 ???????????????????
+!   test for case when hdr(15) comes back with bmiss signifying 1x1 data
+           if (ibfms(hdr(15)) .eq. 1) then
               ifov = 0
            else ! 5x5 data
               ifov = nint(hdr(15)) ! number of averaged FOVS
@@ -436,7 +436,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
           dtc   = zero
           tz_tr = one
           if ( sfcpct(0) > zero ) then
-             call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+             call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
           endif
         endif
 

@@ -60,6 +60,8 @@ subroutine stp3dvar(dirx,dir_dt)
 !   2008-10-08  derber - move strong balance constraint to background error covariance
 !   2008-12-02  todling - revisited split of stpcalc in light of 4dvar merge with May08 version
 !   2010-05-13  todling - update to use gsi_bundle
+!   2013-10-19  todling - update interface to calctends_tl
+!   2013-10-28  todling - rename p3d to prse
 !
 !   input argument list:
 !     stpinout - guess stepsize
@@ -96,22 +98,22 @@ subroutine stp3dvar(dirx,dir_dt)
 
 ! Declare local variables
   integer(i_kind) ier,istatus
-  real(r_kind),pointer,dimension(:,:,:)::dirx_u
-  real(r_kind),pointer,dimension(:,:,:)::dirx_v
-  real(r_kind),pointer,dimension(:,:,:)::dirx_t
-  real(r_kind),pointer,dimension(:,:,:)::dirx_q
-  real(r_kind),pointer,dimension(:,:,:)::dirx_oz
-  real(r_kind),pointer,dimension(:,:,:)::dirx_cw
-  real(r_kind),pointer,dimension(:,:,:)::dirx_p3d
+  real(r_kind),pointer,dimension(:,:,:)::dirx_u=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_v=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_t=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_q=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_oz=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_cw=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dirx_prse=>NULL()
 
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_u
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_v
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_t
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_q
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_oz
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_cw
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_p3d
-  real(r_kind),pointer,dimension(:,:,:)::dir_dt_tsen
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_u=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_v=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_t=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_q=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_oz=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_cw=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_prse=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::dir_dt_tsen=>NULL()
 
 !************************************************************************************  
 
@@ -122,7 +124,7 @@ subroutine stp3dvar(dirx,dir_dt)
   call gsi_bundlegetpointer(dirx,'q',  dirx_q,  istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dirx,'oz' ,dirx_oz, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dirx,'cw' ,dirx_cw, istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dirx,'p3d',dirx_p3d,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dirx,'prse',dirx_prse,istatus);ier=istatus+ier
   if(ier/=0) return
 
   call gsi_bundlegetpointer(dir_dt,'u',   dir_dt_u,   istatus);ier=istatus+ier
@@ -131,16 +133,11 @@ subroutine stp3dvar(dirx,dir_dt)
   call gsi_bundlegetpointer(dir_dt,'q',   dir_dt_q,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dir_dt,'oz' , dir_dt_oz  ,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dir_dt,'cw' , dir_dt_cw  ,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dir_dt,'p3d', dir_dt_p3d, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dir_dt,'prse', dir_dt_prse, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dir_dt,'tsen',dir_dt_tsen,istatus);ier=istatus+ier
   if(ier/=0) return
 
-  call calctends_tl( &
-     dirx_u     ,dirx_v      ,dirx_t     ,               &
-     dirx_q     ,dirx_oz     ,dirx_cw    ,               &
-     mype, nnnn1o,          &
-     dir_dt_u,dir_dt_v ,dir_dt_t,dir_dt_p3d, &
-     dir_dt_q,dir_dt_oz,dir_dt_cw,dirx_p3d)
+  call calctends_tl(dirx,dir_dt,mype)
 
 ! Convert virtual temperature to sensible temperature for time derivatives
 ! for search direction

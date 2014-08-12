@@ -44,9 +44,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                       SDM quality mark 
 !   2011-12-20 Su      -modify to read deep layer WV winds as monitor with qm=9,considering short 
 !                       wave winds as subset 1 0f 245         
+!   2012-07-18 Sienkiewicz - fix for infrad IR winds monitoring north of 20N
 !   2012-10-13 Su      -modify the code to assimilate GOES hourly wind, changed the error and quality control
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-13  parrish - set pflag=0 outside loopd to prevent runtime fatal error in debug mode.
+!   2013-08-26 McCarty -modified to remove automatic rejection of AVHRR winds
 !   2013-09-20  Su      - set satellite ID as satellite wind subtype
 
 !
@@ -91,7 +93,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
-  character(len=*)                      ,intent(in   ) :: sis
+  character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twind
@@ -125,24 +127,23 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare local variables
   logical outside,inflate_error
-  logical asort
   logical luse,ithinp
   logical,allocatable,dimension(:,:):: lmsg     ! set true when convinfo entry id found in a message
 
   character(70) obstr,hdrtr
-  character(50) satqctr,qcstr
+  character(50) qcstr
   character(8) subset
-  character(20) derdwtr,heightr
+! character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
   character(8) c_station_id,stationid
 
   integer(i_kind) ireadmg,ireadsb,iuse
-  integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
-  integer(i_kind) nc,nx,id,isflg,itx,j,nchanl
+  integer(i_kind) i,maxobs,idomsfc,nsattype
+  integer(i_kind) nc,nx,isflg,itx,j,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,icntpnt,ii,icntpnt2
+  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -169,16 +170,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee,ree
-  real(r_kind) woe,errout,dlat,dlon,dlat_earth,dlon_earth
+  real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
+  real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
-  real(r_kind),dimension(nsig-1):: dpres
   
-  real(r_kind),dimension(22) :: ctwind_s,rmesh_conv_s,pmesh_conv_s
   real(r_double),dimension(13):: hdrdat
   real(r_double),dimension(4):: obsdat,satqc
   real(r_double),dimension(3,5) :: heightdat
@@ -197,9 +196,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA GCLONG SCCF SWQM'/ 
   data obstr/'HAMD PRLC WDIR WSPD'/ 
-  data heightr/'MDPT '/ 
-  data derdwtr/'TWIND'/
-  data satqctr/'RFFL EEQF QIFN QIFY'/
+! data heightr/'MDPT '/ 
+! data derdwtr/'TWIND'/
   data qcstr /' OGCE GNAP PCCF'/
 
   
@@ -278,7 +276,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   nrep=0
   ntb =0
   call closbf(lunin)
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
   
@@ -463,7 +461,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      endif
 
      call closbf(lunin)
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      ntb = 0
@@ -696,9 +694,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  c_prvstg='AVHRR'
                  if(hdrdat(9) == one)  then                            ! IR winds
                     itype=244
-                    qm=15
-                    c_station_id='IR'//stationid
-                    c_sprvstg='IR'
+!                   The following two lines have been commented out because they 
+!                   automatically disallow the AVHRR observations and we don't 
+!                   want that - should be controlled at satinfo level.
+!                   qm=15
+!                   pqm=15
                  else
                     write(6,*) 'READ_SATWND: wrong derived method value'
                  endif
@@ -856,6 +856,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !           if(itype==240) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
 !           if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
 !           if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
+!           if(itype==244) then;  c_prvstg='AVHRR'    ;  c_sprvstg='IR'       ; endif
 !           if(itype==245) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
 !           if(itype==246) then;  c_prvstg='NESDIS'   ;  c_sprvstg='WV'       ; endif
 !           if(itype==250) then;  c_prvstg='JMA'      ;  c_sprvstg='WV'       ; endif
@@ -929,7 +930,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then

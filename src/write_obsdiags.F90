@@ -1,6 +1,5 @@
 subroutine write_obsdiags(cdfile)
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block
@@ -46,7 +45,6 @@ character(len=100) :: clfile
 character(len=5) :: clmype
 integer(i_kind) :: iunit,ii,jj,iobs,ierr
 integer(i_kind) :: icount(nobs_type,nobs_bins)
-logical :: muse
 logical :: all_sorted
 integer(i_kind) :: idv,iob,ich
 ! ----------------------------------------------------------
@@ -800,6 +798,7 @@ subroutine write_ozhead_ ()
 ! program history log:
 !   2007-10-03  todling
 !   2008-11-25  todling - merged with NCEP-May-2008
+!   2013-11-15  todling - add OMI-related changes (needs revision)
 !
 !   input argument list:
 !
@@ -860,7 +859,8 @@ _ENTRY_(myname_)
 	  call die(myname_)
 	endif
        write(iunit) ozptr%res,  ozptr%err2,ozptr%raterr2, ozptr%time, & 
-                    ozptr%luse, ozptr%wij, ozptr%ij, ozptr%prs , ozptr%ipos
+                    ozptr%luse, ozptr%wij, ozptr%ij, ozptr%prs , ozptr%ipos, &
+                    ozptr%apriori, ozptr%efficiency
        ozptr => ozptr%llpoint
     enddo
 
@@ -1069,7 +1069,7 @@ subroutine write_radhead_ ()
     integer(i_kind):: idv,iob,k
     character(len=*),parameter:: myname_=myname//'.write_radhead_'
  
-    integer(i_kind) i,j,nchan
+    integer(i_kind) i,nchan
 _ENTRY_(myname_)
 
     radptr   => radhead(ii)%head

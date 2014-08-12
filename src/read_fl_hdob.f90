@@ -62,7 +62,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Declare passed variables
      character(len=*), intent(in   ) :: infile,obstype
-     character(len=*), intent(in   ) :: sis
+     character(len=20),intent(in   ) :: sis
      integer(i_kind) , intent(in   ) :: lunout
      integer(i_kind) , intent(inout) :: nread,ndata,nodata
      real(r_kind)    , intent(in   ) :: twind
@@ -75,7 +75,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      logical :: inflate_error
      logical :: ltob,lqob,luvob,lspdob,lpsob
      logical :: luse
-     logical :: good
 
 !    Character variables
      character(40) :: timestr,locstr,tmpstr,mststr,wndstr,sfmrstr  
@@ -93,19 +92,18 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
      integer(i_kind) :: i,k,m,kl,k1,k2 
      integer(i_kind) :: lunin 
-     integer(i_kind) :: iret,ireadmg,ireadsb
+     integer(i_kind) :: ireadmg,ireadsb
      integer(i_kind) :: idate
      integer(i_kind) :: ilat,ilon 
      integer(i_kind) :: nlv
-     integer(i_kind) :: kx,nreal,nchanl
+     integer(i_kind) :: nreal,nchanl
      integer(i_kind) :: idomsfc,isflg
      integer(i_kind) :: ithin,iout 
      integer(i_kind) :: nc,ncsave
      integer(i_kind) :: ntmatch,ntb
-     integer(i_kind) :: ntread
      integer(i_kind) :: nmsg   
      integer(i_kind) :: maxobs 
-     integer(i_kind) :: itype,iobsub 
+     integer(i_kind) :: itype
      integer(i_kind) :: iecol 
      integer(i_kind) :: qcm,lim_qm
      integer(i_kind) :: p_qm,g_qm,t_qm,q_qm,uv_qm,wspd_qm,ps_qm
@@ -120,7 +118,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind) :: nib 
  
      integer(i_kind) :: ibit(mxib)
-     integer(i_kind) :: ntxall(nconvtype)
      integer(i_kind) :: idate5(5)
 
      integer(i_kind), allocatable,dimension(:) :: isort
@@ -140,7 +137,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      real(r_kind) :: toff,t4dv
      real(r_kind) :: rmesh
      real(r_kind) :: usage
-     real(r_kind) :: woe,toe,qoe,spdoe,psoe,obserr
+     real(r_kind) :: woe,toe,qoe,psoe,obserr
      real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth
      real(r_kind) :: cdist,disterr,disterrmax,rlon00,rlat00
      real(r_kind) :: vdisterrmax,u00,v00,u0,v0
@@ -148,15 +145,13 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      real(r_kind) :: wdir,wspd
      real(r_kind) :: tob,uob,vob,qob,spdob,rrob
      real(r_kind) :: rhob,tdob
-     real(r_kind) :: pob,pob_mb,pob_cb,pob_pa,gob
-     real(r_kind) :: psob,psob_mb,psob_cb,psob_pa
+     real(r_kind) :: pob_mb,pob_cb,pob_pa,gob
+     real(r_kind) :: psob_mb,psob_cb,psob_pa
      real(r_kind) :: qmaxerr 
-     real(r_kind) :: swspd,trr
      real(r_kind) :: dlnpsob,dlnpob,ppb
      real(r_kind) :: crit1,timedif,xmesh,pmesh
      real(r_kind) :: sstime,tdiff 
      real(r_kind) :: tsavg,ff10,sfcr,zz
-     real(r_kind) :: qc_pos,qc_met
      real(r_kind) :: es,qsat,rhob_calc,tdob_calc,tdry
      real(r_kind) :: dummy 
      real(r_kind) :: del,ediff,errmin
@@ -338,7 +333,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      nmsg   = 0
      maxobs = 0
      call closbf(lunin) 
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
 
@@ -371,7 +366,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Open bufr file again for reading
      call closbf(lunin)
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      ntb   = 0     
@@ -749,7 +744,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               endif
 
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,& 
-                             pob_cb,crit1,ithin,ndata,iout,igood,iiout,luse,.false.,.false.)
+                             pob_cb,crit1,ndata,iout,igood,iiout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb2
 

@@ -12,6 +12,7 @@ module stptmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-12-02  Todling - remove stpt_tl
 !   2009-08-12  lueken - update documentation
+!   2013-10-28  todling - rename p3d to prse
 !
 ! subroutines included:
 !   sub stpt
@@ -63,6 +64,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 !   2010-05-13  todling - update to use gsi_bundle
 !                       - on-the-spot handling of non-essential vars
 !   2013-05-23  zhu     - add search direction for aircraft data bias predictors
+!   2013-10-29  todling - tendencies now in bundle
 !
 !   input argument list:
 !     thead
@@ -130,8 +132,8 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   real(r_kind),pointer,dimension(:) :: rt,st,rtv,stv,rq,sq,ru,su,rv,sv
   real(r_kind),pointer,dimension(:) :: rsst,ssst
   real(r_kind),pointer,dimension(:) :: rp,sp
-  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_p3d
-  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_p3d
+  real(r_kind),dimension(:),pointer :: xhat_dt_tsen,xhat_dt_t,xhat_dt_q,xhat_dt_u,xhat_dt_v,xhat_dt_prse
+  real(r_kind),dimension(:),pointer :: dhat_dt_tsen,dhat_dt_t,dhat_dt_q,dhat_dt_u,dhat_dt_v,dhat_dt_prse
 
   out=zero_quad
 
@@ -145,7 +147,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   call gsi_bundlegetpointer(xval,'tsen',st, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'tv',  stv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'q',   sq, istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(xval,'p3d', sp, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(xval,'prse',sp, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(xval,'sst',ssst,istatus);isst=istatus+isst
   if(ier/=0)return
 
@@ -154,7 +156,7 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
   call gsi_bundlegetpointer(dval,'tsen',rt, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dval,'tv',  rtv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dval,'q',   rq, istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dval,'p3d', rp, istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dval,'prse',rp, istatus);ier=istatus+ier
   call gsi_bundlegetpointer(dval,'sst',rsst,istatus);isst=istatus+isst
   if(ier/=0)return
 
@@ -164,13 +166,13 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
      call gsi_bundlegetpointer(xhat_dt,'q',      xhat_dt_q,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(xhat_dt,'u',      xhat_dt_u,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(xhat_dt,'v',      xhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(xhat_dt,'p3d',  xhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(xhat_dt,'prse',xhat_dt_prse,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'tsen',dhat_dt_tsen,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'tv',     dhat_dt_t,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'q',      dhat_dt_q,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'u',      dhat_dt_u,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(dhat_dt,'v',      dhat_dt_v,istatus);ier=istatus+ier
-     call gsi_bundlegetpointer(dhat_dt,'p3d',  dhat_dt_p3d,istatus);ier=istatus+ier
+     call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
      if(ier/=0)return
   endif
 
@@ -274,10 +276,10 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
                               w3*dhat_dt_v(j3)+w4*dhat_dt_v(j4))*time_t
                  valv2=valv2+(w1*xhat_dt_v(j1)+w2*xhat_dt_v(j2)+ &
                               w3*xhat_dt_v(j3)+w4*xhat_dt_v(j4))*time_t
-                 valp =valp +(w1*dhat_dt_p3d(j1)+w2*dhat_dt_p3d(j2)+ &
-                              w3*dhat_dt_p3d(j3)+w4*dhat_dt_p3d(j4))*time_t
-                 valp2=valp2+(w1*xhat_dt_p3d(j1)+w2*xhat_dt_p3d(j2)+ &
-                              w3*xhat_dt_p3d(j3)+w4*xhat_dt_p3d(j4))*time_t
+                 valp =valp +(w1*dhat_dt_prse(j1)+w2*dhat_dt_prse(j2)+ &
+                              w3*dhat_dt_prse(j3)+w4*dhat_dt_prse(j4))*time_t
+                 valp2=valp2+(w1*xhat_dt_prse(j1)+w2*xhat_dt_prse(j2)+ &
+                              w3*xhat_dt_prse(j3)+w4*xhat_dt_prse(j4))*time_t
               end if
               do kk=1,nstep
                  ts_prime=tt(kk)

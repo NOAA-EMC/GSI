@@ -215,7 +215,6 @@ clean:
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
 	blendmod.f90 \
-	cal_tztr.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
 	calctends.f90 \
@@ -225,7 +224,7 @@ clean:
 	calctends_no_tl.f90 \
 	chemmod.f90 \
 	clw_mod.f90 \
-	cloud_efr.f90 \
+	cloud_efr_mod.f90 \
 	cmaq_routines.f90 \
 	co_mop_ak.f90 \
 	coinfo.f90 \
@@ -241,17 +240,18 @@ clean:
 	converr.f90 \
 	convinfo.f90 \
 	convthin.f90 \
+        correlated_obsmod.F90 \
 	crtm_interface.f90 \
 	cvsection.f90 \
 	cwhydromod.f90 \
 	dtast.f90 \
-	deter_nst.f90 \
 	deter_sfc_mod.f90 \
+        derivsmod.f90 \
 	egrid2agrid_mod.f90 \
 	enorm_state.f90 \
 	ensctl2state.f90 \
+	ensctl2model.f90 \
 	evaljgrad.f90 \
-	evaljcdfi.f90 \
 	evaljo.f90 \
 	evalqlim.f90 \
 	fgrid2agrid_mod.f90 \
@@ -296,6 +296,8 @@ clean:
 	gsi_4dcouplermod.f90 \
 	gsi_bundlemod.F90 \
 	gsi_chemguess_mod.F90 \
+	gsi_enscouplermod.f90 \
+	gsi_nstcouplermod.f90 \
 	gsi_io.f90 \
 	gsi_metguess_mod.F90 \
 	gsi_nemsio_mod.f90 \
@@ -312,6 +314,7 @@ clean:
 	insitu_info.f90 \
 	int3dvar.f90 \
 	intall.f90 \
+        intaod.f90 \
 	intco.f90 \
 	intdw.f90 \
 	intgps.f90 \
@@ -372,6 +375,7 @@ clean:
 	model_ad.F90 \
 	model_tl.F90 \
 	model2control.f90 \
+	model2ensctl.f90 \
 	mp_compact_diffs_mod1.f90 \
 	mp_compact_diffs_support.f90 \
 	mpimod.F90 \
@@ -384,6 +388,7 @@ clean:
 	nlmsas_ad.f90 \
 	normal_rh_to_q.f90 \
 	nstio_module.f90 \
+        obserr_allsky_mw.f90 \
 	obs_ferrscale.F90 \
 	obs_sensitivity.f90 \
 	obsmod.F90 \
@@ -430,8 +435,8 @@ clean:
 	satthin.F90 \
 	set_crtm_aerosolmod.f90 \
 	set_crtm_cloudmod.f90 \
+        setupaod.f90 \
 	setupyobs.f90 \
-	skindepth.f90 \
 	sfc_model.f90 \
 	sfcobsqc.f90 \
 	simpin1.f90 \
@@ -480,8 +485,10 @@ clean:
 	strong_fast_global_mod.f90 \
 	sub2fslab_mod.f90 \
 	support_2dvar.f90 \
-	stub_set_crtm_aerosol.f90 \
+        stub_ensmod.f90 \
+        stub_nstmod.f90 \
 	stub_pertmod.F90 \
+	stub_set_crtm_aerosol.f90 \
 	stub_timermod.f90 \
 	tendsmod.f90 \
 	test_obsens.f90 \
@@ -517,6 +524,7 @@ clean:
   SRCSF90C_NOSWAP = \
 	get_gefs_ensperts_dualres.f90 \
 	gsi_unformatted.F90 \
+        m_extOzone.F90 \
 	obs_para.f90 \
 	observer.F90 \
 	oneobmod.F90 \

@@ -16,6 +16,7 @@ subroutine add_gfs_stratosphere
 ! program history log:
 !   2012-02-18  parrish, initial documentation
 !   2012-10-11  eliu - add FGAT capability for wrf_nmm_regional (HWRF) 
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !
@@ -35,13 +36,16 @@ subroutine add_gfs_stratosphere
   use mpimod, only: mype
              use mpimod, only: mpi_comm_world
   use kinds, only: r_kind,i_kind
+  use mpeu_util, only: die
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
   use general_sub2grid_mod, only: general_grid2sub,general_sub2grid
   use general_specmod, only: spec_vars,general_init_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
-  use guess_grids, only: ges_ps,ntguessig,nfldsig,ifilesig 
-  use guess_grids, only: ges_tv,ges_q,ges_u,ges_v,ges_tsen,ges_oz
+  use guess_grids, only: ntguessig,nfldsig,ifilesig 
+  use guess_grids, only: ges_tsen
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   use gfs_stratosphere, only: nsigg,nsig_save,ak5,bk5,aeta1_save,aeta2_save,eta1_save,eta2_save
@@ -56,8 +60,9 @@ subroutine add_gfs_stratosphere
   real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,pri_m,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
-  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,cwt,ttsen
+  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen
 
+  character(len=*),parameter::myname='add_gfs_stratosphere'
   integer(i_kind) it_beg,it_end 
   integer(i_kind) iret,i,j,k,k2,mm1
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
@@ -69,8 +74,6 @@ subroutine add_gfs_stratosphere
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r
   logical,allocatable :: vector(:)
-  real(r_kind) ozmin,ozmax
-  real(r_kind) ozmin0,ozmax0
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli_r,yspliu_r,yspliv_r,xsplo,xsplo_r,ysplou_r,ysplov_r
   real(r_kind),allocatable,dimension(:) :: xspli_g,yspliu_g,yspliv_g,ysplou_g,ysplov_g
@@ -81,11 +84,16 @@ subroutine add_gfs_stratosphere
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
   real(r_kind),allocatable,dimension(:):: blend_rm_oz,blend_gm_oz
-   real(r_kind) delta,pthis
-   integer(i_kind) kk
 
-   real(r_kind) dlon,dlat,uob,vob
-   integer(i_kind) ii,jj,it
+  real(r_kind) dlon,dlat,uob,vob
+  integer(i_kind) ii,jj,it,ier,istatus
+ 
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_oz =>NULL()
 
 !    allocate space for saving original regional model guess and original blended regional-global guess:
 
@@ -105,15 +113,27 @@ subroutine add_gfs_stratosphere
 !  first, save current contents of ges_tv, etc  (later, consider how to save only from bottom of blend zone
 !                                                  to regional model top, for computational savings)
   do it=1,nfldsig
+     ier=0
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'u'  ,ges_u ,istatus) 
+     ier=ier+istatus
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'v'  ,ges_v ,istatus) 
+     ier=ier+istatus
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv' ,ges_tv,istatus) 
+     ier=ier+istatus
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q'  ,ges_q ,istatus) 
+     ier=ier+istatus
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'oz' ,ges_oz,istatus) 
+     ier=ier+istatus
+     if(ier/=0) call die(myname,': missing guess vars, aborting ...',ier)
      do k=1,nsig_save
         do j=1,lon2
            do i=1,lat2
-              ges_tv_r(i,j,k,it)=ges_tv(i,j,k,it)
-              ges_q_r (i,j,k,it)=ges_q (i,j,k,it)
-              ges_u_r (i,j,k,it)=ges_u (i,j,k,it)
-              ges_v_r (i,j,k,it)=ges_v (i,j,k,it)
+              ges_tv_r(i,j,k,it)=ges_tv(i,j,k)
+              ges_q_r (i,j,k,it)=ges_q (i,j,k)
+              ges_u_r (i,j,k,it)=ges_u (i,j,k)
+              ges_v_r (i,j,k,it)=ges_v (i,j,k)
               ges_tsen_r(i,j,k,it)=ges_tsen(i,j,k,it)
-              ges_oz_r(i,j,k,it)=ges_oz(i,j,k,it)
+              ges_oz_r(i,j,k,it)=ges_oz(i,j,k)
            end do
         end do
      end do
@@ -139,6 +159,21 @@ subroutine add_gfs_stratosphere
 
 ! Loop through input GFS files
   it_loop: do it = it_beg,it_end  
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'ps' ,ges_ps,istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'u'  ,ges_u ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'v'  ,ges_v ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'tv' ,ges_tv,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'q'  ,ges_q ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(it),'oz' ,ges_oz,istatus) 
+  ier=ier+istatus
+  if(ier/=0) call die(myname,': missing guess vars, aborting ...',ier)
 
   filename=infiles(it)    
   if (mype==0) write(6,*)'add_gfs_stratosphere: reading in gfs file: ',trim(filename)                       
@@ -330,7 +365,7 @@ subroutine add_gfs_stratosphere
         do j=1,lon2
            do i=1,lat2
               pri_r(i,j,k)=one_tenth*(eta1_save(k)*pdtop_ll + &
-                              eta2_save(k)*(ten*ges_ps(i,j,it)-pdtop_ll-pt_ll) + & !                         
+                              eta2_save(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + & !                         
                               pt_ll)
            end do
         end do
@@ -341,7 +376,7 @@ subroutine add_gfs_stratosphere
         do j=1,lon2
            do i=1,lat2
               prsl_r(i,j,k)=one_tenth*(aeta1_save(k)*pdtop_ll + &
-                              aeta2_save(k)*(ten*ges_ps(i,j,it)-pdtop_ll-pt_ll) + & 
+                              aeta2_save(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + & 
                               pt_ll)
            end do
         end do
@@ -387,7 +422,7 @@ subroutine add_gfs_stratosphere
         do j=1,lon2
            do i=1,lat2
               pri_m(i,j,k)=one_tenth*(eta1_ll(k)*pdtop_ll + &
-                              eta2_ll(k)*(ten*ges_ps(i,j,it)-pdtop_ll-pt_ll) + &        
+                              eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &        
                               pt_ll)
            end do
         end do
@@ -397,7 +432,7 @@ subroutine add_gfs_stratosphere
         do j=1,lon2
            do i=1,lat2
               prsl_m(i,j,k)=one_tenth*(aeta1_ll(k)*pdtop_ll + &
-                              aeta2_ll(k)*(ten*ges_ps(i,j,it)-pdtop_ll-pt_ll) + &       
+                              aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &       
                               pt_ll)
            end do
         end do
@@ -448,8 +483,8 @@ subroutine add_gfs_stratosphere
 
 !    u,v -- regional contribution
         do k=1,nsig_save
-           yspliu_r(k)=ges_u(i,j,k,it) 
-           yspliv_r(k)=ges_v(i,j,k,it)  
+           yspliu_r(k)=ges_u(i,j,k) 
+           yspliv_r(k)=ges_v(i,j,k)  
         end do
         call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
         call intp_spl(xspli_r,yspliv_r,xsplo,ysplov_r,nsig_save,nsig)
@@ -485,7 +520,7 @@ subroutine add_gfs_stratosphere
         end do
 !    t   -- regional contribution
         do k=1,nsig_save
-           yspliu_r(k)=ges_tv(i,j,k,it) 
+           yspliu_r(k)=ges_tv(i,j,k) 
         end do
         call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig) ! try replacing this with
                                                                    !  linear interpolation and compare result
@@ -522,7 +557,7 @@ subroutine add_gfs_stratosphere
         end do
 !    q   -- regional contribution
         do k=1,nsig_save
-           yspliu_r(k)=ges_q(i,j,k,it)
+           yspliu_r(k)=ges_q(i,j,k)
         end do
         call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !               following is to correct for bug in intp_spl
@@ -548,7 +583,7 @@ subroutine add_gfs_stratosphere
         end do
 !   oz   -- regional contribution
         do k=1,nsig_save
-           yspliu_r(k)=ges_oz(i,j,k,it) 
+           yspliu_r(k)=ges_oz(i,j,k) 
         end do
         call intp_spl(xspli_r,yspliu_r,xsplo,ysplou_r,nsig_save,nsig)
 !               following is to correct for bug in intp_spl
@@ -584,12 +619,12 @@ subroutine add_gfs_stratosphere
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           ges_tv(i,j,k,it)=tt(i,j,k)      
+           ges_tv(i,j,k)=tt(i,j,k)      
            ges_tsen(i,j,k,it)=ttsen(i,j,k)
-           ges_u(i,j,k,it)=ut(i,j,k)       
-           ges_v(i,j,k,it)=vt(i,j,k)       
-           ges_q(i,j,k,it)=qt(i,j,k)       
-           ges_oz(i,j,k,it)=ozt(i,j,k)    
+           ges_u(i,j,k)=ut(i,j,k)       
+           ges_v(i,j,k)=vt(i,j,k)       
+           ges_q(i,j,k)=qt(i,j,k)       
+           ges_oz(i,j,k)=ozt(i,j,k)    
         end do
      end do
   end do
@@ -597,12 +632,12 @@ subroutine add_gfs_stratosphere
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           ges_tv_r_g(i,j,k,it)=ges_tv(i,j,k,it)     
+           ges_tv_r_g(i,j,k,it)=ges_tv(i,j,k)     
            ges_tsen_r_g(i,j,k,it)=ges_tsen(i,j,k,it) 
-           ges_u_r_g(i,j,k,it)=ges_u(i,j,k,it)       
-           ges_v_r_g(i,j,k,it)=ges_v(i,j,k,it)       
-           ges_q_r_g(i,j,k,it)=ges_q(i,j,k,it)      
-           ges_oz_r_g(i,j,k,it)=ges_oz(i,j,k,it)    
+           ges_u_r_g(i,j,k,it)=ges_u(i,j,k)       
+           ges_v_r_g(i,j,k,it)=ges_v(i,j,k)       
+           ges_q_r_g(i,j,k,it)=ges_q(i,j,k)      
+           ges_oz_r_g(i,j,k,it)=ges_oz(i,j,k)    
         end do
      end do
   end do
@@ -633,6 +668,7 @@ subroutine revert_to_nmmb
 !
 ! program history log:
 !   2012-09-06  parrish, initial documentation
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !
@@ -650,22 +686,48 @@ subroutine revert_to_nmmb
   use mpimod, only: mype
              use mpimod, only: mpi_comm_world
   use kinds, only: r_kind,i_kind
-  use guess_grids, only: ges_ps,ntguessig,nfldsig
-  use guess_grids, only: ges_tv,ges_q,ges_u,ges_v,ges_tsen,ges_oz
+  use guess_grids, only: ntguessig,nfldsig
+  use guess_grids, only: ges_tsen
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
   use gfs_stratosphere, only: nsigg,nsig_save,ak5,bk5,aeta1_save,aeta2_save,eta1_save,eta2_save
   use gfs_stratosphere, only: blend_rm,blend_gm
   use gfs_stratosphere, only: ges_tv_r,ges_q_r,ges_u_r,ges_v_r,ges_tsen_r,ges_oz_r
   use gfs_stratosphere, only: ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use mpeu_util, only: die
   implicit none
 
-  integer(i_kind) i,j,k,num_i,num_o
+  character(len=*),parameter::myname='revert_to_nmmb'
+  integer(i_kind) i,j,k,num_i,num_o,ier,istatus
   real(r_kind) xspli(nsig),xsplo(nsig_save)
   real(r_kind) yspli(nsig),ysplo(nsig_save)
   real(r_kind) prsl_r(lat2,lon2,nsig_save),prsl_m(lat2,lon2,nsig)
 
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_oz =>NULL()
+
 !  GET 3D PRESSURE FOR ORIGINAL NMMB COORDINATE:
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'ps' ,ges_ps,istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'u'  ,ges_u ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'v'  ,ges_v ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'tv' ,ges_tv,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'q'  ,ges_q ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'oz' ,ges_oz,istatus) 
+  ier=ier+istatus
+  if(ier/=0) call die(myname,': missing guess vars, aborting ...',ier)
 
   num_i=nsig
   num_o=nsig_save
@@ -673,7 +735,7 @@ subroutine revert_to_nmmb
      do j=1,lon2
         do i=1,lat2
            prsl_r(i,j,k)=one_tenth*(aeta1_save(k)*pdtop_ll + &
-                           aeta2_save(k)*(ten*ges_ps(i,j,ntguessig)-pdtop_ll-pt_ll) + &
+                           aeta2_save(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &
                            pt_ll)
 
         end do
@@ -686,7 +748,7 @@ subroutine revert_to_nmmb
      do j=1,lon2
         do i=1,lat2
            prsl_m(i,j,k)=one_tenth*(aeta1_ll(k)*pdtop_ll + &
-                           aeta2_ll(k)*(ten*ges_ps(i,j,ntguessig)-pdtop_ll-pt_ll) + &
+                           aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &
                            pt_ll)
         end do
      end do
@@ -707,8 +769,8 @@ subroutine revert_to_nmmb
         end do
 !  u:
         do k=1,nsig
-           yspli(k)=ges_u(i,j,k,ntguessig)-ges_u_r_g(i,j,k,ntguessig)
-           ges_u_r_g(i,j,k,ntguessig)=ges_u(i,j,k,ntguessig) !  keep original for after write analysis
+           yspli(k)=ges_u(i,j,k)-ges_u_r_g(i,j,k,ntguessig)
+           ges_u_r_g(i,j,k,ntguessig)=ges_u(i,j,k) !  keep original for after write analysis
         end do
         call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !               following is to correct for bug in intp_spl
@@ -717,12 +779,12 @@ subroutine revert_to_nmmb
            if(xsplo(k) > xspli(1)) ysplo(k)=yspli(1)
         end do
         do k=1,nsig_save
-           ges_u(i,j,k,ntguessig)=ysplo(k)+ges_u_r(i,j,k,ntguessig)
+           ges_u(i,j,k)=ysplo(k)+ges_u_r(i,j,k,ntguessig)
         end do
 !  v:
         do k=1,nsig
-           yspli(k)=ges_v(i,j,k,ntguessig)-ges_v_r_g(i,j,k,ntguessig)
-           ges_v_r_g(i,j,k,ntguessig)=ges_v(i,j,k,ntguessig) !  keep original for after write analysis
+           yspli(k)=ges_v(i,j,k)-ges_v_r_g(i,j,k,ntguessig)
+           ges_v_r_g(i,j,k,ntguessig)=ges_v(i,j,k) !  keep original for after write analysis
         end do
         call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !               following is to correct for bug in intp_spl
@@ -731,12 +793,12 @@ subroutine revert_to_nmmb
            if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
         end do
         do k=1,nsig_save
-           ges_v(i,j,k,ntguessig)=ysplo(k)+ges_v_r(i,j,k,ntguessig)
+           ges_v(i,j,k)=ysplo(k)+ges_v_r(i,j,k,ntguessig)
         end do
 !  q:
         do k=1,nsig
-           yspli(k)=ges_q(i,j,k,ntguessig)-ges_q_r_g(i,j,k,ntguessig)
-           ges_q_r_g(i,j,k,ntguessig)=ges_q(i,j,k,ntguessig) !  keep original for after write analysis
+           yspli(k)=ges_q(i,j,k)-ges_q_r_g(i,j,k,ntguessig)
+           ges_q_r_g(i,j,k,ntguessig)=ges_q(i,j,k) !  keep original for after write analysis
         end do
         call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !               following is to correct for bug in intp_spl
@@ -745,7 +807,7 @@ subroutine revert_to_nmmb
            if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
         end do
         do k=1,nsig_save
-           ges_q(i,j,k,ntguessig)=ysplo(k)+ges_q_r(i,j,k,ntguessig)
+           ges_q(i,j,k)=ysplo(k)+ges_q_r(i,j,k,ntguessig)
         end do
 ! tsen:
         do k=1,nsig
@@ -763,8 +825,8 @@ subroutine revert_to_nmmb
         end do
 ! oz:  
         do k=1,nsig
-           yspli(k)=ges_oz(i,j,k,ntguessig)-ges_oz_r_g(i,j,k,ntguessig)
-           ges_oz_r_g(i,j,k,ntguessig)=ges_oz(i,j,k,ntguessig) !  keep original for after write analysis
+           yspli(k)=ges_oz(i,j,k)-ges_oz_r_g(i,j,k,ntguessig)
+           ges_oz_r_g(i,j,k,ntguessig)=ges_oz(i,j,k) !  keep original for after write analysis
         end do
         call intp_spl(xspli,yspli,xsplo,ysplo,num_i,num_o)
 !               following is to correct for bug in intp_spl
@@ -773,7 +835,7 @@ subroutine revert_to_nmmb
            if(xsplo(k) > xspli(1)   ) ysplo(k)=yspli(1)
         end do
         do k=1,nsig_save
-           ges_oz(i,j,k,ntguessig)=ysplo(k)+ges_oz_r(i,j,k,ntguessig)
+           ges_oz(i,j,k)=ysplo(k)+ges_oz_r(i,j,k,ntguessig)
         end do
 
      end do
@@ -791,6 +853,7 @@ subroutine restore_nmmb_gfs
 !
 ! program history log:
 !   2012-09-06  parrish, initial documentation
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !
@@ -805,23 +868,42 @@ subroutine restore_nmmb_gfs
   use gridmod, only: lat2,lon2,nsig
   use mpimod, only: mype
              use mpimod, only: mpi_comm_world
-  use kinds, only: i_kind
+  use kinds, only: i_kind,r_kind
   use guess_grids, only: ntguessig
-  use guess_grids, only: ges_tv,ges_q,ges_u,ges_v,ges_tsen,ges_oz
+  use guess_grids, only: ges_tsen
   use gfs_stratosphere, only: ges_tv_r_g,ges_q_r_g,ges_u_r_g,ges_v_r_g,ges_tsen_r_g,ges_oz_r_g
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use mpeu_util, only: die
   implicit none
 
-  integer(i_kind) i,j,k
+  character(len=*),parameter::myname='restore_nmmb_gfs'
+  integer(i_kind) i,j,k,ier,istatus
+  real(r_kind),dimension(:,:,:),pointer:: ges_u  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_oz =>NULL()
+
+  ier=0
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'u'  ,ges_u ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'v'  ,ges_v ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'q'  ,ges_q ,istatus) 
+  ier=ier+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'oz' ,ges_oz,istatus) 
+  ier=ier+istatus
+  if(ier/=0) call die(myname,': missing guess vars, aborting ...',ier)
 
 !  restore nmmb-gfs analysis variable
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           ges_u(i,j,k,ntguessig)=ges_u_r_g(i,j,k,ntguessig)
-           ges_v(i,j,k,ntguessig)=ges_v_r_g(i,j,k,ntguessig)
-           ges_q(i,j,k,ntguessig)=ges_q_r_g(i,j,k,ntguessig)
+           ges_u(i,j,k)=ges_u_r_g(i,j,k,ntguessig)
+           ges_v(i,j,k)=ges_v_r_g(i,j,k,ntguessig)
+           ges_q(i,j,k)=ges_q_r_g(i,j,k,ntguessig)
            ges_tsen(i,j,k,ntguessig)=ges_tsen_r_g(i,j,k,ntguessig)
-           ges_oz(i,j,k,ntguessig)=ges_oz_r_g(i,j,k,ntguessig)
+           ges_oz(i,j,k)=ges_oz_r_g(i,j,k,ntguessig)
         end do
      end do
   end do

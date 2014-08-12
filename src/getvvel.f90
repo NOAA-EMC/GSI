@@ -200,6 +200,7 @@ subroutine getvvel_tl(t,t_thor,t_thor9,prsth,prdif,what,jtstart,jtstop)
 !   2007-05-08  kleist
 !   2008-06-04  safford - rm unused uses
 !   2010-11-03  derber - added jtstart and jtstop for threading use
+!   2013-10-19  todling - metguess now holds background
 !
 ! usage:
 !   input argument list:
@@ -223,9 +224,12 @@ subroutine getvvel_tl(t,t_thor,t_thor9,prsth,prdif,what,jtstart,jtstop)
   use kinds,only: r_kind,i_kind
   use constants, only: zero,one,two,rd,cp,half
   use gridmod, only: lat2,lon2,nsig,bk5,ck5,tref5
-  use guess_grids, only: ges_tv,ntguessig
+  use guess_grids, only: ntguessig
   use tendsmod, only: prdif9,r_prdif9,adiag9,bdiag9,cdiag9,factk9,&
        r_bdiag9,wint9,wint9_f
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables:
@@ -235,17 +239,22 @@ subroutine getvvel_tl(t,t_thor,t_thor9,prsth,prdif,what,jtstart,jtstop)
   integer(i_kind)                         ,intent(in   ) :: jtstart,jtstop
 
 ! Declare local variables:
+  character(len=*),parameter::myname='getvvel_tl'
   real(r_kind),dimension(lat2,lon2,nsig):: tsum,t_tsum,tdiff,factk
   real(r_kind),dimension(lat2,lon2,nsig):: tsum9,t_tsum9,tdiff9
   real(r_kind),dimension(lat2,lon2,nsig):: adiag,bdiag,cdiag
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
   real(r_kind) kapr,kaprm1,terma,termb
   real(r_kind) c1,c2,fprime
-  integer(i_kind):: i,j,k,it
+  integer(i_kind):: i,j,k,it,istatus
 
 ! Constants/Parameters:
   kapr=cp/rd
   kaprm1=kapr-one
   it=ntguessig
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it, istatus)
+  if(istatus/=0) call die(myname,'missing tv, ier=',istatus)
 
   do k=1,nsig+1
      do j=jtstart,jtstop
@@ -278,8 +287,8 @@ subroutine getvvel_tl(t,t_thor,t_thor9,prsth,prdif,what,jtstart,jtstop)
            tsum(i,j,k)=t(i,j,k)+t(i,j,k+1)
            t_tsum(i,j,k)=t_thor(i,j,k)+t_thor(i,j,k+1)
            tdiff(i,j,k)=t(i,j,k)-t(i,j,k+1)
-           tsum9(i,j,k)=ges_tv(i,j,k,it)+ges_tv(i,j,k+1,it)
-           tdiff9(i,j,k)=ges_tv(i,j,k,it)-ges_tv(i,j,k+1,it)
+           tsum9(i,j,k)=ges_tv_it(i,j,k)+ges_tv_it(i,j,k+1)
+           tdiff9(i,j,k)=ges_tv_it(i,j,k)-ges_tv_it(i,j,k+1)
            t_tsum9(i,j,k)=t_thor9(i,j,k)+t_thor9(i,j,k+1)
         end do
      end do
@@ -387,6 +396,7 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin,jtstart,jtstop)
 !   2007-05-08  kleist
 !   2008-06-04  safford - rm unused uses
 !   2010-11-03  derber - added jtstart and jtstop for threading use
+!   2013-10-19  todling - metguess now holds background
 !
 ! usage:
 !   input argument list:
@@ -414,9 +424,12 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin,jtstart,jtstop)
   use kinds,only: r_kind,i_kind
   use constants, only: zero,one,two,rd,cp,half
   use gridmod, only: lat2,lon2,nsig,bk5,ck5,tref5
-  use guess_grids, only: ges_tv,ntguessig
+  use guess_grids, only: ntguessig
   use tendsmod, only: prdif9,r_prdif9,adiag9,bdiag9,cdiag9,factk9,&
        r_bdiag9,wint9,wint9_f
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables:
@@ -427,18 +440,23 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin,jtstart,jtstop)
   integer(i_kind)                         ,intent(in   ) :: jtstart,jtstop
 
 ! Declare local variables:
+  character(len=*),parameter::myname='getvvel_ad'
   real(r_kind),dimension(lat2,lon2,nsig+1):: what
   real(r_kind),dimension(lat2,lon2,nsig):: tsum,t_tsum,tdiff,factk
   real(r_kind),dimension(lat2,lon2,nsig):: tsum9,t_tsum9,tdiff9
   real(r_kind),dimension(lat2,lon2,nsig):: adiag,bdiag,cdiag
+  real(r_kind),dimension(:,:,:),pointer::ges_tv_it=>NULL()
   real(r_kind) kapr,kaprm1,terma,termb
   real(r_kind) c1,c2,fprime,tmp1,tmp2
-  integer(i_kind):: i,j,k,it
+  integer(i_kind):: i,j,k,it,istatus
 
 ! Constants/Parameters:
   kapr=cp/rd
   kaprm1=kapr-one
   it=ntguessig
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it, istatus)
+  if(istatus/=0) call die(myname,'missing tv, ier=',istatus)
 
   fprime=zero
   do k=1,nsig
@@ -461,8 +479,8 @@ subroutine getvvel_ad(t,t_thor,t_thor9,prsth,prdif,whatin,jtstart,jtstop)
   do k=1,nsig-1
      do j=jtstart,jtstop
         do i=1,lat2
-           tsum9  (i,j,k)=ges_tv (i,j,k,it)+ges_tv (i,j,k+1,it)
-           tdiff9 (i,j,k)=ges_tv (i,j,k,it)-ges_tv (i,j,k+1,it)
+           tsum9  (i,j,k)=ges_tv_it (i,j,k)+ges_tv_it (i,j,k+1)
+           tdiff9 (i,j,k)=ges_tv_it (i,j,k)-ges_tv_it (i,j,k+1)
            t_tsum9(i,j,k)=t_thor9(i,j,k   )+t_thor9(i,j,k+1   )
         end do
      end do

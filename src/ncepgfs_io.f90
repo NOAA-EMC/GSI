@@ -41,7 +41,6 @@ module ncepgfs_io
   implicit none
 
   private
-  public read_sighead
   public read_sfc
   public read_gfs
   public read_gfs_chem
@@ -70,6 +69,8 @@ contains
 !   2011-11-01  eliu    - add call to set_cloud_lower_bound (qcmin) 
 !   2011-11-01  eliu    - move then calculation of hydrometeor mixing ratio from total condensate to cloud_efr;
 !                         rearrange Min-Jeong's code  
+!   2013-10-19  todling - update cloud_efr module name
+!   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !
 !   input argument list:
 !     mype               - mpi task id
@@ -84,13 +85,11 @@ contains
 
     use kinds, only: i_kind,r_kind
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
-    use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
-         ges_u,ges_v,ges_tv,ges_q,ges_oz,&
-         ifilesig,nfldsig 
+    use guess_grids, only: ifilesig,nfldsig 
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
-    use cloud_efr, only: cloud_calc_gfs,set_cloud_lower_bound    
+    use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound    
     use gsi_io, only: mype_io
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
     implicit none
@@ -99,14 +98,38 @@ contains
 
     character(24) filename
     logical:: l_cld_derived
-    integer(i_kind):: it,i,j,k,nlon_b
-    integer(i_kind):: iret,iret_cw,iret_ql,iret_qi,istatus 
+    integer(i_kind):: it,nlon_b
+    integer(i_kind):: iret,iret_ql,iret_qi,istatus 
+
+    real(r_kind),allocatable,dimension(:,:  ):: aux_ps
+    real(r_kind),allocatable,dimension(:,:  ):: aux_z
+    real(r_kind),allocatable,dimension(:,:,:):: aux_u
+    real(r_kind),allocatable,dimension(:,:,:):: aux_v
+    real(r_kind),allocatable,dimension(:,:,:):: aux_vor
+    real(r_kind),allocatable,dimension(:,:,:):: aux_div
+    real(r_kind),allocatable,dimension(:,:,:):: aux_tv
+    real(r_kind),allocatable,dimension(:,:,:):: aux_q
+    real(r_kind),allocatable,dimension(:,:,:):: aux_oz
+    real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
+
+    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it   => NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_z_it    => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_u_it    => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_v_it    => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_div_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it   => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_q_it    => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it   => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_ql_it   => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qi_it   => NULL()
+
     type(spec_vars):: sp_b
 
 
+!   Get space for temporary arrays need to read file
+    call create_aux_
 
 !   If needed, initialize for hires_b transforms
     nlon_b=((2*jcap_b+1)/nlon+1)*nlon
@@ -120,20 +143,6 @@ contains
 
     do it=1,nfldsig
 
-!      Get pointer to cloud water mixing ratio
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret_cw) 
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
-       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
-       if (iret_cw/=0) call die('READ_GFS','cannot get pointer to cw,iret_cw=',iret_cw) 
-       if (iret_ql/=0) then 
-          if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
-       endif
-       if (iret_qi/=0) then 
-          if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
-       endif
-
-       l_cld_derived = (iret_cw==0.and.iret_ql==0.and.iret_qi==0)
-
        write(filename,100) ifilesig(it)
 100    format('sigf',i2.2)
        if (hires_b) then
@@ -142,33 +151,126 @@ contains
 !         uses double FFT.   Need to pass in sp_a and sp_b
 
           call general_read_gfsatm(grd_a,sp_a,sp_b,filename,mype,.true., &
-               ges_z(1,1,it),ges_ps(1,1,it),&
-               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
-               ges_u(1,1,1,it),ges_v(1,1,1,it),&
-               ges_tv(1,1,1,it),ges_q(1,1,1,it),&
-               ges_cwmr_it,ges_oz(1,1,1,it),iret)
+               aux_z,aux_ps,&
+               aux_vor,aux_div,&
+               aux_u,aux_v,&
+               aux_tv,aux_q,&
+               aux_cwmr,aux_oz,iret)
 
        else
 
 !         Otherwise, use standard transform.  Use sp_a in place of sp_b.
 
           call general_read_gfsatm(grd_a,sp_a,sp_a,filename,mype,.true., &
-               ges_z(1,1,it),ges_ps(1,1,it),&
-               ges_vor(1,1,1,it),ges_div(1,1,1,it),&
-               ges_u(1,1,1,it),ges_v(1,1,1,it),&
-               ges_tv(1,1,1,it),ges_q(1,1,1,it),&
-               ges_cwmr_it,ges_oz(1,1,1,it),iret)
+               aux_z,aux_ps,&
+               aux_vor,aux_div,&
+               aux_u,aux_v,&
+               aux_tv,aux_q,&
+               aux_cwmr,aux_oz,iret)
        endif
+
+!      Set values to actual MetGuess fields
+       call set_guess_
+
+       l_cld_derived = associated(ges_cwmr_it).and.&
+                       associated(ges_q_it)   .and.&
+                       associated(ges_ql_it)  .and.&
+                       associated(ges_qi_it)  .and.&
+                       associated(ges_tv_it)
 
 !      call set_cloud_lower_bound(ges_cwmr_it)
        if (mype==0) write(6,*)'READ_GFS: l_cld_derived = ', l_cld_derived
 
        if (l_cld_derived) &            
-       call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q(1,1,1,it),ges_tv(1,1,1,it)) 
+       call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it) 
 
     end do
 
     if (hires_b) call general_destroy_spec_vars(sp_b)
+
+!   Get rid of temporary arrays
+    call destroy_aux_
+
+  contains
+
+  subroutine create_aux_
+!
+!   Description: this routine is here only temporarily. It serves to demonstrate
+!   the ability to use a single (meaningful) variable in the analysis, as for 
+!   example ozone. Unfortunately, since read_gfsatm requires all upper-air guess
+!   fields, we need to allocate space to read them all, even though depending on
+!   metguess, some maybe excluded from being carried into the analysis. In the
+!   future, it would be better to recode read_gfsatm and have it deal with a
+!   single variable at a time; at that time, this routine and its destroy could 
+!   be removed.
+!
+!   2013-10-29  Todling Initial code.
+!
+  use gridmod, only: lat2,lon2,nsig
+  implicit none
+  allocate(aux_ps(lat2,lon2))
+  allocate(aux_z(lat2,lon2))
+  allocate(aux_u(lat2,lon2,nsig))
+  allocate(aux_v(lat2,lon2,nsig))
+  allocate(aux_vor(lat2,lon2,nsig))
+  allocate(aux_div(lat2,lon2,nsig))
+  allocate(aux_tv(lat2,lon2,nsig))
+  allocate(aux_q(lat2,lon2,nsig))
+  allocate(aux_oz(lat2,lon2,nsig))
+  allocate(aux_cwmr(lat2,lon2,nsig))
+  end subroutine create_aux_
+
+  subroutine set_guess_
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it  ,istatus) 
+  if(istatus==0) ges_ps_it = aux_ps
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it   ,istatus) 
+  if(istatus==0) ges_z_it = aux_z
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it   ,istatus) 
+  if(istatus==0) ges_u_it = aux_u
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it   ,istatus) 
+  if(istatus==0) ges_v_it = aux_v
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus) 
+  if(istatus==0) ges_vor_it = aux_vor
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
+  if(istatus==0) ges_div_it = aux_div
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it  ,istatus) 
+  if(istatus==0) ges_tv_it = aux_tv
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it   ,istatus) 
+  if(istatus==0) ges_q_it = aux_q
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it  ,istatus) 
+  if(istatus==0) ges_oz_it = aux_oz
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
+  if(istatus==0) ges_cwmr_it = aux_cwmr
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql) 
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)           
+  if (iret_ql/=0) then 
+     if (mype==0) write(6,*)'READ_GFS: cannot get pointer to ql,iret_ql= ',iret_ql 
+  endif
+  if (iret_qi/=0) then 
+     if (mype==0) write(6,*)'READ_GFS: cannot get pointer to qi,iret_qi= ',iret_qi 
+  endif
+
+  end subroutine set_guess_
+
+  subroutine destroy_aux_
+!
+!   Description: see create_aux_
+!
+!   2013-10-29  Todling Initial code.
+!
+  implicit none
+  deallocate(aux_cwmr)
+  deallocate(aux_oz)
+  deallocate(aux_q)
+  deallocate(aux_tv)
+  deallocate(aux_div)
+  deallocate(aux_vor)
+  deallocate(aux_v)
+  deallocate(aux_u)
+  deallocate(aux_z)
+  deallocate(aux_ps)
+  end subroutine destroy_aux_
 
   end subroutine read_gfs
 
@@ -195,6 +297,7 @@ contains
 !   2011-02-01  r. yang - proper initialization of prsi
 !   2011-05-24  yang    - add idd for time interpolation of co2 field
 !   2011-06-29  todling - no explict reference to internal bundle arrays
+!   2013-11-08  todling - revisit check for present of GHG in chem-bundle
 !
 !   input argument list:
 !
@@ -210,7 +313,7 @@ contains
     use mpimod, only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
     use ncepgfs_ghg, only: read_gfsco2,read_ch4n2oco
-    use guess_grids, only: ges_ps,nfldsig,ntguessig
+    use guess_grids, only: nfldsig,ntguessig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -225,7 +328,8 @@ contains
     integer(i_kind), intent(in):: idd
 
 !   Declare local variables
-    integer(i_kind)            :: i,j,k,n,ier
+    character(len=*),parameter :: myname='read_gfs_chem'
+    integer(i_kind)            :: i,j,n,ier
     integer(i_kind)            :: ico24crtm,ich44crtm,in2o4crtm,ico4crtm
     character(len=3) :: char_ghg
     real(r_kind),dimension(lat2):: xlats
@@ -250,75 +354,77 @@ contains
 !!      WILL CHANGE THE CODE FOLLOWING WHAT I DID IN crtm_interface.f90            !!!!!!
 
 ! check whether CO2 exist
-    call gsi_chemguess_get ( 'i4crtm::co2', ico24crtm, ier )
-    if(ier/=0) write(6,*) '$$$$$$no co2'
-    if (ico24crtm >= 0 ) then
-       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
-       if(ier/=0) write(6,*) '$$$$$$no co2' 
-       call read_gfsco2 (iyear,month,idd,ico24crtm,xlats,&
-                       lat2,lon2,nsig,mype,  &
-                       p_co2 )
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co2',p_co2,ier)
+    if (associated(p_co2)) then
+       call gsi_chemguess_get ( 'i4crtm::co2', ico24crtm, ier )
+       if (ico24crtm >= 0 ) then
+          call read_gfsco2 (iyear,month,idd,ico24crtm,xlats,&
+                          lat2,lon2,nsig,mype,  &
+                          p_co2 )
 ! Approximation: assign three time slots (nfldsig) of ghg with same values
-       do n=2,nfldsig
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d_co2,ier)
-          ptr3d_co2 = p_co2
-       enddo
-       char_ghg='co2'
+          do n=2,nfldsig
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co2',ptr3d_co2,ier)
+             ptr3d_co2 = p_co2
+          enddo
+          char_ghg='co2'
 ! take comment out for printing out the interpolated tracer gas fields.
 !        call write_ghg_grid (ptr3d_co2,char_ghg,mype)
-    endif
+       endif
+    endif ! <co2>
 
 ! check whether CH4 data exist
-    call gsi_chemguess_get ( 'i4crtm::ch4', ich44crtm, ier )
-    if(ier/=0) write(6,*) '$$$$$$no ch4'
-    if (ich44crtm > 0 ) then
-       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'ch4',p_ch4,ier)
-       if(ier/=0) write(6,*) '$$$$$$no ch4'
-       char_ghg='ch4'
-       call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
-                       lat2,lon2,nsig,mype,  &
-                       p_ch4 )
-       do n=2,nfldsig
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'ch4',ptr3d_ch4,ier)
-          ptr3d_ch4 = p_ch4
-       enddo
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'ch4',p_ch4,ier)
+    if (associated(p_ch4)) then
+       call gsi_chemguess_get ( 'i4crtm::ch4', ich44crtm, ier )
+       if (ich44crtm > 0 ) then
+          char_ghg='ch4'
+          call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
+                          lat2,lon2,nsig,mype,  &
+                          p_ch4 )
+          do n=2,nfldsig
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'ch4',ptr3d_ch4,ier)
+             ptr3d_ch4 = p_ch4
+          enddo
 ! take comment out for printing out the interpolated tracer gas fields.
 !         call write_ghg_grid (ptr3d_ch4,char_ghg,mype)
-    endif
+       endif
+    endif ! <ch4>
+
 ! check whether N2O data exist
-    call gsi_chemguess_get ( 'i4crtm::n2o', in2o4crtm, ier )
-    if(ier/=0) write(6,*) '$$$$$$no n2o'
-    if (in2o4crtm > 0 ) then
-       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'n2o',p_n2o,ier)
-       if(ier/=0) write(6,*) '$$$$$$no n2o'
-       char_ghg='n2o'
-       call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
-                       lat2,lon2,nsig,mype,  &
-                       p_n2o )
-       do n=2,nfldsig
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'n2o',ptr3d_n2o,ier)
-          ptr3d_n2o = p_n2o
-       enddo
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'n2o',p_n2o,ier)
+    if (associated(p_n2o)) then
+       call gsi_chemguess_get ( 'i4crtm::n2o', in2o4crtm, ier )
+       if (in2o4crtm > 0 ) then
+          char_ghg='n2o'
+          call read_ch4n2oco (iyear,month,idd,char_ghg,xlats,&
+                          lat2,lon2,nsig,mype,  &
+                          p_n2o )
+          do n=2,nfldsig
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'n2o',ptr3d_n2o,ier)
+             ptr3d_n2o = p_n2o
+          enddo
 ! take comment out for printing out the interpolated tracer gas fields.
 !        call write_ghg_grid (ptr3d_n2o,char_ghg,mype)
-    endif
+       endif
+    endif ! <n2o>
+
 ! check whether CO data exist
-    call gsi_chemguess_get ( 'i4crtm::co', ico4crtm, ier )
-    if(ier/=0) write(6,*) '$$$$$$no co'
-    if (ico4crtm > 0 ) then
-       call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',p_co,ier)
-       if(ier/=0) write(6,*) '$$$$$$no co'
-       char_ghg='co'
-       call read_ch4n2oco ( iyear,month,idd,char_ghg,xlats,&
-                       lat2,lon2,nsig,mype,  &
-                       p_co )
-       do n=2,nfldsig
-          call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co',ptr3d_co,ier)
-          ptr3d_co = p_co
-       enddo
+    call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',p_co,ier)
+    if (associated(p_co)) then
+       call gsi_chemguess_get ( 'i4crtm::co', ico4crtm, ier )
+       if (ico4crtm > 0 ) then
+          char_ghg='co'
+          call read_ch4n2oco ( iyear,month,idd,char_ghg,xlats,&
+                          lat2,lon2,nsig,mype,  &
+                          p_co )
+          do n=2,nfldsig
+             call gsi_bundlegetpointer(gsi_chemguess_bundle(n),'co',ptr3d_co,ier)
+             ptr3d_co = p_co
+          enddo
 ! take comment out for printing out the interpolated tracer gas fields.
 !        call write_ghg_grid (ptr3d_co,char_ghg,mype)
-    endif
+       endif
+    endif ! <co>
   end subroutine read_gfs_chem
 subroutine write_ghg_grid(a,char_ghg,mype)
 !$$$  subroutine documentation block
@@ -382,106 +488,6 @@ subroutine write_ghg_grid(a,char_ghg,mype)
   return
 end subroutine write_ghg_grid
 
-  subroutine read_sighead(lunges,filename,gfshead,iope,mype,iret)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    read_sighead
-!
-!   prgrmmr: whitaker
-!
-! abstract: read a ncep GFS spectral sigma file on a specified task,
-!           broadcast data to other tasks.
-!
-! program history log:
-!   2012-01-24  whitaker - create routine
-!
-!   input argument list:
-!     lunges             - unit number to use for IO
-!     mype               - mpi task id
-!     filename           - gfs spectral file to read
-!     iope               - mpi task to perform IO
-!
-!   output argument list:
-!     sigdata (inout)    - sigio data structure to hold data
-!     gfshead (inout)    - gfs header structure to hole metadata
-!     iret               - return code (0 for sucessful completion)
-!
-! attributes:
-!   language:  f90
-!   machine:   ibm RS/6000 SP
-!
-!$$$ end documentation block
-!    use sigio_module, only: sigio_srohdc,sigio_head,sigio_data
-    use sigio_module, only: sigio_head,sigio_sropen,sigio_srhead,sigio_sclose
-    use kinds, only: i_kind,r_single,r_kind
-    use gridmod, only: ncepgfs_head
-    use mpimod, only: mpi_integer4,mpi_real4,mpi_comm_world
-    character(*),intent(in) :: filename
-    type(sigio_head):: sighead
-
-!!    type(sigio_data), intent(inout):: sigdata
-
-    integer(i_kind), intent(inout) :: iret
-    integer(i_kind), intent(in) :: iope,mype,lunges
-    type(ncepgfs_head), intent(inout):: gfshead
-    integer(i_kind) nc,idate(4),levs,ntrac,ncldt,latb,lonb
-
-    real(r_single) fhour
-    ! read header on a specified task, broadcast data to other tasks.
-    ! iope is task that does IO for this file.
-
-    if (mype == iope) then
-!!        call sigio_srohdc(lunges,filename,sighead,sigdata,iret)
-! on io task, open, read header, and close sigma file
-
-        call sigio_sropen(lunges,filename,iret)
-        call sigio_srhead(lunges,sighead,iret)
-        call sigio_sclose(lunges,iret)
-        if (iret /= 0) print *,'error in read_sighead',trim(filename),iret
-        nc = (sighead%jcap+1)*(sighead%jcap+2)
-        levs = sighead%levs
-        idate = sighead%idate
-        ntrac = sighead%ntrac
-        ncldt = sighead%ncldt
-        fhour = sighead%fhour
-        lonb = sighead%lonb
-        latb = sighead%latb
-    endif
-
-    call mpi_bcast(nc,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(levs,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(idate,4,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(ntrac,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(ncldt,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(fhour,1,mpi_real4,iope,mpi_comm_world,iret)
-    call mpi_bcast(lonb,1,mpi_integer4,iope,mpi_comm_world,iret)
-    call mpi_bcast(latb,1,mpi_integer4,iope,mpi_comm_world,iret)
-
-!    if(mype /= iope) then
-!        ! allocate data structure for non-IO tasks.
-!        allocate(sigdata%hs(nc),sigdata%ps(nc),&
-!             sigdata%t(nc,levs),sigdata%d(nc,levs),sigdata%z(nc,levs),&
-!             sigdata%q(nc,levs,ntrac))
-!    endif
-
-!    call mpi_bcast(sigdata%ps(1),nc,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%hs(1),nc,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%t(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%z(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%d(1,1),nc*levs,mpi_real4,iope,mpi_comm_world,iret)
-!    call mpi_bcast(sigdata%q(1,1,1),nc*levs*ntrac,mpi_real4,iope,mpi_comm_world,iret)
-
-    gfshead%fhour   = fhour
-    gfshead%idate   = idate
-    gfshead%lonb    = lonb
-    gfshead%latb    = latb
-    gfshead%levs    = levs
-    gfshead%ntrac   = ntrac
-    gfshead%ncldt   = ncldt
-
-    return
-  end subroutine read_sighead
-
   subroutine read_sfc(lunges,filename,sfchead,sfcdata,iope,mype,iret)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -504,7 +510,7 @@ end subroutine write_ghg_grid
 !   output argument list:
 !     sfcdata (inout)    - sfc data structure to hold data
 !     sfchead (inout)    - sfc header structure to hold metadata
-!     iret               - return code (0 for sucessful completion)
+!     iret               - return code (0 for successful completion)
 !
 ! attributes:
 !   language:  f90
@@ -631,7 +637,7 @@ end subroutine write_ghg_grid
     integer(i_kind),parameter:: nsfc=11
 
 !   Declare local variables
-    integer(i_kind) i,j,k,latb,lonb,n
+    integer(i_kind) i,j,latb,lonb,n
     integer(sfcio_intkind):: irets,iret
     real(r_kind),allocatable,dimension(:,:):: outtmp
 
@@ -954,6 +960,8 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   2009-11-28  todling - add increment option (hook-only for now)
 !   2010-03-31  treadon - add hires_b, sp_a, and sp_b
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2013-10-19  todling - update cloud_efr module name
+!   2013-10-29  todling - revisit write to allow skipping vars not in MetGuess
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -969,69 +977,106 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
-         ges_tv,ges_q,ges_oz,ges_prsl,&
-         ges_u,ges_v,ges_prsi,dsfct,isli2
-    use guess_grids, only: ntguessig,ntguessfc
+    use guess_grids, only: dsfct,isli2
+    use guess_grids, only: ntguessig,ntguessfc,ifilesig,nfldsig
     use gridmod, only: hires_b,sp_a,grd_a,jcap_b,nlon,nlat
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use mpeu_util, only: die
     use radinfo, only: nst_gsi
     use general_specmod, only: general_init_spec_vars,general_destroy_spec_vars,spec_vars
+    use gsi_4dvar, only: lwrite4danl
 
     implicit none
 
     integer(i_kind),intent(in   ) :: increment
     integer(i_kind),intent(in   ) :: mype,mype_atm,mype_sfc
     character(24):: filename
-    integer(i_kind) itoutsig,istatus,iret_write,nlon_b
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
+    integer(i_kind) itoutsig,istatus,iret_write,nlon_b,ntlevs,it
+
     character(24):: file_sfc,file_nst
+
+    real(r_kind),allocatable,dimension(:,:  ):: aux_ps
+    real(r_kind),allocatable,dimension(:,:  ):: aux_z
+    real(r_kind),allocatable,dimension(:,:,:):: aux_u
+    real(r_kind),allocatable,dimension(:,:,:):: aux_v
+    real(r_kind),allocatable,dimension(:,:,:):: aux_vor
+    real(r_kind),allocatable,dimension(:,:,:):: aux_div
+    real(r_kind),allocatable,dimension(:,:,:):: aux_tv
+    real(r_kind),allocatable,dimension(:,:,:):: aux_q
+    real(r_kind),allocatable,dimension(:,:,:):: aux_oz
+    real(r_kind),allocatable,dimension(:,:,:):: aux_cwmr
+
+    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
+
     type(spec_vars):: sp_b
 
 !   Write atmospheric analysis file
-    if (increment>0) then
-       filename='siginc'
-       itoutsig=increment
-       if(mype==0) write(6,*) 'WRITE_GFS: writing time slot ', itoutsig
+    if (.not.lwrite4danl) then
+       ntlevs=1
     else
-       filename='siganl'
-       itoutsig=ntguessig
-    endif
+       ntlevs=nfldsig
+    end if
 
-!   Get pointer to could water mixing ratio
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,istatus)
-    if (istatus/=0) call die('WRITE_GFS','cannot get pointer to cwmr, istatus =',istatus)
+!   Get space for temporary arrays need to read file
+    call create_aux_
+
+    do it=1,ntlevs
+       if (increment>0) then
+          filename='siginc'
+          itoutsig=increment
+          if(mype==0) write(6,*) 'WRITE_GFS: writing time slot ', itoutsig
+       else if (.not.lwrite4danl) then
+          filename='siganl'
+          itoutsig=ntguessig
+          if(mype==0) write(6,*) 'WRITE_GFS: writing single analysis state for F ', itoutsig
+       else
+          write(filename,100) ifilesig(it)
+100       format('siga',i2.2)
+          itoutsig=it
+          if(mype==0) write(6,*) 'WRITE_GFS: writing full analysis state for F ', itoutsig
+       endif
+
+       call set_analysis_(itoutsig)
 
 !   If hires_b, spectral to grid transform for background
 !   uses double FFT.   Need to pass in sp_a and sp_b
-    nlon_b=((2*jcap_b+1)/nlon+1)*nlon
-    if (nlon_b /= sp_a%imax) then
-       hires_b=.true.
-       call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
-       if (mype==0) &
-            write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
-            sp_b%jcap,sp_b%imax,sp_b%jmax
+       nlon_b=((2*jcap_b+1)/nlon+1)*nlon
+       if (nlon_b /= sp_a%imax) then
+          hires_b=.true.
+          call general_init_spec_vars(sp_b,jcap_b,jcap_b,nlat,nlon_b)
+          if (mype==0) &
+               write(6,*)'WRITE_GFS:  allocate and load sp_b with jcap,imax,jmax=',&
+               sp_b%jcap,sp_b%imax,sp_b%jmax
 
-       call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
-            ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
-            ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
-            ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
-            ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
-            iret_write)
+          call general_write_gfsatm(grd_a,sp_a,sp_b,filename,mype,mype_atm, &
+               aux_z,aux_ps,&
+               aux_vor,aux_div,&
+               aux_tv,aux_q,&
+               aux_oz,aux_cwmr,it,&
+               iret_write)
 
-       call general_destroy_spec_vars(sp_b)
+          call general_destroy_spec_vars(sp_b)
 
 !   Otherwise, use standard transform.  Use sp_a in place of sp_b.
-    else
-       call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
-            ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
-            ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
-            ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
-            ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
-            iret_write)
-    endif
+       else
+          call general_write_gfsatm(grd_a,sp_a,sp_a,filename,mype,mype_atm, &
+               aux_z,aux_ps,&
+               aux_vor,aux_div,&
+               aux_tv,aux_q,&
+               aux_oz,aux_cwmr,it,&
+               iret_write)
+       endif
+    end do ! end do over ntlevs
 
 !   Write surface analysis file
     if (increment>0) then
@@ -1047,6 +1092,85 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
         call write_gfssfc(filename,mype,mype_sfc,dsfct(1,1,ntguessfc))
       endif
     endif
+
+!   Get rid of temporary arrays
+    call destroy_aux_
+
+  contains
+
+  subroutine create_aux_
+!
+!   Description: this routine is here only temporarily. It serves to demonstrate
+!   the ability to use a single (meaningful) variable in the analysis, as for 
+!   example ozone. Unfortunately, since read_gfsatm requires all upper-air guess
+!   fields, we need to allocate space to read them all, even though depending on
+!   metguess, some maybe excluded from being carried into the analysis. In the
+!   future, it would be better to recode read_gfsatm and have it deal with a
+!   single variable at a time; at that time, this routine and its destroy could 
+!   be removed.
+!
+!   2013-10-29  Todling Initial code.
+!
+  use gridmod, only: lat2,lon2,nsig
+  use constants, only: zero
+  implicit none
+  allocate(aux_ps(lat2,lon2)); aux_ps=zero
+  allocate(aux_z(lat2,lon2)); aux_z=zero
+  allocate(aux_u(lat2,lon2,nsig)); aux_u=zero
+  allocate(aux_v(lat2,lon2,nsig)); aux_v=zero
+  allocate(aux_vor(lat2,lon2,nsig)); aux_vor=zero
+  allocate(aux_div(lat2,lon2,nsig)); aux_div=zero
+  allocate(aux_tv(lat2,lon2,nsig)); aux_tv=zero
+  allocate(aux_q(lat2,lon2,nsig)); aux_q=zero
+  allocate(aux_oz(lat2,lon2,nsig)); aux_oz=zero
+  allocate(aux_cwmr(lat2,lon2,nsig)); aux_cwmr=zero
+  end subroutine create_aux_
+
+  subroutine set_analysis_(it)
+  implicit none
+  integer(i_kind),intent(in) :: it
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it  ,istatus) 
+  if(istatus==0) aux_ps = ges_ps_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it   ,istatus) 
+  if(istatus==0) aux_z = ges_z_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it   ,istatus) 
+  if(istatus==0) aux_u = ges_u_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it   ,istatus) 
+  if(istatus==0) aux_v = ges_v_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus) 
+  if(istatus==0) aux_vor = ges_vor_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus) 
+  if(istatus==0) aux_div = ges_div_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it  ,istatus) 
+  if(istatus==0) aux_tv = ges_tv_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q' ,ges_q_it   ,istatus) 
+  if(istatus==0) aux_q = ges_q_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it  ,istatus) 
+  if(istatus==0) aux_oz = ges_oz_it
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus) 
+  if(istatus==0) aux_cwmr = ges_cwmr_it
+
+  end subroutine set_analysis_
+
+  subroutine destroy_aux_
+!
+!   Description: see create_aux_
+!
+!   2013-10-29  Todling Initial code.
+!
+  implicit none
+  deallocate(aux_cwmr)
+  deallocate(aux_oz)
+  deallocate(aux_q)
+  deallocate(aux_tv)
+  deallocate(aux_div)
+  deallocate(aux_vor)
+  deallocate(aux_v)
+  deallocate(aux_u)
+  deallocate(aux_z)
+  deallocate(aux_ps)
+  end subroutine destroy_aux_
 
   end subroutine write_gfs
 
@@ -1105,6 +1229,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   2005-03-10  treadon - remove iadate from calling list, access via obsmod
 !   2006-10-11  treadon - update 10m wind factor in sfc file
 !   2008-05-28  safford - rm unused vars
+!   2013-10-25  todling - move ltosj/s to comm_vars
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -1132,10 +1257,11 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gridmod, only: lat2,lon2
     use gridmod, only: iglobal
     use gridmod, only: ijn
-    use gridmod, only: ltosi,ltosj
     use gridmod, only: displs_g
     use gridmod, only: itotsub
     
+    use general_commvars_mod, only: ltosi,ltosj
+
     use obsmod, only: iadate
     
     use constants, only: zero_single
@@ -1278,6 +1404,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !
 ! abstract: write both sfc and nst analysis files (nst_gsi dependent)
+!   2013-10-25  todling - move ltosj/s to comm_vars
 !
 
 !
@@ -1295,9 +1422,10 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
     use gridmod, only: lat2,lon2
     use gridmod, only: iglobal
     use gridmod, only: ijn
-    use gridmod, only: ltosi,ltosj
     use gridmod, only: displs_g
     use gridmod, only: itotsub
+
+    use general_commvars_mod, only: ltosi,ltosj
 
     use obsmod, only: iadate
 
@@ -1367,8 +1495,7 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 !   Declare local variables
     integer(i_kind):: iret
     integer(i_kind) latb,lonb,nlatm2
-    integer(i_kind) latd,lonl,version
-    integer(i_kind) i,j,k,ip1,jp1,ilat,ilon,jj,mm1
+    integer(i_kind) i,j,ip1,jp1,ilat,ilon,jj,mm1
 
     real(r_kind),dimension(nlon,nlat):: buffer
     real(r_kind),dimension(lat1,lon1):: sosub
@@ -1587,68 +1714,6 @@ subroutine tran_gfssfc(ain,aout,lonb,latb)
 
 !   End of routine
   end subroutine write_gfs_sfc_nst
-
-  subroutine reorder_gfsgrib(nx,ny,grid_1d,grid_2d)
-!$$$  subprogram documentation block
-!                .      .    .
-! subprogram:    reorder_gfsgrib --- transfer gfsgrib data 1d <--> 2d
-!
-!   prgrmmr:     treadon -  initial version; org: np23
-!
-! abstract:      This routine transfers the contents of gfs grib arrays
-!                between 1d and 2d.
-!
-! program history log:
-!   2007-04-30  treadon -  original routine
-!   2008-05-28  safford -- add subprogram doc block
-!
-!   input argument list:
-!     nx        - number of grid points in zonal direction 
-!     ny        - number of grid points in meridional direction
-!     grid_1d   - 1d array
-!
-!   output argument list:
-!     grid_2d   - 2d array
-!
-! attributes:
-!   language: f90
-!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
-!
-!$$$ end documentation block
-
-! !USES:
-    use kinds, only: r_kind,i_kind
-    implicit none
-! !INPUT PARAMETERS:
-    integer(i_kind)              ,intent(in   ) :: nx      ! number of grid points in zonal direction 
-    integer(i_kind)              ,intent(in   ) :: ny      ! number of grid points in meridional direction
-
-    real(r_kind),dimension(nx*ny),intent(in   ) :: grid_1d   ! 1d array
-
-! !OUTPUT PARAMETERS:
-    real(r_kind),dimension(nx,ny),intent(  out) :: grid_2d   ! 2d array
-
-!-------------------------------------------------------------------------
-
-!   Declare local variables
-    integer(i_kind) i,j,ij
-
-!*****************************************************************************
-
-!   Loop to transfer array contents
-    ij=0
-    do j=1,ny
-       do i=1,nx
-          ij=ij+1
-          grid_2d(i,j)=grid_1d(ij)
-       end do
-    end do
-
-    
-!   End of routine
-    return
-  end subroutine reorder_gfsgrib
-
 
   subroutine sfc_interpolate(a,na_lon,na_lat,b,ns_lon,ns_lat)
 !$$$  subprogram documentation block

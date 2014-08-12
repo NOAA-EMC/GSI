@@ -98,9 +98,9 @@ Column 1: variable name - refers to internally known GSI variable name
 Column 2: indicates number of levels (used to distinguish between 2d and 3d fields)
 Column 3: indicates whether variable is to be passed to CRTM or not according to 
           the following scheme:
-            <0    general variable; not used in CRTM 
-            =0    general variable; use prescribed global mean data to affect CRTM
-            =1    general variable; use variable in guess field to affect CRTM 
+          if<0    general variable; not used in CRTM 
+          if=0    general variable; use prescribed global mean data to affect CRTM
+          if=1    general variable; use variable in guess field to affect CRTM 
 Column 4: description of variable (defined by user)
 Column 5: user-defined variable name associated with name read in from file
 \end{verbatim}
@@ -273,7 +273,7 @@ type(GSI_Bundle),pointer :: GSI_MetGuess_Bundle(:)   ! still a common block for 
 !BOC
 
 integer(i_kind),parameter::MAXSTR=256
-logical:: guess_grid_initialized=.false.
+logical:: guess_grid_initialized_=.false.
 logical:: guess_initialized_=.false.
 character(len=*), parameter :: myname = 'gsi_metguess_mod'
 
@@ -290,6 +290,8 @@ character(len=MAXSTR),allocatable :: mguess2d(:)   ! same as list above, but eac
 character(len=MAXSTR),allocatable :: metstype(:)   ! indicate type of meteorological field
 character(len=MAXSTR),allocatable :: metsty3d(:)   ! indicate 3d type of met-guess
 character(len=MAXSTR),allocatable :: metsty2d(:)   ! indicate 3d type of met-guess
+character(len=MAXSTR),allocatable :: usrname2d(:)  ! user-defined 2d field names
+character(len=MAXSTR),allocatable :: usrname3d(:)  ! user-defined 3d field names
 character(len=MAXSTR),allocatable :: usrname(:)    ! user-defined field names
 integer(i_kind),allocatable,dimension(:) :: i4crtm ! controls use of gas in CRTM:
                                                    ! < 0 don't use in CRTM
@@ -324,6 +326,9 @@ implicit none
 !
 ! !REVISION HISTORY:
 !   2011-04-29  todling  initial code
+!   2013-09-30  todling  allow 40-char var description
+!   2014-02-03  todling  negative level entry in table means rank-3 array
+!                         
 !
 ! !REMARKS:
 !   language: f90
@@ -340,7 +345,8 @@ character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
 character(len=*),parameter:: tbname='met_guess::'
 integer(i_kind) luin,i,ii,ntot,icrtmuse
 character(len=256),allocatable,dimension(:):: utable
-character(len=20) var,ctype,oname
+character(len=20) ctype
+character(len=20) var,oname
 character(len=*),parameter::myname_=myname//'*init_'
 integer(i_kind) ilev
 logical iamroot_
@@ -376,13 +382,10 @@ close(luin)
 ng3d=0; ng2d=0
 do ii=1,nmguess
    read(utable(ii),*) var, ilev, icrtmuse
-   if(ilev>1) then
-      ng3d=ng3d+1
-   else if(ilev==1) then
+   if(ilev==1) then
       ng2d=ng2d+1
    else
-      write(6,*) myname_,': error, unknown number of levels'
-      call stop2(999)
+      ng3d=ng3d+1
    endif
 enddo
 
@@ -390,47 +393,52 @@ allocate(mguess3d(ng3d),mguess2d(ng2d), &
          metsty3d(ng3d),metsty2d(ng2d), &
          i4crtm3d(ng3d),i4crtm2d(ng2d), &
          levels3d(ng3d),levels2d(ng2d), &
-         levels(nmguess),i4crtm(nmguess),usrname(nmguess))
+         usrname3d(ng3d),usrname2d(ng2d), &
+         levels(nmguess),i4crtm(nmguess),usrname(nmguess),&
+         mguess(nmguess),metstype(nmguess))
 
 ! Now load information from table
 ng3d=0;ng2d=0
 do ii=1,nmguess
    read(utable(ii),*) var, ilev, icrtmuse, ctype, oname
-   if(ilev>1) then
-      ng3d=ng3d+1
-      mguess3d(ng3d)=trim(adjustl(var))
-      metsty3d(ng3d)=trim(adjustl(ctype))
-      i4crtm3d(ng3d)=icrtmuse
-      levels3d(ng3d)=ilev
-      if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) n3dcloud=n3dcloud+1 ! convention, for now
-   else
+   if(ilev==1) then
       ng2d=ng2d+1
       mguess2d(ng2d)=trim(adjustl(var))
       metsty2d(ng2d)=trim(adjustl(ctype))
       i4crtm2d(ng2d)=icrtmuse
-      levels2d(ng3d)=ilev
+      levels2d(ng2d)=ilev
+      usrname2d(ng2d)=trim(adjustl(oname))
       if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) n2dcloud=n2dcloud+1 ! convention, for now
+   else
+      ng3d=ng3d+1
+      mguess3d(ng3d)=trim(adjustl(var))
+      metsty3d(ng3d)=trim(adjustl(ctype))
+      i4crtm3d(ng3d)=icrtmuse
+      levels3d(ng3d)=abs(ilev)
+      usrname3d(ng3d)=trim(adjustl(oname))
+      if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) n3dcloud=n3dcloud+1 ! convention, for now
    endif
-   levels (ii)=ilev
-   i4crtm (ii)=icrtmuse
-   usrname(ii)=trim(adjustl(oname))
    if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) ncloud=ncloud+1 ! convention, for now
 enddo
 
 deallocate(utable)
-
-allocate(mguess(nmguess),metstype(nmguess))
 
 ! Fill in array w/ all var names (must be 3d first, then 2d)
 ii=0
 do i=1,ng3d
    ii=ii+1
    mguess(ii)=mguess3d(i)
+   levels(ii)=levels3d(i)
+   i4crtm(ii)=i4crtm3d(i)
+   usrname(ii)=usrname3d(i)
    metstype(ii)=trim(adjustl(metsty3d(i)))
 enddo
 do i=1,ng2d
    ii=ii+1
    mguess(ii)=mguess2d(i)
+   levels(ii)=levels2d(i)
+   i4crtm(ii)=i4crtm2d(i)
+   usrname(ii)=usrname2d(i)
    metstype(ii)=trim(adjustl(metsty2d(i)))
 enddo
 
@@ -479,9 +487,22 @@ implicit none
 !-------------------------------------------------------------------------
 !BOC
 if(.not.guess_initialized_) return
-deallocate(mguess)
-deallocate(mguess3d,mguess2d,i4crtm,i4crtm3d,i4crtm2d,metsty3d,metsty2d,metstype,usrname,&
-           levels,levels3d,levels2d)
+
+if(allocated(mguess3d)) deallocate(mguess3d)
+if(allocated(mguess2d)) deallocate(mguess2d)
+if(allocated(metsty3d)) deallocate(metsty3d)
+if(allocated(metsty2d)) deallocate(metsty2d) 
+if(allocated(i4crtm3d)) deallocate(i4crtm3d)
+if(allocated(i4crtm2d)) deallocate(i4crtm2d)
+if(allocated(levels3d)) deallocate(levels2d)
+if(allocated(levels))   deallocate(levels)
+if(allocated(i4crtm))   deallocate(i4crtm)
+if(allocated(usrname3d))deallocate(usrname3d)
+if(allocated(usrname2d))deallocate(usrname2d)
+if(allocated(usrname))  deallocate(usrname)
+if(allocated(mguess))   deallocate(mguess)
+if(allocated(metstype)) deallocate(metstype)
+
 guess_initialized_=.false.
 end subroutine final_
 !EOC
@@ -516,6 +537,8 @@ end subroutine final_
 !   2010-04-20  todling  initial code
 !   2010-05-17  todling  update create interface to pass a grid
 !   2011-07-03  todling  allow running single or double precision
+!   2011-10-07  todling  allow for 2d variables
+!   2013-10-22  todling  handle for diverse 3d-level fields
 !
 ! !AUTHOR:
 !   Ricardo Todling  org: gmao      date: 2010-04-10
@@ -525,14 +548,13 @@ end subroutine final_
 !BOC
 
     character(len=*), parameter :: myname_ = myname//'*create_'
-    integer(i_kind) i,j,k,n,nt,ic
-    character(len=MAXSTR) :: var
+    integer(i_kind) nt,ier
     type(GSI_Grid):: grid
 
     istatus=0
     if(nmguess<=0) return
 
-    if(guess_grid_initialized) return
+    if(guess_grid_initialized_) return
 
 !   Create simple regular grid
     call gsi_gridcreate ( grid, im, jm, km )
@@ -540,8 +562,10 @@ end subroutine final_
     nbundles = lm
     allocate(GSI_MetGuess_Bundle(nbundles))
     do nt=1,nbundles
-       call GSI_BundleCreate ( GSI_MetGuess_Bundle(nt), grid, 'Meteo Guess', istatus, &
-                               names3d=mguess3d,bundle_kind=r_kind ) ! only 3d for now
+       call GSI_BundleCreate ( GSI_MetGuess_Bundle(nt), grid, 'Meteo Guess', ier, &
+                               names3d=mguess3d,names2d=mguess2d,levels=levels3d,&
+                               bundle_kind=r_kind )
+       istatus=istatus+ier
     enddo
 
     if (istatus/=0) then
@@ -553,7 +577,7 @@ end subroutine final_
     if (verbose_) then
        if(mype==0) write(6,*) trim(myname_),': alloc() for met-guess done'
     endif
-    guess_grid_initialized=.true.
+    guess_grid_initialized_=.true.
 
     return
   end subroutine create_
@@ -597,16 +621,17 @@ end subroutine final_
 !BOC
 
     character(len=*), parameter :: myname_ = myname//'*destroy_'
-    integer(i_kind) :: nt
-    character(len=MAXSTR) :: var
-    istatus=0
+    integer(i_kind) :: nt,ier
 
-    if(.not.guess_grid_initialized) return
+    istatus=0
+    if(.not.guess_grid_initialized_) return
 
      do nt=1,nbundles
-        call GSI_BundleDestroy ( GSI_MetGuess_Bundle(nt), istatus )
+        call GSI_BundleDestroy ( GSI_MetGuess_Bundle(nt), ier )
+        istatus=istatus+ier
      enddo
      deallocate(GSI_MetGuess_Bundle,stat=istatus)
+     istatus=istatus+ier
 
     if (istatus/=0) then
        if(mype==0) write(6,*)trim(myname_),':  deallocate error1, istatus=',istatus
@@ -616,7 +641,7 @@ end subroutine final_
     if (verbose_) then
        if(mype==0) write(6,*) trim(myname_),': dealloc() for met-guess done'
     endif
-    guess_grid_initialized=.false.
+    guess_grid_initialized_=.false.
 
     return
   end subroutine destroy_
@@ -670,6 +695,7 @@ end subroutine final_
   integer(i_kind) ii,id,ln
   istatus=1
   ivar=0
+  if(.not.guess_initialized_) return
   if(trim(desc)=='dim') then
      ivar = nmguess
      istatus=0
@@ -682,7 +708,12 @@ end subroutine final_
   else if(trim(desc)=='clouds::2d') then
      ivar = n2dcloud
      istatus=0
-  else if(trim(desc)=='clouds_4crtm::3d') then
+  else if(trim(desc)=='meteo_4crtm_jac::3d') then
+     do ii=1,ng3d
+        if (i4crtm3d(ii)==2) ivar=ivar+1
+     enddo
+     istatus=0
+  else if(trim(desc)=='clouds_4crtm_jac::3d') then
      do ii=1,ng3d
         if (i4crtm3d(ii)==12) ivar=ivar+1
      enddo
@@ -748,11 +779,12 @@ end subroutine final_
   integer(i_kind),intent(out):: ivar(:)
   integer(i_kind),intent(out):: istatus
   character(len=*),parameter:: myname_=myname//"*get_int1d_"
-  integer(i_kind) i,ii,id
+  integer(i_kind) i,ii
   logical labfound
   labfound=.false.
   istatus=1
   ivar=0
+  if(.not.guess_initialized_) return
   if(trim(desc)=='guesses_level') then
      labfound=.true.
      do i=1,nmguess
@@ -833,6 +865,7 @@ end subroutine final_
   labfound=.false.
   istatus=1
   ivar=''
+  if(.not.guess_initialized_) return
   if(trim(desc)=='list'.or.trim(desc)=='olist') then
      labfound=.true.
      if(nmguess>0) then
@@ -897,7 +930,8 @@ end subroutine final_
 !      gsinames               list of short names for met-fields as known in GSI
 !      usrnames               list of user-difined met-fields
 !      clouds::3d             list of 3d cloud fields
-!      clouds_4crtm::3d       list of 3d cloud fields to be fed to CRTM
+!      meteo_4crtm_jac::3d    list of 3d meteorology fields to participate in CRTM-Jac calc
+!      clouds_4crtm_jac::3d   list of 3d cloud fields to participate in CRTM-Jac calc
 ! 
 ! \end{verbatim}
 !  where XXX represents the name of the gas of interest. 
@@ -926,6 +960,7 @@ end subroutine final_
   labfound=.false.
   istatus=1
   ivar=''
+  if(.not.guess_initialized_) return
   if(trim(desc)=='gsinames') then
      labfound=.true.
      if(size(ivar)>=size(mguess)) then
@@ -957,7 +992,18 @@ end subroutine final_
         if(ii>0) istatus=0
      endif
   endif
-  if(trim(desc)=='clouds_4crtm::3d') then
+  if(trim(desc)=='meteo_4crtm_jac::3d') then
+     labfound=.true.
+     ii=0
+     do i=1,ng3d
+        if(i4crtm3d(i)==2) then
+           ii=ii+1
+           ivar(ii)=mguess3d(i) 
+        endif
+     enddo
+     if(ii>0) istatus=0
+  endif
+  if(trim(desc)=='clouds_4crtm_jac::3d') then
      labfound=.true.
      ii=0
      do i=1,ng3d

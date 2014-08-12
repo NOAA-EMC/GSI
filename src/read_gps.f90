@@ -86,7 +86,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
@@ -179,7 +179,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 
 ! Open file for input, then read bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)

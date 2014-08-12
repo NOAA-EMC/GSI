@@ -217,7 +217,7 @@ real(r_kind)                :: zbeta(2:kmaxit+1),zdelta(kmaxit),zv(kmaxit+1,kmax
    zqg0(kmaxit+1),zsstwrk(2*kmaxit)
 real(r_kind)                :: zdla, zeta, preduc_norm
 real(r_kind)                :: zbndlm, zgnorm, znorm2l1, zreqrd, ztheta1
-integer(i_kind)             :: ingood,itheta1,jm,imaxevecs,ii,jj,jk,isize,iii,jjj
+integer(i_kind)             :: ingood,itheta1,jm,imaxevecs,ii,jj,jk,isize
 integer(i_kind)             :: kminit, kmaxevecs,iunit,iprt
 logical                     :: lsavinc, lldone
 character(len=17)           :: clfile
@@ -362,7 +362,8 @@ Lanczos_loop : DO
 
    preduc_norm = SQRT(DOT_PRODUCT(zww,zww))
    preduc = preduc_norm/zgnorm
-   if (mype==0) write (6,*)'Estimated gradient norm=',preduc_norm,' Estimated reduction = ',preduc
+   if (mype==0) write (6,'(2(1X,A,ES25.18))') &
+      'Estimated gradient norm=',preduc_norm,' reduction = ',preduc
 
 
 !--- determine eigenvalues and eigenvectors of the tri-diagonal problem

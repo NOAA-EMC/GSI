@@ -8,6 +8,7 @@ module intjcmod
 !
 ! program history log:
 !   2012-01-21  kleist - consolidation of Jc int routines into single module
+!   2013-10-25  todling - nullify work pointers
 !
 ! subroutines included:
 !
@@ -62,8 +63,10 @@ subroutine intlimq(rval,sval,itbin)
 !
 !$$$
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: factqmin,factqmax,qgues,qsatg
-  use guess_grids, only: ges_q,ges_qsat
+  use jfunc, only: factqmin,factqmax
+  use derivsmod, only: qgues,qsatg
+  use guess_grids, only: ges_qsat
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   implicit none
 
 ! Declare passed variables
@@ -74,8 +77,9 @@ subroutine intlimq(rval,sval,itbin)
 ! Declare local variables
   integer(i_kind) i,j,k,ier,istatus
   real(r_kind) q
-  real(r_kind),pointer,dimension(:,:,:) :: sq
-  real(r_kind),pointer,dimension(:,:,:) :: rq
+  real(r_kind),pointer,dimension(:,:,:) :: sq=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rq=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: ges_q_it=>NULL()
 
   if (factqmin==zero .and. factqmax==zero) return
 
@@ -85,11 +89,14 @@ subroutine intlimq(rval,sval,itbin)
   call gsi_bundlegetpointer(sval,'q',sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'q',rq,istatus);ier=istatus+ier
   if(ier/=0)return
+
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'q',ges_q_it,ier)
+  if(ier/=0)return
  
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
-           q = ges_q(i,j,k,itbin) + sq(i,j,k)
+           q = ges_q_it(i,j,k) + sq(i,j,k)
            
 !          Lower constraint limit
            if (q < zero) then
@@ -135,7 +142,8 @@ subroutine intlimg(rval,sval)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: factg,ggues
+  use jfunc, only: factg
+  use derivsmod, only: ggues
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   implicit none
@@ -145,10 +153,10 @@ subroutine intlimg(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) gust
-  real(r_kind),pointer,dimension(:,:) :: sg
-  real(r_kind),pointer,dimension(:,:) :: rg
+  real(r_kind),pointer,dimension(:,:) :: sg=>NULL()
+  real(r_kind),pointer,dimension(:,:) :: rg=>NULL()
 
   if (factg==zero) return
 
@@ -198,7 +206,8 @@ subroutine intlimp(rval,sval)
 !
 !$$$
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: factp,pgues
+  use jfunc, only: factp
+  use derivsmod, only: pgues
   implicit none
 
 ! Declare passed variables
@@ -206,10 +215,10 @@ subroutine intlimp(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) pblh
-  real(r_kind),pointer,dimension(:,:) :: sp
-  real(r_kind),pointer,dimension(:,:) :: rp
+  real(r_kind),pointer,dimension(:,:) :: sp=>NULL()
+  real(r_kind),pointer,dimension(:,:) :: rp=>NULL()
 
   if (factp==zero) return
 
@@ -259,7 +268,8 @@ subroutine intlimv(rval,sval)
 !
 !$$$
   use gridmod, only: lat2,lon2,nsig,lat1,lon1
-  use jfunc, only: factv,vgues
+  use jfunc, only: factv
+  use derivsmod, only: vgues
   implicit none
 
 ! Declare passed variables
@@ -267,10 +277,10 @@ subroutine intlimv(rval,sval)
   type(gsi_bundle),intent(inout) :: rval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,ier,istatus
+  integer(i_kind) i,j,ier,istatus
   real(r_kind) vis
-  real(r_kind),pointer,dimension(:,:) :: sv
-  real(r_kind),pointer,dimension(:,:) :: rv
+  real(r_kind),pointer,dimension(:,:) :: sv=>NULL()
+  real(r_kind),pointer,dimension(:,:) :: rv=>NULL()
 
   if (factv==zero) return
 
@@ -295,7 +305,7 @@ subroutine intlimv(rval,sval)
   return
 end subroutine intlimv
 
-subroutine intjcpdry(rval,sval)
+subroutine intjcpdry(rval,sval,pjc)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intjcpdry   adjoint for mean dry ps conservation
@@ -310,6 +320,8 @@ subroutine intjcpdry(rval,sval)
 !   2010-08-18  hu      - added qpvals= to mpl_allreduce call
 !   2010-11-03  treadon - correct i,j loop limits for rq,rc update
 !   2011-11-01  eliu    - add handling for ql & qi increments and search directions
+!   2013-05-05  todling - separate dry mass from the rest (zero-diff change)
+!                         collapse two verions of this routine into one (add opt arg)
 !
 !   input argument list:
 !     rq       - q search direction
@@ -341,15 +353,22 @@ subroutine intjcpdry(rval,sval)
 ! Declare passed variables
   type(gsi_bundle),intent(in   ) :: sval
   type(gsi_bundle),intent(inout) :: rval
+  real(r_quad)    ,intent(  out),optional :: pjc
 
 ! Declare local variables
-  real(r_quad),dimension(1) :: dmass 
-  real(r_quad) rcon,con
+  real(r_quad),dimension(2) :: mass ! 1=dry;2=wv
+  real(r_quad) rcon,con,dmass
   integer(i_kind) i,j,k,it,ii,mm1,ier,icw,iql,iqi,istatus
-  real(r_kind),pointer,dimension(:,:,:) :: sq,sc,sql,sqi
-  real(r_kind),pointer,dimension(:,:,:) :: rq,rc,rql,rqi
-  real(r_kind),pointer,dimension(:,:)   :: sp
-  real(r_kind),pointer,dimension(:,:)   :: rp
+  real(r_kind),pointer,dimension(:,:,:) :: sq =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sc =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: sqi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rq =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rc =>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:) :: rqi=>NULL()
+  real(r_kind),pointer,dimension(:,:)   :: sp =>NULL()
+  real(r_kind),pointer,dimension(:,:)   :: rp =>NULL()
   
   it=ntguessig
 
@@ -371,7 +390,7 @@ subroutine intjcpdry(rval,sval)
     return
   end if
 
-  dmass(1)=zero_quad
+  mass(:)=zero_quad
   rcon=one_quad/(two_quad*float(nlon))
   mm1=mype+1
 
@@ -379,34 +398,43 @@ subroutine intjcpdry(rval,sval)
   do j=2,lon2-1
     do i=2,lat2-1
       ii=istart(mm1)+i-2
-      dmass(1)=dmass(1)+sp(i,j)*wgtlats(ii)
+      mass(1)=mass(1)+sp(i,j)*wgtlats(ii)
     end do
   end do
-! Remove water to get incremental dry ps
+
+! Calculate water-vapor contribution to total mass
   do k=1,nsig
      do j=2,lon2-1
         do i=2,lat2-1
            ii=istart(mm1)+i-2
            con = (ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
+           mass(2)=mass(2)+sq(i,j,k)*con
            if (icw==0) then
-              dmass(1)=dmass(1)-(sq(i,j,k)+sc(i,j,k))*con
+              mass(2)=mass(2)+sc(i,j,k)*con
            else
-              dmass(1)=dmass(1)-(sq(i,j,k)+sql(i,j,k)+sqi(i,j,k))*con
+              mass(2)=mass(2)+(sql(i,j,k)+sqi(i,j,k))*con
            endif
         end do
      end do
   end do
 
 ! First, use MPI to get global mean increment
-  call mpl_allreduce(1,qpvals=dmass)
+  call mpl_allreduce(2,qpvals=mass)
 
-  dmass(1)=bamp_jcpdry*dmass(1)*rcon*rcon
+! Remove water-vapor contribution to get incremental dry ps
+! if (mype==0) write(6,*)'intjcpdry: total mass =', mass(1)
+! if (mype==0) write(6,*)'intjcpdry: wv    mass =', mass(2)
+  dmass=mass(1)-mass(2)
+  dmass=bamp_jcpdry*dmass*rcon*rcon
+  if(present(pjc)) then
+     pjc = dmass*dmass
+  endif
 
 ! Calculate mean surface pressure contribution in subdomain
   do j=2,lon2-1
     do i=2,lat2-1
       ii=istart(mm1)+i-2
-      rp(i,j)=rp(i,j)+dmass(1)*wgtlats(ii)
+      rp(i,j)=rp(i,j)+dmass*wgtlats(ii)
     end do
   end do
 ! Remove water to get incremental dry ps
@@ -414,7 +442,7 @@ subroutine intjcpdry(rval,sval)
      do j=2,lon2-1
         do i=2,lat2-1
            ii=istart(mm1)+i-2
-           con = dmass(1)*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
+           con = dmass*(ges_prsi(i,j,k,it)-ges_prsi(i,j,k+1,it))*wgtlats(ii)
            rq(i,j,k)=rq(i,j,k)-con
            if (icw==0)then
               rc(i,j,k)=rc(i,j,k)-con
@@ -429,45 +457,54 @@ subroutine intjcpdry(rval,sval)
   return
 end subroutine intjcpdry
 
-subroutine intjcdfi(rval,sval)
+subroutine intjcdfi(rval,sval,pjc)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    intjcdfi   adjoint/int for weak constraint DFI
-!   prgmmr: kleist           org: np23                date: 2012-01-19
-!
-! abstract: Jc DFI Adjoint
+! subprogram:    intjcdfi    calculate Jc DFI terms and contribution to gradient
+!   prgmmr: tremolet
 !
 ! program history log:
-!   2012-01-19  kleist - adaptation of evaljcdfi 
+!   2007-10-18  tremolet - initial version
+!   2009-01-18  todling  - carry summation in quad precision
+!   2009-08-14  lueken   - update documentation
+!   2010-05-14  todling  - update to use gsi_bundle
+!   2011-08-01  lueken   - replace F90 with f90 (no machine logic) and replaced izero/ione with 0/1
+!   2012-01-19  kleist   - adaptation of evaljcdfi
+!   2013-05-18  todling  - code consolidation; remove evaljcdfi and renamed to intjcdfi
 !
 !   input argument list:
-!     rval     - 
-!     sval     - 
+!    sval
+!    rval
 !
 !   output argument list:
+!    rval
+!    pjc
 !
 ! attributes:
 !   language: f90
-!   machine:  ibm RS/6000 SP
+!   machine:
 !
-!$$$
-  use jcmod, only: wgtdfi,alphajc
-  use gsi_4dvar, only: nobs_bins
-  use mpimod, only: mype
-  use state_vectors, only : allocate_state,deallocate_state
-  use gsi_bundlemod, only : self_add,self_mul,assignment(=)
-  implicit none
+!$$$ end documentation block
+
+use jcmod, only: wgtdfi,alphajc
+use gsi_4dvar, only: nobs_bins
+use mpimod, only: mype
+use state_vectors, only : allocate_state,deallocate_state
+use gsi_bundlemod, only : self_add,self_mul,assignment(=)
+implicit none
 
 ! Declare passed variables
-  type(gsi_bundle),dimension(nobs_bins),intent(in) :: sval   
-  type(gsi_bundle),dimension(nobs_bins),intent(inout) :: rval
+type(gsi_bundle),dimension(nobs_bins),intent(in   ) :: sval
+type(gsi_bundle),dimension(nobs_bins),intent(inout) :: rval
+real(r_quad),               optional, intent(  out) :: pjc
 
 ! Declare local variables
-  integer(i_kind) :: jj,idfi
-  real(r_quad) :: pjc
-  type(gsi_bundle) :: sfilter,afilter
+integer(i_kind) :: jj,idfi
+real(r_quad),parameter :: half_quad=0.5_r_quad
+type(gsi_bundle) :: sfilter,afilter
+real(r_quad) :: cost
 
-!************************************************************************************
+!************************************************************************************  
 
   idfi = (nobs_bins-1)/2+1
   call allocate_state(sfilter)
@@ -485,8 +522,14 @@ subroutine intjcdfi(rval,sval)
 ! Apply Jc multiplicative factor
   call self_mul(sfilter,alphajc)
 
-! Convert to energy norm
-  call enorm_state(sfilter,pjc,afilter)
+! Compute Jc (norm of difference)
+! Jc = 1/2 * wgt * sfilter *sfilter
+! afilter = wgt * sfilter
+  call enorm_state(sfilter,cost,afilter)
+  if(present(pjc))then
+     pjc=half_quad*cost
+     if (mype==0) write(6,*)'Jc DFI=',pjc
+  endif
 
 ! Adjoint Jc multiplicative factor
   call self_mul(afilter,alphajc)

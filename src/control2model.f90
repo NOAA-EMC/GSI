@@ -19,10 +19,13 @@ subroutine control2model(xhat,sval,bval)
 !                        - ready to bypass analysis of (any) meteorological fields
 !   2010-06-15  todling  - generalized handling of chemistry
 !   2011-05-15  auligne/todling - generalized cloud handling
-!   2011-07-12   zhu     - add cw_to_hydro and cwhydromod
-!   2011-12-14   mkim    - changed clouds4crtm to clouds in metguess 
+!   2011-07-12  zhu      - add cw_to_hydro and cwhydromod
+!   2011-12-14  mkim     - changed clouds4crtm to clouds in metguess 
 !   2012-06-25  parrish  - modify wbundle by adding motley variables to control vector
 !                          so will be in form expected by new version of ckgcov which uses general_grid2sub.
+!   2012-10-09  wgu      - update interface to tbalance (fut2ps)
+!   2013-10-25  todling  - nullify work pointers
+!   2013-10-28  todling  - rename p3d to prse
 !   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
@@ -47,7 +50,7 @@ use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
 use gridmod, only: lat2,lon2,nsig,nnnn1o
 use jfunc, only: nsclen,npclen,ntclen
-use berror, only: varprd,fpsproj
+use berror, only: varprd,fpsproj,fut2ps
 use balmod, only: balance
 use cwhydromod, only: cw2hydro_tl
 use gsi_bundlemod, only: gsi_bundlecreate
@@ -73,7 +76,7 @@ character(len=*),parameter:: myname ='control2model'
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
 type(gsi_bundle) :: wbundle
 type(gsi_grid)   :: grid
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
+integer(i_kind) :: ii,jj,i,ic,id,ngases,nclouds,istatus
 character(len=10),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 
@@ -81,17 +84,24 @@ character(len=max_varname_length),allocatable,dimension(:) :: clouds
 !       the state and control vectors, but rather the ones
 !       explicitly needed by this routine.
 ! Declare required local state variables
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_tv,ls_ps,ls_ql,ls_qi
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_tv,ls_ps,ls_ql,ls_qi
 integer(i_kind), parameter :: nsvars = 9
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from SV needed here
-        'u   ', 'v   ', 'p3d ', 'q   ', 'tsen',  'tv  ', 'ps  ','ql  ', 'qi  ' /)
+        'u   ', 'v   ', 'prse', 'q   ', 'tsen',  'tv  ', 'ps  ','ql  ', 'qi  ' /)
 character(len=max_varname_length),allocatable,dimension(:) :: cvars2dpm  ! names of 2d fields including
                                                                          !  motley vars (if any)
-real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
-real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
-real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
-real(r_kind),pointer,dimension(:,:)   :: sv_rank2
+real(r_kind),pointer,dimension(:,:)   :: sv_ps=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_sst=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_u=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_v=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_prse=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_q=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_tsen=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_tv=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_oz=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: sv_rank3=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: sv_rank2=>NULL()
 
 logical :: do_balance,do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,cw_to_hydro
 
@@ -127,15 +137,15 @@ endif
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (sval(1),mysvars,isps,istatus)
-ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_tv =isps(6)>0
 ls_ps =isps(7)>0; ls_ql  =isps(8)>0; ls_qi =isps(9)>0
 
 ! Define what to do depending on what's in SV and 
 ! what's explictly needed in this routine
 do_balance       =ls_tv.and.ls_ps
-do_getprs_tl     =ls_ps.and.ls_tv .and.ls_p3d
-do_normal_rh_to_q=ls_tv.and.ls_p3d.and.ls_q
+do_getprs_tl     =ls_ps.and.ls_tv .and.ls_prse
+do_normal_rh_to_q=ls_tv.and.ls_prse.and.ls_q
 do_tv_to_tsen    =ls_tv.and.ls_q  .and.ls_tsen
 do_getuv         =ls_u .and.ls_v
 
@@ -169,7 +179,7 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
    call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
-   call gsi_bundlegetpointer (sval(jj),'p3d' ,sv_p3d, istatus)
+   call gsi_bundlegetpointer (sval(jj),'prse',sv_prse,istatus)
    call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
@@ -200,15 +210,15 @@ do jj=1,nsubwin
    enddo
 
 !  Balance equation
-   if(do_balance) call balance(sv_tv,sv_ps,workst,workvp,fpsproj)
+   if(do_balance) call balance(sv_tv,sv_ps,workst,workvp,fpsproj,fut2ps)
 
 !  -----------------------------------------------------------------------------
 
 !  Get 3d pressure
-   if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_p3d)
+   if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
 
 !  Convert input normalized RH to q
-   if(do_normal_rh_to_q) call normal_rh_to_q(workrh,sv_tv,sv_p3d,sv_q)
+   if(do_normal_rh_to_q) call normal_rh_to_q(workrh,sv_tv,sv_prse,sv_q)
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)

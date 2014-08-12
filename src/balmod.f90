@@ -19,8 +19,12 @@ module balmod
 !                         (strong constraint gets moved to control2state and state2control routines
 !                            when l_hyb_ens=.true.)
 !   2010-03-04  zhu  - add horizontally interpolated agvk,wgvk,bvk for regional
+!   2011-09-07  todling - note that implementation of hybrid in sqrt-B case
+!                         does not follow Dave's statement above (2009-06-15)
 !   2012-02-08  kleist - remove ref to l_hyb_ens in subroutines balance, tbalance, strong_bk, 
 !                          and strong_bk_ad.  add new parameter tlnmc_option.
+!   2012-02-08  parrish - replace nn_i_kind with nn, for nn any integer.
+!   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !
 ! subroutines included:
 !   sub create_balance_vars      - create arrays for balance vars
@@ -73,9 +77,11 @@ module balmod
   public :: strong_bk_ad
 ! set passed variables to public
   public :: fstat,llmax,llmin,rllat,rllat1,ke_vp,f1,bvz,agvz,wgvz,bvk,agvk,wgvk,agvk_lm
+  public :: pput
 
   real(r_kind),allocatable,dimension(:,:,:):: agvz
   real(r_kind),allocatable,dimension(:,:):: wgvz
+  real(r_kind),allocatable,dimension(:,:):: pput
   real(r_kind),allocatable,dimension(:,:):: bvz
   real(r_kind),allocatable,dimension(:,:,:,:):: agvk
   real(r_kind),allocatable,dimension(:,:):: agvk_lm
@@ -112,6 +118,7 @@ contains
     implicit none
     
     allocate(agvz(lat2,nsig,nsig),wgvz(lat2,nsig),bvz(lat2,nsig))
+    allocate(pput(lat2,nsig))
     
     return
   end subroutine create_balance_vars
@@ -140,6 +147,7 @@ contains
     implicit none
 
     deallocate(agvz,wgvz,bvz)
+    deallocate(pput)
 
     return
   end subroutine destroy_balance_vars
@@ -212,7 +220,7 @@ contains
     return
   end subroutine destroy_balance_vars_reg
 
-  subroutine prebal
+  subroutine prebal(fut2ps,cwcoveqqcov)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    prebal
@@ -242,6 +250,7 @@ contains
 !   2008-07-10  jguo    - place read of bkgerr fields in m_berror_stats
 !   2008-12-29  todling - get mlat from dims in m_berror_stats; mype from mpimod
 !   2009-02-25  zhu     - remove the error message
+!   2014-02-05  todling - add parameter to control overwrite of cw w/ q cov
 !
 !   input argument list:
 !
@@ -257,22 +266,29 @@ contains
     use mpimod, only: mype
     use gridmod, only: istart,lat2,nlat,nsig
     use constants, only: zero
-    use m_berror_stats,only: berror_read_bal
+    use m_berror_stats,only: berror_set,berror_read_bal
     implicit none
     
+    logical              ,intent(in   ) :: fut2ps
+    logical              ,intent(in   ) :: cwcoveqqcov
+
 !   Declare local variables
-    integer(i_kind) i,j,k,msig
+    integer(i_kind) i,j,k
     integer(i_kind) mm1
     integer(i_kind) jx
     
     real(r_single),dimension(nlat,nsig,nsig):: agvin
     real(r_single),dimension(nlat,nsig) :: wgvin,bvin
+    real(r_single),dimension(nlat,nsig) :: pputin
     
 !   Initialize local variables
     mm1=mype+1
 
+!   Set internal parameters to m_berror_stats
+    call berror_set('cwcoveqqcov',cwcoveqqcov)
+
 !   Read in balance variables
-    call berror_read_bal(agvin,bvin,wgvin,mype)
+    call berror_read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype)
 
 !   Set ke_vp=nsig (note:  not used in global)
     ke_vp=nsig
@@ -281,6 +297,7 @@ contains
     agvz=zero
     bvz=zero
     wgvz=zero
+    pput=zero
     do k=1,nsig
        do j=1,nsig
           do i=1,lat2
@@ -296,6 +313,7 @@ contains
           jx=min(nlat-1,jx)
           wgvz(i,k)=wgvin(jx,k)
           bvz(i,k)=bvin(jx,k)
+          pput(i,k)=pputin(jx,k)
        end do
     enddo
 
@@ -453,7 +471,7 @@ contains
     return
   end subroutine prebal_reg
   
-  subroutine balance(t,p,st,vp,fpsproj)
+  subroutine balance(t,p,st,vp,fpsproj,fut2ps)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    balance     apply balance equation
@@ -487,6 +505,7 @@ contains
 !   2008-06-05  safford - rm unused vars
 !   2008-12-29  todling - remove q from arg list
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
+!   2011-09-07  todling - in sqrt-b case, always apply balance (even in hyb mode) 
 !   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
 !                           with   "use mod_strong, only: tlnmc_option".
 !                           then trigger call to strong_bk at end of subroutine balance with 
@@ -511,6 +530,7 @@ contains
 !
 !$$$
     use constants, only: one,half
+    use gsi_4dvar, only: lsqrtb
     use gridmod, only: regional,lat2,nsig,iglobal,itotsub,lon2
     use mod_strong, only: tlnmc_option
     implicit none
@@ -519,12 +539,10 @@ contains
     real(r_kind),dimension(lat2,lon2)     ,intent(inout) :: p
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,vp,st
     logical                               ,intent(in   ) :: fpsproj
+    logical                               ,intent(in   ) :: fut2ps
 
 !   Declare local variables
     integer(i_kind) i,j,k,l,m
-
-    real(r_kind) dl1,dl2
-
 
 !   REGIONAL BRANCH
     if (regional) then
@@ -587,6 +605,15 @@ contains
                 end do
              end do
           end do
+          if(fut2ps) then
+            do k=1,nsig
+               do j=1,lon2
+                  do i=1,lat2
+                     p(i,j)=p(i,j)+pput(i,k)*t(i,j,k)
+                  end do
+               end do
+            end do
+          endif
        else
           do k=1,nsig-1
              do j=1,lon2
@@ -626,12 +653,18 @@ contains
 
 !!   Strong balance constraint
 !!   Pass uvflag=.false.
-    if (tlnmc_option==1 .or. tlnmc_option==4) call strong_bk(st,vp,p,t,.false.)
+    if(lsqrtb) then
+       call strong_bk(st,vp,p,t,.false.)
+     else
+       if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk(st,vp,p,t,.false.)
+     endif
+
+
 
     return
   end subroutine balance
   
-  subroutine tbalance(t,p,st,vp,fpsproj)
+  subroutine tbalance(t,p,st,vp,fpsproj,fut2ps)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    tbalance    adjoint of balance
@@ -665,6 +698,7 @@ contains
 !                         (strong constraint gets moved to control2state and state2control routines
 !                            when l_hyb_ens=.true.)
 !   2010-03-09  zhu     - move the interpolation for regional to prebal_reg
+!   2011-09-07  todling - in sqrt-b case, always apply balance (even in hyb mode) 
 !   2012-02-08  kleist  - replace "use hybrid_ensemble_parameters, only: l_hyb_ens"
 !                           with   "use mod_strong, only: tlnmc_option".
 !                           then trigger call to strong_bk_ad at beginning of subroutine tbalance with 
@@ -689,6 +723,7 @@ contains
 !
 !$$$
     use constants,   only: one,half
+    use gsi_4dvar,   only: lsqrtb
     use gridmod,     only: itotsub,regional,iglobal,lon2,lat2,nsig
     use mod_strong,  only: tlnmc_option
     implicit none
@@ -698,15 +733,19 @@ contains
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t
     real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: st,vp
     logical                               ,intent(in   ) :: fpsproj
+    logical                               ,intent(in   ) :: fut2ps
 
 !   Declare local variables
-    integer(i_kind) l,m,l2,i,j,k
+    integer(i_kind) l,m,i,j,k
 
-    real(r_kind) dl1,dl2
   
 !  Adjoint of strong balance constraint
 !  pass uvflag=.false.
-    if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
+    if(lsqrtb) then
+       call strong_bk_ad(st,vp,p,t,.false.)
+     else
+       if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
+     endif
 
 !   REGIONAL BRANCH
     if (regional) then
@@ -780,6 +819,13 @@ contains
 !         Adjoint of streamfunction and unbalanced velocity potential
 !         contribution to surface pressure.
           if ( fpsproj ) then
+             if ( fut2ps ) then
+                do j=1,lon2
+                   do i=1,lat2
+                      t(i,j,k)=t(i,j,k)+pput(i,k)*p(i,j)
+                   end do
+                end do
+             endif
              do j=1,lon2
                 do i=1,lat2
                    st(i,j,k)=st(i,j,k)+wgvz(i,k)*p(i,j)

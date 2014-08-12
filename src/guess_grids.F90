@@ -21,7 +21,8 @@ module guess_grids
   use gridmod, only: aeta2_ll
   use gridmod, only: pdtop_ll
   use gridmod, only: pt_ll
-  use regional_io, only: update_pint
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
 
   ! meteorological guess (beyond standard ones)
   use gsi_metguess_mod, only: gsi_metguess_create_grids
@@ -34,6 +35,15 @@ module guess_grids
   use gsi_chemguess_mod, only: gsi_chemguess_destroy_grids
   use gsi_chemguess_mod, only: gsi_chemguess_get
 
+  ! derivatives
+  use derivsmod, only: create_ges_derivatives
+  use derivsmod, only: destroy_ges_derivatives
+
+  ! tendencies
+  use tendsmod, only: create_ges_tendencies
+  use tendsmod, only: destroy_ges_tendencies
+
+  use mpeu_util, only: die,tell
   implicit none
 
 ! !DESCRIPTION: module containing variables related to the guess fields
@@ -46,7 +56,6 @@ module guess_grids
 !   2005-06-01  treadon - add routine add_rtm_layers
 !   2005-06-03  parrish - add horizontal derivatives of guess fields
 !   2005-06-10  devenyi/treadon - initialize nfldsig and nfldsfc
-!   2005-07-06  parrish - add update_pint, arrays ges_pint, ges_pd
 !   2005-08-03  parrish - add array to hold roughness length
 !   2005-09-29  kleist - add derivatives of terrain, move prsi allocation
 !   2005-11-21  kleist - add tendency arrays
@@ -92,7 +101,9 @@ module guess_grids
 !   2011-12-27  kleist  - add 4d guess array for saturation specific humidity
 !   2012-01-11  Hu      - add GSD PBL height
 !   2013-02-22  Carley  - Add NMMB to GSD PBL height calc
-!   2014-03-12  Hu      - Add ges_q2 
+!   2013-10-19  todling - metguess now holds background
+!                         all tendencies now in a bundle (see tendsmod)
+!                         all derivaties now in a bundle (see derivsmod)
 !
 ! !AUTHOR: 
 !   kleist           org: np20                date: 2003-12-01
@@ -106,9 +117,6 @@ module guess_grids
   public :: create_sfc_grids
   public :: create_ges_grids
   public :: destroy_ges_grids
-#ifdef TO_BE_REMOVED
-  public :: destroy_sfct
-#endif
   public :: destroy_sfc_grids
   public :: create_gesfinfo
   public :: destroy_gesfinfo
@@ -125,24 +133,18 @@ module guess_grids
   public :: create_chemges_grids
   public :: destroy_chemges_grids
 ! set passed variables to public
-  public :: ntguessig,ges_ps,ges_tv,ges_prsi,ges_oz,ges_psfcavg,ges_prslavg
-  public :: isli2,ges_prsl,ges_z,ges_q,ges_v,ges_u,nfldsig,ges_vor,ges_div
-  public :: ges_ozlat,ges_ozlon,ges_qlat,ges_teta,ges_cwmr_lat
-  public :: ges_cwmr_lon,ges_v_lon,ges_u_lat,ges_u_lon,ges_v_lat,ges_qlon
-  public :: ges_tvlon,ges_tvlat,ges_prs_ten,ges_tv_ten,ges_v_ten,ges_cwmr_ten
-  public :: ges_oz_ten,ges_q_ten,fact_tv,tropprs,sfct,ges_u_ten,ges_ps_lat
-  public :: ges_ps_lon,ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
+  public :: ntguessig,ges_prsi,ges_psfcavg,ges_prslavg
+  public :: isli2,ges_prsl,nfldsig
+  public :: ges_teta
+  public :: fact_tv,tropprs,sfct
+  public :: ntguessfc,ntguesnst,dsfct,ifilesig,veg_frac,soil_type,veg_type
   public :: sno2,ifilesfc,ifilenst,sfc_rough,fact10,sno,isli,soil_temp,soil_moi
   public :: nfldsfc,nfldnst,hrdifsig,ges_tsen,sfcmod_mm5,sfcmod_gfs,ifact10,hrdifsfc,hrdifnst
-  public :: ges_pd,ges_pint,geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
-  public :: ges_gust,ges_vis,ges_pblh,ges_qsat
+  public :: geop_hgti,ges_lnprsi,ges_lnprsl,geop_hgtl,pt_ll,pbl_height
+  public :: ges_qsat
   public :: use_compress,nsig_ext,gpstop
-  public :: ges_th2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,ges_q2
-  public :: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
 
   public :: ges_initialized
-  public :: tnd_initialized
-  public :: drv_initialized
 
   public :: nfldsig_all,nfldsig_now,hrdifsig_all
   public :: nfldsfc_all,nfldsfc_now,hrdifsfc_all
@@ -158,8 +160,6 @@ module guess_grids
   logical:: use_compress = .false. ! true to turn on compressibility factor in geopotential heights
 
   logical, save :: ges_initialized = .false.
-  logical, save :: tnd_initialized = .false.
-  logical, save :: drv_initialized = .false.
 
   integer(i_kind) ntguessig         ! location of actual guess time for sigma fields
   integer(i_kind) ntguessfc         ! location of actual guess time for sfc fields
@@ -231,66 +231,17 @@ module guess_grids
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgtl ! guess geopotential height at mid-layers
   real(r_kind),allocatable,dimension(:,:,:,:):: geop_hgti ! guess geopotential height at level interfaces
 
-  real(r_kind),allocatable,dimension(:,:,:):: ges_z      ! topography
-  real(r_kind),allocatable,dimension(:,:,:):: ges_ps     ! log(surface pressure)
-  real(r_kind),allocatable,dimension(:,:,:):: ges_ps_lat ! log(ps)/lat for pcp routine
-  real(r_kind),allocatable,dimension(:,:,:):: ges_ps_lon ! log(ps)/lon for pcp routine
-  real(r_kind),allocatable,dimension(:,:,:):: ges_gust   ! wind gust speed
-  real(r_kind),allocatable,dimension(:,:,:):: ges_vis    ! visibility
-  real(r_kind),allocatable,dimension(:,:,:):: ges_pblh   ! pbl height
   real(r_kind),allocatable,dimension(:,:,:):: pbl_height  !  GSD PBL height in hPa
-                                                         ! Guess Fields ...
+                                                          ! Guess Fields ...
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsi  ! interface pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_prsl  ! layer midpoint pressure
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsl! log(layer midpoint pressure)
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_lnprsi! log(interface pressure)
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_u     ! zonal wind
-  real(r_kind),allocatable,dimension(:,:,:):: ges_u_lat ! zonal wind/lat
-  real(r_kind),allocatable,dimension(:,:,:):: ges_u_lon ! zonal wind/lon
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_v     ! meridional wind
-  real(r_kind),allocatable,dimension(:,:,:):: ges_v_lat ! meridional wind/lat
-  real(r_kind),allocatable,dimension(:,:,:):: ges_v_lon ! meridional wind/lon
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_vor   ! vorticity
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_div   ! divergence
-  real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_lat  ! cloud condensate mixing ratio/lat
-  real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_lon  ! cloud condensate mixing ratio/lon
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_q     ! specific humidity
-  real(r_kind),allocatable,dimension(:,:,:):: ges_qlon  ! q/lat for pcp routine advection calc
-  real(r_kind),allocatable,dimension(:,:,:):: ges_qlat  ! q/lon for pcp routine advection calc
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_oz    ! ozone mixing ratio
-  real(r_kind),allocatable,dimension(:,:,:):: ges_ozlat ! ozone mixing ratio/lat
-  real(r_kind),allocatable,dimension(:,:,:):: ges_ozlon ! ozone mixing ratio/lon
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_pint  ! pint variable (nmm only)
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tv    ! virtual temperature
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_tsen  ! sensible temperature
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_teta  ! potential temperature
-  real(r_kind),allocatable,dimension(:,:,:):: ges_tvlat ! tv/lat for pcp routine advection calc
-  real(r_kind),allocatable,dimension(:,:,:):: ges_tvlon ! tv/lon for pcp routine advection calc 
 
-  real(r_kind),allocatable,dimension(:,:,:)::ges_pd        ! pdges (for nmm only)
-  real(r_kind),allocatable,dimension(:,:,:):: ges_prs_ten  ! 3d pressure tendency
-  real(r_kind),allocatable,dimension(:,:,:):: ges_u_ten    ! u tendency
-  real(r_kind),allocatable,dimension(:,:,:):: ges_v_ten    ! v tendency
-  real(r_kind),allocatable,dimension(:,:,:):: ges_tv_ten   ! Tv tendency
-  real(r_kind),allocatable,dimension(:,:,:):: ges_q_ten    ! q tendency
-  real(r_kind),allocatable,dimension(:,:,:):: ges_oz_ten   ! ozone tendency
-  real(r_kind),allocatable,dimension(:,:,:):: ges_cwmr_ten ! cloud water tendency
   real(r_kind),allocatable,dimension(:,:,:):: fact_tv      ! 1./(one+fv*ges_q) for virt to sen calc.
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat      ! 4d qsat array
-! for GSD soil nudging
-  real(r_kind),allocatable,dimension(:,:,:):: ges_th2       ! 2-m potential temperature
-  real(r_kind),allocatable,dimension(:,:,:):: ges_q2        ! 2-m moisture
-  real(r_kind),allocatable,dimension(:,:,:):: ges_tsk       ! skin temperature
-  real(r_kind),allocatable,dimension(:,:,:):: ges_soilt1    ! TEMPERATURE INSIDE SNOW
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_tslb    ! SOIL TEMPERATURE
-  real(r_kind),allocatable,dimension(:,:,:,:):: ges_smois   ! SOIL MOISTURE   
-
-  real(r_kind),allocatable,dimension(:,:,:,:):: efr_ql     ! effective radius for cloud liquid water
-  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qi     ! effective radius for cloud ice
-  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qr     ! effective radius for rain
-  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qs     ! effective radius for snow
-  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qg     ! effective radius for graupel
-  real(r_kind),allocatable,dimension(:,:,:,:):: efr_qh     ! effective radius for hail
+  real(r_kind),allocatable,dimension(:,:,:,:):: ges_qsat   ! 4d qsat array
 
   interface guess_grids_print
      module procedure print1r8_
@@ -307,6 +258,8 @@ module guess_grids
   logical,save:: sfc_grids_allocated_=.false.
   logical,save:: ges_grids_allocated_=.false.
   logical,save:: gesfinfo_created_=.false.
+
+  character(len=*),parameter::myname='guess_grids'
 
 contains
 
@@ -326,7 +279,9 @@ contains
    use gridmod, only: lat2,lon2,nlat,nlon
    use constants, only: zero
 
-   use mpeu_util, only: die,tell
+
+   use radinfo, only: nst_gsi
+   use gsi_nstcouplermod, only: gsi_nstcoupler_init
    implicit none
 
 ! !DESCRIPTION: allocate memory for surface related grids
@@ -340,6 +295,7 @@ contains
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2008-12-5   todling - add time dimension to dsfct
 !   2009-01-23  todling - zero out arrays
+!   2012-03-06  akella  - add call to initialize arrays for NST analysis
 !
 ! !REMARKS:
 !   language: f90
@@ -414,6 +370,9 @@ contains
        end do
     end do
 
+!   Create full horizontal nst fields from local fields in guess_grids or read it from nst file
+    if (nst_gsi > 0) call gsi_nstcoupler_init()
+
     return
   end subroutine create_sfc_grids
 
@@ -432,8 +391,6 @@ contains
 
     use constants,only: zero,one
     use gridmod, only: lat2,lon2,nsig,regional,nsig_soil
-    use control_vectors, only: cvars3d
-    use mpeu_util, only: die, tell, getindex
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -452,7 +409,6 @@ contains
 !   2004-07-28  treadon - remove subroutine call list, pass variables via modules
 !   2005-06-03  parrish - allocate/initialize _lat,_lon derivatives for u,v,cwmr,oz
 !   2005-06-08  treadon - pass switch_on_derivatives via argument list
-!   2005-07-06  parrish - add update_pint, arrays ges_pint, ges_pd
 !   2005-07-27  kleist  - modified to include some shared arrays
 !   2006-01-10  treadon - remove mype from calling list (not used)
 !   2006-07-31  kleist  - use ges_ps arrays instead of ln(ps)
@@ -461,6 +417,8 @@ contains
 !   2006-12-15  todling - protection to allow initializing ges/tnd/drv at will
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2011-02-09  zhu     - add ges_gust,ges_vis,ges_pblh
+!   2012-05-14  todling - revisit cw check to check also on some hydrometeors
+!   2013-10-19  todling - revisit initialization of certain vars wrt ESMF
 !
 ! !REMARKS:
 !   language: f90
@@ -472,7 +430,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,n,ivar,istatus
+    integer(i_kind) i,j,k,n,istatus
     if(ges_grids_allocated_) call die('create_ges_grids','already allocated')
     ges_grids_allocated_=.true.
 
@@ -496,33 +454,9 @@ contains
             geop_hgtl(lat2,lon2,nsig,nfldsig), &
             geop_hgti(lat2,lon2,nsig+1,nfldsig),ges_prslavg(nsig),&
             tropprs(lat2,lon2),fact_tv(lat2,lon2,nsig),&
+            pbl_height(lat2,lon2,nfldsig),&
             ges_qsat(lat2,lon2,nsig,nfldsig),stat=istatus)
        if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prsi,..):  allocate error, istatus=',&
-            istatus,lat2,lon2,nsig,nfldsig
-#ifndef HAVE_ESMF
-       allocate (ges_z(lat2,lon2,nfldsig),ges_ps(lat2,lon2,nfldsig),&
-            ges_u(lat2,lon2,nsig,nfldsig),ges_v(lat2,lon2,nsig,nfldsig),&
-            ges_vor(lat2,lon2,nsig,nfldsig),ges_div(lat2,lon2,nsig,nfldsig),&
-            ges_q(lat2,lon2,nsig,nfldsig),&
-            ges_oz(lat2,lon2,nsig,nfldsig),ges_tv(lat2,lon2,nsig,nfldsig),&
-            ges_gust(lat2,lon2,nfldsig),ges_vis(lat2,lon2,nfldsig),&
-            ges_pblh(lat2,lon2,nfldsig), &
-            pbl_height(lat2,lon2,nfldsig),stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_z,..):  allocate error, istatus=',&
-            istatus,lat2,lon2,nsig,nfldsig
-#endif /* HAVE_ESMF */
-       if(update_pint) then
-          allocate(ges_pint(lat2,lon2,nsig+1,nfldsig),ges_pd(lat2,lon2,nfldsig),&
-               stat=istatus)
-          if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_pint,..):  allocate error, istatus=',&
-            istatus,lat2,lon2,nsig,nfldsig
-       endif
-
-       allocate ( ges_th2(lat2,lon2,nfldsig), ges_q2(lat2,lon2,nfldsig),&
-         ges_soilt1(lat2,lon2,nfldsig),ges_tslb(lat2,lon2,nsig_soil,nfldsig),&
-         ges_smois(lat2,lon2,nsig_soil,nfldsig), ges_tsk(lat2,lon2,nfldsig),&
-         stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_th2,..):  allocate error, istatus=',&
             istatus,lat2,lon2,nsig,nfldsig
 
        ges_initialized = .true.
@@ -547,15 +481,9 @@ contains
           end do
        end do
 
-#ifndef HAVE_ESMF
        do n=1,nfldsig
           do j=1,lon2
              do i=1,lat2
-                ges_z(i,j,n)=zero
-                ges_ps(i,j,n)=zero
-                ges_gust(i,j,n)=zero
-                ges_vis(i,j,n)=zero
-                ges_pblh(i,j,n)=zero
                 pbl_height(i,j,n)=zero
              end do
           end do
@@ -564,26 +492,9 @@ contains
           do k=1,nsig
              do j=1,lon2
                 do i=1,lat2
-                   ges_u(i,j,k,n)=zero
-                   ges_v(i,j,k,n)=zero
-                   ges_vor(i,j,k,n)=zero
-                   ges_div(i,j,k,n)=zero
-                   ges_q(i,j,k,n)=zero
-                   ges_oz(i,j,k,n)=zero
-                   ges_tv(i,j,k,n)=zero
-                   ges_qsat(i,j,k,n)=zero
-!                  ges_pint(i,j,k,n)=zero
-                end do
-             end do
-          end do
-       end do
-#endif /* HAVE_ESMF */
-       do n=1,nfldsig
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
                    ges_prsl(i,j,k,n)=zero
                    ges_lnprsl(i,j,k,n)=zero
+                   ges_qsat(i,j,k,n)=zero
                    ges_tsen(i,j,k,n)=zero
                    ges_teta(i,j,k,n)=zero
                    geop_hgtl(i,j,k,n)=zero
@@ -600,163 +511,13 @@ contains
              end do
           end do
        end do
-       if(update_pint) then
-          do n=1,nfldsig
-             do k=1,nsig+1
-                do j=1,lon2
-                   do i=1,lat2
-                      ges_pint(i,j,k,n)=zero
-                   end do
-                end do
-             end do
-             do j=1,lon2
-                do i=1,lat2
-                   ges_pd(i,j,n)=zero
-                end do
-             end do
-          end do
-       end if
-
-       allocate (efr_ql(lat2,lon2,nsig,nfldsig),efr_qi(lat2,lon2,nsig,nfldsig), &
-                 efr_qr(lat2,lon2,nsig,nfldsig),efr_qs(lat2,lon2,nsig,nfldsig), &
-                 efr_qg(lat2,lon2,nsig,nfldsig),efr_qh(lat2,lon2,nsig,nfldsig))
-       do n=1,nfldsig
-          do k=1,nsig
-             do j=1,lon2
-                do i=1,lat2
-                   efr_ql(i,j,k,n)=zero
-                   efr_qi(i,j,k,n)=zero
-                   efr_qr(i,j,k,n)=zero
-                   efr_qs(i,j,k,n)=zero
-                   efr_qg(i,j,k,n)=zero
-                   efr_qh(i,j,k,n)=zero
-                end do
-             end do
-          end do
-       end do
-
-! for GSD  soil nudging
-       do n=1,nfldsig
-          do k=1,nsig_soil
-             do j=1,lon2
-                do i=1,lat2
-                   ges_tslb(i,j,k,n)=zero
-                   ges_smois(i,j,k,n)=zero
-                end do
-             end do
-          end do
-          do j=1,lon2
-             do i=1,lat2
-                ges_th2(i,j,n)=zero
-                ges_q2(i,j,n)=zero
-                ges_tsk(i,j,n)=zero
-                ges_soilt1(i,j,n)=zero
-             end do
-          end do
-       end do
 
     end if ! ges_initialized
     
 !   If tendencies option on, allocate/initialize _ten arrays to zero
-    if (.not.tnd_initialized .and. tendsflag) then
-       allocate(ges_prs_ten(lat2,lon2,nsig+1),ges_u_ten(lat2,lon2,nsig),&
-                ges_v_ten(lat2,lon2,nsig),ges_tv_ten(lat2,lon2,nsig),&
-                ges_q_ten(lat2,lon2,nsig),ges_oz_ten(lat2,lon2,nsig),&
-                stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_prs_ten,..):  allocate error, istatus=',&
-            istatus,lat2,lon2,nsig
-       tnd_initialized = .true.
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                ges_u_ten(i,j,k)=zero
-                ges_v_ten(i,j,k)=zero
-                ges_tv_ten(i,j,k)=zero
-                ges_q_ten(i,j,k)=zero
-                ges_oz_ten(i,j,k)=zero
-                ges_prs_ten(i,j,k)=zero
-             end do
-          end do
-       end do
-!      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
-!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
-!      if (regional .and. nems_nmmb_regional) ivar=getindex(cvars3d,'cw')
-       ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
-           allocate(ges_cwmr_ten(lat2,lon2,nsig),stat=istatus)
-           if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_ten):  allocate error, istatus=',&
-                istatus,lat2,lon2,nsig
-            do k=1,nsig
-               do j=1,lon2
-                  do i=1,lat2
-                     ges_cwmr_ten(i,j,k)=zero
-                  end do
-               end do
-            end do
-       endif
+    call create_ges_tendencies(tendsflag)
 
-       do j=1,lon2
-          do i=1,lat2
-             ges_prs_ten(i,j,nsig+1)=zero
-          end do
-       end do
-    end if
-
-!   If derivatives option on, allocate and initialize derivatives arrays to 0.0
-    if (.not.drv_initialized .and. switch_on_derivatives) then
-       allocate(ges_u_lat(lat2,lon2,nsig),ges_u_lon(lat2,lon2,nsig),&
-            ges_v_lat(lat2,lon2,nsig),ges_v_lon(lat2,lon2,nsig),&
-            ges_ozlat(lat2,lon2,nsig),ges_ozlon(lat2,lon2,nsig),&
-            ges_ps_lat(lat2,lon2,nfldsig),ges_ps_lon(lat2,lon2,nfldsig),&
-            ges_tvlat(lat2,lon2,nsig),ges_tvlon(lat2,lon2,nsig),&
-            ges_qlat(lat2,lon2,nsig),ges_qlon(lat2,lon2,nsig),&
-            stat=istatus)
-       if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_u_lat,..):  allocate error, istatus=',&
-            istatus,lat2,lon2,nsig,nfldsig
-       drv_initialized = .true.
-       do k=1,nsig
-          do j=1,lon2
-             do i=1,lat2
-                ges_u_lat(i,j,k)=zero
-                ges_u_lon(i,j,k)=zero
-                ges_v_lat(i,j,k)=zero
-                ges_v_lon(i,j,k)=zero
-                ges_ozlat(i,j,k)=zero
-                ges_ozlon(i,j,k)=zero
-                ges_tvlat(i,j,k)=zero
-                ges_tvlon(i,j,k)=zero
-                ges_qlat(i,j,k)=zero
-                ges_qlon(i,j,k)=zero
-             end do
-          end do
-       end do
-!      Get pointer to could water mixing ratio, and alloc directional derivatives if cwmr present in guess
-!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
-!      if (regional .and. nems_nmmb_regional) ivar=getindex(cvars3d,'cw')
-       ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
-           allocate(ges_cwmr_lat(lat2,lon2,nsig),ges_cwmr_lon(lat2,lon2,nsig),&
-            stat=istatus)
-            if (istatus/=0) write(6,*)'CREATE_GES_GRIDS(ges_cwmr_lat,..):  allocate error, istatus=',&
-                istatus,lat2,lon2,nsig,nfldsig
-            do k=1,nsig
-               do j=1,lon2
-                  do i=1,lat2
-                     ges_cwmr_lat(i,j,k)=zero
-                     ges_cwmr_lon(i,j,k)=zero
-                  end do
-               end do
-            end do
-       endif
-       do n=1,nfldsig
-          do j=1,lon2
-             do i=1,lat2
-                ges_ps_lat(i,j,n)=zero
-                ges_ps_lon(i,j,n)=zero
-             end do
-          end do
-       end do
-    endif  ! end if switch_derivatives block
+    call create_ges_derivatives(switch_on_derivatives,nfldsig)
 
     return
   end subroutine create_ges_grids
@@ -766,25 +527,30 @@ contains
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: create_metguess_grids --- initialize extra meterological guess
+! !IROUTINE: create_metguess_grids --- initialize meterological guess
 !
 ! !INTERFACE:
 !
-  subroutine create_metguess_grids(istatus)
+  subroutine create_metguess_grids(mype,istatus)
 
 ! !USES:
   use gridmod, only: lat2,lon2,nsig
   implicit none
 
+! !INPUT PARAMETERS:
+
+  integer(i_kind), intent(in)  :: mype
+
 ! !OUTPUT PARAMETERS:
 
   integer(i_kind), intent(out) :: istatus
 
-! !DESCRIPTION: initialize extra meteorological background fields beyond 
+! !DESCRIPTION: initialize meteorological background fields beyond 
 !               the standard ones - wired-in this module.
 !
 ! !REVISION HISTORY:
 !   2011-04-29  todling
+!   2013-10-30  todling - update interface
 !
 ! !REMARKS:
 !   language: f90
@@ -795,7 +561,7 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-   character(len=*),parameter::myname_='create_metguess_grids'
+   character(len=*),parameter::myname_=myname//'*create_metguess_grids'
    integer(i_kind) :: nmguess                   ! number of meteorol. fields (namelist)
    character(len=256),allocatable:: mguess(:)   ! names of meterol. fields
 
@@ -806,7 +572,7 @@ contains
 !  ------------------------------------------
    call gsi_metguess_get('dim',nmguess,istatus)
    if(istatus/=0) then
-      write(6,*) myname_, ': trouble getting number of met-guess fields'
+      if(mype==0) write(6,*) myname_, ': trouble getting number of met-guess fields'
       return
    endif
    if(nmguess==0) return
@@ -814,15 +580,15 @@ contains
        allocate (mguess(nmguess))
        call gsi_metguess_get('gsinames',mguess,istatus)
        if(istatus/=0) then
-          write(6,*) myname_, ': trouble getting name of met-guess fields'
+          if(mype==0) write(6,*) myname_, ': trouble getting name of met-guess fields'
           return
        endif
 
-!      Allocate memory for guess files for trace gases
-!      ------------------------------------------------
+!      Allocate memory for guess fields
+!      --------------------------------
        call gsi_metguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
        if(istatus/=0) then
-          write(6,*) myname_, ': trouble allocating mem for extra met-guess'
+          if(mype==0) write(6,*) myname_, ': trouble allocating mem for met-guess'
           return
        endif
    endif
@@ -834,19 +600,22 @@ contains
 !-------------------------------------------------------------------------
 !BOP
 !
-! !IROUTINE: destroy_metguess_grids --- destroy extra meterological background
+! !IROUTINE: destroy_metguess_grids --- destroy meterological background
 !
 ! !INTERFACE:
 !
-  subroutine destroy_metguess_grids(istatus)
+  subroutine destroy_metguess_grids(mype,istatus)
 ! !USES:
   implicit none
+! !INPUT PARAMETERS:
+  integer(i_kind),intent(in)::mype
 ! !OUTPUT PARAMETERS:
   integer(i_kind),intent(out)::istatus
-! !DESCRIPTION: destroy extra meterological background
+! !DESCRIPTION: destroy meterological background
 !
 ! !REVISION HISTORY:
 !   2011-04-29  todling
+!   2013-10-30  todling - update interface
 !
 ! !REMARKS:
 !   language: f90
@@ -856,8 +625,13 @@ contains
 !   todling         org: w/nmc20     date: 2011-04-29
 !
 !EOP
+  character(len=*),parameter::myname_=myname//'destroy_metguess_grids'
   istatus=0
   call gsi_metguess_destroy_grids(istatus)
+       if(istatus/=0) then
+          if(mype==0) write(6,*) myname_, ': trouble deallocating mem for met-guess'
+          return
+       endif
   end subroutine destroy_metguess_grids
 
 !-------------------------------------------------------------------------
@@ -869,11 +643,15 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine create_chemges_grids(istatus)
+  subroutine create_chemges_grids(mype,istatus)
 
 ! !USES:
   use gridmod, only: lat2,lon2,nsig
   implicit none
+
+! !INPUT PARAMETERS:
+
+  integer(i_kind), intent(in) :: mype
 
 ! !OUTPUT PARAMETERS:
 
@@ -883,6 +661,7 @@ contains
 !
 ! !REVISION HISTORY:
 !   2010-05-19  todling
+!   2013-10-30  todling - update interface
 !
 ! !REMARKS:
 !   language: f90
@@ -893,7 +672,7 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-  character(len=*),parameter::myname_='create_chemges_grids'
+  character(len=*),parameter::myname_=myname//'*create_chemges_grids'
    integer(i_kind) :: ntgases                   ! number of tracer gases (namelist)
    character(len=256),allocatable:: tgases(:)   ! names of tracer gases
 
@@ -904,7 +683,7 @@ contains
 !  ------------------------------------------
    call gsi_chemguess_get('dim',ntgases,istatus)
    if(istatus/=0) then
-      write(6,*) myname_, ': trouble getting number of chem/gases'
+      if(mype==0) write(6,*) myname_, ': trouble getting number of chem/gases'
       return
    endif
    if(ntgases==0) return
@@ -912,7 +691,7 @@ contains
       allocate (tgases(ntgases))
       call gsi_chemguess_get('gsinames',tgases,istatus)
       if(istatus/=0) then
-         write(6,*) myname_, ': trouble getting name of chem/gases'
+         if(mype==0) write(6,*) myname_, ': trouble getting name of chem/gases'
          return
       endif
 
@@ -920,7 +699,7 @@ contains
 !     ------------------------------------------------
       call gsi_chemguess_create_grids(lat2,lon2,nsig,nfldsig,istatus)
       if(istatus/=0) then
-         write(6,*) myname_, ': trouble allocating mem for chem/gases'
+         if(mype==0) write(6,*) myname_, ': trouble allocating mem for chem/gases'
          return
       endif
    endif
@@ -939,12 +718,14 @@ contains
   subroutine destroy_chemges_grids(istatus)
 ! !USES:
   implicit none
+! !INPUT PARAMETERS:
 ! !OUTPUT PARAMETERS:
   integer(i_kind),intent(out)::istatus
 ! !DESCRIPTION: destroy chem background
 !
 ! !REVISION HISTORY:
 !   2010-05-19  todling
+!   2013-10-30  todling - update interface
 !
 ! !REMARKS:
 !   language: f90
@@ -967,17 +748,13 @@ contains
 !
 ! !INTERFACE:
 !
-  subroutine destroy_ges_grids(switch_on_derivatives,tendsflag)
+  subroutine destroy_ges_grids
 
 ! !USES:
 
-    use mpeu_util, only: die, tell,getindex
-    use control_vectors, only: cvars3d
     implicit none
 
 ! !INPUT PARAMETERS:
-    logical,intent(in   ) :: switch_on_derivatives    ! flag for horizontal derivatives
-    logical,intent(in   ) :: tendsflag                ! flag for tendency
     
 ! !DESCRIPTION: deallocate guess and bias grids
 !
@@ -987,13 +764,12 @@ contains
 !   2004-07-15  todling, protex-compliant prologue; added onlys
 !   2005-06-03  parrish - deallocate _lat,_lon arrays for u,v,cwmr,oz
 !   2005-06-08  treadon - check flag to see if need to deallocate derivatives
-!   2005-07-06  parrish - add update_pint, arrays ges_pint, ges_pd
 !   2005-07-27  kleist  - modified to include some shared arrays
 !   2006-07-31  kleist  - use ges_ps arrays instead of ln(ps)
 !   2006-12-04  todling - remove bias destroy; rename routine
 !   2006-12-15  todling - using internal switches to deallc(tnds/drvs)
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
-!   2011-11-01  eliu    - add access to cvars3d & getindex 
+!   2012-05-14  todling - revist cw check to check also on some hyrometeors
 !
 ! !REMARKS:
 !   language: f90
@@ -1004,126 +780,21 @@ contains
 !
 !EOP
 !-------------------------------------------------------------------------
-    integer(i_kind):: ivar,istatus
+    integer(i_kind):: istatus
 
+    call destroy_ges_derivatives
+
+    call destroy_ges_tendencies
+!
     deallocate(ges_prsi,ges_prsl,ges_lnprsl,ges_lnprsi,&
          ges_tsen,ges_teta,geop_hgtl,geop_hgti,ges_prslavg,&
-         tropprs,fact_tv,ges_qsat,stat=istatus)
+         tropprs,fact_tv,pbl_height,ges_qsat,stat=istatus)
     if (istatus/=0) &
          write(6,*)'DESTROY_GES_GRIDS(ges_prsi,..):  deallocate error, istatus=',&
          istatus
-#ifndef HAVE_ESMF
-    deallocate(ges_z,ges_ps,&
-         ges_u,ges_v,ges_vor,ges_div,ges_q,&
-         ges_oz,ges_tv,&
-         stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_GES_GRIDS(ges_z,..):  deallocate error, istatus=',&
-         istatus
-       deallocate(pbl_height,stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_GES_GRIDS(pbl_height,..):  deallocate error, istatus=',&
-         istatus
-#endif /* HAVE_ESMF */
-    if(update_pint) then
-       deallocate(ges_pint,ges_pd,stat=istatus)
-       if (istatus/=0) &
-            write(6,*)'DESTROY_GES_GRIDS(ges_pint,..):  deallocate error, istatus=',&
-            istatus
-    endif
-    deallocate(efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh)
-! GSD soil nudging
-    deallocate(ges_th2,ges_q2,ges_soilt1,ges_tslb,ges_smois,ges_tsk,stat=istatus)
-!
-    if (drv_initialized .and.switch_on_derivatives) then
-!      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
-!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
-       ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
-           deallocate(ges_cwmr_lat,ges_cwmr_lon,&
-            stat=istatus)
-            if (istatus/=0) &
-                 write(6,*)'DESTROY_GES_GRIDS(ges_cwmr_lat,..):  deallocate error, istatus=',&
-                 istatus
-       endif
-       deallocate(ges_u_lat,ges_u_lon,ges_v_lat,ges_v_lon,&
-            ges_ozlat,ges_ozlon,&
-            ges_ps_lat,ges_ps_lon,ges_tvlat,ges_tvlon,&
-            ges_qlat,ges_qlon,stat=istatus)
-       if (istatus/=0) &
-            write(6,*)'DESTROY_GES_GRIDS(ges_u_lat,..):  deallocate error, istatus=',&
-            istatus
-    endif
-    if (tnd_initialized .and. tendsflag) then
-!      Get pointer to could water mixing ratio, and alloc tendency if cwmr present in guess
-!      call gsi_metguess_get ( 'var::cw', ivar, istatus )
-       ivar=getindex(cvars3d,'cw')
-       if (ivar>0) then
-           deallocate(ges_cwmr_ten,stat=istatus)
-           if (istatus/=0) &
-                write(6,*)'DESTROY_GES_GRIDS(ges_cwmr_ten,..):  deallocate error, istatus=',&
-                istatus
-       endif
-       deallocate(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-            ges_oz_ten,stat=istatus)
-       if (istatus/=0) &
-            write(6,*)'DESTROY_GES_GRIDS(ges_u_ten,..):  deallocate error, istatus=',&
-            istatus
-    endif
+
     return
   end subroutine destroy_ges_grids
-
-#ifdef TO_BE_REMOVED
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!-------------------------------------------------------------------------
-!BOP
-!
-! !IROUTINE: destroy_sfct --- Deallocate sfct only
-!
-! !INTERFACE:
-!
-  subroutine destroy_sfct
-
-! !USES:
-
-   use mpeu_util, only: die, tell
-   implicit none
-
-! !DESCRIPTION: deallocate surface temperature field
-!
-! !REVISION HISTORY:
-!   2008-06-30  derber
-!   2008-09-05  lueken - add subprogram doc block
-!   2009-01-02  todling - replaced doc block with protex-prologue
-!   2009-01-17  todling - dealloc isli2,sno2 was misplaced
-!
-! !REMARKS:
-!   language: f90
-!   machine:ibm rs/6000 sp; SGI Origin 2000; Compaq/HP
-!
-! !AUTHOR: 
-!   derber          org: w/nmc2     date: 2008-06-30
-!
-!EOP
-!-------------------------------------------------------------------------
-
-    integer(i_kind):: istatus
-
-    deallocate(isli2,sno2,stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_SFCT:  deallocate error, istatus=',&
-         istatus
-#ifndef HAVE_ESMF
-    deallocate(sfct,dsfct,stat=istatus)
-    if (istatus/=0) &
-         write(6,*)'DESTROY_SFCT:  deallocate error, istatus=',&
-         istatus
-#endif /* HAVE_ESMF */
-
-    return
-  end subroutine destroy_sfct
-#endif
 
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
@@ -1138,7 +809,8 @@ contains
 
 ! !USES:
 
-   use mpeu_util, only: die, tell
+   use radinfo, only: nst_gsi
+   use gsi_nstcouplermod, only: gsi_nstcoupler_final
    implicit none
    
 ! !DESCRIPTION: deallocate surface related grids
@@ -1151,6 +823,7 @@ contains
 !   2007-03-15  todling - merged in da Silva/Cruz ESMF changes
 !   2008-06-30  derber - remove sfct deallocate to allow earlier call
 !   2009-01-17  todling - move isli2,sno2 into destroy_sfct
+!   2012-03-06  akella  - add call to destroy NST analysis arrays
 !
 ! !REMARKS:
 !   language: f90
@@ -1163,6 +836,10 @@ contains
 !-------------------------------------------------------------------------
 
     integer(i_kind):: istatus
+
+! Deallocate arrays containing full horizontal nst fields
+    if (nst_gsi > 0) call gsi_nstcoupler_final()
+
     if(.not.sfc_grids_allocated_) call die('destroy_sfc_grids_','not allocated')
     sfc_grids_allocated_=.false.
 
@@ -1194,7 +871,6 @@ contains
 
 ! !USES:
 
-   use mpeu_util, only: die, tell
    implicit none
 
 ! !DESCRIPTION: allocate guess-files information arrays
@@ -1252,7 +928,6 @@ contains
 
 ! !USES:
 
-   use mpeu_util, only: die
    implicit none
 
 ! !DESCRIPTION: deallocate guess-files information
@@ -1339,16 +1014,27 @@ contains
 !-------------------------------------------------------------------------
 
 !   Declare local parameter
+    character(len=*),parameter::myname_=myname//'*load_prsges'
     real(r_kind),parameter:: r1013=1013.0_r_kind
 
 !   Declare local variables
     real(r_kind) kap1,kapr,trk
-    integer(i_kind) i,j,k,jj
+    real(r_kind),dimension(:,:)  ,pointer::ges_ps=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+    integer(i_kind) i,j,k,jj,itv,ips
+    logical ihaveprs(nfldsig)
 
     kap1=rd_over_cp+one
     kapr=one/rd_over_cp
 
+    ihaveprs=.false.
     do jj=1,nfldsig
+       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps,ips)
+       if(ips/=0) call die(myname_,': ps not available in guess, abort',ips)
+       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv,itv)
+       if(idvc5==3) then
+          if(itv/=0) call die(myname_,': tv must be present when idvc5=3, abort',itv)
+       endif
        do k=1,nsig+1
           do j=1,lon2
              do i=1,lat2
@@ -1357,22 +1043,22 @@ contains
                         cmaq_regional ) &
                       ges_prsi(i,j,k,jj)=one_tenth* &
                              (eta1_ll(k)*pdtop_ll + &
-                              eta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
+                              eta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &
                               pt_ll)
 
                    if (wrf_mass_regional .or. twodvar_regional) &
-                      ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll) + pt_ll)
+                      ges_prsi(i,j,k,jj)=one_tenth*(eta1_ll(k)*(ten*ges_ps(i,j)-pt_ll) + pt_ll)
                 else
                    if (idvc5==1 .or. idvc5==2) then
-                      ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))
+                      ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j))
                    else if (idvc5==3) then
                       if (k==1) then
-                         ges_prsi(i,j,k,jj)=ges_ps(i,j,jj)
+                         ges_prsi(i,j,k,jj)=ges_ps(i,j)
                       else if (k==nsig+1) then
                          ges_prsi(i,j,k,jj)=zero
                       else
-                         trk=(half*(ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))/tref5(k))**kapr
-                         ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j,jj))+(ck5(k)*trk)
+                         trk=(half*(ges_tv(i,j,k-1)+ges_tv(i,j,k))/tref5(k))**kapr
+                         ges_prsi(i,j,k,jj)=ak5(k)+(bk5(k)*ges_ps(i,j))+(ck5(k)*trk)
                       end if
                    end if
                 endif
@@ -1381,18 +1067,20 @@ contains
              end do
           end do
        end do
+       ihaveprs(jj)=.true.
     end do
 
     if(regional) then
        if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
+             call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
                       ges_prsl(i,j,k,jj)=one_tenth* &
                                   (aeta1_ll(k)*pdtop_ll + &
-                                   aeta2_ll(k)*(ten*ges_ps(i,j,jj)-pdtop_ll-pt_ll) + &
+                                   aeta2_ll(k)*(ten*ges_ps(i,j)-pdtop_ll-pt_ll) + &
                                    pt_ll)
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
 
@@ -1404,10 +1092,11 @@ contains
        if (wrf_mass_regional .or. twodvar_regional) then
 ! load using aeta coefficients
           do jj=1,nfldsig
+             call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,ips)
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j,jj)-pt_ll)+pt_ll)
+                      ges_prsl(i,j,k,jj)=one_tenth*(aeta1_ll(k)*(ten*ges_ps(i,j)-pt_ll)+pt_ll)
                       ges_lnprsl(i,j,k,jj)=log(ges_prsl(i,j,k,jj))
                    end do
                 end do
@@ -1420,6 +1109,10 @@ contains
 !      load mid-layer pressure by using phillips vertical interpolation
        if (idsl5/=2) then
           do jj=1,nfldsig
+             if(.not.ihaveprs(jj)) then
+                call tell(myname,'3d pressure has not been calculated somehow',99)
+                exit ! won't die ...
+             endif
              do j=1,lon2
                 do i=1,lat2
                    do k=1,nsig
@@ -1434,6 +1127,10 @@ contains
 !      load mid-layer pressure by simple averaging
        else
           do jj=1,nfldsig
+             if(.not.ihaveprs(jj)) then
+                call tell(myname,'3d pressure has not been calculated somehow',99)
+                exit ! won't die ...
+             endif
              do j=1,lon2
                 do i=1,lat2
                    do k=1,nsig
@@ -1514,11 +1211,16 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,jj
+    character(len=*),parameter::myname_=myname//'*load_geop_hgt'
+    real(r_kind),parameter:: thousand = 1000.0_r_kind
+
+    integer(i_kind) i,j,k,jj,ier,istatus
     real(r_kind) h,dz,rdog
     real(r_kind),dimension(nsig+1):: height
     real(r_kind) cmpr, x_v, rl_hm, fact, pw, tmp_K, tmp_C, prs_sv, prs_a, ehn_fct, prs_v
-    real(r_kind),parameter:: thousand = 1000.0_r_kind
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
+    real(r_kind),dimension(:,:  ),pointer::ges_z=>NULL()
 
     if (twodvar_regional) return
 
@@ -1530,17 +1232,25 @@ contains
 !     of each layer
 
        do jj=1,nfldsig
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z' ,ges_z ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'q' ,ges_q ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+          ier=ier+istatus
+          if(ier/=0) exit
           do j=1,lon2
              do i=1,lat2
                 k  = 1
-                fact    = one + fv * ges_q(i,j,k,jj)
-                pw      = eps + ges_q(i,j,k,jj)*( one - eps )
-                tmp_K   = ges_tv(i,j,k,jj) / fact
+                fact    = one + fv * ges_q(i,j,k)
+                pw      = eps + ges_q(i,j,k)*( one - eps )
+                tmp_K   = ges_tv(i,j,k) / fact
                 tmp_C   = tmp_K - t0c
                 prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! Pvap sat, eq A1.1 (Pa)
                 prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k,jj)) + log(ges_prsl(i,j,k,jj))))     ! (Pa) 
                 ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-                prs_v   = ges_q(i,j,k,jj) * prs_a / pw   ! vapor pressure (Pa)
+                prs_v   = ges_q(i,j,k) * prs_a / pw   ! vapor pressure (Pa)
                 rl_hm   = prs_v / prs_sv    ! relative humidity
                 x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
  
@@ -1549,133 +1259,156 @@ contains
                            + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
                            + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
 
-                h  = rdog * ges_tv(i,j,k,jj)
+                h  = rdog * ges_tv(i,j,k)
                 dz = h * cmpr * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
-                height(k) = ges_z(i,j,jj) + dz   
+                height(k) = ges_z(i,j) + dz   
 
                 do k=2,nsig
-                   fact    = one + fv * half * (ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj))
-                   pw      = eps + half * (ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj)) * (one - eps)
-                   tmp_K   = half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj)) / fact
+                   fact    = one + fv * half * (ges_q(i,j,k-1)+ges_q(i,j,k))
+                   pw      = eps + half * (ges_q(i,j,k-1)+ges_q(i,j,k)) * (one - eps)
+                   tmp_K   = half * (ges_tv(i,j,k-1)+ges_tv(i,j,k)) / fact
                    tmp_C   = tmp_K - t0c
                    prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
                    prs_a   = thousand * exp(half*(log(ges_prsl(i,j,k-1,jj))+log(ges_prsl(i,j,k,jj))))   ! (Pa)
                    ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-                   prs_v   = half*(ges_q(i,j,k-1,jj)+ges_q(i,j,k,jj) ) * prs_a / pw   ! (Pa)
+                   prs_v   = half*(ges_q(i,j,k-1)+ges_q(i,j,k) ) * prs_a / pw   ! (Pa)
                    rl_hm   = prs_v / prs_sv    ! relative humidity
                    x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
                    cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
                              + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
                              + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
-                   h       = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
+                   h       = rdog * half * (ges_tv(i,j,k-1)+ges_tv(i,j,k))
                    dz      = h * cmpr * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
                    height(k) = height(k-1) + dz
                 end do
 
                 do k=1,nsig
-                   geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                   geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j)
                 end do
              enddo
           enddo
        enddo
+       if(ier/=0) return
 
 !      Compute compressibility factor (Picard et al 2008) and geopotential heights at interface
 !      between layers
 
        do jj=1,nfldsig
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z'  ,ges_z ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'q'  ,ges_q ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+          ier=ier+istatus
+          if(ier/=0) exit
           do j=1,lon2
              do i=1,lat2
                 k=1
-                height(k) = ges_z(i,j,jj)
+                height(k) = ges_z(i,j)
 
                 do k=2,nsig
-                   fact    = one + fv * ges_q(i,j,k-1,jj)
-                   pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
-                   tmp_K   = ges_tv(i,j,k-1,jj) / fact
+                   fact    = one + fv * ges_q(i,j,k-1)
+                   pw      = eps + ges_q(i,j,k-1)*(one - eps)
+                   tmp_K   = ges_tv(i,j,k-1) / fact
                    tmp_C   = tmp_K - t0c
                    prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
                    prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsi(i,j,k,jj)))) 
                    ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-                   prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw   ! vapor pressure (Pa)
+                   prs_v   = ges_q(i,j,k-1) * prs_a / pw   ! vapor pressure (Pa)
                    rl_hm   = prs_v / prs_sv    ! relative humidity
                    x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
                    cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
                             + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
                             + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
-                   h       = rdog * ges_tv(i,j,k-1,jj)
+                   h       = rdog * ges_tv(i,j,k-1)
                    dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
                    height(k) = height(k-1) + dz
                 enddo
 
                 k=nsig+1
-                fact    = one + fv* ges_q(i,j,k-1,jj)
-                pw      = eps + ges_q(i,j,k-1,jj)*(one - eps)
-                tmp_K   = ges_tv(i,j,k-1,jj) / fact
+                fact    = one + fv* ges_q(i,j,k-1)
+                pw      = eps + ges_q(i,j,k-1)*(one - eps)
+                tmp_K   = ges_tv(i,j,k-1) / fact
                 tmp_C   = tmp_K - t0c
                 prs_sv  = exp(psv_a*tmp_K**2 + psv_b*tmp_K + psv_c + psv_d/tmp_K)  ! eq A1.1 (Pa)
                 prs_a   = thousand * exp(half*(log(ges_prsi(i,j,k-1,jj))+log(ges_prsl(i,j,k-1,jj))))     ! (Pa)
                 ehn_fct = ef_alpha + ef_beta*prs_a + ef_gamma*tmp_C**2 ! enhancement factor (eq. A1.2)
-                prs_v   = ges_q(i,j,k-1,jj) * prs_a / pw  
+                prs_v   = ges_q(i,j,k-1) * prs_a / pw  
                 rl_hm   = prs_v / prs_sv    ! relative humidity
                 x_v     = rl_hm * ehn_fct * prs_sv / prs_a     ! molar fraction of water vapor (eq. A1.3)
                 cmpr    = one - (prs_a/tmp_K) * ( cpf_a0 + cpf_a1*tmp_C + cpf_a2*tmp_C**2 &
                           + (cpf_b0 + cpf_b1*tmp_C)*x_v + (cpf_c0 + cpf_c1*tmp_C)*x_v**2 ) &
                           + (prs_a**2/tmp_K**2) * (cpf_d + cpf_e*x_v**2)
-                h       = rdog * ges_tv(i,j,k-1,jj)
+                h       = rdog * ges_tv(i,j,k-1)
                 dz      = h * cmpr * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
                 height(k) = height(k-1) + dz
  
                 do k=1,nsig+1
-                   geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                   geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j)
                 end do
              enddo
           enddo
        enddo
+       if(ier/=0) return
 
     else
 
 !      Compute geopotential height at midpoint of each layer
        do jj=1,nfldsig
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z'  ,ges_z  ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+          ier=ier+istatus
+          if(ier/=0) exit
           do j=1,lon2
              do i=1,lat2
                 k  = 1
-                h  = rdog * ges_tv(i,j,k,jj)
+                h  = rdog * ges_tv(i,j,k)
                 dz = h * log(ges_prsi(i,j,k,jj)/ges_prsl(i,j,k,jj))
-                height(k) = ges_z(i,j,jj) + dz
+                height(k) = ges_z(i,j) + dz
  
                 do k=2,nsig
-                   h  = rdog * half * (ges_tv(i,j,k-1,jj)+ges_tv(i,j,k,jj))
+                   h  = rdog * half * (ges_tv(i,j,k-1)+ges_tv(i,j,k))
                    dz = h * log(ges_prsl(i,j,k-1,jj)/ges_prsl(i,j,k,jj))
                    height(k) = height(k-1) + dz
                 end do
 
                 do k=1,nsig
-                   geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                   geop_hgtl(i,j,k,jj)=height(k) - ges_z(i,j)
                 end do
              end do
           end do
        end do
+       if(ier/=0) return
 
 !      Compute geopotential height at interface between layers
        do jj=1,nfldsig
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'z'  ,ges_z  ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+          ier=ier+istatus
+          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
           do j=1,lon2
              do i=1,lat2
                 k=1
-                height(k) = ges_z(i,j,jj)
+                height(k) = ges_z(i,j)
 
                 do k=2,nsig
-                   h  = rdog * ges_tv(i,j,k-1,jj)
+                   h  = rdog * ges_tv(i,j,k-1)
                    dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsi(i,j,k,jj))
                    height(k) = height(k-1) + dz
                 end do
 
                 k=nsig+1
-                h = rdog * ges_tv(i,j,k-1,jj)
+                h = rdog * ges_tv(i,j,k-1)
                 dz = h * log(ges_prsi(i,j,k-1,jj)/ges_prsl(i,j,k-1,jj))
                 height(k) = height(k-1) + dz
 
                 do k=1,nsig+1
-                   geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j,jj)
+                   geop_hgti(i,j,k,jj)=height(k) - ges_z(i,j)
                 end do
              end do
           end do
@@ -1724,28 +1457,40 @@ contains
 !EOP
 !-------------------------------------------------------------------------
 
+    character(len=*),parameter::myname_=myname//'*load_gsdpbl_hgt'
     integer(i_kind)              , intent(in   ) :: mype
-    integer(i_kind) i,j,k,jj
+    integer(i_kind) i,j,k,jj,ier,istatus
     real(r_kind),dimension(nsig):: thetav
     real(r_kind),dimension(nsig):: pbk
     real(r_kind) :: thsfc, d
+    real(r_kind),dimension(:,:  ),pointer::ges_ps_01=>NULL()
+    real(r_kind),dimension(:,:  ),pointer::ges_ps=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
 
     if (twodvar_regional) return
 
 !   Compute geopotential height at midpoint of each layer
     do jj=1,nfldsig
+       ier=0
+       call gsi_bundlegetpointer(gsi_metguess_bundle(1) ,'ps' ,ges_ps_01 ,istatus)
+       ier=ier+istatus
+       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'ps' ,ges_ps ,istatus)
+       ier=ier+istatus
+       call gsi_bundlegetpointer(gsi_metguess_bundle(jj),'tv' ,ges_tv ,istatus)
+       ier=ier+istatus
+       if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
        do j=1,lon2
           do i=1,lat2
 
              do k=1,nsig
 
-                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps(i,j,1)*ten-pt_ll)+pt_ll
+                if (wrf_mass_regional)  pbk(k) = aeta1_ll(k)*(ges_ps_01(i,j)*ten-pt_ll)+pt_ll
 		if (nems_nmmb_regional) then
-		   pbk(k) = aeta1_ll(k)*pdtop_ll + aeta2_ll(k)*(ten*ges_ps(i,j,jj) & 
+		   pbk(k) = aeta1_ll(k)*pdtop_ll + aeta2_ll(k)*(ten*ges_ps(i,j) & 
 		            -pdtop_ll-pt_ll) + pt_ll   			    			    
 		end if
 				
-		thetav(k)  = ges_tv(i,j,k,jj)*(r1000/pbk(k))**rd_over_cp_mass
+		thetav(k)  = ges_tv(i,j,k)*(r1000/pbk(k))**rd_over_cp_mass
              end do
 
              pbl_height(i,j,jj) = zero
@@ -1786,7 +1531,7 @@ contains
 
 ! !USES:
 
-    use constants, only: half,one_tenth
+    use constants, only: half,ten,one_tenth
     use gridmod, only: nsig,msig,nlayers
     use crtm_module, only: toa_pressure
 
@@ -1807,6 +1552,7 @@ contains
 ! !REVISION HISTORY:
 !   2005-06-01  treadon
 !   2006-05-10  derber modify how levels are added above model top
+!   2013-03-27  rancic fix for toa units: crtm(hPa); prsitmp(kPa)
 !
 ! !REMARKS:
 !   language: f90
@@ -1820,16 +1566,18 @@ contains
 
 !   Declare local variables
     integer(i_kind) k,kk,l
-    real(r_kind) dprs,toa_pressure01
+    real(r_kind) dprs,toa_prs_kpa
 
-    toa_pressure01=toa_pressure*one_tenth
+!   Convert toa_pressure to kPa
+!   ---------------------------
+    toa_prs_kpa = toa_pressure*one_tenth
 
 !   Check if model top pressure above rtm top pressure, where prsitmp
 !   is in kPa and toa_pressure is in hPa.
-    if (prsitmp(nsig) < toa_pressure01)then
+    if (prsitmp(nsig) < toa_prs_kpa)then
        write(6,*)'ADD_RTM_LAYERS:  model top pressure(hPa)=', &
-            prsitmp(nsig),&
-            ' above rtm top pressure(hPa)=',toa_pressure01
+            ten*prsitmp(nsig),&
+            ' above rtm top pressure(hPa)=',toa_pressure
        call stop2(35)
     end if
 
@@ -1845,7 +1593,7 @@ contains
           if (k/=nsig) then
              dprs = (prsitmp(k+1)-prsitmp(k))/nlayers(k)
           else
-             dprs = (toa_pressure01-prsitmp(k))/nlayers(k)
+             dprs = (toa_prs_kpa -prsitmp(k))/nlayers(k)
           end if
           prsitmp_ext(kk+1) = prsitmp(k)
           do l=1,nlayers(k)
@@ -1858,7 +1606,7 @@ contains
     end do
 
 !   Set top of atmosphere pressure
-    prsitmp_ext(msig+1) = toa_pressure01
+    prsitmp_ext(msig+1) = toa_prs_kpa
 
   end subroutine add_rtm_layers
 
@@ -1896,10 +1644,16 @@ contains
 !-------------------------------------------------------------------------
 
 !   Declare local variables
+    character(len=*),parameter::myname_=myname//'*load_fact10'
     logical iqtflg
-    integer(i_kind):: i,j,it,itt,nt,regime
+    integer(i_kind):: i,j,it,itt,nt,regime,ier,istatus
     integer(i_kind),dimension(nfldsfc):: indx
     real(r_kind):: u10ges,v10ges,t2ges,q2ges
+    real(r_kind),dimension(:,:  ),pointer::ges_ps=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q=>NULL()
 
     nt=0
     indx=1
@@ -1910,14 +1664,25 @@ contains
        endif
     end do
 
+
     if (sfcmod_gfs) then
        do it=1,nt
           itt=indx(it)
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'ps',ges_ps,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'u' ,ges_u ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'v' ,ges_v ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'q' ,ges_q ,istatus)
+          ier=ier+istatus
+          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
           do j=1,lon2
              do i=1,lat2
-                call compute_fact10(ges_u(i,j,1,itt),ges_v(i,j,1,itt),&
-                     ges_tsen(i,j,1,itt),ges_q(i,j,1,itt),&
-                     ges_ps(i,j,itt),ges_prsi(i,j,1,itt), &
+                call compute_fact10(ges_u(i,j,1),ges_v(i,j,1),&
+                     ges_tsen(i,j,1,itt),ges_q(i,j,1),&
+                     ges_ps(i,j),ges_prsi(i,j,1,itt), &
                      ges_prsi(i,j,2,itt),sfct(i,j,itt), &
                      sfc_rough(i,j,itt),isli(i,j,itt),fact10(i,j,itt))
              end do
@@ -1929,19 +1694,31 @@ contains
        iqtflg=.true.
        do it=1,nt
           itt=indx(it)
+          ier=0
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'ps',ges_ps,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'u' ,ges_u ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'v' ,ges_v ,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'tv',ges_tv,istatus)
+          ier=ier+istatus
+          call gsi_bundlegetpointer(gsi_metguess_bundle(itt),'q' ,ges_q ,istatus)
+          ier=ier+istatus
+          if(ier/=0) call die(myname_,'not all fields available, ier=',ier)
           do j=1,lon2
              do i=1,lat2
                 call SFC_WTQ_FWD (&
-                     ges_ps(i,j,itt),&
+                     ges_ps(i,j),&
                      sfct(i,j,itt),&
                      ges_lnprsl(i,j,1,itt),&
-                     ges_tv(i,j,1,itt),&
-                     ges_q(i,j,1,itt),&
-                     ges_u(i,j,1,itt),&
-                     ges_v(i,j,1,itt),&
+                     ges_tv(i,j,1),&
+                     ges_q(i,j,1),&
+                     ges_u(i,j,1),&
+                     ges_v(i,j,1),&
                      ges_lnprsl(i,j,2,itt),&
-                     ges_tv(i,j,2,itt),&
-                     ges_q(i,j,2,itt),&
+                     ges_tv(i,j,2),&
+                     ges_q(i,j,2),&
                      geop_hgtl(i,j,1,itt),&
                      sfc_rough(i,j,itt),&
                      isli(i,j,itt),&
@@ -1996,16 +1773,27 @@ contains
 !-------------------------------------------------------------------------
 
 !   Declare local parameters
+    character(len=*),parameter::myname_=myname//'*comp_fact10'
 
 !   Declare local variables
     logical iqtflg
     integer(i_kind) ix,ix1,ixp,iy,iy1,iyp,regime
-    integer(i_kind) itsig,itsigp,j,m1,islimsk2
+    integer(i_kind) itsig,itsigp,j,m1,islimsk2,ier,istatus
     real(r_kind) w00,w01,w10,w11
     real(r_kind) delx,dely,delx1,dely1,dtsig,dtsigp
     real(r_kind):: u10ges,v10ges,t2ges,q2ges
     real(r_kind):: pgesin,ugesin,vgesin,qgesin,tgesin,prsigesin1
     real(r_kind):: prsigesin2,lnpgesin1,lnpgesin2,tgesin2,qgesin2,geopgesin,ts
+    real(r_kind),dimension(:,:  ),pointer::ges_ps_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv_itsig=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q_itsig=>NULL()
+    real(r_kind),dimension(:,:  ),pointer::ges_ps_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_u_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_v_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_tv_itsigp=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_q_itsigp=>NULL()
 
     islimsk2=islimsk
     if(islimsk2 > 2)islimsk2=islimsk2-3
@@ -2058,25 +1846,44 @@ contains
     end if
     dtsigp=one-dtsig
 
+    ier=0
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'u' ,ges_u_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'u' ,ges_u_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'v' ,ges_v_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'v' ,ges_v_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'tv',ges_tv_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'tv',ges_tv_itsigp,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsig) ,'q' ,ges_q_itsig ,istatus)
+    ier=ier+istatus
+    call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'q' ,ges_q_itsigp,istatus)
+    ier=ier+istatus
+    if(ier/=0) return
+
     ts =(dsfct(ix,iy ,ntguessfc)*w00 + dsfct(ixp,iy ,ntguessfc)*w10 +          &
          dsfct(ix,iyp,ntguessfc)*w01 + dsfct(ixp,iyp,ntguessfc)*w11) + skint
 
-    pgesin=(ges_ps(ix,iy ,itsig )*w00+ges_ps(ixp,iy ,itsig )*w10+ &
-            ges_ps(ix,iyp,itsig )*w01+ges_ps(ixp,iyp,itsig )*w11)*dtsig + &
-           (ges_ps(ix,iy ,itsigp)*w00+ges_ps(ixp,iy ,itsigp)*w10+ &
-            ges_ps(ix,iyp,itsigp)*w01+ges_ps(ixp,iyp,itsigp)*w11)*dtsigp
-    ugesin=(ges_u(ix,iy ,1,itsig )*w00+ges_u(ixp,iy ,1,itsig )*w10+ &
-            ges_u(ix,iyp,1,itsig )*w01+ges_u(ixp,iyp,1,itsig )*w11)*dtsig + &
-           (ges_u(ix,iy ,1,itsigp)*w00+ges_u(ixp,iy ,1,itsigp)*w10+ &
-            ges_u(ix,iyp,1,itsigp)*w01+ges_u(ixp,iyp,1,itsigp)*w11)*dtsigp
-    vgesin=(ges_v(ix,iy ,1,itsig )*w00+ges_v(ixp,iy ,1,itsig )*w10+ &
-            ges_v(ix,iyp,1,itsig )*w01+ges_v(ixp,iyp,1,itsig )*w11)*dtsig + &
-           (ges_v(ix,iy ,1,itsigp)*w00+ges_v(ixp,iy ,1,itsigp)*w10+ &
-            ges_v(ix,iyp,1,itsigp)*w01+ges_v(ixp,iyp,1,itsigp)*w11)*dtsigp
-    qgesin=(ges_q(ix,iy ,1,itsig )*w00+ges_q(ixp,iy ,1,itsig )*w10+ &
-            ges_q(ix,iyp,1,itsig )*w01+ges_q(ixp,iyp,1,itsig )*w11)*dtsig + &
-           (ges_q(ix,iy ,1,itsigp)*w00+ges_q(ixp,iy ,1,itsigp)*w10+ &
-            ges_q(ix,iyp,1,itsigp)*w01+ges_q(ixp,iyp,1,itsigp)*w11)*dtsigp
+    pgesin=(ges_ps_itsig (ix,iy )*w00+ges_ps_itsig (ixp,iy )*w10+ &
+            ges_ps_itsig (ix,iyp)*w01+ges_ps_itsig (ixp,iyp)*w11)*dtsig + &
+           (ges_ps_itsigp(ix,iy )*w00+ges_ps_itsigp(ixp,iy )*w10+ &
+            ges_ps_itsigp(ix,iyp)*w01+ges_ps_itsigp(ixp,iyp)*w11)*dtsigp
+    ugesin=(ges_u_itsig (ix,iy ,1)*w00+ges_u_itsig (ixp,iy ,1)*w10+ &
+            ges_u_itsig (ix,iyp,1)*w01+ges_u_itsig (ixp,iyp,1)*w11)*dtsig + &
+           (ges_u_itsigp(ix,iy ,1)*w00+ges_u_itsigp(ixp,iy ,1)*w10+ &
+            ges_u_itsigp(ix,iyp,1)*w01+ges_u_itsigp(ixp,iyp,1)*w11)*dtsigp
+    vgesin=(ges_v_itsig (ix,iy ,1)*w00+ges_v_itsig (ixp,iy ,1)*w10+ &
+            ges_v_itsig (ix,iyp,1)*w01+ges_v_itsig (ixp,iyp,1)*w11)*dtsig + &
+           (ges_v_itsigp(ix,iy ,1)*w00+ges_v_itsigp(ixp,iy ,1)*w10+ &
+            ges_v_itsigp(ix,iyp,1)*w01+ges_v_itsigp(ixp,iyp,1)*w11)*dtsigp
+    qgesin=(ges_q_itsig (ix,iy ,1)*w00+ges_q_itsig (ixp,iy ,1)*w10+ &
+            ges_q_itsig (ix,iyp,1)*w01+ges_q_itsig (ixp,iyp,1)*w11)*dtsig + &
+           (ges_q_itsigp(ix,iy ,1)*w00+ges_q_itsigp(ixp,iy ,1)*w10+ &
+            ges_q_itsigp(ix,iyp,1)*w01+ges_q_itsigp(ixp,iyp,1)*w11)*dtsigp
 
 
     if (sfcmod_gfs) then
@@ -2124,30 +1931,30 @@ contains
                    ges_lnprsl(ixp,iy ,2,itsigp)*w10+ &
                    ges_lnprsl(ix ,iyp,2,itsigp)*w01+ &
                    ges_lnprsl(ixp,iyp,2,itsigp)*w11)*dtsigp
-       tgesin    =(ges_tv(ix ,iy ,1,itsig )*w00+ &
-                   ges_tv(ixp,iy ,1,itsig )*w10+ &
-                   ges_tv(ix ,iyp,1,itsig )*w01+ &
-                   ges_tv(ixp,iyp,1,itsig )*w11)*dtsig + &
-                  (ges_tv(ix ,iy ,1,itsigp)*w00+ &
-                   ges_tv(ixp,iy ,1,itsigp)*w10+ &
-                   ges_tv(ix ,iyp,1,itsigp)*w01+ &
-                   ges_tv(ixp,iyp,1,itsigp)*w11)*dtsigp
-       tgesin2   =(ges_tv(ix ,iy ,2,itsig )*w00+ &
-                   ges_tv(ixp,iy ,2,itsig )*w10+ &
-                   ges_tv(ix ,iyp,2,itsig )*w01+ &
-                   ges_tv(ixp,iyp,2,itsig )*w11)*dtsig + &
-                  (ges_tv(ix ,iy ,2,itsigp)*w00+ &
-                   ges_tv(ixp,iy ,2,itsigp)*w10+ &
-                   ges_tv(ix ,iyp,2,itsigp)*w01+ &
-                   ges_tv(ixp,iyp,2,itsigp)*w11)*dtsigp
-       qgesin2   =(ges_q(ix ,iy ,2,itsig )*w00+ &
-                   ges_q(ixp,iy ,2,itsig )*w10+ &
-                   ges_q(ix ,iyp,2,itsig )*w01+ &
-                   ges_q(ixp,iyp,2,itsig )*w11)*dtsig + &
-                  (ges_q(ix ,iy ,2,itsigp)*w00+ &
-                   ges_q(ixp,iy ,2,itsigp)*w10+ &
-                   ges_q(ix ,iyp,2,itsigp)*w01+ &
-                   ges_q(ixp,iyp,2,itsigp)*w11)*dtsigp
+       tgesin    =(ges_tv_itsig (ix ,iy ,1)*w00+ &
+                   ges_tv_itsig (ixp,iy ,1)*w10+ &
+                   ges_tv_itsig (ix ,iyp,1)*w01+ &
+                   ges_tv_itsig (ixp,iyp,1)*w11)*dtsig + &
+                  (ges_tv_itsigp(ix ,iy ,1)*w00+ &
+                   ges_tv_itsigp(ixp,iy ,1)*w10+ &
+                   ges_tv_itsigp(ix ,iyp,1)*w01+ &
+                   ges_tv_itsigp(ixp,iyp,1)*w11)*dtsigp
+       tgesin2   =(ges_tv_itsig (ix ,iy ,2)*w00+ &
+                   ges_tv_itsig (ixp,iy ,2)*w10+ &
+                   ges_tv_itsig (ix ,iyp,2)*w01+ &
+                   ges_tv_itsig (ixp,iyp,2)*w11)*dtsig + &
+                  (ges_tv_itsigp(ix ,iy ,2)*w00+ &
+                   ges_tv_itsigp(ixp,iy ,2)*w10+ &
+                   ges_tv_itsigp(ix ,iyp,2)*w01+ &
+                   ges_tv_itsigp(ixp,iyp,2)*w11)*dtsigp
+       qgesin2   =(ges_q_itsig (ix ,iy ,2)*w00+ &
+                   ges_q_itsig (ixp,iy ,2)*w10+ &
+                   ges_q_itsig (ix ,iyp,2)*w01+ &
+                   ges_q_itsig (ixp,iyp,2)*w11)*dtsig + &
+                  (ges_q_itsigp(ix ,iy ,2)*w00+ &
+                   ges_q_itsigp(ixp,iy ,2)*w10+ &
+                   ges_q_itsigp(ix ,iyp,2)*w01+ &
+                   ges_q_itsigp(ixp,iyp,2)*w11)*dtsigp
        geopgesin =(geop_hgtl(ix ,iy ,1,itsig )*w00+ &
                    geop_hgtl(ixp,iy ,1,itsig )*w10+ &
                    geop_hgtl(ix ,iyp,1,itsig )*w01+ &

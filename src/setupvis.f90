@@ -16,6 +16,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2009-10-21  zhu
 !   2011-02-19  zhu - update
 !   2013-01-26  parrish - change tintrp2a to tintrp2a11 (so debug compile works on WCOSS)
+!   2013-10-19  todling - metguess now holds background
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -35,7 +37,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,ges_lnprsl,ges_vis,ges_ps,nfldsig,ges_z,ntguessig
+  use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
   use obsmod, only: vishead,vistail,rmiss_single,i_vis_ob_type,obsdiags,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,bmiss
   use obsmod, only: vis_ob_type
@@ -51,6 +53,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none
 
 ! Declare passed variables
@@ -87,12 +91,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) ier,ilon,ilat,ivis,id,itime,ikx,imaxerr,iqc
   integer(i_kind) iuse,ilate,ilone,istnelv,isfcr,iobshgt,izz,iprvd,isprvd
-  integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,jj
-  integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
+  integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,ioff0,jj
+  integer(i_kind) l,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc
   
   logical,dimension(nobs):: luse,muse
+  logical proceed
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -111,6 +116,16 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
   
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_vis
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_z
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -174,7 +189,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     nreal=22
+     ioff0=22
+     nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      allocate(cprvstg(nobs),csprvstg(nobs))
@@ -447,8 +463,8 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         r_sprvstg       = data(isprvd,i)
         csprvstg(ii)    = c_sprvstg          ! subprovider name
 
+        ioff=ioff0
         if (lobsdiagsave) then
-           ioff=22
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_vis_ob_type,ibin)%tail%muse(jj)) then
@@ -476,11 +492,13 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   end do
 
+! Release memory of local guess arrays
+  call final_vars_
 
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:vis',i_vis_ob_type)
-     write(7)'vis',nchar,nreal,ii,mype
+     write(7)'vis',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
 
@@ -489,5 +507,94 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end if
 
 ! End of routine
+
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get vis ...
+     varname='vis'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_vis))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_vis(size(rank2,1),size(rank2,2),nfldsig))
+         ges_vis(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_vis(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get z ...
+     varname='z'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_z  )) deallocate(ges_z  )
+    if(allocated(ges_vis)) deallocate(ges_vis)
+    if(allocated(ges_ps )) deallocate(ges_ps )
+  end subroutine final_vars_
+
 end subroutine setupvis
 

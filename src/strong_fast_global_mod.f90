@@ -164,6 +164,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !                          input/output variables psi=u, chi=v.
 !   2010-03-31  treadon - replace specmod jcap with sp_a structure
 !   2012-02-08  kleist  - add uvflag in place of uv_hyb_ens
+!   2013-10-26  todling - prevent division by zero when rms's are zero
 !
 !   input argument list:
 !     u_t      - input perturbation u tendency on gaussian grid (subdomains)
@@ -194,6 +195,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !$$$
 
   use mod_strong, only: dinmi,gproj
+  use constants, only: tiny_r_kind
   implicit none
 
   integer(i_kind)                       ,intent(in   ) :: mype
@@ -216,8 +218,9 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
   real(r_kind) rmstend_all_uf,rmstend_all_g_uf,rmstend_all_f,rmstend_all_g_f
   real(r_kind) del2inv,rn,gspeed
+  real(r_kind) diff1,diffi
 
-  integer(i_kind) i,ipair,j,k,kk,mode,n,mmax,m
+  integer(i_kind) i,ipair,kk,mode,n,mmax,m
   logical filtered
 
   filtered=.true.
@@ -340,25 +343,46 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         do i=1,nvmodes_keep
            rmstend_all_uf=rmstend_all_uf+rmstend_uf(i)
            rmstend_all_g_uf=rmstend_all_g_uf+rmstend_g_uf(i)
-           write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18,2f24.18)') &
+           diffi = rmstend_uf(i)-rmstend_g_uf(i) 
+           diff1 = rmstend_uf(1)-rmstend_g_uf(1)
+           if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
+             write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18)') &
+                              i,rmstend_uf(i),rmstend_g_uf(i)
+           else
+             write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18,2f24.18)') &
                               i,rmstend_uf(i),rmstend_g_uf(i),&
-                              rmstend_g_uf(i)/(rmstend_uf(i)-rmstend_g_uf(i)), &
-                              rmstend_g_uf(i)/(rmstend_uf(1)-rmstend_g_uf(1))
+                              rmstend_g_uf(i)/diffi, &
+                              rmstend_g_uf(i)/diff1
+           endif
         end do
         rmstend_all_f=zero
         rmstend_all_g_f=zero
         do i=1,nvmodes_keep
            rmstend_all_f=rmstend_all_f+rmstend_f(i)
            rmstend_all_g_f=rmstend_all_g_f+rmstend_g_f(i)
-           write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e28.18,2f24.18)') &
+           diffi = rmstend_f(i)-rmstend_g_f(i)
+           diff1 = rmstend_f(1)-rmstend_g_f(1)
+           if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
+             write(6,'(" mode,rmstend_f,rmstend_g_f = ",i5,2e28.18)') &
+                              i,rmstend_f(i),rmstend_g_f(i)
+           else
+             write(6,'(" mode,rmstend_f,rmstend_g_f,rat = ",i5,2e28.18,2f24.18)') &
                               i,rmstend_f(i),rmstend_g_f(i),&
-                              rmstend_g_f(i)/(rmstend_f(i)-rmstend_g_f(i)), &
-                              rmstend_g_f(i)/(rmstend_f(1)-rmstend_g_f(1))
+                              rmstend_g_f(i)/diffi, &
+                              rmstend_g_f(i)/diff1
+           endif
         end do
-        write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18,f24.18)') rmstend_all_uf,rmstend_all_g_uf, &
-                                                 rmstend_all_g_uf/(rmstend_all_uf-rmstend_all_g_uf) 
-        write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18,f24.18)') rmstend_all_f,rmstend_all_g_f, &
-                                                 rmstend_all_g_f/(rmstend_all_f-rmstend_all_g_f) 
+        diffi = rmstend_all_uf-rmstend_all_g_uf
+        diff1 = rmstend_all_f-rmstend_all_g_f
+        if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
+          write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18)') rmstend_all_uf,rmstend_all_g_uf
+          write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18)') rmstend_all_f,rmstend_all_g_f
+        else
+          write(6,'(" rmstend_all_uf,g_uf,rat = ",2e28.18,f24.18)') rmstend_all_uf,rmstend_all_g_uf, &
+                                                   diffi
+          write(6,'(" rmstend_all_f,g_f,rat = ",2e28.18,f24.18)') rmstend_all_f,rmstend_all_g_f, &
+                                                   diff1
+        endif
      end if
      deallocate(rmstend_loc_uf,rmstend_g_loc_uf)
   end if
@@ -436,7 +460,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
   real(r_kind) del2inv,rn,gspeed
 
-  integer(i_kind) i,ipair,j,k,kk,mode,n,m,mmax
+  integer(i_kind) i,ipair,kk,mode,n,m,mmax
 
   mmax=sp_a%jcap
 
@@ -1320,7 +1344,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 
   integer(i_kind),intent(in   ) :: mype
 
-  integer(i_kind) i,j,k,kk,m,n,num_per_pe,total_groups,nn,kchk
+  integer(i_kind) k,kk,m,n,num_per_pe,total_groups,nn,kchk
 
 !   in laying out by zonal wave number/vertical mode, have two types of groupings:
 

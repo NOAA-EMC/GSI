@@ -52,7 +52,7 @@ program horiz
 ! Initialize variables
   iread=0; irite=0
   rtim=0.0; nlev=1; nflag=1
-  npred_radiag = 5
+  npred_radiag = 12 
 
 ! Read namelist input
   read(luname,input)

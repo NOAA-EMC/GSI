@@ -11,6 +11,7 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
 !                        Here output grid is larger than input grid.
 !
@@ -28,7 +29,8 @@ subroutine fill_mass_grid2t(gin,nx,ny,gout,iorder)
 !$$$
   use kinds, only: r_single,i_kind
   use constants, only: zero
-  use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
+  use gridmod, only: iglobal, itotsub
+  use general_commvars_mod, only: ltosi, ltosj, ltosi_s, ltosj_s
   use mod_wrfmass_to_a, only: wrfmass_h_to_a4
   use gridmod, only: nlon, nlat
 
@@ -81,6 +83,7 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
 !                        Here output grid is larger than input grid.
 !
@@ -118,7 +121,8 @@ subroutine fill_mass_grid2u(gin,nx,ny,gout,iorder)
 !$$$
   use kinds, only: r_single,i_kind
   use constants, only: half,zero
-  use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
+  use gridmod, only: iglobal, itotsub
+  use general_commvars_mod, only: ltosi, ltosj, ltosi_s, ltosj_s
   use mod_wrfmass_to_a, only: wrfmass_h_to_a4
   use gridmod, only: nlon, nlat
 
@@ -174,6 +178,7 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
 !
 ! program history log:
 !   2004-07-15  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
 !                        Here output grid is larger than input grid.
 !
@@ -212,7 +217,8 @@ subroutine fill_mass_grid2v(gin,nx,ny,gout,iorder)
 !$$$
   use kinds, only: r_single,i_kind
   use constants, only: half, zero
-  use gridmod, only: iglobal, itotsub, ltosi, ltosj, ltosi_s, ltosj_s
+  use gridmod, only: iglobal, itotsub
+  use general_commvars_mod, only: ltosi, ltosj, ltosi_s, ltosj_s
   use mod_wrfmass_to_a, only: wrfmass_h_to_a4
   use gridmod, only: nlon, nlat
 

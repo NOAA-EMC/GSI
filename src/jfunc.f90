@@ -5,6 +5,8 @@ module jfunc
 !   prgmmr: treadon          org: np23                date: 2003-11-24
 !
 ! abstract: module containing variables used in inner loop minimzation
+!           NOTE: it is ok for jfunc to depend on setting related to B,
+!                 but not the other way around.
 !
 ! program history log:
 !   2003-11-24  treadon
@@ -36,8 +38,7 @@ module jfunc
 !   2010-05-12  todling - replace some existing subdomain pointers w/ nsubwhalo/nsubnhalo
 !                       - declare all variables coming from use statements
 !   2010-05-20  todling - move nrf_levb and nrf_leve to control_vector where they belong
-!   2011-02-16  zhu     - add ggues,vgues,pgues
-!   2011-07-15  zhu     - add cwgues
+!   2010-08-15  gu/todling - add pseudo-q2 options
 !   2013-05-20  zhu     - add ntclen for aircraft temperature bias correction aircraft_t_bc=.true. 
 !                         or aircraft_t_bc_pof=.true.
 !   2013-10-30  jung    - added logical clip_supersaturation
@@ -101,7 +102,7 @@ module jfunc
   use control_vectors, only: control_vector
   use control_vectors, only: assignment(=)
   use control_vectors, only: setup_control_vectors
-  use control_vectors, only: cvars2d
+  use control_vectors, only: cvars3d
   use state_vectors, only: setup_state_vectors
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundle
@@ -120,30 +121,28 @@ module jfunc
   public :: set_pointer
   public :: set_sqrt_2dsize
 ! set passed variables to public
-  public :: nrclen,npclen,nsclen,ntclen,qoption,varq,nval_lenz,dqdrh,dqdt,dqdp,tendsflag,tsensible
-  public :: switch_on_derivatives,qgues,qsatg,cwgues,jiterend,jiterstart,jiter,iter,niter,miter
+  public :: nrclen,npclen,nsclen,ntclen,qoption,nval_lenz,tendsflag,tsensible
+  public :: switch_on_derivatives,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,dhat_dt,xhat_dt,l_foto,xhatsave,first
   public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
   public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
-  public :: ggues,vgues,pgues,dvisdlog,factg,factv,factp,diag_precon,step_start
+  public :: factg,factv,factp,diag_precon,step_start
+  public :: pseudo_q2
+  public :: varq
 
   logical first,last,switch_on_derivatives,tendsflag,l_foto,print_diag_pcg,tsensible,lgschmidt,diag_precon
   logical clip_supersaturation
+  logical pseudo_q2
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
   integer(i_kind) nval_len,nval_lenz,nval_levs
-  integer(i_kind) nstsm,nvpsm,npsm,ntsm,nqsm,nozsm,nsstsm,nsltsm,nsitsm,ncwsm
-  integer(i_kind) nst2,nvp2,np2,nt2,nq2,noz2,nsst2,nslt2,nsit2,ncw2
   integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen,ntclen
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor,diurnalbc,factg,factv,factp,step_start
   integer(i_kind) bcoption
-  real(r_kind),allocatable,dimension(:,:,:):: qsatg,qgues,dqdt,dqdrh,dqdp 
-  real(r_kind),target,allocatable,dimension(:,:,:):: cwgues
-  real(r_kind),allocatable,dimension(:,:):: ggues,vgues,pgues,dvisdlog
   real(r_kind),allocatable,dimension(:,:):: varq
   type(control_vector),save :: xhatsave,yhatsave
   type(gsi_bundle),save :: xhat_dt,dhat_dt
@@ -166,6 +165,7 @@ contains
 !   2005-10-27  kleist  - initialize tendency flag
 !   2006-08-30  zhang,b - initialize bias correction scheme
 !   2008-05-12  safford - rm unused uses
+!   2010-08-15  gu/todling - add pseudo-q2 options
 !
 !   input argument list:
 !
@@ -200,6 +200,7 @@ contains
     iout_iter=220
     miter=1
     qoption=1
+    pseudo_q2=.false.
     do i=0,50
        niter(i)=0
        niter_no_qc(i)=1000000
@@ -227,7 +228,7 @@ contains
   end subroutine init_jfunc
 
 
-  subroutine create_jfunc(mlat)
+  subroutine create_jfunc
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create_jfunc
@@ -242,6 +243,9 @@ contains
 !   2005-03-28  wu - replace mlath with mlat, modify dim of varq 
 !   2005-06-15  treadon - remove "use guess_grids"
 !   2008-05-12  safford - rm unused uses
+!   2013-10-25  todling - revisit variable initialization
+!   2013-11-12  lueken - revisit logic around cwgues
+!   2014-02-03  todling - CV length and B-dims here (no longer in observer)
 !
 !   input argument list:
 !    mlat
@@ -254,75 +258,37 @@ contains
 !
 !$$$
     use constants, only: zero
-    use gridmod, only: lat2,lon2,nsig
+    use gridmod, only: lat2,lon2,nsig,regional
+    use m_berror_stats, only: berror_get_dims
+    use m_berror_stats_reg, only: berror_get_dims_reg
     implicit none
 
-    integer(i_kind),intent(in   ) :: mlat
+    integer(i_kind) j,k
+    integer(i_kind) msig,mlat,mlon 
 
-    integer(i_kind) i,j,k
+!   Set length of control vector and other control vector constants
+    call set_pointer
+
+!   Allocate arrays used in minimization
+    if(.not.regional)then                    ! If global, use msig, mlat, and mlon
+       call berror_get_dims(msig,mlat,mlon)
+    else                                     ! If regional, use msig and mlat only
+       call berror_get_dims_reg(msig,mlat)
+    endif
 
     call allocate_cv(xhatsave)
     call allocate_cv(yhatsave)
-    allocate(qsatg(lat2,lon2,nsig),&
-         dqdt(lat2,lon2,nsig),dqdrh(lat2,lon2,nsig),&
-         varq(1:mlat,1:nsig),dqdp(lat2,lon2,nsig),&
-         qgues(lat2,lon2,nsig))
-    allocate(cwgues(lat2,lon2,nsig))
-
     xhatsave=zero
     yhatsave=zero
 
-    do k=1,nsig
-       do j=1,mlat
-          varq(j,k)=zero
-       end do
-    end do
-
-    do k=1,nsig
-       do j=1,lon2
-          do i=1,lat2
-             qsatg(i,j,k)=zero
-             dqdt(i,j,k)=zero
-             dqdrh(i,j,k)=zero
-             dqdp(i,j,k)=zero
-             qgues(i,j,k)=zero
+    if (getindex(cvars3d,'q')>0) then
+        allocate(varq(1:mlat,1:nsig))
+        do k=1,nsig
+          do j=1,mlat
+             varq(j,k)=zero
           end do
        end do
-    end do
-
-    do k=1,nsig
-       do j=1,lon2
-          do i=1,lat2
-             cwgues(i,j,k)=zero
-          end do
-       end do
-    end do
-
-    if (getindex(cvars2d,'gust')>0) then
-       allocate(ggues(lat2,lon2))
-       do j=1,lon2
-          do i=1,lat2
-             ggues(i,j)=zero
-          end do
-       end do
-    end if
-    if (getindex(cvars2d,'vis')>0) then
-       allocate(vgues(lat2,lon2),dvisdlog(lat2,lon2))
-       do j=1,lon2
-          do i=1,lat2
-             vgues(i,j)=zero
-             dvisdlog(i,j)=zero
-          end do
-       end do
-    end if
-    if (getindex(cvars2d,'pblh')>0) then
-       allocate(pgues(lat2,lon2))
-       do j=1,lon2
-          do i=1,lat2
-             pgues(i,j)=zero
-          end do
-       end do
-    end if
+    endif
 
     return
   end subroutine create_jfunc
@@ -338,6 +304,7 @@ contains
 ! program history log:
 !   2003-11-24  treadon
 !   2004-05-18  kleist, documentation
+!   2013-10-25  todling, revisit deallocs
 !
 !   input argument list:
 !
@@ -352,12 +319,7 @@ contains
 
     call deallocate_cv(xhatsave)
     call deallocate_cv(yhatsave)
-    deallocate(varq)
-    deallocate(dqdt,dqdrh,dqdp,qsatg,qgues)
-    deallocate(cwgues)
-    if (getindex(cvars2d,'gust')>0) deallocate(ggues)
-    if (getindex(cvars2d,'vis')>0)  deallocate(vgues,dvisdlog)
-    if (getindex(cvars2d,'pblh')>0) deallocate(pgues)
+    if(allocated(varq)) deallocate(varq)
 
     return
   end subroutine destroy_jfunc
@@ -375,6 +337,7 @@ contains
 !   2004-05-18  kleist, documentation
 !   2005-05-05  treadon - read guess solution from 4-byte reals
 !   2008-05-12  safford - rm unused uses and vars
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     mype   - mpi task id
@@ -389,8 +352,9 @@ contains
 !$$$
     use kinds, only: r_single
     use mpimod, only: ierror, mpi_comm_world,mpi_real4
-    use gridmod, only: nlat,nlon,nsig,itotsub,ltosi_s,ltosj_s,&
+    use gridmod, only: nlat,nlon,nsig,itotsub,&
          displs_s,ijn_s,latlon11,iglobal
+    use general_commvars_mod, only: ltosi_s,ltosj_s
     use obsmod, only: iadate
     implicit none
 
@@ -498,6 +462,7 @@ contains
 !   2005-05-05  treadon - write guess solution using 4-byte reals
 !   2008-05-12  safford - rm unused uses
 !   2008-12-13  todling - strip2 called w/ consistent interface
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     mype   - mpi task id
@@ -511,8 +476,9 @@ contains
 !$$$
     use kinds, only: r_single
     use mpimod, only: ierror, mpi_comm_world, mpi_real4
-    use gridmod, only: ijn,latlon11,displs_g,ltosj,ltosi,nsig,&
+    use gridmod, only: ijn,latlon11,displs_g,nsig,&
          nlat,nlon,lat1,lon1,itotsub,iglobal
+    use general_commvars_mod, only: ltosj,ltosi 
     use obsmod, only: iadate
     use constants, only: zero
     implicit none
@@ -644,6 +610,7 @@ contains
 !   2010-05-23  todling - remove pointers such as nvpsm, nst2, and others (intro on 10/03/01)
 !                       - move nrf_levb and nrf_leve to anberror where they are needed
 !   2010-05-29  todling - generalized count for number of levels in state variables
+!   2013-10-22  todling - revisit level count in view of changes to bundle
 !
 !   input argument list:
 !
@@ -659,18 +626,16 @@ contains
     use radinfo, only: npred,jpch_rad
     use pcpinfo, only: npredp,npcptype
     use aircraftinfo, only: npredt,ntail,aircraft_t_bc_pof,aircraft_t_bc
-    use state_vectors, only: ns3d,ns2d,edges
+    use state_vectors, only: ns3d,ns2d,levels
     use constants, only : max_varname_length
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens,nval_lenz_en
     implicit none
 
-    integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,nedges,n_ensz
-    character(len=max_varname_length) cvar
+    integer(i_kind) n_ensz,nval_lenz_tot,nval_lenz_enz
 
-    nedges=count(edges .eqv. .true.)
-    nvals_levs=ns3d*nsig+ns2d+nedges
+    nvals_levs=ns2d+sum(levels)
     nvals_len=nvals_levs*latlon11
 
     nval_levs=max(0,nc3d)*nsig+max(0,nc2d)
@@ -691,28 +656,33 @@ contains
     nclen2=nclen1+nsclen
   
     n_ensz=0
-    if(lsqrtb) then
+    nval_lenz_enz=0
+    if(lsqrtb.or.(l_hyb_ens.and.generate_ens)) then
        if(regional) then
           nval2d=nlat*nlon*3
        else
           call set_sqrt_2dsize(nval2d)
        end if
        nval_lenz=nval2d*nnnn1o
-       nclenz=nsubwin*nval_lenz+nsclen+npclen+ntclen
-       if(l_hyb_ens) then
-          n_ensz=1 !n_ens
-          nclenz=nclenz+nsubwin*nval_lenz_en*n_ensz
-        endif
+       nval_lenz_tot=nval_lenz
+       if(lsqrtb.and.l_hyb_ens) then
+          n_ensz=n_ens
+          nval_lenz_enz=nval_lenz_en
+          nval_lenz_tot=nval_lenz+n_ensz*nval_lenz_enz
+       endif
+       nclenz=nsubwin*nval_lenz_tot+nsclen+npclen+ntclen
     else
        nval2d=latlon11
     end if
 
     if (lsqrtb) then
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,ntclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ensz)
+                                  nsclen,npclen,ntclen,nclenz,nsubwin,nval_lenz,lsqrtb,n_ensz, &
+                                  nval_lenz_enz)
     else
        CALL setup_control_vectors(nsig,lat2,lon2,latlon11,latlon1n, &
-                                & nsclen,npclen,ntclen,nclen,nsubwin,nval_len,lsqrtb,n_ens)
+                                  nsclen,npclen,ntclen,nclen,nsubwin,nval_len,lsqrtb,n_ens, &
+                                  nval_lenz_enz)
     endif
     CALL setup_predictors(nrclen,nsclen,npclen,ntclen)
     CALL setup_state_vectors(latlon11,latlon1n,nvals_len,lat2,lon2,nsig)

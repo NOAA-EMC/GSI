@@ -12,8 +12,10 @@ module bicglanczos
 !   2010-10-01  el akkraoui - revisit original implementation (still w/o precond)
 !   2011-04-19  el akkraoui - add preconditioning and orthogonalization
 !   2011-07-04  todling - determine precision based on kinds
+!   2012-07-11  todling - add hyb-ens capability following pcgsoi changes
 !   2013-01-23  parrish - in subroutine pcgprecond, change variable xcvx from
 !                          intent(in) to intent(inout) (flagged by WCOSS intel debug compiler)
+!   2013-11-17  todling - implement convergence criterium (based on tolerance)
 !
 ! Subroutines Included:
 !   save_pcgprecond - Save eigenvectors for constructing the next preconditioner
@@ -62,6 +64,8 @@ use mpimod,    only: mype
 use jfunc   ,  only : iter, jiter
 use gsi_4dvar, only : nwrvecs,l4dvar,lanczosave
 use gsi_4dvar, only : nsubwin, nobs_bins
+use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
+use hybrid_ensemble_isotropic, only: beta12mult
 
 implicit none
 private
@@ -70,17 +74,19 @@ public pcglanczos, setup_pcglanczos, save_pcgprecond, setup_pcgprecond,&
        pcgprecond, LMPCGL
 
 !=============================================================
-logical      :: LMPCGL = .false.
+logical      :: LTCOST_ = .false.
+logical      :: LMPCGL  = .false.
+logical      :: allocated_work_vectors=.false.
 real(r_kind) :: R_MAX_CNUM_PC = 10.0_r_kind
 real(r_kind) :: xmin_ritz = 1.0_r_kind
 real(r_kind) :: pkappa = 0.1_r_kind
+real(r_kind) :: CG_TOL = 0.001_r_kind
 
 integer(i_kind)           :: NPCVECS, NVCGLPC, NVCGLEV
 REAL(r_kind), ALLOCATABLE :: RCGLPC(:)
 REAL(r_kind), ALLOCATABLE :: RCGLEV(:)
 
 integer(i_kind)           :: nprt,maxiter
-REAL(r_kind), allocatable :: zlancs(:,:)
 
 TYPE(control_vector), ALLOCATABLE, DIMENSION(:) :: YVCGLPC
 TYPE(control_vector), ALLOCATABLE, DIMENSION(:) :: YVCGLEV
@@ -98,11 +104,11 @@ contains
 
 !=============================================================
 subroutine setup_pcglanczos(kpe,kprt,kiter,kiterstart,kmaxit,kwrvecs, &
-                         ld4dvar,ldsave)
+                         ld4dvar,ldsave,ltcost)
 implicit none
 integer(i_kind), intent(in) :: kpe,kprt,kiter,kiterstart,kmaxit,kwrvecs
-logical        , intent(in) :: ld4dvar,ldsave
-integer(i_kind)             :: ii
+logical        , intent(in) :: ld4dvar,ldsave,ltcost
+integer(i_kind)             :: ii,isize
 
 mype=kpe
 nprt=kprt
@@ -111,22 +117,25 @@ maxiter=kmaxit
 nwrvecs=kwrvecs
 l4dvar=ld4dvar
 lanczosave=ldsave
+ltcost_=ltcost
 
-if (allocated(zlancs)) deallocate(zlancs)
-allocate(zlancs(maxiter+1,4))
-zlancs=zero
 
-allocate(cglwork(maxiter+1))
-DO ii=1,kmaxit+1
-  CALL allocate_cv(cglwork(ii))
-  cglwork(ii)=zero
-ENDDO
-
-allocate(cglworkhat(maxiter+1))
-DO ii=1,kmaxit+1
-   CALL allocate_cv(cglworkhat(ii))
-   cglworkhat(ii)=zero
-END DO 
+if (iorthomax>0) then
+   if ( lanczosave ) then 
+        isize = maxiter
+   else
+        isize = iorthomax  
+   endif
+   allocate(cglwork(isize+1))
+   allocate(cglworkhat(isize+1))
+   DO ii=1,isize+1
+      CALL allocate_cv(cglwork(ii))
+      cglwork(ii)=zero
+      CALL allocate_cv(cglworkhat(ii))
+      cglworkhat(ii)=zero
+   ENDDO
+   allocated_work_vectors=.true.
+endif 
 
 if (jiter==kiterstart) then
   NPCVECS=0
@@ -144,7 +153,7 @@ end subroutine setup_pcglanczos
 ! -------------------------------------------------------------------
 
 !================================================================
-subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,iobsconv,lsavevecs)
+subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,lsavevecs)
 
 !$$$  subprogram documentation block
 !
@@ -152,7 +161,8 @@ subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,iobsconv,lsaveve
 !           gradient preconditioned with B.
 !
 ! program history log:
-!   2999-99-99  tremolet - initial code
+!   0999-99-99  tremolet - initial code
+!   2013-11-20  todling  - revisit to allow code to stop at single iteration
 !
 !$$$
 
@@ -175,19 +185,17 @@ type(control_vector),intent(inout)      :: xhat,yhat,gradx,grady
 real(r_kind)    , intent(out)           :: pcost
 real(r_kind)    , intent(inout)         :: preduc
 integer(i_kind) , intent(inout)         :: kmaxit
-integer(i_kind) , intent(in)            :: iobsconv
 logical         , intent(in)            :: lsavevecs
 
-type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry,xtrue,gradtrue
+type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry
 real(r_kind), allocatable :: alpha(:),beta(:),delta(:),gam(:)
 real(r_kind), allocatable :: zdiag(:),ztoff(:),zwork(:)
 real(r_kind), allocatable :: zritz(:),zbnds(:),zevecs(:,:)
-real(r_quad)              :: zg0,zgk,zgnew,zfk,zgg,zf0,zff,zgf,zge,zfg
+real(r_quad)              :: zg0,zgk,zgnew,zfk,zgg,zge
 real(r_kind)              :: zeta,zreqrd
 integer(i_kind)           :: jj,ilen,ii,info
-integer(i_kind)           :: kminit,kmaxevecs
+integer(i_kind)           :: kminit,kmaxevecs,kconv
 logical                   :: lsavinc,lldone
-character(len=12)         :: clfile
 
 ! --------------------------------------
 REAL             :: Z_DEFAULT_REAL      ! intentionally not real(r_kind)
@@ -199,12 +207,8 @@ integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = KIND(DL_DOUBLE_PRECISION)
 !<<<
 integer(i_kind) :: jk,isize,jm
 real(r_kind)    :: zdla,zbndlm
-REAL(r_kind),allocatable        :: zdp(:)
 
-type(control_vector) :: gradf,gradff
-type(gsi_bundle)     :: sval(nobs_bins)
-type(gsi_bundle)     :: mval(nsubwin)
-real(r_quad)         :: pcostq
+type(control_vector) :: gradf
 integer              :: iortho
 !---------------------------------------------------
 
@@ -237,8 +241,7 @@ call allocate_cv(ytry)  ! not in PCGSOI
 call allocate_cv(gradw)
 call allocate_cv(dirx)
 call allocate_cv(diry)
-if(nprt>=1) call allocate_cv(gradf)
-if(nprt>=1) call allocate_cv(gradff)
+if(nprt>=1.and.ltcost_) call allocate_cv(gradf)
 
 !--- 'zeta' is an upper bound on the relative error of the gradient.
 
@@ -262,7 +265,7 @@ end do
 
 if(LMPCGL) then 
    dirx=zero
-   call pcgprecond(gradx,dirx,1)
+   call pcgprecond(gradx,dirx)
    do jj=1,ilen
        dirx%values(jj) = -dirx%values(jj)
    end do
@@ -276,10 +279,12 @@ gam(0)=one/zg0
 
 zgg=dot_product(dirx,dirx,r_quad)
 zgg=sqrt(zgg)
-do jj=1,ilen
-  cglwork(1)%values(jj)=gradx%values(jj)/zg0
-  cglworkhat(1)%values(jj)=grady%values(jj)/zg0
-enddo
+if (iorthomax>0) then
+   do jj=1,ilen
+      cglwork(1)%values(jj)=gradx%values(jj)/zg0
+      cglworkhat(1)%values(jj)=grady%values(jj)/zg0
+   enddo
+endif 
 
 ! ------------------------------------------------------------------------------
 ! Perform CG inner iterations
@@ -332,9 +337,29 @@ inner_iteration: do iter=1,kmaxit
 ! Apply B or the preconditioner
 
   if(LMPCGL) then 
-     call pcgprecond(gradx,grady,1)
+     call pcgprecond(gradx,grady)
   else 
      call bkerror(gradx,grady)
+     ! If hybrid ensemble run, then multiply ensemble control variable a_en 
+     !                                 by its localization correlation
+     if(l_hyb_ens) then
+     
+       if(aniso_a_en) then
+     !   call anbkerror_a_en(gradx,grady)    !  not available yet
+         write(6,*)' ANBKERROR_A_EN not written yet, program stops'
+         stop
+       else
+         call bkerror_a_en(gradx,grady)
+       end if
+ 
+     ! multiply static (Jb) part of grady by betas_inv(:), and
+     ! multiply ensemble (Je) part of grady by betae_inv(:). [Default: betae_inv(:) = 1 - betas_inv(:) ]
+     !   (this determines relative contributions from static background Jb and
+     !   ensemble background Je)
+
+       call beta12mult(grady)
+ 
+     end if
   endif
 
 ! Second re-orthogonalization  
@@ -355,7 +380,12 @@ inner_iteration: do iter=1,kmaxit
   zgk=zgnew
 
 ! Evaluate cost for printout
-  if(nprt>=1) call jgrad(xhat,yhat,zfk,gradf,lsavinc,nprt,subname)
+  if(nprt>=1.and.ltcost_) then
+    call jgrad(xhat,yhat,zfk,gradf,lsavinc,nprt,subname)
+    if (mype==0) then
+        write(6,999)trim(myname),': grepcost cost=', jiter,iter,zfk
+    endif
+  endif
  
 ! Update search direction
   do jj=1,ilen
@@ -366,57 +396,70 @@ inner_iteration: do iter=1,kmaxit
 ! Diagnostics
   if(zgk < zero) then 
      if(mype==0) write(6,*) '*** STOP : Breakdown ***'
-     STOP
+     call stop2(999)
   end if
   zgg=sqrt(zgk)
   gam(iter)=one/zgg
   if (mype==0) then
-    write(6,999)trim(myname),': grepgrad cost,grad,reduction=', &
-      jiter,iter,zfk,zgg,zgg/zg0
+    write(6,999)trim(myname),': grepgrad grad,reduction=', &
+      jiter,iter,zgg,zgg/zg0
     write(6,999)trim(myname),': grepgrad alpha,beta=', &
       jiter,iter,alpha(iter),beta(iter)
   endif
 
 ! Save Lanczos vectors
-  do jj=1,ilen
-    cglwork(iter+1)%values(jj)=gradx%values(jj)/zgg
-    cglworkhat(iter+1)%values(jj)=grady%values(jj)/zgg
-  enddo
+  if ( iorthomax > 0  ) then 
+     if ( (iter <= iorthomax) .OR. ( lsavevecs ) ) then
+        do jj=1,ilen
+           cglwork(iter+1)%values(jj)=gradx%values(jj)/zgg
+           cglworkhat(iter+1)%values(jj)=grady%values(jj)/zgg
+        enddo
+     endif 
+  endif 
 
+  if(abs(zgg/zg0)<CG_TOL) then
+     if (mype==0) then
+       write(6,999)trim(myname),': CG achieved desired level of convergence'
+     endif
+     exit
+  endif
 end do inner_iteration
+kconv=min(iter-1,kmaxit)
 ! ------------------------------------------------------------------------------
 ! Done CG inner iterations
 ! ------------------------------------------------------------------------------
+if(kconv>0 .and. lsavevecs) then
 
 ! ------------------------------------------------------------------------------
 ! Lanczos diagnostics
 ! ------------------------------------------------------------------------------
-allocate(zdiag(0:kmaxit),ztoff(kmaxit),zwork(2*kmaxit))
-allocate(zritz(0:kmaxit),zbnds(0:kmaxit))
-allocate(zevecs(kmaxit+1,kmaxit+1))
+allocate(zdiag(0:kconv),ztoff(kconv),zwork(2*kconv))
+allocate(zritz(0:kconv),zbnds(0:kconv))
+allocate(zevecs(kconv+1,kconv+1))
 
 ! Build tri-diagonal matrix
+info=0
 zdiag(0)=delta(0)
-do ii=1,kmaxit
+do ii=1,kconv
   zdiag(ii)=delta(ii)+beta(ii)*beta(ii)*delta(ii-1)
 enddo
-do ii=0,kmaxit
+do ii=0,kconv
   zdiag(ii)=zdiag(ii)*gam(ii)*gam(ii)
 enddo
-do ii=1,kmaxit
+do ii=1,kconv
   ztoff(ii)=-beta(ii)*gam(ii)*gam(ii-1)*delta(ii-1)
 enddo
 
-zge=sqrt(DOT_PRODUCT(cglwork(kmaxit+1),cglwork(kmaxit+1)))
-zge=zge* ztoff(kmaxit)
+zge=sqrt(DOT_PRODUCT(cglwork(kconv+1),cglwork(kconv+1)))
+zge=zge* ztoff(kconv)
 
 #ifdef ibm_sp
 
 !   Use ESSL
     iopt=1
-    n=kmaxit+1
+    n=kconv+1
     lda=n
-    ldz=kmaxit+1
+    ldz=kconv+1
     naux=2*n
     allocate(select(n),indx(n),w(n),z(n),aux(naux),w_order(n))
 
@@ -460,9 +503,9 @@ zge=zge* ztoff(kmaxit)
 ! Get eigen-pairs of tri-diagonal matrix
 if(iter /= 1) then
    if (r_kind==N_DEFAULT_REAL_KIND) then
-      call SSTEQR('I',kmaxit+1,zdiag,ztoff,zevecs,kmaxit+1,zwork,info)
+      call SSTEQR('I',kconv+1,zdiag,ztoff,zevecs,kconv+1,zwork,info)
    elseif (r_kind==N_DOUBLE_KIND) then
-      call DSTEQR('I',kmaxit+1,zdiag,ztoff,zevecs,kmaxit+1,zwork,info)
+      call DSTEQR('I',kconv+1,zdiag,ztoff,zevecs,kconv+1,zwork,info)
    else
       write(6,*)trim(myname),': r_kind is neither default real nor double precision'
       call stop2(319)
@@ -479,17 +522,17 @@ endif
 
 ! Error bounds
 zritz(:)=zdiag(:)
-zbndlm = zeta*zritz(kmaxit)
+zbndlm = zeta*zritz(kconv)
 
 if (mype==0) write(6,*)trim(myname),': ritz values are:  ',zritz(:)
-zbnds(:)=abs(zge*zevecs(kmaxit+1,:))
+zbnds(:)=abs(zge*zevecs(kconv+1,:))
 if (mype==0) write(6,*)trim(myname),': error bounds are: ',zbnds(:)
 zbnds(:)=zbnds(:)/zritz(:)
 if (mype==0) write(6,*)trim(myname),': relative errors:  ',zbnds(:)
 
 ! Compute the eigenvectors
 
-if (lsavevecs) then
+!if (lsavevecs) then
 
    NVCGLEV = 0
    do jk=iter,1,-1
@@ -582,15 +625,16 @@ if (lsavevecs) then
       CALL DEALLOCATE_CV(YUCGLEV(jj))
    ENDDO
    DEALLOCATE(YUCGLEV)
-end if
+!end if
 
 
-
+deallocate(zevecs)
+deallocate(zritz,zbnds)
+deallocate(zdiag,ztoff,zwork)
+endif ! kconv>0
 ! ------------------------------------------------------------------------------
-
-deallocate(zdiag,ztoff,zwork,zritz,zbnds,zevecs)
-
 ! Release memory
+
 deallocate(alpha,beta,delta,gam)
 call deallocate_cv(grad0)
 call deallocate_cv(xtry)
@@ -598,8 +642,7 @@ call deallocate_cv(ytry)
 call deallocate_cv(gradw)
 call deallocate_cv(dirx)
 call deallocate_cv(diry)
-if(nprt>=1) call deallocate_cv(gradf)
-if(nprt>=1) call deallocate_cv(gradff)
+if(nprt>=1.and.ltcost_) call deallocate_cv(gradf)
 
 call inquire_cv
 
@@ -623,8 +666,7 @@ IMPLICIT NONE
 
 logical, intent(in)       :: ldsave
 
-REAL(r_kind), ALLOCATABLE :: zmat(:,:)
-INTEGER(i_kind)           :: ii,jj, info, iunit, ivecs
+INTEGER(i_kind)           :: ii,jj, iunit, ivecs, isize
 REAL(r_kind)              :: zz
 CHARACTER(LEN=13)         :: clfile
 
@@ -705,14 +747,21 @@ if (ldsave) then
 
 endif
 
-do ii=1,maxiter+1
-  call deallocate_cv(cglwork(ii))
-enddo
-deallocate(cglwork)
-do ii=1,maxiter+1
-  call deallocate_cv(cglworkhat(ii))
-enddo
-deallocate(cglworkhat)
+if (allocated_work_vectors) then
+   if ( lanczosave ) then
+        isize = maxiter
+   else
+        isize = iorthomax
+   endif
+   do ii=1,isize+1
+     call deallocate_cv(cglwork(ii))
+   enddo
+   deallocate(cglwork)
+   do ii=1,isize+1
+     call deallocate_cv(cglworkhat(ii))
+   enddo
+   deallocate(cglworkhat)
+endif
 
 return
 end subroutine save_pcgprecond
@@ -724,10 +773,7 @@ subroutine setup_pcgprecond()
 
 IMPLICIT NONE
 
-INTEGER(i_kind)  , allocatable :: indarr(:)
-REAL(r_kind)     , allocatable :: zq(:),zlam(:),zU(:,:),zUUT(:,:),zwork(:),zzz(:)
-INTEGER(i_kind)                :: info,ik,inpcv,ji,jj,jk,ii,iunit
-REAL(r_kind)                   :: za, zps
+INTEGER(i_kind)                :: jj,jk,ii,iunit
 CHARACTER(LEN=13)              :: clfile
 
 !--- read vectors, apply change of variable and copy to work file
@@ -803,17 +849,15 @@ end subroutine setup_pcgprecond
 ! ------------------------------------------------------------------------------
 !   PRECOND - Preconditioner for minimization
 ! ------------------------------------------------------------------------------
-subroutine pcgprecond(xcvx,ycvx,kmat)
+subroutine pcgprecond(xcvx,ycvx)
 
 IMPLICIT NONE
 
 TYPE(CONTROL_VECTOR) , INTENT(INout)  :: xcvx
 TYPE(CONTROL_VECTOR) , INTENT(INOUT) :: ycvx
-INTEGER(i_kind)      , INTENT(IN)  :: kmat
 
 REAL(r_kind)        :: zdp(NVCGLPC)
 INTEGER(i_kind)     :: jk, ji
-INTEGER(i_kind)     :: isize
  
 ycvx=zero
 do jk=1,NVCGLPC
@@ -822,6 +866,28 @@ enddo
 
 !Apply B
 call bkerror(xcvx,ycvx)
+
+! If hybrid ensemble run, then multiply ensemble control variable a_en 
+!                                 by its localization correlation
+if(l_hyb_ens) then
+
+  if(aniso_a_en) then
+!   call anbkerror_a_en(xcvx,ycvx)    !  not available yet
+    write(6,*)' ANBKERROR_A_EN not written yet, program stops'
+    call stop2(999)
+  else
+    call bkerror_a_en(xcvx,ycvx)
+  end if
+
+! multiply static (Jb) part of grady by betas_inv(:), and
+! multiply ensemble (Je) part of grady by betae_inv(:). [Default : betae_inv(:) = 1 - betas_inv(:) ]
+!   (this determines relative contributions from static background Jb and
+!   ensemble background Je)
+
+  call beta12mult(ycvx)
+
+end if
+
 
 do jk=1,NVCGLPC
     zdp(jk) = DOT_PRODUCT(xcvx,YVCGLPC(jk))

@@ -50,7 +50,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2010-02-25  collard - changes to call to crtm_init for CRTM v2.0
 !   2010-09-02  zhu     - add use_edges option
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
-!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars 
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, and add NSST vars 
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
@@ -59,6 +59,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno   - improve error handling for FOV-based sfc calculation
 !                         (isfcalc=1)
 !   2011-12-13  collard - Replace find_edges code to speed up execution.
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-02-26  collard - fix satid issues for MetOp-B and MetOp-C
 !
@@ -97,7 +98,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
       finalcheck,checkob,score_crit
-  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo,fac_dtl,fac_tsl, &
+  use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo, &
       radedge1,radedge2,radstart,radstep
   use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
       crtm_kind => fp
@@ -108,6 +109,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
 
   implicit none
 
@@ -128,9 +130,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  character(len=10),intent(in   ) :: infile
+  character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
-  character(len=10),intent(in   ) :: obstype
+  character(len=*), intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind
   real(r_kind)     ,intent(inout) :: val_iasi
@@ -158,7 +160,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanlr,jstart
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
   integer(i_kind),allocatable,dimension(:) :: nrec
 
 
@@ -231,7 +233,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   bad_line=-1
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+    call gsi_nstcoupler_skindepth(trim(obstype), zob)         ! get penetration depth (zob) for the obstype
   endif
 
   if(jsatid == 'metop-a')kidsat=4
@@ -339,7 +341,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open BUFR file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
 
 ! Open BUFR table
   call openbf(lnbufr,'IN',lnbufr)
@@ -636,7 +638,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 

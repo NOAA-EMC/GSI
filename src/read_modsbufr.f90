@@ -23,6 +23,10 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod, fixed indentation
+!   2012-03-05  akella  - nst now controlled via coupler
+!   2012-08-29  akella  - (1) fix accumulation of ndata and nodata so that it is consistent with data_all
+!                       - (2) use t4dv rather than tdiff in calls to deter_sfc
+!                       - (3) use tsavg that is computed at observation depth
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
@@ -51,15 +55,16 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype
   use obsmod, only: oberrflg,bmiss
-  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: nst_gsi,nstinfo
   use insitu_info, only: n_comps,n_scripps,n_triton,n_3mdiscus,cid_mbuoy,n_ship,ship
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in):: infile,obstype
-  character(len=*),intent(in):: sis
+  character(len=20),intent(in):: sis
   integer(i_kind),intent(in):: lunout
   integer(i_kind),intent(inout):: nread,ndata,nodata
   real(r_kind),intent(in):: gstime,twindin
@@ -115,7 +120,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_single),allocatable::etabl(:,:,:)
   integer(i_kind) ietabl,lcount,itypex
   integer(i_kind) l,m,ikx
-  integer(i_kind) n,cid_pos,ship_mod,mbuoy_mod,dbuoy_mod
+  integer(i_kind) n,cid_pos,ship_mod
   real(r_kind) terrmin,werrmin,perrmin,qerrmin,pwerrmin
 
   data headr/'YEAR MNTH DAYS HOUR MINU CLATH CLONH SELV RPID'/
@@ -135,6 +140,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   nreal=maxinfo+nstinfo
 
   allocate(data_all(nreal,maxobs))
+  data_all = zero
 
 
   if(oberrflg)then
@@ -170,7 +176,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   endif
 
 ! Open, then read date from bufr data
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
        
@@ -275,13 +281,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            idate5(4) = nint(hdr(4))    !hour
            idate5(5) = nint(hdr(5))    !minute
  
-
-           call w3fs21(idate5,nmind)
-           sstime=float(nmind)
- 
-           tdiff=(sstime-gstime)*r60inv
-
-!      
 !          determine platform (ships, dbuoy, fbuoy or lcman and so on) dependent zob and obs. error
 !
            if ( trim(subset) == 'SHIPS' ) then                                            ! ships
@@ -449,11 +448,12 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if(ikx == 0) cycle read_loop             ! not ob type used
 
            call w3fs21(idate5,nmind)
-           t4dv=real((nmind-iwinbgn),r_kind)*r60inv
+           t4dv=real((nmind-iwinbgn),r_kind)*r60inv  ! no information in obs bufr file about seconds.
 !
            if (l4dvar) then
               if (t4dv<zero .OR. t4dv>winlen) cycle read_loop
            else
+              sstime=real(nmind,r_kind)
               tdiff=(sstime-gstime)*r60inv
               if(abs(tdiff)>twindin .or. abs(tdiff)>ctwind(ikx)) cycle read_loop ! outside time window
            endif
@@ -468,12 +468,6 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if ( ncnumgrp(ikx) > 0 ) then                                ! cross validation on
               if (mod(ndata+1,ncnumgrp(ikx))== ncgroup(ikx)-1) usage=ncmiter(ikx)
            end if
-           nodata = nodata + 1
-           ndata = ndata + 1
-           if(ndata > maxobs) then
-              write(6,*)'READ_MODSBUFR:  ***WARNING*** ndata > maxobs for ',obstype
-              ndata = maxobs
-           end if
 
 !     isflg    - surface flag
 !                0 sea
@@ -487,7 +481,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !                 (2) - sea ice percentage
 !                 (3) - snow percentage
 
-           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,tdiff,isflg,idomsfc,sfcpct, &
+           call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
                           ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
            if(isflg /= zero)  cycle read_loop                            ! use data over water only
 
@@ -495,14 +489,21 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
            if(nst_gsi>0) then
-              tref  = ts(0)
+              tref  = tsavg
               dtw   = zero
               dtc   = zero
               tz_tr = one
-              if(sfcpct(0)>zero) then
-                 call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              if(isflg == zero) then
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               endif
            endif
+
+           nodata = nodata + 1
+           ndata = ndata + 1
+           if(ndata > maxobs) then
+              write(6,*)'READ_MODSBUFR:  ***WARNING*** ndata > maxobs for ',obstype
+              ndata = maxobs
+           end if
 
            data_all(1,ndata)  = sstoe                   ! sst error
            data_all(2,ndata)  = dlon                    ! grid relative longitude
@@ -518,7 +519,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            data_all(12,ndata) = sstoe                   ! original obs error
            data_all(13,ndata) = usage                   ! usage parameter
            data_all(14,ndata) = idomsfc+0.001_r_kind    ! dominate surface type
-           data_all(15,ndata) = ts(0)                   ! Tz: Background temperature at depth of zob
+           data_all(15,ndata) = tsavg                   ! Tz: Background temperature at depth of zob
            data_all(16,ndata) = ff10                    ! 10 meter wind factor
            data_all(17,ndata) = sfcr                    ! surface roughness
            data_all(18,ndata) = dlon_earth*rad2deg      ! earth relative longitude (degrees)
@@ -542,20 +543,26 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 ! Normal exit
 1000 continue
 
-! Write header record and data to output file for further processing
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((data_all(k,i),k=1,nreal),i=1,ndata)
+  if ( ndata > 0 ) then 
+    ! Write header record and data to output file for further processing
+    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+    write(lunout) ((data_all(k,i),k=1,nreal),i=1,ndata)
+  endif
 
-! write(*,*) 'read_modsbufr : ',nreal,nchanl,nread,ndata
+! Deallocate local arrays
+  deallocate(data_all)
+
+  write(6,*) 'read_modsbufr: mype = ', mype, 'nread =', nread, 'ndata =', ndata, 'nodata =', nodata
 
 ! Close unit to bufr file
 1020 continue
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
 
-  if(diagnostic_reg.and.ntest > 0) write(6,*)'READ_MODSBUFR:  ',&
+  if(regional)then
+    if(diagnostic_reg.and.ntest > 0) write(6,*)'READ_MODSBUFR:  ',&
      'ntest,disterrmax=',ntest,disterrmax
-
+  endif
 
 ! End of routine
   return
