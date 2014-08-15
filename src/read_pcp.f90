@@ -72,7 +72,7 @@
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -88,7 +88,6 @@
   character(6) ptype
   character(8) subset
   character(40) strhdr7,strsmi4,strsmi2_old,strsmi2,strtmi7,stramb5
-  character(10) date
 
   integer(i_kind) imn,k,i,iyr,lnbufr,maxobs,isflg,idomsfc
   integer(i_kind) ihh,idd,im,kx,jdate
@@ -145,7 +144,7 @@
 
 ! Open and read the bufr data
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)

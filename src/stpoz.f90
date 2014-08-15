@@ -66,9 +66,9 @@ subroutine stpoz(ozhead,o3lhead,rval,sval,out,sges,nstep)
 !
 !$$$  
   use kinds, only: r_kind,r_quad,i_kind
-  use obsmod, only: oz_ob_type,o3l_ob_type
+  use obsmod, only: oz_ob_type,o3l_ob_type,nloz_omi
   use gridmod, only: latlon1n
-  use constants, only: zero_quad
+  use constants, only: zero_quad,zero
   use gsi_bundlemod, only: gsi_bundle
   implicit none
 
@@ -121,6 +121,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 !   2007-06-04  derber  - use quad precision to get reproducability over number of processors
 !   2008-12-03  todling - update handle of foto
 !   2010-05-13  todling - udpate to use gsi_bundle
+!   2012-09-10  wargan  - add OMI with efficiency factors
 !
 !   input argument list:
 !     ozhead  - layer ozone obs type pointer to obs structure
@@ -138,8 +139,8 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: oz_ob_type
-  use constants, only: one,half,two,zero_quad,r3600
+  use obsmod, only: oz_ob_type,nloz_omi
+  use constants, only: one,half,two,zero_quad,r3600,zero
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: l_foto,xhat_dt,dhat_dt
   use gsi_bundlemod, only: gsi_bundle
@@ -155,7 +156,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 
 ! Declare local variables
   integer(i_kind) i,j,ij,ier,istatus
-  integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,j1x,j2x,j3x,j4x,kk
+  integer(i_kind) k,j1,j2,j3,j4,iz1,iz2,j1x,j2x,j3x,j4x,kk,kl
   real(r_kind) dz1,pob,delz
   real(r_kind) w1,w2,w3,w4,time_oz,oz
   real(r_kind),dimension(max(1,nstep))::pen
@@ -163,6 +164,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),allocatable,dimension(:,:) :: roz,soz
   real(r_kind),pointer,dimension(:,:,:)   :: rozp,sozp
+  real(r_kind),dimension(nloz_omi):: val_lay, val_lay1
   type( oz_ob_type), pointer ::  ozptr
 
   real(r_quad) val,val1
@@ -274,41 +276,81 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
 
 !       Add contribution from total column observation
         if(nstep > 0)then
-           k   = ozptr%nloz+1
-           val1= -ozptr%res(k)
-           val  = zero_quad
-           do kk=1,nsig
-              w1=ozptr%wij(1,kk)
-              w2=ozptr%wij(2,kk)
-              w3=ozptr%wij(3,kk)
-              w4=ozptr%wij(4,kk)
-              val=val+  (          &
-                   w1* roz(j1,kk)+ &
-                   w2* roz(j2,kk)+ &
-                   w3* roz(j3,kk)+ &
-                   w4* roz(j4,kk))
-              val1=val1 +  (       &
-                   w1* soz(j1,kk)+ &
-                   w2* soz(j2,kk)+ &
-                   w3* soz(j3,kk)+ & 
-                   w4* soz(j4,kk))
-              if(l_foto)then
-                 j1x=j1+(kk-1)*lat2*lon2
-                 j2x=j2+(kk-1)*lat2*lon2
-                 j3x=j3+(kk-1)*lat2*lon2
-                 j4x=j4+(kk-1)*lat2*lon2
-                 val=val+ ( &
-                   (w1*xhat_dt_oz(j1x)+ &
-                    w2*xhat_dt_oz(j2x)+ &
-                    w3*xhat_dt_oz(j3x)+ & 
-                    w4*xhat_dt_oz(j4x))*time_oz )
-                 val1=val1 + ( &
-                   (w1*dhat_dt_oz(j1x)+ &
-                    w2*dhat_dt_oz(j2x)+ &
-                    w3*dhat_dt_oz(j3x)+ &
-                    w4*dhat_dt_oz(j4x))*time_oz )
-              end if
-           enddo
+           if (ozptr%apriori(1) .lt. zero) then ! non-OMI ozone
+              k   = ozptr%nloz+1
+              val1= -ozptr%res(k)
+              val  = zero_quad
+              do kk=1,nsig
+                 w1=ozptr%wij(1,kk)
+                 w2=ozptr%wij(2,kk)
+                 w3=ozptr%wij(3,kk)
+                 w4=ozptr%wij(4,kk)
+                 val=val+  (          &
+                      w1* roz(j1,kk)+ &
+                      w2* roz(j2,kk)+ &
+                      w3* roz(j3,kk)+ &
+                      w4* roz(j4,kk))
+                 val1=val1 +  (       &
+                      w1* soz(j1,kk)+ &
+                      w2* soz(j2,kk)+ &
+                      w3* soz(j3,kk)+ & 
+                      w4* soz(j4,kk))
+                 if(l_foto)then
+                    j1x=j1+(kk-1)*lat2*lon2
+                    j2x=j2+(kk-1)*lat2*lon2
+                    j3x=j3+(kk-1)*lat2*lon2
+                    j4x=j4+(kk-1)*lat2*lon2
+                    val=val+ ( &
+                         (w1*xhat_dt_oz(j1x)+ &
+                         w2*xhat_dt_oz(j2x)+ &
+                         w3*xhat_dt_oz(j3x)+ & 
+                         w4*xhat_dt_oz(j4x))*time_oz )
+                    val1=val1 + ( &
+                         (w1*dhat_dt_oz(j1x)+ &
+                         w2*dhat_dt_oz(j2x)+ &
+                         w3*dhat_dt_oz(j3x)+ &
+                         w4*dhat_dt_oz(j4x))*time_oz )
+                 end if
+              enddo
+           else ! OMI total ozone
+              do kl=1,nloz_omi
+                 val_lay(kl) = zero_quad
+                 val_lay1(kl)= zero_quad
+                 k   = ozptr%nloz+1 ! Iz nloz ZERO?
+                 val1= -ozptr%res(k)
+                 val  = zero_quad
+
+                 pob = ozptr%prs(kl)
+                 iz1=dz1
+                 if (iz1 > nsig) iz1=nsig
+                 iz2=pob
+                 do kk=iz1,iz2,-1
+                    delz=one
+                    if (kk==iz1) delz=dz1-iz1
+                    if (kk==iz2) delz=delz-pob+iz2
+                    w1=ozptr%wij(1,kk)
+                    w2=ozptr%wij(2,kk)
+                    w3=ozptr%wij(3,kk)
+                    w4=ozptr%wij(4,kk)
+                    val_lay(kl)=val_lay(kl) + ( &
+                         w1* roz(j1,kk)+ &
+                         w2* roz(j2,kk)+ &
+                         w3* roz(j3,kk)+ &
+                         w4* roz(j4,kk))*delz   
+                    val_lay1(kl)=val_lay1(kl) + ( &
+                         w1* soz(j1,kk)+ &
+                         w2* soz(j2,kk)+ &
+                         w3* soz(j3,kk)+ &
+                         w4* soz(j4,kk))*delz     
+                 enddo
+                 dz1=pob 
+              end do
+              ! Apply the efficiency factor
+              do j=1,nloz_omi 
+                 val=val+ozptr%efficiency(j)*val_lay(j)
+                 val1=val1+ozptr%efficiency(j)*val_lay1(j)
+              enddo
+           end if
            do kk=1,nstep
               oz=val1+sges(kk)*val
               pen(kk)= ozptr%err2(k)*oz*oz

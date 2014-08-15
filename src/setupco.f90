@@ -1,5 +1,5 @@
 subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
-     obstype,isis,is,co_diagsave,init_pass,last_pass)
+     obstype,isis,is,co_diagsave,init_pass)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -22,6 +22,8 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 !   2010-05-29  todling - add ihave-co check; revisit treatment of guess
 !   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a1,
 !                          tintrp3 to tintrp31v, intrp2a to intrp2a1. (for successful debug compile on WCOSS)
+!   2013-10-19  todling - metguess now holds background
+!   2013-11-26  guo     - removed nkeep==0 escaping to allow more than one obstype sources.
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -67,9 +69,9 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 
   use guess_grids, only : nfldsig,ges_prsi,ntguessig,hrdifsig
   use gsi_bundlemod, only : gsi_bundlegetpointer
-  use gsi_chemguess_mod, only : gsi_chemguess_bundle
+  use gsi_chemguess_mod, only : gsi_chemguess_get,gsi_chemguess_bundle
 
-  use coinfo, only : jpch_co,error_co,pob_co,gross_co,nusis_co,ihave_co
+  use coinfo, only : jpch_co,error_co,pob_co,gross_co,nusis_co
   use coinfo, only : iuse_co,b_co,pg_co
 
   use jfunc, only : jiter,last,miter
@@ -90,7 +92,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 
   character(10)                    , intent(in   ) :: obstype          ! type of co obs
   logical                          , intent(in   ) :: co_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                          , intent(in   ) :: init_pass     ! state of "setup" processing
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -124,33 +126,39 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_co
-  real(r_kind),pointer,dimension(:,:,:):: rank3
   
 
-  integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin,ico,ifld
+  integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin
   integer(i_kind) k,j,nz,jc,idia,irdim1,ier,istatus,k1,k2 
-  integer(i_kind) ioff,itoss,ikeep,nkeep,ierror_toq,ierror_poq
-  integer(i_kind) isolz,isolaz,icldmnt,isnoc,iacidx,istko,ifovn
+  integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
+  integer(i_kind) isolz
   integer(i_kind) mm1,itime,ilat,ilon,isd,ilate,ilone,itoq,ipoq
   integer(i_kind),dimension(iint,nobs):: idiagbuf
   integer(i_kind),dimension(nlevs):: ipos,iouse
 
   real(r_kind),dimension(4):: tempwij
   integer(i_kind) nlevp
-  logical,parameter::debug=.true.
+  logical,parameter::debug=.false.
   
   character(12) string
   character(10) filex
   character(128) diag_co_file
 
   logical,dimension(nobs):: luse
-  logical:: l_may_be_passive
+  logical:: l_may_be_passive,proceed
 
   logical:: in_curbin, in_anybin
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(colvk_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -159,27 +167,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 
 !
 !*********************************************************************************
-! Get pointer to CO guess state, if not present return 
-  if(.not.ihave_co) return
 
-  if(size(gsi_chemguess_bundle)==nfldsig) then
-     call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',rank3,ier)
-     if (ier==0) then
-         allocate(ges_co(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
-         ges_co(:,:,:,1)=rank3
-         do ifld=2,nfldsig
-            call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'co',rank3,ier)
-            ges_co(:,:,:,ifld)=rank3
-         enddo
-     else
-         write(6,*) 'setupco: CO not found in chem bundle, ier= ',ier
-         call stop2(999)
-     endif
-  else
-     write(6,*) 'setupco: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
-                 nfldsig,size(gsi_chemguess_bundle)
-     call stop2(999)
-  endif
 ! Initialize arrays
   do j=1,nlevs
      ipos(j)=0
@@ -257,26 +245,8 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
      goto 135
   endif
 
-! Initialize variables used in co processing
-  nkeep=0
-  do i=1,nobs
-     ikeep=0
-     do k=1,nlev
-        if (iouse(k)>0 .or. co_diagsave) ikeep=1
-     end do
-     nkeep=nkeep+ikeep
-  end do
-  
-
 ! Read and transform co data
   read(lunin) data,luse
-
-! If none of the data will be assimilated and don't need diagnostics,
-! return to calling program
-  if (nkeep==0) then
-      deallocate(ges_co)
-      return
-  endif
 
 !    index information for data array (see reading routine)
 
@@ -358,8 +328,10 @@ if(in_curbin) then
 
 !  interpolation output at ave ker levels is called coakl
 
-     call tintrp31v(ges_co,coakl,dlat,dlon,cop,dtime, &
-        hrdifsig,nlevs,mype,nfldsig) 
+     do k=1,nlev
+        call tintrp3(ges_co,coakl(k),dlat,dlon,cop(k),dtime, &
+           hrdifsig,1,mype,nfldsig)
+     enddo
 
 !  application of averaging kernel for mopitt co 
 
@@ -498,7 +470,7 @@ if(in_curbin) then
 	   my_head%idv = is
 	   my_head%iob = i
 
-           nlevp=max(nlev-1,1)
+           nlevp=max(nlev,1)
            allocate(colvktail(ibin)%head%res(nlev),colvktail(ibin)%head%diags(nlev),&
                     colvktail(ibin)%head%err2(nlev),colvktail(ibin)%head%raterr2(nlev),&
                     colvktail(ibin)%head%prs(nlevp), &
@@ -686,7 +658,7 @@ endif	! (in_curbin)
        open(4,file=diag_co_file,form='unformatted',status='old',position='append')
      endif
      iextra=0
-     if (mype==mype_diaghdr(is)) then
+     if (init_pass.and.mype==mype_diaghdr(is)) then
         write(4) isis,dplat(is),obstype,jiter,nlevs,ianldate,iint,ireal,iextra
         write(6,*)'SETUPCO:   write header record for ',&
              isis,iint,ireal,iextra,' to file ',trim(diag_co_file),' ',ianldate
@@ -705,11 +677,58 @@ endif	! (in_curbin)
 ! Jump to this line if problem with data
 135 continue        
 
+! Release memory of local guess arrays
+  call final_vars_
+
 ! clean up
-  deallocate(ges_co)
+  if(allocated(ges_co)) deallocate(ges_co)
   call dtime_show('setupco','diagsave:co',i_colvk_ob_type)
   if(co_diagsave) deallocate(rdiagbuf)
 
 ! End of routine
   return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar,istatus
+! Check to see if required guess fields are available
+  call gsi_chemguess_get ('var::co', ivar, istatus )
+  proceed=ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  integer(i_kind) ifld
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_chemguess_bundle)==nfldsig) then
+     call gsi_bundlegetpointer(gsi_chemguess_bundle(1),'co',rank3,ier)
+     if (ier==0) then
+         if(allocated(ges_co))then
+            write(6,*) 'setupco: ges_co already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_co(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_co(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),'co',rank3,ier)
+            ges_co(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) 'setupco: CO not found in chem bundle, ier= ',ier
+         call stop2(999)
+     endif
+  else
+     write(6,*) 'setupco: inconsistent vector sizes (nfldsig,size(chemguess_bundle) ',&
+                 nfldsig,size(gsi_chemguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_co)) deallocate(ges_co)
+  end subroutine final_vars_
+
 end subroutine setupco

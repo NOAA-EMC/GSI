@@ -31,6 +31,7 @@ module berror
 !   2010-04-25  zhu - add handling of option newpc4pred for new pre-conditioning of predictors
 !   2010-06-01  todling - revist as,tsfc_sdv to allow alloc depending on size of CVec
 !   2011-04-07  todling - move newpc4pred to radinfo
+!   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !   2013-05-27  zhu - add background error variances for aircraft temperature bias correction coefficients
 !   2013-10-02  zhu - add reset_predictors_var
 !
@@ -99,6 +100,7 @@ module berror
 !   def bkgv_rewgtfct - scaling factor to reweight flow-dependent background error variances
 !   def fpsproj   - controls full nsig projection onto surface pressure
 !   def bkgv_write- logical to turn on/off generation of binary file with reweighted variances
+!   def adjustozvar - adjust ozone variance in stratosphere based on guess field
 !
 ! attributes:
 !   language: f90
@@ -124,13 +126,15 @@ module berror
   public :: create_berror_vars_reg
   public :: destroy_berror_vars_reg
 ! set passed variables to public
-  public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep
+  public :: qvar3d,nr,nf,varprd,fpsproj,bkgv_flowdep,fut2ps
   public :: ndx,ndy,ndx2,nmix,nymx,nfg,nfnf,norm,nxem
   public :: vprecond
+  public :: adjustozvar
   public :: dssvs,dssv,bkgv_write,bkgv_rewgtfct,hswgt
   public :: hzscl,bw,pert_berr_fct,pert_berr,ndeg,norh,vs
   public :: bl,bl2,be,slw2,slw1,slw,mr,inaxs,wtxrs,wtaxs,nx,ny
   public :: inxrs,jj1,ii2,jj2,ii,jj,ii1,table,alv,nhscrf
+  public :: cwcoveqqcov
 
   integer(i_kind) norh,ndeg,nta,nlath
   integer(i_kind) nx,ny,mr,nr,nf,ndx,ndy,ndx2,nmix,nymx,norm,nxem,nfg,nfnf
@@ -141,11 +145,6 @@ module berror
   real(r_kind) bw,vs
   real(r_kind),dimension(1:3):: hzscl,hswgt
 
-! hack to cope w/ namelist
-  integer(i_kind),parameter::maxvars=50
-  real(r_kind),dimension(maxvars):: as
-  real(r_kind),dimension(maxvars):: tsfc_sdv
-
   real(r_kind),allocatable,dimension(:):: be,bl,bl2,varprd,vprecond
   real(r_kind),allocatable,dimension(:,:):: table,&
        slw,slw1,slw2
@@ -153,10 +152,12 @@ module berror
   real(r_kind),allocatable,dimension(:,:,:):: wtaxs,wtxrs,qvar3d
   real(r_kind),allocatable,dimension(:,:,:,:):: alv,dssv
 
-  logical pert_berr,bkgv_flowdep,bkgv_write
+  logical pert_berr,bkgv_flowdep,bkgv_write,adjustozvar
   real(r_kind) pert_berr_fct,bkgv_rewgtfct
 
   logical,save :: fpsproj
+  logical,save :: fut2ps
+  logical,save :: cwcoveqqcov
 
 contains
 
@@ -173,6 +174,9 @@ contains
 !   2004-11-03  treadon - add default definition for horizontal scale weighting factors
 !   2005-06-06  wu - add logical fstat
 !   2006-11-30  todling - add logical fpsproj
+!   2012-05-14  wargan - add adjustozvar
+!   2013-10-26  todling - remove initialization of as and tsfc_sdv (see control_vector)
+!   2014-01-05  todling - knob to allow cw-cov to be overwritten w/ q-cov
 !
 !   input argument list:
 !
@@ -191,6 +195,7 @@ contains
     fstat = .false.
     pert_berr = .false.
     bkgv_flowdep = .false.
+    adjustozvar = .false.
     bkgv_write = .false.
     pert_berr_fct = zero
     bkgv_rewgtfct = zero
@@ -203,19 +208,14 @@ contains
     bw=zero
 
     fpsproj = .true.
+    fut2ps = .false.
+    cwcoveqqcov=.true.
 
     do i=1,3
        hzscl(i)=one
        hswgt(i)=one/three
     end do
     vs=one/1.5_r_kind
-
-    do i=1,maxvars
-       as(i)=0.60_r_kind
-    end do
-    do i=1,maxvars
-       tsfc_sdv(i)=one
-    end do
 
   return
   end subroutine init_berror
@@ -253,8 +253,6 @@ contains
   use constants, only: zero,one
   implicit none
   
-  integer(i_kind) i
-
   llmin=1
   llmax=nlat
 

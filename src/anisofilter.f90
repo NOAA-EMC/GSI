@@ -29,6 +29,9 @@ module anisofilter
 !   2010-05-28  todling - obtain variable id's on the fly (add getindex)
 !   2010-06-05  todling - an_amp0 coming from control_vectors
 !   2011-02-15  zhu - add gust,vis,pblh (pblh on 80km resolution)
+!   2013-10-19  todling - metguess now holds background
+!   2013-10-24  todling - general interface to strip
+!                       - reposition ltosi and others to commvars
 !
 !
 ! subroutines included:
@@ -64,8 +67,6 @@ module anisofilter
 !   smther_one_8                      -
 !
 !   invert_aspect_tensor              - invert ascpect tensor
-!
-!   get_aspect_det                    -
 !
 !   get_aspect_reg_ens                - compute the anisotropic aspect tensor for the
 !                                       3dvar case of gsi-regional based on ensemble info
@@ -107,8 +108,9 @@ module anisofilter
   use gridmod, only: nsig,nsig1o,region_dx,region_dy,nlon,nlat, &
                      lat2,lon2,twodvar_regional, &
                      itotsub,lon1,lat1,&
-                     ltosi_s,ltosj_s, &
-                     displs_s,displs_g,ijn_s,ijn,strip_single
+                     displs_s,displs_g,ijn_s,ijn,strip
+
+  use general_commvars_mod, only: ltosi_s,ltosj_s
 
   use constants, only: zero_single, tiny_single,            & ! for real(4)
                        zero,        tiny_r_kind, quarter, half, one, two, three, four, five, & ! for real(8)
@@ -126,16 +128,20 @@ module anisofilter
   use control_vectors, only: nrf2 => nc2d
   use control_vectors, only: an_amp0
 
-  use guess_grids, only: ges_u,ges_v,ges_prsl,ges_tv,ges_z,ntguessig,&
-                         ges_prslavg,ges_psfcavg,ges_ps,ges_q,ges_tsen,ges_vis,ges_pblh
+  use guess_grids, only: ges_prsl,ntguessig,&
+                         ges_prslavg,ges_psfcavg,ges_tsen
 
   use mpimod, only: npe,levs_id,nvar_id,ierror,&
                     mpi_real8,mpi_real4,mpi_integer4,mpi_rtype,&
                     mpi_sum,mpi_comm_world
 
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+
   use aniso_ens_util, only: ens_intpcoeffs_reg,fillanlgrd,ens_uv_to_psichi, &
                             pges_minmax,intp_spl
   use mpeu_util, only: getindex
+  use mpeu_util, only: die
 
 
   implicit none
@@ -158,7 +164,6 @@ module anisofilter
   public :: smther_one
   public :: smther_one_8
   public :: invert_aspect_tensor
-  public :: get_aspect_det
   public :: get_aspect_reg_ens
   public :: get_ensmber
   public :: set_range_aniall
@@ -262,6 +267,7 @@ module anisofilter
   integer(i_kind):: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_stl,nrf2_sti
 
 !_RT  integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc  ! should !become local
+  character(len=*),parameter::myname='anisofilter'
 
 !-------------------------------------------------------------------------
 contains
@@ -1356,6 +1362,7 @@ subroutine read_bckgstats(mype)
 !   2008-15-25  zhu  - make changes for generalized control variables
 !                    - change structure of background error file
 !                    - varq was moved to berror_read_wgt_reg
+!   2014-02-01  todling - update interface to berror_read_wgt
 !
 !   input argument list:
 !    mype     - mpi task id
@@ -1400,7 +1407,7 @@ subroutine read_bckgstats(mype)
 
 ! Read in background error stats and interpolate in vertical
 ! to that specified in namelist
-  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,inerr)
+  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,mype,inerr)
 
   if(mype==0) write(6,*)'in read_bckgstats,mlat=',mlat
 
@@ -1565,10 +1572,19 @@ subroutine get_background(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,mm1,k1,ivar
+  character(len=*),parameter::myname_=myname//'*get_background'
+  integer(i_kind) i,j,k,l,mm1,k1,ivar,ier,istatus
 
   real(r_kind) hwll_loc
   real(r_kind) asp1,asp2,asp3
+
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps_it=>NULL()
+  real(r_kind),dimension(:,:  ),pointer:: ges_z_it =>NULL()
+  real(r_kind),dimension(:,:  ),pointer:: ges_vis_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q_it =>NULL()
 
   real(r_kind),allocatable,dimension(:,:,:)::field
   logical:: ice
@@ -1600,6 +1616,21 @@ subroutine get_background(mype)
 
   it=ntguessig
 
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,  istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it,   istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q', ges_q_it,   istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname_,'missing fields, ier= ', ier)
+
 !-----------------------------------------------
 ! background values for tv,u,v,z, and rh
 !-----------------------------------------------
@@ -1607,34 +1638,34 @@ subroutine get_background(mype)
 
   !-------------
   ! T
-  field(:,:,:)=ges_tv(:,:,:,it)/(ges_prsl(:,:,:,it)/r100)**rd_over_cp
+  field(:,:,:)=ges_tv_it(:,:,:)/(ges_prsl(:,:,:,it)/r100)**rd_over_cp
 
   call sub2fslab  (field,theta0f )
   call sub2fslabdz(field,theta0zf)
 
   !-------------
   ! U
-  call sub2fslab  (ges_u(1,1,1,it),u0f )
-  call sub2fslabdz(ges_u(1,1,1,it),u0zf)
+  call sub2fslab  (ges_u_it,u0f )
+  call sub2fslabdz(ges_u_it,u0zf)
 
   !-------------
   ! V
-  call sub2fslab  (ges_v(1,1,1,it),v0f )
-  call sub2fslabdz(ges_v(1,1,1,it),v0zf)
+  call sub2fslab  (ges_v_it,v0f )
+  call sub2fslabdz(ges_v_it,v0zf)
 
   !-------------
   ! Z
   do j=1,lon2
      do i=1,lat2
         if (min(max(isli2(i,j),0),1)==0) then
-           field(i,j,1)=ges_z(i,j,it)-hsteep
+           field(i,j,1)=ges_z_it(i,j)-hsteep
         else
-           field(i,j,1)=ges_z(i,j,it)
+           field(i,j,1)=ges_z_it(i,j)
         end if
      end do
   end do
   call sub2fslab2d(field(1,1,1),z0f )
-  call sub2fslab2d(ges_z(1,1,it),z0f2 )
+  call sub2fslab2d(ges_z_it,z0f2 )
 
   if(nsig1o>1) then
      do j=1,nlonf
@@ -1650,13 +1681,13 @@ subroutine get_background(mype)
   ice=.true.
   iderivative=0
   call genqsat(field,ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2,nsig,ice,iderivative)
-  field(:,:,:)=ges_q(:,:,:,it)/field(:,:,:)
+  field(:,:,:)=ges_q_it(:,:,:)/field(:,:,:)
 
   call sub2fslab(field,rh0f)
 
   !-------------
   ! PS (2d full grid)
-  field(:,:,1)=1000.0_r_single*ges_ps(:,:,it)
+  field(:,:,1)=1000.0_r_single*ges_ps_it
   call sub2slab2d(field(1,1,1),psg)
 
   !-------------
@@ -1666,15 +1697,18 @@ subroutine get_background(mype)
 
   !-------------
   ! VIS (2d full grid)
-  field(:,:,1)=ges_vis(:,:,it)
-  call sub2fslab2d(field(1,1,1),vis0f)
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis', ges_vis_it, istatus)
+  if (istatus==0) then
+     field(:,:,1)=ges_vis_it(:,:)
+     call sub2fslab2d(field(1,1,1),vis0f)
 
-  if(nsig1o>1) then
-     do j=1,nlonf
-        do i=1,nlatf
-           vis0f(i,j,2:nsig1o)=vis0f(i,j,1)
+     if(nsig1o>1) then
+        do j=1,nlonf
+           do i=1,nlatf
+              vis0f(i,j,2:nsig1o)=vis0f(i,j,1)
+           end do
         end do
-     end do
+     endif
   endif
 
   call destroy_sub2fslab
@@ -2484,54 +2518,6 @@ subroutine invert_aspect_tensor(asp,ni,nj,nk)
 end subroutine invert_aspect_tensor
 !=======================================================================
 !=======================================================================
-subroutine get_aspect_det(asp,det)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:   get_aspect_det
-! prgmmr: sato             org: np23                date: 2007-10-30
-!
-! abstract: get detaminant, just extracted from get2berr_reg().
-!
-! program history log:
-!   2008-03-03   sato
-!
-!   input argument list:
-!    asp - aspect tensor to be inverted
-!    det - detaminant
-!
-!   output argument list:
-!    det
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-  implicit none
-
-  real(r_single),intent(in   ) :: asp(6)
-  real(r_kind)  ,intent(inout) :: det
-
-  real(r_kind):: a1,a2,a3,a4,a5,a6
-  real(r_kind):: biga1,biga2,biga3,biga4,biga5,biga6
-
-  a1=real(asp(1),r_kind)
-  a2=real(asp(2),r_kind)
-  a3=real(asp(3),r_kind)
-  a4=real(asp(4),r_kind)
-  a5=real(asp(5),r_kind)
-  a6=real(asp(6),r_kind)
-  biga1=a2*a3-a4*a4
-  biga2=a1*a3-a5*a5
-  biga3=a1*a2-a6*a6
-  biga4=a5*a6-a1*a4
-  biga5=a4*a6-a2*a5
-  biga6=a4*a5-a3*a6
-  det=(a1*biga1+a6*biga6+a5*biga5)
-
-end subroutine get_aspect_det
-!=======================================================================
-!=======================================================================
 subroutine get_aspect_reg_ens(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2549,6 +2535,7 @@ subroutine get_aspect_reg_ens(mype)
 !                         to the parent subroutine anprewgt_reg().
 !   2008-01-15  sato - add more accurate blending of iso & aniso tensor
 !   2010-03-10  zhu  - use nvars
+!   2013-10-24  todling - pges_minmax now gets time slot as input
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -2758,7 +2745,7 @@ subroutine get_aspect_reg_ens(mype)
         enddo
      endif
 
-     call pges_minmax(mype,pgesmin,pgesmax)
+     call pges_minmax(mype,ntguessig,pgesmin,pgesmax)
 
      call ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gblend,mype)
 
@@ -3224,7 +3211,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   logical        ,intent(in   ) :: unbalens
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,m,l2,ivar,it
+  integer(i_kind) i,j,k,m,ivar,it
   integer(i_kind) n,kup
   integer(i_kind) inttype !read in from each e-member. tells about
 !                          desired vertical interp type for specific
@@ -3233,7 +3220,6 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
 
   real(r_kind) asp1,asp2,asp3
-  real(r_kind) dl1,dl2
 
   real(r_kind),allocatable,dimension(:,:,:)::field
 
@@ -3587,7 +3573,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
      if (n == 1) then
         k=1
         auxa(:,:)=field(:,:,k)
-        call strip_single(auxa,strp,1)
+        call strip(auxa,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
              tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
         if (mype==0) then
@@ -3598,7 +3584,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
      else
         do k=1,nsig
            auxa(:,:)=field(:,:,k)
-           call strip_single(auxa,strp,1)
+           call strip(auxa,strp)
            call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
                 tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
            if (mype==0) then
@@ -3985,7 +3971,6 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   character(10) chvarname
-  character(80) fname
   character(5) cvar
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
@@ -4366,7 +4351,8 @@ subroutine get_background_subdomain_option(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  integer(i_kind) i,j,k,mm1
+  character(len=*),parameter::myname_=myname//'*get_background_subdomain_option'
+  integer(i_kind) i,j,k,mm1,ier,istatus
   integer(i_kind) n,iloc,jloc
   integer(i_kind) kds0,kde0,kps0,kpe0
   integer(i_kind) nvars0
@@ -4379,6 +4365,13 @@ subroutine get_background_subdomain_option(mype)
   integer(i_long):: ngauss_smooth,npass_smooth,normal_smooth,ifilt_ord_smooth
   integer(i_long):: nsmooth_smooth,nsmooth_shapiro_smooth
   real(r_double) :: rgauss_smooth(1)
+
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps_it=>NULL()
+  real(r_kind),dimension(:,:  ),pointer:: ges_vis_it=>NULL()
+  real(r_kind),dimension(:,:  ),pointer:: ges_z_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv_it=>NULL()
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
   integer(i_kind):: nlatf,nlonf,it
@@ -4460,6 +4453,19 @@ subroutine get_background_subdomain_option(mype)
 
   it=ntguessig
 
+  ier=0
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it, istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it,  istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it,  istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it,  istatus)
+  ier=ier+istatus
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it, istatus)
+  ier=ier+istatus
+  if(ier/=0) call die(myname_,'missing fields, ier= ', ier)
+
   allocate(field(ips:ipe,jps:jpe,kps0:kpe0),field2(lat2,lon2,nsig))
   allocate(fieldaux(ips:ipe,jps:jpe,kps0:kpe0),field3(lat2,lon2,nsig))
   allocate(theta0f(lat2,lon2,nsig))
@@ -4475,16 +4481,16 @@ subroutine get_background_subdomain_option(mype)
            jloc=j-jstart(mm1)+2
            do i=ips,ipe
               iloc=i-istart(mm1)+2
-              if (n==1)    field(i,j,k)=ges_tv(iloc,jloc,k,it)/(ges_prsl(iloc,jloc,k,it)/r100)**rd_over_cp
-              if (n==2)    field(i,j,k)=ges_u(iloc,jloc,k,it)
-              if (n==3)    field(i,j,k)=ges_v(iloc,jloc,k,it)
+              if (n==1)    field(i,j,k)=ges_tv_it(iloc,jloc,k)/(ges_prsl(iloc,jloc,k,it)/r100)**rd_over_cp
+              if (n==2)    field(i,j,k)=ges_u_it(iloc,jloc,k)
+              if (n==3)    field(i,j,k)=ges_v_it(iloc,jloc,k)
               if (n==4)    then
                  if ( min(max(isli2(iloc,jloc),0),1)==0 ) then
-                    field(i,j,k)=ges_z(iloc,jloc,it)-hsteep
+                    field(i,j,k)=ges_z_it(iloc,jloc)-hsteep
                  else
-                    field(i,j,k)=ges_z(iloc,jloc,it)
+                    field(i,j,k)=ges_z_it(iloc,jloc)
                  end if
-                 fieldaux(i,j,k)=ges_z(iloc,jloc,it)
+                 fieldaux(i,j,k)=ges_z_it(iloc,jloc)
               endif
            end do
         end do
@@ -4528,11 +4534,20 @@ subroutine get_background_subdomain_option(mype)
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           psg(i,j,k)=1000._r_single*ges_ps(i,j,it)
-           vis0f(i,j,k)=ges_vis(i,j,it)
+           psg(i,j,k)=1000._r_single*ges_ps_it(i,j)
         end do
      end do
   end do
+  call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis', ges_vis_it, istatus)
+  if (istatus==0) then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              vis0f(i,j,k)=ges_vis_it(i,j)
+           end do
+        end do
+     end do
+  endif
 
  deallocate(field,fieldaux)
  deallocate(field2,field3)

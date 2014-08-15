@@ -67,7 +67,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !   2010-09-02  zhu     - add use_edges option
 !   2010-10-12  zhu     - use radstep and radstart from radinfo
 !   2011-04-07  todling - newpc4pred now in radinfo
-!   2011-04-08  li      - (1) use nst_gsi, nstinfo, fac_dtl, fac_tsl and add NSST vars
+!   2011-04-08  li      - (1) use nst_gsi, nstinfo, and add NSST vars
 !                         (2) get zob, tz_tr (call skindepth and cal_tztr)
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
@@ -79,7 +79,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
 !   2011-12-14  collard Remove ATMS
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!   2014-01-31  mkim - added iql4crtm for all-sky mw radiance data assimilation 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -118,7 +120,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
       finalcheck,map2tgrid,score_crit
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1, radedge2, radstart,radstep,newpc4pred
-  use radinfo, only: nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: nst_gsi,nstinfo
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
@@ -133,11 +135,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use mpeu_util, only: getindex
   use gsi_metguess_mod, only: gsi_metguess_get
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: isfcalc
   integer(i_kind) ,intent(inout) :: nread
@@ -164,21 +167,21 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   logical hirs,msu,amsua,amsub,mhs,hirs4,hirs3,hirs2,ssu
   logical outside,iuse,assim,valid
 
-  character(14):: infile2
+  character(40):: infile2
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) ireadsb,ireadmg,irec,next
   integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
   integer(i_kind) kidsat,instrument
   integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
-  integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
+  integer(i_kind) iskip,ichan2,ichan1,ichan15
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind) instr,ichan,icw4crtm
+  integer(i_kind) instr,ichan,icw4crtm,iql4crtm
   integer(i_kind) error_status,ier
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
@@ -186,7 +189,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,ch16,ch17,qval
+  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,qval
   real(r_kind) ch1flg
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
@@ -223,11 +226,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ilat=4
 
   if(nst_gsi>0) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
 ! Determine whether CW used in CRTM
   call gsi_metguess_get ( 'i4crtm::cw', icw4crtm, ier )
+  call gsi_metguess_get ( 'i4crtm::ql', iql4crtm, ier )
 
 ! Make thinning grids
   call makegrids(rmesh,ithin)
@@ -457,7 +461,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !    Set bufr subset names based on type of data to read
 
 !    Open unit to satellite bufr file
-     infile2=infile
+     infile2=trim(infile)
      if(llll == 2)then
         infile2=trim(infile)//'ears'
         if(amsua .and. kidsat >= 200 .and. kidsat <= 207)go to 500
@@ -465,7 +469,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Reopen unit to satellite bufr file
      call closbf(lnbufr)
-     open(lnbufr,file=infile2,form='unformatted',status = 'old',err = 500)
+     open(lnbufr,file=trim(infile2),form='unformatted',status = 'old',err = 500)
 
      call openbf(lnbufr,'IN',lnbufr)
 
@@ -750,7 +754,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
                  d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                 if (icw4crtm>10) then
+                 if (icw4crtm>10 .or. iql4crtm>10) then
                     qval=zero
                  else
                     qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
@@ -820,7 +824,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               dtc   = zero
               tz_tr = one
               if(sfcpct(0)>zero) then
-                 call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
               endif
            endif
 

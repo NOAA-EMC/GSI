@@ -35,6 +35,7 @@ subroutine bkerror(gradx,grady)
 !                         mbundle.  If there are no motley variables (mvars<=0), then gsi_bundledup
 !                         is used in place of gsi_bundlemerge.
 !   2013-04-23 Pondecca - bug fix in calling gsi_bundledup
+!   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !   2013-05-23  zhu     - add ntclen and predt for aircraft temperature bias correction
 !
 !   input argument list:
@@ -49,7 +50,7 @@ subroutine bkerror(gradx,grady)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use berror, only: varprd,fpsproj
+  use berror, only: varprd,fpsproj,fut2ps
   use balmod, only: balance,tbalance
   use gsi_4dvar, only: nsubwin, lsqrtb
   use gridmod, only: lat2,lon2,nlat,nlon,periodic,latlon11
@@ -69,23 +70,21 @@ subroutine bkerror(gradx,grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  integer(i_kind) i,j,ii
+  integer(i_kind) i,ii
   integer(i_kind) i_t,i_p,i_st,i_vp
   integer(i_kind) ipnts(4),istatus
-  integer(i_kind) nval_lenz,ndim2d
-  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: work
+! integer(i_kind) nval_lenz,ndim2d
   real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)::workcv
   real(r_kind),pointer,dimension(:,:,:):: p_t  =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_st =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_vp =>NULL()
   real(r_kind),pointer,dimension(:,:)  :: p_ps =>NULL()
-  real(r_kind),pointer,dimension(:,:)  :: p_sst=>NULL()
   real(r_kind),pointer::rank2a(:,:)  =>NULL()
   real(r_kind),pointer::rank2b(:,:)  =>NULL()
   real(r_kind),pointer::rank3a(:,:,:)=>NULL()
   real(r_kind),pointer::rank3b(:,:,:)=>NULL()
   logical dobal
-  real(r_kind),allocatable,dimension(:):: gradz
+! real(r_kind),allocatable,dimension(:):: gradz
   type(gsi_bundle) :: mbundle
 
   if (lsqrtb) then
@@ -135,7 +134,7 @@ subroutine bkerror(gradx,grady)
         call gsi_bundlegetpointer ( mbundle,'sf',p_st,istatus )
         call gsi_bundlegetpointer ( mbundle,'vp',p_vp,istatus )
         call gsi_bundlegetpointer ( mbundle,'ps',p_ps,istatus )
-        call tbalance(p_t,p_ps,p_st,p_vp,fpsproj)
+        call tbalance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
      endif
 
 !    Apply variances, as well as vertical & horizontal parts of background error
@@ -155,7 +154,7 @@ subroutine bkerror(gradx,grady)
 !    deallocate(gradz)
 
 !    Balance equation
-     if(dobal) call balance(p_t,p_ps,p_st,p_vp,fpsproj)
+     if(dobal) call balance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
 
 !    Transfer step part of mbundle back to grady%step(ii)
      do i=1,nrf

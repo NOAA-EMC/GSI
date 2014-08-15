@@ -9,6 +9,9 @@ subroutine ensctl2state(xhat,mval,eval)
 !
 ! program history log:
 !   2011-11-17  tremolet - initial code
+!   2013-10-28  todling - rename p3d to prse 
+!   2013-11-22  kleist - add option for q perturbations
+!
 !   input argument list:
 !     xhat - Control variable
 !     mval - contribution from static B component
@@ -37,6 +40,7 @@ use gsi_bundlemod, only: assignment(=)
 use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
+use timermod, only: timer_ini,timer_fnl
 implicit none
 
 ! Declare passed variables
@@ -47,7 +51,7 @@ type(gsi_bundle)    , intent(inout) :: eval(ntlevs_ens)
 ! Declare local variables
 character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds
+integer(i_kind) :: jj,ic,id,istatus,nclouds
 
 integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)
@@ -62,14 +66,17 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh,cv_tv
 integer(i_kind), parameter :: nsvars = 5
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen' /)
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen' /)
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
-real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
+real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
 ! ****************************************************************************
+
+! Initialize timer
+call timer_ini(trim(myname))
 
 ! Inquire about cloud-vars
 call gsi_metguess_get('clouds::3d',nclouds,istatus)
@@ -87,13 +94,14 @@ lc_t  =icps(4)>0; lc_rh =icps(5)>0
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (eval(1),mysvars,isps,istatus)
-ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars     =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
-do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
-do_normal_rh_to_q=(.not.q_hyb_ens).and.lc_rh.and.lc_t .and.ls_p3d.and.ls_q
+do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
+do_normal_rh_to_q=(.not.q_hyb_ens).and.&
+                  lc_rh.and.lc_t .and.ls_prse.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
@@ -124,7 +132,7 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetpointer (eval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (eval(jj),'v'   ,sv_v,   istatus)
    call gsi_bundlegetpointer (eval(jj),'ps'  ,sv_ps,  istatus)
-   call gsi_bundlegetpointer (eval(jj),'p3d' ,sv_p3d, istatus)
+   call gsi_bundlegetpointer (eval(jj),'prse',sv_prse,istatus)
    call gsi_bundlegetpointer (eval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (eval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (eval(jj),'q'   ,sv_q ,  istatus)
@@ -138,12 +146,12 @@ do jj=1,ntlevs_ens
    end if
 
 !  Get 3d pressure
-   if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_p3d)
+   if(do_getprs_tl) call getprs_tl(cv_ps,cv_tv,sv_prse)
 
 !  Convert RH to Q
-   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_tv,sv_p3d,sv_q)
+   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_tv,sv_prse,sv_q)
 !  Else copy directly
-   if(q_hyb_ens) call gsi_bundlegetvar ( wbundle_c, 'q'  , sv_q,  istatus )
+   if(q_hyb_ens) call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_tv,sv_q,sv_tsen)
@@ -185,7 +193,7 @@ do jj=1,ntlevs_ens
 
 !  Need to update 3d pressure and sensible temperature again for consistency
 !  Get 3d pressure
-         if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_p3d)
+         if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
   
 !  Calculate sensible temperature 
          if(do_tv_to_tsen) call tv_to_tsen(sv_tv,sv_q,sv_tsen)
@@ -201,6 +209,9 @@ do jj=1,ntlevs_ens
 end do  ! ntlevs
 
 if (nclouds>0) deallocate(clouds)
+
+! Finalize timer
+call timer_fnl(trim(myname))
 
 return 
 end subroutine ensctl2state

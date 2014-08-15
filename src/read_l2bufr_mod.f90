@@ -145,11 +145,11 @@ contains
 
     integer(i_kind) nazbin,nrbin,nelbin
     integer(i_kind) i,ibyte,idate,inbufr,iret,isubset,krad,levs,lundx,n_gates
-    integer(i_kind) k,ii,iii,j,jj,jjall,jjj,numzzzz,num_radars_0,iloc
+    integer(i_kind) k,iii,j,jj,jjall,jjj,numzzzz,num_radars_0,iloc
     integer(i_kind) iyref,imref,idref,ihref
     integer(i_kind) iazbin,irbin,ielbin
     integer(i_kind) nminref,nminthis
-    integer(i_kind) num_radars,ireadsb,ireadmg,irec,isub,next
+    integer(i_kind) num_radars,ireadsb,ireadmg,next
     integer(i_kind) nsuper,nsuperall
     integer(i_kind) nthisrad,nthisbins
     integer(i_kind) idups,idups0

@@ -67,8 +67,11 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-01-26  parrish - change grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                                           tintrp3 to tintrp31 (so debug compile works on WCOSS)
 !   2013-05-24  wu      - move rawinsonde level enhancement ( ext_sonde ) to read_prepbufr
+!   2013-10-19  todling - metguess now holds background
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !   2014-03-24  Hu      - Use 2/3 of 2m Q and 1/3 of 1st level Q as background
 !                           to calculate O-B for the surface moisture observations
+!   2014-04-04  todling - revist q2m implementation (slightly)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -95,9 +98,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use obsmod, only: obs_diag
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
-  use guess_grids, only: ges_lnprsl,ges_q,hrdifsig,nfldsig,ges_ps,ges_tsen,ges_prsl,pbl_height
+  use guess_grids, only: ges_lnprsl,hrdifsig,nfldsig,ges_tsen,ges_prsl,pbl_height
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
-  use guess_grids, only: ges_q2
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,cg_term,r0_01
@@ -110,6 +112,11 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr, &
                                       l_use_2mQ4B
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
+  use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsQ,pblH_ration,pps_press_incr, &
+                                      l_use_2mQ4B
+
   implicit none
 
 ! Declare passed variables
@@ -138,7 +145,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! Declare local variables  
   
   real(r_double) rstation_id
-  real(r_kind) qob,qges,qsges,qges2m
+  real(r_kind) qob,qges,qsges,q2mges
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
   real(r_kind) psges,sfcchk,ddiff,errorx
@@ -151,12 +158,12 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
-  real(r_kind),dimension(lat2,lon2,nfldsig):: qg2
+  real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
-  integer(i_kind) i,nchar,nreal,j,ii,l,jj,mm1,itemp
-  integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,icat
+  integer(i_kind) i,nchar,nreal,ii,l,jj,mm1,itemp
+  integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iskint,isfcr,iff10,iderivative
@@ -167,7 +174,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
 
-  logical ice
+  logical ice,proceed
   logical,dimension(nobs):: luse,muse
 
   logical:: in_curbin, in_anybin
@@ -180,6 +187,17 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
   equivalence(r_sprvstg,c_sprvstg)
+
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2m
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
 
   n_alloc(:)=0
   m_alloc(:)=0
@@ -238,7 +256,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     nreal=20
+     ioff0=20
+     nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -258,7 +277,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   iderivative=0
   do jj=1,nfldsig
      call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
-     call genqsat(qg2(1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,1,ice,iderivative)
+     call genqsat(qg2m(1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,   1,ice,iderivative)
   end do
 
 
@@ -372,9 +391,8 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
           mype,nfldsig)
 
 ! Interpolate 2-m qs to obs locations/times
-     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
-        call tintrp2a11(qg2,qsges,dlat,dlon,dtime,hrdifsig,&
-                 mype,nfldsig)
+     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
+        call tintrp2a11(qg2m,qsges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
      endif
 
 !    Load obs error and value into local variables
@@ -419,12 +437,10 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         hrdifsig,mype,nfldsig)
 
 ! Interpolate 2-m q to obs locations/times
-     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and. .not.twodvar_regional)then
-        call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
-             mype,nfldsig)
-        qges=0.33*qges+0.67*qges2m
+     if(l_use_2mQ4B .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
+        call tintrp2a11(ges_q2m,q2mges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+        qges=0.33_r_kind*qges+0.67_r_kind*q2mges
      endif
-
 
 ! Compute innovations
 
@@ -653,7 +669,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
         rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
 
-        ioff=20
+        ioff=ioff0
         if (lobsdiagsave) then
            do jj=1,miter 
               ioff=ioff+1 
@@ -748,11 +764,13 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 ! End of loop over observations
   end do
   
+! Release memory of local guess arrays
+  call final_vars_
 
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:q',i_q_ob_type)
-     write(7)'  q',nchar,nreal,ii,mype
+     write(7)'  q',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
 
@@ -763,5 +781,102 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end if
 
 ! End of routine
+  return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::z' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::u' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::v' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::tv', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q2m ...
+     if (l_use_2mQ4B) then
+        varname='q2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_q2m))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_q2m(size(rank2,1),size(rank2,2),nfldsig))
+            ges_q2m(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_q2m(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+     endif ! l_use_2mQ4B
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(allocated(ges_q2m)) deallocate(ges_q2m)
+    if(allocated(ges_q )) deallocate(ges_q )
+    if(allocated(ges_ps)) deallocate(ges_ps)
+  end subroutine final_vars_
+
 end subroutine setupq
 

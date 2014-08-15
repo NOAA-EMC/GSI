@@ -16,6 +16,7 @@ subroutine get_gefs_ensperts_dualres
 !   2010-03-29  kleist  - make changes to allow for st/vp perturbations
 !   2010-04-14  kleist  - add ensemble mean ps array for use with vertical localizaion (lnp)
 !   2011-08-31  todling - revisit en_perts (single-prec) in light of extended bundle
+!   2011-09-14  todling - add prototype for general ensemble reader via
 !   2011-11-01  kleist  - 4d capability for ensemble/hybrid
 !   2013-01-16  parrish - strange error in make debug on wcoss related to
 !                          grd_ens%lat2, grd_ens%lon2, grd_ens%nsig
@@ -39,11 +40,13 @@ subroutine get_gefs_ensperts_dualres
 
   use gridmod, only: idsl5
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens,enspreproc
+  use hybrid_ensemble_parameters, only: use_gfs_ens
   use hybrid_ensemble_isotropic, only: en_perts,ps_bar,nelen
   use constants,only: zero,half,fv,rd_over_cp,one
   use mpimod, only: mpi_comm_world,ierror,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,nlat_ens,nlon_ens,sp_ens,uv_hyb_ens,beta1_inv,q_hyb_ens
+  use hybrid_ensemble_parameters, only: betas_inv,betae_inv
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_4dvar, only: l4densvar,ens4d_fhrlevs
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -52,13 +55,14 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_enscouplermod, only: gsi_enscoupler_get_user_ens
   implicit none
 
   real(r_single),dimension(grd_ens%lat2,grd_ens%lon2):: scr2
   real(r_single),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: scr3
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
-  real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
+! real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
   real(r_single),pointer,dimension(:,:,:):: w3
   real(r_single),pointer,dimension(:,:):: w2
   real(r_kind),pointer,dimension(:,:,:):: x3
@@ -68,8 +72,9 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri
 
-  integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,il,jl,mm1,iderivative,im,jm,km,m
+! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
+  integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m
+! integer(i_kind) il,jl
   character(70) filename
   logical ice
   integer(i_kind) :: lunges=11
@@ -144,13 +149,19 @@ subroutine get_gefs_ensperts_dualres
           else
              write(filename,106) 6, n
           endif
-          if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
-          call general_read_gfsatm(grd_ens,sp_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+          if (use_gfs_ens) then
+             if (mype==0)write(6,*) 'CALL READ_GFSATM FOR ENS FILE : ',trim(filename)
+             call general_read_gfsatm(grd_ens,sp_ens,sp_ens,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+          else
+             call gsi_enscoupler_get_user_ens(grd_ens,n,m,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+          endif
        endif
 
 ! Check read return code.  Revert to static B if read error detected
        if (iret/=0) then
           beta1_inv=one
+          betas_inv=one
+          betae_inv=zero
           if (mype==0) &
                write(6,*)'***WARNING*** ERROR READING ENS FILE : ',trim(filename),' IRET=',IRET,' RESET beta1_inv=',beta1_inv
           cycle
@@ -500,7 +511,7 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
   real(r_kind) sp_norm
   type(sub2grid_info)::se,sa
 
-  integer(i_kind) i,ii,n,ic3,k
+  integer(i_kind) i,n,ic3,k
   logical regional
   integer(i_kind) num_fields,inner_vars,istat,istatus
   logical,allocatable::vector(:)
@@ -766,8 +777,7 @@ subroutine general_getprs_glb(ps,tv,prs)
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,twodvar_regional
   use hybrid_ensemble_parameters, only: grd_ens
-! use guess_grids, only: ges_tv,ntguessig
-                                                                   use mpimod, only: mype
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

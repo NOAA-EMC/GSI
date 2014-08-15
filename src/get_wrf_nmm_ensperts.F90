@@ -62,7 +62,7 @@ subroutine get_wrf_nmm_ensperts
 
     real(r_kind):: bar_norm,sig_norm
 
-    integer(i_kind):: i,j,k,m,n,apm_idx,istatus,ii
+    integer(i_kind):: i,j,k,n,istatus,ii
     integer(i_kind):: ic2,ic3,iratio_e2ens
      
     integer(i_kind) inner_vars,num_fields
@@ -82,7 +82,7 @@ subroutine get_wrf_nmm_ensperts
     real(r_kind),allocatable,dimension(:,:) :: mask
     real(r_single),allocatable,dimension(:,:) :: outwork
 
-    character(24) filename,fileout,blendname
+    character(24) filename,blendname
     logical test
     logical(4) fexist
     integer(i_kind) :: nrf3_cw, nrf3_oz
@@ -1007,7 +1007,6 @@ subroutine convert_binary_nmm_ens
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nlon,nlat
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-  real(r_single) dy_nmm
   integer(i_kind) i,k,n
   real(r_single),allocatable::field1(:),field1p(:),field2(:,:),field2b(:,:)
   real(r_single),allocatable:: glat(:,:),glon(:,:)
@@ -1019,9 +1018,7 @@ subroutine convert_binary_nmm_ens
 
   integer(i_kind) index
   integer(i_kind) nlp
-  integer(i_kind) i0,j0,ireturn
-
-  real(r_kind) DPH, DTR, ERAD
+  integer(i_kind) i0,j0
 
   if(.not. merge_two_grid_ensperts)then
      nlp=n_ens
@@ -1402,11 +1399,11 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     integer(i_kind) this_length
     integer(i_kind) ifld,im,jm,lm,num_nmm_fields
     integer(i_kind) num_loc_groups,num_j_groups
-    integer(i_kind) i,j,k,istatus
+    integer(i_kind) i,j,k
     integer(i_kind) i_pd,i_t,i_q,i_u,i_v
     real(r_kind) pd,psfc_this
     integer(i_llong) n_position
-    integer(i_kind) iskip,ksize,jextra,nextra
+    integer(i_kind) jextra,nextra
     integer(i_kind) status(mpi_status_size)
     integer(i_kind) jbegin(0:npe),jend(0:npe-1)
     integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -1415,9 +1412,9 @@ subroutine general_read_wrf_nmm_binary(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
     integer(i_kind) iderivative
     integer(i_kind) iadd
     character(132) memoryorder
-    integer(i_kind) i0,j0,ireturn
+    integer(i_kind) ireturn
     logical ice
-    character(24) fileout
+!   character(24) fileout
     character(9) wrfens
 
     open(lendian_in,file=trim(filename),form='unformatted')
@@ -1792,7 +1789,7 @@ subroutine convert_netcdf_nmm_ens
      integer(i_kind) n, nlp
      integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
      integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nlat,nlon
-     real(r_single) pt_regional,pdtop_regional,dy_nmm
+     real(r_single) pt_regional,pdtop_regional
      real(r_single) dlmd_regional,dphd_regional
      real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
      integer(i_kind),allocatable::ifield2(:,:)
@@ -2200,7 +2197,7 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
    
      integer(i_kind) :: kt,kq,ku,kv
      real(r_kind),parameter :: r0_01 = 0.01_r_kind
-     integer(i_kind) :: nlon_regional,nlat_regional,nsig,nlon,nlat
+     integer(i_kind) :: nlon_regional,nlat_regional,nsig
      real(r_single) :: dlmd,dphd
      real(r_single) :: pt,pdtop
      real(r_single),allocatable :: aeta1(:),aeta2(:)
@@ -2220,7 +2217,6 @@ subroutine general_read_wrf_nmm_netcdf(grd,filename,mype,g_ps,g_u,g_v,g_tv,g_rh,
      real(r_kind) pd,psfc_this
      integer(i_kind) ireturn
      logical ice
-     character(24) fileout
 
      lm=grd%nsig
      num_nmm_fields=1+4*lm
@@ -2920,7 +2916,7 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
      type(llxy_cons) gt_a
      character(24) :: filename
      integer(i_kind):: nlon_regional,nlat_regional,nlon_e,nlat_e
-     integer(i_kind):: i,j,k,n,istr,jstr,iend,jend
+     integer(i_kind):: i,j,n,istr,jstr,iend,jend
      real(r_kind),allocatable,dimension(:,:):: region_lat_e,region_lon_e
      real(r_kind) :: xe_a,ye_a,xstr,ystr,xend,yend
 
@@ -2930,7 +2926,7 @@ subroutine create_e2a_blend(nmix,nord_blend,wgt)
      real(r_kind),allocatable::blendx(:),wgt_x(:),wgt_y(:)
      logical :: outside
 
-     call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,mype,gt_a)
+     call general_create_llxy_transform(region_lat_ens,region_lon_ens,nlat_ens,nlon_ens,gt_a)
 
      n=0
      xstr=-huge(xstr)
@@ -3344,6 +3340,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
 
 !     straightforward, but inefficient code to convert a single variable on subdomains to complete
 !      slab on one processor.
+!  2013-10-24 todling - revisit strip interface
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
@@ -3365,7 +3362,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
   do j=1,grd%lon1*grd%lat1
     zsm(j)=zero
   end do
-  call strip_grd(grd,sub,zsm,1)
+  call strip_grd(grd,sub,zsm)
   call mpi_gatherv(zsm,grd%ijn(mm1),mpi_rtype, &
                  work1,grd%ijn,grd%displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
@@ -3378,7 +3375,7 @@ subroutine sub2grid_3a(grd,sub,grid,gridpe,mype)
 
 end subroutine sub2grid_3a
 
-subroutine strip_grd(grd,field_in,field_out,nz)
+subroutine strip_grd(grd,field_in,field_out)
 
 ! !USES:
 
@@ -3389,13 +3386,12 @@ subroutine strip_grd(grd,field_in,field_out,nz)
 ! !INPUT PARAMETERS:
 
     type(sub2grid_info)                  ,intent(in   ) :: grd
-    integer(i_kind)                     , intent(in   ) :: nz          !  number of levs in subdomain array
-    real(r_kind),dimension(grd%lat2,grd%lon2,nz), intent(in   ) :: field_in    ! full subdomain
+    real(r_kind),dimension(grd%lat2,grd%lon2), intent(in   ) :: field_in    ! full subdomain
                                                                        !    array containing
                                                                        !    buffer points
 ! !OUTPUT PARAMETERS:
 
-    real(r_kind),dimension(grd%lat1,grd%lon1,nz), intent(  out) :: field_out  ! subdomain array
+    real(r_kind),dimension(grd%lat1,grd%lon1), intent(  out) :: field_out  ! subdomain array
                                                                       !   with buffer points
                                                                       !   stripped off
 
@@ -3419,14 +3415,12 @@ subroutine strip_grd(grd,field_in,field_out,nz)
 !EOP
 !-------------------------------------------------------------------------
 
-    integer(i_kind) i,j,k,jp1
+    integer(i_kind) i,j,jp1
 
-    do k=1,nz
-       do j=1,grd%lon1
-          jp1 = j+1
-          do i=1,grd%lat1
-             field_out(i,j,k)=field_in(i+1,jp1,k)
-          end do
+    do j=1,grd%lon1
+       jp1 = j+1
+       do i=1,grd%lat1
+          field_out(i,j)=field_in(i+1,jp1)
        end do
     end do
 

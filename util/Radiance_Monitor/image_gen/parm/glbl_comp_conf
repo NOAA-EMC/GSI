@@ -12,9 +12,9 @@
 #
 #  Reassign references for this SUFFIX
 #
-export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
-export PLOT_WORK_DIR=${STMP_USER}/plot_comp_${SUFFIX}
+#export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+#export PLOT_WORK_DIR=${STMP_USER}/plot_comp_${SUFFIX}
 
-export TANKDIR=${MY_TANKDIR}/stats
-export IMGNDIR=${MY_TANKDIR}/imgn
+#export TANKDIR=${MY_TANKDIR}/stats
+#export IMGNDIR=${MY_TANKDIR}/imgn
 

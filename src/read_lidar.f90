@@ -68,7 +68,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
   real(r_kind)    ,intent(in   ) :: twind
@@ -106,7 +106,6 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 
   integer(i_kind):: ilev        ! mccarty
-  real(r_kind) dwlerror   !msq
 
 
   data hdstr  /'SID CLON CLAT DHR TYP'/   !msq jsw
@@ -129,7 +128,7 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 
 ! Open, then read date from bufr data
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
   call readmg(lunin,subset,idate,iret)

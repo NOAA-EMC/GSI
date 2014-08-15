@@ -8,7 +8,7 @@
 ! !INTERFACE:
 !
 subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
-     obstype,isis,is,pcp_diagsave,init_pass,last_pass)
+     obstype,isis,is,pcp_diagsave,init_pass)
 
 ! !USES:
 
@@ -35,11 +35,15 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use gridmod, only: istart         ! start lat of the whole array on each pe
   use gridmod, only: get_ij
 
-  use guess_grids, only: geop_hgtl,hrdifsig,nfldsig,ges_ps,ges_ps_lon,ges_ps_lat
-  use guess_grids, only: ges_prsl,ges_prsi,ges_div,ges_tsen,ges_u,ges_v
-  use guess_grids, only: ges_q,ges_tv_ten,ges_q_ten,ges_prs_ten,isli2
-  use guess_grids, only: tnd_initialized
-  use guess_grids, only: drv_initialized
+  use guess_grids, only: geop_hgtl,hrdifsig,nfldsig
+  use guess_grids, only: ges_prsl,ges_prsi,ges_tsen
+  use guess_grids, only: isli2
+
+  use derivsmod, only: drv_initialized
+  use derivsmod, only: gsi_xderivative_bundle
+  use derivsmod, only: gsi_yderivative_bundle
+  use tendsmod, only: tnd_initialized
+  use tendsmod, only: gsi_tendency_bundle
 
   use obsmod, only: ndat,dplat,pcphead,pcptail,time_offset
   use obsmod, only: i_pcp_ob_type,obsdiags,lobsdiagsave,ianldate
@@ -57,6 +61,9 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   use jfunc, only: jiter,miter
 
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
+
+  use gsi_bundlemod, only : gsi_bundlegetpointer
+  use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   implicit none    ! Turn off implicit typing
 
 ! !INPUT PARAMETERS:
@@ -75,7 +82,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
  
   logical                        , intent(in   ) :: pcp_diagsave   ! switch diagnostic output on/off
                                                                    !   (.false.=no output)
-  logical                        , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                        , intent(in   ) :: init_pass      ! state of "setup" processing
 
 
 ! !INPUT/OUTPUT PARAMETERS:
@@ -139,6 +146,8 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 !   2009-12-08  guo     - cleaned diag output rewind with open(position='rewind')
 !			- fixed a bug in diag header output while is not init_pass.
 !   2011-05-01  todling - add metguess-bundle; cwmr no longer in guess-grids
+!   2013-10-19  todling - metguess now holds background
+!                         tendencies now in bundle
 !
 !
 ! !REMARKS:  This routine is NOT correctly set up if running
@@ -179,7 +188,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   character(128) diag_pcp_file
 
   integer(i_kind) km1,mm1,iiflg,iextra,ireal
-  integer(i_kind) ii,i,j,k,m,n,ibin,ioff
+  integer(i_kind) ii,i,j,k,m,n,ibin,ioff,ioff0
   integer(i_kind) ipt
   integer(i_kind) nsphys,ixp,iyp,ixx,iyy
   integer(i_kind) km,ncnt
@@ -193,7 +202,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
 
   real(r_kind) avg,sdv,rterm1,rterm2,rterm
-  real(r_kind) error,a0,a1,obser
+  real(r_kind) error,a0,a1
   real(r_kind) errlog
   real(r_kind) rdocp,frain,dtp,dtf,sum,sixthpi
   real(r_kind) drad,vfact,efact,fhour,rtime
@@ -238,12 +247,34 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
   character(len=*),parameter:: myname='setuppcp'
 
   logical:: in_curbin, in_anybin
+  logical   proceed
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(pcp_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
 
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_div
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+
+  real(r_kind),pointer,dimension(:,:,:)   :: ges_prs_ten=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)   :: ges_tv_ten =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)   :: ges_q_ten  =>NULL()
+
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_ps_lon
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_ps_lat
+
   data  rmiss / -999._r_kind /
+
+! Check to see if required guess fields are available
+  call check_vars_(proceed)
+  if(.not.proceed) return  ! not all vars available, simply return
+
+! If require guess vars available, extract from bundle ...
+  call init_vars_
+
 !! Verify preconditions
 if(.not. (drv_initialized.and.tnd_initialized) ) then
   if(.not.drv_initialized) call perr(myname,'drv_initialized =',drv_initialized)
@@ -305,7 +336,8 @@ endif
        open(4,file=trim(diag_pcp_file),form='unformatted',status='old',position='append')
      endif
  
-     ireal=22
+     ioff0=22
+     ireal=ioff0
      if (lobsdiagsave) ireal=ireal+4*miter+1
      allocate(diagbuf(ireal))
 
@@ -313,7 +345,7 @@ endif
 ! Initialize/write parameters for precip. diagnostic file on
 ! first outer iteration.
      if (init_pass .and. mype==mype_diaghdr(is)) then
-        write(4) isis,dplat(is),obstype,jiter,ianldate,iint,ireal,iextra
+        write(4) isis,dplat(is),obstype,jiter,ianldate,iint,ireal,iextra,ioff0
         write(6,*)'SETUPPCP:  write header record for ',&
              isis,iint,ireal,iextra,' to file ',trim(diag_pcp_file),' ',ianldate
      endif
@@ -1018,8 +1050,8 @@ endif
            diagbuf(21) = errf
            diagbuf(22) = xkt2
  
+           ioff=ioff0
            if (lobsdiagsave) then
-              ioff=22
               do jj=1,miter
                  ioff=ioff+1
                  if (obsdiags(i_pcp_ob_type,ibin)%tail%muse(jj)) then
@@ -1094,6 +1126,9 @@ endif
      end if
 !    End of loop over observations
   end do
+
+! Release memory of local guess arrays
+  call final_vars_
 !
 ! Deallocate arrays
 !
@@ -1106,5 +1141,208 @@ endif
   endif
 
 ! End of routine
+
   return
+  contains
+
+  subroutine check_vars_ (proceed)
+  logical,intent(inout) :: proceed
+  integer(i_kind) ivar, istatus
+! Check to see if required guess fields are available
+  call gsi_metguess_get ('var::ps', ivar, istatus )
+  proceed=ivar>0
+  call gsi_metguess_get ('var::u' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::v' , ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::div', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  call gsi_metguess_get ('var::q', ivar, istatus )
+  proceed=proceed.and.ivar>0
+  end subroutine check_vars_ 
+
+  subroutine init_vars_
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) ifld, istatus
+
+! If require guess vars available, extract from bundle ...
+  if(size(gsi_metguess_bundle)==nfldsig) then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_u(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_u(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_v(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_v(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get div ...
+     varname='div'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_div))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_div(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_div(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_div(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
+                 nfldsig,size(gsi_metguess_bundle)
+     call stop2(999)
+  endif
+! extract tendencies from tendency bundle
+  if(tnd_initialized) then
+!    get prs_ten ...
+     varname='prse'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),ges_prs_ten,istatus)
+     if (istatus/=0) then
+         write(6,*) trim(myname),': ', trim(varname), ' not found in tend bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get tv_ten ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),ges_tv_ten,istatus)
+     if (istatus/=0) then
+         write(6,*) trim(myname),': ', trim(varname), ' not found in tend bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get q_ten ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),ges_q_ten,istatus)
+     if (istatus/=0) then
+         write(6,*) trim(myname),': ', trim(varname), ' not found in tend bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  else
+     write(6,*) trim(myname), ': tendency bundle not properly allocated, aborting ... '
+     call stop2(999)
+  endif
+! extract derivatives from derivatives bundle
+  if(drv_initialized) then
+!    get ps_lon ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_xderivative_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps_lon))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps_lon(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps_lon(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_xderivative_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps_lon(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get ps_lat ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_yderivative_bundle(1),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps_lat))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps_lat(size(rank2,1),size(rank2,2),nfldsig))
+         ges_ps_lat(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_xderivative_bundle(ifld),trim(varname),rank2,istatus)
+            ges_ps_lat(:,:,ifld)=rank2
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+  endif
+  end subroutine init_vars_
+
+  subroutine final_vars_
+    if(associated(ges_q_ten  )) nullify(ges_q_ten  )
+    if(associated(ges_tv_ten )) nullify(ges_tv_ten )
+    if(associated(ges_prs_ten)) nullify(ges_prs_ten)
+!
+    if(allocated(ges_q )) deallocate(ges_q )
+    if(allocated(ges_div))deallocate(ges_div)
+    if(allocated(ges_v )) deallocate(ges_v )
+    if(allocated(ges_u )) deallocate(ges_u )
+    if(allocated(ges_ps)) deallocate(ges_ps)
+  end subroutine final_vars_
+
 end subroutine setuppcp

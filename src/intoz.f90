@@ -12,7 +12,7 @@ module intozmod
 !   2005-11-16  Derber - remove interfaces
 !   2008-11-26  Todling - remove intoz_tl; add interface back
 !   2009-08-13  lueken - update documentation
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
+!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test
 !
 ! subroutines included:
 !   sub intoz_
@@ -116,6 +116,7 @@ subroutine intozlay_(ozhead,rval,sval)
 !   2008-11-28  todling  - turn FOTO optional; changed ptr%time handle
 !   2009-01-18  todling  - treat val in quad precision (revisit later)
 !   2010-05-13  todling  - update to use gsi_bundle; update interface
+!   2012-09-08  wargan   - add OMI with efficiency factors
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
 !
 !   input argument list:
@@ -133,7 +134,7 @@ subroutine intozlay_(ozhead,rval,sval)
 !$$$
 !--------
   use kinds, only: r_kind,i_kind,r_quad
-  use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint
+  use obsmod, only: oz_ob_type,lsaveobsens,l_do_adjoint,nloz_omi
   use gridmod, only: lat2,lon2,nsig
   use jfunc, only: jiter,l_foto,xhat_dt,dhat_dt
   use constants, only: one,zero,r3600,zero_quad
@@ -149,7 +150,7 @@ subroutine intozlay_(ozhead,rval,sval)
 
 ! Declare local variables
   integer(i_kind) i,j,ij,ier,istatus
-  integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x
+  integer(i_kind) k,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x,kl
   real(r_kind) dz1,pob,delz,time_oz
   real(r_quad) val1,valx
   real(r_kind) w1,w2,w3,w4
@@ -160,6 +161,7 @@ subroutine intozlay_(ozhead,rval,sval)
   real(r_kind),allocatable,dimension(:,:) :: soz
   real(r_kind),allocatable,dimension(:,:) :: roz
   type(oz_ob_type), pointer :: ozptr
+  real(r_kind),dimension(nloz_omi):: val_lay
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -247,13 +249,13 @@ subroutine intozlay_(ozhead,rval,sval)
 
               else
                  if(ladtest_obs) then
-                    valx     = val1
+                    valx=val1
                  else
                     val1=val1-ozptr%res(k)
 
                     valx     = val1*ozptr%err2(k) 
                     valx     = valx*ozptr%raterr2(k)
-                 end if
+                 endif
               endif
 
               do kk=iz1,iz2,-1
@@ -296,67 +298,18 @@ subroutine intozlay_(ozhead,rval,sval)
 
 !    Add contribution from total column observation
      k=ozptr%nloz+1
-     val1= zero
-     do kk=nsig,1,-1
-        w1=ozptr%wij(1,kk)
-        w2=ozptr%wij(2,kk)
-        w3=ozptr%wij(3,kk)
-        w4=ozptr%wij(4,kk)
-        val1=val1 + &
-             w1* soz(j1,kk)+ &
-             w2* soz(j2,kk)+ &
-             w3* soz(j3,kk)+ &
-             w4* soz(j4,kk)
-     enddo
-     if (l_foto) then
+     if (ozptr%apriori(1) .lt. zero) then ! non-OMIEFF ozone
+        val1= zero
         do kk=nsig,1,-1
            w1=ozptr%wij(1,kk)
            w2=ozptr%wij(2,kk)
            w3=ozptr%wij(3,kk)
            w4=ozptr%wij(4,kk)
-           j1x=w1+(kk-1)*lat2*lon2
-           j2x=w2+(kk-1)*lat2*lon2
-           j3x=w3+(kk-1)*lat2*lon2
-           j4x=w4+(kk-1)*lat2*lon2
            val1=val1 + &
-               (w1*xhat_dt_oz(j1x)+ &
-                w2*xhat_dt_oz(j2x)+ &
-                w3*xhat_dt_oz(j3x)+ &
-                w4*xhat_dt_oz(j4x))*time_oz
-        enddo
-     endif
-
-     if (lsaveobsens) then
-        ozptr%diags(k)%ptr%obssen(jiter)=val1*ozptr%err2(k)*ozptr%raterr2(k)
-     else
-        if (ozptr%luse) ozptr%diags(k)%ptr%tldepart(jiter)=val1
-     endif
-
-     if (l_do_adjoint) then
-        if (lsaveobsens) then
-           valx = ozptr%diags(k)%ptr%obssen(jiter)
-
-        else
-           if(ladtest_obs) then
-              valx     = val1
-           else
-              val1=val1-ozptr%res(k)
-
-              valx     = val1*ozptr%err2(k)
-              valx     = valx*ozptr%raterr2(k)
-           end if
-
-        endif
-
-        do kk=nsig,1,-1
-           w1=ozptr%wij(1,kk)
-           w2=ozptr%wij(2,kk)
-           w3=ozptr%wij(3,kk)
-           w4=ozptr%wij(4,kk)
-           roz(j1,kk)  = roz(j1,kk) + valx*w1
-           roz(j2,kk)  = roz(j2,kk) + valx*w2
-           roz(j3,kk)  = roz(j3,kk) + valx*w3
-           roz(j4,kk)  = roz(j4,kk) + valx*w4
+                w1* soz(j1,kk)+ &
+                w2* soz(j2,kk)+ &
+                w3* soz(j3,kk)+ &
+                w4* soz(j4,kk)
         enddo
         if (l_foto) then
            do kk=nsig,1,-1
@@ -368,13 +321,134 @@ subroutine intozlay_(ozhead,rval,sval)
               j2x=w2+(kk-1)*lat2*lon2
               j3x=w3+(kk-1)*lat2*lon2
               j4x=w4+(kk-1)*lat2*lon2
-              dhat_dt_oz(j1x) =dhat_dt_oz(j1x) + valx*w1*time_oz
-              dhat_dt_oz(j2x) =dhat_dt_oz(j2x) + valx*w2*time_oz
-              dhat_dt_oz(j3x) =dhat_dt_oz(j3x) + valx*w3*time_oz
-              dhat_dt_oz(j4x) =dhat_dt_oz(j4x) + valx*w4*time_oz
+              val1=val1 + &
+                   (w1*xhat_dt_oz(j1x)+ &
+                   w2*xhat_dt_oz(j2x)+ &
+                   w3*xhat_dt_oz(j3x)+ &
+                   w4*xhat_dt_oz(j4x))*time_oz
            enddo
         endif
+     else  ! OMI ozone with efficiency factor
+! Integrate ozone within each layer
+        dz1=nsig+1
+        do kl=1,nloz_omi
+           val_lay(kl)= zero_quad
+           pob = ozptr%prs(kl)
+           iz1=dz1
+           if (iz1 > nsig) iz1=nsig
+           iz2=pob
+           do kk=iz1,iz2,-1
+              delz=one
+              if (kk==iz1) delz=dz1-iz1
+              if (kk==iz2) delz=delz-pob+iz2
+              w1=ozptr%wij(1,kk)
+              w2=ozptr%wij(2,kk)
+              w3=ozptr%wij(3,kk)
+              w4=ozptr%wij(4,kk)
+              val_lay(kl)=val_lay(kl) + ( &
+                   w1* soz(j1,kk)+ &
+                   w2* soz(j2,kk)+ &
+                   w3* soz(j3,kk)+ &
+                   w4* soz(j4,kk))*delz     
+           enddo
+           dz1=pob 
+        enddo
+
+! Apply the efficiency factor
+        val1=zero_quad
+        do j=1,nloz_omi 
+           val1=val1+ozptr%efficiency(j)*val_lay(j)
+        enddo    
+     endif ! OMI ozone with efficiency factor
+     
+
+     if (lsaveobsens) then
+        ozptr%diags(k)%ptr%obssen(jiter)=val1*ozptr%err2(k)*ozptr%raterr2(k)
+     else
+        if (ozptr%luse) ozptr%diags(k)%ptr%tldepart(jiter)=val1
      endif
+
+     if (l_do_adjoint) then
+        if (ozptr%apriori(1) .lt. zero) then ! non-OMI ozone
+           if (lsaveobsens) then
+              valx = ozptr%diags(k)%ptr%obssen(jiter)
+              
+           else
+              if(ladtest_obs) then
+                 valx=val1
+              else
+                 val1=val1-ozptr%res(k)
+              
+                 valx     = val1*ozptr%err2(k)
+                 valx     = valx*ozptr%raterr2(k)
+              endif
+           endif
+           
+           do kk=nsig,1,-1
+              w1=ozptr%wij(1,kk)
+              w2=ozptr%wij(2,kk)
+              w3=ozptr%wij(3,kk)
+              w4=ozptr%wij(4,kk)
+              roz(j1,kk)  = roz(j1,kk) + valx*w1
+              roz(j2,kk)  = roz(j2,kk) + valx*w2
+              roz(j3,kk)  = roz(j3,kk) + valx*w3
+              roz(j4,kk)  = roz(j4,kk) + valx*w4
+           enddo
+           if (l_foto) then
+              do kk=nsig,1,-1
+                 w1=ozptr%wij(1,kk)
+                 w2=ozptr%wij(2,kk)
+                 w3=ozptr%wij(3,kk)
+                 w4=ozptr%wij(4,kk)
+                 j1x=w1+(kk-1)*lat2*lon2
+                 j2x=w2+(kk-1)*lat2*lon2
+                 j3x=w3+(kk-1)*lat2*lon2
+                 j4x=w4+(kk-1)*lat2*lon2
+                 dhat_dt_oz(j1x) =dhat_dt_oz(j1x) + valx*w1*time_oz
+                 dhat_dt_oz(j2x) =dhat_dt_oz(j2x) + valx*w2*time_oz
+                 dhat_dt_oz(j3x) =dhat_dt_oz(j3x) + valx*w3*time_oz
+                 dhat_dt_oz(j4x) =dhat_dt_oz(j4x) + valx*w4*time_oz
+              enddo
+           endif
+        else  ! OMI ozone with efficiency factor
+           if (lsaveobsens) then
+              valx = ozptr%diags(k)%ptr%obssen(jiter)              
+           else
+              if(ladtest_obs) then
+                 valx=val1
+              else
+                 val1=val1-ozptr%res(k)
+                 valx     = val1*ozptr%err2(k) 
+                 valx     = valx*ozptr%raterr2(k)
+              endif
+           endif
+           ! Apply the transpose of the efficiency factor
+           do j=1,nloz_omi 
+              val_lay(j)=ozptr%efficiency(j)*valx
+           enddo
+! spread the info over GSI levels
+           do kl=1,nloz_omi
+              pob = ozptr%prs(kl)
+              iz1=dz1
+              if (iz1 > nsig) iz1=nsig
+              iz2=pob              
+              do kk=iz1,iz2,-1
+                 delz=one
+                 if(kk==iz1)delz=dz1-iz1
+                 if(kk==iz2)delz=delz-pob+iz2
+                 w1=ozptr%wij(1,kk)
+                 w2=ozptr%wij(2,kk)
+                 w3=ozptr%wij(3,kk)
+                 w4=ozptr%wij(4,kk)
+                 roz(j1,kk)  =  roz(j1,kk) + val_lay(kl)*w1*delz
+                 roz(j2,kk)  =  roz(j2,kk) + val_lay(kl)*w2*delz
+                 roz(j3,kk)  =  roz(j3,kk) + val_lay(kl)*w3*delz
+                 roz(j4,kk)  =  roz(j4,kk) + val_lay(kl)*w4*delz
+              enddo
+              dz1=pob 
+           end do
+        endif  ! OMI
+     endif   ! do adjoint
 
      ozptr => ozptr%llpoint
 
@@ -520,13 +594,13 @@ subroutine intozlev_(o3lhead,rval,sval)
            grad = o3lptr%diags%obssen(jiter)
 
         else
-           if( ladtest_obs ) then
+           if(ladtest_obs) then
               grad = val
            else
               val=val-o3lptr%res
 
               grad = val*o3lptr%raterr2*o3lptr%err2
-           end if
+           endif
         endif
 
 !    Adjoint

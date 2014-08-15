@@ -10,6 +10,8 @@ module m_gsiBiases
 !
 ! program history log:
 !   2010-03-24  j guo   - added this document block
+!   2011-08-01  lueken  - replaced F90 with f90, replace izero/ione with 0/1, remove _i_kind
+!   2012-04-06  todling - change all refs from cvars to svars (never to depend on c-vec)
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -51,6 +53,7 @@ module m_gsiBiases
 !   2006-12-04  todling - documentation/prologue
 !   2007-04-10  todling - bug fix in alloc/dealloc (init/clean)
 !   2009-01-20  todling - protect against re-initialization try
+!   2013-10-19  todling - metguess now holds background
 !
 ! !AUTHOR:
 !   guo           org: gmao                date: 2006-10-01
@@ -689,7 +692,8 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
    integer(i_kind) ier,istatus
    integer(i_kind) i_gust,i_vis,i_pblh
    real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst,sv_gust,sv_vis,sv_pblh
-   real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz,sv_cw
+   real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_q,sv_tv,sv_oz,sv_cw
+!  real(r_kind),pointer,dimension(:,:,:) :: sv_prse,sv_tsen
 
 !  Get pointers to require state variables
    ier=0
@@ -700,7 +704,7 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
    call gsi_bundlegetpointer (xhat,'oz'  ,sv_oz , istatus); ier=istatus+ier
    call gsi_bundlegetpointer (xhat,'cw'  ,sv_cw , istatus); ier=istatus+ier
    call gsi_bundlegetpointer (xhat,'ps'  ,sv_ps,  istatus); ier=istatus+ier
-!  call gsi_bundlegetpointer (xhat,'p3d' ,sv_p3d, istatus); ier=istatus+ier
+!  call gsi_bundlegetpointer (xhat,'prse',sv_prse,istatus); ier=istatus+ier
 !  call gsi_bundlegetpointer (xhat,'tsen',sv_tsen,istatus); ier=istatus+ier
    call gsi_bundlegetpointer (xhat,'sst' ,sv_sst, istatus); ier=istatus+ier
    if (twodvar_regional) then
@@ -760,14 +764,12 @@ subroutine correct_()
 
   use gridmod, only: lat2,lon2,nsig,latlon1n,twodvar_regional
   use guess_grids, only: nfldsig,ntguessig
-  use guess_grids, only: ges_ps,ges_u,ges_v,ges_vor,ges_div,&
-      ges_tv,ges_q,ges_oz,sfct,&
-      ges_gust,ges_vis,ges_pblh
+  use guess_grids, only: sfct
   use constants, only: tiny_r_kind
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die
-  use control_vectors, only: cvars2d
+  use state_vectors, only: svars2d
   use mpeu_util, only: getindex
 
   implicit none
@@ -803,7 +805,16 @@ subroutine correct_()
 
   character(len=*),parameter::myname_=myname//'correct_'
 
-  real(r_kind),pointer,dimension(:,:,:)  :: ges_cwmr_it
+  real(r_kind),pointer,dimension(:,:  )  :: ptr2dges   =>NULL()
+  real(r_kind),pointer,dimension(:,:  )  :: ges_ps_it  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_u_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_v_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_div_it =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_vor_it =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_tv_it  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_q_it   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_oz_it  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)  :: ges_cwmr_it=>NULL()
 
   real(r_kind),allocatable,dimension(:,:)  :: b_ps
   real(r_kind),allocatable,dimension(:,:)  :: b_tskin
@@ -820,7 +831,7 @@ subroutine correct_()
   real(r_kind),allocatable,dimension(:,:,:):: b_v
 
   integer(i_kind),allocatable,dimension(:) :: hours
-  integer(i_kind) :: i,j,k,it,istatus
+  integer(i_kind) :: i,j,k,it,ier,istatus
 
 ! Get memory for bias-related arrays
 
@@ -834,8 +845,26 @@ subroutine correct_()
   do it=1,nfldsig
 
 !    Get pointer to could water mixing ratio
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u',ges_u_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v',ges_v_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,istatus)
+     ier=ier+istatus
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
-     if (istatus/=0) call die(trim(myname_),'cannot get pointer to cwmr, istatus =',istatus)
+     ier=ier+istatus
+     if (ier/=0) call die(trim(myname_),'cannot get pointers for bias correction, ier =',ier)
 
      call comp2d_(b_ps   ,bias_ps   ,hours(it))
      call comp2d_(b_tskin,bias_tskin,hours(it))
@@ -849,11 +878,11 @@ subroutine correct_()
      call comp3d_(b_oz   ,bias_oz   ,hours(it))
 
      if (twodvar_regional) then
-        if (getindex(cvars2d,'gust')>0) &
+        if (getindex(svars2d,'gust')>0) &
         call comp2d_(b_gust,bias_gust,hours(it))
-        if (getindex(cvars2d,'vis')>0) &
+        if (getindex(svars2d,'vis')>0) &
         call comp2d_(b_vis ,bias_vis ,hours(it))
-        if (getindex(cvars2d,'pblh')>0) &
+        if (getindex(svars2d,'pblh')>0) &
         call comp2d_(b_pblh,bias_pblh,hours(it))
      end if
 
@@ -861,20 +890,20 @@ subroutine correct_()
 
      do j=1,lon2
         do i=1,lat2
-           ges_ps(i,j,it)= ges_ps(i,j,it) + b_ps(i,j)
+           ges_ps_it(i,j)= ges_ps_it(i,j) + b_ps(i,j)
         end do
      end do
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_u(i,j,k,it)   =                 ges_u(i,j,k,it)    + b_u(i,j,k)
-              ges_v(i,j,k,it)   =                 ges_v(i,j,k,it)    + b_v(i,j,k)
-              ges_vor(i,j,k,it) =                 ges_vor(i,j,k,it)  + b_vor(i,j,k)
-              ges_div(i,j,k,it) =                 ges_div(i,j,k,it)  + b_div(i,j,k)
+              ges_u_it(i,j,k)   =                 ges_u_it(i,j,k)    + b_u(i,j,k)
+              ges_v_it(i,j,k)   =                 ges_v_it(i,j,k)    + b_v(i,j,k)
+              ges_vor_it(i,j,k) =                 ges_vor_it(i,j,k)  + b_vor(i,j,k)
+              ges_div_it(i,j,k) =                 ges_div_it(i,j,k)  + b_div(i,j,k)
               ges_cwmr_it(i,j,k)=                 ges_cwmr_it(i,j,k) + b_cwmr(i,j,k)
-              ges_q(i,j,k,it)   = max(tiny_r_kind,ges_q(i,j,k,it)    + b_q(i,j,k))
-              ges_oz(i,j,k,it)  = max(tiny_r_kind,ges_oz(i,j,k,it)   + b_oz(i,j,k))
-              ges_tv(i,j,k,it)  = max(tiny_r_kind,ges_tv(i,j,k,it)   + b_tv(i,j,k))
+              ges_q_it(i,j,k)   = max(tiny_r_kind,ges_q_it(i,j,k)    + b_q(i,j,k))
+              ges_oz_it(i,j,k)  = max(tiny_r_kind,ges_oz_it(i,j,k)   + b_oz(i,j,k))
+              ges_tv_it(i,j,k)  = max(tiny_r_kind,ges_tv_it(i,j,k)   + b_tv(i,j,k))
            end do
         end do
      end do
@@ -885,26 +914,17 @@ subroutine correct_()
      end do
 
      if (twodvar_regional) then
-        if (getindex(cvars2d,'gust')>0) then
-           do j=1,lon2
-              do i=1,lat2
-                 ges_gust(i,j,it)= ges_gust(i,j,it) + b_gust(i,j)
-              end do
-           end do
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'gust',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'gust')>0) then
+           ptr2dges = ptr2dges + b_gust
         end if
-        if (getindex(cvars2d,'vis')>0) then
-           do j=1,lon2
-              do i=1,lat2
-                 ges_vis(i,j,it)= ges_vis(i,j,it) + b_vis(i,j)
-              end do
-           end do
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vis',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'vis')>0) then
+           ptr2dges = ptr2dges + b_vis
         end if
-        if (getindex(cvars2d,'pblh')>0) then
-           do j=1,lon2
-              do i=1,lat2
-                 ges_pblh(i,j,it)= ges_pblh(i,j,it) + b_pblh(i,j)
-              end do
-           end do
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'pblh',ptr2dges,ier)
+        if (ier==0.and.getindex(svars2d,'pblh')>0) then
+           ptr2dges = ptr2dges + b_pblh
         end if
      end if
   end do

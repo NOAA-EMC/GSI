@@ -51,11 +51,13 @@ module m_berror_stats
       public :: berror_get_dims	! get dimensions, jfunc::createj_func()
       public :: berror_read_bal	! get cross-cov.stats., balmod::prebal()
       public :: berror_read_wgt	! get auto-cov.stats., prewgt()
+      public :: berror_set      ! set internal parameters
 
       	! external interfaces relating to internal procedures.
       interface berror_get_dims; module procedure get_dims; end interface
       interface berror_read_bal; module procedure read_bal; end interface
       interface berror_read_wgt; module procedure read_wgt; end interface
+      interface berror_set;      module procedure lset; end interface
 
 ! !REVISION HISTORY:
 ! 	30Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
@@ -75,6 +77,7 @@ module m_berror_stats
 
   integer(i_kind),parameter :: default_unit_ = 22
   integer(i_kind),parameter :: ERRCODE=2
+  logical,save:: cwcoveqqcov_
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
@@ -120,20 +123,58 @@ end subroutine get_dims
 ! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
 !BOP -------------------------------------------------------------------
 !
+! !IROUTINE: lset - set (logical) parameter options internal to B
+!
+! !DESCRIPTION:
+!
+! !INTERFACE:
+
+    subroutine lset(opt,value)
+
+      implicit none
+
+      character(len=*),intent(in) :: opt
+      logical(i_kind), intent(in) :: value
+
+! !REVISION HISTORY:
+!       04Feb14 - todling - set logical parameters internal to this package
+!EOP ___________________________________________________________________
+
+  character(len=*),parameter :: myname_=myname//'::lset'
+  logical found
+
+  found=.false.
+  if(trim(opt)=='cwcoveqqcov') then
+     cwcoveqqcov_=value
+     found=.true.
+  endif
+  if(.not.found) then
+     write(6,*) myname_,'(PREBAL):  ***ERROR*** cannot find:', trim(opt)
+     call stop2(999)
+  endif 
+
+end subroutine lset
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+! NASA/GSFC, Global Modeling and Assimilation Office, 900.3, GEOS/DAS  !
+!BOP -------------------------------------------------------------------
+!
 ! !IROUTINE: read_bal - get cross-corr. coefficients
 !
 ! !DESCRIPTION:
 !
 ! !INTERFACE:
 
-    subroutine read_bal(agvin,bvin,wgvin,mype,unit)
+    subroutine read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype,unit)
       use kinds,only : r_single
       use gridmod,only : nlat,nlon,nsig
+      use constants, only: zero
 
       implicit none
 
+      logical,intent(in) :: fut2ps
       real(r_single),dimension(nlat,nsig,nsig),intent(  out) :: agvin
       real(r_single),dimension(nlat,nsig)     ,intent(  out) :: bvin,wgvin
+      real(r_single),dimension(nlat,nsig)     ,intent(  out) :: pputin
       integer(i_kind)                         ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional                ,intent(in   ) :: unit ! an alternative unit
 
@@ -144,6 +185,7 @@ end subroutine get_dims
 !       25Feb10 - Zhu 
 !               - change the structure of background error file
 !               - read in agvin,wgvin,bvin only
+!      09Oct12 - Gu  add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_bal'
@@ -188,7 +230,12 @@ end subroutine get_dims
     end if
 
 !   Read background error file to get balance variables
-    read(inerr,iostat=ier) agvin,bvin,wgvin
+    if(fut2ps)then
+      read(inerr,iostat=ier) agvin,bvin,wgvin,pputin
+    else
+      read(inerr,iostat=ier) agvin,bvin,wgvin
+      pputin=zero
+    endif
     if(ier/=0) call die(myname_, &
        'read("'//trim(berror_stats)//'") for (agvin,bvin,wgvin) error, iostat =',ier)
     close(inerr,iostat=ier)
@@ -207,11 +254,10 @@ end subroutine read_bal
 !
 ! !INTERFACE:
 
-    subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,mype,unit)
+    subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,mype,unit)
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
-      use jfunc,only: varq,qoption
 
       implicit none
 
@@ -225,6 +271,9 @@ end subroutine read_bal
       real(r_single),dimension(nlat,nlon),intent(out) :: corsst
       real(r_single),dimension(nlat,nlon),intent(out) :: hsst
 
+      real(r_kind),  dimension(:,:)      ,intent(out) :: varq
+
+      integer(i_kind)                    ,intent(in   ) :: qoption
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
 
@@ -238,6 +287,8 @@ end subroutine read_bal
 !       28May10 - Todling - Obtain variable id's on the fly (add getindex) 
 !                         - simpler logics to associate cv w/ berrors
 !       14Jun10 - Todling - Allow any 3d berror not in file to be templated 
+!       03Feb14 - Todling - varq & qoption in arg list (remove dep on jfunc)
+!       05Feb14 - Todling - Allow for overwrite of cw with q cov
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::read_wgt'
@@ -246,10 +297,10 @@ end subroutine read_bal
   real(r_single),dimension(nlat,nsig,nsig):: agvin
   real(r_single),dimension(nlat,nsig) :: wgvin,bvin
  
-  integer(i_kind) :: i,n,k
+  integer(i_kind) :: i,n,k,iq,icw
   integer(i_kind) :: inerr,istat,ier
   integer(i_kind) :: nsigstat,nlatstat
-  integer(i_kind) :: loc,nn,isig
+  integer(i_kind) :: isig
   real(r_kind) :: corq2x
   character*5 var
   logical,allocatable,dimension(:) :: found3d
@@ -397,6 +448,20 @@ end subroutine read_bal
      endif
   enddo
 
+! if so, overwrite cw-cov with q-cov
+  if (cwcoveqqcov_) then
+     iq=-1;icw=-1
+     do n=1,size(cvars3d)
+        if(trim(cvars3d(n))=='q' ) iq =n
+        if(trim(cvars3d(n))=='cw') icw=n
+     enddo
+     if(iq>0.and.icw>0) then
+       hwll(:,:,icw)=hwll(:,:,iq)
+       vz  (:,:,icw)=vz  (:,:,iq)
+    endif
+    
+  endif
+
 ! need simliar general template for undefined 2d variables ...
 
   deallocate(found3d,found2d)
@@ -423,21 +488,24 @@ end subroutine read_wgt
       use gridmod,  only: lon1,lat1
 
       use guess_grids,only: ntguessig
-      use guess_grids,only: ges_oz   ! ozone fields
       use guess_grids,only: ges_prsi ! interface pressures (kPa)
 
+      use gsi_bundlemod, only: gsi_bundlegetpointer
+      use gsi_metguess_mod, only: gsi_metguess_bundle
       implicit none
 
       real(r_single),dimension(nlat,nsig),intent(  out) :: coroz ! of ozone
-      integer(i_kind)              ,intent(in   ) :: mype     ! ID of this processor
+      integer(i_kind)                    ,intent(in   ) :: mype  ! ID of this processor
 
 ! !REVISION HISTORY:
 ! 	31Jul08	- Jing Guo <guo@gmao.gsfc.nasa.gov>
 !		- adopted from PREWGT of previous version
+!       2013-10-19 oz guess field in metguess now 
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname_=myname//'::setcoroz_'
   real(r_kind),parameter:: r25 = one/25.0_r_kind
+  real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
 
 !! -- workspace and working variables
 
@@ -448,6 +516,9 @@ end subroutine read_wgt
     integer(i_kind) :: mlat,msig
     integer(i_kind) :: i,j,k,n,mm1
     integer(i_kind) :: ierror
+
+    call gsi_bundlegetpointer(gsi_metguess_bundle(ntguessig),'oz',ges_oz,ierror)
+    if(ierror/=0) return ! nothing to do
 
 !! -- synity check
     if(mype==0) then
@@ -473,7 +544,7 @@ end subroutine read_wgt
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
-           work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k,ntguessig)* &
+           work_oz(k,mm1) = work_oz(k,mm1) + ges_oz(i,j,k)* &
               rozcon*(ges_prsi(i,j,k,ntguessig)-ges_prsi(i,j,k+1,ntguessig))
         end do
      end do

@@ -14,6 +14,8 @@ subroutine compute_qvar3d
 ! 2011-08-17 zhu  - add handling of dssv(:,:,:,nrf3_cw) for regional when total condensate is control variable 
 ! 2011-11-01 eliu - add qmin 
 ! 2012-02-08 kleist  - add computation of ges_qsat over nfldsig bins
+! 2013-10-19 todling - metguess now holds background
+! 2013-10-25 todling - reposition ltosi and others to commvars
 ! 2013-10-30 jung - check and clip supersaturation
 !
 !   input argument list:
@@ -28,14 +30,16 @@ subroutine compute_qvar3d
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use berror, only: dssv
-  use jfunc, only: qsatg,qgues,varq,qoption,clip_supersaturation
+  use jfunc, only: varq,qoption,clip_supersaturation
+  use derivsmod, only: qsatg,qgues
   use control_vectors, only: cvars3d
-  use gridmod, only: lat2,lon2,nsig,lat1,lon1,istart,ltosi,ltosj,iglobal, &
+  use gridmod, only: lat2,lon2,nsig,lat1,lon1,istart,iglobal, &
                      itotsub,ijn,displs_g,nlat,regional
+  use general_commvars_mod, only: ltosi,ltosj
   use constants, only: zero,one,fv,r100,qmin
-  use guess_grids, only: fact_tv,ges_q,ntguessig,nfldsig,ges_tsen,ges_prsl,ges_qsat
+  use guess_grids, only: fact_tv,ntguessig,nfldsig,ges_tsen,ges_prsl,ges_qsat
   use mpeu_util, only: getindex
-  use mpimod, only: npe,mpi_integer,mpi_rtype,mpi_sum,mpi_comm_world,mype
+  use mpimod, only: mpi_integer,mpi_rtype,mpi_sum,mpi_comm_world,mype
   use gsi_metguess_mod,  only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
@@ -47,45 +51,57 @@ subroutine compute_qvar3d
   real(r_kind) d,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
-  integer(i_kind):: nwk,istatus,ier,ierror,mm1,il,nk,nguess
+  integer(i_kind):: istatus,ier,ierror,mm1,il,nk,n_actual_clouds
   integer(i_kind),dimension(nsig):: ntmp,ntmp1
   integer(i_kind),dimension(nlat):: ntp
-  real(r_kind):: rhtmp,coef,cwtmp,maxamy
+  real(r_kind):: coef,cwtmp,maxamy
   real(r_kind),dimension(nsig):: work_cw,work_cw1,amz
   real(r_kind),dimension(nlat):: wk_cw,amy0
   real(r_kind),dimension(lat2):: amy
   real(r_kind),dimension(lat1,lon1):: work2
   real(r_kind),dimension(max(iglobal,itotsub)):: work1
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q =>NULL()
 
 
   nrf3_q=getindex(cvars3d,'q')
   nrf3_cw=getindex(cvars3d,'cw')
 
+! Calculate qsat independently of presence of q in guess
   iderivative = 0
   ice=.true.
   do it=1,nfldsig
-    call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
-           nsig,ice,iderivative)
+     call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
+                  nsig,ice,iderivative)
+  enddo
+
+! If q in guess, check/fix q limits
+  ier=0
+  do it=1,nfldsig
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q, ier)
+     if(ier/=0) exit
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
 ! Limit q to be >= qmin
-              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
+              ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
 ! Limit q to be <= ges_qsat
-              if(clip_supersaturation) ges_q(i,j,k,it)=min(ges_q(i,j,k,it),ges_qsat(i,j,k,it))
+              if(clip_supersaturation) ges_q(i,j,k)=min(ges_q(i,j,k),ges_qsat(i,j,k,it))
            end do
         end do
      end do
   end do
+  if(ier/=0) return
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'q',ges_q, ier)
 
 ! Load guess q.  Initialize saturation array to guess.
   do k=1,nsig
      do j=1,lon2
         do i=1,lat2
-           qgues(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
-           qsatg(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
+           qgues(i,j,k)=ges_q(i,j,k) ! q guess
+           qsatg(i,j,k)=ges_q(i,j,k) ! q guess
            fact_tv(i,j,k)=one/(one+fv*qsatg(i,j,k))      ! factor for tv to tsen conversion
         end do
      end do
@@ -130,8 +146,8 @@ subroutine compute_qvar3d
   deallocate(rhgues)
 
   if (regional .and. nrf3_cw>0) then 
-     call gsi_metguess_get('dim',nguess,ier)
-     if (nguess<=0) return
+     call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
+     if (n_actual_clouds<=0) return
 
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ql',ges_ql,istatus);ier=istatus
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'qi',ges_qi,istatus);ier=ier+istatus

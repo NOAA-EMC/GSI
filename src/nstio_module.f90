@@ -347,7 +347,7 @@ contains
     integer(nstio_intkind),intent(out):: iret
     integer:: ios
     character(4):: cgfs,cnst
-    integer(nstio_intkind):: nhead,ndata,nresv(3)
+    integer(nstio_intkind):: nhead,nresv(3)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     iret=-2
     rewind lu
@@ -537,7 +537,6 @@ contains
     integer(nstio_intkind),intent(out):: iret
     integer:: dim1,dim2,dim3,mdim1,mdim2,mdim3
     integer:: ios
-    integer i
     type(nstio_dbta) dbta
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     dim1=head%lonb
@@ -670,7 +669,6 @@ contains
     integer(nstio_intkind),intent(out):: iret
     integer:: dim1,dim2,dim3,mdim1,mdim2,mdim3
     integer:: ios
-    integer i
     type(nstio_dbta) dbta
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     dim1=head%lonb
@@ -933,7 +931,6 @@ contains
     integer(nstio_intkind),intent(out):: iret
     integer:: dim1,dim2,dim3,mdim1,mdim2,mdim3
     integer:: ios
-    integer i
     type(nstio_data):: data
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     dim1=head%lonb
@@ -1064,7 +1061,6 @@ contains
     integer(nstio_intkind),intent(out):: iret
     integer:: dim1,dim2,dim3,mdim1,mdim2,mdim3
     integer:: ios
-    integer i
     type(nstio_data):: data
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     dim1=head%lonb

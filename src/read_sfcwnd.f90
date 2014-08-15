@@ -56,7 +56,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
-  character(len=*)                      ,intent(in   ) :: sis
+  character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twind
@@ -93,26 +93,23 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
 
 ! Declare local variables
-  logical outside,inflate_error
-  logical asort
+  logical outside
   logical luse,ithinp
   logical,allocatable,dimension(:,:):: lmsg     ! set true when convinfo entry id found in a message
 
   character(70) obstr,hdrtr,wndstr
-  character(50) satqctr,qcstr
   character(8) subset
-  character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
 
   integer(i_kind) ireadmg,ireadsb,iuse
-  integer(i_kind) i,maxobs,idomsfc,itemp,nsattype
-  integer(i_kind) nc,nx,id,isflg,itx,j,nchanl
+  integer(i_kind) i,maxobs,idomsfc,nsattype
+  integer(i_kind) nc,nx,isflg,itx,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,icntpnt,ii,icntpnt2
+  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
-  integer(i_kind) pqm,qm,lim_qm
+  integer(i_kind) lim_qm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
   integer(i_kind) ntest,nvtest
@@ -138,25 +135,20 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) rmesh,ediff,usage,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
-  real(r_kind) woe,errout,dlat,dlon,dlat_earth,dlon_earth,oelev
+  real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  real(r_kind) vdisterrmax,u00,v00,u01,v01,uob1,vob1
+  real(r_kind) vdisterrmax,u00,v00,uob1,vob1
   real(r_kind) del,werrmin,obserr,ppb1
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
-  real(r_kind),dimension(nsig-1):: dpres
   real(r_kind) uob_1,uob_2,uob_3,uob_4,vob_1,vob_2,vob_3,vob_4
   real(r_kind) lkcs_1,lkcs_2,lkcs_3,lkcs_4
   
-  real(r_kind),dimension(22) :: ctwind_s,rmesh_conv_s,pmesh_conv_s
   real(r_double),dimension(8):: hdrdat
   real(r_double),dimension(2):: satqc
   real(r_double),dimension(5):: obsdat
   real(r_double),dimension(5,4):: wnddat
-  real(r_double),dimension(3,5) :: heightdnat
-  real(r_double),dimension(6,4) :: derdwdat
-  real(r_double),dimension(3,12) :: qcdat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
@@ -170,7 +162,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   data hdrtr /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU'/ 
   data obstr/'WD10 WS10 SWVQ NWVA ISWV'/ 
   data wndstr/'WS10 FUWS WD10 FUWD LKCS'/ 
-  data satqctr/'NWVA SPRR'/
   
   
   data ithin / -9 /
@@ -249,7 +240,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !** Open and read data from bufr data file
 
   call closbf(lunin)
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
@@ -391,7 +382,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      endif
 
      call closbf(lunin)
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
 
@@ -628,7 +619,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ithin,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
               if(iiout > 0) isort(iiout)=0

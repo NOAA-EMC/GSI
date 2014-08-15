@@ -117,10 +117,10 @@ Column 2: indicates number of levels (used to distinguish between 2d and 3d fiel
 Column 3: likely to be redefined sometime soon
 Column 4: indicates whether variable is to be passed to CRTM or not according to 
           the following scheme:
-            <0    general chem variable; not used in CRTM 
-            =0    general chem variable; use prescribed global mean data to affect CRTM
-            =1    general chem variable; use variable in guess field to affect CRTM 
-            >10   aerosol variable
+          if<0    general chem variable; not used in CRTM 
+          if=0    general chem variable; use prescribed global mean data to affect CRTM
+          if=1    general chem variable; use variable in guess field to affect CRTM 
+          if>10   aerosol variable
 Column 5: type of chemical/aerosol
 Column 6: original name in file where species is read from
 \end{verbatim}
@@ -292,13 +292,14 @@ type(GSI_Bundle),pointer :: GSI_ChemGuess_Bundle(:)   ! still a common for now
 !BOC
 
 integer(i_kind),parameter::MAXSTR=256
-logical:: tracer_grid_initialized=.false.
+logical:: chem_grid_initialized_=.false.
 logical:: chem_initialized_=.false.
 character(len=*), parameter :: myname = 'gsi_chemguess_mod'
 
 integer(i_kind) :: nbundles=-1
 integer(i_kind) :: ntgases=0
-integer(i_kind) :: naero=0
+integer(i_kind) :: naero=0          ! number of aerosols
+integer(i_kind) :: nghg =0          ! number of green-house gases
 integer(i_kind) :: n2daero=0
 integer(i_kind) :: n3daero=0
 integer(i_kind) :: ng3d=-1
@@ -309,6 +310,8 @@ character(len=MAXSTR),allocatable :: tgases2d(:)   ! same as list above, but eac
 character(len=MAXSTR),allocatable :: chemtype(:)   ! indicate type of chem (used for aerosols for now)
 character(len=MAXSTR),allocatable :: chemty3d(:)   ! indicate 3d type of chem
 character(len=MAXSTR),allocatable :: chemty2d(:)   ! indicate 3d type of chem
+character(len=MAXSTR),allocatable :: usrname3d(:)  ! chem user-defined (original) 3d name (in file)
+character(len=MAXSTR),allocatable :: usrname2d(:)  ! chem user-defined (original) 2d name (in file)
 character(len=MAXSTR),allocatable :: usrname(:)    ! chem user-defined (original) name (in file)
 integer(i_kind),allocatable,dimension(:) :: i4crtm ! controls use of gas in CRTM:
                                                    ! < 0 don't use in CRTM
@@ -341,6 +344,7 @@ implicit none
 !
 ! !REVISION HISTORY:
 !   2010-04-10  todling  initial code
+!   2013-09-30  todling  allow 40-char var description
 !
 ! !REMARKS:
 !   language: f90
@@ -357,7 +361,8 @@ character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
 character(len=*),parameter:: tbname='chem_guess::'
 integer(i_kind) luin,i,ii,ntot,icrtmuse
 character(len=256),allocatable,dimension(:):: utable
-character(len=20) var,ctype,oname
+character(len=40) ctype
+character(len=20) var,oname
 character(len=*),parameter::myname_=myname//'*init_'
 integer(i_kind) ilev, itracer
 logical iamroot_
@@ -393,57 +398,59 @@ close(luin)
 ng3d=0; ng2d=0
 do ii=1,ntgases
    read(utable(ii),*) var, ilev, itracer, icrtmuse
-   if(ilev>1) then
-       ng3d=ng3d+1
-   else if(ilev==1) then
+   if(ilev==1) then
        ng2d=ng2d+1
    else
-       write(6,*) myname_,': error, unknown number of levels'
-       call stop2(999)
+       ng3d=ng3d+1
    endif
 enddo
 
 allocate(tgases3d(ng3d),tgases2d(ng2d),&
          chemty3d(ng3d),chemty2d(ng2d),&
          i4crtm3d(ng3d),i4crtm2d(ng2d),&
-         i4crtm(ntgases),usrname(ntgases))
+         usrname3d(ng3d),usrname2d(ng2d),&
+         i4crtm(ntgases),usrname(ntgases),&
+         tgases(ntgases),chemtype(ntgases))
 
 ! Now load information from table
 ng3d=0;ng2d=0
 do ii=1,ntgases
    read(utable(ii),*) var, ilev, itracer, icrtmuse, ctype, oname
-   if(ilev>1) then
-      ng3d=ng3d+1
-      tgases3d(ng3d)=trim(adjustl(var))
-      chemty3d(ng3d)=trim(adjustl(ctype))
-      i4crtm3d(ng3d)=icrtmuse
-      if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) n3daero=n3daero+1 ! convention, for now
-   else
+   if(ilev==1) then
       ng2d=ng2d+1
       tgases2d(ng2d)=trim(adjustl(var))
       chemty2d(ng2d)=trim(adjustl(ctype))
       i4crtm2d(ng2d)=icrtmuse
+      usrname2d(ng2d)=trim(adjustl(oname))
       if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) n2daero=n2daero+1 ! convention, for now
+   else
+      ng3d=ng3d+1
+      tgases3d(ng3d)=trim(adjustl(var))
+      chemty3d(ng3d)=trim(adjustl(ctype))
+      i4crtm3d(ng3d)=icrtmuse
+      usrname3d(ng3d)=trim(adjustl(oname))
+      if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) n3daero=n3daero+1 ! convention, for now
    endif
-   i4crtm  (ii)=icrtmuse
-   usrname(ii)=trim(adjustl(oname))
-   if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) naero=naero+1 ! convention, for now
+   if(abs(icrtmuse)< 10)                      nghg =nghg +1 ! GHG  convention, for now
+   if(abs(icrtmuse)>=10.and.abs(icrtmuse)<20) naero=naero+1 ! AERO convention, for now
 enddo
 
 deallocate(utable)
-
-allocate(tgases(ntgases),chemtype(ntgases))
 
 ! Fill in array w/ all var names (must be 3d first, then 2d)
 ii=0
 do i=1,ng3d
    ii=ii+1
    tgases(ii)=tgases3d(i)
+   i4crtm(ii)=i4crtm3d(i)
+   usrname(ii)=usrname3d(i)
    chemtype(ii)=trim(adjustl(chemty3d(i)))
 enddo
 do i=1,ng2d
    ii=ii+1
    tgases(ii)=tgases2d(i)
+   i4crtm(ii)=i4crtm2d(i)
+   usrname(ii)=usrname2d(i)
    chemtype(ii)=trim(adjustl(chemty2d(i)))
 enddo
 
@@ -492,8 +499,20 @@ implicit none
 !-------------------------------------------------------------------------
 !BOC
 if(.not.chem_initialized_) return
-deallocate(tgases)
-deallocate(tgases3d,tgases2d,i4crtm,i4crtm3d,i4crtm2d,chemty3d,chemty2d,chemtype,usrname)
+
+if(allocated(tgases))   deallocate(tgases)
+if(allocated(i4crtm))   deallocate(i4crtm)
+if(allocated(chemtype)) deallocate(chemtype)
+if(allocated(usrname))  deallocate(usrname)
+if(allocated(usrname3d))deallocate(usrname3d)
+if(allocated(usrname2d))deallocate(usrname2d)
+if(allocated(tgases3d)) deallocate(tgases3d)
+if(allocated(tgases2d)) deallocate(tgases2d)
+if(allocated(i4crtm3d)) deallocate(i4crtm3d)
+if(allocated(i4crtm2d)) deallocate(i4crtm2d)
+if(allocated(chemty3d)) deallocate(chemty3d)
+if(allocated(chemty2d)) deallocate(chemty2d)
+
 chem_initialized_=.false.
 end subroutine final_
 !EOC
@@ -528,6 +547,7 @@ end subroutine final_
 !   2010-04-20  todling  initial code
 !   2010-05-17  todling  update create interface to pass a grid
 !   2011-07-03  todling  allow running single or double precision
+!   2011-11-16  todling  allow 2d tracers (e.g., AOD)
 !
 ! !AUTHOR:
 !   Ricardo Todling  org: gmao      date: 2010-04-10
@@ -537,14 +557,13 @@ end subroutine final_
 !BOC
 
     character(len=*), parameter :: myname_ = myname//'*create_'
-    integer(i_kind) i,j,k,n,nt,ic
-    character(len=MAXSTR) :: var
+    integer(i_kind) nt
     type(GSI_Grid):: grid
 
     istatus=0
     if(ntgases<=0) return
 
-    if(tracer_grid_initialized) return
+    if(chem_grid_initialized_) return
 
 !   Create simple regular grid
     call gsi_gridcreate ( grid, im, jm, km )
@@ -553,7 +572,7 @@ end subroutine final_
     allocate(GSI_ChemGuess_Bundle(nbundles))
     do nt=1,nbundles
        call GSI_BundleCreate ( GSI_ChemGuess_Bundle(nt), grid, 'Trace Gases', istatus, &
-                               names3d=tgases3d,bundle_kind=r_kind ) ! only 3d for now
+                               names2d=tgases2d,names3d=tgases3d,bundle_kind=r_kind )
     enddo
 
     if (istatus/=0) then
@@ -565,7 +584,7 @@ end subroutine final_
     if (verbose_) then
        if(mype==0) write(6,*) trim(myname_),': alloc() for chem-tracer done'
     endif
-    tracer_grid_initialized=.true.
+    chem_grid_initialized_=.true.
 
     return
   end subroutine create_
@@ -609,16 +628,17 @@ end subroutine final_
 !BOC
 
     character(len=*), parameter :: myname_ = myname//'*destroy_'
-    integer(i_kind) :: nt
-    character(len=MAXSTR) :: var
+    integer(i_kind) :: nt,ier
     istatus=0
 
-    if(.not.tracer_grid_initialized) return
+    if(.not.chem_grid_initialized_) return
 
      do nt=1,nbundles
-        call GSI_BundleDestroy ( GSI_ChemGuess_Bundle(nt), istatus )
+        call GSI_BundleDestroy ( GSI_ChemGuess_Bundle(nt), ier )
+        istatus=istatus+ier
      enddo
      deallocate(GSI_ChemGuess_Bundle,stat=istatus)
+     istatus=istatus+ier
 
     if (istatus/=0) then
         if(mype==0) write(6,*)trim(myname_),':  deallocate error1, istatus=',istatus
@@ -628,7 +648,7 @@ end subroutine final_
     if (verbose_) then
        if(mype==0) write(6,*) trim(myname_),': dealloc() for chem-tracer done'
     endif
-    tracer_grid_initialized=.false.
+    chem_grid_initialized_=.false.
 
     return
   end subroutine destroy_
@@ -685,9 +705,12 @@ end subroutine final_
   integer(i_kind) ii,id,ln
   istatus=1
   ivar=0
+  if(.not.chem_initialized_) return
   if(trim(desc)=='dim') then
      ivar = ntgases
      istatus=0
+  else if(trim(desc)=='ghg') then
+     ivar = nghg
   else if(trim(desc)=='aerosols') then
      ivar = naero
      istatus=0
@@ -698,6 +721,11 @@ end subroutine final_
      ivar = n2daero
      istatus=0
   else if(trim(desc)=='aerosols_4crtm::3d') then
+     do ii=1,ng3d
+        if (i4crtm3d(ii)==11) ivar=ivar+1
+     enddo
+     istatus=0
+  else if(trim(desc)=='aerosols_4crtm_jac::3d') then
      do ii=1,ng3d
         if (i4crtm3d(ii)==12) ivar=ivar+1
      enddo
@@ -771,6 +799,7 @@ end subroutine final_
   labfound=.false.
   istatus=1
   ivar=''
+  if(.not.chem_initialized_) return
   if(trim(desc)=='list'.or.trim(desc)=='olist') then
      labfound=.true.
      if(ntgases>0) then
@@ -846,7 +875,7 @@ end subroutine final_
 ! !IROUTINE:  get_char1d_ --- inquire rank-1 character 
 !
 ! !INTERFACE:
-  subroutine get_char1d_ ( desc, ivar, istatus )
+  subroutine get_char1d_ ( desc, cvar, istatus )
 ! !USES:
   implicit none
 !
@@ -859,7 +888,8 @@ end subroutine final_
 !      aerosols               list of all aerosols
 !      aerosols::3d           list of 3d aerosols
 !      aerosols::2d           list of 2d aerosols
-!      aerosols_4crtm::3d     list of 3d aerosols to be fed to CRTM
+!      aerosols_4crtm::3d     list of 3d aerosols to be passed to CRTM
+!      aerosols_4crtm_jac::3d list of 3d aerosols to participate in CRTM-Jac calc
 ! 
 ! \end{verbatim}
 !  where XXX represents the name of the gas of interest. 
@@ -868,6 +898,7 @@ end subroutine final_
 !   2010-04-10  todling  initial code
 !   2011-04-06  ho-chung fix return status code
 !   2011-05-17  todling  protect against use of unavailable label
+!   2012-05-12  todling  fix to return aero-4crtm of all aero's
 !
 ! !REMARKS:
 !   language: f90
@@ -880,40 +911,55 @@ end subroutine final_
 !-------------------------------------------------------------------------
 !BOC
   character(len=*),intent(in):: desc
-  character(len=*),intent(out):: ivar(:)
+  character(len=*),intent(out):: cvar(:)
   integer(i_kind),intent(out):: istatus
   character(len=*),parameter::myname_=myname//'*get_char0d_'
-  integer(i_kind) i,ii
+  integer(i_kind) i,ii,nvar
   logical labfound
   labfound=.false.
   istatus=1
-  ivar=''
+  cvar=''
+  if(.not.chem_initialized_) return
+  nvar=size(cvar)
   if(trim(desc)=='gsinames') then
      labfound=.true.
-     if(size(ivar)>=size(tgases)) then
+     if(nvar>=size(tgases)) then
         if(allocated(tgases))then
-          ivar = tgases
+          cvar(1:size(tgases)) = tgases
           istatus=0
         endif
      endif
   endif
   if(trim(desc)=='usrnames') then
      labfound=.true.
-     if(size(ivar)>=size(usrname)) then
+     if(nvar>=size(usrname)) then
         if(allocated(usrname))then
-          ivar = usrname
+          cvar(1:size(tgases)) = usrname
           istatus=0
         endif
      endif
   endif
+  if(trim(desc)=='ghg') then
+     labfound=.true.
+     if(nvar>=nghg) then
+        ii=0
+        do i=1,ntgases
+           if(abs(i4crtm(i))<10) then
+              ii=ii+1
+              cvar(ii)=tgases(ii) 
+           endif
+        enddo
+        if(ii>0) istatus=0
+     endif
+  endif
   if(trim(desc)=='aerosols') then
      labfound=.true.
-     if(size(ivar)>=naero) then
+     if(nvar>=naero) then
         ii=0
         do i=1,ntgases
            if(abs(i4crtm(i))>=10.and.abs(i4crtm(i))<20) then
               ii=ii+1
-              ivar(ii)=tgases(ii) 
+              cvar(ii)=tgases(ii) 
            endif
         enddo
         if(ii>0) istatus=0
@@ -921,12 +967,33 @@ end subroutine final_
   endif
   if(trim(desc)=='aerosols_4crtm::3d') then
      labfound=.true.
-     if(size(ivar)>0) then
+     if(nvar>=0) then
+        ii=0
+        do i=1,ng3d
+           if(i4crtm3d(i)==11) then
+              ii=ii+1
+              if(ii>nvar)then
+                 ii=-1 ! user did not allocate enough space
+                 exit  ! exit in error
+              endif
+              cvar(ii)=tgases(i)
+           endif
+        enddo
+        if(ii>0) istatus=0
+     endif
+  endif
+  if(trim(desc)=='aerosols_4crtm_jac::3d') then
+     labfound=.true.
+     if(nvar>=0) then
         ii=0
         do i=1,ng3d
            if(i4crtm3d(i)==12) then
               ii=ii+1
-              ivar(ii)=tgases3d(i)
+              if(ii>nvar)then
+                 ii=-1 ! user did not allocate enough space
+                 exit  ! exit in error
+              endif
+              cvar(ii)=tgases(i)
            endif
         enddo
         if(ii>0) istatus=0
@@ -934,12 +1001,16 @@ end subroutine final_
   endif
   if(trim(desc)=='aerosols::3d') then
      labfound=.true.
-     if(size(ivar)>=naero) then
+     if(nvar>=0) then
         ii=0
         do i=1,ng3d
            if(abs(i4crtm3d(i))>=10.and.abs(i4crtm3d(i))<20) then
               ii=ii+1
-              ivar(ii)=tgases3d(i) 
+              if(ii>nvar)then
+                 ii=-1 ! user did not allocate enough space
+                 exit  ! exit in error
+              endif
+              cvar(ii)=tgases3d(i) 
            endif
         enddo
         if(ii>0) istatus=0
@@ -947,12 +1018,16 @@ end subroutine final_
   endif
   if(trim(desc)=='aerosols::2d') then
      labfound=.true.
-     if(size(ivar)>=naero) then
+     if(nvar>=0) then
         ii=0
         do i=1,ng2d
            if(abs(i4crtm2d(i))>=10.and.abs(i4crtm2d(i))<20) then
               ii=ii+1
-              ivar(ii)=tgases2d(i) 
+              if(ii>nvar)then
+                 ii=-1 ! user did not allocate enough space
+                 exit  ! exit in error
+              endif
+              cvar(ii)=tgases2d(i) 
            endif
         enddo
         if(ii>0) istatus=0

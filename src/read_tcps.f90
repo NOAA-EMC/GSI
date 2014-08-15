@@ -39,7 +39,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   implicit none
 
 ! Declare passed variables
-  character(10)  ,intent(in   ) :: obstype,infile
+  character(len=*),intent(in  ) :: obstype,infile
   character(20)  ,intent(in   ) :: sis
   integer(i_kind),intent(in   ) :: lunout
   integer(i_kind),intent(inout) :: nread,ndata,nodata
@@ -59,7 +59,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
   real(r_kind) psdif,alpha
 
-  integer(i_kind) i,k,iret,lunin,nc
+  integer(i_kind) i,k,lunin,nc
   integer(i_kind) ilat,ilon,ikx,nreal,nchanl,noutside,nmrecs
 
   logical endfile, outside
@@ -78,7 +78,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
 
   allocate(cdata_all(maxdat,maxobs))
 
-  open(lunin,file=infile,form='formatted',action='read')
+  open(lunin,file=trim(infile),form='formatted',action='read')
   call datelen(10)
 
 ! Big loop over binary file

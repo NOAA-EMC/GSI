@@ -10,19 +10,17 @@
 
   echo "begin data_extract_config"
 
-  export HOMEverf_rad=${RADMON_DATA_EXTRACT}
-  export TANKverf_rad=${MY_TANKDIR}/stats
+#  export HOMEverf_rad=${RADMON_DATA_EXTRACT}
+#  export TANKverf_rad=${MY_TANKDIR}/stats
 
-  export EXECverf_rad=$HOMEverf_rad/exec
-  export PARMverf_rad=$HOMEverf_rad/parm
-  export USHverf_rad=$HOMEverf_rad/ush
-  export SCRIPTS=${USHverf_rad} 
-  export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
+#  export EXECverf_rad=${RADMON_DATA_EXTRACT}/exec
+#  export PARMverf_rad=${RADMON_DATA_EXTRACT}/parm
+#  export USHverf_rad=${RADMON_DATA_EXTRACT}/ush
+#  export SCRIPTS=${USHverf_rad} 
+#  export LOGDIR=${LOGSverf_rad}/rad${SUFFIX}
 
-  export PTMP_USER=${PTMP}/${LOGNAME}
-  export STMP_USER=${STMP}/${LOGNAME}
 
-  export DATA_EXTRACT_JOBNAME=data_extract_${SUFFIX}
+  export DATA_EXTRACT_JOBNAME=${DATA_EXTRACT_JOBNAME:-RadMon_de_${SUFFIX}}
  
  
   echo "end data_extract_config"

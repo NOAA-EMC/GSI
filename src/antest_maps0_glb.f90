@@ -10,6 +10,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 !   2009-09-21  lueken - added subprogram doc block
 !   2010-03-30  zhu    - use nvars from control_vectors
 !   2010-12-05  pondeca - change variable names: "tv" is now "t" , and "st" is "sf"
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !    mype
@@ -33,9 +34,12 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
   use gridmod, only: nsig,nsig1o,nlon,nlat,istart,jstart,lat2,lon2
   use constants, only: zero_single,zero,one,rd_over_cp,r100
   use mpimod, only: ierror,mpi_real4,mpi_real8,mpi_sum,mpi_comm_world
-  use guess_grids, only: ges_tv,ges_z,ntguessig,ges_prsl
+  use guess_grids, only: ntguessig,ges_prsl
   use patch2grid_mod, only: vpatch2grid
   use control_vectors, only: nvars
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
   integer(i_kind),intent(in   ) :: mype
@@ -46,6 +50,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
   real(r_single) ,intent(in   ) :: theta3f(pf2aP3%nlatf,pf2aP3%nlonf,nsig1o)
   real(r_single) ,intent(in   ) :: z3f(pf2aP3%nlatf,pf2aP3%nlonf,nsig1o)
 
+  character(len=*),parameter::myname='antest_maps0_glb'
   real(r_kind),dimension(nlat,nlon,nsig1o):: hwork
   real(r_kind) tempf(nlat,nlon), &
                tempc  (pf2aP1%nlatf,pf2aP1%nlonf), &
@@ -58,7 +63,10 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 
   real(r_kind) h00,h000
   integer(i_kind) lunin,i,j,k,ivar,iglob,jglob,ivar_plot,k_plot,ielm
-  integer(i_kind) it,mm1
+  integer(i_kind) it,mm1,ier,istatus
+
+  real(r_kind),dimension(:,:  ),pointer:: ges_z_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv_it=>NULL()
 
 !*********************************************************************
 !          variable names expected for var_plotcor are
@@ -95,6 +103,14 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
 
      ref_plotcor=var_plotcor
      it=ntguessig
+
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+     ier=ier+istatus
+     if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
      lunin=91
      if(mype==0) then
         open(lunin,file="cormaps_"//trim(var_plotcor),form='unformatted')
@@ -217,7 +233,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
            jglob=jstart(mm1)-2+j
            do i=2,lat2-1
               iglob=istart(mm1)-2+i
-              outwork(jglob,iglob)=ges_tv(i,j,k,it)/(ges_prsl(i,j,k ,it)/r100)**rd_over_cp
+              outwork(jglob,iglob)=ges_tv_it(i,j,k)/(ges_prsl(i,j,k ,it)/r100)**rd_over_cp
            end do
         end do
         call mpi_reduce(outwork,outwork0,nlon*nlat,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)
@@ -279,7 +295,7 @@ subroutine antest_maps0_glb(mype,theta0f,z0f,theta2f,z2f,theta3f,z3f)
         jglob=jstart(mm1)-2+j
         do i=2,lat2-1
            iglob=istart(mm1)-2+i
-           outwork(jglob,iglob)=ges_z(i,j,it)
+           outwork(jglob,iglob)=ges_z_it(i,j)
         end do
      end do
      call mpi_reduce(outwork,outwork0,nlon*nlat,mpi_real4,mpi_sum,0,mpi_comm_world,ierror)

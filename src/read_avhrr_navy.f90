@@ -45,6 +45,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod  
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
@@ -75,16 +76,17 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
       finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, rad2deg, r60inv
-  use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: retrieval,iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use deter_sfc_mod, only: deter_sfc
   use obsmod, only: bmiss
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -122,7 +124,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) itx,k,i,bufsat
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nreal,nele,itt
-  integer(i_kind) nlat_sst,nlon_sst,irec,isub,next
+  integer(i_kind) nlat_sst,nlon_sst,irec,next
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dlon,dlat,timedif,sfcr
@@ -140,7 +142,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   real(r_kind),dimension(mlat_sst):: rlats_sst
   real(r_kind),dimension(mlon_sst):: rlons_sst
-  real(r_kind),dimension(mlat_sst,mlon_sst):: sst_an
+  real(r_kind),allocatable,dimension(:,:):: sst_an
   real(r_kind),allocatable,dimension(:,:):: data_all
 
   real(r_double),dimension(100):: bufrf                 ! array to store the read bufr record
@@ -163,7 +165,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   zob = zero
   if(nst_gsi>0) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
 
@@ -202,8 +204,11 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 
 ! Read hi-res sst analysis
-  if (retrieval) call rdgrbsst(file_sst,mlat_sst,mlon_sst,&
+  if (retrieval) then
+     allocate(sst_an(mlat_sst, mlon_sst))
+     call rdgrbsst(file_sst,mlat_sst,mlon_sst,&
      sst_an,rlats_sst,rlons_sst,nlat_sst,nlon_sst)
+  endif
 
 
 ! Allocate arrays to hold all data for given satellite
@@ -211,7 +216,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
-  open(lnbufr,file=infile,form='unformatted')         ! open bufr data file
+  open(lnbufr,file=trim(infile),form='unformatted')         ! open bufr data file
 
 ! Associate the tables file with the message file, and identify th elatter to BUFRLIB software
   call openbf (lnbufr,'IN',lnbufr)
@@ -354,8 +359,12 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
         klatp1=min(nlat_sst,klat1+1); klonp1=klon1+1
         if(klonp1==nlon_sst+1) klonp1=1
 
-        sst_hires=w00*sst_an(klat1,klon1 ) + w10*sst_an(klatp1,klon1 ) + &
-                  w01*sst_an(klat1,klonp1) + w11*sst_an(klatp1,klonp1)
+        if(retrieval) then
+          sst_hires=w00*sst_an(klat1,klon1 ) + w10*sst_an(klatp1,klon1 ) + &
+                    w01*sst_an(klat1,klonp1) + w11*sst_an(klatp1,klonp1)
+        else
+          sst_hires= zero
+        endif
 
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
@@ -366,7 +375,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 
@@ -456,6 +465,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
+  if(retrieval) deallocate(sst_an)
 
 ! Deallocate arrays
 900 continue

@@ -40,6 +40,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 !                         (3) interpolate NSST Variables to Obs. location (call deter_nst)
 !                         (4) add more elements (nstinfo) in data array
 !   2011-08-01  lueken  - added module use deter_sfc_mod, fix indentation
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !
 !   input argument list:
@@ -70,14 +71,15 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
       checkob,finalcheck,score_crit
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,txy2ll,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one,rad2deg,r60inv,r60
-  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo,fac_dtl,fac_tsl
+  use radinfo, only: iuse_rad,jpch_rad,nusis,nst_gsi,nstinfo
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   implicit none
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: ndata,nodata
   integer(i_kind) ,intent(inout) :: nread
@@ -103,7 +105,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
   character(8) subset
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
@@ -139,7 +141,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
   ilat=4
 
   if (nst_gsi > 0 ) then
-     call skindepth(obstype,zob)
+     call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
   rlndsea(0) = zero
@@ -177,7 +179,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 ! Open bufr file.
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   if(jsatid == 'g08') kidsat = 252
@@ -324,7 +326,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 

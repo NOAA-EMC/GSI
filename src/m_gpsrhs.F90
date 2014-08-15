@@ -25,7 +25,6 @@ module m_gpsrhs
 !$$$  end subprogram documentation block
 
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 ! module interface:

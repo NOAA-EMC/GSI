@@ -22,6 +22,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2011-09-13  gayno - improve error handling for FOV-based sfc calculation
 !                       (isfcalc=1)
 !   2011-12-13  collard Replace find_edges code to speed up execution.
+!   2012-03-05  akella  - nst now controlled via coupler
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-27  parrish - assign initial value to pred (to allow successful debug compile on WCOSS)
 !
@@ -71,6 +72,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
+  use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
 
   implicit none
 
@@ -89,9 +91,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  character(len=10),intent(in   ) :: infile
+  character(len=*), intent(in   ) :: infile
   character(len=10),intent(in   ) :: jsatid
-  character(len=10),intent(in   ) :: obstype
+  character(len=*), intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind
   real(r_kind)     ,intent(inout) :: val_cris
@@ -111,15 +113,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(7)  :: linele
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
-  real(r_double),dimension(3,3):: chanbound
-  real(r_double),dimension(6):: cloud_frac
+! real(r_double),dimension(6):: cloud_frac
   
   real(r_kind)      :: step, start
   character(len=8)  :: subset
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: jstart, kidsat, ksatid
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
   integer(i_kind)   :: nchanl
   integer(i_kind),allocatable,dimension(:)::nrec
 
@@ -132,10 +133,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  real(r_kind)     :: clr_amt,piece
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
-  real(r_kind)     :: sat_height_ratio, rsat
+  real(r_kind)     :: rsat
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind)     :: sat_zenang, sat_look_angle, look_angle_est
   real(crtm_kind)  :: radiance
@@ -144,7 +144,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:4) :: rlndsea
   real(r_kind),dimension(0:3) :: sfcpct
   real(r_kind),dimension(0:3) :: ts
-  real(r_kind),dimension(10) :: sscale
   real(crtm_kind),allocatable,dimension(:) :: temperature
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) disterr,disterrmax,rlon00,rlat00,r01
@@ -153,10 +152,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: cris
 
   integer(i_kind)  :: ifov, ifor, iscn, instr, ioff, ilat, ilon, sensorindex
-  integer(i_kind)  :: i, j, l, iskip, bad_line
+  integer(i_kind)  :: i, l, iskip, bad_line
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
-  integer(i_kind):: iexponent
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status
@@ -183,7 +181,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   nreal  = maxinfo + nstinfo
   ndata = 0
   nodata = 0
-  cris=      obstype == 'cris'
+  cris= obstype == 'cris'
   r01=0.01_r_kind
 
   ilon=3
@@ -198,7 +196,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end if
 
   if (nst_gsi > 0 ) then
-    call skindepth(obstype,zob)
+    call gsi_nstcoupler_skindepth(trim(obstype),zob)
   endif
 
 !  write(6,*)'READ_CRIS: mype, mype_root,mype_sub, npe_sub,mpi_comm_sub', &
@@ -299,7 +297,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   call makegrids(rmesh,ithin)
 
 ! Open BUFR file
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
 
 ! Open BUFR table
   call openbf(lnbufr,'IN',lnbufr)
@@ -616,7 +614,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            dtc   = zero
            tz_tr = one
            if ( sfcpct(0) > zero ) then
-              call deter_nst(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
 

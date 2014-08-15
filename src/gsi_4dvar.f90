@@ -37,6 +37,7 @@ module gsi_4dvar
 !   lbfgsmin          - Use L-BFGS minimizer
 !   ltlint            - Use TL inner loop (ie TL intall)
 !   lanczosave        - Save Lanczos vectors to file
+!   lnested_loops     - Allows multiple inner loops to work at differing resolutions
 !   jsiga             - Calculate approximate analysis errors for iteration jiter=jsiga
 !   nwrvecs           - Number of precond vectors (Lanczos) or pairs of vectors (QN)
 !                       being saved
@@ -76,6 +77,8 @@ module gsi_4dvar
 !                       this should generally match with min_offset
 !   ibin_anl          - Analysis update bin.  This will be one for any 3D of 4DVAR mode, but
 !                       will be set to center of window for 4D-ens mode
+!   lwrite4danl       - logical to turn on writing out of 4D analysis state for 4D analysis modes
+!                       ** currently only set up for write_gfs in ncepgfs_io module
 !
 ! attributes:
 !   language: f90
@@ -102,8 +105,9 @@ module gsi_4dvar
   public :: hr_obsbin,ltlint,idmodel,iwrtinc,winsub,winlen,iwinbgn
   public :: min_offset,iadateend,ibdate,iedate,lanczosave,lbfgsmin
   public :: ladtest,ladtest_obs,lgrtest,lcongrad,nhr_obsbin,nhr_subwin,nwrvecs
-  public :: jsiga,ltcost,iorthomax,liauon
+  public :: jsiga,ltcost,iorthomax,liauon,lnested_loops
   public :: l4densvar,ens4d_nhr,ens4d_fhrlevs,ens4d_nstarthr,ibin_anl
+  public :: lwrite4danl
 
   logical         :: l4dvar
   logical         :: lsqrtb
@@ -119,6 +123,8 @@ module gsi_4dvar
   logical         :: ltcost
   logical         :: liauon
   logical         :: l4densvar
+  logical         :: lnested_loops
+  logical         :: lwrite4danl
 
   integer(i_kind) :: iwrtinc
   integer(i_kind) :: iadatebgn, iadateend
@@ -149,6 +155,7 @@ subroutine init_4dvar ()
 !   2009-08-04  lueken - added subprogram doc block
 !   2012-01-13  m. tong - remove regional block setting nhr_assimilation=3 and min_offset=90
 !                         (related to fixing fgat for regional ??)
+!   2012-05-23  todling - add nested_loops option
 !
 !   input argument list:
 !
@@ -173,6 +180,7 @@ ltlint = .false.
 ltcost = .false.
 liauon = .false.
 l4densvar = .false.
+lnested_loops=.false.
 
 nhr_assimilation=6
 min_offset=180
@@ -193,9 +201,11 @@ ens4d_nhr=3
 ens4d_nstarthr=3
 ibin_anl=1
 
+lwrite4danl = .false.
+
 end subroutine init_4dvar
 ! --------------------------------------------------------------------
-subroutine setup_4dvar(miter,mype)
+subroutine setup_4dvar(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    setup_4dvar
@@ -210,7 +220,6 @@ subroutine setup_4dvar(miter,mype)
 !
 !   input argument list:
 !    mype     - mpi task id
-!    miter
 !
 !   output argument list:
 !
@@ -224,10 +233,9 @@ use hybrid_ensemble_parameters, only: ntlevs_ens
 use jcmod, only: ljc4tlevs
 implicit none
 integer(i_kind),intent(in   ) :: mype
-integer(i_kind),intent(in   ) :: miter
 
 ! local variables
-integer(i_kind) :: ibin,ierr,k
+integer(i_kind) :: ibin,k
 
 winlen = real(nhr_assimilation,r_kind)
 winoff = real(min_offset/60._r_kind,r_kind)
@@ -291,6 +299,14 @@ if ( iwrtinc>0 .and. ((.not.l4dvar) .and. (.not.l4densvar)) ) then
    write(6,*)'SETUP_4DVAR: iwrtinc l4dvar inconsistent',iwrtinc,l4dvar
    call stop2(135)
 end if
+if ( lwrite4danl .and. ((.not.l4dvar) .and. (.not.l4densvar)) ) then
+   write(6,*)'SETUP_4DVAR: lwrite4danl,l4dvar,l4densvar inconsistent',lwrite4danl,l4dvar,l4densvar
+   call stop2(135)
+end if
+if ( iwrtinc>0 .and. lwrite4danl) then
+   write(6,*) 'SETUP_4DVAR: iwrtinc>0, cannot write out 4d analysis state, setting lwrite4danl to false'
+end if
+
 
 if (l4densvar) then
    ntlevs_ens=nobs_bins

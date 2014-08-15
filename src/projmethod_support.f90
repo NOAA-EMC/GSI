@@ -310,6 +310,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
 !   2004-05-13  derber, document
 !   2004-07-28  treadon - add only on use declarations; add intent in/out
 !   2010-04-01  treadon - move strip to grimod
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     dx       - input vector 1
@@ -327,7 +328,8 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
 
   use jfunc, only: nval_levs
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
-     ltosi,ltosj,iglobal,ijn,displs_g,strip
+     iglobal,ijn,displs_g,strip
+  use general_commvars_mod, only: ltosi,ltosj
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use constants, only: zero
   implicit none
@@ -360,7 +362,7 @@ real(r_kind) function dplev5(dx,dy,mype,mask)
      zsm(j)=zero
   end do
 
-  call strip(sum,zsm,1)
+  call strip(sum,zsm)
 
   call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
      work1,ijn,displs_g,mpi_rtype,&
@@ -406,6 +408,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2010-08-19  lueken  - add only to module use
 !   2011-06-06  pondeca - add output for gust,vis,pblh,dist
 !   2011-07-03  todling - avoid explicit reference to internal bundle arrays
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     nv
@@ -426,10 +429,10 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   use kinds, only: r_kind,i_kind
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   use gridmod, only: nsig,lat1,lon1,lat2,lon2,nlon,nlat,itotsub,iglobal, & 
-                     ltosi,ltosj,latlon11,ijn,displs_g,strip
+                     latlon11,ijn,displs_g,strip
+  use general_commvars_mod, only: ltosi,ltosj
   use radinfo, only: npred,jpch_rad
   use pcpinfo, only: npredp,npcptype
-  use aircraftinfo, only: npredt,ntail
   use jfunc, only: iter,jiter
   use gsi_bundlemod, only: gsi_bundlegetvar
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -449,13 +452,13 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
   integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist
 
-  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,ip,istatus
+  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,istatus
 
   real(r_kind),allocatable,dimension(:)::tempa
   real(r_kind),allocatable,dimension(:,:)::slab
   real(r_kind),allocatable,dimension(:)::strp
   real(r_kind),allocatable,dimension(:)::field
-  real(r_kind),pointer,dimension(:,:)  :: ptr2d
+  real(r_kind),pointer,dimension(:,:)  :: ptr2d=>NULL()
   type(control_vector)::dz
 ! RTodling: not sure this is the best thing to do here
 ! This assumes the control vector has variables named
@@ -522,7 +525,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
            do k=1,nsig
               k1=1+(k-1)*latlon11
               k2=k1+latlon11-1
-              call strip(field(k1:k2),strp,1)
+              call strip(field(k1:k2),strp)
    
               call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
                    tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
@@ -541,7 +544,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt sfcp
      call gsi_bundlegetpointer(dz%step(ii),'ps',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
+        call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
@@ -557,7 +560,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt sfct
      call gsi_bundlegetpointer(dz%step(ii),'sst',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
+        call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
@@ -573,7 +576,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt gust
      call gsi_bundlegetpointer(dz%step(ii),'gust',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
+        call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
@@ -589,7 +592,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt vis
      call gsi_bundlegetpointer(dz%step(ii),'vis',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
+        call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
@@ -604,7 +607,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt pblh
      call gsi_bundlegetpointer(dz%step(ii),'pblh',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
+        call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 
@@ -619,7 +622,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !                               gradient wrt dist
      call gsi_bundlegetpointer(dz%step(ii),'dist',ptr2d,istatus)
      if (istatus==0) then
-        call strip(ptr2d,strp,1)
+        call strip(ptr2d,strp)
         call mpi_gatherv(strp,ijn(mype+1),mpi_rtype, &
              tempa,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
 

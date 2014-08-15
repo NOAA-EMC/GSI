@@ -59,7 +59,11 @@ subroutine compute_derived(mype,init_pass)
 !   2011-12-02  zhu     - add safe-guard for the case when there is no entry in the metguess table
 !   2012-02-08  kleist  - add ges_qsat, add uvflag arg in call to strong_bal_correction,
 !                         compute ges_qsat over nfldsig bins for limq (when nobs_bins /=0)
+!   2013-10-19  todling - bug fix in cal to strong_bal: prs_ten was being passed as 3d array
+!                       - efr_q vars move to cloud_efr
+!                       - unlike original code, now all derivates available at all time slots
 !   2013-10-30  jung    - add test and removal of supersaturation
+!   2014-04-18  todling - revisit interface to q_diag
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -73,28 +77,24 @@ subroutine compute_derived(mype,init_pass)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: qsatg,qgues,ggues,vgues,pgues,jiter,jiterstart,&
+  use jfunc, only: jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,varq,dvisdlog,cwgues,clip_supersaturation
+       tendsflag,clip_supersaturation
   use control_vectors, only: cvars3d,cvars2d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
   use mpimod, only: levs_id
-  use guess_grids, only: ges_z,ges_ps,ges_u,ges_v,&
-       ges_tv,ges_q,ges_oz,ges_tsen,sfct,&
-       ges_gust,ges_vis,ges_pblh,&
-       ges_qsat, &
-       tropprs,ges_prsl,ntguessig,&
-       nfldsig,&
-       ges_teta,fact_tv, &
-       ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,ges_ozlon,ges_cwmr_lon, &
-       ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,ges_ozlat,ges_cwmr_lat
-  use guess_grids, only: ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-       ges_oz_ten,ges_cwmr_ten
-  use guess_grids, only: ges_prslavg,ges_psfcavg
-  use guess_grids, only: tnd_initialized
-  use guess_grids, only: drv_initialized
-  use guess_grids, only: efr_ql,nfldsig
+  use guess_grids, only: ges_tsen,ges_qsat,ges_prsl,ntguessig,nfldsig,&
+       ges_teta,fact_tv
+  use guess_grids, only: nfldsig
+  use cloud_efr_mod, only: efr_ql
+  use derivsmod, only: drv_initialized
+  use derivsmod, only: gsi_xderivative_bundle
+  use derivsmod, only: gsi_yderivative_bundle
+  use derivsmod, only: qsatg,qgues,ggues,vgues,pgues,&
+       dvisdlog,cwgues
+  use tendsmod, only: tnd_initialized
+  use tendsmod, only: gsi_tendency_bundle
   use gridmod, only: lat2,lon2,nsig,nnnn1o,aeta2_ll,nsig1o
   use gridmod, only: regional
   use gridmod, only: twodvar_regional
@@ -113,8 +113,8 @@ subroutine compute_derived(mype,init_pass)
 ! for anisotropic mode
   use sub2fslab_mod, only: setup_sub2fslab, sub2fslab, sub2fslab_glb, destroy_sub2fslab
   use anberror, only: anisotropic, idvar, kvar_start, ngauss, indices, indices_p, &
-                    & filter_all,   filter_p2,   filter_p3, &
-                    & pf2aP1, pf2aP2, pf2aP3, rtma_subdomain_option
+                      filter_all,   filter_p2,   filter_p3, &
+                      pf2aP1, pf2aP2, pf2aP3, rtma_subdomain_option
   use anisofilter, only: rh0f, corz, ensamp, mlat, rllatf, fact_qopt2
   use anisofilter_glb, only: rh2f, rh3f, ensamp0f, ensamp2f, ensamp3f, &
                              p0ilatf, p2ilatf, p3ilatf, p2ilatfm, p3ilatfm, get_stat_factk
@@ -131,42 +131,63 @@ subroutine compute_derived(mype,init_pass)
   logical        ,intent(in   ) :: init_pass
 
 ! Declare local variables
+  character(len=*),parameter::myname='compute_derived'
   logical ice,fullfield
-  integer(i_kind) i,j,k,it,k150,kpres,n,np,l,l2,iderivative,nrf3_q,istatus,ier,nguess
+  integer(i_kind) i,j,k,ii,it,l,l2,iderivative,nrf3_q,istatus,ier
+  integer(i_kind) nt,n_actual_clouds
   
-  real(r_kind) d,dl1,dl2,psfc015,dn1,dn2
+  real(r_kind) dl1,dl2
   real(r_kind) tem4,indexw
   real(r_kind),dimension(lat2,lon2,nsig+1):: ges_3dp
-  real(r_kind),dimension(lat2,lon2,nfldsig):: sfct_lat,sfct_lon
   real(r_kind),dimension(lat2,lon2,nsig):: rhgues
-  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
+
+  real(r_kind),allocatable,dimension(:,:,:):: ges_prs_ten
+  real(r_kind),allocatable,dimension(:,:,:):: ges_u_ten
+  real(r_kind),allocatable,dimension(:,:,:):: ges_v_ten
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tv_ten
+
+  real(r_kind),allocatable,dimension(:,:  ):: ges_ps
+  real(r_kind),allocatable,dimension(:,:,:):: ges_u
+  real(r_kind),allocatable,dimension(:,:,:):: ges_v
+  real(r_kind),allocatable,dimension(:,:,:):: ges_tv
+
+  real(r_kind),pointer,dimension(:,:  ):: ptr2d   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
 
 ! for anisotropic mode
   integer(i_kind):: k1,ivar,kvar,igauss,iq_loc
   real(r_kind):: factor,factk,hswgtsum
 
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
-	call die('compute_derived','invalid init_pass, ntguessig =',ntguessig)
+	call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')
 
-  iderivative = 0
-  ice = .true.
-  do it=1,nfldsig
-     call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
-            nsig,ice,iderivative)
-     if(it == ntguessig) call q_diag(mype)
+! Compute qsat regardless of presence of q in guess
+  iderivative=0
+  ice=.true.
+  do ii=1,nfldsig
+     call genqsat(ges_qsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2, &
+                  nsig,ice,iderivative)
+  enddo
+
+! If q in guess, check/fix q limits
+  do ii=1,nfldsig
+     call gsi_bundlegetpointer (gsi_metguess_bundle(ii),'q',ges_q,ier)
+     if (ier/=0) exit
+     if(ii == ntguessig) call q_diag(ii,mype)
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
 ! Limit q to be >= qmin
-              ges_q(i,j,k,it)=max(ges_q(i,j,k,it),qmin)
+              ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
 ! limit q to be <= ges_qsat
-              if(clip_supersaturation) ges_q(i,j,k,it) = min(ges_q(i,j,k,it),ges_qsat(i,j,k,it))
+              if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),ges_qsat(i,j,k,ii))
            end do
         end do
      end do
@@ -176,11 +197,11 @@ subroutine compute_derived(mype,init_pass)
 ! Get pointer to cloud water mixing ratio
   it=ntguessig
   if (regional) then
-     call gsi_metguess_get('dim',nguess,ier) 
-     if (nguess>0) then
+     call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
+     if (n_actual_clouds>0) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,istatus);ier=istatus
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,istatus);ier=ier+istatus
-        if (ier==zero) then
+        if (ier==0) then
            do k=1,nsig
               do j=1,lon2
                  do i=1,lat2
@@ -189,36 +210,37 @@ subroutine compute_derived(mype,init_pass)
               end do
            end do
         end if
-        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
-        if (istatus/=0) ges_cwmr_it => cwgues    ! temporarily, revise after moist physics is ready 
+        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
+        if (istatus/=0) ges_cwmr => cwgues    ! temporarily, revise after moist physics is ready 
 
 !       update efr_ql
         if(regional .and. (.not. wrf_mass_regional) .and. jiter>jiterstart) then
-          do it=1,nfldsig
+          do ii=1,nfldsig
              do k=1,nsig
                 do j=1,lon2
                    do i=1,lat2
-                      tem4=max(zero,(t0c-ges_tsen(i,j,k,it))*r0_05)
+                      tem4=max(zero,(t0c-ges_tsen(i,j,k,ii))*r0_05)
                       indexw=five + five * min(one, tem4) 
-                      efr_ql(i,j,k,it)=1.5_r_kind*indexw
+                      efr_ql(i,j,k,ii)=1.5_r_kind*indexw
                    end do
                 end do
              end do
           end do
         end if  ! jiter
      else
-        ges_cwmr_it => cwgues
-     end if  ! end of nguess
+        if(associated(ges_cwmr)) ges_cwmr => cwgues
+     end if  ! end of n_actual_clouds
   else
-     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
-     if (istatus/=0) call die('compute_derived','cannot get pointer to cwmr, istatus =',istatus)
-     do j=1,lon2
-        do i=1,lat2
-           do k=1,nsig
-              cwgues(i,j,k)=ges_cwmr_it(i,j,k)
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,istatus)
+     if (istatus==0) then
+        do k=1,nsig
+           do j=1,lon2
+              do i=1,lat2
+                 cwgues(i,j,k)=ges_cwmr(i,j,k)
+              end do
            end do
         end do
-     end do
+     endif
   end if
 
 ! RTodling: The following call is in a completely undesirable place
@@ -226,8 +248,10 @@ subroutine compute_derived(mype,init_pass)
 ! Initialize atmospheric AD and TL model trajectory
   if(l4dvar.and.jiter==jiterstart) then
     call gsi_4dcoupler_init_traj(idmodel,rc=istatus)
-       if(istatus/=0) call die('compute_derived','gsi_4dcoupler_init_traj(), rc =',istatus)
+       if(istatus/=0) call die(myname,'gsi_4dcoupler_init_traj(), rc =',istatus)
   endif
+
+  call init_vars_('guess')
 
 !-----------------------------------------------------------------------------------
 ! Compute derivatives for .not. twodvar_regional case
@@ -235,52 +259,43 @@ subroutine compute_derived(mype,init_pass)
 
      if (switch_on_derivatives) then
         if(.not.drv_initialized) &
-		call die('compute_derived','unexpected drv_initialized =',drv_initialized)
+		call die(myname,'unexpected drv_initialized =',drv_initialized)
 
 !       Instead, update gradients of all guess fields.  these will
 !       be used for forward models that need gradient of background field,
 !       and for getting time derivatives of prognostic variables for
 !       time extrapolation and non-linear balance constraints.
 
-        
-        it=ntguessig
-
-        call get_derivatives(ges_u(1,1,1,it),ges_v(1,1,1,it), &
-             ges_tv(1,1,1,it),ges_ps,ges_q(1,1,1,it),&
-             ges_oz(1,1,1,it),sfct(1,1,it),ges_cwmr_it, &
-             ges_u_lon,ges_v_lon,ges_tvlon,ges_ps_lon,ges_qlon,&
-             ges_ozlon,sfct_lon,ges_cwmr_lon, &
-             ges_u_lat,ges_v_lat,ges_tvlat,ges_ps_lat,ges_qlat,&
-             ges_ozlat,sfct_lat,ges_cwmr_lat, &
-             nnnn1o,nfldsig)
+        do nt=1,nfldsig
+           call get_derivatives(gsi_metguess_bundle(nt),&
+                                gsi_xderivative_bundle(nt), &
+                                gsi_yderivative_bundle(nt))
+        enddo
 
         if(.not. wrf_mass_regional .and. tendsflag)then
           if(.not.tnd_initialized) &
-		call die('compute_derived','unexpected tnd_initialized =',tnd_initialized)
+		call die(myname,'unexpected tnd_initialized =',tnd_initialized)
 
 
 ! now that we have derivs, get time tendencies if necessary
 	  if(init_pass) then
 
-           call getprs(ges_ps(1,1,it),ges_3dp)
+           if(allocated(ges_ps)) call getprs(ges_ps,ges_3dp)
 
-           call calctends(ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it), &
-              ges_q(1,1,1,it),ges_oz(1,1,1,it),ges_cwmr_it,&
-              ges_teta(1,1,1,it),ges_z(1,1,it), &
-              ges_u_lon,ges_u_lat,ges_v_lon,&
-              ges_v_lat,ges_tvlon,ges_tvlat,ges_ps_lon(1,1,it), &
-              ges_ps_lat(1,1,it),ges_qlon,ges_qlat,ges_ozlon,&
-              ges_ozlat,ges_cwmr_lon,ges_cwmr_lat,&
-              mype,ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,ges_q_ten,&
-              ges_oz_ten,ges_cwmr_ten,ges_3dp)
+           call calctends(mype,ges_teta(1,1,1,it),ges_3dp,gsi_metguess_bundle(it), &
+                          gsi_xderivative_bundle(it),gsi_yderivative_bundle(it),&
+                          gsi_tendency_bundle)
 
            if(l_tlnmc .and. write_diag(jiter) .and. baldiag_full) then
               fullfield=.true.
 
+              call init_vars_('tendency')
 
-              call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten,mype, &
-                                         ges_u(1,1,1,it),ges_v(1,1,1,it),ges_tv(1,1,1,it),&
-                                         ges_ps(1,1,it),.true.,fullfield,.false.,.true.)
+              call strong_bal_correction(ges_u_ten,ges_v_ten,ges_tv_ten,ges_prs_ten(:,:,1),mype, &
+                                         ges_u,ges_v,ges_tv,&
+                                         ges_ps,.true.,fullfield,.false.,.true.)
+
+              call final_vars_('tendency')
            end if
           end if	! (init_pass)
         end if
@@ -302,64 +317,76 @@ subroutine compute_derived(mype,init_pass)
        end if	! (regional)
   
      endif       ! (init_pass)
+
   endif         ! (!twodvar_regional)
 
   if(.not. init_pass) return
 
 ! Load guess q for use in limq.  Initialize saturation array to guess.
-  do k=1,nsig
-     do j=1,lon2
-        do i=1,lat2
-           qgues(i,j,k)=ges_q(i,j,k,ntguessig) ! q guess
-           fact_tv(i,j,k)=one/(one+fv*qgues(i,j,k))      ! factor for tv to tsen conversion
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'q',ges_q,istatus)
+  if (istatus==0) then
+     do k=1,nsig
+        do j=1,lon2
+           do i=1,lat2
+              qgues(i,j,k)=ges_q(i,j,k)             ! q guess
+              fact_tv(i,j,k)=one/(one+fv*qgues(i,j,k)) ! factor for tv to tsen conversion
+           end do
         end do
      end do
-  end do
+  end if
 
 ! Load guess gust, vis & pblh for use in limg, limv & limp.
-  if (getindex(cvars2d,'gust')>0) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'gust',ptr2d,istatus)
+  if (istatus==0) then
      do j=1,lon2
         do i=1,lat2
-           ggues(i,j)=max(one,ges_gust(i,j,ntguessig))
+           ggues(i,j)=max(one,ptr2d(i,j))
         end do
      end do
   end if
-  if (getindex(cvars2d,'vis')>0) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'vis',ptr2d,istatus)
+  if (istatus==0) then
      do j=1,lon2
         do i=1,lat2
-           vgues(i,j)=max(100.0_r_kind,ges_vis(i,j,ntguessig))
-           dvisdlog(i,j)=log(ten)*ges_vis(i,j,ntguessig)  !d(vis)/d(log(vis))
+           vgues(i,j)=max(100.0_r_kind,ptr2d(i,j))
+           dvisdlog(i,j)=log(ten)*ptr2d(i,j)  !d(vis)/d(log(vis))
         end do
      end do
   end if
-  if (getindex(cvars2d,'pblh')>0) then
+  call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'pblh',ptr2d,istatus)
+  if (istatus==0) then
      do j=1,lon2
         do i=1,lat2
-           pgues(i,j)=max(100.0_r_kind,ges_pblh(i,j,ntguessig))
+           pgues(i,j)=max(100.0_r_kind,ptr2d(i,j))
         end do
      end do
   end if
 
+
+  if(allocated(ges_tv).and.allocated(ges_ps)) then
 
 ! Compute saturation specific humidity.   
-  iderivative = 0
-  if(qoption == 1)then
-      if(jiter == jiterstart)iderivative = 1
-  else
-      iderivative = 2
-  end if
+     iderivative = 0
+     if(qoption == 1)then
+         if(jiter == jiterstart)iderivative = 1
+     else
+         iderivative = 2
+     end if
       
-  ice=.true.
-  call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
-           nsig,ice,iderivative)
+     ice=.true.
+     call genqsat(qsatg,ges_tsen(1,1,1,ntguessig),ges_prsl(1,1,1,ntguessig),lat2,lon2, &
+              nsig,ice,iderivative)
 
-! Now load over nfldsig bins for limq (when nobs_bins /= zero)
-  iderivative = 0
-  do it=1,nfldsig
-    call genqsat(ges_qsat(1,1,1,it),ges_tsen(1,1,1,it),ges_prsl(1,1,1,it),lat2,lon2, &
-           nsig,ice,iderivative)
-  end do
+!   Now load over nfldsig bins for limq (when nobs_bins /= zero)
+    iderivative = 0
+    do ii=1,nfldsig
+      call genqsat(ges_qsat(1,1,1,ii),ges_tsen(1,1,1,ii),ges_prsl(1,1,1,ii),lat2,lon2, &
+             nsig,ice,iderivative)
+    end do
 
+  endif
+
+  call final_vars_('guess')
 
 !??????????????????????????  need any of this????
 !! qoption 1:  use psuedo-RH
@@ -493,4 +520,153 @@ subroutine compute_derived(mype,init_pass)
 
 ! End of routine
   return
+  contains
+  subroutine init_vars_(thiscase)
+  implicit none
+  character(len=*) thiscase
+
+  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
+  character(len=5) :: varname
+  integer(i_kind) istatus
+
+! If require guess vars available, extract from bundle ...
+  if(trim(thiscase)=='guess') then
+!    get ps ...
+     varname='ps'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank2,istatus)
+     if (istatus==0) then
+         if(allocated(ges_ps))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_ps(size(rank2,1),size(rank2,2)))
+         ges_ps(:,:)=rank2
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_u(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_v(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_tv(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+  endif
+! extract tendencies from tendency bundle
+  if(trim(thiscase)=='tendency'.and.tnd_initialized) then
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u_ten))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u_ten(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_u_ten(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v_ten))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v_ten(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_v_ten(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get tv ...
+     varname='tv'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_tv_ten))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv_ten(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_tv_ten(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+!    get prs ...
+     varname='prse'
+     call gsi_bundlegetpointer(gsi_tendency_bundle,trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_prs_ten))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_prs_ten(size(rank3,1),size(rank3,2),size(rank3,3)))
+         ges_prs_ten(:,:,:)=rank3
+     else
+         if(mype==0) &
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle'
+     endif
+  endif
+
+  end subroutine init_vars_
+
+  subroutine final_vars_(thiscase)
+  implicit none
+  character(len=*) thiscase
+  if (trim(thiscase)=='guess') then
+     if(allocated(ges_tv)) deallocate(ges_tv)
+     if(allocated(ges_v)) deallocate(ges_v)
+     if(allocated(ges_u)) deallocate(ges_u)
+     if(allocated(ges_ps)) deallocate(ges_ps)
+  endif
+
+  if (trim(thiscase)=='tendency') then
+     if(allocated(ges_prs_ten)) deallocate(ges_prs_ten)
+     if(allocated(ges_tv_ten)) deallocate(ges_tv_ten)
+     if(allocated(ges_v_ten)) deallocate(ges_v_ten)
+     if(allocated(ges_u_ten)) deallocate(ges_u_ten)
+  endif
+  end subroutine final_vars_
+
 end subroutine compute_derived

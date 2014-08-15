@@ -113,7 +113,7 @@ end subroutine berror_get_dims_reg
 
 !   workspaces/variables for data not returned
 
-  integer(i_kind) k,i,m,n,j,m1,l1,l
+  integer(i_kind) k,i,m,j,m1,l1,l
   integer(i_kind):: nsigstat,nlatstat
   integer(i_kind):: inerr
 
@@ -230,20 +230,20 @@ end subroutine berror_read_bal_reg
 !
 ! !INTERFACE:
 
-    subroutine berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,mype,unit)
+    subroutine berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,mype,unit)
 
       use kinds,only : r_single,r_kind
       use gridmod,only : nlat,nlon,nsig
       use control_vectors,only: nrf,nc2d,nc3d,nvars
       use control_vectors,only: cvars => nrf_var
       use control_vectors,only: cvars2d,cvars3d
-      use jfunc,only: varq,qoption
       use guess_grids, only:  ges_psfcavg,ges_prslavg
       use constants, only: zero,one,ten
       use mpeu_util,only: getindex
 
       implicit none
 
+      integer(i_kind)                    ,intent(in   ) :: qoption
       integer(i_kind)                    ,intent(in   ) :: msig,mlat
       integer(i_kind)                    ,intent(in   ) :: mype  ! "my" processor ID
       integer(i_kind),optional           ,intent(in   ) :: unit ! an alternative unit
@@ -254,6 +254,7 @@ end subroutine berror_read_bal_reg
       real(r_kind),dimension(0:mlat+1,1:nsig,1:nc3d), intent(inout):: hwll
       real(r_kind),dimension(0:mlat+1,nvars-nc3d)   , intent(inout):: hwllp
       real(r_kind),dimension(nsig,0:mlat+1,1:nc3d),intent(inout):: vz
+      real(r_kind),dimension(mlat,nsig),intent(inout)::varq
 
       real(r_kind),dimension(nsig),intent(out):: rlsig
 
@@ -269,6 +270,7 @@ end subroutine berror_read_bal_reg
 !       20Nov10 Pagowski - make var name longer for chemical berror and
 !                          related change in read
 !       16Feb11 Zhu - add gust,vis,pblh
+!       03Feb14 Todling - varq & qoption in arg list (remove dep on jfunc)
 !
 !EOP ___________________________________________________________________
 
@@ -297,9 +299,8 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf3_t,nrf2_gust,nrf2_vis,nrf2_pblh
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,nn,m1,m,i,n,j,k
+  integer(i_kind) :: loc,m1,m,i,n,j,k
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc
-  real(r_kind) :: corq2x
   real(r_kind) :: factoz
 
   real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,&

@@ -31,7 +31,10 @@ subroutine control2state(xhat,sval,bval)
 !   2012-02-08  kleist   - remove call to strong_bk, ensemble_forward_model, 
 !                             ensemble_forward_model_dual_res, and related parameters
 !   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - updated for obs adjoint test and added ladtest_obs  
+!   2013-10-24  todling  - nullify work pointers
+!   2013-10-28  todling  - rename p3d to prse
 !   2013-05-23   zhu     - add ntclen and predt for aircraft temperature bias correction
+!   2014-01-31  mkim     - add support for when ql and qi are CVs for all-sky mw radiance DA
 !
 !   input argument list:
 !     xhat - Control variable
@@ -76,32 +79,36 @@ character(len=*),parameter::myname='control2state'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)      :: hwork
-integer(i_kind) :: i,j,k,ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
+integer(i_kind) :: ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle):: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
 !       the state and control vectors, but rather the ones
 !       this routines knows how to handle.
 ! Declare required local control variables
-integer(i_kind), parameter :: ncvars = 6
+integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
 integer(i_kind) :: icpblh,icgust,icvis,icoz
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  ', 'cw ' /)
-logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
-real(r_kind),pointer,dimension(:,:)   :: cv_ps,cv_vis
-real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_t,cv_rh
+                               'q  ', 'cw ', 'ql ', 'qi ' /)
+logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
+real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: cv_vis=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_t=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 7
 integer(i_kind) :: isps(nsvars)
 character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed here
-                               'u   ', 'v   ', 'p3d ', 'q   ', 'tsen', 'ql  ','qi  ' /)
-logical :: ls_u,ls_v,ls_p3d,ls_q,ls_tsen,ls_ql,ls_qi
+                               'u   ', 'v   ', 'prse', 'q   ', 'tsen', 'ql  ','qi  ' /)
+logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst
 real(r_kind),pointer,dimension(:,:)   :: sv_gust,sv_vis,sv_pblh
-real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_p3d,sv_q,sv_tsen,sv_tv,sv_oz
+real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz
 real(r_kind),pointer,dimension(:,:,:) :: sv_rank3
 real(r_kind),pointer,dimension(:,:)   :: sv_rank2
 
@@ -137,16 +144,17 @@ endif
 call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
 lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
+lc_ql =icps(7)>0; lc_qi =icps(8)>0
 
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
 call gsi_bundlegetpointer (sval(1),mysvars,isps,istatus)
-ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_p3d=isps(3)>0
+ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 
 ! Define what to do depending on what's in CV and SV
-do_getprs_tl     =lc_ps.and.lc_t .and.ls_p3d
-do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_p3d.and.ls_q
+do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
+do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 
@@ -154,7 +162,7 @@ do_cw_to_hydro=.false.
 if (regional) then
    do_cw_to_hydro=lc_cw.and.ls_ql.and.ls_qi
 else
-   do_cw_to_hydro=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi  !global
+   do_cw_to_hydro=lc_cw.and.ls_tsen.and.ls_ql.and.ls_qi.and.(.not.lc_ql) !ncep global 
 endif
 
 call gsi_bundlegetpointer (xhat%step(1),'oz',icoz,istatus)
@@ -190,11 +198,10 @@ do jj=1,nsubwin
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
    call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
-   call gsi_bundlegetpointer (sval(jj),'p3d' ,sv_p3d, istatus)
+   call gsi_bundlegetpointer (sval(jj),'prse',sv_prse,istatus)
    call gsi_bundlegetpointer (sval(jj),'tv'  ,sv_tv,  istatus)
    call gsi_bundlegetpointer (sval(jj),'tsen',sv_tsen,istatus)
    call gsi_bundlegetpointer (sval(jj),'q'   ,sv_q ,  istatus)
-!  call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus)     
    call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus_oz)  
    call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
    if (icgust>0) call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
@@ -202,10 +209,10 @@ do jj=1,nsubwin
    if (icvis >0) call gsi_bundlegetpointer (sval(jj),'vis'  ,sv_vis , istatus)
 
 !  Get 3d pressure
-   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_p3d)
+   if(do_getprs_tl) call getprs_tl(cv_ps,cv_t,sv_prse)
 
 !  Convert input normalized RH to q
-   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_p3d,sv_q)
+   if(do_normal_rh_to_q) call normal_rh_to_q(cv_rh,cv_t,sv_prse,sv_q)
 
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen(cv_t,sv_q,sv_tsen)

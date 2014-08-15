@@ -25,17 +25,17 @@ module hybrid_ensemble_parameters
 !  To introduce ensemble information into the background, a new control variable a (a_en in code), with
 !    corresponding background error A, is added to the cost function.
 !
-!       J(x1,a) = .5*beta1*x1_trans*B_inv*x1 + .5*beta2*a_trans*A_inv*a + Jo(x,yobs)
+!       J(x1,a) = .5*betas*x1_trans*B_inv*x1 + .5*betae*a_trans*A_inv*a + Jo(x,yobs)
 !
-!   where beta1 and beta2 are tuning constants constrained by
+!   where betas and betae are tuning parameters that are constrained (default) by
+!     
+!          1/betae = 1 - 1/betas   , and 0 <= betas_inv <= 1
 !
-!          0 <= (1/beta1) <= 1
+!   (1/betas) = 1, then no influence from ensemble perturbations
 !
-!          (1/beta1) + (1/beta2) = 1
-!
-!   (1/beta1) = 1, then no influence from ensemble perturbations
-!
-!   (1/beta1) = 0, then no influence from static background B
+!   (1/betas) = 0, then no influence from static background B
+
+!   betas and beta2 are allowed to vary vertically.
 !
 !  The state variable x is recovered from the control variable pair (x1,a) using
 !
@@ -60,9 +60,9 @@ module hybrid_ensemble_parameters
 !
 !  Full background precondioning is used:
 !
-!         x1 = (1/beta1)*B*y1
+!         x1 = (1/betas)*B*y1
 !
-!         a  = (1/beta2)*A*b
+!         a  = (1/betae)*A*b
 !
 !  The resulting cost function:
 !
@@ -76,7 +76,10 @@ module hybrid_ensemble_parameters
 !      n_ens:      ensemble size, default = 0
 !      nlon_ens            - number of longitudes to use for ensemble members and ensemble control vector
 !      nlat_ens            - number of latitudes to use for ensemble members and ensemble control vector
-!      beta1_inv:  value between 0 and 1, relative weight given to static background B, default = 1.0
+!      beta1_inv:  value between 0 and 1, default = 1.0, 
+!                  relative weight given to static background B when (readin_beta=.false.)
+!                  when (readin_beta=.true.), the vertical weighting parameters are read from a file, instead of 
+!                  being defined based on beta1_inv namelist or default value. 
 !      s_ens_h:    horizontal localization correlation length (units of km), default = 2828.0
 !      s_ens_v:    vertical localization correlation length (grid units), default = 30.0
 !      generate_ens:  if .true., generate ensemble perturbations internally as random samples of background B.
@@ -90,6 +93,8 @@ module hybrid_ensemble_parameters
 !      q_hyb_ens:  if .true., then use specific humidity ensemble perturbations
 !                  if .false. (default), use relative humidity
 !      readin_localization:  if .true., then read in localization information from external file
+!      use_localization_grid: if true, then use extra lower res gaussian grid for horizontal localization
+!                                   (global runs only--allows possiblity for non-gaussian ensemble grid)
 !      oz_univ_static:  if .true., ozone perturbations are zeroed out to make the ozone analysis
 !                       univariate, and defaults back to static B (no ensemble component)
 !      eqspace_ensgrid: if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
@@ -102,6 +107,8 @@ module hybrid_ensemble_parameters
 !     grid_ratio_ens: ratio of ensemble grid resolution to analysis resolution (default value is 1)
 !     enspreproc:      if .true., read in preprocessed ensemble members (in
 !                      files already subsetted for subdomains on each task).
+!     vvlocal:  logical variable, if .true., then horizontal localization length
+!               function of z, default = .false. 
 !=====================================================================================================
 !
 !
@@ -122,13 +129,17 @@ module hybrid_ensemble_parameters
 !   2010-09-25  parrish - add logical parameter gefs_in_regional to signal use gefs for regional hybens.
 !   2010-10-13  parrish - add parameter write_ens_sprd to allow option of writing global ensemble spread
 !                             in byte addressable format for plotting with grads.
+!   2011-09-15  todling - add use_gfs_ens to control when to use other
 !   2012-01-17  wu      - add switches and arrays for new options: full_ensemble,betaflg,pwgtflg
 !   2012-01-17  parrish - add integer parameter regional_ensemble_option which currently takes values
 !                              1-5.  See def below for details. 
 !   2012-02-07  tong    - remove logical parameter gefs_in_regional and reduce regional_ensemble_option
 !                         to 4 options.
+!   12-05-2012  el akkraoui - revised comments related to change in vertically varying beta weights
 !   2013-01-20  parrish - move initialization of beta1wgt, beta2wgt, pwgt to after allocation.
+!   2013-11-22  kleist  - add option for q perturbations
 !   2013-12-03  wu      - add parameter coef_bw for option:betaflg
+!   2014-05-14  wu      - add logical variable vvlocal for vertically verying horizontal localization length in regional
 !
 ! subroutines included:
 
@@ -145,8 +156,13 @@ module hybrid_ensemble_parameters
 !   def nlat_ens            - number of latitudes to use for ensemble members and ensemble control vector
 !   def jcap_ens            - for global spectral coef input, spectral truncation.
 !   def jcap_ens_test       - for global spectral coef input, test spectral truncation.
-!   def beta1_inv           - 1/beta1, the weight given to static background error covariance
-!                              beta2_inv = 1 - beta1_inv is weight given to ensemble derived covariance
+!   def beta1_inv           - 1/beta1, default weight given to static background error covariance
+!                             =1, then ensemble information turned off
+!                             =0, then static background turned off
+!                            the weights are applied per vertical level such that : 
+!                                        betas_inv(:) = beta1_inv     , vertically varying weights given to static B ; 
+!                                        betae_inv(:) = 1 - beta1_inv , vertically varying weights given ensemble derived covariance.
+!                            If (readin_beta) then betas_inv and betae_inv are read from a file and beta1_inv is not used.
 !   def s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !   def s_ens_v             - vertical localization scale (grid units for now)
 !   def readin_localization - flag to read (.true.)external localization information file
@@ -158,6 +174,8 @@ module hybrid_ensemble_parameters
 !                              been created to make it easier to have two different resolution grids,
 !                              one for analysis, and one for ensemble part.
 !   def grd_loc             - specifically used for ensemble control variable a_en
+!   def grd_sploc           - used for optional localization grid which is coarser than ensemble grid
+!                                  (global runs only)
 !   def grd_anl             - same as grd_ens, but on analysis grid
 !   def grd_a1              - same as grd_anl, but with communication set up for a single 3d grid
 !   def grd_e1              - same as grd_ens, but with communication set up for a single 3d grid
@@ -165,6 +183,8 @@ module hybrid_ensemble_parameters
 !   def sp_loc              - spectral structure variable, for use with spectral localization filter.
 !   def p_e2a               - structure variable for interpolation from ensemble grid to analysis grid
 !                              when in dual resolution mode.
+!   def p_sploc2ens         - structure variable for interpolation from localization grid to ensemble grid
+!                                  (global runs only)
 !   def dual_res            - if true, then ensemble grid is different from analysis grid.
 !   def pseudo_hybens       - if true, read in ensemble member from pseudo ensemble library and merge
 !                             the pseudo ensemble perturbations with global ensemble perturbations.
@@ -180,14 +200,17 @@ module hybrid_ensemble_parameters
 !                             will be equal to nobs_bins (4DVAR) when running in 4d-ensemble-var mode
 !   def full_ensemble       - logical switch to use ensemble perturbation on first guess or on ensemble mean
 !                              for the first member of ensemble
-!   def beta1wgt            - vertical weighting function for beta1_inv
-!   def beta2wgt            - vertical weighting function for beta2_inv
-!   def betaflg             - logical switch to use vertical weighting function for beta2_inv and beta1_inv
+!   def beta1wgt            - vertical weighting function for beta1_inv (regional)
+!   def beta2wgt            - vertical weighting function for beta2_inv (regional)
+!   def betaflg             - logical switch to use vertical weighting function for beta2_inv and beta1_inv (regional)
 !   def coef_bw             - fraction of weight given to the vertical boundaries when betaflg is true
 !   def pwgt                - vertical integration function for beta2_inv a_en on Psfc
 !   def pwgtflg             - logical switch to use vertical integration function for ensemble contribution on Psfc
 !   def grid_ratio_ens:     - ratio of ensemble grid resolution to analysis resolution (default value is 1)
+!   def use_localization_grid - if true, then use extra lower res gaussian grid for horizontal localization
+!                                   (global runs only--allows possiblity for non-gaussian ensemble grid)
 !   def enspreproc           - flag to read (.true.) already subsetted ensemble data.
+!   def vvlocal             - logical switch for vertically varying horizontal localization length
 !
 ! attributes:
 !   language: f90
@@ -208,19 +231,24 @@ module hybrid_ensemble_parameters
        destroy_hybens_localization_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
-       s_ens_h,oz_univ_static
+       s_ens_h,oz_univ_static,vvlocal
   public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
+  public :: readin_beta,betas_inv,betae_inv
   public :: readin_localization
   public :: eqspace_ensgrid,grid_ratio_ens
   public :: beta1wgt,beta2wgt,pwgt,full_ensemble,pwgtflg,betaflg,coef_bw
   public :: grd_ens
   public :: grd_e1
   public :: grd_loc
+  public :: grd_sploc
   public :: grd_anl
   public :: grd_a1
   public :: sp_ens
   public :: sp_loc
   public :: p_e2a
+  public :: p_sploc2ens
+  public :: use_localization_grid
+  public :: use_gfs_ens
   public :: dual_res
   public :: pseudo_hybens
   public :: merge_two_grid_ensperts
@@ -240,14 +268,19 @@ module hybrid_ensemble_parameters
   logical merge_two_grid_ensperts
   logical write_ens_sprd
   logical readin_localization
+  logical readin_beta
+  logical use_localization_grid
+  logical use_gfs_ens
   logical eqspace_ensgrid
+  logical vvlocal
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v,grid_ratio_ens,coef_bw
-  type(sub2grid_info),save :: grd_ens,grd_loc,grd_anl,grd_e1,grd_a1
+  type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
-  type(egrid2agrid_parm),save :: p_e2a
+  type(egrid2agrid_parm),save :: p_e2a,p_sploc2ens
   real(r_kind),allocatable,dimension(:) :: s_ens_hv,s_ens_vv
   real(r_kind),allocatable,dimension(:) :: beta1wgt,beta2wgt
+  real(r_kind),allocatable,dimension(:) :: betas_inv,betae_inv
   real(r_kind),allocatable,dimension(:,:,:) :: pwgt
 !    nval_lenz_en is total length of ensemble extended control variable for sqrt
 !    minimization mode
@@ -272,6 +305,7 @@ subroutine init_hybrid_ensemble_parameters
 ! program history log:
 !   
 !   2010-01-13  lueken - added subprogram doc block
+!   12-05-2012  el akkraoui - hybrid beta parameters now vertically varying
 !
 !   input argument list:
 !
@@ -283,6 +317,7 @@ subroutine init_hybrid_ensemble_parameters
 !
 !$$$ end documentation block
   use constants, only: one
+  use constants, only: zero
   implicit none
 
   l_hyb_ens=.false.
@@ -299,8 +334,12 @@ subroutine init_hybrid_ensemble_parameters
   regional_ensemble_option=0
   write_ens_sprd=.false.
   readin_localization=.false.
+  readin_beta=.false.
+  use_localization_grid=.false.
+  use_gfs_ens=.true.         ! when global: default is to read ensemble from GFS
   eqspace_ensgrid=.false.
   enspreproc=.false.
+  vvlocal=.false.
   coef_bw=0.9_r_kind
   n_ens=0
   nlat_ens=0
@@ -308,6 +347,9 @@ subroutine init_hybrid_ensemble_parameters
   jcap_ens_test=0
   nlon_ens=0
   beta1_inv=one
+  beta1wgt=one
+  beta2wgt=zero
+  pwgt=zero
   grid_ratio_ens=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
@@ -315,20 +357,17 @@ subroutine init_hybrid_ensemble_parameters
                              !      Observing system simulation experiment. Mon.  Wea. Rev., 136, 5132-5147.)
 
   s_ens_v = 30._r_kind       ! grid units 
-  nval_lenz_en=-1            ! initialize diemnsion to absurd value
+  nval_lenz_en=-1            ! initialize dimension to absurd value
   ntlevs_ens=1               ! default for number of time levels for ensemble perturbations
 
 end subroutine init_hybrid_ensemble_parameters
 
 subroutine create_hybens_localization_parameters
-  use constants, only: zero,one
   implicit none
   
   allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
+  allocate( betas_inv(grd_ens%nsig),betae_inv(grd_ens%nsig))
   allocate( beta1wgt(grd_ens%nsig),beta2wgt(grd_ens%nsig),pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
-  beta1wgt=one
-  beta2wgt=zero
-  pwgt=zero
   
 end subroutine create_hybens_localization_parameters
 
@@ -336,6 +375,7 @@ subroutine destroy_hybens_localization_parameters
   implicit none
   
   deallocate(s_ens_vv,s_ens_hv) 
+  deallocate(betas_inv,betae_inv)
   deallocate(beta1wgt,beta2wgt,pwgt)
 
 end subroutine destroy_hybens_localization_parameters

@@ -58,6 +58,9 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !                           (to handle cases of big-endian file/little-endian machine and vice-versa)
 !   2012-11-30  tong    - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
 !                         because load_prsges is called after this subroutine is called.                       
+!   2013-10-19  todling - efr_q variables now in cloud_efr module (update mod name too)
+!   2013-10-30  todling - ltosj/i now live in commvars
+!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !
 !   input argument list:
 !     mype     - pe number
@@ -83,21 +86,23 @@ subroutine read_wrf_nmm_binary_guess(mype)
   use kinds, only: r_kind,r_single,i_long,i_llong,i_kind
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_comm_world,npe,mpi_rtype, &
        mpi_offset_kind,mpi_info_null,mpi_mode_rdonly,mpi_status_size
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,ges_oz, & 
+  use guess_grids, only: & 
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+       isli,nfldsig,ifilesig,ges_tsen,ges_prsl
+  use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+  use cloud_efr_mod, only: cloud_calc
   use gridmod, only: lat2,lon2,itotsub,&
        pdtop_ll,pt_ll,nlon,nlat,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid,aeta1_ll,aeta2_ll, &
-      displs_s,ijn_s,ltosi_s,ltosj_s,half_nmm_grid2a,fill_nmm_grid2a3,regional               
+      displs_s,ijn_s,half_nmm_grid2a,fill_nmm_grid2a3,regional               
+  use general_commvars_mod, only: ltosi_s,ltosj_s
   use constants, only: zero,one_tenth,half,one,grav,fv,zero_single,r0_01,ten
   use regional_io, only: update_pint
   use gsi_io, only: lendian_in
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: getindex
+  use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use cloud_efr, only: cloud_calc
   use native_endianness, only: byte_swap
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save 
 
@@ -109,6 +114,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 ! Declare local parameters
 
 ! Declare local variables
+  character(len=*),parameter :: myname='read_wrf_nmm_binary_guess:: '
   integer(i_kind) kpint,kt,kq,ku,kv
   integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
 
@@ -130,7 +136,6 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) ifld,im,jm,lm,num_nmm_fields
   integer(i_kind) num_loc_groups,num_j_groups
   integer(i_kind) i,it,j,k
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smc,i_stc
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) i_cwm,i_f_ice,i_f_rain,i_f_rimef
@@ -154,16 +159,25 @@ subroutine read_wrf_nmm_binary_guess(mype)
   character(132) memoryorder
 
 ! variables for cloud info
-  integer(i_kind) nguess,istatus,ier,iret
+  integer(i_kind) n_actual_clouds,istatus,ier,iret
   integer(i_kind) iqtotal,icw4crtm
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
-  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
-  real(r_kind),pointer,dimension(:,:,:):: ges_qr
-  real(r_kind),pointer,dimension(:,:,:):: ges_qs
-  real(r_kind),pointer,dimension(:,:,:):: ges_qg
-  real(r_kind),pointer,dimension(:,:,:):: ges_qh
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
 
 !  NMM input grid dimensions in module reg_glob_ll
 !      These are the following:
@@ -182,7 +196,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
      endif
 
 !    Inquire about cloud guess fields
-     call gsi_metguess_get('dim',nguess,istatus)
+     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
 !    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
      icw4crtm=getindex(cvars3d,'cw')
@@ -194,7 +208,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !    Following is for convenient NMM/WRF NMM input
      num_nmm_fields=20+4*lm
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
-     if (nguess>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
+     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm       ! add hydrometeors
      num_loc_groups=num_nmm_fields/npe
 
      if(mype == 0) write(6,'(" at 1 in read_wrf_nmm_binary_guess, update_pint   =",l6)')update_pint   
@@ -417,7 +431,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         offset(i)=n_position ; length=im*jm ; igtype(i)=1 ; kdim(i)=1
         if(mype == 0) write(6,*)' tsk, i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
 
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
            i_cwm=i+1
            read(lendian_in) n_position,memoryorder
            do k=1,lm
@@ -477,7 +491,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
               offset(i)=n_position+iadd ; length(i)=im*jm ; igtype(i)=1 ; kdim(i)=lm
               if(mype == 0.and.k==1) write(6,*)' f_rimef i,igtype(i),offset(i) = ',i,igtype(i),offset(i)
            end do
-        end if  ! end of nguess>0
+        end if  ! end of n_actual_clouds>0
 
 !       bring in z0 (roughness length)
         mm1=mype+1
@@ -655,7 +669,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            deallocate(jbuf)
         end if
 
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
 !                                    read cwm
            if(kord(i_cwm)/=1) then
               allocate(jbuf(im,lm,jbegin(mype):jend(mype)))
@@ -754,8 +768,17 @@ subroutine read_wrf_nmm_binary_guess(mype)
 !    Next do conversion of units as necessary and
 !    reorganize into WeiYu's format--
 
+        ier=0
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
+        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+
 !       Get pointer to cloud water mixing ratio
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
@@ -768,7 +791,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         kq=i_q-1
         ku=i_u-1
         kv=i_v-1
-        if (nguess>0) then 
+        if (n_actual_clouds>0) then 
            kcwm=i_cwm-1
            kf_ice=i_f_ice-1
            kf_rain=i_f_rain-1
@@ -779,7 +802,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
            kq=kq+1
            ku=ku+1
            kv=kv+1
-           if (nguess>0) then
+           if (n_actual_clouds>0) then
               kcwm=kcwm+1
               kf_ice=kf_ice+1
               kf_rain=kf_rain+1
@@ -787,12 +810,12 @@ subroutine read_wrf_nmm_binary_guess(mype)
            end if
            do i=1,lon2
               do j=1,lat2
-                 ges_u(j,i,k,it) = all_loc(j,i,ku)
-                 ges_v(j,i,k,it) = all_loc(j,i,kv)
-                 ges_q(j,i,k,it)   = all_loc(j,i,kq)
+                 ges_u(j,i,k) = all_loc(j,i,ku)
+                 ges_v(j,i,k) = all_loc(j,i,kv)
+                 ges_q(j,i,k)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
 
-                 if (nguess>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
                     fice(j,i,k) = all_loc(j,i,kf_ice)
                     frain(j,i,k) = all_loc(j,i,kf_rain)
@@ -800,16 +823,16 @@ subroutine read_wrf_nmm_binary_guess(mype)
                  end if
               end do
            end do
-           if (nguess>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+           if (n_actual_clouds>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
                                 (aeta1_ll(k)*pdtop_ll + &
-                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
                                  pt_ll)
                  end do
               end do
-              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
                    fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
@@ -818,11 +841,11 @@ subroutine read_wrf_nmm_binary_guess(mype)
         do k=nsig_read+1,nsig
            do i=1,lon2
               do j=1,lat2
-                 ges_u(j,i,k,it)    = zero
-                 ges_v(j,i,k,it)    = zero
-                 ges_q(j,i,k,it)    = zero
+                 ges_u(j,i,k)    = zero
+                 ges_v(j,i,k)    = zero
+                 ges_q(j,i,k)    = zero
                  ges_tsen(j,i,k,it) = zero
-                 if (nguess>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k)  = zero
                     fice(j,i,k)   = zero
                     frain(j,i,k)  = zero
@@ -832,45 +855,53 @@ subroutine read_wrf_nmm_binary_guess(mype)
            end do
         end do
 
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
         end if
 
         do i=1,lon2
            do j=1,lat2
-              ges_z(j,i,it)    = all_loc(j,i,i_fis)/grav ! NMM surface elevation multiplied by g
+              ges_z(j,i)    = all_loc(j,i,i_fis)/grav ! NMM surface elevation multiplied by g
               
 !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
               
               pd=r0_01*all_loc(j,i,i_pd)
               psfc_this=pd+pdtop_ll+pt_ll
-              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
+              ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_smc)
               soil_temp(j,i,it)=all_loc(j,i,i_stc)
            end do
         end do
         if(update_pint) then
+           ier=0
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+           ier=ier+istatus
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+           ier=ier+istatus
+           if (ier/=0) then ! doesn't need to die (but needs careful revision)
+              call die(myname,': missing pint/pd fields',ier)
+           endif
            kpint=i_pint-1
            do k=1,nsig_read+1 
               kpint=kpint+1
               do i=1,lon2
                  do j=1,lat2
-                    ges_pint(j,i,k,it)  = all_loc(j,i,kpint)
+                    ges_pint(j,i,k)  = all_loc(j,i,kpint)
                  end do
               end do
            end do
            do k=nsig_read+2,nsig+1 
               do i=1,lon2
                  do j=1,lat2
-                    ges_pint(j,i,k,it)  = zero
+                    ges_pint(j,i,k)  = zero
                  enddo
               enddo
            enddo
            do i=1,lon2
               do j=1,lat2
-                 ges_pd(j,i,it)=all_loc(j,i,i_pd)
+                 ges_pd(j,i)=all_loc(j,i,i_pd)
               end do
            end do
         end if
@@ -879,14 +910,14 @@ subroutine read_wrf_nmm_binary_guess(mype)
         do k=1,nsig_read       
            do i=1,lon2       
               do j=1,lat2
-                 ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+                 ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))
               end do
            end do
         end do
            do k=nsig_read+1,nsig 
               do i=1,lon2
                  do j=1,lat2
-                    ges_tv(j,i,k,it)  = zero
+                    ges_tv(j,i,k)  = zero
                  enddo
               enddo
           enddo
@@ -895,7 +926,7 @@ subroutine read_wrf_nmm_binary_guess(mype)
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-              wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+              wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
               if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_u10)**2 + &
                       all_loc(j,i,i_v10)**2)/wmag
               fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
@@ -987,6 +1018,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !                      for wrf_nmm_regional (HWRF)                 
 !   2012-11-30  tong  - added the calculation of ges_prsl for the caculation of cloud mixing ratio,
 !                       because load_prsges is called after this subroutine is called.
+!   2013-10-13  todling - efr_q vars now in cloud_efr module (update mod name too)
 !
 !   input argument list:
 !     mype     - pe number
@@ -1011,9 +1043,11 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !$$$
   use kinds, only: r_kind,r_single,i_kind
   use mpimod, only: ierror,mpi_integer,mpi_sum,mpi_real4,mpi_comm_world,npe
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,ges_oz, &
+  use guess_grids, only: &
        fact10,soil_type,veg_frac,veg_type,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ifilesig,ges_tsen,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+       isli,nfldsig,ifilesig,ges_tsen,ges_prsl
+  use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+  use cloud_efr_mod, only: cloud_calc
   use gridmod, only: lat2,lon2,itotsub,displs_s,ijn_s,&
        pdtop_ll,pt_ll,nlon_regional,nsig,nlat_regional,half_grid,&
        filled_grid,aeta1_ll,aeta2_ll
@@ -1024,15 +1058,15 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   use gfs_stratosphere, only: use_gfs_stratosphere,nsig_save,good_o3mr 
   use gsi_metguess_mod, only: gsi_metguess_get,gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use mpeu_util, only: getindex
+  use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use cloud_efr, only: cloud_calc
   implicit none
 
 ! Declare passed variables here
   integer(i_kind),intent(in):: mype
 
 ! Declare local parameters
+  character(len=*),parameter :: myname='read_wrf_nmm_netcdf_guess:: '
 
 ! Declare local variables
   integer(i_kind) kpint,kt,kq,ku,kv
@@ -1061,16 +1095,26 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
   integer(i_kind) num_doubtful_sfct,num_doubtful_sfct_all
 
 ! variables for cloud info
-  integer(i_kind) nguess,istatus,ier,iret
+  integer(i_kind) n_actual_clouds,istatus,ier,iret
   integer(i_kind) iqtotal,icw4crtm
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef
-  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
-  real(r_kind),pointer,dimension(:,:,:):: ges_qr
-  real(r_kind),pointer,dimension(:,:,:):: ges_qs
-  real(r_kind),pointer,dimension(:,:,:):: ges_qg
-  real(r_kind),pointer,dimension(:,:,:):: ges_qh
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_oz  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
 
 !  NMM input grid dimensions in module reg_glob_ll
 !      These are the following:
@@ -1094,7 +1138,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      end if
 
 !    Inquire about cloud guess fields
-     call gsi_metguess_get('dim',nguess,istatus)
+     call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
 !    Determine whether or not cloud-condensate is the control variable (ges_cw=ges_ql+ges_qi)
      icw4crtm=getindex(cvars3d,'cw')
@@ -1105,7 +1149,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 !    Following is for convenient NMM/WRF NMM input
      num_nmm_fields=14+4*lm
      if(update_pint) num_nmm_fields=num_nmm_fields+lm+1   ! add contribution of PINT
-     if (nguess>0) num_nmm_fields=num_nmm_fields+4*lm
+     if (n_actual_clouds>0) num_nmm_fields=num_nmm_fields+4*lm
      num_all_fields=num_nmm_fields*nfldsig
      num_loc_groups=num_all_fields/npe
 
@@ -1215,7 +1259,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
      i=i+1 ; i_tsk=i                                               ! tsk
      write(identity(i),'("record ",i3,"--sst")')i
      jsig_skip(i)=0 ; igtype(i)=1
-     if (nguess>0) then
+     if (n_actual_clouds>0) then
         i_cwm=i+1
         do k=1,lm
            i=i+1                                                   ! cwm(k)
@@ -1244,7 +1288,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            jsig_skip(i)=0
            igtype(i)=1
         end do
-     end if  ! end of nguess>0
+     end if  ! end of n_actual_clouds>0
 
 !    End of stuff from NMM restart file
 
@@ -1327,8 +1371,19 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
      do it=1,nfldsig
 
+!       Get pointers to typical met-fields
+        ier=0
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz' ,ges_oz ,istatus );ier=ier+istatus
+        if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+
 !       Get pointer to cloud water mixing ratio
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier=ier+iret
@@ -1342,7 +1397,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         kq=i_0+i_q-1
         ku=i_0+i_u-1
         kv=i_0+i_v-1
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
            kcwm=i_0+i_cwm-1
            kf_ice=i_0+i_f_ice-1
            kf_rain=i_0+i_f_rain-1
@@ -1354,7 +1409,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            kq=kq+1
            ku=ku+1
            kv=kv+1
-           if (nguess>0) then
+           if (n_actual_clouds>0) then
               kcwm=kcwm+1
               kf_ice=kf_ice+1
               kf_rain=kf_rain+1
@@ -1363,13 +1418,13 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
            do i=1,lon2
               do j=1,lat2
-                 ges_u(j,i,k,it) = all_loc(j,i,ku)
-                 ges_v(j,i,k,it) = all_loc(j,i,kv)
-                 ges_q(j,i,k,it)   = all_loc(j,i,kq)
+                 ges_u(j,i,k) = all_loc(j,i,ku)
+                 ges_v(j,i,k) = all_loc(j,i,kv)
+                 ges_q(j,i,k)   = all_loc(j,i,kq)
                  ges_tsen(j,i,k,it)  = all_loc(j,i,kt) ! actually holds sensible temperature
-                 ges_oz(j,i,k,it) = zero               ! set to zero for now 
+                 ges_oz(j,i,k) = zero                  ! set to zero for now 
 
-                 if (nguess>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k) = all_loc(j,i,kcwm)
                     fice(j,i,k) = all_loc(j,i,kf_ice)
                     frain(j,i,k) = all_loc(j,i,kf_rain)
@@ -1377,16 +1432,16 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
                  end if
               end do
            end do
-           if (nguess>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
+           if (n_actual_clouds>0 .and. (icw4crtm>0 .or. iqtotal>0) .and. ier==0) then 
               do i=1,lon2
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
                                 (aeta1_ll(k)*pdtop_ll + &
-                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
                                  pt_ll)
                  end do
               end do
-              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
                    fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
@@ -1395,13 +1450,13 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         do k=nsig_read+1,nsig
            do i=1,lon2
               do j=1,lat2
-                 ges_u(j,i,k,it)    = zero 
-                 ges_v(j,i,k,it)    = zero 
-                 ges_q(j,i,k,it)    = zero 
+                 ges_u(j,i,k)    = zero 
+                 ges_v(j,i,k)    = zero 
+                 ges_q(j,i,k)    = zero 
                  ges_tsen(j,i,k,it) = zero
-                 ges_oz(j,i,k,it)   = zero 
+                 ges_oz(j,i,k)   = zero 
 
-                 if (nguess>0) then
+                 if (n_actual_clouds>0) then
                     clwmr(j,i,k)  = zero 
                     fice(j,i,k)   = zero 
                     frain(j,i,k)  = zero
@@ -1410,20 +1465,20 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
               enddo
            enddo
         enddo
-        if (nguess>0) then
+        if (n_actual_clouds>0) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
            if (iret==0) ges_cwmr=clwmr
         end if
 
         do i=1,lon2
            do j=1,lat2
-              ges_z(j,i,it)    = all_loc(j,i,i_0+i_fis)/grav ! NMM surface elevation multiplied by g
+              ges_z(j,i)    = all_loc(j,i,i_0+i_fis)/grav ! NMM surface elevation multiplied by g
 
 !             convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
               
               pd=r0_01*all_loc(j,i,i_0+i_pd)
               psfc_this=pd+pdtop_ll+pt_ll
-              ges_ps(j,i,it)=one_tenth*psfc_this   ! convert from mb to cb
+              ges_ps(j,i)=one_tenth*psfc_this   ! convert from mb to cb
               sno(j,i,it)=all_loc(j,i,i_0+i_sno)
               soil_moi(j,i,it)=all_loc(j,i,i_0+i_smc)
               soil_temp(j,i,it)=all_loc(j,i,i_0+i_stc)
@@ -1437,26 +1492,34 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         if(mype == 10) write(6,*)' in read_wrf_nmm_netcdf_guess, min,max(soil_temp)=', &
              minval(soil_temp),maxval(soil_temp)
         if(update_pint) then
+           ier=0
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+           ier=ier+istatus
+           call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+           ier=ier+istatus
+           if (ier/=0) then ! doesn't need to die (but needs careful revision)
+              call die(myname,': missing pint/pd fields',ier)
+           endif
            kpint=i_0+i_pint-1
            do k=1,nsig_read+1
               kpint=kpint+1
               do i=1,lon2
                  do j=1,lat2
-                    ges_pint(j,i,k,it)  = all_loc(j,i,kpint) ! actually holds sensible temperature
+                    ges_pint(j,i,k)  = all_loc(j,i,kpint) ! actually holds sensible temperature
                  end do
               end do
            end do
            do k=nsig_read+2,nsig+1
               do i=1,lon2
                  do j=1,lat2
-                    ges_pint(j,i,k,it) = zero
+                    ges_pint(j,i,k) = zero
                  end do
               end do
            end do
 
            do i=1,lon2
               do j=1,lat2
-                 ges_pd(j,i,it)  = all_loc(j,i,i_0+i_pd)
+                 ges_pd(j,i)  = all_loc(j,i,i_0+i_pd)
               end do
            end do
         end if
@@ -1465,14 +1528,14 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         do k=1,nsig_read
            do i=1,lon2
               do j=1,lat2
-                 ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+                 ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))
               end do
            end do
         end do
         do k=nsig_read+1,nsig
            do i=1,lon2
               do j=1,lat2
-                 ges_tv(j,i,k,it) = zero 
+                 ges_tv(j,i,k) = zero 
               end do
            end do
         end do
@@ -1485,7 +1548,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-              wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+              wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
               if(wmag > zero)fact10(j,i,it)=sqrt(all_loc(j,i,i_0+i_u10)**2 + &
                       all_loc(j,i,i_0+i_v10)**2)/wmag
               fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
@@ -1544,7 +1607,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
 
      if (mype==0) then
         do k=1,nsig
-           write(6,*)' in read_wrf_nmm_netcdf_k,ges_tv  =',k,ges_tv(10,10,k,1)   !debug            
+           write(6,*)' in read_wrf_nmm_netcdf_k,ges_tv  =',k,ges_tv(10,10,k)   !debug            
            write(6,*)' in read_wrf_nmm_netcdf_k,ges_tsen=',k,ges_tsen(10,10,k,1) !debug        
         enddo
      endif
@@ -1573,8 +1636,9 @@ subroutine read_nems_nmmb_guess(mype)
 !   2010-03-15  parrish - add option regional_ozone to turn on ozone in regional analysis
 !   2011-06-16  zhu     - add option to read cloud info for cloudy radiance
 !   2012-02-16  parrish - include option to replace nmmb stratosphere with gfs stratosphere.
-!   2012-12-16  s.liu   - add gsd cloud analysis variables.
 !   2012-10-18  s.liu   - add use_reflectivity option for cloud analysis variables.
+!   2012-12-16  s.liu   - add gsd cloud analysis variables.
+!   2013-10-19  todling - efr fields now live in cloud_efr_mod
 !
 !   input argument list:
 !     mype     - pe number
@@ -1599,12 +1663,13 @@ subroutine read_nems_nmmb_guess(mype)
 !$$$
   use kinds, only: r_kind,i_kind
   use mpimod, only: ierror,mpi_comm_world,mpi_integer,mpi_sum
-  use guess_grids, only: ges_z,ges_ps,ges_pint,ges_pd,ges_tv,ges_q,ges_u,ges_v,&
+  use guess_grids, only: &
        fact10,soil_type,veg_frac,veg_type,sfc_rough,sfct,sno,soil_temp,soil_moi,&
-       isli,nfldsig,ges_tsen,ges_oz,ges_prsl,efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
+       isli,nfldsig,ges_tsen,ges_prsl
+  use cloud_efr_mod, only: efr_ql,efr_qi,efr_qr,efr_qs,efr_qg,efr_qh
   use guess_grids, only: ges_prsi,ges_prsl,ges_prslavg
   use gridmod, only: lat2,lon2,pdtop_ll,pt_ll,nsig,nmmb_verttype,use_gfs_ozone,regional_ozone,& 
-       aeta1_ll,aeta2_ll, use_reflectivity
+       aeta1_ll,aeta2_ll,use_reflectivity
   use constants, only: zero,one_tenth,half,one,fv,rd_over_cp,r100,r0_01,ten
   use regional_io, only: update_pint
   use gsi_nemsio_mod, only: gsi_nemsio_open,gsi_nemsio_close,gsi_nemsio_read
@@ -1613,7 +1678,7 @@ subroutine read_nems_nmmb_guess(mype)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use mpeu_util, only: die,getindex
   use control_vectors, only: cvars3d
-  use cloud_efr, only: cloud_calc
+  use cloud_efr_mod, only: cloud_calc
   implicit none
 
 ! Declare passed variables here
@@ -1625,7 +1690,7 @@ subroutine read_nems_nmmb_guess(mype)
 
 ! other internal variables
   character(255) wrfges
-  character(len=*),parameter :: myname_='read_nems_nmmb_guess:: '
+  character(len=*),parameter :: myname='read_nems_nmmb_guess:: '
   integer(i_kind) i,it,j,k,kr,mype_input
   integer(i_kind) isli_this,nsig_read
   real(r_kind) pd,psfc_this,wmag,pd_to_ps
@@ -1633,17 +1698,27 @@ subroutine read_nems_nmmb_guess(mype)
   real(r_kind),dimension(lat2,lon2):: smthis,sicethis,u10this,v10this,sstthis,tskthis
 
 ! variables for cloud info
-  integer(i_kind) iqtotal,icw4crtm,ier,iret,nguess,istatus
+  integer(i_kind) iqtotal,icw4crtm,ier,iret,n_actual_clouds,istatus
   real(r_kind),dimension(lat2,lon2,nsig):: clwmr,fice,frain,frimef,qhtmp
-  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr
-  real(r_kind),pointer,dimension(:,:,:):: ges_ql
-  real(r_kind),pointer,dimension(:,:,:):: ges_qi
-  real(r_kind),pointer,dimension(:,:,:):: ges_qr
-  real(r_kind),pointer,dimension(:,:,:):: ges_qs
-  real(r_kind),pointer,dimension(:,:,:):: ges_qg
-  real(r_kind),pointer,dimension(:,:,:):: ges_qh
-  real(r_kind),pointer,dimension(:,:,:):: ges_ref
-  real(r_kind),pointer,dimension(:,:,:):: dfi_tten
+  real(r_kind),pointer,dimension(:,:  ):: ges_pd  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_ps  =>NULL()
+  real(r_kind),pointer,dimension(:,:  ):: ges_z   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_tv  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_pint=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_oz  =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_cwmr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_ref =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: dfi_tten=>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: ges_ql=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qi=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qr=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qs=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qg=>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: ges_qh=>NULL()
 
 !  check to see if using GFS stratosphere:
   if(use_gfs_stratosphere) then
@@ -1669,7 +1744,7 @@ subroutine read_nems_nmmb_guess(mype)
   iqtotal=getindex(cvars3d,'qt')
 
 ! Inquire about cloud guess fields
-  call gsi_metguess_get('dim',nguess,istatus)
+  call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
 
 ! do serial input for now, with mpi_send to put on appropriate processor.
 
@@ -1677,6 +1752,17 @@ subroutine read_nems_nmmb_guess(mype)
   do it=1,nfldsig
      num_doubtful_sfct=0
        
+     ier=0
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q  ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz' ,ges_oz ,istatus );ier=ier+istatus
+     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'pd' ,ges_pd,istatus );ier=ier+istatus
+     if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+
      if(mype==mype_input) then
         if(it==1)then
            wrfges = 'wrf_inout'
@@ -1689,56 +1775,57 @@ subroutine read_nems_nmmb_guess(mype)
 
 !                            ! pd
 
-     call gsi_nemsio_read('dpres','hybrid sig lev','H',1,ges_pd(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('dpres','hybrid sig lev','H',1,ges_pd,mype,mype_input)
      do i=1,lon2
         do j=1,lat2
 !               convert wrf nmm pd variable to psfc in mb, and then to log(psfc) in cb
-           pd=r0_01*ges_pd(j,i,it)
+           pd=r0_01*ges_pd(j,i)
            psfc_this=pd+pd_to_ps
-           ges_ps(j,i,it)=one_tenth*psfc_this
-                  if(i==1.and.j==1) write(6,*)' i,j,psfc_this,ges_ps(j,i,it)=',i,j,psfc_this,ges_ps(j,i,it)
+           ges_ps(j,i)=one_tenth*psfc_this
+           if(i==1.and.j==1) write(6,*)' it,i,j,psfc_this,ges_ps(j,i)=',it,i,j,psfc_this,ges_ps(j,i)
         end do
      end do
 
 !                          !   fis
 
-     call gsi_nemsio_read('hgt','sfc','H',1,ges_z(:,:,it),mype,mype_input)
+     call gsi_nemsio_read('hgt','sfc','H',1,ges_z(:,:),mype,mype_input)
 
 !                          !   u,v,q,tsen,tv
      do k=nsig_read+1,nsig
-        ges_u(:,:,k,it)=zero
-        ges_v(:,:,k,it)=zero
-        ges_q(:,:,k,it)=zero
+        ges_u(:,:,k)=zero
+        ges_v(:,:,k)=zero
+        ges_q(:,:,k)=zero
         ges_tsen(:,:,k,it)=zero
-        ges_oz(:,:,k,it)=zero
+        ges_oz(:,:,k)=zero
      end do
      do kr=1,nsig_read
         k=nsig_read+1-kr
-        call gsi_nemsio_read('ugrd','mid layer','V',kr,ges_u(:,:,k,it),   mype,mype_input)
-        call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k,it),   mype,mype_input)
-        call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k,it),   mype,mype_input)
+        call gsi_nemsio_read('ugrd','mid layer','V',kr,ges_u(:,:,k),   mype,mype_input)
+        call gsi_nemsio_read('vgrd','mid layer','V',kr,ges_v(:,:,k),   mype,mype_input)
+        call gsi_nemsio_read('spfh','mid layer','H',kr,ges_q(:,:,k),   mype,mype_input)
         call gsi_nemsio_read('tmp' ,'mid layer','H',kr,ges_tsen(:,:,k,it),mype,mype_input)
         do i=1,lon2
            do j=1,lat2
-              ges_tv(j,i,k,it) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k,it))
+              ges_tv(j,i,k) = ges_tsen(j,i,k,it) * (one+fv*ges_q(j,i,k))
            end do
         end do
         if(regional_ozone) then
            if(use_gfs_ozone) then
-              ges_oz(:,:,k,it)=zero
+              ges_oz(:,:,k)=zero
            else
               good_o3mr=.false.
-              call gsi_nemsio_read('o3mr' ,'mid layer','H',kr,ges_oz(:,:,k,it),mype,mype_input,good_o3mr)
+              call gsi_nemsio_read('o3mr' ,'mid layer','H',kr,ges_oz(:,:,k),mype,mype_input,good_o3mr)
               if(.not.good_o3mr) then
                  write(6,*)' IN READ_NEMS_NMMB_GUESS, O3MR FIELD NOT YET AVAILABLE'
-                 ges_oz(:,:,k,it)=zero
+                 ges_oz(:,:,k)=zero
               end if
            end if
         end if
      end do
 
 !                          !  cloud liquid water,ice,snow,graupel,hail,rain for cloudy radiance
-     if (nguess>0 .and. .not.use_reflectivity) then
+     if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
+
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier=iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=ier+iret
@@ -1746,7 +1833,6 @@ subroutine read_nems_nmmb_guess(mype)
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier=ier+iret
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier=ier+iret
-!       write(6,*) 'read_wrf_nmm_guess read nemsio2::', ier,nguess
         if ((icw4crtm>0 .or. iqtotal>0) .and. ier==0) then
            do kr=1,nsig
               k=nsig+1-kr
@@ -1759,11 +1845,11 @@ subroutine read_nems_nmmb_guess(mype)
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
                                 (aeta1_ll(k)*pdtop_ll + &
-                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
                                  pt_ll)
                  end do
               end do
-              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
                    fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),ges_qh(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
@@ -1771,12 +1857,13 @@ subroutine read_nems_nmmb_guess(mype)
            end do
 
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr,iret)
-!       write(6,*) 'end read nemsio2::', iret
            if (iret==0) ges_cwmr=clwmr 
         end if  ! icw4crtm>10 .or. iqtotal>0
-     end if    ! end of (nguess>0)
+     end if    ! end of (n_actual_clouds>0)
 
-     if (nguess>0 .and. use_reflectivity) then
+
+!    if (n_actual_clouds>0 .and. use_reflectivity) then
+     if (use_reflectivity) then
 
 !       Get pointer to cloud water mixing ratio
         call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier=iret
@@ -1797,28 +1884,36 @@ subroutine read_nems_nmmb_guess(mype)
                  do j=1,lat2
                     ges_prsl(j,i,k,it)=one_tenth* &
                                 (aeta1_ll(k)*pdtop_ll + &
-                                 aeta2_ll(k)*(ten*ges_ps(j,i,it)-pdtop_ll-pt_ll) + &
+                                 aeta2_ll(k)*(ten*ges_ps(j,i)-pdtop_ll-pt_ll) + &
                                  pt_ll)
                  end do
               end do
-              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k,it),ges_tsen(:,:,k,it),clwmr(:,:,k), &
+              call cloud_calc(ges_prsl(:,:,k,it),ges_q(:,:,k),ges_tsen(:,:,k,it),clwmr(:,:,k), &
                    fice(:,:,k),frain(:,:,k),frimef(:,:,k), &
                    ges_ql(:,:,k),ges_qi(:,:,k),ges_qr(:,:,k),ges_qs(:,:,k),ges_qg(:,:,k),qhtmp(:,:,k), &
                    efr_ql(:,:,k,it),efr_qi(:,:,k,it),efr_qr(:,:,k,it),efr_qs(:,:,k,it),efr_qg(:,:,k,it),efr_qh(:,:,k,it))
            end do
 
-        end if 
-
+     end if 
 
                                    !   pint
      if(update_pint) then
 
+        ier=0
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pint', ges_pint, istatus)
+        ier=ier+istatus
+        call gsi_bundlegetpointer(gsi_metguess_bundle(it),'pd'  , ges_pd  , istatus)
+        ier=ier+istatus
+        if (ier/=0) then ! doesn't need to die (but needs careful revision)
+           call die(myname,': missing pint/pd fields',ier)
+        endif
+
         do k=nsig_read+2,nsig+1
-           ges_pint(:,:,k,it)=zero
+           ges_pint(:,:,k)=zero
         end do
         do kr=1,nsig_read+1
            k=nsig_read+2-kr
-           call gsi_nemsio_read('pres' ,'layer','H',kr,ges_pint(:,:,k,it),mype,mype_input)
+           call gsi_nemsio_read('pres' ,'layer','H',kr,ges_pint(:,:,k),mype,mype_input)
         end do
 
      end if
@@ -1891,7 +1986,7 @@ subroutine read_nems_nmmb_guess(mype)
      if(mype==0) write(6,*)' in read_nems_nmmb_guess, rd_over_cp=',rd_over_cp
      do i=1,lon2
         do j=1,lat2
-           tskthis(j,i)=tskthis(j,i)*(ges_ps(j,i,it)/r100)**rd_over_cp
+           tskthis(j,i)=tskthis(j,i)*(ges_ps(j,i)/r100)**rd_over_cp
         end do
      end do
 
@@ -1902,7 +1997,7 @@ subroutine read_nems_nmmb_guess(mype)
      do i=1,lon2
         do j=1,lat2
            fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)
-           wmag=sqrt(ges_u(j,i,1,it)**2+ges_v(j,i,1,it)**2)
+           wmag=sqrt(ges_u(j,i,1)**2+ges_v(j,i,1)**2)
            if(wmag > zero)fact10(j,i,it)=sqrt(u10this(j,i)**2+v10this(j,i)**2)/wmag
            fact10(j,i,it)=min(max(fact10(j,i,it),half),0.95_r_kind)
 
@@ -1929,7 +2024,6 @@ subroutine read_nems_nmmb_guess(mype)
 
      call gsi_nemsio_close(wrfges,'READ_NEMS_NMMB_GUESS',mype,mype_input)
 
-
 !    read in radar reflectivity
 !    mype_input=0
      if(use_reflectivity) then
@@ -1938,7 +2032,7 @@ subroutine read_nems_nmmb_guess(mype)
 !       write(6,*)'start to read obsref.nemsio'
      end if
      call gsi_nemsio_open(wrfges,'READ', &
-                          'READ_radar_reflecitivity_mosaic:  problem with obsref.nemsio',mype,mype_input)
+                    'READ_radar_reflecitivity_mosaic:  problem with obsref.nemsio',mype,mype_input)
      do kr=1,nsig
         k=nsig+1-kr
         call gsi_nemsio_read('obs_ref' ,'mid layer','H',kr,ges_ref(:,:,k),mype,mype_input)
@@ -1960,7 +2054,7 @@ subroutine read_nems_nmmb_guess(mype)
 
      do k=1,nsig
                      if(mype==0) &
-         write(6,*)' k,ges_tv=',k,ges_tv(10,10,k,1)  ! debug
+         write(6,*)' k,ges_tv=',k,ges_tv(10,10,k)  ! debug
      end do
 
   return 

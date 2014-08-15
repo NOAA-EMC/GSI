@@ -175,6 +175,7 @@ contains
 !   2010-03-31  Huang   - create routine based on read_gfs
 !   2010-10-19  Huang   - remove spectral part for gridded NEMS/GFS
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     mype              - mpi task id
@@ -189,34 +190,60 @@ contains
 
     use kinds, only: i_kind,r_kind
     use gridmod, only: sp_a
-    use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
-         ges_u,ges_v,ges_tv,ges_q,ges_oz,&
-         ifilesig,nfldsig
+    use guess_grids, only: ifilesig,nfldsig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use mpeu_util, only: die
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
 
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
-    integer(i_kind):: it, iret
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
+    integer(i_kind):: it, iret, ier
+    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
 
     do it=1,nfldsig
 
 !      Get pointer to could water mixing ratio
+       ier=0
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z',ges_z_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u',ges_u_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v',ges_v_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q',ges_q_it,iret)
+       ier=ier+iret
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,iret)
+       ier=ier+iret
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,iret)
-       if (iret/=0) call die(trim(myname_),'cannot get pointer to cwmr, iret =',iret)
+       ier=ier+iret
+       if (ier/=0) cycle ! this allows code to be free from met-fields
 
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
        call read_atm_ (filename,mype,sp_a,&
-            ges_z(1,1,it),ges_ps(1,1,it),&
-            ges_vor(1,1,1,it),ges_div(1,1,1,it),&
-            ges_u(1,1,1,it),ges_v(1,1,1,it),&
-            ges_tv(1,1,1,it),ges_q(1,1,1,it),&
-            ges_cwmr_it,ges_oz(1,1,1,it))
+            ges_z_it,ges_ps_it,&
+            ges_vor_it,ges_div_it,&
+            ges_u_it,ges_v_it,&
+            ges_tv_it,ges_q_it,&
+            ges_cwmr_it,ges_oz_it)
     end do
   end subroutine read_
 
@@ -254,7 +281,7 @@ contains
     use mpimod,  only: mype
     use gridmod, only: lat2,lon2,nsig,nlat,rlats,istart
     use ncepgfs_ghg, only: read_gfsco2
-    use guess_grids, only: ges_ps,nfldsig,ntguessig
+    use guess_grids, only: nfldsig,ntguessig
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_chemguess_mod, only: gsi_chemguess_bundle
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -267,7 +294,7 @@ contains
     integer(i_kind), intent(in):: idd
 
 !   Declare local variables
-    integer(i_kind) :: igfsco2, i, j, k, n, iret
+    integer(i_kind) :: igfsco2, i, j, n, iret
     real(r_kind),dimension(lat2):: xlats
     real(r_kind),pointer,dimension(:,:,:)::p_co2=>NULL()
     real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
@@ -316,6 +343,7 @@ contains
 !                       maximum resident memory size.  Page fault can happen
 !                       when running at high resolution GSI, e.g., T574.
 !   2011-09-23 Huang    Add NEMS parallel IO capability
+!   2013-10-25 todling  reposition fill_ns,filluv_ns to commvars
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -331,7 +359,8 @@ contains
     use kinds, only: r_kind,i_kind
     use gridmod, only: displs_s,irc_s,ijn_s,&
          ird_s,nsig,nlat,nlon,lat2,lon2,&
-         itotsub,fill_ns,filluv_ns,ntracer,ncloud,reload
+         itotsub,ntracer,ncloud,reload
+    use general_commvars_mod, only: fill_ns,filluv_ns
     use general_specmod, only: spec_vars
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
@@ -355,8 +384,8 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: iret,nlatm2,n,l,m
-    integer(i_kind) :: i,j,k,icount,icount_prev,mm1
+    integer(i_kind) :: iret,nlatm2
+    integer(i_kind) :: k,icount,icount_prev,mm1
     integer(i_kind) :: mype_hs, mype_ps
     integer(i_kind) :: latb, lonb, levs, nframe
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
@@ -364,9 +393,9 @@ contains
     real(r_kind),allocatable,dimension(:,:) :: grid, grid_v, &
          grid_vor, grid_div
     real(r_kind),allocatable,dimension(:)   :: work, work_vor, work_div, &
-         work_u, work_v
+         work_v
     real(r_kind),allocatable,dimension(:,:) :: sub, sub_vor, sub_div, &
-         sub_u, sub_v
+         sub_v
     real(r_kind),dimension(sp%nc):: spec_vor,spec_div
     real(r_kind),allocatable,dimension(:) :: rwork1d0, rwork1d1, rwork1d2
     real(r_kind) :: fhour
@@ -1040,6 +1069,7 @@ contains
 ! program history log:
 !   2010-02-22  Huang    Initial version.  Based on write_gfs
 !   2011-05-01  todling - cwmr no longer in guess-grids; use metguess bundle now
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     increment          - when >0 will write increment from increment-index slot
@@ -1055,13 +1085,10 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
-    use guess_grids, only: ges_z,ges_ps,ges_vor,ges_div,&
-         ges_tv,ges_q,ges_oz,ges_prsl,&
-         ges_u,ges_v,ges_prsi,dsfct 
+    use guess_grids, only: ges_prsl,ges_prsi,dsfct 
     use guess_grids, only: ntguessig,ntguessfc
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use mpeu_util, only: die
     use radinfo, only: nst_gsi
 
     implicit none
@@ -1071,8 +1098,17 @@ contains
 
     character(len=*),parameter::myname_=myname//'*write_'
     character(len=24)             :: filename, file_nst
-    integer(i_kind)               :: itoutsig, iret
-    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it
+    integer(i_kind)               :: itoutsig, iret, ier
+    real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_vor_it =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_tv_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_q_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_oz_it  =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
 
 !   Write atmospheric analysis file
     if (increment>0) then
@@ -1082,17 +1118,39 @@ contains
        filename='siganl'
        itoutsig=ntguessig
     endif
-!   Get pointer to could water mixing ratio
-    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,iret)
-    if (iret/=0) call die(trim(myname_),'cannot get pointer to cwmr, iret =',iret)
 
-    call write_atm_ (filename,mype,mype_atm,&
-         ges_z(1,1,itoutsig),ges_ps(1,1,itoutsig),&
-         ges_vor(1,1,1,itoutsig),ges_div(1,1,1,itoutsig),&
-         ges_tv(1,1,1,itoutsig),ges_q(1,1,1,itoutsig),&
-         ges_oz(1,1,1,itoutsig),ges_cwmr_it,&
-         ges_prsl(1,1,1,itoutsig),ges_u(1,1,1,itoutsig),&
-         ges_v(1,1,1,itoutsig),ges_prsi(1,1,1,itoutsig))
+!   Get pointers to guess fields
+    ier=0
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'ps',ges_ps_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'z',ges_z_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'u',ges_u_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'v',ges_v_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'div',ges_div_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'vor',ges_vor_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'tv',ges_tv_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'q',ges_q_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'oz',ges_oz_it,iret)
+    ier=ier+iret
+    call gsi_bundlegetpointer (gsi_metguess_bundle(itoutsig),'cw',ges_cwmr_it,iret)
+    ier=ier+iret
+
+    if (ier==0) then ! simply return when pointers are not found (could
+                     ! indivialize write for more flexible choices)
+       call write_atm_ (filename,mype,mype_atm,&
+            ges_z_it,ges_ps_it,&
+            ges_tv_it,ges_q_it,&
+            ges_oz_it,ges_cwmr_it,&
+            ges_prsl(1,1,1,itoutsig),ges_u_it,&
+            ges_v_it,ges_prsi(1,1,1,itoutsig))
+    endif
 
 !   Write surface analysis file
     if (increment>0) then
@@ -1111,7 +1169,7 @@ contains
 
 
   subroutine write_atm_ (filename,mype,mype_out,sub_z,sub_ps,&
-       sub_vor,sub_div,sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
+       sub_tv,sub_q,sub_oz,sub_cwmr,sub_prsl,&
        sub_u,sub_v,sub_prsi)
 
 !$$$  subprogram documentation block
@@ -1129,6 +1187,7 @@ contains
 !   2010-02-22  Huang    Initial version.  Based on write_gfsatm
 !   2011-02-14  Huang    Re-arrange the write sequence to be same as model
 !                        read/rite sequence.
+!   2013-10-25  todling  reposition load_grid to commvars
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -1136,8 +1195,6 @@ contains
 !     mype_out  - mpi task to write output file
 !     sub_z     - NEMS terrain field on subdomains
 !     sub_ps    - surface pressure on subdomains
-!     sub_vor   - vorticity on subdomains
-!     sub_div   - divergence on subdomains
 !     sub_tv    - virtual temperature on subdomains
 !     sub_q     - specific humidity on subdomains
 !     sub_oz    - ozone on subdomains
@@ -1175,11 +1232,12 @@ contains
     use gridmod, only: ijn            ! no. of horiz. pnts for each subdomain (no buffer)
     use gridmod, only: displs_g       ! comm. array, displacement for receive on global grid
     use gridmod, only: itotsub        ! no. of horizontal points of all subdomains combined
-    use gridmod, only: load_grid
     use gridmod, only: ntracer
     use gridmod, only: ncloud
     use gridmod, only: strip
     
+    use general_commvars_mod, only: load_grid
+
     use obsmod, only: iadate
     
     use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_init,&
@@ -1196,8 +1254,6 @@ contains
     
     real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_z    ! NEMS terrain field on subdomains
     real(r_kind),dimension(lat2,lon2)          ,intent(in   ) :: sub_ps   ! surface pressure on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_vor  ! vorticity on subdomains
-    real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_div  ! divergence on subdomains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_tv   ! virtual temperature on subdomains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_q    ! specific humidity on subdomains
     real(r_kind),dimension(lat2,lon2,nsig)     ,intent(in   ) :: sub_oz   ! ozone on subdomains
@@ -1214,7 +1270,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ij, k, n, mm1, nlatm2
+    integer(i_kind) :: k, mm1, nlatm2
     integer(i_kind) :: iret, lonb, latb, levs
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 104
@@ -1239,8 +1295,8 @@ contains
     end do
 
 !   Strip off boundary points from subdomains
-    call strip(sub_z   ,hsm   ,1)
-    call strip(sub_ps  ,psm   ,1)
+    call strip(sub_z   ,hsm)
+    call strip(sub_ps  ,psm)
     call strip(sub_tv  ,tvsm  ,nsig)
     call strip(sub_q   ,qsm   ,nsig)
     call strip(sub_oz  ,ozsm  ,nsig)
@@ -1492,6 +1548,7 @@ contains
 ! program history log:
 !   2010-02-22  Huang    Initial version.  Based on write_gfssfc
 !   2011-04-01  Huang    change type of buffer2, grid2 from single to r_kind
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     filename  - file to open and write to
@@ -1519,10 +1576,11 @@ contains
     use gridmod, only: lat2,lon2
     use gridmod, only: iglobal
     use gridmod, only: ijn
-    use gridmod, only: ltosi,ltosj
     use gridmod, only: displs_g
     use gridmod, only: itotsub
     
+    use general_commvars_mod, only: ltosi,ltosj
+
     use obsmod, only: iadate
     
     use constants, only: zero
@@ -1555,7 +1613,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
+    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1
     integer(i_kind) :: nlatm2, n, nrec, lonb, latb, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 105
@@ -1725,6 +1783,7 @@ contains
 !
 ! program history log:
 !   2011-11-01  Huang    initial version based on routine write_gfs_sfc_nst
+!   2013-10-25  todling - reposition ltosi and others to commvars
 !
 !   input argument list:
 !     filename  - file to open and write to for sfc file
@@ -1753,10 +1812,11 @@ contains
     use gridmod, only: lat2,lon2
     use gridmod, only: iglobal
     use gridmod, only: ijn
-    use gridmod, only: ltosi,ltosj
     use gridmod, only: displs_g
     use gridmod, only: itotsub
     
+    use general_commvars_mod, only: ltosi,ltosj
+
     use obsmod, only: iadate
     
     use constants, only: zero,two
@@ -1794,7 +1854,7 @@ contains
     character(len=1)   :: null = ' '
     integer(i_kind),dimension(7):: idate, jdate
     integer(i_kind),dimension(4):: odate
-    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1, ij
+    integer(i_kind) :: i, j, ip1, jp1, ilat, ilon, jj, mm1
     integer(i_kind) :: lonb, latb, nlatm2, n, nrec, nrec_nst, iret
     integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
     integer(i_kind) :: istop = 106

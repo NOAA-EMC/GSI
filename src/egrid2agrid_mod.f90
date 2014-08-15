@@ -1221,8 +1221,7 @@ module egrid2agrid_mod
       integer(i_kind),optional,intent(in) :: nord_blend,nmix
 
       integer(i_kind) i,j
-      real(r_kind) errtest
-      logical fail_tests,e2a_only
+      logical e2a_only
       integer(i_kind),dimension(0:40):: iblend
       integer(i_kind) mm
       real(r_kind) dxx,x,y
@@ -1330,7 +1329,7 @@ module egrid2agrid_mod
       real(r_kind) w(p%nlone)                  !  this array is too big by nlone/(nord_e2a+1)
                                                !   which is why this is the slow version.
       integer(i_kind) i,j,j1,k
-      real(r_kind) w1,factor
+      real(r_kind) w1
 
 !       for each point, first interpolate in latitude at longitudes required for longitude interpolation,
 !         then finish up with longitude interpolation
@@ -1350,7 +1349,7 @@ module egrid2agrid_mod
 
    end subroutine egrid2points
 
-   subroutine g_create_egrid2agrid(nlata,rlata,nlona,rlona,nlate,rlate,nlone,rlone,nord_e2a,p)
+   subroutine g_create_egrid2agrid(nlata,rlata,nlona,rlona,nlate,rlate,nlone,rlone,nord_e2a,p,eqspace)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    g_create_egrid2agrid  create interpolation variables for full global grids
@@ -1367,6 +1366,7 @@ module egrid2agrid_mod
 !
 ! program history log:
 !   2010-02-09  parrish, initial documentation
+!   2011-09-14  todling, add eqspace to handle equal-distance grid
 !
 !   input argument list:
 !     nlata:  number of analysis latitudes
@@ -1394,8 +1394,9 @@ module egrid2agrid_mod
       integer(i_kind),intent(in) :: nlata,nlona,nlate,nlone,nord_e2a
       real(r_kind),intent(in) :: rlata(nlata),rlona(nlona),rlate(nlate),rlone(nlone)
       type(egrid2agrid_parm),intent(inout) :: p
+      logical,intent(in),optional:: eqspace
 
-      integer(i_kind) i,ilona,ilone,j,j180,nextend,nlate_ex,nlone_ex,nlone_half
+      integer(i_kind) i,ilona,ilone,j,nextend,nlate_ex,nlone_ex,nlone_half
       real(r_kind) half_pi,two_pi,dlona,dlone,errtest,diffmax,range_lat,range_lon
       real(r_kind),allocatable::rlate_ex(:),rlone_ex(:)
       logical fail_tests
@@ -1409,6 +1410,12 @@ module egrid2agrid_mod
       p%nlone_ex=nlone
       p%identity=.false.
       if(nlata == nlate.and.nlona == nlone) then
+         if(present(eqspace)) then
+            if(eqspace) then
+               write(6,*) 'g_create_egrid2agrid: WARNING, forced p%identity true '
+               p%identity=.true.
+             endif
+         endif
          range_lat=max(abs(rlata(nlata)-rlata(1)),abs(rlate(nlate)-rlate(1)))
          if(nlata == 1) range_lat=one
          range_lon=max(abs(rlona(nlona)-rlona(1)),abs(rlone(nlone)-rlone(1)))
@@ -1434,15 +1441,15 @@ module egrid2agrid_mod
 
 !       analysis grid tests:
       if(abs(rlata(1)+half_pi) > errtest) then
-         write(6,*)' in g_create_egrid2agrid, rlata(1) not within tolerance for south pole value'
+         write(6,*)' in g_create_egrid2agrid, rlata(1) not within tolerance for south pole value',rlata(1)
          fail_tests=.true.
       end if
       if(abs(rlata(nlata)-half_pi) > errtest) then
-         write(6,*)' in g_create_egrid2agrid, rlata(nlata) not within tolerance for north pole value' 
+         write(6,*)' in g_create_egrid2agrid, rlata(nlata) not within tolerance for north pole value',rlata(nlata) 
          fail_tests=.true.
       end if
       if(abs(rlona(1)) > errtest) then
-         write(6,*)' in g_create_egrid2agrid, rlona(1) not within tolerance for 0 meridian' 
+         write(6,*)' in g_create_egrid2agrid, rlona(1) not within tolerance for 0 meridian',rlona(1) 
          fail_tests=.true.
       end if
       dlona=rlona(2)-rlona(1)
@@ -1455,7 +1462,7 @@ module egrid2agrid_mod
       end do
       if(ilona > 0) write(6,*)' in g_create_egrid2agrid, dlona not constant to within tolerance'
       if(abs(rlona(nlona)+dlona-two_pi) > errtest) then
-         write(6,*)' in g_create_egrid2agrid, rlona(nlona) + dlona not within tolerance for 0 meridian' 
+         write(6,*)' in g_create_egrid2agrid, rlona(nlona) + dlona not within tolerance for 0 meridian',rlona(nlona)
          fail_tests=.true.
       end if
       if(mod(nlona,2) /= 0) then
@@ -2509,8 +2516,8 @@ module egrid2agrid_mod
       real(r_kind),intent(in) :: rlata(na),rlona(na),rlate(nlate),rlone(nlone)
       type(egrid2agrid_parm),intent(inout) :: p
 
-      integer(i_kind) i,ilona,ilone,j,j180,nextend,nlate_ex,nlone_ex,nlone_half
-      real(r_kind) half_pi,two_pi,dlona,dlone,errtest,diffmax,range_lat,range_lon
+      integer(i_kind) i,ilone,j,nextend,nlate_ex,nlone_ex,nlone_half
+      real(r_kind) half_pi,two_pi,dlone,errtest
       real(r_kind),allocatable::rlate_ex(:),rlone_ex(:)
       real(r_kind) rlona0(na)
       logical fail_tests,e2a_only

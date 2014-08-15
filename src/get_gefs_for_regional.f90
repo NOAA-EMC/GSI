@@ -14,6 +14,7 @@ subroutine get_gefs_for_regional
 !   2012-02-08  parrish - a little more cleanup
 !   2012-10-11  wu      - dual resolution for options of regional hybens
 !   2013-02-21  wu      - add call to general_destroy_spec_vars to fix memory problem
+!   2013-10-19  todling - all guess variables in met-guess
 !
 !   input argument list:
 !
@@ -50,10 +51,13 @@ subroutine get_gefs_for_regional
   use general_specmod, only: spec_vars,general_init_spec_vars,general_destroy_spec_vars
   use egrid2agrid_mod, only: g_create_egrid2points_slow,egrid2agrid_parm,g_egrid2points_faster
   use sigio_module, only: sigio_intkind,sigio_head,sigio_srhead
-  use guess_grids, only: ges_prsl,ges_ps,ntguessig,geop_hgti,ges_z
-  use guess_grids, only: ges_tv,ges_q,ges_u,ges_v,ges_tsen
+  use guess_grids, only: ges_prsl,ntguessig,geop_hgti
+  use guess_grids, only: ges_tsen
   use aniso_ens_util, only: intp_spl
   use obsmod, only: iadate
+  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use mpeu_util, only: die
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
@@ -73,8 +77,9 @@ subroutine get_gefs_for_regional
   real(r_single),pointer,dimension(:,:,:):: w3
   real(r_single),pointer,dimension(:,:):: w2
 
+  character(len=*),parameter::myname='get_gefs_for_regional'
   real(r_kind) bar_norm,sig_norm,kapr,kap1,trk
-  integer(i_kind) iret,i,ig,j,jg,k,k2,n,il,jl,mm1,iderivative
+  integer(i_kind) iret,i,j,k,k2,n,mm1,iderivative
   integer(i_kind) ic2,ic3
   integer(i_kind) ku,kv,kt,kq,koz,kcw,kz,kps
   character(255) filename
@@ -85,8 +90,6 @@ subroutine get_gefs_for_regional
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r
   logical,allocatable :: vector(:)
-  real(r_kind) ozmin,ozmax
-  real(r_kind) ozmin0,ozmax0
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli,yspli,xsplo,ysplo
   integer(i_kind) iyr,ihourg
@@ -95,36 +98,37 @@ subroutine get_gefs_for_regional
   integer(i_kind),dimension(5) :: iadate_gfs
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
-  real(r_kind),allocatable,dimension(:)::glb_umin,glb_umax,reg_umin,reg_umax
-  real(r_kind),allocatable,dimension(:)::glb_vmin,glb_vmax,reg_vmin,reg_vmax
-  real(r_kind),allocatable,dimension(:)::glb_tmin,glb_tmax,reg_tmin,reg_tmax
-  real(r_kind),allocatable,dimension(:)::glb_rhmin,glb_rhmax,reg_rhmin,reg_rhmax
-  real(r_kind),allocatable,dimension(:)::glb_ozmin,glb_ozmax,reg_ozmin,reg_ozmax
-  real(r_kind),allocatable,dimension(:)::glb_cwmin,glb_cwmax,reg_cwmin,reg_cwmax
-  real(r_kind),allocatable,dimension(:)::glb_umin0,glb_umax0,reg_umin0,reg_umax0
-  real(r_kind),allocatable,dimension(:)::glb_vmin0,glb_vmax0,reg_vmin0,reg_vmax0
-  real(r_kind),allocatable,dimension(:)::glb_tmin0,glb_tmax0,reg_tmin0,reg_tmax0
-  real(r_kind),allocatable,dimension(:)::glb_rhmin0,glb_rhmax0,reg_rhmin0,reg_rhmax0
-  real(r_kind),allocatable,dimension(:)::glb_ozmin0,glb_ozmax0,reg_ozmin0,reg_ozmax0
-  real(r_kind),allocatable,dimension(:)::glb_cwmin0,glb_cwmax0,reg_cwmin0,reg_cwmax0
-  character(len=50) :: fname
   integer(i_kind) istatus
-  real(r_kind) rdog,h,dz,this_tv
+  real(r_kind) rdog,h,dz
   real(r_kind),allocatable::height(:),zbarl(:,:,:)
   logical add_bias_perturbation
   integer(i_kind) n_ens_temp
-  logical point1,point2
-  integer(i_kind) kk,n_in
-  real(r_kind) pdiffmax,pmax,pdiffmax0,pmax0,pdiffmin,pdiffmin0
   real(r_kind),allocatable::psfc_out(:,:)
-  integer(i_kind) ilook,jlook
+  integer(i_kind) ilook,jlook,ier
 
   real(r_kind) dlon,dlat,uob,vob,dlon_ens,dlat_ens
   integer(i_kind) ii,jj,n1
   integer(i_kind) iimax,iimin,jjmax,jjmin
   real(r_kind) ratio_x,ratio_y
 
+  real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
+  real(r_kind), pointer :: ges_z (:,:  )=>NULL()
+  real(r_kind), pointer :: ges_u (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_v (:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_tv(:,:,:)=>NULL()
+  real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
+
   add_bias_perturbation=.false.  !  not fully activated yet--testing new adjustment of ps perturbions 1st
+
+! get pointers for typical meteorological fields
+  ier=0
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'z', ges_z, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'u', ges_u, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'v', ges_v, istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'tv',ges_tv,istatus );ier=ier+istatus
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'q' ,ges_q, istatus );ier=ier+istatus
+  if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
 
 !     figure out what are acceptable dimensions for global grid, based on resolution of input spectral coefs
 !   need to inquire from file what is spectral truncation, then setup general spectral structure variable
@@ -438,23 +442,23 @@ subroutine get_gefs_for_regional
      ! !ilook=29
      ! !jlook=41
      ilook=-1 ; jlook=-1
-     call compute_nmm_surfacep ( ges_z(:,:,ntguessig), zbarl,1000._r_kind*prsl,tt, &
+     call compute_nmm_surfacep ( ges_z(:,:), zbarl,1000._r_kind*prsl, &
                                  psfc_out,grd_mix%nsig,grd_mix%lat2,grd_mix%lon2, &
                                  ilook,jlook)
      deallocate(tt,zbarl)
      psfc_out=.001_r_kind*psfc_out
-     !   psfc_out=ges_ps(:,:,ntguessig)
+     !   psfc_out=ges_ps(:,:)
      !   write(0,*)' min,max ges_ps-psfc_out=',&
-     !        minval(ges_ps(:,:,ntguessig)-psfc_out),maxval(ges_ps(:,:,ntguessig)-psfc_out)
+     !        minval(ges_ps(:,:)-psfc_out),maxval(ges_ps(:,:)-psfc_out)
      !               pdiffmax=-huge(pdiffmax)
      !               pdiffmin= huge(pdiffmin)
      !   !  do j=2,grd_mix%lon2-1
      !   !     do i=2,grd_mix%lat2-1
      !      do j=1,grd_mix%lon2
      !         do i=1,grd_mix%lat2
-     !            pdiffmax=max(ges_ps(i,j,ntguessig)-psfc_out(i,j),pdiffmax)
-     !            pdiffmin=min(ges_ps(i,j,ntguessig)-psfc_out(i,j),pdiffmin)
-     !            if(ges_ps(i,j,ntguessig)<10._r_kind) &
+     !            pdiffmax=max(ges_ps(i,j)-psfc_out(i,j),pdiffmax)
+     !            pdiffmin=min(ges_ps(i,j)-psfc_out(i,j),pdiffmin)
+     !            if(ges_ps(i,j)<10._r_kind) &
      !               write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
      !                   grd_mix%istart(mm1)-2+i,grd_mix%jstart(mm1)-2+j,grd_mix%nlat,grd_mix%nlon
      !            if(psfc_out(i,j)<10._r_kind) &
@@ -469,7 +473,7 @@ subroutine get_gefs_for_regional
      !                                                write(fname,'("matt_pbar_corrected")')
      !                                                call grads1a(psfc_out,1,mype,trim(fname))
      !                                                write(fname,'("ges_ps")')
-     !                                                call grads1a(ges_ps(:,:,ntguessig),1,mype,trim(fname))
+     !                                                call grads1a(ges_ps(:,:),1,mype,trim(fname))
 
 
 ! If not using Q perturbations, convert to RH
@@ -561,9 +565,9 @@ subroutine get_gefs_for_regional
 !                    pdiffmin= huge(pdiffmin)
 !           do j=1,grd_mix%lon2
 !              do i=1,grd_mix%lat2
-!                 pdiffmax=max(ges_ps(i,j,ntguessig)-p_eg_nmmb(i,j,n),pdiffmax)
-!                 pdiffmin=min(ges_ps(i,j,ntguessig)-p_eg_nmmb(i,j,n),pdiffmin)
-!                  if(ges_ps(i,j,ntguessig)<10._r_kind) &
+!                 pdiffmax=max(ges_ps(i,j)-p_eg_nmmb(i,j,n),pdiffmax)
+!                 pdiffmin=min(ges_ps(i,j)-p_eg_nmmb(i,j,n),pdiffmin)
+!                  if(ges_ps(i,j)<10._r_kind) &
 !                     write(0,*)' small ges_ps,i,j,lat2,lon2,ig,jg,ide,jde=',i,j,grd_mix%lat2,grd_mix%lon2,&
 !                         grd_mix%istart(mm1)-1+i,grd_mix%jstart(mm1)-1+j,grd_mix%nlat,grd_mix%nlon
 !                  if(p_eg_nmmb(i,j,n)<10._r_kind) &
@@ -843,7 +847,7 @@ subroutine get_gefs_for_regional
         do k=1,nsig
            do j=1,lon2
               do i=1,lat2
-                 qs(i,j,k)=ges_q(i,j,k,ntguessig)
+                 qs(i,j,k)=ges_q(i,j,k)
               end do
            end do
         end do
@@ -862,25 +866,25 @@ subroutine get_gefs_for_regional
            if (.not.q_hyb_ens) then
               tmp_anl(:,:,:,1)=qs(:,:,:)
               call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
-              tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
+              tmp_anl(:,:,:,1)=ges_q(:,:,:)
               call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
               rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)/tmp_ens(:,:,:,1)
            else
-              tmp_anl(:,:,:,1)=ges_q(:,:,:,ntguessig)
+              tmp_anl(:,:,:,1)=ges_q(:,:,:)
               call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens2,regional)
               rht(:,:,:) = rht(:,:,:)-tmp_ens2(:,:,:,1)
            end if
 
-           tmp_anl(:,:,:,1)=ges_u(:,:,:,ntguessig)
+           tmp_anl(:,:,:,1)=ges_u(:,:,:)
            call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
            ut(:,:,:) = ut(:,:,:)-tmp_ens(:,:,:,1)
-           tmp_anl(:,:,:,1)=ges_v(:,:,:,ntguessig)
+           tmp_anl(:,:,:,1)=ges_v(:,:,:)
            call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
            vt(:,:,:) = vt(:,:,:)-tmp_ens(:,:,:,1)
-           tmp_anl(:,:,:,1)=ges_tv(:,:,:,ntguessig)
+           tmp_anl(:,:,:,1)=ges_tv(:,:,:)
            call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
            tt(:,:,:) = tt(:,:,:)-tmp_ens(:,:,:,1)
-           tmp_anl(:,:,1,1)=ges_ps(:,:,ntguessig)
+           tmp_anl(:,:,1,1)=ges_ps(:,:)
            call general_suba2sube(grd_a1,grd_e1,p_e2a,tmp_anl,tmp_ens,regional)
            p_eg_nmmb(:,:,n) = p_eg_nmmb(:,:,n)-tmp_ens(:,:,1,1)
            deallocate(tmp_anl,tmp_ens,tmp_ens2)
@@ -888,9 +892,9 @@ subroutine get_gefs_for_regional
            do k=1,grd_ens%nsig
               do j=1,grd_ens%lon2
                  do i=1,grd_ens%lat2
-                    ut(i,j,k) = ut(i,j,k)-ges_u(i,j,k,ntguessig)
-                    vt(i,j,k) = vt(i,j,k)-ges_v(i,j,k,ntguessig)
-                    tt(i,j,k) = tt(i,j,k)-ges_tv(i,j,k,ntguessig)
+                    ut(i,j,k) = ut(i,j,k)-ges_u(i,j,k)
+                    vt(i,j,k) = vt(i,j,k)-ges_v(i,j,k)
+                    tt(i,j,k) = tt(i,j,k)-ges_tv(i,j,k)
                  end do
               end do
            end do
@@ -899,7 +903,7 @@ subroutine get_gefs_for_regional
               do k=1,grd_ens%nsig
                  do j=1,grd_ens%lon2
                     do i=1,grd_ens%lat2
-                       rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)/qs(i,j,k)
+                       rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k)/qs(i,j,k)
                     end do
                  end do
               end do
@@ -907,7 +911,7 @@ subroutine get_gefs_for_regional
               do k=1,grd_ens%nsig
                  do j=1,grd_ens%lon2
                     do i=1,grd_ens%lat2
-                       rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k,ntguessig)
+                       rht(i,j,k) = rht(i,j,k)-ges_q(i,j,k)
                     end do
                  end do
               end do
@@ -915,11 +919,10 @@ subroutine get_gefs_for_regional
 
            do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
-                 p_eg_nmmb(i,j,n) = p_eg_nmmb(i,j,n)-ges_ps(i,j,ntguessig)
+                 p_eg_nmmb(i,j,n) = p_eg_nmmb(i,j,n)-ges_ps(i,j)
               end do
            end do
         endif
-
         deallocate(qs)
 
      endif   ! n==1 .and. full_ensemble
@@ -1075,7 +1078,7 @@ subroutine get_gefs_for_regional
    call stop2(555)
 end subroutine get_gefs_for_regional
 
-  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN, T3D_IN,   &
+  SUBROUTINE compute_nmm_surfacep ( TERRAIN_HGT_T, Z3D_IN, PRESS3D_IN,   &
                                     psfc_out,generic,IME,JME, Ilook,Jlook )
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1111,20 +1114,16 @@ end subroutine get_gefs_for_regional
 
        real(r_kind),intent(in) :: TERRAIN_HGT_T(IME,JME)
        real(r_kind),intent(in) :: Z3D_IN(IME,JME,generic)
-       real(r_kind),intent(in) :: T3D_IN(IME,JME,generic)
        real(r_kind),intent(in) :: PRESS3D_IN(IME,JME,generic)
        real(r_kind),intent(out) :: psfc_out(IME,JME)
 
-       integer(i_kind) :: I,J,II,L,KINSERT,K,bot_lev,LL
+       integer(i_kind) :: I,J,L,LL
        integer(i_kind) :: loopinc,iloopinc
 
        real(r_kind) :: PSFC_IN(IME,JME),TOPO_IN(IME,JME)
-       real(r_kind) :: dif1,dif2,dif3,dif4,dlnpdz,BOT_INPUT_HGT,BOT_INPUT_PRESS,dpdz,rhs
-       real(r_kind) :: zin(generic),pin(generic)
+       real(r_kind) :: dlnpdz,BOT_INPUT_HGT,BOT_INPUT_PRESS
 
        real(r_kind), allocatable:: dum2d(:,:),DUM2DB(:,:)
-
-       character (len=132) :: message
 
        logical :: DEFINED_PSFC(IME,JME), DEFINED_PSFCB(IME,JME)
 
@@ -1642,11 +1641,14 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
 
 !     straightforward, but inefficient code to convert a single variable on subdomains to complete
 !      slab on one processor.
+!  2013-10-24 todling - revist strip interface
+!                     - reposition ltosi and others to commvar
 
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use gridmod, only: nlat,nlon,lat2,lon2,lat1,lon1,&
-         ltosi,ltosj,iglobal,ijn,displs_g,itotsub,strip
+         iglobal,ijn,displs_g,itotsub,strip
+  use general_commvars_mod, only: ltosi,ltosj
   use mpimod, only: mpi_comm_world,ierror,mpi_rtype
   implicit none
 
@@ -1663,7 +1665,7 @@ subroutine sub2grid_1a(sub,grid,gridpe,mype)
   do j=1,lon1*lat1
      zsm(j)=zero
   end do
-  call strip(sub,zsm,1)
+  call strip(sub,zsm)
   call mpi_gatherv(zsm,ijn(mm1),mpi_rtype, &
                  work1,ijn,displs_g,mpi_rtype, &
                  gridpe,mpi_comm_world,ierror)
@@ -1688,6 +1690,7 @@ subroutine setup_ens_pwgt
 ! program history log:
 !   2011_06_14  wu- initial documentation
 !   2012-10-16  wu- only setup if the options are on
+!   2013-10-19  todling - all guess variables in met-guess
 !
 !   input argument list:
 !
@@ -1703,20 +1706,25 @@ subroutine setup_ens_pwgt
   use kinds, only: r_kind,i_kind
   use gridmod, only: lat2,lon2,nsig,regional
   use general_sub2grid_mod, only: general_suba2sube
-  use guess_grids, only: ges_prsl,ntguessig,ges_ps
+  use guess_grids, only: ges_prsl,ntguessig
   use balmod, only: wgvk
   use mpimod, only: mype,npe,mpi_comm_world,ierror,mpi_rtype,mpi_sum
   use constants,only: zero,one,ten,two,half
   use hybrid_ensemble_parameters, only: beta1_inv,beta1wgt,beta2wgt,pwgt,dual_res
+  use gsi_bundlemod, only: GSI_BundleGetPointer
+  use gsi_metguess_mod, only: GSI_MetGuess_Bundle
+  use mpeu_util, only: die
   implicit none
 
-  integer(i_kind) k,i,j
+  character(len=*),parameter::myname='setup_ens_pwgt::'
+  integer(i_kind) k,i,j,istatus
   real(r_kind) sum
-  integer(i_kind) k8,k1,kb,kk
+  integer(i_kind) k8,k1
   real(r_kind) pih
   real(r_kind) beta2_inv
   real(r_kind),allocatable,dimension(:,:,:,:) :: wgvk_ens,wgvk_anl
   real(r_kind) rk81(2),rk810(2)
+  real(r_kind),pointer:: ges_ps(:,:) =>NULL()
 
   if (.not.regional) then
      if (pwgtflg .or. betaflg) then 
@@ -1725,6 +1733,9 @@ subroutine setup_ens_pwgt
      end if
      return
   end if
+
+  call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(ntguessig), 'ps',ges_ps,istatus)
+  if (istatus/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',istatus)
 
 !!!!!!!!!!! setup pwgt     !!!!!!!!!!!!!!!!!!!!!
 !!!! weigh with balanced projection for pressure
@@ -1760,7 +1771,7 @@ subroutine setup_ens_pwgt
      j=lon2/2
 
      k8_loop: do k=1,nsig
-        if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j,ntguessig) < .85_r_kind)then
+        if(ges_prsl(i,j,k,ntguessig)/ges_ps(i,j) < .85_r_kind)then
            rk81(1)=k
            exit k8_loop
         endif
