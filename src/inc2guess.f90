@@ -58,7 +58,6 @@ subroutine inc2guess(sval)
   character(len=10),allocatable,dimension(:) :: gases
   character(len=10),allocatable,dimension(:) :: guess
   integer(i_kind) i,j,k,it,ii,ic,id,ngases,nguess,ier,istatus
-  integer(i_kind) ipinc,ipges
   real(r_kind) :: zt
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc=>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges=>NULL()

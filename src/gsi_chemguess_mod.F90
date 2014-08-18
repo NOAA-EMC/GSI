@@ -557,8 +557,7 @@ end subroutine final_
 !BOC
 
     character(len=*), parameter :: myname_ = myname//'*create_'
-    integer(i_kind) i,j,k,n,nt,ic
-    character(len=MAXSTR) :: var
+    integer(i_kind) nt
     type(GSI_Grid):: grid
 
     istatus=0
@@ -630,7 +629,6 @@ end subroutine final_
 
     character(len=*), parameter :: myname_ = myname//'*destroy_'
     integer(i_kind) :: nt,ier
-    character(len=MAXSTR) :: var
     istatus=0
 
     if(.not.chem_grid_initialized_) return

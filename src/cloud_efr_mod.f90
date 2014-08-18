@@ -171,7 +171,7 @@ subroutine cloud_calc(p0d,q1d,t1d,clwmr,fice,frain,frimef,&
 
   integer(i_kind) i,j
   real(r_kind) precice,t1,t2,coef1,coef2,coef
-  real(r_kind) tc,qi1,nlice1
+  real(r_kind) qi1
   real(r_kind),dimension(lat2,lon2):: p0d      ! pressure (cb)
   real(r_kind),dimension(lat2,lon2):: p1d      ! pressure (pa)
   real(r_kind),dimension(lat2,lon2):: t1d      ! temperature
@@ -400,12 +400,11 @@ end subroutine set_cloud_lower_bound
       real(r_kind),intent(in) :: QW1,QI1,QR1,FS1D
       
 !     local variables
-      integer(i_kind) I,J
       real(r_kind) tem4,indexw,indexi
       real(r_kind) N0r,RHgrd,C_N0r0
       real(r_kind) TC,Flimass,Flarge,     &
            Fsmall,RimeF,Xsimass,Qice,Qsat,ESAT,WV,RHO,RRHO,RQR,          &
-           Qsigrd,WVQW,Dum,XLi,Qlice,WC,DLI,xlimass,NLICE1
+           Qsigrd,WVQW,Dum,XLi,Qlice,DLI,xlimass,NLICE1
 
 !     Various rain lookup tables
       REAL(R_KIND) RQR_DRmin,RQR_DRmax,CN0r0,CN0r_DMRmin,CN0r_DMRmax

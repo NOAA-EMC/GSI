@@ -86,14 +86,12 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character (len= 8) :: subset
   character (len=10) :: date
 
-  integer(i_kind) :: naerodat, next, ireadmg, ireadsb
-  integer(i_kind) :: idate, jdate, ksatid, kk, iy, iret, im, ihh, idd
+  integer(i_kind) :: naerodat
+  integer(i_kind) :: idate, jdate, ksatid, iy, iret, im, ihh, idd
   integer(i_kind) :: lunin = 10
   integer(i_kind) :: nmind, i, n
-  integer(i_kind) :: imin, isec
   integer(i_kind) :: k, ilat, ilon, nreal, nchanl
   integer(i_kind) :: kidsat
-  integer(i_kind) :: JULIAN, IDAYYR, IDAYWK
   integer(i_kind), dimension(5) :: idate5
 !
 !| NC008041 | SAID    AEROSOL  CLONH   CLATH YYMMDD  HHMMSS  SOZA  SOLAZI       |
@@ -138,8 +136,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   integer(i_kind) :: itx, itt, irec
 
-  real(r_kind) :: tdiff, sstime, slons, slats, dlon, dlat, t4dv, toq, poq, timedif, crit1, dist1
-  real(r_kind) :: slons0, slats0, rsat, toto3, solzen, azimuth, dlat_earth, dlon_earth
+  real(r_kind) :: tdiff, sstime, dlon, dlat, t4dv, timedif, crit1, dist1
+  real(r_kind) :: slons0, slats0, rsat, solzen, azimuth, dlat_earth, dlon_earth
   real(r_kind) :: styp, dbcf, qaod
   real(r_kind),dimension(0:4):: rlndsea
 

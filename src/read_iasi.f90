@@ -160,7 +160,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   integer(i_kind)   :: nchanlr,jstart
-  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next
   integer(i_kind),allocatable,dimension(:) :: nrec
 
 

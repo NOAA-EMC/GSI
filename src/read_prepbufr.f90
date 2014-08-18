@@ -231,9 +231,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
-  integer(i_kind) lunin,i,maxobs,j,idomsfc,itemp,it29
+  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind) nc,nx,id,isflg,ntread,itx,ii,ncsave
+  integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs
   integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
@@ -328,22 +328,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data rmesh / -99.999_r_kind /
   !* test new vad wind
   !* for match loction station and time
-        character(7*2000) cstn_idtime,cstn_idtime2
-        character(7) stn_idtime(2000),stn_idtime2(2000)
-        equivalence (stn_idtime(1),cstn_idtime)
-        equivalence (stn_idtime2(1),cstn_idtime2)
-        integer :: ii1,atmp,btmp,mytimeyy,ibyte
-        character(4) stid
-        real(8) :: rval
-        character(len=8) :: cval
-        equivalence (rval,cval)
-        character(7) flnm
+!       character(7*2000) cstn_idtime,cstn_idtime2
+!       character(7) stn_idtime(2000),stn_idtime2(2000)
+!       equivalence (stn_idtime(1),cstn_idtime)
+!       equivalence (stn_idtime2(1),cstn_idtime2)
+!       integer :: ii1,atmp,btmp,mytimeyy,ibyte
+!       character(4) stid
+!       real(8) :: rval
+!       character(len=8) :: cval
+!       equivalence (rval,cval)
+!       character(7) flnm
         integer:: icase,klev,ikkk,tkk
         real:: diffhgt,diffuu,diffvv
 
   real(r_double),dimension(3,1500):: fcstdat
-  character(80) fcststr
-  data fcststr  /'UFC VFC'/
   
 ! File type
   acft_profl_file = index(infile,'_profl')/=0
@@ -1322,7 +1320,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
 
                  call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                    plevs(k),crit1,ithin,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
+                    plevs(k),crit1,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
 
                  if (.not. luse) then
                     if(k==levs) then
@@ -2029,7 +2027,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   real(r_double),dimension(255,20), intent(inout) :: tpc
 
   real(r_kind) wim,wi
-  real(r_kind),dimension(nsig) :: rlsig,prsltmp,dpmdl
+  real(r_kind),dimension(nsig) :: prsltmp,dpmdl
   integer(i_kind) i,j,k,levs
   integer(i_kind) ku,kl,ll,im
   real rsig(60)

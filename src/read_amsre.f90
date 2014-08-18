@@ -158,7 +158,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,gstime,&
   real(r_kind)     :: timedif, pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
-  integer(i_kind):: irec,isub,next
+  integer(i_kind):: irec,next
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts

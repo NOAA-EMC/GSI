@@ -130,7 +130,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
   character(8) subset
 
-  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind):: i,k,ntest,ireadsb,ireadmg,irec,next
   integer(i_kind):: iret,idate,nchanl
   integer(i_kind):: isflg,nreal,idomsfc
   integer(i_kind):: nmind,itx,nele,itt

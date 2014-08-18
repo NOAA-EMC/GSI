@@ -609,7 +609,6 @@ subroutine retrieval_amsre(tb,degre,  &
 
 ! Internal variable
   integer(i_kind) :: nchanl1
-  real(r_kind) :: wind
   real(r_kind) :: rwp,cwp,vr,vc
 !     si85    - scattering index over ocean
   real(r_kind) :: si85
@@ -749,8 +748,9 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
-  real(r_kind)  ev(nch),eh(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
+  real(r_kind)  ev(nch)
+  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),tvmin(nch)
+! real(r_kind)  thmin(nch),eh(nch)
   real(r_kind),save :: freq(nch)
   real(r_kind),save :: kw(nch)
   real(r_kind),save :: ko2_coe(nch,3),kl_coe(nch,3)
@@ -785,7 +785,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   call TBE_FROM_TBO(tbo,tbe)
 
 ! Adjust TBE to TBA required in the algorithms
-  call TBA_FROM_TBE(tbe,tv,th)
+  call TBA_FROM_TBE(tbe,tv)
 
 ! Calculate KW and KL and tau_o2(taut) and emissivity
   do ich = 1, nch
@@ -992,7 +992,7 @@ subroutine TBE_FROM_TBO(tbo,tb)
 
 end subroutine TBE_FROM_TBO
 
-subroutine TBA_FROM_TBE(tbo,tvs,ths)
+subroutine TBA_FROM_TBE(tbo,tvs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  TBA_FROM_TBO
@@ -1011,7 +1011,7 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
 !
 !   output argument list:
 !     tvs(*)  : algorithm-based brightness temperatures at a vertical polarization
-!     ths(*)  : algorithm-based brightness temperatures at a horizontal polarization
+!     ths(*)  : algorithm-based brightness temperatures at a horizontal polarization (removed)
 !
 !   comments:
 !
@@ -1030,7 +1030,7 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   real(r_kind),intent(  out) :: tvs(nch)
 ! real(r_kind),intent(  out) :: tvs(nch),ths(nch)
 ! Remove intent(out) for ths since currently not used
-  real(r_kind)               :: ths(nch)
+! real(r_kind)               :: ths(nch)
 
   real(r_kind) tb(nch*2)
 

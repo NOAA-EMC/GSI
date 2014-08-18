@@ -406,12 +406,12 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            else if(ditype(is) == 'aero')then
               call setupaod(lunin,&
                  mype,nchanl,nreal,nobs,&
-                 obstype,isis,is,aero_diagsave,init_pass,last_pass)
+                 obstype,isis,is,aero_diagsave,init_pass)
 
 !          Set up for precipitation data
            else if(ditype(is) == 'pcp')then
               call setuppcp(lunin,mype,&
-                 aivals,nele,nobs,obstype,isis,is,pcp_diagsave,init_pass,last_pass)
+                 aivals,nele,nobs,obstype,isis,is,pcp_diagsave,init_pass)
  
 !          Set up conventional data
            else if(ditype(is) == 'conv')then
@@ -495,16 +495,16 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            else if(ditype(is) == 'ozone' .and. ihave_oz)then
               if (obstype == 'o3lev' .or. index(obstype,'mls')/=0 ) then
                  call setupozlev(lunin,mype,stats_oz,nchanl,nreal,nobs,&
-                      obstype,isis,is,ozone_diagsave,init_pass,last_pass)
+                      obstype,isis,is,ozone_diagsave,init_pass)
               else
                  call setupozlay(lunin,mype,stats_oz,nchanl,nreal,nobs,&
-                      obstype,isis,is,ozone_diagsave,init_pass,last_pass)
+                      obstype,isis,is,ozone_diagsave,init_pass)
               end if
 
 !          Set up co (mopitt) data
            else if(ditype(is) == 'co')then 
               call setupco(lunin,mype,stats_co,nchanl,nreal,nobs,&
-                   obstype,isis,is,co_diagsave,init_pass,last_pass)
+                   obstype,isis,is,co_diagsave,init_pass)
 
 !          Set up GPS local refractivity data
            else if(ditype(is) == 'gps')then

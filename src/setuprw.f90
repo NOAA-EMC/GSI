@@ -158,7 +158,7 @@ subroutine setuprw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   logical proceed
 
   equivalence(rstation_id,station_id)
-  real(r_kind) addelev,wrange,beamdepth,elevtop,elevbot,beamwidth
+  real(r_kind) addelev,wrange,beamdepth,elevtop,elevbot
   integer(i_kind) kbeambot,kbeamtop,kbeamdiffmax,kbeamdiffmin
   real(r_kind) uminmin,umaxmax
   integer(i_kind) numequal,numnotequal,kminmin,kmaxmax,istat

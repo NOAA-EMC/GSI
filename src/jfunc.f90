@@ -263,7 +263,7 @@ contains
     use m_berror_stats_reg, only: berror_get_dims_reg
     implicit none
 
-    integer(i_kind) i,j,k
+    integer(i_kind) j,k
     integer(i_kind) msig,mlat,mlon 
 
 !   Set length of control vector and other control vector constants
@@ -633,8 +633,7 @@ contains
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens,nval_lenz_en
     implicit none
 
-    integer(i_kind) ii,jj,nx,ny,mr,nr,nf,n,klevb,kleve,n_ensz,nval_lenz_tot,nval_lenz_enz
-    character(len=max_varname_length) cvar
+    integer(i_kind) n_ensz,nval_lenz_tot,nval_lenz_enz
 
     nvals_levs=ns2d+sum(levels)
     nvals_len=nvals_levs*latlon11

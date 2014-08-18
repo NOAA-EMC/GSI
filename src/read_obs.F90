@@ -156,11 +156,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse)
   character(len=*),intent(in)    :: dtype
   integer(i_kind) ,intent(in)    :: minuse
 
-  logical :: lhere
-  integer(i_kind) :: lenb,lnbufr,idate,idate2,iret,kidsat
+  integer(i_kind) :: lnbufr,idate,idate2,iret,kidsat
   integer(i_kind) :: ireadsb,ireadmg,kx,nc
   real(r_double) :: satid,rtype
-  character(len=256) command, fname
   character(8) subset
 
   satid=1      ! debug executable wants default value ???
@@ -553,27 +551,23 @@ subroutine read_obs(ndata,mype)
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,use_prsl_full,use_hgtl_full
     logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls
     logical,dimension(ndat):: belong,parallel_read,ears_possible
-    logical :: modis,omieff
+    logical :: modis
     logical :: acft_profl_file
     character(10):: obstype,platid
     character(15):: string,infile
-    character(20):: infilen
-    character(16):: filesave
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
     integer(i_llong) :: lenbytes
     integer(i_kind):: npetot,npeextra,mmdat
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
-    integer(i_kind):: mype_root,ntask_read,mpi_comm_sub_read,lll,llb
-    integer(i_kind):: mype_sub_read,minuse,lunsave
-    integer(i_kind):: iworld_group_r1,iworld_r1,iworld_group_r2,iworld_r2
+    integer(i_kind):: mype_root,lll,llb
+    integer(i_kind):: minuse,lunsave
     integer(i_kind),dimension(ndat):: npe_sub,npe_sub3,mpi_comm_sub,mype_root_sub,npe_order
-    integer(i_kind),dimension(ndat):: mpi_comm_sub_r1,mpi_comm_sub_r2
     integer(i_kind),dimension(ndat):: ntasks1,ntasks
     integer(i_kind),dimension(ndat,3):: ndata1
-    integer(i_kind),dimension(npe,ndat):: mype_work,mype_work_r1,mype_work_r2
-    integer(i_kind),dimension(npe,ndat):: mype_sub,mype_sub_r1,mype_sub_r2
+    integer(i_kind),dimension(npe,ndat):: mype_work
+    integer(i_kind),dimension(npe,ndat):: mype_sub
     integer(i_kind),allocatable,dimension(:):: nrnd
     integer(i_kind):: nmls_type
     integer(i_kind):: iread,ipuse,iouse
@@ -891,8 +885,6 @@ subroutine read_obs(ndata,mype)
     mm1=mype+1
     belong=.false.
     mype_sub=-999
-    mype_sub_r1=-999
-    mype_sub_r2=-999
     mype_root=0
     next_mype=0
     do ii=1,mmdat
@@ -1161,11 +1153,9 @@ subroutine read_obs(ndata,mype)
 
 !            Process atms data
              else if (obstype == 'atms') then
-                llb=1
-                lll=1
                 call read_atms(mype,val_dat,ithin,isfcalc,rmesh,platid,gstime,&
                      infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
-                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),llb,lll)
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i))
                 string='READ_ATMS'
 
 !            Process airs data        
@@ -1275,7 +1265,7 @@ subroutine read_obs(ndata,mype)
 !         Process co data
           else if (ditype(i) =='co')then 
              call read_co(nread,npuse,nouse,&
-                 platid,infile,gstime,lunout,obstype,twind,sis,ithin,rmesh)
+                 infile,gstime,lunout,obstype,sis)
              string='READ_CO'
 
 !         Process precipitation             

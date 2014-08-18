@@ -575,10 +575,10 @@ subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzb
 
 !   Declare local variables
     real(r_kind) :: ws,wa,wq
-    integer(i_kind) :: icount,i,j,k
+    integer(i_kind) :: icount,i,k
     real(r_kind), dimension(nchanl) :: tb_ta,tb_qa
     real(r_kind), dimension(nchanl) :: w_rad
-    real(r_kind) :: delt,delt1,delt2,delt3,c1x,c2x,c3x
+    real(r_kind) :: delt,delt1,c1x,c2x,c3x
     real(r_kind) :: a11,a12,a13,a23,a22,a33
     real(r_kind) :: varrad
     real(r_kind) :: vchk
@@ -664,8 +664,7 @@ subroutine tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzb
 
 end subroutine tz_retrieval
 
-subroutine qc_ssmi(nchanl,nsig,ich,  &
-     sfchgt,luse,sea,ice,snow,mixed, &
+subroutine qc_ssmi(nchanl,nsig,ich,sfchgt,luse,sea,mixed, &
      temp,wmix,ts,pems,ierrret,kraintype,tpwc,clw,sgagl,tzbgr,   &
      tbc,tbcnob,tb_ges,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
      varinv,errf,aivals,id_qc )
@@ -708,8 +707,6 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
 !     sfchgt  - surface height (not use now)
 !     luse    - logical use flag
 !     sea     - logical, sea flag
-!     ice     - logical, ice flag
-!     snow    - logical, snow flag
 !     mixed   - logical, mixed zone flag
 !     wmix         - d(brightness temperature)/d(mixing ratio)
 !     ts      - d(Tb)/d(Tz)
@@ -772,7 +769,7 @@ subroutine qc_ssmi(nchanl,nsig,ich,  &
   integer(i_kind)                  ,intent(in   ) :: kraintype,ierrret
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
 
-  logical                          ,intent(in   ) :: sea,snow,ice,mixed,luse
+  logical                          ,intent(in   ) :: sea,mixed,luse
   logical                          ,intent(in   ) :: ssmi,amsre_low,amsre_mid,amsre_hig,ssmis
 
   real(r_kind)                     ,intent(in   ) :: sfchgt,tpwc,clw,sgagl,tzbgr
@@ -1135,7 +1132,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
 
 
-  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact,sfchgtfact
+  real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
   real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,j,k,kk,lcloud
@@ -1384,8 +1381,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 end subroutine qc_irsnd
 
-subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
-     zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
+     zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
@@ -1414,7 +1411,6 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !     frac_sea     - fraction of grid box covered with water
 !     pangs        - solar zenith angle
 !     trop5        - tropopause pressure
-!     zasat        - satellite zenith angle
 !     tzbgr        - Tz over water
 !     tsavg5       - surface skin temperature
 !     tbc          - simulated - observed BT with bias correction
@@ -1454,13 +1450,12 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
 ! Declare passed variables
 
-  character(len=20),                  intent(in   ) :: isis
   logical,                            intent(in   ) :: sea,land,ice,snow,luse
   integer(i_kind),                    intent(in   ) :: ndat,nsig,nchanl,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
-  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
+  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs
@@ -1474,8 +1469,8 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
 
 
-  real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact,sfchgtfact
-  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts,delta
+  real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
+  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts
   real(r_kind),dimension(nchanl,nsig) :: dtb
   integer(i_kind) :: i,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
@@ -1674,9 +1669,9 @@ subroutine qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   return
 end subroutine qc_avhrr
 
-subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
-     zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
-     pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
+subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
+     zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
+     pred,predchan,id_qc,aivals,errf,varinv)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -1699,7 +1694,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich          - channel number
 !     is           - integer counter for number of observation types to process
 !     npred        - number of predictors
 !     sea          - logical, sea flag
@@ -1710,15 +1704,10 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !     luse         - logical use flag
 !     zsges        - elevation of guess
 !     tb_obsbc1    - bias corrected ob for channel 1
-!     tzbgr        - Tz water temperature for FOV
-!     tsavg5       - weighted averaged surface temperature for FOV
 !     cosza        - cosine of the satellite zenith angle
 !     clw          - cloud liquid water estimate
 !     tbc          - simulated - observed BT with bias correction
-!     tnoise       - error of observed radiance
 !     ptau5        - transmittances as a function of level and channel
-!     temp         - temperature sensitivity array
-!     wmix         - moisture sensitivity array
 !     emissivity_k - surface emissivity sensitivity
 !     ts           - skin temperature sensitivity
 !     pred         - bias correction predictors
@@ -1733,7 +1722,6 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 !     aivals       - array holding sums for various statistics as a function of obs type
 !     errf         - criteria of gross error
 !     varinv       - observation weight (modified obs var error inverse)
-!     factch4      - quality control factor for channel 4
 !
 ! attributes:
 !     language: f90
@@ -1753,14 +1741,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
 
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: ndat,nsig,npred,nchanl,is
-  integer(i_kind),dimension(nchanl),   intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tzbgr,tsavg5
-  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua, clw_guess_retrieval
-  real(r_kind),                        intent(inout) :: factch4
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1
+  real(r_kind),                        intent(in   ) :: cosza,clw
   real(r_kind),dimension(40,ndat),     intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,tnoise,emissivity_k,ts
-  real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5,temp,wmix
+  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,emissivity_k,ts
+  real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5
   real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,varinv
 
@@ -1772,11 +1758,12 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   real(r_kind),parameter:: w1f4=1.0_r_kind/0.3_r_kind
   real(r_kind),parameter:: w2f4=1.0_r_kind/1.8_r_kind
 
-  real(r_kind)    :: demisf,dtempf,efact,vfact,dtbf,term,cenlatx,fact
+  real(r_kind)    :: demisf,dtempf,efact,dtbf,term,cenlatx,fact
   real(r_kind)    :: efactmc,vfactmc,dtde1,dtde2,dtde3,dtde15,dsval,clwx
   real(r_kind)    :: factch6,de1,de2,de3,de15
   real(r_kind)    :: thrd1,thrd2,thrd3,thrd15
-  integer(i_kind) :: i,n,icw4crtm,ier
+  real(r_kind)    :: factch4
+  integer(i_kind) :: i,icw4crtm,ier
   logical lcw4crtm
   logical qc4emiss
 
@@ -2082,7 +2069,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse, 
   return
 
 end subroutine qc_amsua
-subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
+subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
      zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv,dsi,fact1)
 
@@ -2099,14 +2086,12 @@ subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich          - channel number
 !     is           - integer counter for number of observation types to process
 !     sea          - logical, sea flag
 !     land         - logical, land flag
 !     ice          - logical, ice flag
 !     snow         - logical, snow flag
 !     mhs          - logical, mhs flag - true if mhs data
-!     amsub        - logical, amsub flag - true if amsub data
 !     luse         - logical use flag
 !     zsges        - elevation of guess
 !     tbc          - simulated - observed BT with bias correction
@@ -2138,9 +2123,8 @@ subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,mhs,amsub,luse
+  logical,                            intent(in   ) :: sea,land,ice,snow,mhs,luse
   integer(i_kind),                    intent(in   ) :: ndat,nsig,nchanl,is
-  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges
   real(r_kind),                       intent(inout) :: dsi,fact1
@@ -2152,7 +2136,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
 ! Declare local parameters
 
   real(r_kind) :: demisf,dtempf,efact,vfact,dtbf,term,fact
-  integer(i_kind) :: i,n
+  integer(i_kind) :: i
 
   efact = one
   vfact = one
@@ -2238,9 +2222,9 @@ subroutine qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse,   &
   return
 
 end subroutine qc_mhs
-subroutine qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
-                 zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts, &
-                 pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
+subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
+                 zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &
+                 pred,predchan,id_qc,aivals,errf,varinv)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2302,27 +2286,24 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,  
 
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: nchanl,is,ndat,nsig,npred
-  integer(i_kind),dimension(nchanl),   intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),   dimension(nsig,nchanl),intent(in)  :: wmix,temp
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,tsavg5,tzbgr
-  real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua, clw_guess_retrieval
-  real(r_kind),                        intent(inout) :: factch4
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1
+  real(r_kind),                        intent(in   ) :: cosza,clw
   real(r_kind),dimension(40,ndat),     intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,tnoise,emissivity_k,ts
+  real(r_kind),dimension(nchanl),      intent(in   ) :: tbc,emissivity_k,ts
   real(r_kind),dimension(nsig,nchanl), intent(in   ) :: ptau5
   real(r_kind),dimension(npred,nchanl),intent(in   ) :: pred,predchan
   real(r_kind),dimension(nchanl),      intent(inout) :: errf,varinv
 
 ! For now, just pass all channels to qc_amsua
-  call qc_amsua (nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse,   &
-                 zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts, &
-                 pred,predchan,id_qc,aivals,errf,varinv,factch4,clwp_amsua,clw_guess_retrieval)
+  call qc_amsua (nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
+                 zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &
+                 pred,predchan,id_qc,aivals,errf,varinv)
 
   return
 
 end subroutine qc_atms
-subroutine qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
+subroutine qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
      zsges,cenlat,tb_obs,ptau5,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
 
@@ -2339,7 +2320,6 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich          - channel number
 !     is           - integer counter for number of observation types to process
 !     sea          - logical, sea flag
 !     land         - logical, land flag
@@ -2376,7 +2356,6 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse
   integer(i_kind),                    intent(in   ) :: ndat,nsig,nchanl,is
-  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges,cenlat
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
@@ -2449,7 +2428,7 @@ subroutine qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   return
 
 end subroutine qc_ssu
-subroutine qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
+subroutine qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse,   &
      zsges,cenlat,tbc,ptau5,emissivity_k,ts,      &
      id_qc,aivals,errf,varinv)
 
@@ -2466,7 +2445,6 @@ subroutine qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
-!     ich          - channel number
 !     is           - integer counter for number of observation types to process
 !     sea          - logical, sea flag
 !     land         - logical, land flag
@@ -2502,7 +2480,6 @@ subroutine qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
   logical,                            intent(in   ) :: sea,land,ice,snow,luse
   integer(i_kind),                    intent(in   ) :: nchanl,ndat,nsig,is
-  integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   real(r_kind),                       intent(in   ) :: zsges,cenlat
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals

@@ -137,12 +137,7 @@ subroutine stp3dvar(dirx,dir_dt)
   call gsi_bundlegetpointer(dir_dt,'tsen',dir_dt_tsen,istatus);ier=istatus+ier
   if(ier/=0) return
 
-  call calctends_tl( &
-     dirx_u     ,dirx_v      ,dirx_t     ,               &
-     dirx_q     ,dirx_oz     ,dirx_cw    ,               &
-     mype, nnnn1o,          &
-     dir_dt_u,dir_dt_v ,dir_dt_t,dir_dt_prse, &
-     dir_dt_q,dir_dt_oz,dir_dt_cw,dirx_prse)
+  call calctends_tl(dirx,dir_dt,mype)
 
 ! Convert virtual temperature to sensible temperature for time derivatives
 ! for search direction

@@ -273,7 +273,7 @@ contains
     logical              ,intent(in   ) :: cwcoveqqcov
 
 !   Declare local variables
-    integer(i_kind) i,j,k,msig
+    integer(i_kind) i,j,k
     integer(i_kind) mm1
     integer(i_kind) jx
     
@@ -544,9 +544,6 @@ contains
 !   Declare local variables
     integer(i_kind) i,j,k,l,m
 
-    real(r_kind) dl1,dl2
-
-
 !   REGIONAL BRANCH
     if (regional) then
 
@@ -739,9 +736,8 @@ contains
     logical                               ,intent(in   ) :: fut2ps
 
 !   Declare local variables
-    integer(i_kind) l,m,l2,i,j,k
+    integer(i_kind) l,m,i,j,k
 
-    real(r_kind) dl1,dl2
   
 !  Adjoint of strong balance constraint
 !  pass uvflag=.false.
