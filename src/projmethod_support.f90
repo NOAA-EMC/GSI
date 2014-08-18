@@ -413,6 +413,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 !   2014-04-10  pondeca - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca - add howv
 !   2014-06-18  carley/zhu - add tcamt and lcbas
+!   2014-08-18  pondeca - add sfwter and vpwter
 !
 !   input argument list:
 !     nv
@@ -455,7 +456,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 ! Declare local variables
   integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
   integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,nrf2_wspd10m,&
-                          nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
+                          nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas,&
+                          nrf3_sfwter,nrf3_vpwter
 
   integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,ip,istatus
 
@@ -470,14 +472,16 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
 ! as below ... the way code now, if the control vector
 ! does not have the fields below, they won't be written
 ! out to file
-  integer(i_kind),  parameter :: my3d = 6
-  character(len=3), parameter :: myvars3d(my3d) = (/  &
+  integer(i_kind),  parameter :: my3d = 8
+  character(len=8), parameter :: myvars3d(my3d) = (/  &
                                   'sf ',    &
                                   'vp ',    &
                                   't  ',    &
                                   'q  ',    &
                                   'oz ',    &
-                                  'cw '    /)  
+                                  'cw ',    &
+                                  'sfwter', &
+                                  'vpwter' /)  
   character(2) clun1
   character(3) clun2
 !*************************************************************************
@@ -489,6 +493,8 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      nrf3_q    = getindex(cvars3d,'q')
      nrf3_oz   = getindex(cvars3d,'oz')
      nrf3_cw   = getindex(cvars3d,'cw')
+     nrf3_sfwter = getindex(cvars3d,'sfwter')
+     nrf3_vpwter = getindex(cvars3d,'vpwter')
      nrf2_ps   = getindex(cvars2d,'ps')
      nrf2_sst  = getindex(cvars2d,'sst')
      nrf2_gust = getindex(cvars2d,'gust')
@@ -527,7 +533,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
      endif
 
      write (lun) nlon,nlat,nsig,jpch_rad,npred,npcptype,npredp,jiter,nv,alpha,gamma, &
-                 nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw, & 
+                 nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw,nrf3_sfwter,nrf3_vpwter, & 
                  nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist,nrf2_wspd10m, &
                  nrf2_td2m,nrf2_mxtm,nrf2_mitm,nrf2_pmsl,nrf2_howv,nrf2_tcamt,nrf2_lcbas
 
