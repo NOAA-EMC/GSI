@@ -149,39 +149,39 @@ subroutine read_files(mype)
 ! Check for atm files with non-zero length
   irec=i_missing
   if(mype==npem1)then
-  do i=0,max_file-1
-     write(filename,'(''sigf'',i2.2)')i
-     call gsi_inquire(lenbytes,fexist,filename,mype)
-     if(fexist .and. lenbytes>0) then
-        nfldsig=nfldsig+1
-        irec(nfldsig) = i
+     do i=0,max_file-1
+        write(filename,'(''sigf'',i2.2)')i
+        call gsi_inquire(lenbytes,fexist,filename,mype)
+        if(fexist .and. lenbytes>0) then
+           nfldsig=nfldsig+1
+           irec(nfldsig) = i
+        end if
+     enddo
+     if(nfldsig==0) then
+        write(6,*)'READ_FILES: ***ERROR*** NO atm fields; aborting'
+        call stop2(169)
      end if
-  enddo
-  if(nfldsig==0) then
-     write(6,*)'READ_FILES: ***ERROR*** NO atm fields; aborting'
-     call stop2(169)
-  end if
-  allocate( fcst_hr_sig(nfldsig) )
-  fcst_hr_sig(:) = irec(1:nfldsig)
+     allocate( fcst_hr_sig(nfldsig) )
+     fcst_hr_sig(:) = irec(1:nfldsig)
   end if
 
 ! Check for sfc files with non-zero length
   irec=i_missing
   if(mype==npem1)then
-  do i=0,max_file-1
-     write(filename,'(''sfcf'',i2.2)')i
-     call gsi_inquire(lenbytes,fexist,filename,mype)
-     if(fexist .and. lenbytes>0) then
-        nfldsfc=nfldsfc+1
-        irec(nfldsfc) = i
+     do i=0,max_file-1
+        write(filename,'(''sfcf'',i2.2)')i
+        call gsi_inquire(lenbytes,fexist,filename,mype)
+        if(fexist .and. lenbytes>0) then
+           nfldsfc=nfldsfc+1
+           irec(nfldsfc) = i
+        end if
+     enddo
+     if(nfldsfc==0) then
+        write(6,*)'READ_FILES: ***ERROR* NO sfc fields; aborting'
+        call stop2(170)
      end if
-  enddo
-  if(nfldsfc==0) then
-     write(6,*)'READ_FILES: ***ERROR* NO sfc fields; aborting'
-     call stop2(170)
-  end if
-  allocate( fcst_hr_sfc(nfldsfc) )
-  fcst_hr_sfc(:) = irec(1:nfldsfc)
+     allocate( fcst_hr_sfc(nfldsfc) )
+     fcst_hr_sfc(:) = irec(1:nfldsfc)
   end if
 
   call mpi_bcast(nfldsig,1,mpi_itype,npem1,mpi_comm_world,ierror)
@@ -192,20 +192,25 @@ subroutine read_files(mype)
   if(nst_gsi > 0) then  ! nst application is an option
 !    Check for nsf files with non-zero length
      irec=i_missing
-     do i=0,max_file-1
-        write(filename,'(''nstf'',i2.2)')i
-        call gsi_inquire(lenbytes,fexist,filename,mype)
-        if(fexist .and. lenbytes>0) then
-           nfldnst=nfldnst+1
-           irec(nfldnst) = i
+     if(mype==npem1)then
+        do i=0,max_file-1
+           write(filename,'(''nstf'',i2.2)')i
+           call gsi_inquire(lenbytes,fexist,filename,mype)
+           if(fexist .and. lenbytes>0) then
+              nfldnst=nfldnst+1
+              irec(nfldnst) = i
+           end if
+        enddo
+        if(nfldnst==0) then
+           write(6,*)'READ_FILES: ***ERROR*** NO nst fields; aborting'
+           call stop2(170)
         end if
-     enddo
-     if(nfldnst==0) then
-        write(6,*)'READ_FILES: ***ERROR*** NO nst fields; aborting'
-        call stop2(170)
+        allocate( fcst_hr_nst(nfldnst) )
+        fcst_hr_nst(:) = irec(1:nfldnst)
      end if
-     allocate( fcst_hr_nst(nfldnst) )
-     fcst_hr_nst(:) = irec(1:nfldnst)
+
+     call mpi_bcast(nfldnst,1,mpi_itype,npem1,mpi_comm_world,ierror)
+
      allocate(time_nst(nfldnst,2))
   end if
 
