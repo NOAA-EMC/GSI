@@ -193,6 +193,14 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) wdirob,wdirgesin,wdirdiffmax
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
+! Variables needed for new polar winds QC based on Log Normalized Vector Departure (LNVD)
+  real(r_kind) LNVD_wspd
+  real(r_kind) LNVD_omb
+  real(r_kind) LNVD_ratio
+  real(r_kind) LNVD_threshold
+
+  real(r_kind) dpreso,dpk,uint,ugint,vint,vgint
+
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
   integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,icat
   integer(i_kind) k1,k2,ikxx,nn,isli,ibin,ioff,ioff0
@@ -720,20 +728,48 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
  
 !       Set and computes modis specific qc parameters
-        qcu = r7
-        qcv = r7
-        qc_spd = (spdges+r15)/three
-        qc_prs=zero
-        if (itype==257) qc_prs = prsfc - r200
-        if (itype==258 .or. itype==259) qc_prs = r400
-        if ( presw > qc_prs .and. qc_spd < qcu ) then
-           qcu = (spdob + r15)/three
-           qcv = (qcv*qcu)/r7
-        endif
+!       trunk.r44401
+!        qcu = r7
+!        qcv = r7
+!        qc_spd = (spdges+r15)/three
+!        qc_prs=zero
+!        if (itype==257) qc_prs = prsfc - r200
+!        if (itype==258 .or. itype==259) qc_prs = r400
+!        if ( presw > qc_prs .and. qc_spd < qcu ) then
+!           qcu = (spdob + r15)/three
+!           qcv = (qcv*qcu)/r7
+!        endif
 
-!       if (presw < trop5-r50 .or. &                      !  tropopause check
-        if(abs(dudiff) > qcu .or. &                      !  u component check
-            abs(dvdiff) > qcv .or. &                      !  v component check
+!!!!!!!new AVHRR QC instead of trunk.r44401 (above)
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0
+        if(LNVD_ratio .GE. LNVD_threshold .or. &      ! LNVD check
+            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
+           error = zero
+        endif
+       endif ! ???
+
+!       trunk.r44401
+!!       if (presw < trop5-r50 .or. &                       !  tropopause check
+!        if(abs(dudiff) > qcu .or. &                       !  u component check
+!            abs(dvdiff) > qcv .or. &                      !  v component check
+!
+!!!!!!!new AVHRR QC instead of trunk.r44401 (above)
+!    QC AVHRR winds
+     if (itype==244) then
+!       Get guess values of tropopause pressure and sea/land/ice
+!       mask at observation location
+        prsfc = r10*prsfc       ! surface pressure in hPa
+
+!       Set and computes modis specific qc parameters
+        LNVD_wspd = spdob
+        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+        LNVD_threshold = 3.0
+
+        if(LNVD_ratio .GE. LNVD_threshold .or. &      ! LNVD check
             (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
            error = zero
         endif
@@ -825,6 +861,9 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif
 
      if(spdb <0 )then
+        if(itype ==244) then   ! AVHRR, use same as MODIS
+          qcgross=r0_7*cgross(ikx)
+        endif
         if( itype == 245 .or. itype ==246) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
         endif
