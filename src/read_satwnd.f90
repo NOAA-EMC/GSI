@@ -181,7 +181,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),dimension(nsig):: presl
   
   real(r_double),dimension(13):: hdrdat
-  real(r_double),dimension(4):: obsdat,satqc
+  real(r_double),dimension(4):: obsdat
   real(r_double),dimension(3,5) :: heightdat
   real(r_double),dimension(6,4) :: derdwdat
   real(r_double),dimension(3,12) :: qcdat
@@ -486,7 +486,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(nc <= 0 .or. tab(ntb,2) /= nx) cycle loop_readsb
            hdrdat=bmiss
            obsdat=bmiss
-           satqc=bmiss
            heightdat=bmiss
            derdwdat=bmiss
            qcdat=bmiss
