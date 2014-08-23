@@ -2164,7 +2164,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
                     end if
 
-                    usage=zero
+                    !usage=zero
                     if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9) usage=100._r_kind
                     tcamt_oe=25.0_r_kind
                     if(tcamt_qc==3) tcamt_oe=tcamt_oe*1.5_r_kind
@@ -2207,7 +2207,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
                     end if
 
-                    usage=zero
+                    !usage=zero
                     if(lcbas_qc==15 .or. lcbas_qc==12 .or. lcbas_qc==9) usage=100._r_kind
                     lcbas_oe=4500.0_r_kind
                     if(lcbas_qc==3) lcbas_oe=lcbas_oe*1.25_r_kind
