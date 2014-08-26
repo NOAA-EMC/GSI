@@ -96,8 +96,8 @@ LIBhdf    = #-L$(BASEDIR)/$(ARCH)/lib  -lmfhdf -ldf -lhdfjpeg -lhdfz -lsz
   LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d $(GSILIBS)\
   	  -L$(NETCDF)/lib -lnetcdf
   # use this one if linking shtns lib intead of splib for spectral transforms.
-  #LIBS_N        = -L$(SHTNSLIB) -lshtns -lfftw3 -L$(CORELIB) -lsp_v2.0.1.d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d\
-  #		  -L$(NETCDF)/lib -lnetcdf
+  #LIBS_N        = -L$(CORELIB) -lsp_v2.0.1_d -lsigio_4 -lsfcio_4 -lnemsio -lbacio_4 -lw3nco_d\
+  #                $(GSILIBS) -L$(NETCDF)/lib -lnetcdf -L$(SHTNSLIB) -lshtns -lfftw3#
 
   LDFLAGS_N     = -mkl=sequential $(OMP)
 
