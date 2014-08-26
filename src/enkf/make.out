@@ -1,0 +1,63 @@
+make[1]: Entering directory `/scratch1/portfolios/BMC/gsienkf/whitaker/EXP-4densvar/EXP-enkfmerge/src/enkf'
+make[2]: Entering directory `/scratch1/portfolios/BMC/gsienkf/whitaker/EXP-4densvar/EXP-enkfmerge/src/enkf'
+make[2]: Leaving directory `/scratch1/portfolios/BMC/gsienkf/whitaker/EXP-4densvar/EXP-enkfmerge/src/enkf'
+
+==== COMPILE =================================================
+make[2]: Entering directory `/scratch1/portfolios/BMC/gsienkf/whitaker/EXP-4densvar/EXP-enkfmerge/src/enkf'
+
+---> Compiling enkf_kinds.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c enkf_kinds.f90
+
+---> Compiling netlib.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c netlib.f90
+netlib.f90(53): warning #6843: A dummy argument with an explicit INTENT(OUT) declaration is not given an explicit value.   [FV2]
+  subroutine rs(nm,n,a,w,matz,z,fv1,fv2,ierr)
+------------------------------------^
+netlib.f90(53): remark #7712: This variable has not been used.   [MATZ]
+  subroutine rs(nm,n,a,w,matz,z,fv1,fv2,ierr)
+-------------------------^
+netlib.f90(53): remark #7712: This variable has not been used.   [FV2]
+  subroutine rs(nm,n,a,w,matz,z,fv1,fv2,ierr)
+------------------------------------^
+
+---> Compiling common_mtx.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c common_mtx.f90
+
+---> Compiling mpisetup.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c mpisetup.f90
+
+---> Compiling params.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c params.f90
+
+---> Compiling covlocal.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c covlocal.f90
+
+---> Compiling rnorm.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c rnorm.f90
+
+---> Compiling readozobs.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c readozobs.f90
+
+---> Compiling readsatobs.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c readsatobs.f90
+
+---> Compiling readconvobs.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c readconvobs.f90
+
+---> Compiling mpi_readobs.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c mpi_readobs.f90
+
+---> Compiling enkf_obsmod.f90
+mpif90 -DGFS   -I ./ -I ../ -I /contrib/nceplibs/nwprod/lib/incmod/sfcio_4 -I /contrib/nceplibs/nwprod/lib/incmod/sigio_4 -I /apps/netcdf/3.6.3/intel/include -I /contrib/nceplibs/nwprod/lib/incmod/nemsio -O3 -xHOST -warn all -implicitnone -traceback -fp-model strict -openmp  -c enkf_obsmod.f90
+enkf_obsmod.f90(111): error #6580: Name in only-list does not exist.   [CONSTANTS_INITIALIZED]
+use constants, only: zero, one, deg2rad, constants_initialized, rad2deg, &
+-----------------------------------------^
+enkf_obsmod.f90(169): error #6404: This name does not have a type, and must have an explicit type.   [CONSTANTS_INITIALIZED]
+if (.not. constants_initialized) then
+----------^
+compilation aborted for enkf_obsmod.f90 (code 1)
+make[2]: *** [enkf_obsmod.o] Error 1
+make[2]: Leaving directory `/scratch1/portfolios/BMC/gsienkf/whitaker/EXP-4densvar/EXP-enkfmerge/src/enkf'
+make[1]: *** [all] Error 2
+make[1]: Leaving directory `/scratch1/portfolios/BMC/gsienkf/whitaker/EXP-4densvar/EXP-enkfmerge/src/enkf'
+make: *** [""] Error 2
