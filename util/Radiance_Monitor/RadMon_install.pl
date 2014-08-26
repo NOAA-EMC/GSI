@@ -199,7 +199,7 @@
    print "\n";
    print "Updating parm/RadMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-ada}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-glbss}";
    if( $machine ne "zeus" ) {
       $account = "export ACCOUNT=\${ACCOUNT:-}";
    }
