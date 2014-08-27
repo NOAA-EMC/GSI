@@ -16,7 +16,7 @@ module reducedgrid_mod
 ! Jeff Whitaker <jeffrey.s.whitaker@noaa.gov>
 ! 20100217
 
-use kinds, only: r_kind
+use kinds, only: r_kind,r_single
 implicit none
 
 private
@@ -99,7 +99,7 @@ subroutine regtoreduced(datareg,datared)
  ! datared (size nptspred) is returned with data on
  ! reduced grid. 
  real(r_kind), intent(in), dimension(nlonsfull*nlatsfull):: datareg
- real(r_kind), intent(out), dimension(nptsred) :: datared
+ real(r_single), intent(out), dimension(nptsred) :: datared
  integer nlon, nlat, n, nlonsred
  real datareg_lon(nlonsfull)
  real fftwork(2*nlonsfull+15)
@@ -126,7 +126,7 @@ subroutine reducedtoreg(datared,datareg)
  ! datareg (size nlonsfull*nlatsfull) is returned with
  ! data on full grid.
  real(r_kind), intent(out), dimension(nlonsfull*nlatsfull) :: datareg
- real(r_kind), intent(in), dimension(nptsred) :: datared
+ real(r_single), intent(in), dimension(nptsred) :: datared
  integer nlon, nlat, nlonsred, n
  real datared_lon(nlonsfull)
  real fftwork(2*nlonsfull+15)

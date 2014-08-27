@@ -79,7 +79,7 @@ real(r_kind),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot,
 real(r_kind) fnanalsml,coslat
 integer(i_kind) i,nn,iunit,ierr
 character(len=500) filename
-real(r_kind), allocatable, dimension(:,:) :: tmp_chunk2,&
+real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,&
          covinfglobal, covinfglobal2
 
 ! if no inflation called for, do nothing.

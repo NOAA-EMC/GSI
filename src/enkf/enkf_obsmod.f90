@@ -140,7 +140,7 @@ character(len=20), public, allocatable, dimension(:) :: obtype
 integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot, nobsgood
 
 ! anal_ob is only used here and in loadbal. It is deallocated in loadbal.
-real(r_kind), public, allocatable, dimension(:,:) :: anal_ob
+real(r_single), public, allocatable, dimension(:,:) :: anal_ob
 integer(i_kind), public, allocatable, dimension(:,:) :: nlocconv,nlocsat,nlocoz
 integer(i_kind), public :: blatnum, blonnum, boxmax
 

@@ -55,11 +55,12 @@
   character(len=3) charnanal
   integer, intent(in) :: nanal
   real(r_double), dimension(npts,nlevs), intent(out) :: qsat
-  real(r_kind), dimension(npts,ndim), intent(out) :: grdin
+  real(r_single), dimension(npts,ndim), intent(out) :: grdin
 
   real(r_kind) kap,kapr,kap1,clip
 
-  real(r_kind), allocatable, dimension(:,:) :: vmassdiv,pressi,pslg
+  real(r_kind), allocatable, dimension(:,:) :: vmassdiv
+  real(r_single), allocatable, dimension(:,:) :: pressi,pslg
   real(r_kind), dimension(nlons*nlats) :: ug,vg
   real(r_kind), dimension(ndimspec) :: vrtspec,divspec
   real(r_kind), allocatable, dimension(:) :: psg,pstend,ak,bk
@@ -338,7 +339,7 @@
 
   character(len=500):: filenamein, filenameout
   integer, intent(in) :: nanal
-  real(r_kind), dimension(npts,ndim), intent(inout) :: grdin
+  real(r_single), dimension(npts,ndim), intent(inout) :: grdin
   real(r_kind), allocatable, dimension(:,:) :: vmassdiv,dpanl,dpfg,pressi
   real(r_kind), allocatable, dimension(:,:) :: vmassdivinc
   real(r_kind), allocatable, dimension(:,:) :: ugtmp,vgtmp
@@ -1024,7 +1025,7 @@ contains
 
   subroutine readgriddata(nanal,vargrid,qsat)
    integer,                                                         intent(in)  :: nanal
-   real(r_kind),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
+   real(r_single),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
    real(r_double),     dimension(npts,nlevs),                       intent(out) :: qsat
    if (arw) then
      call readgriddata_arw(nanal,vargrid,qsat)
@@ -1044,6 +1045,8 @@ contains
 
   subroutine readgriddata_arw(nanal,vargrid,qsat)
 
+    use constants
+
     !======================================================================
 
     ! Define array dimension variables
@@ -1058,7 +1061,7 @@ contains
 
     ! Define variables returned by subroutine
 
-    real(r_kind),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
+    real(r_single),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
     real(r_double),     dimension(npts,nlevs),                       intent(out) :: qsat
 
     ! Define variables computed within subroutine
@@ -1073,9 +1076,9 @@ contains
     real,       dimension(:,:,:),               allocatable              :: wrfarw_ptop
     real,       dimension(:,:,:),               allocatable              :: workgrid
     real,       dimension(:,:,:),               allocatable              :: vargrid_native
-    real(r_kind),     dimension(:,:),                 allocatable              :: enkf_virttemp
-    real(r_kind),     dimension(:,:),                 allocatable              :: enkf_pressure
-    real(r_kind),     dimension(:,:),                 allocatable              :: enkf_spechumd
+    real(r_single),     dimension(:,:),                 allocatable              :: enkf_virttemp
+    real(r_single),     dimension(:,:),                 allocatable              :: enkf_pressure
+    real(r_single),     dimension(:,:),                 allocatable              :: enkf_spechumd
     real(r_single)                                                               :: kap
     real(r_single)                                                               :: kap1
     real(r_single)                                                               :: kapr
@@ -1500,7 +1503,7 @@ contains
 
     ! Define variables returned by subroutine
 
-    real(r_kind),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
+    real(r_single),       dimension(npts,nvars*nlevs+1),               intent(out) :: vargrid
     real(r_double),     dimension(npts,nlevs),                       intent(out) :: qsat
 
     ! Define variables computed within subroutine
@@ -1517,9 +1520,9 @@ contains
     real,       dimension(:,:,:),               allocatable              :: wrfnmm_pt
     real,       dimension(:,:,:),               allocatable              :: workgrid
     real,       dimension(:,:,:),               allocatable              :: vargrid_native
-    real(r_kind),     dimension(:,:),                 allocatable              :: enkf_virttemp
-    real(r_kind),     dimension(:,:),                 allocatable              :: enkf_pressure
-    real(r_kind),     dimension(:,:),                 allocatable              :: enkf_spechumd
+    real(r_single),     dimension(:,:),                 allocatable              :: enkf_virttemp
+    real(r_single),     dimension(:,:),                 allocatable              :: enkf_pressure
+    real(r_single),     dimension(:,:),                 allocatable              :: enkf_spechumd
     real(r_kind)                                                               :: kap
     real(r_kind)                                                               :: kap1
     real(r_kind)                                                               :: kapr
@@ -1995,13 +1998,14 @@ contains
 
   subroutine writegriddata(nanal,vargrid)
 
+    use constants
     include 'netcdf.inc'      
 
     !----------------------------------------------------------------------
 
     ! Define variables passed to subroutine
 
-    real(r_kind),    dimension(npts,nvars*nlevs+1),                            intent(in)    :: vargrid
+    real(r_single),    dimension(npts,nvars*nlevs+1),                            intent(in)    :: vargrid
     integer,                                                                     intent(in)    :: nanal                                                
 
     !----------------------------------------------------------------------
@@ -2416,7 +2420,7 @@ use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
 use params, only: nlons,nlats,ndim,reducedgrid,nvars,nlevs,pseudo_rh, &
                    cliptracers,nlons,nlats,datestring,datapath,massbal_adjust,charfhr_anal,iau
 use kinds, only: i_kind,r_double,r_kind,r_single
-use constants, only: zero,one,cp,rv,rd,gravzero
+use constants, only: zero,one,cp,rv,rd,grav,zero
 use gridinfo, only: nvarozone,npts,wind2mass,mass2wind
 
 use mpisetup, only: nproc
@@ -2431,7 +2435,7 @@ character(len=500) :: filename
 character(len=3) charnanal
 integer, intent(in) :: nanal
 real(r_double), dimension(npts,nlevs), intent(out) :: qsat
-real(r_kind), dimension(npts,ndim), intent(out) :: grdin
+real(r_single), dimension(npts,ndim), intent(out) :: grdin
 real(r_kind), allocatable, dimension(:,:) :: pslg
 real(r_kind), allocatable, dimension(:) :: psg
 real(r_kind) clip
@@ -2578,7 +2582,7 @@ implicit none
 
 character(len=500):: filename
 integer, intent(in) :: nanal
-real(r_kind), dimension(npts,ndim), intent(inout) :: grdin
+real(r_single), dimension(npts,ndim), intent(inout) :: grdin
 character(len=3) charnanal
 integer(nemsio_intkind) iret,nfhour,jdate(7),idat(3),ihrst,nfminute,ntimestep,nfsecond
 integer iadate(4),idate(4),k,kk

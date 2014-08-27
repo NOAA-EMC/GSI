@@ -29,7 +29,7 @@ subroutine smooth(grids,grids2)
 use specmod, only: sptez_s, init_spec_vars, jcap, isinitialized
 implicit none
 integer(i_kind) np,ierr,m,nmdim,nm,nn,n,nmax,delta,npmax
-real(r_kind), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
+real(r_single), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
 
 real(r_kind) smoothfact ! smoothing parameter.
 real(r_kind) reggrd(nlons*nlats)
@@ -98,7 +98,7 @@ public :: smooth
 contains
 
 subroutine smooth(grids,grids2)
-real(r_kind), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
+real(r_single), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
 ! stub - not yet implemented.
 if (nproc .eq. 0) print *,'wrf inflation smoothing not yet implemented!'
 end subroutine smooth
@@ -122,7 +122,7 @@ public :: smooth
 contains
 
 subroutine smooth(grids,grids2)
-real(r_kind), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
+real(r_single), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
 ! stub - not yet implemented.
 if (nproc .eq. 0) print *,'nmmb inflation smoothing not yet implemented!'
 end subroutine smooth

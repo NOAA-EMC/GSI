@@ -47,7 +47,7 @@ module statevec
 use mpisetup
 use params, only: nlevs,nvars,ndim,&
                   nanals,pseudo_rh,massbal_adjust
-use kinds, only: r_kind, i_kind, r_double
+use kinds, only: r_kind, i_kind, r_double, r_single
 use loadbal, only: npts_max,indxproc,numptsperproc
 use gridio, only: readgriddata, writegriddata
 use gridinfo, only: lonsgrd, latsgrd, ptop, npts, nvarhumid
@@ -55,9 +55,9 @@ use enkf_obsmod, only: nobsgood
 implicit none
 private
 public :: read_ensemble, write_ensemble, statevec_cleanup
-real(r_kind),public, allocatable, dimension(:,:,:) :: anal_chunk, anal_chunk_prior
-real(r_kind),public, allocatable, dimension(:,:) :: ensmean_chunk, ensmean_chunk_prior
-real(r_kind),public, allocatable, dimension(:,:) :: grdin
+real(r_single),public, allocatable, dimension(:,:,:) :: anal_chunk, anal_chunk_prior
+real(r_single),public, allocatable, dimension(:,:) :: ensmean_chunk, ensmean_chunk_prior
+real(r_single),public, allocatable, dimension(:,:) :: grdin
 real(r_double),public, allocatable, dimension(:,:) :: qsat
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
 

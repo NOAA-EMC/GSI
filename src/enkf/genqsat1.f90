@@ -50,7 +50,7 @@ subroutine genqsat1(sph,qsat,ges_prsl,ges_tv,ice,npts,nlevs)
   logical,intent(in):: ice
   integer(i_kind), intent(in) :: npts,nlevs
   real(r_double),dimension(npts,nlevs),intent(out):: qsat
-  real(r_kind),intent(in),dimension(npts,nlevs) :: ges_prsl,ges_tv,sph
+  real(r_single),intent(in),dimension(npts,nlevs) :: ges_prsl,ges_tv,sph
 
   integer(i_kind) k,i
   real(r_double) pw,tdry,tr,es

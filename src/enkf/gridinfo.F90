@@ -61,7 +61,7 @@ real(r_kind),public :: ptop
 real(r_kind),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
-real(r_kind),public, allocatable, dimension(:,:) :: logp
+real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
 integer,public :: ntrunc
 integer,public :: nvarhumid ! spec hum is the nvarhumid'th var
@@ -351,7 +351,7 @@ module gridinfo
   use constants, only: rearth_equator, omega, pi, deg2rad, zero, rad2deg,    &
                        rearth
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
-  use obsmod,    only: obloc, obloclat, obloclon, nobsgood
+  use enkf_obsmod,    only: obloc, obloclat, obloclon, nobsgood
   use params,    only: datapath, nlevs, nvars, ndim, nlons, nlats,           &
                        arw, nmm, doubly_periodic
   use mpisetup

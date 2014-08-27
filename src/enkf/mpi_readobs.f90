@@ -30,7 +30,7 @@ module mpi_readobs
 !
 !$$$
   
-use kinds, only: r_kind, i_kind
+use kinds, only: r_kind, r_single, i_kind
 use params, only: letkf_flag
 use radinfo, only: npred
 use readconvobs
@@ -56,7 +56,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     real(r_kind), allocatable, dimension(:) :: ensmean_ob,ob,oberr,oblon,oblat,obpress,obtime,oberrorig,ensmean_obbc,sprd_ob
     integer(i_kind), allocatable, dimension(:) :: obcode,indxsat
     real(r_kind), allocatable, dimension(:,:) :: biaspreds
-    real(r_kind), allocatable, dimension(:,:) :: anal_ob
+    real(r_single), allocatable, dimension(:,:) :: anal_ob
     real(r_kind), allocatable, dimension(:) :: h_xnobc
     real(r_kind) :: analsi,analsim1
     character(len=20), allocatable,  dimension(:) ::  obtype
