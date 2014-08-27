@@ -326,7 +326,7 @@ if(nproc == 0) then
    t1 = mpi_wtime()
 end if
 if(letkf_flag) then
-   call mpi_bcast(anal_ob,nobstot*nanals,mpi_realkind,0,mpi_comm_world,ierr)
+   call mpi_bcast(anal_ob,nobstot*nanals,mpi_real4,0,mpi_comm_world,ierr)
    do nob1=1,numobsperproc(nproc+1)
       nob2 = indxproc_obs(nproc+1,nob1)
       anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
@@ -340,7 +340,7 @@ else
             nob2 = indxproc_obs(np+1,nob1)
             anal_obchunk_prior(:,nob1) = anal_ob(:,nob2)
          end do
-         call mpi_send(anal_obchunk_prior,nobs_max*nanals,mpi_realkind,np, &
+         call mpi_send(anal_obchunk_prior,nobs_max*nanals,mpi_real4,np, &
               1,mpi_comm_world,ierr)
       end do
       ! anal_obchunk_prior on root (no send necessary)
@@ -352,7 +352,7 @@ else
       deallocate(anal_ob)
    else
       ! recv one large message on each task.
-      call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_realkind,0, &
+      call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
            1,mpi_comm_world,mpi_status,ierr)
    end if
    !deallocate(rtmp)

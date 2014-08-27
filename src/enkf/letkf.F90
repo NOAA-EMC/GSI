@@ -67,7 +67,7 @@ module letkf
 
 use mpisetup
 use covlocal, only:  taper, latval
-use kinds, only: r_double,i_kind,r_kind
+use kinds, only: r_double,i_kind,r_kind,r_single
 use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    indxproc, lnp_chunk, &
                    ensmean_obchunk, indxob_chunk, oblnp_chunk, nobs_max, &
@@ -108,7 +108,7 @@ integer(i_kind) nob,nob1,nob2,nob3,nob4,nf,nobxx,nskip,&
 real(r_double) :: t1,t2,t3,t4,t5,t6,tbegin,tend
 real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
-real(r_kind),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
+real(r_single),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_kind), allocatable, dimension(:) :: buffertmp, buffertmp2
 integer(i_kind) ierr
@@ -118,7 +118,7 @@ logical lastiter
 real(r_kind),allocatable,dimension(:,:) :: hdxf
 real(r_kind),allocatable,dimension(:) :: rdiag,dep,rloc,obdep,oberinv
 real(r_kind),dimension(nanals,nanals) :: trans
-real(r_kind),dimension(nanals) :: work
+real(r_kind),dimension(nanals) :: work,work2
 integer(i_kind),allocatable,dimension(:) :: nobs_use
 integer(i_kind),allocatable,dimension(:) :: oupdate, oindex
 real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel, hdist0
@@ -389,12 +389,11 @@ do niter=1,numiter
 !           end do
 !        end do
         if(r_kind == kind(1.d0)) then
-           call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
-                & anal_obchunk(1:nanals,nob),1)
+           call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
         else
-           call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
-                & anal_obchunk(1:nanals,nob),1)
+           call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
         end if
+        anal_obchunk(1:nanals,nob) = work2
         ensmean_obchunk(nob) = sum(anal_obchunk(1:nanals,nob)) * r_nanals
         anal_obchunk(1:nanals,nob) = anal_obchunk(1:nanals,nob) &
              - ensmean_obchunk(nob)
@@ -625,12 +624,12 @@ deallocate(obdep,oberinv)
 ! Gathering analysis perturbations projected on the observation space
 if(nproc /= 0) then
   deallocate(anal_ob)
-  call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_realkind,0, &
+  call mpi_send(anal_obchunk,numobsperproc(nproc+1)*nanals,mpi_real4,0, &
        1,mpi_comm_world,ierr)
 else
    allocate(buffertmp3(nanals,nobs_max))
    do np=1,numproc-1
-      call mpi_recv(buffertmp3,numobsperproc(np+1)*nanals,mpi_realkind,np, &
+      call mpi_recv(buffertmp3,numobsperproc(np+1)*nanals,mpi_real4,np, &
            1,mpi_comm_world,mpi_status,ierr)
       do nob1=1,numobsperproc(np+1)
          nob2 = indxproc_obs(np+1,nob1)

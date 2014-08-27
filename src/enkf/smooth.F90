@@ -78,7 +78,7 @@ if (nproc <= npmax) then
   enddo !nn=1,ndim
   deallocate(specdat)
 end if ! np <= npmax
-call mpi_allreduce(grids2,grids,npts*ndim,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+call mpi_allreduce(grids2,grids,npts*ndim,mpi_real4,mpi_sum,mpi_comm_world,ierr)
 end subroutine smooth
 end module smooth_mod
 #endif

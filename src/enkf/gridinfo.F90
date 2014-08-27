@@ -43,7 +43,7 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_realkind, mpi_comm_world
+use mpisetup, only: nproc, mpi_integer, mpi_realkind, mpi_real4, mpi_comm_world
 use params, only: datapath,nlevs,nvars,ndim,datestring,&
                   nlons,nlats,reducedgrid,massbal_adjust,use_gfs_nemsio
 use kinds, only: r_kind, i_kind, r_double, r_single
@@ -278,7 +278,7 @@ if (nproc .ne. 0) then
       call reducedgrid_init(nlons,nlats,asin_gaulats)
    end if
 endif
-call mpi_bcast(logp,npts*nlevs_pres,mpi_realkind,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(lonsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_realkind,0,MPI_COMM_WORLD,ierr)
@@ -2202,7 +2202,7 @@ if (nproc .ne. 0) then
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
 endif
-call mpi_bcast(logp,npts*nlevs_pres,mpi_realkind,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(lonsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_realkind,0,MPI_COMM_WORLD,ierr)

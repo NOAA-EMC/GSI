@@ -68,7 +68,7 @@ subroutine read_ensemble()
 ! distribute pieces (defined by module loadbal) to each task.
 ! for now, first nanals tasks are IO tasks.
 implicit none
-real(r_kind), allocatable, dimension(:) :: sendbuf,recvbuf
+real(r_single), allocatable, dimension(:) :: sendbuf,recvbuf
 real(r_double) t1,t2
 integer(i_kind) nanal,nn,i,n
 ! npts,nlevs,ntrac arrays
@@ -147,8 +147,8 @@ if (nproc <= nanals-1) then
     enddo
    enddo
 end if
-call mpi_alltoallv(sendbuf, scounts, displs, mpi_realkind, recvbuf, rcounts, displs,&
-                   mpi_realkind, mpi_comm_world, ierr)
+call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                   mpi_real4, mpi_comm_world, ierr)
 deallocate(sendbuf)
 allocate(anal_chunk_prior(nanals,npts_max,ndim))
 allocate(ensmean_chunk(npts_max,ndim))
@@ -227,8 +227,8 @@ do nn=1,ndim
   enddo
  enddo
 enddo
-call mpi_alltoallv(sendbuf, scounts, displs, mpi_realkind, recvbuf, rcounts, displs,&
-                   mpi_realkind, mpi_comm_world, ierr)
+call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
+                   mpi_real4, mpi_comm_world, ierr)
 if (nproc <= nanals-1) then
    do np=1,numproc
     do nn=1,ndim

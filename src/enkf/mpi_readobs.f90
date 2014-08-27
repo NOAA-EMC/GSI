@@ -173,7 +173,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     end if ! nproc <= nanals
     ! For LETKF, anal_ob will be needed in all processors
     if(letkf_flag) then
-       call mpi_bcast(anal_ob,nobs_tot,mpi_realkind,0,mpi_comm_world,ierr)
+       call mpi_bcast(anal_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     end if
     call mpi_bcast(ensmean_ob,nobs_tot,mpi_realkind,0,mpi_comm_world,ierr)
     call mpi_bcast(sprd_ob,nobs_tot,mpi_realkind,0,mpi_comm_world,ierr)

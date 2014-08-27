@@ -138,7 +138,7 @@ real(r_kind) kfgain,hpfht,hpfhtoberrinv,r_nanals,r_nanalsm1,hpfhtcon
 real(r_kind) anal_obtmp(nanals),obinc_tmp,obens(nanals),obganl(nanals)
 real(r_kind) normdepart, pnge, width
 real(r_kind) buffer(nanals+2)
-real(r_kind),allocatable, dimension(:,:) :: anal_obchunk
+real(r_single),allocatable, dimension(:,:) :: anal_obchunk
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_kind) r,paoverpb
 real(r_kind) taper1,taper3
