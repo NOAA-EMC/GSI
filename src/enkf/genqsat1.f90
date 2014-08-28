@@ -1,6 +1,7 @@
 subroutine genqsat1(sph,qsat,ges_prsl,ges_tv,ice,npts,nlevs)
 ! this subroutine was extracted from the GSI version operational
-! at NCEP in Dec. 2007.
+! at NCEP in Dec. 2007. Only difference is that this version takes
+! single precision 2d arrays instead of default real 3d arrays.
 !
 !$$$  subprogram documentation block
 !                .      .    .                                       .

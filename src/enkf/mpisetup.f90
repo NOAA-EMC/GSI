@@ -37,11 +37,14 @@ integer, public :: mpi_realkind
 contains
 
 subroutine mpi_initialize()
+use mpimod, only : mpi_comm_world,npe,mype
 integer ierr
 call mpi_init(ierr)
 ! nproc is process number, numproc is total number of processes.
 call mpi_comm_rank(mpi_comm_world,nproc,ierr)
 call mpi_comm_size(mpi_comm_world,numproc,ierr)
+! set in GSI mpimod
+mype = nproc; npe = numproc
 if (nproc == 0) print *,'running on ',numproc,' processors ...'
 if (r_kind == r_single) then
    mpi_realkind = mpi_real4
