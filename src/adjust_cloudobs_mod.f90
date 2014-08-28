@@ -332,8 +332,8 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
   end do
 
 !  Background field is MSL, so add station elevation to lcbas and ceiling here
-if (abs(lcbas-bmiss) < tiny_r_kind) lcbas=lcbas+stnelev
-if (abs(ceiling-bmiss) < tiny_r_kind) ceiling=ceiling+stnelev
+if (abs(lcbas-bmiss) > tiny_r_kind) lcbas=lcbas+stnelev
+if (abs(ceiling-bmiss) > tiny_r_kind) ceiling=ceiling+stnelev
 
 end subroutine adjust_convcldobs
 
@@ -469,7 +469,7 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
   end if
 
 !  Background field is MSL, so add station elevation to lcbas and ceiling here
-if (abs(lcbas-bmiss) < tiny_r_kind) lcbas=lcbas+stnelev
+if (abs(lcbas-bmiss) > tiny_r_kind) lcbas=lcbas+stnelev
 
 end subroutine adjust_goescldobs
 
