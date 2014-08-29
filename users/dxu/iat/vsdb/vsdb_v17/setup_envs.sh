@@ -18,7 +18,7 @@ export gd=G2                   ;#grid resoultion on which vsdb stats are compute
 export doftp="YES"             ;#whether or not to send maps to web server
 export scppgb="NO"             ;#copy files between machine? need passwordless ssh
 export batch="YES"             ;#run jobs at batch nodes                              
-export scorecard="NO"          ;#create scorecard text files and web display plate                          
+export scorecard="YES"          ;#create scorecard text files and web display plate                          
 if [ $machine != IBM -a $machine != WCOSS ]; then 
  export doftp="NO"
 fi
