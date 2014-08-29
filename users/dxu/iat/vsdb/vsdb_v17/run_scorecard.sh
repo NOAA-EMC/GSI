@@ -7,18 +7,18 @@
 ### Written by: DaNa Carlis and Rebecca LaPorta 11/5/2013
 
 set -x
-export SDATE=${DATEST:-2014010100}
-export EDATE=${DATEND:-2014011500}
+export SDATE=${DATEST:-20140201}
+export EDATE=${DATEND:-20140228}
 export mdlist=${mdlist:-"gfs ecm"}                     ;#Can only compare 2 experiments 
 export webhostid=${webhostid:-"$LOGNAME"}              ;#login id on rzdm webhost
 #export webhostid=${webhostid:-"wx23dc"}              ;#login id on rzdm webhost
 export webhost=${webhost:-"emcrzdm.ncep.noaa.gov"}     ;#login id on webhost
 export ftpdir=${ftpdir:-/home/people/emc/www/htdocs/gmb/$webhostid/vsdb}  ; #where maps are  displayed
-export mapdir=${mapdir:-/stmpd2/$LOGNAME/nwpvrfy/web}  ; #place to save output in local machine 
-export doftp=${doftp:-"YES"}                           ; #whether or not sent html files to scardftp 
+export mapdir=${mapdir:-~/scorecard}  ; #place to save output in local machine 
+export doftp=${doftp:-"NO"}                           ; #whether or not sent html files to scardftp 
 
 #Calculate total number of days
-vsdbhome=${vsdbhome:-/global/save/Fanglin.Yang/VRFY/vsdb}
+vsdbhome=${vsdbhome:-/data/dxu/vsdb/vsdb_v17}
 y1=`echo $SDATE |cut -c 1-4 `
 m1=`echo $SDATE |cut -c 5-6 `
 d1=`echo $SDATE |cut -c 7-8 `
@@ -40,6 +40,7 @@ undef=-9999.0
 export statlist=${statlist:-"cor rms bias"}
 export reglist=${reglist:-"G2PNA G2NHX G2SHX G2TRO"}
 export day=${day:-"1 3 5 6 8 10"}
+export day=${day:-"1 3 5 "}
 
 #Verification scorecard html filename
 htfile=scorecard.html
@@ -477,9 +478,14 @@ if [[ $doftp = "YES" ]] ; then
  sftp ${webhostid}@${webhost} <scoreftp
 fi
 
-if [ -s $mapdir/www/scorecard ]; then
- cp *html $mapdir/www/scorecard/.
- cp  *css $mapdir/www/scorecard/.
+#if [ -s $mapdir/www/scorecard ]; then
+# cp *html $mapdir/www/scorecard/.
+# cp  *css $mapdir/www/scorecard/.
+#fi
+
+if [ -s $mapdir ]; then
+ cp *html $mapdir
+ cp  *css $mapdir
 fi
 
 exit
