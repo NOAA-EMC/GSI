@@ -421,7 +421,7 @@ do niter=1,numiter
     nob2=indxproc_obs(nproc+1,nob1)
     buffertmp(nob2) = ensmean_obchunk(nob1)
   end do
-  call mpi_allreduce(buffertmp,buffertmp2,nobsgood,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(buffertmp,buffertmp2,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   obfit_post = obfit_prior
   do nobxx=1,nobsgood
       obfit_post(nobxx) = ob(nobxx)-buffertmp2(nobxx)
@@ -442,7 +442,7 @@ do nob1=1,numobsperproc(nproc+1)
    nob2=indxproc_obs(nproc+1,nob1)
    buffertmp(nob2) = sum(anal_obchunk(1:nanals,nob1)**2)*r_nanalsm1
 end do
-call mpi_allreduce(buffertmp,buffertmp2,nobsgood,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+call mpi_allreduce(buffertmp,buffertmp2,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
 obsprd_post = 9.9e31
 obsprd_post(1:nobsgood) = buffertmp2(1:nobsgood)
 
