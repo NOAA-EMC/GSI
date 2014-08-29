@@ -1,0 +1,853 @@
++ adate=2005082500
++ mod=gdas
++ savedir=/ptmp/wx23dc/qkswnd
++ edate=2005083118
++ ndate=/nwprod/util/exec/ndate
++ [ ! -d /ptmp/wx23dc/qkswnd ]
++ mkdir /ptmp/wx23dc/qkswnd
++ tag=qkswnd
++ end=tm00.bufr_d
++ cd /ptmp/wx23dc/qkswnd
++ [ 2005082500 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082500
+YYYY=2005
++ + cut -c5-6
++ echo 2005082500
+MM=08
++ + cut -c7-8
++ echo 2005082500
+DD=25
++ + cut -c9-10
++ echo 2005082500
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082500.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 1072920 bytes, 2097 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082500.tar, 1 files. total bytes read: 1,073,664 in 5.075 seconds (0.212 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005082500.bufr
++ + /nwprod/util/exec/ndate +06 2005082500
+adate=2005082506
++ [ 2005082506 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082506
+YYYY=2005
++ + cut -c5-6
++ echo 2005082506
+MM=08
++ + cut -c7-8
++ echo 2005082506
+DD=25
++ + cut -c9-10
++ echo 2005082506
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082506.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 1366264 bytes, 2670 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082506.tar, 1 files. total bytes read: 1,367,040 in 5.101 seconds (0.268 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005082506.bufr
++ + /nwprod/util/exec/ndate +06 2005082506
+adate=2005082512
++ [ 2005082512 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082512
+YYYY=2005
++ + cut -c5-6
++ echo 2005082512
+MM=08
++ + cut -c7-8
++ echo 2005082512
+DD=25
++ + cut -c9-10
++ echo 2005082512
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082512.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t12z.qkswnd.tm00.bufr_d, 1038784 bytes, 2030 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082512.tar, 1 files. total bytes read: 1,039,360 in 5.104 seconds (0.204 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005082512.bufr
++ + /nwprod/util/exec/ndate +06 2005082512
+adate=2005082518
++ [ 2005082518 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082518
+YYYY=2005
++ + cut -c5-6
++ echo 2005082518
+MM=08
++ + cut -c7-8
++ echo 2005082518
+DD=25
++ + cut -c9-10
++ echo 2005082518
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082518.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1336080 bytes, 2611 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050825/com_gfs_prod_gdas.2005082518.tar, 1 files. total bytes read: 1,336,832 in 4.971 seconds (0.269 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005082518.bufr
++ + /nwprod/util/exec/ndate +06 2005082518
+adate=2005082600
++ [ 2005082600 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082600
+YYYY=2005
++ + cut -c5-6
++ echo 2005082600
+MM=08
++ + cut -c7-8
++ echo 2005082600
+DD=26
++ + cut -c9-10
++ echo 2005082600
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082600.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 1110736 bytes, 2171 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082600.tar, 1 files. total bytes read: 1,111,552 in 5.163 seconds (0.215 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005082600.bufr
++ + /nwprod/util/exec/ndate +06 2005082600
+adate=2005082606
++ [ 2005082606 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082606
+YYYY=2005
++ + cut -c5-6
++ echo 2005082606
+MM=08
++ + cut -c7-8
++ echo 2005082606
+DD=26
++ + cut -c9-10
++ echo 2005082606
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082606.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 1353536 bytes, 2645 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082606.tar, 1 files. total bytes read: 1,354,240 in 5.361 seconds (0.253 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005082606.bufr
++ + /nwprod/util/exec/ndate +06 2005082606
+adate=2005082612
++ [ 2005082612 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082612
+YYYY=2005
++ + cut -c5-6
++ echo 2005082612
+MM=08
++ + cut -c7-8
++ echo 2005082612
+DD=26
++ + cut -c9-10
++ echo 2005082612
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082612.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t12z.qkswnd.tm00.bufr_d, 1029200 bytes, 2012 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082612.tar, 1 files. total bytes read: 1,030,144 in 5.270 seconds (0.195 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005082612.bufr
++ + /nwprod/util/exec/ndate +06 2005082612
+adate=2005082618
++ [ 2005082618 -le 2005083118 ]
++ + echo 2005082618
+YYYY=2005
++ + cut -c5-6
++ echo 2005082618
+MM=08
++ + cut -c7-8
++ echo 2005082618
+DD=26
++ + cut -c9-10
++ echo 2005082618
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082618.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1299440 bytes, 2539 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050826/com_gfs_prod_gdas.2005082618.tar, 1 files. total bytes read: 1,299,968 in 5.329 seconds (0.244 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005082618.bufr
++ + /nwprod/util/exec/ndate +06 2005082618
+adate=2005082700
++ [ 2005082700 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082700
+YYYY=2005
++ + cut -c5-6
++ echo 2005082700
+MM=08
++ + cut -c7-8
++ echo 2005082700
+DD=27
++ + cut -c9-10
++ echo 2005082700
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082700.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 1181576 bytes, 2309 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082700.tar, 1 files. total bytes read: 1,182,208 in 5.354 seconds (0.221 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005082700.bufr
++ + /nwprod/util/exec/ndate +06 2005082700
+adate=2005082706
++ [ 2005082706 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082706
+YYYY=2005
++ + cut -c5-6
++ echo 2005082706
+MM=08
++ + cut -c7-8
++ echo 2005082706
+DD=27
++ + cut -c9-10
++ echo 2005082706
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082706.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 1305096 bytes, 2551 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082706.tar, 1 files. total bytes read: 1,306,112 in 5.381 seconds (0.243 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005082706.bufr
++ + /nwprod/util/exec/ndate +06 2005082706
+adate=2005082712
++ [ 2005082712 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082712
+YYYY=2005
++ + cut -c5-6
++ echo 2005082712
+MM=08
++ + cut -c7-8
++ echo 2005082712
+DD=27
++ + cut -c9-10
++ echo 2005082712
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082712.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t12z.qkswnd.tm00.bufr_d, 1068576 bytes, 2089 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082712.tar, 1 files. total bytes read: 1,069,568 in 5.443 seconds (0.196 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005082712.bufr
++ + /nwprod/util/exec/ndate +06 2005082712
+adate=2005082718
++ [ 2005082718 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082718
+YYYY=2005
++ + cut -c5-6
++ echo 2005082718
+MM=08
++ + cut -c7-8
++ echo 2005082718
+DD=27
++ + cut -c9-10
++ echo 2005082718
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082718.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1331872 bytes, 2603 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050827/com_gfs_prod_gdas.2005082718.tar, 1 files. total bytes read: 1,332,736 in 5.246 seconds (0.254 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005082718.bufr
++ + /nwprod/util/exec/ndate +06 2005082718
+adate=2005082800
++ [ 2005082800 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082800
+YYYY=2005
++ + cut -c5-6
++ echo 2005082800
+MM=08
++ + cut -c7-8
++ echo 2005082800
+DD=28
++ + cut -c9-10
++ echo 2005082800
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082800.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 944224 bytes, 1846 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082800.tar, 1 files. total bytes read: 945,152 in 5.148 seconds (0.184 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005082800.bufr
++ + /nwprod/util/exec/ndate +06 2005082800
+adate=2005082806
++ [ 2005082806 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082806
+YYYY=2005
++ + cut -c5-6
++ echo 2005082806
+MM=08
++ + cut -c7-8
++ echo 2005082806
+DD=28
++ + cut -c9-10
++ echo 2005082806
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082806.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 1330824 bytes, 2601 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082806.tar, 1 files. total bytes read: 1,331,712 in 5.167 seconds (0.258 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005082806.bufr
++ + /nwprod/util/exec/ndate +06 2005082806
+adate=2005082812
++ [ 2005082812 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082812
+YYYY=2005
++ + cut -c5-6
++ echo 2005082812
+MM=08
++ + cut -c7-8
++ echo 2005082812
+DD=28
++ + cut -c9-10
++ echo 2005082812
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082812.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t12z.qkswnd.tm00.bufr_d, 1116536 bytes, 2182 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082812.tar, 1 files. total bytes read: 1,117,184 in 5.169 seconds (0.216 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005082812.bufr
++ + /nwprod/util/exec/ndate +06 2005082812
+adate=2005082818
++ [ 2005082818 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082818
+YYYY=2005
++ + cut -c5-6
++ echo 2005082818
+MM=08
++ + cut -c7-8
++ echo 2005082818
+DD=28
++ + cut -c9-10
++ echo 2005082818
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082818.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1279864 bytes, 2501 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050828/com_gfs_prod_gdas.2005082818.tar, 1 files. total bytes read: 1,280,512 in 4.952 seconds (0.259 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005082818.bufr
++ + /nwprod/util/exec/ndate +06 2005082818
+adate=2005082900
++ [ 2005082900 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082900
+YYYY=2005
++ + cut -c5-6
++ echo 2005082900
+MM=08
++ + cut -c7-8
++ echo 2005082900
+DD=29
++ + cut -c9-10
++ echo 2005082900
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082900.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 1066024 bytes, 2084 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082900.tar, 1 files. total bytes read: 1,067,008 in 4.964 seconds (0.215 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005082900.bufr
++ + /nwprod/util/exec/ndate +06 2005082900
+adate=2005082906
++ [ 2005082906 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082906
+YYYY=2005
++ + cut -c5-6
++ echo 2005082906
+MM=08
++ + cut -c7-8
++ echo 2005082906
+DD=29
++ + cut -c9-10
++ echo 2005082906
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082906.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 1381480 bytes, 2700 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082906.tar, 1 files. total bytes read: 1,382,400 in 5.083 seconds (0.272 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005082906.bufr
++ + /nwprod/util/exec/ndate +06 2005082906
+adate=2005082912
++ [ 2005082912 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082912
+YYYY=2005
++ + cut -c5-6
++ echo 2005082912
+MM=08
++ + cut -c7-8
++ echo 2005082912
+DD=29
++ + cut -c9-10
++ echo 2005082912
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082912.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+ERROR: No such file: /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082912.tar.idx
+HTAR: HTAR FAILED
+###WARNING  hsi returned non-zero exit status.
+            72 =  -xvf /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082912.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005082912.bufr
+mv: 0653-401 Cannot rename gdas1.t12z.qkswnd.tm00.bufr_d to qkswnd.2005082912.bufr:
+	     A file or directory in the path name does not exist.
++ + /nwprod/util/exec/ndate +06 2005082912
+adate=2005082918
++ [ 2005082918 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005082918
+YYYY=2005
++ + cut -c5-6
++ echo 2005082918
+MM=08
++ + cut -c7-8
++ echo 2005082918
+DD=29
++ + cut -c9-10
++ echo 2005082918
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082918.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1026384 bytes, 2006 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050829/com_gfs_prod_gdas.2005082918.tar, 1 files. total bytes read: 1,027,072 in 5.053 seconds (0.203 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005082918.bufr
++ + /nwprod/util/exec/ndate +06 2005082918
+adate=2005083000
++ [ 2005083000 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083000
+YYYY=2005
++ + cut -c5-6
++ echo 2005083000
+MM=08
++ + cut -c7-8
++ echo 2005083000
+DD=30
++ + cut -c9-10
++ echo 2005083000
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083000.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 581992 bytes, 1138 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083000.tar, 1 files. total bytes read: 582,656 in 11.285 seconds (0.052 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005083000.bufr
++ + /nwprod/util/exec/ndate +06 2005083000
+adate=2005083006
++ [ 2005083006 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083006
+YYYY=2005
++ + cut -c5-6
++ echo 2005083006
+MM=08
++ + cut -c7-8
++ echo 2005083006
+DD=30
++ + cut -c9-10
++ echo 2005083006
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083006.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 1357376 bytes, 2653 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083006.tar, 1 files. total bytes read: 1,358,336 in 5.106 seconds (0.266 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005083006.bufr
++ + /nwprod/util/exec/ndate +06 2005083006
+adate=2005083012
++ [ 2005083012 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083012
+YYYY=2005
++ + cut -c5-6
++ echo 2005083012
+MM=08
++ + cut -c7-8
++ echo 2005083012
+DD=30
++ + cut -c9-10
++ echo 2005083012
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083012.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t12z.qkswnd.tm00.bufr_d, 1022776 bytes, 1999 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083012.tar, 1 files. total bytes read: 1,023,488 in 4.942 seconds (0.207 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005083012.bufr
++ + /nwprod/util/exec/ndate +06 2005083012
+adate=2005083018
++ [ 2005083018 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083018
+YYYY=2005
++ + cut -c5-6
++ echo 2005083018
+MM=08
++ + cut -c7-8
++ echo 2005083018
+DD=30
++ + cut -c9-10
++ echo 2005083018
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083018.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1312896 bytes, 2566 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050830/com_gfs_prod_gdas.2005083018.tar, 1 files. total bytes read: 1,313,792 in 5.132 seconds (0.256 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005083018.bufr
++ + /nwprod/util/exec/ndate +06 2005083018
+adate=2005083100
++ [ 2005083100 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083100
+YYYY=2005
++ + cut -c5-6
++ echo 2005083100
+MM=08
++ + cut -c7-8
++ echo 2005083100
+DD=31
++ + cut -c9-10
++ echo 2005083100
+CYC=00
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083100.tar ./gdas1.t00z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t00z.qkswnd.tm00.bufr_d, 1183352 bytes, 2313 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083100.tar, 1 files. total bytes read: 1,184,256 in 5.109 seconds (0.232 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t00z.qkswnd.tm00.bufr_d qkswnd.2005083100.bufr
++ + /nwprod/util/exec/ndate +06 2005083100
+adate=2005083106
++ [ 2005083106 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083106
+YYYY=2005
++ + cut -c5-6
++ echo 2005083106
+MM=08
++ + cut -c7-8
++ echo 2005083106
+DD=31
++ + cut -c9-10
++ echo 2005083106
+CYC=06
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083106.tar ./gdas1.t06z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t06z.qkswnd.tm00.bufr_d, 855720 bytes, 1673 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083106.tar, 1 files. total bytes read: 856,576 in 12.423 seconds (0.069 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t06z.qkswnd.tm00.bufr_d qkswnd.2005083106.bufr
++ + /nwprod/util/exec/ndate +06 2005083106
+adate=2005083112
++ [ 2005083112 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083112
+YYYY=2005
++ + cut -c5-6
++ echo 2005083112
+MM=08
++ + cut -c7-8
++ echo 2005083112
+DD=31
++ + cut -c9-10
++ echo 2005083112
+CYC=12
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083112.tar ./gdas1.t12z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t12z.qkswnd.tm00.bufr_d, 955544 bytes, 1868 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083112.tar, 1 files. total bytes read: 956,416 in 5.139 seconds (0.186 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t12z.qkswnd.tm00.bufr_d qkswnd.2005083112.bufr
++ + /nwprod/util/exec/ndate +06 2005083112
+adate=2005083118
++ [ 2005083118 -le 2005083118 ]
++ + cut -c1-4
++ echo 2005083118
+YYYY=2005
++ + cut -c5-6
++ echo 2005083118
+MM=08
++ + cut -c7-8
++ echo 2005083118
+DD=31
++ + cut -c9-10
++ echo 2005083118
+CYC=18
++ /u/wx20mi/bin/hpsstar get /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083118.tar ./gdas1.t18z.qkswnd.tm00.bufr_d
+HPSS_PRINCIPAL=wx23dc
+HPSS_NDCG_SERVERS=gbhpsscore/8001
+HPSS_CFG_FILE_PATH=/usrx/local/hpss/hsi/etc
+HPSS_SERVER_HOST=10.198.22.5/1217
+HPSS_SERVER_PORT=1217
+HPSS_PFTPC_PORT_RANGE=ncacn_ip_tcp[38000-38999]
+HPSS_KEYTAB_PATH=/usrx/local/hpss/hsi/hpss62.keytabs/ktb_wx23dc
+HPSS_API_HOSTNAME=d2n7g
+HPSS_HOSTNAME=d2n7g
+[connecting to 10.198.22.5/1217]
+HTAR: x ./gdas1.t18z.qkswnd.tm00.bufr_d, 1340496 bytes, 2620 media blocks
+HTAR: Extract complete for /hpssprod/runhistory/rh2005/200508/20050831/com_gfs_prod_gdas.2005083118.tar, 1 files. total bytes read: 1,341,440 in 5.248 seconds (0.256 MB/s )
+HTAR: HTAR SUCCESSFUL
++ mv gdas1.t18z.qkswnd.tm00.bufr_d qkswnd.2005083118.bufr
++ + /nwprod/util/exec/ndate +06 2005083118
+adate=2005090100
++ [ 2005090100 -le 2005083118 ]
