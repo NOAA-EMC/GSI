@@ -123,19 +123,19 @@ implicit none
 private
 public :: readobs, obsmod_cleanup, boxsort
 
-real(r_kind), public, allocatable, dimension(:) :: obsprd_prior, ensmean_obnobc,&
+real(r_single), public, allocatable, dimension(:) :: obsprd_prior, ensmean_obnobc,&
  ensmean_ob, ob, oberrvar, obloclon, obloclat, &
  obpress, obtime, oberrvar_orig,&
  oblnp, obfit_prior, prpgerr, oberrvarmean, probgrosserr, &
  lnsigl,corrlengthsq,obtimel, boxlat, boxlon
 integer(i_kind), public, allocatable, dimension(:) :: numobspersat
 ! posterior stats computed in enkf_update
-real(r_kind), public, allocatable, dimension(:) :: obfit_post, obsprd_post
-real(r_kind), public, allocatable, dimension(:,:) :: biaspreds, deltapredx
+real(r_single), public, allocatable, dimension(:) :: obfit_post, obsprd_post
+real(r_single), public, allocatable, dimension(:,:) :: biaspreds, deltapredx
 ! arrays passed to kdtree2 routines must be single.
 real(r_single), public, allocatable, dimension(:,:) :: obloc
 integer(i_kind), public, allocatable, dimension(:) :: stattype, indxsat
-real(r_kind), public, allocatable, dimension(:) :: biasprednorm,biasprednorminv
+real(r_single), public, allocatable, dimension(:) :: biasprednorm,biasprednorminv
 character(len=20), public, allocatable, dimension(:) :: obtype
 integer(i_kind), public ::  nobs_sat, nobs_oz, nobs_conv, nobstot, nobsgood
 
@@ -159,11 +159,11 @@ use convinfo, only: convinfo_read, init_convinfo, cvar_pg, nconvtype, ictype,&
 use ozinfo, only: init_oz, ozinfo_read, pg_oz, jpch_oz, nusis_oz, nulev
 use covlocal, only: latval
 integer(i_kind),intent(in) :: npts
-real(r_kind),intent(in) :: lonsgrd(npts)
-real(r_kind),intent(in) :: latsgrd(npts)
+real(r_single),intent(in) :: lonsgrd(npts)
+real(r_single),intent(in) :: latsgrd(npts)
 integer nob,n,j,ierr
 real(r_double) t1
-real(r_kind) tdiff,tdiffmax,deglat,radlat,radlon
+real(r_single) tdiff,tdiffmax,deglat,radlat,radlon
 integer(i_kind) imin,imax,jmin,jmax
 ! read in conv data info
 call init_convinfo()
@@ -183,19 +183,19 @@ call radinfo_read()
 ! (by computing RMS values over many analyses)
 if (nproc == 0) print*, 'npred  = ', npred
 allocate(biasprednorm(npred),biasprednorminv(npred))
-!biasprednorm(1) = 0.01_r_kind   ! constant term
-!biasprednorm(2) = 2.6e-2_r_kind ! scan angle path
-!biasprednorm(3) = 1.6e-2_r_kind ! total column water
-!biasprednorm(5) = 1.9e-2_r_kind ! integrated weighted (by weighting fns) lapse rate
+!biasprednorm(1) = 0.01_r_single   ! constant term
+!biasprednorm(2) = 2.6e-2_r_single ! scan angle path
+!biasprednorm(3) = 1.6e-2_r_single ! total column water
+!biasprednorm(5) = 1.9e-2_r_single ! integrated weighted (by weighting fns) lapse rate
 !biasprednorm(4) = zero   ! IWLR**2, don't use this predictor (too co-linear)?
-!biasprednorm(4) = 1.1e-3_r_kind
+!biasprednorm(4) = 1.1e-3_r_single
 ! what the heck, just scale them all by 0.01!
-biasprednorm = 0.01_r_kind
+biasprednorm = 0.01_r_single
 biasprednorminv=zero
 !biasprednorm(4) = zero   ! don't use this predictor (too co-linear)?
 do n=1,npred
    if (nproc == 0) print *,n,'biasprednorm = ',biasprednorm(n)
-   if (biasprednorm(n) > 1.e-7_r_kind) biasprednorminv(n)=one/biasprednorm(n)
+   if (biasprednorm(n) > 1.e-7_r_single) biasprednorminv(n)=one/biasprednorm(n)
 enddo
 ! scale bias coefficients.
 do j=1,jpch_rad
@@ -211,7 +211,7 @@ call mpi_getobs(datapath, datestring, nobs_conv, nobs_oz, nobs_sat, nobstot, &
                 obtime, oberrvar_orig, stattype, obtype, biaspreds,&
                 anal_ob,indxsat,nanals)
 tdiff = mpi_wtime()-t1
-call mpi_reduce(tdiff,tdiffmax,1,mpi_realkind,mpi_max,0,mpi_comm_world,ierr)
+call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
 if (nproc == 0) print *,'max time in mpireadobs  = ',tdiffmax
 allocate(obfit_prior(nobstot))
 ! allocate satellite sensor/channel index array.
@@ -236,13 +236,13 @@ if(letkf_flag) then
    allocate(nlocconv(blatnum+1,blonnum+1))
    allocate(nlocsat (blatnum+1,blonnum+1))
    allocate(nlocoz  (blatnum+1,blonnum+1))
-   boxlat(1)=real(jmin,r_kind)*boxsize
+   boxlat(1)=real(jmin,r_single)*boxsize
    do j=2,blatnum
-      boxlat(j) = boxlat(1)+real(j-1,r_kind)*boxsize
+      boxlat(j) = boxlat(1)+real(j-1,r_single)*boxsize
    end do
-   boxlon(1)=real(imin,r_kind)*boxsize
+   boxlon(1)=real(imin,r_single)*boxsize
    do j=2,blonnum
-      boxlon(j) = boxlon(1)+real(j-1,r_kind)*boxsize
+      boxlon(j) = boxlon(1)+real(j-1,r_single)*boxsize
    end do
    ! Sorting with each observation box
    boxmax=0
@@ -314,7 +314,7 @@ allocate(oblnp(nobstot)) ! log(p) at ob locations.
 allocate(corrlengthsq(nobsgood),lnsigl(nobsgood),obtimel(nobsgood))
 do nob=1,nobsgood
    oblnp(nob) = -log(obpress(nob)) ! distance measured in log(p) units
-   if (obloclon(nob) < zero) obloclon(nob) = obloclon(nob) + 360._r_kind
+   if (obloclon(nob) < zero) obloclon(nob) = obloclon(nob) + 360._r_single
    radlon=deg2rad*obloclon(nob)
    radlat=deg2rad*obloclat(nob)
 ! cartesian coordinates of 'good' obs.
@@ -344,20 +344,20 @@ end subroutine readobs
 
 subroutine screenobs()
 ! screen out obs with large observation errors or 
-! that fail background check.  For screened obs oberrvar is set to 1.e31_r_kind
+! that fail background check.  For screened obs oberrvar is set to 1.e31_r_single
 !use radbias, only: apply_biascorr
 use radinfo, only: iuse_rad,nuchan,nusis,jpch_rad
-real(r_kind) fail,failm
+real(r_single) fail,failm
 integer nn,nob
-fail=1.e31_r_kind
-failm=1.e30_r_kind
+fail=1.e31_r_single
+failm=1.e30_r_single
 ! apply bias correction here just for debugging purposes.
 !call apply_biascorr()
 !==> pre-process obs, obs metadata.
 do nob=1,nobstot
   if (nob > nobs_conv+nobs_oz) oberrvar(nob) = saterrfact*oberrvar(nob)
   ! empirical adjustment of obs errors for Huber norm from ECMWF RD tech memo
-  if (varqc) oberrvar(nob) = oberrvar(nob)*(min(one,0.5_r_kind+0.125_r_kind*(zhuberleft+zhuberright)))**2
+  if (varqc) oberrvar(nob) = oberrvar(nob)*(min(one,0.5_r_single+0.125_r_single*(zhuberleft+zhuberright)))**2
 
   obfit_prior(nob) = ob(nob)-ensmean_ob(nob)
 
@@ -425,9 +425,9 @@ enddo
 ! average ob error for each channel.
 do i=1,jpch_rad
    if (numobspersat(i) > 0) then
-      oberrvarmean(i) = oberrvarmean(i)/real(numobspersat(i),r_kind)
+      oberrvarmean(i) = oberrvarmean(i)/real(numobspersat(i),r_single)
    else
-      oberrvarmean(i) = 9.9e31_r_kind
+      oberrvarmean(i) = 9.9e31_r_single
    end if
 enddo
 
@@ -466,12 +466,12 @@ subroutine boxsort(ns,ne,satflag,box)
   integer(i_kind),intent(in) :: ne
   logical,intent(in) :: satflag
   integer(i_kind),intent(out) :: box(blatnum+1,blonnum+1)
-  real(r_kind),dimension(nanals,ne-ns+1) :: tmpanal_ob
-  real(r_kind),dimension(ne-ns+1) :: tmpsprd, tmpmean, tmpmean_nobc, tmpob
-  real(r_kind),dimension(ne-ns+1) :: tmplon, tmplat, tmpstattype, tmppres
-  real(r_kind),dimension(ne-ns+1) :: tmptime, tmperr, tmperr_orig, tmpfit
-  real(r_kind),allocatable :: tmpbpred(:,:)
-  integer(r_kind),allocatable :: tmpindxsat(:)
+  real(r_single),dimension(nanals,ne-ns+1) :: tmpanal_ob
+  real(r_single),dimension(ne-ns+1) :: tmpsprd, tmpmean, tmpmean_nobc, tmpob
+  real(r_single),dimension(ne-ns+1) :: tmplon, tmplat, tmpstattype, tmppres
+  real(r_single),dimension(ne-ns+1) :: tmptime, tmperr, tmperr_orig, tmpfit
+  real(r_single),allocatable :: tmpbpred(:,:)
+  integer(i_kind),allocatable :: tmpindxsat(:)
   character(len=20) :: tmptype(ne-ns+1)
   integer(i_kind) :: njs(blatnum+1)
   integer(i_kind) :: nj(blatnum+1)

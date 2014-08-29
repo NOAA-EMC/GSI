@@ -25,7 +25,7 @@ module readsatobs
 !
 !$$$
   
-use kinds, only: r_kind,i_kind
+use kinds, only: r_kind,i_kind,r_single
 use read_diag, only: diag_data_fix_list,diag_header_fix_list,diag_header_chan_list, &
     diag_data_chan_list,diag_data_extra_list,read_radiag_data,read_radiag_header, &
     diag_data_name_list
@@ -124,9 +124,9 @@ subroutine get_satobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x
   character*500 obsfile,obsfile2
   character(len=10), intent(in) :: id,id2
 
-  real(r_kind), dimension(nobs_max) :: h_x,h_xnobc,x_obs,x_err,x_lon,&
+  real(r_single), dimension(nobs_max) :: h_x,h_xnobc,x_obs,x_err,x_lon,&
                                x_lat,x_press,x_time,x_errorig
-  real(r_kind), dimension(npred+1,nobs_max) :: x_biaspred
+  real(r_single), dimension(npred+1,nobs_max) :: x_biaspred
   integer(i_kind), dimension(nobs_max) ::  x_channum,x_indx
   character(len=20), dimension(nobs_max) ::  x_type
   character(len=20) ::  sat_type

@@ -49,7 +49,7 @@ use mpisetup
 use params, only: analpertwtnh,analpertwtsh,analpertwttr,ndim,nanals,nlevs,ndim,&
                   latbound, delat, datapath, covinflatemax, &
                   covinflatemin, nlons, nlats, smoothparm
-use kinds, only: r_kind, i_kind
+use kinds, only: r_single, i_kind
 use constants, only: one,zero, rad2deg, deg2rad
 use covlocal, only: latval
 use statevec, only: anal_chunk, anal_chunk_prior
@@ -72,22 +72,22 @@ integer(i_kind),parameter :: ndiag = 3
 !  Area 2 southern hemisphere
 !  Area 3 tropics
 
-real(r_kind) sprdmin, sprdmax, sprdmaxall, &
+real(r_single) sprdmin, sprdmax, sprdmaxall, &
   sprdminall, deglat,analpertwt, fsprd, asprd
-real(r_kind),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot, &
+real(r_single),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot, &
      sumcoslattot,suma2tot,sumftot
-real(r_kind) fnanalsml,coslat
+real(r_single) fnanalsml,coslat
 integer(i_kind) i,nn,iunit,ierr
 character(len=500) filename
 real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,&
          covinfglobal, covinfglobal2
 
 ! if no inflation called for, do nothing.
-if (abs(analpertwtnh) < 1.e-5_r_kind .and. &
-    abs(analpertwttr) < 1.e-5_r_kind .and. &
-    abs(analpertwtsh) < 1.e-5_r_kind) return
+if (abs(analpertwtnh) < 1.e-5_r_single .and. &
+    abs(analpertwttr) < 1.e-5_r_single .and. &
+    abs(analpertwtsh) < 1.e-5_r_single) return
 
-fnanalsml = one/(real(nanals-1,r_kind))
+fnanalsml = one/(real(nanals-1,r_single))
 
 ! if analpertwtnh<0 use 'relaxation-to-prior' ensemble inflation,
 ! as first described in:
@@ -116,8 +116,8 @@ allocate(tmp_chunk2(npts_max,ndim))
 sumf = zero
 suma = zero
 sumcoslat = zero
-sprdmax = -9.9e31_r_kind
-sprdmin = 9.9e31_r_kind
+sprdmax = -9.9e31_r_single
+sprdmin = 9.9e31_r_single
 
 do nn=1,ndim
  do i=1,numptsperproc(nproc+1)
@@ -235,13 +235,13 @@ end do
 deallocate(tmp_chunk2,covinfglobal)
 
 ! collect statistics of area mean inflation, posterior and prior standard deviation for ps.
-call mpi_reduce(sprdmin,sprdminall,1,mpi_realkind,mpi_min,0,mpi_comm_world,ierr)
-call mpi_reduce(sprdmax,sprdmaxall,1,mpi_realkind,mpi_max,0,mpi_comm_world,ierr)
-call mpi_reduce(sumf,sumftot,ndiag,mpi_realkind,mpi_sum,0,mpi_comm_world,ierr)
-call mpi_reduce(sumi,sumitot,ndiag,mpi_realkind,mpi_sum,0,mpi_comm_world,ierr)
-call mpi_reduce(suma,sumatot,ndiag,mpi_realkind,mpi_sum,0,mpi_comm_world,ierr)
-call mpi_reduce(suma2,suma2tot,ndiag,mpi_realkind,mpi_sum,0,mpi_comm_world,ierr)
-call mpi_reduce(sumcoslat,sumcoslattot,ndiag,mpi_realkind,mpi_sum,0,mpi_comm_world,ierr)
+call mpi_reduce(sprdmin,sprdminall,1,mpi_real4,mpi_min,0,mpi_comm_world,ierr)
+call mpi_reduce(sprdmax,sprdmaxall,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
+call mpi_reduce(sumf,sumftot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
+call mpi_reduce(sumi,sumitot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
+call mpi_reduce(suma,sumatot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
+call mpi_reduce(suma2,suma2tot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
+call mpi_reduce(sumcoslat,sumcoslattot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,ierr)
 if (nproc == 0) then
    sumftot = sqrt(sumftot/sumcoslattot)
    sumatot = sqrt(sumatot/sumcoslattot)

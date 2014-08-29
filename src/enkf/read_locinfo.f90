@@ -1,6 +1,6 @@
 subroutine read_locinfo()
    ! read localization scales from text file (hybens_locinfo)
-   use kinds, only : r_kind,i_kind
+   use kinds, only : r_kind,i_kind,r_single
    use params, only : nlevs,corrlengthnh,corrlengthtr,corrlengthsh,letkf_flag
    use enkf_obsmod, only: obloc, oblnp, corrlengthsq, lnsigl, nobstot, nobsgood, &
    obpress, obtype, nobs_conv, nobs_oz, oberrvar
@@ -12,8 +12,9 @@ subroutine read_locinfo()
    logical lexist
    character(len=40)  :: fname = 'hybens_locinfo'
    real(r_kind) oblnp_indx(1)
-   real(r_kind), allocatable, dimension(:) :: &
+   real(r_single), allocatable, dimension(:) :: &
    hlength,vlength,lnsigl1,corrlengthsq1
+   real(r_kind) logp_tmp(nlevs)
    type(kdtree2),pointer :: kdtree_grid
    type(kdtree2_result),dimension(:),allocatable :: sresults
    integer(i_kind) k, msig, iunit, n1, n2 ,ideln, nob, ierr
@@ -78,9 +79,10 @@ subroutine read_locinfo()
           else if (oblnp_indx(1) .ge. logp(sresults(1)%idx,nlevs)) then
              oblnp_indx(1) = nlevs
           else
-             call grdcrd(oblnp_indx,1,logp(sresults(1)%idx,:),nlevs,1)
+             logp_tmp = logp(sresults(1)%idx,1:nlevs)
+             call grdcrd(oblnp_indx,1,logp_tmp,nlevs,1)
           end if
-          corrlengthsq1(nob) = (hlength(nint(oblnp_indx(1)))*1.e3_r_kind/rearth)**2
+          corrlengthsq1(nob) = (hlength(nint(oblnp_indx(1)))*1.e3_r_single/rearth)**2
           lnsigl1(nob) = vlength(nint(oblnp_indx(1)))
           ! don't use computed value for ps vertical localization.
           !if (obtype(nob)(1:3) .eq. ' ps')  lnsigl1(nob) = lnsigl(nob)
@@ -98,13 +100,13 @@ subroutine read_locinfo()
     enddo
     if (nproc .eq. 0) close(iunit)
     ! distribute the results to all processors.
-    call mpi_allreduce(lnsigl1,lnsigl,nobsgood,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
-    call mpi_allreduce(corrlengthsq1,corrlengthsq,nobsgood,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+    call mpi_allreduce(lnsigl1,lnsigl,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+    call mpi_allreduce(corrlengthsq1,corrlengthsq,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
     call kdtree2_destroy(kdtree_grid)
     ! For LETKF, modify values of corrlengthnh,tr,sh for use in observation box
     ! calculation to be equal to maximum value for any level.
     if (letkf_flag) then
-      corrlengthnh=maxval(hlength(1:nlevs))*1.e3_r_kind/rearth
+      corrlengthnh=maxval(hlength(1:nlevs))*1.e3_r_single/rearth
       corrlengthtr = corrlengthnh
       corrlengthsh = corrlengthnh
     endif

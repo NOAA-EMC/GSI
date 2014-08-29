@@ -53,12 +53,12 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     character*500, intent(in) :: obspath
     character*10, intent(in) :: datestring
     character(len=10) :: id,id2
-    real(r_kind), allocatable, dimension(:) :: ensmean_ob,ob,oberr,oblon,oblat,obpress,obtime,oberrorig,ensmean_obbc,sprd_ob
+    real(r_single), allocatable, dimension(:) :: ensmean_ob,ob,oberr,oblon,oblat,obpress,obtime,oberrorig,ensmean_obbc,sprd_ob
     integer(i_kind), allocatable, dimension(:) :: obcode,indxsat
-    real(r_kind), allocatable, dimension(:,:) :: biaspreds
+    real(r_single), allocatable, dimension(:,:) :: biaspreds
     real(r_single), allocatable, dimension(:,:) :: anal_ob
-    real(r_kind), allocatable, dimension(:) :: h_xnobc
-    real(r_kind) :: analsi,analsim1
+    real(r_single), allocatable, dimension(:) :: h_xnobc
+    real(r_single) :: analsi,analsim1
     character(len=20), allocatable,  dimension(:) ::  obtype
     integer(i_kind) nob, ierr, iozproc, isatproc, &
             nobs_conv, nobs_oz, nobs_sat, nobs_tot, nanal
@@ -150,12 +150,12 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     if (nanal <= nanals) then
      if (nanal == 0) then
         do nanal=1,nanals
-           call mpi_recv(h_xnobc,nobs_tot,mpi_realkind,nanal, &
+           call mpi_recv(h_xnobc,nobs_tot,mpi_real4,nanal, &
                          1,mpi_comm_world,mpi_status,ierr)
            anal_ob(nanal,:) = h_xnobc(:)
         enddo
-        analsi=1._r_kind/float(nanals)
-        analsim1=1._r_kind/float(nanals-1)
+        analsi=1._r_single/float(nanals)
+        analsim1=1._r_single/float(nanals-1)
 !$omp parallel do private(nob,nanal)
         do nob=1,nobs_tot
 ! remove ensemble mean from each member.
@@ -168,15 +168,15 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 !$omp end parallel do
        else ! nanal/nproc != 0
         ! send to root.
-        call mpi_send(h_xnobc,nobs_tot,mpi_realkind,0,1,mpi_comm_world,ierr)
+        call mpi_send(h_xnobc,nobs_tot,mpi_real4,0,1,mpi_comm_world,ierr)
        end if ! if nanal == 0
     end if ! nproc <= nanals
     ! For LETKF, anal_ob will be needed in all processors
     if(letkf_flag) then
        call mpi_bcast(anal_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     end if
-    call mpi_bcast(ensmean_ob,nobs_tot,mpi_realkind,0,mpi_comm_world,ierr)
-    call mpi_bcast(sprd_ob,nobs_tot,mpi_realkind,0,mpi_comm_world,ierr)
+    call mpi_bcast(ensmean_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
+    call mpi_bcast(sprd_ob,nobs_tot,mpi_real4,0,mpi_comm_world,ierr)
     deallocate(h_xnobc)
 
  end subroutine mpi_getobs

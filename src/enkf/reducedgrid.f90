@@ -28,13 +28,13 @@ integer,public :: nlonsfull
 ! number of lats on full grid.
 integer,public :: nlatsfull
 ! latitudes on full grid
-real(r_kind), allocatable, public, dimension(:) :: latsfull
+real(r_single), allocatable, public, dimension(:) :: latsfull
 ! number of lons for each latitude on reduced grid
 integer, allocatable, public, dimension(:) :: lonsperlat
 ! total number of points on reduced grid.
 integer,public :: nptsred
 ! lons and lats on reduced grid
-real(r_kind), allocatable, public, dimension(:) :: lonsred, latsred
+real(r_single), allocatable, public, dimension(:) :: lonsred, latsred
 logical, public :: is_initialized = .false.
 ! private data (fft work arrays)
 real, allocatable, dimension(:) :: fftwork1
@@ -50,7 +50,7 @@ subroutine reducedgrid_init(nlons,nlats,lats)
  integer, intent(in) :: nlons, nlats
  real(r_kind), intent(in) :: lats(nlats)
  integer nlonsred, nlat, nlon, n
- real(r_kind) coslat, pi
+ real(r_single) coslat, pi
  pi = 4.*atan(1.0)
  nlonsfull = nlons
  nlatsfull = nlats

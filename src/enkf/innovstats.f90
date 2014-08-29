@@ -26,7 +26,7 @@ use enkf_obsmod, only:  oberrvar,ob,ensmean_ob,obtype,nobs_conv,nobs_oz,&
                    nobs_sat,nobstot,obloclat,ensmean_obnobc,obpress,stattype,&
                    indxsat
 use params, only : latbound
-use kinds, only: i_kind, r_kind
+use kinds, only: i_kind, r_kind,r_single
 use radinfo, only: jpch_rad,nusis,nuchan
 use constants, only: one,zero
 
@@ -39,14 +39,14 @@ public :: print_innovstats
 contains
 
 subroutine print_innovstats(obfit,obsprd)
-real(r_kind), intent(in) :: obfit(nobstot), obsprd(nobstot)
+real(r_single), intent(in) :: obfit(nobstot), obsprd(nobstot)
 integer(i_kind) nobst_nh,nobst_sh,nobst_tr,&
  nobspw_nh,nobspw_sh,nobspw_tr,&
  nobsspd_nh,nobsspd_sh,nobsspd_tr,&
  nobsgps_nh,nobsgps_sh,nobsgps_tr,&
  nobsq_nh,nobsq_sh,nobsq_tr,nobswnd_nh,nobswnd_sh,nobswnd_tr,&
  nobsoz_nh,nobsoz_sh,nobsoz_tr,nobsps_sh,nobsps_nh,nobsps_tr,nob
-real(r_kind) sumps_nh,biasps_nh,sumps_sh,biasps_sh,&
+real(r_single) sumps_nh,biasps_nh,sumps_sh,biasps_sh,&
  sumps_tr,biasps_tr,&
  sumps_spread_nh,sumps_spread_sh,sumps_spread_tr,sumps_oberr_nh,&
  sumps_oberr_sh,sumps_oberr_tr,&
@@ -72,11 +72,11 @@ real(r_kind) sumps_nh,biasps_nh,sumps_sh,biasps_sh,&
  sumwnd_sh,biaswnd_sh,sumwnd_spread_sh,sumwnd_oberr_sh,&
  sumwnd_tr,biaswnd_tr,sumwnd_spread_tr,sumwnd_oberr_tr
 ! stuff for computing sat data innovation stats.
-real(r_kind) sumsprd_sat(jpch_rad),sumerr_sat(jpch_rad), &
+real(r_single) sumsprd_sat(jpch_rad),sumerr_sat(jpch_rad), &
      sumfit_sat(jpch_rad),sumfitsq_sat(jpch_rad), &
      predicted_innov,innov
 integer(i_kind) nob_sat(jpch_rad),nchan,nn
-real(r_kind) :: denom
+real(r_single) :: denom
 !==> stats for conventional + ozone obs.
 if (nobs_conv+nobs_oz > 0) then
   !==> pre-process obs, obs metadata.
@@ -105,7 +105,7 @@ if (nobs_conv+nobs_oz > 0) then
   nobsspd_sh = 0
   nobsspd_tr = 0
   do nob=1,nobs_conv+nobs_oz
-     if(oberrvar(nob) < 1.e10_r_kind)then
+     if(oberrvar(nob) < 1.e10_r_single)then
          if (obtype(nob)(1:3) == ' ps') then
             call obstats(obfit(nob),oberrvar(nob),&
                  obsprd(nob),obloclat(nob),&
@@ -203,7 +203,7 @@ if (nobs_sat > 0) then
   do nob=nobs_conv+nobs_oz+1,nobs_conv+nobs_oz+nobs_sat
      nn = nn + 1
      nchan = indxsat(nn)
-     if (oberrvar(nob) < 1.e10_r_kind .and. nchan > 0) then
+     if (oberrvar(nob) < 1.e10_r_single .and. nchan > 0) then
        sumsprd_sat(nchan)=sumsprd_sat(nchan)+obsprd(nob)
        sumerr_sat(nchan)=sumerr_sat(nchan)+oberrvar(nob)
        sumfitsq_sat(nchan)=sumfitsq_sat(nchan)+obfit(nob)**2
@@ -217,7 +217,7 @@ if (nobs_sat > 0) then
   print *,'instrument, channel #, nobs, bias, innov stdev, sqrt(S+R), sqrt(S), sqrt(R):'
   do nchan=1,jpch_rad
      if (nob_sat(nchan) > 0) then
-       denom=one/real(nob_sat(nchan),r_kind)
+       denom=one/real(nob_sat(nchan),r_single)
        sumfit_sat(nchan) = sumfit_sat(nchan)*denom
        sumfitsq_sat(nchan) = sumfitsq_sat(nchan)*denom
        sumerr_sat(nchan) = sumerr_sat(nchan)*denom
@@ -240,10 +240,10 @@ subroutine obstats(obfit,oberrvar,obsprd,obloclat,&
                    sumfit_tr,sumbias_tr,sumspread_tr,sumoberr_tr,nobs_tr)
 
   implicit none
-  real(r_kind), intent(in out) ::  sumfit_nh, sumbias_nh, sumspread_nh, sumoberr_nh,&
+  real(r_single), intent(in out) ::  sumfit_nh, sumbias_nh, sumspread_nh, sumoberr_nh,&
        sumfit_tr, sumbias_tr, sumspread_tr, sumoberr_tr,&
        sumfit_sh, sumbias_sh, sumspread_sh, sumoberr_sh
-  real(r_kind), intent(in) :: obfit, oberrvar, obsprd, obloclat
+  real(r_single), intent(in) :: obfit, oberrvar, obsprd, obloclat
   integer(i_kind), intent(in out) :: nobs_nh, nobs_sh, nobs_tr
 
 ! compute innovation statistics in nh,sh,tropics.
@@ -295,17 +295,17 @@ subroutine printstats(obtype,sum_nh,bias_nh,sum_spread_nh,sum_oberr_nh,nobs_nh,&
               sum_sh,bias_sh,sum_spread_sh,sum_oberr_sh,nobs_sh,&
               sum_tr,bias_tr,sum_spread_tr,sum_oberr_tr,nobs_tr)
   implicit none
-  real(r_kind), intent(in out) ::  bias_nh, sum_spread_nh, sum_oberr_nh,&
+  real(r_single), intent(in out) ::  bias_nh, sum_spread_nh, sum_oberr_nh,&
        bias_tr, sum_spread_tr, sum_oberr_tr,&
        bias_sh, sum_spread_sh, sum_oberr_sh, &
        sum_nh,sum_sh,sum_tr
   integer(i_kind), intent(in) :: nobs_nh, nobs_sh, nobs_tr
   character(len=9), intent(in) :: obtype
-  real(r_kind) :: denom
+  real(r_single) :: denom
 
 !   print *,'obtype,nobs_nh,nobs_sh,nobs_tr ',obtype,nobs_nh,nobs_sh,nobs_tr
   if (nobs_nh > 0) then
-     denom=one/real(nobs_nh,r_kind)
+     denom=one/real(nobs_nh,r_single)
      sum_nh = sum_nh*denom
      bias_nh = bias_nh*denom
      sum_oberr_nh = sum_oberr_nh*denom
@@ -314,7 +314,7 @@ subroutine printstats(obtype,sum_nh,bias_nh,sum_spread_nh,sum_oberr_nh,nobs_nh,&
      'NH',obtype,nobs_nh,bias_nh,sqrt(sum_nh),sqrt(sum_spread_nh+sum_oberr_nh),sqrt(sum_spread_nh),sqrt(sum_oberr_nh)
   end if
   if (nobs_tr > 0) then
-     denom=one/real(nobs_tr,r_kind)
+     denom=one/real(nobs_tr,r_single)
      sum_tr = sum_tr*denom
      bias_tr = bias_tr*denom
      sum_oberr_tr = sum_oberr_tr*denom
@@ -323,7 +323,7 @@ subroutine printstats(obtype,sum_nh,bias_nh,sum_spread_nh,sum_oberr_nh,nobs_nh,&
      'TR',obtype,nobs_tr,bias_tr,sqrt(sum_tr),sqrt(sum_spread_tr+sum_oberr_tr),sqrt(sum_spread_tr),sqrt(sum_oberr_tr)
   end if
   if (nobs_sh > 0) then
-     denom=one/real(nobs_sh,r_kind)
+     denom=one/real(nobs_sh,r_single)
      sum_sh = sum_sh*denom
      bias_sh = bias_sh*denom
      sum_oberr_sh = sum_oberr_sh*denom

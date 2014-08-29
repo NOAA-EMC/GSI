@@ -1,7 +1,7 @@
 module random_normal
-use kinds, only: r_kind,i_kind
+use kinds, only: r_single,i_kind
 contains
-real(r_kind) function rnorm() result( fn_val )
+real(r_single) function rnorm() result( fn_val )
 
 !   Generate a random normal deviate using the polar method.
 !   Reference: Marsaglia,G. & Bray,T.A. 'A convenient method for generating
@@ -11,10 +11,10 @@ implicit none
 
 ! Local variables
 
-real(r_kind)            :: u, sum
-real(r_kind), save      :: v, sln
+real(r_single)            :: u, sum
+real(r_single), save      :: v, sln
 logicaL, save           :: second = .false.
-real(r_kind), parameter :: one = 1.0_r_kind, vsmall = TINY( one )
+real(r_single), parameter :: one = 1.0_r_single, vsmall = TINY( one )
 
 if (second) then
 ! If second, use the second random number generated on last call
@@ -43,7 +43,7 @@ end function rnorm
 
 subroutine iran(l,n,ran_int)
 ! generate an array of N random integers between 0 and L-1.
- real(r_kind) :: rnd
+ real(r_single) :: rnd
  integer(i_kind) :: L,i,N
  integer(i_kind) :: ran_int(N)
  do i = 1,n

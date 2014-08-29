@@ -43,7 +43,7 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_realkind, mpi_real4, mpi_comm_world
+use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
 use params, only: datapath,nlevs,nvars,ndim,datestring,&
                   nlons,nlats,reducedgrid,massbal_adjust,use_gfs_nemsio
 use kinds, only: r_kind, i_kind, r_double, r_single
@@ -57,8 +57,8 @@ private
 public :: getgridinfo, gridinfo_cleanup
 integer(i_kind),public :: nlevs_pres
 integer(i_kind),public, allocatable,dimension(:):: index_pres
-real(r_kind),public :: ptop
-real(r_kind),public, allocatable, dimension(:) :: lonsgrd, latsgrd
+real(r_single),public :: ptop
+real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
@@ -230,7 +230,7 @@ if (nproc .eq. 0) then
       do j=1,nlats
       do i=1,nlons
          nn = nn + 1
-         lonsgrd(nn) = 2._r_kind*pi*float(i-1)/nlons
+         lonsgrd(nn) = 2._r_single*pi*float(i-1)/nlons
          latsgrd(nn) = asin_gaulats(j)
       enddo
       enddo
@@ -279,9 +279,9 @@ if (nproc .ne. 0) then
    end if
 endif
 call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
-call mpi_bcast(lonsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-call mpi_bcast(latsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-call mpi_bcast(ptop,1,mpi_realkind,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 
 allocate(index_pres(ndim))
 
@@ -376,11 +376,11 @@ module gridinfo
   ! Define variables defining the grid attributes (typically from the
   ! ensemble mean)
 
-  real(r_kind),      dimension(:,:), allocatable, public     :: logp
+  real(r_single),      dimension(:,:), allocatable, public     :: logp
   real(r_single),      dimension(:,:), allocatable, public     :: gridloc
-  real(r_kind),      dimension(:),   allocatable, public     :: lonsgrd
-  real(r_kind),      dimension(:),   allocatable, public     :: latsgrd
-  real(r_kind),                                   public     :: ptop
+  real(r_single),      dimension(:),   allocatable, public     :: lonsgrd
+  real(r_single),      dimension(:),   allocatable, public     :: latsgrd
+  real(r_single),                                   public     :: ptop
   integer(i_kind),     dimension(:),   allocatable, public     :: index_pres
   integer(i_long),                                  public     :: npts
   integer(i_kind),                                  public     :: nvarhumid ! specific hum is the nvarhumid'th var
@@ -1261,10 +1261,10 @@ contains
 
     ! Broadcast all common variables these out to all nodes
 
-    call MPI_Bcast(logp,npts*nlevs_pres,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-    call MPI_Bcast(lonsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-    call MPI_Bcast(latsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-    call MPI_Bcast(ptop,1,mpi_realkind,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 
     !----------------------------------------------------------------------
 
@@ -1863,10 +1863,10 @@ contains
 
     ! Broadcast all common variables these out to all nodes
 
-    call MPI_Bcast(logp,npts*nlevs_pres,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-    call MPI_Bcast(lonsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-    call MPI_Bcast(latsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-    call MPI_Bcast(ptop,1,mpi_realkind,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+    call MPI_Bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 
     !----------------------------------------------------------------------
 
@@ -2054,11 +2054,11 @@ private
 public :: getgridinfo, gridinfo_cleanup, wind2mass, mass2wind
 integer(i_kind),public :: nlevs_pres
 integer(i_kind),public, allocatable,dimension(:):: index_pres
-real(r_kind),public :: ptop
-real(r_kind),public, allocatable, dimension(:) :: lonsgrd, latsgrd
+real(r_single),public :: ptop
+real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
-real(r_kind),public, allocatable, dimension(:,:) :: logp
+real(r_single),public, allocatable, dimension(:,:) :: logp
 integer,public :: npts
 integer,public :: nvarhumid ! spec hum is the nvarhumid'th var
 integer,public :: nvarozone ! ozone is the nvarozone'th var
@@ -2203,9 +2203,9 @@ if (nproc .ne. 0) then
    allocate(gridloc(3,npts))
 endif
 call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
-call mpi_bcast(lonsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-call mpi_bcast(latsgrd,npts,mpi_realkind,0,MPI_COMM_WORLD,ierr)
-call mpi_bcast(ptop,1,mpi_realkind,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 
 allocate(index_pres(ndim))
 

@@ -116,7 +116,7 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
   integer(i_kind) iunit,jiter,ii,ireal,iint,iextra,idate,nob,n,ios,nobs_max,nsat,k
   integer(i_kind) iunit2,jiter2,nlevs2,idate2,iint2,ireal2,iextra2,ii2
 
-  real(r_kind), dimension(nobs_max) :: h_x,h_xnobc,x_obs,x_err,x_lon,&
+  real(r_single), dimension(nobs_max) :: h_x,h_xnobc,x_obs,x_err,x_lon,&
                                x_lat,x_press,x_time,x_errorig
   integer(i_kind), dimension(nobs_max) :: x_code
   character(len=20), dimension(nobs_max) ::  x_type

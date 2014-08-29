@@ -7,7 +7,7 @@ module smooth_mod
 
 use mpisetup
 use params, only:  ndim, nlons, nlats, reducedgrid, smoothparm
-use kinds, only:  r_kind, i_kind
+use kinds, only:  r_kind, i_kind, r_single
 use gridinfo, only: npts, ntrunc
 use constants, only: zero
 use reducedgrid_mod, only: regtoreduced, reducedtoreg
@@ -31,7 +31,7 @@ implicit none
 integer(i_kind) np,ierr,m,nmdim,nm,nn,n,nmax,delta,npmax
 real(r_single), intent(inout) :: grids(npts,ndim),grids2(npts,ndim) ! there are ndim 2d grids.
 
-real(r_kind) smoothfact ! smoothing parameter.
+real(r_single) smoothfact ! smoothing parameter.
 real(r_kind) reggrd(nlons*nlats)
 real(r_kind), allocatable, dimension(:) :: specdat
 integer(i_kind) n1(0:numproc-1),n2(0:numproc-1),ntot(0:numproc-1)

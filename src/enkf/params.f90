@@ -30,7 +30,7 @@ module params
 
 use mpisetup
 use constants, only: rearth, deg2rad, init_constants, init_constants_derived
-use kinds, only: r_kind,i_kind
+use kinds, only: r_single,i_kind
 use radinfo, only: adp_anglebc,angord,use_edges,emiss_bc
 
 implicit none
@@ -58,17 +58,17 @@ logical, public :: deterministic, sortinc, pseudo_rh,&
 integer(i_kind),public ::  iassim_order,nlevs,nanals,nvars,numiter,&
                            nlons,nlats,ndim
 integer(i_kind),public :: nsats_rad,nsats_oz
-real(r_kind),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
-real(r_kind),public ::  corrlengthnh,corrlengthtr,corrlengthsh
-real(r_kind),public ::  obtimelnh,obtimeltr,obtimelsh
-real(r_kind),public ::  zhuberleft,zhuberright
-real(r_kind),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
+real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
+real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
+real(r_single),public ::  obtimelnh,obtimeltr,obtimelsh
+real(r_single),public ::  zhuberleft,zhuberright
+real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh
-real(r_kind),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
-real(r_kind),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
-real(r_kind),public ::  latboundpp,latboundpm,latboundmp,latboundmm
-real(r_kind),public :: boxsize
+real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
+real(r_single),public ::  paoverpb_thresh,latbound,delat,p5delat,delatinv
+real(r_single),public ::  latboundpp,latboundpm,latboundmp,latboundmm
+real(r_single),public :: boxsize
 logical,public :: params_initialized = .true.
 ! do sat bias correction update.
 logical,public :: lupd_satbiasc = .true.
@@ -119,20 +119,20 @@ corrlengthsh = 2800
 ! read in localization length scales from an external file.
 readin_localization = .false.
 ! min and max inflation.
-covinflatemin = 1.0_r_kind
-covinflatemax = 1.e30_r_kind
+covinflatemin = 1.0_r_single
+covinflatemax = 1.e30_r_single
 ! lnsigcutoff (length for vertical localization in ln(p))
-lnsigcutoffnh = 2._r_kind
-lnsigcutofftr = 2._r_kind
-lnsigcutoffsh = 2._r_kind
-lnsigcutoffsatnh = -999._r_kind ! value for satellite radiances
-lnsigcutoffsattr = -999._r_kind ! value for satellite radiances
-lnsigcutoffsatsh = -999._r_kind ! value for satellite radiances
-lnsigcutoffpsnh = -999._r_kind  ! value for surface pressure
-lnsigcutoffpstr = -999._r_kind  ! value for surface pressure
-lnsigcutoffpssh = -999._r_kind  ! value for surface pressure
+lnsigcutoffnh = 2._r_single
+lnsigcutofftr = 2._r_single
+lnsigcutoffsh = 2._r_single
+lnsigcutoffsatnh = -999._r_single ! value for satellite radiances
+lnsigcutoffsattr = -999._r_single ! value for satellite radiances
+lnsigcutoffsatsh = -999._r_single ! value for satellite radiances
+lnsigcutoffpsnh = -999._r_single  ! value for surface pressure
+lnsigcutoffpstr = -999._r_single  ! value for surface pressure
+lnsigcutoffpssh = -999._r_single  ! value for surface pressure
 ! ob time localization
-obtimelnh = 2800._r_kind*1000._r_kind/(30._r_kind*3600._r_kind) ! hours to move 2800 km at 30 ms-1.
+obtimelnh = 2800._r_single*1000._r_single/(30._r_single*3600._r_single) ! hours to move 2800 km at 30 ms-1.
 obtimeltr = obtimelnh
 obtimelsh = obtimelnh
 ! path to data directory (include trailing slash)
@@ -140,17 +140,17 @@ datapath = " " ! mandatory
 ! tolerance for background check.
 ! obs are not used if they are more than sqrt(S+R) from mean,
 ! where S is ensemble variance and R is observation error variance.
-sprd_tol = 9.9e31_r_kind
+sprd_tol = 9.9e31_r_single
 ! definition of tropics and mid-latitudes (for inflation).
-latbound = 25._r_kind ! this is where the tropics start
-delat = 10._r_kind    ! width of transition zone.
+latbound = 25._r_single ! this is where the tropics start
+delat = 10._r_single    ! width of transition zone.
 ! adaptive posterior inflation parameter.
-analpertwtnh = 0.0_r_kind ! no inflation (1 means inflate all the way back to prior spread)
-analpertwtsh = 0.0_r_kind
-analpertwttr = 0.0_r_kind
+analpertwtnh = 0.0_r_single ! no inflation (1 means inflate all the way back to prior spread)
+analpertwtsh = 0.0_r_single
+analpertwttr = 0.0_r_single
 ! if ob space posterior variance divided by prior variance
 ! less than this value, ob is skipped during serial processing.
-paoverpb_thresh = 1.0_r_kind! don't skip any obs
+paoverpb_thresh = 1.0_r_single! don't skip any obs
 ! set to to 0 for the order they are read in, 1 for random order, or 2 for
 ! order of predicted posterior variance reduction (based on prior)
 iassim_order = 0 
@@ -175,12 +175,12 @@ nanals = 0
 nvars = 5
 ! background error variance for rad bias coeffs  (used in radbias.f90)
 ! default is GSI value.
-biasvar = 0.1_r_kind
+biasvar = 0.1_r_single
 ! Observation box size for LETKF (deg)
-boxsize = 90._r_kind
+boxsize = 90._r_single
 
 ! factor to multiply sat radiance errors.
-saterrfact = 1._r_kind
+saterrfact = 1._r_single
 ! number of times to iterate state/bias correction update.
 ! (only relevant when satellite radiances assimilated, i.e. nobs_sat>0)
 numiter = 1
@@ -188,8 +188,8 @@ numiter = 1
 ! varqc parameters
 varqc = .false.
 huber = .false. ! use huber norm instead of "flat-tail"
-zhuberleft=1.e30_r_kind
-zhuberright=1.e30_r_kind
+zhuberleft=1.e30_r_single
+zhuberright=1.e30_r_single
 ! smoothing paramater for inflation (-1 for no smoothing)
 smoothparm = -1
 ! if true, tracers are clipped to zero when read in, and just
@@ -230,18 +230,18 @@ if(nproc == 0)write(6,*) 'number of satellite ozone files used',nsats_oz
 
 ! default value of vertical localization for sat radiances 
 ! and surface pressure should be same as other data.
-if (lnsigcutoffsatnh < 0._r_kind) lnsigcutoffsatnh = lnsigcutoffnh
-if (lnsigcutoffsattr < 0._r_kind) lnsigcutoffsattr = lnsigcutofftr
-if (lnsigcutoffsatsh < 0._r_kind) lnsigcutoffsatsh = lnsigcutoffsh
-if (lnsigcutoffpsnh < 0._r_kind) lnsigcutoffpsnh = lnsigcutoffnh
-if (lnsigcutoffpstr < 0._r_kind) lnsigcutoffpstr = lnsigcutofftr
-if (lnsigcutoffpssh < 0._r_kind) lnsigcutoffpssh = lnsigcutoffsh
-p5delat=0.5_r_kind*delat
+if (lnsigcutoffsatnh < 0._r_single) lnsigcutoffsatnh = lnsigcutoffnh
+if (lnsigcutoffsattr < 0._r_single) lnsigcutoffsattr = lnsigcutofftr
+if (lnsigcutoffsatsh < 0._r_single) lnsigcutoffsatsh = lnsigcutoffsh
+if (lnsigcutoffpsnh < 0._r_single) lnsigcutoffpsnh = lnsigcutoffnh
+if (lnsigcutoffpstr < 0._r_single) lnsigcutoffpstr = lnsigcutofftr
+if (lnsigcutoffpssh < 0._r_single) lnsigcutoffpssh = lnsigcutoffsh
+p5delat=0.5_r_single*delat
 latboundpp=latbound+p5delat
 latboundpm=latbound-p5delat
 latboundmp=-latbound+p5delat
 latboundmm=-latbound-p5delat
-delatinv=1.0_r_kind/delat
+delatinv=1.0_r_single/delat
 
 !! if not performing satellite bias correction update, set iterations to 1
 if (.not. (lupd_satbiasc)) then 
@@ -330,9 +330,9 @@ if (nproc == 0) then
 end if
 
 ! rescale covariance localization length
-corrlengthnh = corrlengthnh * 1.e3_r_kind/rearth
-corrlengthtr = corrlengthtr * 1.e3_r_kind/rearth
-corrlengthsh = corrlengthsh * 1.e3_r_kind/rearth
+corrlengthnh = corrlengthnh * 1.e3_r_single/rearth
+corrlengthtr = corrlengthtr * 1.e3_r_single/rearth
+corrlengthsh = corrlengthsh * 1.e3_r_single/rearth
 
 ! this var is .false. until this routine is called.
 params_initialized = .true.

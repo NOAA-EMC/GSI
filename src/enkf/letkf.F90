@@ -110,7 +110,7 @@ real(r_kind) r_nanals,r_nanalsm1
 real(r_kind) normdepart, pnge, width
 real(r_single),allocatable, dimension(:,:) :: anal_obchunk, buffertmp3
 real(r_kind),dimension(nobsgood):: oberrvaruse
-real(r_kind), allocatable, dimension(:) :: buffertmp, buffertmp2
+real(r_single), allocatable, dimension(:) :: buffertmp, buffertmp2
 integer(i_kind) ierr
 integer(i_kind) nanal,nn,nobm,nsame
 logical lastiter
@@ -342,7 +342,7 @@ do niter=1,numiter
         hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf)  ! WE NEED anal_ob (global)
         rdiag(nobsl2)=oberinv(nf)
         dep(nobsl2)=obdep(nf)
-        rloc(nobsl2)=taper(sqrt(hdist+vdist*vdist+tdist*tdist))
+        rloc(nobsl2)=taper(real(sqrt(hdist+vdist*vdist+tdist*tdist),kind=r_single))
         if(rloc(nobsl2) /= zero) then
            nobsl2=nobsl2+1
         end if
@@ -561,7 +561,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
          rdiag(nobsl2)=oberinv(nf)
          dep(nobsl2)=obdep(nf)
-         rloc(nobsl2)=taper(sqrt(hdist0(nob)+vdist*vdist+tdist*tdist))
+         rloc(nobsl2)=taper(real(sqrt(hdist0(nob)+vdist*vdist+tdist*tdist),kind=r_single))
          oindex(nobsl2)=nf
          if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
             nobsl2=nobsl2+1

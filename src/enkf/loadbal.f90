@@ -92,11 +92,11 @@ implicit none
 private
 public :: load_balance, loadbal_cleanup
 
-real(r_kind),public, allocatable, dimension(:,:) :: lnp_chunk, &
+real(r_single),public, allocatable, dimension(:,:) :: lnp_chunk, &
                                                     anal_obchunk_prior
 ! arrays passed to kdtree2 routines need to be single
 real(r_single),public, allocatable, dimension(:,:) :: obloc_chunk, grdloc_chunk
-real(r_kind),public, allocatable, dimension(:) :: oblnp_chunk, &
+real(r_single),public, allocatable, dimension(:) :: oblnp_chunk, &
  obtime_chunk, ensmean_obchunk
 integer(i_kind),public, allocatable, dimension(:) :: iprocob, indxob_chunk,&
                           numptsperproc, numobsperproc

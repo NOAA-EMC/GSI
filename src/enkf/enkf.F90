@@ -92,7 +92,7 @@ module enkf
 
 use mpisetup
 use covlocal, only:  taper
-use kinds, only: r_double,i_kind,r_kind,r_single
+use kinds, only: r_double,i_kind,r_single,r_single
 use kdtree2_module, only: kdtree2_r_nearest, kdtree2_result
 use loadbal, only: numobsperproc, numptsperproc, indxproc_obs, iprocob, &
                    indxproc, lnp_chunk, kdtree_obs, kdtree_grid, &
@@ -129,20 +129,20 @@ use random_normal, only : rnorm, set_random_seed
 integer(i_kind) nob,nob1,nob2,nob3,npob,nf,nf2,ii,nobx,nskip,&
                 niter,i,nrej,npt
 integer(i_kind) indxens1(nanals),indxens2(nanals)
-real(r_kind) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
+real(r_single) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
              dist,lnsig,obt,&
              sqrtoberr,corrlengthinv,lnsiglinv,obtimelinv
 real(r_single) corrsqr ! single required by kdtree2
 real(r_double) :: t1,t2,t3,t4,t5,t6,tbegin,tend
-real(r_kind) kfgain,hpfht,hpfhtoberrinv,r_nanals,r_nanalsm1,hpfhtcon
+real(r_single) kfgain,hpfht,hpfhtoberrinv,r_nanals,r_nanalsm1,hpfhtcon
 real(r_single) anal_obtmp(nanals),obinc_tmp,obens(nanals),obganl(nanals)
-real(r_kind) normdepart, pnge, width
+real(r_single) normdepart, pnge, width
 real(r_single) buffer(nanals+2)
 real(r_single),allocatable, dimension(:,:) :: anal_obchunk
-real(r_kind),dimension(nobsgood):: oberrvaruse
-real(r_kind) r,paoverpb
-real(r_kind) taper1,taper3
-real(r_kind),allocatable, dimension(:) :: rannum
+real(r_single),dimension(nobsgood):: oberrvaruse
+real(r_single) r,paoverpb
+real(r_single) taper1,taper3
+real(r_single),allocatable, dimension(:) :: rannum
 integer(i_kind), allocatable, dimension(:) :: indxassim,iassim
 real(r_single), allocatable, dimension(:) :: buffertmp,taper_disob,taper_disgrd,&
   paoverpb_chunk
@@ -241,7 +241,7 @@ do niter=1,numiter
         ! pnge is the prob that the ob *does not* contain a gross error.
         ! assume rejected if prob of gross err > 50%.
         probgrosserr(nob) = one-pnge
-        if (probgrosserr(nob) > 0.5_r_kind) then 
+        if (probgrosserr(nob) > 0.5_r_single) then 
            nrej=nrej+1
         endif
       end do
@@ -253,14 +253,14 @@ do niter=1,numiter
         width = sprd_tol*sqrt(obsprd_prior(nob)+oberrvar(nob))
         pnge = prpgerr(nob)*sqrt(2.*pi*oberrvar(nob))/((one-prpgerr(nob))*(2.*width))
         normdepart = obfit_post(nob)/sqrt(oberrvar(nob))
-        pnge = one - (pnge/(pnge+exp(-normdepart**2/2._r_kind)))
+        pnge = one - (pnge/(pnge+exp(-normdepart**2/2._r_single)))
         ! eqn 17 in Dharssi, Lorenc and Inglesby
         ! divide ob error by prob of gross error not occurring.
         oberrvaruse(nob) = oberrvar(nob)/pnge
         ! pnge is the prob that the ob *does not* contain a gross error.
         ! assume rejected if prob of gross err > 50%.
         probgrosserr(nob) = one-pnge
-        if (probgrosserr(nob) > 0.5_r_kind) then 
+        if (probgrosserr(nob) > 0.5_r_single) then 
            nrej=nrej+1
         endif
       end do
@@ -309,7 +309,7 @@ do niter=1,numiter
          nob = indxassim(nobx)
       endif
 
-      if(oberrvar(nob) > 1.e10_r_kind)then
+      if(oberrvar(nob) > 1.e10_r_single)then
         nskip = nskip + 1
         cycle obsloop
       end if
@@ -325,7 +325,7 @@ do niter=1,numiter
           hpfht = sum(anal_obchunk(:,nob1)**2)*r_nanalsm1
           ! only thin obs on last iteration (when grids updated).
           if (lastiter .and. oberrvaruse(nob) > paoverpb_thresh*(hpfht+oberrvaruse(nob))) then
-            buffer(nanals+2)=-100._r_kind
+            buffer(nanals+2)=-100._r_single
           else
             buffer(1:nanals) = anal_obchunk(:,nob1)
             buffer(nanals+1) = ob(nob)-ensmean_obchunk(nob1)
@@ -475,7 +475,7 @@ do niter=1,numiter
                if(lnsig < lnsigl(nob))then
                  taperv(nn)=taper1*taper(lnsig*lnsiglinv)
                else
-                 taperv(nn)=-2._r_kind      ! negative number is a flag to not use
+                 taperv(nn)=-2._r_single      ! negative number is a flag to not use
                end if
              end do
              do nn=nn1,nn2

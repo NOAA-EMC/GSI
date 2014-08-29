@@ -191,7 +191,7 @@ subroutine write_ensemble()
 ! for now, first nanals tasks are IO tasks.
 implicit none
 real(r_single), allocatable, dimension(:) :: sendbuf, recvbuf
-real(r_kind), allocatable, dimension(:,:) :: ensmean
+real(r_single), allocatable, dimension(:,:) :: ensmean
 real(r_double) t1,t2
 integer(i_kind) nanal,i,nvar
 integer(i_kind) ierr, np, n, nn
