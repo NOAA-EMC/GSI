@@ -135,23 +135,23 @@ real(r_kind) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
 real(r_single) corrsqr ! single required by kdtree2
 real(r_double) :: t1,t2,t3,t4,t5,t6,tbegin,tend
 real(r_kind) kfgain,hpfht,hpfhtoberrinv,r_nanals,r_nanalsm1,hpfhtcon
-real(r_kind) anal_obtmp(nanals),obinc_tmp,obens(nanals),obganl(nanals)
+real(r_single) anal_obtmp(nanals),obinc_tmp,obens(nanals),obganl(nanals)
 real(r_kind) normdepart, pnge, width
-real(r_kind) buffer(nanals+2)
+real(r_single) buffer(nanals+2)
 real(r_single),allocatable, dimension(:,:) :: anal_obchunk
 real(r_kind),dimension(nobsgood):: oberrvaruse
 real(r_kind) r,paoverpb
 real(r_kind) taper1,taper3
 real(r_kind),allocatable, dimension(:) :: rannum
 integer(i_kind), allocatable, dimension(:) :: indxassim,iassim
-real(r_kind), allocatable, dimension(:) :: buffertmp,taper_disob,taper_disgrd,&
+real(r_single), allocatable, dimension(:) :: buffertmp,taper_disob,taper_disgrd,&
   paoverpb_chunk
 real(r_single), allocatable, dimension(:) :: paoverpb_min, paoverpb_min1
 integer(i_kind) ierr
 ! kd-tree search results
 type(kdtree2_result),dimension(:),allocatable :: sresults1,sresults2 
 integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2
-real(r_kind),dimension(nlevs_pres):: taperv
+real(r_single),dimension(nlevs_pres):: taperv
 logical lastiter, kdgrid, kdobs
 
 ! allocate temporary arrays.
@@ -332,7 +332,7 @@ do niter=1,numiter
             buffer(nanals+2) = hpfht
           end if
       end if
-      call mpi_bcast(buffer,nanals+2,mpi_realkind,npob,mpi_comm_world,ierr)
+      call mpi_bcast(buffer,nanals+2,mpi_real4,npob,mpi_comm_world,ierr)
       ! compute ob prior variance.
       hpfht = buffer(nanals+2)
 
@@ -551,7 +551,7 @@ do niter=1,numiter
     nob2=indxproc_obs(nproc+1,nob1)
     buffertmp(nob2) = ensmean_obchunk(nob1)
   end do
-  call mpi_allreduce(buffertmp,obfit_post,nobsgood,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+  call mpi_allreduce(buffertmp,obfit_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
   obfit_post = ob - obfit_post
   if (nproc == 0) print *,'time to broadcast obfit_post = ',mpi_wtime()-t1,' secs, niter =',niter
 
@@ -568,7 +568,7 @@ do nob1=1,numobsperproc(nproc+1)
   nob2=indxproc_obs(nproc+1,nob1)
   buffertmp(nob2) = sum(anal_obchunk(:,nob1)**2)*r_nanalsm1
 end do
-call mpi_allreduce(buffertmp,obsprd_post,nobsgood,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+call mpi_allreduce(buffertmp,obsprd_post,nobsgood,mpi_real4,mpi_sum,mpi_comm_world,ierr)
 if (nproc == 0) print *,'time to broadcast obsprd_post = ',mpi_wtime()-t1
 
 predx = predx + deltapredx ! add increment to bias coeffs.

@@ -190,7 +190,7 @@ subroutine write_ensemble()
 ! write out each ensemble member to a separate file.
 ! for now, first nanals tasks are IO tasks.
 implicit none
-real(r_kind), allocatable, dimension(:) :: sendbuf, recvbuf
+real(r_single), allocatable, dimension(:) :: sendbuf, recvbuf
 real(r_kind), allocatable, dimension(:,:) :: ensmean
 real(r_double) t1,t2
 integer(i_kind) nanal,i,nvar
@@ -267,8 +267,8 @@ do np=0,numproc-1
    enddo
    displs(np) = n
 enddo
-call mpi_gatherv(sendbuf, numptsperproc(nproc+1)*ndim, mpi_realkind, recvbuf, &
-      scounts, displs, mpi_realkind, 0, mpi_comm_world, ierr)
+call mpi_gatherv(sendbuf, numptsperproc(nproc+1)*ndim, mpi_real4, recvbuf, &
+      scounts, displs, mpi_real4, 0, mpi_comm_world, ierr)
 if (nproc == 0) then
    allocate(ensmean(npts,ndim))
    n = 0
