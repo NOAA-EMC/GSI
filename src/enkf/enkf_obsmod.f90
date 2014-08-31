@@ -189,10 +189,11 @@ allocate(biasprednorm(npred),biasprednorminv(npred))
 !biasprednorm(5) = 1.9e-2_r_single ! integrated weighted (by weighting fns) lapse rate
 !biasprednorm(4) = zero   ! IWLR**2, don't use this predictor (too co-linear)?
 !biasprednorm(4) = 1.1e-3_r_single
-! what the heck, just scale them all by 0.01!
-biasprednorm = 0.01_r_single
-biasprednorminv=zero
 !biasprednorm(4) = zero   ! don't use this predictor (too co-linear)?
+! what the heck, just scale them all by 0.01!
+!biasprednorm = 0.01_r_single
+biasprednorm=one
+biasprednorminv=zero
 do n=1,npred
    if (nproc == 0) print *,n,'biasprednorm = ',biasprednorm(n)
    if (biasprednorm(n) > 1.e-7_r_single) biasprednorminv(n)=one/biasprednorm(n)

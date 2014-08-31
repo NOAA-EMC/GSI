@@ -42,10 +42,10 @@ module radbias
 
 use mpisetup
 use kinds, only: r_kind,i_kind,r_double
-use radinfo, only: npred,predx,nusis,nuchan,jpch_rad
+use radinfo, only: npred,predx,nusis,nuchan,jpch_rad,adp_anglebc
 use enkf_obsmod, only:  ensmean_ob, ensmean_obnobc, biaspreds, nobs_conv, nobs_oz,&
-                   nobs_sat,  indxsat , deltapredx, oberrvarmean, numobspersat, &
-                   obfit_post, oberrvar
+                        nobs_sat,  indxsat , deltapredx, oberrvarmean, numobspersat, &
+                        obfit_post, oberrvar
 use params, only : biasvar
 use loadbal, only: nobs_max
 implicit none
@@ -64,8 +64,13 @@ subroutine apply_biascorr()
   do nob=nobs_conv+nobs_oz+1,nobs_conv+nobs_oz+nobs_sat
     nn = nn + 1
     if (indxsat(nn) == 0) cycle
-    ! angle-dependent, non-adaptive correction.
-    ensmean_ob(nob) = ensmean_obnobc(nob) + biaspreds(1,nn)
+    if (.not. adp_anglebc) then
+       ! angle-dependent, non-adaptive correction.
+       ensmean_ob(nob) = ensmean_obnobc(nob) + biaspreds(1,nn)
+    else
+       ! angle dependent correction is included in adaptive part.
+       ensmean_ob(nob) = ensmean_obnobc(nob) 
+    endif
     ! adaptive (air-mass) corrections.
     do np=1,npred
        ensmean_ob(nob) = ensmean_ob(nob) + &
@@ -106,7 +111,20 @@ if (nobs_sat > 0) then
    ! N = 5000 in ECMWF operations (Dee, personal communication).
    ! gsi uses a variance of 0.1 K**2 (in berror.f90)
    !biaserrvar = oberrvarmean(i)/biasvar ! ec uses 5000._r_kind
-   biaserrvar = biasvar ! default is GSI value (0.1).
+   if (biasvar < 0.) then
+      ! if biasvar set < 0 in namelist, background err variance
+      ! is inversely proportional to number of obs (with -biasvar
+      ! as proportionality constant).
+      if (numobspersat(i) > 0) then
+         biaserrvar = -biasvar/numobspersat(i)
+      else
+         biaserrvar = 0.1_r_kind
+      endif
+      if (biaserrvar > 0.1_r_kind) biaserrvar = 0.1_r_kind
+      !if (niter .eq. 2) print *,'biaserrvar:',numobspersat(i),trim(adjustl(nusis(i))),nuchan(i),biaserrvar
+   else
+      biaserrvar = biasvar ! default is GSI value (0.1).
+   endif
    ! compute B**-1 + p * R**-1 * pT
    a = 0._r_kind
    do n=1,npred

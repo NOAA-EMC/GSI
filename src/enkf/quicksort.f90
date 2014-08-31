@@ -1,9 +1,9 @@
 SUBROUTINE quicksort(n,x,ind)
  
-use kinds, only: r_single,r_double,i_long,r_kind
+use kinds, only: r_single,r_double,i_long
 IMPLICIT NONE
 
-REAL(r_kind), INTENT(IN)  :: x(n)
+REAL(r_single), INTENT(IN)  :: x(n)
 INTEGER, INTENT(IN OUT)   :: ind(n)
 INTEGER, INTENT(IN)    :: n
 
@@ -47,8 +47,8 @@ INTEGER, INTENT(IN)    :: n
 
 INTEGER   :: iu(21), il(21)
 INTEGER   :: m, i, j, k, l, ij, it, itt, indx
-REAL(r_kind)      :: r
-REAL(r_kind)      :: t
+REAL(r_single)      :: r
+REAL(r_single)      :: t
 
 ! LOCAL PARAMETERS -
 
@@ -73,15 +73,15 @@ END DO
 m = 1
 i = 1
 j = n
-r = .375_r_kind
+r = .375_r_single
 
 ! TOP OF LOOP
 
 20 IF (i >= j) GO TO 70
-IF (r <= .5898437_r_kind) THEN
-  r = r + .0390625_r_kind
+IF (r <= .5898437_r_single) THEN
+  r = r + .0390625_r_single
 ELSE
-  r = r - .21875_r_kind
+  r = r - .21875_r_single
 END IF
 
 ! INITIALIZE K

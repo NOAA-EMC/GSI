@@ -124,6 +124,7 @@ integer(i_kind),allocatable,dimension(:) :: oupdate, oindex
 real(r_kind),dimension(nobsgood) :: invcorlen, invlnsigl, invobtimel, hdist0
 real(r_kind) :: hdist, vdist, tdist, pi2, minlat, maxlat, minlon, maxlon
 real(r_kind) :: radlat, radlon, latband, lonband, corrlength
+real(r_single) :: deglat, dist
 integer(i_kind) :: nobsl, ngrd1, nobsl2, imin, imax, jmin, jmax
 logical :: firstobs
 
@@ -173,7 +174,7 @@ do niter=1,numiter
         ! pnge is the prob that the ob *does not* contain a gross error.
         ! assume rejected if prob of gross err > 50%.
         probgrosserr(nob) = one-pnge
-        if (probgrosserr(nob) > 0.5_r_kind) then 
+        if (probgrosserr(nob) > 0.5_r_single) then 
            nrej=nrej+1
         endif
       end do
@@ -185,14 +186,14 @@ do niter=1,numiter
         width = sprd_tol*sqrt(obsprd_prior(nob)+oberrvar(nob))
         pnge = prpgerr(nob)*sqrt(2.*pi*oberrvar(nob))/((one-prpgerr(nob))*(2.*width))
         normdepart = obfit_post(nob)/sqrt(oberrvar(nob))
-        pnge = one - (pnge/(pnge+exp(-normdepart**2/2._r_kind)))
+        pnge = one - (pnge/(pnge+exp(-normdepart**2/2._r_single)))
         ! eqn 17 in Dharssi, Lorenc and Inglesby
         ! divide ob error by prob of gross error not occurring.
         oberrvaruse(nob) = oberrvar(nob)/pnge
         ! pnge is the prob that the ob *does not* contain a gross error.
         ! assume rejected if prob of gross err > 50%.
         probgrosserr(nob) = one-pnge
-        if (probgrosserr(nob) > 0.5_r_kind) then 
+        if (probgrosserr(nob) > 0.5_r_single) then 
            nrej=nrej+1
         endif
       end do
@@ -342,7 +343,8 @@ do niter=1,numiter
         hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf)  ! WE NEED anal_ob (global)
         rdiag(nobsl2)=oberinv(nf)
         dep(nobsl2)=obdep(nf)
-        rloc(nobsl2)=taper(real(sqrt(hdist+vdist*vdist+tdist*tdist),kind=r_single))
+        dist = sqrt(hdist+vdist*vdist+tdist*tdist)
+        rloc(nobsl2)=taper(dist)
         if(rloc(nobsl2) /= zero) then
            nobsl2=nobsl2+1
         end if
@@ -381,22 +383,14 @@ do niter=1,numiter
         if(oupdate(nob) == 1) cycle
         oupdate(nob) = 1
         work(1:nanals) = anal_obchunk(1:nanals,nob)
-        anal_obchunk(1:nanals,nob) = ensmean_obchunk(nob)
-!        do nanal=1,nanals
-!           do j=1,nanals
-!              anal_obchunk(nanal,nob) = anal_obchunk(nanal,nob) &
-!                   + work(j) * trans(j,nanal)
-!           end do
-!        end do
+        work2(1:nanals) = ensmean_obchunk(nob)
         if(r_kind == kind(1.d0)) then
            call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0,work2,1)
         else
            call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0,work2,1)
         end if
-        anal_obchunk(1:nanals,nob) = work2
-        ensmean_obchunk(nob) = sum(anal_obchunk(1:nanals,nob)) * r_nanals
-        anal_obchunk(1:nanals,nob) = anal_obchunk(1:nanals,nob) &
-             - ensmean_obchunk(nob)
+        ensmean_obchunk(nob) = sum(work2(1:nanals)) * r_nanals
+        anal_obchunk(1:nanals,nob) = work2(1:nanals)-ensmean_obchunk(nob)
      end do
 
      t5 = t5 + mpi_wtime() - t1
@@ -477,7 +471,8 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    ! different from the previous one.
    nobsl=0
    ngrd1=indxproc(nproc+1,npt)
-   corrlength=latval(latsgrd(ngrd1)*real(rad2deg),corrlengthnh,corrlengthtr,corrlengthsh)
+   deglat = latsgrd(ngrd1)*rad2deg
+   corrlength=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)
    latband=2._r_kind*asin(0.5_r_kind*corrlength)
    maxlat=latsgrd(ngrd1)+latband
    minlat=latsgrd(ngrd1)-latband
@@ -561,7 +556,8 @@ grdloop: do npt=1,numptsperproc(nproc+1)
          hdxf(nobsl2,1:nanals)=anal_ob(1:nanals,nf) ! WE NEED anal_ob (global)
          rdiag(nobsl2)=oberinv(nf)
          dep(nobsl2)=obdep(nf)
-         rloc(nobsl2)=taper(real(sqrt(hdist0(nob)+vdist*vdist+tdist*tdist),kind=r_single))
+         dist = sqrt(hdist0(nob)+vdist*vdist+tdist*tdist)
+         rloc(nobsl2)=taper(dist)
          oindex(nobsl2)=nf
          if(rloc(nobsl2) > tiny(rloc(nobsl2))) then
             nobsl2=nobsl2+1
@@ -588,23 +584,16 @@ grdloop: do npt=1,numptsperproc(nproc+1)
       do i=1,ndim
          if(index_pres(i) /= nn) cycle
          work(1:nanals) = anal_chunk(1:nanals,npt,i)
-         anal_chunk(1:nanals,npt,i) = ensmean_chunk(npt,i)
-!         do nanal=1,nanals
-!            do j=1,nanals
-!               anal_chunk(nanal,npt,i) = anal_chunk(nanal,npt,i) &
-!                    + work(j) * trans(j,nanal)
-!            end do
-!         end do
+         work2(1:nanals) = ensmean_chunk(npt,i)
          if(r_kind == kind(1.d0)) then
             call dgemv('t',nanals,nanals,1.d0,trans,nanals,work,1,1.d0, &
-                 & anal_chunk(1:nanals,npt,i),1)
+                 & work2,1)
          else
             call sgemv('t',nanals,nanals,1.e0,trans,nanals,work,1,1.e0, &
-                 & anal_chunk(1:nanals,npt,i),1)
+                 & work2,1)
          end if
-         ensmean_chunk(npt,i) = sum(anal_chunk(1:nanals,npt,i)) * r_nanals
-         anal_chunk(1:nanals,npt,i) = anal_chunk(1:nanals,npt,i) &
-              - ensmean_chunk(npt,i)
+         ensmean_chunk(npt,i) = sum(work2(1:nanals)) * r_nanals
+         anal_chunk(1:nanals,npt,i) = work2(1:nanals)-ensmean_chunk(npt,i)
       end do
 
       t5 = t5 + mpi_wtime() - t1
