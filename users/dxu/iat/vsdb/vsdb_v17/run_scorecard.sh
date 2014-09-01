@@ -29,6 +29,7 @@ ndays=`${vsdbhome}/map_util/days.sh -a $y2 $m2 $d2 - $y1 $m1 $d1`
 export ndays=`expr $ndays + 1 `
 
 #User can find the location of scorecard text files from vsdbjob_submit.sh
+rundir=/data/dxu/vsdb/work_space/stmp/dxu/nwpvrfy29092/acrms29092
 scoredir=${scoredir:-$rundir/score}                    ; #location of scard text files
 mkdir -p $scoredir
 cd $scoredir || exit
@@ -39,7 +40,7 @@ undef=-9999.0
 ## -- verification parameters
 export statlist=${statlist:-"cor rms bias"}
 export reglist=${reglist:-"G2PNA G2NHX G2SHX G2TRO"}
-export day=${day:-"1 3 5 6 8 10"}
+#export day=${day:-"1 3 5 6 8 10"}
 export day=${day:-"1 3 5 "}
 
 #Verification scorecard html filename
