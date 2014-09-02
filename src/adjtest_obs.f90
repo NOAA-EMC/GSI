@@ -73,10 +73,10 @@ subroutine adtest_obs
   type(control_vector) :: xtest1
   type(gsi_bundle) :: mval(nsubwin)
   type(gsi_bundle) :: stest1(nobs_bins)
-  type(gsi_bundle) :: sval(nobs_bins), rval(nobs_bins)
+  type(gsi_bundle) :: rval(nobs_bins)
   type(predictors) :: sbias1
   type(predictors) :: rbias1
-  integer(i_kind)  :: i,j,k,ii,idig, iflg
+  integer(i_kind)  :: ii,idig
   real(r_kind) :: adj_lhs, adj_rhs, adj_lhs_tmp, adj_rhs_tmp
   real(r_kind) :: adj_rhs_tsen_tmp, adj_rhs_tsen
   real(r_kind) :: zz1, zz2, zz3

@@ -204,7 +204,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
-  integer(i_kind) ifind, ifound
   
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -223,7 +222,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(t_ob_type),pointer:: my_head
   type(obs_diag),pointer:: my_diag
-  real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,pblfact_cool,dthetav
+  real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)

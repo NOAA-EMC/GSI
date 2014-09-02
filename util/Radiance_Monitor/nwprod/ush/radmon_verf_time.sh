@@ -203,9 +203,9 @@ if [[ $err -eq 0 ]]; then
 #   Loop over each entry in SATYPE
 #--------------------------------------------------------------------
    for type in ${SATYPE}; do
-      ctr=`expr $ctr + 1`
 
       for dtype in ${gesanl}; do
+         ctr=`expr $ctr + 1`
          rm input
 
          if [[ $dtype == "anl" ]]; then

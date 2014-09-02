@@ -31,13 +31,13 @@ rm -f $tmpdir/datem12
 #
 case $HH00 in
  00) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.${USE_TM};;
+     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
  06) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.${USE_TM};;
+     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
  12) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.${USE_TM};;
+     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
  18) ndas1=$COM/ndas.$PDY12/ndas.t${HH12}z.radstat.${USE_TM}
-     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbias.${USE_TM};;
+     bias1=$COM/ndas.$PDY12/ndas.t${HH12}z.satbiasc.${USE_TM};;
 esac
 
 if [ -s $ndas1 ]

@@ -204,7 +204,7 @@ if [[ $RUN_ENVIR = dev ]]; then
    HH12=`echo $DATEM12 | cut -c 9-10`
 
    radstat=$com/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
-   biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12
+   biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbiasc.tm12
 
    echo RADSTAT = $radstat
    echo BIASCR  = $biascr

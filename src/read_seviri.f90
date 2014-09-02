@@ -87,7 +87,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   character(8) subset,subcsr,subasr
   character(80):: hdrsevi             ! seviri header
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon,nhdr,nchn,ncld,nbrst,jj
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc

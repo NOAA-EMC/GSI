@@ -78,7 +78,6 @@ subroutine setuptcp(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind) error,dtime,dlon,dlat,r0_001,r2_5,r0_2,rsig
   real(r_kind) ratio_errors,psges,zsges,rdp,drdp
   real(r_kind) pob,pges,pgesorig,half_tlapse,ddiff,halfpi,r0_005,rdelz,psges2
-  real(r_kind) alpha,resfct,error_orig
 
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig)::prsltmp

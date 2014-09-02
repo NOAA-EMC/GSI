@@ -85,13 +85,12 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_llong) num_swap
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,i_f_rimef
-  integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
+  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain
+  integer(i_kind) kcwm,kf_ice,kf_rain
   integer(i_kind) num_nmm_fields,num_j_groups,num_loc_groups
   real(r_kind) pd,psfc_this
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)

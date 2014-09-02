@@ -120,7 +120,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_single),allocatable::etabl(:,:,:)
   integer(i_kind) ietabl,lcount,itypex
   integer(i_kind) l,m,ikx
-  integer(i_kind) n,cid_pos,ship_mod,mbuoy_mod,dbuoy_mod
+  integer(i_kind) n,cid_pos,ship_mod
   real(r_kind) terrmin,werrmin,perrmin,qerrmin,pwerrmin
 
   data headr/'YEAR MNTH DAYS HOUR MINU CLATH CLONH SELV RPID'/

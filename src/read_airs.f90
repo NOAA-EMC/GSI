@@ -157,7 +157,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=512)  :: table_file
   integer(i_kind)     :: lnbufr = 10
   integer(i_kind)     :: lnbufrtab = 11
-  integer(i_kind)     :: irec,isub,next
+  integer(i_kind)     :: irec,next
 
 ! Variables for BUFR IO    
   real(r_double),dimension(2) :: aquaspot

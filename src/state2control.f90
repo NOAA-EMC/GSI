@@ -71,7 +71,7 @@ type(control_vector), intent(inout) :: grad
 character(len=*),parameter::myname='state2control'
 character(len=max_varname_length),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus,istatus_oz 
+integer(i_kind) :: ii,jj,ic,id,ngases,nclouds,istatus,istatus_oz 
 type(gsi_bundle) :: wbundle ! work bundle
 
 ! Note: The following does not aim to get all variables in
@@ -102,7 +102,6 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv
 real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:)   :: rv_rank2
 
-logical :: musthave ! for now, pointers to meteorl variables must be defined
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_cw_to_hydro_ad
 
 !******************************************************************************

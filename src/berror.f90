@@ -253,8 +253,6 @@ contains
   use constants, only: zero,one
   implicit none
   
-  integer(i_kind) i
-
   llmin=1
   llmax=nlat
 

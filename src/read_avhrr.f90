@@ -114,7 +114,8 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   character(len=8) :: subset
 
   integer(i_kind) klon1,klatp1,klonp1,klat1
-  integer(i_kind) nchanl,iret,ich_win,ifov, ich4, ich_offset
+  integer(i_kind) nchanl,iret,ifov, ich4, ich_offset
+! integer(i_kind) ich_win
   integer(i_kind) idate
   integer(i_kind) ilat,ilon
   integer(i_kind),dimension(5):: idate5
@@ -140,11 +141,12 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
-  real(r_kind) :: scan_pos,dfov,ch_win,ch_win_flg,r01
+  real(r_kind) :: scan_pos,dfov,r01
+! real(r_kind) :: ch_win,ch_win_flg
 
   real(r_double), dimension(13) :: hdr
   real(r_double), dimension(3,5) :: bufrf
-  integer(i_kind) lnbufr,ireadsb,ireadmg,iskip,irec,isub,next
+  integer(i_kind) lnbufr,ireadsb,ireadmg,iskip,irec,next
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) disterr,disterrmax,dlon00,dlat00
@@ -167,7 +169,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
   nchanl = 3
   ich_offset    = 2               ! avhrr, channels 1 & 2 are skipped
   ich4          = ich_offset + 2
-  ich_win       = newchn(sis, 4)  ! Set array index for Channel 4
+! ich_win       = newchn(sis, 4)  ! Set array index for Channel 4
   r01 = 0.01_r_kind
 
   dfov = (ngac - two*cut_spot - one)/nfov

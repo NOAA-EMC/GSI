@@ -294,7 +294,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,isis,obstype)
   integer(i_kind) :: ier,ii,error_status,iderivative
   logical :: ice,Load_AerosolCoeff,Load_CloudCoeff
   character(len=20),dimension(1) :: sensorlist
-  integer(i_kind) :: icf4crtm,icw4crtm,indx,iii,icloud4crtm
+  integer(i_kind) :: icf4crtm,indx,iii,icloud4crtm
 ! ...all "additional absorber" variables
   integer(i_kind) :: j
   integer(i_kind) :: ig
@@ -929,16 +929,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig+1) :: prsi_rtm
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
-  real(r_kind),allocatable,dimension(:)::auxt,auxp
   real(r_kind),dimension(nsig)  :: poz
   real(r_kind),dimension(nsig)  :: rh,qs,qclr
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
   real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
-  real(r_kind),dimension(nsig)  :: cw, tem2d
-  real(r_kind) :: tref,dtw,dtc,tz_tr
-  real(r_kind) tem4, cf
+  real(r_kind) cf
   real(r_kind),dimension(nsig) :: ugkg_kgm2
   real(r_kind),allocatable,dimension(:,:,:):: cwj
   real(r_kind),allocatable,dimension(:,:) :: tgas1d
@@ -958,9 +955,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::tgasges_itsigp=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsigp=>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::cloudges_itsig =>NULL()
-  real(r_kind),pointer,dimension(:,:,:)::cloudges_itsigp=>NULL()
-  character(len=max_varname_length),allocatable,dimension(:) :: gases
 
 
 
@@ -1582,7 +1576,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! get vegetation lai from summer and winter values.
 !
      if(lai_type>0 .AND. surface(1)%land_coverage>zero)then
-       call get_lai(obstime,data_s,nchanl,nreal,ich,itime,ilate,lai)
+       call get_lai(data_s,nchanl,nreal,itime,ilate,lai)
      endif
 
      if(lai_type>0 .AND. surface(1)%land_coverage>zero)then                        
@@ -1950,7 +1944,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
       intresult = intresult * dtsig
     end function crtm_interface_interp
   end subroutine call_crtm
-subroutine get_lai(obstime,data_s,nchanl,nreal,ich,itime,ilate,lai)
+subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_lai   interpolate vegetation LAI data for call_crtm
@@ -1962,11 +1956,9 @@ subroutine get_lai(obstime,data_s,nchanl,nreal,ich,itime,ilate,lai)
 ! program history log:
 !
 !   input argument list:
-!     obstime      - time of observations for which to get profile
 !     data_s       - array containing input data information
 !     nchanl       - number of channels
 !     nreal        - number of descriptor information in data_s
-!     ich          - channel number array
 !     itime        - index of analysis relative obs time
 !     ilate        - index of earth relative latitude (degrees)
 !
@@ -1984,9 +1976,7 @@ subroutine get_lai(obstime,data_s,nchanl,nreal,ich,itime,ilate,lai)
   implicit none
 
 ! Declare passed variables
-  real(r_kind)                          ,intent(in   ) :: obstime
   integer(i_kind)                       ,intent(in   ) :: nchanl,nreal
-  integer(i_kind),dimension(nchanl)     ,intent(in   ) :: ich
   real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
   integer(i_kind)                       ,intent(in   ) :: itime, ilate
 

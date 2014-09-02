@@ -44,7 +44,7 @@ subroutine general_read_nmmb(grd,filename,mype,g_z,g_ps,g_u,g_v,g_tv,g_tsen,g_q,
 
 !   Declare local variables
     integer(i_kind) i,j,k,kr,nsig,lat2,lon2,mype_input
-    real(r_kind) pd,psfc_this,pd_to_ps,q_liquid,dumtv                                                     
+    real(r_kind) pd,psfc_this,pd_to_ps,dumtv                                                     
     logical good_o3mr
     real(r_kind),dimension(grd%lat2,grd%lon2) :: g_pd
 

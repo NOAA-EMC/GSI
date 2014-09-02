@@ -125,12 +125,10 @@ subroutine intcolev_(colvkhead,rval,sval)
 
 ! Declare local variables
   integer(i_kind) i,j,ij,ier,istatus
-  integer(i_kind) k,k1,k2,j1,j2,j3,j4,kk,iz1,iz2,j1x,j2x,j3x,j4x
-  real(r_kind) pob,time_co
+  integer(i_kind) k,k1,k2,j1,j2,j3,j4,kk
+  real(r_kind) pob
   real(r_quad) val1,valx
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind),pointer,dimension(:) :: xhat_dt_co
-  real(r_kind),pointer,dimension(:) :: dhat_dt_co
   real(r_kind),pointer,dimension(:,:,:)  :: scop
   real(r_kind),pointer,dimension(:,:,:)  :: rcop
   real(r_kind),allocatable,dimension(:,:) :: sco

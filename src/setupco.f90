@@ -1,5 +1,5 @@
 subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
-     obstype,isis,is,co_diagsave,init_pass,last_pass)
+     obstype,isis,is,co_diagsave,init_pass)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -92,7 +92,7 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
 
   character(10)                    , intent(in   ) :: obstype          ! type of co obs
   logical                          , intent(in   ) :: co_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                          , intent(in   ) :: init_pass     ! state of "setup" processing
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -128,10 +128,10 @@ subroutine setupco(lunin,mype,stats_co,nlevs,nreal,nobs,&
   real(r_kind),allocatable,dimension(:,:,:,:):: ges_co
   
 
-  integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin,ico,ifld
+  integer(i_kind) i,nlev,ii,jj,iextra,istat,ibin
   integer(i_kind) k,j,nz,jc,idia,irdim1,ier,istatus,k1,k2 
   integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
-  integer(i_kind) isolz,isolaz,icldmnt,isnoc,iacidx,istko,ifovn
+  integer(i_kind) isolz
   integer(i_kind) mm1,itime,ilat,ilon,isd,ilate,ilone,itoq,ipoq
   integer(i_kind),dimension(iint,nobs):: idiagbuf
   integer(i_kind),dimension(nlevs):: ipos,iouse
@@ -700,8 +700,7 @@ endif	! (in_curbin)
   subroutine init_vars_
 
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
-  character(len=5) :: varname
-  integer(i_kind) ifld,istatus
+  integer(i_kind) ifld
 
 ! If require guess vars available, extract from bundle ...
   if(size(gsi_chemguess_bundle)==nfldsig) then

@@ -107,23 +107,34 @@ fi
 #
 #-------------------------------------------------------------------
 
-   cmdfile=${PLOT_WORK_DIR}/cmdfile_psummary
+#   cmdfile=${PLOT_WORK_DIR}/cmdfile_psummary
    jobname=plot_${SUFFIX}_sum
    logfile=${LOGdir}/plot_summary.log
 
-   rm -f $cmdfile
+#   rm -f $cmdfile
    rm ${logfile}
 
->$cmdfile
-   for type in ${SATYPE}; do
-      echo "$IG_SCRIPTS/plot_summary.sh $type" >> $cmdfile
-   done
-
-   ntasks=`cat $cmdfile|wc -l `
-   ((nprocs=(ntasks+1)/2))
+#   if [[ $SUFFIX = "prhw14" ]]; then
+#>$cmdfile
+#      for type in ${SATYPE}; do
+#         echo "$IG_SCRIPTS/ex_plot_summary.sh $type" >> $cmdfile
+#      done
+#   else
+#>$cmdfile
+#      for type in ${SATYPE}; do
+#         echo "$IG_SCRIPTS/plot_summary.sh $type" >> $cmdfile
+#      done
+#   fi
+#
+#   ntasks=`cat $cmdfile|wc -l `
+#   ((nprocs=(ntasks+1)/2))
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      if [[ $SUFFIX = "prhw14" || $SUFFIX = "prhs12" || $SUFFIX = "wopr" ]]; then
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/ex_plot_summary.sh
+      else
+         $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $IG_SCRIPTS/plot_summary.sh
+      fi
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_summary.sh
    fi
@@ -223,7 +234,7 @@ fi
          done
          chmod 755 $cmdfile
 
-         ntasks=`cat $cmdfile|wc -l `
+#         ntasks=`cat $cmdfile|wc -l `
 
          if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
             wall_tm="2:00"

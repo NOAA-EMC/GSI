@@ -1,6 +1,5 @@
 module observermod
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block
@@ -146,7 +145,6 @@ subroutine guess_init_
 
 ! Declare local variables
 
-  integer(i_kind):: msig,mlat,mlon
   integer(i_kind):: ierr
 
 !*******************************************************************************************
@@ -513,7 +511,6 @@ subroutine final_
 ! Declare passed variables
 
 ! Declare local variables
-  integer(i_kind) error_status
   character(len=*),parameter:: Iam="observer_final"
 
 !*******************************************************************************************
@@ -590,9 +587,9 @@ subroutine guess_final_
   call cloud_final()
   call destroy_sfc_grids()
   call destroy_bias_grids()
-  call destroy_ges_grids(switch_on_derivatives,tendsflag)
+  call destroy_ges_grids
 #ifndef HAVE_ESMF
-  call destroy_chemges_grids(mype,ierr)
+  call destroy_chemges_grids(ierr)
   call destroy_metguess_grids(mype,ierr)
 #endif /* HAVE_ESMF */
 
