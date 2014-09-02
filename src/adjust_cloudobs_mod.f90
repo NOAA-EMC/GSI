@@ -340,7 +340,7 @@ end subroutine adjust_convcldobs
 
 subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
                         low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
-                        hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,stnelev)
+                        hig_cldamt,hig_cldamt_qc,tcamt,tcamt_qc)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  adjust_goescldobs         obtain cloud amount info from NESDIS goescld
@@ -368,9 +368,9 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
 
 ! output variables
   integer(i_kind),intent(inout) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc
-  integer(i_kind),intent(inout) :: tcamt_qc,lcbas_qc
+  integer(i_kind),intent(inout) :: tcamt_qc
   real(r_kind),intent(inout) :: low_cldamt,mid_cldamt,hig_cldamt
-  real(r_kind),intent(inout) :: tcamt,lcbas
+  real(r_kind),intent(inout) :: tcamt
 
 ! declare local variables
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
@@ -393,13 +393,11 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
   mid_cldamt=bmiss
   hig_cldamt=bmiss
   tcamt=bmiss
-  lcbas=bmiss
 
   low_cldamt_qc=15
   mid_cldamt_qc=15
   hig_cldamt_qc=15
   tcamt_qc=15
-  lcbas_qc=15
 
 ! cloud amount (%)
   if (goescld(2,1)<=100.0_r_kind) then
@@ -407,7 +405,10 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
      tcamt_qc=0
   end if    
 
-
+! Enforce clear sky if cloud top pressure is lower than 1010 AND
+!   if we lack TOCC obs, i.e. goes(2,1) is missing
+  sat_ctp=goescld(1,1)/100.0_r_kind    !  cloud top pressure (pa)
+  if (abs(tcamt-bmiss) < tiny_r_kind .and. sat_ctp>=1010.0_r_kind ) then 
 !     --- clear where GOES shows clear down to the surface
 !            or down to the GOES cloud top level
 !     --- this is to mimic cloudCover_NESDIS
@@ -423,39 +424,35 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
 ! =============================================
 !
 ! calculate observation time
-  anal_time=0
-  obs_time=0
-  tmp_time=zero
-  tmp_time(2)=timeobs
-  anal_time(1)=iadate(1)
-  anal_time(2)=iadate(2)
-  anal_time(3)=iadate(3)
-  anal_time(4)=0
-  anal_time(5)=iadate(4)
-  call w3movdat(tmp_time,anal_time,obs_time) ! observation time
-  leap_day = 0
-  if( mod(obs_time(1),4)==0 ) then
-     if( (mod(obs_time(1),100)/=0).or.(mod(obs_time(1),400)==0) ) leap_day = 1
-  endif
-  day_of_year = mday(obs_time(2)) + obs_time(3)
-  if(obs_time(2) > 2) day_of_year = day_of_year + leap_day
+     anal_time=0
+     obs_time=0
+     tmp_time=zero
+     tmp_time(2)=timeobs
+     anal_time(1)=iadate(1)
+     anal_time(2)=iadate(2)
+     anal_time(3)=iadate(3)
+     anal_time(4)=0
+     anal_time(5)=iadate(4)
+     call w3movdat(tmp_time,anal_time,obs_time) ! observation time
+     leap_day = 0
+     if( mod(obs_time(1),4)==0 ) then
+        if( (mod(obs_time(1),100)/=0).or.(mod(obs_time(1),400)==0) ) leap_day = 1
+     endif
+     day_of_year = mday(obs_time(2)) + obs_time(3)
+     if(obs_time(2) > 2) day_of_year = day_of_year + leap_day
 
-! calculation solar declination
-  declin=deg2rad*23.45_r_kind*sin(2.0_r_kind*pi*(284+day_of_year)/365.0_r_kind)
+   ! calculation solar declination
+     declin=deg2rad*23.45_r_kind*sin(2.0_r_kind*pi*(284+day_of_year)/365.0_r_kind)
  
-! csza = fraction of solar constant (cos of zenith angle)
-  xlon=dlon_earth*rad2deg
-  gmt = obs_time(5)   ! UTC
-  hrang= (15._r_kind*gmt + xlon - 180._r_kind )*deg2rad
-  csza=sin(dlat_earth)*sin(declin)                &
+   ! csza = fraction of solar constant (cos of zenith angle)
+     xlon=dlon_earth*rad2deg
+     gmt = obs_time(5)   ! UTC
+     hrang= (15._r_kind*gmt + xlon - 180._r_kind )*deg2rad
+     csza=sin(dlat_earth)*sin(declin)                &
            +cos(dlat_earth)*cos(declin)*cos(hrang)
-  csza=max(-one,min(csza,one))
-  sza=rad2deg*acos(csza)
+     csza=max(-one,min(csza,one))
+     sza=rad2deg*acos(csza)
 
-
-! enforce clear sky if cloud top pressure is lower than 1010
-  sat_ctp=goescld(1,1)/100.0_r_kind    !  cloud top pressure (pa)
-  if (sat_ctp>=1010.0_r_kind) then !clear
      mid_cldamt=zero
      hig_cldamt=zero
      mid_cldamt_qc=0
@@ -467,10 +464,6 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
         tcamt_qc=3
      end if
   end if
-
-!  Background field is MSL, so add station elevation to lcbas and ceiling here
-if (abs(lcbas-bmiss) > tiny_r_kind) lcbas=lcbas+stnelev
-
 end subroutine adjust_goescldobs
 
 end module adjust_cloudobs_mod
