@@ -363,7 +363,7 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
 
 ! input variables
   integer(i_kind),intent(in) :: idomsfc
-  real(r_kind),intent(in) :: timeobs,dlat_earth,dlon_earth,stnelev
+  real(r_kind),intent(in) :: timeobs,dlat_earth,dlon_earth
   real(r_kind),dimension(:,:),intent(in):: goescld
 
 ! output variables
