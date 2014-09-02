@@ -12,7 +12,6 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 ! PROGRAM HISTORY LOG:
 !    2009-09-21  Hu  initial
 !    2010-04-09  Hu  make changes based on current trunk style
-!    2013-03-27  Hu  add code to map obs from WRF mass H grid to analysis grid
 !
 !
 !   input argument list:
@@ -46,13 +45,11 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
   use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
         ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
   use gsi_4dvar, only: l4dvar,winlen
-  use gridmod, only: nlon,nlat,nlon_regional,nlat_regional
-  use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
 
   implicit none
 !
   
-  character(10),    intent(in)   :: infile,obstype
+  character(len=*), intent(in)   :: infile,obstype
   integer(i_kind),  intent(in)   :: lunout
   integer(i_kind),  intent(inout):: nread,ndata
   real(r_kind),     intent(in   ):: twind
@@ -62,7 +59,7 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
 !
   integer(i_kind) nreal,nchanl,ilat,ilon
 
-  integer(i_kind) ifn,i,j
+  integer(i_kind) ifn,i
  
   logical :: LaRCobs
 
@@ -74,27 +71,23 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
     character(80):: obsstr='POB'
 
     INTEGER(i_kind),PARAMETER ::  MXBF = 160000
-    INTEGER(i_kind) :: ibfmsg = MXBF/4
 
-    character(8) subset,sid
+    character(8) subset
     integer(i_kind) :: lunin,idate
     integer(i_kind)  :: ireadmg,ireadsb
 
     INTEGER(i_kind)  ::  maxlvl
-    INTEGER(i_kind)  ::  numlvl,numLaRC,numobsa
-    INTEGER(i_kind)  ::  n,k,iret
+    INTEGER(i_kind)  ::  numlvl,numLaRC
+    INTEGER(i_kind)  ::  k,iret
     INTEGER(i_kind),PARAMETER  ::  nmsgmax=100000
     INTEGER(i_kind)  ::  nmsg,ntb
     INTEGER(i_kind)  ::  nrep(nmsgmax)
-    INTEGER(i_kind),PARAMETER  ::  maxobs=4500000 
+    INTEGER(i_kind),PARAMETER  ::  maxobs=450000 
 
     REAL(r_kind),allocatable :: LaRCcld_in(:,:)   ! 3D reflectivity in column
 
     integer(i_kind)  :: ikx
     real(r_kind)     :: timeo,t4dv
-
-    REAL(r_double)  :: rid
-    EQUIVALENCE (sid,rid)
 
 !**********************************************************************
 !
@@ -182,16 +175,8 @@ subroutine read_NASA_LaRC(nread,ndata,infile,obstype,lunout,twind,sis)
       ndata=numLaRC
       nreal=maxlvl+2
       if(numLaRC > 0 ) then
-          if(nlon==nlon_regional .and. nlat==nlat_regional) then
-             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-             write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numLaRC)
-          else
-             call wrfmass_obs_to_a8(LaRCcld_in,nreal,numLaRC,ilat,ilon,numobsa)
-             nread=numobsa
-             ndata=numobsa
-             write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-             write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numobsa)
-          endif
+          write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+          write(lunout) ((LaRCcld_in(k,i),k=1,maxlvl+2),i=1,numLaRC)
           deallocate(LaRCcld_in)
       endif
     endif

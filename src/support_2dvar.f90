@@ -1444,7 +1444,6 @@ module ndfdgrids
 !   sub ndfdgrid_info
 !   sub latlon_to_grid0
 !   sub grid_to_latlon0
-!   sub terrain_slmask
 !   sub relocsfcob
 !   sub adjust_error
 !   sub destroy_ndfdgrid
@@ -1468,7 +1467,6 @@ module ndfdgrids
   public :: ndfdgrid_info
   public :: latlon_to_grid0
   public :: grid_to_latlon0
-  public :: terrain_slmask
   public :: adjust_error
   public :: relocsfcob
   public :: destroy_ndfdgrid
@@ -1794,65 +1792,6 @@ subroutine grid_to_latlon0(xx8,yy8,rlat8,rlon8)
 
 end subroutine grid_to_latlon0
 !****************************************************************
-!****************************************************************
-subroutine terrain_slmask(radrlat8,radrlon8,hgt0,slm0)
-!$$$  subprogram documentation block
-!
-!   prgmmr: pondeca           org: np20                date: 2008-11-04
-!
-! abstract: given the earth (lat,lon) for a selected point on the ndfd grid,
-! find the interpolated terrain value and the slmask value 
-! of the nearest grid point.
-!
-! program history log:
-!   2008-11-04  pondeca  
-!
-! input argument list:
-!   radrlon8  - east longitude in radians
-!   radrlat8  - latitude in radians
-!
-! output argument list:
-!    hgt0 - interpolated terrain value
-!    slm0 - slmask value of nearest point
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-  use constants, only: zero,one,rad2deg
-
-  implicit none
-
-  real(r_kind),intent(in   ) :: radrlat8,radrlon8
-  real(r_kind),intent(  out) :: hgt0,slm0
-
-! Declare local variables
-  real(r_single) hgt04
-  integer(i_kind) ii,jj
-  real(r_kind) rlon8,rlat8,xx8,yy8
-  real(r_single) xx,yy
-
-  rlon8=radrlon8*rad2deg
-  if (rlon8<zero) rlon8=rlon8+360._r_kind
-  rlat8=radrlat8*rad2deg
-
-  call latlon_to_grid0(rlat8,rlon8,xx8,yy8)
-
-  xx=xx8
-  yy=yy8
-
-  hgt04=hgt0
-  call bilinear_2d0(terrain,nx,ny,hgt04,yy,xx)!Note the reverse order "yy,xx"
-  hgt0=hgt04*one
-
-  ii=max(1,min(nx,nint(xx)))
-  jj=max(1,min(ny,nint(yy)))
-
-  slm0=slmask(ii,jj)*one
-
-end subroutine terrain_slmask
-!****************************************************************
 subroutine adjust_error(alon,alat,oberr,oberr2)
 !$$$  subprogram documentation block
 !
@@ -1985,12 +1924,11 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
 ! Declare local variables
   character(20) cvarname
   integer(i_kind) i,j,istart,jstart,is,ie,js,je
-  integer(i_kind) imin,jmin
   real(r_kind) rlonin8,rlatin8,xxin8,yyin8,xx8,yy8
   real(r_single) xxin,yyin
   real(r_single) dist,distmin,ri,rj,delx,dely
   real(r_single) ris,rie,rjs,rje,rimin,rjmin
-  real(r_single) idist,rlonin,rlatin,rlon,rlat
+  real(r_single) rlonin,rlatin,rlon,rlat
   real(r_single) slmin,slmout,slmask0
   logical lfound
 
@@ -2655,148 +2593,6 @@ subroutine destroy_hilbertcurve
 end subroutine destroy_hilbertcurve
 
 end module hilbertcurve
-!************************************************************
-subroutine mkheader_madis_and_time_rejects(cobtype,lun)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    mkheader_madis_and_time_rejects
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-10-02  lueken - added subprogram doc block
-!
-!   input argument list:
-!    cobtype
-!    lun
-!
-!   output argument list:
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-
-  use kinds, only: i_kind
-  implicit none
-
-  character(10)  ,intent(in   ) :: cobtype
-  integer(i_kind),intent(in   ) :: lun
-
-  character(96) cheader
-
-  cheader='stnname   obtype   lat(dg)  lon(dg E)   dtime      ob          qctype'
-
-  if (trim(cobtype)=='t') then
-     write(lun,*)   'RTMA TEMPERATURE OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are K'
-  endif
-
-  if (trim(cobtype)=='q') then
-     write(lun,*)   'RTMA SPECIFIC HUMIDITY OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are g/Kg'
-  endif
-
-  if (trim(cobtype)=='ps') then
-     write(lun,*)   'RTMA SURFACE PRESSURE OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are Pa'
-  endif
-
-  if (trim(cobtype)=='uv') then
-     write(lun,*)   'RTMA WIND OBS (sqrt(u**2+v**2)) FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are m/s'
-  endif
-
-  if (trim(cobtype)=='spd') then
-     write(lun,*)   'RTMA WIND SPEED OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are m/s'
-  endif
-
-  if (trim(cobtype)=='gust') then
-     write(lun,*)   'RTMA WIND GUST OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are m/s'
-  endif
-
-  if (trim(cobtype)=='vis') then
-     write(lun,*)   'RTMA VISIBILITY OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are m'
-  endif
-
-  if (trim(cobtype)=='pblh') then
-     write(lun,*)   'RTMA PBLH OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are m'
-  endif
-
-  if (trim(cobtype)=='dist') then
-     write(lun,*)   'RTMA CEELING HEIGHT OBS FLAGGED SOON AFTER THEY ARE READ IN FROM THE PREPBUFR FILE'
-     write(lun,*)   'OB UNITS are m'
-  endif
-
-  write(lun,*)   'dtime is the hour relative to the analysis time. For example, dtime=-0.1'
-  write(lun,*)   '             means 0.1h (i.e. 6 minutes) before the analysis time'
-  write(lun,*)   'qctype=1 ==> ob lies outside assimilation time window'
-  write(lun,*)   'qctype=2 ==> MADIS QC related reject'
-  write(lun,*)   'qctype=3 ==> MADIS QC related reject'
-  write(lun,*)   'qctype=4 ==> MADIS QC related reject'
-  write(lun,*)   '                              '
-  write(lun,*)   cheader
-
-end subroutine mkheader_madis_and_time_rejects
-!------------------------------------------------------
-!------------------------------------------------------
-subroutine get_stndewpt(p,q,t,td,lboundtd)
-!                .      .    .                                       .
-! subprogram:    get_stndewpt
-!   prgmmr:
-!
-! abstract:
-!
-! program history log:
-!   2009-10-02  lueken - added subprogram doc block
-!
-!   input argument list:
-!    q-specific humidity
-!    p-pressure in Pa
-!    t-
-!    lboundtd
-!
-!   output argument list:
-!    td-dewpoint in K
-!
-! attributes:
-!   language: f90
-!   machine:
-!
-!$$$ end documentation block
-  use kinds, only: r_kind
-  use constants, only: one,r100
-  implicit none
-
-! Declare passed variables
-  real(r_kind),intent(in   ) :: p,q,t
-  real(r_kind),intent(  out) :: td
-  logical     ,intent(in   ) :: lboundtd
-
-! Declare local parameters
-  real(r_kind),parameter::eps=0.62197_r_kind    !=Rd/Rv
-  real(r_kind),parameter::a=243.5_r_kind
-  real(r_kind),parameter::b=440.8_r_kind
-  real(r_kind),parameter::c=19.48_r_kind
-  real(r_kind),parameter::c2k=273.15_r_kind
-
-! Declare local variables
-  real(r_kind)  e, qv, eln
-
-  qv=q/(one-q)
-  e=p/r100*qv/(eps+qv)
-  eln=log(e)
-  td = (a*eln-b)/(c-eln)+c2k
-  if (lboundtd) td = min(t,td)
-
-end subroutine get_stndewpt
-!************************************************************
 !------------------------------------------------------
       subroutine bilinear_2d0(rffcst,ix,jx,rfobs,xx,yy)
 !$$$  subprogram documentation block
@@ -3005,8 +2801,8 @@ subroutine shuffle(ngrps,ngrp0)
   integer(i_kind),intent(out):: ngrp0
 
 !Declare local variables
-  integer(i_kind) iseed,n,nt
-  real(r_kind) randx
+  integer(i_kind) iseed,nt
+! real(r_kind) randx
 
   call w3fs21(iadate,iseed) !use # of minutes since 0000, 1 jan 1978
                             !as the seed
@@ -3016,9 +2812,6 @@ subroutine shuffle(ngrps,ngrp0)
  
   print*,'in shuffle: iadate,iseed,nt=',iadate,iseed,nt
 
-! do n=1,max(1,nt/5) !nt
-!    call random8(iseed,randx) 
-! enddo
 
 ! ngrp0=nint(real((ngrps-1),r_kind)*randx+0.001_r_kind)+1
 
@@ -3030,23 +2823,4 @@ subroutine shuffle(ngrps,ngrp0)
   print*,'in shuffle:ngrps,ngrp0=',ngrps,ngrp0
 
 end subroutine shuffle
-!============================================================
-subroutine random8(iseed,randx)
-
-! this subroutine generates random numbers between 0.0 and 1.0
-! using an integer seed
-
-  use kinds, only: r_kind,i_kind
-  implicit none
-
-!Declare passed variables
-  integer(i_kind),intent(inout):: iseed
-  real(r_kind),intent(out):: randx
-
-  iseed=2045*iseed+1
-  iseed=iseed-(iseed/1048576)*1048576
-  randx=real((iseed+1),r_kind)/1048577.0_r_kind
-
-  return
-end subroutine random8
 !===========================================================================

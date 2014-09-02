@@ -68,8 +68,6 @@ module anisofilter
 !
 !   invert_aspect_tensor              - invert ascpect tensor
 !
-!   get_aspect_det                    -
-!
 !   get_aspect_reg_ens                - compute the anisotropic aspect tensor for the
 !                                       3dvar case of gsi-regional based on ensemble info
 !   get_ensmber                       -
@@ -166,7 +164,6 @@ module anisofilter
   public :: smther_one
   public :: smther_one_8
   public :: invert_aspect_tensor
-  public :: get_aspect_det
   public :: get_aspect_reg_ens
   public :: get_ensmber
   public :: set_range_aniall
@@ -2521,54 +2518,6 @@ subroutine invert_aspect_tensor(asp,ni,nj,nk)
 end subroutine invert_aspect_tensor
 !=======================================================================
 !=======================================================================
-subroutine get_aspect_det(asp,det)
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:   get_aspect_det
-! prgmmr: sato             org: np23                date: 2007-10-30
-!
-! abstract: get detaminant, just extracted from get2berr_reg().
-!
-! program history log:
-!   2008-03-03   sato
-!
-!   input argument list:
-!    asp - aspect tensor to be inverted
-!    det - detaminant
-!
-!   output argument list:
-!    det
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-  implicit none
-
-  real(r_single),intent(in   ) :: asp(6)
-  real(r_kind)  ,intent(inout) :: det
-
-  real(r_kind):: a1,a2,a3,a4,a5,a6
-  real(r_kind):: biga1,biga2,biga3,biga4,biga5,biga6
-
-  a1=real(asp(1),r_kind)
-  a2=real(asp(2),r_kind)
-  a3=real(asp(3),r_kind)
-  a4=real(asp(4),r_kind)
-  a5=real(asp(5),r_kind)
-  a6=real(asp(6),r_kind)
-  biga1=a2*a3-a4*a4
-  biga2=a1*a3-a5*a5
-  biga3=a1*a2-a6*a6
-  biga4=a5*a6-a1*a4
-  biga5=a4*a6-a2*a5
-  biga6=a4*a5-a3*a6
-  det=(a1*biga1+a6*biga6+a5*biga5)
-
-end subroutine get_aspect_det
-!=======================================================================
-!=======================================================================
 subroutine get_aspect_reg_ens(mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -3262,7 +3211,7 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   logical        ,intent(in   ) :: unbalens
 
 ! Declare local variables
-  integer(i_kind) i,j,k,l,m,l2,ivar,it
+  integer(i_kind) i,j,k,m,ivar,it
   integer(i_kind) n,kup
   integer(i_kind) inttype !read in from each e-member. tells about
 !                          desired vertical interp type for specific
@@ -3271,7 +3220,6 @@ subroutine get_ensmber(kens,ifld,igrid,ntensmax,ifldlevs,truewind,unbalens, &
   integer(i_kind) irc_s_reg(npe),ird_s_reg(npe)
 
   real(r_kind) asp1,asp2,asp3
-  real(r_kind) dl1,dl2
 
   real(r_kind),allocatable,dimension(:,:,:)::field
 
@@ -4023,7 +3971,6 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
   character(10) chvarname
-  character(80) fname
   character(5) cvar
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe

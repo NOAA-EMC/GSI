@@ -198,7 +198,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      $TIMEX ./${bcoef_exec} < input >   stdout.$type
+      $TIMEX ./${bcoef_exec} < input >   ${stdout_file}
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi

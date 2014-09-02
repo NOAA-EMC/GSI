@@ -107,6 +107,8 @@ module hybrid_ensemble_parameters
 !     grid_ratio_ens: ratio of ensemble grid resolution to analysis resolution (default value is 1)
 !     enspreproc:      if .true., read in preprocessed ensemble members (in
 !                      files already subsetted for subdomains on each task).
+!     vvlocal:  logical variable, if .true., then horizontal localization length
+!               function of z, default = .false. 
 !=====================================================================================================
 !
 !
@@ -137,6 +139,7 @@ module hybrid_ensemble_parameters
 !   2013-01-20  parrish - move initialization of beta1wgt, beta2wgt, pwgt to after allocation.
 !   2013-11-22  kleist  - add option for q perturbations
 !   2013-12-03  wu      - add parameter coef_bw for option:betaflg
+!   2014-05-14  wu      - add logical variable vvlocal for vertically verying horizontal localization length in regional
 !
 ! subroutines included:
 
@@ -207,6 +210,7 @@ module hybrid_ensemble_parameters
 !   def use_localization_grid - if true, then use extra lower res gaussian grid for horizontal localization
 !                                   (global runs only--allows possiblity for non-gaussian ensemble grid)
 !   def enspreproc           - flag to read (.true.) already subsetted ensemble data.
+!   def vvlocal             - logical switch for vertically varying horizontal localization length
 !
 ! attributes:
 !   language: f90
@@ -227,7 +231,7 @@ module hybrid_ensemble_parameters
        destroy_hybens_localization_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
-       s_ens_h,oz_univ_static
+       s_ens_h,oz_univ_static,vvlocal
   public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta1_inv,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_beta,betas_inv,betae_inv
   public :: readin_localization
@@ -268,6 +272,7 @@ module hybrid_ensemble_parameters
   logical use_localization_grid
   logical use_gfs_ens
   logical eqspace_ensgrid
+  logical vvlocal
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   real(r_kind) beta1_inv,s_ens_h,s_ens_v,grid_ratio_ens,coef_bw
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
@@ -334,6 +339,7 @@ subroutine init_hybrid_ensemble_parameters
   use_gfs_ens=.true.         ! when global: default is to read ensemble from GFS
   eqspace_ensgrid=.false.
   enspreproc=.false.
+  vvlocal=.false.
   coef_bw=0.9_r_kind
   n_ens=0
   nlat_ens=0

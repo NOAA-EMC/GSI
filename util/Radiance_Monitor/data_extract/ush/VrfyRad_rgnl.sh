@@ -78,17 +78,22 @@ fi
 
 
 top_parm=${this_dir}/../../parm
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
-   . ${top_parm}/RadMon_user_settings
+if [[ -s ${RADMON_CONFIG} ]]; then
+   . ${RADMON_CONFIG}
 else
-   echo "Unable to source RadMon_config file in ${top_parm}"
+   echo "Unable to source ${RADMON_CONFIG} file"
    exit 2 
 fi
+if [[ -s ${RADMON_USER_SETTINGS} ]]; then
+   . ${RADMON_USER_SETTINGS}
+else
+   echo "Unable to source ${RADMON_USER_SETTINGS} file"
+   exit 3 
+fi
 
-. ${RADMON_DATA_EXTRACT}/parm/data_extract_config
-. ${PARMverf_rad}/rgnl_conf
+. ${DE_PARM}/data_extract_config
 
 
 #--------------------------------------------------------------------
@@ -97,7 +102,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${USHverf_rad}/AmIOnProd.sh`
+   is_prod=`${DE_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -106,10 +111,10 @@ fi
 
 #--------------------------------------------------------------------
 
-mkdir -p $TANKDIR
-mkdir -p $LOGDIR
+mkdir -p $TANKverf
+mkdir -p $LOGdir
 
-jobname=${DATA_EXTRACT_JOBNAME}
+jobname=$DATA_EXTRACT_JOBNAME
 
 #--------------------------------------------------------------------
 # Check status of monitoring job.  Are any earlier verf jobs still
@@ -122,11 +127,18 @@ if [[ ${RUN_ENVIR} = dev ]]; then
    if [[ $MY_MACHINE = "wcoss" ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
-      total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
+      total=0
+      line=`qstat -u ${LOGNAME} | grep ${jobname}`
+      test=`echo $line | gawk '{print $10}'`
+
+      total=`echo $line | grep ${jobname} | wc -l`
+      if [[ $test = "C" && $total -eq "1" ]]; then
+         total=0
+      fi
    fi
 
    if [[ $total -gt 0 ]]; then
-      exit 3
+      exit 4
    fi
 fi
 
@@ -158,16 +170,16 @@ if [[ $RUN_ENVIR = dev ]]; then
    export com=${RADSTAT_LOCATION}
 
    if [[ $PDATE = "" ]]; then
-      pdate=`${USHverf_rad}/find_cycle.pl 1 ${TANKDIR}`
+      pdate=`${DE_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
       if [[ ${#pdate} -ne 10 ]]; then
          echo "ERROR:  Unable to locate any previous cycle's data files"
          echo "        Re-run this script with a specified starting cycle"
-         exit 4
+         exit 5
       fi
 
       qdate=`${NDATE} +06 $pdate`
 
-      fdate=`${USHverf_rad}/find_ndas_radstat.pl 0 $com`
+      fdate=`${DE_SCRIPTS}/find_ndas_radstat.pl 0 $com`
       echo $fdate
 
       if [[ $qdate -ge $fdate ]]; then
@@ -182,7 +194,23 @@ if [[ $RUN_ENVIR = dev ]]; then
    #---------------------------------------------------------------
    # Locate required files.
    #---------------------------------------------------------------
-   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
+   echo $PDATE
+   DATEM12=`${NDATE} +12 $PDATE`
+   echo $DATEM12 
+
+   PDY00=`echo $PDATE | cut -c 1-8` 
+   HH00=`echo $PDATE | cut -c 9-10`
+   PDY12=`echo $DATEM12 | cut -c 1-8`
+   HH12=`echo $DATEM12 | cut -c 9-10`
+
+   radstat=$com/ndas.$PDY12/ndas.t${HH12}z.radstat.tm12
+   biascr=$com/ndas.$PDY12/ndas.t${HH12}z.satbias.tm12
+
+   echo RADSTAT = $radstat
+   echo BIASCR  = $biascr
+
+   /bin/sh ${DE_SCRIPTS}/getbestndas_radstat.sh ${PDATE} ${DATDIR} ${com}
+
 
 elif [[ ${RUN_ENVIR} = para ]]; then
 
@@ -197,7 +225,7 @@ elif [[ ${RUN_ENVIR} = para ]]; then
    sdate=`echo ${PDATE}|cut -c1-8`
    export CYA=`echo ${PDATE}|cut -c9-10`
 
-   /bin/sh ${USHverf_rad}/getbestndas_radstat.sh $PDATE $DATDIR $com
+   /bin/sh ${DE_SCRIPTS}/getbestndas_radstat.sh $PDATE $DATDIR $com
 
 else
    echo RUN_ENVIR = $RUN_ENVIR
@@ -205,8 +233,11 @@ else
 fi
 
 export biascr=$DATDIR/satbias.${PDATE}
-#export satang=$DATDIR/satang.${PDATE}
 export radstat=$DATDIR/radstat.${PDATE}
+
+echo "via getbestndas_radstat.sh:"
+echo RADSTAT = $radstat
+echo BIASCR  = $biascr
 
 #--------------------------------------------------------------------
 # If data is available, export variables, and submit driver for
@@ -228,9 +259,8 @@ if [ -s $radstat -a -s $biascr ]; then
    export job=ndas_vrfyrad_${PDY}${cyc}
    export SENDSMS=${SENDSMS:-NO}
    export DATA_IN=${WORKverf_rad}
-   export DATA=${DATA:-$STMP/$LOGNAME/radmon_regional}
+   export DATA=${DATA:-${STMP_USER}/radmon_regional}
    export jlogfile=${WORKverf_rad}/jlogfile_${SUFFIX}
-   export TANKverf=${MY_TANKDIR}/stats/regional/${SUFFIX}
 
    export VERBOSE=${VERBOSE:-YES}
   
@@ -249,12 +279,11 @@ if [ -s $radstat -a -s $biascr ]; then
       export base_file=${TANKverf}/info/radmon_base.tar
    fi
 
-   export JOBNAME=$jobname
 
    #------------------------------------------------------------------
    #   Submit data processing jobs.
 
-   logfile=$LOGDIR/data_extract.${SUFFIX}.${PDY}.${cyc}.log
+   logfile=$LOGdir/data_extract.${SUFFIX}.${PDY}.${cyc}.log
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} -W 0:10 -J ${jobname} $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
@@ -274,7 +303,7 @@ fi
 exit_value=0
 if [[ ${data_available} -ne 1 ]]; then
    echo No data available for ${SUFFIX}
-   exit_value=5
+   exit_value=6
 fi
 
 echo end VrfyRad_rgn.sh

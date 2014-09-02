@@ -73,7 +73,7 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
+'run ${IG_GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 

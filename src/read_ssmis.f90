@@ -108,7 +108,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: rmesh,gstime,twind
   real(r_kind)    ,intent(inout) :: val_ssmis
   integer(i_kind) ,intent(in   ) :: mype
@@ -143,7 +143,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   integer(i_kind) :: i,k,ifovoff,ntest
   integer(i_kind) :: nlv,idate,nchanl,nreal
-  integer(i_kind) :: n,ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) :: n,ireadsb,ireadmg,irec
   integer(i_kind) :: nmind,itx,nele,itt
   integer(i_kind) :: iskip
   integer(i_kind) :: lnbufr,isflg,idomsfc(1)
@@ -155,7 +155,6 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind) :: radedge_min, radedge_max  
   integer(i_kind) :: iobs,num_obs,method,iret
   integer(i_kind) :: irain
-  integer(i_kind) :: bch
   integer(i_kind) :: doy,mon,m
   integer(i_kind) :: ibfms
 
@@ -371,7 +370,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Open unit to satellite bufr file
   iobs=1
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted',status='old',err=500)  
+  open(lnbufr,file=trim(infile),form='unformatted',status='old',err=500)  
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
 

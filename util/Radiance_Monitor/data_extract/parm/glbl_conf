@@ -6,5 +6,7 @@
 #
 #----------------------------------------------------------------------
 
-export TANKDIR=${TANKverf_rad}/${SUFFIX}
+echo "start glbl_conf"
+#export TANKDIR=${TANKverf_rad}/${SUFFIX}
 
+echo "end glbl_conf"

@@ -80,7 +80,6 @@ subroutine bkgvar(cvec,iflg)
 
 ! Declare local variables
   integer(i_kind) i,j,k,n,i_sst,i_stl,i_sti,istatus
-  real(r_kind) dl1,dl2
   real(r_kind),pointer,dimension(:,:,:)::ptr3d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptr2d=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptrsst=>NULL()
@@ -225,7 +224,7 @@ subroutine bkg_stddev(cvec,svec)
   type(gsi_bundle), intent(inout) :: svec
 
 ! Declare local variables  	
-  integer(i_kind) :: ii,jj,istatus
+  integer(i_kind) :: istatus
   real(r_kind),pointer,dimension(:,:)   :: cv_ps
   real(r_kind),pointer,dimension(:,:,:) :: cv_t,cv_sf,cv_vp,cv_rh
   real(r_kind),pointer,dimension(:,:,:) :: sv_tsen,sv_u,sv_v,sv_q,sv_prse

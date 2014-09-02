@@ -547,7 +547,6 @@ function luavail_() result(lu)
   character(len=*),parameter :: myname_=myname//'::luavail_'
   integer ios
   logical inuse
-  character*8 attr
 
   lu=-1
   ios=0
@@ -1507,7 +1506,6 @@ end subroutine set_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1605,7 +1603,6 @@ end subroutine iSort_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1703,7 +1700,6 @@ end subroutine rSort_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1801,7 +1797,6 @@ end subroutine dSort_
 !EOP ___________________________________________________________________
 
   logical :: dsnd
-  integer :: ierr
   integer, dimension(size(indx)) :: mtmp
   integer :: n
 
@@ -1880,7 +1875,7 @@ integer,intent(in) :: lu
 character(len=*)::tname
 integer,intent(out) :: ntotal
 integer,intent(out) :: nactual
-integer(IK) ii,ier,ln,i,ios,n,ncomment
+integer(IK) ier,ln,ios,n,ncomment
 character(len=256)::buf
 
 ! Scan file for desired table first
@@ -1919,7 +1914,7 @@ character(len=*),intent(in):: tname
 character(len=*),intent(inout):: utable(nact)
 
 character(len=256)::buf
-integer(IK) ii,ier,ln,i,n,ios
+integer(IK) ier,ln,i,n,ios
 
 ! Now get contents
 n=ntot

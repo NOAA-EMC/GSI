@@ -106,7 +106,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -137,22 +137,19 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind) maxobs,nozdat,nloz
   integer(i_kind) idate,jdate,ksatid,kk,iy,iret,im,ihh,idd,lunin
   integer(i_kind) nmind,i
-  integer(i_kind) imin
   integer(i_kind) nmrecs,k,ilat,ilon,nreal,nchanl
 ! integer(i_kind) ithin,kidsat
   integer(i_kind) kidsat
   integer(i_kind) idate5(5)
   integer(i_kind) JULIAN,IDAYYR,IDAYWK
-  integer(i_kind) itype, ikx
-  integer(i_kind) isnd, ilev, iflg, mflg
+  integer(i_kind) ikx
   integer(i_kind) decimal,binary(14),binary_mls(18)
 
 
   integer(i_kind) itx,itt,ipoq7
 
-  real(r_kind) tdiff,sstime,slons,slats,dlon,dlat,t4dv,timedif,crit1,dist1
+  real(r_kind) tdiff,sstime,dlon,dlat,t4dv,timedif,crit1,dist1
   real(r_kind) slons0,slats0,rsat,solzen,solzenp,dlat_earth,dlon_earth
-  real(r_kind) rsec, ppmv, prec, pres, pob, obserr, usage
   real(r_kind),allocatable,dimension(:):: poz
 
 ! maximum number of observations set to 
@@ -215,7 +212,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   if (obstype == 'sbuv2' ) then
 
      nreal=9
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      nmrecs=0
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -233,7 +230,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         version  = 'v8'
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown sbuv version type, subset=',subset
-        write(6,*)' infile=',infile, ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
+        write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
         write(6,*)' SKIP PROCESSING OF THIS SBUV FILE'
         goto 170
      endif
@@ -411,7 +408,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Make thinning grids
      call makegrids(rmesh,ithin)
 
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      nmrecs=0
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -421,7 +418,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         write(6,*)'READ_OZONE:  GOME-2 data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
-        write(6,*)' infile=',infile, ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
+        write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
         goto 170
      endif
 
@@ -565,7 +562,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call makegrids(rmesh,ithin)
 
      nmrecs=0
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
@@ -573,7 +570,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         write(6,*)'READ_OZONE:  OMI data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
-        write(6,*)' infile=',infile, ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
+        write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
         goto 170
      endif
 
@@ -717,7 +714,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      nmrecs=0
 
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
@@ -725,7 +722,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         write(6,*)'READ_OZONE:  MLS data type, subset=',subset
      else
         write(6,*)'READ_OZONE:  *** WARNING: unknown ozone data type, subset=',subset
-        write(6,*)' infile=',infile, ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
+        write(6,*)' infile=',trim(infile), ', lunin=',lunin, ', obstype=',obstype,', jsatid=',jsatid
         goto 170
      endif
 
@@ -744,14 +741,17 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call ufbrep(lunin,hdrmlsl,3,100,iret,mlstrl)
      nloz=iret
 !    for NRT data, mlsv=20 or 30 depending on the nloz
+     mlsv=-999
      if(nloz==37) then
         if(index(sis,'mls22')/=0 ) then       !mls v2.2 data
            mlsv=22
         else if(index(sis,'mls20')/=0 ) then  !mls v2 nrt data
            mlsv=20
         end if
-     else if(nloz==55) then                  !mls v3 nrt data
-        mlsv=30
+     else if (nloz==55) then                !mls v3 nrt data
+        if (index(sis,'mls30')/=0 ) then
+           mlsv=30
+        endif
      else
         write(6,*) 'invalid vertical level number: ', nloz
         write(6,*) '******STOP*******: error reading MLS vertical levels in read_ozone.f90'
@@ -761,6 +761,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
      write(6,*) 'READ_OZONE: MLS data version=',mlsv
      write(6,*) 'READ_OZONE: MLS vertical level number=',nloz
+
+     if (mlsv<0) then
+        write(6,*) 'inconsistent MLS versions.  bufr nloz=',nloz,' obsinput sis= ',trim(sis)
+        write(6,*) '******STOP*******: error bufr and specified MLS versions'
+        call stop2(338)
+     end if
 
 !    Allocate arrays
      allocate(hdrmlsl(3,nloz))
@@ -799,7 +805,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 !    Reopen unit to bufr file
      call closbf(lunin)
-     open(lunin,file=infile,form='unformatted')
+     open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      call readmg(lunin,subset,idate,iret)
@@ -1082,7 +1088,7 @@ SUBROUTINE dec2bin(dec,bin,ndim)
     integer(i_kind) ,intent(out)   :: bin(ndim)
 
 ! Declare local variables
-    integer(i_kind):: length, bindec, i
+    integer(i_kind):: bindec, i
 
 !   Check to determine decimal # is within bounds
     i = ndim

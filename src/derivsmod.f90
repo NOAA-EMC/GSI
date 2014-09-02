@@ -113,7 +113,7 @@ character(len=*),optional,intent(in) :: rcname ! optional input filename
 
 character(len=*),parameter::myname_=myname//'*set_'
 character(len=*),parameter:: tbname='state_derivatives::'
-integer(i_kind) luin,i,ii,nrows,ntot,ipnt,istatus
+integer(i_kind) luin,ii,nrows,ntot,ipnt,istatus
 integer(i_kind) i2d,i3d,n2d,n3d,irank
 integer(i_kind),allocatable,dimension(:)::nlevs
 character(len=256),allocatable,dimension(:):: utable
@@ -274,7 +274,7 @@ drv_set_=.true.
  logical, intent(in) :: switch_on_derivatives
  integer(i_kind),intent(in) :: nfldsig
 
- integer nt,istatus,ierror
+ integer nt,ierror
  character(len=32) bname
  type(gsi_grid) :: grid
 
@@ -413,7 +413,6 @@ drv_set_=.true.
     implicit none
 
     integer(i_kind) i,j,k
-    integer(i_kind) msig,mlat,mlon 
 
     if (getindex(svars3d,'q')>0) then
        allocate(qsatg(lat2,lon2,nsig),&

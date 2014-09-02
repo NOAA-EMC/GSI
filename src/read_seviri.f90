@@ -62,7 +62,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Declare passed variables
   character(len=*),intent(in):: infile,obstype,jsatid
-  character(len=*),intent(in):: sis
+  character(len=20),intent(in):: sis
   integer(i_kind),intent(in):: mype,lunout,ithin
   integer(i_kind),intent(inout):: ndata,nodata
   integer(i_kind),intent(inout):: nread
@@ -87,7 +87,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   character(8) subset,subcsr,subasr
   character(80):: hdrsevi             ! seviri header
 
-  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,isub,next
+  integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon,nhdr,nchn,ncld,nbrst,jj
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
@@ -166,7 +166,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Open bufr file.
   call closbf(lnbufr)
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
@@ -450,6 +450,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 ! Deallocate local arrays
   deallocate(data_all,nrec)
+  deallocate(hdr,datasev2,datasev1)
 
 ! Deallocate satthin arrays
 900 continue

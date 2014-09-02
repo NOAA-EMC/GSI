@@ -140,7 +140,8 @@
 !   2014-01-31  mkim    - Remove abs(60.0degree) boundary which existed for all-sky MW radiance DA 
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
-!   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
+!   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
+!   2014-08-29  thomas  - add lsingleradob capability (originally of mccarty)
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -201,6 +202,7 @@
   use gsi_metguess_mod, only: gsi_metguess_get
   use control_vectors, only: cvars3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
+  use radinfo, only: radinfo_adjust_jacobian
 
   implicit none
 
@@ -226,9 +228,9 @@
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
-  integer(i_kind) kk,n,nlev,kval,ibin,ioff,ioff0,iii
+  integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
-  integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
+  integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
@@ -240,13 +242,13 @@
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
-  real(r_kind) wltm1,wltm2,wltm3  
+! real(r_kind) wltm1,wltm2,wltm3  
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
   real(r_kind) dtsavg,r90,coscon,sincon
-  real(r_kind) dlat,wlat 
+! real(r_kind) dlat,wlat 
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
@@ -257,6 +259,7 @@
   logical no85GHz
   logical in_curbin, in_anybin
   logical lcw4crtm
+  logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
 
 ! Declare local arrays
@@ -268,6 +271,7 @@
   real(r_kind),dimension(npred+2):: predterms
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
+  real(r_kind),dimension(nchanl):: obvarinv,utbc,adaptinf
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -281,8 +285,8 @@
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
-  real(r_kind) :: predchan6_save   
+  real(r_kind) :: clw_guess,clw_guess_retrieval
+! real(r_kind) :: predchan6_save   
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -968,12 +972,11 @@
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
 
-
 !  --------- MSU -------------------
 !       QC MSU data
         else if (msu) then
 
-           call qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+           call qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
               zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
 
 !  ---------- AMSU-A -------------------
@@ -985,9 +988,9 @@
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
-           call qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),   &
-              zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
-              pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
+           call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
+              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
+              pred,predchan,id_qc,aivals,errf,varinv)
 
 
 !  If cloud impacted channels not used turn off predictor
@@ -1003,7 +1006,7 @@
 
         else if (amsub .or. hsb .or. mhs) then
 
-           call qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse(n),   &
+           call qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse(n),   &
               zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
               id_qc,aivals,errf,varinv,clw,tpwc)
 
@@ -1017,9 +1020,9 @@
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
-           call qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),    &
-              zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
-              pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
+           call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
+              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
+              pred,predchan,id_qc,aivals,errf,varinv)
 
 !  ---------- GOES imager --------------
 !       GOES imager Q C
@@ -1072,8 +1075,8 @@
               end if
            end do
 
-           call qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
-              zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+           call qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
+              zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
@@ -1092,7 +1095,7 @@
                        sincon *  sin( sun_zenith )) * rad2deg
            end if
            call qc_ssmi(nchanl,nsig,ich, &
-              zsges,luse(n),sea,ice,snow,mixed, &
+              zsges,luse(n),sea,mixed, &
               temp,wmix,ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl,tzbgr, &
               tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
               varinv,errf,aivals(1,is),id_qc)
@@ -1102,7 +1105,7 @@
 
         elseif (ssu) then
 
-           call qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+           call qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
               zsges,cenlat,tb_obs,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
             
         end if ObsQCs
@@ -1168,8 +1171,8 @@
         if(retrieval) then
            if(avhrr_navy .or. avhrr) then
               call avhrr_sst_retrieval(dplat(is),nchanl,tnoise,&
-                 varinv,tsavg5,sstnv,sstph,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
-                 dtime,dtp_avh,pangs,tbcnob,tb_obs,dta,dqa,luse(n))
+                 varinv,tsavg5,sstph,temp,wmix,ts,tbc,cenlat,cenlon,&
+                 dtime,dtp_avh,tb_obs,dta,dqa,luse(n))
            endif
         endif
 
@@ -1323,6 +1326,12 @@
               radtail(ibin)%head%time=dtime
               radtail(ibin)%head%luse=luse(n)
               radtail(ibin)%head%ich(:)=-1
+
+              utbc=tbc
+              adaptinf = error0 ! on input
+              account_for_corr_obs = radinfo_adjust_jacobian (obstype,sea,land,nchanl,nsigradjac,ich,varinv,&
+                                                              utbc,obvarinv,adaptinf,jacobian)
+
               iii=0
               do ii=1,nchanl
                  m=ich(ii)
@@ -1330,9 +1339,15 @@
 
                     iii=iii+1
 
-                    radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
-                    radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
-                    radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    if(account_for_corr_obs) then
+                      radtail(ibin)%head%res(iii)= utbc(ii)                   ! evecs(R)*[obs-ges innovation]
+                      radtail(ibin)%head%err2(iii)= obvarinv(ii)              ! 1/eigenvalue(R)
+                      radtail(ibin)%head%raterr2(iii)=adaptinf(ii)            ! inflation factor 
+                    else
+                      radtail(ibin)%head%res(iii)= tbc(ii)                    ! obs-ges innovation
+                      radtail(ibin)%head%err2(iii)= one/error0(ii)**2         ! 1/(obs error)**2  (original uninflated error)
+                      radtail(ibin)%head%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
+                    endif
                     radtail(ibin)%head%icx(iii)= m                         ! channel index
 
                     do k=1,npred
@@ -1401,7 +1416,7 @@
                  end if
               end do
               radtail(ibin)%head%nchan  = iii         ! profile observation count
-           end if
+           end if ! icc
         endif ! (in_curbin)
 
 !       Link obs to diagnostics structure

@@ -86,7 +86,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: mype,lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -124,7 +124,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) itx,k,i,bufsat
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nreal,nele,itt
-  integer(i_kind) nlat_sst,nlon_sst,irec,isub,next
+  integer(i_kind) nlat_sst,nlon_sst,irec,next
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dlon,dlat,timedif,sfcr
@@ -216,7 +216,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   nele  = nreal   + nchanl
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
-  open(lnbufr,file=infile,form='unformatted')         ! open bufr data file
+  open(lnbufr,file=trim(infile),form='unformatted')         ! open bufr data file
 
 ! Associate the tables file with the message file, and identify th elatter to BUFRLIB software
   call openbf (lnbufr,'IN',lnbufr)

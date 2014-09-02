@@ -80,6 +80,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 !   2013-01-26  parrish - change from grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
 !                          tintrp3 to tintrp31 (to allow successful debug compile on WCOSS)
 !   2013-10-19  todling - metguess now holds background
+!   2014-04-10  todling - 4dvar fix: obs must be in current time bi
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -113,7 +114,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
       grav_equator,somigliana,flattening,grav_ratio,grav,rd,eps,three,four,five
   use lagmod, only: setq, setq_TL
   use lagmod, only: slagdw, slagdw_TL
-  use jfunc, only: jiter,last,miter,iter
+  use jfunc, only: jiter,miter,iter
   use convinfo, only: cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use m_dtime, only: dtime_setup, dtime_check, dtime_show
 
@@ -184,7 +185,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
                   iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
   integer(i_kind) mm1,nsig_up,ihob,istatus
-  integer(i_kind) kprof,istat,jprof,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
+  integer(i_kind) kprof,istat,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
   integer(i_kind),dimension(4) :: gps_ij
   integer(i_kind):: satellite_id,transmitter_id
 
@@ -196,15 +197,15 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
   real(r_kind),dimension(nsig+nsig_ext) :: n_TL
   real(r_kind),dimension(0:nsig+nsig_ext+1) :: ref_rad,xi_TL
   real(r_kind),dimension(nsig+nsig_ext+20) :: ref_rad_out
-  real(r_kind) :: dlat,dlate,dlon,rocprof,unprof,dtime,dpressure,trefges,qrefges
-  real(r_kind) :: dbetan,dbetaxi,rdog,elev,alt
+  real(r_kind) :: dlat,dlon,rocprof,unprof,dtime,dpressure,trefges,qrefges
+  real(r_kind) :: dbetan,dbetaxi,rdog,alt
   real(r_kind),dimension(nsig):: tges,qges,qges_o
   real(r_kind),dimension(nobs):: tpdpres
 
   logical,dimension(nobs):: luse
   logical proceed
 
-  logical:: in_curbin, in_anybin, skipiobs,obs_check,qc_layer_SR
+  logical:: in_curbin, in_anybin, obs_check,qc_layer_SR
   integer(i_kind),dimension(nobs_bins) :: n_alloc
   integer(i_kind),dimension(nobs_bins) :: m_alloc
   type(gps_ob_type),pointer:: my_head
@@ -937,7 +938,7 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
 ! If obs is "acceptable", load array with obs info for use
 ! in inner loop minimization (int* and stp* routines)
 
-        if (muse(i)) then
+        if (in_curbin .and. muse(i)) then
 
            if(.not. associated(gpshead(ibin)%head))then
               allocate(gpshead(ibin)%head,stat=istat)
@@ -1097,8 +1098,8 @@ subroutine setupbend(lunin,mype,awork,nele,nobs,toss_gps_sub,is,init_pass,last_p
               call perr(myname,'my_diag%(idv,iob) =',(/my_diag%idv,my_diag%iob/))
               call die(myname)
            endif
-        end if
- 
+
+        end if ! (in_curbin .and. muse=1)
      endif ! (last_pass)
   end do ! i=1,nobs
 

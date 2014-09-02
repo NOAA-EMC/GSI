@@ -91,7 +91,7 @@ program angle
 !
 ! Initialize variables
   iread=0
-  npred_radiag = 5
+  npred_radiag = 12
 
 ! Read namelist input
   read(luname,input)
@@ -472,11 +472,6 @@ program angle
   nntotal=nnwater+nnland+nnsnow+nnmixed
   write(6,*)'nnwater, nnland, nnsnow, nnmixed, nntotal = ', nnwater, nnland, nnsnow, nnmixed, nntotal
 
-! Read angle dependent bias from fixed file and time evolving file.
-!  open(lunang,file='satang.txt',form='formatted')
-!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-!  close(lunang)
-!  write(6,*)'read satang.txt, nstep, '
 
   ! Create Control file
   if ( imkctl == 1 ) then
@@ -599,10 +594,6 @@ program angle
         timang(i,j) = rmiss
      end do
   end do
-!  open(lunang,file='satang.txt',form='formatted')
-!  call read_satang(lunang,satsis,nstep,mstep,n_chan,rmiss,timang)
-!  close(lunang)
-!  write(6,*)'read satang.txt'
 
   write(6,*)'load missing value ',rmiss,' into output arrays.  ',&
        nstep,surf_nregion,n_chan

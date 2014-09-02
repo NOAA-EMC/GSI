@@ -10,23 +10,24 @@ set -ax
 #
 
 function usage {
-  echo "Usage:  install_html.sh suffix"
+  echo "Usage:  install_html.sh suffix area"
   echo "            Suffix is data source identifier that matches data in "
   echo "              the $TANKDIR/stats directory."
+  echo "            area is either 'glb' or 'rgn' (global or regional)"
 }
-
 
 echo "BEGIN install_html.sh"
 echo ""
 
 nargs=$#
-if [[ $nargs -ne 1 ]]; then
+if [[ $nargs -ne 2 ]]; then
    usage
-   exit 1
+   exit 2
 fi
 
 SUFFIX=$1
 echo SUFFIX = $SUFFIX
+export RAD_AREA=$2
 
 this_file=`basename $0`
 this_dir=`dirname $0`
@@ -57,12 +58,8 @@ fi
 #--------------------------------------------------------------
 #  Get the area for this SUFFIX from the data_map file
 #
-AREA=${AREA:-glb}
 
-if [[ $AREA == "" ]]; then
-   echo "ERROR:  Suffix $SUFFIX not found in ${DATA_MAP} file."
-   exit
-elif [[ $AREA == "glb" ]]; then 
+if [[ $RAD_AREA == "glb" ]]; then 
    new_webdir=${WEBDIR}/${SUFFIX}
    . ${RADMON_IMAGE_GEN}/parm/glbl_conf
 else
@@ -70,8 +67,8 @@ else
    . ${RADMON_IMAGE_GEN}/parm/rgnl_conf
 fi
 
-echo AREA    = $AREA
-echo TANKDIR = $TANKDIR
+echo RAD_AREA    = $RAD_AREA
+echo TANKverf = $TANKverf
 
 
 #--------------------------------------------------------------
@@ -91,7 +88,7 @@ echo "use_static_satype =  $use_static_satype"
 
 #-------------------------------------------------------------
 #  If use_static_satype == 0 then assemble the SATYPE list from
-#  available data files in $TANKDIR/angle
+#  available data files in $TANKverf angle*
 #  If use_static_satype == 1 then load SATYPE from the SATYPE.txt
 #  file.
 #-------------------------------------------------------------
@@ -101,7 +98,7 @@ if [[ $use_static_satype -eq 0 ]]; then
    #  Find the first date with data.  Start at today and work
    #  backwards.  Stop after 90 days and exit.
    #
-   PDATE=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR}`
+   PDATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
 
    echo PDATE= $PDATE
 
@@ -115,28 +112,28 @@ if [[ $use_static_satype -eq 0 ]]; then
    while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
       PDY=`echo $PDATE|cut -c1-8`
 
-      if [[ -d $TANKDIR/radmon.${PDY} ]]; then
-         test00=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
-         test06=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
-         test12=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
-         test18=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
+      if [[ -d $TANKverf/radmon.${PDY} ]]; then
+         test00=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d* | wc -l`
+         test06=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d* | wc -l`
+         test12=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d* | wc -l`
+         test18=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d* | wc -l`
          if [[ $test00 -gt 0 ]]; then
-            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
+            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}00*.ieee_d*`
             data_found=1
          elif [[ $test06 -gt 0 ]]; then
-            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
+            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}06*.ieee_d*`
             data_found=1
          elif [[ $test12 -gt 0 ]]; then
-            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
+            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}12*.ieee_d*`
             data_found=1
          elif [[ $test18 -gt 0 ]]; then
-            test_list=`ls $TANKDIR/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
+            test_list=`ls $TANKverf/radmon.${PDY}/angle.*${PDY}18*.ieee_d*`
             data_found=1
          fi
       else
-        test=`ls $TANKDIR/angle/*.${PDATE}*.ieee_d* | wc -l`
+        test=`ls $TANKverf/angle/*.${PDATE}*.ieee_d* | wc -l`
         if [[ $test -gt 0 ]]; then
-           test_list=`ls $TANKDIR/angle/*.${PDATE}.ieee_d*`
+           test_list=`ls $TANKverf/angle/*.${PDATE}.ieee_d*`
            data_found=1
         else
            PDATE=`$NDATE -24 $PDATE`
@@ -147,7 +144,7 @@ if [[ $use_static_satype -eq 0 ]]; then
 
    if [[ $data_found -eq 0 ]]; then
       echo Unable to locate any data files in the past 90 days for $SUFFIX 
-      echo in $TANKDIR/angle.
+      echo in $TANKverf/angle.
       exit
    fi
 
@@ -177,7 +174,7 @@ if [[ $use_static_satype -eq 0 ]]; then
 
    export SATYPE=$SATYPE_LIST
 else
-   TANKDIR_INFO=${TANKDIR}/info
+   TANKDIR_INFO=${TANKverf}/info
    STATIC_SATYPE_FILE=${TANKDIR_INFO}/SATYPE.txt
 
    #-------------------------------------------------------------
@@ -304,9 +301,9 @@ echo '</TD></TR>' >> $PLATFORM_TBL
 html_files="bcoef bcor bcor_angle comp horiz summary time"
 
 for file in $html_files; do
-   $NCP ${RADMON_IMAGE_GEN}/html/$file.html.$AREA .
+   $NCP ${RADMON_IMAGE_GEN}/html/$file.html.$RAD_AREA .
    
-   html_file=$file.html.$AREA
+   html_file=$file.html.$RAD_AREA
    tmp_html=./tmp_$file.html
    rm -f $tmp_html 
 
@@ -351,7 +348,7 @@ for file in $html_files; do
 done
 
 #--------------------------------------------------------------
-# Generate the intro.html.$AREA file.
+# Generate the intro.html.$RAD_AREA file.
 #
 $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
 
@@ -363,16 +360,16 @@ $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
 #  "Operational" if the suffix is opr or nrx (operational GDAS
 #  or NDAS.
 #
-$NCP ${RADMON_IMAGE_GEN}/html/menu.html.$AREA .
+$NCP ${RADMON_IMAGE_GEN}/html/menu.html.$RAD_AREA .
 
 if [[ $SUFFIX == "opr" || $SUFFIX == "nrx" ]]; then
-   tmp_menu=./tmp_menu.html.${AREA}
-   sed s/Experimental/Operational/1 menu.html.${AREA} > ${tmp_menu}
-   mv -f ${tmp_menu} menu.html.${AREA}
+   tmp_menu=./tmp_menu.html.${RAD_AREA}
+   sed s/Experimental/Operational/1 menu.html.${RAD_AREA} > ${tmp_menu}
+   mv -f ${tmp_menu} menu.html.${RAD_AREA}
 fi
 
 
-$NCP ${RADMON_IMAGE_GEN}/html/index.html.$AREA .
+$NCP ${RADMON_IMAGE_GEN}/html/index.html.$RAD_AREA .
 html_files="bcoef bcor_angle  bcor comp horiz index intro menu summary time"
 
 #--------------------------------------------------------------
@@ -385,7 +382,7 @@ html_files="bcoef bcor_angle  bcor comp horiz index intro menu summary time"
 if [[ $MY_MACHINE = "ccs" || $MY_MACHINE = "wcoss" ]]; then
    ssh -l ${WEB_USER} ${WEB_SVR} "mkdir -p ${new_webdir}"
    for file in $html_files; do
-      scp ${file}.html.${AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
+      scp ${file}.html.${RAD_AREA} ${WEB_USER}@${WEB_SVR}:${new_webdir}/${file}.html
    done
 
    subdirs="angle bcoef bcor comp horiz summary time"
@@ -399,7 +396,7 @@ else
    imgndir=`dirname ${IMGNDIR}`
 
    for file in $html_files; do
-      $NCP ${file}.html.${AREA} ${imgndir}/${file}.html
+      $NCP ${file}.html.${RAD_AREA} ${imgndir}/${file}.html
    done
    
    subdirs="angle bcoef bcor comp horiz summary time"

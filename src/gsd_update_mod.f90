@@ -87,13 +87,11 @@ subroutine gsd_update_soil_tq(tinc,is_t,qinc,is_q)
   logical ice
   integer(i_kind) :: iderivative
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
-  real(r_kind) :: qinc_rh
 
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
-  integer(i_kind) i,j,k,it,ij,ii,ier,id,ngases,istatus
-  real(r_kind) :: dth2, ainc, tinct
-  real(r_kind) :: work_prsl,work_prslk
+  integer(i_kind) i,j,k,it,ier,istatus
+  real(r_kind) :: ainc, tinct
   real(r_kind) :: coast_fac,temp,temp_fac,dts_min,tincf
   real(r_kind) :: snowthreshold
 ! 
@@ -439,7 +437,7 @@ subroutine gsd_limit_ocean_q(qinc)
   implicit none
   
 ! Declare passed variables
-  integer(i_kind) is_q,istatus
+  integer(i_kind) istatus
   real(r_kind),dimension(lat2,lon2,nsig), intent(inout) :: qinc
 
 ! Declare local variables
@@ -542,7 +540,7 @@ subroutine gsd_update_th2(tinc)
 
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
-  integer(i_kind) i,j,k,it,ij,ii,ier,id,ngases,istatus,ihaveq
+  integer(i_kind) i,j,it,ier,ihaveq
   real(r_kind) :: dth2, work_prsl,work_prslk
 
   real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()

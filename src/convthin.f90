@@ -176,7 +176,7 @@ contains
     return
   end subroutine make3grids
 
-  subroutine map3grids(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,ithin,iobs,&
+  subroutine map3grids(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,iobs,&
             iobsout,iin,iiout,iuse,foreswp,aftswp)
 
 !$$$  subprogram documentation block
@@ -208,7 +208,6 @@ contains
 !     dlon_earth - earth relative observation longitude (radians)
 !     pob        - observation pressure ob
 !     crit1      - quality indicator for observation (smaller = better)
-!     ithin      - number of obs to retain per thinning grid box
 !     iin        - counter of input data
 !     foreswp    - if true, TDR scan is fore
 !     aftswp     - if true, TDR scan is aft
@@ -229,7 +228,7 @@ contains
     implicit none
     
     logical                      ,intent(  out) :: iuse
-    integer(i_kind)              ,intent(in   ) :: ithin,nlevp,pflag,flg,iin
+    integer(i_kind)              ,intent(in   ) :: nlevp,pflag,flg,iin
     integer(i_kind)              ,intent(inout) :: iobs
     integer(i_kind)              ,intent(  out) :: iobsout,iiout
     real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
@@ -237,7 +236,6 @@ contains
     
     integer(i_kind):: ip,itx
     integer(i_kind) ix,iy
-    integer(i_kind),dimension(0:51):: istart_val
 
     real(r_kind) dlat1,dlon1,pob1
     real(r_kind) dx,dy,dp,dxx,dyy,dpp

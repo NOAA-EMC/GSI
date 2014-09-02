@@ -43,7 +43,7 @@
       implicit none
 
 !     Declare passed variables
-      character(10),intent(in):: infile,obstype
+      character(len=*),intent(in):: infile,obstype
       character(20),intent(in):: sis
       integer(i_kind),intent(in):: lunout
       integer(i_kind),intent(inout):: nread,ndata,nodata
@@ -56,7 +56,7 @@
 
       integer(i_kind) lunin,msgt,ICOMP,idate,nlevp,nlevo,nlevc
       integer(i_kind) iout,nc,nr,nmsg,nrtyp,nrtmax,nchanl
-      integer(i_kind) msub,nmsub,ireadsb,ireadmg,ibfms
+      integer(i_kind) msub,nmsub,ireadsb,ireadmg
       character(80) cnem
       character(8)  ctyp, ctyp0
 
@@ -64,8 +64,10 @@
       real(r_kind) rval(5)
       equivalence (cval(1),rval(1))
 
-      real(r_kind) hdr(MXNM), plv(MXNM,MXRP), olv(MXNM,MXRP,MXRP)
-      real(r_kind) clv(MXNM,MXRP,MXRP), slv(MXNM,MXRP,MXRP)
+      real(r_kind) hdr(MXNM)
+!     real(r_kind) plv(MXNM,MXRP), olv(MXNM,MXRP,MXRP), &
+!          slv(mxnm,mxrp,mxrp)
+      real(r_kind) clv(MXNM,MXRP,MXRP)
       real(r_kind),allocatable,dimension(:,:):: cdata_all
 
       character(10) date
@@ -74,13 +76,14 @@
       integer(i_kind) ikx,nkx,kx,nreal,ilat,ilon
       integer(i_kind) pblhqm,i,maxobs,j,idomsfc
       integer(i_kind) ntest
-      integer(i_kind),dimension(8):: obs_time,anal_time,lobs_time
-      real(r_kind) usage,ltime,cenlon_tmp
+!     integer(i_kind),dimension(8):: obs_time,anal_time,lobs_time
+!     real(r_kind) ltime,cenlon_tmp
+      real(r_kind) usage
       real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
       real(r_kind) pblhob,pblhoe,pblhelev,pblbak
-      real(r_kind) errout,dlat,dlon,dlat_earth,dlon_earth,stnelev
+      real(r_kind) dlat,dlon,dlat_earth,dlon_earth,stnelev
       real(r_kind) :: tsavg,ff10,sfcr,zz
-      real(r_kind),dimension(5):: tmp_time
+!     real(r_kind),dimension(5):: tmp_time
 
       integer(i_kind) idate5(5),minobs,minan
       real(r_kind) time_correction,timeobs,time,toff,t4dv,zeps
@@ -93,7 +96,7 @@
       nrtmax=0                       ! # rpts to print per msg type (0=all)
 
       call closbf(lunin)
-      open(lunin,file=infile,form='unformatted')
+      open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)
       call datelen(10)                          ! set dates to 8-digit
@@ -150,7 +153,7 @@
       ilon=2
       ilat=3
       call closbf(lunin)
-      open(lunin,file=infile,form='unformatted')
+      open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)
       call datelen(10)                          ! set dates to 8-digit
@@ -374,7 +377,6 @@
 !     pblhob=clv(4,1,2)
       pblhob=clv(1,1,2)
       pblbak=clv(1,1,1)   ! model PBL; from Caterina's files
-!     if (ibfms(pblbak).ne.0 .or. ibfms(pblhob).ne.0) then 
       if (abs(pblbak-bmiss).lt.10.e5 .or. abs(pblhob-bmiss).lt.10.e5) cycle ! <skip processing of this report>
       
       pblhqm=0

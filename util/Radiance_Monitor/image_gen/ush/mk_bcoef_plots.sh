@@ -81,7 +81,7 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
-   ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
    if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
@@ -98,13 +98,13 @@ done
 #
 
 jobname="plot_${SUFFIX}_bcoef"
-logfile="$LOGDIR/plot_bcoef.log"
+logfile="$LOGdir/plot_bcoef.log"
 rm ${logfile}
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
-   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -R affinity[core] -J ${jobname} $SCRIPTS/plot_bcoef.sh
+   $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 80 -W 1:15 -R affinity[core] -J ${jobname} $IG_SCRIPTS/plot_bcoef.sh
 elif [[ $MY_MACHINE = "zeus" ]]; then
-   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/plot_bcoef.sh 
+   $SUB -A $ACCOUNT -l procs=1,walltime=2:00:00 -N ${jobname} -V -j oe -o ${logfile} $IG_SCRIPTS/plot_bcoef.sh 
 fi
 
 exit

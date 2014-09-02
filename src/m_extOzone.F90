@@ -435,7 +435,7 @@ subroutine oztot_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, &
   integer(kind=i_kind):: toqf,alqf,fovn
   real   (kind=r_kind):: rsec,slats,slons
   real   (kind=r_kind),dimension(nloz_omi):: apriori, efficiency
-  integer(kind=i_kind):: decimal,binary(17)
+  integer(kind=i_kind):: binary(17)
 
   real   (kind=r_kind):: dlon,dlon_earth
   real   (kind=r_kind):: dlat,dlat_earth
@@ -777,7 +777,7 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
 
   integer(kind=i_kind):: nrecDimId,lonVarID,latVarID,yyVarID,mmVarID
   integer(kind=i_kind):: ddVarID,hhVarID,minVarID,ssVarID
-  integer(kind=i_kind):: szaVarID,totozVarID,pressVarID
+  integer(kind=i_kind):: pressVarID
   integer(kind=i_kind):: convVarID, qualVarID, mlserrVarID, mlsozoneVarID
   integer(kind=i_kind):: mlslevsDimID,mlslevs
 
@@ -786,8 +786,7 @@ subroutine ozlev_ncread_(dfile,dtype,dplat,dsis, ozout,nmrecs,ndata,nodata, gsti
   real   (kind=r_kind), allocatable :: mlspress(:), mlsozone(:,:), mlsqual(:)
   real   (kind=r_kind), allocatable :: mlsconv(:), mlserr(:,:)
 
-  integer(kind=i_kind):: iy,im,idd,ihh,imin,nmind
-  real   (kind=r_kind):: rsec,slats,slons
+  integer(kind=i_kind):: nmind
 
   real   (kind=r_kind):: slons0,slats0
   real   (kind=r_kind):: ppmv, pres, pob, obserr, usage

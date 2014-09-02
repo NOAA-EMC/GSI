@@ -64,7 +64,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
 ! Declare passed variables
   character(len=*),intent(in):: infile,obstype
-  character(len=*),intent(in):: sis
+  character(len=20),intent(in):: sis
   integer(i_kind),intent(in):: lunout
   integer(i_kind),intent(inout):: nread,ndata,nodata
   real(r_kind),intent(in):: gstime,twindin
@@ -120,7 +120,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_single),allocatable::etabl(:,:,:)
   integer(i_kind) ietabl,lcount,itypex
   integer(i_kind) l,m,ikx
-  integer(i_kind) n,cid_pos,ship_mod,mbuoy_mod,dbuoy_mod
+  integer(i_kind) n,cid_pos,ship_mod
   real(r_kind) terrmin,werrmin,perrmin,qerrmin,pwerrmin
 
   data headr/'YEAR MNTH DAYS HOUR MINU CLATH CLONH SELV RPID'/
@@ -176,7 +176,7 @@ subroutine read_modsbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   endif
 
 ! Open, then read date from bufr data
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
        

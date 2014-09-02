@@ -13,23 +13,23 @@ echo
 echo BEGIN mk_intro.sh
 
 #-------------------------------------------------------------
-#  Both SORTED_LIST, SATYPE, and AREA should be exported from 
+#  Both SORTED_LIST, SATYPE, and RAD_AREA should be exported from 
 #  the install_html.sh script.  Exit if they are not defined.
 #
 if [[ ${#SORTED_LIST} -eq 0 ]]; then
-   echo 'ERROR --> $SORTED_LIST is empty, unable to generate intro.html.$AREA file.'
+   echo 'ERROR --> $SORTED_LIST is empty, unable to generate intro.html.$RAD_AREA file.'
    echo '  exiting mk_intro.sh'
    exit
 fi
 
 if [[ ${#SATYPE} -eq 0 ]]; then
-   echo 'ERROR --> $SORTED_LIST is empty, unable to generate intro.html.$AREA file.'
+   echo 'ERROR --> $SORTED_LIST is empty, unable to generate intro.html.$RAD_AREA file.'
    echo '  exiting mk_intro.sh'
    exit
 fi
 
-if [[ ${#AREA} -eq 0 ]]; then
-   echo 'ERROR --> $AREA is empty, unable to generate intro.html.$AREA file.'
+if [[ ${#RAD_AREA} -eq 0 ]]; then
+   echo 'ERROR --> $RAD_AREA is empty, unable to generate intro.html.$RAD_AREA file.'
    echo '  exiting mk_intro.sh'
    exit
 fi
@@ -58,7 +58,7 @@ echo "  num_sats  = $num_sats"
 #-------------------------------------------------------------
 #  Build the intro.html file.
 #
-outfile=intro.html.$AREA
+outfile=intro.html.$RAD_AREA
 >$outfile
 
 

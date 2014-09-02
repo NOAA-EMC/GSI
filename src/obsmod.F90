@@ -1230,9 +1230,9 @@ module obsmod
   character(128) obs_setup
   character(128) dirname
   character(128) obs_input_common
-  character(14),allocatable,dimension(:):: obsfile_all
+  character(20),allocatable,dimension(:):: obsfile_all
   character(10),allocatable,dimension(:):: dtype,ditype,dplat
-  character(15),allocatable,dimension(:):: dfile
+  character(20),allocatable,dimension(:):: dfile
   character(20),allocatable,dimension(:):: dsis
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
@@ -1650,12 +1650,15 @@ contains
              ipoint(ioff+jj) = ipoint(jj)
              dthin (ioff+jj) = dthin(jj)
              dval  (ioff+jj) = dval(jj)
+             dsfcalc(ioff+jj)= dsfcalc(jj)
+             obsfile_all(ioff+jj) = trim(obsfile_all(jj))//'.'//cind
              time_window(ioff+jj) = time_window(jj)
           ENDDO
        ENDDO
 !      Then change name for first time slot
        IF (ndat_times>1) THEN
           DO jj=1,ndat_types
+             obsfile_all(jj) = trim(obsfile_all(jj))//'.01'
              dfile(jj) = trim(dfile(jj))//'.01'
           ENDDO
        ENDIF
@@ -2329,7 +2332,7 @@ character(len=*),optional,intent(in) :: rcname ! optional input filename
 
 character(len=*),parameter::myname_=myname//'*init_instr_table_'
 character(len=*),parameter:: tbname='OBS_INPUT::'
-integer(i_kind) luin,i,ii,ntot,nrows
+integer(i_kind) luin,ii,ntot,nrows
 character(len=256),allocatable,dimension(:):: utable
 logical iamroot_
 

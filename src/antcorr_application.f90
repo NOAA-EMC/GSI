@@ -34,7 +34,6 @@ MODULE AntCorr_Application
   ! -------------------------------------------
   ! The AntCorr structure definition
   PUBLIC :: ACCoeff_type
-  PUBLIC :: Apply_AntCorr
   PUBLIC :: Remove_AntCorr
   
   ! -----------------
@@ -154,102 +153,5 @@ CONTAINS
       T(l) = AC%A_earth(iFOV,l)*T(l) + AC%A_platform(iFOV,l)*T(l) + AC%A_space(iFOV,l)*TSPACE
     END DO
   END SUBROUTINE Remove_AntCorr
-
-
-!--------------------------------------------------------------------------------
-!
-! NAME:
-!       Apply_AntCorr
-!
-! PURPOSE:
-!       Subroutine to apply an antenna correction to microwave instrument
-!       antenna temperatures, Ta, to produce brightness temperatures, Tb.
-!
-! CALLING SEQUENCE:
-!       CALL Apply_AntCorr( AC  , &  ! Input
-!                           iFOV, &  ! Input
-!                           T     )  ! In/Output
-!
-! INPUT ARGUMENTS:
-!       AC:             Structure containing the antenna correction coefficients
-!                       for the sensor of interest.
-!                       UNITS:      N/A
-!                       TYPE:       TYPE(ACCoeff_type)
-!                       DIMENSION:  Scalar
-!                       ATTRIBUTES: INTENT(IN)
-!
-!       iFOV:           The FOV index for a scanline of the sensor of interest.
-!                       UNITS:      N/A
-!                       TYPE:       INTEGER
-!                       DIMENSION:  Scalar
-!                       ATTRIBUTES: INTENT(IN)
-!
-!       T:              On input, this argument contains the antenna temperatures
-!                       for the sensor channels.
-!                       UNITS:      Kelvin
-!                       TYPE:       REAL(fp)
-!                       DIMENSION:  Rank-1 (n_Channels)
-!                       ATTRIBUTES: INTENT(IN OUT)
-!
-! OUTPUT ARGUMENTS:
-!       T:              On output, this argument contains the brightness
-!                       temperatures for the sensor channels.
-!                       If an error occurs, the return values are all -1.
-!                       UNITS:      Kelvin
-!                       TYPE:       REAL(fp)
-!                       DIMENSION:  Rank-1 (n_Channels)
-!                       ATTRIBUTES: INTENT(IN OUT)
-!
-! SIDE EFFECTS:
-!       The temperature array argument, T, is modified.
-!
-! PROCEDURE:
-!       For every FOV and channel, the antenna temperature, Ta, is converted
-!       to brightness temperature, Tb, using,
-!
-!               Ta - As.Ts
-!         Tb = ------------
-!                Ae + Ap
-!
-!       where Ae == antenna efficiency for the Earth view
-!             Ap == antenna efficiency for satellite platform view
-!             As == antenna efficiency for cold space view
-!             Ts == cosmic background temperature.
-!
-!       Note that the earth view brightness temperature is used as a proxy for
-!       the platform temperature since there is no measurement of the platform
-!       temperature in-flight.
-!
-!--------------------------------------------------------------------------------
-
-  SUBROUTINE Apply_AntCorr( AC  , &  ! Input
-                            iFOV, &  ! Input
-                            T     )  ! In/Output
-    implicit none
-
-    ! Arguments
-    TYPE(ACCoeff_type), INTENT(IN)     :: AC
-    INTEGER           , INTENT(IN)     :: iFOV
-    REAL(fp)          , INTENT(IN OUT) :: T(:)
-    ! Local parameters
-    CHARACTER(*), PARAMETER :: ROUTINE_NAME = 'Apply_AntCorr'
-    ! Local variables
-    INTEGER :: l
-    ! Check input
-    IF ( iFOV < 1 .OR. iFOV > AC%n_FOVS ) THEN
-      CALL Display_Message( ROUTINE_NAME, 'Input iFOV inconsistent with AC data', FAILURE )
-      T = INVALID
-      RETURN
-    END IF
-    IF ( SIZE(T) /= AC%n_Channels ) THEN
-      CALL Display_Message( ROUTINE_NAME, 'Size of T() inconsistent with AC data', FAILURE )
-      T = INVALID
-      RETURN
-    END IF
-    ! Compute the brightness temperature
-    DO l = 1, AC%n_Channels
-      T(l) = (T(l) - AC%A_space(iFOV,l)*TSPACE)/(AC%A_earth(iFOV,l)+AC%A_platform(iFOV,l))
-    END DO
-  END SUBROUTINE Apply_AntCorr
   
 END MODULE AntCorr_Application

@@ -182,7 +182,7 @@ integer(i_kind), dimension(na1:nb2),intent(INOUT) :: next
 integer(i_kind),                    intent(  OUT) :: first
 !-----------------------------------------------------------------------------
 integer(i_kind),parameter                        :: hugeint= 1000000
-integer(i_kind)                                  :: idum,ia,ib,ic,id
+integer(i_kind)                                  :: idum,ia,ib,ic
 !=============================================================================
 ia=firsta
 ib=firstb

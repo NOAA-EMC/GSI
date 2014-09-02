@@ -52,22 +52,23 @@ export SUFFIX=$SUFFIX1
 #--------------------------------------------------------------------
 
 top_parm=${this_dir}/../../parm
+export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
+if [[ -s ${RADMON_CONFIG} ]]; then
+   . ${RADMON_CONFIG}
 else
-   echo "Unable to source ${top_parm}/RadMon_config"
+   echo "Unable to source ${RADMON_CONFIG}"
    exit 2
 fi
 
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
+if [[ -s ${RADMON_USER_SETTINGS} ]]; then
+   . ${RADMON_USER_SETTINGS}
 else
-   echo "Unable to source ${top_parm}/RadMon_user_settings"
+   echo "Unable to source ${RADMON_USER_SETTINGS}"
    exit 3
 fi
 
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
+. ${IG_PARM}/plot_rad_conf
 
 #--------------------------------------------------------------------
 #  Check setting of RUN_ONLY_ON_DEV and possible abort if on prod and
@@ -75,7 +76,7 @@ fi
 #--------------------------------------------------------------------
 
 if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${SCRIPTS}/AmIOnProd.sh`
+   is_prod=`${IG_SCRIPTS}/onprod.sh`
    if [[ $is_prod = 1 ]]; then
       exit 10
    fi
@@ -99,13 +100,7 @@ fi
 
 echo rad_area = $RAD_AREA
 
-if [[ $RAD_AREA == "glb" ]]; then
-   . ${RADMON_IMAGE_GEN}/parm/glbl_comp_conf
-elif [[ $RAD_AREA == "rgn" ]]; then
-   . ${RADMON_IMAGE_GEN}/parm/rgnl_comp_conf
-fi
-
-mkdir -p $LOGDIR
+mkdir -p $LOGdir
 
 if [[ -d $PLOT_WORK_DIR ]]; then
    rm -rf $PLOT_WORK_DIR
@@ -115,17 +110,19 @@ mkdir $PLOT_WORK_DIR
 #--------------------------------------------------------------
 # Set up SUFFIX, TANKDIR and IMGNDIR for this plot.
 #--------------------------------------------------------------
+export TANKDIR=${MY_TANKDIR}/stats
 echo ${TANKDIR}
+export IMGNDIR=${MY_TANKDIR}/imgn
 echo ${IMGNDIR}
 
 export TANKDIR1=${TANKDIR}/${SUFFIX1}
 export IMGNDIR1=${IMGNDIR}/${SUFFIX1}
-prodate1=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR1}`
+prodate1=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR1}`
 echo prodate1 = $prodate1
 
 export TANKDIR2=${TANKDIR}/${SUFFIX2}
 export IMGNDIR2=${IMGNDIR}/${SUFFIX2}
-prodate2=`${SCRIPTS}/find_cycle.pl 1 ${TANKDIR2}`
+prodate2=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKDIR2}`
 echo prodate2 = $prodate2
 
 #-------------------------------------------------------------
@@ -152,7 +149,7 @@ done
 export SATYPE=$SATYPE_LIST
 echo $SATYPE
 
-. ${SCRIPTS}/mk_comp_plots.sh
+. ${IG_SCRIPTS}/mk_comp_plots.sh
 
 echo end PlotComp.sh
 

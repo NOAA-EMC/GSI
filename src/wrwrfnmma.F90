@@ -85,13 +85,12 @@ subroutine wrwrfnmma_binary(mype)
   integer(i_llong) num_swap
   character(6) filename
   integer(i_kind) i,j,k,kpint,kt,kq,ku,kv,it,i_pd,i_pint,i_t,i_q,i_u,i_v
-  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain,i_f_rimef
-  integer(i_kind) kcwm,kf_ice,kf_rain,kf_rimef
+  integer(i_kind) i_sst,i_tsk,i_cwm,i_f_ice,i_f_rain
+  integer(i_kind) kcwm,kf_ice,kf_rain
   integer(i_kind) num_nmm_fields,num_j_groups,num_loc_groups
   real(r_kind) pd,psfc_this
   integer(i_llong) n_position
   integer(i_kind) iskip,jextra,nextra
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) status(mpi_status_size)
   integer(i_kind) jbegin(0:npe),jend(0:npe-1)
   integer(i_kind) kbegin(0:npe),kend(0:npe-1)
@@ -1076,6 +1075,8 @@ subroutine wrnemsnmma_binary(mype)
 !   2012-12-04  s.liu   - add gsd cloud analsyis variables
 !   2013-10-18  s.liu   - add use_reflectivity option for cloud analysis variables
 !   2013-10-19  todling - upper-air guess now in metguess
+!   2014-06-05  carley  - bug fix for writing out cloud analysis variables 
+!   2014-06-27  S.Liu   - detach use_reflectivity from n_actual_clouds
 !
 !   input argument list:
 !     mype     - pe number
@@ -1142,7 +1143,8 @@ subroutine wrnemsnmma_binary(mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_qg  =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_qh  =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: dfi_tten=>NULL()
-
+  real(r_kind),pointer,dimension(:,:,:):: ges_ref =>NULL()
+  
 !   if use_gfs_stratosphere is true, then convert ges fields from nmmb-gfs 
 !        extended vertical coordinate to nmmb vertical coordinate.
 
@@ -1190,7 +1192,7 @@ subroutine wrnemsnmma_binary(mype)
   add_saved=.true.
 
   call gsi_metguess_get('clouds::3d',n_actual_clouds,iret)
-  if(mype == 0) write(6,*)' in wrnemsnmma_binary after gsi_metguess_get, ncoulds,iret=',&
+  if(mype == 0) write(6,*)' in wrnemsnmma_binary after gsi_metguess_get, nclouds,iret=',&
                 n_actual_clouds,iret
   if (n_actual_clouds>0 .and. (.not.use_reflectivity)) then
 
@@ -1209,7 +1211,23 @@ subroutine wrnemsnmma_binary(mype)
      call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qh',ges_qh,iret); ier_cloud=ier_cloud+iret
 
      if ((icw4crtm<=0 .and. iqtotal<=0) .or. ier_cloud/=0) n_actual_clouds=0
-  end if
+
+  else if (use_reflectivity)then
+    
+!    Get pointer to hydrometeor mixing ratios, reflectivity, and temperature tendency
+!       for the cloud analysis
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql,iret); ier_cloud=iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi,iret); ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr,iret); ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs,iret); ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg,iret); ier_cloud=ier_cloud+iret 
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ref',ges_ref,istatus);ier_cloud=ier_cloud+iret
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tten',dfi_tten,istatus);ier_cloud=ier_cloud+iret
+     if(ier_cloud/=0) then
+        write(6,*)'wrwrfnmma.F90 :: missng hydrometeor/tten/ref fields for cloud analysis nothing to do'
+	n_actual_clouds=0
+     end if	
+  end if 
 
   if(mype==mype_input) wrfanl = 'wrf_inout'
 

@@ -137,7 +137,7 @@ type(gsi_bundle) :: eval(ntlevs_ens)
 type(predictors) :: zbias
 type(control_vector) :: xwork
 real(r_kind) :: zjx
-integer(i_kind) :: ii,ierr
+integer(i_kind) :: ii
 character(len=80),allocatable,dimension(:)::fname
 
 if (mype==0) then

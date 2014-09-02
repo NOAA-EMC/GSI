@@ -51,10 +51,10 @@ subroutine compute_qvar3d
   real(r_kind) d,dn1,dn2
   real(r_kind),allocatable,dimension(:,:,:):: rhgues
 
-  integer(i_kind):: nwk,istatus,ier,ierror,mm1,il,nk,n_actual_clouds
+  integer(i_kind):: istatus,ier,ierror,mm1,il,nk,n_actual_clouds
   integer(i_kind),dimension(nsig):: ntmp,ntmp1
   integer(i_kind),dimension(nlat):: ntp
-  real(r_kind):: rhtmp,coef,cwtmp,maxamy
+  real(r_kind):: coef,cwtmp,maxamy
   real(r_kind),dimension(nsig):: work_cw,work_cw1,amz
   real(r_kind),dimension(nlat):: wk_cw,amy0
   real(r_kind),dimension(lat2):: amy

@@ -51,7 +51,7 @@ subroutine anbkerror(gradx,grady)
 ! Declare local variables
   integer(i_kind) i,j,ii,istatus
   real(r_kind),dimension(lat2,lon2):: sst,slndt,sicet
-  real(r_kind),dimension(:,:,:),pointer::p_t,p_st,p_vp,p_cw
+  real(r_kind),dimension(:,:,:),pointer::p_t,p_st,p_vp
   real(r_kind),dimension(:,:  ),pointer::p_ps
   logical lc_sf,lc_vp,lc_ps,lc_t
   logical do_balance
@@ -184,7 +184,7 @@ subroutine anbkgcov(bundle,sst,slndt,sicet)
   type(gsi_bundle),                 intent(inout) :: bundle
 
 ! Local Variables
-  integer(i_kind) iflg,ier,istatus
+  integer(i_kind) istatus
   real(r_kind),dimension(nlat*nlon*nsig1o):: hwork
   real(r_kind),pointer,dimension(:,:)  :: p,skint
   real(r_kind),pointer,dimension(:,:,:):: t,q,cwmr,oz,st,vp
