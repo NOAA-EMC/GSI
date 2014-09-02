@@ -100,9 +100,10 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
       finalcheck,checkob,score_crit
   use radinfo, only:iuse_rad,nusis,jpch_rad,crtm_coeffs_path,use_edges,nst_gsi,nstinfo, &
       radedge1,radedge2,radstart,radstep
-  use crtm_module, only: crtm_destroy,crtm_init,crtm_channelinfo_type, success, &
+  use crtm_module, only: success, &
       crtm_kind => fp
   use crtm_planck_functions, only: crtm_planck_temperature
+  use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
   use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten
@@ -204,8 +205,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=20),dimension(1):: sensorlist
 
 
-  type(crtm_channelinfo_type),dimension(1) :: channelinfo
-
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for iasi 
@@ -264,27 +263,23 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   
   sensorlist(1)=sis
   if( crtm_coeffs_path /= "" ) then
-     if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-     error_status = crtm_init(sensorlist,channelinfo,&
-        Process_ID=mype_sub,Output_Process_ID=mype_root, &
-        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
+     if(mype_sub==mype_root) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+     error_status = crtm_spccoeff_load(sensorlist,&
         File_Path = crtm_coeffs_path )
   else
-     error_status = crtm_init(sensorlist,channelinfo,&
-        Process_ID=mype_sub,Output_Process_ID=mype_root, &
-        Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
+     error_status = crtm_spccoeff_load(sensorlist)
   endif
   if (error_status /= success) then
-     write(6,*)'READ_IASI:  ***ERROR*** crtm_init error_status=',error_status,&
+     write(6,*)'READ_IASI:  ***ERROR*** crtm_spccoeff_load error_status=',error_status,&
         '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   endif
 
 !  find IASI sensorindex
   sensorindex = 0
-  if ( channelinfo(1)%sensor_id == 'iasi616_metop-a' .or. &
-       channelinfo(1)%sensor_id == 'iasi616_metop-b' .or. &
-       channelinfo(1)%sensor_id == 'iasi616_metop-c' ) then
+  if ( sc(1)%sensor_id == 'iasi616_metop-a' .or. &
+       sc(1)%sensor_id == 'iasi616_metop-b' .or. &
+       sc(1)%sensor_id == 'iasi616_metop-c' ) then
      sensorindex = 1
   else
      write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
@@ -695,7 +690,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   call closbf(lnbufr)
 
 ! deallocate crtm info
-  error_status = crtm_destroy(channelinfo)
+  error_status = crtm_spccoeff_destroy()
   if (error_status /= success) &
     write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
 
