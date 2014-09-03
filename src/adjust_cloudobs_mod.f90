@@ -41,7 +41,8 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
 ! program history log:
 !   2011-12-29  zhu
 !   2014-07-23  carley - add station elevation to lcbas/ceiling so output
-!                        is MSL    
+!                        is MSL.
+!   2014-09-02  carley - Adjust tcamt_qc assignment.    
 !
 ! attributes:
 !   language: f90
@@ -195,7 +196,7 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
            cld_prod=cld_prod*(one-fact(k)*cldamt(k)/100.0_r_kind)
         end do
         tcamt=(one-cld_prod)*100.0_r_kind
-        tcamt_qc=3
+        tcamt_qc=1
      else
         tcamt_qc=15
      end if
@@ -321,8 +322,8 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
      if (fog) then
         tcamt=100.0_r_kind
         lcbas=zero 
-        tcamt_qc=1
-        lcbas_qc=1
+        tcamt_qc=0
+        lcbas_qc=0
 
 !       low cloud amount and base
         low_cldamt=100.0_r_kind
@@ -331,9 +332,23 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
      end if
   end do
 
-!  Background field is MSL, so add station elevation to lcbas and ceiling here
-if (abs(lcbas-bmiss) > tiny_r_kind) lcbas=lcbas+stnelev
-if (abs(ceiling-bmiss) > tiny_r_kind) ceiling=ceiling+stnelev
+
+  ! - Now refine QC marks for tcamt - !
+
+  ! - Place somewhat less trust on obs of clear(er) sky (J. Gerth)
+  if (tcamt <= 25.0_r_kind .and. tcamt_qc <= 3) then
+     if (tcamt_qc==1) then
+        tcamt_qc=2
+     else
+        tcamt_qc=1
+     end if
+   else if (tcamt >= 75.0_r_kind .and.  tcamt_qc <= 3 ) then ! sfc based sky cover obs are usually very good when indicating cloudy (J. Gerth)
+     tcamt_qc=0
+   end if
+
+  !  Background field is MSL, so add station elevation to lcbas and ceiling here
+  if (abs(lcbas-bmiss) > tiny_r_kind) lcbas=lcbas+stnelev
+  if (abs(ceiling-bmiss) > tiny_r_kind) ceiling=ceiling+stnelev
 
 end subroutine adjust_convcldobs
 
@@ -349,7 +364,10 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
 ! abstract:  This routine obtain cloud amount info from NESDIS goescld file
 !
 ! program history log:
-!   2012-01-03  zhu    
+!   2012-01-03  zhu
+!   2014-09-02  carley - Remove references to lcbas.  Remove use of cloud top
+!                        pressure obs as pseudo clear-sky cover obs. Inflate qc flag
+!                        for night obs and obs showing coverage <= 25%.    
 !
 ! attributes:
 !   language: f90
@@ -402,28 +420,10 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
 ! cloud amount (%)
   if (goescld(2,1)<=100.0_r_kind) then
      tcamt=goescld(2,1)
-     tcamt_qc=0
-  end if    
+     tcamt_qc=1
 
-! Enforce clear sky if cloud top pressure is lower than 1010 AND
-!   if we lack TOCC obs, i.e. goes(2,1) is missing
-  sat_ctp=goescld(1,1)/100.0_r_kind    !  cloud top pressure (pa)
-  if (abs(tcamt-bmiss) < tiny_r_kind .and. sat_ctp>=1010.0_r_kind ) then 
-!     --- clear where GOES shows clear down to the surface
-!            or down to the GOES cloud top level
-!     --- this is to mimic cloudCover_NESDIS
 
-! =============================================
-! - clear down to surface in fully clear column (according to GOES)
-! =============================================
-!    Only trust 'clear' indication under following conditions
-!        - over ocean
-!        - or over land only if p<620 mb overnight
-!        - or at any level in daytime (zenith angle
-!                      less than zen_limit threshold)
-! =============================================
-!
-! calculate observation time
+  ! calculate observation time to obtain zenith angle
      anal_time=0
      obs_time=0
      tmp_time=zero
@@ -453,17 +453,19 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
      csza=max(-one,min(csza,one))
      sza=rad2deg*acos(csza)
 
-     mid_cldamt=zero
-     hig_cldamt=zero
-     mid_cldamt_qc=0
-     hig_cldamt_qc=0
-     if (idomsfc==0 .or. sza<=zen_limit) then
-        low_cldamt=zero
-        low_cldamt_qc=0
-        tcamt=zero
-        tcamt_qc=3
+     ! - Place somewhat less trust on obs of clear(er) sky (J. Gerth)
+     if (tcamt <= 25.0_r_kind) tcamt_qc=2   
+     ! - Increase tcamt_qc at night, and increase it moreso
+     !     if at night and detecting sky cover <= 25% (J. Gerth recommendation)
+     if (sza > zen_limit)  then
+        if (tcamt_qc==2) then
+           tcamt_qc=3
+        else
+           tcamt_qc=2
+        end if
      end if
-  end if
+
+  end if    
 end subroutine adjust_goescldobs
 
 end module adjust_cloudobs_mod

@@ -2167,8 +2167,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     end if
 
                     if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9) usage=100._r_kind
-                    tcamt_oe=25.0_r_kind
-                    if(tcamt_qc==3) tcamt_oe=tcamt_oe*1.5_r_kind
+                    tcamt_oe=20.0_r_kind
+                    if(tcamt_qc==1) tcamt_oe=tcamt_oe*1.25_r_kind 
+                    if(tcamt_qc==2) tcamt_oe=tcamt_oe*1.50_r_kind
+                    if(tcamt_qc==3) tcamt_oe=tcamt_oe*1.75_r_kind
 
                     cdata_all( 1,iout)=tcamt_oe               !  obs error
                     cdata_all( 2,iout)=dlon                   !  grid relative longitude
