@@ -315,7 +315,7 @@
 !          = 132 - gsi_4dvar: Error in observation binning
 !          = 133 - gsi_4dvar: Error in sub-windows definition
 !          = 134 - setup_4dvar: unable to fullfil request for increment output
-!          = 135 - setup_4dvar: iwrtinc l4dvar inconsistent
+!          = 135 - setup_4dvar: iwrtinc or lwrite4danl inconsistent
 !          = 136 - time_4dvar: minutes should be 0
 !          = 137 - gsimod: adjoint computation requires contrad
 !          = 138 - setup_congrad: kamxit>maxiter

@@ -1404,9 +1404,8 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_regional_new
   real(r_single) dlmd_regional,dphd_regional,pt_regional,pdtop_regional
-  real(r_single) dy_nmm
   integer(i_kind) i,j,ii,k,n
-  real(r_single),allocatable::field1(:),field1p(:),field2(:),field2b(:),field2c(:)
+  real(r_single),allocatable::field2(:),field2b(:),field2c(:)
   real(r_single),allocatable::aeta1(:),deta1(:),eta1(:)
   real(r_single),allocatable::aeta2(:),deta2(:),eta2(:)
   real(r_single),allocatable::aeta1_new(:),deta1_new(:),eta1_new(:)
@@ -1945,7 +1944,7 @@ subroutine count_recs_wrf_binary_file(in_unit,wrfges,nrecs)
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,j,loc_count,nreads
+  integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_kind) ierr
 
@@ -2096,7 +2095,7 @@ subroutine initialize_byte_swap_wrf_binary_file(in_unit,wrfges)
   integer(i_llong) nextbyte,locbyte,thisblock
   integer(i_byte) lenrec4(4)
   integer(i_byte) lenrec4_swap(4)
-  integer(i_long) lenrec(1),lensave
+  integer(i_long) lenrec(1)
   integer(i_long) lenrec_swap
   equivalence (lenrec4(1),lenrec(1))
   equivalence (lenrec4_swap(1),lenrec_swap)
@@ -2214,7 +2213,7 @@ subroutine inventory_wrf_binary_file(in_unit,wrfges,nrecs, &
   integer(i_long) buf4(lword)
   integer(i_byte) buf(lrecl)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,j,loc_count,nreads
+  integer(i_kind) i,loc_count,nreads
   logical lastbuf
   integer(i_byte) hdrbuf4(2048)
   integer(i_long) hdrbuf(512)
@@ -2644,7 +2643,7 @@ subroutine retrieve_field_i1(in_unit,wrfges,outi1,start_block,end_block,start_by
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2726,7 +2725,7 @@ subroutine retrieve_field_r1(in_unit,wrfges,outr1,start_block,end_block,start_by
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr
+  integer(i_kind) i,ii,k,ibegin,iend,ierr
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 
@@ -2810,7 +2809,7 @@ subroutine retrieve_field_rn1(in_unit,wrfges,outrn1,n1,start_block,end_block,sta
   integer(i_byte) buf(lrecl)
   integer(i_byte) out(4*n1)
   equivalence(buf4(1),buf(1))
-  integer(i_kind) i,ii,j,k,ibegin,iend,ierr,nretrieved
+  integer(i_kind) i,ii,k,ibegin,iend,ierr,nretrieved
 
   open(in_unit,file=trim(wrfges),access='direct',recl=lrecl)
 

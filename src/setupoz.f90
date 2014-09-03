@@ -1,6 +1,6 @@
 
 subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
-     obstype,isis,is,ozone_diagsave,init_pass,last_pass)
+     obstype,isis,is,ozone_diagsave,init_pass)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -130,7 +130,7 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   character(10)                    , intent(in   ) :: obstype          ! type of ozone obs
   logical                          , intent(in   ) :: ozone_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                          , intent(in   ) :: init_pass        ! state of "setup" processing
 
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -751,7 +751,6 @@ subroutine setupozlay(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   subroutine init_vars_
 
-  real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
   integer(i_kind) ifld, istatus
@@ -791,7 +790,7 @@ end subroutine setupozlay
 
 
 subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
-     obstype,isis,is,ozone_diagsave,init_pass,last_pass)
+     obstype,isis,is,ozone_diagsave,init_pass)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -877,7 +876,7 @@ subroutine setupozlev(lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   character(10)                    , intent(in   ) :: obstype          ! type of ozone obs
   logical                          , intent(in   ) :: ozone_diagsave   ! switch on diagnostic output (.false.=no output)
-  logical                          , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                          , intent(in   ) :: init_pass        ! state of "setup" processing
 
 ! !INPUT/OUTPUT PARAMETERS:
 

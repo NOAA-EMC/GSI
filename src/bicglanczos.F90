@@ -153,7 +153,7 @@ end subroutine setup_pcglanczos
 ! -------------------------------------------------------------------
 
 !================================================================
-subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,iobsconv,lsavevecs)
+subroutine pcglanczos(xhat,yhat,pcost,gradx,grady,preduc,kmaxit,lsavevecs)
 
 !$$$  subprogram documentation block
 !
@@ -185,19 +185,17 @@ type(control_vector),intent(inout)      :: xhat,yhat,gradx,grady
 real(r_kind)    , intent(out)           :: pcost
 real(r_kind)    , intent(inout)         :: preduc
 integer(i_kind) , intent(inout)         :: kmaxit
-integer(i_kind) , intent(in)            :: iobsconv
 logical         , intent(in)            :: lsavevecs
 
-type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry,xtrue,gradtrue
+type(control_vector)      :: grad0,xtry,ytry,gradw,dirx,diry
 real(r_kind), allocatable :: alpha(:),beta(:),delta(:),gam(:)
 real(r_kind), allocatable :: zdiag(:),ztoff(:),zwork(:)
 real(r_kind), allocatable :: zritz(:),zbnds(:),zevecs(:,:)
-real(r_quad)              :: zg0,zgk,zgnew,zfk,zgg,zf0,zff,zgf,zge,zfg
+real(r_quad)              :: zg0,zgk,zgnew,zfk,zgg,zge
 real(r_kind)              :: zeta,zreqrd
 integer(i_kind)           :: jj,ilen,ii,info
 integer(i_kind)           :: kminit,kmaxevecs,kconv
 logical                   :: lsavinc,lldone
-character(len=12)         :: clfile
 
 ! --------------------------------------
 REAL             :: Z_DEFAULT_REAL      ! intentionally not real(r_kind)
@@ -209,12 +207,8 @@ integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = KIND(DL_DOUBLE_PRECISION)
 !<<<
 integer(i_kind) :: jk,isize,jm
 real(r_kind)    :: zdla,zbndlm
-REAL(r_kind),allocatable        :: zdp(:)
 
 type(control_vector) :: gradf
-type(gsi_bundle)     :: sval(nobs_bins)
-type(gsi_bundle)     :: mval(nsubwin)
-real(r_quad)         :: pcostq
 integer              :: iortho
 !---------------------------------------------------
 
@@ -271,7 +265,7 @@ end do
 
 if(LMPCGL) then 
    dirx=zero
-   call pcgprecond(gradx,dirx,1)
+   call pcgprecond(gradx,dirx)
    do jj=1,ilen
        dirx%values(jj) = -dirx%values(jj)
    end do
@@ -343,7 +337,7 @@ inner_iteration: do iter=1,kmaxit
 ! Apply B or the preconditioner
 
   if(LMPCGL) then 
-     call pcgprecond(gradx,grady,1)
+     call pcgprecond(gradx,grady)
   else 
      call bkerror(gradx,grady)
      ! If hybrid ensemble run, then multiply ensemble control variable a_en 
@@ -672,8 +666,7 @@ IMPLICIT NONE
 
 logical, intent(in)       :: ldsave
 
-REAL(r_kind), ALLOCATABLE :: zmat(:,:)
-INTEGER(i_kind)           :: ii,jj, info, iunit, ivecs, isize
+INTEGER(i_kind)           :: ii,jj, iunit, ivecs, isize
 REAL(r_kind)              :: zz
 CHARACTER(LEN=13)         :: clfile
 
@@ -780,10 +773,7 @@ subroutine setup_pcgprecond()
 
 IMPLICIT NONE
 
-INTEGER(i_kind)  , allocatable :: indarr(:)
-REAL(r_kind)     , allocatable :: zq(:),zlam(:),zU(:,:),zUUT(:,:),zwork(:),zzz(:)
-INTEGER(i_kind)                :: info,ik,inpcv,ji,jj,jk,ii,iunit
-REAL(r_kind)                   :: za, zps
+INTEGER(i_kind)                :: jj,jk,ii,iunit
 CHARACTER(LEN=13)              :: clfile
 
 !--- read vectors, apply change of variable and copy to work file
@@ -859,17 +849,15 @@ end subroutine setup_pcgprecond
 ! ------------------------------------------------------------------------------
 !   PRECOND - Preconditioner for minimization
 ! ------------------------------------------------------------------------------
-subroutine pcgprecond(xcvx,ycvx,kmat)
+subroutine pcgprecond(xcvx,ycvx)
 
 IMPLICIT NONE
 
 TYPE(CONTROL_VECTOR) , INTENT(INout)  :: xcvx
 TYPE(CONTROL_VECTOR) , INTENT(INOUT) :: ycvx
-INTEGER(i_kind)      , INTENT(IN)  :: kmat
 
 REAL(r_kind)        :: zdp(NVCGLPC)
 INTEGER(i_kind)     :: jk, ji
-INTEGER(i_kind)     :: isize
  
 ycvx=zero
 do jk=1,NVCGLPC

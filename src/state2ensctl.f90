@@ -50,7 +50,7 @@ type(gsi_bundle)    , intent(in   ) :: eval(ntlevs_ens)
 ! Declare local variables
 character(len=*),parameter::myname='state2ensctl'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: i,j,k,ii,jj,ic,id,istatus,nclouds
+integer(i_kind) :: jj,ic,id,istatus,nclouds
 
 integer(i_kind), parameter :: ncvars = 5
 integer(i_kind) :: icps(ncvars)

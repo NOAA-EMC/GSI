@@ -225,9 +225,9 @@
   integer(i_kind) iextra,jextra,error_status,istat
   integer(i_kind) ich9,isli,icc,iccm,mm1,ixx
   integer(i_kind) m,mm,jc,j,k,i,icw4crtm,ier,nguess
-  integer(i_kind) kk,n,nlev,kval,ibin,ioff,ioff0,iii
+  integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
-  integer(i_kind) nadir,kraintype,ierrret,ichanl_diag
+  integer(i_kind) nadir,kraintype,ierrret
   integer(i_kind) ioz,ius,ivs,iwrmype
   integer(i_kind) iqs,iqg,iqh,iqr
   integer(i_kind) iversion_radiag, istatus
@@ -239,13 +239,13 @@
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
   real(r_kind) cenlon,cenlat,slats,slons,zsges,zasat,dtime
-  real(r_kind) wltm1,wltm2,wltm3  
+! real(r_kind) wltm1,wltm2,wltm3  
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
   real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl, clwp_amsua,tpwc_amsua,tpwc_guess_retrieval
   real(r_kind) dtsavg,r90,coscon,sincon
-  real(r_kind) dlat,wlat 
+! real(r_kind) dlat,wlat 
 
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,mhs
   logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
@@ -282,8 +282,8 @@
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind) ptau5deriv(nsig,nchanl), ptau5derivmax
-  real(r_kind) :: clw_guess,clw_guess_retrieval,clwtmp
-  real(r_kind) :: predchan6_save   
+  real(r_kind) :: clw_guess,clw_guess_retrieval
+! real(r_kind) :: predchan6_save   
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nobs_bins) :: n_alloc
@@ -973,7 +973,7 @@
 !       QC MSU data
         else if (msu) then
 
-           call qc_msu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+           call qc_msu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
               zsges,cenlat,tbc,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
 
 !  ---------- AMSU-A -------------------
@@ -985,9 +985,9 @@
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
-           call qc_amsua(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),   &
-              zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
-              pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
+           call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
+              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
+              pred,predchan,id_qc,aivals,errf,varinv)
 
 
 !  If cloud impacted channels not used turn off predictor
@@ -1003,7 +1003,7 @@
 
         else if (amsub .or. hsb .or. mhs) then
 
-           call qc_mhs(nchanl,ndat,nsig,ich,is,sea,land,ice,snow,mhs,amsub,luse(n),   &
+           call qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse(n),   &
               zsges,tbc,tb_obs,ptau5,emissivity_k,ts,      &
               id_qc,aivals,errf,varinv,clw,tpwc)
 
@@ -1017,9 +1017,9 @@
            else
               tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
            end if
-           call qc_atms(nchanl,is,ndat,nsig,npred,ich,sea,land,ice,snow,mixed,luse(n),    &
-              zsges,cenlat,tb_obsbc1,tzbgr,tsavg5,cosza,clw,tbc,tnoise,ptau5,temp,wmix,emissivity_k,ts,      &
-              pred,predchan,id_qc,aivals,errf,varinv,tpwc,clwp_amsua,clw_guess_retrieval)
+           call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
+              zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts,      &
+              pred,predchan,id_qc,aivals,errf,varinv)
 
 !  ---------- GOES imager --------------
 !       GOES imager Q C
@@ -1072,8 +1072,8 @@
               end if
            end do
 
-           call qc_avhrr(isis,nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
-              zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
+           call qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
+              zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
@@ -1092,7 +1092,7 @@
                        sincon *  sin( sun_zenith )) * rad2deg
            end if
            call qc_ssmi(nchanl,nsig,ich, &
-              zsges,luse(n),sea,ice,snow,mixed, &
+              zsges,luse(n),sea,mixed, &
               temp,wmix,ts,emissivity_k,ierrret,kraintype,tpwc,clw,sgagl,tzbgr, &
               tbc,tbcnob,tsim,tnoise,ssmi,amsre_low,amsre_mid,amsre_hig,ssmis, &
               varinv,errf,aivals(1,is),id_qc)
@@ -1102,7 +1102,7 @@
 
         elseif (ssu) then
 
-           call qc_ssu(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n), &
+           call qc_ssu(nchanl,is,ndat,nsig,sea,land,ice,snow,luse(n), &
               zsges,cenlat,tb_obs,ptau5,emissivity_k,ts,id_qc,aivals,errf,varinv)
             
         end if ObsQCs
@@ -1168,8 +1168,8 @@
         if(retrieval) then
            if(avhrr_navy .or. avhrr) then
               call avhrr_sst_retrieval(dplat(is),nchanl,tnoise,&
-                 varinv,tsavg5,sstnv,sstph,temp,wmix,ts,tbc,cenlat,cenlon,zasat,&
-                 dtime,dtp_avh,pangs,tbcnob,tb_obs,dta,dqa,luse(n))
+                 varinv,tsavg5,sstph,temp,wmix,ts,tbc,cenlat,cenlon,&
+                 dtime,dtp_avh,tb_obs,dta,dqa,luse(n))
            endif
         endif
 

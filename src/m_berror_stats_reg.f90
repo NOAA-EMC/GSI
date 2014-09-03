@@ -113,7 +113,7 @@ end subroutine berror_get_dims_reg
 
 !   workspaces/variables for data not returned
 
-  integer(i_kind) k,i,m,n,j,m1,l1,l
+  integer(i_kind) k,i,m,j,m1,l1,l
   integer(i_kind):: nsigstat,nlatstat
   integer(i_kind):: inerr
 
@@ -307,7 +307,6 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nsigstat,nlatstat,isig
   integer(i_kind) :: loc,nn,m1,m,i,n,j,k,n0
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
-  real(r_kind) :: corq2x
   real(r_kind) :: factoz
   real(r_kind) :: raux
 

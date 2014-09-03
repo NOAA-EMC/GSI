@@ -60,7 +60,7 @@ subroutine add_gfs_stratosphere
   real(r_kind),allocatable,dimension(:,:,:) :: pri_g,pri_r,pri_m,vor,div,u,v,tv,q,cwmr,oz,prsl_g,prsl_r,prsl_m
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable :: work_sub(:,:,:,:),work(:,:,:,:),work_reg(:,:,:,:)
-  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,cwt,ttsen
+  real(r_kind),allocatable,dimension(:,:,:)::ut,vt,tt,qt,ozt,ttsen
 
   character(len=*),parameter::myname='add_gfs_stratosphere'
   integer(i_kind) it_beg,it_end 
@@ -74,8 +74,6 @@ subroutine add_gfs_stratosphere
   integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
   integer(i_kind) nord_g2r
   logical,allocatable :: vector(:)
-  real(r_kind) ozmin,ozmax
-  real(r_kind) ozmin0,ozmax0
   real(r_kind),parameter::  zero_001=0.001_r_kind
   real(r_kind),allocatable,dimension(:) :: xspli_r,yspliu_r,yspliv_r,xsplo,xsplo_r,ysplou_r,ysplov_r
   real(r_kind),allocatable,dimension(:) :: xspli_g,yspliu_g,yspliv_g,ysplou_g,ysplov_g
@@ -86,8 +84,6 @@ subroutine add_gfs_stratosphere
   real(r_kind) hourg
   real(r_kind),dimension(5):: fha
   real(r_kind),allocatable,dimension(:):: blend_rm_oz,blend_gm_oz
-  real(r_kind) delta,pthis
-  integer(i_kind) kk
 
   real(r_kind) dlon,dlat,uob,vob
   integer(i_kind) ii,jj,it,ier,istatus

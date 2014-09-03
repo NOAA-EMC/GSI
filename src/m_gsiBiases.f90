@@ -733,7 +733,8 @@ subroutine update_st(xhat,xhat_div,xhat_vor,hour)
    integer(i_kind) i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas
    real(r_kind),pointer,dimension(:,:)   :: sv_ps,sv_sst,sv_gust,sv_vis,sv_pblh,sv_wspd10m, &
                                             sv_td2m,sv_mxtm,sv_mitm,sv_pmsl,sv_howv,sv_tcamt,sv_lcbas
-   real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_prse,sv_q,sv_tsen,sv_tv,sv_oz,sv_cw
+   real(r_kind),pointer,dimension(:,:,:) :: sv_u,sv_v,sv_q,sv_tv,sv_oz,sv_cw
+!  real(r_kind),pointer,dimension(:,:,:) :: sv_prse,sv_tsen
 
 !  Get pointers to require state variables
    ier=0

@@ -85,7 +85,6 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   real(r_kind),dimension(lat2,lon2):: sumkm1,sumvkm1,sum2km1,sum2vkm1
   real(r_kind),dimension(lat2,lon2,nsig):: t_thor9
   real(r_kind),dimension(lat2,lon2,nsig):: u_x,u_y,v_x,v_y,t_x,t_y
-  real(r_kind),dimension(lat2,lon2,nsig+1):: p3d_x,p3d_y
 
   real(r_kind) tmp,tmp2,tmp3,sumk,sumvk,sum2k,sum2vk,uduvdv
   integer(i_kind) i,j,k,ix,it,kk,ier,istatus

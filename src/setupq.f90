@@ -162,7 +162,7 @@ subroutine setupq(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
-  integer(i_kind) i,nchar,nreal,j,ii,l,jj,mm1,itemp
+  integer(i_kind) i,nchar,nreal,ii,l,jj,mm1,itemp
   integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,istat,izz,iprvd,isprvd

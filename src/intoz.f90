@@ -161,7 +161,7 @@ subroutine intozlay_(ozhead,rval,sval)
   real(r_kind),allocatable,dimension(:,:) :: soz
   real(r_kind),allocatable,dimension(:,:) :: roz
   type(oz_ob_type), pointer :: ozptr
-  real(r_kind),dimension(nloz_omi):: efficiency, val_lay
+  real(r_kind),dimension(nloz_omi):: val_lay
 
 ! Retrieve pointers
 ! Simply return if any pointer not found

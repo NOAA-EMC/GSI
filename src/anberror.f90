@@ -627,8 +627,6 @@ contains
     use berror, only: vprecond
     implicit none
 
-    integer(i_kind) k
-
     deallocate(an_amp)
     deallocate(afact0)
     deallocate(qvar3d)

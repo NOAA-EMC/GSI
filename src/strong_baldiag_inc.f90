@@ -148,7 +148,7 @@ subroutine strong_baldiag_inc(sval,nsval)
      if (lcld) then
         if (icw==0) then
 !_RT       call gsi_bundlegetpointer(sval(ii),'cw', p_cw, istatus)
-           call calctends_tl(sval,dhat_dt,mype,nnnn1o)
+           call calctends_tl(sval(ii),dhat_dt,mype)
         else
            call gsi_bundlegetpointer(sval(ii),'qi', p_cw, istatus)
            call gsi_bundlegetpointer(sval(ii),'ql', p_ql, istatus)
@@ -156,7 +156,7 @@ subroutine strong_baldiag_inc(sval,nsval)
            allocate(cw_hold(size(p_ql,1),size(p_ql,2),size(p_ql,3)))
            cw_hold=p_cw
            p_cw=p_ql+p_qi
-           call calctends_tl(sval,dhat_dt,mype,nnnn1o)
+           call calctends_tl(sval(ii),dhat_dt,mype)
            p_cw=cw_hold
            deallocate(cw_hold)
 !          call calctends_tl( &
@@ -172,7 +172,7 @@ subroutine strong_baldiag_inc(sval,nsval)
              !RTodling: Emily we need to talk about ... dhat_dt_ql not used anyway!
         end if
      else
-        call calctends_tl(sval,dhat_dt,mype,nnnn1o) 
+        call calctends_tl(sval(ii),dhat_dt,mype) 
      end if
 
      if(nvmodes_keep>0) then
