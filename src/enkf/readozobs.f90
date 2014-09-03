@@ -41,7 +41,7 @@ subroutine get_num_ozobs(obspath,datestring,num_obs_tot,id)
     character(20) :: isis     ! sensor/instrument/satellite id
     character(10) :: obstype  !  type of ozone obs
     character(10) :: dplat    ! sat sensor
-    real(r_kind), allocatable, dimension(:) :: err,grs,pob
+    real(r_single), allocatable, dimension(:) :: err,grs,pob
     real(r_single),allocatable,dimension(:,:)::diagbuf
     real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
     real(r_kind) :: errorlimit,errorlimit2
@@ -124,8 +124,8 @@ subroutine get_ozobs_data(obspath, datestring, nobs_max, h_x, h_xnobc, x_obs, x_
   real(r_single),allocatable,dimension(:,:)::diagbuf,diagbuf2
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf,rdiagbuf2
   integer(i_kind),allocatable,dimension(:,:)::idiagbuf,idiagbuf2
-  real(r_kind), allocatable, dimension(:) :: err,grs,pob
-  real(r_kind), allocatable, dimension(:) :: err2,grs2,pob2
+  real(r_single), allocatable, dimension(:) :: err,grs,pob
+  real(r_single), allocatable, dimension(:) :: err2,grs2,pob2
   integer(i_kind), allocatable, dimension(:) :: iouse,iouse2
   logical twofiles, fexist
   real(r_kind) :: errorlimit,errorlimit2
