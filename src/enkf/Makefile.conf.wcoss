@@ -13,13 +13,14 @@ W3EMC_VERSION = 2.0.5
 W3NCO_VERSION = 2.0.6
 NEMSIO_VERSION = 2.2.1
 BACIO_VERSION = 2.0.1
+BUFR_VERSION = 10.2.5
 CRTM_VERSION = 2.1.3
 
 COREINC  = /nwprod/lib/incmod
 CORELIB  = /nwprod/lib
 INCsfcio = $(COREINC)/sfcio_v$(SFCIO_VERSION)_4
 INCsigio = $(COREINC)/sigio_v$(SIGIO_VERSION)_4
-INCnemsio = $(COREINC)/nemsio_v$(SIGIO_VERSION)_4
+INCnemsio = $(COREINC)/nemsio_v$(NEMSIO_VERSION)
 
 NETCDFPATH = /usrx/local/NetCDF/$(NETCDF_VERSION)
 INCnetcdf  = $(NETCDFPATH)/include
@@ -59,11 +60,11 @@ GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_6
 
   FFLAGS_F90    = -DGFS
 
-  FFLAGS_COM_N  = -I ./ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio) \
+  FFLAGS_COM_N  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio) \
 		-O3 -fp-model strict -convert big_endian -assume byterecl \
 		-implicitnone $(OMP)
 
-  FFLAGS_COM_N_NOSWAP  = -I ./ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
+  FFLAGS_COM_N_NOSWAP  = -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
 		-O3 -fp-model strict -convert big_endian -assume byterecl \
 		-implicitnone $(OMP)
 
@@ -74,10 +75,10 @@ GSILIBS   = -L$(CORELIB) -lw3emc_v$(W3EMC_VERSION)_d -lbufr_v$(BUFR_VERSION)_d_6
 
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
+  FFLAGS_COM_D  =  -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
 		-O0 -fp-model strict -convert big_endian -assume byterecl \
 		-implicitnone -warn all -g -traceback -debug all -check all
-  FFLAGS_COM_NOSWAP_D  =  -I ./ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
+  FFLAGS_COM_NOSWAP_D  =  -I ./ -I ../ -I $(INCsfcio) -I $(INCsigio) -I $(INCnetcdf) -I $(INCnemsio)\
   		       -O0 -fp-model strict -convert big_endian -assume byterecl \
 		       -implicitnone -warn all -g -traceback -debug all -check all
   FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
