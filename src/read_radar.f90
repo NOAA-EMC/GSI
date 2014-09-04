@@ -1531,11 +1531,17 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   t4dv=real(minobs-iwinbgn,r_kind)*r60inv
   if (l4dvar) then
-     if (t4dv<zero .OR. t4dv>winlen) goto 70
+     if (t4dv<zero .OR. t4dv>winlen) then
+        ntimeout=ntimeout+1
+        goto 70
+     end if
      timeo=t4dv
   else
      timeo = real(minobs-mincy,r_kind)*r60inv
-     if (abs(timeo)>twind) goto 70
+     if (abs(timeo) > twind .or. abs(timeo) > ctwind(ikx)) then
+        ntimeout=ntimeout+1
+        goto 70
+     end if
   endif
 
   timemax=max(timemax,timeo)
@@ -2231,31 +2237,31 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      call del3grids
   endif
 
-  write(6,*)'READ_RADAR:  ',trim(outmessage),' reached eof on tail Doppler radar file.'
-
-  write(6,*)'READ_RADAR: nmrecs,nread,nmissing=', nmrecs, nread, nmissing
-  write(6,*)'READ_RADAR: nsubzero=', nsubzero
-  write(6,*)'READ_RADAR: maxout, maxdata=', maxout, maxdata
-  write(6,*)'READ_RADAR: ntdrvr_in,ntdrvr_kept=',ntdrvr_in,ntdrvr_kept
+  write(6,*)'READ_RADAR: # records(beams) read in nmrecs=', nmrecs
+  write(6,*)'READ_RADAR: # records out of time window =', ntimeout
+  write(6,*)'READ_RADAR: # records with bad tilt=',ibadtilt
+  write(6,*)'READ_RADAR: # records with bad station height =',ibadstaheight
+  write(6,*)'READ_RADAR: # data read in nread=', nread 
+  write(6,*)'READ_RADAR: # data with missing value nmissing=', nmissing
+  write(6,*)'READ_RADAR: # data likely to be below sealevel nsubzero=', nsubzero
+  write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1 
+  write(6,*)'READ_RADAR: # data retained after thinning along the beam ntdrvr_in=', ntdrvr_in
+  write(6,*)'READ_RADAR: # out of domain =', noutside
+  write(6,*)'READ_RADAR: # out of range =', nirrr
+  write(6,*)'READ_RADAR: # bad azimuths =',ibadazm
+  write(6,*)'READ_RADAR: # bad winds (<2m/s or >71m/s) =',ibadwnd
+  write(6,*)'READ_RADAR: # bad ranges   =',ibadrange
+  write(6,*)'READ_RADAR: # bad distance from radar =',ibaddist
+  write(6,*)'READ_RADAR: # bad obs height =',ibadheight
+  write(6,*)'READ_RADAR: # bad data =',notgood0
+  write(6,*)'READ_RADAR: # data retained after QC ntdrvr_kept=', ntdrvr_kept
+  write(6,*)'READ_RADAR: # data removed by thinning mesh ntdrvr_thin2=', ntdrvr_thin2
   if(l_foreaft_thin)then
     write(6,*)'READ_RADAR: nforeswp,naftswp,nswp=',nforeswp,naftswp,nswp
     write(6,*)'READ_RADAR: ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp=',ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp
     write(6,*)'READ_RADAR: data retained for further processing nfore,naft=',nfore,naft
   end if
-  write(6,*)'READ_RADAR: ntdrvr_thin1,ntdrvr_thin2=',ntdrvr_thin1,ntdrvr_thin2
   write(6,*)'READ_RADAR: data retained for further processing =', jjj
-  write(6,*)'READ_RADAR: # out of domain =', noutside
-  write(6,*)'READ_RADAR: # out of time window =', ntimeout
-  write(6,*)'READ_RADAR: # out of range =', nirrr
-  write(6,*)'READ_RADAR: # bad azimuths=',ibadazm
-  write(6,*)'READ_RADAR: # bad tilt=',ibadtilt
-  write(6,*)'READ_RADAR: # bad winds   =',ibadwnd
-  write(6,*)'READ_RADAR: # bad dists   =',ibaddist
-  write(6,*)'READ_RADAR: # bad ranges   =',ibadrange
-  write(6,*)'READ_RADAR: # bad stahgts =',ibadstaheight
-  write(6,*)'READ_RADAR: # bad obshgts =',ibadheight
-  write(6,*)'READ_RADAR: # notgood0    =',notgood0
-  write(6,*)'READ_RADAR: # notgood     =',notgood
   write(6,*)'READ_RADAR: timemin,max   =',timemin,timemax
   write(6,*)'READ_RADAR: elevmin,max   =',elevmin,elevmax
   write(6,*)'READ_RADAR: dlatmin,max,dlonmin,max=',dlatmin,dlatmax,dlonmin,dlonmax
