@@ -167,8 +167,8 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   integer(i_kind)               ,intent(in   ) :: ndata,lunout,mm1
   integer(i_kind),dimension(npe),intent(inout) :: nobs_s
   integer(i_kind)               ,intent(  out) :: mype_diag
-  character(14)                 ,intent(in   ) :: obsfile
-  character(10)                 ,intent(in   ) :: obstypeall
+  character(len=*)              ,intent(in   ) :: obsfile
+  character(len=*)              ,intent(in   ) :: obstypeall
 
 ! Declare local variables
   integer(i_kind) lon,lat,lat_data,lon_data,n,k,lunin
@@ -196,10 +196,10 @@ subroutine disobs(ndata,mm1,lunout,obsfile,obstypeall,mype_diag,nobs_s)
   end do
 
   lunin=11
-  open(lunin,file=obsfile,form='unformatted')
+  open(lunin,file=trim(obsfile),form='unformatted')
   read(lunin)obstype,isis,nreal,nchanl,lat_data,lon_data
-  if(obstype /=obstypeall) &
-        write(6,*)'DISOBS:  ***ERROR***   obstype,obstypeall=',obstype,obstypeall
+  if(trim(obstype) /=trim(obstypeall)) &
+        write(6,*)'DISOBS:  ***ERROR***   obstype,obstypeall=',trim(obstype),trim(obstypeall)
 
   nn_obs = nreal + nchanl
 

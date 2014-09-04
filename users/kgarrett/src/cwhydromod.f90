@@ -29,7 +29,7 @@ use kinds, only: r_kind,i_kind
 use constants, only: zero,one,r0_05,t0c,fv,max_varname_length
 use gridmod, only: lat2,lon2,nsig
 use guess_grids, only: ges_tsen,ntguessig
-use jfunc, only: cwgues
+use derivsmod, only: cwgues
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: gsi_bundlegetpointer
 implicit none

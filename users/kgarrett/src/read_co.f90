@@ -45,7 +45,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile,jsatid
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   integer(i_kind) ,intent(in   ) :: lunout,ithin
   integer(i_kind) ,intent(inout) :: nread
   integer(i_kind) ,intent(inout) :: ndata,nodata
@@ -136,7 +136,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 !    Read in observations from ascii file 
 
 !    Opening file for reading
-     open(lunin,file=infile,form='formatted',iostat=iferror)
+     open(lunin,file=trim(infile),form='formatted',iostat=iferror)
      lerror = (iferror/=0)
 
 110  continue
@@ -204,8 +204,7 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      
 !    Write co record to output file
      ndata=min(ndata+1,maxobs)
-     ndata=1 
-     nodata=nlco
+     nodata=nodata+nlco
      
      coout(1,ndata)=rsat
      coout(2,ndata)=t4dv
@@ -239,13 +238,17 @@ subroutine read_co(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 ! Write header record and data to output file for further processing
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((coout(k,i),k=1,ncodat+nchanl),i=1,ndata)
-  nread=10 
+  nread=ndata ! nmrecs
 
 
 ! Deallocate local arrays
 160 continue
-  deallocate(coout)
-  if (obstype == 'mopitt') deallocate(pco)
+  if (obstype == 'mopitt') then
+     deallocate(aker)
+     deallocate(apco)
+     deallocate(pco)
+     deallocate(coout)
+  endif
   close(lunin)
 
   return

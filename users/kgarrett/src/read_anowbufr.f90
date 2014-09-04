@@ -54,7 +54,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
   real(r_kind)    ,intent(in   ) :: gstime,twindin
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   
   
 ! declare local parameters
@@ -122,7 +122,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   nodata = 0
 
 ! open, then read date from bufr data
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 

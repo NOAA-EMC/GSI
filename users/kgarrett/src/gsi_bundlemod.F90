@@ -171,7 +171,7 @@ module GSI_BundleMod
       character(len=MAXSTR) :: shortname           ! name, e.g., 'ps'
       character(len=MAXSTR) :: longname            ! longname, e.g., 'Surface Pressure'
       character(len=MAXSTR) :: units               ! units, e.g. 'hPa'
-      integer               :: myKind = -1         ! no default
+      integer(i_kind)       :: myKind = -1         ! no default
       real(r_single), pointer :: qr4(:) => null()  ! rank-1 real*4 field
       real(r_double), pointer :: qr8(:) => null()  ! rank-1 real*8 field
       real(r_kind),   pointer :: q  (:) => null()  ! points to intrisic rank-1 default precision
@@ -181,7 +181,7 @@ module GSI_BundleMod
       character(len=MAXSTR) :: shortname
       character(len=MAXSTR) :: longname
       character(len=MAXSTR) :: units
-      integer               :: myKind = -1            ! no default
+      integer(i_kind)       :: myKind = -1            ! no default
       real(r_single), pointer :: qr4(:,:) => null()   ! rank-2 real*4 field
       real(r_double), pointer :: qr8(:,:) => null()   ! rank-2 real*8 field
       real(r_kind),   pointer :: q  (:,:) => null()   ! points to intrisic rank-2 default precision
@@ -191,8 +191,8 @@ module GSI_BundleMod
       character(len=MAXSTR) :: shortname
       character(len=MAXSTR) :: longname
       character(len=MAXSTR) :: units
-      logical               :: edge                   ! edge field: 3rd dim is km+1
-      integer               :: myKind = -1            ! no default
+      integer(i_kind)       :: level                  ! level: size of rank3 other than km
+      integer(i_kind)       :: myKind = -1            ! no default
       real(r_single), pointer :: qr4(:,:,:) => null() ! rank-3 real*4 field
       real(r_double), pointer :: qr8(:,:,:) => null() ! rank-3 real*8 field
       real(r_kind),   pointer :: q  (:,:,:) => null() ! points to intrisic rank-3 default precision
@@ -608,7 +608,7 @@ CONTAINS
 !
 
  subroutine set0_ ( Bundle, grid, name, istatus, &
-                    names1d, names2d, names3d, edges, bundle_kind )
+                    names1d, names2d, names3d, levels, bundle_kind )
 
 ! !INPUT PARAMETERS:
 
@@ -617,9 +617,10 @@ CONTAINS
     character(len=*),OPTIONAL,intent(in) :: names1d(:) ! 1-d variable names
     character(len=*),OPTIONAL,intent(in) :: names2d(:) ! 2-d variable names
     character(len=*),OPTIONAL,intent(in) :: names3d(:) ! 3-d variable names
-    logical,         OPTIONAL,intent(in) :: edges(:)   ! array of size(names3d)
-                                                       ! indicating which are
-                                                       ! edge(.t.) fields
+    integer(i_kind), OPTIONAL,intent(in) :: levels(:)  ! array of size(names3d)
+                                                       ! indicating third dim
+                                                       ! of fields (possibly
+                                                       ! diff from km)
     integer,         OPTIONAL,intent(in) :: bundle_kind! overall bundle kind
 
 ! !INPUT/OUTPUT PARAMETERS:
@@ -644,6 +645,7 @@ CONTAINS
 !  05May2010 Todling  Initial code.
 !  12May2010 Todling  Add handle for edges.
 !  16May2010 Todling  Pass the grid instead of im,jm,km.
+!  22Oct2013 Todling  Replace edges with levels.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -651,7 +653,7 @@ CONTAINS
     character(len=*),parameter :: myname_=myname//'*set0_'
 
     integer(i_kind) :: im,jm,km,i,ii,nd,n1d,n2d,n3d,ndim1d,ndim2d,ndim3d,ntotal
-    integer(i_kind) :: mold2(2,2), mold3(2,2,2),ndim3d1,km1,ndim3de
+    integer(i_kind) :: mold2(2,2), mold3(2,2,2),ndim3d1,km1
 
     n1d = -1
     n2d = -1
@@ -669,7 +671,6 @@ CONTAINS
     ndim1d=im
     ndim2d=ndim1d*jm
     ndim3d=ndim2d*km
-    ndim3de=ndim2d*(km+1)
     if ( present(bundle_kind)) then
        Bundle%AllKinds = bundle_kind
     else
@@ -686,7 +687,7 @@ CONTAINS
             allocate(Bundle%r1(n1d), stat=istatus) 
             call init_ (Bundle%r1(:),n1d,names1d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init1), ', istatus
                call stop2(999)
             endif
             ntotal=ntotal+n1d*ndim1d
@@ -700,7 +701,7 @@ CONTAINS
             allocate(Bundle%r2(n2d), stat=istatus) 
             call init_ (Bundle%r2(:),n2d,names2d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init2), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init2), ', istatus
                call stop2(999)
             endif
             ntotal=ntotal+n2d*ndim2d
@@ -714,21 +715,21 @@ CONTAINS
             allocate(Bundle%r3(n3d), stat=istatus) 
             call init_ (Bundle%r3(:),n3d,names3d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init3), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init3), ', istatus
                call stop2(999)
             endif
-            if (present(edges)) then
+            if (present(levels)) then
                do i=1,n3d
-                  Bundle%r3(i)%edge = edges(i)
-                  if(edges(i)) then
-                     ntotal=ntotal+ndim3de
+                  Bundle%r3(i)%level = levels(i)
+                  if(levels(i)/=km) then
+                     ntotal=ntotal+ndim2d*levels(i)
                   else
                      ntotal=ntotal+ndim3d
                   endif
                enddo
             else
                do i=1,n3d
-                  Bundle%r3(i)%edge = .false.
+                  Bundle%r3(i)%level = km
                enddo
                ntotal=ntotal+n3d*ndim3d
             endif
@@ -739,7 +740,7 @@ CONTAINS
     if(n2d>0) allocate(Bundle%ival2(n2d),stat=istatus)
     if(n3d>0) allocate(Bundle%ival3(n3d),stat=istatus)
     if(istatus/=0) then
-       write(6,*) myname_, ':trouble allocating bundle ivals, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' ivals, ', istatus
        call stop2(999)
     endif
 
@@ -747,9 +748,9 @@ CONTAINS
     if (n3d>0) then
         do i = 1, n3d
            km1=km; ndim3d1=ndim3d
-           if(Bundle%r3(i)%edge) then
-              km1=km1+1
-              ndim3d1=ndim3de
+           if(Bundle%r3(i)%level/=km) then
+              km1=Bundle%r3(i)%level
+              ndim3d1=ndim2d*km1
            endif
            if (Bundle%r3(i)%myKind == r_single) then
 #ifdef _REAL4_
@@ -767,7 +768,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r3, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r3, ', istatus
                call stop2(999)
            endif
            Bundle%ival3(i) =  ii+1
@@ -792,7 +793,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r2, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r2, ', istatus
                call stop2(999)
            endif
            Bundle%ival2(i) =  ii+1
@@ -817,7 +818,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r1, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r1, ', istatus
                call stop2(999)
            endif
            Bundle%ival1(i) =  ii+1
@@ -828,7 +829,7 @@ CONTAINS
        Bundle%ndim = ntotal
     else
        istatus=1
-       write(6,*) myname_, ':trouble allocating bundle ivals, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' ivals, ', istatus
        call stop2(999)
     endif
 
@@ -906,7 +907,7 @@ CONTAINS
             allocate(Bundle%r1(n1d), stat=istatus) 
             call init_ (Bundle%r1(:),n1d,names1d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init1), ', istatus
                call stop2(999)
             endif
             ntotal=ntotal+n1d*ndim1d
@@ -916,7 +917,7 @@ CONTAINS
 
     if(n1d>0) allocate(Bundle%ival1(n1d),stat=istatus)
     if(istatus/=0) then
-       write(6,*) myname_, ':trouble allocating bundle ivals, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' ivals, ', istatus
        call stop2(999)
     endif
 
@@ -939,7 +940,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r1, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r1, ', istatus
                call stop2(999)
            endif
            Bundle%ival1(i) =  ii+1
@@ -950,7 +951,7 @@ CONTAINS
        Bundle%ndim = ntotal
     else
        istatus=1
-       write(6,*) myname_, ':trouble allocating bundle ivals, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' ivals, ', istatus
        call stop2(999)
     endif
 
@@ -967,7 +968,7 @@ CONTAINS
 ! !INTERFACE:
 !
  subroutine create1_ ( Bundle, grid, name, istatus, &
-                       names1d, names2d, names3d, edges, bundle_kind )
+                       names1d, names2d, names3d, levels, bundle_kind )
 
     implicit none
 
@@ -978,8 +979,9 @@ CONTAINS
     character(len=*),OPTIONAL,intent(in) :: names1d(:) ! 1-d variable names
     character(len=*),OPTIONAL,intent(in) :: names2d(:) ! 2-d variable names
     character(len=*),OPTIONAL,intent(in) :: names3d(:) ! 3-d variable names
-    logical,         OPTIONAL,intent(in) :: edges(:)   ! arrays of size(names3d)
-                                                       ! indicating whose edge(.t.)
+    integer(i_kind), OPTIONAL,intent(in) :: levels(:)  ! arrays of size(names3d)
+                                                       ! indicating level of 3d
+                                                       ! fields (may diff from km)
     integer,         OPTIONAL,intent(in) :: bundle_kind! overall bundle kind
 
 
@@ -1005,13 +1007,14 @@ CONTAINS
 !  03May2010 Treadon  Add (:) to Bundle%r1, %r2, %r3 when calling init_.
 !  10May2010 Todling  Add handling for edge-like fields.
 !  16May2010 Todling  Pass the grid instead of im,jm,km.
+!  22Oct2013 Todling  Replace edges with levels.
 !
 !EOP
 !-------------------------------------------------------------------------
 !noBOC
     character(len=*),parameter :: myname_=myname//'*create1_'
 
-    integer(i_kind) :: i,ii,nd,n1d,n2d,n3d,ndim1d,ndim2d,ndim3d,ndim3de,ntotal
+    integer(i_kind) :: i,ii,nd,n1d,n2d,n3d,ndim1d,ndim2d,ndim3d,ntotal
     integer(i_kind) :: im,jm,km,km1,ndim3d1
     integer(i_kind) :: mold2(2,2), mold3(2,2,2)
 
@@ -1029,7 +1032,6 @@ CONTAINS
     ndim1d=im
     ndim2d=ndim1d*jm
     ndim3d=ndim2d*km
-    ndim3de=ndim2d*(km+1)
     if (present(bundle_kind)) then
         Bundle%AllKinds = bundle_kind
     else
@@ -1045,7 +1047,7 @@ CONTAINS
             n1d=nd
             allocate(Bundle%r1(n1d), stat=istatus) 
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(r1), ', istatus
                call stop2(999)
             endif
             ntotal=ntotal+n1d*ndim1d
@@ -1058,7 +1060,7 @@ CONTAINS
             n2d=nd
             allocate(Bundle%r2(n2d), stat=istatus) 
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init2), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(r2), ', istatus
                call stop2(999)
             endif
             ntotal=ntotal+n2d*ndim2d
@@ -1071,21 +1073,21 @@ CONTAINS
             n3d=nd
             allocate(Bundle%r3(n3d), stat=istatus) 
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init3), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(r3), ', istatus
                call stop2(999)
             endif
-            if (present(edges)) then
+            if (present(levels)) then
                do i=1,n3d
-                  Bundle%r3(i)%edge = edges(i)
-                  if(edges(i)) then
-                     ntotal=ntotal+ndim3de
+                  Bundle%r3(i)%level = levels(i)
+                  if(levels(i)/=km) then
+                     ntotal=ntotal+ndim2d*levels(i)
                   else
                      ntotal=ntotal+ndim3d
                   endif
                enddo
             else
                do i=1,n3d
-                  Bundle%r3(i)%edge = .false.
+                  Bundle%r3(i)%level = km
                enddo
                ntotal=ntotal+n3d*ndim3d
             endif
@@ -1115,7 +1117,7 @@ CONTAINS
         istatus = 999
     endif
     if(istatus/=0) then
-       write(6,*) myname_, ':trouble allocating bundle values, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' values, ', istatus
        call stop2(999)
     endif
 
@@ -1123,7 +1125,7 @@ CONTAINS
     if(n2d>0) allocate(Bundle%ival2(n2d),stat=istatus)
     if(n3d>0) allocate(Bundle%ival3(n3d),stat=istatus)
     if(istatus/=0) then
-       write(6,*) myname_, ':trouble allocating bundle ivals, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' ivals, ', istatus
        call stop2(999)
     endif
 
@@ -1131,7 +1133,7 @@ CONTAINS
         if (n3d>0) then
             call init_ (Bundle%r3(:),n3d,names3d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init3), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init3), ', istatus
                call stop2(999)
             endif
         endif
@@ -1140,7 +1142,7 @@ CONTAINS
         if (n2d>0) then
             call init_ (Bundle%r2(:),n2d,names2d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init2), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init2), ', istatus
                call stop2(999)
             endif
         endif
@@ -1149,7 +1151,7 @@ CONTAINS
         if (n1d>0) then
             call init_ (Bundle%r1(:),n1d,names1d,istatus,thisKind=Bundle%AllKinds)
             if(istatus/=0)then
-               write(6,*) myname_, ':trouble allocating bundle(init1), ', istatus
+               write(6,*) myname_, ':trouble allocating ',trim(name),'(init1), ', istatus
                call stop2(999)
             endif
         endif
@@ -1159,9 +1161,9 @@ CONTAINS
     if (n3d>0) then
         do i = 1, n3d
            km1=km; ndim3d1=ndim3d
-           if(Bundle%r3(i)%edge) then
-              km1=km1+1
-              ndim3d1=ndim3de
+           if(Bundle%r3(i)%level/=km) then
+              km1=Bundle%r3(i)%level
+              ndim3d1=ndim2d*km1
            endif
            if (Bundle%r3(i)%myKind == r_single) then
 #ifdef _REAL4_
@@ -1179,7 +1181,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r3, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r3, ', istatus
                call stop2(999)
            endif
            Bundle%ival3(i) =  ii+1
@@ -1204,7 +1206,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r2, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r2, ', istatus
                call stop2(999)
            endif
            Bundle%ival2(i) =  ii+1
@@ -1229,7 +1231,7 @@ CONTAINS
 #endif
            else
                istatus = 999
-               write(6,*) myname_, ':trouble assigining bundle r1, ', istatus
+               write(6,*) myname_, ':trouble assigining ',trim(name),' r1, ', istatus
                call stop2(999)
            endif
            Bundle%ival1(i) =  ii+1
@@ -1240,7 +1242,7 @@ CONTAINS
        Bundle%ndim = ntotal
     else
        istatus=1
-       write(6,*) myname_, ':trouble allocating bundle ivals, ', istatus
+       write(6,*) myname_, ':trouble allocating ',trim(name),' ivals, ', istatus
        call stop2(999)
     endif
 
@@ -1251,7 +1253,7 @@ CONTAINS
     Bundle%n3d=n3d
 
     if ( redundant_(Bundle) ) then
-        write(6,*) myname_, ': bundle has redundant names, aborting ...'
+        write(6,*) myname_, ': ',trim(name),' has redundant names, aborting ...'
         call stop2(999)
     endif
 
@@ -1289,6 +1291,7 @@ CONTAINS
 !
 !  05May2010 Todling  Initial code.
 !  10May2010 Todling  Update to handle edges.
+!  22Oct2013 Todling  Replace edges with levels.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1297,7 +1300,7 @@ CONTAINS
     character(len=*),parameter::myname_=myname//'*create2_'
     integer(i_kind) ::  i,k,n1d,n2d,n3d,this_bundle_kind
     character(len=MAXSTR),allocatable::names1d(:),names2d(:),names3d(:)
-    logical,allocatable::edges(:)
+    integer(i_kind),allocatable::levels(:)
 
     n1d = max(0,Bundle%n1d)
     n2d = max(0,Bundle%n2d)
@@ -1314,18 +1317,18 @@ CONTAINS
        names2d(k)=trim(Bundle%r2(k)%shortname)
     enddo
 
-    allocate(edges(n3d))
+    allocate(levels(n3d))
     do k=1,n3d
        names3d(k)=trim(Bundle%r3(k)%shortname)
-       edges(k)=Bundle%r3(k)%edge
+       levels(k)=Bundle%r3(k)%level
     enddo
     this_bundle_kind = Bundle%AllKinds
 
     call create1_ ( NewBundle, Bundle%grid, trim(name), istatus, &
                     names1d=names1d,names2d=names2d,names3d=names3d, &
-                    edges=edges, bundle_kind=this_bundle_kind )
+                    levels=levels, bundle_kind=this_bundle_kind )
 
-    deallocate(edges)
+    deallocate(levels)
     deallocate(names3d)
     deallocate(names2d)
     deallocate(names1d)
@@ -1365,6 +1368,7 @@ CONTAINS
 !
 !  05May2010 Todling  Initial code.
 !  10May2010 Todling  Update to handle edges.
+!  22Oct2013 Todling  Replace edges with levels.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1373,7 +1377,7 @@ CONTAINS
     character(len=*),parameter::myname_=myname//'*create3_'
     integer(i_kind) ::  i,k,n1d,n2d,n3d,im,jm,km,this_bundle_kind
     character(len=MAXSTR),allocatable::names1d(:),names2d(:),names3d(:)
-    logical,allocatable::edges(:)
+    integer(i_kind),allocatable::levels(:)
     type(GSI_Grid) :: grid
 
     istatus=0
@@ -1390,7 +1394,7 @@ CONTAINS
     allocate(names1d(n1d))
     allocate(names2d(n2d))
     allocate(names3d(n3d))
-    allocate(edges(n3d))
+    allocate(levels(n3d))
 
     i=0
     do k=1,Bundle1%n1d
@@ -1418,12 +1422,12 @@ CONTAINS
     do k=1,Bundle1%n3d
        i=i+1
        names3d(i)=trim(Bundle1%r3(k)%shortname)
-       edges  (i)=Bundle1%r3(k)%edge
+       levels (i)=Bundle1%r3(k)%level
     enddo
     do k=1,Bundle2%n3d
        i=i+1
        names3d(i)=trim(Bundle2%r3(k)%shortname)
-       edges  (i)=Bundle2%r3(k)%edge
+       levels (i)=Bundle2%r3(k)%level
     enddo
     if (Bundle1%AllKinds/=Bundle2%AllKinds) then
         print*, 'bundles have diff Kinds: ', Bundle1%AllKinds,Bundle2%AllKinds
@@ -1434,7 +1438,7 @@ CONTAINS
 
     call create1_ ( MergeBundle, grid, name, istatus, &
                     names1d=names1d, names2d=names2d, names3d=names3d, &
-                    edges=edges, bundle_kind=this_bundle_kind )
+                    levels=levels, bundle_kind=this_bundle_kind )
 
     if ( redundant_(MergeBundle) ) then
         print*, MergeBundle%n1d
@@ -1446,7 +1450,7 @@ CONTAINS
         call stop2(999)
     endif
 
-    deallocate(edges)
+    deallocate(levels)
     deallocate(names3d)
     deallocate(names2d)
     deallocate(names1d)
@@ -2654,6 +2658,7 @@ CONTAINS
 ! !REVISION HISTORY:
 !
 !  05May2010 Todling  Initial code.
+!  22Oct2013 Todling  Add refinement to inq 1d/2d/3d vars separately.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -2661,11 +2666,35 @@ CONTAINS
 
     integer(i_kind) :: i,ii
 
-    if(size(vars)<Bundle%NumVars) then
-       istatus=1
-       return
-    endif
+!   if(size(vars)<Bundle%NumVars) then
+!      istatus=1
+!      return
+!   endif
     istatus=1
+    if(trim(what)=='shortnames::1d') then
+       ii=0
+       do i=1,Bundle%n1d
+          ii=ii+1
+          vars(ii)=Bundle%r1(i)%shortname
+       enddo
+       istatus=0
+    endif
+    if(trim(what)=='shortnames::2d') then
+       ii=0
+       do i=1,Bundle%n2d
+          ii=ii+1
+          vars(ii)=Bundle%r2(i)%shortname
+       enddo
+       istatus=0
+    endif
+    if(trim(what)=='shortnames::3d') then
+       ii=0
+       do i=1,Bundle%n3d
+          ii=ii+1
+          vars(ii)=Bundle%r3(i)%shortname
+       enddo
+       istatus=0
+    endif
     if(trim(what)=='shortnames') then
        ii=0
        do i=1,Bundle%n1d
@@ -2910,7 +2939,7 @@ CONTAINS
      bundo%r3(1:bundo%n3d)%shortname=bundi%r3%shortname
      bundo%r3(1:bundo%n3d)%longname =bundi%r3%longname
      bundo%r3(1:bundo%n3d)%units    =bundi%r3%units
-     bundo%r3(1:bundo%n3d)%edge     =bundi%r3%edge
+     bundo%r3(1:bundo%n3d)%level    =bundi%r3%level
      bundo%r3(1:bundo%n3d)%mykind   =bundi%r3%mykind
   endif
 

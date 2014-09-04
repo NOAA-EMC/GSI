@@ -43,7 +43,7 @@
       implicit none
 
 !     Declare passed variables
-      character(10),intent(in):: infile,obstype
+      character(len=*),intent(in):: infile,obstype
       character(20),intent(in):: sis
       integer(i_kind),intent(in):: lunout
       integer(i_kind),intent(inout):: nread,ndata,nodata
@@ -93,7 +93,7 @@
       nrtmax=0                       ! # rpts to print per msg type (0=all)
 
       call closbf(lunin)
-      open(lunin,file=infile,form='unformatted')
+      open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)
       call datelen(10)                          ! set dates to 8-digit
@@ -150,7 +150,7 @@
       ilon=2
       ilat=3
       call closbf(lunin)
-      open(lunin,file=infile,form='unformatted')
+      open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)
       call datelen(10)                          ! set dates to 8-digit

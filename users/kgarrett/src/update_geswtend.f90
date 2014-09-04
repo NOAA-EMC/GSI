@@ -19,6 +19,7 @@
 !   2011-06-29  todling - no explict reference to internal bundle arrays
 !   2012-06-12  parrish - replace mpi_all2allv and all supporting code with general_sub2grid and
 !                         general_grid2sub.
+!   2013-10-19  todling - metguess now holds background
 !
 !   input argument list:
 !     xut,xvt,xtt,xqt,xozt,xcwt,xpt - tendencies
@@ -36,22 +37,23 @@
   use constants, only: zero, one, fv, r3600
   use jfunc, only: l_foto
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,regional
-  use guess_grids, only: ges_div,ges_vor,ges_ps,ges_tv,ges_q,&
-       ges_tsen,ges_oz,ges_u,ges_v,&
-       nfldsig,hrdifsig
+  use guess_grids, only: ges_tsen,nfldsig,hrdifsig
   use compact_diffs, only: uv2vordiv
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use general_commvars_mod, only: s2guv
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
-
+  use gsi_metguess_mod, only: gsi_metguess_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+  use mpeu_util, only: die
   implicit none
 
 ! Declare passed variables
   type(gsi_bundle),intent(in   ) :: xhat_dt
 
 ! Declare local variables
+  character(len=*),parameter::myname='update_geswtend'
   integer(i_kind) i,j,k,it,ier,istatus
   real(r_kind),dimension(nlat,nlon):: usm,vsm
   real(r_kind),dimension(lat2,lon2,nsig):: dvor_t,ddiv_t
@@ -60,6 +62,14 @@
   real(r_kind),pointer,dimension(:,:,:) :: ptr3d
   real(r_kind),pointer,dimension(:,:)   :: xpt
 
+  real(r_kind),dimension(:,:  ),pointer:: ges_ps_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_u_it  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_v_it  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_div_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_vor_it=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_tv_it =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_q_it  =>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: ges_oz_it =>NULL()
 
   real(r_kind) tcon
 
@@ -161,28 +171,47 @@
   
   do it=1,nfldsig
      tcon=hrdifsig(it)*r3600
+     ier=0
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ps',ges_ps_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'u' ,ges_u_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'v' ,ges_v_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'div',ges_div_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'vor',ges_vor_it,istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'tv',ges_tv_it,  istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q', ges_q_it,   istatus)
+     ier=ier+istatus
+     call gsi_bundlegetpointer (gsi_metguess_bundle(it),'oz',ges_oz_it,  istatus)
+     ier=ier+istatus
+     if(ier/=0) call die(myname,'missing fields, ier= ', ier)
+
      do k=1,nsig
         do j=1,lon2
            do i=1,lat2
-              ges_u(i,j,k,it)    = ges_u(i,j,k,it) + xut(i,j,k)*tcon
-              ges_v(i,j,k,it)    = ges_v(i,j,k,it) + xvt(i,j,k)*tcon
-              ges_tv(i,j,k,it)   = ges_tv(i,j,k,it)+ xtt(i,j,k)*tcon
-              ges_q(i,j,k,it)    = ges_q(i,j,k,it) + xqt(i,j,k)*tcon
+              ges_u_it(i,j,k)    = ges_u_it(i,j,k) + xut(i,j,k)*tcon
+              ges_v_it(i,j,k)    = ges_v_it(i,j,k) + xvt(i,j,k)*tcon
+              ges_tv_it(i,j,k)   = ges_tv_it(i,j,k)+ xtt(i,j,k)*tcon
+              ges_q_it(i,j,k)    = ges_q_it(i,j,k) + xqt(i,j,k)*tcon
 
 !  produce sensible temperature
-              ges_tsen(i,j,k,it) = ges_tv(i,j,k,it)/(one+fv*max(zero,ges_q(i,j,k,it)))
+              ges_tsen(i,j,k,it) = ges_tv_it(i,j,k)/(one+fv*max(zero,ges_q_it(i,j,k)))
 
 !             Note:  Below variables only used in NCEP GFS model
 
-              ges_oz(i,j,k,it)   = ges_oz(i,j,k,it) + xozt(i,j,k)*tcon
-              ges_div(i,j,k,it)  = ges_div(i,j,k,it) + ddiv_t(i,j,k)*tcon
-              ges_vor(i,j,k,it)  = ges_vor(i,j,k,it) + dvor_t(i,j,k)*tcon
+              ges_oz_it(i,j,k)   = ges_oz_it(i,j,k) + xozt(i,j,k)*tcon
+              ges_div_it(i,j,k)  = ges_div_it(i,j,k) + ddiv_t(i,j,k)*tcon
+              ges_vor_it(i,j,k)  = ges_vor_it(i,j,k) + dvor_t(i,j,k)*tcon
            end do
         end do
      end do
      do j=1,lon2
         do i=1,lat2
-           ges_ps(i,j,it) = ges_ps(i,j,it) + xpt(i,j)*tcon
+           ges_ps_it(i,j) = ges_ps_it(i,j) + xpt(i,j)*tcon
         end do
      end do
 

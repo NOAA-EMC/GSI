@@ -71,7 +71,7 @@ subroutine read_files(mype)
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-  use kinds, only: r_kind,r_single,i_kind
+  use kinds, only: r_kind,r_single,i_kind,i_llong
   use mpimod, only: mpi_rtype,mpi_comm_world,ierror,npe,mpi_itype
   use guess_grids, only: nfldsig,nfldsfc,nfldnst,ntguessig,ntguessfc,ntguesnst,&
        ifilesig,ifilesfc,ifilenst,hrdifsig,hrdifsfc,hrdifnst,create_gesfinfo
@@ -89,6 +89,7 @@ subroutine read_files(mype)
        sigio_sclose,sigio_srhead
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
+  use read_obsmod, only: gsi_inquire
   
   implicit none
 
@@ -119,6 +120,7 @@ subroutine read_files(mype)
   integer(i_kind) :: nfhour, nfminute, nfsecondn, nfsecondd
   integer(i_kind),dimension(:),allocatable:: irec, fcst_hr_sig, &
      fcst_hr_sfc, fcst_hr_nst
+  integer(i_llong) :: lenbytes
   real(r_single) hourg4
   real(r_kind) hourg,t4dv
   real(r_kind),allocatable,dimension(:,:):: time_atm
@@ -144,33 +146,35 @@ subroutine read_files(mype)
   iamana=0
   allocate( irec(max_file) )
 
+! Check for atm files with non-zero length
   irec=i_missing
   do i=0,max_file-1
      write(filename,'(''sigf'',i2.2)')i
-     inquire(file=filename,exist=fexist)
-     if(fexist) then
+     call gsi_inquire(lenbytes,fexist,filename,mype)
+     if(fexist .and. lenbytes>0) then
         nfldsig=nfldsig+1
         irec(nfldsig) = i
      end if
   enddo
   if(nfldsig==0) then
-     write(6,*)'0 atm fields; aborting'
+     write(6,*)'READ_FILES: ***ERROR*** NO atm fields; aborting'
      call stop2(169)
   end if
   allocate( fcst_hr_sig(nfldsig) )
   fcst_hr_sig(:) = irec(1:nfldsig)
 
+! Check for sfc files with non-zero length
   irec=i_missing
   do i=0,max_file-1
      write(filename,'(''sfcf'',i2.2)')i
-     inquire(file=filename,exist=fexist)
-     if(fexist) then
+     call gsi_inquire(lenbytes,fexist,filename,mype)
+     if(fexist .and. lenbytes>0) then
         nfldsfc=nfldsfc+1
         irec(nfldsfc) = i
      end if
   enddo
   if(nfldsfc==0) then
-     write(6,*)'0 sfc fields; aborting'
+     write(6,*)'READ_FILES: ***ERROR* NO sfc fields; aborting'
      call stop2(170)
   end if
   allocate( fcst_hr_sfc(nfldsfc) )
@@ -179,17 +183,18 @@ subroutine read_files(mype)
   allocate(time_atm(nfldsig,2),time_sfc(nfldsfc,2))
 
   if(nst_gsi > 0) then  ! nst application is an option
+!    Check for nsf files with non-zero length
      irec=i_missing
      do i=0,max_file-1
         write(filename,'(''nstf'',i2.2)')i
-        inquire(file=filename,exist=fexist)
-        if(fexist) then
+        call gsi_inquire(lenbytes,fexist,filename,mype)
+        if(fexist .and. lenbytes>0) then
            nfldnst=nfldnst+1
            irec(nfldnst) = i
         end if
      enddo
      if(nfldnst==0) then
-        write(6,*)'0 nst fields; aborting'
+        write(6,*)'READ_FILES: ***ERROR*** NO nst fields; aborting'
         call stop2(170)
      end if
      allocate( fcst_hr_nst(nfldnst) )

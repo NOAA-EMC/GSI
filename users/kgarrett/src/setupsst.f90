@@ -40,7 +40,9 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2008-05-21  safford - rm unused vars and uses
 !   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
 !   2011-04-02  li      - set up Tr analysis and modify to save nst analysis related diagnostic variables
+!   2012-04-10  akella  - sstges calculated for nst analysis using NST fields
 !   2013-01-26  parrish - change intrp2a to intrp2a11 (so debug compile works on WCOSS)
+!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -110,10 +112,11 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) ier,ilon,ilat,isst,id,itime,ikx,imaxerr,iqc
   integer(i_kind) ier2,iuse,izob,itref,idtw,idtc,itz_tr,iotype,ilate,ilone,istnelv
-  integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,jj
+  integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
   integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
   integer(i_kind) istat,id_qc
   integer(i_kind) idomsfc,itz,iff10,isfcr
+  integer(i_kind) idatamax
   
   logical,dimension(nobs):: luse,muse
 
@@ -141,7 +144,7 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   ier=1       ! index of obs error
   ilon=2      ! index of grid relative obs location (x)
   ilat=3      ! index of grid relative obs location (y)
-  isst=4      ! index of sst observation - background
+  isst=4      ! index of sst observation
   id=5        ! index of station id
   itime=6     ! index of observation time in data array
   ikxx=7      ! index of ob type
@@ -162,7 +165,14 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   idtw=22     ! index of dtw
   idtc=23     ! index of dtc
   itz_tr=24   ! index of tz_tr
+  idatamax=24 ! set to largest value in list above
 
+  if(nst_gsi>0) then
+     if(nele<idatamax) then
+        write(6,*)'setupsst: nele inconsistent with idatamax',nele,idatamax
+        call stop2(295)
+     endif
+  endif
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
@@ -189,7 +199,8 @@ subroutine setupsst(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   if(conv_diagsave)then
      ii=0
      nchar=1
-     nreal=maxinfo+nstinfo
+     ioff0=maxinfo+nstinfo
+     nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
@@ -281,7 +292,11 @@ if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
      call intrp2a11(dsfct,dsfct_obx,dlat,dlon,mype)
-     sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
+     if(nst_gsi > 1) then
+       sstges = max(tref+dtw-dtc+dsfct_obx, 271.0_r_kind)
+     else
+       sstges = max(data(itz,i)+dsfct_obx, 271.0_r_kind)
+     end if
 ! Adjust observation error
      ratio_errors=error/data(ier,i)
      error=one/error
@@ -486,8 +501,8 @@ if(.not.in_curbin) cycle
           rdiagbuf(24,ii) = data(itz_tr,i)   ! d(tz)/d(Tr) at zob
         endif
 
+        ioff=ioff0
         if (lobsdiagsave) then
-           ioff=nreal-(4*miter+1)
            do jj=1,miter 
               ioff=ioff+1 
               if (obsdiags(i_sst_ob_type,ibin)%tail%muse(jj)) then
@@ -519,7 +534,7 @@ if(.not.in_curbin) cycle
 ! Write information to diagnostic file
   if(conv_diagsave .and. ii>0)then
      call dtime_show(myname,'diagsave:sst',i_sst_ob_type)
-     write(7)'sst',nchar,nreal,ii,mype
+     write(7)'sst',nchar,nreal,ii,mype,ioff0
      write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
      deallocate(cdiagbuf,rdiagbuf)
   end if

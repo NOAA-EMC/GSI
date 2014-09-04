@@ -93,7 +93,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   
 ! Declare passed variables
   character(len=*),intent(in   ) :: obstype,infile
-  character(len=*),intent(in   ) :: sis
+  character(len=20),intent(in  ) :: sis
   real(r_kind)    ,intent(in   ) :: twind
   integer(i_kind) ,intent(in   ) :: lunout
   integer(i_kind) ,intent(inout) :: nread,ndata,nodata
@@ -250,7 +250,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
 ! Check to see if radar wind files exist.  If none exist, exit this routine.
   inquire(file='radar_supobs_from_level2',exist=lexist1)
-  inquire(file=infile,exist=lexist2)
+  inquire(file=trim(infile),exist=lexist2)
   if (.not.lexist1 .and. .not.lexist2) goto 900
 
   eradkm=rearth*0.001_r_kind
@@ -261,13 +261,17 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   ilat=3
   iaaamax=-huge(iaaamax)
   iaaamin=huge(iaaamin)
+  dlatmax=-huge(dlatmax)
+  dlonmax=-huge(dlonmax)
+  dlatmin=huge(dlatmin)
+  dlonmin=huge(dlonmin)
 
   allocate(cdata_all(maxdat,maxobs),isort(maxobs))
 
   isort = 0
   cdata_all=zero
 
-  if (infile == 'tldplrbufr' .or. infile == 'tldplrso') goto 65
+  if (trim(infile) == 'tldplrbufr' .or. trim(infile) == 'tldplrso') goto 65
 
   ithin=-9
   rmesh=-99.999_r_kind
@@ -305,6 +309,35 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 ! First read in all vad winds so can use vad wind quality marks to decide 
 ! which radar data to keep
 ! Open, then read bufr data
+
+  open(lnbufr,file=vadfile,form='unformatted')
+  call openbf(lnbufr,'IN',lnbufr)
+  call datelen(10)
+
+11 call readsb(lnbufr,iret)
+  if(iret/=0) then
+     call readmg(lnbufr,subset,idate,iret)
+     if(iret/=0) go to 21
+     go to 11
+  end if
+  call ufbint(lnbufr,hdr,7,1,levs,'SID XOB YOB DHR TYP SAID TSB')
+  kx=nint(hdr(5))
+  if(kx /= 224) go to 11       !  for now just hardwire vad wind type
+  if(kx==224 .and. .not.newvad) then
+    if(hdr(7)==2) then
+        newvad=.true.
+        go to 21
+     end if
+  end if 
+! End of bufr read loop
+  go to 11
+
+! Normal exit
+21 continue
+  call closbf(lnbufr)
+
+!  enddo msg_report
+
   open(lnbufr,file=vadfile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -328,9 +361,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   nmrecs = nmrecs+1
 
 ! Read header.  Extract station infomration
-  call ufbint(lnbufr,hdr,6,1,levs,'SID XOB YOB DHR TYP SAID ')
+  call ufbint(lnbufr,hdr,7,1,levs,'SID XOB YOB DHR TYP SAID TSB')
   kx=nint(hdr(5))
   if(kx /= 224) go to 10       !  for now just hardwire vad wind type
+
+! write(6,*)'new vad::',newvad, hdr(7)
+  if(.not.newvad .and. hdr(7)==2) go to 10
+  if(newvad .and. hdr(7)/=2) go to 10
                                !  and don't worry about subtypes
 ! Is vadwnd in convinfo file
   ikx=0
@@ -455,10 +492,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 ! data where it is available and no level 2.5 data was saved/available 
 ! (level2_5=0)
 
-  dlatmax=-huge(dlatmax)
-  dlonmax=-huge(dlonmax)
-  dlatmin=huge(dlatmin)
-  dlonmin=huge(dlonmin)
   vadfit2=zero
   vadfit2_5=zero
   vadfit3=zero
@@ -821,7 +854,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      if(loop==2)     outmessage='level 3 superobs:'
 
 !    Open, then read bufr data
-     open(lnbufr,file=infile,form='unformatted')
+     open(lnbufr,file=trim(infile),form='unformatted')
 
      call openbf(lnbufr,'IN',lnbufr)
      call datelen(10)
@@ -1335,13 +1368,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   if(loop == 3) outmessage='tail Doppler radar obs:'
 
-  if(infile == 'tldplrso') goto 75
+  if(trim(infile) == 'tldplrso') goto 75
 
   nswptype=0
   if(l_foreaft_thin)then
 ! read the first 500 records to deterine which criterion
 ! should be used to seperate fore/aft sweep
-    open(lnbufr,file=infile,form='unformatted')
+    open(lnbufr,file=trim(infile),form='unformatted')
     call openbf(lnbufr,'IN',lnbufr)
     call datelen(10)
     call readmg(lnbufr,subset,idate,iret)
@@ -1399,7 +1432,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   print *,'nmrecs, nswptype=', nmrecs, nswptype
 
 ! Open, then read bufr data
-  open(lnbufr,file=infile,form='unformatted')
+  open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
   call readmg(lnbufr,subset,idate,iret)
@@ -1462,10 +1495,13 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      cstaid='FRENCH  '
   else if(hdr(1)== two)then
      cstaid='G-IV    '
+  else if(hdr(1)== three)then
+     cstaid='AOC     '
   else
-     print *,'Antenna Number is not correct'
-     go to 900
+     cstaid='UNKNOWN '
   endif
+
+  kx=990+nint(hdr(1))
 
   if(nmrecs==1)print *,'Antenna ID:', hdr(1),cstaid
   
@@ -1483,7 +1519,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   idate5(5) = imn
   ikx=0
   do i=1,nconvtype
-     if(trim(ioctype(i)) == trim(obstype))ikx = i
+     if(trim(ioctype(i)) == trim(obstype) .and. kx == ictype(i))ikx = i
   end do
   if(ikx == 0) go to 70
   call w3fs21(idate5,minobs)
@@ -1657,6 +1693,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
         if(regional) then
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+           dlatmax=max(dlat,dlatmax)
+           dlonmax=max(dlon,dlonmax)
+           dlatmin=min(dlat,dlatmin)
+           dlonmin=min(dlon,dlonmin)
            if (outside) then
               noutside=noutside+1
               cycle
@@ -1894,7 +1934,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   call w3fs21(iadate,mincy) ! analysis time in minutes
 
-  open(lnbufr,file=infile,form='formatted',err=300)
+  open(lnbufr,file=trim(infile),form='formatted',err=300)
   rewind (lnbufr)
   do n=1,10
      istop=0
@@ -1981,6 +2021,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
         if(regional) then
            call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+           dlatmax=max(dlat,dlatmax)
+           dlonmax=max(dlon,dlonmax)
+           dlatmin=min(dlat,dlatmin)
+           dlonmin=min(dlon,dlonmin)
            if (outside) then
               noutside=noutside+1
               cycle

@@ -101,11 +101,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2011-11-14  wu     - pass CAT to setup routines for raob level enhancement
 !   2012-04-03  s.liu    - thin new VAD wind 
 !   2012-11-12  s.liu    - identify new VAD wind by vertical resolution 
+!   2012-08-29  akella  - extend nst_gsi option to handle sstobs
 !   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
 !   2013-01-26  parrish - WCOSS debug compile error for pflag used before initialized.
 !                                    Initialize pflag=0 at beginning of subroutine.
+!   2013-02-28  sienkiewicz - put in subset via SAID for kx=290 ASCAT to allow
+!                        separate control of metop-a and metop-b ASCAT if 
+!                        needed
+!   2013-05-03  sienkiewicz - if ACARS SID == 'ACARS' take ID from ACID instead
+!   2013-05-15  zhu  - add phase of aircraft flight and vertical velocity for aircraft data
+!                    - match aircraft obs with temperature bias file 
+!                    - add new tail number info if there is any
+!                    - add aircraft_t_bc_pof and aircraft_t_bc
 !   2013-05-28  wu     - add subroutine sonde_ext and call to the subroutine for ext_sonde option
+!   2013-06-07  zhu  - read aircraft data from prepbufr_profl when aircraft_t_bc=.true.
+!   2013-09-08  s.liu  - increase nmsgmax to 100000 to read NESDIS cloud product
+!   2013-12-08  s.liu  - identify VAD wind based on sub type
 !
+!   2014-02-28  sienkiewicz - added code for option aircraft_t_bc_ext for external aircraft bias table
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -139,6 +152,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde
+  use radinfo,only: nst_gsi,nstinfo
+  use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
+      aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
   use gsi_4dvar, only: l4dvar,time_4dvar,winlen
   use qcmod, only: errormod,noiqc,newvad
@@ -151,6 +167,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use jfunc, only: tsensible
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
+  use gsi_nstcouplermod, only: gsi_nstcoupler_deter
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
 
@@ -158,7 +175,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Declare passed variables
   character(len=*)                      ,intent(in   ) :: infile,obstype
-  character(len=*)                      ,intent(in   ) :: sis
+  character(len=20)                     ,intent(in   ) :: sis
   integer(i_kind)                       ,intent(in   ) :: lunout
   integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
   real(r_kind)                          ,intent(in   ) :: twindin
@@ -185,7 +202,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(80),parameter:: cspval= '88888888'
 
   integer(i_kind),parameter:: mxtb=5000000
-  integer(i_kind),parameter:: nmsgmax=10000 ! max message count
+  integer(i_kind),parameter:: nmsgmax=100000 ! max message count
+! integer(i_kind),parameter:: nmsgmax=10000 ! max message count
 
 ! Declare local variables
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob
@@ -194,6 +212,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical sfctype
   logical luse,ithinp,windcorr
   logical patch_fog
+  logical aircraftset,aircraftobst,aircrafttype
+  logical acft_profl_file
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
 
   character(40) drift,hdstr,qcstr,oestr,sststr,satqcstr,levstr,hdstr2
@@ -206,6 +226,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) c_station_id
   character(1) sidchr(8)
   character(8) stnid
+  character(10) aircraftstr
+  character(1) cb
   logical lhilbert
 
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
@@ -214,7 +236,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) nc,nx,id,isflg,ntread,itx,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs
-  integer(i_kind) kx,nreal,nchanl,ilat,ilon,ithin
+  integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm
   integer(i_kind) lim_tqm,lim_qqm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -226,6 +248,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) minobs,minan
   integer(i_kind) ntb,ntmatch,ncx
   integer(i_kind) nmsg                ! message index
+  integer(i_kind) idx                 ! order index of aircraft temperature bias 
+  integer(i_kind) iyyyymm
+  integer(i_kind) jj,start,next
   integer(i_kind) tab(mxtb,3)
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(nmsgmax):: nrep
@@ -233,6 +258,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
   integer(i_kind),allocatable,dimension(:):: isort,iloc
+  integer(i_kind) ibfms
 
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage
@@ -252,10 +278,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(255):: tvflg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd
-  real(r_double),dimension(8):: hdr
+  real(r_double),dimension(8):: hdr,hdrtsb
+  real(r_double),dimension(3,255):: hdr3
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr
   real(r_double),dimension(11,255):: obsdat
   real(r_double),dimension(8,1):: sstdat
@@ -268,6 +296,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double),dimension(1,255):: levdat
   real(r_double),dimension(255,20):: tpc
   real(r_double),dimension(2,255,20):: tobaux
+  real(r_double),dimension(2,255):: aircraftwk
 
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
@@ -292,6 +321,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   data metarwthstr /'PRWE'/           ! present weather
   data metarvisstr /'HOVI TDO'/       ! visibility and dew point
   data geoscldstr /'CDTP TOCC GCDTT CDTP_QM'/   ! NESDIS cloud products: cloud top pressure, temperature,amount
+  data aircraftstr /'POAF IALR'/      ! phase of aircraft flight and vertical velocity
 
   data lunin / 13 /
   data ithin / -9 /
@@ -315,6 +345,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(80) fcststr
   data fcststr  /'UFC VFC'/
   
+! File type
+  acft_profl_file = index(infile,'_profl')/=0
+
 ! Initialize variables
 
   pflag=0                  !  dparrish debug compile run flags pflag as not defined ???????????
@@ -334,7 +367,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   newvad=.false.
   convobs = tob .or. uvob .or. spdob .or. qob .or. gustob
   if(tob)then
-     nreal=24
+     nreal=25
   else if(uvob) then 
      nreal=24
   else if(spdob) then
@@ -346,7 +379,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(pwob) then
      nreal=20
   else if(sstob) then
-     nreal=20
+     if (nst_gsi > 0) then
+        nreal=20 + nstinfo
+     else
+        nreal=20
+     end if
   else if(gustob) then
      nreal=21
   else if(visob) then
@@ -373,6 +410,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      if (tob)  lim_qqm=4
   endif
 
+  if (tob .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
+       aircraft_t_bc_ext )) nreal=nreal+3
   if(perturb_obs .and. (tob .or. psob .or. qob))nreal=nreal+1
   if(perturb_obs .and. uvob )nreal=nreal+2
 
@@ -385,7 +424,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 ! Open, then read date from bufr data
   call closbf(lunin)
-  open(lunin,file=infile,form='unformatted')
+  open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
@@ -399,8 +438,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           .and. ictype(nc) <260) then 
           cycle
        else
-           ntmatch=ntmatch+1
-           ntxall(ntmatch)=nc
+          if (aircraft_t_bc) then
+             aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or.  (ictype(nc)>229 .and. ictype(nc)<240)
+             if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
+             if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
+          end if
+          ntmatch=ntmatch+1
+          ntxall(ntmatch)=nc
        endif
      end if
      if(trim(ioctype(nc)) == trim(obstype) .and. abs(icuse(nc)) <= 1)then
@@ -408,6 +452,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             .and. ictype(nc) <260) then
             cycle
         else
+           if (aircraft_t_bc) then
+              aircrafttype=(ictype(nc)>129 .and. ictype(nc)<140) .or.  (ictype(nc)>229 .and. ictype(nc)<240)
+              if (.not. acft_profl_file .and. aircrafttype) cycle    ! skip aircrafttype for prepbufr
+              if (acft_profl_file .and. (.not. aircrafttype)) cycle  ! skip non-aircrafttype for prepbufr_profl
+           end if
            ithin=ithin_conv(nc)
            if(ithin > 0)then
               ntread=ntread+1
@@ -430,6 +479,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ntb = 0
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
      if(.not.use_prepb_satwnd .and. trim(subset) == 'SATWND') cycle msg_report
+     if (aircraft_t_bc) then
+        aircraftset = trim(subset)=='AIRCFT' .or. trim(subset)=='AIRCAR'
+        if (.not. acft_profl_file .and. aircraftset) cycle msg_report
+        if (acft_profl_file .and. (.not. aircraftset)) cycle msg_report
+     end if
+
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
@@ -448,8 +503,31 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       Extract type information
         call ufbint(lunin,hdr,4,1,iret,hdstr2)
         kx=hdr(1)
+        if (aircraft_t_bc .and. acft_profl_file) then
+           kx0=kx
+           if (.not. uvob) then
+              if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
+              if (kx0==331 .or. kx0==431 .or. kx0==531) kx=131
+              if (kx0==332 .or. kx0==432 .or. kx0==532) kx=132
+              if (kx0==333 .or. kx0==433 .or. kx0==533) kx=133
+              if (kx0==334 .or. kx0==434 .or. kx0==534) kx=134
+              if (kx0==335 .or. kx0==435 .or. kx0==535) kx=135
+           else
+              if (kx0==330 .or. kx0==430 .or. kx0==530) kx=230
+              if (kx0==331 .or. kx0==431 .or. kx0==531) kx=231
+              if (kx0==332 .or. kx0==432 .or. kx0==532) kx=232
+              if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
+              if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
+              if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+           end if
+        end if
         !* for new vad wind
         if(kx==224 .and. .not.newvad) then
+           call ufbint(lunin,hdrtsb,1,1,iret,'TSB')
+            if(hdrtsb(1)==2) then
+            newvad=.true.
+            go to 288
+           end if
            call ufbint(lunin,obsdat,11,255,levs,obstr)
            if(levs>1)then
            do k=1, levs-1
@@ -462,7 +540,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
 288     continue
         end if
-!       if(kx==224)write(6,*)'new vad wind',kx,newvad
         !* END new vad wind
 
         if(twodvar_regional)then
@@ -476,12 +553,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! temporary specify iobsub until put in bufr file
         iobsub = 0                                                  
-        if(kx == 280) iobsub=hdr(3)                                            
+        if(kx == 280 .or. kx == 180 ) iobsub=hdr(3)                                            
         if(kx == 290) iobsub=hdr(2)
-        if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
-        if(use_prepb_satwnd .and. kx == 245  ) then
-           if(hdr(2) == 259.0_r_kind) iobsub = 15 
-        endif
+        if(use_prepb_satwnd .and. (kx >= 240 .and. kx <=260 )) iobsub = hdr(2)
 
 !       For the satellite wind to get quality information and check if it will be used
         if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx ==254) ) then
@@ -628,6 +702,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      disterrmax=-9999.0_r_kind
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
         if(.not.use_prepb_satwnd .and. trim(subset) =='SATWND') cycle loop_msg
+        if (aircraft_t_bc) then
+           aircraftset = trim(subset)=='AIRCFT' .or. trim(subset)=='AIRCAR'
+           if (.not. acft_profl_file .and. aircraftset) cycle loop_msg
+           if (acft_profl_file .and. (.not. aircraftset)) cycle loop_msg
+        end if
+
         nmsg = nmsg+1
         if(.not.lmsg(nmsg,nx)) then
            do i=ntb+1,ntb+nrep(nmsg)
@@ -648,42 +728,70 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  
 !          Extract type, date, and location information
            call ufbint(lunin,hdr,8,1,iret,hdstr)
-           if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
-           if(hdr(2)== r360)hdr(2)=hdr(2)-r360
-           if(hdr(2) < zero)hdr(2)=hdr(2)+r360
-           dlon_earth=hdr(2)*deg2rad
-           dlat_earth=hdr(3)*deg2rad
            kx=hdr(5)
-        !* thin new VAD in time level
-        if(kx==224.and.newvad)then
-        icase=0
-        if(abs(hdr(4))>0.75) icase=1
-!       if(abs(hdr(4))>0.17.and.abs(hdr(4))<0.32) icase=1
-!       if(abs(hdr(4))>0.67.and.abs(hdr(4))<0.82) icase=1
-!       if(abs(hdr(4))>1.17.and.abs(hdr(4))<1.32) icase=1
-!       if(abs(hdr(4))>1.67.and.abs(hdr(4))<1.82) icase=1
-!       if(abs(hdr(4))>2.17.and.abs(hdr(4))<2.62) icase=1
-!       if(abs(hdr(4))>2.67.and.abs(hdr(4))<2.82) icase=1
-        if(icase/=1) cycle
-        end if
 
-           if(regional)then
-              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
-              if(diagnostic_reg) then
-                 call txy2ll(dlon,dlat,rlon00,rlat00)
-                 ntest=ntest+1
-                 cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                      (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
-                 cdist=max(-one,min(cdist,one))
-                 disterr=acos(cdist)*rad2deg
-                 disterrmax=max(disterrmax,disterr)
+           if (.not.(aircraft_t_bc .and. acft_profl_file)) then
+              if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
+              if(hdr(2)== r360)hdr(2)=hdr(2)-r360
+              if(hdr(2) < zero)hdr(2)=hdr(2)+r360
+              dlon_earth=hdr(2)*deg2rad
+              dlat_earth=hdr(3)*deg2rad
+
+!             check VAD subtype. 1--old, 2--new, other--old 
+              if(kx==224) then
+                call ufbint(lunin,hdrtsb,1,1,iret,'TSB')
+                if(.not.newvad .and. hdrtsb(1)==2) cycle loop_readsb
+                if(newvad .and. hdrtsb(1)/=2) cycle loop_readsb
               end if
-              if(outside) cycle loop_readsb   ! check to see if outside regional domain
+              !* thin new VAD in time level
+              if(kx==224.and.newvad)then
+                icase=0
+                if(abs(hdr(4))>0.75_r_kind) icase=1
+!               if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
+!               if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
+!               if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
+!               if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
+!               if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
+!               if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                if(icase/=1) cycle
+              end if
+
+              if(regional)then
+                 call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
+                 if(diagnostic_reg) then
+                    call txy2ll(dlon,dlat,rlon00,rlat00)
+                    ntest=ntest+1
+                    cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
+                         (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+                    cdist=max(-one,min(cdist,one))
+                    disterr=acos(cdist)*rad2deg
+                    disterrmax=max(disterrmax,disterr)
+                 end if
+                 if(outside) cycle loop_readsb   ! check to see if outside regional domain
+              else
+                 dlat = dlat_earth
+                 dlon = dlon_earth
+                 call grdcrd1(dlat,rlats,nlat,1)
+                 call grdcrd1(dlon,rlons,nlon,1)
+              endif
            else
-              dlat = dlat_earth
-              dlon = dlon_earth
-              call grdcrd1(dlat,rlats,nlat,1)
-              call grdcrd1(dlon,rlons,nlon,1)
+              call ufbint(lunin,hdr3,3,255,levs,'XDR YDR HRDR')
+              kx0=kx
+              if (.not. uvob) then
+                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=130
+                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=131
+                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=132
+                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=133
+                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=134
+                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=135
+              else
+                 if (kx0==330 .or. kx0==430 .or. kx0==530) kx=230
+                 if (kx0==331 .or. kx0==431 .or. kx0==531) kx=231
+                 if (kx0==332 .or. kx0==432 .or. kx0==532) kx=232
+                 if (kx0==333 .or. kx0==433 .or. kx0==533) kx=233
+                 if (kx0==334 .or. kx0==434 .or. kx0==534) kx=234
+                 if (kx0==335 .or. kx0==435 .or. kx0==535) kx=235
+              end if
            endif
 
 !------------------------------------------------------------------------
@@ -715,31 +823,31 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               time_correction=zero
            end if
 
-           timeobs=real(real(hdr(4),r_single),r_double)
-           t4dv=timeobs + toff
-           zeps=1.0e-8_r_kind
-           if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
-           if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
-           t4dv=t4dv + time_correction
-           time=timeobs + time_correction
-           kx=hdr(5)
-           if(use_prepb_satwnd .and. (kx == 243 .or. kx == 253 .or. kx == 254)) iobsub = hdr(2)
-           if(use_prepb_satwnd .and. kx == 245  ) then
-              if(hdr(2) == 259.0_r_kind) iobsub = 15
-           endif
+           if (.not. (aircraft_t_bc .and. acft_profl_file)) then
+              timeobs=real(real(hdr(4),r_single),r_double)
+              t4dv=timeobs + toff
+              zeps=1.0e-8_r_kind
+              if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
+              if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
+              t4dv=t4dv + time_correction
+              time=timeobs + time_correction
+           end if
+           if(use_prepb_satwnd .and. (kx >= 240 .or. kx <= 260)) iobsub = hdr(7)
 
  
 !          Balloon drift information available for these data
            driftl=kx==120.or.kx==220.or.kx==221
 
-           if (l4dvar) then
-              if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
-           else
-              if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
-                 .and. .not. driftl)cycle loop_readsb ! outside time window
-           endif
+           if (.not. (aircraft_t_bc .and. acft_profl_file)) then
+              if (l4dvar) then
+                 if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
+              else
+                 if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)) &
+                    .and. .not. driftl)cycle loop_readsb ! outside time window
+              endif
 
-           timex=time
+              timex=time
+           end if
 
 !          If ASCAT data, determine primary surface type.  If not open sea,
 !          skip this observation.  This check must be done before thinning.
@@ -820,6 +928,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            nread=nread+levs
            if(uvob)then
               nread=nread+levs
+           else if(tob) then
+!             aircraft temperature data
+!             aircraftobst = kx>129.and.kx<140
+              aircraftobst = (kx==131) .or. (kx==133)
+
+              aircraftwk = bmiss
+              if (aircraftobst) then
+                 if (aircraft_t_bc) then
+                    call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                    if (kx0>=330 .and. kx0<340) aircraftwk(2,:) = zero
+                 else if (aircraft_t_bc_pof) then
+                    call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                    aircraftwk(2,:) = bmiss
+              
+                 else if (aircraft_t_bc_ext) then
+                    call ufbint(lunin,aircraftwk,2,255,levs,aircraftstr)
+                    aircraftwk(2,:) = bmiss
+                 end if
+              end if
            else if(sstob)then 
               sstdat=bmiss
               call ufbint(lunin,sstdat,8,1,levs,sststr)
@@ -842,6 +969,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               call ufbint(lunin,metarwth,1,10,metarwthlevs,metarwthstr)
            endif
 
+!          Set station ID
+           rstation_id=hdr(1)
+           if ((kx==133 .or. kx==233) .and. c_station_id=='ACARS') then
+              call ufbint(lunin,hdr,1,1,iret,'ACID')
+              if(ibfms(hdr(1))==0) rstation_id=hdr(1)
+           end if
+
 !          Check for valid reported pressure (POB).  Set POB=bmiss if POB<tiny_r_kind
            rstation_id=hdr(1)
            do k=1,levs
@@ -853,9 +987,67 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               endif
            end do
 
+!          Determine tail number for aircraft temperature data
+           idx = 0
+           iyyyymm = iadate(1)*100+iadate(2)
+           if (aircraftobst .and. (aircraft_t_bc_pof .or. &
+                aircraft_t_bc .or. aircraft_t_bc_ext)) then
+!             Determine if the tail number is included in the taillist
+              do j=1,nsort
+                 cb = c_station_id(1:1)
+                 if (cb==itail_sort(j)) then
+                    start = idx_sort(j)
+                    if (j==nsort) then
+                       next = ntail
+                    else
+                       next=idx_sort(j+1)-1
+                    end if
+                    do jj=start,next
+                       if (trim(c_station_id)==trim(taillist(jj))) then
+                          idx = jj
+                          if (timelist(jj)/=iyyyymm) timelist(jj) = iyyyymm
+                          exit
+                       end if
+                    end do
+                 end if
+              end do
 
- 
-!          Loop over levels       
+              if (idx==0 .and. ntail_update>ntail) then
+                 do j = ntail+1,ntail_update
+                    if (c_station_id == trim(taillist(j))) then
+                       idx = j
+                       exit
+                    end if
+                 end do
+              end if
+
+!             Append new tail number at the end of existing tail numbers.
+!             At 1st analysis, the obs will be used without bias correction,
+!             patch new tail number;
+!             At 2nd analysis, bias coefficients will be generated for this new
+!             tail number.
+              if (idx == 0) then
+                 ntail_update = ntail_update+1
+!                print*, c_station_id, ' ntail_update=',ntail_update,'
+!                ntail=',ntail
+                 if (ntail_update > max_tail) then
+                    write(6,*)'READ_PREPBUFR: ***ERROR*** tail number exceeds maximum'
+                    write(6,*)'READ_PREPBUFR: stop program execution'
+                    call stop2(341)
+                 end if
+                 idx_tail(ntail_update) = ntail_update
+                 taillist(ntail_update) = c_station_id
+                 timelist(ntail_update) = iyyyymm
+                 do j = 1,npredt
+                    predt(j,ntail_update) = zero
+                 end do
+              end if
+
+!             Re-set idx if idx>ntail 
+              if (idx>ntail) idx = 0
+           end if
+
+!          Loop over levels
            do k=1,levs
               do i=1,8
                  qcmark(i,k) = min(qcmark(i,k),qcmark_huge)
@@ -973,7 +1165,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Check qc marks to see if obs should be processed or skipped
 
            if (visob) then
-              if (abs(obsdat(9,k)-bmiss) < r100) then
+              if (obsdat(9,k) > r0_1_bmiss) then
                  patch_fog=(metarwth(1,1)>= 40.0_r_kind .and. metarwth(1,1)<= 49.0_r_kind) .or. &
                            (metarwth(1,1)>=130.0_r_kind .and. metarwth(1,1)<=135.0_r_kind) .or. &
                            (metarwth(1,1)>=241.0_r_kind .and. metarwth(1,1)<=246.0_r_kind)
@@ -995,6 +1187,39 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             if(convobs .and. pqm(k) >=lim_qm .and. qm/=15 .and. qm/=9 )cycle loop_k_levs
 !             if(qm >=lim_qm .and. qm /=15 .and. qm /=9)cycle loop_k_levs
               if(qm > 15 .or. qm < 0) cycle loop_k_levs
+
+!             extract aircraft profile information
+              if (aircraft_t_bc .and. acft_profl_file) then
+                 if (nint(obsdat(10,k))==7) cycle LOOP_K_LEVS
+                 if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
+                 if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
+                 if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
+                 dlon_earth=hdr3(1,k)*deg2rad
+                 dlat_earth=hdr3(2,k)*deg2rad
+
+                 if(regional)then
+                    call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    !  convert to rotated coordinate
+                    if(outside) cycle loop_readsb   ! check to see if outside regional domain
+                 else
+                    dlat = dlat_earth
+                    dlon = dlon_earth
+                    call grdcrd1(dlat,rlats,nlat,1)
+                    call grdcrd1(dlon,rlons,nlon,1)
+                 endif
+
+                 timeobs=real(real(hdr3(3,k),r_single),r_double)
+                 t4dv=timeobs + toff
+                 zeps=1.0e-8_r_kind
+                 if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
+                 if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
+                 t4dv=t4dv + time_correction
+                 time=timeobs + time_correction
+                 if (l4dvar) then
+                    if (t4dv<zero.OR.t4dv>winlen) cycle LOOP_K_LEVS
+                 else
+                    if (real(abs(time))>real(ctwind(nc)) .or.  real(abs(time))>real(twindin)) cycle LOOP_K_LEVS
+                 endif
+              end if
 
 !             If needed, extract drift information.   
               if(driftl)then
@@ -1135,8 +1360,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if(qm >=lim_qm )usage=101._r_kind
               if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
               if((kx>=192.and.kx<=195) .and. psob )usage=r100
-              if (gustob .and. abs(obsdat(8,k)-bmiss) < r100) usage=103._r_kind
-              if (visob  .and. abs(obsdat(9,k)-bmiss) < r100) usage=103._r_kind
+              if (gustob .and. obsdat(8,k) > r0_1_bmiss) usage=103._r_kind
+              if (visob  .and. obsdat(9,k) > r0_1_bmiss) usage=103._r_kind
 
               if (sfctype) call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff, &
@@ -1144,6 +1369,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
+              endif
+              if(plevs(k) < 0.0001_r_kind) then
+                 write(*,*) 'warning: obs pressure is too small:',kx,k,plevs(k)
+                 cycle
               endif
 
               if(ncnumgrp(nc) > 0 .and. .not.lhilbert )then                 ! default cross validation on
@@ -1210,7 +1439,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(24,iout)=obsdat(10,k)            ! cat
-                 if(perturb_obs)cdata_all(25,iout)=ran01dom()*perturb_fact ! t perturbation
+                 if (aircraft_t_bc_pof .or. aircraft_t_bc .or.&
+                      aircraft_t_bc_ext) then
+                    cdata_all(25,iout)=aircraftwk(1,k)     ! phase of flight
+                    cdata_all(26,iout)=aircraftwk(2,k)     ! vertical velocity
+                    cdata_all(27,iout)=idx                 ! index of temperature bias
+                 end if
+                 if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(17,iout),cdata_all(18,iout),cdata_all(11,iout),cdata_all(1,iout))
 
@@ -1252,11 +1487,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          if(klev>levs) cycle loop_readsb
                          diffuu=obsdat(5,k)-fcstdat(1,k)
                          diffvv=obsdat(6,k)-fcstdat(2,k)
-                         if(sqrt(diffuu**2+diffvv**2)>10.0) cycle loop_k_levs
-                         if(abs(diffvv)>8.0) cycle loop_k_levs
+                         if(sqrt(diffuu**2+diffvv**2)>10.0_r_kind) cycle loop_k_levs
+                         if(abs(diffvv)>8.0_r_kind) cycle loop_k_levs
                         !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
-                         if(oelev>7000.0) cycle loop_k_levs
-                         if(abs(diffvv)>5.0.and.oelev<5000.0) cycle loop_k_levs
+                         if(oelev>7000.0_r_kind) cycle loop_k_levs
+                         if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
                         ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
                          uob=0.0
                          vob=0.0
@@ -1264,7 +1499,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          tkk=0
                          do ikkk=k,klev
                            diffhgt=obsdat(4,ikkk)-obsdat(4,k)
-                           if(diffhgt<301.0)then
+                           if(diffhgt<301.0_r_kind)then
                            uob=uob+obsdat(5,ikkk)
                            vob=vob+obsdat(6,ikkk)
                            oelev=oelev+obsdat(4,ikkk)
@@ -1275,8 +1510,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          vob=vob/tkk
                          oelev=oelev/tkk
 
-                         diffuu=5.0;diffvv=5.0
-                         diffhgt=0.0
+                         diffuu=5.0_r_kind;diffvv=5.0_r_kind
+                         diffhgt=0.0_r_kind
                          do ikkk=k,klev
                            diffuu=abs(obsdat(5,ikkk)-uob)
                            if(diffhgt<diffuu)diffhgt=diffuu
@@ -1284,10 +1519,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                            if(diffhgt<diffvv)diffhgt=diffvv
                          end do
 
-                     if(diffhgt>5.0)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
+                     if(diffhgt>5.0_r_kind)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
                      if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
                      !* unreasonable observation, will fix this in QC package
-                     if(sqrt(uob**2+vob**2)>60.0)cycle LOOP_readsb
+                     if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
                  end if
 
                  if(regional)then
@@ -1491,6 +1726,22 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(19,iout)=dlat_earth*rad2deg     ! earth relative latitude (degrees)
                  cdata_all(20,iout)=stnelev                ! station elevation (m)
 
+                 if( nst_gsi > 0) then
+                   zob   = sstdat(2,k)
+                   if (zob > 10.0) then
+                      tref  = tsavg
+                      dtw   = zero
+                      dtc   = zero
+                      tz_tr = one
+                   else
+                      call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+                   end if
+
+                   cdata_all(21,iout) = tref               ! foundation temperature
+                   cdata_all(22,iout) = dtw                ! dt_warm at zob
+                   cdata_all(23,iout) = dtc                ! dt_cool at zob
+                   cdata_all(24,iout) = tz_tr              ! d(Tz)/d(Tr)
+                 end if
 
 !          Measurement types
 !             0       Ship intake
@@ -1693,7 +1944,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! define a closest METAR cloud observation for each grid point
   if(metarcldobs .and. ndata > 0) then
-     maxobs=200000
+     maxobs=2000000
      allocate(cdata_all(nreal,maxobs))
      call reorg_metar_cloud(cdata_out,nreal,ndata,cdata_all,maxobs,iout)
      ndata=iout
@@ -1701,7 +1952,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      write(lunout) ((cdata_all(i,j),i=1,nreal),j=1,ndata)
      deallocate(cdata_all)
   else
-     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
      write(lunout) cdata_out
   endif
 
@@ -1811,10 +2062,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 
   if(kx==120)then
-     pqm(1)=nint(qcmark(1,1))
-     qqm(1)=nint(qcmark(2,1))
-     tqm(1)=nint(qcmark(3,1))
-     zqm(1)=nint(qcmark(4,1))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     qqm(1)=nint(min(qcmark(2,1),10000.0))
+     tqm(1)=nint(min(qcmark(3,1),10000.0))
+     zqm(1)=nint(min(qcmark(4,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -1826,10 +2077,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
         do i=2,levs
            im=i-1
-           pqm(i)=nint(qcmark(1,i))
-           qqm(i)=nint(qcmark(2,i))
-           tqm(i)=nint(qcmark(3,i))
-           zqm(i)=nint(qcmark(4,i))
+           pqm(i)=nint(min(qcmark(1,i),10000.0))
+           qqm(i)=nint(min(qcmark(2,i),10000.0))
+           tqm(i)=nint(min(qcmark(3,i),10000.0))
+           zqm(i)=nint(min(qcmark(4,i),10000.0))
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1
@@ -1885,14 +2136,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
   elseif(kx==220)then
-     pqm(1)=nint(qcmark(1,1))
-     wqm(1)=nint(qcmark(5,1))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     wqm(1)=nint(min(qcmark(5,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
      do i=2,levs
         im=i-1
-        wqm(i)=nint(qcmark(5,i))
-        zqm(i)=nint(qcmark(4,i))
-        pqm(i)=nint(qcmark(1,i))
+        wqm(i)=nint(min(qcmark(5,i),10000.0))
+        zqm(i)=nint(min(qcmark(4,i),10000.0))
+        pqm(i)=nint(min(qcmark(1,i),10000.0))
         if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
            ku=dpres(i)-1
