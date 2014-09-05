@@ -54,3 +54,5 @@ regional (logical): replaces old variable 'wrf_regional'.  Use regional model in
 nmmb (logical): Use nmmb model (either global or regional). Default .false. 
 arw (logical): Use wrf-arw model if regional=.true.  Default .false.
 nmm (logibal):  Use nmm core (HWRF) if regional=.true.  Default .true.
+
+See the comments in params.f90 for other namelist variable definitions.
