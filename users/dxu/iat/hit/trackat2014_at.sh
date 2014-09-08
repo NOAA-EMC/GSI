@@ -9,10 +9,10 @@ set -x
 
 #export expdir=/scratch2/portfolios/NCEPDEV/global/noscrub/Fanglin.Yang/archive      ;#experiment data archive directory
 export expdir=/global/noscrub/Russ.Treadon/archive                                  ;#experiment data archive directory
-export mdlist="prhw14"                              ;#experiment names
+export mdlist="prhw2014"                              ;#experiment names
 export mdplot="hw14"                                ;#names to be shown on plots, limitted to 4 letters
 export cyc="00 06 12 18"                           ;#forecast cycles to be included in verification
-export doftp="YES"                                  ;#whether or not sent maps to ftpdir
+export doftp="NO"                                  ;#whether or not sent maps to ftpdir
 export webhostid=wx24fy
 export webhost=emcrzdm.ncep.noaa.gov
 export ftpdir=/home/people/emc/www/htdocs/gmb/$webhostid/vsdb/prhw14
@@ -33,6 +33,14 @@ elif [ $myhost = "t" -o $myhost = "g" ]; then
  export STMP="/stmpd2"
  export NDATE=/nwprod/util/exec/ndate
 fi
+
+##################################################################
+# Use config file instead to streamline configuration
+# without making big changes to original HIT package, 
+# which is easier for future merging the original HIT from svn.
+##################################################################
+source ./hit_config.sh
+
 export rundir=${rundir:-$STMP/$LOGNAME/track}
 mkdir -p ${rundir}; cd $rundir || exit 8
 

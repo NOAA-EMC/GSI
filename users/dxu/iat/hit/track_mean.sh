@@ -36,6 +36,14 @@ elif [ $myhost = "t" -o $myhost = "g" ]; then
  export STMP="/stmpd2"
  export NDATE=/nwprod/util/exec/ndate
 fi
+
+##################################################################
+# Use config file instead to streamline configuration
+# without making big changes to original HIT package,
+# which is easier for future merging the original HIT from svn.
+##################################################################
+source ./hit_config.sh
+
 export rundir=${rundir:-$STMP/$LOGNAME/track}
 mkdir -p ${rundir}; cd $rundir ||exit 8
 
