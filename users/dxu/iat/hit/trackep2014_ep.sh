@@ -39,7 +39,7 @@ fi
 # without making big changes to original HIT package,
 # which is easier for future merging the original HIT from svn.
 ##################################################################
-source ./hit_config.sh
+source ./hit.config
 
 export rundir=${rundir:-$STMP/$LOGNAME/track}
 mkdir -p ${rundir}; cd $rundir || exit 8
