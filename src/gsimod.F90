@@ -441,7 +441,9 @@
 !                     analysis scheme
 !     lrun_subdirs - logical to toggle use of subdirectires at runtime for pe specific files
 !     emiss_bc    - option to turn on emissivity bias predictor
-!     lsingleradob - logical for single radiance observation assimilation 
+!     lsingleradob - logical for single radiance observation assimilation.
+!                   Uses existing bufr file and rejects all radiances that don't fall within a tight threshold around
+!                   oblat/oblon (SINGLEOB_TEST)
 !
 !     ssmis_method - choose method for SSMIS noise reduction 0=no smoothing 1=default
 !     ssmis_precond - weighting factor for SSMIS preconditioning (if not using newpc4pred)
@@ -685,16 +687,7 @@
 !      pctswitch  - if .true. innovation & oberr are relative (%) of background value
 !                      (level ozone only)
 !      obchan     - if > 0, selects the channel number.  If <= zero, it will use
-!      all  
-!                   channels that pass qc in setuprad.    
-!
-!      NOTE, lsingleradob just rejects all data in an existing bufr file.
-!      Innovations 
-!             are that used in the real observation in said bufr file.  It's
-!             basically  
-!             a real ob and rejects all obs that don't fall w/tight threshold
-!             around  
-!             oblat and oblon 
+!                   all channels that pass qc in setuprad.    
 
   namelist/singleob_test/maginnov,magoberr,oneob_type,&
        oblat,oblon,obpres,obdattim,obhourset,pctswitch,&
@@ -1212,6 +1205,7 @@
      dsis(1)=dtype(1)
   endif
 
+! Single radiance assimilation case
   if (lsingleradob) then
 #ifdef ibm_sp 
      read(5,singleob_test)

@@ -49,7 +49,6 @@ module oneobmod
 ! set passed variables to public
   public :: oneobtest,oneob_type,magoberr,pctswitch,maginnov
   public :: oblat,oblon,obpres,obdattim,obhourset
-! for single radiance test
   public :: lsingleradob, obchan
 
   real(r_kind) maginnov, magoberr, oblat, oblon,&
