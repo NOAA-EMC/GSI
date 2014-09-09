@@ -3,7 +3,10 @@ set -x
 
 ## Hurricance track plots, Automated by Fanglin Yang 
 ## Fanglin Yang, March 2008: original copy adopted from HWRF. Restructured and added driver scripts.
-## Fanglin Yang, March 2013: Generalized for running on WCOSS and ZEUS                                   
+## Fanglin Yang, March 2013: Generalized for running on WCOSS and ZEUS      
+## Update: 
+##  9/9/2014, Deyong Xu/RTi @ NOAA/NESDIS/STAR/JCSDA : added configuration file
+##  
 
 #-------------------------------------------------------------------------------------
 #export expdir=/scratch2/portfolios/NCEPDEV/global/noscrub/Fanglin.Yang/archive      ;#experiment data archive directory
