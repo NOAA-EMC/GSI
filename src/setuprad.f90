@@ -185,7 +185,7 @@
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
-      two,three,cg_term,wgtlim,r1000,r100,r10,r0_01,pi
+      two,three,cg_term,wgtlim,r100,r10,r0_01,pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -1178,28 +1178,20 @@
 
         icc = 0
         iccm= 0
-!           if ( abs(cenlat - oblat) .lt. 0.3d0 .and. &
-!                  abs(cenlon - oblon) .lt. 0.3d0) then
-!              write(6,*) 'cenlat',abs(cenlat - oblat),cenlat
-!              write(6,*) 'cenlon',abs(cenlon - oblon),cenlon
-!           endif
+
         do i = 1,nchanl
 !       This is where channels are rejected for lsingleradob
           ! if lsingleradob is on, then...
           if (lsingleradob) then
-            ! if the channels are beyond 0.001 of oblat/oblon, specified
+            ! if the channels are beyond 0.01 of oblat/oblon, specified
             ! in gsi namelist or aren't of type 'oneob_type', reject
-            if ( (abs(cenlat - oblat) .gt. 0.3 .or. &
-                  abs(cenlon - oblon) .gt. 0.3) .or. &
-!            if ( (abs(cenlat - oblat) .gt. one/r1000 .or. &
-!                  abs(cenlon - oblon) .gt. one/r1000) .or. &
+            if ( (abs(cenlat - oblat) .gt. one/r100 .or. &
+                  abs(cenlon - oblon) .gt. one/r100) .or. &
                   obstype .ne. oneob_type ) then
               varinv(i) = zero
               varinv_use(i) = zero
               if (id_qc(i) .eq. igood_qc) id_qc(i) = ifail_outside_range
             else
-!              write(6,*)'channel',i,'obchan',obchan
-              if (varinv(i).ne.zero)write(6,*)'not zero'
                 ! if obchan <= zero, keep all footprints, if obchan > zero,
                 ! keep only that which has channel obchan
                 if (i .ne. obchan .and. obchan .gt. 0) then
@@ -1207,8 +1199,8 @@
                   varinv_use(i) = zero
                   if (id_qc(i) .eq. igood_qc) id_qc(i) = ifail_outside_range
                 endif
-            endif
-          endif
+            endif !cenlat/lon
+          endif !lsingleradob
 
 
 !          Only process observations to be assimilated
