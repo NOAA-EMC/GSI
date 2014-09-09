@@ -2,11 +2,11 @@
 #  Conventional Monitor package configuration file
 #
 
-export MY_MACHINE=wcoss
+export MY_MACHINE=zeus
 export MY_OS=linux
 
-export CONVDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/dup_ConvMon_277/util/Conventional_Monitor
-export MY_TANKDIR=/gpfs/td2/emc/da/noscrub/Edward.Safford/nbns
+export CONVDIR=/scratch1/portfolios/NCEPDEV/da/save/Catherine.Thomas/gsi/EXP-singleradiance/util/Conventional_Monitor
+export MY_TANKDIR=/scratch1/portfolios/NCEPDEV/da/noscrub/Catherine.Thomas/convmon
 
 export TANKDIR=${MY_TANKDIR}/stats/convweb/${SUFFIX}
 export IMGNDIR=${MY_TANKDIR}/imgn/convweb/${SUFFIX}
@@ -32,8 +32,8 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
    export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 fi
  
-export STMP=/stmpp1/Edward.Safford
-export PTMP=/ptmpp1/Edward.Safford
+export STMP=/scratch2/portfolios/NCEPDEV/stmp
+export PTMP=/scratch2/portfolios/NCEPDEV/ptmp
 
 
 export LOGDIR=${PTMP}/logs/conv${SUFFIX}
@@ -49,7 +49,7 @@ export CONVINFO_FILE=${FIXDIR}/global_convinfo.txt
 #
 #  Web server resources
 #
-export WEBDIR=/home/people/emc/www/htdocs/gmb/gdas/es_conv
-export WEBUSER=esafford
+export WEBDIR=/home/people/emc/www/htdocs/gc_wmb/
+export WEBUSER=cthomas
 export WEBSVR=emcrzdm
 

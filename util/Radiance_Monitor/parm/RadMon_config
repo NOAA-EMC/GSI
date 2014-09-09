@@ -16,7 +16,7 @@
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_363/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/scratch1/portfolios/NCEPDEV/da/save/Catherine.Thomas/gsi/EXP-singleradiance/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -24,7 +24,7 @@ export MY_RADMON=${MY_RADMON:-/gpfs/gd2/emc/da/noscrub/Edward.Safford/RadMon_363
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/scratch1/portfolios/NCEPDEV/da/noscrub/Catherine.Thomas/radmon}
 if [[ $SUFFIX != "" && $RAD_AREA != "" ]]; then
    if [[ $RAD_AREA = "glb" ]]; then
       export TANKverf=${TANKverf:-${MY_TANKDIR}/stats/${SUFFIX}}
@@ -42,8 +42,8 @@ fi
 #  for the html on the web server (WEBDIR).
 #
 export WEB_SVR=${WEB_SVR:-emcrzdm}
-export WEB_USER=${WEB_USER:-esafford}
-export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
+export WEB_USER=${WEB_USER:-cthomas}
+export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gc_wmb/cthomas/gdas/radiance}
 
 
 ###############################################################################
@@ -55,16 +55,16 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=${MY_MACHINE:-wcoss}
+export MY_MACHINE=zeus
 export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 
 
 #
 #  Log and work space definitions
 #
-export PTMP=${PTMP:-/ptmpp1}
+export PTMP=${PTMP:-/scratch2/portfolios/NCEPDEV/ptmp}
 export PTMP_USER=${PTMP_USER:-${PTMP}/${LOGNAME}}
-export STMP=${STMP:-/stmpp1}
+export STMP=${STMP:-/scratch2/portfolios/NCEPDEV/stmp}
 export STMP_USER=${STMP_USER:-${STMP}/${LOGNAME}}
   
 export LOGSverf_rad=${LOGSverf_rad:-${PTMP_USER}/logs}
