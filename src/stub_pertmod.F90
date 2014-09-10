@@ -21,7 +21,6 @@
 !-------------------------------------------------------------------------
 #define MYNAME	"stub"
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 subroutine parallel_init_()

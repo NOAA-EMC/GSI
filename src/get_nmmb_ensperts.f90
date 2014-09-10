@@ -42,7 +42,7 @@ subroutine get_nmmb_ensperts
    type(gsi_grid)  :: grid_ens
    real(r_kind) bar_norm,sig_norm
 
-   integer(i_kind) istatus,i,ic2,ic3,j,k,n,iderivative,ii
+   integer(i_kind) istatus,i,ic2,ic3,j,k,n,iderivative
    character(70) filename
    logical ice
 

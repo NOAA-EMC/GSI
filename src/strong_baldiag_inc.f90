@@ -58,7 +58,7 @@ subroutine strong_baldiag_inc(sval,nsval)
 
 ! Declare local variables
   character(len=*),parameter::myname='strong_baldiag_inc' 
-  integer(i_kind) ii,ier,istatus,ier_cw,ier_ql,ier_qi   
+  integer(i_kind) ii,ier,iqi,iql,icw,istatus   
   integer(i_kind) is_u,is_v,is_t,is_q,is_qi,is_ql,is_cw,is_oz,is_p,is_prse
   real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_u  =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: dhat_dt_v  =>NULL()
@@ -78,6 +78,7 @@ subroutine strong_baldiag_inc(sval,nsval)
   real(r_kind),pointer,dimension(:,:,:) :: p_ql =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_qi =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: p_ps =>NULL()
+  real(r_kind),allocatable,dimension(:,:,:) :: cw_hold
   logical fullfield
   type(gsi_bundle) dhat_dt
   logical lcld
@@ -86,17 +87,17 @@ subroutine strong_baldiag_inc(sval,nsval)
 ! Initialize variable
 
 ! Get relevant pointers; return if not found
-  ier=0;ier_cw=0;ier_ql=0;ier_qi=0
+  ier=0;icw=0;iql=0;iqi=0
   call gsi_bundlegetpointer(sval(1),'u',   is_u,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval(1),'v',   is_v,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval(1),'tv',  is_t,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval(1),'q',   is_q,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval(1),'oz',  is_oz,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval(1),'cw',  is_cw,  istatus);icw=istatus+icw           
+  call gsi_bundlegetpointer(sval(1),'ql',  is_ql,  istatus);iql=istatus+iql           
+  call gsi_bundlegetpointer(sval(1),'qi',  is_qi,  istatus);iqi=istatus+iqi           
   call gsi_bundlegetpointer(sval(1),'ps',  is_p,   istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval(1),'prse',is_prse,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval(1),'cw',  is_cw,  istatus);ier_cw=istatus           
-  call gsi_bundlegetpointer(sval(1),'ql',  is_ql,  istatus);ier_ql=istatus           
-  call gsi_bundlegetpointer(sval(1),'qi',  is_qi,  istatus);ier_qi=istatus           
   if(ier/=0)then
     write(6,*) myname, 'trouble getting sval pointers, ier= ', ier 
     call stop2(999)
@@ -104,23 +105,27 @@ subroutine strong_baldiag_inc(sval,nsval)
 
   call allocate_state(dhat_dt) 
   dhat_dt=zero
-  ier=0;ier_cw=0;ier_ql=0;ier_qi=0
-  call gsi_bundlegetpointer(dhat_dt,'u',   dhat_dt_u,   istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dhat_dt,'v',   dhat_dt_v,   istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dhat_dt,'tv',  dhat_dt_t,   istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dhat_dt,'q',   dhat_dt_q,   istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(dhat_dt,'oz',  dhat_dt_oz,  istatus);ier=istatus+ier
+  ier=0;icw=0;iql=0;iqi=0
+  call gsi_bundlegetpointer(dhat_dt,'u',  dhat_dt_u,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dhat_dt,'v',  dhat_dt_v,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dhat_dt,'tv', dhat_dt_t,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dhat_dt,'q',  dhat_dt_q,   istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dhat_dt,'oz', dhat_dt_oz,  istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(dhat_dt,'cw', dhat_dt_cw, istatus);icw=istatus+icw
+  call gsi_bundlegetpointer(dhat_dt,'ql', dhat_dt_ql, istatus);iql=istatus+iql
+  call gsi_bundlegetpointer(dhat_dt,'qi', dhat_dt_qi, istatus);iqi=istatus+iqi
   call gsi_bundlegetpointer(dhat_dt,'prse',dhat_dt_prse,istatus);ier=istatus+ier
-  if (is_cw>0) call gsi_bundlegetpointer(dhat_dt,'cw', dhat_dt_cw, istatus);ier_cw=istatus     
 
   if(ier/=0) then
     write(6,*) myname, ': trouble getting temporary tendency pointers, ier= ', ier           
     call stop2(999)
   endif
 
-! Compute derivatives
+!     compute derivatives
 ! Determine how many vertical levels each mpi task will
 ! handle in computing horizontal derivatives
+
+  lcld = (icw==0 .or. (iql+iqi)==0)
 
   do ii=1,nsval
 !    if(mype==0) write(6,'(1x,a,i0,a)') 'strong_baldiag_inc: sval(',ii,')'
@@ -128,18 +133,47 @@ subroutine strong_baldiag_inc(sval,nsval)
      call gsi_bundlegetpointer(sval(ii),'u',   p_u,  istatus)
      call gsi_bundlegetpointer(sval(ii),'v',   p_v,  istatus)
      call gsi_bundlegetpointer(sval(ii),'tv',  p_t,  istatus)
-!    call gsi_bundlegetpointer(sval(ii),'q',   p_q,  istatus) 
+     call gsi_bundlegetpointer(sval(ii),'q',   p_q,  istatus) 
 !_RT call gsi_bundlegetpointer(sval(ii),'oz',  p_oz, istatus)
 !    call gsi_bundlegetpointer(sval(ii),'cw',  p_cw, istatus)
      call gsi_bundlegetpointer(sval(ii),'ps',  p_ps, istatus)
 !_RT call gsi_bundlegetpointer(sval(ii),'prse',p_prse,istatus)
 
-     call calctends_tl(sval,dhat_dt,mype,nnnn1o)
+     if (lcld) then
+        if (icw==0) then
+!_RT       call gsi_bundlegetpointer(sval(ii),'cw', p_cw, istatus)
+           call calctends_tl(sval(ii),dhat_dt,mype)
+        else
+           call gsi_bundlegetpointer(sval(ii),'qi', p_cw, istatus)
+           call gsi_bundlegetpointer(sval(ii),'ql', p_ql, istatus)
+           call gsi_bundlegetpointer(sval(ii),'qi', p_qi, istatus)
+           allocate(cw_hold(size(p_ql,1),size(p_ql,2),size(p_ql,3)))
+           cw_hold=p_cw
+           p_cw=p_ql+p_qi
+           call calctends_tl(sval(ii),dhat_dt,mype)
+           p_cw=cw_hold
+           deallocate(cw_hold)
+!          call calctends_tl( &
+!            p_u,p_v ,p_t,  &
+!            p_q,p_oz,(p_ql+p_qi), &
+!            mype, nnnn1o,          &
+!            dhat_dt_u,dhat_dt_v ,dhat_dt_t,dhat_dt_prse, &
+!            dhat_dt_q,dhat_dt_oz,dhat_dt_ql,p_prse)    ! eliu: for now, just use
+                                                       ! dhat_dt_ql to hold time tendency terms for cw
+                                                       ! since it is
+                                                       ! calculated but
+                                                       ! not used 
+             !RTodling: Emily we need to talk about ... dhat_dt_ql not used anyway!
+        end if
+     else
+        call calctends_tl(sval(ii),dhat_dt,mype) 
+     end if
 
      if(nvmodes_keep>0) then
         fullfield=.false.
         call strong_bal_correction(dhat_dt_u,dhat_dt_v,dhat_dt_t,dhat_dt_prse,&
-                                   mype,p_u,p_v,p_t,p_ps,&   
+                                   mype,p_u,p_v,&
+                                        p_t,p_ps,&   
                                    .true.,fullfield,.false.,.true.)
      end if
   enddo

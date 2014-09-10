@@ -80,11 +80,11 @@
   integer(i_kind) icc
   integer(i_kind) j,k,ncnt,i
   integer(i_kind) mm1
-  integer(i_kind) kk,n,kk2,ibin,ioff,ioff0,iii
+  integer(i_kind) n,ibin,ioff,ioff0,iii
   integer(i_kind) ii,jj,idiag
 
   real(r_single) freq4,pol4,wave4,varch4
-  real(r_kind) obserr,errinv,useflag
+  real(r_kind) errinv,useflag
   real(r_kind) trop5,pangs
   real(r_kind) cenlon,cenlat,slats,slons,dtime
   real(r_kind) val_obs
@@ -94,7 +94,7 @@
   real(r_single),dimension(ireal):: diagbuf
   real(r_single),allocatable,dimension(:,:):: diagbufchan
 
-  real(r_kind),dimension(nchanl):: varinv,varinv_use,error0
+  real(r_kind),dimension(nchanl):: varinv,error0
   real(r_kind),dimension(nchanl):: tnoise,errmax
   real(r_kind),dimension(nchanl):: var,ratio_aoderr,aodinv
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
@@ -104,7 +104,6 @@
   real(r_kind) dtsavg
 
   integer(i_kind),dimension(nchanl):: ich,id_qc
-  integer(i_kind),dimension(msig):: klevel
 
   character(10) filex
   character(12) string

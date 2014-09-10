@@ -220,7 +220,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
   real(r_kind) del2inv,rn,gspeed
   real(r_kind) diff1,diffi
 
-  integer(i_kind) i,ipair,j,k,kk,mode,n,mmax,m
+  integer(i_kind) i,ipair,kk,mode,n,mmax,m
   logical filtered
 
   filtered=.true.
@@ -460,7 +460,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
   real(r_kind),allocatable,dimension(:,:,:,:,:)::uvm_ewtrans,uvm_ns,zdm_hat
   real(r_kind) del2inv,rn,gspeed
 
-  integer(i_kind) i,ipair,j,k,kk,mode,n,m,mmax
+  integer(i_kind) i,ipair,kk,mode,n,m,mmax
 
   mmax=sp_a%jcap
 
@@ -1344,7 +1344,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 
   integer(i_kind),intent(in   ) :: mype
 
-  integer(i_kind) i,j,k,kk,m,n,num_per_pe,total_groups,nn,kchk
+  integer(i_kind) k,kk,m,n,num_per_pe,total_groups,nn,kchk
 
 !   in laying out by zonal wave number/vertical mode, have two types of groupings:
 

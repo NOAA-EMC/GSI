@@ -548,8 +548,7 @@ end subroutine final_
 !BOC
 
     character(len=*), parameter :: myname_ = myname//'*create_'
-    integer(i_kind) i,j,k,n,nt,ic,ier
-    character(len=MAXSTR) :: var
+    integer(i_kind) nt,ier
     type(GSI_Grid):: grid
 
     istatus=0
@@ -623,7 +622,6 @@ end subroutine final_
 
     character(len=*), parameter :: myname_ = myname//'*destroy_'
     integer(i_kind) :: nt,ier
-    character(len=MAXSTR) :: var
 
     istatus=0
     if(.not.guess_grid_initialized_) return
@@ -781,7 +779,7 @@ end subroutine final_
   integer(i_kind),intent(out):: ivar(:)
   integer(i_kind),intent(out):: istatus
   character(len=*),parameter:: myname_=myname//"*get_int1d_"
-  integer(i_kind) i,ii,id
+  integer(i_kind) i,ii
   logical labfound
   labfound=.false.
   istatus=1

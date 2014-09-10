@@ -113,7 +113,6 @@ contains
 !     character(len=8) names(4*nsig+2)
       character(len=64) names2(2,2*nsig+1)
       integer(i_kind) lnames2(2,2*nsig+1)
-              integer(i_kind) nskip
 
 
 !  create general_sub2grid structure variable s2g_raf, which is used in sub2grid.f90

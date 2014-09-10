@@ -499,7 +499,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
     character(len=*),parameter::myname_=myname//'*init_grid_vars'
-    integer(i_kind) i,k,nlon_b,inner_vars,num_fields
+    integer(i_kind) i,k,inner_vars,num_fields
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
@@ -976,7 +976,7 @@ contains
 !-------------------------------------------------------------------------
 
     logical fexist
-    integer(i_kind) i,j,k
+    integer(i_kind) i,k
     real(r_single)pt,pdtop
     real(r_single),allocatable:: deta1(:),aeta1(:),eta1(:),deta2(:),aeta2(:),eta2(:)
     real(r_single) dlmd,dphd
@@ -1185,7 +1185,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
@@ -1318,7 +1318,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
@@ -1487,7 +1487,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
@@ -1621,7 +1621,7 @@ contains
        end do
 
 
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,aeta2,eta2,glat,glon,glat_an,glon_an,dx_mc,dy_mc)
 
@@ -1729,7 +1729,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
@@ -1739,7 +1739,7 @@ contains
     return
   end subroutine init_reg_glob_ll
 
- subroutine init_general_transform(glats,glons,mype)
+ subroutine init_general_transform(glats,glons)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_general_transform
@@ -1758,7 +1758,6 @@ contains
 !
 !   input argument list:
 !    glons,glats - lons,lats of input grid points of dimesion nlon,nlat
-!    mype        - mpi task id
 !
 !   output argument list:
 !
@@ -1772,7 +1771,6 @@ contains
   implicit none
 
   real(r_kind)   ,intent(in   ) :: glats(nlon,nlat),glons(nlon,nlat)
-  integer(i_kind),intent(in   ) :: mype
 
   real(r_kind),parameter:: rbig =1.0e30_r_kind
   real(r_kind) xbar_min,xbar_max,ybar_min,ybar_max

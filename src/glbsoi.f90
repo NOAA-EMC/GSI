@@ -148,9 +148,9 @@ subroutine glbsoi(mype)
   integer(i_kind),intent(in   ) :: mype
 
 ! Declare local variables
-  logical slow_pole_in,laltmin
+  logical laltmin
 
-  integer(i_kind) nlev_mp,jiterlast
+  integer(i_kind) jiterlast
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
 

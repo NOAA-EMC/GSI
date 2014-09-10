@@ -59,7 +59,7 @@ subroutine read_tcps(nread,ndata,nodata,infile,obstype,lunout,sis)
   real(r_kind) ohr,olat,olon,psob,pob,oberr,usage,toff
   real(r_kind) psdif,alpha
 
-  integer(i_kind) i,k,iret,lunin,nc
+  integer(i_kind) i,k,lunin,nc
   integer(i_kind) ilat,ilon,ikx,nreal,nchanl,noutside,nmrecs
 
   logical endfile, outside

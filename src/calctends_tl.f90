@@ -1,4 +1,4 @@
-subroutine calctends_tl(fields,fields_dt,mype,nnn)
+subroutine calctends_tl(fields,fields_dt,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    calctends_tl       tlm of calctends
@@ -40,7 +40,6 @@ subroutine calctends_tl(fields,fields_dt,mype,nnn)
 !   input argument list:
 !     fields    - bundle holding relevant fields
 !     mype      - task id
-!     nnn       - number of levels on each processor
 !
 !   output argument list:
 !     fields_dt - bundle holding related time tendencies
@@ -75,7 +74,7 @@ subroutine calctends_tl(fields,fields_dt,mype,nnn)
 ! Declare passed variables
   type(gsi_bundle) :: fields
   type(gsi_bundle) :: fields_dt
-  integer(i_kind),intent(in) :: mype,nnn
+  integer(i_kind),intent(in) :: mype
 
 ! Declare local variables
   character(len=*),parameter::myname='calctends_tl'

@@ -106,7 +106,6 @@ subroutine read_lidar(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
 
 
   integer(i_kind):: ilev        ! mccarty
-  real(r_kind) dwlerror   !msq
 
 
   data hdstr  /'SID CLON CLAT DHR TYP'/   !msq jsw

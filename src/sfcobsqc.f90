@@ -100,7 +100,7 @@ subroutine init_rjlists
 ! Declare passed variables
 
 ! Declare local variables
-  integer(i_kind) meso_unit,ncount,m
+  integer(i_kind) meso_unit,ncount
   integer(i_kind) ibin
   real(r_single) aa1,aa2
   character(80) cstring
@@ -484,7 +484,7 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
   character(8),intent(in)::  c_prvstg,c_sprvstg
 
 ! Declare local variables
-  integer(i_kind) m,idx
+  integer(i_kind) m
   character(8)  ch8
 
   gustqm=9

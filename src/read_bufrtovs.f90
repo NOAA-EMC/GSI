@@ -125,10 +125,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radinfo, only: crtm_coeffs_path,adp_anglebc
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad,zero,one,two,three,five,rad2deg,r60inv,r1000,h300
-  use crtm_module, only: crtm_destroy,crtm_init,success,crtm_channelinfo_type, &
+  use crtm_module, only: success, &
       crtm_kind => fp, &
       MAX_SENSOR_ZENITH_ANGLE
-  use crtm_spccoeff, only: sc
+  use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen
   use antcorr_application, only: remove_antcorr
@@ -172,13 +172,13 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,irec,isub,next
+  integer(i_kind) ireadsb,ireadmg,irec,next
   integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
   integer(i_kind) kidsat,instrument
   integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
-  integer(i_kind) iskip,ichan2,ichan1,ichan15,ichan16,ichan17
+  integer(i_kind) iskip,ichan2,ichan1,ichan15
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
@@ -187,10 +187,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
   character(len=20),dimension(1):: sensorlist
-  type(crtm_channelinfo_type),dimension(1) :: channelinfo
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,ch16,ch17,qval
+  real(r_kind) ch1,ch2,ch3,ch8,d0,d1,d2,ch15,qval
   real(r_kind) ch1flg
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
@@ -477,18 +476,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         allocate(data1b8x(nchanl))
         sensorlist(1)=sis
         if( crtm_coeffs_path /= "" ) then
-           if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
-           error_status = crtm_init(sensorlist,channelinfo,&
-              Process_ID=mype_sub,Output_Process_ID=mype_root, &
-              Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE., &
+           if(mype_sub==mype_root) write(6,*)'READ_BUFRTOVS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
+           error_status = crtm_spccoeff_load(sensorlist,&
               File_Path = crtm_coeffs_path )
            else
-              error_status = crtm_init(sensorlist,channelinfo,&
-                 Process_ID=mype_sub,Output_Process_ID=mype_root,&
-                 Load_CloudCoeff=.FALSE.,Load_AerosolCoeff=.FALSE.)
+              error_status = crtm_spccoeff_load(sensorlist)
            endif
            if (error_status /= success) then
-              write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_init error_status=',error_status,&
+              write(6,*)'READ_BUFRTOVS:  ***ERROR*** crtm_spccoeff_load error_status=',error_status,&
                  '   TERMINATE PROGRAM EXECUTION'
            call stop2(71)
         endif
@@ -887,9 +882,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   if(llll == 2)then
 ! deallocate crtm info
-     error_status = crtm_destroy(channelinfo)
+     error_status = crtm_spccoeff_destroy()
      if (error_status /= success) &
-        write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
+        write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
   end if
 
 !   Jump here when there is a problem opening the bufr file

@@ -95,7 +95,6 @@ subroutine wrwrfmassa_binary(mype)
   integer(i_kind) ifld,im,jm,lm,num_mass_fields
   integer(i_kind) num_loc_groups,num_j_groups
   integer(i_kind) i,it,j,k
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) i_mu,i_t,i_q,i_u,i_v
   integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr
   integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,i_tt,ktt

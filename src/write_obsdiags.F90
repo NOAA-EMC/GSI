@@ -1,6 +1,5 @@
 subroutine write_obsdiags(cdfile)
 !#define VERBOSE
-!#define DEBUG_TRACE
 #include "mytrace.H"
 
 !$$$  subprogram documentation block
@@ -46,7 +45,6 @@ character(len=100) :: clfile
 character(len=5) :: clmype
 integer(i_kind) :: iunit,ii,jj,iobs,ierr
 integer(i_kind) :: icount(nobs_type,nobs_bins)
-logical :: muse
 logical :: all_sorted
 integer(i_kind) :: idv,iob,ich
 ! ----------------------------------------------------------
@@ -1071,7 +1069,7 @@ subroutine write_radhead_ ()
     integer(i_kind):: idv,iob,k
     character(len=*),parameter:: myname_=myname//'.write_radhead_'
  
-    integer(i_kind) i,j,nchan
+    integer(i_kind) i,nchan
 _ENTRY_(myname_)
 
     radptr   => radhead(ii)%head

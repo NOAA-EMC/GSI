@@ -77,6 +77,7 @@ subroutine update_guess(sval,sbias)
 !   2014-02-12  Hu      - Adjust 2m Q based on 1st level moisture analysis increment  
 !   2014-02-15  kim     - revisit various options of cloud-related updates
 !   2014-04-13  todling - replace update bias code w/ call to routine in bias_predictors
+!   2014-06-17  carley  - remove setting nguess=0 when use_reflectivity==true
 !
 !   input argument list:
 !    sval
@@ -98,7 +99,7 @@ subroutine update_guess(sval,sbias)
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin
   use jfunc, only: iout_iter,biascor,tsensible,clip_supersaturation
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone,use_reflectivity
+       regional,twodvar_regional,regional_ozone
   use guess_grids, only: ges_tsen,ges_qsat,&
        nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
   use state_vectors, only: svars3d,svars2d
@@ -134,8 +135,8 @@ subroutine update_guess(sval,sbias)
   character(max_varname_length),allocatable,dimension(:) :: cloud
   integer(i_kind) i,j,k,it,ij,ii,ic,id,ngases,nguess,istatus
   integer(i_kind) is_t,is_q,is_oz,is_cw,is_sst
-  integer(i_kind) ipinc,ipinc1,ipinc2,ipges,icloud,ncloud
-  integer(i_kind) ipges_ql,ipges_qi,ipges_cw,idq,ier
+  integer(i_kind) icloud,ncloud
+  integer(i_kind) idq
   real(r_kind) :: zt
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dinc =>NULL()
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dges =>NULL()
@@ -143,12 +144,9 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc1=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dinc2=>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3dges =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges1 =>NULL()
-  real(r_kind),pointer,dimension(:,:,:) :: ptr3dges2 =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_q      =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: p_tv     =>NULL()
   real(r_kind),pointer,dimension(:,:,:) :: ptr3daux =>NULL()
-  real(r_kind),pointer,dimension(:,:  ) :: ptr2daux =>NULL()
 
   real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
 
@@ -168,7 +166,6 @@ subroutine update_guess(sval,sbias)
 
 ! Inquire about guess fields
   call gsi_metguess_get('dim',nguess,istatus)
-  if(use_reflectivity) nguess=0
   if (nguess>0) then
      allocate(guess(nguess))
      call gsi_metguess_get('gsinames',guess,istatus)

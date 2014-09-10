@@ -164,7 +164,7 @@ subroutine stpozlay_(ozhead,rval,sval,out,sges,nstep)
   real(r_kind),pointer,dimension(:) :: dhat_dt_oz
   real(r_kind),allocatable,dimension(:,:) :: roz,soz
   real(r_kind),pointer,dimension(:,:,:)   :: rozp,sozp
-  real(r_kind),dimension(nloz_omi):: efficiency, val_lay, val_lay1
+  real(r_kind),dimension(nloz_omi):: val_lay, val_lay1
   type( oz_ob_type), pointer ::  ozptr
 
   real(r_quad) val,val1
