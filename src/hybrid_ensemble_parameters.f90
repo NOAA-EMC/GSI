@@ -306,6 +306,10 @@ subroutine init_hybrid_ensemble_parameters
 !   
 !   2010-01-13  lueken - added subprogram doc block
 !   12-05-2012  el akkraoui - hybrid beta parameters now vertically varying
+!   2014-09-15  carley - moved the init of variables beta1wgt, beta2wgt, and
+!                         pwgt, to routine  create_hybens_localization_parameters.
+!                         Otherwise these variables were referenced prior to
+!                         memory allocation. 
 !
 !   input argument list:
 !
@@ -347,27 +351,29 @@ subroutine init_hybrid_ensemble_parameters
   jcap_ens_test=0
   nlon_ens=0
   beta1_inv=one
-  beta1wgt=one
-  beta2wgt=zero
-  pwgt=zero
   grid_ratio_ens=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
                              !      ETKF.3DVAR data assimilation scheme for the WRF Model. Part II: 
                              !      Observing system simulation experiment. Mon.  Wea. Rev., 136, 5132-5147.)
 
-  s_ens_v = 30._r_kind       ! grid units 
+  s_ens_v = 30._r_kind       ! grid units
   nval_lenz_en=-1            ! initialize dimension to absurd value
   ntlevs_ens=1               ! default for number of time levels for ensemble perturbations
 
 end subroutine init_hybrid_ensemble_parameters
 
 subroutine create_hybens_localization_parameters
+  use constants, only: one
+  use constants, only: zero
   implicit none
   
   allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
   allocate( betas_inv(grd_ens%nsig),betae_inv(grd_ens%nsig))
   allocate( beta1wgt(grd_ens%nsig),beta2wgt(grd_ens%nsig),pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+  beta1wgt=one               ! Array which must be allocated prior to assignment
+  beta2wgt=zero              ! Array which must be allocated prior to assignment
+  pwgt=zero                  ! Array which must be allocated prior to assignment
   
 end subroutine create_hybens_localization_parameters
 

@@ -25,6 +25,7 @@ bkgvar.o : bkgvar.f90 mpimod.o gsi_bundlemod.o control_vectors.o guess_grids.o g
 bkgvar_rewgt.o : bkgvar_rewgt.f90 general_sub2grid_mod.o general_commvars_mod.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o berror.o balmod.o mpimod.o guess_grids.o gridmod.o constants.o kinds.o 
 blacklist.o : blacklist.f90 kinds.o 
 blendmod.o : blendmod.f90 constants.o kinds.o 
+buddy_check.o : buddy_check.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o aircraftinfo.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o
 calc_fov_conical.o : calc_fov_conical.f90 constants.o calc_fov_crosstrk.o kinds.o 
 calc_fov_crosstrk.o : calc_fov_crosstrk.f90 constants.o kinds.o 
 calctends_ad.o : calctends_ad.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o tendsmod.o derivsmod.o constants.o gridmod.o kinds.o 
@@ -328,7 +329,7 @@ setupsst.o : setupsst.f90 m_dtime.o radinfo.o convinfo.o qcmod.o jfunc.o constan
 setuptcp.o : setuptcp.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o jfunc.o convinfo.o constants.o gridmod.o guess_grids.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setuptcamt.o : setuptcamt.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o mpeu_util.o 
 setuptd2m.o : setuptd2m.f90 gsi_metguess_mod.o m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o mpeu_util.o
-setupt.o : setupt.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o aircraftinfo.o rapidrefresh_cldsurf_mod.o converr.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
+setupt.o : setupt.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o aircraftinfo.o rapidrefresh_cldsurf_mod.o converr.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o mpimod.o 
 setupvis.o : setupvis.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o mpeu_util.o 
 setupw.o : setupw.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o rapidrefresh_cldsurf_mod.o converr.o convinfo.o jfunc.o constants.o guess_grids.o gridmod.o oneobmod.o qcmod.o gsi_4dvar.o obsmod.o kinds.o mpeu_util.o 
 setupwspd10m.o : setupwspd10m.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o convinfo.o qcmod.o jfunc.o constants.o gridmod.o oneobmod.o gsi_4dvar.o obsmod.o guess_grids.o kinds.o mpeu_util.o
