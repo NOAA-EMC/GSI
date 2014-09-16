@@ -1182,25 +1182,25 @@
         do i = 1,nchanl
 !       This is where channels are rejected for lsingleradob
           ! if lsingleradob is on, then...
-          if (lsingleradob) then
+           if (lsingleradob) then
             ! if the channels are beyond 0.01 of oblat/oblon, specified
             ! in gsi namelist or aren't of type 'oneob_type', reject
-            if ( (abs(cenlat - oblat) .gt. one/r100 .or. &
-                  abs(cenlon - oblon) .gt. one/r100) .or. &
-                  obstype .ne. oneob_type ) then
-              varinv(i) = zero
-              varinv_use(i) = zero
-              if (id_qc(i) .eq. igood_qc) id_qc(i) = ifail_outside_range
-            else
-                ! if obchan <= zero, keep all footprints, if obchan > zero,
-                ! keep only that which has channel obchan
-                if (i .ne. obchan .and. obchan .gt. 0) then
-                  varinv(i) = zero
-                  varinv_use(i) = zero
-                  if (id_qc(i) .eq. igood_qc) id_qc(i) = ifail_outside_range
-                endif
-            endif !cenlat/lon
-          endif !lsingleradob
+              if ( (abs(cenlat - oblat) .gt. one/r100 .or. &
+                    abs(cenlon - oblon) .gt. one/r100) .or. &
+                    obstype /= oneob_type ) then
+                 varinv(i) = zero
+                 varinv_use(i) = zero
+                 if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+              else
+                 ! if obchan <= zero, keep all footprints, if obchan > zero,
+                 ! keep only that which has channel obchan
+                 if (i /= obchan .and. obchan > zero) then
+                    varinv(i) = zero
+                    varinv_use(i) = zero
+                    if (id_qc(i) == igood_qc) id_qc(i) = ifail_outside_range
+                 endif
+              endif !cenlat/lon
+           endif !lsingleradob
 
 
 !          Only process observations to be assimilated
