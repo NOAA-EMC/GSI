@@ -76,13 +76,12 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   real(r_kind) lcbasges,dlat,dlon,ddiff,dtime,error
   real(r_kind) scale,val2,ratio,ressw2,ress,residual
-  real(r_kind) obserrlm,obserror,val,valqc,rlow,drpx
+  real(r_kind) obserrlm,obserror,val,valqc,drpx
   real(r_kind) term,rwgt
   real(r_kind) cg_lcbas,wgross,wnotgross,wgt,arg,exp_arg,rat_err2
-  real(r_kind) ratio_errors,tfact,fact,ten,zsges
-  real(r_kind) slat,sin2,termg,termr,termrg
+  real(r_kind) ratio_errors,tfact,zsges
   real(r_kind) errinv_input,errinv_adjst,errinv_final
-  real(r_kind) err_input,err_adjst,err_final,skint,sfcr
+  real(r_kind) err_input,err_adjst,err_final
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -90,8 +89,8 @@ subroutine setuplcbas(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   integer(i_kind) ier,ilon,ilat,izz,ihgt,ilcbas,id,itime,ikx,iqc,iceil
   integer(i_kind) iuse,ilate,ilone,istnelv,iprvd,isprvd
-  integer(i_kind) i,nchar,nreal,k,j,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
-  integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
+  integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
+  integer(i_kind) l,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
   integer(i_kind) jlat,jlon

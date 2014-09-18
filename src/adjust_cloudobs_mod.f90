@@ -74,7 +74,7 @@ subroutine adjust_convcldobs(cld2seq,cld2seqlevs,input_cldseq,cldseqlevs,wthstr,
   real(r_kind),parameter :: midcld1=1500.0_r_kind
   real(r_kind),parameter :: midcld2=4000.0_r_kind
 
-  integer(i_kind) :: i,j,k,kk
+  integer(i_kind) :: k,kk
   integer(i_kind),dimension(10) :: cldamt_qc
   integer(i_kind),dimension(10) :: cldbas_qc
   real(r_kind) :: cld_prod,basmin
@@ -400,10 +400,9 @@ subroutine adjust_goescldobs(goescld,timeobs,idomsfc,dlat_earth,dlon_earth, &
   real(r_kind),parameter :: midcld2=4000.0_r_kind
   real(r_kind),parameter :: zen_limit=80.0_r_kind
 
-  integer(i_kind) :: i,j,k,leap_day,day_of_year
+  integer(i_kind) :: leap_day,day_of_year
   integer(i_kind),dimension(8):: obs_time,anal_time
   real(r_kind) :: csza,sza,hrang,xlon,declin,gmt
-  real(r_kind) :: sat_ctp
   real(r_kind),dimension(5):: tmp_time
 
 ! initialize output variables

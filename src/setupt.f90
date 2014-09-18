@@ -49,7 +49,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-!!  use buddycheck_mod, only : buddy_check_t
+  use buddycheck_mod, only: buddy_check_t
 
   implicit none
 
@@ -164,7 +164,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   character(len=*),parameter :: myname='setupt'
 
 ! Declare external calls for code analysis
-  external:: buddy_check_t
   external:: SFC_WTQ_FWD
   external:: get_tlm_tsfc
   external:: tintrp2a1,tintrp2a11
@@ -206,6 +205,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime,istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+
+  integer(i_kind),dimension(nobs):: buddyuse
+
   
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -214,7 +216,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) r_prvstg,r_sprvstg
 
   logical,dimension(nobs):: luse,muse
-  integer(i_kind),dimension(nobs):: buddyuse
   logical sfctype
   logical iqtflg
   logical aircraftobst
@@ -240,9 +241,6 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   n_alloc(:)=0
   m_alloc(:)=0
-
-
-  print*, myname,': JRC Entered with PE',mype
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -297,9 +295,12 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+
   print*, myname,': JRC ABOUT TO CALL buddy_check_t mype',mype
-  if (twodvar_regional) call buddy_check_t(data,luse,mype,nele,nobs,muse,buddyuse)
+  if (twodvar_regional) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   print*, myname,': JRC RETURNING FROM buddy_check_t mype',mype
+
+
   dup=one
   do k=1,nobs
      do l=k+1,nobs
@@ -1002,6 +1003,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         deallocate(cprvstg,csprvstg)
      endif
   end if
+
 
 ! End of routine
 

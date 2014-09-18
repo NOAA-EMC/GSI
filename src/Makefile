@@ -216,7 +216,6 @@ clean:
 	bkgvar_rewgt.f90 \
 	blacklist.f90 \
 	blendmod.f90 \
-	buddy_check.f90 \
 	calc_fov_conical.f90 \
 	calc_fov_crosstrk.f90 \
 	calctends.f90 \
@@ -541,6 +540,7 @@ clean:
 	zrnmi_mod.f90
 
   SRCSF90C_NOSWAP = \
+	buddycheck_mod.f90 \
 	get_gefs_ensperts_dualres.f90 \
 	gsi_unformatted.F90 \
         m_extOzone.F90 \

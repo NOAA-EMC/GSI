@@ -141,6 +141,7 @@ module obsmod
 !   def dplat        - satellite (platform) id
 !   def dthin        - satellite group
 !   def nsat1        - number of observations of satellites in each pe
+!   def obs_sub_comm - mpi communicator for obs ob pe subdomains (one communicator per obtype)
 !   def mype_diaghdr - pe id for writing out satellite diagnostic file
 !   def dval         - relative value of each profile within group
 !                      relative weight for observation = dval/sum(dval)
@@ -339,7 +340,7 @@ module obsmod
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
-  public :: perturb_fact,dtbduv_on,nsat1,mype_diaghdr,wptr,whead,psptr,pshead
+  public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr,wptr,whead,psptr,pshead
   public :: qptr,qhead,tptr,thead,lobsdiag_allocated,pstail,ttail,wtail,qtail,spdtail
   public :: spdhead,srwtail,srwhead,rwtail,rwhead,dwtail,dwhead,ssttail,ssthead,pwtail
   public :: pwhead,oztail,ozhead,o3ltail,o3lhead,colvktail,colvkhead,pcptail,pcphead,gpstail,gpshead
@@ -1500,6 +1501,7 @@ module obsmod
   integer(i_kind),allocatable,dimension(:):: dsfcalc,dthin,ipoint
   integer(i_kind),allocatable,dimension(:)::  nsat1,mype_diaghdr
   integer(i_kind),allocatable :: obscounts(:,:)
+  integer(i_kind),allocatable :: obs_sub_comm(:)
   
   character(128) obs_setup
   character(128) dirname
@@ -1798,9 +1800,10 @@ contains
 !
 !$$$ end documentation block
     use gsi_4dvar, only: nobs_bins
+    use mpimod, only: npe
     implicit none
 
-    allocate (nsat1(ndat),mype_diaghdr(ndat))
+    allocate (nsat1(ndat),mype_diaghdr(ndat),obs_sub_comm(ndat))
 
     ALLOCATE(thead  (nobs_bins))
     ALLOCATE(ttail  (nobs_bins))
@@ -2482,7 +2485,7 @@ contains
 !$$$  end documentation block
     implicit none
 
-    deallocate(nsat1,mype_diaghdr)
+    deallocate(nsat1,mype_diaghdr,obs_sub_comm)
     return
   end subroutine destroy_obsmod_vars
 

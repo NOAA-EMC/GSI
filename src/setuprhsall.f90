@@ -122,7 +122,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use pcpinfo, only: diag_pcp
   use ozinfo, only: diag_ozone,mype_oz,jpch_oz,ihave_oz
   use coinfo, only: diag_co,mype_co,jpch_co,ihave_co
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,npe
   use gridmod, only: nsig,twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
   use jfunc, only: jiter,jiterstart,miter,first,last
@@ -438,6 +438,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            else if(ditype(is) == 'conv')then
 !             Set up temperature data
               if(obstype=='t')then
+                 !print*,'JRC SETUPRHSALL mype NPE:',mype,npe
                  call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,is,conv_diagsave)
 
 !             Set up uv wind data
