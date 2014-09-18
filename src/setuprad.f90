@@ -1180,13 +1180,13 @@
         iccm= 0
 
         do i = 1,nchanl
-!       This is where channels are rejected for lsingleradob
-          ! if lsingleradob is on, then...
+
+!          Reject radiances for single radiance test
            if (lsingleradob) then
-            ! if the channels are beyond 0.01 of oblat/oblon, specified
-            ! in gsi namelist or aren't of type 'oneob_type', reject
-              if ( (abs(cenlat - oblat) .gt. one/r100 .or. &
-                    abs(cenlon - oblon) .gt. one/r100) .or. &
+              ! if the channels are beyond 0.01 of oblat/oblon, specified
+              ! in gsi namelist, or aren't of type 'oneob_type', reject
+              if ( (abs(cenlat - oblat) > one/r100 .or. &
+                    abs(cenlon - oblon) > one/r100) .or. &
                     obstype /= oneob_type ) then
                  varinv(i) = zero
                  varinv_use(i) = zero
@@ -1201,7 +1201,6 @@
                  endif
               endif !cenlat/lon
            endif !lsingleradob
-
 
 !          Only process observations to be assimilated
 

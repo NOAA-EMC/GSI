@@ -119,8 +119,7 @@ module qcmod
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,tdrgross_fact
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
-            ifail_gross_qc,ifail_cloud_qc
-  public :: ifail_outside_range
+            ifail_gross_qc,ifail_cloud_qc,ifail_outside_range
 
   logical nlnqc_iter
   logical noiqc
