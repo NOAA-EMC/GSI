@@ -1090,7 +1090,7 @@ subroutine read_obs(ndata,mype)
 !            Process radar winds
              else if (obstype == 'rw') then
                 call read_radar(nread,npuse,nouse,infile,lunout,obstype,twind,sis,&
-                                ithin,rmesh,hgtl_full)
+                                hgtl_full)
                 string='READ_RADAR'
 
 !            Process lagrangian data
