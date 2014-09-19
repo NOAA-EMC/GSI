@@ -296,10 +296,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
 
-  print*, myname,': JRC ABOUT TO CALL buddy_check_t mype',mype
   if (twodvar_regional) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
-  print*, myname,': JRC RETURNING FROM buddy_check_t mype',mype
-
 
   dup=one
   do k=1,nobs
@@ -624,9 +621,17 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then
-        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) &
-               qcgross=three*qcgross
+     if (twodvar_regional) then              !Terrain aware and buddy check modification to gross error check        
+        if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind )then 
+            qcgross=three*qcgross
+            if (buddyuse(i)==1) then
+               qcgross=2*qcgross !relax even more for terrain in cases where buddy check passes
+               data(iuse,i)=data(iuse,i)+0.50_r_kind !so we can identify obs with extra relaxed gross qc in diag files (will show as 1.75)
+            end if
+        else if (buddyuse(i)==1) then
+            qcgross=three*qcgross
+            data(iuse,i)=data(iuse,i)+0.50_r_kind !so we can identify obs with extra relaxed gross qc in diag files  (will show as 1.5)            
+        end if  
      endif
 
      if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then

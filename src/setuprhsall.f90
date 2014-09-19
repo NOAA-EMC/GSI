@@ -438,7 +438,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
            else if(ditype(is) == 'conv')then
 !             Set up temperature data
               if(obstype=='t')then
-                 !print*,'JRC SETUPRHSALL mype NPE:',mype,npe
                  call setupt(lunin,mype,bwork,awork(1,i_t),nele,nobs,is,conv_diagsave)
 
 !             Set up uv wind data

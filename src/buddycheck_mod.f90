@@ -201,7 +201,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   mm1=mype+1
 
   !initialize buddyuse to 1, start by assuming all obs are good!
-  buddyuse=one
+  buddyuse=1
   call dtime_setup()
   do i=1,nobs
      dtime=data(itime,i)
@@ -522,13 +522,12 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
                   diff_check_1,diff_check_2,diff_j,err,fact
   real(r_kind) :: diff(numobs),distance,vdist
   integer(i_kind) :: i,j,buddy_num,numobs_global,kob,buddy_num_final
-  integer(i_kind) :: mm1,mynpe
+  integer(i_kind) :: mm1,mynpe,ji,newrank
   integer(i_kind),allocatable,dimension(:) :: buddyuse_global,idisp,ircnt
+  real(r_kind) :: vals1d(numobs*5)
   real(r_kind),allocatable,dimension(:,:) :: vals_global
+  real(r_kind),allocatable,dimension(:) :: vals1dglob
   character(len=*),parameter :: myname='execute_buddy_check'
-
-!  write(6,'(2A,I3)')myname,': JRC Entered with PE', mype
-
 
   ! Obtain the number of tasks here by using the communicator setup in obs_para.f90
   ! Note that the only communicator that gets activated here is the one associated with nobs>0
@@ -538,9 +537,9 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
   call mpi_comm_size(obs_sub_comm(is), mynpe, ierror) 
   allocate(idisp(mynpe),ircnt(mynpe))
   idisp=0;ircnt=0
-!  write(6,'(2A,I3,I10)')myname,' JRC: myrank,numobs',mype,numobs
+
   call mpi_allgather(numobs,1,mpi_itype,ircnt,1,mpi_itype,obs_sub_comm(is),ierror)
-!  write(6,'(2A,I3)')myname,': JRC after mpi_allgather with PE', mype
+
 
   ! Now we need to calculate the displacement array here since we can't use the one from the
   !  global obsveration data array since that one is not ordered in any particular manner
@@ -553,19 +552,18 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
         idisp(i)=idisp(i-1)+ircnt(i-1)
      end do
   end if
-
-!  write(6,1000)myname,'JRC DISPLS:',mype,(idisp(i),i=1,mynpe)
-!  write(6,1000)myname,'JRC  IRCNT:',mype,(ircnt(i),i=1,mynpe)
+!  write(6,1000)myname,'DISPLS:',mype,(idisp(i),i=1,mynpe)
+!  write(6,1000)myname,' IRCNT:',mype,(ircnt(i),i=1,mynpe)
 !1000  format(2A10,1x,I3,1x,8I10,/,(10X,10I10))  
 
   ! Get the total, global number of obs/innovations we need to consider
 
   call mpi_allreduce(numobs,numobs_global,1,mpi_itype,mpi_sum,obs_sub_comm(is),ierror)
 
-!  write(6,'(2A,I3,1x,I10)')myname,'JRC mype,numobs_global',mype,numobs_global
+ !  write(6,'(2A,I3,1x,I10)')myname,'mype,numobs_global',mype,numobs_global
 
   ! Allocate the memory for everything and initialize to zero
-  allocate(vals_global(numobs_global,5),buddyuse_global(numobs_global))
+  allocate(vals_global(numobs_global,5),buddyuse_global(numobs_global),vals1dglob(numobs_global*5))
   vals_global=zero
 
   ! Gather all vals(:,:) on subdomains into vals_global on every task, noting that vals takes the following
@@ -576,33 +574,59 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
   !                vals(i,4)=ob height
   !                vals(i,5)=rusage
      
-  call mpi_allgatherv(vals,numobs*5,mpi_rtype,vals_global,ircnt*5,idisp*5,mpi_rtype,obs_sub_comm(is),ierror)
 
+  !put vals in a 1d array for easy mpi comms
+  ji=0
+  do i=1,numobs       
+     do j=1,5
+        ji=ji+1
+        vals1d(ji)=vals(i,j)
+     end do
+  end do
+
+  call mpi_allgatherv(vals1d,numobs*5,mpi_rtype,vals1dglob,ircnt*5,idisp*5,mpi_rtype,obs_sub_comm(is),ierror)
+
+   ! put vals1dglob to 2d vals_glob so things are more human-readable
+  ji=0
+  do i=1,numobs_global       
+     do j=1,5
+        ji=ji+1
+        vals_global(i,j)=vals1dglob(ji)
+     end do
+  end do
   ! Gather all buddyuse params into a global copy (buddyuse_global) that all tasks have
-
-
-
 
 !  write(6,1000)myname,'JRC  IRCNT:',mype,(ircnt(i),i=1,mynpe)
 !2000  format(2A20,1x,I3,8(5f14.3),/,(10X,10(5f14.3)))  
 
   call mpi_allgatherv(buddyuse,numobs,mpi_itype,buddyuse_global,ircnt,idisp,mpi_itype,obs_sub_comm(is),ierror)
  
+!  CALL MPI_COMM_RANK(obs_sub_comm(is), newrank, ierror)
 
  ! Now - finally - start what we came her for originally, the buddy check!
 
  ! Begin with main loop through all obs on pe subdomain
   main: do i=1,numobs
 
-    if (numobs==42) then
-      if (i==1) write(6,'(5(A,3x))')'O-F','Earth Lat','Earth Lon','ObHght','Rusage'
-      write(6,'(5(f7.2,3x))')vals(i,1),vals(i,2),vals(i,3),vals(i,4),vals(i,5)
-      
-    end if
+    !if (numobs==35) then
+    !  if (i==1) write(6,'(5(A,3x))')'O-F','Earth Lat','Earth Lon','ObHght','Rusage'
+    !  write(6,'(A,5(f7.2,3x))')'Local:',vals(i,1),vals(i,2),vals(i,3),vals(i,4),vals(i,5)     
+    !  ji=idisp(newrank)+i   !should correspond to the new rank, not mpi_comm_world
+    !  write(6,'(A,5(f7.2,3x))')'Global',vals_global(ji,1),vals_global(ji,2),vals_global(ji,3),vals_global(ji,4),vals_global(ji,5)      
+    !end if
+
+    !if (numobs==35) then
+     ! if (i==1) write(6,'(5(A,3x))')'BUDDYUSE'
+    !  write(6,'(A,I3)')'Local:',buddyuse(i)     
+    !  ji=idisp(newrank)+i   !should correspond to the new rank, not mpi_comm_world
+    !  write(6,'(A,I3)')'Global',buddyuse_global(i)      
+    !end if
+
 
     average = zero
     if (vals(i,5)>= r100 .or. buddyuse(i)==0) then    ! No buddy check is applied to bad data (rusage => 100)       
-       buddyuse=0 ! Do not run buddy check if buddyuse is already 0 - this ob may have luse=.false., be outside the timewindow, etc.
+       if(numobs==35)write(6,'(A,f10.4,I3)')'SKIPPING DUE TO USAGE>100 OR BUDDYUSE:',vals(i,5),buddyuse(i)  
+       buddyuse(i)=0 ! Do not run buddy check if buddyuse is already 0 - this ob may have luse=.false., be outside the timewindow, etc 
        cycle main
     end if
 
@@ -618,17 +642,16 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
     
     inner: do j = 1, numobs_global
     diff=zero
-       if (buddyuse_global(j)==0 .or. vals_global(j,5) <= r100 ) cycle inner !do not use buddies who are not eligible
-       if (j /= i) then     
-          distance=gc_dist(mylat,mylon,vals_global(j,2),vals_global(j,3))  !units are meters
+       if (buddyuse_global(j)==0 .or. vals_global(j,5) <= r100 ) cycle inner !do not use buddies who are not eligible     
+          distance=gc_dist(mylat,mylon,vals_global(j,2),vals_global(j,3))  !units are meters       
           vdist=abs(myelev-vals_global(j,4))                               !units are meters
           if (distance <= range .and. distance >= one_tenth .and. vdist <= 200._r_kind) then
+            if (numobs==35) write(6,'(A,f7.3,f7.3,A,f7.3,f7.3,A,f10.3,A,f7.3)')'MyLatLon ',mylat,mylon,' BuddyLatlon ',vals_global(j,2),vals_global(j,3),' GCdist (km) ',distance/1000., ' vdist(m) ',vdist
           ! distance must be greater than 0.1 so we don't include the test ob in the buddy list
              buddy_num = buddy_num + 1  ! We have found a buddy, so increment the counter
              ! innovation (O-B) ==> diff:
              diff(buddy_num)=vals_global(j,1) !save the innovation associated with this buddy
           end if
-       end if
     end do inner
 
     !-  initialize buddy_num_final to 0
@@ -690,14 +713,18 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
 !  Now do the final buddy check
      if (abs(err) > fact*difmax) then
         buddyuse(i) = -1
+        if(numobs==35) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Fails! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i
         !print('%.3f %s %.3f %s %d %s %d %s %d%s %.0f' % (obinc[num],'Fails! with err =', err,'having',buddy_num_final,'buddies. Ob number', num,'of',len(obinc),'. TYP',pbuftyp[num]))      
      else
-        buddyuse(i)=1    
+        buddyuse(i)=1
+        if(numobs==35) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Passes! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i    
         !if num % 1000.==0: print('%.3f %s %.3f %s %d %s %d %s %d' % (obinc[num],'Passes! with err =', err,'having',buddy_num_final,'buddies. Ob number', num,'of',len(obinc)))      
      end if
   end do main
-  deallocate(vals_global,buddyuse_global,idisp,ircnt)
+  deallocate(vals_global,buddyuse_global,idisp,ircnt,vals1dglob)
   return
+
+ 
 
   end subroutine execute_buddy_check
 
