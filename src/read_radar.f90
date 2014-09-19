@@ -1,7 +1,7 @@
 !  SUBSET=NC006001 -- level 3 superobs
 !  SUBSET=NC006002 -- level 2.5 superobs
 !  SUBSET=NC006070 -- RADIAL WIND FROM P3 RADAR
-subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,rmesh,hgtl_full)
+subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_full)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_radar                    read radar radial winds
@@ -85,7 +85,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig
   use gridmod, only: wrf_nmm_regional,nems_nmmb_regional,cmaq_regional,wrf_mass_regional
   use convinfo, only: nconvtype,ctwind, &
-      ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype
+      ncmiter,ncgroup,ncnumgrp,icuse,ictype,ioctype,ithin_conv,rmesh_conv,pmesh_conv
   use guess_grids, only: hrdifsig,geop_hgtl,nfldsig,ges_prslavg
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
@@ -213,7 +213,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   real(r_single) a43,aactual,selev0,celev0,erad
 
   real(r_kind) sin2,termg,termr,termrg,zobs
-  real(r_kind) xmesh,zmesh
+  real(r_kind) xmesh,pmesh
   real(r_kind),dimension(nsig):: zges,hges
   real(r_kind) dx,dy,dx1,dy1,w00,w10,w01,w11
   logical luse
@@ -242,6 +242,9 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   data hdrstr(2) / 'PTID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON HSMSL ANAZ ANEL' /
   data datstr(1) / 'STDM SUPLAT SUPLON HEIT RWND RWAZ RSTD' /
   data datstr(2) / 'DIST HREF DMVR DVSW' /
+
+  data ithin / -9 /
+  data rmesh / -99.999_r_kind /
   
 !***********************************************************************************
 
@@ -269,10 +272,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   cdata_all=zero
 
   if (trim(infile) == 'tldplrbufr' .or. trim(infile) == 'tldplrso') goto 65
-
-  ithin=-9
-  rmesh=-99.999_r_kind
-  use_all=.true.
 
 ! Initialize variables
 ! vad_leash=.1_r_kind
@@ -1341,29 +1340,38 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
   jjj=0
   iimax=0
 
-  zmesh=500._r_kind
-  zflag=0
-  if (ithin > 0) then
-     write(6,*)'READ_RADAR: ithin,rmesh :',ithin,rmesh
-     use_all=.false.
-     if(zflag == 0)then
-        nlevz=nsig
-     else
-        nlevz=r16000/zmesh
-     endif
-     xmesh=rmesh
-     call make3grids(xmesh,nlevz)
-
-     allocate(zl_thin(nlevz))
-     if (zflag == 1) then
-        do k=1,nlevz
-           zl_thin(k)=k*zmesh
-        enddo
-     endif
-     write(6,*)'READ_RADAR: xmesh, zflag, nlevz =', xmesh, zflag, nlevz
-  endif
-
   if(loop == 3) outmessage='tail Doppler radar obs:'
+
+  use_all = .true.
+  do i=1,nconvtype
+     if(trim(ioctype(i)) == trim(obstype) .and. ictype(i) < 999 .and. icuse(i) > 0)then
+        ithin=ithin_conv(i)
+        print *,'mtong i, ithin_conv(i)=', i, ithin_conv(i)
+        if(ithin > 0)then
+           rmesh=rmesh_conv(i)
+           pmesh=pmesh_conv(i)
+           use_all = .false.
+           if(pmesh > zero) then ! Here pmesh is height in meters
+              zflag=1
+              nlevz=r16000/pmesh
+           else
+              zflag=0
+              nlevz=nsig
+           endif
+           xmesh=rmesh
+           call make3grids(xmesh,nlevz)
+           allocate(zl_thin(nlevz))
+           if (zflag==1) then
+              do k=1,nlevz
+                 zl_thin(k)=(k-1)*pmesh
+              enddo
+           endif
+           write(6,*)'READ_RADAR: obstype,ictype,rmesh,zflag,nlevz,pmesh=',&
+              trim(ioctype(i)),ictype(i),rmesh,zflag,nlevz,pmesh
+           exit
+        end if
+     end if
+  end do
 
   if(trim(infile) == 'tldplrso') goto 75
 
@@ -1523,11 +1531,17 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
 
   t4dv=real(minobs-iwinbgn,r_kind)*r60inv
   if (l4dvar) then
-     if (t4dv<zero .OR. t4dv>winlen) goto 70
+     if (t4dv<zero .OR. t4dv>winlen) then
+        ntimeout=ntimeout+1
+        goto 70
+     end if
      timeo=t4dv
   else
      timeo = real(minobs-mincy,r_kind)*r60inv
-     if (abs(timeo)>twind) goto 70
+     if (abs(timeo) > twind .or. abs(timeo) > ctwind(ikx)) then
+        ntimeout=ntimeout+1
+        goto 70
+     end if
   endif
 
   timemax=max(timemax,timeo)
@@ -2223,31 +2237,31 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,ithin,r
      call del3grids
   endif
 
-  write(6,*)'READ_RADAR:  ',trim(outmessage),' reached eof on tail Doppler radar file.'
-
-  write(6,*)'READ_RADAR: nmrecs,nread,nmissing=', nmrecs, nread, nmissing
-  write(6,*)'READ_RADAR: nsubzero=', nsubzero
-  write(6,*)'READ_RADAR: maxout, maxdata=', maxout, maxdata
-  write(6,*)'READ_RADAR: ntdrvr_in,ntdrvr_kept=',ntdrvr_in,ntdrvr_kept
+  write(6,*)'READ_RADAR: # records(beams) read in nmrecs=', nmrecs
+  write(6,*)'READ_RADAR: # records out of time window =', ntimeout
+  write(6,*)'READ_RADAR: # records with bad tilt=',ibadtilt
+  write(6,*)'READ_RADAR: # records with bad station height =',ibadstaheight
+  write(6,*)'READ_RADAR: # data read in nread=', nread 
+  write(6,*)'READ_RADAR: # data with missing value nmissing=', nmissing
+  write(6,*)'READ_RADAR: # data likely to be below sealevel nsubzero=', nsubzero
+  write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1 
+  write(6,*)'READ_RADAR: # data retained after thinning along the beam ntdrvr_in=', ntdrvr_in
+  write(6,*)'READ_RADAR: # out of domain =', noutside
+  write(6,*)'READ_RADAR: # out of range =', nirrr
+  write(6,*)'READ_RADAR: # bad azimuths =',ibadazm
+  write(6,*)'READ_RADAR: # bad winds (<2m/s or >71m/s) =',ibadwnd
+  write(6,*)'READ_RADAR: # bad ranges   =',ibadrange
+  write(6,*)'READ_RADAR: # bad distance from radar =',ibaddist
+  write(6,*)'READ_RADAR: # bad obs height =',ibadheight
+  write(6,*)'READ_RADAR: # bad data =',notgood0
+  write(6,*)'READ_RADAR: # data retained after QC ntdrvr_kept=', ntdrvr_kept
+  write(6,*)'READ_RADAR: # data removed by thinning mesh ntdrvr_thin2=', ntdrvr_thin2
   if(l_foreaft_thin)then
     write(6,*)'READ_RADAR: nforeswp,naftswp,nswp=',nforeswp,naftswp,nswp
     write(6,*)'READ_RADAR: ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp=',ntdrvr_thin2_foreswp,ntdrvr_thin2_aftswp
     write(6,*)'READ_RADAR: data retained for further processing nfore,naft=',nfore,naft
   end if
-  write(6,*)'READ_RADAR: ntdrvr_thin1,ntdrvr_thin2=',ntdrvr_thin1,ntdrvr_thin2
   write(6,*)'READ_RADAR: data retained for further processing =', jjj
-  write(6,*)'READ_RADAR: # out of domain =', noutside
-  write(6,*)'READ_RADAR: # out of time window =', ntimeout
-  write(6,*)'READ_RADAR: # out of range =', nirrr
-  write(6,*)'READ_RADAR: # bad azimuths=',ibadazm
-  write(6,*)'READ_RADAR: # bad tilt=',ibadtilt
-  write(6,*)'READ_RADAR: # bad winds   =',ibadwnd
-  write(6,*)'READ_RADAR: # bad dists   =',ibaddist
-  write(6,*)'READ_RADAR: # bad ranges   =',ibadrange
-  write(6,*)'READ_RADAR: # bad stahgts =',ibadstaheight
-  write(6,*)'READ_RADAR: # bad obshgts =',ibadheight
-  write(6,*)'READ_RADAR: # notgood0    =',notgood0
-  write(6,*)'READ_RADAR: # notgood     =',notgood
   write(6,*)'READ_RADAR: timemin,max   =',timemin,timemax
   write(6,*)'READ_RADAR: elevmin,max   =',elevmin,elevmax
   write(6,*)'READ_RADAR: dlatmin,max,dlonmin,max=',dlatmin,dlatmax,dlonmin,dlonmax

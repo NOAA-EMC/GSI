@@ -1540,11 +1540,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            end do
         end do
 
-     end do ! it loop  
-
 !    Transfer surface fields
-     do it=1,nfldsig
-        i_0=(it-1)*num_nmm_fields
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)

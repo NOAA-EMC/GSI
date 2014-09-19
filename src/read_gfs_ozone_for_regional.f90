@@ -22,6 +22,8 @@ subroutine read_gfs_ozone_for_regional
 !   2013-10-19  todling - metguess now holds background
 !   2013-12-06  eliu    - add FGAT capability 
 !   2014-06-30  wu      - bug fix for undefined variable "proceed" in check_vars_
+!   2014-08-18  tong    - modified to allow gfs/gdas spectral coefficients to be
+!                         transformed to a coarser resolution grid
 !
 !   input argument list:
 !
@@ -34,6 +36,7 @@ subroutine read_gfs_ozone_for_regional
 !$$$ end documentation block
 
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,region_lat,region_lon,check_gfs_ozone_date
+  use gridmod, only: jcap_gfs,nlat_gfs,nlon_gfs,wrf_nmm_regional
   use constants,only: zero,half,fv,rd_over_cp,one,h300
                        use constants, only: rad2deg  !  debug
   use mpimod, only: mpi_comm_world,ierror,mype,mpi_rtype,mpi_min,mpi_max
@@ -51,7 +54,7 @@ subroutine read_gfs_ozone_for_regional
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix
-  type(spec_vars) sp_gfs
+  type(spec_vars) sp_gfs,sp_b
   real(r_kind),allocatable,dimension(:,:,:) :: pri,vor,div,u,v,tv,q,cwmr,oz,prsl
   real(r_kind),allocatable,dimension(:,:)   :: z,ps
   real(r_kind),allocatable,dimension(:) :: ak5,bk5,ck5,tref5
@@ -67,10 +70,11 @@ subroutine read_gfs_ozone_for_regional
   integer(sigio_intkind):: lunges = 11
   type(sigio_head):: sighead
   type(egrid2agrid_parm) :: p_g2r
-  integer(i_kind) inner_vars,num_fields,nlat_gfs,nlon_gfs,nsig_gfs,jcap_gfs,jcap_gfs_test
-  integer(i_kind) nord_g2r
+  integer(i_kind) inner_vars,num_fields,nsig_gfs,jcap_gfs_test
+  integer(i_kind) nord_g2r,jcap_org,nlon_b
   logical,allocatable :: vector(:)
   logical vector0
+  logical hires
   real(r_kind) ozmin,ozmax
   real(r_kind) ozmin0,ozmax0
   real(r_kind),parameter::  zero_001=0.001_r_kind
@@ -170,8 +174,8 @@ subroutine read_gfs_ozone_for_regional
      write(6,*)' in read_gfs_ozone_for_regional, iadate_gfs=',iadate_gfs
      write(6,*)' in read_gfs_ozone_for_regional, iadate    =',iadate
   end if
-  if(iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
-                                 iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5) ) then
+  if((iadate_gfs(1)/=iadate(1).or.iadate_gfs(2)/=iadate(2).or.iadate_gfs(3)/=iadate(3).or.&
+      iadate_gfs(4)/=iadate(4).or.iadate_gfs(5)/=iadate(5)) .and. .not. wrf_nmm_regional ) then
      if(mype == 0) write(6,*)' WARNING: GFS OZONE FIELD DATE NOT EQUAL TO ANALYSIS DATE'
      if(check_gfs_ozone_date) then
         if(mype == 0) write(6,*)' CHECK_GFS_OZONE_DATE = .true., PROGRAM STOPS DUE TO OZONE DATE MISMATCH'
@@ -218,17 +222,34 @@ subroutine read_gfs_ozone_for_regional
 
 
   inner_vars=1
-  nlat_gfs=sighead%latf+2
-  nlon_gfs=sighead%lonf
+  jcap_org=sighead%jcap
   nsig_gfs=sighead%levs
-  num_fields=2*nsig_gfs           !  want to transfer ozone and 3d pressure from gfs subdomain to slab
+  num_fields=2*nsig_gfs
+
+  nlon_b=((2*jcap_org+1)/nlon_gfs+1)*nlon_gfs
+  if (nlon_b > nlon_gfs) then
+     hires=.true.
+  else
+     hires=.false. 
+     jcap_gfs=sighead%jcap
+     nlat_gfs=sighead%latf+2
+     nlon_gfs=sighead%lonf
+  end if
+
+  if(mype==0) write(6,*)'read_gfs_ozone_for_regional: jcap_org, jcap_gfs= ', &
+              jcap_org, jcap_gfs
+  if(mype==0) write(6,*)'read_gfs_ozone_for_regional: nlon_b, nlon_gfs, hires=', &
+                         nlon_b, nlon_gfs, hires
+
   allocate(vector(num_fields))
   vector=.false.
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
-  jcap_gfs=sighead%jcap
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
+  if (hires) then
+      call general_init_spec_vars(sp_b,jcap_org,jcap_org,nlat_gfs,nlon_b)
+  end if
 
 !  also want to set up regional grid structure variable grd_mix, which still has number of
 !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
@@ -252,7 +273,17 @@ subroutine read_gfs_ozone_for_regional
   allocate(   z(grd_gfs%lat2,grd_gfs%lon2))
   allocate(  ps(grd_gfs%lat2,grd_gfs%lon2))
 
-  call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps,vor,div,u,v,tv,q,cwmr,oz,iret)
+  if (hires) then
+     call general_read_gfsatm(grd_gfs,sp_gfs,sp_b,filename,mype,uv_hyb_ens,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,iret)
+  else
+     call general_read_gfsatm(grd_gfs,sp_gfs,sp_gfs,filename,mype,uv_hyb_ens,z,ps, &
+                              vor,div,u,v,tv,q,cwmr,oz,iret)
+  end if
+
+! test
+!   call grads3a(grd_gfs,u,oz,tv,q,ps,grd_gfs%nsig,mype,'gfsfields')
+
   deallocate(vor,div,u,v,q,cwmr,z)
   do k=1,grd_gfs%nsig
      ozmin=minval(oz(:,:,k))
