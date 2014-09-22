@@ -82,25 +82,25 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 
   real(r_kind) gustges,dlat,dlon,ddiff,dtime,error,r0_001,thirty
   real(r_kind) scale,val2,rsig,rsigp,ratio,ressw2,ress,residual
-  real(r_kind) obserrlm,obserror,val,valqc,rlow,rhgh,drpx,prsfc
+  real(r_kind) obserrlm,obserror,val,valqc,rlow,rhgh,drpx
   real(r_kind) term,rwgt
   real(r_kind) cg_gust,wgross,wnotgross,wgt,arg,exp_arg,rat_err2
-  real(r_kind) presw,factw,dpres,dpressave,sfcchk,prsln2
+  real(r_kind) presw,factw,dpres,sfcchk
   real(r_kind) ratio_errors,tfact,fact,wflate,ten,psges,goverrd,zsges
-  real(r_kind) slat,sin2,termg,termr,termrg,dlnp,pobl
-  real(r_kind) dz,zob,pob,z1,z2,p1,p2,dz21,dlnp21,spdb,dstn
+  real(r_kind) slat,sin2,termg,termr,termrg,pobl
+  real(r_kind) dz,zob,z1,z2,p1,p2,dz21,dlnp21,dstn
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind),dimension(nobs):: dup
-  real(r_kind),dimension(nsig)::prsltmp,tges,zges
+  real(r_kind),dimension(nsig)::prsltmp,zges
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
 
   integer(i_kind) ier,ilon,ilat,ihgt,igust,ipres,id,itime,ikx,imaxerr,iqc
   integer(i_kind) iuse,ilate,ilone,istnelv,iprvd,isprvd
-  integer(i_kind) i,nchar,nreal,k,j,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
-  integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
+  integer(i_kind) i,nchar,nreal,k,k1,k2,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj
+  integer(i_kind) l,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc,iskint,iff10,isfcr
   
@@ -681,7 +681,6 @@ subroutine setupgust(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   subroutine init_vars_
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
-  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
   integer(i_kind) ifld, istatus
 

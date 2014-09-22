@@ -67,7 +67,7 @@ character(len=*),parameter::myname='model2control'
 character(len=10),allocatable,dimension(:) :: gases
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 real(r_kind),dimension(lat2,lon2,nsig) :: workst,workvp,workrh
-integer(i_kind) :: ii,jj,i,j,k,ic,id,ngases,nclouds,istatus
+integer(i_kind) :: ii,jj,i,ic,id,ngases,nclouds,istatus
 real(r_kind) :: gradz(nval_lenz)
 type(gsi_bundle) :: wbundle
 type(gsi_grid)   :: grid

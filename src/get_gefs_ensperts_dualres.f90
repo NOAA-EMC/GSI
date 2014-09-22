@@ -62,7 +62,7 @@ subroutine get_gefs_ensperts_dualres
   real(r_single),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: scr3
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: vor,div,u,v,tv,q,cwmr,oz,qs
   real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: z,ps,sst2
-  real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
+! real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
   real(r_single),pointer,dimension(:,:,:):: w3
   real(r_single),pointer,dimension(:,:):: w2
   real(r_kind),pointer,dimension(:,:,:):: x3
@@ -72,8 +72,9 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind) bar_norm,sig_norm,kapr,kap1,rh
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri
 
-  integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,il,jl,mm1,iderivative,im,jm,km,m
+! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
+  integer(i_kind) istatus,iret,i,ic2,ic3,j,k,n,mm1,iderivative,im,jm,km,m
+! integer(i_kind) il,jl
   character(70) filename
   logical ice
   integer(i_kind) :: lunges=11
@@ -510,7 +511,7 @@ subroutine ens_spread_dualres(en_bar,ibin,mype)
   real(r_kind) sp_norm
   type(sub2grid_info)::se,sa
 
-  integer(i_kind) i,ii,n,ic3,k
+  integer(i_kind) i,n,ic3,k
   logical regional
   integer(i_kind) num_fields,inner_vars,istat,istatus
   logical,allocatable::vector(:)

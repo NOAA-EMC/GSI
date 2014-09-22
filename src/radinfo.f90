@@ -283,7 +283,7 @@ contains
     use gridmod, only: nsig
     implicit none
 
-    integer(i_kind) ns,ii,jj,mxlvs,isum,ndummy,ndim,ib,ie,ier
+    integer(i_kind) ii,jj,mxlvs,isum,ndim,ib,ie,ier
     integer(i_kind) nvarjac,n_meteo,n_clouds,n_aeros
     integer(i_kind),allocatable,dimension(:)::aux,all_levels
     character(len=20),allocatable,dimension(:)::meteo_names
@@ -538,7 +538,7 @@ contains
 
 
     integer(i_kind) i,j,k,ich,lunin,lunout,nlines
-    integer(i_kind) ip,istat,n,ichan,mch,ij,nstep,edge1,edge2,ntlapupdate
+    integer(i_kind) ip,istat,n,ichan,nstep,edge1,edge2,ntlapupdate
     real(r_kind),dimension(npred):: predr
     real(r_kind) tlapm
     real(r_kind) tsum
@@ -1337,7 +1337,6 @@ contains
 !  Declare local variables
    logical lexist
    logical lverbose 
-   logical data_on_edges
    logical update
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi
@@ -1351,7 +1350,7 @@ contains
    integer(i_kind):: ix,ii,iii,iich,ndatppe
    integer(i_kind):: i,j,jj,n_chan,k,lunout
    integer(i_kind):: ierror_code
-   integer(i_kind):: istatus,ispot,iuseqc
+   integer(i_kind):: istatus,ispot
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp
    integer(i_kind):: radedge_min, radedge_max
@@ -1360,7 +1359,8 @@ contains
    integer(i_kind),dimension(maxdat):: ipoint
  
    real(r_kind):: bias,scan,errinv,rnad,atiny
-   real(r_kind):: tlaptmp,tsumtmp,ratio,wgtlap
+   real(r_kind):: tlaptmp,tsumtmp,ratio
+!  real(r_kind):: wgtlap
    real(r_kind),allocatable,dimension(:):: tsum0,tsum,tlap0,tlap1,tlap2,tcnt
    real(r_kind),allocatable,dimension(:,:):: AA
    real(r_kind),allocatable,dimension(:):: be
@@ -1811,11 +1811,7 @@ contains
 
    character(len=*),parameter::myname_ = myname//'*adjust_jac_'
    character(len=80) covtype
-   integer(i_kind) ii,jj,nn,mm,ni,iinstr,ifound,nch_active
-   integer(i_kind),allocatable,dimension(:) :: indx
-   real(r_kind),   allocatable,dimension(:,:) :: col
-   logical subset
-   integer,save:: icount=0
+   integer(i_kind) iinstr
 
    adjust_jac_=.false.
 

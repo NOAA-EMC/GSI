@@ -1366,7 +1366,6 @@
                                                      1.1_r_kind,0.839383_r_kind /)
 
 ! Declare local variables.
- integer(i_kind) :: i   ! loop counters
  integer(i_kind) :: fov
  real(r_kind)  :: dellon ! longitude difference from fov center to test location
  real(r_kind)  :: dellat ! latitude difference from fov center to test location

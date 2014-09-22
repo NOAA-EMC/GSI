@@ -154,7 +154,7 @@ contains
     use obsmod, only: iadate
     implicit none
 
-    integer(i_kind) i,j,k,lunin,nlines,ip,istat
+    integer(i_kind) j,k,lunin,nlines,ip,istat
     integer(i_kind) anal_time
     integer(i_kind) isort
     real(r_kind),dimension(npredt):: ostatsx
@@ -297,7 +297,7 @@ contains
 
     integer(i_kind) i,j,jj,lunout
     integer(i_kind) iyyyymm,obsolete
-    real(r_kind),dimension(npredt):: varx
+!   real(r_kind),dimension(npredt):: varx
 
     data lunout / 51 /
 

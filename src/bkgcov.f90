@@ -49,7 +49,7 @@ subroutine bkgcov(cstate)
   type(gsi_bundle),intent(inout) :: cstate
 
 ! Local Variables
-  integer(i_kind) i,j,n,nsloop,loc,n3d,istatus,nlevs
+  integer(i_kind) n,nsloop,n3d,istatus,nlevs
   real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
   real(r_kind),pointer,dimension(:,:,:):: ptr3d=>NULL()
 
@@ -142,7 +142,7 @@ subroutine ckgcov(z,cstate,nval_lenz)
   real(r_kind),dimension(nval_lenz),intent(in   ) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,n3d,istatus,nlevs
+  integer(i_kind) k,nsloop,n3d,istatus,nlevs
   real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 
@@ -222,7 +222,7 @@ subroutine ckgcov_ad(z,cstate,nval_lenz)
   real(r_kind),dimension(nval_lenz),intent(inout) :: z
 
 ! Local Variables
-  integer(i_kind) i,j,k,nsloop,n3d,istatus,nlevs
+  integer(i_kind) k,nsloop,n3d,istatus,nlevs
   real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: hwork
   real(r_kind),dimension(:,:,:),pointer:: ptr3d=>NULL()
 

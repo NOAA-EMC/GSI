@@ -250,6 +250,12 @@ subroutine read_radiag_header(ftin,npred_radiag,retrieval,header_fix,header_chan
 ! Read header (fixed_part).
   read(ftin,IOSTAT=iflag)  sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
           ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc,isens
+  if (iflag/=0) then
+     rewind(ftin)
+     read(ftin,IOSTAT=iflag) sensat,satid,sentype,jiter,nchanl,npred,ianldate,&
+          ireal,ipchan,iextra,jextra,idiag,angord,iversion,inewpc
+     isens=0
+  end if
 
   header_fix%isis    = sensat
   header_fix%id      = satid

@@ -276,7 +276,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_quad),dimension(npred*jpch_rad),intent(inout) :: rpred
 
 ! Declare local variables
-  integer(i_kind) j,j1,j2,j3,j4,i1,i2,i3,i4,n,k,ic,ix,nn,mm,jn
+  integer(i_kind) j1,j2,j3,j4,i1,i2,i3,i4,n,k,ic,ix,nn,mm
   integer(i_kind) ier,istatus
   integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
   real(r_kind) val
@@ -291,8 +291,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_kind),pointer,dimension(:) :: sst
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
   real(r_kind),pointer,dimension(:) :: rst
-  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_cw,xhat_dt_oz,xhat_dt_u,xhat_dt_v
-  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_cw,dhat_dt_oz,dhat_dt_u,dhat_dt_v
+  real(r_kind),pointer,dimension(:) :: xhat_dt_t,xhat_dt_q,xhat_dt_oz,xhat_dt_u,xhat_dt_v
+  real(r_kind),pointer,dimension(:) :: dhat_dt_t,dhat_dt_q,dhat_dt_oz,dhat_dt_u,dhat_dt_v
 
 !  If no rad observations return
   if(.not.associated(radhead)) return

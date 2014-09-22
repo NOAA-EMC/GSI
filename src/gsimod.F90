@@ -29,7 +29,7 @@
                        l4dvar,nhr_obsbin,nhr_subwin,nwrvecs,iorthomax,&
                        lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,ladtest,ladtest_obs, lgrtest,&
                        idmodel,clean_4dvar,iwrtinc,lanczosave,jsiga,ltcost,liauon, &
-		       l4densvar,ens4d_nstarthr,lnested_loops
+		       l4densvar,ens4d_nstarthr,lnested_loops,lwrite4danl
   use obs_ferrscale, only: lferrscale
   use mpimod, only: npe,mpi_comm_world,ierror,mype
   use radinfo, only: retrieval,diag_rad,init_rad,init_rad_vars,adp_anglebc,angord,upd_pred,&
@@ -80,7 +80,8 @@
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
      nlayers,use_gfs_ozone,check_gfs_ozone_date,regional_ozone,jcap,jcap_b,vlevs,&
-     use_gfs_nemsio,use_sp_eqspace,final_grid_vars,use_reflectivity
+     use_gfs_nemsio,use_sp_eqspace,final_grid_vars,use_reflectivity,&
+     jcap_gfs,nlat_gfs,nlon_gfs
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop
   use gsi_io, only: init_io,lendian_in
   use regional_io, only: convert_regional_guess,update_pint,init_regional_io,preserve_restart_date
@@ -284,6 +285,9 @@
 !                              grid than mass background grid
 !  02-05-2014 todling   add parameter cwcoveqqcov (cw_cov=q_cov)
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
+!  08-18-2014 tong      add jcap_gfs to allow spectral transform to a coarser resolution grid,
+!                       when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true. for
+!                       regional analysis
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -431,6 +435,7 @@
 !     pblend0,pblend1 - see above comment for use_gfs_stratosphere
 !     l4densvar - logical to turn on ensemble 4dvar
 !     ens4d_nstarthr - start hour for ensemble perturbations (generally should match min_offset)
+!     lwrite4danl - logical to write out 4d analysis states if 4dvar or 4denvar mode
 !     ladtest -  if true, doing the adjoint test for the operator that maps
 !                    control_vector to the model state_vector
 !     ladtest_obs -  if true, doing the adjoint adjoint check for the
@@ -466,7 +471,7 @@
        l4dvar,lbicg,lsqrtb,lcongrad,lbfgsmin,ltlint,nhr_obsbin,nhr_subwin,&
        nwrvecs,iorthomax,ladtest,ladtest_obs, lgrtest,lobskeep,lsensrecompute,jsiga,ltcost, &
        lobsensfc,lobsensjb,lobsensincr,lobsensadj,lobsensmin,iobsconv, &
-       idmodel,iwrtinc,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
+       idmodel,iwrtinc,lwrite4danl,jiterstart,jiterend,lobserver,lanczosave,llancdone, &
        lferrscale,print_diag_pcg,tsensible,lgschmidt,lread_obs_save,lread_obs_skip, &
        use_gfs_ozone,check_gfs_ozone_date,regional_ozone,lwrite_predterms,&
        lwrite_peakwt, use_gfs_nemsio,liauon,use_prepb_satwnd,l4densvar,ens4d_nstarthr,&
@@ -501,6 +506,9 @@
 !     nvege_type - number of types of vegetation; old=24, IGBP=20
 !     nlayers    - number of sub-layers to break indicated model layer into
 !                  prior to calling radiative transfer model
+!     jcap_gfs   - spectral truncation used to transform high wavenumber
+!                  spectral coefficients to a coarser resolution grid,
+!                  when use_gfs_ozone = .true. or use_gfs_stratosphere = .true.   
 !     use_sp_eqspac     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                         poles.  if .false., then gaussian grid assumed for ensemble (global only)
 
@@ -508,7 +516,7 @@
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
-       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass
+       nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,jcap_gfs
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -980,7 +988,7 @@
   endif
 
 ! 4D-Var setup
-  call setup_4dvar(miter,mype)
+  call setup_4dvar(mype)
   if (l4dvar) then
      if(reduce_diag) &
      call die(myname_,'Options l4dvar and reduce_diag not allowed together',99)
@@ -1025,6 +1033,26 @@
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
   if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
                           use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional                  
+! Given the requested resolution, set dependent resolution parameters
+  if(jcap_gfs == 1534)then
+     nlat_gfs=1538
+     nlon_gfs=3072
+  else if(jcap_gfs == 574)then
+     nlat_gfs=578
+     nlon_gfs=1152
+  else if(jcap_gfs == 382)then
+     nlat_gfs=386
+     nlon_gfs=768
+  else if(jcap_gfs == 126)then
+     nlat_gfs=130
+     nlon_gfs=256
+  else if(jcap_gfs == 62)then
+     nlat_gfs=96
+     nlon_gfs=192
+  else
+     if(mype == 0) write(6,*)' Invalid jcap_gfs'
+     call stop2(329)
+  end if
 
 !  reg_tlnmc_type=2 currently requires that 2*nvmodes_keep <= npe
   if(reg_tlnmc_type==2) then

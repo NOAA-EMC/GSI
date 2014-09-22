@@ -186,7 +186,7 @@ subroutine stplimg(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) gust,gx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
 
@@ -261,7 +261,7 @@ subroutine stplimp(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) pblh,px
   real(r_kind),pointer,dimension(:,:) :: rp,sp
 
@@ -336,7 +336,7 @@ subroutine stplimv(rval,sval,sges,out,nstep)
   type(gsi_bundle)                    ,intent(in   ) :: rval,sval
 
 ! Declare local variables
-  integer(i_kind) i,j,k,kk,ier,istatus
+  integer(i_kind) i,j,kk,ier,istatus
   real(r_kind) vis,vx
   real(r_kind),pointer,dimension(:,:) :: rg,sg
 

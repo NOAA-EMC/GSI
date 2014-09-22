@@ -2332,7 +2332,7 @@ character(len=*),optional,intent(in) :: rcname ! optional input filename
 
 character(len=*),parameter::myname_=myname//'*init_instr_table_'
 character(len=*),parameter:: tbname='OBS_INPUT::'
-integer(i_kind) luin,i,ii,ntot,nrows
+integer(i_kind) luin,ii,ntot,nrows
 character(len=256),allocatable,dimension(:):: utable
 logical iamroot_
 

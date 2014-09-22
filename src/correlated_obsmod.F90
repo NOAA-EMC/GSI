@@ -211,7 +211,7 @@ implicit none
 !BOC
 character(len=*),parameter:: rcname='anavinfo'  ! filename should have extension
 character(len=*),parameter:: tbname='correlated_observations::'
-integer(i_kind) luin,i,ii,ntot,nrows,is,method
+integer(i_kind) luin,ii,ntot,nrows,method
 character(len=MAXSTR),allocatable,dimension(:):: utable
 character(len=20) instrument, filename, mask
 real(r_single) kreq4

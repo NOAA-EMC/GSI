@@ -74,7 +74,7 @@ module general_tll2xy_mod
 
    contains
 
- subroutine general_create_llxy_transform(region_lat,region_lon,nlat,nlon,mype,gt)
+ subroutine general_create_llxy_transform(region_lat,region_lon,nlat,nlon,gt)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_create_llxy_transform
@@ -96,7 +96,6 @@ module general_tll2xy_mod
 !   input argument list:
 !    glats       - earth latitudes of each grid point for desired grid.
 !    glons       - earth longitudes of each grid point for desired grid.
-!    mype        - mpi task id
 !
 !   output argument list:
 !    gt          - variable of type llxy_cons, which contains all information needed for 
@@ -114,7 +113,6 @@ module general_tll2xy_mod
 
   integer(i_kind),intent(in   ) :: nlat,nlon
   real(r_kind)   ,intent(in   ) :: region_lat(nlat,nlon),region_lon(nlat,nlon)
-  integer(i_kind),intent(in   ) :: mype
   type(llxy_cons),intent(inout) :: gt
 
   real(r_kind),parameter:: rbig =1.0e30_r_kind
@@ -971,8 +969,8 @@ subroutine merge_grid_e_to_grid_a_initialize(region_lat_e,region_lon_e,region_la
      end if
   end if
 
-  call general_create_llxy_transform(region_lat_e,region_lon_e,nlat_e,nlon_e,mype,gt_e)
-  call general_create_llxy_transform(region_lat_a,region_lon_a,nlat_a,nlon_a,mype,gt_a)
+  call general_create_llxy_transform(region_lat_e,region_lon_e,nlat_e,nlon_e,gt_e)
+  call general_create_llxy_transform(region_lat_a,region_lon_a,nlat_a,nlon_a,gt_a)
 
 !    obtain xa_e, ya_e, the coordinates of the a grid points in e-grid measure.
 
@@ -1150,7 +1148,7 @@ subroutine test1_general_ll2xy
   real(r_kind) xmax,ymax,wgmax
   logical outside
 
-  call general_create_llxy_transform(region_lat,region_lon,nlat,nlon,mype,gt_a)
+  call general_create_llxy_transform(region_lat,region_lon,nlat,nlon,gt_a)
 
 !             first convert region_lat,region_lon to grid units for both tll2xy and general_tll2xy
   do j=1,nlon
@@ -1229,19 +1227,18 @@ subroutine test3_egrid2points
 
   type(llxy_cons) gt_e,gt_a
   type(egrid2agrid_parm) p_e2a
-  integer(i_kind) i,j,nx3,nye,nxe,np,nord_e2a
+  integer(i_kind) i,j,nye,nxe,nord_e2a
   real(r_kind) y(1),x(1),errmax,fmax
   real(r_kind) region_lat1(1),region_lon1(1)
   real(r_kind) rotate3,xmin,xmax,ymin,ymax
   real(r_kind),allocatable,dimension(:,:)::region_lat_e,region_lon_e
-  real(r_kind),allocatable,dimension(:,:)::testlona,testlata,mask,test_stream_e,test_stream_a
+  real(r_kind),allocatable,dimension(:,:)::testlona,testlata,test_stream_e,test_stream_a
   real(r_kind),allocatable,dimension(:,:)::exact_stream_a
   real(r_single),allocatable:: out1(:,:),out2(:,:)
   real(r_kind),allocatable,dimension(:,:)::ue,ve,ua,va,uearth_a,vearth_a,uearth_e,vearth_e,ua_exact,va_exact
   real(r_kind) uearth_test,vearth_test,xe,ye,xa,ya
   integer(i_kind) nmix,nord_blend
   integer(i_kind) ii
-  logical outside
 
   nmix=10
   nord_blend=4

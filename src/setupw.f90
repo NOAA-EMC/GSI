@@ -194,10 +194,10 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
   integer(i_kind) i,nchar,nreal,k,j,l,ii,itype
-  integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,kk,iptrbu_sat,iptrbv_sat,icat
+  integer(i_kind) jsig,mm1,iptrbu,iptrbv,jj,icat
   integer(i_kind) k1,k2,ikxx,nn,isli,ibin,ioff,ioff0
   integer(i_kind) ier,ilon,ilat,ipres,iuob,ivob,id,itime,ikx,ielev,iqc
-  integer(i_kind) ihgt,ier2,iuse,ilate,ilone,istat,isatqc,iuob1,ivob1,isatang
+  integer(i_kind) ihgt,ier2,iuse,ilate,ilone,istat
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
 
@@ -677,12 +677,12 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !    Quality control for satellite winds
 
      if ( qc_satwnds ) then
-        if (itype >240 .and. itype <260) then
+        if (itype >=240 .and. itype <=260) then
            call intrp2a11(tropprs,trop5,dlat,dlon,mype)
            if(presw < trop5-r50) error=zero            ! tropopose check for all satellite winds 
         endif  
    
-        if(itype >=242 .and. itype <=256) then
+        if(itype >=240 .and. itype <=260) then
            if( presw >950.0_r_kind) error =zero    !  screen data beloww 950mb
         endif
         if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
@@ -711,7 +711,7 @@ subroutine setupw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      endif ! qc_satwnds
    
 !    QC MODIS winds
-     if (itype==257 .or. itype==258 .or. itype==259) then
+     if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
 !       Get guess values of tropopause pressure and sea/land/ice
 !       mask at observation location
         prsfc = r10*prsfc       ! surface pressure in hPa

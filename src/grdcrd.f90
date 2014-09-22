@@ -112,7 +112,7 @@ subroutine grdcrd1(d,x,nx,flg)
   real(r_kind)              ,intent(inout) :: d
   real(r_kind),dimension(nx),intent(in   ) :: x
 
-  integer(i_kind) id,ix,isrchf
+  integer(i_kind) ix,isrchf
 
 ! Treat "normal" case in which nx>1
   if(nx>1) then

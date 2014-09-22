@@ -92,7 +92,7 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   integer(i_kind) ier,ilon,ilat,ivis,id,itime,ikx,imaxerr,iqc
   integer(i_kind) iuse,ilate,ilone,istnelv,isfcr,iobshgt,izz,iprvd,isprvd
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,ibin,ioff,ioff0,jj
-  integer(i_kind) l,ix,iy,ix1,iy1,ixp,iyp,mm1
+  integer(i_kind) l,mm1
   integer(i_kind) istat
   integer(i_kind) idomsfc
   
@@ -524,7 +524,6 @@ subroutine setupvis(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   subroutine init_vars_
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
-  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
   integer(i_kind) ifld, istatus
 

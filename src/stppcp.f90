@@ -114,7 +114,7 @@ subroutine stppcp(pcphead,dval,xval,out,sges,nstep)
 ! Declare local variables
   logical:: lcld 
   integer(i_kind) n,ncwm,nq,nt,nu,nv,kx,ier,istatus,icw,iql,iqi
-  integer(i_kind) i,j1,j2,j3,j4,kk
+  integer(i_kind) j1,j2,j3,j4,kk
   real(r_kind) dt,dt0,w1,w2,w3,w4,time_pcp
   real(r_kind) dq,dq0
   real(r_kind) du,du0
