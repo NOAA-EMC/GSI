@@ -57,16 +57,16 @@ for exp in $explist; do
 
   if [ "${modelTypeArr[$index]}" = 'gfs' ]
   then 
-     ${fcst_diff_dir}/ctl_gfs.sh $para_list_1
+     ${fcstDiff_dir}/ctl_gfs.sh $para_list_1
      export ctlfcst${index2}=${run_dir}/${exp}.t${cyc}z.pgb${fhr}.ctl
 
-     ${fcst_diff_dir}/ctl_gfs.sh $para_list_2
+     ${fcstDiff_dir}/ctl_gfs.sh $para_list_2
      export ctlanl${index2}=${run_dir}/${exp}.t${anlcyc}z.pgbanl.ctl
   else
-     ${fcst_diff_dir}/ctl_ecm.sh $para_list_1
+     ${fcstDiff_dir}/ctl_ecm.sh $para_list_1
      export ctlfcst${index2}=${run_dir}/${exp}.t${cyc}z.pgb${fhr}.ctl
 
-     ${fcst_diff_dir}/ctl_ecm.sh $para_list_2
+     ${fcstDiff_dir}/ctl_ecm.sh $para_list_2
      export ctlanl${index2}=${run_dir}/${exp}.t${anlcyc}z.pgbanl.ctl
   fi  
   export index=`expr $index + 1 `
