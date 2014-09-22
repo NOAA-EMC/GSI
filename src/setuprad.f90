@@ -141,7 +141,7 @@
 !   2014-02-01  mkim    - Move all-sky mw obserr to subroutine obserr_allsky_mw
 !   2014-02-05  todling - Remove overload of diagbufr slot (not allowed)
 !   2014-04-17  todling - Implement inter-channel ob correlated covariance capability
-!   2014-08-29  thomas  - add lsingleradob capability (originally of mccarty)
+!   2014-05-29  thomas  - add lsingleradob capability (originally of mccarty)
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
