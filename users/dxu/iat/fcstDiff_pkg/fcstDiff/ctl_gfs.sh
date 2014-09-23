@@ -10,6 +10,7 @@ export tag=${5:-pgbanl}
 export sdate=${6:-01aug2007}      
 export CDATE=${7:-20070831}      
 export ndays=${8:-60}      
+export modelType=${9:-gfs}      
 
 mkdir -p ${run_dir}/${exp}
 
@@ -27,7 +28,7 @@ n=1
 while [ $n -le $ndays ]; do
    hr=`expr $n \* 24 `
    dd=`${ndate_dir}/ndate -$hr ${CDATE}${cyc}`
-   inFile="${input_dir}/${tag}.gfs.$CDATE$cyc"
+   inFile="${input_dir}/${tag}.${modelType}.$CDATE$cyc"
    outFile="${run_dir}/${exp}/${tag}.${exp}.$CDATE$cyc"
    if [ -s ${inFile} ] 
    then
