@@ -52,10 +52,14 @@ for exp in $explist; do
   export index2=`expr $index + 1 `
 
   input_dir=${input_dir_arr[$index]}
+  modelType=${modelTypeArr[$index]}
   para_list_1="${input_dir} ${run_dir} ${exp} ${cyc}    pgb${fhr} ${edate}   ${CDATE}    1" 
   para_list_2="${input_dir} ${run_dir} ${exp} ${anlcyc} pgbanl    ${anldate} ${anlCDATE} 1"
+  # Add modelType to parameter list
+  para_list_1="${para_list_1} ${modelType}"
+  para_list_2="${para_list_2} ${modelType}"
 
-  if [ "${modelTypeArr[$index]}" = 'gfs' ]
+  if [ "${modelTypeArr[$index]}" = 'gfs' || "${modelTypeArr[$index]}" = 'gdas' ]
   then 
      ${fcstDiff_dir}/ctl_gfs.sh $para_list_1
      export ctlfcst${index2}=${run_dir}/${exp}.t${cyc}z.pgb${fhr}.ctl
