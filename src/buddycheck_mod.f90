@@ -459,7 +459,7 @@ end subroutine buddy_check_t
 
 
 
-subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
+subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 
 ! !USES:
 
@@ -472,14 +472,14 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
   implicit none
 
 ! !INPUT PARAMETERS:
-  real(r_kind)                                     , intent(in   ) :: vals(numobs,5)  ! data array containing all observations
+  real(r_kind)                                     , intent(in   ) :: pevals(numobs,5)  ! data array containing all observations
   real(r_kind)                                     , intent(in   ) :: range,& ! Radius within which we check for an ob's buddies (units are m)
                                                                       difmax  ! Max difference allowed relative to buddies
   integer(i_kind)                                  , intent(in   ) :: mype    ! mpi task id
   integer(i_kind)                                  , intent(in   ) :: numobs  ! number of observations on this task
   integer(i_kind)                                  , intent(in   ) :: is      ! ndat index
 ! !OUTPUT PARAMETERS:
-  integer(i_kind)                                  , intent(inout) :: buddyuse(numobs) !Holds info pertaining to buddycheck. 
+  integer(i_kind)                                  , intent(inout) :: pebuddyuse(numobs) !Holds info pertaining to buddycheck. 
                                                                                      !  1 = pass
                                                                                      !  0 = buddy check no performed
                                                                                      ! -1 = fail
@@ -522,11 +522,12 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
                   diff_check_1,diff_check_2,diff_j,err,fact
   real(r_kind) :: diff(numobs),distance,vdist
   integer(i_kind) :: i,j,buddy_num,numobs_global,kob,buddy_num_final
-  integer(i_kind) :: mm1,mynpe,ji,newrank
+  integer(i_kind) :: mm1,mynpe,ji,newrank,rem,amount,mydata
   integer(i_kind),allocatable,dimension(:) :: buddyuse_global,idisp,ircnt
-  real(r_kind) :: vals1d(numobs*5)
-  real(r_kind),allocatable,dimension(:,:) :: vals_global
-  real(r_kind),allocatable,dimension(:) :: vals1dglob
+  integer(i_kind),allocatable,dimension(:) :: locdisp,locsendcnt
+  real(r_kind) :: pevals1d(numobs*5)
+  real(r_kind),allocatable,dimension(:,:) :: vals_global,vals
+  real(r_kind),allocatable,dimension(:) :: vals1dglob,myvals1d,buddyuse
   character(len=*),parameter :: myname='execute_buddy_check'
 
   ! Obtain the number of tasks here by using the communicator setup in obs_para.f90
@@ -535,7 +536,7 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
   !  setuprhsall.f90
 
   call mpi_comm_size(obs_sub_comm(is), mynpe, ierror) 
-  allocate(idisp(mynpe),ircnt(mynpe))
+  allocate(idisp(mynpe),ircnt(mynpe),locdisp(mynpe),locsendcnt(mynpe))
   idisp=0;ircnt=0
 
   call mpi_allgather(numobs,1,mpi_itype,ircnt,1,mpi_itype,obs_sub_comm(is),ierror)
@@ -566,25 +567,25 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
   allocate(vals_global(numobs_global,5),buddyuse_global(numobs_global),vals1dglob(numobs_global*5))
   vals_global=zero
 
-  ! Gather all vals(:,:) on subdomains into vals_global on every task, noting that vals takes the following
+  ! Gather all pevals(:,:) on subdomains into vals_global on every task, noting that pevals takes the following
   !   organization:
-  !                vals(i,1)=ob-ges
-  !                vals(i,2)=earth lat
-  !                vals(i,3)=earth lon
-  !                vals(i,4)=ob height
-  !                vals(i,5)=rusage
+  !                pevals(i,1)=ob-ges
+  !                pevals(i,2)=earth lat
+  !                pevals(i,3)=earth lon
+  !                pevals(i,4)=ob height
+  !                pevals(i,5)=rusage
      
 
-  !put vals in a 1d array for easy mpi comms
+  !put pevals in a 1d array for easy mpi comms
   ji=0
   do i=1,numobs       
      do j=1,5
         ji=ji+1
-        vals1d(ji)=vals(i,j)
+        pevals1d(ji)=pevals(i,j)
      end do
   end do
 
-  call mpi_allgatherv(vals1d,numobs*5,mpi_rtype,vals1dglob,ircnt*5,idisp*5,mpi_rtype,obs_sub_comm(is),ierror)
+  call mpi_allgatherv(pevals1d,numobs*5,mpi_rtype,vals1dglob,ircnt*5,idisp*5,mpi_rtype,obs_sub_comm(is),ierror)
 
    ! put vals1dglob to 2d vals_glob so things are more human-readable
   ji=0
@@ -594,19 +595,60 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
         vals_global(i,j)=vals1dglob(ji)
      end do
   end do
-  ! Gather all buddyuse params into a global copy (buddyuse_global) that all tasks have
+  ! Gather all pebuddyuse params into a global copy (buddyuse_global) that all tasks have
 
 !  write(6,1000)myname,'JRC  IRCNT:',mype,(ircnt(i),i=1,mynpe)
 !2000  format(2A20,1x,I3,8(5f14.3),/,(10X,10(5f14.3)))  
 
-  call mpi_allgatherv(buddyuse,numobs,mpi_itype,buddyuse_global,ircnt,idisp,mpi_itype,obs_sub_comm(is),ierror)
- 
+  call mpi_allgatherv(pebuddyuse,numobs,mpi_itype,buddyuse_global,ircnt,idisp,mpi_itype,obs_sub_comm(is),ierror)
+
+
+! Alright - now this may seem silly but we need to scatter obs to new subdomains because there
+!           is a severe load imbalance issue otherwise (some tasks have 10s of obs and others have
+!           1000s or more).
+
+
+! First figure out the best decomposition given the tasks present *in this routine*
+
+  rem=mod(numobs_global,mynpe)
+  amount=int(numobs_global/mynpe)
+  do i=1,mynpe
+     locsendcnt(i)=amount
+  end do
+  if (rem /= 0 .and. mynpe>1) locsendcnt(mynpe)=locsendcnt(mynpe)+rem
+  
+  locdisp=0
+  locdisp(1)=0  !first spot will always be zero
+  if (mynpe >=2) then  
+     do i=2,mynpe
+        locdisp(i)=locdisp(i-1)+locsendcnt(i-1)
+     end do
+  end if
+
+! Now scatterv vals1dglob to workers for better load balance
+
+  mydata=locsendcnt(mm1)
+  allocate(myvals1d(mydata*5),vals(mydata,5),buddyuse(mydata))
+  myvals1d=0
+  call mpi_scatterv(vals1dglob,locsendcnt*5,locdisp,mpi_itype,myvals1d,mydata*5,mpi_itype,0,obs_sub_comm(is),ierror)
+
+  ji=0
+  do i=1,mydata     
+     do j=1,5
+        ji=ji+1
+        vals(i,j)=myvals1d(ji)
+     end do
+  end do
+
+! Scatter the buddy use array
+  call mpi_scatterv(buddyuse_global,locsendcnt,locdisp,mpi_itype,buddyuse,mydata,mpi_itype,0,obs_sub_comm(is),ierror)
+
 !  CALL MPI_COMM_RANK(obs_sub_comm(is), newrank, ierror)
 
  ! Now - finally - start what we came her for originally, the buddy check!
 
  ! Begin with main loop through all obs on pe subdomain
-  main: do i=1,numobs
+  main: do i=1,mydata
 
     !if (numobs==35) then
     !  if (i==1) write(6,'(5(A,3x))')'O-F','Earth Lat','Earth Lon','ObHght','Rusage'
@@ -721,7 +763,22 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
         !if num % 1000.==0: print('%.3f %s %.3f %s %d %s %d %s %d' % (obinc[num],'Passes! with err =', err,'having',buddy_num_final,'buddies. Ob number', num,'of',len(obinc)))      
      end if
   end do main
-  deallocate(vals_global,buddyuse_global,idisp,ircnt,vals1dglob)
+
+
+  !MPI comms to put buddyuse back on pebuddyuse
+ 
+  ! mpi_gatherv
+  buddyuse_global=0
+  ! receive count and displacement will be identical to prior scatter send count
+  call mpi_gatherv(buddyuse,mydata,mpi_itype,buddyuse_global,locsendcnt,locdisp,mpi_itype,0,obs_sub_comm(is),ierror)
+
+  ! mpi_scatterv back to pe subdomains (pebuddyuse)
+  ! use the ircnt and idisp arrays obtained earlier to put arrays on all procs.  They will be the same here
+  pebuddyuse=0
+  call mpi_scatterv(buddyuse_global,ircnt,idisp,mpi_itype,pebuddyuse,numobs,mpi_itype,0,obs_sub_comm(is),ierror)  
+
+  deallocate(vals_global,buddyuse_global,idisp,ircnt,vals1dglob,&
+             locdisp,locsendcnt,myvals1d,vals,buddyuse)
   return
 
  
@@ -769,7 +826,6 @@ subroutine execute_buddy_check(mype,is,numobs,vals,range,difmax,buddyuse)
   gc_dist = rearth * c
 
   end function gc_dist  
-
 end module buddycheck_mod
 
 
