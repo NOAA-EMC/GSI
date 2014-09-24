@@ -136,7 +136,6 @@ subroutine read_wrf_nmm_binary_guess(mype)
   integer(i_kind) ifld,im,jm,lm,num_nmm_fields
   integer(i_kind) num_loc_groups,num_j_groups
   integer(i_kind) i,it,j,k
-  integer(i_kind) iii,jjj,lll
   integer(i_kind) i_pd,i_fis,i_pint,i_t,i_q,i_u,i_v,i_sno,i_u10,i_v10,i_smc,i_stc
   integer(i_kind) i_sm,i_sice,i_sst,i_tsk,i_ivgtyp,i_isltyp,i_vegfrac
   integer(i_kind) i_cwm,i_f_ice,i_f_rain,i_f_rimef
@@ -1541,11 +1540,7 @@ subroutine read_wrf_nmm_netcdf_guess(mype)
            end do
         end do
 
-     end do ! it loop  
-
 !    Transfer surface fields
-     do it=1,nfldsig
-        i_0=(it-1)*num_nmm_fields
         do i=1,lon2
            do j=1,lat2
               fact10(j,i,it)=one    !  later fix this by using correct w10/w(1)

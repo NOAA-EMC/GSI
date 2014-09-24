@@ -1273,7 +1273,7 @@ end subroutine get_iuse_pe
       real(r_single),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
 
       real(r_single),allocatable :: temp(:,:),work(:,:,:)
-      integer(i_kind) iloc,iskip,i,ii,j,k,n,k_in,ilat,jlon,ierror
+      integer(i_kind) iloc,iskip,i,ii,k,n,ilat,jlon,ierror
       integer(i_long) mpi_string
 
       allocate(temp(s%inner_vars,s%itotsub*(s%kend_alloc-s%kbegin_loc+1)))
@@ -1644,7 +1644,7 @@ end subroutine get_iuse_pe
       real(r_double),     intent(  out) :: sub_vars(s%inner_vars,s%lat2,s%lon2,s%num_fields)
 
       real(r_double) :: temp(s%inner_vars,s%itotsub*(s%kend_loc-s%kbegin_loc+1))
-      integer(i_kind) iloc,icount,i,ii,j,k,n,k_in,ilat,jlon,ierror
+      integer(i_kind) iloc,icount,i,ii,k,n,ilat,jlon,ierror
       integer(i_long) mpi_string
       integer(i_kind),dimension(s%npe)::iskip
 
@@ -1997,7 +1997,7 @@ end subroutine get_iuse_pe
       real(r_double) :: sub_vars0(s%inner_vars,s%lat1,s%lon1)
       real(r_double) :: work(s%inner_vars,max(s%iglobal,s%itotsub)) 
       real(r_double) :: temp(s%inner_vars,max(s%iglobal,s%itotsub)) 
-      integer(i_kind) iloc,iskip,i,i0,ii,j,j0,n,ilat,jlon,ierror,ioffset
+      integer(i_kind) iloc,iskip,i,i0,ii,j,j0,n,ilat,jlon,ierror
       integer(i_long) mpi_string
 
 !    remove halo row
@@ -2183,7 +2183,6 @@ end subroutine get_iuse_pe
       real(r_single) :: temp(s%inner_vars,s%itotsub)
       integer(i_kind) ii,n,ilat,jlon,ierror
       integer(i_long) mpi_string
-      integer(i_kind),dimension(s%npe)::iskip
 
 !     reorganize for eventual distribution to local domains
 
@@ -2339,9 +2338,8 @@ end subroutine get_iuse_pe
       integer(i_kind),intent(in   )     :: gridpe
 
       real(r_double) :: temp(s%inner_vars,s%itotsub)
-      integer(i_kind) iloc,icount,i,ii,j,n,ilat,jlon,ierror
+      integer(i_kind) ii,n,ilat,jlon,ierror
       integer(i_long) mpi_string
-      integer(i_kind),dimension(s%npe)::iskip
 
 !     reorganize for eventual distribution to local domains
 

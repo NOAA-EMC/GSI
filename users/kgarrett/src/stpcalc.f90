@@ -245,6 +245,9 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   integer(i_kind) istp_use,nstep,nsteptot
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo,pbcjoi 
+  real(r_quad),dimension(4):: pbcqmin,pbcqmax,pbcqmini,pbcqmaxi
+  real(r_quad),dimension(3):: pstpdryi,pstpdry
+
   real(r_quad),dimension(3,ipenlin):: pstart 
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
@@ -336,9 +339,17 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
   if(ljcpdry)then
     if (.not.ljc4tlevs) then
        call stpjcpdry(dval(ibin_anl),sval(ibin_anl),pstart(1,3),pstart(2,3),pstart(3,3))
-    else 
+    else
+       pstpdry=zero_quad
        do ibin=1,nobs_bins
-          call stpjcpdry(dval(ibin),sval(ibin),pstart(1,3),pstart(2,3),pstart(3,3))
+          pstpdryi=zero_quad
+          call stpjcpdry(dval(ibin),sval(ibin),pstpdryi(1),pstpdryi(2),pstpdryi(3))
+          do j=1,3
+             pstpdry(j) = pstpdry(j) + pstpdryi(j)
+          end do         
+       end do
+       do j=1,3
+          pstart(j,3) = pstpdry(j)
        end do
     end if
   end if
@@ -383,13 +394,23 @@ subroutine stpcalc(stpinout,sval,sbias,xhat,dirx,dval,dbias, &
         if(.not.ljc4tlevs) then
            call stplimq(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,4),pbc(1,5),nstep,ntguessig)
         else 
+           pbcqmin=zero_quad ; pbcqmax=zero_quad
            do ibin=1,nobs_bins
               if (nobs_bins /= nfldsig) then
                  it=ntguessig
               else
                  it=ibin
               end if
-              call stplimq(dval(ibin),sval(ibin),sges,pbc(1,4),pbc(1,5),nstep,it)
+              pbcqmini=zero_quad ; pbcqmaxi=zero_quad
+              call stplimq(dval(ibin),sval(ibin),sges,pbcqmini,pbcqmaxi,nstep,it)
+              do j=1,nstep
+                pbcqmin(j) = pbcqmin(j) + pbcqmini(j)
+                pbcqmax(j) = pbcqmax(j) + pbcqmaxi(j)
+              end do
+           end do
+           do j=1,nstep
+              pbc(j,4) = pbcqmin(j)
+              pbc(j,5) = pbcqmax(j)
            end do
         end if
 

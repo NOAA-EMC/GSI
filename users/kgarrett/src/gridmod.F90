@@ -79,6 +79,11 @@ module gridmod
 !                       - move vars ltosj/i to commvars and corresponding load routines
 !   2012-12-04 s.liu    - added use_reflectivity flag
 !   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
+!   08-18-2014 tong      add jcap_gfs, nlon_gfs, nlat_gfs for regional analysis,
+!                        when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true.,
+!                        to allow spectral to grid transformation to a lower resolution grid
+!                      
+!                        
 !
 !
 ! !AUTHOR: 
@@ -137,6 +142,7 @@ module gridmod
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
   public :: use_reflectivity
+  public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace
 
   interface strip
@@ -291,6 +297,7 @@ module gridmod
   integer(i_kind) nlon_regional,nlat_regional
   real(r_kind) regional_fhr
   integer(i_kind) regional_time(6)
+  integer(i_kind) jcap_gfs,nlat_gfs,nlon_gfs
 
 ! The following is for the generalized transform
   real(r_kind) pihalf,sign_pole,rlambda0
@@ -445,6 +452,10 @@ contains
 
     use_sp_eqspace = .false.
 
+    jcap_gfs=1534
+    nlat_gfs=1538
+    nlon_gfs=3072
+
     return
   end subroutine init_grid
   
@@ -499,7 +510,7 @@ contains
 !EOP
 !-------------------------------------------------------------------------
     character(len=*),parameter::myname_=myname//'*init_grid_vars'
-    integer(i_kind) i,k,nlon_b,inner_vars,num_fields
+    integer(i_kind) i,k,inner_vars,num_fields
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     logical,allocatable,dimension(:):: vector
@@ -976,7 +987,7 @@ contains
 !-------------------------------------------------------------------------
 
     logical fexist
-    integer(i_kind) i,j,k
+    integer(i_kind) i,k
     real(r_single)pt,pdtop
     real(r_single),allocatable:: deta1(:),aeta1(:),eta1(:),deta2(:),aeta2(:),eta2(:)
     real(r_single) dlmd,dphd
@@ -1185,7 +1196,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
@@ -1318,7 +1329,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
@@ -1487,7 +1498,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(deta1,aeta1,eta1,deta2,aeta2,eta2,glat,glon,glat_an,glon_an)
        deallocate(dx_nmm,dy_nmm,dx_an,dy_an)
@@ -1621,7 +1632,7 @@ contains
        end do
 
 
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,aeta2,eta2,glat,glon,glat_an,glon_an,dx_mc,dy_mc)
 
@@ -1729,7 +1740,7 @@ contains
        end do
 
 ! ???????  later change glat_an,glon_an to region_lat,region_lon, with dimensions flipped
-       call init_general_transform(glat_an,glon_an,mype)
+       call init_general_transform(glat_an,glon_an)
 
        deallocate(aeta1,eta1,glat,glon,glat_an,glon_an)
        deallocate(dx_mc,dy_mc)
@@ -1739,7 +1750,7 @@ contains
     return
   end subroutine init_reg_glob_ll
 
- subroutine init_general_transform(glats,glons,mype)
+ subroutine init_general_transform(glats,glons)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    init_general_transform
@@ -1758,7 +1769,6 @@ contains
 !
 !   input argument list:
 !    glons,glats - lons,lats of input grid points of dimesion nlon,nlat
-!    mype        - mpi task id
 !
 !   output argument list:
 !
@@ -1772,7 +1782,6 @@ contains
   implicit none
 
   real(r_kind)   ,intent(in   ) :: glats(nlon,nlat),glons(nlon,nlat)
-  integer(i_kind),intent(in   ) :: mype
 
   real(r_kind),parameter:: rbig =1.0e30_r_kind
   real(r_kind) xbar_min,xbar_max,ybar_min,ybar_max

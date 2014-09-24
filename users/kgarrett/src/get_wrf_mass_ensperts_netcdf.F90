@@ -53,11 +53,10 @@ subroutine get_wrf_mass_ensperts_netcdf
     type(gsi_grid):: grid_ens
     real(r_kind):: bar_norm,sig_norm,kapr,kap1
 
-    integer(i_kind):: iret,i,j,k,m,n,il,jl,mm1,apm_idx,istatus
+    integer(i_kind):: iret,i,j,k,n,mm1,istatus
     integer(i_kind):: ic2,ic3
 
     character(24) filename
-    logical ice
 
     call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
     call gsi_bundlecreate(en_bar,grid_ens,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
@@ -324,13 +323,13 @@ subroutine general_read_wrf_mass(filename,g_ps,g_u,g_v,g_tv,g_rh,g_cwmr,g_oz,myp
     real(r_kind),allocatable,dimension(:):: wrk_fill_2d
     integer(i_kind),allocatable,dimension(:):: dim,dim_id
 
-    integer(i_kind):: nx,ny,nz,i,j,k,d_max,iret,file_id,var_id,ndim,mype,icount,icount_prev
+    integer(i_kind):: nx,ny,nz,i,j,k,d_max,iret,file_id,var_id,ndim,mype
     integer(i_kind):: Time_id,s_n_id,w_e_id,b_t_id,s_n_stag_id,w_e_stag_id,b_t_stag_id
     integer(i_kind):: Time_len,s_n_len,w_e_len,b_t_len,s_n_stag_len,w_e_stag_len,b_t_stag_len
     integer(i_kind) nf_inq_varndims,nf_inq_varid,nf_get_var_real,nf_inq_vardimid,nf_nowrite
     integer(i_kind) nf_open,nf_inq_dimlen,nf_inq_dimid,iderivative
 
-    real(r_kind):: pb,pt,del_p,p_tot,deltasigma
+    real(r_kind):: deltasigma
     real(r_kind) psfc_this_dry,psfc_this
     real(r_kind) work_prslk,work_prsl
 
@@ -749,9 +748,9 @@ subroutine ens_spread_dualres_regional(en_bar,mype)
   type(gsi_grid):: grid_ens,grid_anl
   real(r_kind) sp_norm
   type(sub2grid_info)::se,sa
-  integer(i_kind) j,k,apm_k,apm_idx
+  integer(i_kind) k
 
-  integer(i_kind) i,ii,n,ic3
+  integer(i_kind) i,n,ic3
   logical regional
   integer(i_kind) num_fields,inner_vars,istat,istatus
   logical,allocatable::vector(:)

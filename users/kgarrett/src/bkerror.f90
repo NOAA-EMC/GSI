@@ -70,23 +70,21 @@ subroutine bkerror(gradx,grady)
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
-  integer(i_kind) i,j,ii
+  integer(i_kind) i,ii
   integer(i_kind) i_t,i_p,i_st,i_vp
   integer(i_kind) ipnts(4),istatus
-  integer(i_kind) nval_lenz,ndim2d
-  real(r_kind),dimension(nlat*nlon*s2g_raf%nlevs_alloc):: work
+! integer(i_kind) nval_lenz,ndim2d
   real(r_kind),dimension(nlat*nlon*s2g_cv%nlevs_alloc)::workcv
   real(r_kind),pointer,dimension(:,:,:):: p_t  =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_st =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_vp =>NULL()
   real(r_kind),pointer,dimension(:,:)  :: p_ps =>NULL()
-  real(r_kind),pointer,dimension(:,:)  :: p_sst=>NULL()
   real(r_kind),pointer::rank2a(:,:)  =>NULL()
   real(r_kind),pointer::rank2b(:,:)  =>NULL()
   real(r_kind),pointer::rank3a(:,:,:)=>NULL()
   real(r_kind),pointer::rank3b(:,:,:)=>NULL()
   logical dobal
-  real(r_kind),allocatable,dimension(:):: gradz
+! real(r_kind),allocatable,dimension(:):: gradz
   type(gsi_bundle) :: mbundle
 
   if (lsqrtb) then

@@ -47,7 +47,7 @@ MODULE pp1dvar
   USE CRTM_Module
 
   USE Consts
-  USE misc
+  USE misc,  ONLY: Read_topography,EstimatSfcPress,mean,ShrkMatrx,ShrkVect,compJulDay,CountClassTypes
   USE utils
   USE CntrlParams
   USE TuningParams
@@ -73,12 +73,13 @@ MODULE pp1dvar
   IMPLICIT NONE
   !---INTRINSIC functions used
   INTRINSIC :: ABS,ADJUSTL,ANY,CPU_TIME,EXP,MAXVAL,SUM
-  PUBLIC :: pp1dvar
+  PUBLIC :: pp1dvar_main
 
   CONTAINS
 
 
-SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,year,fgt,fgq,fgp,satqc,chisquare,clw,rwp,gwp,emissivity,tbf,nprofiles)
+SUBROUTINE pp1dvar_main(mype,init_pass,sensor,satId,meas,lat,lon,angle,iscanpos,day,month,year,fgt,fgq,fgp,fgsst,fgwindsp,&
+        satqc,chisquare,clw,rwp,gwp,emissivity,tbf,nprofiles)
 !SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,year,satqc,chisquare,clw,rwp,gwp,emissivity,tbf,nprofiles)
 
   !-------------------------------------------------------------------
@@ -91,16 +92,21 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
 !  REAL                             :: lat, lon, angle, chisquare
 
   INTEGER(i_kind), intent(in)      :: mype
-  INTEGER                          :: satId,sensor
+  LOGICAL,         intent(in)      :: init_pass
+  INTEGER                          :: satId   !sensor gsi kidsat
+  CHARACTER(*)                     :: sensor  !sensor string name
   INTEGER, DIMENSION(:)            :: day, month, year, iscanpos
   REAL,    DIMENSION(:,:)          :: fgt,fgq,fgp
+  REAL,    DIMENSION(:)            :: fgsst,fgwindsp
   REAL,    DIMENSION(:)            :: chisquare, lat, lon, angle, clw, rwp, gwp
-  REAL,    DIMENSION(:,:)          :: satqc,meas,emissivity,tbf
+  REAL,    DIMENSION(:,:)          :: meas,emissivity,tbf
+  INTEGER(2), DIMENSION(:,:)       :: satqc
 
 
 
   CHARACTER(STRLEN),    DIMENSION(:), ALLOCATABLE   :: SensorID
-  CHARACTER(LEN=256)                                :: namelistfile,OUTPUTFILE,TXTOUTPUTFILE,stringappend
+  CHARACTER(LEN=256)                                :: namelistfile,OUTPUTFILE,TXTOUTPUTFILE,OUTPUTFILEFG
+  CHARACTER(LEN=256)                               :: stringappend
   INTEGER                                           :: nSensors
   INTEGER,              PARAMETER                   :: nqc=4
   INTEGER                                           :: julday
@@ -173,32 +179,71 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
   INTEGER :: iEDR_temp,iEDR_wvap,iEDR_ozon,iEDR_emis,iEDR_refl,iEDR_SfcP,iEDR_SfcT
   INTEGER :: nEDRselec,nGselec,nG0,nLev,nLay,nLayEff,UseorNotExterData
   LOGICAL :: OkRetrvl,CvgceReached
-  INTEGER :: ilun,iuedr,ilay,guess_nlay,lay_start
+  INTEGER :: ilun,iuedr,iufg,ilay,guess_nlay,lay_start
   REAL, DIMENSION(100) :: nwp_t_guess, nwp_q_guess
   REAL                 :: sfcp_guess
+  INTEGER :: checkSupport
 
   !-------------------------------------------------------------------
   !   Loading off-line databases and control parameters 
   !-------------------------------------------------------------------
   t00= 0.
-  IF (nprofiles .lt. 1) RETURN
+  
+  checkSupport=0
+  IF (sensor .eq. 'atms' .and. satId .eq. 224) checkSupport=1 
+  IF (sensor .eq. 'ssmis' .and. satId .eq. 286) checkSupport=1
+
+  IF (checkSupport .eq. 0 .or. nprofiles .lt. 1) RETURN 
+
   !Satid value based on read_bufrtovs
   namelistfile='intializechar'
-  IF (satId .eq. 209 .and. sensor .eq. 1) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n18_amsua_1dvar.in'
-  IF (satId .eq. 223 .and. sensor .eq. 1) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n19_amsua_1dvar.in'
-  IF (satId .eq. 4 .and. sensor .eq. 1) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopa_amsua_1dvar.in'
-  IF (satId .eq. 5 .and. sensor .eq. 1) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopb_amsua_1dvar.in'
+  iuOutput=mype
+  
+   write(stringappend,'(i4)') iuOutput
+  stringappend=ADJUSTL(stringappend)
 
-  IF (satId .eq. 209 .and. sensor .eq. 2) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n18_mhs_1dvar.in'
-  IF (satId .eq. 223 .and. sensor .eq. 2) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n19_mhs_1dvar.in'
-  IF (satId .eq. 4 .and. sensor .eq. 2) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopa_mhs_1dvar.in'
-  IF (satId .eq. 5 .and. sensor .eq. 2) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopb_mhs_1dvar.in'
 
-  IF (satId .eq. 224) namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/npp_1dvar.in'
+
+
+  IF (satId .eq. 209 .and. sensor .eq. 'amsua') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n18_amsua_1dvar.in'
+  IF (satId .eq. 223 .and. sensor .eq. 'amsua') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n19_amsua_1dvar.in'
+  IF (satId .eq. 4 .and. sensor .eq. 'amsua') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopa_amsua_1dvar.in'
+  IF (satId .eq. 5 .and. sensor .eq.'amsua') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopb_amsua_1dvar.in'
+
+  IF (satId .eq. 209 .and. sensor .eq. 'mhs') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n18_mhs_1dvar.in'
+  IF (satId .eq. 223 .and. sensor .eq. 'mhs') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/n19_mhs_1dvar.in'
+  IF (satId .eq. 4 .and. sensor .eq. 'mhs') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopa_mhs_1dvar.in'
+  IF (satId .eq. 5 .and. sensor .eq. 'mhs') namelistfile='/data/kgarrett/tools/mirs_trunk/data/ControlData/metopb_mhs_1dvar.in'
+
+
+
+  IF (satId .eq. 224 .and. sensor .eq. 'atms') THEN
+        namelistfile='/scratch2/portfolios/NESDIS/drt/save/Kevin.Garrett/tools/mirs_trunk/data/ControlData/npp_1dvar.in'
+        OUTPUTFILE=trim('/scratch2/portfolios/NESDIS/drt/noscrub/Kevin.Garrett/ptmp/pr1dvar/1dvaredr_npp_'//stringappend)
+        OUTPUTFILEFG=trim('/scratch2/portfolios/NESDIS/drt/noscrub/Kevin.Garrett/ptmp/pr1dvar/1dvarguess_npp_'//stringappend)
+        iuedr=get_lun()
+        iuedr=iuedr+mype+1000
+        iufg=get_lun()
+        iufg=iufg+mype+1100
+  ENDIF   
+
+  IF (satId .eq. 286 .and. sensor .eq. 'ssmis') THEN 
+        namelistfile='/scratch2/portfolios/NESDIS/drt/save/Kevin.Garrett/tools/mirs_trunk/data/ControlData/f18_ssmis_1dvar.in'
+        OUTPUTFILE=trim('/scratch2/portfolios/NESDIS/drt/noscrub/Kevin.Garrett/ptmp/pr1dvar/1dvaredr_f18_'//stringappend)
+        OUTPUTFILEFG=trim('/scratch2/portfolios/NESDIS/drt/noscrub/Kevin.Garrett/ptmp/pr1dvar/1dvarguess_f18_'//stringappend)
+        iuedr=get_lun()
+        iuedr=iuedr+mype+1200
+        iufg=get_lun()
+        iufg=iufg+mype+1300
+  ENDIF   
+
 
   call LoadCntrlParams_sub(namelistfile)
   !call OpenLogFile(CntrlConfig_sub%logFile) 
-  call LoadTunParams(CntrlConfig_sub%nAttempts,CntrlConfig_sub%TuningFile(1:CntrlConfig_sub%nAttempts))
+  call LoadTunParams(CntrlConfig_sub%nAttempts,CntrlConfig_sub%TuningFile(1:CntrlConfig_sub%nAttempts),mype)
+
+
+
   call LoadGlobGeophyCovBkg()            !---Load the global/stratified cov matrix -Atm & Sfc- as well as  U
   call ReadInstrConfig(CntrlConfig_sub%InstrConfigFile,InstrConfig)  !---Read instrconfig file for frequencies
   call LoadNoise(CntrlConfig_sub%NoiseFile)  !---Load Noise Info and related items (NRF, NEDT, etc)
@@ -217,14 +262,11 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
   Ym%CentrFreq(1:Ym%nChan)=InstrConfig%CentrFreq(1:Ym%nChan)
   Ym%Polar(1:Ym%nChan)=InstrConfig%Polarity(1:Ym%nChan)
   Ym%nPosScan=96
+  IF (sensor .eq. 'ssmis') Ym%nPosScan=60
   Ym%nScanLines=1
 
   UseorNotExterData=CntrlConfig_sub%ExternDataAvailab
-  iuOutput=mype
-  write(stringappend,'(i10)') iuOutput
-  stringappend=ADJUSTL(stringappend)
-  OUTPUTFILE=trim('/data/kgarrett/par/1dvartest2/mirs_edr_2012071000_'//stringappend)
-  iuedr=iuOutput+300
+
 ! Initialize Scene_Ext structure for guess info
   IF (CntrlConfig_sub%ExternDataAvailab .eq. 1) THEN
      CALL InitHdrScene(GeophStatsT_Atm(1)%nLev,GeophStatsT_Atm(1)%nLay,Ym%nChan,&
@@ -233,6 +275,10 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
           100,100,100,100,100,2,                                                  &
           GeophStatsT_Atm(1)%AbsorbID(1:GeophStatsT_Atm(1)%nAbsorb),nqc,1,              &
           Ym%nPosScan,Ym%nScanLines,9999)
+          !print *,'iufg header',iufg,mype
+     if (init_pass) then
+        CALL WriteHdrScene(iufg,OUTPUTFILEFG,Scene_Ext,nprofiles)
+     endif
   ENDIF
   call ReadBias(CntrlConfig_sub%BiasFile,nchanBias,nposBias,cfreq_bias,Bias,Slope,Intercept,errReadingBias)
   IF (errReadingBias.eq.0) THEN 
@@ -283,7 +329,7 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
   nEDRs_sfc  = GeophStatsT_Sfc(1)%nEDRs
   nEDRs      = nEDRs_atm + nEDRs_sfc
   nSfcTypes  = GeophStatsT_Atm(1)%nTypes
-  nChan      = Ym%nChan
+  !nChan      = Ym%nChan
   nLev       = GeophStatsT_Atm(1)%nLev
   nLay       = GeophStatsT_Atm(1)%nLay
   mxIter     = maxval(TunParams(1:CntrlConfig_sub%nattempts)%nIterations)  
@@ -313,6 +359,7 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
   !call GetNprofs2Process(CntrlConfig_sub%ExternDataAvailab,CntrlConfig_sub%nprofs2process,   &
   !     nMeasurData,nExternData,nprofiles)
 
+
   CALL InitHdrScene(nLev,nLay,nChan,GeophStatsT_Sfc(1)%Freq,GeophStatsT_Sfc(1)%polar,&
        GeophStatsT_Atm(1)%pres_lev,GeophStatsT_Atm(1)%pres_lay,Scene,                &
        GeophStatsT_Atm(1)%Stats(iEDR_clw,1)%npEDR,                                   &
@@ -323,7 +370,10 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
        GeophStatsT_Atm(1)%nAbsorb,                                                   &
        GeophStatsT_Atm(1)%AbsorbID(1:GeophStatsT_Atm(1)%nAbsorb),nqc,1,              &
        Ym%nPosScan,Ym%nScanLines,9999)
-  CALL WriteHdrScene(iuedr,OutputFile,Scene,nprofiles)
+       !print *,'iuedr header',iuedr,mype
+  if (init_pass) then
+     CALL WriteHdrScene(iuedr,OutputFile,Scene,nprofiles)
+  endif
   !---Open monitoring file if requested by Cntrol configuration
 !  IF (CntrlConfig_sub%MonitorIterat .eq.1) THEN
 !      call WriteHdrMonitor(CntrlConfig_sub%MonitorFile,iuMonitor,nprofiles, &
@@ -429,9 +479,13 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
         Scene_Ext%Pres_Lay=GeophStatsT_Atm(1)%pres_lay
         Scene_Ext%Pres_Lev=GeophStatsT_Atm(1)%pres_lev
         
+        Scene_Ext%WindSp=fgwindsp(iprof)
+        Scene_Ext%Tskin=fgsst(iprof)
+
+
         IF (ANY(Scene_Ext%Temp_Lay .le. 100)) UseorNotExterData=0
         IF (ANY(Scene_Ext%Absorb_Lay(:,1) .le. 0)) UseorNotExterData=0
-
+!        print *,'useornotexternal',UseorNotExterData
 !         call printscene(Scene_Ext)
          !---Check whether any variables in external data scene are negative
          !---If they are, fill values at top and/or bottom with lowest/heighest layer with non-negative values, respectively
@@ -444,7 +498,13 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
 !            Scene_ExtIn=Scene_Ext
 !            call FillSceneNegValues(Scene_ExtIn,Scene_Ext)
 !         ENDIF
-         
+        Scene_ext%node=0
+        Scene_ext%lat=lat(iprof)
+        Scene_ext%lon=lon(iprof)
+        !print *,'iufg scene',iufg,mype
+        if (init_pass) then
+           CALL WriteScene(iufg,Scene_ext)
+        endif
      ENDIF
       !---Determine the surface type and water fraction 
   call Read_topography(CntrlConfig_sub%Topogr,Ym%lat,Ym%lon,xalt,stypeSfc,xcover,stypeSfcCRTM)
@@ -465,7 +525,7 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
   nIterTot=DEFAULT_VALUE_INT
   
 
- IF (ANY(Ym%tb .lt. 50 .or. Ym%tb .gt. 350)) OkRetrvl=.FALSE.
+ IF (ANY(Ym%tb .lt. 10 .or. Ym%tb .gt. 400)) OkRetrvl=.FALSE.
 ! call Set2DefaultQC(vec_Int=Scene%qc,vec_Real=Xout,singl_Int=nIterTot(iprof),singl_Real=Scene%ChiSq)
       !---Proceed with retrieval if OKRetrvl signal signals it
   IF (OKRetrvl) THEN
@@ -479,9 +539,9 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
            nIterTot(iprof)   = 0
            !---Pre-classification
            TskPreclass = DEFAULT_VALUE_REAL
-           IF (UseorNotExterData .eq. 1 .and. TunParams(iattempt)%EDR_ExtDataUse_sfc(iEDR_sfcT).ne.0) THEN
-              TskPreclass=Scene_Ext%Tskin
-           ENDIF
+  !         IF (UseorNotExterData .eq. 1 .and. TunParams(iattempt)%EDR_ExtDataUse_sfc(iEDR_sfcT).ne.0) THEN
+  !            TskPreclass=Scene_Ext%Tskin
+  !         ENDIF
 
            call PreClassAtm(Ym%Year,Ym%Julday,Ym%nchan,Ym%CentrFreq,Ym%lat,Ym%lon,stypeSfc,&
                 TunParams(iattempt)%Sensor_ID,Ym%tb,AtmClass,TskPreclass)
@@ -538,7 +598,7 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
                 TunParams(iattempt)%scalFactEF_ld_byChan,TunParams(iattempt)%scalFactEF_sn_byChan)
            call BuildMatrxFromDiagVec(nchan,ModelErr(1:nchan),Fe(1:nchan,1:nchan))
            !---Replace certain elements of Bkg by Ext data (if applicable)
-           IF (UseorNotExterData .ne. 0) THEN
+           IF (UseorNotExterData .eq. 1) THEN
               call SetBkg2Ext(Scene_ext,GeophStatsT_Atm(iattempt)%EDR_Desc,        &
                    GeophStatsT_Atm(iattempt)%EDR_IDs,GeophStatsT_Atm(iattempt)%Stats(:,iAtm)%npEDR,  &
                    nEDRs_Atm,TunParams(iattempt)%EDR_ExtDataUse_atm,XbAtm,               &
@@ -569,8 +629,11 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
 
            call DetermNumbEOFs(TunParams(iattempt),nR)
            !---Consistency checks
-           IF (TunParams(iattempt)%nChanSel .ne. nChan) &
+           IF (TunParams(iattempt)%nChanSel .ne. nChan) THEN 
+                print *,'mype,iattempt,satid,sensor,nChanSel,nChan',mype,iattempt,satId,sensor,TunParams(iattempt)%nChanSel,nChan
+                print *,'tuning files',CntrlConfig_sub%TuningFile(1)
                 CALL ErrHandl(ErrorType,Err_InconsNumber,'of channels turned ON/OFF')
+           ENDIF   
            IF (nR.gt.nG) CALL ErrHandl(ErrorType,Err_InconsNumber,' (nR > nG)') 
            !---Tune Background/1st Guess
            call TuneBkgAtm(iEDR_clw,iEDR_rain,iEDR_snow,iEDR_ice,iEDR_grpl,XbAtm,   &
@@ -590,9 +653,7 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
                 GeophStatsT_Atm(iattempt)%iSpaceMode)
            !---Estimate the surface pressure from the local topography (over land) -only when external data not present-
            !---Use first-guess sfc pressure if available, otherwise scale based on altitude over land
-           IF (UseorNotExterData .eq. 1 .and. TunParams(iattempt)%EDR_ExtDataUse_atm(iEDR_sfcp).ne. 0) THEN
-              Scene%SfcPress=Scene_Ext%SfcPress
-           ELSE        
+           IF (UseorNotExterData .eq. 0) THEN
               call EstimatSfcPress(xalt,SfcClass,Scene%SfcPress)
            ENDIF
            !---Disable retrieval of layers below surface level
@@ -622,11 +683,9 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
                 TunParams(iattempt)%EDR_ExtDataUse_sfc,GeophStatsT_Atm(iattempt)%iSpaceMode,    &
                 GeophStatsT_Sfc(iattempt)%iSpaceMode,iSpaceModeFlag)
            !---Combine External data with Background (& 1st Guess)
-           IF (UseOrNotExterData .eq. 1) THEN
-              call CombExtWithBkgCov(Xb,Scene_Ext,X1st,ParamLabel,       &
+           call CombExtWithBkgCov(Xb,Scene_Ext,X1st,ParamLabel,       &
                    ParamIndx,ParamLength,EDR_ExtDataUse,nEDRselec,iSpaceModeFlag,&
                    UseorNotExterData)
-           ENDIF
            !---Tune the resulting geophysical covariance matrix
            call TuneCov(Sa,Scene%SfcPress,nEDRselec,EDR_cntrlRetr,ParamIndx,  &
                 ParamLength,ParamLabel,EDR_nEOF,Xb)
@@ -654,10 +713,11 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
            call TransfXg2Scene(Xg(1:nGselec,0),Scene,ParamLabel(1:nEDRselec),  &
                 ParamIndx(1:nEDRselec),ParamLength(1:nEDRselec),               &
                 iSpaceModeFlag(1:nEDRselec))
+        !print *,'Wind',Scene_ext%windsp, Scene%windsp
            !---Forward operator on 1st Guess
            !CALL CPU_TIME(t0)
            !Scene%SfcPress=Scene_Ext%SfcPress
-!           call printscene(Scene)
+           !call printscene(Scene)
            call FwdOper(Scene,Y(1:nchan,0),K(1:nchan,1:nGselec),ChannelInfo,    &
                 Atmos,Atmos_K,Sfc,Sfc_K,Options,RTSolution,RTSolution_K,        &
                 ParamLabel(1:nEDRselec),ParamIndx(1:nEDRselec),                 &
@@ -746,10 +806,15 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
               !CALL CPU_TIME(t0)
               IF (ANY(Scene%Emiss .le. 0 .or. Scene%Emiss .gt.1)) print *,'Emiss Invalid',Scene%Emiss
               IF (Scene%Tskin .lt. 190) THEN
-!                 print *,'Tskin invalid',Scene%Tskin
+                 print *,'Tskin invalid',Scene%Tskin
                  OKRetrvl=.FALSE.
                  CYCLE IterLoop
               ENDIF
+              IF (ANY(Scene%Temp_Lay .lt. 100)) THEN
+                 print *,'Temp invalid',Scene%Temp_Lay
+                 OKRetrvl=.FALSE.
+                 CYCLE IterLoop
+              ENDIF   
               IF (Scene%Windsp .lt. 0) print *,'Windsp invalid',Scene%WindSp
               call FwdOper(Scene,Y(1:nchan,iter+1),K(1:nchan,1:nGselec),ChannelInfo, &
                    Atmos,Atmos_K,Sfc,Sfc_K,Options,RTSolution,RTSolution_K,        &
@@ -846,7 +911,7 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
       !---Set the QC for the scene just produced
       call setQC(Scene,nqc,Ym%qc,Ym%nqc,OKRetrvl)
       !---Set to default value all non-officially delivered products
-      call set2defaultNonOfficialproducts(Scene)
+      !call set2defaultNonOfficialproducts(Scene)
 
       clw(iprof) = ColumIntegr(Scene%nLay,Scene%Pres_lay(1:Scene%nLay),        &
            Scene%SfcPress,Scene%CLW(1:Scene%nLay))
@@ -867,12 +932,20 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
 
 !      write(*,*),'iprof,qc,chisq',iprof,satqc(1,iprof),chisquare(iprof)
       !---Write out scene
-      call WriteScene(iuedr,Scene)
+       ! print *,'iuedr scene',iuedr,mype
+      if (init_pass) then
+          call WriteScene(iuedr,Scene)
+      endif
 !      call printscene(Scene)
       !----Assess time spent in outputing
       !CALL CPU_TIME(t1)
       !tim(9) = tim(9) + (t1-t0)
   ENDDO ProfLoop
+  if (init_pass) then
+     close(iuedr)
+     close(iufg)
+  endif
+
   !close(ilun)
   !---Assess total time cost
   !CALL CPU_TIME(t1)
@@ -906,7 +979,6 @@ SUBROUTINE pp1dvar_main(mype,satId,sensor,meas,lat,lon,angle,iscanpos,day,month,
   !---Release memory allocated in ReadHdrScene of src/lib/io/IO_Scene.f90
   IF (CntrlConfig_sub%ExternDataAvailab .ne. 0) CALL DestroyScene(Scene_Ext)
   CALL DestroyScene(Scene)
-
   !---Release memory allocated in readBias of src/lib/io/IO_MeasurData.f90
   IF (errReadingBias.eq.0) DEALLOCATE(cfreq_bias,Bias,Slope,Intercept)
   !---Release memory allocated in CRTM

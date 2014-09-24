@@ -106,7 +106,7 @@ subroutine setuppw(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   real(r_double) rstation_id
   real(r_kind):: pwges,grsmlt,dlat,dlon,dtime,obserror, &
        obserrlm,residual,ratio,dpw
-  real(r_kind) error,ddiff, pw_diff, newdiff
+  real(r_kind) error,ddiff, pw_diff
   real(r_kind) ressw2,ress,scale,val2,val,valqc
   real(r_kind) rat_err2,exp_arg,term,ratio_errors,rwgt
   real(r_kind) cg_pw,wgross,wnotgross,wgt,arg

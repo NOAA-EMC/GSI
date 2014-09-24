@@ -78,12 +78,12 @@ contains
     type(gsi_bundle), intent(inout) :: rval
 
 ! Declare local variables
-    integer(i_kind) j,j1,j2,j3,j4,i1,i2,i3,i4,n,n_1,n_2,k,ic,ix,nn,jn
-    integer(i_kind) ier,istatus,naero,id
+    integer(i_kind) j1,j2,j3,j4,i1,i2,i3,i4,n,k,ic,nn
+    integer(i_kind) istatus,naero
     integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
     real(r_kind) val
     real(r_kind) w1,w2,w3,w4
-    real(r_kind) cg_aero,p0,wnotgross,wgross
+!   real(r_kind) cg_aero,p0,wnotgross,wgross
     type(aero_ob_type), pointer :: aeroptr
 
     real(r_kind),pointer,dimension(:) :: sv_chem

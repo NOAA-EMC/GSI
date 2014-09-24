@@ -86,7 +86,7 @@ type(control_vector) :: xdir,yhat,grad,xhat
 real(r_quad) :: zabuf(itertest),zfabuf(itertest),ztf2buf(itertest)
 real(r_quad) :: zfy,zf0,zdf0,za,zfa,zdfa
 real(r_quad) :: ZT1,ZB,ZFB,ztco,ZTC1,ZT2,ZTC1A,ZTC2,ZTF2
-real(r_quad) :: ZAL,ZFAL,ZBL,ZFBL,ZTF2L
+real(r_quad) :: ZTF2L
 real(r_quad) :: ZTC00,ZTC02,ZTC10,ZTC12
 real(r_quad) :: ZERMIN,ZT1TST,ZREF
 integer(i_kind) :: ibest,idig,jj,nprt,ii

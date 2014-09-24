@@ -452,7 +452,7 @@ subroutine writeout_gradients(dx,dy,nv,alpha,gamma,mype)
   integer(i_kind),save :: nrf3_sf,nrf3_vp,nrf3_t,nrf3_q,nrf3_oz,nrf3_cw
   integer(i_kind),save :: nrf2_ps,nrf2_sst,nrf2_gust,nrf2_vis,nrf2_pblh,nrf2_dist
 
-  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,ip,istatus
+  integer(i_kind) i,k,k1,k2,lun,ifield,icase,ii,istatus
 
   real(r_kind),allocatable,dimension(:)::tempa
   real(r_kind),allocatable,dimension(:,:)::slab

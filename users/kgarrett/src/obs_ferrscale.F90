@@ -81,8 +81,6 @@ subroutine init_ferr_scale
 
 implicit none
 
-integer(i_kind) :: ierr
-
 lthis_adj=l_do_adjoint
 l_do_adjoint=.true.
 lthis_sqrt=lsqrtb
@@ -149,7 +147,6 @@ integer(i_kind),intent(in   ) :: nprt
 
 type(gsi_bundle) :: ferrin
 type(gsi_bundle) :: ferrout
-integer(i_kind) :: nymd, nhms
 
 if(.not.lferrscale) return
 
@@ -159,9 +156,9 @@ call allocate_state(ferrout)
 ferrin =zero
 ferrout=zero
 
-call get_ferr_scale (ferrin,nymd,nhms)
+call get_ferr_scale (ferrin)
 call hrm1h_ferr_scale(ferrin,ferrout,nprt,'apply_hrm1h')
-call put_ferr_scale (ferrout,nymd,nhms)
+call put_ferr_scale (ferrout)
 
 call deallocate_state(ferrout)
 call deallocate_state(ferrin)
@@ -169,7 +166,7 @@ call clean_ferr_scale
 
 end subroutine apply_hrm1h
 ! ------------------------------------------------------------------------------
-subroutine get_ferr_scale (ferrin,nymd,nhms)
+subroutine get_ferr_scale (ferrin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_ferr_scale
@@ -184,7 +181,6 @@ subroutine get_ferr_scale (ferrin,nymd,nhms)
 !
 !   input argument list:
 !    ferrin
-!    nymd,nhms
 !
 !   output argument list:
 !    ferrin
@@ -197,10 +193,9 @@ subroutine get_ferr_scale (ferrin,nymd,nhms)
 
 implicit none
 type(gsi_bundle),intent(inout) :: ferrin ! not yet implemented
-integer(i_kind) ,intent(inout) :: nymd,nhms
 
 real(r_kind) :: zjx
-integer(i_kind) :: ierr
+!integer(i_kind) :: ierr
 
 if (mype==0) then
    write(6,*)'get_ferr_scale: read forecast error vector'
@@ -221,7 +216,7 @@ endif
 return
 end subroutine get_ferr_scale
 ! ------------------------------------------------------------------------------
-subroutine put_ferr_scale (ferrout,nymd,nhms)
+subroutine put_ferr_scale (ferrout)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_ferr_scale
@@ -237,7 +232,6 @@ subroutine put_ferr_scale (ferrout,nymd,nhms)
 !
 !   input argument list:
 !    ferrout
-!    nymd,nhms
 !
 !   output argument list:
 !
@@ -249,10 +243,9 @@ subroutine put_ferr_scale (ferrout,nymd,nhms)
 
 implicit none
 type(gsi_bundle),intent(inout) :: ferrout
-integer(i_kind) ,intent(in   ) :: nymd,nhms
 
 real(r_kind) :: zjx
-integer(i_kind) :: ierr
+!integer(i_kind) :: ierr
 
 if (mype==0) then
    write(6,*)'put_ferr_scale: store scaled forecast error vector'

@@ -1892,7 +1892,6 @@ subroutine update_netcdf_mass
   character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
-  character (len=80) :: SysDepInfo
 
 
   integer(i_kind) :: it, n_actual_clouds, ierr, istatus, Status, Status_next_time
@@ -1910,7 +1909,7 @@ subroutine update_netcdf_mass
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,nsig_soil_regional
-  real(r_single) pt_regional,pdtop_regional,dy_nmm
+  real(r_single) pt_regional
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:),field2b(:,:)
   real(r_single),allocatable::field3u(:,:,:),field3v(:,:,:)
   integer(i_kind),allocatable::ifield2(:,:)
@@ -2643,8 +2642,6 @@ subroutine update_netcdf_nmm
   character (len= 3) :: ordering
 
   character (len=80), dimension(3)  ::  dimnames
-  character (len=80) :: SysDepInfo
-
   
   integer(i_kind) :: it, n_actual_clouds, ier, iret, ierr, Status, Status_next_time
   integer(i_kind) icw4crtm,iqtotal
@@ -2664,7 +2661,7 @@ subroutine update_netcdf_nmm
 
   integer(i_kind) iyear,imonth,iday,ihour,iminute,isecond,iw3jdn
   integer(i_kind) nlon_regional,nlat_regional,nsig_regional,istatus
-  real(r_single) pt_regional,pdtop_regional,dy_nmm
+! real(r_single) pt_regional
   real(r_single),allocatable::field3(:,:,:),field2(:,:),field1(:)
   integer(i_kind),allocatable::ifield2(:,:)
   integer(i_kind),allocatable::ifield1(:)

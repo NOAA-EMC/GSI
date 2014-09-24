@@ -137,22 +137,19 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   integer(i_kind) maxobs,nozdat,nloz
   integer(i_kind) idate,jdate,ksatid,kk,iy,iret,im,ihh,idd,lunin
   integer(i_kind) nmind,i
-  integer(i_kind) imin
   integer(i_kind) nmrecs,k,ilat,ilon,nreal,nchanl
 ! integer(i_kind) ithin,kidsat
   integer(i_kind) kidsat
   integer(i_kind) idate5(5)
   integer(i_kind) JULIAN,IDAYYR,IDAYWK
-  integer(i_kind) itype, ikx
-  integer(i_kind) isnd, ilev, iflg, mflg
+  integer(i_kind) ikx
   integer(i_kind) decimal,binary(14),binary_mls(18)
 
 
   integer(i_kind) itx,itt,ipoq7
 
-  real(r_kind) tdiff,sstime,slons,slats,dlon,dlat,t4dv,timedif,crit1,dist1
+  real(r_kind) tdiff,sstime,dlon,dlat,t4dv,timedif,crit1,dist1
   real(r_kind) slons0,slats0,rsat,solzen,solzenp,dlat_earth,dlon_earth
-  real(r_kind) rsec, ppmv, prec, pres, pob, obserr, usage
   real(r_kind),allocatable,dimension(:):: poz
 
 ! maximum number of observations set to 
@@ -1091,7 +1088,7 @@ SUBROUTINE dec2bin(dec,bin,ndim)
     integer(i_kind) ,intent(out)   :: bin(ndim)
 
 ! Declare local variables
-    integer(i_kind):: length, bindec, i
+    integer(i_kind):: bindec, i
 
 !   Check to determine decimal # is within bounds
     i = ndim

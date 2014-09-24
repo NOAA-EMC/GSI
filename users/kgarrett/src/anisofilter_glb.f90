@@ -813,7 +813,7 @@ subroutine read_bckgstats_glb(mype)
   integer(i_kind):: mcount0,mcount,ierror
   real(r_kind) :: pbar4a,pbar4(nsig)
 
-  integer(i_kind):: inerr,n,i,j,k,kc,kd,kt,kq,koz,l
+  integer(i_kind):: inerr,n,i,j,k,l
   real(r_single),dimension(nlat,nsig,nrf3):: corzin
   real(r_single),dimension(nlat,nrf2):: corpin
   real(r_single),dimension(nlat,nsig,nrf3):: hwllin
@@ -2213,7 +2213,7 @@ subroutine anbkgvar_rewgt(mype)
 
   integer(i_kind),intent(in   ) :: mype
 
-  integer(i_kind):: i,j,k,ix,ier,mm1,it
+  integer(i_kind):: i,j,k,ix,ier,mm1
 
   real(r_kind),dimension(lat2,lon2,nsig):: sfvar,vpvar,tvar
   real(r_kind),dimension(lat2,lon2):: psvar

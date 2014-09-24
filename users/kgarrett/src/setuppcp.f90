@@ -8,7 +8,7 @@
 ! !INTERFACE:
 !
 subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
-     obstype,isis,is,pcp_diagsave,init_pass,last_pass)
+     obstype,isis,is,pcp_diagsave,init_pass)
 
 ! !USES:
 
@@ -82,7 +82,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
  
   logical                        , intent(in   ) :: pcp_diagsave   ! switch diagnostic output on/off
                                                                    !   (.false.=no output)
-  logical                        , intent(in   ) :: init_pass,last_pass	! state of "setup" processing
+  logical                        , intent(in   ) :: init_pass      ! state of "setup" processing
 
 
 ! !INPUT/OUTPUT PARAMETERS:
@@ -202,7 +202,7 @@ subroutine setuppcp(lunin,mype,aivals,nele,nobs,&
 
 
   real(r_kind) avg,sdv,rterm1,rterm2,rterm
-  real(r_kind) error,a0,a1,obser
+  real(r_kind) error,a0,a1
   real(r_kind) errlog
   real(r_kind) rdocp,frain,dtp,dtf,sum,sixthpi
   real(r_kind) drad,vfact,efact,fhour,rtime
