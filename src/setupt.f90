@@ -297,6 +297,8 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
   end do
 
   if (twodvar_regional) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
+  write(6,'(2A,I3,1x,I3)')myname,': After buddy check - max/min buddyuse on this pe', maxval(buddyuse),minval(buddyuse)
+  
 
   dup=one
   do k=1,nobs
