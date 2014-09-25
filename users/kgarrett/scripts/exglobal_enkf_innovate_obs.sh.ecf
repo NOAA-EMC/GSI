@@ -117,14 +117,8 @@
 #                   defaults to ${FIXGLOBAL}/global_satangbias.txt
 #     SATINFO       Input satellite information file
 #                   defaults to ${FIXGLOBAL}/global_satinfo.txt
-#     RTMFIX        Input directory containing sensor specific coefficients
-#                   defaults to ${FIXGLOBAL}/crtm_2.0.5
-#     RTMEMIS       Input satellite emissivity coefficients
-#                   defaults to ${RTMFIX}/EmisCoeff/Big_Endian/EmisCoeff.bin
-#     RTMAERO       Input radiative transfer model aerosol coefficients
-#                   defaults to ${RTMFIX}/AerosolCoeff/Big_Endian/AerosolCoeff.bin
-#     RTMCLDS       Input radiative transfer model cloud coefficients
-#                   defaults to ${RTMFIX}/CloudCoeff/Big_Endian/CloudCoeff.bin
+#     RTMFIX        Input directory containing CRTM coefficients
+#                   defaults to ${FIXGLOBAL}/crtm_v2.1.3
 #     ANAVINFO      Input analysis variable file
 #                   defaults to ${FIXGLOBAL}/global_anavinfo.l${LEVS}.txt
 #     CONVINFO      Input conventional observation information file
@@ -217,9 +211,6 @@
 #                  $SATANGL
 #                  $SATINFO
 #                  $RTMFIX
-#                  $RTMEMIS
-#                  $RTMAERO
-#                  $RTMCLDS
 #                  $ANAVINFO
 #                  $CONVINFO
 #                  $OZINFO
@@ -327,10 +318,7 @@ export CYCLESH=${CYCLESH:-${USHGLOBAL}/global_cycle.sh}
 export BERROR=${BERROR:-${FIXGLOBAL}/global_berror.l${LEVS}y${NLAT_A}.f77}
 export SATANGL=${SATANGL:-${FIXGLOBAL}/global_satangbias.txt}
 export SATINFO=${SATINFO:-${FIXGLOBAL}/global_satinfo.txt}
-export RTMFIX=${RTMFIX:-${FIXGLOBAL}/crtm_2.0.5}
-export RTMEMIS=${RTMEMIS:-${RTMFIX}/EmisCoeff/Big_Endian/EmisCoeff.bin}
-export RTMAERO=${RTMAERO:-${RTMFIX}/AerosolCoeff/Big_Endian/AerosolCoeff.bin}
-export RTMCLDS=${RTMCLDS:-${RTMFIX}/CloudCoeff/Big_Endian/CloudCoeff.bin}
+export RTMFIX=${RTMFIX:-${FIXGLOBAL}/crtm_v2.1.3}
 export ANAVINFO=${ANAVINFO:-${FIXGLOBAL}/global_anavinfo.l${LEVS}.txt}
 export CONVINFO=${CONVINFO:-${FIXGLOBAL}/global_convinfo.txt}
 export OZINFO=${OZINFO:-${FIXGLOBAL}/global_ozinfo.txt}
@@ -430,8 +418,13 @@ export DATATOP=$DATA
 
 
 ################################################################################
-# Copy input data
-$NCP $SELECT_OBS ./
+# Copy or link input data
+if [[ $FILESTYLE = 'C' ]]
+then
+   $NCP $SELECT_OBS ./
+else
+   ln -fs $SELECT_OBS obs_input.tar
+fi
 
 
 ################################################################################
@@ -445,11 +438,10 @@ rm -f $EOMGGRP
 # Generate ensemble innovations
 imem=$ENSBEG
 while [[ $imem -le $ENSEND ]]; do
-   export FILESTYLE='L'
    export RUN_SELECT=NO
    export USE_SELECT=YES
-   export SELECT_OBS=$DATATOP/obsinput_${CDATE}_ensmean
-   export SETUP="miter=0,niter=1,lread_obs_save=.false.,lread_obs_skip=.true.,lwrite_predterms=.true.,lwrite_peakwt=.true.,reduce_diag=.true.,passive_bc=.false.,"
+   export SELECT_OBS=${SELECT_OBS:-$DATATOP/obsinput_${CDATE}_ensmean}
+   export SETUP="miter=0,niter=1,lread_obs_save=.false.,lread_obs_skip=.true.,lwrite_predterms=.true.,lwrite_peakwt=.true.,reduce_diag=.true.,passive_bc=.false.,newpc4pred=.true.,adp_anglebc=.true.,angord=4,use_edges=.false.,diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,"
    export BKGVERR="bkgv_flowdep=.false.,"
    export STRONGOPTS="tlnmc_option=0,nstrong=0,nvmodes_keep=0,baldiag_full=.false.,baldiag_inc=.false.,"
    export OBSQC="tcp_width=60.0,tcp_ermin=2.0,tcp_ermax=12.0,"
@@ -475,6 +467,10 @@ while [[ $imem -le $ENSEND ]]; do
    export SIGG08=$COMINGES/sfg_${GDATE}_fhr08s_${member}
    export SIGG09=$COMINGES/sfg_${GDATE}_fhr09s_${member}
    export SIGGES=$COMINGES/sfg_${GDATE}_fhr06s_${member}
+
+   export SIGANL=$DATA/sanl
+   export ABIAS=$DATA/abias
+   export ABIASPC=$DATA/abias_pc
 
    export SFCANL=$COMOUT/sfcanl_${CDATE}_${member}
    export GSISTAT=$COMOUT/gsistat_${CDATE}_${member}

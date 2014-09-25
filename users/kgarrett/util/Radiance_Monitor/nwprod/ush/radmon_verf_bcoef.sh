@@ -115,7 +115,8 @@ VERBOSE=${VERBOSE:-NO}
 LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
 USE_ANL=${USE_ANL:-0}
 err=0
-bcoef_exec=radmon_bcoef.${RAD_AREA}
+#bcoef_exec=radmon_bcoef.${RAD_AREA}
+bcoef_exec=radmon_bcoef
 
 if [[ "$VERBOSE" = "YES" ]]; then
    set -ax
@@ -197,7 +198,7 @@ cat << EOF > input
   little_endian=${LITTLE_ENDIAN},
  /
 EOF
-      $TIMEX ./${bcoef_exec} < input >   stdout.$type
+      $TIMEX ./${bcoef_exec} < input >   ${stdout_file}
       if [[ $? -ne 0 ]]; then
           fail=`expr $fail + 1`
       fi

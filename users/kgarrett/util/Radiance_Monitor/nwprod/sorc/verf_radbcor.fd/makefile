@@ -22,14 +22,14 @@ MAKE_CONF = Makefile.conf
 include $(MAKE_CONF)
 
 
-CMD = radmon_bcor.glb
+CMD = radmon_bcor
 
 all:  $(CMD)
 
 clean:
 	rm -f *.o
 	rm -f *.mod
-	rm -f *.glb
+	rm -f radmon_bcor
 
 $(CMD):         $(OBJS)
 	$(CF) $(FFLAGS) $(LDFLAGS) -o $(@) $(OBJS) $(LIBS)

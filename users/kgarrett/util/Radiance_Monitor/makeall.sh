@@ -35,7 +35,7 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    fi
 
    executables="angle bcoef bcor time"
-   echo "Making global executables in data_extract/nwprod/sorc:"
+   echo "Making data extraction executables in data_extract/nwprod/sorc:"
    for var in ${executables}; do
       if [[ $var = "angle" ]]; then
          cd ${top_level}/nwprod/sorc/verf_radang.fd
@@ -51,27 +51,7 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
       echo
 
       if [[ $mode = all ]]; then
-         cp -f radmon_${var}.glb ${top_level}/nwprod/exec/.
-      fi
-   done
-
-   echo "Making regional executables in data_extract/nwprod/sorc:"
-   for var in ${executables}; do
-      if [[ $var = "angle" ]]; then
-         cd ${top_level}/nwprod/sorc/verf_radang_rgn.fd
-      else
-         cd ${top_level}/nwprod/sorc/verf_rad${var}_rgn.fd
-      fi
-
-      rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
-
-      echo make ${var} ${mode}
-      make ${mode}
-      echo
-
-      if [[ $mode = all ]]; then
-         cp -f radmon_${var}.rgn ${top_level}/nwprod/exec/.
+         cp -f radmon_${var} ${top_level}/nwprod/exec/.
       fi
    done
 
@@ -89,19 +69,8 @@ if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
    #------------------------------------------------------------------
    executables="horiz"
 
-   cd ${top_level}/image_gen/src/glb
-   echo "Making image_gen/src/glb:"
-   for var in ${executables}; do
-      rm -f Makefile.conf
-      ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf
-
-      echo make ${var} ${mode}
-      make -f makefile.${var} ${mode}
-      echo
-   done
-
-   cd ${top_level}/image_gen/src/rgn
-   echo "Making image_gen/src/rgn:"
+   cd ${top_level}/image_gen/src
+   echo "Making image_gen/src:"
    for var in ${executables}; do
       rm -f Makefile.conf
       ln -s ${top_level}/parm/Makefile.conf.${machine} Makefile.conf

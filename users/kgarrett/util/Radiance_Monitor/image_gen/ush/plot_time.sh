@@ -33,8 +33,8 @@ echo PLOT_WORK_DIR = $PLOT_WORK_DIR
 
 #------------------------------------------------------------------
 #   Set dates
-bdate=`$NDATE -720 $PDATE`
-bdate=`$NDATE -1440 $PDATE`
+
+bdate=${START_DATE}
 rdate=`$NDATE -72 $PDATE`
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
@@ -93,24 +93,24 @@ for type in ${SATYPE2}; do
       if [ "$var" =  'count' ]; then 
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 elif [ "$var" =  'penalty' ]; then
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_time_count} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 else
 cat << EOF > ${type}_${var}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/${plot_time_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
+'run ${IG_GSCRIPTS}/${plot_time_sep} ${type} ${var} ${PLOT_ALL_REGIONS} x1100 y850'
 'quit'
 EOF
 fi
 echo ${tmpdir}/${type}_${var}.gs
-      $TIMEX $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
+      $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done
 
 

@@ -15,8 +15,8 @@ program time
   use valid 
 
   implicit none
-  integer ntype,mregion,surf_nregion
-  parameter (ntype=8,mregion=25, surf_nregion=5)
+  integer ntype,mregion,surf_nregion,max_surf_region
+  parameter (ntype=8,mregion=25, max_surf_region=5)
   integer iglobal, iland, iwater, isnowice, imixed
   parameter (iglobal=1, iland=2, iwater=3, isnowice=4, imixed=5)
 
@@ -25,7 +25,7 @@ program time
   character(20) satname,stringd,satsis
   character(10) dum,satype,dplat
   character(40) string,diag_rad,data_file,dfile,ctl_file
-  character(40),dimension(surf_nregion):: region
+  character(40),dimension(max_surf_region):: region
   character(40),dimension(mregion):: surf_region
   character :: command
   character(8) date,suffix,cycle
@@ -37,13 +37,13 @@ program time
   integer,allocatable,dimension(:):: io_chan,nu_chan
   integer :: ios = 0
   integer :: channel_obs
-  integer :: iret 
+  integer :: iret, ier, ver
   integer npred_radiag
 
   real rread, pen, bound
   real rlat, rlon, rmiss, obs
   real,dimension(2):: cor_tot,nbc_omg,bc_omg
-  real,dimension(surf_nregion):: rlatmin,rlatmax,rlonmin,rlonmax
+  real,dimension(max_surf_region):: rlatmin,rlatmax,rlonmin,rlonmax
 
   real,allocatable,dimension(:):: wavenumbr,channel_count
   real,allocatable,dimension(:,:):: count,error,use,frequency,penalty,test_pen
@@ -68,8 +68,9 @@ program time
   integer               :: imkdata              = 1
   character(3)          :: gesanl               = 'ges'
   integer               :: little_endian        = 1
-  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,&
-       nchanl,suffix,imkctl,imkdata,retrieval,gesanl,little_endian
+  character(3)          :: rad_area             = 'glb'
+  namelist /input/ satname,iyy,imm,idd,ihh,idhh,incr,nchanl,&
+       suffix,imkctl,imkdata,retrieval,gesanl,little_endian,rad_area
 
   data luname,lungrd,lunctl,lndiag / 5, 51, 52, 21 /
   data rmiss /-999./
@@ -86,7 +87,7 @@ program time
 !
 ! Initialize variables
   iread=0
-  npred_radiag = 5
+  npred_radiag = 12 
 
 ! Read namelist input
   read(luname,input)
@@ -95,12 +96,20 @@ program time
   write(6,*)'gesanl  = ', gesanl
   write(6,*)'imkdata = ', imkdata
 
- if ( trim(gesanl) == 'anl' ) then
+  if ( trim(gesanl) == 'anl' ) then
      ftype(3) = 'omanbc'
      ftype(5) = 'omabc'
      ftype(6) = 'omanbc2'
      ftype(8) = 'omabc2'
- endif
+  endif
+
+  surf_nregion = 5
+  if ( trim(rad_area) == 'rgn' ) then
+     surf_nregion = 1
+  endif
+
+  nregion=surf_nregion
+  write(6,*)'surf_nregion = ', surf_nregion
 
 
   nregion=surf_nregion
@@ -140,6 +149,9 @@ program time
   rewind lndiag
 
 ! File exists.  Read header
+  call get_radiag ('version',ver,ier)
+  write(6,*)'read_diag version = ', ver, ier
+
   write(6,*)'call read_diag_header'
   call read_radiag_header( lndiag, npred_radiag, retrieval, header_fix,&
         header_chan, data_name, iflag )
@@ -153,9 +165,6 @@ program time
   satsis = header_fix%isis
   dplat  = header_fix%id
   n_chan = header_fix%nchan
-
-  write(6,*)'satype,dplat,n_chan=',satype,' ',dplat,n_chan
-  write(6,*)'header_fix%iversion, iversion_radiag = ', header_fix%iversion, iversion_radiag
 
   string = trim(satype)//'_'//trim(dplat)
   write(6,*)'string,satname=',string,' ',satname
@@ -269,23 +278,27 @@ program time
 
         ii=0; jsub=0;
         jsub(1)=iglobal
-        if ( data_fix%land_frac  > 0.99 ) then
-           jsub(2)=iland
-           nreg=2
-           nnland=nnland+1
-        else if ( data_fix%water_frac > 0.99 ) then
-           jsub(2)=iwater
-           nreg=2
-           nnwater=nnwater+1
-        else if (( data_fix%snow_frac > 0.99 ) .OR. ( data_fix%ice_frac > 0.99 )) then
-           jsub(2)=isnowice
-           nreg=2
-           nnsnow=nnsnow+1
-        else
-           jsub(2)=imixed
-           nreg=2
-           nnmixed=nnmixed+1
-           write(6,*)'data_fix%land_frac,water,snow,ice = ',data_fix%land_frac, data_fix%water_frac, data_fix%snow_frac, data_fix%ice_frac
+        nreg=1
+
+        if ( nregion > 1 ) then
+           if ( data_fix%land_frac  > 0.99 ) then
+              jsub(2)=iland
+              nreg=2
+              nnland=nnland+1
+           else if ( data_fix%water_frac > 0.99 ) then
+              jsub(2)=iwater
+              nreg=2
+              nnwater=nnwater+1
+           else if (( data_fix%snow_frac > 0.99 ) .OR. ( data_fix%ice_frac > 0.99 )) then
+              jsub(2)=isnowice
+              nreg=2
+              nnsnow=nnsnow+1
+           else
+              jsub(2)=imixed
+              nreg=2
+              nnmixed=nnmixed+1
+              write(6,*)'data_fix%land_frac,water,snow,ice = ',data_fix%land_frac, data_fix%water_frac, data_fix%snow_frac, data_fix%ice_frac
+           end if
         end if
 
 
@@ -327,7 +340,6 @@ program time
      enddo loopd
 
 
-     close(lndiag)
      write(6,*)' '
      write(6,*)'read in ',iread,' obs ',rread
      write(6,*)' '
@@ -350,22 +362,18 @@ program time
 !           end if
 
            if (count(j,k)>0) then
-!              penalty(j,k)=penalty(j,k)/count(j,k)
                test_pen(j,k)=penalty(j,k)/count(j,k)
 
-              !---  check for valid penalty value for reagion 1 (global)
+              !---  check for valid penalty value for region 1 (global)
               !
               if ( use(j,k) > 0.0 .AND. k == 1 .AND. imkdata == 1 .AND. trim(gesanl) == 'ges' ) then 
-!                 call validate_penalty( j, k, penalty(j,k), valid_penalty, bound, iret )
                  call validate_penalty( j, k, test_pen(j,k), valid_penalty, bound, iret )
-!                 write(6,*) ' valid_penalty, iret = ', valid_penalty, iret
                  if( (iret == 0) .AND. (valid_penalty .eqv. .FALSE.) ) then
                     call write_bad_penalty( satname, nu_chan(j), k, test_pen(j,k), bound )
                  endif
               endif
 
            else
-!              write(6,*)' missing count(j,k)', j,k
               count(j,k)=rmiss
               penalty(j,k)=rmiss
            endif

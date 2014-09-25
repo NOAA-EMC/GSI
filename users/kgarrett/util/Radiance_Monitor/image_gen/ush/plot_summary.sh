@@ -23,8 +23,8 @@ cd $tmpdir
 
 #------------------------------------------------------------------
 #   Set dates
-bdate=`$NDATE -720 $PDATE`
-bdate=`$NDATE -1440 $PDATE`
+
+bdate=${START_DATE}
 edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
@@ -73,11 +73,11 @@ for type in ${SATYPE2}; do
 
 cat << EOF > ${type}.gs
 'open ${type}.ctl'
-'run ${GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
+'run ${IG_GSCRIPTS}/plot_summary.gs ${type} ${SUB_AVG} x1100 y850'
 'quit'
 EOF
 
-   $TIMEX $GRADS -bpc "run ${tmpdir}/${type}.gs"
+   $GRADS -bpc "run ${tmpdir}/${type}.gs"
 
 #   rm -f ${type}.ctl 
 #   rm -f ${type}*.ieee_d

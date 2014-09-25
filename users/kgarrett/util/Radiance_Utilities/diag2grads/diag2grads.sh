@@ -11,8 +11,8 @@
   set $SETOPT
 
 if [ -d /global ]; then
-  TOPDIR=/global   # This would be the CCS
-  MACHINE=CCS
+  TOPDIR=/global   # This would be the WCOSS
+  MACHINE=WCOSS
 elif [ -d /scratch1/portfolios/NCEPDEV/da ]; then
   TOPDIR=/scratch1/portfolios/NCEPDEV/da     #This is zeus
   MACHINE=ZEUS
@@ -22,7 +22,7 @@ else
 fi
 
 # Other Executables and scripts
-if [ $MACHINE = CCS ]; then
+if [ $MACHINE = WCOSS ]; then
    export NDATE=/nwprod/util/exec/ndate
 elif [ $MACHINE = ZEUS ]; then
    export NDATE=/scratch1/portfolios/NCEPDEV/da/save/Michael.Lueken/nwprod/util/exec/ndate
@@ -262,8 +262,8 @@ DATDIR=$WORK                           # directory of unzipped diagnostic files
 #--- set zip suffix
 ZIP_SUFFIX=Z
 
-if [ $MACHINE = CCS ]; then
-  ZIP_SUFFIX=Z
+if [ $MACHINE = WCOSS ]; then
+  ZIP_SUFFIX=gz
 elif [ $MACHINE = ZEUS ]; then
   ZIP_SUFFIX=gz
 fi
