@@ -1,0 +1,105 @@
+<HTML>
+<head>
+<title>Experimental GDAS Radiance Monitoring plots</title>
+</head>
+
+<script type="text/javascript">
+function setUpFrames( satellite, region, channel, stat ) {
+
+  // function setUpFrames
+  //
+  // Find the page elements in time.html that correspond to
+  // the input satellite, region, channel grouping, and stat
+  // (rad or opr) values and set them to currently displayed.
+  // Then call plotTime to plot the correct image.
+  //
+  // See note on channel grouping in getQueryVariables 
+  // below.
+  //
+  // log:
+  //   03/2010  safford  initial coding
+
+  var satEl = leftbot.document.getElementById( satellite );
+  satEl.selected = true;  
+
+  var regEl = leftbot.document.getElementById( region );
+  regEl.selected = true;
+
+  var statEl = leftbot.document.getElementById( stat );
+  statEl.selected = true;
+
+  var chanEl = leftbot.document.getElementById( channel );
+  chanEl.selected = true;
+
+  self.leftbot.plotTime();
+}
+</script> 
+
+<script type="text/javascript">
+function getQueryVariables() {
+ 
+  //  function getQueryVariables
+  //
+  //  Parse the query string that requested the page load and
+  //  see if satellite, region, channel grouping, and stat
+  //  type (pen or obs) can be matched.  If so try to set the
+  //  initial page load to present the corresponding image.
+  //
+  //  Note:  channel grouping is not the same as channel number --
+  //   there are four channels per image, and not all instruments 
+  //   have consecutively numbered channels.
+  //
+  //  log:
+  //    03/2010  safford  initial coding
+  
+  var query = window.location.search.substring(1);
+  var vars = query.split("&");
+
+  var sat = null;
+  var region = null;
+  var channel = null;
+  var stat = null;
+
+  for (var i=0;i<vars.length;i++) {
+    var pair = vars[i].split("=");
+    if (pair[0] == "sat") {
+      sat = pair[1];
+    }
+    else if (pair[0] == "region") {
+      region = pair[1];
+    }
+    else if (pair[0] == "channel") {
+      channel = pair[1];
+    }
+    else if (pair[0] == "stat") {
+      stat = pair[1];
+    }
+  }
+
+  if( (sat != null) && (region != null) && (channel != null) && (stat != null) ) {
+     setUpFrames(sat, region, channel, stat);
+  }
+
+} 
+</script> 
+
+
+<FRAMESET COLS="280,*" border="0" framespacing=3 onload="getQueryVariables()">
+   <frameset rows="220,*" border="0" framespacing=3>
+      <frame src="./menu.html" name="menu" marginwidth="5" marginheight="3">
+      <FRAME SRC="./time.html" NAME="leftbot" MARGINWIDTH="5" MARGINHEIGHT="3">
+   </frameset>
+   <FRAME SRC="./intro.html" NAME="fmain" MARGINWIDTH="15" MARGINHEIGHT="3">
+</FRAMESET>
+
+<NOFRAMES>
+</NOFRAMES>
+
+<BODY>
+   <H1>ATOVS monitoring</H1>
+   <h2>Sorry! This site is best viewed using:</h2>
+   <li>Netscape 2.0 or later and frames</li>
+
+
+</BODY>
+</HTML>
