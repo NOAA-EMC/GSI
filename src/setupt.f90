@@ -144,6 +144,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !   2013-10-19  todling - metguess now holds background
 !   2014-01-28  todling - write sensitivity slot indicator (idia) to header of diagfile
 !   2014-03-04  sienkiewicz - implementation of option aircraft_t_bc_ext (external table)
+!   2014-10-01  zhu     - apply aircraft temperature bias correction to kx=130
 !
 ! !REMARKS:
 !   language: f90
@@ -420,7 +421,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      end if
 
 !    aircraftobst = itype>129.and.itype<140
-     aircraftobst = (itype==131) .or. (itype==133)
+     aircraftobst = (itype==131) .or. (itype==133) .or. (itype==130)
      ix = 0
      if (aircraftobst .and. (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext)) then 
         ix = data(idx,i)

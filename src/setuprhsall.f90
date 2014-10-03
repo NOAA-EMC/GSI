@@ -560,6 +560,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
      call mpl_allreduce(npredt,ntail,ostats_t)
      call mpl_allreduce(npredt,ntail,rstats_t)
+  end if
+
+  if (newpc4pred .or. aircraft_t_bc_pof .or. aircraft_t_bc) then
      call reset_predictors_var
   end if
 
