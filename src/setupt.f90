@@ -628,11 +628,13 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             qcgross=three*qcgross
             if (buddyuse(i)==1) then
                qcgross=2*qcgross !relax even more for terrain in cases where buddy check passes
-               data(iuse,i)=data(iuse,i)+0.50_r_kind !so we can identify obs with extra relaxed gross qc in diag files (will show as 1.75)
+               data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with extra relaxed gross qc 
+                                                     ! in diag files (will show as an extra 0.75 appended)
             end if
         else if (buddyuse(i)==1) then
             qcgross=three*qcgross
-            data(iuse,i)=data(iuse,i)+0.50_r_kind !so we can identify obs with extra relaxed gross qc in diag files  (will show as 1.5)            
+            data(iuse,i)=data(iuse,i)+0.50_r_kind ! So we can identify obs with extra relaxed gross qc
+                                                  ! in diag files  (will show as an extra 0.50 appended)            
         end if  
      endif
 

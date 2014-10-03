@@ -466,8 +466,8 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_comm_world
   use kinds, only: r_kind,i_kind
   use gridmod, only: nsig,twodvar_regional,regional
-  use constants, only: zero, one,one_tenth,r100
-  use obsmod, only: obs_sub_comm
+  use constants, only: zero, one,one_tenth,r100,tiny_r_kind
+  use obsmod, only: obs_sub_comm,bmiss
 
   implicit none
 
@@ -635,7 +635,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   mydata=locsendcnt(submm1)
   allocate(myvals1d(mydata*5),vals(mydata,5),buddyuse(mydata))
   myvals1d=0
-  call mpi_scatterv(vals1dglob,locsendcnt*5,locdisp,mpi_rtype,myvals1d,mydata*5,mpi_rtype,0,obs_sub_comm(is),ierror)
+  call mpi_scatterv(vals1dglob,locsendcnt*5,locdisp*5,mpi_rtype,myvals1d,mydata*5,mpi_rtype,0,obs_sub_comm(is),ierror) !carley bugfix (must scale displ by 5)
 
   ji=0
   do i=1,mydata     
@@ -656,7 +656,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   main: do i=1,mydata
 
     average = zero
-    if (vals(i,5)>= r100 .or. buddyuse(i)==0) then    ! No buddy check is applied to bad data (rusage => 100)       
+    if (vals(i,5)>= r100 .or. buddyuse(i)==0 .or. (abs(vals(i,1)-bmiss)<=tiny_r_kind) )  then    ! No buddy check is applied to bad data (rusage => 100)       
         buddyuse(i)=0                                 ! Do not run buddy check if buddyuse is already 0 - this ob may have luse=.false., be outside the timewindow, etc 
        cycle main
     end if
@@ -672,7 +672,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
     myelev=vals(i,4)
     diff=zero
     inner: do j = 1, numobs_global
-       if (buddyuse_global(j)==0 .or. vals_global(j,5) >= r100 ) cycle inner !do not use buddies who are not eligible
+       if (buddyuse_global(j)==0 .or. vals_global(j,5) >= r100 .or. (abs(vals_global(i,1)-bmiss)<=tiny_r_kind) ) cycle inner !do not use buddies who are not eligible
     
        distance=gc_dist(mylat,mylon,vals_global(j,2),vals_global(j,3))  !units are meters       
        vdist=abs(myelev-vals_global(j,4))                               !units are meters
@@ -776,14 +776,20 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   tmp1d=vals(:,1) !store innovs
   ! receive count and displacement will be identical to prior scatter send count
   call mpi_gatherv(tmp1d,mydata,mpi_rtype,innovsglobal,locsendcnt,locdisp,mpi_rtype,0,obs_sub_comm(is),ierror)
+  !call mpi_allgatherv(tmp1d,mydata,mpi_rtype,locsendcnt,locdisp,innovsglobal,mpi_rtype,obs_sub_comm(is),ierror)
+
+  if (newrank==0) write(6,'(A,2(f10.3,3x))')'gatherv check',maxval(innovsglobal-vals_global(:,1)),minval(innovsglobal-vals_global(:,1))
 
   ! mpi_scatterv back to pe subdomains (pebuddyuse)
   ! use the ircnt and idisp arrays obtained earlier to put arrays on all procs.  They will be the same here
   peinnovs=zero
   dum=-999.
+
+
+
   call mpi_scatterv(innovsglobal,ircnt,idisp,mpi_rtype,peinnovs,numobs,mpi_rtype,0,obs_sub_comm(is),ierror)
   dum=peinnovs-pevals(:,1)  
-  print*,myname,': Max/mins of scatter/gather steps:', maxval(dum),minval(dum),maxval(peinnovs),minval(peinnovs),maxval(pevals(:,1)),minval(pevals(:,1))  
+  write(6,'(2A,I3,A,F15.3,2x F15.3)'),myname,'mype',mype,': Max/mins of scatter/gather steps', maxval(dum),minval(dum) !,maxval(peinnovs),minval(peinnovs),maxval(pevals(:,1)),minval(pevals(:,1))  
 
   deallocate(innovsglobal,peinnovs,tmp1d)
 
