@@ -3,8 +3,8 @@
 set -a
 
 ndate_dir=/usr/local/jcsda/nwprod_gdas_2014/util/exec
-gribmap_dir=/opt/grads/2.0.1-intel-12.1/bin
-gxps_dir=/opt/grads/2.0.1-intel-12.1/bin
-grads_dir=/opt/grads/2.0.1-intel-12.1/bin
-grib2ctl_dir=/data/dxu/gribExtreme/scripts
-gslib_dir=/data/dxu/gribExtreme/scripts/gslib
+gribmap_dir=/opt/grads/2.0.2-precompiled/bin
+gxps_dir=/opt/grads/2.0.2-precompiled/bin
+grads_dir=/opt/grads/2.0.2-precompiled/bin
+grib2ctl_dir=/data/users/dxu/gribExtreme/scripts
+gslib_dir=/data/users/dxu/gribExtreme/scripts/gslib
