@@ -9,7 +9,7 @@ module buddycheck_mod
 ! subroutines included:
 !   sub buddy_check_t          -   routine to call from setupt to perform buddy check on
 !                                   T innovations
-!   sub execute_buddy_check    -   private routine which performs actual buddy check operation
+!   sub execute_buddy_check    -   routine which performs actual buddy check operation
 !                                   (e.g. is called by buddy_check_t)
 !
 ! functions included:
@@ -25,7 +25,7 @@ module buddycheck_mod
   implicit none
 
 ! set default to private
-!  private
+  private
 ! set subroutines to public
   public :: buddy_check_t
   public :: execute_buddy_check
@@ -470,7 +470,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 ! !INPUT PARAMETERS:
   real(r_kind)                                     , intent(in   ) :: pevals(numobs,5)  ! data array containing all observations
   real(r_kind)                                     , intent(in   ) :: range,& ! Radius within which we check for an ob's buddies (units are m)
-                                                                      difmax  ! Max difference allowed relative to buddies
+                                                                      difmax  ! Max difference allowed relative to avg of buddy innovations
   integer(i_kind)                                  , intent(in   ) :: mype    ! mpi task id
   integer(i_kind)                                  , intent(in   ) :: numobs  ! number of observations on this task
   integer(i_kind)                                  , intent(in   ) :: is      ! ndat index
@@ -492,8 +492,8 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 !
 ! !REVISION HISTORY:
 !
-!   2014-09-09  Carley - Originator. Initial version based off setupt.f90.  Methods are
-!                        based on WRFVAR code var/da/da_tools/da_buddy_qc.inc (Yong-Run Guo)
+!   2014-09-09  Carley - Originator. Method is based on WRFVAR code from
+!                         var/da/da_tools/da_buddy_qc.inc (Yong-Run Guo)
 !
 ! !REMARKS:
 !   language: f90/95
@@ -524,7 +524,6 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   real(r_kind) :: pevals1d(numobs*5)
   real(r_kind),allocatable,dimension(:,:) :: vals_global,vals
   real(r_kind),allocatable,dimension(:) :: vals1dglob,myvals1d,diff
-  real(r_kind),allocatable,dimension(:) :: innovsglobal,peinnovs,tmp1d,dum
   character(len=*),parameter :: myname='execute_buddy_check'
   character(8) :: mype_file,my_jiter
 
@@ -539,13 +538,15 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   allocate(idisp(mynpe),ircnt(mynpe),locdisp(mynpe),locsendcnt(mynpe))
   idisp=0;ircnt=0
 
-
-
   if (buddydiag_save) then
+    ! For diagnostic output create a an output ASCII file on each pe to record which
+    !  data pass/fail the buddy check
     write (mype_file, "(I4.4)") mype
     write (my_jiter, "(I4.4)") jiter
-    open(1920+mype,file='buddycheck_'//trim(dtype(is))//'_'//trim(mype_file)//'.'//trim(my_jiter),form='formatted',status='unknown')
-    write(1920+mype,'(A)')'  Lat     Lon       O-F  |O-F-AVG(O-Fs)| #Buddies  Pass?(1:pass,-1:fail,0s not recorded)'      	  
+    open(1920+mype,file='buddycheck_'//trim(dtype(is))//'_'//trim(mype_file)//'.'//trim(my_jiter),form='formatted',&
+       status='unknown')
+    write(1920+mype,'(A)')&
+       '  Lat     Lon       O-F  |O-F-AVG(O-Fs)| #Buddies  Pass?(1:pass,-1:fail,0s not recorded)'      	  
   end if
 
   call mpi_allgather(numobs,1,mpi_itype,ircnt,1,mpi_itype,obs_sub_comm(is),ierror)
@@ -562,15 +563,10 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
         idisp(i)=idisp(i-1)+ircnt(i-1)
      end do
   end if
-!  write(6,1000)myname,'DISPLS:',mype,(idisp(i),i=1,mynpe)
-!  write(6,1000)myname,' IRCNT:',mype,(ircnt(i),i=1,mynpe)
-!1000  format(2A10,1x,I3,1x,8I10,/,(10X,10I10))  
 
   ! Get the total, global number of obs/innovations we need to consider
 
   call mpi_allreduce(numobs,numobs_global,1,mpi_itype,mpi_sum,obs_sub_comm(is),ierror)
-
- !  write(6,'(2A,I3,1x,I10)')myname,'mype,numobs_global',mype,numobs_global
 
   ! Allocate the memory for everything and initialize certain fields to zero
   allocate(vals_global(numobs_global,5),buddyuse_global(numobs_global),vals1dglob(numobs_global*5),diff(numobs_global))
@@ -655,21 +651,23 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   call mpi_scatterv(buddyuse_global,locsendcnt,locdisp,mpi_itype,buddyuse,mydata,mpi_itype,0,obs_sub_comm(is),ierror)
   
 
-
  ! Now - finally - start what we came her for originally, the buddy check!
 
  ! Begin with main loop through all obs on pe subdomain
   main: do i=1,mydata
 
     average = zero
-    if (vals(i,5)>= r100 .or. buddyuse(i)==0 .or. (abs(vals(i,1)-bmiss)<=tiny_r_kind) )  then    ! No buddy check is applied to bad data (rusage => 100)       
-        buddyuse(i)=0   ! Do not run buddy check if buddyuse is already 0 - this ob may have luse=.false., be outside the timewindow, etc 
+    ! No buddy check is applied to bad data (rusage => 100)
+    ! Do not run buddy check if buddyuse is already 0 - this ob may
+    !  have luse=.false., be outside the timewindow, etc       
+    if (vals(i,5)>= r100 .or. buddyuse(i)==0 .or. (abs(vals(i,1)-bmiss)<=tiny_r_kind) )  then  
+        buddyuse(i)=0    
        cycle main
     end if
 
     !  Now find the distance between all pairs of innovations (numobs_global) and get the number
-    !  within our range, find number of observations within a given distance, 
-    !  and store that innovation
+    !   within our range, find number of observations within a given distance, 
+    !   and store that innovation
 
     buddy_num = 0
     myinnov=vals(i,1)
@@ -678,33 +676,36 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
     myelev=vals(i,4)
     diff=zero
     inner: do j = 1, numobs_global
-       if (buddyuse_global(j)==0 .or. vals_global(j,5) >= r100 .or. (abs(vals_global(i,1)-bmiss)<=tiny_r_kind) ) cycle inner !do not use buddies who are not eligible
+
+       ! Do not use buddies who are not eligible
+       if (buddyuse_global(j)==0 .or. vals_global(j,5) >= r100 .or. &
+          (abs(vals_global(i,1)-bmiss)<=tiny_r_kind) ) cycle inner 
     
-       distance=gc_dist(mylat,mylon,vals_global(j,2),vals_global(j,3))  !units are meters       
-       vdist=abs(myelev-vals_global(j,4))                               !units are meters
-       ! distance must be greater than 0.1 so we don't include the test ob in the buddy list
+       ! Calculate horiz. and vertical distance between test innov. and potential buddy
+       distance=gc_dist(mylat,mylon,vals_global(j,2),vals_global(j,3))  !units are meters (calc. via great circle method)      
+       vdist=abs(myelev-vals_global(j,4))                               !units are meters (vertical distance between obs)
+
+       ! Distance must be greater than 0.1 meters so we don't include the test ob in the buddy list
        if (distance <= range .and. distance >= one_tenth .and. vdist <= 200._r_kind) then
-          buddy_num = buddy_num + 1  ! We have found a buddy, so increment the counter
-          ! innovation (O-B) ==> diff:
-          diff(buddy_num)=vals_global(j,1) !save the innovation associated with this buddy
+          buddy_num = buddy_num + 1  ! We have found a buddy, so increment the counter          
+          diff(buddy_num)=vals_global(j,1) ! Save the innovation associated with this buddy
        end if
     end do inner
 
-    !-  initialize buddy_num_final to 0
+    ! Initialize buddy_num_final to 0
     buddy_num_final=0
-    ! Sum all the buddys' innovations 
 
+    ! Sum all the buddy innovations 
     sum = zero    
     do j = 1, buddy_num
        sum = sum + diff(j)
     end do 
 
     !  Check to see if there are any buddies, compute the mean innovation.
-
     if (buddy_num > 0) average = sum / buddy_num
 
- !  Check if there are any bad obs among the obs located within the 
- !  the radius surrounding the test ob.
+    ! Check if there are any bad obs (bad buddy buddies) among the obs located within the 
+    !  the radius surrounding the test ob.
 
     diff_check_1 = difmax*1.25_r_kind
     diff_check_2 = difmax
@@ -714,8 +715,8 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
        do j = 1, buddy_num        
           diff_j = abs(diff(j)-average)
           if ( abs(diff(j)) > diff_check_1 .and. diff_j > diff_check_2 ) then
-             ! Bad obs:                 Innovation itself: diff(numj) > diff_check_1
-             !        The distance between the innovation and average > diff_check_2
+             ! Bad obs:  Innovation itself: diff(numj) > diff_check_1
+             !           The distance between the innovation and average > diff_check_2
              kob = kob - 1
              sum = sum - diff(j)
           end if
@@ -724,10 +725,9 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
        ! Set the final number of buddies here - after we've possibly removed some bad ones
        buddy_num_final = kob
 
-       !  We may have removed too many observations.
-
+       !  We may have removed too many buddies when we were checking for bad buddies.
+       !  Check to see if we still have enough
        if (kob > 2) then
-       !  Information for buddy check for specific obs(num)
           average = sum / kob
           err = myinnov - average
        else
@@ -746,69 +746,41 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
     fact=1.0
     if (buddy_num_final == 2) fact=1.2
 
-!  Now do the final buddy check
+ ! Now do the final buddy check
      if (abs(err) > fact*difmax) then
         buddyuse(i) = -1
         ! Most obs pass so it can be useful to print every buddy check failure to the screen
-        if(buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Fails! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i 
+        if(buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')&
+           myinnov,'Fails! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i 
      else
         buddyuse(i)=1
         ! Most obs pass - so printing every pass to the screen would be overwhelming
-        if(mod(i,100)==0 .and. buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Passes! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i         
+        if(mod(i,100)==0 .and. buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)') &
+           myinnov,'Passes! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i         
      end if
-      if (buddydiag_save) write(1920+mype,'(f6.2,3x,f6.2,3x,f6.2,3x,f6.2,3x,I10,4x,I2)')mylat,mylon,myinnov,err,buddy_num_final,buddyuse(i)         
+      if (buddydiag_save) write(1920+mype,'(f6.2,3x,f6.2,3x,f6.2,3x,f6.2,3x,I10,4x,I2)')&
+           mylat,mylon,myinnov,err,buddy_num_final,buddyuse(i)         
   end do main
 
 
-   if (buddydiag_save) close (1920+mype)
+  if (buddydiag_save) close (1920+mype)
 
-  !MPI comms to put buddyuse back on pebuddyuse
+  ! Begin MPI comms to put buddyuse back on pebuddyuse (AKA the geographic subdomains created in obs_para.f90)
  
-  ! mpi_gatherv
   buddyuse_global=0
-  ! receive count and displacement will be identical to prior scatter send count
-  call mpi_gatherv(buddyuse,mydata,mpi_itype,buddyuse_global,locsendcnt,locdisp,mpi_itype,0,obs_sub_comm(is),ierror)
+  ! Receive count and displacement will be identical to prior scatter send count
+  call mpi_gatherv(buddyuse,mydata,mpi_itype,buddyuse_global,&
+                   locsendcnt,locdisp,mpi_itype,0,obs_sub_comm(is),ierror)
 
   ! mpi_scatterv back to pe subdomains (pebuddyuse)
-  ! use the ircnt and idisp arrays obtained earlier to put arrays on all procs.  They will be the same here
+  ! Use the ircnt and idisp arrays obtained earlier to put arrays on all procs.  They will be the same here.
   pebuddyuse=0
-  call mpi_scatterv(buddyuse_global,ircnt,idisp,mpi_itype,pebuddyuse,numobs,mpi_itype,0,obs_sub_comm(is),ierror)  
-
-
-
-
-
-
- !------DEBUG STUFF------!
-  !let's scatter the innovations back and compare against what they were originally 
-  ! to make sure MPI comms were done correctly.
-
-  ! mpi_gatherv
-  allocate(innovsglobal(numobs_global),peinnovs(numobs),tmp1d(mydata),dum(numobs))
-  innovsglobal=zero
-  tmp1d=vals(:,1) !store innovs
-  ! receive count and displacement will be identical to prior scatter send count
-  call mpi_gatherv(tmp1d,mydata,mpi_rtype,innovsglobal,locsendcnt,locdisp,mpi_rtype,0,obs_sub_comm(is),ierror)
-  if (newrank==0) write(6,'(A,2(f10.3,3x))')'gatherv check',maxval(innovsglobal-vals_global(:,1)),minval(innovsglobal-vals_global(:,1))
-  ! mpi_scatterv back to pe subdomains
-  peinnovs=zero
-  dum=-999.
-  call mpi_scatterv(innovsglobal,ircnt,idisp,mpi_rtype,peinnovs,numobs,mpi_rtype,0,obs_sub_comm(is),ierror)
-  dum=peinnovs-pevals(:,1)  
-  write(6,'(2A,I3,A,F15.3,2x F15.3)'),myname,'mype',mype,': Max/mins of scatter/gather steps', maxval(dum),minval(dum)
-
-  deallocate(innovsglobal,peinnovs,tmp1d,dum)
-
- !------DEBUG STUFF------!
-
-
-
+  call mpi_scatterv(buddyuse_global,ircnt,idisp,mpi_itype,&
+                    pebuddyuse,numobs,mpi_itype,0,obs_sub_comm(is),ierror)  
 
   deallocate(vals_global,buddyuse_global,idisp,ircnt,vals1dglob,&
              locdisp,locsendcnt,myvals1d,vals,buddyuse,diff)
   return
-
- 
 
   end subroutine execute_buddy_check
 
@@ -848,7 +820,8 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   lon2=inlon2*deg2rad
   dLat = lat2 - lat1
   dLon = lon2 - lon1
-  a = sin(dLat / two) * sin(dLat / two) +  cos(lat1) * cos(lat2) * sin(dLon / two) * sin(dLon / two)
+  a = sin(dLat / two) * sin(dLat / two) +  cos(lat1) * cos(lat2) * &
+      sin(dLon / two) * sin(dLon / two)
   c = two * atan2(sqrt(a), sqrt(one - a))
   gc_dist = rearth * c
 

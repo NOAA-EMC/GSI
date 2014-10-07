@@ -287,7 +287,8 @@
 !  02-05-2014 todling   add parameter cwcoveqqcov (cw_cov=q_cov)
 !  02-24-2014 sienkiewicz added aircraft_t_bc_ext for GMAO external aircraft temperature bias correction
 !  06-19-2014 carley/zhu  add factl and R_option for twodvar_regional lcbas/ceiling analysis
-!  08-05-2014 carley    add safeguard so that oneobtest runs if user accidentally sets hilbert_curve=.true.
+!  08-05-2014 carley    add safeguard so that oneobtest disables hilbert_curve if user accidentally sets hilbert_curve=.true.
+!  10-07-2014 carley    added buddy check options under obsqc
 !
 !EOP
 !-------------------------------------------------------------------------
