@@ -96,7 +96,8 @@ module obsmod
 !   2014-03-19  pondeca  - add wspd10m
 !   2014-04-10  pondeca  - add td2m,mxtm,mitm,pmsl
 !   2014-05-07  pondeca  - add howv
-!   2014-06-16 carley/zhu - add tcamt and lcbas
+!   2014-06-16  carley/zhu - add tcamt and lcbas
+!   2014-10-06  carley - add obs_sub_comm
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -1789,6 +1790,7 @@ contains
 ! program history log:
 !   2003-09-25  derber
 !   2004-05-13  treadon, documentation
+!   2014-10-06  carley - add obs_sub_comm
 !
 !   input argument list:
 !
@@ -2473,6 +2475,7 @@ contains
 ! program history log:
 !   2003-09-25  derber
 !   2004-05-13  treadon, documentation
+!   2014-10-06  carley - add obs_sub_comm
 !
 !   input argument list:
 !

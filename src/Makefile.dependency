@@ -25,7 +25,7 @@ bkgvar.o : bkgvar.f90 mpimod.o gsi_bundlemod.o control_vectors.o guess_grids.o g
 bkgvar_rewgt.o : bkgvar_rewgt.f90 general_sub2grid_mod.o general_commvars_mod.o mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o berror.o balmod.o mpimod.o guess_grids.o gridmod.o constants.o kinds.o 
 blacklist.o : blacklist.f90 kinds.o 
 blendmod.o : blendmod.f90 constants.o kinds.o 
-buddycheck_mod.o : buddycheck_mod.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o aircraftinfo.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o gsi_4dvar.o obsmod.o kinds.o
+buddycheck_mod.o : buddycheck_mod.f90 gsi_metguess_mod.o gsi_bundlemod.o m_dtime.o aircraftinfo.o convinfo.o constants.o guess_grids.o jfunc.o gridmod.o gsi_4dvar.o obsmod.o qcmod.o kinds.o
 calc_fov_conical.o : calc_fov_conical.f90 constants.o calc_fov_crosstrk.o kinds.o 
 calc_fov_crosstrk.o : calc_fov_crosstrk.f90 constants.o kinds.o 
 calctends_ad.o : calctends_ad.f90 mpeu_util.o gsi_bundlemod.o gsi_metguess_mod.o guess_grids.o tendsmod.o derivsmod.o constants.o gridmod.o kinds.o 
@@ -217,7 +217,7 @@ obserr_allsky_mw.o : obserr_allsky_mw.f90 constants.o kinds.o
 observer.o : observer.F90 mytrace.H mpeu_util.o mp_compact_diffs_mod1.o compact_diffs.o turblmod.o zrnmi_mod.o strong_fast_global_mod.o mod_vtrans.o mod_strong.o lag_fields.o read_obs.o timermod.o m_berror_stats_reg.o m_berror_stats.o m_gsiBiases.o convinfo.o gsi_4dvar.o satthin.o obsmod.o cloud_efr_mod.o guess_grids.o gridmod.o jfunc.o mpimod.o constants.o kinds.o 
 obs_ferrscale.o : obs_ferrscale.F90 intjo.o obsmod.o bias_predictors.o gsi_4dcouplermod.o gsi_bundlemod.o state_vectors.o mpimod.o gsi_4dvar.o constants.o kinds.o 
 obsmod.o : obsmod.F90 mpeu_util.o gridmod.o mpimod.o constants.o gsi_4dvar.o kinds.o 
-obs_para.o : obs_para.f90 lag_fields.o gridmod.o obsmod.o mpimod.o jfunc.o constants.o kinds.o 
+obs_para.o : obs_para.f90 lag_fields.o gridmod.o obsmod.o qcmod.o mpimod.o jfunc.o constants.o kinds.o 
 obs_sensitivity.o : obs_sensitivity.f90 hybrid_ensemble_parameters.o gsi_4dcouplermod.o mpl_allreduce.o bias_predictors.o gsi_bundlemod.o state_vectors.o control_vectors.o mpimod.o obsmod.o jfunc.o gsi_4dvar.o constants.o kinds.o 
 omegas_ad.o : omegas_ad.f90 constants.o kinds.o 
 oneobmod.o : oneobmod.F90 obsmod.o gsi_io.o constants.o kinds.o 

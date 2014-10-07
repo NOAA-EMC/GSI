@@ -32,6 +32,10 @@ subroutine obs_para(ndata,mype)
 !                              "call dislag(.....,nobs_s(mm1))"
 !                           nobs_s is an array in current subroutine, but is a
 !                           scalar inside subroutine dislag.
+!   2014-10-03  carley  - add creation mpi subcommunicator needed for
+!                          buddy check QC to distinguish among pe subdomains
+!                          with and without obs (only for t obs and twodvar_regional
+!                          at the moment)
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -54,6 +58,7 @@ subroutine obs_para(ndata,mype)
   use obsmod, only: obs_setup,dtype,mype_diaghdr,ndat,nsat1, &
               obsfile_all,dplat,obs_sub_comm
   use gridmod, only: twodvar_regional
+  use qcmod, only: buddycheck_t,buddydiag_save
   implicit none
 
 ! Declare passed variables
@@ -104,12 +109,13 @@ subroutine obs_para(ndata,mype)
 1000       format('OBS_PARA: ',2A10,8I10,/,(10X,10I10))                 
         end if
   
-          
-        if (twodvar_regional .and. dtype(is) == 't') then
-           !Broadcast this obtype's decomposition to all tasks
-           call mpi_bcast(nobs_s,size(nobs_s),mpi_itype,npe-1,mpi_comm_world,ierror) !must bcast from the diag PE, which is npe-1
-           !write(6,'("JRC OBS_PARA: ",2A10,I4,8I10,/,(10X,10I10))')dtype(is),dplat(is),mype,(nobs_s(ii),ii=1,npe)
-           ! Simple logic to organize which tasks do and do not have obs
+        
+        ! Simple logic to organize which tasks do and do not have obs.
+        !  Needed for buddy check QC.  
+        if (twodvar_regional .and. dtype(is) == 't' .and. buddycheck_t) then
+           ! Broadcast this obtype's decomposition to all tasks
+           !  Must bcast from the diag PE, which is npe-1  
+           call mpi_bcast(nobs_s,size(nobs_s),mpi_itype,npe-1,mpi_comm_world,ierror)         
            ikey_yes=0
            ikey_no=0
            ikey=0
@@ -132,9 +138,9 @@ subroutine obs_para(ndata,mype)
            call mpi_comm_split(mpi_comm_world,icolor(mm1),ikey(mm1),obs_sub_comm(is),ierror)  
            CALL MPI_COMM_SIZE(obs_sub_comm(is), newprocs, ierror)
            CALL MPI_COMM_RANK(obs_sub_comm(is), newrank, ierror)
-           write(6,'(A,I3,I10,A,I20,A,I3,A,I3)') 'PARA:JRC mype/myobs=',mype,nobs_s(mm1),'newcomm=',obs_sub_comm(is),'newprocs=',newprocs,'newrank=',newrank
-
-!           
+           if (buddydiag_save) write(6,'(A,I3,I10,A,I20,A,I3,A,I3)') 'obs_para: mype/myobs=',&
+                              mype,nobs_s(mm1),'newcomm=',obs_sub_comm(is),'newprocs=', &
+                              newprocs,'newrank=',newrank           
         end if
      end if
 

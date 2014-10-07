@@ -38,6 +38,7 @@ module qcmod
 !   2013-07-19  zhu     - tighten quality control for amsua surface sensitive channels when emiss_bc=.t.
 !   2013-10-27  todling - add create/destroy
 !   2014-01-09  mccarty - do not apply qc to wv channels for amsub (lower quality than mhs)
+!   2014-10-06  carley  - add logicals for buddy check
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -119,6 +120,8 @@ module qcmod
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc
 
+  public :: buddycheck_t,buddydiag_save
+
   logical nlnqc_iter
   logical noiqc
   logical use_poq7
@@ -127,6 +130,8 @@ module qcmod
   logical newvad
   logical tdrerr_inflate
   logical qc_satwnds
+  logical buddycheck_t
+  logical buddydiag_save
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -243,6 +248,7 @@ contains
 !   2008-09-05  lueken   - merged ed's changes into q1fy09 code
 !   2012-07-19  todling - add qc_satwnds to allow bypass of satwind qc
 !   2013-10-27  todling - move alloc space to create_qcvars
+!   2014-10-06  carley - add logicals for buddy check
 !
 !   input argument list:
 !
@@ -277,6 +283,10 @@ contains
     qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
 
     qc_satwnds=.true. ! default: remove lots of SatWind at mid-tropospheric levels
+
+    buddycheck_t=.false.   ! When true, run buddy check algorithm on temperature observations
+    buddydiag_save=.false. ! When true, output files containing buddy check QC info for all
+                           !  obs run through the buddy check
 
     return
   end subroutine init_qcvars

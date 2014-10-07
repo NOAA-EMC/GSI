@@ -53,7 +53,8 @@
   use turblmod, only: use_pbl,init_turbl
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,tdrgross_fact,use_poq7,qc_satwnds,&
-      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole
+      init_qcvars,vadfile,noiqc,c_varqc,qc_noirjaco3,qc_noirjaco3_pole,&
+      buddycheck_t,buddydiag_save
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,&
      factv,factl,factp,factg,factw10m,facthowv,niter,niter_no_qc,biascor,&
@@ -662,11 +663,15 @@
 !                          is used for predictor
 !     aircraft_t_bc  - logical for aircraft temperature bias correction
 !     aircraft_t_bc_ext - logical for reading aircraft temperature bias correction from external file
+!     buddycheck_t - When true, run buddy check algorithm on temperature observations
+!     buddydiag_save - When true, output files containing buddy check QC info for all
+!                      obs run through the buddy check
 
   namelist/obsqc/ dfact,dfact1,erradar_inflate,tdrerr_inflate,tdrgross_fact,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,&
-       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail
+       aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
+       buddycheck_t,buddydiag_save
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group

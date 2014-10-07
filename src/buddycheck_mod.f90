@@ -153,8 +153,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
-  print*, myname,': JRC Entered with PE',mype
-
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
   if(.not.proceed) return  ! not all vars available, simply return
@@ -314,9 +312,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   ! - Now call buddy check routine
   range = 108000.0_r_kind ! Radius within which we check for an ob's buddies (units are m)
   difmax= 8.0_r_kind      ! Max difference allowed relative to buddies
-
-  print*, myname,': JRC - Calling execute_buddy_check'
-  
+ 
   call execute_buddy_check(mype,is,nobs,vals,range,difmax,buddyuse)
 
 
@@ -462,13 +458,13 @@ end subroutine buddy_check_t
 subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 
 ! !USES:
-
+  use jfunc, only: jiter,last,jiterstart
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_comm_world
   use kinds, only: r_kind,i_kind
   use gridmod, only: nsig,twodvar_regional,regional
   use constants, only: zero, one,one_tenth,r100,tiny_r_kind
-  use obsmod, only: obs_sub_comm,bmiss
-
+  use obsmod, only: obs_sub_comm,bmiss,dtype
+  use qcmod, only: buddydiag_save
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -530,6 +526,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   real(r_kind),allocatable,dimension(:) :: vals1dglob,myvals1d,diff
   real(r_kind),allocatable,dimension(:) :: innovsglobal,peinnovs,tmp1d,dum
   character(len=*),parameter :: myname='execute_buddy_check'
+  character(8) :: mype_file,my_jiter
 
   ! Obtain the number of tasks here by using the communicator setup in obs_para.f90
   ! Note that the only communicator that gets activated here is the one associated with nobs>0
@@ -541,6 +538,15 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   submm1=newrank+1
   allocate(idisp(mynpe),ircnt(mynpe),locdisp(mynpe),locsendcnt(mynpe))
   idisp=0;ircnt=0
+
+
+
+  if (buddydiag_save) then
+    write (mype_file, "(I4.4)") mype
+    write (my_jiter, "(I4.4)") jiter
+    open(1920+mype,file='buddycheck_'//trim(dtype(is))//'_'//trim(mype_file)//'.'//trim(my_jiter),form='formatted',status='unknown')
+    write(1920+mype,'(A)')'  Lat     Lon       O-F  |O-F-AVG(O-Fs)| #Buddies  Pass?(1:pass,-1:fail,0s not recorded)'      	  
+  end if
 
   call mpi_allgather(numobs,1,mpi_itype,ircnt,1,mpi_itype,obs_sub_comm(is),ierror)
 
@@ -617,7 +623,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   end do
   if (rem /= 0 .and. mynpe>1) locsendcnt(mynpe)=locsendcnt(mynpe)+rem
 
-  if (newrank==0) then
+  if (newrank==0 .and. buddydiag_save ) then
      write(6,1000)myname,' obs per pe ob subdomain',(locsendcnt(i),i=1,mynpe)
 1000  format(2A,1x,1x,8I10,/,(10X,10I10))  
   end if
@@ -635,7 +641,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   mydata=locsendcnt(submm1)
   allocate(myvals1d(mydata*5),vals(mydata,5),buddyuse(mydata))
   myvals1d=0
-  call mpi_scatterv(vals1dglob,locsendcnt*5,locdisp*5,mpi_rtype,myvals1d,mydata*5,mpi_rtype,0,obs_sub_comm(is),ierror) !carley bugfix (must scale displ by 5)
+  call mpi_scatterv(vals1dglob,locsendcnt*5,locdisp*5,mpi_rtype,myvals1d,mydata*5,mpi_rtype,0,obs_sub_comm(is),ierror) 
 
   ji=0
   do i=1,mydata     
@@ -657,7 +663,7 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 
     average = zero
     if (vals(i,5)>= r100 .or. buddyuse(i)==0 .or. (abs(vals(i,1)-bmiss)<=tiny_r_kind) )  then    ! No buddy check is applied to bad data (rusage => 100)       
-        buddyuse(i)=0                                 ! Do not run buddy check if buddyuse is already 0 - this ob may have luse=.false., be outside the timewindow, etc 
+        buddyuse(i)=0   ! Do not run buddy check if buddyuse is already 0 - this ob may have luse=.false., be outside the timewindow, etc 
        cycle main
     end if
 
@@ -678,10 +684,6 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
        vdist=abs(myelev-vals_global(j,4))                               !units are meters
        ! distance must be greater than 0.1 so we don't include the test ob in the buddy list
        if (distance <= range .and. distance >= one_tenth .and. vdist <= 200._r_kind) then
-!          if (submm1==mynpe) write(6,'(A,f7.3,1x,f7.3,A,f7.3,1x,f7.3,A,f10.3,A,f7.3)')'MyLatLon ',mylat,mylon,&
-!                                ' BuddyLatlon ',vals_global(j,2),vals_global(j,3),' GCdist (km) ',   &
-!                                distance/1000., ' vdist(m) ',vdist
-
           buddy_num = buddy_num + 1  ! We have found a buddy, so increment the counter
           ! innovation (O-B) ==> diff:
           diff(buddy_num)=vals_global(j,1) !save the innovation associated with this buddy
@@ -747,13 +749,18 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
 !  Now do the final buddy check
      if (abs(err) > fact*difmax) then
         buddyuse(i) = -1
-        if(mod(i,100)==0) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Fails! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i 
+        ! Most obs pass so it can be useful to print every buddy check failure to the screen
+        if(buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Fails! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i 
      else
         buddyuse(i)=1
-        if(mod(i,100)==0) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Passes! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i         
+        ! Most obs pass - so printing every pass to the screen would be overwhelming
+        if(mod(i,100)==0 .and. buddydiag_save) write(6,'(f10.4,A,f10.4,A,I10,A,I10)')myinnov,'Passes! with err = ', err,' having ',buddy_num_final,' buddies. Local ob number: ',i         
      end if
+      if (buddydiag_save) write(1920+mype,'(f6.2,3x,f6.2,3x,f6.2,3x,f6.2,3x,I10,4x,I2)')mylat,mylon,myinnov,err,buddy_num_final,buddyuse(i)         
   end do main
 
+
+   if (buddydiag_save) close (1920+mype)
 
   !MPI comms to put buddyuse back on pebuddyuse
  
@@ -767,8 +774,14 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   pebuddyuse=0
   call mpi_scatterv(buddyuse_global,ircnt,idisp,mpi_itype,pebuddyuse,numobs,mpi_itype,0,obs_sub_comm(is),ierror)  
 
-  !let's scatter the innovations back and compare against what they were originally to make sure MPI comms were done
-  ! correctly
+
+
+
+
+
+ !------DEBUG STUFF------!
+  !let's scatter the innovations back and compare against what they were originally 
+  ! to make sure MPI comms were done correctly.
 
   ! mpi_gatherv
   allocate(innovsglobal(numobs_global),peinnovs(numobs),tmp1d(mydata),dum(numobs))
@@ -776,22 +789,19 @@ subroutine execute_buddy_check(mype,is,numobs,pevals,range,difmax,pebuddyuse)
   tmp1d=vals(:,1) !store innovs
   ! receive count and displacement will be identical to prior scatter send count
   call mpi_gatherv(tmp1d,mydata,mpi_rtype,innovsglobal,locsendcnt,locdisp,mpi_rtype,0,obs_sub_comm(is),ierror)
-  !call mpi_allgatherv(tmp1d,mydata,mpi_rtype,locsendcnt,locdisp,innovsglobal,mpi_rtype,obs_sub_comm(is),ierror)
-
   if (newrank==0) write(6,'(A,2(f10.3,3x))')'gatherv check',maxval(innovsglobal-vals_global(:,1)),minval(innovsglobal-vals_global(:,1))
-
-  ! mpi_scatterv back to pe subdomains (pebuddyuse)
-  ! use the ircnt and idisp arrays obtained earlier to put arrays on all procs.  They will be the same here
+  ! mpi_scatterv back to pe subdomains
   peinnovs=zero
   dum=-999.
-
-
-
   call mpi_scatterv(innovsglobal,ircnt,idisp,mpi_rtype,peinnovs,numobs,mpi_rtype,0,obs_sub_comm(is),ierror)
   dum=peinnovs-pevals(:,1)  
-  write(6,'(2A,I3,A,F15.3,2x F15.3)'),myname,'mype',mype,': Max/mins of scatter/gather steps', maxval(dum),minval(dum) !,maxval(peinnovs),minval(peinnovs),maxval(pevals(:,1)),minval(pevals(:,1))  
+  write(6,'(2A,I3,A,F15.3,2x F15.3)'),myname,'mype',mype,': Max/mins of scatter/gather steps', maxval(dum),minval(dum)
 
-  deallocate(innovsglobal,peinnovs,tmp1d)
+  deallocate(innovsglobal,peinnovs,tmp1d,dum)
+
+ !------DEBUG STUFF------!
+
+
 
 
   deallocate(vals_global,buddyuse_global,idisp,ircnt,vals1dglob,&
