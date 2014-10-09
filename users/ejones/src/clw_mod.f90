@@ -35,12 +35,12 @@ implicit none
 ! set default to private
   private
 ! set routines used externally to public
-  public :: calc_clw, ret_amsua
+  public :: calc_clw, ret_amsua, retrieval_mi ! ej
 
 contains
 
 
- subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,amsr2,atms, &   
+ subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms,amsr2,gmi,&   
           tsavg5,sfc_speed,zasat,clw,tpwc,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -55,6 +55,7 @@ contains
 !   2011-05-20  mccarty - added placeholder for ATMS
 !   2013-01-22  zhu - add adp_anglebc option
 !   2013-07-19  zhu - include negative clw values for amsua or atms when adp_anglebc=.true.
+!   2013-11-25  kim - revisit logic of frozen points
 !
 !  input argument list:
 !     nadir     - scan position
@@ -85,31 +86,33 @@ contains
 !$$$
   use kinds, only: r_kind,i_kind
   use radinfo, only: ang_rad,cbias,air_rad,predx,adp_anglebc
-  use constants, only: zero,one,amsua_clw_d1,amsua_clw_d2,t0c
+  use constants, only: zero,one,amsua_clw_d1,amsua_clw_d2,t0c,r1000
 
   integer(i_kind)                   ,intent(in   ) :: nadir,nchanl
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
   integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
-  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms,amsr2
+  logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms
+  logical                           ,intent(in   ) :: gmi,amsr2        !ej
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
   real(r_kind)                      ,intent(  out) :: clw,tpwc
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
+  integer(i_kind)                                  :: nchanl2            ! ej
 
+  real(r_kind),dimension(7)                        :: tb_obs_amsr2
 
 ! Declare local parameters
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r285=285.0_r_kind
-  real(r_kind),parameter:: r1000=1000.0_r_kind
 
 ! Declare local variables
   real(r_kind) tbcx1,tbcx2
 
+
   if (amsua .or. atms) then
- 
-     ! We want to reject sea ice points that may be frozen.  The sea freezes
-     ! around -1.9C but we set the threshold at 1C to be safe.
-     if(tsavg5>t0c-one .and. tbcx1 <=r284 .and. tbcx2<=r284 .and. &
-            tb_obs(1) > zero .and. tb_obs(2) > zero) then
+
+    ! We want to reject sea ice points that may be frozen.  The sea freezes
+    ! around -1.9C but we set the threshold at 1C to be safe.
+     if(tsavg5>t0c-one .and. tb_obs(1) > zero .and. tb_obs(2) > zero) then 
         if (adp_anglebc) then
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))+predx(1,ich(1))*air_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))+predx(1,ich(2))*air_rad(ich(2))
@@ -117,11 +120,16 @@ contains
            tbcx1=tsim(1)+cbias(nadir,ich(1))*ang_rad(ich(1))
            tbcx2=tsim(2)+cbias(nadir,ich(2))*ang_rad(ich(2))
         end if
-        clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
-            amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
-        ierrret = 0
-     else 
-        clw=r1000
+        if (tbcx1 <=r284 .and. tbcx2<=r284 .and. tb_obs(1) > zero &
+            .and. tb_obs(2) > zero) then 
+             clw=amsua_clw_d1*(tbcx1-tb_obs(1))/(r285-tbcx1)+ &
+                 amsua_clw_d2*(tbcx2-tb_obs(2))/(r285-tbcx2)
+             ierrret = 0
+        else
+             ierrret = 1
+        endif
+     else
+        clw = r1000
         ierrret = 1
      end if
      
@@ -133,6 +141,29 @@ contains
           tpwc,clw,kraintype,ierrret ) 
      clw = max(zero,clw)
 
+  else if (gmi) then           ! ej
+!     nchanl2 = nchanl - 2    ! cha 1&2 for TMI/GMI are not available for SSMI.
+     nchanl2 = 7      ! channels 3 - 9
+     call retrieval_mi(tb_obs(3:9),nchanl2,no85GHz, &
+          tpwc,clw,kraintype,ierrret )
+     clw=max(zero,clw)
+
+  else if (amsr2) then            ! ej
+!     nchanl2 = nchanl - 6    ! cha 1-6 for AMSR2 are not available for SSMI.
+     nchanl2 = 7              ! channels 7-14, excluding ch 10 (23.8 H)
+     tb_obs_amsr2(1) = tb_obs(7)
+     tb_obs_amsr2(2) = tb_obs(8)
+     tb_obs_amsr2(3) = tb_obs(9)
+     tb_obs_amsr2(4) = tb_obs(11)
+     tb_obs_amsr2(5) = tb_obs(12)
+     tb_obs_amsr2(6) = tb_obs(13)
+     tb_obs_amsr2(7) = tb_obs(14)
+
+     call retrieval_mi(tb_obs_amsr2,nchanl2,no85GHz, &
+          tpwc,clw,kraintype,ierrret )
+write(6,*)'***CALC_CLW amsr2 tpwc,clw,kraintype,ierrret=',tpwc,clw,kraintype,ierrret
+     clw=max(zero,clw)
+
   else if (ssmis) then
 
      call ret_ssmis( tb_obs(1),nchanl,tpwc, clw, ierrret)
@@ -142,12 +173,6 @@ contains
 
      call retrieval_amsre(tb_obs(1),zasat,           &
           sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret ) 
-     clw = max(zero,clw)
-
-  else if (amsr2) then
-
-     call retrieval_amsr2(tb_obs(1),zasat,           &
-          sfc_speed,tsavg5,tpwc,clw,kraintype,ierrret )
      clw = max(zero,clw)
 
   endif
@@ -610,7 +635,6 @@ subroutine retrieval_amsre(tb,degre,  &
 
 ! Internal variable
   integer(i_kind) :: nchanl1
-  real(r_kind) :: wind
   real(r_kind) :: rwp,cwp,vr,vc
 !     si85    - scattering index over ocean
   real(r_kind) :: si85
@@ -655,110 +679,6 @@ subroutine retrieval_amsre(tb,degre,  &
 
   return
 end subroutine retrieval_amsre
-
-subroutine retrieval_amsr2(tb,degre,  &
-                        sfc_speed, sst, &
-                        tpwc,clw,kraintype,ierr )
-
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:  retrieval_amsr2         make retrieval from AMSR-E observation
-!
-!   prgmmr: kazumori          org: np23                date: 2005-10-20
-!
-! abstract: This subroutine create retrievals from AMSR-E observation
-!
-! program history log:
-!   2005-10-20  kazumori - create retrieval subroutine for AMSR-E
-!   2005-10-21  kazumori - reformated for GSI
-!   2006-04-26  kazumori - removed extra qc and comment changed
-!   2006-07-27  kazumori - modified bias correction of retrieval
-!                          and clean up the code
-!   2008-04-16  safford  - rm unused uses and vars
-!
-!   input argument list:
-!     tb      - Observed brightness temperature [K]
-!     amsre_low   - logical true if amsre_low is processed
-!     amsre_mid   - logical true if amsre_mid is processed
-!     amsre_hig   - logical true if amsre_hig is processed
-!     sfc_speed   - guess wind speed at 10m
-!     sst   - sea surface temperature[K]
-!
-!   output argument list:
-!     tpwc    - column water vapor over ocean  [kg/m2]
-!     clw     - column water vapor over ocean  [kg/m2]
-!     kraintype - kraintype flag
-!     ierr    - error flag
-!
-!   comments:
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$ end documentation block
-
-  use kinds, only: r_kind, i_kind
-  use constants, only: zero
-
-  implicit none
-
-! Input variable
-  real(r_kind),dimension(12),intent(in   ) :: tb
-  real(r_kind)              ,intent(in   ) :: sfc_speed
-  real(r_kind)              ,intent(in   ) :: sst,degre
-
-! Output variable
-  integer(i_kind)           ,intent(  out) :: kraintype,ierr
-  real(r_kind)              ,intent(  out) :: tpwc,clw
-
-! Internal variable
-  integer(i_kind) :: nchanl1
-  real(r_kind) :: wind
-  real(r_kind) :: rwp,cwp,vr,vc
-!     si85    - scattering index over ocean
-  real(r_kind) :: si85
-
-! Initialize variable
-  nchanl1 = 14   ! Total AMSR-E channel number=12
-  ierr = 0; kraintype=0
-  rwp =zero;cwp=zero;vr=zero;vc=zero
-
-! Gross error check on all channels.  If there are any
-! bad channels, skip this obs.
-
-  if ( any(tb < 50.0_r_kind) .or. any(tb > 400.0_r_kind ) ) then
-     ierr = 1
-     return
-  end if
-
-! Currently rwp and vc computations commented out since not used
-  call RCWPS_Alg(degre,tb,sst,sfc_speed,rwp,cwp,vr,vc)
-
-  tpwc=vr  ! 18.7GHz
-!  tpwc=vc ! 36.5GHz
-  clw=cwp
-  clw = clw - 0.03_r_kind   ! remove bias
-  si85=rwp
-
-!  =======   TPW over ocean (when no rain)  ====================
-
-  if(kraintype==0) then
-     tpwc = max(zero,tpwc)
-
-!  =======   CLW over ocean (when no rain)  ====================
-
-
-!    Ensure clw is non-negative.
-     clw    = max(zero,clw)
-
-!     upper limit of 6.0 kg/m2.
-!     if(clw>6.0_r_kind) clw=zero
-
-  end if  !no rain
-
-  return
-end subroutine retrieval_amsr2
 
 
 subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
@@ -854,8 +774,8 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
 
   integer(i_kind) ich,i,polar_status
   real(r_kind)  angle,frequency,emissivity
-  real(r_kind)  ev(nch),eh(nch)
-  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),th(nch),tvmin(nch),thmin(nch)
+  real(r_kind)  ev(nch)
+  real(r_kind)  tbe(nch*2),tauo(nch),kl(nch),tv(nch),tvmin(nch)
   real(r_kind),save :: freq(nch)
   real(r_kind),save :: kw(nch)
   real(r_kind),save :: ko2_coe(nch,3),kl_coe(nch,3)
@@ -890,7 +810,7 @@ subroutine RCWPS_Alg(theta,tbo,sst,wind,rwp,cwp,vr,vc)
   call TBE_FROM_TBO(tbo,tbe)
 
 ! Adjust TBE to TBA required in the algorithms
-  call TBA_FROM_TBE(tbe,tv,th)
+  call TBA_FROM_TBE(tbe,tv)
 
 ! Calculate KW and KL and tau_o2(taut) and emissivity
   do ich = 1, nch
@@ -1097,7 +1017,7 @@ subroutine TBE_FROM_TBO(tbo,tb)
 
 end subroutine TBE_FROM_TBO
 
-subroutine TBA_FROM_TBE(tbo,tvs,ths)
+subroutine TBA_FROM_TBE(tbo,tvs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  TBA_FROM_TBO
@@ -1116,7 +1036,6 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
 !
 !   output argument list:
 !     tvs(*)  : algorithm-based brightness temperatures at a vertical polarization
-!     ths(*)  : algorithm-based brightness temperatures at a horizontal polarization
 !
 !   comments:
 !
@@ -1135,7 +1054,7 @@ subroutine TBA_FROM_TBE(tbo,tvs,ths)
   real(r_kind),intent(  out) :: tvs(nch)
 ! real(r_kind),intent(  out) :: tvs(nch),ths(nch)
 ! Remove intent(out) for ths since currently not used
-  real(r_kind)               :: ths(nch)
+!  real(r_kind)               :: ths(nch)
 
   real(r_kind) tb(nch*2)
 
@@ -1414,7 +1333,7 @@ subroutine epspp (t1,s,f,ep)
 
 end subroutine epspp
 
-subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
+subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:  ret_amsua 
@@ -1430,6 +1349,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
 !      2010-10-23  kim : Cloud liquid water path retrieval to compare with first guess
 !                        in all sky condition  (using observed tbs instead of o-g tbs)  
 !      2011-05-03  todling - add r_kind to constants
+!      2014-01-31  mkim - add ierrret return flag for cloud qc near seaice edge 
 !
 !  input argument list:
 !     tb_obs    - observed brightness temperatures
@@ -1460,6 +1380,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   real(r_kind),parameter:: r285=285.0_r_kind
   real(r_kind),parameter:: r284=284.0_r_kind
   real(r_kind),parameter:: r1000=1000.0_r_kind
+  integer(i_kind)                   ,intent(  out) :: ierrret
 
 ! Declare local variables 
   real(r_kind) :: d0, d1, d2, c0, c1, c2
@@ -1473,20 +1394,23 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua)
   d2 = -2.265_r_kind
    
 
-  if (tsavg5 <=  t0c-one .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then
-     ! We want to reject sea ice points that may be frozen.  The sea freezes
-     ! around -1.9C but we set the threshold at 1C to be safe.
-     clwp_amsua = r1000
-     tpwc_amsua = r1000
+  if (tsavg5 <=  t0c-one .or. tb_obs(1) < zero .or. tb_obs(2) < zero) then 
+     ! We want to reject sea ice points that may be frozen.  The sea freezes 
+     ! around -1.9C but we set the threshold at 1C to be safe. 
+     clwp_amsua = r1000 
+     tpwc_amsua = r1000 
+     ierrret=1
   else if ( tb_obs(1) > r284 .or. tb_obs(2) > r284 ) then
      ! The expectation is that observations with these values will be rejected
      clwp_amsua = r1000
      tpwc_amsua = r1000
+     ierrret=1
   else
      clwp_amsua= cos(zasat)*(d0 + d1*log(r285-tb_obs(1)) + d2*log(r285-tb_obs(2)))
      tpwc_amsua= cos(zasat)*(c0 + c1*log(r285-tb_obs(1)) + c2*log(r285-tb_obs(2)))
      if(clwp_amsua < zero) clwp_amsua = zero
      if(tpwc_amsua < zero) tpwc_amsua = zero
+     ierrret=0
   end if
    
 end subroutine ret_amsua
