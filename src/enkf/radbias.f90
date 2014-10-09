@@ -92,6 +92,8 @@ real(r_kind) deltapredx1(npred,jpch_rad)
 real(r_double) t1
 integer(i_kind), intent(in) :: niter
 integer(i_kind) ierr
+character(len=72) fmt
+write(fmt, '("(i2,1x,i4,1x,a20,1x,i4,",I0,"(1x,e10.3))")') npred
 ! satellite bias correction update.
 if (nobs_sat > 0) then
   if (nproc == 0) t1 = mpi_wtime() ! do this loop in parallel (a chunk of channels/sensors on each processor).
@@ -114,13 +116,12 @@ if (nobs_sat > 0) then
    if (biasvar < 0.) then
       ! if biasvar set < 0 in namelist, background err variance
       ! is inversely proportional to number of obs (with -biasvar
-      ! as proportionality constant).
-      if (numobspersat(i) > 0) then
+      ! as proportionality constant). Maximum allowed value 0.1.
+      if (numobspersat(i) > int(-biasvar/0.1_r_kind)) then
          biaserrvar = -biasvar/numobspersat(i)
       else
          biaserrvar = 0.1_r_kind
       endif
-      if (biaserrvar > 0.1_r_kind) biaserrvar = 0.1_r_kind
       !if (niter .eq. 2) print *,'biaserrvar:',numobspersat(i),trim(adjustl(nusis(i))),nuchan(i),biaserrvar
    else
       biaserrvar = biasvar ! default is GSI value (0.1).
@@ -183,12 +184,11 @@ if (nobs_sat > 0) then
       deltapredx1(:,i) = 0.5*(deltapredx(:,i) + increment)
    end if
    if (index(nusis(i),'amsua') .gt. 0) then
-       write(6,9101) niter,i,trim(adjustl(nusis(i))),nuchan(i),deltapredx1(1:5,i)
+       write(6,fmt) niter,i,trim(adjustl(nusis(i))),nuchan(i),deltapredx1(:,i)
    end if
    deallocate(biaspredtmp)
    deallocate(obinc)
   enddo
-9101 format(i2,1x,i4,1x,a20,1x,i4,5(1x,e10.3))
   if (nproc == 0)  print *,'time to update bias correction on root',mpi_wtime()-t1,'secs'
   t1 = mpi_wtime()
   call mpi_allreduce(deltapredx1,deltapredx,npred*jpch_rad,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
