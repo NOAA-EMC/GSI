@@ -114,7 +114,7 @@ if (nobs_sat > 0) then
           if (inew_rad(i)) then
              biaserrvar = 10000.0_r_kind
           else
-             if (ostats(i)==zero) then 
+             if (numobspersat(i) == 0) then 
                 ! channel missing, increase to twice previous analysis cycle
                 ! add 10**-6 to prevent vanishly small error variance
                 varA(n,i)=two*varA(n,i)+1.0e-6_r_kind
@@ -218,7 +218,7 @@ if (nobs_sat > 0) then
   if (nproc == 0)  print *,'time to update bias correction on root',mpi_wtime()-t1,'secs'
   t1 = mpi_wtime()
   call mpi_allreduce(deltapredx1,deltapredx,npred*jpch_rad,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
-  if (newpc4pred) then
+  if (niter == numiter .and. newpc4pred) then
      ! distribute updated varA to all processors.
      buffertmp=zero
      do i=i1,i2
