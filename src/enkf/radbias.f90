@@ -218,16 +218,16 @@ if (nobs_sat > 0) then
   if (nproc == 0)  print *,'time to update bias correction on root',mpi_wtime()-t1,'secs'
   t1 = mpi_wtime()
   call mpi_allreduce(deltapredx1,deltapredx,npred*jpch_rad,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
-  ! distribute updated varA to all processors.
-  buffertmp=zero
-  do i=i1,i2
-  do n=1,npred
-    buffertmp(n,i) = varA(n,i)
-  enddo
-  enddo
-  call mpi_allreduce(buffertmp,varA,jpch_rad*npred,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
-  ! update ostats
   if (newpc4pred) then
+     ! distribute updated varA to all processors.
+     buffertmp=zero
+     do i=i1,i2
+     do n=1,npred
+       buffertmp(n,i) = varA(n,i)
+     enddo
+     enddo
+     call mpi_allreduce(buffertmp,varA,jpch_rad*npred,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+     ! update ostats
      do i=1,jpch_rad
         ostats(i) = numobspersat(i)
      enddo
