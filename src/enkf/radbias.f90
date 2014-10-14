@@ -42,12 +42,14 @@ module radbias
 
 use mpisetup
 use kinds, only: r_kind,i_kind,r_double
-use radinfo, only: npred,predx,nusis,nuchan,jpch_rad,adp_anglebc
+use radinfo, only: &
+npred,predx,nusis,nuchan,jpch_rad,adp_anglebc,varA,ostats,inew_rad,newpc4pred
 use enkf_obsmod, only:  ensmean_ob, ensmean_obnobc, biaspreds, nobs_conv, nobs_oz,&
                         nobs_sat,  indxsat , deltapredx, oberrvarmean, numobspersat, &
                         obfit_post, oberrvar
-use params, only : biasvar
+use params, only : biasvar, numiter
 use loadbal, only: nobs_max
+use constants, only: zero,two,r10
 implicit none
 
 private
@@ -86,6 +88,7 @@ subroutine update_biascorr(niter)
 integer(i_kind) i,m,i1,i2,nn,n
 real(r_kind) increment(npred),biaserrvar,a(npred,npred),atmp(npred,npred)
 real(r_kind) inctmp(npred)
+real(r_kind) buffertmp(npred,jpch_rad)
 real(r_kind), allocatable, dimension(:,:) :: biaspredtmp
 real(r_kind), allocatable, dimension(:) :: obinc
 real(r_kind) deltapredx1(npred,jpch_rad)
@@ -102,29 +105,45 @@ if (nobs_sat > 0) then
   if (nproc == numproc-1) i2 = jpch_rad
   deltapredx1=0._r_kind
   do i=i1,i2
-   if (oberrvarmean(i) > 1.e10 .or. numobspersat(i) == 0) cycle
    allocate( biaspredtmp(npred,numobspersat(i)) )
    allocate( obinc(numobspersat(i)) )
-   ! Dee 2004 "Variational bias correction of radiance data in the ECMWF
-   ! system" in ECMWF Workshop on Assimilation of high spectral resolution
-   ! sounders in NWP
-   ! (http://www.ecmwf.int/publications/library/do/references/list/17444)
-   ! error variance equal to ob error variance divided by N.
-   ! N = 5000 in ECMWF operations (Dee, personal communication).
-   ! gsi uses a variance of 0.1 K**2 (in berror.f90)
-   !biaserrvar = oberrvarmean(i)/biasvar ! ec uses 5000._r_kind
-   if (biasvar < 0.) then
-      ! if biasvar set < 0 in namelist, background err variance
-      ! is inversely proportional to number of obs (with -biasvar
-      ! as proportionality constant). Maximum allowed value 0.1.
-      if (numobspersat(i) > int(-biasvar/0.1_r_kind)) then
-         biaserrvar = -biasvar/numobspersat(i)
-      else
-         biaserrvar = 0.1_r_kind
-      endif
-      !if (niter .eq. 2) print *,'biaserrvar:',numobspersat(i),trim(adjustl(nusis(i))),nuchan(i),biaserrvar
+   if (newpc4pred) then
+       ! set variances for bias predictor coeff. based on diagonal info
+       ! of previous analysis error variance. This code copied from berror.f90.
+       do n=1,npred
+          if (inew_rad(i)) then
+             biaserrvar = 10000.0_r_kind
+          else
+             if (ostats(i)==zero) then 
+                ! channel missing, increase to twice previous analysis cycle
+                ! add 10**-6 to prevent vanishly small error variance
+                varA(n,i)=two*varA(n,i)+1.0e-6_r_kind
+                biaserrvar=varA(n,i)
+             else
+                biaserrvar=1.1_r_kind*varA(n,i)+1.0e-6_r_kind
+             end if
+             if (biaserrvar > r10) biaserrvar = r10
+             if (varA(n,i)>10000.0_r_kind) varA(n,i)=10000.0_r_kind
+          endif
+       end do
    else
-      biaserrvar = biasvar ! default is GSI value (0.1).
+       if (biasvar < 0.) then
+          ! if biasvar set < 0 in namelist, background err variance
+          ! is inversely proportional to number of obs (with -biasvar
+          ! as proportionality constant). Maximum allowed value 0.1.
+          if (numobspersat(i) > int(-biasvar/0.1_r_kind)) then
+             biaserrvar = -biasvar/numobspersat(i)
+          else
+             biaserrvar = 0.1_r_kind
+          endif
+          !if (niter .eq. 2) print *,'biaserrvar:',numobspersat(i),trim(adjustl(nusis(i))),nuchan(i),biaserrvar
+       else
+          biaserrvar = biasvar ! single constant value
+       endif
+   endif
+   if (oberrvarmean(i) > 1.e10 .or. numobspersat(i) == 0) then
+      deallocate(biaspredtmp,obinc)
+      cycle
    endif
    ! compute B**-1 + p * R**-1 * pT
    a = 0._r_kind
@@ -149,6 +168,13 @@ if (nobs_sat > 0) then
    a = a + atmp
    ! compute inverse of symmetric matrix a = B**-1 + p * R**-1 * pT.
    call symminv(a,npred)
+   ! a now contains analysis error covariance matrix (inverse of Hessian).
+   ! update bias predictor variance info (varA) assuming a is diagonal.
+   if (niter == numiter .and. newpc4pred) then
+       do n=1,npred
+          varA(n,i) = a(n,n)
+       enddo
+   endif
    ! p * R**-1
    do n=1,npred 
       nn = 0
@@ -192,6 +218,20 @@ if (nobs_sat > 0) then
   if (nproc == 0)  print *,'time to update bias correction on root',mpi_wtime()-t1,'secs'
   t1 = mpi_wtime()
   call mpi_allreduce(deltapredx1,deltapredx,npred*jpch_rad,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+  ! distribute updated varA to all processors.
+  buffertmp=zero
+  do i=i1,i2
+  do n=1,npred
+    buffertmp(n,i) = varA(n,i)
+  enddo
+  enddo
+  call mpi_allreduce(buffertmp,varA,jpch_rad*npred,mpi_realkind,mpi_sum,mpi_comm_world,ierr)
+  ! update ostats
+  if (newpc4pred) then
+     do i=1,jpch_rad
+        ostats(i) = numobspersat(i)
+     enddo
+  endif
   if (nproc == 0) print *,'time in update_biascorr mpi_allreduce on root = ',mpi_wtime()-t1
 endif ! nobs_sat > 0
 
