@@ -627,7 +627,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
             qcgross=three*qcgross                    ! Terrain aware modification
                                                      ! to gross error check
             if (buddycheck_t .and.buddyuse(i)==1) then
-               qcgross=2*qcgross                     ! Relax even more for terrain in cases where 
+               qcgross=two*qcgross                  ! Relax even more for terrain in cases where 
                data(iuse,i)=data(iuse,i)+0.50_r_kind ! buddy check passes.  Label usage so we can identify obs  
                                                      ! with extra relaxed gross qc in diag files 
             end if                                   ! (will show as an extra 0.75 appended)
