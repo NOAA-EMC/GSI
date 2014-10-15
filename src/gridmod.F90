@@ -79,6 +79,11 @@ module gridmod
 !                       - move vars ltosj/i to commvars and corresponding load routines
 !   2012-12-04 s.liu    - added use_reflectivity flag
 !   2014-03-12  Hu     - Code for GSI analysis on Mass grid larger than background mass grid   
+!   08-18-2014 tong      add jcap_gfs, nlon_gfs, nlat_gfs for regional analysis,
+!                        when running with use_gfs_ozone = .true. or use_gfs_stratosphere = .true.,
+!                        to allow spectral to grid transformation to a lower resolution grid
+!                      
+!                        
 !
 !
 ! !AUTHOR: 
@@ -137,6 +142,7 @@ module gridmod
   public :: jtstart,jtstop,nthreads
   public :: use_gfs_nemsio
   public :: use_reflectivity
+  public :: jcap_gfs,nlat_gfs,nlon_gfs
   public :: use_sp_eqspace
 
   interface strip
@@ -291,6 +297,7 @@ module gridmod
   integer(i_kind) nlon_regional,nlat_regional
   real(r_kind) regional_fhr
   integer(i_kind) regional_time(6)
+  integer(i_kind) jcap_gfs,nlat_gfs,nlon_gfs
 
 ! The following is for the generalized transform
   real(r_kind) pihalf,sign_pole,rlambda0
@@ -444,6 +451,10 @@ contains
     use_gfs_nemsio = .false.
 
     use_sp_eqspace = .false.
+
+    jcap_gfs=1534
+    nlat_gfs=1538
+    nlon_gfs=3072
 
     return
   end subroutine init_grid
