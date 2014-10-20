@@ -206,7 +206,7 @@ subroutine init_rf_z(z_len)
 !
 !$$$
 
-  use gridmod, only: nsig,ak5,bk5,aeta1_ll,aeta2_ll,pt_ll,pdtop_ll,twodvar_regional, &
+  use gridmod, only: nsig,ak5,bk5,eta1_ll,eta2_ll,pt_ll,pdtop_ll,twodvar_regional, &
                      wrf_nmm_regional,nems_nmmb_regional,wrf_mass_regional,cmaq_regional, &
                      regional
   use constants, only: half,one,rd_over_cp,zero,one_tenth,ten,two
@@ -256,12 +256,12 @@ subroutine init_rf_z(z_len)
               do k=1,nsig+1
                  if (wrf_nmm_regional.or.nems_nmmb_regional.or.cmaq_regional) then
    	            p_interface(k)= one_tenth* &
-                          (aeta1_ll(k)*pdtop_ll + &
-                           aeta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
+                          (eta1_ll(k)*pdtop_ll + &
+                           eta2_ll(k)*(ten*ps_bar(ii,jj,1)-pdtop_ll-pt_ll) + &
                            pt_ll)
                  endif
                  if (wrf_mass_regional .or. twodvar_regional) then
-		    p_interface(k)=one_tenth*(aeta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
+		    p_interface(k)=one_tenth*(eta1_ll(k)*(ten*ps_bar(ii,jj,1)-pt_ll)+pt_ll)
                  endif
 	         ln_p_int(k)=log(max(p_interface(k),0.0001_r_kind))
               end do
