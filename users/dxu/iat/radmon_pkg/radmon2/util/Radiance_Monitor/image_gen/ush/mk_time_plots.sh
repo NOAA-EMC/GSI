@@ -79,7 +79,7 @@ fi
       fi
       ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
  
-      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+      if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" ]]; then
          sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
          mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
       fi
@@ -123,6 +123,10 @@ fi
       $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W 0:45 -J ${jobname} $SCRIPTS/plot_summary.sh
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:30:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/plot_summary.sh
+   elif [[ $MY_MACHINE = "badger" ]]; then
+      $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $SCRIPTS/plot_summary.sh 
+   elif [[ $MY_MACHINE = "cardinal" ]]; then
+      $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $SCRIPTS/plot_summary.sh
    fi
 
 #-------------------------------------------------------------------
@@ -175,6 +179,45 @@ fi
 
       $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
       
+   elif [[ $MY_MACHINE = "badger" ]]; then	
+      for sat in ${SATLIST}; do
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
+         jobname=plot_${SUFFIX}_tm_${sat}
+         logfile=${LOGDIR}/plot_time_${sat}
+
+         rm -f ${cmdfile}
+         rm -f ${logfile}
+
+         echo "$SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
+
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="1:30:00"
+         else
+            wall_tm="0:40:00"
+         fi
+
+         $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $cmdfile
+      done
+   elif [[ $MY_MACHINE = "cardinal" ]]; then	
+      for sat in ${SATLIST}; do
+         cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
+         jobname=plot_${SUFFIX}_tm_${sat}
+         logfile=${LOGDIR}/plot_time_${sat}
+
+         rm -f ${cmdfile}
+         rm -f ${logfile}
+
+         echo "#!/bin/bash " >> $cmdfile
+         echo "$SCRIPTS/plot_time.sh $sat $sat '$list'" >> $cmdfile
+
+         if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+            wall_tm="1:30:00"
+         else
+            wall_tm="0:40:00"
+         fi
+
+         $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $cmdfile
+      done
    else							# zeus/linux
       for sat in ${SATLIST}; do
          cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
@@ -230,6 +273,43 @@ fi
 
          $SUB -q $JOB_QUEUE -P $PROJECT -M 80  -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ${cmdfile}
 
+      elif [[ $MY_MACHINE = "badger" ]]; then	
+         for var in $list; do
+            cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
+            jobname=plot_${SUFFIX}_tm_${sat}_${var}
+            logfile=${LOGDIR}/plot_time_${sat}_${var}.log
+            rm -f ${logfile}
+            rm -f ${cmdfile}
+
+            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+               wall_tm="2:00:00"
+            else
+               wall_tm="1:00:00"
+            fi
+
+            echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
+
+            $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $cmdfile 
+         done
+      elif [[ $MY_MACHINE = "cardinal" ]]; then	
+         for var in $list; do
+            cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}
+            jobname=plot_${SUFFIX}_tm_${sat}_${var}
+            logfile=${LOGDIR}/plot_time_${sat}_${var}.log
+            rm -f ${logfile}
+            rm -f ${cmdfile}
+
+            if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+               wall_tm="2:00:00"
+            else
+               wall_tm="1:00:00"
+            fi
+
+            echo "#!/bin/bash " >> $cmdfile
+            echo "$SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
+
+            $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $cmdfile
+         done
       else						# zeus/linux
          for var in $list; do
             cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}_${var}

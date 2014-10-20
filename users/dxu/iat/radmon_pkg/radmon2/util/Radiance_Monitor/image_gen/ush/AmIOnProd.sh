@@ -9,7 +9,12 @@
 #          0 = dev 
 #
    machine=`hostname | cut -c1`
-   prod=`cat /etc/prod | cut -c1`
+   # prod=`cat /etc/prod | cut -c1`
+   if [[ $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" ]]; then 
+      prod=0
+   else 
+      prod=`cat /etc/prod | cut -c1`
+   fi
    iamprod=0
    
    if [[ $machine = $prod ]]; then

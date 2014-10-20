@@ -123,6 +123,10 @@ if [[ $RUN_ENVIR = dev ]]; then
       total=`bjobs -l | grep ${jobname} | wc -l`
    elif [[ $MY_MACHINE = "zeus" ]]; then
       total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
+   elif [[ $MY_MACHINE = "badger" ]]; then
+      total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
+   elif [[ $MY_MACHINE = "cardinal" ]]; then
+      total=`qstat -u ${LOGNAME} | grep ${jobname} | wc -l`
    fi
 
    if [[ $total -gt 0 ]]; then
@@ -247,6 +251,10 @@ if [[ -e ${radstat} ]]; then
 
    elif [[ $MY_MACHINE = "zeus" ]]; then
       $SUB -A $ACCOUNT -l procs=1,walltime=0:10:00 -N ${jobname} -V -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   elif [[ $MY_MACHINE = "badger" ]]; then
+      $SUB -pe smp 48 -N ${jobname} -V $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
+   elif [[ $MY_MACHINE = "cardinal" ]]; then
+      $SUB -J ${jobname} -s -o $LOGDIR/data_extract.${PDY}.${CYC}.log -e $LOGDIR/error_file.${PDY}.${CYC}.log $HOMEgfs/jobs/JGDAS_VRFYRAD.sms.prod
    fi
   
 fi

@@ -119,7 +119,7 @@ fi
 
 for sat in ${SATYPE}; do
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${sat}.ctl
    fi
@@ -169,6 +169,34 @@ if [[ $MY_MACHINE = "wcoss" ]]; then
 
    $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 0:45 -J ${jobname} $cmdfile
 
+elif [[ $MY_MACHINE = "badger" ]]; then
+   for sat in ${SATLIST}; do
+      jobname=horiz_${sat}
+      cmdfile="./cmdfile_horiz_${SUFFIX}_${sat}"
+      logfile=${LOGDIR}/horiz_${sat}.log
+
+      rm -f ${cmdfile}
+      rm -f ${logfile}
+
+      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+
+      $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $cmdfile 
+   done
+elif [[ $MY_MACHINE = "cardinal" ]]; then
+   for sat in ${SATLIST}; do
+      jobname=horiz_${sat}
+      cmdfile="./cmdfile_horiz_${SUFFIX}_${sat}"
+      logfile=${LOGDIR}/horiz_${sat}.log
+
+      rm -f ${cmdfile}
+      rm -f ${logfile}
+
+      echo "#!/bin/bash " >> $cmdfile
+      echo "$SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
+
+      $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $cmdfile
+
+   done
 else							# zeus/linux
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
@@ -205,6 +233,10 @@ for sat in ${bigSATLIST}; do
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+   elif [[ $MY_MACHINE = "badger" ]]; then
+      $SUB -pe smp 1 -N ${jobname} -V -o $LOGDIR/horiz_${PID}.log $cmdfile 
+   elif [[ $MY_MACHINE = "cardinal" ]]; then
+      $SUB -J ${jobname} -s -o $LOGDIR/horiz_${PID}.log -e $LOGDIR/horiz_${PID}.log $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi
@@ -224,6 +256,10 @@ for sat in ${bigSATLIST}; do
    
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} -W 2:45 -J ${jobname} $cmdfile
+   elif [[ $MY_MACHINE = "badger" ]]; then
+      $SUB -pe smp 1 -N ${jobname} -V -o $LOGDIR/horiz_${PID}.log $cmdfile 
+   elif [[ $MY_MACHINE = "cardinal" ]]; then
+      $SUB -J ${jobname} -s -o $LOGDIR/horiz_${PID}.log -e $LOGDIR/horiz_${PID}.log $cmdfile
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} -V -j oe -o $LOGDIR/horiz_${PID}.log $cmdfile
    fi

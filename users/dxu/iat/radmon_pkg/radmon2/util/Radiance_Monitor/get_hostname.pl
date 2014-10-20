@@ -51,6 +51,12 @@
       if( $host =~ /fe/ ) { 
          $machine = "zeus";
       } 
+      elsif( $host =~ /bad/ ){
+         $machine = "badger";
+      }
+      elsif( $host =~ /card/ ){
+         $machine = "cardinal";
+      }
       elsif( $host =~ /t/ || $host =~ /g/ ){	# wcoss nodes are tXXaY and gXXaY
          $machine = "wcoss";
       }
@@ -59,4 +65,4 @@
    print "$machine";
 
    exit 0;
-
+  

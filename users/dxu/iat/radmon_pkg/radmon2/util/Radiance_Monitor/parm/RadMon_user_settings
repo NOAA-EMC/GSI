@@ -10,19 +10,19 @@
 #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
 #  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-ada}
+export ACCOUNT=
 
 #
 #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
 #  empty on other platforms.
 #
-export PROJECT=${PROJECT:-GDAS-T20}
+export PROJECT=
 
 #
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev}
+export JOB_QUEUE=
 
 #
 #  RAD_AREA is either glb (global) or rgn (regional)
@@ -36,7 +36,8 @@ export RAD_AREA=${RAD_AREA:-glb}
 #    need to be set to the directory of the radstat files (we only extract 
 #    horizontal data when it's needed rather than storing huge files all the time).
 #
-export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/com/gfs/prod}
+#export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/data/users/dxu/radmon_workspace/data/input/input_for_test}
+export RADSTAT_LOCATION=${RADSTAT_LOCATION:-/data/users/dxu/radmon_workspace/data/input/radmon_input_for_kevin}
 
 #
 #  USE_ANL switches on/off data extraction for analysis files (ges is always on)
@@ -65,7 +66,7 @@ export ARCHIVE_DIR=${ARCHIVE_DIR:-/sss/emc/da/save/Edward.Safford/nbns/stats}
 #
 #  HPSS_DIR is the location for archived data on the hpss.  It will only
 #    be used if DO_ARCHIVE is set to on (1).
-export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/wx20es/nbns/stats}
+export HPSS_DIR=${HPSS_DIR:-/NCEPDEV/hpssuser/g01/dxu/nbns/stats}
 
 #
 #  STATIC_SATYPE switches on/off use of static satype list.  This is primarily

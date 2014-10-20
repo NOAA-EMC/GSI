@@ -91,7 +91,7 @@ fi
 
 
 export PLOT=1
-export PLOT_HORIZ=0
+export PLOT_HORIZ=1
 
 
 #--------------------------------------------------------------------
@@ -105,6 +105,8 @@ export PLOT_HORIZ=0
 
 if [[ $MY_MACHINE = "wcoss" ]]; then
    running=`bjobs -l | grep plot_${SUFFIX} | wc -l` 
+elif [[ $MY_MACHINE = "bagder" ]]; then
+   running=0
 else
    running=`showq -n -u ${LOGNAME} | grep plot_${SUFFIX} | wc -l`
 fi
@@ -250,6 +252,9 @@ else
    fi
 fi
 
+# Add this statement for badger.  
+export SATYPE
+
 #------------------------------------------------------------------
 #   Start image plotting jobs.
 #------------------------------------------------------------------
@@ -267,6 +272,10 @@ if [[ ${PLOT_HORIZ} -eq 1 ]] ; then
 
    if [[ $MY_MACHINE = "wcoss" ]]; then
       $SUB -P $PROJECT -q $JOB_QUEUE -o ${logfile} -M 80 -W 0:45 -R affinity[core] -J ${jobname} ${SCRIPTS}/mk_horiz_plots.sh
+   elif [[ $MY_MACHINE = "badger" ]]; then
+      $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $SCRIPTS/mk_horiz_plots.sh 
+   elif [[ $MY_MACHINE = "cardinal" ]]; then
+      $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $SCRIPTS/mk_horiz_plots.sh
    else
       $SUB -A $ACCOUNT -l procs=1,walltime=0:20:00 -N ${jobname} -V -j oe -o ${logfile} $SCRIPTS/mk_horiz_plots.sh
    fi

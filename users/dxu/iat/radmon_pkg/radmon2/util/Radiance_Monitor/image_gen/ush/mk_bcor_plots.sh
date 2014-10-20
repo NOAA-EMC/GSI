@@ -99,7 +99,7 @@ for type in ${SATYPE}; do
    fi
    ${SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" ]]; then
+   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "zeus" || $MY_MACHINE = "badger" || $MY_MACHINE = "cardinal" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${imgndir}/${type}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${imgndir}/${type}.ctl
    fi
@@ -161,6 +161,47 @@ ${COMPRESS} ${imgndir}/*.ctl
 
      $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
 
+  elif [[ $MY_MACHINE = "badger" ]]; then	
+     for sat in ${SATLIST}; do
+        suffix=${sat}
+        cmdfile=cmdfile_pbcor_${sat}
+        jobname=plot_${SUFFIX}_bcor_${sat}
+        logfile=${LOGDIR}/plot_bcor_${sat}.log
+
+        rm -f $cmdfile
+        rm -f $logfile
+
+        echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
+
+        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+           wall_tm="1:30:00"
+        else
+           wall_tm="0:25:00"
+        fi
+
+        $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $cmdfile 
+     done
+  elif [[ $MY_MACHINE = "cardinal" ]]; then	
+     for sat in ${SATLIST}; do
+        suffix=${sat}
+        cmdfile=cmdfile_pbcor_${sat}
+        jobname=plot_${SUFFIX}_bcor_${sat}
+        logfile=${LOGDIR}/plot_bcor_${sat}.log
+
+        rm -f $cmdfile
+        rm -f $logfile
+
+        echo "#!/bin/bash " >> $cmdfile
+        echo "$SCRIPTS/plot_bcor.sh $sat $suffix '$plot_list'" >> $cmdfile
+
+        if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+           wall_tm="1:30:00"
+        else
+           wall_tm="0:25:00"
+        fi
+
+        $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $cmdfile
+     done
   else					#Zeus/linux
      for sat in ${SATLIST}; do
         suffix=${sat}
@@ -217,6 +258,47 @@ ${COMPRESS} ${imgndir}/*.ctl
 
         $SUB -q $JOB_QUEUE -P $PROJECT -M 80 -R affinity[core] -o ${logfile} -W ${wall_tm} -J ${jobname} ./$cmdfile
         
+     elif [[ $MY_MACHINE = "badger" ]]; then
+        for var in $plot_list; do
+           cmdfile=cmdfile_pbcor_${suffix}_${var}
+           jobname=plot_${SUFFIX}_bcor_${suffix}_${var}
+           logfile=${LOGDIR}/plot_bcor_${suffix}_${var}.log
+
+           rm -f ${cmdfile}
+           rm -f ${logfile}
+
+           echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+
+           if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+              wall_tm="4:00:00"
+           else
+              wall_tm="2:00:00"
+           fi
+
+           $SUB -pe smp 1 -N ${jobname} -V -o ${logfile} $cmdfile 
+
+        done
+     elif [[ $MY_MACHINE = "cardinal" ]]; then
+        for var in $plot_list; do
+           cmdfile=cmdfile_pbcor_${suffix}_${var}
+           jobname=plot_${SUFFIX}_bcor_${suffix}_${var}
+           logfile=${LOGDIR}/plot_bcor_${suffix}_${var}.log
+
+           rm -f ${cmdfile}
+           rm -f ${logfile}
+
+           echo "#!/bin/bash " >> $cmdfile
+           echo "$SCRIPTS/plot_bcor.sh $sat $var $var" >> $cmdfile
+
+           if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+              wall_tm="4:00:00"
+           else
+              wall_tm="2:00:00"
+           fi
+
+           $SUB -J ${jobname} -s -o ${logfile} -e ${logfile} $cmdfile
+
+        done
      else					# zeus/linux
         for var in $plot_list; do
            cmdfile=cmdfile_pbcor_${suffix}_${var}

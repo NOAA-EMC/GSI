@@ -16,7 +16,7 @@
    my $machine = `/usr/bin/perl get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss" ) {
+   if( $machine ne "ccs" && $machine ne "zeus" && $machine ne "wcoss"  && $machine ne "cardinal"&& $machine ne "badger") {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -62,8 +62,14 @@
    if( $mahine eq "zeus" ) {
       $tankdir = "/scratch2/portfolios/NCEPDEV/global/save/$user_name/nbns";
    } 
+   elsif( $mahine eq "badger" ) {
+      $tankdir = "/data/dxu/radmon_workspace/data/output/radmon_tank";
+   }
+   elsif( $mahine eq "cardinal" ) {
+      $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
+   }
    else {
-      $tankdir = "/global/save/$user_name/nbns";
+      $tankdir = "/data/users/dxu/radmon_workspace/data/output/radmon_tank";
    }
 
    print "Please specify TANKDIR location for storage of data and image files.\n";
@@ -150,6 +156,14 @@
    if( $machine eq "zeus" ) {
       $my_ptmp="export PTMP=/scratch2/portfolios/NCEPDEV/ptmp";
       $my_stmp="export STMP=/scratch2/portfolios/NCEPDEV/stmp";
+   } 
+   if( $machine eq "badger" ) {
+      $my_ptmp="export PTMP=/data/dxu/radmon_workspace/log";
+      $my_stmp="export STMP=/data/dxu/radmon_workspace/run";
+   } 
+   if( $machine eq "cardinal" ) {
+      $my_ptmp="export PTMP=/data/users/dxu/radmon_workspace/log";
+      $my_stmp="export STMP=/data/users/dxu/radmon_workspace/run";
    } 
 
    print "my_ptmp = $my_ptmp\n";

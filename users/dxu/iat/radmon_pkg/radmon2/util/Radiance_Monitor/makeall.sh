@@ -20,7 +20,7 @@ top_level=`pwd`
 machine=`./get_hostname.pl`
 echo "machine = $machine"
 
-if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" ]]; then
+if [[ ${machine} = "ccs" || ${machine} = "zeus" || ${machine} = "wcoss" || ${machine} = "cardinal" || ${machine} = "badger" ]]; then
    echo Building executables on ${machine}
    echo
 

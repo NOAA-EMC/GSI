@@ -9,7 +9,8 @@
 #          0 = dev 
 #
    machine=`hostname | cut -c1`
-   prod=`cat /etc/prod | cut -c1`
+   #orig prod=`cat /etc/prod | cut -c1`
+   prod='p'
    iamprod=0
    
    if [[ $machine = $prod ]]; then

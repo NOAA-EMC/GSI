@@ -143,7 +143,7 @@ if [[ -s ${radstat} ]]; then
    export DATA=$STMP/$LOGNAME/radmon
    export jlogfile=$STMP/$LOGNAME/jlogfile
    export TANKverf=${TANKDIR}
-   export LOGDIR=$PTMP/$LOGNAME/logs/radopr
+   export LOGDIR=$PTMP/logs/radopr
 
    export VERBOSE=YES
    export satype_file=${TANKverf}/info/SATYPE.txt
