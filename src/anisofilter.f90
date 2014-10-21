@@ -342,7 +342,7 @@ subroutine anprewgt_reg(mype)
   real(r_single),allocatable,dimension(:,:):: region_dx4,region_dy4,psg4
   real(r_single) thisvis0f
 
-  character(len=10):: chvarname
+  character(len=12):: chvarname
   character(len= 4):: clun
 
 !---
@@ -1034,7 +1034,7 @@ subroutine fact_qopt2(factk,rh,kvar)
 end subroutine fact_qopt2
 !=======================================================================
 !=======================================================================
-  character*10 function fvarname(ivar)
+  character*12 function fvarname(ivar)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fvarname
@@ -4294,7 +4294,7 @@ subroutine get2berr_reg_subdomain_option(mype)
   real(r_single),allocatable,dimension(:,:)::bckgvar4,bckgvar4a,zsmooth4,zsmooth4a,hwllp_lcbas4,hwllp_lcbas4a
   real(r_single),allocatable,dimension(:,:)::region_dx4,region_dy4,psg4,psg4a
   real(r_single),allocatable,dimension(:,:,:):: fltvals0,fltvals
-  character(10) chvarname
+  character(12) chvarname
   character(8) cvar
 
   integer(i_kind):: ids,ide,jds,jde,kds,kde,ips,ipe,jps,jpe,kps,kpe
