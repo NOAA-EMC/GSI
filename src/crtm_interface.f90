@@ -1556,7 +1556,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                                     
      if (lwind) then
        surface(1)%wind_speed           = sfc_speed
-       surface(1)%wind_direction       = rad2deg*atan2(u,v) + 180._r_kind
+       surface(1)%wind_direction       = rad2deg*atan2(uu5,vv5) + 180._r_kind
      else !RTodling: not sure the following option makes any sense
        surface(1)%wind_speed           = zero
        surface(1)%wind_direction       = zero
