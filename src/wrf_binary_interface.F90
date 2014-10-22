@@ -1792,6 +1792,7 @@ subroutine convert_nems_nmmb(update_pint,ctph0,stph0,tlm0)
           maxval(field2b),minval(field2b)
      write(lendian_out)field2b     !  SNO
      deallocate(field2,field2b,field2c,recname,reclevtyp,reclev,glat,glon,dx,dy)
+     deallocate(glata,glona,dxa,dya)
   
      call nemsio_close(gfile,iret=iret)
      write(6,*)' close nemsio file, iret=',iret
