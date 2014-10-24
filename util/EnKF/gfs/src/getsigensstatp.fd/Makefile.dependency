@@ -1,0 +1,1 @@
+getsigensmean_smooth_ncep.o : getsigenstatp.f90
