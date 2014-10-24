@@ -316,7 +316,7 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
      nchar=1
      nreal=19
      if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) &
-          nreal=nreal+npredt+1
+          nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
@@ -854,8 +854,9 @@ subroutine setupt(lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
         rdiagbuf(19,ii) = tob-tges           ! obs-ges w/o bias correction (K) (future slot)
         if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
            rdiagbuf(20,ii) = data(ipof,i)       ! data pof
+           rdiagbuf(21,ii) = data(ivvlc,i)      ! data vertical velocity
            do j=1,npredt
-              rdiagbuf(20+j,ii) = predbias(j)
+              rdiagbuf(21+j,ii) = predbias(j)
            end do
         end if
         idia=idia0
