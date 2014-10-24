@@ -3,7 +3,7 @@
 ! $Revision$
 ! $Author$
 ! $Id$
-! $URL$
+! $Url$
 !<------------------------------------------------------------------>
 program getsigensstatp
 !$$$  main program documentation block
