@@ -27,24 +27,22 @@ program getsigensstatp
 !$$$
   
   use sigio_module
-  use specmod
   use kinds, only: r_kind
+  use specmod, only: init_spec_vars,gaulats,sptez_s,sptezv_s
   implicit none
   
   character(len=3) charnanal
   character(len=500) filenamein,filenameout,datapath,fileprefix
   integer iret,nlevs,ntrac,ntrunc,nanals,k,iunit,nlats,nlons
-  integer nsize2,nsize3
+  integer nspec,nsize2,nsize3
   integer mype,mype1,npe,orig_group, new_group, new_comm
   integer,dimension(:),allocatable:: new_group_members
   real :: rnanals, rnanalsm1
   type(sigio_head) :: sigheadi
   type(sigio_data) :: sigdatai
-  real, dimension(:),allocatable ::slats,swts
   real :: fha(5)
   integer :: idat(8), jdat(8)
   character(len=10) :: cdat(8)
-  real(r_kind),dimension(:),allocatable:: tmpspec,divspec,vrtspec
   real(r_kind),dimension(:,:),allocatable::  psgi,psgs
   real(r_kind),dimension(:,:,:),allocatable:: ugi,ugs,vgi,vgs,tgi,tgs,qgi,qgs
   real(r_kind),dimension(:,:,:),allocatable::ozgi,ozgs,cwgi,cwgs
@@ -58,7 +56,7 @@ program getsigensstatp
   call MPI_Comm_size(MPI_COMM_WORLD,npe,iret)
   mype1=mype+1
 
-  if (mype==0) call w3tagb('GETSIGENSSTATP',2014,1025,0055,'NP25')
+  if (mype == 0) call w3tagb('GETSIGENSSTATP',2014,1025,0055,'NP25')
 
 ! Get user input from command line
   call getarg(1,datapath)
@@ -70,7 +68,7 @@ program getsigensstatp
   rnanalsm1=nanals-1.0_8
   rnanalsm1=1.0_8/rnanalsm1
 
-  if (mype==0) then
+  if (mype == 0) then
      write(6,*)' '
      write(6,*)'Command line input'
      write(6,*)' datapath      = ',trim(datapath)
@@ -115,15 +113,16 @@ program getsigensstatp
      call sigio_srohdc(iunit,trim(filenamein),sigheadi,sigdatai,iret)
      write(6,*)'Read ',trim(filenamein),' iret=',iret
      
-     ntrunc  = sigheadi%jcap
-     ntrac   = sigheadi%ntrac
-     nlats   = sigheadi%latf
-     nlons   = sigheadi%lonf
-     nlevs   = sigheadi%levs
-     nsize2  = nlons*nlats
-     nsize3  = nsize2*nlevs
+     ntrunc = sigheadi%jcap
+     ntrac  = sigheadi%ntrac
+     nlats  = sigheadi%latf
+     nlons  = sigheadi%lonf
+     nlevs  = sigheadi%levs
+     nsize2 = nlons*nlats
+     nsize3 = nsize2*nlevs
+     nspec  = (ntrunc+1)*(ntrunc+2)
 
-     if (mype==0) then
+     if (mype ==0 ) then
         write(6,*)'Read header information from ',trim(filenamein)
         write(6,*)' ntrunc = ',ntrunc
         write(6,*)' ntrac  = ',ntrac
@@ -132,11 +131,12 @@ program getsigensstatp
         write(6,*)' nlevs  = ',nlevs
         write(6,*)' nsize2 = ',nsize2
         write(6,*)' nsize3 = ',nsize3
+        write(6,*)' nspec  = ',nspec
      endif
 
      call init_spec_vars(nlons,nlats,ntrunc,4)
 
-     if (mype==0) then
+     if (mype == 0) then
         fha(:)=0.
         idat(:)=0
         jdat(:)=0
@@ -148,10 +148,6 @@ program getsigensstatp
         idat(5)=sigheadi%idate(1) ! hour
         call w3movdat(fha,idat,jdat)
         call w3pradat(jdat,cdat)
-
-        allocate(slats(nlats))
-        allocate(swts(nlats))
-        call splat(4,nlats,slats,swts)
      endif
 
      allocate(psgi(nlons,nlats))
@@ -171,24 +167,14 @@ program getsigensstatp
      allocate(cwgs(nlons,nlats,nlevs))
 
      ! convert spectral coeff's into grid-point values
-     allocate(tmpspec((ntrunc+1)*(ntrunc+2)))
-     allocate(divspec((ntrunc+1)*(ntrunc+2)))
-     allocate(vrtspec((ntrunc+1)*(ntrunc+2)))
-     tmpspec = sigdatai%ps
-     call sptez_s(tmpspec,psgi,1)
+     call sptez_s(sigdatai%ps,psgi,1)
      do k = 1,nlevs
-        divspec = sigdatai%d(:,k) ; vrtspec = sigdatai%z(:,k)
-        call sptezv_s(divspec,vrtspec,ugi(:,:,k),vgi(:,:,k),1)
-        tmpspec = sigdatai%t(:,k)
-        call sptez_s(tmpspec,   tgi(:,:,k),1)
-        tmpspec = sigdatai%q(:,k,1)
-        call sptez_s(tmpspec, qgi(:,:,k),1)
-        tmpspec = sigdatai%q(:,k,2)
-        call sptez_s(tmpspec,ozgi(:,:,k),1)
-        tmpspec = sigdatai%q(:,k,3)
-        call sptez_s(tmpspec,cwgi(:,:,k),1)
+        call sptezv_s(sigdatai%d(:,k),sigdatai%z(:,k),ugi(:,:,k),vgi(:,:,k),1)
+        call sptez_s(sigdatai%t(:,k),   tgi(:,:,k),1)
+        call sptez_s(sigdatai%q(:,k,1), qgi(:,:,k),1)
+        call sptez_s(sigdatai%q(:,k,2),ozgi(:,:,k),1)
+        call sptez_s(sigdatai%q(:,k,3),cwgi(:,:,k),1)
      enddo
-     deallocate(tmpspec,divspec,vrtspec)
      call sigio_axdata(sigdatai,iret)
      call sigio_sclose(iunit,iret)
 
@@ -210,7 +196,7 @@ program getsigensstatp
      ozgs = ozgs * rnanals
      cwgs = cwgs * rnanals
 
-     if (mype==0) call write_to_disk('mean')
+     if (mype == 0) call write_to_disk('mean')
 
 !    Compute ensemble perturbation squared on all tasks
      psgi = (psgi - psgs) * (psgi - psgs)
@@ -239,7 +225,7 @@ program getsigensstatp
      ozgs = sqrt(ozgs * rnanalsm1)
      cwgs = sqrt(cwgs * rnanalsm1)
 
-     if (mype==0) call write_to_disk('spread')
+     if (mype == 0) call write_to_disk('spread')
 
 ! Jump here if more mpi processors than files to process
   else
@@ -249,7 +235,6 @@ program getsigensstatp
   call mpi_barrier(mpi_comm_world,iret)
 
   if (mype1 <= nanals) then
-     if (mype==0) deallocate(slats,swts)
 
      deallocate(psgi,psgs)
      deallocate( ugi, ugs)
@@ -261,7 +246,7 @@ program getsigensstatp
 
   endif
 
-  if (mype==0) call w3tage('GETSIGENSSTATP')
+  if (mype == 0) call w3tage('GETSIGENSSTATP')
   
  deallocate(new_group_members)
  
@@ -298,7 +283,7 @@ program getsigensstatp
    write(lunit,'("TITLE ensemble",1x,a)') trim(adjustl(statstr))
    write(lunit,'("XDEF",i6," LINEAR",2f12.6)') nlons,0.0,360.0/nlons
    write(lunit,'("YDEF",i6," LEVELS")') nlats
-   write(lunit,'(5f12.6)') 180.0/acos(-1.0)*asin(dble(slats(nlats:1:-1)))
+   write(lunit,'(5f12.6)') 180.0/acos(-1.0)*asin(dble(gaulats(nlats:1:-1)))
    write(lunit,'("ZDEF",i6," LINEAR 1 1")') nlevs
    write(lunit,'("TDEF",i6," LINEAR ",i2.2,"Z",i2.2,a3,i4.4,1x,i6,"hr")')&
    1,jdat(5),jdat(3),cdat(2)(1:3),jdat(1),12

@@ -186,7 +186,7 @@ clean:
 # Source files
 # ------------
 
-  SRCSF90C = getsigensstatp.f90
+  SRCSF90C = kinds.F90 specmod.f90 getsigensstatp.f90
 
   SRCSF77 =
 
@@ -203,8 +203,6 @@ clean:
   SRCSF90	= ${SRCSF90C:.F90=.f90}
 
   OBJS 		= ${SRCSF90:.f90=.o} ${SRCSF77:.f=.o} ${SRCSC:.c=.o}
-
-  DEP_OBJS = ../../../../../src/kinds.o ../../../../../src/enkf/specmod.o
 
 # -----------------------
 # Default compiling rules
@@ -241,8 +239,8 @@ include $(MAKE_DEPEND)
 
 # ----
 
-$(EXE_FILE) :  $(OBJS) $(DEP_OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(DEP_OBJS) $(LIBS)
+$(EXE_FILE) :  $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 
 # ------------------------

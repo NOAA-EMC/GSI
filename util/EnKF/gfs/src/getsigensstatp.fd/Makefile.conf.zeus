@@ -26,14 +26,14 @@ INCsigio = $(COREINC)/sigio_4
   PROF= #-pg
   OMP = -openmp
 
-  FFLAGS_F90    =
+  FFLAGS_F90    = -D_REAL4_
 
-  FFLAGS_COM_N  = -I ./ -I ./../../../../../src/ -I ./../../../../../src/enkf \
+  FFLAGS_COM_N  = -I ./ \
         -I $(INCsfcio) -I $(INCsigio) \
 		-O3 -warn all -implicitnone -traceback -g -fp-model strict $(OMP) \
 		-convert big_endian -assume byterecl
 
-  FFLAGS_COM_N_NOSWAP  = -I ./ -I ./../../../../../src/ -I ./../../../../../src/enkf \
+  FFLAGS_COM_N_NOSWAP  = -I ./ \
         -I $(INCsfcio) -I $(INCsigio) \
 		-O3 -warn all -implicitnone -traceback -g -fp-model strict $(OMP) \
 		-convert big_endian -assume byterecl
@@ -45,11 +45,11 @@ INCsigio = $(COREINC)/sigio_4
 
 
 #--- Debug mode options
-  FFLAGS_COM_D  =  -I ./ -I ./../../../../../src/ -I ./../../../../../src/enkf \
+  FFLAGS_COM_D  =  -I ./  \
         -I $(INCsfcio) -I $(INCsigio) \
 		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict \
 		-convert big_endian -assume byterecl
-  FFLAGS_COM_NOSWAP_D  =  -I ./ -I ./../../../../../src/ -I ./../../../../../src/enkf \
+  FFLAGS_COM_NOSWAP_D  =  -I ./ \
         -I $(INCsfcio) -I $(INCsigio) \
 		-O0 -xHOST -warn all -implicitnone -traceback -g -debug full -fp-model strict \
 		-convert big_endian -assume byterecl
@@ -67,11 +67,11 @@ INCsigio = $(COREINC)/sigio_4
 
 #--- Normal mode options
 
-  CFLAGS_N      = -DLINUX -Dfunder -I ./ -I ./../../../../../src/ -I ./../../../../../src/enkf -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
 
 #--- Debug mode options
 
-  CFLAGS_D      = -DLINUX -Dfunder -I ./ -I ./../../../../../src/ -I ./../../../../../src/enkf -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
+  CFLAGS_D      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
 
 
 # ------------------
